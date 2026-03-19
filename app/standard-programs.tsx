@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { EliteCard } from '@/components/elite-card';
-import { STANDARD_PROGRAMS } from '@/constants/standard-programs';
+import { STANDARD_PROGRAMS, STANDARD_ROUTINES } from '@/constants/standard-programs';
 import { Colors, Spacing } from '@/constants/theme';
 
 /**
@@ -33,16 +33,18 @@ export default function StandardProgramsScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Programas predefinidos */}
-        {STANDARD_PROGRAMS.map(program => (
+        {STANDARD_PROGRAMS.map(program => {
+          const routine = STANDARD_ROUTINES[program.routineId];
+          return (
           <EliteCard
             key={program.id}
             title={program.name}
-            subtitle={`${program.description} · ${formatDuration(program.routine.totalDuration)}`}
+            subtitle={`${program.description} · ${formatDuration(routine.totalDuration)}`}
             onPress={() =>
               router.push({
                 pathname: '/active-timer',
                 params: {
-                  routine: JSON.stringify(program.routine),
+                  routineId: program.routineId,
                   programName: program.name,
                 },
               })
@@ -52,7 +54,8 @@ export default function StandardProgramsScreen() {
               <Ionicons name="play-circle" size={36} color={Colors.neonGreen} />
             }
           />
-        ))}
+          );
+        })}
 
         {/* Opción personalizada */}
         <EliteCard
