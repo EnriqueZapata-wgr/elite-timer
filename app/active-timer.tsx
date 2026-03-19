@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,32 +9,41 @@ import { Controls } from '@/components/controls';
 import { BlockIndicator } from '@/components/block-indicator';
 import { NextBlockPreview } from '@/components/next-block-preview';
 import { EliteText } from '@/components/elite-text';
+import { EliteButton } from '@/components/elite-button';
 import { useBlockTimer } from '@/hooks/use-block-timer';
+import { usePrograms } from '@/contexts/programs-context';
 import { useSessions } from '@/contexts/sessions-context';
+import { STANDARD_ROUTINES } from '@/constants/standard-programs';
 import { generateId, type Routine, type Session } from '@/types/models';
-import { Colors, BlockColors, BlockTypeLabels, FontSizes, Fonts, Spacing } from '@/constants/theme';
+import { Colors, BlockColors, BlockTypeLabels, FontSizes, Spacing } from '@/constants/theme';
+
+/** Rutina fallback cuando no se puede resolver */
+const FALLBACK_ROUTINE: Routine = {
+  id: 'empty', name: 'Sin rutina', blocks: [], totalDuration: 0, rounds: 1,
+};
 
 /**
  * Pantalla Timer Activo — Timer multi-bloque con progreso visual.
  *
- * Recibe una rutina via params (JSON) y ejecuta bloque por bloque:
- * - Círculo animado con color según tipo de bloque
- * - Indicador de bloques (dots)
- * - Preview del siguiente bloque
- * - Controles: Start/Pause/Skip/Reset
- * - Al terminar → Resumen de Sesión
+ * Recibe rutina por ID (routineId) o por JSON (routine).
+ * Busca primero en el context del usuario, luego en programas estándar.
  */
 export default function ActiveTimerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ routine: string; programName?: string }>();
+  const params = useLocalSearchParams<{
+    routineId?: string;
+    routine?: string;
+    programName?: string;
+  }>();
+  const { getRoutineById } = usePrograms();
   const { addSession } = useSessions();
 
-  // Parsear la rutina desde los params
-  const routine: Routine = params.routine
-    ? JSON.parse(params.routine)
-    : { id: 'empty', name: 'Sin rutina', blocks: [], totalDuration: 0, rounds: 1 };
-
+  // Resolver la rutina: por ID (preferido) o por JSON (legacy/estándar)
+  const routine = resolveRoutine(params.routineId, params.routine, getRoutineById);
   const programName = params.programName ?? 'Programa';
+
+  // Ref para evitar doble-navegación al terminar
+  const navigatedRef = useRef(false);
 
   const {
     status,
@@ -57,11 +67,14 @@ export default function ActiveTimerScreen() {
   const blockLabel = currentBlock ? BlockTypeLabels[currentBlock.type] : '';
 
   // Cuando el timer termina, guardar sesión y navegar al resumen
-  if (status === 'finished' && completedBlocks.length > 0) {
+  if (status === 'finished' && completedBlocks.length > 0 && !navigatedRef.current) {
+    navigatedRef.current = true;
+
     const session: Session = {
       id: generateId(),
+      routineId: routine.id,
+      routineSnapshot: routine,
       programName,
-      routineName: routine.name,
       completedBlocks,
       totalPlannedTime: routine.totalDuration,
       totalActualTime: elapsedTotal,
@@ -69,7 +82,6 @@ export default function ActiveTimerScreen() {
       roundsCompleted: totalRounds,
     };
 
-    // Guardar sesión y navegar
     setTimeout(() => {
       addSession(session);
       router.replace({
@@ -77,6 +89,19 @@ export default function ActiveTimerScreen() {
         params: { session: JSON.stringify(session) },
       });
     }, 500);
+  }
+
+  // Sin bloques — mostrar error
+  if (routine.blocks.length === 0) {
+    return (
+      <SafeAreaView style={[styles.screen, { justifyContent: 'center' }]}>
+        <EliteText variant="title">SIN BLOQUES</EliteText>
+        <EliteText variant="body" style={{ color: Colors.textSecondary, marginTop: 8 }}>
+          Esta rutina no tiene bloques configurados.
+        </EliteText>
+        <EliteButton label="VOLVER" onPress={() => router.back()} style={{ marginTop: 24 }} />
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -130,6 +155,37 @@ export default function ActiveTimerScreen() {
       />
     </SafeAreaView>
   );
+}
+
+/**
+ * Resuelve la rutina desde los params de navegación.
+ * Prioridad: routineId (context → estándar) > routine JSON > fallback
+ */
+function resolveRoutine(
+  routineId: string | undefined,
+  routineJson: string | undefined,
+  getRoutineById: (id: string) => Routine | undefined,
+): Routine {
+  // 1. Buscar por ID en el context del usuario
+  if (routineId) {
+    const fromContext = getRoutineById(routineId);
+    if (fromContext) return fromContext;
+
+    // 2. Buscar en rutinas estándar
+    const fromStandard = STANDARD_ROUTINES[routineId];
+    if (fromStandard) return fromStandard;
+  }
+
+  // 3. Parsear JSON (legacy o params directos)
+  if (routineJson) {
+    try {
+      return JSON.parse(routineJson) as Routine;
+    } catch {
+      // JSON malformado — usar fallback
+    }
+  }
+
+  return FALLBACK_ROUTINE;
 }
 
 const styles = StyleSheet.create({
