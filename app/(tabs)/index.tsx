@@ -59,7 +59,7 @@ export default function DashboardScreen() {
           icon="timer-outline"
           title="Programas Estándar"
           description="Tabata, HIIT y más"
-          onPress={() => router.push('/timer')}
+          onPress={() => router.push('/standard-programs')}
           style={styles.card}
         />
       </View>

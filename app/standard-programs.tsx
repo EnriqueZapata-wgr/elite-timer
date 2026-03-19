@@ -1,12 +1,86 @@
+import { ScrollView, View, StyleSheet, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
+import { EliteCard } from '@/components/elite-card';
+import { STANDARD_PROGRAMS } from '@/constants/standard-programs';
+import { Colors, Spacing } from '@/constants/theme';
 
-/** Placeholder — Se construirá en el commit de Programas Estándar */
+/**
+ * Pantalla Programas Estándar — Lista de programas predefinidos.
+ * Tabata, HIIT, Quick timers y opción personalizada.
+ * Tap en un programa → navega al Timer Activo con esa rutina.
+ */
 export default function StandardProgramsScreen() {
+  const router = useRouter();
+
+  /** Formatea segundos a "Xm" o "Xs" */
+  const formatDuration = (seconds: number): string => {
+    if (seconds >= 60) return `${Math.floor(seconds / 60)}min`;
+    return `${seconds}s`;
+  };
+
   return (
-    <ScreenContainer>
-      <EliteText variant="title">PROGRAMAS ESTÁNDAR</EliteText>
-      <EliteText variant="body" style={{ marginTop: 16 }}>Próximamente...</EliteText>
+    <ScreenContainer centered={false}>
+      {/* Encabezado */}
+      <View style={styles.header}>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
+        </Pressable>
+        <EliteText variant="title">PROGRAMAS ESTÁNDAR</EliteText>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Programas predefinidos */}
+        {STANDARD_PROGRAMS.map(program => (
+          <EliteCard
+            key={program.id}
+            title={program.name}
+            subtitle={`${program.description} · ${formatDuration(program.routine.totalDuration)}`}
+            onPress={() =>
+              router.push({
+                pathname: '/active-timer',
+                params: {
+                  routine: JSON.stringify(program.routine),
+                  programName: program.name,
+                },
+              })
+            }
+            style={styles.card}
+            rightContent={
+              <Ionicons name="play-circle" size={36} color={Colors.neonGreen} />
+            }
+          />
+        ))}
+
+        {/* Opción personalizada */}
+        <EliteCard
+          title="Personalizado"
+          subtitle="Crea tu propia rutina desde cero"
+          onPress={() => router.push('/create-routine')}
+          style={styles.card}
+          rightContent={
+            <Ionicons name="add-circle" size={36} color={Colors.neonGreen} />
+          }
+        />
+      </ScrollView>
     </ScreenContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  backButton: {
+    padding: Spacing.xs,
+  },
+  card: {
+    marginBottom: Spacing.sm,
+  },
+});
