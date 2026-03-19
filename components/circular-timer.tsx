@@ -9,6 +9,7 @@ const HALF_SIZE = SIZE / 2;    // Mitad — usado para centrar y rotar
 interface CircularTimerProps {
   timeLeft: number;    // Segundos restantes (para mostrar el texto)
   progress: number;    // De 0 a 1 (viene del hook useTimer)
+  color?: string;      // Color del anillo (default: neonGreen)
 }
 
 /**
@@ -23,7 +24,8 @@ interface CircularTimerProps {
  *
  * Esto crea la ilusión de un arco que se consume en sentido horario.
  */
-export function CircularTimer({ timeLeft, progress }: CircularTimerProps) {
+export function CircularTimer({ timeLeft, progress, color }: CircularTimerProps) {
+  const ringColor = color ?? Colors.neonGreen;
 
   // Convertimos progress (0-1) en rotaciones para cada mitad.
   // La mitad derecha cubre el progreso de 1.0 a 0.5
@@ -57,7 +59,7 @@ export function CircularTimer({ timeLeft, progress }: CircularTimerProps) {
         <View
           style={[
             styles.rightHalf,
-            { transform: [{ rotate: `${rightRotation}deg` }] },
+            { borderColor: ringColor, transform: [{ rotate: `${rightRotation}deg` }] },
           ]}
         />
       </View>
@@ -67,7 +69,7 @@ export function CircularTimer({ timeLeft, progress }: CircularTimerProps) {
         <View
           style={[
             styles.leftHalf,
-            { transform: [{ rotate: `${leftRotation}deg` }] },
+            { borderColor: ringColor, transform: [{ rotate: `${leftRotation}deg` }] },
           ]}
         />
       </View>
@@ -120,7 +122,7 @@ const styles = StyleSheet.create({
     height: SIZE,
     borderRadius: HALF_SIZE,
     borderWidth: STROKE_WIDTH,
-    borderColor: Colors.neonGreen,
+    borderColor: undefined, // Se aplica dinámicamente
     position: 'absolute',
     right: 0,
     // Rota desde el centro-izquierdo del semicírculo (= centro del anillo completo)
@@ -142,7 +144,7 @@ const styles = StyleSheet.create({
     height: SIZE,
     borderRadius: HALF_SIZE,
     borderWidth: STROKE_WIDTH,
-    borderColor: Colors.neonGreen,
+    borderColor: undefined, // Se aplica dinámicamente
     position: 'absolute',
     left: 0,
     transformOrigin: `${HALF_SIZE}px ${HALF_SIZE}px`,

@@ -9,6 +9,8 @@ interface ControlsProps {
   onStart: () => void;
   onPause: () => void;
   onReset: () => void;
+  /** Callback para saltar al siguiente bloque (opcional, timer multi-bloque) */
+  onSkip?: () => void;
 }
 
 /**
@@ -17,7 +19,7 @@ interface ControlsProps {
  * Muestra un botón principal (Start/Pause/Resume) que cambia según el estado,
  * y un botón secundario de Reset que solo aparece cuando tiene sentido.
  */
-export function Controls({ status, onStart, onPause, onReset }: ControlsProps) {
+export function Controls({ status, onStart, onPause, onReset, onSkip }: ControlsProps) {
 
   // Determinamos qué texto y acción tiene el botón principal según el estado.
   // En 'finished' no hay acción principal — solo reset.
@@ -41,6 +43,19 @@ export function Controls({ status, onStart, onPause, onReset }: ControlsProps) {
           ]}
         >
           <Text style={styles.primaryText}>{primaryAction.label}</Text>
+        </Pressable>
+      )}
+
+      {/* Botón saltar — solo cuando hay onSkip y el timer está activo */}
+      {onSkip && (status === 'running' || status === 'paused') && (
+        <Pressable
+          onPress={onSkip}
+          style={({ pressed }) => [
+            styles.resetButton,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.resetText}>SALTAR &gt;&gt;</Text>
         </Pressable>
       )}
 
