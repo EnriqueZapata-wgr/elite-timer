@@ -10,20 +10,35 @@ import { usePrograms } from '@/contexts/programs-context';
 import { Colors, Spacing } from '@/constants/theme';
 
 /**
- * Pantalla Mis Programas — Lista de programas creados por el usuario.
- * Muestra EmptyState si no hay programas, o una lista con cards.
- * Cada programa muestra nombre, descripción y cantidad de rutinas.
+ * Pantalla Mis Programas — Lista de programas y rutinas del usuario.
+ *
+ * Cada programa muestra sus rutinas con botón Play para ejecutarlas.
+ * Las rutinas sin programa aparecen en una sección "Rutinas Sueltas".
  */
 export default function ProgramsScreen() {
   const router = useRouter();
-  const { programs, deleteProgram } = usePrograms();
+  const { programs, routines, getRoutinesForProgram, deleteProgram, deleteRoutine } = usePrograms();
 
-  // Solo programas del usuario (no estándar)
+  // Programas del usuario (no estándar)
   const userPrograms = programs.filter(p => !p.isStandard);
+
+  // Rutinas que no pertenecen a ningún programa
+  const assignedIds = new Set(userPrograms.flatMap(p => p.routineIds));
+  const looseRoutines = routines.filter(r => !assignedIds.has(r.id));
+
+  const hasContent = userPrograms.length > 0 || looseRoutines.length > 0;
+
+  /** Navegar al timer activo con una rutina */
+  const playRoutine = (routineId: string, programName: string) => {
+    router.push({
+      pathname: '/active-timer',
+      params: { routineId, programName },
+    });
+  };
 
   return (
     <ScreenContainer centered={false}>
-      {/* Encabezado con botón de regreso */}
+      {/* Encabezado */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
@@ -31,8 +46,7 @@ export default function ProgramsScreen() {
         <EliteText variant="title">MIS PROGRAMAS</EliteText>
       </View>
 
-      {userPrograms.length === 0 ? (
-        // Estado vacío — sin programas aún
+      {!hasContent ? (
         <EmptyState
           icon="albums-outline"
           message="No tienes programas aún. Crea uno para organizar tus rutinas."
@@ -40,29 +54,89 @@ export default function ProgramsScreen() {
           onAction={() => router.push('/create-program')}
         />
       ) : (
-        // Lista de programas
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-          {userPrograms.map(program => (
-            <EliteCard
-              key={program.id}
-              title={program.name}
-              subtitle={`${program.description} · ${program.routines.length} rutina(s)`}
-              onPress={() =>
-                router.push({
-                  pathname: '/create-routine',
-                  params: { programId: program.id },
-                })
-              }
-              style={styles.card}
-              rightContent={
-                <Pressable onPress={() => deleteProgram(program.id)}>
-                  <Ionicons name="trash-outline" size={22} color={Colors.textSecondary} />
-                </Pressable>
-              }
-            />
-          ))}
+          {/* Programas del usuario con sus rutinas */}
+          {userPrograms.map(program => {
+            const programRoutines = getRoutinesForProgram(program.id);
+            return (
+              <View key={program.id} style={styles.programSection}>
+                {/* Header del programa */}
+                <View style={styles.programHeader}>
+                  <View style={styles.programInfo}>
+                    <EliteText variant="subtitle">{program.name}</EliteText>
+                    <EliteText variant="caption">{program.description}</EliteText>
+                  </View>
+                  <Pressable onPress={() => deleteProgram(program.id)}>
+                    <Ionicons name="trash-outline" size={20} color={Colors.textSecondary} />
+                  </Pressable>
+                </View>
 
-          {/* Botón para crear otro programa */}
+                {/* Rutinas del programa */}
+                {programRoutines.length === 0 ? (
+                  <EliteText variant="caption" style={styles.emptyRoutines}>
+                    Sin rutinas aún
+                  </EliteText>
+                ) : (
+                  programRoutines.map(routine => (
+                    <EliteCard
+                      key={routine.id}
+                      title={routine.name}
+                      subtitle={`${routine.blocks.length} bloques · ${routine.rounds} ronda(s)`}
+                      onPress={() => playRoutine(routine.id, program.name)}
+                      style={styles.routineCard}
+                      rightContent={
+                        <Ionicons name="play-circle" size={32} color={Colors.neonGreen} />
+                      }
+                    />
+                  ))
+                )}
+
+                {/* Agregar rutina al programa */}
+                <Pressable
+                  onPress={() => router.push({
+                    pathname: '/create-routine',
+                    params: { programId: program.id },
+                  })}
+                  style={styles.addRoutineButton}
+                >
+                  <Ionicons name="add" size={18} color={Colors.neonGreen} />
+                  <EliteText variant="caption" style={styles.addRoutineText}>
+                    Agregar rutina
+                  </EliteText>
+                </Pressable>
+              </View>
+            );
+          })}
+
+          {/* Rutinas sueltas (sin programa) */}
+          {looseRoutines.length > 0 && (
+            <View style={styles.programSection}>
+              <EliteText variant="label" style={styles.sectionLabel}>
+                RUTINAS SUELTAS
+              </EliteText>
+              {looseRoutines.map(routine => (
+                <EliteCard
+                  key={routine.id}
+                  title={routine.name}
+                  subtitle={`${routine.blocks.length} bloques · ${routine.rounds} ronda(s)`}
+                  onPress={() => playRoutine(routine.id, 'Personalizado')}
+                  style={styles.routineCard}
+                  rightContent={
+                    <View style={styles.routineActions}>
+                      <Pressable onPress={() => playRoutine(routine.id, 'Personalizado')}>
+                        <Ionicons name="play-circle" size={32} color={Colors.neonGreen} />
+                      </Pressable>
+                      <Pressable onPress={() => deleteRoutine(routine.id)}>
+                        <Ionicons name="trash-outline" size={18} color={Colors.textSecondary} />
+                      </Pressable>
+                    </View>
+                  }
+                />
+              ))}
+            </View>
+          )}
+
+          {/* Botón crear programa */}
           <EliteButton
             label="CREAR PROGRAMA"
             onPress={() => router.push('/create-program')}
@@ -89,11 +163,49 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
-  card: {
+  // Sección de programa
+  programSection: {
+    marginBottom: Spacing.lg,
+  },
+  programHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: Spacing.sm,
+  },
+  programInfo: {
+    flex: 1,
+  },
+  emptyRoutines: {
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    paddingVertical: Spacing.sm,
+  },
+  routineCard: {
+    marginBottom: Spacing.xs,
+  },
+  addRoutineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+  },
+  addRoutineText: {
+    color: Colors.neonGreen,
+  },
+  sectionLabel: {
+    letterSpacing: 2,
+    marginBottom: Spacing.sm,
+  },
+  routineActions: {
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   createButton: {
     marginTop: Spacing.md,
     alignSelf: 'center',
+    marginBottom: Spacing.xxl,
+  },
+  card: {
+    marginBottom: Spacing.sm,
   },
 });
