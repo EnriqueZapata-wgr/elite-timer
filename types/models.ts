@@ -35,12 +35,12 @@ export interface Routine {
 
 // === PROGRAMAS ===
 
-/** Un programa agrupa varias rutinas */
+/** Un programa agrupa varias rutinas por referencia (IDs) */
 export interface Program {
   id: string;
   name: string;
   description: string;
-  routines: Routine[];
+  routineIds: string[];
   createdAt: number;
   updatedAt: number;
   isStandard: boolean;
@@ -61,8 +61,9 @@ export interface CompletedBlock {
 /** Registro de una sesión de entrenamiento completada */
 export interface Session {
   id: string;
+  routineId: string;
+  routineSnapshot: Routine;
   programName: string;
-  routineName: string;
   completedBlocks: CompletedBlock[];
   totalPlannedTime: number;
   totalActualTime: number;
