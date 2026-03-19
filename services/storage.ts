@@ -3,10 +3,11 @@
  * Centraliza todas las operaciones de persistencia local.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Program, Session, HealthCard } from '@/types/models';
+import type { Program, Routine, Session, HealthCard } from '@/types/models';
 
 const KEYS = {
   programs: '@elite/programs',
+  routines: '@elite/routines',
   sessions: '@elite/sessions',
   healthCard: '@elite/health-card',
 } as const;
@@ -27,6 +28,12 @@ export const Storage = {
     getItem<Program[]>(KEYS.programs).then(p => p ?? []),
   savePrograms: (programs: Program[]): Promise<void> =>
     setItem(KEYS.programs, programs),
+
+  // --- Rutinas ---
+  getRoutines: (): Promise<Routine[]> =>
+    getItem<Routine[]>(KEYS.routines).then(r => r ?? []),
+  saveRoutines: (routines: Routine[]): Promise<void> =>
+    setItem(KEYS.routines, routines),
 
   // --- Sesiones ---
   getSessions: (): Promise<Session[]> =>
