@@ -30,7 +30,7 @@ const BLOCK_TYPES: BlockType[] = ['exercise', 'rest', 'transition', 'final'];
 export default function CreateRoutineScreen() {
   const router = useRouter();
   const { programId } = useLocalSearchParams<{ programId?: string }>();
-  const { addRoutineToProgram } = usePrograms();
+  const { addRoutine } = usePrograms();
 
   const [name, setName] = useState('');
   const [blocks, setBlocks] = useState<Block[]>([
@@ -81,14 +81,16 @@ export default function CreateRoutineScreen() {
       rounds,
     };
 
+    // Siempre persistir la rutina en el store (con o sin programa)
+    addRoutine(routine, programId);
+
     if (programId) {
-      addRoutineToProgram(programId, routine);
       router.dismiss(2); // Volver a Mis Programas
     } else {
       // Sin programa — ir directo al timer activo
       router.replace({
         pathname: '/active-timer',
-        params: { routine: JSON.stringify(routine), programName: 'Personalizado' },
+        params: { routineId: routine.id, programName: 'Personalizado' },
       });
     }
   };
