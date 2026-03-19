@@ -17,8 +17,13 @@ export default function SessionSummaryScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ session?: string }>();
 
-  // Parsear sesión desde params
-  const session: Session | null = params.session ? JSON.parse(params.session) : null;
+  // Parsear sesión desde params (con try-catch para robustez)
+  let session: Session | null = null;
+  try {
+    session = params.session ? JSON.parse(params.session) : null;
+  } catch {
+    // JSON malformado — se muestra pantalla de fallback
+  }
 
   if (!session) {
     return (
@@ -50,7 +55,7 @@ export default function SessionSummaryScreen() {
           <EliteText variant="title" style={styles.checkmark}>✓</EliteText>
           <EliteText variant="title">SESIÓN COMPLETA</EliteText>
           <EliteText variant="body" style={styles.routineName}>
-            {session.routineName}
+            {session.routineSnapshot.name}
           </EliteText>
         </View>
 
@@ -120,7 +125,16 @@ export default function SessionSummaryScreen() {
         <EliteButton
           label="REPETIR"
           variant="outline"
-          onPress={() => router.back()}
+          onPress={() =>
+            router.replace({
+              pathname: '/active-timer',
+              params: {
+                routineId: session!.routineId,
+                routine: JSON.stringify(session!.routineSnapshot),
+                programName: session!.programName,
+              },
+            })
+          }
           style={styles.repeatButton}
         />
       </View>
