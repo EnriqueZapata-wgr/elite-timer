@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx expo:*)",
+      "Bash(npm run:*)",
+      "Bash(npm ls:*)",
+      "Bash(node -e \"const pkg = require\\(''./node_modules/react-native-svg/package.json''\\); console.log\\(''main:'', pkg.main\\); console.log\\(''react-native:'', pkg[''react-native'']\\); console.log\\(''exports:'', JSON.stringify\\(pkg.exports, null, 2\\)\\)\")",
+      "Bash(npx kill-port:*)",
+      "Bash(lsof -ti:8082)",
+      "Bash(xargs kill:*)",
+      "Bash(taskkill //F //FI 'WINDOWTITLE eq *8082*')",
+      "Bash(fuser -k 8082/tcp)",
+      "Bash(node -e \":*)",
+      "Bash(node -e \"const pkg = require\\(''./node_modules/react-native-svg/package.json''\\); console.log\\(''exports:'', JSON.stringify\\(pkg.exports, null, 2\\)\\); console.log\\(''react-native field:'', pkg[''react-native'']\\);\")",
+      "Bash(cd:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(node -e \"const fonts = require\\(''@expo-google-fonts/poppins''\\); console.log\\(Object.keys\\(fonts\\).filter\\(k => k.startsWith\\(''Poppins''\\)\\).join\\(''\\\\n''\\)\\)\")",
+      "Bash(find /d/Proyectos_ClaudeCode/ELITE_Timer/EliteTimer -not -path */node_modules/* -not -path */.expo/* -not -path */.claude/* -not -path */.vscode/*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill:*)",
+      "Bash(cmd.exe /c \"taskkill /F /PID 35352\")",
+      "Bash(MSYS_NO_PATHCONV=1 /c/Windows/System32/taskkill.exe /F /PID 35352 2>&1)",
+      "Bash(MSYS_NO_PATHCONV=1 /c/Windows/System32/taskkill.exe /F /PID 3812 2>&1)"
+    ]
+  }
+}

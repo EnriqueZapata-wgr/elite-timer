@@ -13,8 +13,10 @@ import {
   Poppins_800ExtraBold,
 } from '@expo-google-fonts/poppins';
 
+import { ProgramsProvider } from '@/contexts/programs-context';
+import { SessionsProvider } from '@/contexts/sessions-context';
+
 // Mantenemos la splash screen visible mientras cargan las fuentes.
-// Sin esto, la app mostraría texto sin estilo por un instante.
 SplashScreen.preventAutoHideAsync();
 
 // Tema oscuro personalizado: fondo negro puro (#000) en vez del gris oscuro default
@@ -42,23 +44,29 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
-  // No renderizamos nada hasta que las fuentes estén listas.
-  // La splash screen cubre este tiempo en blanco.
   if (!fontsLoaded) {
     return null;
   }
 
   return (
-    // Siempre tema oscuro — ELITE es una app de fondo negro
     <ThemeProvider value={EliteTheme}>
-      {/* Stack principal: Splash → Dashboard (tabs) → Timer */}
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="timer" />
-      </Stack>
-      {/* light = íconos blancos en la barra de estado sobre fondo negro */}
-      <StatusBar style="light" />
+      <ProgramsProvider>
+        <SessionsProvider>
+          {/* Stack principal: todas las pantallas de la app */}
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="timer" />
+            <Stack.Screen name="programs" />
+            <Stack.Screen name="create-program" />
+            <Stack.Screen name="create-routine" />
+            <Stack.Screen name="standard-programs" />
+            <Stack.Screen name="active-timer" />
+            <Stack.Screen name="session-summary" />
+          </Stack>
+          <StatusBar style="light" />
+        </SessionsProvider>
+      </ProgramsProvider>
     </ThemeProvider>
   );
 }

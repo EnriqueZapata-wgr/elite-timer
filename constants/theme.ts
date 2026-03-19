@@ -70,3 +70,21 @@ export const Radius = {
   lg: 24,        // Chips grandes
   pill: 50,      // Botones pill (completamente redondos)
 } as const;
+
+// === COLORES POR TIPO DE BLOQUE ===
+
+export const BlockColors = {
+  exercise: '#a8e02a',    // Verde neón — acción principal
+  rest: '#4a90d9',        // Azul calmante — descanso
+  transition: '#f5a623',  // Naranja — transición/atención
+  final: '#e74c3c',       // Rojo — bloque final
+} as const;
+
+// === ETIQUETAS DE BLOQUES ===
+
+export const BlockTypeLabels: Record<string, string> = {
+  exercise: 'Ejercicio',
+  rest: 'Descanso',
+  transition: 'Transición',
+  final: 'Final',
+};

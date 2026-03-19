@@ -33,8 +33,7 @@ export default function DashboardScreen() {
           icon="albums-outline"
           title="Mis Programas"
           description="Crea y organiza tus rutinas"
-          onPress={() => {}}
-          disabled
+          onPress={() => router.push('/programs')}
           style={styles.card}
         />
 
