@@ -8,7 +8,6 @@ import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { useRoutineEngine } from '@/hooks/use-routine-engine';
-import { speak } from '@/src/utils/speech';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
@@ -163,15 +162,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
       {/* Botón regreso */}
       <Pressable onPress={() => router.back()} style={styles.backButton}>
         <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-      </Pressable>
-
-      {/* DEV: Botón temporal para probar audio */}
-      <Pressable
-        onPress={() => speak('Probando audio')}
-        style={styles.testAudioButton}
-      >
-        <Ionicons name="volume-high" size={16} color={Colors.textSecondary} />
-        <EliteText variant="caption" style={{ color: Colors.textSecondary }}>Test audio</EliteText>
       </Pressable>
 
       {/* Nombre de la rutina */}
@@ -354,20 +344,6 @@ const styles = StyleSheet.create({
     left: Spacing.md,
     zIndex: 10,
     padding: Spacing.sm,
-  },
-  // DEV: botón temporal de prueba de audio
-  testAudioButton: {
-    position: 'absolute',
-    top: Spacing.xxl,
-    right: Spacing.md,
-    zIndex: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    padding: Spacing.sm,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
   },
 
   // --- Zona superior ---
