@@ -4,17 +4,16 @@
  * Estilos: digital (beep), boxing (bell), whistle, military, silent.
  * Lógica:
  *   - Iniciar step: 1 reproducción del sonido del estilo
- *   - Terminar step: 2 reproducciones (beep usa beep_double.mp3, otros repiten con 150ms delay)
+ *   - Terminar step: mismo archivo 2x con 150ms delay
  *   - Completar rutina: complete.mp3 (sin importar estilo)
  *   - Silencioso: no reproduce nada
  */
 import { Audio } from 'expo-av';
 
-// === ASSETS ===
+// === ASSETS (1 archivo por estilo + complete) ===
 
 const ASSETS = {
   beep: require('@/assets/sounds/beep.mp3'),
-  beepDouble: require('@/assets/sounds/beep_double.mp3'),
   bell: require('@/assets/sounds/bell.mp3'),
   whistle: require('@/assets/sounds/whistle.mp3'),
   military: require('@/assets/sounds/millitary.mp3'),
@@ -23,19 +22,11 @@ const ASSETS = {
 
 // === MAPEO DE ESTILOS ===
 
-interface StyleMapping {
-  /** Sonido para iniciar step (1 reproducción) */
-  start: keyof typeof ASSETS;
-  /** Sonido para terminar step — si es null, repite start con 150ms delay */
-  end: keyof typeof ASSETS | null;
-}
-
-const STYLE_MAP: Record<string, StyleMapping> = {
-  digital:  { start: 'beep',     end: 'beepDouble' },
-  boxing:   { start: 'bell',     end: null },  // repite bell 2x
-  whistle:  { start: 'whistle',  end: null },  // repite whistle 2x
-  military: { start: 'military', end: null },  // repite military 2x
-  silent:   { start: 'beep',     end: null },  // no se usa (guard en playSound)
+const STYLE_MAP: Record<string, keyof typeof ASSETS> = {
+  digital:  'beep',
+  boxing:   'bell',
+  whistle:  'whistle',
+  military: 'military',
 };
 
 // === CACHE DE SONIDOS PRECARGADOS ===
@@ -86,10 +77,9 @@ export async function initAudio(): Promise<void> {
     });
   } catch {}
 
-  // Precargar todos los assets (no solo el estilo actual)
+  // Precargar todos los assets
   await Promise.all([
     preload('beep', ASSETS.beep),
-    preload('beepDouble', ASSETS.beepDouble),
     preload('bell', ASSETS.bell),
     preload('whistle', ASSETS.whistle),
     preload('military', ASSETS.military),
@@ -101,23 +91,16 @@ export async function initAudio(): Promise<void> {
 /** Reproduce sonido de INICIO de step (1 vez) */
 export function playStepStart(volume: number = 0.7): void {
   if (currentStyle === 'silent') return;
-  const mapping = STYLE_MAP[currentStyle] ?? STYLE_MAP.digital;
-  play(mapping.start, volume);
+  const key = STYLE_MAP[currentStyle] ?? STYLE_MAP.digital;
+  play(key, volume);
 }
 
-/** Reproduce sonido de FIN de step (2 veces) */
+/** Reproduce sonido de FIN de step (2x con 150ms delay) */
 export function playStepEnd(volume: number = 0.7): void {
   if (currentStyle === 'silent') return;
-  const mapping = STYLE_MAP[currentStyle] ?? STYLE_MAP.digital;
-
-  if (mapping.end) {
-    // Estilo digital: usa beep_double.mp3 (ya tiene 2 tonos)
-    play(mapping.end, volume);
-  } else {
-    // Otros estilos: reproducir 2x con 150ms delay
-    play(mapping.start, volume);
-    setTimeout(() => play(mapping.start, volume), 150);
-  }
+  const key = STYLE_MAP[currentStyle] ?? STYLE_MAP.digital;
+  play(key, volume);
+  setTimeout(() => play(key, volume), 150);
 }
 
 /** Reproduce sonido de COMPLETAR rutina (siempre complete.mp3) */
