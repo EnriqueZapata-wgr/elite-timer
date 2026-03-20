@@ -9,8 +9,10 @@
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
 
-/** Habla el texto en el idioma especificado (default: es-MX) */
+/** Habla el texto en el idioma especificado (default: es-MX).
+ *  Siempre cancela cualquier speech en curso antes de iniciar uno nuevo. */
 export function speak(text: string, language: string = 'es-MX'): void {
+  stopSpeech();
   if (Platform.OS === 'web') {
     speakWeb(text, language);
   } else {

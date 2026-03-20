@@ -96,9 +96,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
   const stepColor = getStepColor(currentStep);
   const isCountdown = remainingSeconds <= 3 && remainingSeconds > 0 && engineState === 'running';
 
-  // Texto de rondas legible desde context
-  const roundsText = buildRoundsText(currentStep);
-
   // === PANTALLA COMPLETADA ===
 
   if (engineState === 'completed' && stats) {
@@ -178,11 +175,9 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         Transcurrido {formatTime(elapsedSeconds)} · Restante {formatTime(totalRemainingSeconds)}
       </EliteText>
 
-      {/* Contexto de rondas */}
-      {roundsText.length > 0 && (
-        <EliteText variant="label" style={styles.roundsText}>
-          {roundsText}
-        </EliteText>
+      {/* Contexto de rondas — pills por nivel */}
+      {currentStep && currentStep.context.rounds.length > 0 && (
+        <RoundsPills rounds={currentStep.context.rounds} />
       )}
 
       {/* Tipo de step + label prominente */}
@@ -316,18 +311,32 @@ function StepPreviewRow({
   );
 }
 
-/** Construye texto legible de rondas desde el context */
-function buildRoundsText(step: ExecutionStep | null): string {
-  if (!step) return '';
-  const { rounds } = step.context;
-  if (rounds.length === 0) return '';
+/** Colores por profundidad de nivel (del más externo al más interno) */
+const LEVEL_COLORS = ['#9B59B6', '#a8e02a', '#EF9F27', '#5B9BD5', '#E24B4A', '#1ABC9C'];
 
-  return rounds
-    .map(r => {
-      const name = r.label === 'Serie Principal' ? 'Serie' : r.label === 'Bloque' ? 'Ronda' : r.label;
-      return `${name} ${r.current} de ${r.total}`;
-    })
-    .join(' · ');
+/** Pills apilados con el contexto de rondas */
+function RoundsPills({ rounds }: { rounds: ExecutionStep['context']['rounds'] }) {
+  // Si solo 1 nivel → fila horizontal. Si >1 → cada uno en su línea.
+  const isMulti = rounds.length > 1;
+
+  return (
+    <View style={[styles.roundsPills, isMulti && styles.roundsPillsColumn]}>
+      {rounds.map((r, i) => {
+        const color = LEVEL_COLORS[i % LEVEL_COLORS.length];
+        return (
+          <View key={i} style={styles.roundPill}>
+            <View style={[styles.roundPillDot, { backgroundColor: color }]} />
+            <EliteText variant="caption" style={styles.roundPillLabel} numberOfLines={1}>
+              {r.label}
+            </EliteText>
+            <EliteText variant="caption" style={[styles.roundPillCount, { color }]}>
+              {r.current} de {r.total}
+            </EliteText>
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 // === ESTILOS ===
@@ -362,11 +371,42 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     letterSpacing: 0.5,
   },
-  roundsText: {
+  roundsPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: Spacing.xs,
     marginTop: Spacing.sm,
-    letterSpacing: 1,
-    color: Colors.neonGreen,
-    fontSize: 13,
+  },
+  roundsPillsColumn: {
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  roundPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.surfaceLight,
+  },
+  roundPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  roundPillLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    maxWidth: 120,
+  },
+  roundPillCount: {
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    fontVariant: ['tabular-nums'] as const,
   },
 
   // --- Step info ---

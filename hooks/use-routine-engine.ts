@@ -204,12 +204,15 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
     };
   }, [steps]);
 
-  // Controles
+  // Controles — skip, pause y restartStep cancelan TTS inmediatamente
   const play = useCallback(() => engineRef.current?.play(), []);
-  const pause = useCallback(() => engineRef.current?.pause(), []);
-  const togglePlayPause = useCallback(() => engineRef.current?.togglePlayPause(), []);
-  const skip = useCallback(() => engineRef.current?.skip(), []);
-  const restartStep = useCallback(() => engineRef.current?.restartCurrentStep(), []);
+  const pause = useCallback(() => { stopSpeech(); engineRef.current?.pause(); }, []);
+  const togglePlayPause = useCallback(() => {
+    if (engineRef.current?.getState() === 'running') stopSpeech();
+    engineRef.current?.togglePlayPause();
+  }, []);
+  const skip = useCallback(() => { stopSpeech(); engineRef.current?.skip(); }, []);
+  const restartStep = useCallback(() => { stopSpeech(); engineRef.current?.restartCurrentStep(); }, []);
 
   const restart = useCallback(() => {
     stopSpeech();
