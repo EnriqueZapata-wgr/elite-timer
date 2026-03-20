@@ -1,44 +1,107 @@
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+/**
+ * Pantalla Mis Programas — Lista de rutinas del usuario (formato engine).
+ *
+ * Muestra rutinas guardadas con stats en vivo, botón FAB para crear nuevas,
+ * y acciones de ejecutar, editar y eliminar en cada rutina.
+ *
+ * También mantiene compatibilidad con las rutinas legacy del ProgramsContext.
+ */
+import { useState, useEffect, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
-import { EliteCard } from '@/components/elite-card';
-import { EliteButton } from '@/components/elite-button';
 import { EmptyState } from '@/components/empty-state';
-import { usePrograms } from '@/contexts/programs-context';
-import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { flattenRoutine, calcRoutineStats, formatTimeHuman } from '@/src/engine';
+import type { Routine } from '@/src/engine/types';
+import type { RoutineCalcStats } from '@/src/engine/helpers';
+import {
+  getRoutines,
+  deleteRoutine as deleteStoredRoutine,
+} from '@/src/utils/routine-storage';
 
-/**
- * Pantalla Mis Programas — Lista de programas y rutinas del usuario.
- *
- * Cada programa muestra sus rutinas con botón Play para ejecutarlas.
- * Las rutinas sin programa aparecen en una sección "Rutinas Sueltas".
- */
 export default function ProgramsScreen() {
   const router = useRouter();
-  const { programs, routines, getRoutinesForProgram, deleteProgram, deleteRoutine } = usePrograms();
+  const [routines, setRoutines] = useState<Routine[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Programas del usuario (no estándar)
-  const userPrograms = programs.filter(p => !p.isStandard);
+  // Recargar al volver a la pantalla (por si se guardó algo en el builder)
+  useFocusEffect(
+    useCallback(() => {
+      loadRoutines();
+    }, [])
+  );
 
-  // Rutinas que no pertenecen a ningún programa
-  const assignedIds = new Set(userPrograms.flatMap(p => p.routineIds || []));
-  const looseRoutines = routines.filter(r => !assignedIds.has(r.id));
+  const loadRoutines = async () => {
+    const data = await getRoutines();
+    setRoutines(data);
+    setLoading(false);
+  };
 
-  const hasContent = userPrograms.length > 0 || looseRoutines.length > 0;
+  /** Calcular stats de una rutina (con cache implícito via render) */
+  const getStats = (routine: Routine): RoutineCalcStats | null => {
+    try {
+      const steps = flattenRoutine(routine);
+      return calcRoutineStats(steps);
+    } catch {
+      return null;
+    }
+  };
 
-  /** Navegar al engine de ejecución con una rutina convertida */
-  const playRoutine = (routineId: string, _programName: string) => {
-    const legacyRoutine = routines.find(r => r.id === routineId);
-    if (!legacyRoutine) return;
-    const engineRoutine = convertLegacyRoutine(legacyRoutine);
+  /** Ejecutar rutina directamente */
+  const playRoutine = (routine: Routine) => {
     router.push({
       pathname: '/execution',
-      params: { routine: JSON.stringify(engineRoutine) },
+      params: { routine: JSON.stringify(routine) },
     });
   };
+
+  /** Abrir builder para editar */
+  const editRoutine = (routine: Routine) => {
+    router.push({
+      pathname: '/builder',
+      params: { routineId: routine.id },
+    });
+  };
+
+  /** Eliminar con confirmación */
+  const handleDelete = (routine: Routine) => {
+    Alert.alert(
+      'Eliminar rutina',
+      `¿Eliminar "${routine.name}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteStoredRoutine(routine.id);
+            loadRoutines();
+          },
+        },
+      ],
+    );
+  };
+
+  /** Contar bloques hoja recursivamente */
+  const countLeafBlocks = (routine: Routine): number => {
+    let count = 0;
+    const walk = (blocks: Routine['blocks']) => {
+      for (const b of blocks) {
+        if (b.type === 'group') {
+          walk(b.children ?? []);
+        } else {
+          count++;
+        }
+      }
+    };
+    walk(routine.blocks);
+    return count;
+  };
+
+  const hasContent = routines.length > 0;
 
   return (
     <ScreenContainer centered={false}>
@@ -47,108 +110,94 @@ export default function ProgramsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
         </Pressable>
-        <EliteText variant="title">MIS PROGRAMAS</EliteText>
+        <EliteText variant="title">MIS RUTINAS</EliteText>
       </View>
 
-      {!hasContent ? (
+      {!hasContent && !loading ? (
         <EmptyState
-          icon="albums-outline"
-          message="No tienes programas aún. Crea uno para organizar tus rutinas."
-          actionLabel="CREAR PROGRAMA"
-          onAction={() => router.push('/create-program')}
+          icon="layers-outline"
+          message="No tienes rutinas aún. Crea una con el builder visual."
+          actionLabel="CREAR RUTINA"
+          onAction={() => router.push('/builder')}
         />
       ) : (
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-          {/* Programas del usuario con sus rutinas */}
-          {userPrograms.map(program => {
-            const programRoutines = getRoutinesForProgram(program.id);
+          {routines.map(routine => {
+            const stats = getStats(routine);
+            const leafCount = countLeafBlocks(routine);
+
             return (
-              <View key={program.id} style={styles.programSection}>
-                {/* Header del programa */}
-                <View style={styles.programHeader}>
-                  <View style={styles.programInfo}>
-                    <EliteText variant="subtitle">{program.name}</EliteText>
-                    <EliteText variant="caption">{program.description}</EliteText>
+              <Pressable
+                key={routine.id}
+                onPress={() => editRoutine(routine)}
+                onLongPress={() => handleDelete(routine)}
+                style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+              >
+                {/* Info principal */}
+                <View style={styles.cardContent}>
+                  <View style={styles.cardHeader}>
+                    <EliteText variant="subtitle" style={styles.cardTitle} numberOfLines={1}>
+                      {routine.name}
+                    </EliteText>
+                    {routine.category && (
+                      <View style={styles.categoryBadge}>
+                        <EliteText variant="caption" style={styles.categoryText}>
+                          {routine.category}
+                        </EliteText>
+                      </View>
+                    )}
                   </View>
-                  <Pressable onPress={() => deleteProgram(program.id)}>
-                    <Ionicons name="trash-outline" size={20} color={Colors.textSecondary} />
-                  </Pressable>
+
+                  {/* Stats compactos */}
+                  <View style={styles.cardStats}>
+                    {stats && (
+                      <>
+                        <EliteText variant="caption" style={styles.statText}>
+                          {stats.formattedTotal}
+                        </EliteText>
+                        <EliteText variant="caption" style={styles.statSep}>·</EliteText>
+                        <EliteText variant="caption" style={styles.statText}>
+                          {leafCount} pasos
+                        </EliteText>
+                        <EliteText variant="caption" style={styles.statSep}>·</EliteText>
+                        <EliteText variant="caption" style={[styles.statText, { color: '#a8e02a' }]}>
+                          {Math.round(stats.workRatio * 100)}%W
+                        </EliteText>
+                        <EliteText variant="caption" style={styles.statSep}>/</EliteText>
+                        <EliteText variant="caption" style={[styles.statText, { color: '#5B9BD5' }]}>
+                          {Math.round(stats.restRatio * 100)}%R
+                        </EliteText>
+                      </>
+                    )}
+                  </View>
                 </View>
 
-                {/* Rutinas del programa */}
-                {programRoutines.length === 0 ? (
-                  <EliteText variant="caption" style={styles.emptyRoutines}>
-                    Sin rutinas aún
-                  </EliteText>
-                ) : (
-                  programRoutines.map(routine => (
-                    <EliteCard
-                      key={routine.id}
-                      title={routine.name}
-                      subtitle={`${routine.blocks.length} bloques · ${routine.rounds} ronda(s)`}
-                      onPress={() => playRoutine(routine.id, program.name)}
-                      style={styles.routineCard}
-                      rightContent={
-                        <Ionicons name="play-circle" size={32} color={Colors.neonGreen} />
-                      }
-                    />
-                  ))
-                )}
-
-                {/* Agregar rutina al programa */}
-                <Pressable
-                  onPress={() => router.push({
-                    pathname: '/create-routine',
-                    params: { programId: program.id },
-                  })}
-                  style={styles.addRoutineButton}
-                >
-                  <Ionicons name="add" size={18} color={Colors.neonGreen} />
-                  <EliteText variant="caption" style={styles.addRoutineText}>
-                    Agregar rutina
-                  </EliteText>
-                </Pressable>
-              </View>
+                {/* Acciones */}
+                <View style={styles.cardActions}>
+                  <Pressable
+                    onPress={() => playRoutine(routine)}
+                    hitSlop={8}
+                    style={styles.playBtn}
+                  >
+                    <Ionicons name="play-circle" size={36} color={Colors.neonGreen} />
+                  </Pressable>
+                </View>
+              </Pressable>
             );
           })}
 
-          {/* Rutinas sueltas (sin programa) */}
-          {looseRoutines.length > 0 && (
-            <View style={styles.programSection}>
-              <EliteText variant="label" style={styles.sectionLabel}>
-                RUTINAS SUELTAS
-              </EliteText>
-              {looseRoutines.map(routine => (
-                <EliteCard
-                  key={routine.id}
-                  title={routine.name}
-                  subtitle={`${routine.blocks.length} bloques · ${routine.rounds} ronda(s)`}
-                  onPress={() => playRoutine(routine.id, 'Personalizado')}
-                  style={styles.routineCard}
-                  rightContent={
-                    <View style={styles.routineActions}>
-                      <Pressable onPress={() => playRoutine(routine.id, 'Personalizado')}>
-                        <Ionicons name="play-circle" size={32} color={Colors.neonGreen} />
-                      </Pressable>
-                      <Pressable onPress={() => deleteRoutine(routine.id)}>
-                        <Ionicons name="trash-outline" size={18} color={Colors.textSecondary} />
-                      </Pressable>
-                    </View>
-                  }
-                />
-              ))}
-            </View>
-          )}
-
-          {/* Botón crear programa */}
-          <EliteButton
-            label="CREAR PROGRAMA"
-            onPress={() => router.push('/create-program')}
-            variant="outline"
-            style={styles.createButton}
-          />
+          {/* Padding inferior */}
+          <View style={{ height: 80 }} />
         </ScrollView>
       )}
+
+      {/* FAB — Botón flotante crear nueva rutina */}
+      <Pressable
+        onPress={() => router.push('/builder')}
+        style={({ pressed }) => [styles.fab, pressed && { opacity: 0.7 }]}
+      >
+        <Ionicons name="add" size={28} color={Colors.textOnGreen} />
+      </Pressable>
     </ScreenContainer>
   );
 }
@@ -167,49 +216,84 @@ const styles = StyleSheet.create({
   list: {
     flex: 1,
   },
-  // Sección de programa
-  programSection: {
-    marginBottom: Spacing.lg,
-  },
-  programHeader: {
+
+  // --- Card de rutina ---
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
     marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.surfaceLight,
   },
-  programInfo: {
+  cardPressed: {
+    opacity: 0.7,
+    borderColor: Colors.neonGreen,
+  },
+  cardContent: {
     flex: 1,
   },
-  emptyRoutines: {
-    color: Colors.textSecondary,
-    fontStyle: 'italic',
-    paddingVertical: Spacing.sm,
-  },
-  routineCard: {
-    marginBottom: Spacing.xs,
-  },
-  addRoutineButton: {
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
-  addRoutineText: {
-    color: Colors.neonGreen,
+  cardTitle: {
+    fontSize: 16,
+    flex: 1,
   },
-  sectionLabel: {
-    letterSpacing: 2,
-    marginBottom: Spacing.sm,
+  categoryBadge: {
+    backgroundColor: Colors.surfaceLight,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
   },
-  routineActions: {
+  categoryText: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.semiBold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  cardStats: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+    gap: 4,
   },
-  createButton: {
-    marginTop: Spacing.md,
-    alignSelf: 'center',
-    marginBottom: Spacing.xxl,
+  statText: {
+    color: Colors.textSecondary,
+    fontVariant: ['tabular-nums'],
+    fontSize: 11,
   },
-  card: {
-    marginBottom: Spacing.sm,
+  statSep: {
+    color: Colors.disabled,
+    fontSize: 11,
+  },
+  cardActions: {
+    marginLeft: Spacing.md,
+  },
+  playBtn: {
+    padding: Spacing.xs,
+  },
+
+  // --- FAB ---
+  fab: {
+    position: 'absolute',
+    bottom: Spacing.lg,
+    right: Spacing.lg,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.neonGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowColor: Colors.neonGreen,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
 });

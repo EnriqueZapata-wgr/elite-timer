@@ -65,6 +65,7 @@ export default function RootLayout() {
               <Stack.Screen name="active-timer" />
               <Stack.Screen name="session-summary" />
               <Stack.Screen name="execution" />
+              <Stack.Screen name="builder" />
               <Stack.Screen name="settings" />
             </Stack>
             <StatusBar style="light" />
