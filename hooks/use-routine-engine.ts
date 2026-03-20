@@ -58,12 +58,23 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
 
   const engineRef = useRef<RoutineEngine | null>(null);
 
-  // TTS — hablar texto en español
+  // TTS — hablar texto en español (expo-speech nativo + fallback web)
   const speak = useCallback((text: string) => {
     try {
+      // expo-speech funciona en iOS/Android. En web puede fallar silenciosamente.
       Speech.speak(text, { language: 'es-MX', rate: 1.1 });
     } catch {
-      // TTS no disponible en este entorno
+      // Fallback: Web Speech API para navegadores
+      try {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = 'es-MX';
+          utterance.rate = 1.1;
+          window.speechSynthesis.speak(utterance);
+        }
+      } catch {
+        // Sin TTS disponible
+      }
     }
   }, []);
 

@@ -159,27 +159,41 @@ export class RoutineEngine {
     }
   }
 
-  /** Un tick = un segundo transcurrido */
+  /**
+   * Un tick = un segundo transcurrido.
+   *
+   * Regla crítica: el usuario NUNCA ve 00:00.
+   * Cuando remainingSeconds llega a 0, avanzamos inmediatamente
+   * al siguiente step y emitimos tick con la duración del nuevo step.
+   * Esto evita acumular 1s extra por step (239 steps = 4 min de desfase).
+   */
   private tick(): void {
     if (this.state !== 'running') return;
 
     this.remainingSeconds--;
-    const step = this.steps[this.currentStepIndex];
 
-    // Countdown hablado en los últimos 3 segundos
+    // Countdown hablado en los últimos 3 segundos (solo si queda tiempo)
     if (this.remainingSeconds > 0 && this.remainingSeconds <= 3) {
       this.callbacks.onSpeak(`${this.remainingSeconds}`);
       this.callbacks.onSound('countdown');
     }
 
-    // Notificar tick
-    this.callbacks.onTick(this.remainingSeconds, step);
-
-    // Si llegó a 0, avanzar al siguiente step
+    // Si llegó a 0 → avanzar INMEDIATAMENTE sin mostrar 00:00
     if (this.remainingSeconds <= 0) {
-      this.callbacks.onSound(step.soundEnd);
+      const finishedStep = this.steps[this.currentStepIndex];
+      this.callbacks.onSound(finishedStep.soundEnd);
       this.advanceToNextStep();
+      // Si hay nuevo step activo, emitir tick con su duración completa
+      if (this.state === 'running') {
+        const newStep = this.steps[this.currentStepIndex];
+        this.callbacks.onTick(this.remainingSeconds, newStep);
+      }
+      return;
     }
+
+    // Tick normal — notificar con segundos restantes > 0
+    const step = this.steps[this.currentStepIndex];
+    this.callbacks.onTick(this.remainingSeconds, step);
   }
 
   /** Avanza al siguiente step o completa la rutina */
