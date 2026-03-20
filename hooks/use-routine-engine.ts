@@ -3,10 +3,10 @@
  *
  * Compila la rutina en steps, crea el engine, y expone estado reactivo
  * + controles para consumir desde cualquier pantalla.
- * Integra TTS via expo-speech.
+ * Integra TTS via src/utils/speech (multiplataforma).
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import * as Speech from 'expo-speech';
+import { speak as speakTTS, stopSpeech } from '@/src/utils/speech';
 import { RoutineEngine } from '@/src/engine/RoutineEngine';
 import { flattenRoutine } from '@/src/engine/flatten';
 import { calcRoutineStats } from '@/src/engine/helpers';
@@ -58,24 +58,9 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
 
   const engineRef = useRef<RoutineEngine | null>(null);
 
-  // TTS — hablar texto en español (expo-speech nativo + fallback web)
+  // TTS — hablar texto en español (multiplataforma)
   const speak = useCallback((text: string) => {
-    try {
-      // expo-speech funciona en iOS/Android. En web puede fallar silenciosamente.
-      Speech.speak(text, { language: 'es-MX', rate: 1.1 });
-    } catch {
-      // Fallback: Web Speech API para navegadores
-      try {
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-          const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = 'es-MX';
-          utterance.rate = 1.1;
-          window.speechSynthesis.speak(utterance);
-        }
-      } catch {
-        // Sin TTS disponible
-      }
-    }
+    speakTTS(text);
   }, []);
 
   // Crear engine con callbacks que actualizan estado React
@@ -110,7 +95,7 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
 
     return () => {
       engine.destroy();
-      Speech.stop();
+      stopSpeech();
     };
   }, [steps, speak]);
 
@@ -122,7 +107,7 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
   const restartStep = useCallback(() => engineRef.current?.restartCurrentStep(), []);
 
   const restart = useCallback(() => {
-    Speech.stop();
+    stopSpeech();
     engineRef.current?.restart();
     if (steps.length > 0) {
       setCurrentStep(steps[0]);

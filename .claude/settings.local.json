@@ -24,7 +24,8 @@
       "Bash(cmd.exe /c \"taskkill /F /PID 35352\")",
       "Bash(MSYS_NO_PATHCONV=1 /c/Windows/System32/taskkill.exe /F /PID 35352 2>&1)",
       "Bash(MSYS_NO_PATHCONV=1 /c/Windows/System32/taskkill.exe /F /PID 3812 2>&1)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(npx expo-doctor@latest)"
     ]
   }
 }
