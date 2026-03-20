@@ -21,21 +21,14 @@ interface AddBlockButtonProps {
   label?: string;
 }
 
-/** Opciones del menú de agregar */
-const BLOCK_OPTIONS: {
+/** Opciones de pasos (hojas) */
+const STEP_OPTIONS: {
   type: Block['type'];
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   description: string;
 }[] = [
-  {
-    type: 'group',
-    label: 'Grupo',
-    icon: 'layers-outline',
-    color: '#888888',
-    description: 'Contiene pasos, se repite N rondas',
-  },
   {
     type: 'work',
     label: 'Trabajo',
@@ -134,12 +127,35 @@ export function AddBlockButton({ parentId, onAdd, label = 'Agregar paso' }: AddB
         animationType="fade"
         onRequestClose={() => setMenuVisible(false)}
       >
+        {/* Overlay: toque en el fondo cierra el menú */}
         <Pressable style={styles.overlay} onPress={() => setMenuVisible(false)}>
-          <View style={styles.menu}>
+          {/* Pressable interno: bloquea propagación de toques al overlay */}
+          <Pressable style={styles.menu}>
             <EliteText variant="label" style={styles.menuTitle}>
               ¿QUÉ TIPO DE BLOQUE?
             </EliteText>
-            {BLOCK_OPTIONS.map(opt => (
+
+            {/* Opción: Grupo (container con rounds) */}
+            <Pressable
+              onPress={() => handleSelect('group')}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            >
+              <View style={[styles.menuDot, { backgroundColor: '#888888' }]} />
+              <View style={styles.menuItemContent}>
+                <EliteText variant="body" style={styles.menuItemLabel}>
+                  Grupo
+                </EliteText>
+                <EliteText variant="caption">Contiene pasos, se repite N rondas</EliteText>
+              </View>
+              <Ionicons name="layers-outline" size={20} color="#888888" />
+            </Pressable>
+
+            {/* Separador visual */}
+            <View style={styles.menuSeparator} />
+            <EliteText variant="caption" style={styles.menuSectionLabel}>PASOS</EliteText>
+
+            {/* Opciones: Trabajo, Descanso, Preparación */}
+            {STEP_OPTIONS.map(opt => (
               <Pressable
                 key={opt.type}
                 onPress={() => handleSelect(opt.type)}
@@ -155,7 +171,7 @@ export function AddBlockButton({ parentId, onAdd, label = 'Agregar paso' }: AddB
                 <Ionicons name={opt.icon} size={20} color={opt.color} />
               </Pressable>
             ))}
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </>
@@ -222,5 +238,17 @@ const styles = StyleSheet.create({
   },
   menuItemLabel: {
     fontSize: 15,
+  },
+  menuSeparator: {
+    height: 1,
+    backgroundColor: Colors.surfaceLight,
+    marginVertical: Spacing.sm,
+  },
+  menuSectionLabel: {
+    color: Colors.textSecondary,
+    letterSpacing: 2,
+    fontSize: 10,
+    marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
   },
 });
