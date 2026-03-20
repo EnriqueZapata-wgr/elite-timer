@@ -1,178 +1,63 @@
 /**
- * Sounds — Genera y reproduce tonos de audio sin archivos externos.
+ * Sounds — Reproduce archivos .mp3 profesionales desde assets/sounds/.
  *
- * Crea WAV en memoria como data URI → reproduce con expo-av Audio.Sound.
- * Soporta 5 estilos de sonido, cada uno con frecuencias y formas de onda distintas.
- *
- * Nota: expo-av está deprecado en SDK 54 pero sigue funcional.
- * Se migrará a expo-audio cuando soporte uso imperativo (no-hook).
+ * Estilos: digital (beep), boxing (bell), whistle, military, silent.
+ * Lógica:
+ *   - Iniciar step: 1 reproducción del sonido del estilo
+ *   - Terminar step: 2 reproducciones (beep usa beep_double.mp3, otros repiten con 150ms delay)
+ *   - Completar rutina: complete.mp3 (sin importar estilo)
+ *   - Silencioso: no reproduce nada
  */
 import { Audio } from 'expo-av';
 
-// === GENERADOR DE WAV ===
+// === ASSETS ===
 
-function generateWav(opts: {
-  frequency: number;
-  frequencyEnd?: number;
-  durationMs: number;
-  volume?: number;
-  type?: 'sine' | 'square' | 'triangle';
-}): string {
-  const { frequency, frequencyEnd, durationMs, volume = 0.5, type = 'sine' } = opts;
-  const sampleRate = 22050;
-  const numSamples = Math.floor(sampleRate * durationMs / 1000);
-  const dataSize = numSamples * 2;
-  const headerSize = 44;
-  const fileSize = headerSize + dataSize;
-
-  const buffer = new ArrayBuffer(fileSize);
-  const view = new DataView(buffer);
-
-  // RIFF header
-  writeStr(view, 0, 'RIFF');
-  view.setUint32(4, fileSize - 8, true);
-  writeStr(view, 8, 'WAVE');
-  writeStr(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  writeStr(view, 36, 'data');
-  view.setUint32(40, dataSize, true);
-
-  let phase = 0;
-  for (let i = 0; i < numSamples; i++) {
-    const t = i / numSamples;
-    const freq = frequencyEnd ? frequency + (frequencyEnd - frequency) * t : frequency;
-    phase += (2 * Math.PI * freq) / sampleRate;
-
-    let s: number;
-    switch (type) {
-      case 'square': s = Math.sin(phase) >= 0 ? 1 : -1; break;
-      case 'triangle': s = (2 / Math.PI) * Math.asin(Math.sin(phase)); break;
-      default: s = Math.sin(phase);
-    }
-
-    // Envelope: fade in 5ms + fade out último 20%
-    const fadeIn = Math.floor(sampleRate * 0.005);
-    const fadeOutStart = Math.floor(numSamples * 0.8);
-    if (i < fadeIn) s *= i / fadeIn;
-    else if (i > fadeOutStart) s *= (numSamples - i) / (numSamples - fadeOutStart);
-
-    view.setInt16(headerSize + i * 2, Math.floor(Math.max(-1, Math.min(1, s * volume)) * 32767), true);
-  }
-
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return 'data:audio/wav;base64,' + btoa(binary);
-}
-
-function generateDoubleTone(freq: number, durationMs: number, gapMs: number, vol: number = 0.5): string {
-  const sr = 22050;
-  const toneSamples = Math.floor(sr * durationMs / 1000);
-  const gapSamples = Math.floor(sr * gapMs / 1000);
-  const total = toneSamples * 2 + gapSamples;
-  const dataSize = total * 2;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-
-  writeStr(view, 0, 'RIFF'); view.setUint32(4, 36 + dataSize, true);
-  writeStr(view, 8, 'WAVE'); writeStr(view, 12, 'fmt ');
-  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
-  view.setUint32(24, sr, true); view.setUint32(28, sr * 2, true);
-  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
-  writeStr(view, 36, 'data'); view.setUint32(40, dataSize, true);
-
-  for (let i = 0; i < total; i++) {
-    let s = 0;
-    const inFirst = i < toneSamples;
-    const inSecond = i >= toneSamples + gapSamples;
-    if (inFirst || inSecond) {
-      const li = inFirst ? i : i - toneSamples - gapSamples;
-      s = Math.sin(2 * Math.PI * freq * li / sr) * vol;
-      if (li < 50) s *= li / 50;
-      if (li > toneSamples - 50) s *= (toneSamples - li) / 50;
-    }
-    view.setInt16(44 + i * 2, Math.floor(s * 32767), true);
-  }
-
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  return 'data:audio/wav;base64,' + btoa(binary);
-}
-
-function writeStr(view: DataView, offset: number, str: string): void {
-  for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
-}
-
-// === ESTILOS DE SONIDO ===
-
-interface SoundSet {
-  transition: string;
-  countdown: string;
-  complete: string;
-}
-
-const SOUND_SETS: Record<string, SoundSet> = {
-  digital: {
-    transition: generateWav({ frequency: 800, durationMs: 200, volume: 0.5 }),
-    countdown: generateWav({ frequency: 1000, durationMs: 100, volume: 0.4 }),
-    complete: generateWav({ frequency: 600, frequencyEnd: 1200, durationMs: 400, volume: 0.5 }),
-  },
-  boxing: {
-    transition: generateWav({ frequency: 400, durationMs: 500, volume: 0.5, type: 'triangle' }),
-    countdown: generateWav({ frequency: 500, durationMs: 150, volume: 0.4, type: 'triangle' }),
-    complete: generateWav({ frequency: 300, durationMs: 800, volume: 0.5, type: 'triangle' }),
-  },
-  whistle: {
-    transition: generateWav({ frequency: 600, frequencyEnd: 1200, durationMs: 400, volume: 0.5 }),
-    countdown: generateWav({ frequency: 800, frequencyEnd: 1000, durationMs: 150, volume: 0.4 }),
-    complete: generateWav({ frequency: 500, frequencyEnd: 1500, durationMs: 600, volume: 0.5 }),
-  },
-  military: {
-    transition: generateDoubleTone(500, 150, 50, 0.5),
-    countdown: generateWav({ frequency: 600, durationMs: 80, volume: 0.4, type: 'square' }),
-    complete: generateDoubleTone(600, 200, 100, 0.5),
-  },
-  silent: { transition: '', countdown: '', complete: '' },
+const ASSETS = {
+  beep: require('@/assets/sounds/beep.mp3'),
+  beepDouble: require('@/assets/sounds/beep_double.mp3'),
+  bell: require('@/assets/sounds/bell.mp3'),
+  whistle: require('@/assets/sounds/whistle.mp3'),
+  military: require('@/assets/sounds/millitary.mp3'),
+  complete: require('@/assets/sounds/complete.mp3'),
 };
 
-// === CACHE DE AUDIO.SOUND PRECARGADOS ===
+// === MAPEO DE ESTILOS ===
+
+interface StyleMapping {
+  /** Sonido para iniciar step (1 reproducción) */
+  start: keyof typeof ASSETS;
+  /** Sonido para terminar step — si es null, repite start con 150ms delay */
+  end: keyof typeof ASSETS | null;
+}
+
+const STYLE_MAP: Record<string, StyleMapping> = {
+  digital:  { start: 'beep',     end: 'beepDouble' },
+  boxing:   { start: 'bell',     end: null },  // repite bell 2x
+  whistle:  { start: 'whistle',  end: null },  // repite whistle 2x
+  military: { start: 'military', end: null },  // repite military 2x
+  silent:   { start: 'beep',     end: null },  // no se usa (guard en playSound)
+};
+
+// === CACHE DE SONIDOS PRECARGADOS ===
 
 const cache: Map<string, Audio.Sound> = new Map();
 let isInitialized = false;
 let currentStyle = 'digital';
 
-/** Precarga un WAV en un Audio.Sound listo para reproducir */
-async function preload(key: string, uri: string): Promise<void> {
-  if (!uri) return;
+/** Precarga un asset en Audio.Sound listo para reproducción instantánea */
+async function preload(key: string, asset: number): Promise<void> {
   try {
-    const old = cache.get(key);
-    if (old) { try { await old.unloadAsync(); } catch {} }
-    const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: false });
+    const existing = cache.get(key);
+    if (existing) { try { await existing.unloadAsync(); } catch {} }
+    const { sound } = await Audio.Sound.createAsync(asset, { shouldPlay: false });
     cache.set(key, sound);
   } catch (e) {
     console.warn(`[sounds] preload "${key}" falló:`, e);
   }
 }
 
-/** Precarga todos los sonidos del estilo actual */
-async function preloadCurrentStyle(): Promise<void> {
-  const set = SOUND_SETS[currentStyle] ?? SOUND_SETS.digital;
-  await Promise.all([
-    preload('transition', set.transition),
-    preload('countdown', set.countdown),
-    preload('complete', set.complete),
-  ]);
-}
-
-/** Reproduce un sonido precargado del cache */
-async function playCached(key: string, volume: number): Promise<void> {
+/** Reproduce un sonido del cache */
+async function play(key: string, volume: number): Promise<void> {
   const sound = cache.get(key);
   if (!sound) return;
   try {
@@ -186,14 +71,12 @@ async function playCached(key: string, volume: number): Promise<void> {
 
 // === API PÚBLICA ===
 
-/** Configura el estilo de sonido y precarga */
+/** Configura el estilo de sonido activo */
 export function setSoundStyle(style: string): void {
-  if (style === currentStyle && isInitialized) return;
   currentStyle = style;
-  if (style !== 'silent') preloadCurrentStyle();
 }
 
-/** Inicializar sistema de audio — llamar al montar la pantalla de ejecución */
+/** Inicializar: configura audio mode y precarga TODOS los sonidos */
 export async function initAudio(): Promise<void> {
   if (isInitialized) return;
   try {
@@ -202,21 +85,76 @@ export async function initAudio(): Promise<void> {
       staysActiveInBackground: false,
     });
   } catch {}
-  await preloadCurrentStyle();
+
+  // Precargar todos los assets (no solo el estilo actual)
+  await Promise.all([
+    preload('beep', ASSETS.beep),
+    preload('beepDouble', ASSETS.beepDouble),
+    preload('bell', ASSETS.bell),
+    preload('whistle', ASSETS.whistle),
+    preload('military', ASSETS.military),
+    preload('complete', ASSETS.complete),
+  ]);
   isInitialized = true;
 }
 
-export function playBeep(volume: number = 0.7): void { playCached('transition', volume); }
-export function playCountdownTick(volume: number = 0.5): void { playCached('countdown', volume); }
-export function playComplete(volume: number = 0.7): void { playCached('complete', volume); }
+/** Reproduce sonido de INICIO de step (1 vez) */
+export function playStepStart(volume: number = 0.7): void {
+  if (currentStyle === 'silent') return;
+  const mapping = STYLE_MAP[currentStyle] ?? STYLE_MAP.digital;
+  play(mapping.start, volume);
+}
 
-/** Reproduce sonido por nombre del engine */
+/** Reproduce sonido de FIN de step (2 veces) */
+export function playStepEnd(volume: number = 0.7): void {
+  if (currentStyle === 'silent') return;
+  const mapping = STYLE_MAP[currentStyle] ?? STYLE_MAP.digital;
+
+  if (mapping.end) {
+    // Estilo digital: usa beep_double.mp3 (ya tiene 2 tonos)
+    play(mapping.end, volume);
+  } else {
+    // Otros estilos: reproducir 2x con 150ms delay
+    play(mapping.start, volume);
+    setTimeout(() => play(mapping.start, volume), 150);
+  }
+}
+
+/** Reproduce sonido de COMPLETAR rutina (siempre complete.mp3) */
+export function playRoutineComplete(volume: number = 0.7): void {
+  play('complete', volume);
+}
+
+/** Reproduce tick de countdown */
+export function playCountdownTick(volume: number = 0.5): void {
+  if (currentStyle === 'silent') return;
+  // Usa beep suave para el countdown
+  play('beep', volume * 0.6);
+}
+
+/**
+ * Reproduce sonido por nombre del engine.
+ * Mapea: soundStart → inicio, soundEnd → fin, complete → rutina completa.
+ */
 export function playSound(name: string, volume: number = 0.7): void {
   switch (name) {
-    case 'countdown': playCountdownTick(volume); break;
-    case 'complete': case 'whistle': case 'bell': playComplete(volume); break;
-    default: playBeep(volume);
+    case 'countdown':
+      playCountdownTick(volume);
+      break;
+    case 'complete':
+      playRoutineComplete(volume);
+      break;
+    case 'end':
+      playStepEnd(volume);
+      break;
+    default:
+      playStepStart(volume);
   }
+}
+
+// Mantener export para compatibilidad con settings "Probar sonido"
+export function playBeep(volume: number = 0.7): void {
+  playStepStart(volume);
 }
 
 /** Limpiar cache al desmontar */

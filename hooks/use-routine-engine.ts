@@ -6,7 +6,7 @@
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { speak as speakTTS, stopSpeech } from '@/src/utils/speech';
-import { playSound, initAudio, cleanupAudio, setSoundStyle } from '@/src/utils/sounds';
+import { playSound, playStepStart, playStepEnd, playRoutineComplete, initAudio, cleanupAudio, setSoundStyle } from '@/src/utils/sounds';
 import { vibrateLight, vibrateMedium, vibrateHeavy, vibrateCountdown } from '@/src/utils/haptics';
 import { useSettings } from '@/src/contexts/settings-context';
 import { RoutineEngine } from '@/src/engine/RoutineEngine';
@@ -104,8 +104,11 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
       onStateChange: setEngineState,
 
       onStepChange: (step, next) => {
-        // Vibración según nivel de cambio (si está habilitada)
-        if (settingsRef.current.vibrationEnabled) {
+        const s = settingsRef.current;
+        const vol = s.soundVolume / 100;
+
+        // Vibración según nivel de cambio
+        if (s.vibrationEnabled) {
           const changeLevel = detectChangeLevel(prevStepRef.current, step);
           switch (changeLevel) {
             case 'set': vibrateHeavy(); break;
@@ -113,6 +116,12 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
             default: vibrateLight(); break;
           }
         }
+
+        // Sonido de INICIO del nuevo step
+        if (s.soundsEnabled) {
+          playStepStart(vol);
+        }
+
         prevStepRef.current = step;
 
         // Actualizar estado React
@@ -137,7 +146,7 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
       onComplete: (executionStats) => {
         const s = settingsRef.current;
         if (s.vibrationEnabled) vibrateHeavy();
-        if (s.soundsEnabled) playSound('complete');
+        if (s.soundsEnabled) playRoutineComplete(s.soundVolume / 100);
         setStats(executionStats);
       },
 
@@ -154,12 +163,13 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
 
       onSound: (sound) => {
         const s = settingsRef.current;
-        const vol = s.soundVolume / 100; // 0-100 → 0-1
+        const vol = s.soundVolume / 100;
         if (sound === 'countdown') {
           if (s.vibrationEnabled) vibrateCountdown();
           if (s.soundsEnabled) playSound('countdown', vol);
-        } else if (s.soundsEnabled) {
-          playSound(sound, vol);
+        } else {
+          // soundEnd del engine → reproducir sonido de FIN de step (2x)
+          if (s.soundsEnabled) playStepEnd(vol);
         }
       },
     };
