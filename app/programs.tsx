@@ -7,6 +7,7 @@ import { EliteCard } from '@/components/elite-card';
 import { EliteButton } from '@/components/elite-button';
 import { EmptyState } from '@/components/empty-state';
 import { usePrograms } from '@/contexts/programs-context';
+import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
 import { Colors, Spacing } from '@/constants/theme';
 
 /**
@@ -28,11 +29,14 @@ export default function ProgramsScreen() {
 
   const hasContent = userPrograms.length > 0 || looseRoutines.length > 0;
 
-  /** Navegar al timer activo con una rutina */
-  const playRoutine = (routineId: string, programName: string) => {
+  /** Navegar al engine de ejecución con una rutina convertida */
+  const playRoutine = (routineId: string, _programName: string) => {
+    const legacyRoutine = routines.find(r => r.id === routineId);
+    if (!legacyRoutine) return;
+    const engineRoutine = convertLegacyRoutine(legacyRoutine);
     router.push({
-      pathname: '/active-timer',
-      params: { routineId, programName },
+      pathname: '/execution',
+      params: { routine: JSON.stringify(engineRoutine) },
     });
   };
 

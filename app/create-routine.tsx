@@ -16,6 +16,7 @@ import { EliteButton } from '@/components/elite-button';
 import { BlockBadge } from '@/components/block-badge';
 import { DurationPicker } from '@/components/duration-picker';
 import { usePrograms } from '@/contexts/programs-context';
+import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
 import { generateId, type Block, type BlockType, type Routine } from '@/types/models';
 import { Colors, BlockColors, BlockTypeLabels, Spacing, Radius } from '@/constants/theme';
 
@@ -87,10 +88,11 @@ export default function CreateRoutineScreen() {
     if (programId) {
       router.dismiss(2); // Volver a Mis Programas
     } else {
-      // Sin programa — ir directo al timer activo
+      // Sin programa — ir directo al engine de ejecución
+      const engineRoutine = convertLegacyRoutine(routine);
       router.replace({
-        pathname: '/active-timer',
-        params: { routineId: routine.id, programName: 'Personalizado' },
+        pathname: '/execution',
+        params: { routine: JSON.stringify(engineRoutine) },
       });
     }
   };

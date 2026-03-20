@@ -5,6 +5,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { EliteCard } from '@/components/elite-card';
 import { STANDARD_PROGRAMS, STANDARD_ROUTINES } from '@/constants/standard-programs';
+import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
 import { Colors, Spacing } from '@/constants/theme';
 
 /**
@@ -40,15 +41,13 @@ export default function StandardProgramsScreen() {
             key={program.id}
             title={program.name}
             subtitle={`${program.description} · ${formatDuration(routine.totalDuration)}`}
-            onPress={() =>
+            onPress={() => {
+              const engineRoutine = convertLegacyRoutine(routine);
               router.push({
-                pathname: '/active-timer',
-                params: {
-                  routineId: program.routineId,
-                  programName: program.name,
-                },
-              })
-            }
+                pathname: '/execution',
+                params: { routine: JSON.stringify(engineRoutine) },
+              });
+            }}
             style={styles.card}
             rightContent={
               <Ionicons name="play-circle" size={36} color={Colors.neonGreen} />
