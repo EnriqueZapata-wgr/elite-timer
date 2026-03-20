@@ -2,15 +2,16 @@
  * Tests del motor de ejecución — ejecutar con: npx tsx src/engine/__tests__/engine.test.ts
  *
  * Valida:
- * 1. Tabata: 16 steps, 240s total
- * 2. Guinness: 239 steps, 4076s total, reglas de rest_between
+ * 1. Tabata: trailing rest eliminado por regla anti-acumulación
+ * 2. Guinness: 239 steps, 4076s total (no afectado — último child es work)
  * 3. buildTree: lista plana → árbol correcto
  * 4. helpers: formateo de tiempo y cálculo de stats
+ * 5. Anti-acumulación: trailing rest + rest_between no se duplican
  */
 import { flattenRoutine, buildTree } from '../flatten';
 import { calcRoutineStats, formatTime, formatTimeHuman } from '../helpers';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '../testData';
-import type { Block } from '../types';
+import type { Block, Routine } from '../types';
 
 // === UTILIDADES DE TEST ===
 
@@ -38,6 +39,9 @@ function assertEqual<T>(actual: T, expected: T, message: string): void {
 }
 
 // === TEST 1: TABATA ===
+// Tabata children=[Work 20s, Rest 10s], 8 rounds, rest_between=0.
+// Regla anti-acumulación: trailing Rest se elimina en cada round.
+// Resultado: 8 steps de work, 160s total.
 
 console.log('\n🔥 TEST TABATA');
 console.log('─'.repeat(50));
@@ -45,14 +49,20 @@ console.log('─'.repeat(50));
 const tabataSteps = flattenRoutine(TABATA_ROUTINE);
 const tabataStats = calcRoutineStats(tabataSteps);
 
-assertEqual(tabataSteps.length, 16, 'Tabata debe tener 16 steps');
-assertEqual(tabataStats.totalSeconds, 240, 'Tabata debe durar 240s (4 min)');
+assertEqual(tabataSteps.length, 8, 'Tabata: 8 steps (trailing rest eliminado en cada round)');
+assertEqual(tabataStats.totalSeconds, 160, 'Tabata: 160s total (solo trabajo)');
 assertEqual(tabataStats.workSeconds, 160, 'Tabata: 160s de trabajo (8×20)');
-assertEqual(tabataStats.restSeconds, 80, 'Tabata: 80s de descanso (8×10)');
+assertEqual(tabataStats.restSeconds, 0, 'Tabata: 0s de descanso (trailing rests eliminados)');
 assertEqual(tabataSteps[0].type, 'work', 'Primer step debe ser work');
 assertEqual(tabataSteps[0].label, 'Work', 'Primer step label: "Work"');
-assertEqual(tabataSteps[1].type, 'rest', 'Segundo step debe ser rest');
-assertEqual(tabataSteps[15].type, 'rest', 'Último step debe ser rest');
+
+// Todos los steps son work
+assert(tabataSteps.every(s => s.type === 'work'), 'Todos los steps son work');
+
+// Último step
+const tabataLast = tabataSteps[tabataSteps.length - 1];
+assertEqual(tabataLast.type, 'work', 'Último step debe ser work');
+assertEqual(tabataLast.label, 'Work', 'Último step label: "Work"');
 
 // Verificar contexto de rondas
 assertEqual(
@@ -64,15 +74,20 @@ assertEqual(
   'Primer step: total 8 rounds',
 );
 assertEqual(
-  tabataSteps[14].context.rounds[0]?.current, 8,
-  'Penúltimo step: round 8',
+  tabataSteps[7].context.rounds[0]?.current, 8,
+  'Último step: round 8 de 8',
 );
 
 // No debe haber rest_between (rest_between_seconds = 0)
 const tabataRestBetween = tabataSteps.filter(s => s.isRestBetween);
 assertEqual(tabataRestBetween.length, 0, 'Tabata no tiene rest_between');
 
+// stepIndex re-indexado correctamente
+assertEqual(tabataSteps[0].stepIndex, 0, 'stepIndex[0] = 0');
+assertEqual(tabataSteps[7].stepIndex, 7, 'stepIndex[7] = 7');
+
 // === TEST 2: PROTOCOLO GUINNESS ===
+// Último child de "Bloque" es "10 reps" (work) → no afectado por regla anti-acumulación.
 
 console.log('\n🏆 TEST PROTOCOLO GUINNESS');
 console.log('─'.repeat(50));
@@ -80,8 +95,8 @@ console.log('─'.repeat(50));
 const guinnessSteps = flattenRoutine(GUINNESS_ROUTINE);
 const guinnessStats = calcRoutineStats(guinnessSteps);
 
-assertEqual(guinnessSteps.length, 239, 'Guinness debe tener 239 steps');
-assertEqual(guinnessStats.totalSeconds, 4076, 'Guinness debe durar 4076s');
+assertEqual(guinnessSteps.length, 239, 'Guinness: 239 steps (no afectado)');
+assertEqual(guinnessStats.totalSeconds, 4076, 'Guinness: 4076s total');
 
 // Verificar descansos de 3 minutos (rest_between del main group)
 const rest180 = guinnessSteps.filter(
@@ -161,11 +176,11 @@ assertEqual(tree[0].children?.[1].id, 'tabata-rest', 'buildTree: segundo hijo es
 // Verificar que buildTree + flattenRoutine da el mismo resultado
 const treeRoutine = { ...TABATA_ROUTINE, blocks: tree };
 const treeSteps = flattenRoutine(treeRoutine);
-assertEqual(treeSteps.length, 16, 'buildTree → flatten: 16 steps');
+assertEqual(treeSteps.length, 8, 'buildTree → flatten: 8 steps (trailing rest eliminado)');
 assertEqual(
   calcRoutineStats(treeSteps).totalSeconds,
-  240,
-  'buildTree → flatten: 240s total',
+  160,
+  'buildTree → flatten: 160s total',
 );
 
 // === TEST 4: HELPERS ===
@@ -184,6 +199,175 @@ assertEqual(formatTimeHuman(90), '1:30', 'formatTimeHuman(90) = "1:30"');
 assertEqual(formatTimeHuman(240), '4:00', 'formatTimeHuman(240) = "4:00"');
 assertEqual(formatTimeHuman(3600), '1h', 'formatTimeHuman(3600) = "1h"');
 assertEqual(formatTimeHuman(4140), '1h 09m', 'formatTimeHuman(4140) = "1h 09m"');
+
+// === TEST 5: ANTI-ACUMULACIÓN ===
+
+console.log('\n🛡️ TEST ANTI-ACUMULACIÓN');
+console.log('─'.repeat(50));
+
+// Caso: Grupo con rest_between > 0 y último child es rest.
+// El trailing rest se elimina, rest_between lo reemplaza.
+const antiAccumRoutine: Routine = {
+  id: 'test-anti-accum',
+  name: 'Anti Acumulación',
+  description: '',
+  category: 'test',
+  blocks: [
+    {
+      id: 'grp-main',
+      parent_block_id: null,
+      sort_order: 0,
+      type: 'group',
+      label: 'Ciclo',
+      duration_seconds: null,
+      rounds: 3,
+      rest_between_seconds: 60,
+      color: null,
+      sound_start: 'default',
+      sound_end: 'default',
+      notes: '',
+      children: [
+        {
+          id: 'w1',
+          parent_block_id: 'grp-main',
+          sort_order: 0,
+          type: 'work',
+          label: 'Ejercicio',
+          duration_seconds: 30,
+          rounds: 1,
+          rest_between_seconds: 0,
+          color: null,
+          sound_start: 'default',
+          sound_end: 'default',
+          notes: '',
+        },
+        {
+          id: 'r1',
+          parent_block_id: 'grp-main',
+          sort_order: 1,
+          type: 'rest',
+          label: 'Descanso',
+          duration_seconds: 10,
+          rounds: 1,
+          rest_between_seconds: 0,
+          color: null,
+          sound_start: 'default',
+          sound_end: 'default',
+          notes: '',
+        },
+      ],
+    },
+  ],
+};
+
+const antiSteps = flattenRoutine(antiAccumRoutine);
+const antiStats = calcRoutineStats(antiSteps);
+
+// Sin anti-acumulación sería: Work, Rest, rest_between, Work, Rest, rest_between, Work, Rest
+//   = 8 steps, 3×30 + 3×10 + 2×60 = 90+30+120 = 240s
+// CON anti-acumulación: Work, rest_between(60), Work, rest_between(60), Work
+//   = 5 steps, 3×30 + 2×60 = 90+120 = 210s
+assertEqual(antiSteps.length, 5, 'Anti-accum: 5 steps (trailing rests eliminados)');
+assertEqual(antiStats.totalSeconds, 210, 'Anti-accum: 210s (no 240s)');
+assertEqual(antiSteps[0].type, 'work', 'Step 0: work');
+assertEqual(antiSteps[1].isRestBetween, true, 'Step 1: rest_between (no trailing rest antes)');
+assertEqual(antiSteps[1].durationSeconds, 60, 'Step 1: 60s rest_between');
+assertEqual(antiSteps[2].type, 'work', 'Step 2: work');
+assertEqual(antiSteps[4].type, 'work', 'Último step: work (no trailing rest)');
+
+// Caso nested: Bloque con sub-grupo que termina en rest + rest_between del padre
+const nestedRoutine: Routine = {
+  id: 'test-nested',
+  name: 'Nested',
+  description: '',
+  category: 'test',
+  blocks: [
+    {
+      id: 'outer',
+      parent_block_id: null,
+      sort_order: 0,
+      type: 'group',
+      label: 'Bloque',
+      duration_seconds: null,
+      rounds: 2,
+      rest_between_seconds: 90,
+      color: null,
+      sound_start: 'default',
+      sound_end: 'default',
+      notes: '',
+      children: [
+        {
+          id: 'inner',
+          parent_block_id: 'outer',
+          sort_order: 0,
+          type: 'group',
+          label: 'Circuito',
+          duration_seconds: null,
+          rounds: 2,
+          rest_between_seconds: 15,
+          color: null,
+          sound_start: 'default',
+          sound_end: 'default',
+          notes: '',
+          children: [
+            {
+              id: 'nw',
+              parent_block_id: 'inner',
+              sort_order: 0,
+              type: 'work',
+              label: 'Trabajo',
+              duration_seconds: 20,
+              rounds: 1,
+              rest_between_seconds: 0,
+              color: null,
+              sound_start: 'default',
+              sound_end: 'default',
+              notes: '',
+            },
+            {
+              id: 'nr',
+              parent_block_id: 'inner',
+              sort_order: 1,
+              type: 'rest',
+              label: 'Descanso',
+              duration_seconds: 10,
+              rounds: 1,
+              rest_between_seconds: 0,
+              color: null,
+              sound_start: 'default',
+              sound_end: 'default',
+              notes: '',
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const nestedSteps = flattenRoutine(nestedRoutine);
+const nestedStats = calcRoutineStats(nestedSteps);
+
+// Circuito round 1: Work(20) + Rest(10) → pop Rest → Work(20)
+// rest_between Circuito(15)
+// Circuito round 2: Work(20) + Rest(10) → pop Rest → Work(20)
+// (end of Circuito, last step = Work → no pop by Bloque)
+// rest_between Bloque(90)
+// Bloque round 2: same as above, no rest_between after last
+// = [Work, rb(15), Work, rb(90), Work, rb(15), Work] = 7 steps
+// Time: 4×20 + 1×15 + 1×90 + 1×15 = 80 + 120 = 200s
+assertEqual(nestedSteps.length, 7, 'Nested: 7 steps (no descansos acumulados)');
+assertEqual(nestedStats.totalSeconds, 200, 'Nested: 200s total');
+
+// Verificar que NO hay dos rests consecutivos
+let hasConsecutiveRest = false;
+for (let i = 1; i < nestedSteps.length; i++) {
+  if (nestedSteps[i].type === 'rest' && nestedSteps[i - 1].type === 'rest') {
+    hasConsecutiveRest = true;
+    break;
+  }
+}
+assert(!hasConsecutiveRest, 'Nested: no hay dos rests consecutivos');
 
 // === RESUMEN ===
 

@@ -6,6 +6,10 @@
  *
  * Regla crítica: el último round de cada nivel NO genera rest_between.
  * Para rounds=4 y rest_between=180s → 3 descansos, no 4.
+ *
+ * Regla anti-acumulación: después de procesar los children de cada round
+ * de un grupo, si el último step es un rest explícito (no auto-generado),
+ * se elimina. El rest_between del padre (o el fin de rutina) lo reemplaza.
  */
 import type { Block, Routine, ExecutionStep, StepContext } from './types';
 
@@ -62,7 +66,6 @@ function sortChildren(blocks: Block[]): void {
  */
 export function flattenRoutine(routine: Routine): ExecutionStep[] {
   const steps: ExecutionStep[] = [];
-  let stepIndex = 0;
 
   function processBlock(block: Block, parentContext: StepContext): void {
     if (block.type === 'group') {
@@ -75,6 +78,10 @@ export function flattenRoutine(routine: Routine): ExecutionStep[] {
   /**
    * Procesa un bloque grupo: itera (rounds × children)
    * e inserta rest_between entre rondas (excepto la última).
+   *
+   * Regla anti-acumulación: después de procesar todos los children,
+   * si el último step es un rest explícito (no rest_between), se elimina.
+   * Esto evita descansos dobles (rest del child + rest_between del padre).
    */
   function processGroup(block: Block, parentContext: StepContext): void {
     const children = block.children ?? [];
@@ -95,10 +102,19 @@ export function flattenRoutine(routine: Routine): ExecutionStep[] {
         processBlock(child, roundContext);
       }
 
+      // Eliminar trailing rest explícito de los children.
+      // El rest_between del padre (o fin de rutina) lo reemplaza.
+      if (steps.length > 0) {
+        const last = steps[steps.length - 1];
+        if (last.type === 'rest' && !last.isRestBetween) {
+          steps.pop();
+        }
+      }
+
       // Insertar rest_between EXCEPTO después del último round
       if (round < block.rounds && block.rest_between_seconds > 0) {
         steps.push({
-          stepIndex: stepIndex++,
+          stepIndex: 0, // Se re-indexa al final
           blockId: block.id,
           type: 'rest',
           label: `Descanso entre ${block.label}`,
@@ -138,7 +154,7 @@ export function flattenRoutine(routine: Routine): ExecutionStep[] {
             };
 
       steps.push({
-        stepIndex: stepIndex++,
+        stepIndex: 0, // Se re-indexa al final
         blockId: block.id,
         type: block.type as 'work' | 'rest' | 'prep',
         label: block.label,
@@ -154,7 +170,7 @@ export function flattenRoutine(routine: Routine): ExecutionStep[] {
       // Rest between para hojas con múltiples rondas (excepto última)
       if (round < block.rounds && block.rest_between_seconds > 0) {
         steps.push({
-          stepIndex: stepIndex++,
+          stepIndex: 0, // Se re-indexa al final
           blockId: block.id,
           type: 'rest',
           label: 'Descanso',
@@ -174,6 +190,11 @@ export function flattenRoutine(routine: Routine): ExecutionStep[] {
   const rootContext: StepContext = { breadcrumb: [], rounds: [], depth: 0 };
   for (const block of routine.blocks) {
     processBlock(block, rootContext);
+  }
+
+  // Re-indexar todos los steps secuencialmente
+  for (let i = 0; i < steps.length; i++) {
+    steps[i].stepIndex = i;
   }
 
   return steps;
