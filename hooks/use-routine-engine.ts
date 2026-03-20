@@ -152,10 +152,19 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
 
       onSpeak: (text) => {
         const s = settingsRef.current;
-        // Countdown hablado: "3", "2", "1" — respetar countdownSpoken
         const isCountdown = text === '3' || text === '2' || text === '1';
-        if (isCountdown && !s.countdownSpoken) return;
-        // Voz general — pasar idioma del settings
+
+        if (isCountdown) {
+          // Countdown: voz tiene prioridad, nunca ambos al mismo tiempo
+          // Voz ON → solo voz. Voz OFF + sonidos ON → solo beep. Ambos OFF → nada.
+          if (s.countdownSpoken && s.voiceEnabled) {
+            speakTTS(text, s.voiceLanguage);
+          }
+          // (beep del countdown se maneja en onSound)
+          return;
+        }
+
+        // Voz general (labels de steps, rondas, fin de rutina)
         if (s.voiceEnabled) {
           speakTTS(text, s.voiceLanguage);
         }
@@ -164,13 +173,19 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
       onSound: (sound) => {
         const s = settingsRef.current;
         const vol = s.soundVolume / 100;
+
         if (sound === 'countdown') {
+          // Vibración siempre (si habilitada)
           if (s.vibrationEnabled) vibrateCountdown();
-          if (s.soundsEnabled) playSound('countdown', vol);
-        } else {
-          // soundEnd del engine → reproducir sonido de FIN de step (2x)
-          if (s.soundsEnabled) playStepEnd(vol);
+          // Beep SOLO si la voz del countdown está OFF
+          if (!s.countdownSpoken && s.soundsEnabled) {
+            playSound('countdown', vol);
+          }
+          return;
         }
+
+        // Sonido de FIN de step (2x) — independiente de la voz
+        if (s.soundsEnabled) playStepEnd(vol);
       },
     };
 
