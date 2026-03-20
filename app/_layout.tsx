@@ -15,6 +15,7 @@ import {
 
 import { ProgramsProvider } from '@/contexts/programs-context';
 import { SessionsProvider } from '@/contexts/sessions-context';
+import { SettingsProvider } from '@/src/contexts/settings-context';
 
 // Mantenemos la splash screen visible mientras cargan las fuentes.
 SplashScreen.preventAutoHideAsync();
@@ -50,24 +51,26 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={EliteTheme}>
-      <ProgramsProvider>
-        <SessionsProvider>
-          {/* Stack principal: todas las pantallas de la app */}
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="timer" />
-            <Stack.Screen name="programs" />
-            <Stack.Screen name="create-program" />
-            <Stack.Screen name="create-routine" />
-            <Stack.Screen name="standard-programs" />
-            <Stack.Screen name="active-timer" />
-            <Stack.Screen name="session-summary" />
-            <Stack.Screen name="execution" />
-          </Stack>
-          <StatusBar style="light" />
-        </SessionsProvider>
-      </ProgramsProvider>
+      <SettingsProvider>
+        <ProgramsProvider>
+          <SessionsProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="timer" />
+              <Stack.Screen name="programs" />
+              <Stack.Screen name="create-program" />
+              <Stack.Screen name="create-routine" />
+              <Stack.Screen name="standard-programs" />
+              <Stack.Screen name="active-timer" />
+              <Stack.Screen name="session-summary" />
+              <Stack.Screen name="execution" />
+              <Stack.Screen name="settings" />
+            </Stack>
+            <StatusBar style="light" />
+          </SessionsProvider>
+        </ProgramsProvider>
+      </SettingsProvider>
     </ThemeProvider>
   );
 }

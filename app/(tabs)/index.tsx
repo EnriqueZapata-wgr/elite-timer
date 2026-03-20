@@ -1,5 +1,6 @@
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { DashboardCard } from '@/components/dashboard-card';
@@ -13,12 +14,17 @@ export default function DashboardScreen() {
 
   return (
     <ScreenContainer centered={false}>
-      {/* Encabezado con marca y saludo */}
+      {/* Encabezado con marca + engranaje */}
       <View style={styles.header}>
-        <EliteText variant="title">ELITE</EliteText>
-        <EliteText variant="body" style={styles.subtitle}>
-          Bienvenido, coach
-        </EliteText>
+        <View style={styles.headerLeft}>
+          <EliteText variant="title">ELITE</EliteText>
+          <EliteText variant="body" style={styles.subtitle}>
+            Bienvenido, coach
+          </EliteText>
+        </View>
+        <Pressable onPress={() => router.push('/settings')} style={styles.settingsButton}>
+          <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
+        </Pressable>
       </View>
 
       {/* Grid de cards 2×2 */}
@@ -63,8 +69,17 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  settingsButton: {
+    padding: Spacing.sm,
   },
   subtitle: {
     color: Colors.textSecondary,

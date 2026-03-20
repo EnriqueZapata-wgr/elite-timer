@@ -8,6 +8,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { speak as speakTTS, stopSpeech } from '@/src/utils/speech';
 import { playSound, initAudio } from '@/src/utils/sounds';
 import { vibrateLight, vibrateMedium, vibrateHeavy, vibrateCountdown } from '@/src/utils/haptics';
+import { useSettings } from '@/src/contexts/settings-context';
 import { RoutineEngine } from '@/src/engine/RoutineEngine';
 import { flattenRoutine } from '@/src/engine/flatten';
 import { calcRoutineStats } from '@/src/engine/helpers';
@@ -71,6 +72,11 @@ function detectChangeLevel(prevStep: ExecutionStep | null, newStep: ExecutionSte
 }
 
 export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn {
+  const { settings } = useSettings();
+  // Ref para acceder a settings actuales dentro de callbacks sin recrear engine
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
   // Compilar rutina a steps una sola vez
   const steps = useMemo(() => flattenRoutine(routine), [routine]);
   const routineStats = useMemo(() => calcRoutineStats(steps), [steps]);
@@ -94,12 +100,14 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
       onStateChange: setEngineState,
 
       onStepChange: (step, next) => {
-        // Vibración según nivel de cambio
-        const changeLevel = detectChangeLevel(prevStepRef.current, step);
-        switch (changeLevel) {
-          case 'set': vibrateHeavy(); break;
-          case 'round': vibrateMedium(); break;
-          default: vibrateLight(); break;
+        // Vibración según nivel de cambio (si está habilitada)
+        if (settingsRef.current.vibrationEnabled) {
+          const changeLevel = detectChangeLevel(prevStepRef.current, step);
+          switch (changeLevel) {
+            case 'set': vibrateHeavy(); break;
+            case 'round': vibrateMedium(); break;
+            default: vibrateLight(); break;
+          }
         }
         prevStepRef.current = step;
 
@@ -123,20 +131,29 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
       },
 
       onComplete: (executionStats) => {
-        vibrateHeavy();
-        playSound('complete');
+        const s = settingsRef.current;
+        if (s.vibrationEnabled) vibrateHeavy();
+        if (s.soundsEnabled) playSound('complete');
         setStats(executionStats);
       },
 
       onSpeak: (text) => {
-        speakTTS(text);
+        const s = settingsRef.current;
+        // Countdown hablado: "3", "2", "1" — respetar countdownSpoken
+        const isCountdown = text === '3' || text === '2' || text === '1';
+        if (isCountdown && !s.countdownSpoken) return;
+        // Voz general
+        if (s.voiceEnabled) {
+          speakTTS(text);
+        }
       },
 
       onSound: (sound) => {
+        const s = settingsRef.current;
         if (sound === 'countdown') {
-          vibrateCountdown();
-          playSound('countdown');
-        } else {
+          if (s.vibrationEnabled) vibrateCountdown();
+          if (s.soundsEnabled) playSound('countdown');
+        } else if (s.soundsEnabled) {
           playSound(sound);
         }
       },
