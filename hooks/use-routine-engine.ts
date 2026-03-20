@@ -3,8 +3,10 @@
  *
  * Compila la rutina en steps, crea el engine, y expone estado reactivo
  * + controles para consumir desde cualquier pantalla.
+ * Integra TTS via expo-speech.
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import * as Speech from 'expo-speech';
 import { RoutineEngine } from '@/src/engine/RoutineEngine';
 import { flattenRoutine } from '@/src/engine/flatten';
 import { calcRoutineStats } from '@/src/engine/helpers';
@@ -21,7 +23,10 @@ export interface UseRoutineEngineReturn {
   engineState: EngineState;
   currentStep: ExecutionStep | null;
   nextStep: ExecutionStep | null;
+  stepAfterNext: ExecutionStep | null;
   remainingSeconds: number;
+  elapsedSeconds: number;
+  totalRemainingSeconds: number;
   stepProgress: number;
   totalProgress: number;
   currentStepNumber: number;
@@ -45,12 +50,22 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
   const [engineState, setEngineState] = useState<EngineState>('idle');
   const [currentStep, setCurrentStep] = useState<ExecutionStep | null>(steps[0] ?? null);
   const [nextStep, setNextStep] = useState<ExecutionStep | null>(steps[1] ?? null);
+  const [stepAfterNext, setStepAfterNext] = useState<ExecutionStep | null>(steps[2] ?? null);
   const [remainingSeconds, setRemainingSeconds] = useState(steps[0]?.durationSeconds ?? 0);
   const [stepProgress, setStepProgress] = useState(0);
   const [totalProgress, setTotalProgress] = useState(0);
   const [stats, setStats] = useState<ExecutionStats | null>(null);
 
   const engineRef = useRef<RoutineEngine | null>(null);
+
+  // TTS — hablar texto en español
+  const speak = useCallback((text: string) => {
+    try {
+      Speech.speak(text, { language: 'es-MX', rate: 1.1 });
+    } catch {
+      // TTS no disponible en este entorno
+    }
+  }, []);
 
   // Crear engine con callbacks que actualizan estado React
   useEffect(() => {
@@ -60,6 +75,11 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
         setCurrentStep(step);
         setNextStep(next);
         setStepProgress(0);
+        // stepAfterNext desde el engine
+        const engine = engineRef.current;
+        if (engine) {
+          setStepAfterNext(engine.getStepAfterNext());
+        }
       },
       onTick: (remaining) => {
         setRemainingSeconds(remaining);
@@ -70,15 +90,18 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
         }
       },
       onComplete: (executionStats) => setStats(executionStats),
-      onSpeak: () => {},  // TTS — se conectará en fase futura
+      onSpeak: (text) => speak(text),
       onSound: () => {},  // Audio — se conectará en fase futura
     };
 
     const engine = new RoutineEngine(steps, callbacks);
     engineRef.current = engine;
 
-    return () => engine.destroy();
-  }, [steps]);
+    return () => {
+      engine.destroy();
+      Speech.stop();
+    };
+  }, [steps, speak]);
 
   // Controles
   const play = useCallback(() => engineRef.current?.play(), []);
@@ -88,11 +111,12 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
   const restartStep = useCallback(() => engineRef.current?.restartCurrentStep(), []);
 
   const restart = useCallback(() => {
+    Speech.stop();
     engineRef.current?.restart();
-    // Resetear estado React manualmente (restart() solo emite onStateChange)
     if (steps.length > 0) {
       setCurrentStep(steps[0]);
       setNextStep(steps[1] ?? null);
+      setStepAfterNext(steps[2] ?? null);
       setRemainingSeconds(steps[0].durationSeconds);
     }
     setStepProgress(0);
@@ -100,14 +124,19 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
     setStats(null);
   }, [steps]);
 
-  // currentStepNumber derivado del step actual
+  // Valores derivados
   const currentStepNumber = currentStep ? currentStep.stepIndex + 1 : 0;
+  const elapsedSeconds = Math.round(totalProgress * routineStats.totalSeconds);
+  const totalRemainingSeconds = routineStats.totalSeconds - elapsedSeconds;
 
   return {
     engineState,
     currentStep,
     nextStep,
+    stepAfterNext,
     remainingSeconds,
+    elapsedSeconds,
+    totalRemainingSeconds,
     stepProgress,
     totalProgress,
     currentStepNumber,

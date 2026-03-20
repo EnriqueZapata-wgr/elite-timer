@@ -5,41 +5,43 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CircularTimer } from '@/components/circular-timer';
-import { Controls } from '@/components/controls';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { useRoutineEngine } from '@/hooks/use-routine-engine';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
-import { Colors, Spacing, FontSizes } from '@/constants/theme';
-import type { Routine as EngineRoutine } from '@/src/engine/types';
+import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
+import type { Routine as EngineRoutine, ExecutionStep } from '@/src/engine/types';
 
-/** Colores por tipo de step */
+// === COLORES POR TIPO DE STEP ===
+
 const STEP_COLORS: Record<string, string> = {
   work: '#a8e02a',
-  rest: '#4a90d9',
-  prep: '#f5a623',
+  rest: '#5B9BD5',
+  prep: '#EF9F27',
 };
 
-/** Labels por tipo de step */
+const REST_BETWEEN_COLOR = '#888888';
+
+/** Color del anillo según tipo y si es rest_between */
+function getStepColor(step: ExecutionStep | null): string {
+  if (!step) return Colors.neonGreen;
+  if (step.isRestBetween) return REST_BETWEEN_COLOR;
+  return STEP_COLORS[step.type] ?? Colors.neonGreen;
+}
+
 const STEP_LABELS: Record<string, string> = {
   work: 'TRABAJO',
   rest: 'DESCANSO',
   prep: 'PREPARACIÓN',
 };
 
-/**
- * Pantalla de Ejecución — Conecta el RoutineEngine con UI.
- *
- * Acepta params:
- *   testId: 'tabata' | 'guinness' (datos de prueba)
- *   routine: JSON string de EngineRoutine
- */
+// === PANTALLA PRINCIPAL ===
+
 export default function ExecutionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ testId?: string; routine?: string }>();
 
-  // Resolver rutina desde params
   const routine = useMemo((): EngineRoutine | null => {
     if (params.testId === 'tabata') return TABATA_ROUTINE;
     if (params.testId === 'guinness') return GUINNESS_ROUTINE;
@@ -49,7 +51,6 @@ export default function ExecutionScreen() {
     return null;
   }, [params.testId, params.routine]);
 
-  // Pantalla de error si no hay rutina
   if (!routine) {
     return (
       <SafeAreaView style={[styles.screen, styles.centered]}>
@@ -62,7 +63,8 @@ export default function ExecutionScreen() {
   return <ExecutionContent routine={routine} />;
 }
 
-/** Componente interno — solo se monta cuando routine es válida */
+// === CONTENIDO DE EJECUCIÓN ===
+
 function ExecutionContent({ routine }: { routine: EngineRoutine }) {
   const router = useRouter();
 
@@ -70,7 +72,10 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     engineState,
     currentStep,
     nextStep,
+    stepAfterNext,
     remainingSeconds,
+    elapsedSeconds,
+    totalRemainingSeconds,
     stepProgress,
     totalProgress,
     currentStepNumber,
@@ -80,59 +85,77 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     play,
     pause,
     skip,
+    restartStep,
     restart,
   } = useRoutineEngine(routine);
 
-  // Color del anillo según tipo de step actual
-  const stepColor = currentStep ? (STEP_COLORS[currentStep.type] ?? Colors.neonGreen) : Colors.neonGreen;
-  const stepLabel = currentStep ? (STEP_LABELS[currentStep.type] ?? currentStep.type) : '';
+  const stepColor = getStepColor(currentStep);
+  const isCountdown = remainingSeconds <= 3 && remainingSeconds > 0 && engineState === 'running';
 
-  // Info de rondas del contexto
-  const roundsInfo = currentStep?.context.rounds ?? [];
-  const roundsText = roundsInfo.map(r => `${r.label} ${r.current}/${r.total}`).join(' · ');
+  // Texto de rondas legible desde context
+  const roundsText = buildRoundsText(currentStep);
 
-  // Mapear engine state → Controls status
-  const controlsStatus = engineState === 'completed' ? 'finished' as const : engineState;
+  // === PANTALLA COMPLETADA ===
 
-  // Pantalla de completado
   if (engineState === 'completed' && stats) {
+    const workRatio = stats.totalDurationSeconds > 0
+      ? Math.round((stats.workSeconds / stats.totalDurationSeconds) * 100)
+      : 0;
+    const restRatio = 100 - workRatio;
+
     return (
       <SafeAreaView style={[styles.screen, styles.centered]}>
-        <EliteText variant="title" style={styles.completedCheck}>✓</EliteText>
-        <EliteText variant="title">COMPLETADA</EliteText>
+        <EliteText variant="title" style={styles.completedTitle}>
+          RUTINA COMPLETADA
+        </EliteText>
         <EliteText variant="body" style={styles.completedRoutine}>
           {routine.name}
         </EliteText>
 
-        {/* Stats */}
+        {/* Stats grid — 2 filas × 2 columnas */}
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
-            <EliteText variant="caption" style={styles.statLabel}>TIEMPO</EliteText>
+            <EliteText variant="caption" style={styles.statLabel}>TIEMPO TOTAL</EliteText>
             <EliteText variant="subtitle" style={styles.statValue}>
-              {formatTime(stats.totalDurationSeconds)}
+              {formatTime(stats.actualDurationSeconds)}
             </EliteText>
           </View>
           <View style={styles.statCard}>
             <EliteText variant="caption" style={styles.statLabel}>TRABAJO</EliteText>
-            <EliteText variant="subtitle" style={styles.statValue}>
+            <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.work }]}>
               {formatTimeHuman(stats.workSeconds)}
             </EliteText>
+            <EliteText variant="caption" style={styles.statRatio}>{workRatio}%</EliteText>
+          </View>
+          <View style={styles.statCard}>
+            <EliteText variant="caption" style={styles.statLabel}>DESCANSO</EliteText>
+            <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.rest }]}>
+              {formatTimeHuman(stats.restSeconds)}
+            </EliteText>
+            <EliteText variant="caption" style={styles.statRatio}>{restRatio}%</EliteText>
           </View>
           <View style={styles.statCard}>
             <EliteText variant="caption" style={styles.statLabel}>STEPS</EliteText>
             <EliteText variant="subtitle" style={styles.statValue}>
               {stats.stepsCompleted}
             </EliteText>
+            {stats.stepsSkipped > 0 && (
+              <EliteText variant="caption" style={styles.statSkipped}>
+                {stats.stepsSkipped} saltados
+              </EliteText>
+            )}
           </View>
         </View>
 
         <View style={styles.completedButtons}>
           <EliteButton label="REPETIR" onPress={restart} />
-          <EliteButton label="VOLVER" variant="outline" onPress={() => router.back()} />
+          <EliteButton label="VOLVER AL INICIO" variant="outline" onPress={() => router.back()} />
         </View>
       </SafeAreaView>
     );
   }
+
+  // === PANTALLA DE EJECUCIÓN ===
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -146,64 +169,93 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         {routine.name}
       </EliteText>
 
-      {/* Info de duración total */}
-      <EliteText variant="caption" style={styles.totalInfo}>
-        {formatTimeHuman(routineStats.totalSeconds)} · {totalSteps} steps
+      {/* Tiempo transcurrido · restante */}
+      <EliteText variant="caption" style={styles.timeInfo}>
+        Transcurrido {formatTime(elapsedSeconds)} · Restante {formatTime(totalRemainingSeconds)}
       </EliteText>
 
-      {/* Info de rondas */}
+      {/* Contexto de rondas */}
       {roundsText.length > 0 && (
         <EliteText variant="label" style={styles.roundsText}>
           {roundsText}
         </EliteText>
       )}
 
-      {/* Label del tipo de step actual */}
-      <EliteText variant="subtitle" style={[styles.stepType, { color: stepColor }]}>
-        {currentStep?.isRestBetween ? 'DESCANSO ENTRE RONDAS' : stepLabel}
-      </EliteText>
+      {/* Tipo de step + label prominente */}
+      <View style={styles.stepInfo}>
+        {/* Dot de color + tipo */}
+        <View style={styles.stepTypeRow}>
+          <View style={[styles.stepDot, { backgroundColor: stepColor }]} />
+          <EliteText variant="label" style={[styles.stepTypeLabel, { color: stepColor }]}>
+            {currentStep?.isRestBetween ? 'DESCANSO ENTRE RONDAS' : STEP_LABELS[currentStep?.type ?? 'work']}
+          </EliteText>
+        </View>
+        {/* Label del step — prominente */}
+        {currentStep && !currentStep.isRestBetween && (
+          <EliteText variant="subtitle" style={styles.stepName}>
+            {currentStep.label}
+          </EliteText>
+        )}
+      </View>
 
-      {/* Label del step */}
-      {currentStep && !currentStep.isRestBetween && (
-        <EliteText variant="body" style={styles.stepLabel}>
-          {currentStep.label}
-        </EliteText>
-      )}
-
-      {/* Circular Timer — progress va de 1→0 */}
+      {/* Circular Timer — se vacía conforme pasa el tiempo */}
       <View style={styles.timerWrapper}>
         <CircularTimer
           timeLeft={remainingSeconds}
           progress={1 - stepProgress}
-          color={stepColor}
+          color={isCountdown ? '#E24B4A' : stepColor}
         />
       </View>
 
-      {/* Preview del siguiente step */}
-      {nextStep && (
-        <View style={styles.nextPreview}>
-          <EliteText variant="caption" style={styles.nextLabel}>SIGUIENTE</EliteText>
-          <EliteText variant="body" style={[styles.nextName, { color: STEP_COLORS[nextStep.type] ?? Colors.textPrimary }]}>
-            {nextStep.isRestBetween ? 'Descanso' : nextStep.label}
-            {' · '}{formatTime(nextStep.durationSeconds)}
-          </EliteText>
-        </View>
-      )}
+      {/* Preview: Siguiente + Después */}
+      <View style={styles.previewContainer}>
+        <StepPreviewRow label="SIGUIENTE" step={nextStep} isLast={!nextStep && currentStep !== null} />
+        {stepAfterNext && <StepPreviewRow label="DESPUÉS" step={stepAfterNext} />}
+      </View>
 
-      {/* Controles */}
-      <Controls
-        status={controlsStatus}
-        onStart={play}
-        onPause={pause}
-        onReset={restart}
-        onSkip={skip}
-      />
+      {/* Controles horizontales: ↺  ▶/⏸  ⏭ */}
+      <View style={styles.controlsRow}>
+        {/* Reiniciar step */}
+        <Pressable
+          onPress={restartStep}
+          style={({ pressed }) => [styles.controlSecondary, pressed && styles.controlPressed]}
+          disabled={engineState === 'idle'}
+        >
+          <Ionicons
+            name="refresh"
+            size={24}
+            color={engineState === 'idle' ? Colors.disabled : Colors.neonGreen}
+          />
+        </Pressable>
 
-      {/* Contador de steps + barra de progreso */}
+        {/* Play / Pausa — botón principal */}
+        <Pressable
+          onPress={engineState === 'running' ? pause : play}
+          style={({ pressed }) => [styles.controlPrimary, pressed && styles.controlPressed]}
+        >
+          <Ionicons
+            name={engineState === 'running' ? 'pause' : 'play'}
+            size={32}
+            color={Colors.textOnGreen}
+          />
+        </Pressable>
+
+        {/* Skip */}
+        <Pressable
+          onPress={skip}
+          style={({ pressed }) => [styles.controlSecondary, pressed && styles.controlPressed]}
+          disabled={engineState === 'idle'}
+        >
+          <Ionicons
+            name="play-skip-forward"
+            size={24}
+            color={engineState === 'idle' ? Colors.disabled : Colors.neonGreen}
+          />
+        </Pressable>
+      </View>
+
+      {/* Barra de progreso total */}
       <View style={styles.progressRow}>
-        <EliteText variant="caption" style={styles.stepCounter}>
-          Step {currentStepNumber} de {totalSteps}
-        </EliteText>
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: `${totalProgress * 100}%` }]} />
         </View>
@@ -211,6 +263,70 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     </SafeAreaView>
   );
 }
+
+// === COMPONENTES AUXILIARES ===
+
+/** Fila de preview: Siguiente / Después */
+function StepPreviewRow({
+  label,
+  step,
+  isLast,
+}: {
+  label: string;
+  step: ExecutionStep | null;
+  isLast?: boolean;
+}) {
+  if (isLast) {
+    return (
+      <View style={styles.previewRow}>
+        <EliteText variant="caption" style={styles.previewLabel}>{label}</EliteText>
+        <View style={styles.previewContent}>
+          <EliteText variant="caption" style={styles.previewLast}>Último paso</EliteText>
+        </View>
+      </View>
+    );
+  }
+
+  if (!step) return null;
+
+  const color = getStepColor(step);
+  const displayLabel = step.isRestBetween ? 'Descanso entre rondas' : step.label;
+
+  return (
+    <View style={styles.previewRow}>
+      <EliteText variant="caption" style={styles.previewLabel}>{label}</EliteText>
+      <View style={styles.previewContent}>
+        <View style={[styles.previewDot, { backgroundColor: color }]} />
+        <EliteText
+          variant="body"
+          style={[styles.previewName, step.isRestBetween && { color: REST_BETWEEN_COLOR }]}
+          numberOfLines={1}
+        >
+          {displayLabel}
+        </EliteText>
+        <EliteText variant="caption" style={styles.previewTime}>
+          {formatTime(step.durationSeconds)}
+        </EliteText>
+      </View>
+    </View>
+  );
+}
+
+/** Construye texto legible de rondas desde el context */
+function buildRoundsText(step: ExecutionStep | null): string {
+  if (!step) return '';
+  const { rounds } = step.context;
+  if (rounds.length === 0) return '';
+
+  return rounds
+    .map(r => {
+      const name = r.label === 'Serie Principal' ? 'Serie' : r.label === 'Bloque' ? 'Ronda' : r.label;
+      return `${name} ${r.current} de ${r.total}`;
+    })
+    .join(' · ');
+}
+
+// === ESTILOS ===
 
 const styles = StyleSheet.create({
   screen: {
@@ -229,57 +345,133 @@ const styles = StyleSheet.create({
     zIndex: 10,
     padding: Spacing.sm,
   },
+
+  // --- Zona superior ---
   routineName: {
     marginTop: Spacing.xxl,
     fontSize: FontSizes.lg,
     letterSpacing: 4,
   },
-  totalInfo: {
+  timeInfo: {
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0.5,
   },
   roundsText: {
     marginTop: Spacing.sm,
-    letterSpacing: 2,
-    color: Colors.textSecondary,
+    letterSpacing: 1,
+    color: Colors.neonGreen,
+    fontSize: 13,
   },
-  stepType: {
-    marginTop: Spacing.sm,
-    fontSize: FontSizes.lg,
-    letterSpacing: 2,
+
+  // --- Step info ---
+  stepInfo: {
+    alignItems: 'center',
+    marginTop: Spacing.md,
   },
-  stepLabel: {
+  stepTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  stepDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  stepTypeLabel: {
+    letterSpacing: 2,
+    fontSize: 13,
+  },
+  stepName: {
     color: Colors.textPrimary,
     marginTop: Spacing.xs,
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.bold,
   },
+
+  // --- Timer ---
   timerWrapper: {
     marginTop: Spacing.md,
     marginBottom: Spacing.xs,
   },
-  // Next step preview
-  nextPreview: {
+
+  // --- Preview siguiente/después ---
+  previewContainer: {
+    width: '100%',
+    paddingHorizontal: Spacing.sm,
+    gap: 2,
+  },
+  previewRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
-  nextLabel: {
+  previewLabel: {
     color: Colors.textSecondary,
-    letterSpacing: 2,
-    marginBottom: Spacing.xs,
+    letterSpacing: 1,
+    width: 75,
+    fontSize: 10,
   },
-  nextName: {
+  previewContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  previewDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  previewName: {
+    flex: 1,
+    color: Colors.textPrimary,
+    fontSize: 14,
+  },
+  previewTime: {
+    color: Colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },
-  // Progreso
+  previewLast: {
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+  },
+
+  // --- Controles horizontales ---
+  controlsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.lg,
+    marginTop: Spacing.lg,
+  },
+  controlPrimary: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.neonGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlSecondary: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: Colors.surfaceLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controlPressed: {
+    opacity: 0.6,
+  },
+
+  // --- Progreso ---
   progressRow: {
     width: '100%',
     paddingHorizontal: Spacing.md,
-    marginTop: Spacing.md,
-    alignItems: 'center',
-  },
-  stepCounter: {
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xs,
-    fontVariant: ['tabular-nums'],
+    marginTop: Spacing.lg,
   },
   progressBar: {
     width: '100%',
@@ -292,27 +484,30 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neonGreen,
     borderRadius: 2,
   },
-  // Pantalla completada
-  completedCheck: {
-    fontSize: 48,
-    marginBottom: Spacing.sm,
+
+  // --- Pantalla completada ---
+  completedTitle: {
+    color: Colors.neonGreen,
+    fontSize: FontSizes.xl,
+    marginBottom: Spacing.xs,
   },
   completedRoutine: {
     color: Colors.textSecondary,
-    marginTop: Spacing.xs,
     marginBottom: Spacing.xl,
   },
   statsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
     marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.md,
   },
   statCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: Radius.md,
     padding: Spacing.md,
     alignItems: 'center',
-    flex: 1,
+    width: '47%',
     borderWidth: 1,
     borderColor: Colors.surfaceLight,
   },
@@ -320,10 +515,19 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 1,
     marginBottom: Spacing.xs,
+    fontSize: 10,
   },
   statValue: {
     color: Colors.neonGreen,
     fontSize: 20,
+  },
+  statRatio: {
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  statSkipped: {
+    color: '#E24B4A',
+    marginTop: 2,
   },
   completedButtons: {
     gap: Spacing.sm,
