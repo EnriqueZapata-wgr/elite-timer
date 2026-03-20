@@ -6,7 +6,7 @@
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { speak as speakTTS, stopSpeech } from '@/src/utils/speech';
-import { playSound, initAudio } from '@/src/utils/sounds';
+import { playSound, initAudio, cleanupAudio } from '@/src/utils/sounds';
 import { vibrateLight, vibrateMedium, vibrateHeavy, vibrateCountdown } from '@/src/utils/haptics';
 import { useSettings } from '@/src/contexts/settings-context';
 import { RoutineEngine } from '@/src/engine/RoutineEngine';
@@ -142,19 +142,20 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
         // Countdown hablado: "3", "2", "1" — respetar countdownSpoken
         const isCountdown = text === '3' || text === '2' || text === '1';
         if (isCountdown && !s.countdownSpoken) return;
-        // Voz general
+        // Voz general — pasar idioma del settings
         if (s.voiceEnabled) {
-          speakTTS(text);
+          speakTTS(text, s.voiceLanguage);
         }
       },
 
       onSound: (sound) => {
         const s = settingsRef.current;
+        const vol = s.soundVolume / 100; // 0-100 → 0-1
         if (sound === 'countdown') {
           if (s.vibrationEnabled) vibrateCountdown();
-          if (s.soundsEnabled) playSound('countdown');
+          if (s.soundsEnabled) playSound('countdown', vol);
         } else if (s.soundsEnabled) {
-          playSound(sound);
+          playSound(sound, vol);
         }
       },
     };
@@ -163,22 +164,20 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
     engineRef.current = engine;
     prevStepRef.current = steps[0] ?? null;
 
+    // Precargar sonidos al montar
+    initAudio();
+
     return () => {
       engine.destroy();
       stopSpeech();
+      cleanupAudio();
     };
   }, [steps]);
 
   // Controles
-  const play = useCallback(() => {
-    initAudio(); // Desbloquear AudioContext en web (requiere gesto)
-    engineRef.current?.play();
-  }, []);
+  const play = useCallback(() => engineRef.current?.play(), []);
   const pause = useCallback(() => engineRef.current?.pause(), []);
-  const togglePlayPause = useCallback(() => {
-    initAudio();
-    engineRef.current?.togglePlayPause();
-  }, []);
+  const togglePlayPause = useCallback(() => engineRef.current?.togglePlayPause(), []);
   const skip = useCallback(() => engineRef.current?.skip(), []);
   const restartStep = useCallback(() => engineRef.current?.restartCurrentStep(), []);
 

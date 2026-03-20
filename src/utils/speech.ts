@@ -4,17 +4,17 @@
  * Web: window.speechSynthesis (Web Speech API)
  * Mobile (iOS/Android): expo-speech (import estático)
  *
- * Detecta plataforma automáticamente. Si ninguna funciona, falla silenciosamente.
+ * El idioma se pasa como parámetro — NO está hardcodeado.
  */
 import { Platform } from 'react-native';
 import * as Speech from 'expo-speech';
 
-/** Habla el texto en español mexicano */
-export function speak(text: string): void {
+/** Habla el texto en el idioma especificado (default: es-MX) */
+export function speak(text: string, language: string = 'es-MX'): void {
   if (Platform.OS === 'web') {
-    speakWeb(text);
+    speakWeb(text, language);
   } else {
-    speakNative(text);
+    speakNative(text, language);
   }
 }
 
@@ -23,39 +23,29 @@ export function stopSpeech(): void {
   if (Platform.OS === 'web') {
     try {
       window.speechSynthesis?.cancel();
-    } catch {
-      // No disponible
-    }
+    } catch { /* no disponible */ }
   } else {
     try {
       Speech.stop();
-    } catch {
-      // No disponible
-    }
+    } catch { /* no disponible */ }
   }
 }
 
 // === IMPLEMENTACIONES POR PLATAFORMA ===
 
-/** Web Speech API */
-function speakWeb(text: string): void {
+function speakWeb(text: string, language: string): void {
   try {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'es-MX';
+    utterance.lang = language;
     utterance.rate = 1.1;
     window.speechSynthesis.speak(utterance);
-  } catch {
-    // Web Speech API no disponible
-  }
+  } catch { /* Web Speech API no disponible */ }
 }
 
-/** expo-speech para iOS/Android */
-function speakNative(text: string): void {
+function speakNative(text: string, language: string): void {
   try {
-    Speech.speak(text, { language: 'es-MX', rate: 1.1 });
-  } catch {
-    // expo-speech no disponible
-  }
+    Speech.speak(text, { language, rate: 1.1 });
+  } catch { /* expo-speech no disponible */ }
 }

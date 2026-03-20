@@ -6,7 +6,7 @@ import { EliteText } from '@/components/elite-text';
 import { EliteToggle } from '@/components/elite-toggle';
 import { useSettings, type VoiceLanguage, type SoundStyle } from '@/src/contexts/settings-context';
 import { speak } from '@/src/utils/speech';
-import { playBeep } from '@/src/utils/sounds';
+import { playBeep, initAudio } from '@/src/utils/sounds';
 import { vibrateMedium } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius } from '@/constants/theme';
 
@@ -153,12 +153,12 @@ export default function SettingsScreen() {
             <TestButton
               icon="mic-outline"
               label="Voz"
-              onPress={() => speak('Probando la voz del timer')}
+              onPress={() => speak('Probando la voz del timer', settings.voiceLanguage)}
             />
             <TestButton
               icon="volume-high-outline"
               label="Sonido"
-              onPress={() => playBeep()}
+              onPress={() => { initAudio(); playBeep(settings.soundVolume / 100); }}
             />
             <TestButton
               icon="phone-portrait-outline"
