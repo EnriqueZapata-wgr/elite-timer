@@ -6,7 +6,7 @@
  */
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { speak as speakTTS, stopSpeech } from '@/src/utils/speech';
-import { playSound, initAudio, cleanupAudio } from '@/src/utils/sounds';
+import { playSound, initAudio, cleanupAudio, setSoundStyle } from '@/src/utils/sounds';
 import { vibrateLight, vibrateMedium, vibrateHeavy, vibrateCountdown } from '@/src/utils/haptics';
 import { useSettings } from '@/src/contexts/settings-context';
 import { RoutineEngine } from '@/src/engine/RoutineEngine';
@@ -73,9 +73,13 @@ function detectChangeLevel(prevStep: ExecutionStep | null, newStep: ExecutionSte
 
 export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn {
   const { settings } = useSettings();
-  // Ref para acceder a settings actuales dentro de callbacks sin recrear engine
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
+
+  // Sincronizar estilo de sonido cuando cambia en settings
+  useEffect(() => {
+    setSoundStyle(settings.soundStyle);
+  }, [settings.soundStyle]);
 
   // Compilar rutina a steps una sola vez
   const steps = useMemo(() => flattenRoutine(routine), [routine]);
@@ -164,8 +168,9 @@ export function useRoutineEngine(routine: EngineRoutine): UseRoutineEngineReturn
     engineRef.current = engine;
     prevStepRef.current = steps[0] ?? null;
 
-    // Precargar sonidos al montar
+    // Inicializar audio y configurar estilo de sonido
     initAudio();
+    setSoundStyle(settingsRef.current.soundStyle);
 
     return () => {
       engine.destroy();

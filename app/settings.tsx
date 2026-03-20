@@ -6,7 +6,7 @@ import { EliteText } from '@/components/elite-text';
 import { EliteToggle } from '@/components/elite-toggle';
 import { useSettings, type VoiceLanguage, type SoundStyle } from '@/src/contexts/settings-context';
 import { speak } from '@/src/utils/speech';
-import { playBeep, initAudio } from '@/src/utils/sounds';
+import { playBeep, initAudio, setSoundStyle } from '@/src/utils/sounds';
 import { vibrateMedium } from '@/src/utils/haptics';
 import { Colors, Fonts, Spacing, Radius } from '@/constants/theme';
 
@@ -14,9 +14,7 @@ import { Colors, Fonts, Spacing, Radius } from '@/constants/theme';
 
 const LANGUAGES: { value: VoiceLanguage; label: string }[] = [
   { value: 'es-MX', label: 'Español (MX)' },
-  { value: 'es-ES', label: 'Español (ES)' },
   { value: 'en-US', label: 'English (US)' },
-  { value: 'en-GB', label: 'English (UK)' },
 ];
 
 const SOUND_STYLES: { value: SoundStyle; label: string }[] = [
@@ -158,7 +156,7 @@ export default function SettingsScreen() {
             <TestButton
               icon="volume-high-outline"
               label="Sonido"
-              onPress={() => { initAudio(); playBeep(settings.soundVolume / 100); }}
+              onPress={() => { initAudio(); setSoundStyle(settings.soundStyle); playBeep(settings.soundVolume / 100); }}
             />
             <TestButton
               icon="phone-portrait-outline"

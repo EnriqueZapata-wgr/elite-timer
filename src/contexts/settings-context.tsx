@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // === TIPOS ===
 
-export type VoiceLanguage = 'es-MX' | 'es-ES' | 'en-US' | 'en-GB';
+export type VoiceLanguage = 'es-MX' | 'en-US';
 export type SoundStyle = 'digital' | 'boxing' | 'whistle' | 'military' | 'silent';
 
 export interface Settings {
