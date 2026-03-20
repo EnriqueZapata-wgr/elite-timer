@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useKeepAwake } from 'expo-keep-awake';
 
 import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
@@ -67,6 +68,9 @@ export default function ExecutionScreen() {
 
 function ExecutionContent({ routine }: { routine: EngineRoutine }) {
   const router = useRouter();
+
+  // Mantener pantalla encendida mientras el timer está activo
+  useKeepAwake();
 
   const {
     engineState,
