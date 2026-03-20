@@ -5,7 +5,7 @@
  * la migración a Supabase sea solo cambiar este archivo.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { Routine } from '@/src/engine/types';
+import type { Block, Routine } from '@/src/engine/types';
 
 const STORAGE_KEY = '@elite/engine-routines';
 
@@ -43,4 +43,34 @@ export async function deleteRoutine(id: string): Promise<void> {
   const routines = await getRoutines();
   const filtered = routines.filter(r => r.id !== id);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+}
+
+/**
+ * Copia profunda de un bloque con nuevos IDs.
+ * Solo el bloque raíz recibe " (copia)" en el label; los children conservan su label.
+ */
+export function deepCopyBlock(block: Block, newParentId: string | null): Block {
+  const newId = generateId();
+  return {
+    ...block,
+    id: newId,
+    parent_block_id: newParentId,
+    label: block.label + ' (copia)',
+    children: block.type === 'group'
+      ? (block.children ?? []).map(child => deepCopyChild(child, newId))
+      : undefined,
+  };
+}
+
+/** Copia profunda recursiva de children (sin agregar "(copia)" al label) */
+function deepCopyChild(block: Block, newParentId: string): Block {
+  const newId = generateId();
+  return {
+    ...block,
+    id: newId,
+    parent_block_id: newParentId,
+    children: block.type === 'group'
+      ? (block.children ?? []).map(child => deepCopyChild(child, newId))
+      : undefined,
+  };
 }

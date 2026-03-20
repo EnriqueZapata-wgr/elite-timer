@@ -29,6 +29,7 @@ import {
   saveRoutine,
   getRoutine,
   generateId,
+  deepCopyBlock,
 } from '@/src/utils/routine-storage';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -136,6 +137,17 @@ export default function BuilderScreen() {
       const newBlock = { ...block, parent_block_id: null, sort_order: blocks.length };
       blocks.push(newBlock);
       return { ...prev, blocks };
+    });
+  }, [updateRoutine]);
+
+  const duplicateBlock = useCallback((index: number) => {
+    updateRoutine(prev => {
+      const blocks = [...prev.blocks];
+      const original = blocks[index];
+      const copy = deepCopyBlock(original, null);
+      blocks.splice(index + 1, 0, copy);
+      const reindexed = blocks.map((b, i) => ({ ...b, sort_order: i }));
+      return { ...prev, blocks: reindexed };
     });
   }, [updateRoutine]);
 
@@ -278,6 +290,7 @@ export default function BuilderScreen() {
                   depth={0}
                   onUpdate={updated => updateBlock(index, updated)}
                   onDelete={() => deleteBlock(index)}
+                  onDuplicate={() => duplicateBlock(index)}
                   onAddChild={child => {
                     // Para agregar child a un bloque raíz grupo
                     const children = [...(block.children ?? [])];

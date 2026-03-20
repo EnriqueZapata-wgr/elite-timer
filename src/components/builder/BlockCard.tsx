@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import type { Block } from '@/src/engine/types';
+import { deepCopyBlock } from '@/src/utils/routine-storage';
 import { AddBlockButton } from './AddBlockButton';
 
 // === PALETA DE COLORES PARA GRUPOS ===
@@ -43,6 +44,8 @@ interface BlockCardProps {
   onDelete: () => void;
   /** Callback para agregar un child (solo grupos) */
   onAddChild: (child: Block) => void;
+  /** Callback para duplicar este bloque como hermano */
+  onDuplicate: () => void;
   /** Mover arriba entre hermanos */
   onMoveUp: (() => void) | null;
   /** Mover abajo entre hermanos */
@@ -58,6 +61,7 @@ export function BlockCard({
   onUpdate,
   onDelete,
   onAddChild,
+  onDuplicate,
   onMoveUp,
   onMoveDown,
   depth,
@@ -102,6 +106,15 @@ export function BlockCard({
     const newChild = { ...child, parent_block_id: block.id, sort_order: children.length };
     children.push(newChild);
     onUpdate({ ...block, children });
+  };
+
+  const duplicateChild = (index: number) => {
+    const children = [...(block.children ?? [])];
+    const original = children[index];
+    const copy = deepCopyBlock(original, block.id);
+    children.splice(index + 1, 0, copy);
+    const reindexed = children.map((c, i) => ({ ...c, sort_order: i }));
+    onUpdate({ ...block, children: reindexed });
   };
 
   // === RENDER GRUPO ===
@@ -161,6 +174,9 @@ export function BlockCard({
                   <Ionicons name="arrow-down" size={16} color={Colors.textSecondary} />
                 </Pressable>
               )}
+              <Pressable onPress={onDuplicate} hitSlop={8}>
+                <Ionicons name="copy-outline" size={16} color={Colors.textSecondary} />
+              </Pressable>
               <Pressable onPress={onDelete} hitSlop={8}>
                 <Ionicons name="trash-outline" size={16} color={Colors.error} />
               </Pressable>
@@ -222,6 +238,7 @@ export function BlockCard({
                   depth={0}
                   onUpdate={updated => updateChild(index, updated)}
                   onDelete={() => deleteChild(index)}
+                  onDuplicate={() => duplicateChild(index)}
                   onAddChild={newChild => {
                     // Agregar child al child (si es grupo)
                     const children = [...(child.children ?? [])];
@@ -309,6 +326,9 @@ export function BlockCard({
                 <Ionicons name="arrow-down" size={16} color={Colors.textSecondary} />
               </Pressable>
             )}
+            <Pressable onPress={onDuplicate} hitSlop={8}>
+              <Ionicons name="copy-outline" size={16} color={Colors.textSecondary} />
+            </Pressable>
             <Pressable onPress={onDelete} hitSlop={8}>
               <Ionicons name="trash-outline" size={16} color={Colors.error} />
             </Pressable>
