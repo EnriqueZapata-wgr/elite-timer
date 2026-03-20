@@ -23,7 +23,7 @@ export default function ProgramsScreen() {
   const userPrograms = programs.filter(p => !p.isStandard);
 
   // Rutinas que no pertenecen a ningún programa
-  const assignedIds = new Set(userPrograms.flatMap(p => p.routineIds));
+  const assignedIds = new Set(userPrograms.flatMap(p => p.routineIds || []));
   const looseRoutines = routines.filter(r => !assignedIds.has(r.id));
 
   const hasContent = userPrograms.length > 0 || looseRoutines.length > 0;

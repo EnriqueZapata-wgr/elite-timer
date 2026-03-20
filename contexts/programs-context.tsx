@@ -50,7 +50,7 @@ function reducer(state: ProgramsState, action: Action): ProgramsState {
       const newPrograms = action.programId
         ? state.programs.map(p =>
             p.id === action.programId
-              ? { ...p, routineIds: [...p.routineIds, action.routine.id], updatedAt: Date.now() }
+              ? { ...p, routineIds: [...(p.routineIds || []), action.routine.id], updatedAt: Date.now() }
               : p
           )
         : state.programs;
@@ -64,7 +64,7 @@ function reducer(state: ProgramsState, action: Action): ProgramsState {
         // Limpiar referencia en todos los programas
         programs: state.programs.map(p => ({
           ...p,
-          routineIds: p.routineIds.filter(rid => rid !== action.id),
+          routineIds: (p.routineIds || []).filter(rid => rid !== action.id),
         })),
       };
 
@@ -152,7 +152,7 @@ export function ProgramsProvider({ children }: { children: ReactNode }) {
     (programId: string): Routine[] => {
       const program = state.programs.find(p => p.id === programId);
       if (!program) return [];
-      return program.routineIds
+      return (program.routineIds || [])
         .map(rid => state.routines.find(r => r.id === rid))
         .filter((r): r is Routine => r !== undefined);
     },
