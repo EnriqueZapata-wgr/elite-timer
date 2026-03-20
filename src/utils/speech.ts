@@ -2,11 +2,12 @@
  * Speech helper — TTS multiplataforma.
  *
  * Web: window.speechSynthesis (Web Speech API)
- * Mobile (iOS/Android): expo-speech
+ * Mobile (iOS/Android): expo-speech (import estático)
  *
  * Detecta plataforma automáticamente. Si ninguna funciona, falla silenciosamente.
  */
 import { Platform } from 'react-native';
+import * as Speech from 'expo-speech';
 
 /** Habla el texto en español mexicano */
 export function speak(text: string): void {
@@ -27,7 +28,6 @@ export function stopSpeech(): void {
     }
   } else {
     try {
-      const Speech = require('expo-speech');
       Speech.stop();
     } catch {
       // No disponible
@@ -41,7 +41,6 @@ export function stopSpeech(): void {
 function speakWeb(text: string): void {
   try {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    // Cancelar speech anterior para evitar cola
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'es-MX';
@@ -55,7 +54,6 @@ function speakWeb(text: string): void {
 /** expo-speech para iOS/Android */
 function speakNative(text: string): void {
   try {
-    const Speech = require('expo-speech');
     Speech.speak(text, { language: 'es-MX', rate: 1.1 });
   } catch {
     // expo-speech no disponible
