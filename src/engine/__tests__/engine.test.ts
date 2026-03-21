@@ -40,8 +40,9 @@ function assertEqual<T>(actual: T, expected: T, message: string): void {
 
 // === TEST 1: TABATA ===
 // Tabata children=[Work 20s, Rest 10s], 8 rounds, rest_between=0.
-// Regla anti-acumulación: trailing Rest se elimina en cada round.
-// Resultado: 8 steps de work, 160s total.
+// rest_between=0 → rest explícitos se CONSERVAN (son intencionales).
+// Solo el trailing rest del último round se elimina.
+// Resultado: 15 steps (8 work + 7 rest), 230s total.
 
 console.log('\n🔥 TEST TABATA');
 console.log('─'.repeat(50));
@@ -49,17 +50,18 @@ console.log('─'.repeat(50));
 const tabataSteps = flattenRoutine(TABATA_ROUTINE);
 const tabataStats = calcRoutineStats(tabataSteps);
 
-assertEqual(tabataSteps.length, 8, 'Tabata: 8 steps (trailing rest eliminado en cada round)');
-assertEqual(tabataStats.totalSeconds, 160, 'Tabata: 160s total (solo trabajo)');
+assertEqual(tabataSteps.length, 15, 'Tabata: 15 steps (8 work + 7 rest, trailing rest último round eliminado)');
+assertEqual(tabataStats.totalSeconds, 230, 'Tabata: 230s total (160s work + 70s rest)');
 assertEqual(tabataStats.workSeconds, 160, 'Tabata: 160s de trabajo (8×20)');
-assertEqual(tabataStats.restSeconds, 0, 'Tabata: 0s de descanso (trailing rests eliminados)');
+assertEqual(tabataStats.restSeconds, 70, 'Tabata: 70s de descanso (7×10)');
 assertEqual(tabataSteps[0].type, 'work', 'Primer step debe ser work');
 assertEqual(tabataSteps[0].label, 'Work', 'Primer step label: "Work"');
 
-// Todos los steps son work
-assert(tabataSteps.every(s => s.type === 'work'), 'Todos los steps son work');
+// Patrón: Work, Rest, Work, Rest, ..., Work (sin trailing rest)
+assertEqual(tabataSteps[1].type, 'rest', 'Step 1 es rest');
+assertEqual(tabataSteps[1].durationSeconds, 10, 'Step 1: 10s de descanso');
 
-// Último step
+// Último step sigue siendo work (trailing rest eliminado en último round)
 const tabataLast = tabataSteps[tabataSteps.length - 1];
 assertEqual(tabataLast.type, 'work', 'Último step debe ser work');
 assertEqual(tabataLast.label, 'Work', 'Último step label: "Work"');
@@ -74,7 +76,7 @@ assertEqual(
   'Primer step: total 8 rounds',
 );
 assertEqual(
-  tabataSteps[7].context.rounds[0]?.current, 8,
+  tabataLast.context.rounds[0]?.current, 8,
   'Último step: round 8 de 8',
 );
 
@@ -84,7 +86,7 @@ assertEqual(tabataRestBetween.length, 0, 'Tabata no tiene rest_between');
 
 // stepIndex re-indexado correctamente
 assertEqual(tabataSteps[0].stepIndex, 0, 'stepIndex[0] = 0');
-assertEqual(tabataSteps[7].stepIndex, 7, 'stepIndex[7] = 7');
+assertEqual(tabataSteps[tabataSteps.length - 1].stepIndex, 14, 'Último stepIndex = 14');
 
 // === TEST 2: PROTOCOLO GUINNESS ===
 // Último child de "Bloque" es "10 reps" (work) → no afectado por regla anti-acumulación.
@@ -176,11 +178,11 @@ assertEqual(tree[0].children?.[1].id, 'tabata-rest', 'buildTree: segundo hijo es
 // Verificar que buildTree + flattenRoutine da el mismo resultado
 const treeRoutine = { ...TABATA_ROUTINE, blocks: tree };
 const treeSteps = flattenRoutine(treeRoutine);
-assertEqual(treeSteps.length, 8, 'buildTree → flatten: 8 steps (trailing rest eliminado)');
+assertEqual(treeSteps.length, 15, 'buildTree → flatten: 15 steps (rest explícitos conservados)');
 assertEqual(
   calcRoutineStats(treeSteps).totalSeconds,
-  160,
-  'buildTree → flatten: 160s total',
+  230,
+  'buildTree → flatten: 230s total',
 );
 
 // === TEST 4: HELPERS ===

@@ -104,9 +104,12 @@ export function flattenRoutine(routine: Routine): ExecutionStep[] {
         processBlock(child, roundContext);
       }
 
-      // Eliminar trailing rest explícito de los children.
-      // El rest_between del padre (o fin de rutina) lo reemplaza.
-      if (steps.length > 0) {
+      // Anti-acumulación: eliminar trailing rest explícito SOLO cuando:
+      // - rest_between > 0: el rest_between reemplaza al rest del child (evita doble descanso)
+      // - último round: no se necesita descanso final tras la última repetición
+      // Si rest_between === 0 y NO es último round, el rest explícito es intencional.
+      const shouldPopTrailingRest = block.rest_between_seconds > 0 || round === block.rounds;
+      if (shouldPopTrailingRest && steps.length > 0) {
         const last = steps[steps.length - 1];
         if (last.type === 'rest' && !last.isRestBetween) {
           steps.pop();

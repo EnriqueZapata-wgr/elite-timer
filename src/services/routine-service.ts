@@ -46,7 +46,7 @@ export function generateUUID(): string {
 
 // === HELPERS DE CONVERSIÓN ===
 
-/** Row de la tabla `blocks` en Supabase */
+/** Row de la tabla `blocks` en Supabase (exercise_name NO existe en la tabla) */
 interface DbBlockRow {
   id: string;
   routine_id: string;
@@ -62,11 +62,11 @@ interface DbBlockRow {
   sound_end: string;
   notes: string;
   exercise_id: string | null;
-  exercise_name: string | null;
 }
 
-/** Convierte un row de DB a un Block del engine (sin children, para buildTree) */
-function dbRowToBlock(row: DbBlockRow): Block & { _routine_id: string } {
+/** Convierte un row de DB a un Block del engine (sin children, para buildTree).
+ *  exercise_name se resuelve por JOIN, no existe como columna en blocks. */
+function dbRowToBlock(row: DbBlockRow & { exercises?: { name: string } | null }): Block & { _routine_id: string } {
   return {
     id: row.id,
     parent_block_id: row.parent_block_id,
@@ -81,7 +81,7 @@ function dbRowToBlock(row: DbBlockRow): Block & { _routine_id: string } {
     sound_end: row.sound_end,
     notes: row.notes,
     exercise_id: row.exercise_id,
-    exercise_name: row.exercise_name,
+    exercise_name: row.exercises?.name ?? null,
     _routine_id: row.routine_id,
   };
 }
@@ -144,7 +144,6 @@ function flattenTreeToDbRows(blocks: Block[], routineId: string): Omit<DbBlockRo
         sound_end: block.sound_end,
         notes: block.notes,
         exercise_id: block.exercise_id ?? null,
-        exercise_name: block.exercise_name ?? null,
       });
       if (block.children) {
         walk(block.children, block.id);
@@ -174,11 +173,11 @@ export async function getRoutines(): Promise<Routine[]> {
   if (routineError) throw new Error(routineError.message);
   if (!routineRows || routineRows.length === 0) return [];
 
-  // Fetch todos los blocks de esas rutinas
+  // Fetch todos los blocks de esas rutinas (JOIN con exercises para exercise_name)
   const routineIds = routineRows.map(r => r.id);
   const { data: blockRows, error: blockError } = await supabase
     .from('blocks')
-    .select('*')
+    .select('*, exercises(name)')
     .in('routine_id', routineIds);
 
   if (blockError) throw new Error(blockError.message);
@@ -186,7 +185,7 @@ export async function getRoutines(): Promise<Routine[]> {
   // Agrupar blocks por routine_id
   const blocksByRoutine = new Map<string, Block[]>();
   for (const row of (blockRows ?? [])) {
-    const block = dbRowToBlock(row as DbBlockRow);
+    const block = dbRowToBlock(row as any);
     const { _routine_id, ...cleanBlock } = block;
     const existing = blocksByRoutine.get(_routine_id) ?? [];
     if (!blocksByRoutine.has(_routine_id)) {
@@ -222,13 +221,13 @@ export async function getRoutine(id: string): Promise<Routine | null> {
 
   const { data: blockRows, error: blockError } = await supabase
     .from('blocks')
-    .select('*')
+    .select('*, exercises(name)')
     .eq('routine_id', id);
 
   if (blockError) throw new Error(blockError.message);
 
   const flatBlocks = (blockRows ?? []).map(row => {
-    const { _routine_id, ...block } = dbRowToBlock(row as DbBlockRow);
+    const { _routine_id, ...block } = dbRowToBlock(row as any);
     return block;
   });
 
