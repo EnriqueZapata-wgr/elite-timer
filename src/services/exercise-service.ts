@@ -6,7 +6,19 @@
  * al insertar en exercise_logs con peso mayor al PR actual.
  */
 import { supabase } from '@/src/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import { generateUUID } from '@/src/services/routine-service';
+
+/** Obtiene usuario con refresh automático si la sesión expiró */
+async function getAuthenticatedUser(): Promise<User> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) return user;
+  const { data, error } = await supabase.auth.refreshSession();
+  if (error || !data.user) {
+    throw new Error('Sesión expirada. Cierra sesión e inicia de nuevo.');
+  }
+  return data.user;
+}
 import type {
   Exercise,
   ExerciseLog,
@@ -66,8 +78,7 @@ export async function createExercise(data: {
   description?: string;
 }): Promise<Exercise> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No autenticado');
+    const user = await getAuthenticatedUser();
 
     const exercise = {
       id: generateUUID(),
@@ -95,8 +106,7 @@ export async function createExercise(data: {
 /** Registrar un set de ejercicio (durante ejecución o manual) */
 export async function logExerciseSet(data: LogSetData): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No autenticado');
+    const user = await getAuthenticatedUser();
 
     const row = {
       id: generateUUID(),
@@ -125,8 +135,7 @@ export async function logExerciseSet(data: LogSetData): Promise<void> {
 /** Registrar múltiples sets de un ejercicio (para entrada manual) */
 export async function logExerciseSets(sets: LogSetData[]): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('No autenticado');
+    const user = await getAuthenticatedUser();
 
     const rows = sets.map(data => ({
       id: generateUUID(),

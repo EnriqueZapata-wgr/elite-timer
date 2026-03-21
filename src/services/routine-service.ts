@@ -7,7 +7,26 @@
  * Estrategia de save: delete all blocks + re-insert (más simple que diff).
  */
 import { supabase } from '@/src/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import type { Block, Routine } from '@/src/engine/types';
+
+// === AUTH HELPER ===
+
+/**
+ * Obtiene el usuario autenticado. Si la sesión expiró, intenta
+ * refreshSession() una vez antes de fallar.
+ */
+async function getAuthenticatedUser(): Promise<User> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) return user;
+
+  // Sesión posiblemente expirada — intentar refresh
+  const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+  if (refreshError || !refreshData.user) {
+    throw new Error('Sesión expirada. Cierra sesión e inicia de nuevo.');
+  }
+  return refreshData.user;
+}
 
 // === UUID ===
 
@@ -142,6 +161,7 @@ function flattenTreeToDbRows(blocks: Block[], routineId: string): Omit<DbBlockRo
 /** Obtiene todas las rutinas del usuario autenticado */
 export async function getRoutines(): Promise<Routine[]> {
   const { data: { user } } = await supabase.auth.getUser();
+  // getRoutines no fuerza refresh — si no hay sesión, retorna vacío silenciosamente
   if (!user) return [];
 
   // Fetch rutinas
@@ -187,6 +207,7 @@ export async function getRoutines(): Promise<Routine[]> {
 
 /** Obtiene una rutina por ID (solo del usuario autenticado) */
 export async function getRoutine(id: string): Promise<Routine | null> {
+  // getRoutine no fuerza refresh — si no hay sesión, retorna null
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -220,12 +241,25 @@ export async function getRoutine(id: string): Promise<Routine | null> {
   };
 }
 
-/** Guarda o actualiza una rutina (upsert routine + delete/re-insert blocks) */
+/** Guarda o actualiza una rutina (upsert routine + delete/re-insert blocks).
+ *  Si el insert de blocks falla después del upsert, hace rollback de la rutina. */
 export async function saveRoutine(routine: Routine): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('No autenticado');
+  // Auth con refresh automático
+  const user = await getAuthenticatedUser();
 
-  // Upsert la rutina
+  // Validar que la rutina tenga contenido
+  const rows = flattenTreeToDbRows(routine.blocks, routine.id);
+  if (rows.length === 0) {
+    throw new Error('La rutina no tiene bloques. Agrega al menos un bloque antes de guardar.');
+  }
+
+  // Verificar si la rutina ya existía (para saber si rollback = delete o restaurar)
+  const { data: existingBlocks } = await supabase
+    .from('blocks')
+    .select('*')
+    .eq('routine_id', routine.id);
+
+  // Paso 1: Upsert la rutina
   const { error: routineError } = await supabase
     .from('routines')
     .upsert({
@@ -240,7 +274,7 @@ export async function saveRoutine(routine: Routine): Promise<void> {
 
   if (routineError) throw new Error(routineError.message);
 
-  // Delete todos los blocks existentes de esta rutina
+  // Paso 2: Delete blocks existentes
   const { error: deleteError } = await supabase
     .from('blocks')
     .delete()
@@ -248,21 +282,23 @@ export async function saveRoutine(routine: Routine): Promise<void> {
 
   if (deleteError) throw new Error(deleteError.message);
 
-  // Insertar todos los blocks del árbol
-  const rows = flattenTreeToDbRows(routine.blocks, routine.id);
-  if (rows.length > 0) {
-    const { error: insertError } = await supabase
-      .from('blocks')
-      .insert(rows);
+  // Paso 3: Insert blocks nuevos — si falla, restaurar los blocks previos
+  const { error: insertError } = await supabase
+    .from('blocks')
+    .insert(rows);
 
-    if (insertError) throw new Error(insertError.message);
+  if (insertError) {
+    // Rollback: restaurar blocks anteriores si existían
+    if (existingBlocks && existingBlocks.length > 0) {
+      try { await supabase.from('blocks').insert(existingBlocks); } catch {}
+    }
+    throw new Error(`Error al guardar bloques: ${insertError.message}`);
   }
 }
 
 /** Elimina una rutina del usuario autenticado (CASCADE elimina blocks) */
 export async function deleteRoutine(id: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('No autenticado');
+  const user = await getAuthenticatedUser();
 
   const { error } = await supabase
     .from('routines')

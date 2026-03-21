@@ -83,8 +83,9 @@ export default function BuilderScreen() {
             }
           }
         }
-      } catch (err) {
-        Alert.alert('Error', 'No se pudo cargar la rutina. Verifica tu conexión.');
+      } catch (err: any) {
+        if (__DEV__) console.error('[builder] Error al cargar rutina:', err);
+        Alert.alert('Error', err?.message ?? 'No se pudo cargar la rutina.');
       }
       setLoaded(true);
     }
@@ -187,8 +188,10 @@ export default function BuilderScreen() {
       await saveRoutine(routine);
       setHasChanges(false);
       Alert.alert('Guardado', `"${routine.name}" guardada correctamente.`);
-    } catch (err) {
-      Alert.alert('Error al guardar', 'No se pudo guardar la rutina. Verifica tu conexión.');
+    } catch (err: any) {
+      const msg = err?.message ?? 'Error desconocido';
+      if (__DEV__) console.error('[builder] Error al guardar:', err);
+      Alert.alert('Error al guardar', msg);
     } finally {
       setSaving(false);
     }
@@ -209,8 +212,10 @@ export default function BuilderScreen() {
         pathname: '/execution',
         params: { routine: JSON.stringify(routine) },
       });
-    } catch (err) {
-      Alert.alert('Error al guardar', 'No se pudo guardar la rutina antes de probar.');
+    } catch (err: any) {
+      const msg = err?.message ?? 'Error desconocido';
+      if (__DEV__) console.error('[builder] Error al guardar antes de probar:', err);
+      Alert.alert('Error al guardar', msg);
     } finally {
       setSaving(false);
     }
