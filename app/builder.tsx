@@ -28,6 +28,8 @@ import { formatTime } from '@/src/engine/helpers';
 import { saveRoutine, getRoutine } from '@/src/services/routine-service';
 import { generateUUID as generateId } from '@/src/services/routine-service';
 import { deepCopyBlock } from '@/src/utils/routine-storage';
+import { ExercisePicker } from '@/src/components/ExercisePicker';
+import type { Exercise } from '@/src/types/exercise';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // === CATEGORÍAS ===
@@ -57,6 +59,10 @@ export default function BuilderScreen() {
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
+  // Estado del picker de ejercicios
+  const [exercisePickerVisible, setExercisePickerVisible] = useState(false);
+  // Callback que se invoca cuando se selecciona un ejercicio del picker
+  const exercisePickerCallback = useRef<((exercise: { id: string; name: string }) => void) | null>(null);
 
   // Cargar rutina existente si viene routineId
   useEffect(() => {
@@ -152,6 +158,22 @@ export default function BuilderScreen() {
       return { ...prev, blocks: reindexed };
     });
   }, [updateRoutine]);
+
+  // --- Abrir el picker de ejercicios con un callback ---
+
+  const openExercisePicker = useCallback((onSelect: (exercise: { id: string; name: string }) => void) => {
+    exercisePickerCallback.current = onSelect;
+    setExercisePickerVisible(true);
+  }, []);
+
+  const handleExerciseSelected = useCallback((exercise: Exercise) => {
+    if (exercisePickerCallback.current) {
+      exercisePickerCallback.current(exercise);
+      setHasChanges(true);
+    }
+    exercisePickerCallback.current = null;
+    setExercisePickerVisible(false);
+  }, []);
 
   // --- Guardar ---
 
@@ -316,6 +338,16 @@ export default function BuilderScreen() {
                   }}
                   onMoveUp={index > 0 ? () => moveBlock(index, -1) : null}
                   onMoveDown={index < routine.blocks.length - 1 ? () => moveBlock(index, 1) : null}
+                  onRequestExercisePicker={openExercisePicker}
+                  onAssignExercise={() => {
+                    openExercisePicker((exercise) => {
+                      updateBlock(index, {
+                        ...block,
+                        exercise_id: exercise.id,
+                        exercise_name: exercise.name,
+                      });
+                    });
+                  }}
                 />
               ))
             )}
@@ -416,6 +448,15 @@ export default function BuilderScreen() {
             </View>
           </View>
         </Modal>
+        {/* === EXERCISE PICKER MODAL === */}
+        <ExercisePicker
+          visible={exercisePickerVisible}
+          onClose={() => {
+            exercisePickerCallback.current = null;
+            setExercisePickerVisible(false);
+          }}
+          onSelect={handleExerciseSelected}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

@@ -165,6 +165,8 @@ export function flattenRoutine(routine: Routine): ExecutionStep[] {
         notes: block.notes,
         isRestBetween: false,
         context: stepContext,
+        exerciseId: block.exercise_id ?? null,
+        exerciseName: block.exercise_name ?? null,
       });
 
       // Rest between para hojas con múltiples rondas (excepto última)

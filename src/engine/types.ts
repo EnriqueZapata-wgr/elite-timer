@@ -22,6 +22,10 @@ export interface Block {
   sound_start: string;
   sound_end: string;
   notes: string;
+  /** ID del ejercicio asignado (solo para bloques work) — FK a exercises */
+  exercise_id?: string | null;
+  /** Nombre del ejercicio (cacheado para display sin join) */
+  exercise_name?: string | null;
   children?: Block[];
 }
 
@@ -62,6 +66,10 @@ export interface ExecutionStep {
   /** true si es un descanso insertado entre rondas (rest_between) */
   isRestBetween: boolean;
   context: StepContext;
+  /** ID del ejercicio asignado (propagado del Block) */
+  exerciseId?: string | null;
+  /** Nombre del ejercicio (propagado del Block) */
+  exerciseName?: string | null;
 }
 
 // === ENGINE ===

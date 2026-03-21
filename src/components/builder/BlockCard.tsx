@@ -52,6 +52,10 @@ interface BlockCardProps {
   onMoveDown: (() => void) | null;
   /** Profundidad en el árbol (para indentación) */
   depth: number;
+  /** Callback para abrir el picker de ejercicios. Recibe un callback para cuando se seleccione. */
+  onAssignExercise?: () => void;
+  /** Función global para solicitar el picker de ejercicios (propaga a children) */
+  onRequestExercisePicker?: (onSelect: (exercise: { id: string; name: string }) => void) => void;
 }
 
 // === COMPONENTE PRINCIPAL ===
@@ -65,6 +69,8 @@ export function BlockCard({
   onMoveUp,
   onMoveDown,
   depth,
+  onAssignExercise,
+  onRequestExercisePicker,
 }: BlockCardProps) {
   const [expanded, setExpanded] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -248,6 +254,16 @@ export function BlockCard({
                   }}
                   onMoveUp={index > 0 ? () => moveChild(index, -1) : null}
                   onMoveDown={index < (block.children?.length ?? 0) - 1 ? () => moveChild(index, 1) : null}
+                  onRequestExercisePicker={onRequestExercisePicker}
+                  onAssignExercise={onRequestExercisePicker ? () => {
+                    onRequestExercisePicker((exercise) => {
+                      updateChild(index, {
+                        ...child,
+                        exercise_id: exercise.id,
+                        exercise_name: exercise.name,
+                      });
+                    });
+                  } : undefined}
                 />
               ))}
 
@@ -347,6 +363,42 @@ export function BlockCard({
             suffix="s"
           />
         </View>
+
+        {/* Tercera fila: ejercicio asignado (solo bloques work) */}
+        {block.type === 'work' && (
+          <View style={styles.exerciseRow}>
+            {block.exercise_id && block.exercise_name ? (
+              <View style={styles.exerciseAssigned}>
+                <Ionicons name="barbell-outline" size={14} color={Colors.neonGreen} />
+                <EliteText variant="caption" style={styles.exerciseNameText} numberOfLines={1}>
+                  {block.exercise_name}
+                </EliteText>
+                <Pressable
+                  onPress={() => {
+                    updateField('exercise_id', null);
+                    updateField('exercise_name', null);
+                  }}
+                  hitSlop={8}
+                >
+                  <Ionicons name="close-circle" size={16} color={Colors.textSecondary} />
+                </Pressable>
+                <Pressable onPress={onAssignExercise} hitSlop={8}>
+                  <Ionicons name="swap-horizontal" size={16} color={Colors.neonGreen} />
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                onPress={onAssignExercise}
+                style={styles.assignExerciseBtn}
+              >
+                <Ionicons name="barbell-outline" size={14} color={Colors.textSecondary} />
+                <EliteText variant="caption" style={styles.assignExerciseText}>
+                  Asignar ejercicio
+                </EliteText>
+              </Pressable>
+            )}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -505,6 +557,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: Spacing.xs,
+  },
+
+  // --- Ejercicio asignado ---
+  exerciseRow: {
+    marginTop: Spacing.xs,
+  },
+  exerciseAssigned: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: Colors.neonGreen + '10',
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderWidth: 1,
+    borderColor: Colors.neonGreen + '30',
+  },
+  exerciseNameText: {
+    color: Colors.neonGreen,
+    fontFamily: Fonts.semiBold,
+    fontSize: 11,
+    flex: 1,
+  },
+  assignExerciseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+  },
+  assignExerciseText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
   },
 
   // --- Type selector ---

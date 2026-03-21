@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,11 +8,14 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
+import { SetLogModal } from '@/src/components/SetLogModal';
 import { useRoutineEngine } from '@/hooks/use-routine-engine';
+import { logExerciseSet } from '@/src/services/exercise-service';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import type { Routine as EngineRoutine, ExecutionStep } from '@/src/engine/types';
+import type { ExerciseLog, ExerciseSummary } from '@/src/types/exercise';
 
 // === COLORES POR TIPO DE STEP ===
 
@@ -93,6 +96,149 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     restart,
   } = useRoutineEngine(routine);
 
+  // === SISTEMA DE LOGGING DE EJERCICIOS ===
+
+  // Tracking de sets por ejercicio durante la ejecución
+  const [setLogVisible, setSetLogVisible] = useState(false);
+  const [pendingExercise, setPendingExercise] = useState<{
+    exerciseId: string;
+    exerciseName: string;
+    blockId: string;
+    setNumber: number;
+  } | null>(null);
+  // Contador de sets por exercise_id (acumulativo en la misma ejecución)
+  const setCounters = useRef<Map<string, number>>(new Map());
+  // Logs registrados durante esta ejecución
+  const [sessionLogs, setSessionLogs] = useState<ExerciseLog[]>([]);
+  // Step anterior para detectar transiciones
+  const prevStepRef = useRef<ExecutionStep | null>(null);
+  // Flag para evitar doble-trigger
+  const logShownForStep = useRef<number>(-1);
+
+  // Helper para mostrar el modal de log para un step que acaba de terminar
+  const showLogForStep = useCallback((step: ExecutionStep) => {
+    if (logShownForStep.current === step.stepIndex) return;
+    logShownForStep.current = step.stepIndex;
+
+    const currentCount = (setCounters.current.get(step.exerciseId!) ?? 0) + 1;
+    setCounters.current.set(step.exerciseId!, currentCount);
+
+    setPendingExercise({
+      exerciseId: step.exerciseId!,
+      exerciseName: step.exerciseName ?? step.label,
+      blockId: step.blockId,
+      setNumber: currentCount,
+    });
+    setSetLogVisible(true);
+  }, []);
+
+  // Detectar cuando un step de work con ejercicio termina (transición a otro step)
+  useEffect(() => {
+    const prev = prevStepRef.current;
+    prevStepRef.current = currentStep;
+
+    if (
+      prev &&
+      prev.exerciseId &&
+      prev.type === 'work' &&
+      currentStep &&
+      prev.stepIndex !== currentStep.stepIndex
+    ) {
+      pause();
+      showLogForStep(prev);
+    }
+  }, [currentStep, pause, showLogForStep]);
+
+  // Detectar cuando la rutina completa y el último step tenía ejercicio
+  useEffect(() => {
+    if (engineState === 'completed') {
+      const prev = prevStepRef.current;
+      if (prev && prev.exerciseId && prev.type === 'work') {
+        showLogForStep(prev);
+      }
+    }
+  }, [engineState, showLogForStep]);
+
+  // Guardar un set
+  const handleSaveSet = useCallback(async (data: {
+    reps: number;
+    weight_kg: number | null;
+    rpe: number | null;
+  }) => {
+    if (!pendingExercise) return;
+
+    try {
+      await logExerciseSet({
+        exercise_id: pendingExercise.exerciseId,
+        reps: data.reps,
+        weight_kg: data.weight_kg,
+        rpe: data.rpe,
+        block_id: pendingExercise.blockId,
+        set_number: pendingExercise.setNumber,
+      });
+
+      // Agregar al log local de la sesión
+      setSessionLogs(prev => [...prev, {
+        id: `local-${Date.now()}`,
+        exercise_id: pendingExercise.exerciseId,
+        exercise_name: pendingExercise.exerciseName,
+        set_number: pendingExercise.setNumber,
+        reps: data.reps,
+        weight_kg: data.weight_kg,
+        rpe: data.rpe,
+        notes: '',
+        logged_at: new Date().toISOString(),
+      }]);
+    } catch (err) {
+      console.error('Error al guardar set:', err);
+    }
+
+    setSetLogVisible(false);
+    setPendingExercise(null);
+    // Continuar con el siguiente step
+    play();
+  }, [pendingExercise, play]);
+
+  // Saltar registro de set
+  const handleSkipSet = useCallback(() => {
+    setSetLogVisible(false);
+    setPendingExercise(null);
+    play();
+  }, [play]);
+
+  // Generar resumen de ejercicios para la pantalla completada
+  const exerciseSummaries = useMemo((): ExerciseSummary[] => {
+    if (sessionLogs.length === 0) return [];
+
+    const byExercise = new Map<string, ExerciseLog[]>();
+    for (const log of sessionLogs) {
+      const existing = byExercise.get(log.exercise_id) ?? [];
+      existing.push(log);
+      byExercise.set(log.exercise_id, existing);
+    }
+
+    return Array.from(byExercise.entries()).map(([exerciseId, logs]) => {
+      const totalReps = logs.reduce((sum, l) => sum + l.reps, 0);
+      const weights = logs.filter(l => l.weight_kg !== null).map(l => l.weight_kg!);
+      const maxWeight = weights.length > 0 ? Math.max(...weights) : null;
+      const totalVolume = logs.reduce((sum, l) => {
+        if (l.weight_kg && l.weight_kg > 0) return sum + (l.reps * l.weight_kg);
+        return sum;
+      }, 0);
+
+      return {
+        exercise_id: exerciseId,
+        exercise_name: logs[0].exercise_name ?? '',
+        sets: logs.length,
+        total_reps: totalReps,
+        max_weight: maxWeight,
+        total_volume: totalVolume > 0 ? totalVolume : null,
+        logs,
+        new_pr: false, // Se detectará por el trigger de la DB
+      };
+    });
+  }, [sessionLogs]);
+
   const stepColor = getStepColor(currentStep);
   const isCountdown = remainingSeconds <= 3 && remainingSeconds > 0 && engineState === 'running';
 
@@ -106,52 +252,121 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
     return (
       <SafeAreaView style={[styles.screen, styles.centered]}>
-        <EliteText variant="title" style={styles.completedTitle}>
-          RUTINA COMPLETADA
-        </EliteText>
-        <EliteText variant="body" style={styles.completedRoutine}>
-          {routine.name}
-        </EliteText>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.completedScroll}
+        >
+          <EliteText variant="title" style={styles.completedTitle}>
+            RUTINA COMPLETADA
+          </EliteText>
+          <EliteText variant="body" style={styles.completedRoutine}>
+            {routine.name}
+          </EliteText>
 
-        {/* Stats grid — 2 filas × 2 columnas */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <EliteText variant="caption" style={styles.statLabel}>TIEMPO TOTAL</EliteText>
-            <EliteText variant="subtitle" style={styles.statValue}>
-              {formatTime(stats.actualDurationSeconds)}
-            </EliteText>
-          </View>
-          <View style={styles.statCard}>
-            <EliteText variant="caption" style={styles.statLabel}>TRABAJO</EliteText>
-            <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.work }]}>
-              {formatTimeHuman(stats.workSeconds)}
-            </EliteText>
-            <EliteText variant="caption" style={styles.statRatio}>{workRatio}%</EliteText>
-          </View>
-          <View style={styles.statCard}>
-            <EliteText variant="caption" style={styles.statLabel}>DESCANSO</EliteText>
-            <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.rest }]}>
-              {formatTimeHuman(stats.restSeconds)}
-            </EliteText>
-            <EliteText variant="caption" style={styles.statRatio}>{restRatio}%</EliteText>
-          </View>
-          <View style={styles.statCard}>
-            <EliteText variant="caption" style={styles.statLabel}>STEPS</EliteText>
-            <EliteText variant="subtitle" style={styles.statValue}>
-              {stats.stepsCompleted}
-            </EliteText>
-            {stats.stepsSkipped > 0 && (
-              <EliteText variant="caption" style={styles.statSkipped}>
-                {stats.stepsSkipped} saltados
+          {/* Stats grid — 2 filas × 2 columnas */}
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <EliteText variant="caption" style={styles.statLabel}>TIEMPO TOTAL</EliteText>
+              <EliteText variant="subtitle" style={styles.statValue}>
+                {formatTime(stats.actualDurationSeconds)}
               </EliteText>
-            )}
+            </View>
+            <View style={styles.statCard}>
+              <EliteText variant="caption" style={styles.statLabel}>TRABAJO</EliteText>
+              <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.work }]}>
+                {formatTimeHuman(stats.workSeconds)}
+              </EliteText>
+              <EliteText variant="caption" style={styles.statRatio}>{workRatio}%</EliteText>
+            </View>
+            <View style={styles.statCard}>
+              <EliteText variant="caption" style={styles.statLabel}>DESCANSO</EliteText>
+              <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.rest }]}>
+                {formatTimeHuman(stats.restSeconds)}
+              </EliteText>
+              <EliteText variant="caption" style={styles.statRatio}>{restRatio}%</EliteText>
+            </View>
+            <View style={styles.statCard}>
+              <EliteText variant="caption" style={styles.statLabel}>STEPS</EliteText>
+              <EliteText variant="subtitle" style={styles.statValue}>
+                {stats.stepsCompleted}
+              </EliteText>
+              {stats.stepsSkipped > 0 && (
+                <EliteText variant="caption" style={styles.statSkipped}>
+                  {stats.stepsSkipped} saltados
+                </EliteText>
+              )}
+            </View>
           </View>
-        </View>
 
-        <View style={styles.completedButtons}>
-          <EliteButton label="REPETIR" onPress={restart} />
-          <EliteButton label="VOLVER AL INICIO" variant="outline" onPress={() => router.back()} />
-        </View>
+          {/* Resumen de ejercicios registrados */}
+          {exerciseSummaries.length > 0 && (
+            <View style={styles.exerciseSummarySection}>
+              <EliteText variant="label" style={styles.exerciseSummaryTitle}>
+                EJERCICIOS REGISTRADOS
+              </EliteText>
+              {exerciseSummaries.map((summary) => (
+                <View key={summary.exercise_id} style={styles.exerciseSummaryCard}>
+                  <View style={styles.exerciseSummaryHeader}>
+                    <Ionicons name="barbell-outline" size={16} color={Colors.neonGreen} />
+                    <EliteText variant="body" style={styles.exerciseSummaryName} numberOfLines={1}>
+                      {summary.exercise_name}
+                    </EliteText>
+                    {summary.new_pr && (
+                      <View style={styles.prBadge}>
+                        <EliteText variant="caption" style={styles.prBadgeText}>
+                          NUEVO PR!
+                        </EliteText>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.exerciseSummaryStats}>
+                    <EliteText variant="caption" style={styles.exerciseStatText}>
+                      {summary.sets} sets
+                    </EliteText>
+                    <EliteText variant="caption" style={styles.exerciseStatDot}>·</EliteText>
+                    <EliteText variant="caption" style={styles.exerciseStatText}>
+                      {summary.total_reps} reps
+                    </EliteText>
+                    {summary.max_weight !== null && (
+                      <>
+                        <EliteText variant="caption" style={styles.exerciseStatDot}>·</EliteText>
+                        <EliteText variant="caption" style={styles.exerciseStatText}>
+                          Max {summary.max_weight}kg
+                        </EliteText>
+                      </>
+                    )}
+                    {summary.total_volume !== null && (
+                      <>
+                        <EliteText variant="caption" style={styles.exerciseStatDot}>·</EliteText>
+                        <EliteText variant="caption" style={styles.exerciseStatText}>
+                          Vol {summary.total_volume.toLocaleString()}kg
+                        </EliteText>
+                      </>
+                    )}
+                  </View>
+                  {/* Detalle set por set */}
+                  {summary.logs.map((log) => (
+                    <View key={log.id} style={styles.setDetail}>
+                      <EliteText variant="caption" style={styles.setDetailNumber}>
+                        Set {log.set_number}:
+                      </EliteText>
+                      <EliteText variant="caption" style={styles.setDetailData}>
+                        {log.reps} reps
+                        {log.weight_kg ? ` × ${log.weight_kg}kg` : ' (BW)'}
+                        {log.rpe ? ` @RPE${log.rpe}` : ''}
+                      </EliteText>
+                    </View>
+                  ))}
+                </View>
+              ))}
+            </View>
+          )}
+
+          <View style={styles.completedButtons}>
+            <EliteButton label="REPETIR" onPress={restart} />
+            <EliteButton label="VOLVER AL INICIO" variant="outline" onPress={() => router.back()} />
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -194,6 +409,15 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
           <EliteText variant="subtitle" style={styles.stepName}>
             {currentStep.label}
           </EliteText>
+        )}
+        {/* Nombre del ejercicio si está asignado y es diferente del label */}
+        {currentStep && currentStep.exerciseName && currentStep.exerciseName !== currentStep.label && (
+          <View style={styles.exerciseIndicator}>
+            <Ionicons name="barbell-outline" size={12} color={Colors.neonGreen} />
+            <EliteText variant="caption" style={styles.exerciseIndicatorText}>
+              {currentStep.exerciseName}
+            </EliteText>
+          </View>
         )}
       </View>
 
@@ -259,6 +483,15 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
           <View style={[styles.progressFill, { width: `${totalProgress * 100}%` }]} />
         </View>
       </View>
+
+      {/* Modal de registro de set */}
+      <SetLogModal
+        visible={setLogVisible}
+        exerciseName={pendingExercise?.exerciseName ?? ''}
+        setNumber={pendingExercise?.setNumber ?? 1}
+        onSave={handleSaveSet}
+        onSkip={handleSkipSet}
+      />
     </SafeAreaView>
   );
 }
@@ -529,7 +762,24 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 
+  // --- Indicador de ejercicio en ejecución ---
+  exerciseIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  exerciseIndicatorText: {
+    color: Colors.neonGreen,
+    fontFamily: Fonts.semiBold,
+    fontSize: 12,
+  },
+
   // --- Pantalla completada ---
+  completedScroll: {
+    alignItems: 'center',
+    paddingBottom: Spacing.xl,
+  },
   completedTitle: {
     color: Colors.neonGreen,
     fontSize: FontSizes.xl,
@@ -576,5 +826,77 @@ const styles = StyleSheet.create({
   completedButtons: {
     gap: Spacing.sm,
     alignItems: 'center',
+  },
+
+  // --- Resumen de ejercicios ---
+  exerciseSummarySection: {
+    width: '100%',
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  exerciseSummaryTitle: {
+    color: Colors.neonGreen,
+    letterSpacing: 2,
+    marginBottom: Spacing.sm,
+  },
+  exerciseSummaryCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.surfaceLight,
+  },
+  exerciseSummaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  exerciseSummaryName: {
+    flex: 1,
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.sm,
+  },
+  prBadge: {
+    backgroundColor: Colors.neonGreen + '20',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  prBadgeText: {
+    color: Colors.neonGreen,
+    fontFamily: Fonts.bold,
+    fontSize: 10,
+  },
+  exerciseSummaryStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  exerciseStatText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+  },
+  exerciseStatDot: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+  },
+  setDetail: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingLeft: Spacing.md + Spacing.xs,
+    paddingVertical: 1,
+  },
+  setDetailNumber: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontFamily: Fonts.semiBold,
+    width: 45,
+  },
+  setDetailData: {
+    color: Colors.textPrimary,
+    fontSize: 10,
   },
 });

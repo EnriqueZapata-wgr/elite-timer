@@ -78,6 +78,8 @@ export default function RootLayout() {
                 <Stack.Screen name="execution" />
                 <Stack.Screen name="builder" />
                 <Stack.Screen name="settings" />
+                <Stack.Screen name="log-exercise" />
+                <Stack.Screen name="personal-records" />
               </Stack>
               <StatusBar style="light" />
             </SessionsProvider>

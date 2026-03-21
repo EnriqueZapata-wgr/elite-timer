@@ -30,13 +30,37 @@ export default function DashboardScreen() {
         </Pressable>
       </View>
 
-      {/* Grid de cards 2×2 */}
+      {/* Grid de cards 3×2 */}
       <View style={styles.grid}>
         <DashboardCard
           icon="albums-outline"
           title="Mis Programas"
           description="Crea y organiza tus rutinas"
           onPress={() => router.push('/programs')}
+          style={styles.card}
+        />
+
+        <DashboardCard
+          icon="timer-outline"
+          title="Programas Estándar"
+          description="Tabata, HIIT y más"
+          onPress={() => router.push('/standard-programs')}
+          style={styles.card}
+        />
+
+        <DashboardCard
+          icon="barbell-outline"
+          title="Registrar Ejercicio"
+          description="Log manual de sets"
+          onPress={() => router.push('/log-exercise')}
+          style={styles.card}
+        />
+
+        <DashboardCard
+          icon="trophy-outline"
+          title="Mis PRs"
+          description="Personal Records"
+          onPress={() => router.push('/personal-records')}
           style={styles.card}
         />
 
@@ -55,14 +79,6 @@ export default function DashboardScreen() {
           description="Historial y estadísticas"
           onPress={() => {}}
           disabled
-          style={styles.card}
-        />
-
-        <DashboardCard
-          icon="timer-outline"
-          title="Programas Estándar"
-          description="Tabata, HIIT y más"
-          onPress={() => router.push('/standard-programs')}
           style={styles.card}
         />
       </View>

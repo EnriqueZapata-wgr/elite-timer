@@ -42,6 +42,8 @@ interface DbBlockRow {
   sound_start: string;
   sound_end: string;
   notes: string;
+  exercise_id: string | null;
+  exercise_name: string | null;
 }
 
 /** Convierte un row de DB a un Block del engine (sin children, para buildTree) */
@@ -59,6 +61,8 @@ function dbRowToBlock(row: DbBlockRow): Block & { _routine_id: string } {
     sound_start: row.sound_start,
     sound_end: row.sound_end,
     notes: row.notes,
+    exercise_id: row.exercise_id,
+    exercise_name: row.exercise_name,
     _routine_id: row.routine_id,
   };
 }
@@ -119,6 +123,8 @@ function flattenTreeToDbRows(blocks: Block[], routineId: string): Omit<DbBlockRo
         sound_start: block.sound_start,
         sound_end: block.sound_end,
         notes: block.notes,
+        exercise_id: block.exercise_id ?? null,
+        exercise_name: block.exercise_name ?? null,
       });
       if (block.children) {
         walk(block.children, block.id);
