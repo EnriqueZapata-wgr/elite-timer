@@ -50,7 +50,12 @@ export default function ExecutionScreen() {
     if (params.testId === 'tabata') return TABATA_ROUTINE;
     if (params.testId === 'guinness') return GUINNESS_ROUTINE;
     if (params.routine) {
-      try { return JSON.parse(params.routine); } catch { return null; }
+      try {
+        return JSON.parse(params.routine);
+      } catch (err) {
+        if (__DEV__) console.error('[execution] Error al parsear rutina:', err);
+        return null;
+      }
     }
     return null;
   }, [params.testId, params.routine]);
@@ -190,7 +195,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         logged_at: new Date().toISOString(),
       }]);
     } catch (err) {
-      console.error('Error al guardar set:', err);
+      if (__DEV__) console.error('Error al guardar set:', err);
     }
 
     setSetLogVisible(false);

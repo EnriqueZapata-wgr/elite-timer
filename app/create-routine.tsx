@@ -15,7 +15,7 @@ import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { BlockBadge } from '@/components/block-badge';
 import { DurationPicker } from '@/components/duration-picker';
-import { usePrograms } from '@/contexts/programs-context';
+import { usePrograms } from '@/src/contexts/programs-context';
 import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
 import { generateId, type Block, type BlockType, type Routine } from '@/types/models';
 import { Colors, BlockColors, BlockTypeLabels, Spacing, Radius } from '@/constants/theme';

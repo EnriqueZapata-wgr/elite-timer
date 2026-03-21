@@ -6,7 +6,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
-import { usePrograms } from '@/contexts/programs-context';
+import { usePrograms } from '@/src/contexts/programs-context';
 import { Colors, Spacing } from '@/constants/theme';
 
 /**

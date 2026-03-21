@@ -61,7 +61,7 @@ export function ExerciseHistory({ visible, exerciseId, onClose }: ExerciseHistor
       setLogs(historyData);
       setPrs(prData);
     } catch (err) {
-      console.error('Error al cargar historial:', err);
+      if (__DEV__) console.error('Error al cargar historial:', err);
     } finally {
       setLoading(false);
     }

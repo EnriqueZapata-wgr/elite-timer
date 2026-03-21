@@ -80,7 +80,8 @@ function buildTree(flatBlocks: Block[]): Block[] {
 
   // Enlazar children a sus parents
   for (const b of flatBlocks) {
-    const block = blockMap.get(b.id)!;
+    const block = blockMap.get(b.id);
+    if (!block) continue;
     if (b.parent_block_id) {
       const parent = blockMap.get(b.parent_block_id);
       if (parent && parent.children) {
@@ -167,10 +168,11 @@ export async function getRoutines(): Promise<Routine[]> {
   for (const row of (blockRows ?? [])) {
     const block = dbRowToBlock(row as DbBlockRow);
     const { _routine_id, ...cleanBlock } = block;
+    const existing = blocksByRoutine.get(_routine_id) ?? [];
     if (!blocksByRoutine.has(_routine_id)) {
-      blocksByRoutine.set(_routine_id, []);
+      blocksByRoutine.set(_routine_id, existing);
     }
-    blocksByRoutine.get(_routine_id)!.push(cleanBlock);
+    existing.push(cleanBlock);
   }
 
   // Ensamblar Routine[]
@@ -183,12 +185,16 @@ export async function getRoutines(): Promise<Routine[]> {
   }));
 }
 
-/** Obtiene una rutina por ID */
+/** Obtiene una rutina por ID (solo del usuario autenticado) */
 export async function getRoutine(id: string): Promise<Routine | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
   const { data: routineRow, error: routineError } = await supabase
     .from('routines')
     .select('*')
     .eq('id', id)
+    .eq('creator_id', user.id)
     .single();
 
   if (routineError || !routineRow) return null;
@@ -253,12 +259,16 @@ export async function saveRoutine(routine: Routine): Promise<void> {
   }
 }
 
-/** Elimina una rutina (CASCADE elimina blocks automáticamente) */
+/** Elimina una rutina del usuario autenticado (CASCADE elimina blocks) */
 export async function deleteRoutine(id: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+
   const { error } = await supabase
     .from('routines')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('creator_id', user.id);
 
   if (error) throw new Error(error.message);
 }

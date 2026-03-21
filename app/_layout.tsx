@@ -20,8 +20,8 @@ import {
 } from '@expo-google-fonts/poppins';
 
 import { AuthProvider } from '@/src/contexts/auth-context';
-import { ProgramsProvider } from '@/contexts/programs-context';
-import { SessionsProvider } from '@/contexts/sessions-context';
+import { ProgramsProvider } from '@/src/contexts/programs-context';
+import { SessionsProvider } from '@/src/contexts/sessions-context';
 import { SettingsProvider } from '@/src/contexts/settings-context';
 
 // Mantenemos la splash screen visible mientras cargan las fuentes.
@@ -73,7 +73,7 @@ export default function RootLayout() {
                 <Stack.Screen name="create-program" />
                 <Stack.Screen name="create-routine" />
                 <Stack.Screen name="standard-programs" />
-                <Stack.Screen name="active-timer" />
+
                 <Stack.Screen name="session-summary" />
                 <Stack.Screen name="execution" />
                 <Stack.Screen name="builder" />

@@ -52,7 +52,7 @@ export async function getExercises(filters?: ExerciseFilters): Promise<Exercise[
     if (error) throw new Error(error.message);
     return (data ?? []) as Exercise[];
   } catch (err) {
-    console.error('Error al buscar ejercicios:', err);
+    if (__DEV__) console.error('Error al buscar ejercicios:', err);
     throw err;
   }
 }
@@ -85,7 +85,7 @@ export async function createExercise(data: {
     if (error) throw new Error(error.message);
     return exercise;
   } catch (err) {
-    console.error('Error al crear ejercicio:', err);
+    if (__DEV__) console.error('Error al crear ejercicio:', err);
     throw err;
   }
 }
@@ -117,7 +117,7 @@ export async function logExerciseSet(data: LogSetData): Promise<void> {
     if (error) throw new Error(error.message);
     // El trigger de la DB actualiza personal_records automáticamente
   } catch (err) {
-    console.error('Error al registrar set:', err);
+    if (__DEV__) console.error('Error al registrar set:', err);
     throw err;
   }
 }
@@ -146,7 +146,7 @@ export async function logExerciseSets(sets: LogSetData[]): Promise<void> {
 
     if (error) throw new Error(error.message);
   } catch (err) {
-    console.error('Error al registrar sets:', err);
+    if (__DEV__) console.error('Error al registrar sets:', err);
     throw err;
   }
 }
@@ -186,7 +186,7 @@ export async function getExerciseHistory(
       block_id: row.block_id,
     }));
   } catch (err) {
-    console.error('Error al obtener historial:', err);
+    if (__DEV__) console.error('Error al obtener historial:', err);
     throw err;
   }
 }
@@ -231,7 +231,7 @@ export async function getPersonalRecords(filters?: PRFilters): Promise<PersonalR
 
     return records;
   } catch (err) {
-    console.error('Error al obtener PRs:', err);
+    if (__DEV__) console.error('Error al obtener PRs:', err);
     throw err;
   }
 }

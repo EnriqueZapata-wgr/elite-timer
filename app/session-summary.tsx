@@ -6,6 +6,7 @@ import { EliteButton } from '@/components/elite-button';
 import { SessionStat } from '@/components/session-stat';
 import { BlockBadge } from '@/components/block-badge';
 import { Colors, Spacing } from '@/constants/theme';
+import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
 import type { Session } from '@/types/models';
 
 /**
@@ -125,16 +126,15 @@ export default function SessionSummaryScreen() {
         <EliteButton
           label="REPETIR"
           variant="outline"
-          onPress={() =>
+          onPress={() => {
+            const engineRoutine = convertLegacyRoutine(session!.routineSnapshot);
             router.replace({
-              pathname: '/active-timer',
+              pathname: '/execution',
               params: {
-                routineId: session!.routineId,
-                routine: JSON.stringify(session!.routineSnapshot),
-                programName: session!.programName,
+                routine: JSON.stringify(engineRoutine),
               },
-            })
-          }
+            });
+          }}
           style={styles.repeatButton}
         />
       </View>

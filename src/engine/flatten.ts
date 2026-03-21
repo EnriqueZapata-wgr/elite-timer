@@ -18,25 +18,27 @@ import type { Block, Routine, ExecutionStep, StepContext } from './types';
 /**
  * Convierte una lista plana de bloques (como viene de la DB)
  * en un árbol con children[] anidados, ordenados por sort_order.
+ * Solo los bloques 'group' reciben children[]; las hojas quedan sin children.
  */
 export function buildTree(flatBlocks: Block[]): Block[] {
   const map = new Map<string, Block>();
   const roots: Block[] = [];
 
-  // Indexar todos los bloques con children vacío
+  // Indexar: solo groups reciben children vacío
   for (const block of flatBlocks) {
-    map.set(block.id, { ...block, children: [] });
+    map.set(block.id, { ...block, children: block.type === 'group' ? [] : undefined });
   }
 
   // Construir relaciones padre-hijo
   for (const block of flatBlocks) {
-    const node = map.get(block.id)!;
+    const node = map.get(block.id);
+    if (!node) continue;
     if (block.parent_block_id === null) {
       roots.push(node);
     } else {
       const parent = map.get(block.parent_block_id);
-      if (parent) {
-        parent.children!.push(node);
+      if (parent && parent.children) {
+        parent.children.push(node);
       }
     }
   }

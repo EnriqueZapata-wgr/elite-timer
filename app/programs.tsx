@@ -187,7 +187,7 @@ export default function ProgramsScreen() {
             return (
               <Pressable
                 key={routine.id}
-                onPress={() => editRoutine(routine)}
+                onPress={() => playRoutine(routine)}
                 style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
               >
                 {/* Info principal */}
@@ -231,6 +231,13 @@ export default function ProgramsScreen() {
 
                 {/* Acciones */}
                 <View style={styles.cardActions}>
+                  <Pressable
+                    onPress={() => editRoutine(routine)}
+                    hitSlop={8}
+                    style={styles.actionBtn}
+                  >
+                    <Ionicons name="create-outline" size={20} color={Colors.textSecondary} />
+                  </Pressable>
                   <Pressable
                     onPress={() => handleDuplicate(routine)}
                     hitSlop={8}

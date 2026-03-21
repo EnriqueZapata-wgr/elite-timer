@@ -106,7 +106,7 @@ export default function PersonalRecordsScreen() {
       });
       setRecords(data);
     } catch (err) {
-      console.error('Error al cargar PRs:', err);
+      if (__DEV__) console.error('Error al cargar PRs:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);

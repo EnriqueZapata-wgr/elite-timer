@@ -73,7 +73,7 @@ export async function initAudio(): Promise<void> {
   try {
     await Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
-      staysActiveInBackground: false,
+      staysActiveInBackground: true,
     });
   } catch {}
 
