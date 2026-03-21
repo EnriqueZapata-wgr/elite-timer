@@ -5,7 +5,7 @@
  * Tabata, HIIT, Quick timers y opción personalizada.
  */
 import { useState } from 'react';
-import { ScrollView, View, StyleSheet, Pressable, Modal } from 'react-native';
+import { ScrollView, View, StyleSheet, Pressable, Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
@@ -13,7 +13,7 @@ import { EliteText } from '@/components/elite-text';
 import { EliteCard } from '@/components/elite-card';
 import { STANDARD_PROGRAMS, STANDARD_ROUTINES } from '@/constants/standard-programs';
 import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
-import { saveRoutine, generateId } from '@/src/utils/routine-storage';
+import { saveRoutine, generateUUID as generateId } from '@/src/services/routine-service';
 import { Colors, Spacing, Radius } from '@/constants/theme';
 import type { Routine as EngineRoutine } from '@/src/engine/types';
 
@@ -51,12 +51,17 @@ export default function StandardProgramsScreen() {
       name: engineRoutine.name + ' (copia)',
     };
 
-    await saveRoutine(cloned);
-    setSelectedId(null);
-    router.push({
-      pathname: '/builder',
-      params: { routineId: cloned.id },
-    });
+    try {
+      await saveRoutine(cloned);
+      setSelectedId(null);
+      router.push({
+        pathname: '/builder',
+        params: { routineId: cloned.id },
+      });
+    } catch (err) {
+      setSelectedId(null);
+      Alert.alert('Error', 'No se pudo clonar la rutina. Verifica tu conexión.');
+    }
   };
 
   return (

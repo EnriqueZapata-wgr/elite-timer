@@ -5,7 +5,7 @@
  * grupos (containers con rounds) y hojas (work/rest/prep con duración).
  *
  * Las stats se recalculan en vivo con cada cambio.
- * Guarda en AsyncStorage usando el formato engine (Routine de types.ts).
+ * Guarda en Supabase usando el formato engine (Routine de types.ts).
  */
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
@@ -25,12 +25,9 @@ import { AddBlockButton } from '@/src/components/builder/AddBlockButton';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Block, Routine, ExecutionStep } from '@/src/engine/types';
 import { formatTime } from '@/src/engine/helpers';
-import {
-  saveRoutine,
-  getRoutine,
-  generateId,
-  deepCopyBlock,
-} from '@/src/utils/routine-storage';
+import { saveRoutine, getRoutine } from '@/src/services/routine-service';
+import { generateUUID as generateId } from '@/src/services/routine-service';
+import { deepCopyBlock } from '@/src/utils/routine-storage';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // === CATEGORÍAS ===
@@ -58,25 +55,30 @@ export default function BuilderScreen() {
   });
   const [loaded, setLoaded] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
 
   // Cargar rutina existente si viene routineId
   useEffect(() => {
     async function load() {
-      if (params.routineId) {
-        const existing = await getRoutine(params.routineId);
-        if (existing) {
-          // Si es clon, generar nuevo ID y agregar "(copia)" al nombre
-          if (params.clone === 'true') {
-            setRoutine({
-              ...existing,
-              id: generateId(),
-              name: existing.name + ' (copia)',
-            });
-          } else {
-            setRoutine(existing);
+      try {
+        if (params.routineId) {
+          const existing = await getRoutine(params.routineId);
+          if (existing) {
+            // Si es clon, generar nuevo ID y agregar "(copia)" al nombre
+            if (params.clone === 'true') {
+              setRoutine({
+                ...existing,
+                id: generateId(),
+                name: existing.name + ' (copia)',
+              });
+            } else {
+              setRoutine(existing);
+            }
           }
         }
+      } catch (err) {
+        Alert.alert('Error', 'No se pudo cargar la rutina. Verifica tu conexión.');
       }
       setLoaded(true);
     }
@@ -158,9 +160,16 @@ export default function BuilderScreen() {
       Alert.alert('Nombre requerido', 'Escribe un nombre para la rutina.');
       return;
     }
-    await saveRoutine(routine);
-    setHasChanges(false);
-    Alert.alert('Guardado', `"${routine.name}" guardada correctamente.`);
+    try {
+      setSaving(true);
+      await saveRoutine(routine);
+      setHasChanges(false);
+      Alert.alert('Guardado', `"${routine.name}" guardada correctamente.`);
+    } catch (err) {
+      Alert.alert('Error al guardar', 'No se pudo guardar la rutina. Verifica tu conexión.');
+    } finally {
+      setSaving(false);
+    }
   }, [routine]);
 
   // --- Probar ---
@@ -170,12 +179,19 @@ export default function BuilderScreen() {
       Alert.alert('Nombre requerido', 'Escribe un nombre para la rutina antes de probar.');
       return;
     }
-    await saveRoutine(routine);
-    setHasChanges(false);
-    router.push({
-      pathname: '/execution',
-      params: { routine: JSON.stringify(routine) },
-    });
+    try {
+      setSaving(true);
+      await saveRoutine(routine);
+      setHasChanges(false);
+      router.push({
+        pathname: '/execution',
+        params: { routine: JSON.stringify(routine) },
+      });
+    } catch (err) {
+      Alert.alert('Error al guardar', 'No se pudo guardar la rutina antes de probar.');
+    } finally {
+      setSaving(false);
+    }
   }, [routine, router]);
 
   // --- Volver con confirmación ---
@@ -329,10 +345,13 @@ export default function BuilderScreen() {
 
           <Pressable
             onPress={handleSave}
-            style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.6 }]}
+            disabled={saving}
+            style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.6 }, saving && { opacity: 0.5 }]}
           >
             <Ionicons name="save-outline" size={18} color={Colors.textOnGreen} />
-            <EliteText variant="caption" style={styles.saveBtnText}>Guardar</EliteText>
+            <EliteText variant="caption" style={styles.saveBtnText}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </EliteText>
           </Pressable>
 
           <Pressable

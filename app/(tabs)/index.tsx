@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { DashboardCard } from '@/components/dashboard-card';
+import { useAuth } from '@/src/contexts/auth-context';
 import { Colors, Spacing } from '@/constants/theme';
 
 /**
@@ -11,6 +12,8 @@ import { Colors, Spacing } from '@/constants/theme';
  */
 export default function DashboardScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const displayName = user?.user_metadata?.full_name || 'coach';
 
   return (
     <ScreenContainer centered={false}>
@@ -19,7 +22,7 @@ export default function DashboardScreen() {
         <View style={styles.headerLeft}>
           <EliteText variant="title">ELITE</EliteText>
           <EliteText variant="body" style={styles.subtitle}>
-            Bienvenido, coach
+            Bienvenido, {displayName}
           </EliteText>
         </View>
         <Pressable onPress={() => router.push('/settings')} style={styles.settingsButton}>

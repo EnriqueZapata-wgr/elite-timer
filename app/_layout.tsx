@@ -1,3 +1,9 @@
+/**
+ * Root Layout — Carga de fuentes + Providers + Stack con TODAS las pantallas.
+ *
+ * Patrón plano: todas las rutas registradas en un solo Stack.
+ * La redirección auth/app se maneja en index.tsx con <Redirect>.
+ */
 import { useEffect } from 'react';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -13,6 +19,7 @@ import {
   Poppins_800ExtraBold,
 } from '@expo-google-fonts/poppins';
 
+import { AuthProvider } from '@/src/contexts/auth-context';
 import { ProgramsProvider } from '@/contexts/programs-context';
 import { SessionsProvider } from '@/contexts/sessions-context';
 import { SettingsProvider } from '@/src/contexts/settings-context';
@@ -51,27 +58,32 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={EliteTheme}>
-      <SettingsProvider>
-        <ProgramsProvider>
-          <SessionsProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="timer" />
-              <Stack.Screen name="programs" />
-              <Stack.Screen name="create-program" />
-              <Stack.Screen name="create-routine" />
-              <Stack.Screen name="standard-programs" />
-              <Stack.Screen name="active-timer" />
-              <Stack.Screen name="session-summary" />
-              <Stack.Screen name="execution" />
-              <Stack.Screen name="builder" />
-              <Stack.Screen name="settings" />
-            </Stack>
-            <StatusBar style="light" />
-          </SessionsProvider>
-        </ProgramsProvider>
-      </SettingsProvider>
+      <AuthProvider>
+        <SettingsProvider>
+          <ProgramsProvider>
+            <SessionsProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="register" />
+                <Stack.Screen name="forgot-password" />
+                <Stack.Screen name="timer" />
+                <Stack.Screen name="programs" />
+                <Stack.Screen name="create-program" />
+                <Stack.Screen name="create-routine" />
+                <Stack.Screen name="standard-programs" />
+                <Stack.Screen name="active-timer" />
+                <Stack.Screen name="session-summary" />
+                <Stack.Screen name="execution" />
+                <Stack.Screen name="builder" />
+                <Stack.Screen name="settings" />
+              </Stack>
+              <StatusBar style="light" />
+            </SessionsProvider>
+          </ProgramsProvider>
+        </SettingsProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

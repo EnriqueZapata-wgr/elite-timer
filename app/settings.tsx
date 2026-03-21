@@ -3,8 +3,10 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
+import { EliteButton } from '@/components/elite-button';
 import { EliteToggle } from '@/components/elite-toggle';
 import { useSettings, type VoiceLanguage, type SoundStyle } from '@/src/contexts/settings-context';
+import { useAuth } from '@/src/contexts/auth-context';
 import { speak } from '@/src/utils/speech';
 import { playBeep, initAudio, setSoundStyle } from '@/src/utils/sounds';
 import { vibrateMedium } from '@/src/utils/haptics';
@@ -30,6 +32,7 @@ const SOUND_STYLES: { value: SoundStyle; label: string }[] = [
 export default function SettingsScreen() {
   const router = useRouter();
   const { settings, updateSetting } = useSettings();
+  const { user, signOut } = useAuth();
 
   return (
     <ScreenContainer centered={false}>
@@ -42,6 +45,18 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Cuenta del usuario */}
+        <View style={styles.accountBox}>
+          <Ionicons name="person-circle-outline" size={32} color={Colors.neonGreen} />
+          <View style={styles.accountInfo}>
+            <EliteText variant="body" style={styles.accountName}>
+              {user?.user_metadata?.full_name || 'Coach'}
+            </EliteText>
+            <EliteText variant="caption" style={styles.accountEmail}>
+              {user?.email}
+            </EliteText>
+          </View>
+        </View>
         {/* ── Voz y audio ── */}
         <SectionLabel>VOZ Y AUDIO</SectionLabel>
 
@@ -164,6 +179,18 @@ export default function SettingsScreen() {
               onPress={() => vibrateMedium()}
             />
           </View>
+        </View>
+
+        <Divider />
+
+        {/* ── Sesión ── */}
+        <View style={styles.logoutContainer}>
+          <EliteButton
+            label="CERRAR SESIÓN"
+            onPress={async () => { await signOut(); router.replace('/login'); }}
+            variant="outline"
+            style={styles.logoutButton}
+          />
         </View>
 
         {/* Espacio inferior */}
@@ -317,5 +344,33 @@ const styles = StyleSheet.create({
   },
   testButtonLabel: {
     color: Colors.neonGreen,
+  },
+  // Cuenta
+  accountBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  accountInfo: {
+    flex: 1,
+  },
+  accountName: {
+    fontFamily: Fonts.semiBold,
+  },
+  accountEmail: {
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  // Logout
+  logoutContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+  },
+  logoutButton: {
+    minWidth: 200,
   },
 });

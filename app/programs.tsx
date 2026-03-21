@@ -6,8 +6,8 @@
  *
  * También mantiene compatibilidad con las rutinas legacy del ProgramsContext.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
@@ -20,12 +20,15 @@ import type { RoutineCalcStats } from '@/src/engine/helpers';
 import {
   getRoutines,
   deleteRoutine as deleteStoredRoutine,
-} from '@/src/utils/routine-storage';
+  saveRoutine,
+  generateUUID,
+} from '@/src/services/routine-service';
 
 export default function ProgramsScreen() {
   const router = useRouter();
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Recargar al volver a la pantalla (por si se guardó algo en el builder)
   useFocusEffect(
@@ -35,9 +38,15 @@ export default function ProgramsScreen() {
   );
 
   const loadRoutines = async () => {
-    const data = await getRoutines();
-    setRoutines(data);
-    setLoading(false);
+    try {
+      setError(null);
+      const data = await getRoutines();
+      setRoutines(data);
+    } catch (err) {
+      setError('No se pudieron cargar las rutinas');
+    } finally {
+      setLoading(false);
+    }
   };
 
   /** Calcular stats de una rutina (con cache implícito via render) */
@@ -77,12 +86,50 @@ export default function ProgramsScreen() {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            await deleteStoredRoutine(routine.id);
-            loadRoutines();
+            try {
+              await deleteStoredRoutine(routine.id);
+              loadRoutines();
+            } catch (err) {
+              Alert.alert('Error', 'No se pudo eliminar la rutina.');
+            }
           },
         },
       ],
     );
+  };
+
+  /** Duplicar rutina con nuevos IDs */
+  const handleDuplicate = async (routine: Routine) => {
+    try {
+      // Mapa de IDs viejos → nuevos para mantener relaciones parent/child
+      const idMap = new Map<string, string>();
+
+      const cloneBlocks = (blocks: Routine['blocks']): Routine['blocks'] =>
+        blocks.map(block => {
+          const newId = generateUUID();
+          idMap.set(block.id, newId);
+          return {
+            ...block,
+            id: newId,
+            parent_block_id: block.parent_block_id
+              ? idMap.get(block.parent_block_id) ?? block.parent_block_id
+              : null,
+            children: block.children ? cloneBlocks(block.children) : undefined,
+          };
+        });
+
+      const cloned: Routine = {
+        ...routine,
+        id: generateUUID(),
+        name: `${routine.name} (copia)`,
+        blocks: cloneBlocks(routine.blocks),
+      };
+
+      await saveRoutine(cloned);
+      loadRoutines();
+    } catch {
+      Alert.alert('Error', 'No se pudo duplicar la rutina.');
+    }
   };
 
   /** Contar bloques hoja recursivamente */
@@ -113,7 +160,18 @@ export default function ProgramsScreen() {
         <EliteText variant="title">MIS RUTINAS</EliteText>
       </View>
 
-      {!hasContent && !loading ? (
+      {loading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={Colors.neonGreen} />
+        </View>
+      ) : error ? (
+        <EmptyState
+          icon="cloud-offline-outline"
+          message={error}
+          actionLabel="REINTENTAR"
+          onAction={loadRoutines}
+        />
+      ) : !hasContent ? (
         <EmptyState
           icon="layers-outline"
           message="No tienes rutinas aún. Crea una con el builder visual."
@@ -130,7 +188,6 @@ export default function ProgramsScreen() {
               <Pressable
                 key={routine.id}
                 onPress={() => editRoutine(routine)}
-                onLongPress={() => handleDelete(routine)}
                 style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
               >
                 {/* Info principal */}
@@ -175,6 +232,20 @@ export default function ProgramsScreen() {
                 {/* Acciones */}
                 <View style={styles.cardActions}>
                   <Pressable
+                    onPress={() => handleDuplicate(routine)}
+                    hitSlop={8}
+                    style={styles.actionBtn}
+                  >
+                    <Ionicons name="copy-outline" size={20} color={Colors.textSecondary} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleDelete(routine)}
+                    hitSlop={8}
+                    style={styles.actionBtn}
+                  >
+                    <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                  </Pressable>
+                  <Pressable
                     onPress={() => playRoutine(routine)}
                     hitSlop={8}
                     style={styles.playBtn}
@@ -212,6 +283,11 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: Spacing.xs,
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   list: {
     flex: 1,
@@ -273,7 +349,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   cardActions: {
-    marginLeft: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  actionBtn: {
+    padding: Spacing.xs,
   },
   playBtn: {
     padding: Spacing.xs,
