@@ -53,6 +53,7 @@ export default function BuilderScreen() {
     name: '',
     description: '',
     category: 'workout',
+    mode: 'timer',
     blocks: [],
   });
   const [loaded, setLoaded] = useState(false);

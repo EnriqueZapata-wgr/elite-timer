@@ -78,6 +78,7 @@ export function convertLegacyRoutine(legacy: LegacyRoutine): EngineRoutine {
     name: legacy.name,
     description: '',
     category: '',
+    mode: 'timer',
     blocks: [groupBlock],
   };
 }

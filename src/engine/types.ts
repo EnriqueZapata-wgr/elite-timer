@@ -24,10 +24,14 @@ export interface Block {
   notes: string;
   /** ID del ejercicio asignado (solo para bloques work) — FK a exercises */
   exercise_id?: string | null;
-  /** Nombre del ejercicio (cacheado para display sin join) */
+  /** Nombre del ejercicio (resuelto por JOIN, no columna en DB) */
   exercise_name?: string | null;
+  /** Descanso sugerido en modo rutina (segundos, default 120) */
+  suggested_rest_seconds?: number | null;
   children?: Block[];
 }
+
+export type RoutineMode = 'timer' | 'routine';
 
 // === RUTINA ===
 
@@ -37,6 +41,7 @@ export interface Routine {
   name: string;
   description: string;
   category: string;
+  mode: RoutineMode;
   blocks: Block[];
 }
 

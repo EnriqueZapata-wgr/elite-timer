@@ -214,6 +214,7 @@ const antiAccumRoutine: Routine = {
   name: 'Anti Acumulación',
   description: '',
   category: 'test',
+  mode: 'timer',
   blocks: [
     {
       id: 'grp-main',
@@ -283,6 +284,7 @@ const nestedRoutine: Routine = {
   name: 'Nested',
   description: '',
   category: 'test',
+  mode: 'timer',
   blocks: [
     {
       id: 'outer',

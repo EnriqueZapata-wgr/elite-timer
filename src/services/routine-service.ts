@@ -46,7 +46,7 @@ export function generateUUID(): string {
 
 // === HELPERS DE CONVERSIÓN ===
 
-/** Row de la tabla `blocks` en Supabase (exercise_name NO existe en la tabla) */
+/** Row de la tabla `blocks` en Supabase */
 interface DbBlockRow {
   id: string;
   routine_id: string;
@@ -62,6 +62,7 @@ interface DbBlockRow {
   sound_end: string;
   notes: string;
   exercise_id: string | null;
+  suggested_rest_seconds: number | null;
 }
 
 /** Convierte un row de DB a un Block del engine (sin children, para buildTree).
@@ -82,6 +83,7 @@ function dbRowToBlock(row: DbBlockRow & { exercises?: { name: string } | null })
     notes: row.notes,
     exercise_id: row.exercise_id,
     exercise_name: row.exercises?.name ?? null,
+    suggested_rest_seconds: (row as any).suggested_rest_seconds ?? null,
     _routine_id: row.routine_id,
   };
 }
@@ -144,6 +146,7 @@ function flattenTreeToDbRows(blocks: Block[], routineId: string): Omit<DbBlockRo
         sound_end: block.sound_end,
         notes: block.notes,
         exercise_id: block.exercise_id ?? null,
+        suggested_rest_seconds: block.suggested_rest_seconds ?? null,
       });
       if (block.children) {
         walk(block.children, block.id);
@@ -200,6 +203,7 @@ export async function getRoutines(): Promise<Routine[]> {
     name: r.name,
     description: r.description ?? '',
     category: r.category ?? 'workout',
+    mode: (r.mode ?? 'timer') as Routine['mode'],
     blocks: buildTree(blocksByRoutine.get(r.id) ?? []),
   }));
 }
@@ -236,6 +240,7 @@ export async function getRoutine(id: string): Promise<Routine | null> {
     name: routineRow.name,
     description: routineRow.description ?? '',
     category: routineRow.category ?? 'workout',
+    mode: (routineRow.mode ?? 'timer') as Routine['mode'],
     blocks: buildTree(flatBlocks),
   };
 }
@@ -267,6 +272,7 @@ export async function saveRoutine(routine: Routine): Promise<void> {
       name: routine.name,
       description: routine.description,
       category: routine.category,
+      mode: routine.mode ?? 'timer',
       is_public: false,
       is_template: false,
     });

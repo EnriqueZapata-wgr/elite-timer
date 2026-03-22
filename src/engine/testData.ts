@@ -9,6 +9,7 @@ export const TABATA_ROUTINE: Routine = {
   name: 'Tabata Classic',
   description: '8 rounds of 20s work / 10s rest',
   category: 'HIIT',
+  mode: 'timer',
   blocks: [
     {
       id: 'tabata-group',
@@ -77,6 +78,7 @@ export const GUINNESS_ROUTINE: Routine = {
   name: 'Protocolo Guinness',
   description: 'Protocolo de entrenamiento para récord Guinness de pull-ups',
   category: 'Endurance',
+  mode: 'timer',
   blocks: [
     {
       id: 'main-group',
