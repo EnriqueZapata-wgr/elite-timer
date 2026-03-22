@@ -5,7 +5,7 @@
  * registro de reps/peso integrado en cada set.
  */
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, TextInput } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, TextInput, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -214,6 +214,75 @@ function RoutineContent({ routine }: { routine: Routine }) {
     );
   }
 
+  // === MODAL DE CONFIRMACIÓN (awaiting_next) ===
+  if (rm.phase === 'awaiting_next') {
+    const nextEx = rm.nextExerciseData;
+    return (
+      <SafeAreaView style={[styles.screen, styles.centered]}>
+        <EliteText variant="caption" style={styles.sessionTime}>
+          Sesión {formatTime(rm.elapsedSeconds)}
+        </EliteText>
+
+        <EliteText variant="title" style={{ marginTop: Spacing.lg, textAlign: 'center' }}>
+          ¿Pasamos al siguiente ejercicio?
+        </EliteText>
+
+        {nextEx ? (
+          <View style={styles.transitionCard}>
+            <Ionicons name="barbell-outline" size={32} color={Colors.neonGreen} />
+            <EliteText variant="subtitle" style={{ marginTop: Spacing.sm, textAlign: 'center' }}>
+              {nextEx.exerciseName}
+            </EliteText>
+            <EliteText variant="caption" style={styles.subtitle}>
+              {nextEx.suggestedSets} series sugeridas
+            </EliteText>
+          </View>
+        ) : (
+          <View style={styles.transitionCard}>
+            <Ionicons name="checkmark-circle" size={32} color={Colors.neonGreen} />
+            <EliteText variant="subtitle" style={{ marginTop: Spacing.sm }}>
+              Último ejercicio completado
+            </EliteText>
+          </View>
+        )}
+
+        {/* Botones */}
+        <View style={{ width: '100%', gap: Spacing.sm, marginTop: Spacing.lg }}>
+          <Pressable
+            onPress={rm.confirmNextExercise}
+            style={({ pressed }) => [styles.mainAction, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="play" size={22} color={Colors.textOnGreen} />
+            <EliteText variant="body" style={styles.mainActionText}>
+              {nextEx ? 'EMPEZAR' : 'FINALIZAR RUTINA'}
+            </EliteText>
+          </Pressable>
+
+          <Pressable
+            onPress={() => {
+              rm.addExtraSet();
+            }}
+            style={({ pressed }) => [styles.outlineAction, pressed && { opacity: 0.7 }]}
+          >
+            <Ionicons name="add-circle-outline" size={18} color={Colors.neonGreen} />
+            <EliteText variant="body" style={styles.outlineActionText}>
+              + Serie extra
+            </EliteText>
+          </Pressable>
+
+          <Pressable
+            onPress={rm.cancelNextExercise}
+            style={({ pressed }) => [styles.outlineAction, { borderColor: Colors.textSecondary }, pressed && { opacity: 0.7 }]}
+          >
+            <EliteText variant="body" style={[styles.outlineActionText, { color: Colors.textSecondary }]}>
+              Volver
+            </EliteText>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // === TRABAJANDO / DESCANSANDO ===
   const isWorking = rm.phase === 'working';
   const isResting = rm.phase === 'resting';
@@ -399,7 +468,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
             <Ionicons name="add-circle-outline" size={18} color={Colors.neonGreen} />
             <EliteText variant="caption" style={styles.secondaryBtnText}>+ Serie extra</EliteText>
           </Pressable>
-          <Pressable onPress={rm.nextExercise} style={styles.secondaryBtn}>
+          <Pressable onPress={rm.requestNextExercise} style={styles.secondaryBtn}>
             <Ionicons name="play-skip-forward-outline" size={18} color={Colors.textSecondary} />
             <EliteText variant="caption" style={styles.secondaryBtnTextMuted}>Siguiente ejercicio</EliteText>
           </Pressable>
@@ -674,6 +743,31 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Fonts.semiBold,
     fontSize: 12,
+  },
+  outlineAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.neonGreen,
+  },
+  outlineActionText: {
+    color: Colors.neonGreen,
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.sm,
+  },
+  transitionCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    marginTop: Spacing.lg,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: Colors.surfaceLight,
   },
 
   // --- Completada ---

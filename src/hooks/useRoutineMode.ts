@@ -17,7 +17,7 @@ import type { Routine, Block } from '@/src/engine/types';
 
 // === TIPOS ===
 
-export type RoutineModePhase = 'idle' | 'working' | 'resting' | 'transition' | 'completed';
+export type RoutineModePhase = 'idle' | 'working' | 'resting' | 'transition' | 'awaiting_next' | 'completed';
 export type RestZone = 'blue' | 'yellow' | 'red';
 
 export interface ExerciseSet {
@@ -51,29 +51,36 @@ export interface RoutineModeStats {
 
 // === EXTRAER EJERCICIOS DE LOS BLOQUES ===
 
+/**
+ * Extrae ejercicios ejecutables de los bloques.
+ * El número de sets viene del group padre (rounds del contenedor),
+ * no del bloque work en sí. Si no hay group padre, default 1 set.
+ */
 function extractExercises(blocks: Block[]): RoutineExercise[] {
   const exercises: RoutineExercise[] = [];
 
-  const walk = (blockList: Block[]) => {
+  const walk = (blockList: Block[], parentGroupRounds: number) => {
     for (const block of blockList) {
-      if (block.type === 'work' && block.exercise_id) {
+      if (block.type === 'group') {
+        // Propagar rounds del grupo a sus hijos
+        walk(block.children ?? [], block.rounds > 0 ? block.rounds : 1);
+      } else if (block.type === 'work' && block.exercise_id) {
         exercises.push({
           blockId: block.id,
           exerciseId: block.exercise_id,
           exerciseName: block.exercise_name ?? block.label,
           label: block.label,
-          suggestedSets: block.rounds > 0 ? block.rounds : 3,
+          suggestedSets: parentGroupRounds,
           suggestedRestSeconds: block.suggested_rest_seconds ?? 120,
           completedSets: [],
         });
-      }
-      if (block.children) {
-        walk(block.children);
+      } else if (block.children) {
+        walk(block.children, parentGroupRounds);
       }
     }
   };
 
-  walk(blocks);
+  walk(blocks, 1);
   return exercises;
 }
 
@@ -265,14 +272,33 @@ export function useRoutineMode(routine: Routine) {
     const doneSets = (completedSets.get(exerciseIdx) ?? []).length;
 
     if (doneSets >= totalSuggested) {
-      // Todos los sets completados → siguiente ejercicio
-      nextExercise();
+      // Todos los sets completados → mostrar confirmación de transición
+      setPhase('awaiting_next');
     } else {
       startWorking();
     }
   }, [currentExerciseIndex, suggestedSetsCounts, exercises, completedSets, startWorking]);
 
-  /** Siguiente ejercicio */
+  /** Pedir confirmación para ir al siguiente ejercicio */
+  const requestNextExercise = useCallback(() => {
+    if (restTimerRef.current) { clearInterval(restTimerRef.current); restTimerRef.current = null; }
+    if (workTimerRef.current) { clearInterval(workTimerRef.current); workTimerRef.current = null; }
+    stopSpeech();
+    setPhase('awaiting_next');
+  }, []);
+
+  /** Cancelar transición — volver a descanso del ejercicio actual */
+  const cancelNextExercise = useCallback(() => {
+    setPhase('resting');
+    setRestSeconds(0);
+    lastAlertRef.current = 0;
+    if (restTimerRef.current) clearInterval(restTimerRef.current);
+    restTimerRef.current = setInterval(() => {
+      setRestSeconds(prev => prev + 1);
+    }, 1000);
+  }, []);
+
+  /** Siguiente ejercicio (ejecución directa) */
   const nextExercise = useCallback(() => {
     if (restTimerRef.current) { clearInterval(restTimerRef.current); restTimerRef.current = null; }
     if (workTimerRef.current) { clearInterval(workTimerRef.current); workTimerRef.current = null; }
@@ -316,6 +342,11 @@ export function useRoutineMode(routine: Routine) {
     if (s.vibrationEnabled) vibrateMedium();
     if (s.voiceEnabled) speakTTS(exercises[nextIdx].exerciseName, s.voiceLanguage);
   }, [currentExerciseIndex, exercises, completedSets, elapsedSeconds, stopTimers]);
+
+  /** Confirmar transición al siguiente ejercicio (desde awaiting_next) */
+  const confirmNextExercise = useCallback(() => {
+    nextExercise();
+  }, [nextExercise]);
 
   // === ALERTAS DE DESCANSO (semáforo) ===
 
@@ -390,6 +421,8 @@ export function useRoutineMode(routine: Routine) {
     completeSet,
     addExtraSet,
     nextSet,
-    nextExercise,
+    requestNextExercise,
+    confirmNextExercise,
+    cancelNextExercise,
   };
 }
