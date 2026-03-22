@@ -59,10 +59,11 @@ export default function ProgramsScreen() {
     }
   };
 
-  /** Ejecutar rutina directamente */
+  /** Ejecutar rutina — rutar según modo */
   const playRoutine = (routine: Routine) => {
+    const target = routine.mode === 'routine' ? '/routine-execution' : '/execution';
     router.push({
-      pathname: '/execution',
+      pathname: target as any,
       params: { routine: JSON.stringify(routine) },
     });
   };

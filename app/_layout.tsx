@@ -76,6 +76,7 @@ export default function RootLayout() {
 
                 <Stack.Screen name="session-summary" />
                 <Stack.Screen name="execution" />
+                <Stack.Screen name="routine-execution" />
                 <Stack.Screen name="builder" />
                 <Stack.Screen name="settings" />
                 <Stack.Screen name="log-exercise" />

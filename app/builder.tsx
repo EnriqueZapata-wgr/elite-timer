@@ -286,6 +286,28 @@ export default function BuilderScreen() {
             </View>
           </View>
 
+          {/* === MODO: Timer vs Rutina === */}
+          <View style={styles.modeRow}>
+            <Pressable
+              onPress={() => updateRoutine(prev => ({ ...prev, mode: 'timer' }))}
+              style={[styles.modePill, routine.mode === 'timer' && styles.modePillActive]}
+            >
+              <Ionicons name="timer-outline" size={14} color={routine.mode === 'timer' ? Colors.textOnGreen : Colors.textSecondary} />
+              <EliteText variant="caption" style={[styles.modeText, routine.mode === 'timer' && styles.modeTextActive]}>
+                Timer
+              </EliteText>
+            </Pressable>
+            <Pressable
+              onPress={() => updateRoutine(prev => ({ ...prev, mode: 'routine' }))}
+              style={[styles.modePill, routine.mode === 'routine' && styles.modePillActive]}
+            >
+              <Ionicons name="barbell-outline" size={14} color={routine.mode === 'routine' ? Colors.textOnGreen : Colors.textSecondary} />
+              <EliteText variant="caption" style={[styles.modeText, routine.mode === 'routine' && styles.modeTextActive]}>
+                Rutina
+              </EliteText>
+            </Pressable>
+          </View>
+
           {/* === CATEGORÍA === */}
           <View style={styles.categoryRow}>
             {CATEGORIES.map(cat => (
@@ -542,6 +564,38 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.md,
     color: Colors.textPrimary,
     paddingVertical: Spacing.sm + 2,
+  },
+
+  // --- Modo ---
+  modeRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  modePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.surfaceLight,
+    backgroundColor: Colors.surface,
+  },
+  modePillActive: {
+    borderColor: Colors.neonGreen,
+    backgroundColor: Colors.neonGreen,
+  },
+  modeText: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.semiBold,
+    fontSize: 13,
+  },
+  modeTextActive: {
+    color: Colors.textOnGreen,
   },
 
   // --- Categoría ---
