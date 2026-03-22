@@ -26,6 +26,7 @@ export interface ExerciseLog {
   reps: number;
   weight_kg: number | null;
   rpe: number | null;
+  rir?: number | null;
   notes: string;
   logged_at: string;
   execution_log_id?: string | null;
@@ -63,6 +64,7 @@ export interface LogSetData {
   reps: number;
   weight_kg?: number | null;
   rpe?: number | null;
+  rir?: number | null;
   execution_log_id?: string | null;
   block_id?: string | null;
   set_number: number;

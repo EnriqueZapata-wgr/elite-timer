@@ -25,6 +25,7 @@ export interface ExerciseSet {
   reps: number | null;
   weightKg: number | null;
   rpe: number | null;
+  rir: number | null;
   durationSeconds: number;
   restDurationSeconds: number;
   isExtra: boolean;
@@ -181,7 +182,7 @@ export function useRoutineMode(routine: Routine) {
   }, []);
 
   /** Completar un set — registra y pasa a descanso */
-  const completeSet = useCallback(async (reps: number, weightKg: number | null, rpe: number | null) => {
+  const completeSet = useCallback(async (reps: number, weightKg: number | null, rpe: number | null, rir: number | null) => {
     // Parar timer de trabajo
     if (workTimerRef.current) { clearInterval(workTimerRef.current); workTimerRef.current = null; }
 
@@ -198,6 +199,7 @@ export function useRoutineMode(routine: Routine) {
       reps,
       weightKg,
       rpe,
+      rir,
       durationSeconds: workSeconds,
       restDurationSeconds: 0,
       isExtra: setNumber > exercise.suggestedSets,
@@ -214,6 +216,7 @@ export function useRoutineMode(routine: Routine) {
         reps,
         weight_kg: weightKg,
         rpe,
+        rir,
         block_id: exercise.blockId,
         set_number: setNumber,
       });
@@ -249,15 +252,17 @@ export function useRoutineMode(routine: Routine) {
     }
   }, [currentExerciseIndex, exercises, completedSets, suggestedSetsCounts, workSeconds]);
 
-  /** Agregar un set extra */
+  /** Agregar un set extra — funciona en cualquier fase activa */
   const addExtraSet = useCallback(() => {
     const exerciseIdx = currentExerciseIndex;
     const current = suggestedSetsCounts.get(exerciseIdx) ?? exercises[exerciseIdx]?.suggestedSets ?? 3;
     setSuggestedSetsCounts(prev => new Map(prev).set(exerciseIdx, current + 1));
 
-    // Si estaba descansando, volver a trabajar
-    if (phase === 'resting') {
+    // Desde resting, awaiting_next o transition → volver a trabajar
+    if (phase === 'resting' || phase === 'awaiting_next' || phase === 'transition') {
       if (restTimerRef.current) { clearInterval(restTimerRef.current); restTimerRef.current = null; }
+      if (workTimerRef.current) { clearInterval(workTimerRef.current); workTimerRef.current = null; }
+      stopSpeech();
       startWorking();
     }
   }, [currentExerciseIndex, suggestedSetsCounts, exercises, phase, startWorking]);

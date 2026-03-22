@@ -63,6 +63,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
   const [reps, setReps] = useState(10);
   const [weight, setWeight] = useState<number | null>(null);
   const [rpe, setRpe] = useState<number | null>(null);
+  const [rir, setRir] = useState<number | null>(null);
   const lastWeightLoaded = useRef<string | null>(null);
 
   // Cargar último peso usado cuando cambia el ejercicio
@@ -79,8 +80,9 @@ function RoutineContent({ routine }: { routine: Routine }) {
 
   // Al completar set, mantener reps/weight para el siguiente
   const handleCompleteSet = useCallback(async () => {
-    await rm.completeSet(reps, weight, rpe);
-  }, [rm, reps, weight, rpe]);
+    await rm.completeSet(reps, weight, rpe, rir);
+    setRir(null); // Resetear RIR (es por set, no persistente)
+  }, [rm, reps, weight, rpe, rir]);
 
   // Al cambiar de ejercicio, resetear inputs (peso se carga por useEffect)
   const handleStartWorking = useCallback(() => {
@@ -180,7 +182,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
                   <View key={set.setNumber} style={styles.setDetailRow}>
                     <EliteText variant="caption" style={styles.setDetailNum}>Set {set.setNumber}:</EliteText>
                     <EliteText variant="caption" style={styles.setDetailData}>
-                      {set.reps} reps{set.weightKg != null ? ` × ${set.weightKg}kg` : ''}
+                      {set.reps} reps{set.weightKg != null ? ` × ${set.weightKg}kg` : ''}{set.rir != null ? ` @ RIR ${set.rir}` : ''}
                       {set.rpe ? ` @RPE${set.rpe}` : ''}
                     </EliteText>
                   </View>
@@ -412,6 +414,33 @@ function RoutineContent({ routine }: { routine: Routine }) {
                 </Pressable>
               </View>
             </View>
+
+            {/* RIR */}
+            <View style={styles.inputGroup}>
+              <EliteText variant="caption" style={styles.inputLabel}>RIR</EliteText>
+              <View style={styles.inputRow}>
+                <Pressable onPress={() => setRir(r => r !== null ? Math.max(0, r - 1) : 2)} style={styles.inputBtn}>
+                  <Ionicons name="remove" size={20} color={Colors.textPrimary} />
+                </Pressable>
+                <TextInput
+                  style={styles.inputValue}
+                  value={rir !== null ? String(rir) : ''}
+                  onChangeText={t => {
+                    if (t === '') { setRir(null); return; }
+                    const n = parseInt(t, 10);
+                    if (!isNaN(n) && n >= 0 && n <= 5) setRir(n);
+                  }}
+                  keyboardType="number-pad"
+                  selectTextOnFocus
+                  placeholder="—"
+                  placeholderTextColor={Colors.textSecondary}
+                />
+                <Pressable onPress={() => setRir(r => r !== null ? Math.min(5, r + 1) : 3)} style={styles.inputBtn}>
+                  <Ionicons name="add" size={20} color={Colors.textPrimary} />
+                </Pressable>
+              </View>
+              <EliteText variant="caption" style={styles.rirHint}>0 = fallo · 5 = fácil</EliteText>
+            </View>
           </View>
         )}
 
@@ -423,7 +452,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
               <View key={set.setNumber} style={styles.completedSetRow}>
                 <EliteText variant="caption" style={styles.setNum}>Set {set.setNumber}</EliteText>
                 <EliteText variant="caption" style={styles.setData}>
-                  {set.reps} reps{set.weightKg != null ? ` × ${set.weightKg}kg` : ''}
+                  {set.reps} reps{set.weightKg != null ? ` × ${set.weightKg}kg` : ''}{set.rir != null ? ` @ RIR ${set.rir}` : ''}
                   {set.rpe ? ` @${set.rpe}` : ''}
                 </EliteText>
                 <EliteText variant="caption" style={styles.setDuration}>
@@ -647,7 +676,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: FontSizes.lg,
     paddingVertical: Spacing.xs,
-    minWidth: 50,
+    minWidth: 40,
+  },
+  rirHint: {
+    color: Colors.textSecondary,
+    fontSize: 9,
+    marginTop: 2,
   },
 
   // --- Sets completados ---

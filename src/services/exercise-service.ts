@@ -118,6 +118,7 @@ export async function logExerciseSet(data: LogSetData): Promise<void> {
       reps: data.reps,
       weight_kg: data.weight_kg ?? null,
       rpe: data.rpe ?? null,
+      rir: data.rir ?? null,
       notes: data.notes ?? '',
       logged_at: new Date().toISOString(),
     };
@@ -147,6 +148,7 @@ export async function logExerciseSets(sets: LogSetData[]): Promise<void> {
       reps: data.reps,
       weight_kg: data.weight_kg ?? null,
       rpe: data.rpe ?? null,
+      rir: data.rir ?? null,
       notes: data.notes ?? '',
       logged_at: new Date().toISOString(),
     }));
@@ -189,6 +191,7 @@ export async function getExerciseHistory(
       reps: row.reps,
       weight_kg: row.weight_kg,
       rpe: row.rpe,
+      rir: row.rir ?? null,
       notes: row.notes ?? '',
       logged_at: row.logged_at,
       execution_log_id: row.execution_log_id,
