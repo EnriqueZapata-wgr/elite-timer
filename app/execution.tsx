@@ -427,7 +427,13 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
       </View>
 
       {/* Circular Timer — se vacía conforme pasa el tiempo */}
-      <View style={styles.timerWrapper}>
+      <View style={[styles.timerWrapper, {
+        shadowColor: isCountdown ? '#E24B4A' : stepColor,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 10,
+      }]}>
         <CircularTimer
           timeLeft={remainingSeconds}
           progress={1 - stepProgress}

@@ -1,4 +1,4 @@
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,9 +28,9 @@ export default function DashboardScreen() {
             Hola, {displayName}
           </EliteText>
         </View>
-        <Pressable onPress={() => router.push('/settings')} style={styles.settingsButton}>
+        <AnimatedPressable onPress={() => router.push('/settings')} style={styles.settingsButton}>
           <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
-        </Pressable>
+        </AnimatedPressable>
       </View>
 
       {/* Hero — ENTRENAR */}
