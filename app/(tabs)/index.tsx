@@ -5,7 +5,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { DashboardCard } from '@/components/dashboard-card';
 import { useAuth } from '@/src/contexts/auth-context';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, Radius } from '@/constants/theme';
 
 /**
  * Pantalla Home / Dashboard — Panel principal con 4 cards de navegación.
@@ -13,7 +13,7 @@ import { Colors, Spacing } from '@/constants/theme';
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const displayName = user?.user_metadata?.full_name || 'coach';
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Atleta';
 
   return (
     <ScreenContainer centered={false}>
@@ -22,7 +22,7 @@ export default function DashboardScreen() {
         <View style={styles.headerLeft}>
           <EliteText variant="title">ELITE</EliteText>
           <EliteText variant="body" style={styles.subtitle}>
-            Bienvenido, {displayName}
+            Hola, {displayName}
           </EliteText>
         </View>
         <Pressable onPress={() => router.push('/settings')} style={styles.settingsButton}>
@@ -30,11 +30,20 @@ export default function DashboardScreen() {
         </Pressable>
       </View>
 
-      {/* Grid de cards 3×2 */}
+      {/* Botón principal — ENTRENAR */}
+      <Pressable
+        onPress={() => router.push('/programs')}
+        style={({ pressed }) => [styles.trainButton, pressed && { opacity: 0.8 }]}
+      >
+        <Ionicons name="flash" size={24} color={Colors.textOnGreen} />
+        <EliteText variant="subtitle" style={styles.trainButtonText}>ENTRENAR</EliteText>
+      </Pressable>
+
+      {/* Grid de cards 2×2 */}
       <View style={styles.grid}>
         <DashboardCard
           icon="albums-outline"
-          title="Mis Programas"
+          title="Mis Rutinas"
           description="Crea y organiza tus rutinas"
           onPress={() => router.push('/programs')}
           style={styles.card}
@@ -50,7 +59,7 @@ export default function DashboardScreen() {
 
         <DashboardCard
           icon="barbell-outline"
-          title="Registrar Ejercicio"
+          title="Registrar entrenamiento"
           description="Log manual de sets"
           onPress={() => router.push('/log-exercise')}
           style={styles.card}
@@ -58,25 +67,27 @@ export default function DashboardScreen() {
 
         <DashboardCard
           icon="trophy-outline"
-          title="Mis PRs"
-          description="Personal Records"
+          title="Mis marcas personales"
+          description="Records de fuerza"
           onPress={() => router.push('/personal-records')}
           style={styles.card}
         />
+      </View>
 
+      {/* Cards próximamente — sutiles al final */}
+      <View style={styles.comingSoonSection}>
         <DashboardCard
           icon="calendar-outline"
           title="Programa de Hoy"
-          description="Tu rutina del día"
+          description="Próximamente"
           onPress={() => {}}
           disabled
           style={styles.card}
         />
-
         <DashboardCard
           icon="trending-up-outline"
           title="Mi Progreso"
-          description="Historial y estadísticas"
+          description="Próximamente"
           onPress={() => {}}
           disabled
           style={styles.card}
@@ -104,11 +115,32 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
+  trainButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.neonGreen,
+    height: 60,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.lg,
+  },
+  trainButtonText: {
+    color: Colors.textOnGreen,
+    fontSize: 18,
+    letterSpacing: 3,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     rowGap: Spacing.md,
+  },
+  comingSoonSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: Spacing.md,
+    opacity: 0.5,
   },
   card: {
     width: '48%',

@@ -133,20 +133,28 @@ export default function ProgramsScreen() {
     }
   };
 
-  /** Contar bloques hoja recursivamente */
-  const countLeafBlocks = (routine: Routine): number => {
+  /** Contar ejercicios (work blocks con exercise_id) recursivamente */
+  const countExercises = (routine: Routine): number => {
     let count = 0;
     const walk = (blocks: Routine['blocks']) => {
       for (const b of blocks) {
-        if (b.type === 'group') {
-          walk(b.children ?? []);
-        } else {
-          count++;
-        }
+        if (b.type === 'work' && b.exercise_id) count++;
+        if (b.children) walk(b.children);
       }
     };
     walk(routine.blocks);
     return count;
+  };
+
+  /** Generar texto de stats legible */
+  const getStatsLabel = (routine: Routine, stats: RoutineCalcStats | null): string => {
+    if (!stats) return '';
+    const time = stats.formattedTotal;
+    if (routine.mode === 'routine') {
+      const exercises = countExercises(routine);
+      return `${exercises} ejercicio${exercises !== 1 ? 's' : ''} · ${time}`;
+    }
+    return time;
   };
 
   const hasContent = routines.length > 0;
@@ -183,7 +191,8 @@ export default function ProgramsScreen() {
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
           {routines.map(routine => {
             const stats = getStats(routine);
-            const leafCount = countLeafBlocks(routine);
+            const statsLabel = getStatsLabel(routine, stats);
+            const modeIcon = routine.mode === 'routine' ? 'barbell-outline' : 'timer-outline';
 
             return (
               <Pressable
@@ -191,74 +200,45 @@ export default function ProgramsScreen() {
                 onPress={() => playRoutine(routine)}
                 style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
               >
+                {/* Badge de modo */}
+                <Ionicons name={modeIcon as any} size={20} color={Colors.textSecondary} style={styles.modeIcon} />
+
                 {/* Info principal */}
                 <View style={styles.cardContent}>
-                  <View style={styles.cardHeader}>
-                    <EliteText variant="subtitle" style={styles.cardTitle} numberOfLines={1}>
-                      {routine.name}
-                    </EliteText>
-                    {routine.category && (
-                      <View style={styles.categoryBadge}>
-                        <EliteText variant="caption" style={styles.categoryText}>
-                          {routine.category}
-                        </EliteText>
-                      </View>
-                    )}
-                  </View>
+                  <EliteText variant="subtitle" style={styles.cardTitle} numberOfLines={2}>
+                    {routine.name}
+                  </EliteText>
 
-                  {/* Stats compactos */}
-                  <View style={styles.cardStats}>
-                    {stats && (
-                      <>
-                        <EliteText variant="caption" style={styles.statText}>
-                          {stats.formattedTotal}
-                        </EliteText>
-                        <EliteText variant="caption" style={styles.statSep}>·</EliteText>
-                        <EliteText variant="caption" style={styles.statText}>
-                          {leafCount} pasos
-                        </EliteText>
-                        <EliteText variant="caption" style={styles.statSep}>·</EliteText>
-                        <EliteText variant="caption" style={[styles.statText, { color: '#a8e02a' }]}>
-                          {Math.round(stats.workRatio * 100)}%W
-                        </EliteText>
-                        <EliteText variant="caption" style={styles.statSep}>/</EliteText>
-                        <EliteText variant="caption" style={[styles.statText, { color: '#5B9BD5' }]}>
-                          {Math.round(stats.restRatio * 100)}%R
-                        </EliteText>
-                      </>
-                    )}
-                  </View>
+                  {/* Stats legibles */}
+                  {statsLabel ? (
+                    <EliteText variant="caption" style={styles.statText}>
+                      {statsLabel}
+                    </EliteText>
+                  ) : null}
                 </View>
 
-                {/* Acciones */}
+                {/* Acciones: menú (...) + Play */}
                 <View style={styles.cardActions}>
                   <Pressable
-                    onPress={() => editRoutine(routine)}
+                    onPress={() => {
+                      Alert.alert(routine.name, '', [
+                        { text: 'Editar', onPress: () => editRoutine(routine) },
+                        { text: 'Copiar', onPress: () => handleDuplicate(routine) },
+                        { text: 'Eliminar', style: 'destructive', onPress: () => handleDelete(routine) },
+                        { text: 'Cancelar', style: 'cancel' },
+                      ]);
+                    }}
                     hitSlop={8}
                     style={styles.actionBtn}
                   >
-                    <Ionicons name="create-outline" size={20} color={Colors.textSecondary} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => handleDuplicate(routine)}
-                    hitSlop={8}
-                    style={styles.actionBtn}
-                  >
-                    <Ionicons name="copy-outline" size={20} color={Colors.textSecondary} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => handleDelete(routine)}
-                    hitSlop={8}
-                    style={styles.actionBtn}
-                  >
-                    <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                    <Ionicons name="ellipsis-vertical" size={20} color={Colors.textSecondary} />
                   </Pressable>
                   <Pressable
                     onPress={() => playRoutine(routine)}
                     hitSlop={8}
                     style={styles.playBtn}
                   >
-                    <Ionicons name="play-circle" size={36} color={Colors.neonGreen} />
+                    <Ionicons name="play-circle" size={40} color={Colors.neonGreen} />
                   </Pressable>
                 </View>
               </Pressable>
@@ -316,45 +296,19 @@ const styles = StyleSheet.create({
     opacity: 0.7,
     borderColor: Colors.neonGreen,
   },
+  modeIcon: {
+    marginRight: Spacing.sm,
+  },
   cardContent: {
     flex: 1,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
   cardTitle: {
-    fontSize: 16,
-    flex: 1,
-  },
-  categoryBadge: {
-    backgroundColor: Colors.surfaceLight,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-  },
-  categoryText: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-    fontFamily: Fonts.semiBold,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  cardStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: Spacing.xs,
-    gap: 4,
+    fontSize: 15,
   },
   statText: {
     color: Colors.textSecondary,
-    fontVariant: ['tabular-nums'],
-    fontSize: 11,
-  },
-  statSep: {
-    color: Colors.disabled,
-    fontSize: 11,
+    fontSize: 12,
+    marginTop: 2,
   },
   cardActions: {
     flexDirection: 'row',

@@ -111,7 +111,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
                 {ex.exerciseName}
               </EliteText>
               <EliteText variant="caption" style={styles.exercisePreviewSets}>
-                {ex.suggestedSets} sets
+                {ex.suggestedSets} {ex.suggestedSets === 1 ? 'set' : 'sets'}
               </EliteText>
             </View>
           ))}
@@ -176,7 +176,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
                   </EliteText>
                 </View>
                 <EliteText variant="caption" style={styles.exerciseSummaryStats}>
-                  {sets.length} sets · {totalReps} reps{maxWeight > 0 ? ` · Max ${maxWeight}kg` : ''}
+                  {sets.length} {sets.length === 1 ? 'set' : 'sets'} · {totalReps} reps{maxWeight > 0 ? ` · Max ${maxWeight}kg` : ''}
                 </EliteText>
                 {sets.map(set => (
                   <View key={set.setNumber} style={styles.setDetailRow}>
@@ -471,7 +471,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
               {rm.nextExerciseData.exerciseName}
             </EliteText>
             <EliteText variant="caption" style={styles.nextSets}>
-              {rm.nextExerciseData.suggestedSets} sets
+              {rm.nextExerciseData.suggestedSets} {rm.nextExerciseData.suggestedSets === 1 ? 'set' : 'sets'}
             </EliteText>
           </View>
         )}

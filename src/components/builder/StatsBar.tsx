@@ -19,19 +19,11 @@ export function StatsBar({ stats }: StatsBarProps) {
 
   return (
     <View style={styles.container}>
-      {/* Fila superior: tiempo total y steps */}
       <View style={styles.row}>
         <View style={styles.stat}>
           <EliteText variant="caption" style={styles.label}>TOTAL</EliteText>
           <EliteText variant="body" style={styles.value}>{stats.formattedTotal}</EliteText>
         </View>
-        <View style={styles.stat}>
-          <EliteText variant="caption" style={styles.label}>STEPS</EliteText>
-          <EliteText variant="body" style={styles.value}>{stats.totalSteps}</EliteText>
-        </View>
-      </View>
-      {/* Fila inferior: trabajo / descanso con ratio */}
-      <View style={styles.row}>
         <View style={styles.stat}>
           <EliteText variant="caption" style={styles.label}>TRABAJO</EliteText>
           <EliteText variant="body" style={[styles.value, { color: '#a8e02a' }]}>
@@ -42,12 +34,6 @@ export function StatsBar({ stats }: StatsBarProps) {
           <EliteText variant="caption" style={styles.label}>DESCANSO</EliteText>
           <EliteText variant="body" style={[styles.value, { color: '#5B9BD5' }]}>
             {stats.formattedRest}
-          </EliteText>
-        </View>
-        <View style={styles.stat}>
-          <EliteText variant="caption" style={styles.label}>RATIO</EliteText>
-          <EliteText variant="body" style={styles.ratio}>
-            {workPercent}% / {restPercent}%
           </EliteText>
         </View>
       </View>

@@ -143,7 +143,7 @@ export default function PersonalRecordsScreen() {
           <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
         </Pressable>
         <EliteText variant="title" style={styles.headerTitle}>
-          PERSONAL RECORDS
+          MIS MARCAS PERSONALES
         </EliteText>
       </View>
 
@@ -190,7 +190,7 @@ export default function PersonalRecordsScreen() {
         <View style={styles.emptyContainer}>
           <Ionicons name="trophy-outline" size={48} color={Colors.textSecondary} />
           <EliteText variant="body" style={styles.emptyText}>
-            Aún no tienes Personal Records
+            Aún no tienes marcas personales
           </EliteText>
           <EliteText variant="caption" style={styles.emptySubtext}>
             Registra ejercicios con peso para generar PRs
@@ -242,7 +242,7 @@ export default function PersonalRecordsScreen() {
                         {entry.exerciseName}
                       </EliteText>
                       <EliteText variant="caption" style={styles.estimated1rm}>
-                        Est. 1RM: {Math.round(entry.estimated1rm)}kg
+                        Máximo estimado: {Math.round(entry.estimated1rm)}kg
                       </EliteText>
                     </View>
 
@@ -253,7 +253,7 @@ export default function PersonalRecordsScreen() {
                         {REP_RANGES.map(rr => (
                           <View key={rr} style={styles.repRangeCell}>
                             <EliteText variant="caption" style={styles.repRangeHeader}>
-                              {rr}RM
+                              {rr} rep{rr > 1 ? 's' : ''}
                             </EliteText>
                           </View>
                         ))}
@@ -281,7 +281,7 @@ export default function PersonalRecordsScreen() {
                                   {recency === 'week' && (
                                     <View style={[styles.recencyBadge, styles.recencyWeek]}>
                                       <EliteText variant="caption" style={[styles.recencyBadgeText, styles.recencyWeekText]}>
-                                        NUEVO
+                                        PR!
                                       </EliteText>
                                     </View>
                                   )}

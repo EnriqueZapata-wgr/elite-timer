@@ -50,7 +50,7 @@ export default function SettingsScreen() {
           <Ionicons name="person-circle-outline" size={32} color={Colors.neonGreen} />
           <View style={styles.accountInfo}>
             <EliteText variant="body" style={styles.accountName}>
-              {user?.user_metadata?.full_name || 'Coach'}
+              {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuario'}
             </EliteText>
             <EliteText variant="caption" style={styles.accountEmail}>
               {user?.email}
