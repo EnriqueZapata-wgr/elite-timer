@@ -34,7 +34,10 @@
       "Bash(MSYS_NO_PATHCONV=1 /c/Windows/System32/tasklist.exe /FI \"PID eq 48912\" 2>&1)",
       "Bash(MSYS_NO_PATHCONV=1 /c/Windows/System32/taskkill.exe /F /PID 48912 2>&1)",
       "Bash(ipconfig)",
-      "Bash(MSYS_NO_PATHCONV=1 /c/Windows/System32/netsh.exe advfirewall firewall show rule name=\"Expo Metro\")"
+      "Bash(MSYS_NO_PATHCONV=1 /c/Windows/System32/netsh.exe advfirewall firewall show rule name=\"Expo Metro\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
