@@ -4,7 +4,7 @@
  * El usuario controla el ritmo: countup en trabajo, semáforo en descanso,
  * registro de reps/peso integrado en cada set.
  */
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, TextInput, Modal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { useRoutineMode } from '@/src/hooks/useRoutineMode';
+import { getLastWeight } from '@/src/services/exercise-service';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import type { Routine } from '@/src/engine/types';
@@ -62,20 +63,30 @@ function RoutineContent({ routine }: { routine: Routine }) {
   const [reps, setReps] = useState(10);
   const [weight, setWeight] = useState<number | null>(null);
   const [rpe, setRpe] = useState<number | null>(null);
-  const prevWeightRef = useRef<number | null>(null);
+  const lastWeightLoaded = useRef<string | null>(null);
 
-  // Al completar set, pre-llenar con valores anteriores
+  // Cargar último peso usado cuando cambia el ejercicio
+  useEffect(() => {
+    const exerciseId = rm.currentExercise?.exerciseId;
+    if (!exerciseId || lastWeightLoaded.current === exerciseId) return;
+    lastWeightLoaded.current = exerciseId;
+
+    getLastWeight(exerciseId).then(w => {
+      if (w !== null) setWeight(w);
+      else setWeight(null);
+    });
+  }, [rm.currentExercise?.exerciseId]);
+
+  // Al completar set, mantener reps/weight para el siguiente
   const handleCompleteSet = useCallback(async () => {
     await rm.completeSet(reps, weight, rpe);
-    prevWeightRef.current = weight;
-    // No resetear reps/weight — el usuario puede mantener los mismos valores
   }, [rm, reps, weight, rpe]);
 
-  // Al cambiar de ejercicio, resetear inputs
+  // Al cambiar de ejercicio, resetear inputs (peso se carga por useEffect)
   const handleStartWorking = useCallback(() => {
     setReps(10);
-    setWeight(prevWeightRef.current);
     setRpe(null);
+    lastWeightLoaded.current = null; // Forzar recarga del peso del nuevo ejercicio
     rm.startWorking();
   }, [rm]);
 
@@ -169,7 +180,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
                   <View key={set.setNumber} style={styles.setDetailRow}>
                     <EliteText variant="caption" style={styles.setDetailNum}>Set {set.setNumber}:</EliteText>
                     <EliteText variant="caption" style={styles.setDetailData}>
-                      {set.reps} reps{set.weightKg ? ` × ${set.weightKg}kg` : ' (BW)'}
+                      {set.reps} reps{set.weightKg != null ? ` × ${set.weightKg}kg` : ''}
                       {set.rpe ? ` @RPE${set.rpe}` : ''}
                     </EliteText>
                   </View>
@@ -385,15 +396,15 @@ function RoutineContent({ routine }: { routine: Routine }) {
                 </Pressable>
                 <TextInput
                   style={styles.inputValue}
-                  value={weight !== null ? String(weight) : '—'}
+                  value={weight !== null ? String(weight) : ''}
                   onChangeText={t => {
-                    if (t === '' || t === '—') { setWeight(null); return; }
+                    if (t === '') { setWeight(null); return; }
                     const n = parseFloat(t);
                     if (!isNaN(n) && n >= 0) setWeight(n);
                   }}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
-                  placeholder="BW"
+                  placeholder="Peso"
                   placeholderTextColor={Colors.textSecondary}
                 />
                 <Pressable onPress={() => setWeight(w => (w ?? 0) + 2.5)} style={styles.inputBtn}>
@@ -412,7 +423,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
               <View key={set.setNumber} style={styles.completedSetRow}>
                 <EliteText variant="caption" style={styles.setNum}>Set {set.setNumber}</EliteText>
                 <EliteText variant="caption" style={styles.setData}>
-                  {set.reps} reps{set.weightKg ? ` × ${set.weightKg}kg` : ' (BW)'}
+                  {set.reps} reps{set.weightKg != null ? ` × ${set.weightKg}kg` : ''}
                   {set.rpe ? ` @${set.rpe}` : ''}
                 </EliteText>
                 <EliteText variant="caption" style={styles.setDuration}>

@@ -249,3 +249,25 @@ export async function getPersonalRecords(filters?: PRFilters): Promise<PersonalR
 export async function getExercisePRs(exerciseId: string): Promise<PersonalRecord[]> {
   return getPersonalRecords({ exercise_id: exerciseId });
 }
+
+/** Obtener el último peso usado para un ejercicio (del log más reciente con peso) */
+export async function getLastWeight(exerciseId: string): Promise<number | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data, error } = await supabase
+      .from('exercise_logs')
+      .select('weight_kg')
+      .eq('user_id', user.id)
+      .eq('exercise_id', exerciseId)
+      .not('weight_kg', 'is', null)
+      .order('logged_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) return null;
+    return data[0].weight_kg;
+  } catch {
+    return null;
+  }
+}
