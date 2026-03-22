@@ -6,8 +6,9 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { DashboardCard } from '@/components/dashboard-card';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 /**
  * Dashboard — Panel principal con botón hero ENTRENAR + cards de navegación.
@@ -34,12 +35,9 @@ export default function DashboardScreen() {
 
       {/* Hero — ENTRENAR */}
       <Animated.View entering={FadeInUp.delay(50).springify()}>
-        <Pressable
-          onPress={() => router.push('/programs')}
-          style={({ pressed }) => [pressed && { transform: [{ scale: 0.98 }] }]}
-        >
+        <AnimatedPressable onPress={() => router.push('/programs')} scaleDown={0.98}>
           <LinearGradient
-            colors={['#a8e02a', '#7ab01e']}
+            colors={['#a8e02a', '#7ab800']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.heroButton}
@@ -47,7 +45,7 @@ export default function DashboardScreen() {
             <Ionicons name="flash" size={28} color={Colors.textOnGreen} />
             <EliteText variant="subtitle" style={styles.heroText}>ENTRENAR</EliteText>
           </LinearGradient>
-        </Pressable>
+        </AnimatedPressable>
       </Animated.View>
 
       {/* Grid principal */}

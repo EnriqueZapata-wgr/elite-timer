@@ -1,16 +1,16 @@
 /**
- * AnimatedPressable — Botón con spring scale + haptic feedback.
- * Reemplaza Pressable/TouchableOpacity en toda la app.
+ * AnimatedPressable — Pressable con spring scale animation.
+ * Usa Pressable nativo + reanimated para el scale (sin GestureDetector).
  */
 import { type ReactNode } from 'react';
-import { type ViewStyle, type StyleProp } from 'react-native';
+import { Pressable, type ViewStyle, type StyleProp } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { vibrateLight } from '@/src/utils/haptics';
+
+const AnimatedPressableBase = Animated.createAnimatedComponent(Pressable);
 
 interface Props {
   onPress?: () => void;
@@ -18,8 +18,8 @@ interface Props {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   scaleDown?: number;
-  haptic?: boolean;
   children: ReactNode;
+  hitSlop?: number;
 }
 
 export function AnimatedPressable({
@@ -28,44 +28,30 @@ export function AnimatedPressable({
   disabled,
   style,
   scaleDown = 0.97,
-  haptic = true,
   children,
+  hitSlop,
 }: Props) {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-    opacity: disabled ? 0.4 : 1,
   }));
 
-  const tap = Gesture.Tap()
-    .enabled(!disabled)
-    .onBegin(() => {
-      scale.value = withSpring(scaleDown, { damping: 15, stiffness: 400 });
-    })
-    .onFinalize(() => {
-      scale.value = withSpring(1, { damping: 12, stiffness: 300 });
-    })
-    .onEnd(() => {
-      if (haptic) vibrateLight();
-      onPress?.();
-    });
-
-  const longPress = Gesture.LongPress()
-    .enabled(!disabled && !!onLongPress)
-    .minDuration(500)
-    .onStart(() => {
-      if (haptic) vibrateLight();
-      onLongPress?.();
-    });
-
-  const composed = Gesture.Race(tap, longPress);
-
   return (
-    <GestureDetector gesture={composed}>
-      <Animated.View style={[animatedStyle, style]}>
-        {children}
-      </Animated.View>
-    </GestureDetector>
+    <AnimatedPressableBase
+      onPress={onPress}
+      onLongPress={onLongPress}
+      disabled={disabled}
+      hitSlop={hitSlop}
+      onPressIn={() => {
+        scale.value = withSpring(scaleDown, { damping: 15, stiffness: 400 });
+      }}
+      onPressOut={() => {
+        scale.value = withSpring(1, { damping: 12, stiffness: 300 });
+      }}
+      style={[animatedStyle, style, disabled && { opacity: 0.4 }]}
+    >
+      {children}
+    </AnimatedPressableBase>
   );
 }

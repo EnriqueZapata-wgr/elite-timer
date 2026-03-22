@@ -10,9 +10,11 @@ import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { EmptyState } from '@/components/empty-state';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { flattenRoutine, calcRoutineStats, formatTimeHuman } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
@@ -189,16 +191,16 @@ export default function ProgramsScreen() {
         />
       ) : (
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-          {routines.map(routine => {
+          {routines.map((routine, index) => {
             const stats = getStats(routine);
             const statsLabel = getStatsLabel(routine, stats);
             const modeIcon = routine.mode === 'routine' ? 'barbell-outline' : 'timer-outline';
 
             return (
-              <Pressable
-                key={routine.id}
+              <Animated.View key={routine.id} entering={FadeInRight.delay(index * 80).springify()}>
+              <AnimatedPressable
                 onPress={() => playRoutine(routine)}
-                style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+                style={styles.card}
               >
                 {/* Badge de modo */}
                 <Ionicons name={modeIcon as any} size={20} color={Colors.textSecondary} style={styles.modeIcon} />
@@ -241,7 +243,8 @@ export default function ProgramsScreen() {
                     <Ionicons name="play-circle" size={40} color={Colors.neonGreen} />
                   </Pressable>
                 </View>
-              </Pressable>
+              </AnimatedPressable>
+              </Animated.View>
             );
           })}
 

@@ -13,6 +13,8 @@ import { useKeepAwake } from 'expo-keep-awake';
 
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { ConfettiCelebration } from '@/src/components/ui/ConfettiCelebration';
 import { useRoutineMode } from '@/src/hooks/useRoutineMode';
 import { getLastWeight } from '@/src/services/exercise-service';
 import { formatTime } from '@/src/engine/helpers';
@@ -127,6 +129,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
   if (rm.phase === 'completed' && rm.stats) {
     return (
       <SafeAreaView style={[styles.screen, styles.centered]}>
+        <ConfettiCelebration visible={true} />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.completedScroll}>
           <EliteText variant="title" style={{ color: Colors.neonGreen }}>
             RUTINA COMPLETADA
@@ -482,36 +485,30 @@ function RoutineContent({ routine }: { routine: Routine }) {
       {/* === BOTONES PRINCIPALES === */}
       <View style={styles.actionsBar}>
         {isWorking && (
-          <Pressable
-            onPress={handleCompleteSet}
-            style={({ pressed }) => [styles.mainAction, pressed && { opacity: 0.7 }]}
-          >
+          <AnimatedPressable onPress={handleCompleteSet} scaleDown={0.95} style={styles.mainAction}>
             <Ionicons name="checkmark-circle" size={22} color={Colors.textOnGreen} />
             <EliteText variant="body" style={styles.mainActionText}>SERIE COMPLETADA</EliteText>
-          </Pressable>
+          </AnimatedPressable>
         )}
 
         {isResting && (
-          <Pressable
-            onPress={rm.nextSet}
-            style={({ pressed }) => [styles.mainAction, { backgroundColor: zoneColor }, pressed && { opacity: 0.7 }]}
-          >
+          <AnimatedPressable onPress={rm.nextSet} scaleDown={0.95} style={[styles.mainAction, { backgroundColor: zoneColor }]}>
             <Ionicons name="play" size={22} color={Colors.black} />
             <EliteText variant="body" style={[styles.mainActionText, { color: Colors.black }]}>
               SIGUIENTE SERIE
             </EliteText>
-          </Pressable>
+          </AnimatedPressable>
         )}
 
         <View style={styles.secondaryActions}>
-          <Pressable onPress={rm.addExtraSet} style={styles.secondaryBtn}>
+          <AnimatedPressable onPress={rm.addExtraSet} style={styles.secondaryBtn}>
             <Ionicons name="add-circle-outline" size={18} color={Colors.neonGreen} />
             <EliteText variant="caption" style={styles.secondaryBtnText}>+ Serie extra</EliteText>
-          </Pressable>
-          <Pressable onPress={rm.requestNextExercise} style={styles.secondaryBtn}>
+          </AnimatedPressable>
+          <AnimatedPressable onPress={rm.requestNextExercise} style={styles.secondaryBtn}>
             <Ionicons name="play-skip-forward-outline" size={18} color={Colors.textSecondary} />
             <EliteText variant="caption" style={styles.secondaryBtnTextMuted}>Siguiente ejercicio</EliteText>
-          </Pressable>
+          </AnimatedPressable>
         </View>
       </View>
     </SafeAreaView>
