@@ -740,8 +740,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    backgroundColor: '#1A1A1A',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -758,7 +757,7 @@ const styles = StyleSheet.create({
   progressBar: {
     width: '100%',
     height: 3,
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: '#1A1A1A',
     borderRadius: 2,
   },
   progressFill: {

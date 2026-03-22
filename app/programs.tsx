@@ -285,15 +285,15 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderWidth: 0.5,
+    borderColor: '#2A2A2A',
   },
   cardPressed: {
-    opacity: 0.7,
+    opacity: 0.85,
     borderColor: Colors.neonGreen,
   },
   modeIcon: {

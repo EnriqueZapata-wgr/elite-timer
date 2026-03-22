@@ -37,16 +37,16 @@ export const Fonts = {
   extraBold: 'Poppins_800ExtraBold',
 } as const;
 
-// Tamaños de texto predefinidos para mantener consistencia visual.
-// Cada nivel tiene un uso específico en la app.
+// Jerarquía tipográfica premium — cada nivel tiene un uso claro.
 export const FontSizes = {
-  xs: 12,        // Captions, badges
-  sm: 14,        // Chips, labels secundarios
-  md: 16,        // Texto de cuerpo, botones secundarios
-  lg: 20,        // Botones principales, subtítulos
-  xl: 28,        // Títulos de pantalla
-  xxl: 48,       // Timer (números grandes)
-  timer: 64,     // Timer principal (el más grande)
+  xs: 12,        // Captions, badges, metadata
+  sm: 14,        // Body text, descripciones
+  md: 16,        // Subheadings, labels de sección
+  lg: 22,        // Headings, nombres de ejercicios
+  xl: 28,        // Display, títulos de pantalla
+  stat: 24,      // Números de stats
+  xxl: 48,       // Timer secundario
+  timer: 56,     // Timer principal (números grandes, monospace)
 } as const;
 
 // === ESPACIADO ===

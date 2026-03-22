@@ -62,11 +62,15 @@ export default function RootLayout() {
         <SettingsProvider>
           <ProgramsProvider>
             <SessionsProvider>
-              <Stack screenOptions={{ headerShown: false }}>
+              <Stack screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+                animationDuration: 250,
+              }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="login" />
-                <Stack.Screen name="register" />
+                <Stack.Screen name="login" options={{ animation: 'fade' }} />
+                <Stack.Screen name="register" options={{ animation: 'fade' }} />
                 <Stack.Screen name="forgot-password" />
                 <Stack.Screen name="timer" />
                 <Stack.Screen name="programs" />
@@ -75,11 +79,11 @@ export default function RootLayout() {
                 <Stack.Screen name="standard-programs" />
 
                 <Stack.Screen name="session-summary" />
-                <Stack.Screen name="execution" />
-                <Stack.Screen name="routine-execution" />
-                <Stack.Screen name="builder" />
-                <Stack.Screen name="settings" />
-                <Stack.Screen name="log-exercise" />
+                <Stack.Screen name="execution" options={{ animation: 'fade' }} />
+                <Stack.Screen name="routine-execution" options={{ animation: 'fade' }} />
+                <Stack.Screen name="builder" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="log-exercise" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="personal-records" />
               </Stack>
               <StatusBar style="light" />

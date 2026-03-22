@@ -1,14 +1,16 @@
 import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { DashboardCard } from '@/components/dashboard-card';
 import { useAuth } from '@/src/contexts/auth-context';
-import { Colors, Spacing, Radius } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 /**
- * Pantalla Home / Dashboard — Panel principal con 4 cards de navegación.
+ * Dashboard — Panel principal con botón hero ENTRENAR + cards de navegación.
  */
 export default function DashboardScreen() {
   const router = useRouter();
@@ -17,11 +19,11 @@ export default function DashboardScreen() {
 
   return (
     <ScreenContainer centered={false}>
-      {/* Encabezado con marca + engranaje */}
+      {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <EliteText variant="title">ELITE</EliteText>
-          <EliteText variant="body" style={styles.subtitle}>
+          <EliteText variant="title" style={styles.brand}>ELITE</EliteText>
+          <EliteText variant="body" style={styles.greeting}>
             Hola, {displayName}
           </EliteText>
         </View>
@@ -30,68 +32,83 @@ export default function DashboardScreen() {
         </Pressable>
       </View>
 
-      {/* Botón principal — ENTRENAR */}
-      <Pressable
-        onPress={() => router.push('/programs')}
-        style={({ pressed }) => [styles.trainButton, pressed && { opacity: 0.8 }]}
-      >
-        <Ionicons name="flash" size={24} color={Colors.textOnGreen} />
-        <EliteText variant="subtitle" style={styles.trainButtonText}>ENTRENAR</EliteText>
-      </Pressable>
-
-      {/* Grid de cards 2×2 */}
-      <View style={styles.grid}>
-        <DashboardCard
-          icon="albums-outline"
-          title="Mis Rutinas"
-          description="Crea y organiza tus rutinas"
+      {/* Hero — ENTRENAR */}
+      <Animated.View entering={FadeInUp.delay(50).springify()}>
+        <Pressable
           onPress={() => router.push('/programs')}
-          style={styles.card}
-        />
+          style={({ pressed }) => [pressed && { transform: [{ scale: 0.98 }] }]}
+        >
+          <LinearGradient
+            colors={['#a8e02a', '#7ab01e']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.heroButton}
+          >
+            <Ionicons name="flash" size={28} color={Colors.textOnGreen} />
+            <EliteText variant="subtitle" style={styles.heroText}>ENTRENAR</EliteText>
+          </LinearGradient>
+        </Pressable>
+      </Animated.View>
 
-        <DashboardCard
-          icon="timer-outline"
-          title="Programas Estándar"
-          description="Tabata, HIIT y más"
-          onPress={() => router.push('/standard-programs')}
-          style={styles.card}
-        />
+      {/* Grid principal */}
+      <View style={styles.grid}>
+        <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.card}>
+          <DashboardCard
+            icon="albums-outline"
+            title="Mis Rutinas"
+            description="Crea y organiza tus rutinas"
+            onPress={() => router.push('/programs')}
+          />
+        </Animated.View>
 
-        <DashboardCard
-          icon="barbell-outline"
-          title="Registrar entrenamiento"
-          description="Log manual de sets"
-          onPress={() => router.push('/log-exercise')}
-          style={styles.card}
-        />
+        <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.card}>
+          <DashboardCard
+            icon="timer-outline"
+            title="Programas Estándar"
+            description="Tabata, HIIT y más"
+            onPress={() => router.push('/standard-programs')}
+          />
+        </Animated.View>
 
-        <DashboardCard
-          icon="trophy-outline"
-          title="Mis marcas personales"
-          description="Records de fuerza"
-          onPress={() => router.push('/personal-records')}
-          style={styles.card}
-        />
+        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.card}>
+          <DashboardCard
+            icon="barbell-outline"
+            title="Registrar entrenamiento"
+            description="Log manual de sets"
+            onPress={() => router.push('/log-exercise')}
+          />
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.card}>
+          <DashboardCard
+            icon="trophy-outline"
+            title="Mis marcas personales"
+            description="Records de fuerza"
+            onPress={() => router.push('/personal-records')}
+          />
+        </Animated.View>
       </View>
 
-      {/* Cards próximamente — sutiles al final */}
-      <View style={styles.comingSoonSection}>
-        <DashboardCard
-          icon="calendar-outline"
-          title="Programa de Hoy"
-          description="Próximamente"
-          onPress={() => {}}
-          disabled
-          style={styles.card}
-        />
-        <DashboardCard
-          icon="trending-up-outline"
-          title="Mi Progreso"
-          description="Próximamente"
-          onPress={() => {}}
-          disabled
-          style={styles.card}
-        />
+      {/* Próximamente */}
+      <View style={styles.comingSoon}>
+        <Animated.View entering={FadeInUp.delay(500).springify()} style={styles.card}>
+          <DashboardCard
+            icon="calendar-outline"
+            title="Programa de Hoy"
+            description="Próximamente"
+            onPress={() => {}}
+            disabled
+          />
+        </Animated.View>
+        <Animated.View entering={FadeInUp.delay(600).springify()} style={styles.card}>
+          <DashboardCard
+            icon="trending-up-outline"
+            title="Mi Progreso"
+            description="Próximamente"
+            onPress={() => {}}
+            disabled
+          />
+        </Animated.View>
       </View>
     </ScreenContainer>
   );
@@ -103,46 +120,50 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.xl,
+    paddingBottom: Spacing.lg,
   },
-  headerLeft: {
-    flex: 1,
+  headerLeft: { flex: 1 },
+  brand: {
+    fontSize: FontSizes.xl,
+    letterSpacing: 6,
   },
-  settingsButton: {
-    padding: Spacing.sm,
-  },
-  subtitle: {
+  greeting: {
     color: Colors.textSecondary,
     marginTop: Spacing.xs,
+    fontSize: FontSizes.md,
   },
-  trainButton: {
+  settingsButton: { padding: Spacing.sm },
+
+  // Hero
+  heroButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.neonGreen,
-    height: 60,
-    borderRadius: Radius.md,
+    height: 80,
+    borderRadius: 20,
     marginBottom: Spacing.lg,
   },
-  trainButtonText: {
+  heroText: {
     color: Colors.textOnGreen,
-    fontSize: 18,
-    letterSpacing: 3,
+    fontSize: 20,
+    fontFamily: Fonts.bold,
+    letterSpacing: 4,
   },
+
+  // Grid
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     rowGap: Spacing.md,
   },
-  comingSoonSection: {
+  card: { width: '48%' },
+
+  comingSoon: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: Spacing.md,
-    opacity: 0.5,
-  },
-  card: {
-    width: '48%',
+    opacity: 0.4,
   },
 });
