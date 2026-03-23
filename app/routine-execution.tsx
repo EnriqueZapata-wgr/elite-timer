@@ -796,13 +796,14 @@ const styles = StyleSheet.create({
   },
   inputsContainer: {
     flexDirection: 'row',
-    gap: Spacing.sm,
+    gap: Spacing.xs,
     marginBottom: Spacing.md,
   },
   inputCard: {
     flex: 1,
     borderRadius: Radius.sm,
-    padding: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.sm,
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 0.5,
@@ -818,18 +819,18 @@ const styles = StyleSheet.create({
   inputLabel: {
     color: Colors.textSecondary,
     letterSpacing: 1,
-    fontSize: 11,
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.xs,
+    fontSize: 10,
+    marginTop: 2,
+    marginBottom: 2,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   inputBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: '#2a2a2a',
     alignItems: 'center',
     justifyContent: 'center',
@@ -839,9 +840,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.textPrimary,
     fontFamily: Fonts.bold,
-    fontSize: 28,
+    fontSize: 22,
     paddingVertical: 0,
-    minWidth: 30,
+    minWidth: 24,
   },
 
   // ── Sets completados ──

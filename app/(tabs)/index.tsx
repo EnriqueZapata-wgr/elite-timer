@@ -10,7 +10,9 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Colors, Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { getRoutines } from '@/src/services/routine-service';
+import { getWeeklyStats, type WeeklyStats } from '@/src/services/exercise-service';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
+import { formatTime } from '@/src/engine/helpers';
 import type { Routine } from '@/src/engine/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -25,13 +27,25 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [weekStats, setWeekStats] = useState<WeeklyStats>({
+    workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0,
+  });
 
-  // Recargar rutinas al volver a la pantalla
+  // Recargar datos al volver a la pantalla
   useFocusEffect(
     useCallback(() => {
       getRoutines().then(setRoutines).catch(() => {});
+      getWeeklyStats().then(setWeekStats).catch(() => {});
     }, [])
   );
+
+  // Formatear duración total de la semana como H:MM:SS
+  const formatDuration = (secs: number): string => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   return (
     <ScreenContainer centered={false}>
@@ -59,16 +73,22 @@ export default function DashboardScreen() {
             <EliteText variant="caption" style={styles.heroLabel}>TU SEMANA</EliteText>
 
             <View style={styles.heroMain}>
-              <EliteText style={styles.heroNumber}>0</EliteText>
+              <EliteText style={styles.heroNumber}>{weekStats.workouts}</EliteText>
               <EliteText style={styles.heroUnit}>ENTRENOS</EliteText>
             </View>
 
             <View style={styles.heroStatsRow}>
-              <EliteText variant="caption" style={styles.heroStat}>0:00:00 tiempo</EliteText>
+              <EliteText variant="caption" style={styles.heroStat}>
+                {formatDuration(weekStats.totalSeconds)} tiempo
+              </EliteText>
               <EliteText variant="caption" style={styles.heroDot}>·</EliteText>
-              <EliteText variant="caption" style={styles.heroStat}>0kg volumen</EliteText>
+              <EliteText variant="caption" style={styles.heroStat}>
+                {weekStats.volumeKg.toLocaleString()}kg volumen
+              </EliteText>
               <EliteText variant="caption" style={styles.heroDot}>·</EliteText>
-              <EliteText variant="caption" style={styles.heroStat}>0 PRs</EliteText>
+              <EliteText variant="caption" style={styles.heroStat}>
+                {weekStats.prs} PRs
+              </EliteText>
             </View>
           </LinearGradient>
         </Animated.View>

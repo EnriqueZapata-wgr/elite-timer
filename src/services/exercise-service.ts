@@ -253,6 +253,75 @@ export async function getExercisePRs(exerciseId: string): Promise<PersonalRecord
   return getPersonalRecords({ exercise_id: exerciseId });
 }
 
+// === STATS SEMANALES ===
+
+export interface WeeklyStats {
+  workouts: number;
+  totalSeconds: number;
+  volumeKg: number;
+  prs: number;
+}
+
+/** Stats de la semana actual (lunes a hoy) */
+export async function getWeeklyStats(): Promise<WeeklyStats> {
+  const empty: WeeklyStats = { workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0 };
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return empty;
+
+    // Lunes de esta semana a las 00:00
+    const now = new Date();
+    const day = now.getDay(); // 0=Dom, 1=Lun...
+    const mondayOffset = day === 0 ? 6 : day - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - mondayOffset);
+    monday.setHours(0, 0, 0, 0);
+    const mondayISO = monday.toISOString();
+
+    // Entrenos + duración total de execution_logs
+    const { data: execData } = await supabase
+      .from('execution_logs')
+      .select('id, total_duration_seconds')
+      .eq('user_id', user.id)
+      .gte('started_at', mondayISO);
+
+    const workouts = execData?.length ?? 0;
+    const totalSeconds = execData?.reduce(
+      (sum: number, r: any) => sum + (r.total_duration_seconds ?? 0), 0
+    ) ?? 0;
+
+    // Volumen de exercise_logs esta semana
+    const { data: logData } = await supabase
+      .from('exercise_logs')
+      .select('reps, weight_kg')
+      .eq('user_id', user.id)
+      .gte('logged_at', mondayISO);
+
+    const volumeKg = logData?.reduce((sum: number, r: any) => {
+      if (r.weight_kg && r.weight_kg > 0 && r.reps > 0) {
+        return sum + (r.reps * r.weight_kg);
+      }
+      return sum;
+    }, 0) ?? 0;
+
+    // PRs de esta semana
+    const { count: prCount } = await supabase
+      .from('personal_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('achieved_at', mondayISO);
+
+    return {
+      workouts,
+      totalSeconds,
+      volumeKg: Math.round(volumeKg),
+      prs: prCount ?? 0,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 /** Obtener el último peso usado para un ejercicio (del log más reciente con peso) */
 export async function getLastWeight(exerciseId: string): Promise<number | null> {
   try {

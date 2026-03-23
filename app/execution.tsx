@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
+import { useMemo } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,14 +9,11 @@ import { useKeepAwake } from 'expo-keep-awake';
 import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
-import { SetLogModal } from '@/src/components/SetLogModal';
 import { useRoutineEngine } from '@/hooks/use-routine-engine';
-import { logExerciseSet } from '@/src/services/exercise-service';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import type { Routine as EngineRoutine, ExecutionStep } from '@/src/engine/types';
-import type { ExerciseLog, ExerciseSummary } from '@/src/types/exercise';
 
 // === COLORES POR TIPO DE STEP ===
 
@@ -110,135 +107,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     restart,
   } = useRoutineEngine(routine);
 
-  // === SISTEMA DE LOGGING DE EJERCICIOS ===
-  const [setLogVisible, setSetLogVisible] = useState(false);
-  const [pendingExercise, setPendingExercise] = useState<{
-    exerciseId: string;
-    exerciseName: string;
-    blockId: string;
-    setNumber: number;
-  } | null>(null);
-  const setCounters = useRef<Map<string, number>>(new Map());
-  const [sessionLogs, setSessionLogs] = useState<ExerciseLog[]>([]);
-  const prevStepRef = useRef<ExecutionStep | null>(null);
-  const logShownForStep = useRef<number>(-1);
-
-  const showLogForStep = useCallback((step: ExecutionStep) => {
-    if (logShownForStep.current === step.stepIndex) return;
-    logShownForStep.current = step.stepIndex;
-
-    const currentCount = (setCounters.current.get(step.exerciseId!) ?? 0) + 1;
-    setCounters.current.set(step.exerciseId!, currentCount);
-
-    setPendingExercise({
-      exerciseId: step.exerciseId!,
-      exerciseName: step.exerciseName ?? step.label,
-      blockId: step.blockId,
-      setNumber: currentCount,
-    });
-    setSetLogVisible(true);
-  }, []);
-
-  useEffect(() => {
-    const prev = prevStepRef.current;
-    prevStepRef.current = currentStep;
-
-    if (
-      prev &&
-      prev.exerciseId &&
-      prev.type === 'work' &&
-      currentStep &&
-      prev.stepIndex !== currentStep.stepIndex
-    ) {
-      pause();
-      showLogForStep(prev);
-    }
-  }, [currentStep, pause, showLogForStep]);
-
-  useEffect(() => {
-    if (engineState === 'completed') {
-      const prev = prevStepRef.current;
-      if (prev && prev.exerciseId && prev.type === 'work') {
-        showLogForStep(prev);
-      }
-    }
-  }, [engineState, showLogForStep]);
-
-  const handleSaveSet = useCallback(async (data: {
-    reps: number;
-    weight_kg: number | null;
-    rpe: number | null;
-  }) => {
-    if (!pendingExercise) return;
-
-    try {
-      await logExerciseSet({
-        exercise_id: pendingExercise.exerciseId,
-        reps: data.reps,
-        weight_kg: data.weight_kg,
-        rpe: data.rpe,
-        block_id: pendingExercise.blockId,
-        set_number: pendingExercise.setNumber,
-      });
-
-      setSessionLogs(prev => [...prev, {
-        id: `local-${Date.now()}`,
-        exercise_id: pendingExercise.exerciseId,
-        exercise_name: pendingExercise.exerciseName,
-        set_number: pendingExercise.setNumber,
-        reps: data.reps,
-        weight_kg: data.weight_kg,
-        rpe: data.rpe,
-        notes: '',
-        logged_at: new Date().toISOString(),
-      }]);
-    } catch (err) {
-      if (__DEV__) console.error('Error al guardar set:', err);
-    }
-
-    setSetLogVisible(false);
-    setPendingExercise(null);
-    play();
-  }, [pendingExercise, play]);
-
-  const handleSkipSet = useCallback(() => {
-    setSetLogVisible(false);
-    setPendingExercise(null);
-    play();
-  }, [play]);
-
-  const exerciseSummaries = useMemo((): ExerciseSummary[] => {
-    if (sessionLogs.length === 0) return [];
-
-    const byExercise = new Map<string, ExerciseLog[]>();
-    for (const log of sessionLogs) {
-      const existing = byExercise.get(log.exercise_id) ?? [];
-      existing.push(log);
-      byExercise.set(log.exercise_id, existing);
-    }
-
-    return Array.from(byExercise.entries()).map(([exerciseId, logs]) => {
-      const totalReps = logs.reduce((sum, l) => sum + l.reps, 0);
-      const weights = logs.filter(l => l.weight_kg !== null).map(l => l.weight_kg!);
-      const maxWeight = weights.length > 0 ? Math.max(...weights) : null;
-      const totalVolume = logs.reduce((sum, l) => {
-        if (l.weight_kg && l.weight_kg > 0) return sum + (l.reps * l.weight_kg);
-        return sum;
-      }, 0);
-
-      return {
-        exercise_id: exerciseId,
-        exercise_name: logs[0].exercise_name ?? '',
-        sets: logs.length,
-        total_reps: totalReps,
-        max_weight: maxWeight,
-        total_volume: totalVolume > 0 ? totalVolume : null,
-        logs,
-        new_pr: false,
-      };
-    });
-  }, [sessionLogs]);
-
   const stepColor = getStepColor(currentStep);
   const isCountdown = remainingSeconds <= 3 && remainingSeconds > 0 && engineState === 'running';
 
@@ -297,73 +165,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
               )}
             </LinearGradient>
           </View>
-
-          {/* Resumen de ejercicios */}
-          {exerciseSummaries.length > 0 && (
-            <View style={styles.exerciseSummarySection}>
-              <EliteText variant="label" style={styles.exerciseSummaryTitle}>
-                EJERCICIOS REGISTRADOS
-              </EliteText>
-              {exerciseSummaries.map((summary) => (
-                <LinearGradient
-                  key={summary.exercise_id}
-                  colors={['#1a2a1a', '#111111']}
-                  style={styles.exerciseSummaryCard}
-                >
-                  <View style={styles.exerciseSummaryHeader}>
-                    <Ionicons name="barbell-outline" size={16} color={Colors.neonGreen} />
-                    <EliteText variant="body" style={styles.exerciseSummaryName} numberOfLines={1}>
-                      {summary.exercise_name}
-                    </EliteText>
-                    {summary.new_pr && (
-                      <View style={styles.prBadge}>
-                        <EliteText variant="caption" style={styles.prBadgeText}>
-                          NUEVO PR!
-                        </EliteText>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.exerciseSummaryStats}>
-                    <EliteText variant="caption" style={styles.exerciseStatText}>
-                      {summary.sets} sets
-                    </EliteText>
-                    <EliteText variant="caption" style={styles.exerciseStatDot}>·</EliteText>
-                    <EliteText variant="caption" style={styles.exerciseStatText}>
-                      {summary.total_reps} reps
-                    </EliteText>
-                    {summary.max_weight !== null && (
-                      <>
-                        <EliteText variant="caption" style={styles.exerciseStatDot}>·</EliteText>
-                        <EliteText variant="caption" style={styles.exerciseStatText}>
-                          Max {summary.max_weight}kg
-                        </EliteText>
-                      </>
-                    )}
-                    {summary.total_volume !== null && (
-                      <>
-                        <EliteText variant="caption" style={styles.exerciseStatDot}>·</EliteText>
-                        <EliteText variant="caption" style={styles.exerciseStatText}>
-                          Vol {summary.total_volume.toLocaleString()}kg
-                        </EliteText>
-                      </>
-                    )}
-                  </View>
-                  {summary.logs.map((log) => (
-                    <View key={log.id} style={styles.setDetail}>
-                      <EliteText variant="caption" style={styles.setDetailNumber}>
-                        Set {log.set_number}:
-                      </EliteText>
-                      <EliteText variant="caption" style={styles.setDetailData}>
-                        {log.reps} reps
-                        {log.weight_kg ? ` × ${log.weight_kg}kg` : ' (BW)'}
-                        {log.rpe ? ` @RPE${log.rpe}` : ''}
-                      </EliteText>
-                    </View>
-                  ))}
-                </LinearGradient>
-              ))}
-            </View>
-          )}
 
           <View style={styles.completedButtons}>
             <EliteButton label="REPETIR" onPress={restart} />
@@ -544,14 +345,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         </View>
       </LinearGradient>
 
-      {/* Modal de registro */}
-      <SetLogModal
-        visible={setLogVisible}
-        exerciseName={pendingExercise?.exerciseName ?? ''}
-        setNumber={pendingExercise?.setNumber ?? 1}
-        onSave={handleSaveSet}
-        onSkip={handleSkipSet}
-      />
     </SafeAreaView>
   );
 }
@@ -938,74 +731,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // ── Resumen de ejercicios ──
-  exerciseSummarySection: {
-    width: '100%',
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  exerciseSummaryTitle: {
-    color: Colors.neonGreen,
-    letterSpacing: 2,
-    marginBottom: Spacing.sm,
-  },
-  exerciseSummaryCard: {
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
-    marginBottom: Spacing.sm,
-    borderWidth: 0.5,
-    borderColor: '#2a2a2a',
-  },
-  exerciseSummaryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.xs,
-  },
-  exerciseSummaryName: {
-    flex: 1,
-    fontFamily: Fonts.semiBold,
-    fontSize: FontSizes.sm,
-  },
-  prBadge: {
-    backgroundColor: Colors.neonGreen + '20',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-  },
-  prBadgeText: {
-    color: Colors.neonGreen,
-    fontFamily: Fonts.bold,
-    fontSize: 10,
-  },
-  exerciseSummaryStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    marginBottom: Spacing.xs,
-  },
-  exerciseStatText: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-  },
-  exerciseStatDot: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-  },
-  setDetail: {
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    paddingLeft: Spacing.md + Spacing.xs,
-    paddingVertical: 1,
-  },
-  setDetailNumber: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontFamily: Fonts.semiBold,
-    width: 45,
-  },
-  setDetailData: {
-    color: Colors.textPrimary,
-    fontSize: 10,
-  },
 });
