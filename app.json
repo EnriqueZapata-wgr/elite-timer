@@ -22,6 +22,8 @@
       "predictiveBackGestureEnabled": false,
       "permissions": [
         "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "package": "mx.com.enriquezapata.app"
@@ -59,6 +61,12 @@
         "projectId": "5ab4ad17-7e3f-422e-af22-13dc696dbf4e"
       }
     },
-    "owner": "ezapata"
+    "owner": "ezapata",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/5ab4ad17-7e3f-422e-af22-13dc696dbf4e"
+    }
   }
 }
