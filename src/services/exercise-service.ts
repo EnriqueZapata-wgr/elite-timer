@@ -357,6 +357,280 @@ export async function checkRecentPR(exerciseId: string): Promise<PersonalRecord 
   }
 }
 
+// === MONTHLY STATS ===
+
+export interface MonthlyStats {
+  workouts: number;
+  totalSeconds: number;
+  volumeKg: number;
+  prs: number;
+  monthLabel: string;
+}
+
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+export async function getMonthlyStats(): Promise<MonthlyStats> {
+  const now = new Date();
+  const monthLabel = `${MONTH_NAMES[now.getMonth()].toUpperCase()} ${now.getFullYear()}`;
+  const empty: MonthlyStats = { workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0, monthLabel };
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return empty;
+
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    first.setHours(0, 0, 0, 0);
+    const firstISO = first.toISOString();
+
+    const { data: execData } = await supabase
+      .from('execution_logs')
+      .select('id, total_duration_seconds')
+      .eq('user_id', user.id)
+      .gte('started_at', firstISO);
+
+    const workouts = execData?.length ?? 0;
+    const totalSeconds = execData?.reduce(
+      (sum: number, r: any) => sum + (r.total_duration_seconds ?? 0), 0
+    ) ?? 0;
+
+    const { data: logData } = await supabase
+      .from('exercise_logs')
+      .select('reps, weight_kg')
+      .eq('user_id', user.id)
+      .gte('logged_at', firstISO);
+
+    const volumeKg = logData?.reduce((sum: number, r: any) => {
+      if (r.weight_kg && r.weight_kg > 0 && r.reps > 0) return sum + (r.reps * r.weight_kg);
+      return sum;
+    }, 0) ?? 0;
+
+    const { count: prCount } = await supabase
+      .from('personal_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('achieved_at', firstISO);
+
+    return { workouts, totalSeconds, volumeKg: Math.round(volumeKg), prs: prCount ?? 0, monthLabel };
+  } catch {
+    return empty;
+  }
+}
+
+// === CHART DATA ===
+
+export interface WeekChartData {
+  label: string;
+  value: number;
+  isCurrent: boolean;
+}
+
+/** Helper: lunes de una semana dada */
+function getMondayOf(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const offset = day === 0 ? 6 : day - 1;
+  d.setDate(d.getDate() - offset);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+export async function getWeeklyFrequencyChart(weeks = 8): Promise<WeekChartData[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const now = new Date();
+    const currentMonday = getMondayOf(now);
+    const startDate = new Date(currentMonday);
+    startDate.setDate(startDate.getDate() - (weeks - 1) * 7);
+
+    const { data } = await supabase
+      .from('execution_logs')
+      .select('started_at')
+      .eq('user_id', user.id)
+      .gte('started_at', startDate.toISOString());
+
+    const result: WeekChartData[] = [];
+    for (let w = 0; w < weeks; w++) {
+      const weekStart = new Date(startDate);
+      weekStart.setDate(weekStart.getDate() + w * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+
+      const count = (data ?? []).filter(r => {
+        const d = new Date(r.started_at);
+        return d >= weekStart && d < weekEnd;
+      }).length;
+
+      const isCurrent = weekStart.getTime() === currentMonday.getTime();
+      const label = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
+      result.push({ label, value: count, isCurrent });
+    }
+    return result;
+  } catch {
+    return [];
+  }
+}
+
+export async function getWeeklyVolumeChart(weeks = 8): Promise<WeekChartData[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const now = new Date();
+    const currentMonday = getMondayOf(now);
+    const startDate = new Date(currentMonday);
+    startDate.setDate(startDate.getDate() - (weeks - 1) * 7);
+
+    const { data } = await supabase
+      .from('exercise_logs')
+      .select('reps, weight_kg, logged_at')
+      .eq('user_id', user.id)
+      .gte('logged_at', startDate.toISOString());
+
+    const result: WeekChartData[] = [];
+    for (let w = 0; w < weeks; w++) {
+      const weekStart = new Date(startDate);
+      weekStart.setDate(weekStart.getDate() + w * 7);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+
+      const vol = (data ?? [])
+        .filter(r => {
+          const d = new Date(r.logged_at);
+          return d >= weekStart && d < weekEnd;
+        })
+        .reduce((sum: number, r: any) => {
+          if (r.weight_kg > 0 && r.reps > 0) return sum + r.reps * r.weight_kg;
+          return sum;
+        }, 0);
+
+      const isCurrent = weekStart.getTime() === currentMonday.getTime();
+      const label = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
+      result.push({ label, value: Math.round(vol), isCurrent });
+    }
+    return result;
+  } catch {
+    return [];
+  }
+}
+
+// === RECENT PRs LIST ===
+
+export async function getRecentPRsList(limit = 10): Promise<PersonalRecord[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('personal_records')
+      .select('*, exercises(name, muscle_group)')
+      .eq('user_id', user.id)
+      .order('achieved_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+
+    return data.map((row: any) => ({
+      id: row.id,
+      exercise_id: row.exercise_id,
+      exercise_name: row.exercises?.name ?? '',
+      muscle_group: row.exercises?.muscle_group ?? '',
+      rep_range: row.rep_range,
+      weight_kg: row.weight_kg,
+      estimated_1rm: row.estimated_1rm,
+      achieved_at: row.achieved_at,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// === SESSION HISTORY ===
+
+export interface SessionHistoryEntry {
+  id: string;
+  routineName: string;
+  mode: string;
+  startedAt: string;
+  completedAt: string | null;
+  totalDurationSeconds: number;
+  status: string;
+}
+
+export async function getSessionHistory(limit = 50): Promise<SessionHistoryEntry[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('execution_logs')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('started_at', { ascending: false })
+      .limit(limit);
+
+    if (error || !data) return [];
+
+    return data.map((row: any) => ({
+      id: row.id,
+      routineName: row.routine_name ?? 'Sesión',
+      mode: row.mode ?? 'timer',
+      startedAt: row.started_at,
+      completedAt: row.completed_at ?? null,
+      totalDurationSeconds: row.total_duration_seconds ?? 0,
+      status: row.status ?? 'completed',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// === EXERCISE PROGRESSION ===
+
+export interface ProgressionPoint {
+  date: string;
+  maxWeight: number;
+  dateLabel: string;
+}
+
+export async function getExerciseProgression(exerciseId: string): Promise<ProgressionPoint[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('exercise_logs')
+      .select('weight_kg, logged_at')
+      .eq('user_id', user.id)
+      .eq('exercise_id', exerciseId)
+      .not('weight_kg', 'is', null)
+      .gt('weight_kg', 0)
+      .order('logged_at', { ascending: true });
+
+    if (error || !data || data.length === 0) return [];
+
+    // Agrupar por fecha, MAX peso por día
+    const byDate = new Map<string, number>();
+    for (const row of data) {
+      const dateKey = new Date(row.logged_at).toISOString().split('T')[0];
+      const current = byDate.get(dateKey) ?? 0;
+      if (row.weight_kg > current) byDate.set(dateKey, row.weight_kg);
+    }
+
+    return Array.from(byDate.entries()).map(([date, maxWeight]) => {
+      const d = new Date(date);
+      const dateLabel = `${d.getDate()}/${d.getMonth() + 1}`;
+      return { date, maxWeight, dateLabel };
+    });
+  } catch {
+    return [];
+  }
+}
+
 /** Obtener el último peso usado para un ejercicio (del log más reciente con peso) */
 export async function getLastWeight(exerciseId: string): Promise<number | null> {
   try {
