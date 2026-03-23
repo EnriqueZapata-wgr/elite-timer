@@ -12,7 +12,7 @@ import { speak as speakTTS, stopSpeech } from '@/src/utils/speech';
 import { playStepStart, playStepEnd, playRoutineComplete, initAudio, cleanupAudio, setSoundStyle } from '@/src/utils/sounds';
 import { vibrateLight, vibrateMedium, vibrateHeavy } from '@/src/utils/haptics';
 import { useSettings } from '@/src/contexts/settings-context';
-import { logExerciseSet } from '@/src/services/exercise-service';
+import { logExerciseSet, checkRecentPR } from '@/src/services/exercise-service';
 import type { Routine, Block } from '@/src/engine/types';
 
 // === TIPOS ===
@@ -48,6 +48,12 @@ export interface RoutineModeStats {
   totalReps: number;
   startedAt: Date;
   completedAt: Date;
+}
+
+export interface PRCelebration {
+  exerciseName: string;
+  weightKg: number;
+  reps: number;
 }
 
 // === EXTRAER EJERCICIOS DE LOS BLOQUES ===
@@ -112,6 +118,10 @@ export function useRoutineMode(routine: Routine) {
   const [restSeconds, setRestSeconds] = useState(0);
   const [stats, setStats] = useState<RoutineModeStats | null>(null);
 
+  // PR detection
+  const [lastPR, setLastPR] = useState<PRCelebration | null>(null);
+  const [sessionPRs, setSessionPRs] = useState<Set<string>>(new Set());
+
   // Refs
   const sessionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const workTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -148,6 +158,24 @@ export function useRoutineMode(routine: Routine) {
       setElapsedSeconds(prev => prev + 1);
     }, 1000);
   }, []);
+
+  /** Verificar si un set generó un PR nuevo (fire-and-forget) */
+  const checkAndCelebratePR = useCallback(async (exerciseId: string, exerciseName: string) => {
+    // Esperar a que el trigger de la DB haya procesado
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const pr = await checkRecentPR(exerciseId);
+      if (pr) {
+        setLastPR({ exerciseName, weightKg: pr.weight_kg, reps: pr.rep_range });
+        setSessionPRs(prev => new Set(prev).add(exerciseId));
+        const s = settingsRef.current;
+        if (s.vibrationEnabled) vibrateHeavy();
+        if (s.voiceEnabled) speakTTS('Nuevo récord personal', s.voiceLanguage);
+      }
+    } catch { /* silencioso */ }
+  }, []);
+
+  const clearPR = useCallback(() => setLastPR(null), []);
 
   // === ACCIONES ===
 
@@ -222,6 +250,11 @@ export function useRoutineMode(routine: Routine) {
       });
     } catch (err) {
       if (__DEV__) console.error('[routineMode] Error al guardar set:', err);
+    }
+
+    // Verificar si fue PR (fire-and-forget, no bloquea)
+    if (weightKg && weightKg > 0 && reps > 0) {
+      checkAndCelebratePR(exercise.exerciseId, exercise.exerciseName);
     }
 
     const s = settingsRef.current;
@@ -419,6 +452,11 @@ export function useRoutineMode(routine: Routine) {
     restOvertime,
     restZone,
     suggestedRest,
+
+    // PR
+    lastPR,
+    sessionPRs,
+    clearPR,
 
     // Acciones
     start,

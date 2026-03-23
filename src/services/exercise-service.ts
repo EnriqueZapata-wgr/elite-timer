@@ -322,6 +322,41 @@ export async function getWeeklyStats(): Promise<WeeklyStats> {
   }
 }
 
+/** Verificar si se generó un PR reciente (últimos 5s) para un ejercicio */
+export async function checkRecentPR(exerciseId: string): Promise<PersonalRecord | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const fiveSecsAgo = new Date(Date.now() - 5000).toISOString();
+
+    const { data, error } = await supabase
+      .from('personal_records')
+      .select('*, exercises(name, muscle_group)')
+      .eq('user_id', user.id)
+      .eq('exercise_id', exerciseId)
+      .gte('achieved_at', fiveSecsAgo)
+      .order('achieved_at', { ascending: false })
+      .limit(1);
+
+    if (error || !data || data.length === 0) return null;
+
+    const row = data[0] as any;
+    return {
+      id: row.id,
+      exercise_id: row.exercise_id,
+      exercise_name: row.exercises?.name ?? '',
+      muscle_group: row.exercises?.muscle_group ?? '',
+      rep_range: row.rep_range,
+      weight_kg: row.weight_kg,
+      estimated_1rm: row.estimated_1rm,
+      achieved_at: row.achieved_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Obtener el último peso usado para un ejercicio (del log más reciente con peso) */
 export async function getLastWeight(exerciseId: string): Promise<number | null> {
   try {

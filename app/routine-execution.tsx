@@ -101,6 +101,20 @@ function RoutineContent({ routine }: { routine: Routine }) {
     rm.startWorking();
   }, [rm]);
 
+  // === PR CELEBRATION ===
+  const [showPRCelebration, setShowPRCelebration] = useState(false);
+
+  useEffect(() => {
+    if (rm.lastPR) {
+      setShowPRCelebration(true);
+      const timer = setTimeout(() => {
+        setShowPRCelebration(false);
+        rm.clearPR();
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [rm.lastPR, rm.clearPR]);
+
   // === IDLE ===
   if (rm.phase === 'idle') {
     return (
@@ -135,26 +149,35 @@ function RoutineContent({ routine }: { routine: Routine }) {
 
   // === COMPLETADA ===
   if (rm.phase === 'completed' && rm.stats) {
+    // Calcular resumen general
+    let totalVolume = 0;
+    const prCount = rm.sessionPRs.size;
+
+    rm.exercises.forEach((_, i) => {
+      const sets = rm.completedSets.get(i) ?? [];
+      for (const set of sets) {
+        if (set.reps && set.weightKg && set.weightKg > 0) {
+          totalVolume += set.reps * set.weightKg;
+        }
+      }
+    });
+
     return (
       <SafeAreaView style={[styles.screen, styles.centered]}>
         <ConfettiCelebration visible={true} />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.completedScroll}>
-          <EliteText variant="title" style={{ color: Colors.neonGreen }}>
+          {/* Hero */}
+          <EliteText variant="title" style={{ color: Colors.neonGreen, fontSize: 28 }}>
             RUTINA COMPLETADA
           </EliteText>
           <EliteText variant="body" style={styles.subtitle}>{routine.name}</EliteText>
 
+          {/* Stats grid */}
           <View style={styles.statsGrid}>
             <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>TIEMPO</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {formatTime(rm.stats.totalDurationSeconds)}
-              </EliteText>
-            </LinearGradient>
-            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
-              <EliteText variant="caption" style={styles.statLabel}>EJERCICIOS</EliteText>
-              <EliteText variant="subtitle" style={styles.statValue}>
-                {rm.stats.exercisesCompleted}
               </EliteText>
             </LinearGradient>
             <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
@@ -164,19 +187,44 @@ function RoutineContent({ routine }: { routine: Routine }) {
               </EliteText>
             </LinearGradient>
             <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
-              <EliteText variant="caption" style={styles.statLabel}>REPS TOTALES</EliteText>
+              <EliteText variant="caption" style={styles.statLabel}>REPS</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {rm.stats.totalReps}
               </EliteText>
             </LinearGradient>
+            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
+              <EliteText variant="caption" style={styles.statLabel}>VOLUMEN</EliteText>
+              <EliteText variant="subtitle" style={styles.statValue}>
+                {totalVolume > 0 ? `${totalVolume.toLocaleString()}kg` : '—'}
+              </EliteText>
+            </LinearGradient>
           </View>
 
+          {/* PRs de la sesión */}
+          {prCount > 0 && (
+            <View style={styles.prSummaryBanner}>
+              <Ionicons name="trophy" size={20} color="#FFD700" />
+              <EliteText variant="body" style={styles.prSummaryText}>
+                {prCount} {prCount === 1 ? 'NUEVO RECORD' : 'NUEVOS RECORDS'}
+              </EliteText>
+            </View>
+          )}
+
           {/* Resumen por ejercicio */}
+          <EliteText variant="caption" style={styles.completedSectionLabel}>
+            DESGLOSE POR EJERCICIO
+          </EliteText>
+
           {rm.exercises.map((ex, i) => {
             const sets = rm.completedSets.get(i) ?? [];
             if (sets.length === 0) return null;
             const totalReps = sets.reduce((s, set) => s + (set.reps ?? 0), 0);
             const maxWeight = Math.max(0, ...sets.map(s => s.weightKg ?? 0));
+            const exVolume = sets.reduce((s, set) => {
+              if (set.reps && set.weightKg && set.weightKg > 0) return s + set.reps * set.weightKg;
+              return s;
+            }, 0);
+            const hasPR = rm.sessionPRs.has(ex.exerciseId);
 
             return (
               <LinearGradient key={ex.blockId} colors={['#1a2a1a', '#111111']} style={styles.exerciseSummaryCard}>
@@ -185,10 +233,38 @@ function RoutineContent({ routine }: { routine: Routine }) {
                   <EliteText variant="body" style={styles.exerciseSummaryName} numberOfLines={1}>
                     {ex.exerciseName}
                   </EliteText>
+                  {hasPR && (
+                    <View style={styles.prBadgeSmall}>
+                      <Ionicons name="trophy" size={10} color="#FFD700" />
+                      <EliteText variant="caption" style={styles.prBadgeSmallText}>PR!</EliteText>
+                    </View>
+                  )}
                 </View>
-                <EliteText variant="caption" style={styles.exerciseSummaryStats}>
-                  {sets.length} {sets.length === 1 ? 'set' : 'sets'} · {totalReps} reps{maxWeight > 0 ? ` · Max ${maxWeight}kg` : ''}
-                </EliteText>
+                <View style={styles.exerciseSummaryStatsRow}>
+                  <EliteText variant="caption" style={styles.exerciseSummaryStat}>
+                    {sets.length}/{ex.suggestedSets} sets
+                  </EliteText>
+                  <EliteText variant="caption" style={styles.exerciseSummaryDot}>·</EliteText>
+                  <EliteText variant="caption" style={styles.exerciseSummaryStat}>
+                    {totalReps} reps
+                  </EliteText>
+                  {maxWeight > 0 && (
+                    <>
+                      <EliteText variant="caption" style={styles.exerciseSummaryDot}>·</EliteText>
+                      <EliteText variant="caption" style={styles.exerciseSummaryStat}>
+                        Max {maxWeight}kg
+                      </EliteText>
+                    </>
+                  )}
+                  {exVolume > 0 && (
+                    <>
+                      <EliteText variant="caption" style={styles.exerciseSummaryDot}>·</EliteText>
+                      <EliteText variant="caption" style={styles.exerciseSummaryStat}>
+                        Vol {exVolume.toLocaleString()}kg
+                      </EliteText>
+                    </>
+                  )}
+                </View>
                 {sets.map(set => (
                   <View key={set.setNumber} style={styles.setDetailRow}>
                     <EliteText variant="caption" style={styles.setDetailNum}>Set {set.setNumber}:</EliteText>
@@ -202,7 +278,15 @@ function RoutineContent({ routine }: { routine: Routine }) {
             );
           })}
 
-          <View style={{ gap: 12, alignItems: 'center', marginTop: 24 }}>
+          {/* Botones */}
+          <View style={{ gap: 12, alignItems: 'center', marginTop: 24, width: '100%' }}>
+            <AnimatedPressable
+              onPress={() => router.push('/personal-records')}
+              style={styles.completedOutlineBtn}
+            >
+              <Ionicons name="trophy-outline" size={18} color={Colors.neonGreen} />
+              <EliteText variant="body" style={styles.completedOutlineBtnText}>VER MIS MARCAS</EliteText>
+            </AnimatedPressable>
             <EliteButton label="VOLVER AL INICIO" onPress={() => router.back()} />
           </View>
         </ScrollView>
@@ -311,6 +395,20 @@ function RoutineContent({ routine }: { routine: Routine }) {
 
   return (
     <SafeAreaView style={styles.screen}>
+      {/* ── PR Celebration Overlay ── */}
+      <ConfettiCelebration visible={showPRCelebration} />
+      {showPRCelebration && rm.lastPR && (
+        <View style={styles.prOverlay} pointerEvents="none">
+          <View style={styles.prOverlayBadge}>
+            <Ionicons name="trophy" size={24} color="#FFD700" />
+            <EliteText style={styles.prOverlayText}>NUEVO RECORD!</EliteText>
+            <EliteText variant="caption" style={styles.prOverlayDetail}>
+              {rm.lastPR.exerciseName} · {rm.lastPR.weightKg}kg × {rm.lastPR.reps}
+            </EliteText>
+          </View>
+        </View>
+      )}
+
       {/* ── Hero Bar ── */}
       <LinearGradient colors={zoneGrad} style={styles.heroBar}>
         <View style={[styles.heroBarAccent, { backgroundColor: Colors.neonGreen }]} />
@@ -1045,10 +1143,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
   },
-  exerciseSummaryStats: {
+  exerciseSummaryStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+    flexWrap: 'wrap',
+  },
+  exerciseSummaryStat: {
     color: Colors.textSecondary,
     fontSize: 11,
-    marginBottom: Spacing.xs,
+  },
+  exerciseSummaryDot: {
+    color: Colors.textSecondary,
+    fontSize: 11,
   },
   setDetailRow: {
     flexDirection: 'row',
@@ -1076,5 +1184,96 @@ const styles = StyleSheet.create({
   exerciseCounter: {
     color: Colors.textSecondary,
     fontSize: 11,
+  },
+
+  // ── PR Celebration ──
+  prOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 998,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  prOverlayBadge: {
+    backgroundColor: '#1a2a1a',
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFD700',
+    shadowColor: '#FFD700',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 15,
+  },
+  prOverlayText: {
+    fontSize: 22,
+    fontFamily: Fonts.extraBold,
+    color: '#FFD700',
+    letterSpacing: 2,
+    marginTop: Spacing.sm,
+  },
+  prOverlayDetail: {
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+    fontSize: 13,
+  },
+
+  // ── Completed: PR summary ──
+  prSummaryBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: '#FFD700' + '15',
+    borderWidth: 1,
+    borderColor: '#FFD700' + '40',
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  prSummaryText: {
+    color: '#FFD700',
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    letterSpacing: 1,
+  },
+  completedSectionLabel: {
+    color: Colors.textSecondary,
+    letterSpacing: 2,
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+    alignSelf: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  prBadgeSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#FFD700' + '20',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  prBadgeSmallText: {
+    color: '#FFD700',
+    fontFamily: Fonts.bold,
+    fontSize: 10,
+  },
+  completedOutlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.neonGreen,
+    width: '100%',
+  },
+  completedOutlineBtnText: {
+    color: Colors.neonGreen,
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.sm,
   },
 });
