@@ -85,6 +85,8 @@ export default function RootLayout() {
                 <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="log-exercise" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="personal-records" />
+                <Stack.Screen name="progress" />
+                <Stack.Screen name="history" />
               </Stack>
               <StatusBar style="light" />
             </SessionsProvider>

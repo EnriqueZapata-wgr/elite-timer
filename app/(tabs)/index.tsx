@@ -211,26 +211,29 @@ export default function DashboardScreen() {
               </LinearGradient>
             </AnimatedPressable>
 
-            {/* Progreso (deshabilitado) */}
-            <View style={styles.quickCard}>
-              <LinearGradient colors={['#1a1a1a', '#151515']} style={[styles.quickCardInner, { opacity: 0.5 }]}>
-                <Ionicons name="trending-up-outline" size={28} color={Colors.textSecondary} />
-                <EliteText variant="body" style={[styles.quickCardTitle, { color: Colors.textSecondary }]}>
-                  Progreso
-                </EliteText>
-                <View style={styles.prontoBadge}>
-                  <EliteText variant="caption" style={styles.prontoBadgeText}>PRONTO</EliteText>
-                </View>
+            {/* Progreso */}
+            <AnimatedPressable
+              onPress={() => router.push('/progress' as any)}
+              style={styles.quickCard}
+            >
+              <LinearGradient colors={['#0a2a2a', '#1a1a1a']} style={styles.quickCardInner}>
+                <Ionicons name="trending-up-outline" size={28} color="#1D9E75" />
+                <EliteText variant="body" style={styles.quickCardTitle}>Progreso</EliteText>
               </LinearGradient>
-            </View>
+            </AnimatedPressable>
           </View>
         </Animated.View>
 
         {/* ── ACTIVIDAD RECIENTE ── */}
         <Animated.View entering={FadeInUp.delay(250).springify()}>
-          <EliteText variant="caption" style={[styles.sectionLabel, { marginTop: Spacing.lg, marginBottom: Spacing.sm }]}>
-            ACTIVIDAD RECIENTE
-          </EliteText>
+          <View style={[styles.sectionHeader, { marginTop: Spacing.lg }]}>
+            <EliteText variant="caption" style={styles.sectionLabel}>
+              ACTIVIDAD RECIENTE
+            </EliteText>
+            <AnimatedPressable onPress={() => router.push('/history' as any)}>
+              <EliteText variant="caption" style={styles.sectionLink}>Ver todo ›</EliteText>
+            </AnimatedPressable>
+          </View>
           <View style={styles.emptyActivity}>
             <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
               Sin actividad reciente
