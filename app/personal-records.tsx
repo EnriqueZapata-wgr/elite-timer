@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, ScrollView, StyleSheet, Pressable, FlatList,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +15,8 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
 import { ExerciseHistory } from '@/src/components/ExerciseHistory';
-import { getPersonalRecords } from '@/src/services/exercise-service';
+import { getPersonalRecords, getExerciseProgression, type ProgressionPoint } from '@/src/services/exercise-service';
+import Svg, { Path, Circle as SvgCircle } from 'react-native-svg';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   MUSCLE_GROUPS,
@@ -108,6 +109,65 @@ const MUSCLE_GROUP_DESCRIPTIONS: Record<string, string> = {
 
 const REP_RANGES = [1, 2, 3, 4, 5];
 
+const CHART_WIDTH = Dimensions.get('window').width - Spacing.md * 2 - Spacing.md * 2; // card padding
+const CHART_HEIGHT = 130;
+const CHART_PAD = 24;
+
+function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color: string }) {
+  if (data.length < 2) return null;
+
+  const maxW = Math.max(...data.map(d => d.maxWeight));
+  const minW = Math.min(...data.map(d => d.maxWeight));
+  const range = maxW - minW || 1;
+
+  const points = data.map((d, i) => ({
+    x: CHART_PAD + (i / (data.length - 1)) * (CHART_WIDTH - 2 * CHART_PAD),
+    y: CHART_HEIGHT - CHART_PAD - ((d.maxWeight - minW) / range) * (CHART_HEIGHT - 2 * CHART_PAD),
+  }));
+
+  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+
+  // Mostrar max 6 labels en el eje X
+  const labelStep = Math.max(1, Math.floor(data.length / 6));
+
+  return (
+    <View>
+      <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+        <Path d={pathD} stroke={color} strokeWidth={2} fill="none" />
+        {points.map((p, i) => (
+          <SvgCircle key={i} cx={p.x} cy={p.y} r={3} fill={color} />
+        ))}
+        {/* Highlight del PR actual (el punto más alto) */}
+        {(() => {
+          const maxIdx = data.findIndex(d => d.maxWeight === maxW);
+          if (maxIdx < 0) return null;
+          const p = points[maxIdx];
+          return <SvgCircle cx={p.x} cy={p.y} r={6} fill={color} opacity={0.3} />;
+        })()}
+      </Svg>
+      {/* Labels X */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: CHART_PAD - 8, marginTop: 2 }}>
+        {data.map((d, i) =>
+          i % labelStep === 0 || i === data.length - 1 ? (
+            <EliteText key={i} variant="caption" style={{ fontSize: 8, color: Colors.textSecondary }}>
+              {d.dateLabel}
+            </EliteText>
+          ) : null
+        )}
+      </View>
+      {/* Min/Max labels */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+        <EliteText variant="caption" style={{ fontSize: 9, color: Colors.textSecondary }}>
+          Min: {minW}kg
+        </EliteText>
+        <EliteText variant="caption" style={{ fontSize: 9, color }}>
+          Max: {maxW}kg
+        </EliteText>
+      </View>
+    </View>
+  );
+}
+
 // === PANTALLA PRINCIPAL ===
 
 export default function PersonalRecordsScreen() {
@@ -117,6 +177,21 @@ export default function PersonalRecordsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+  const [progressionData, setProgressionData] = useState<ProgressionPoint[]>([]);
+  const [progressionLoading, setProgressionLoading] = useState(false);
+
+  // Cargar progresión cuando se selecciona un ejercicio
+  useEffect(() => {
+    if (!selectedExerciseId) {
+      setProgressionData([]);
+      return;
+    }
+    setProgressionLoading(true);
+    getExerciseProgression(selectedExerciseId)
+      .then(setProgressionData)
+      .catch(() => setProgressionData([]))
+      .finally(() => setProgressionLoading(false));
+  }, [selectedExerciseId]);
 
   const loadRecords = useCallback(async () => {
     try {
@@ -403,6 +478,24 @@ export default function PersonalRecordsScreen() {
                             })}
                           </View>
                         </View>
+
+                        {/* Gráfica de progresión (visible cuando seleccionado) */}
+                        {selectedExerciseId === entry.exerciseId && (
+                          <View style={styles.progressionContainer}>
+                            <EliteText variant="caption" style={styles.progressionLabel}>
+                              PROGRESIÓN DE PESO
+                            </EliteText>
+                            {progressionLoading ? (
+                              <ActivityIndicator color={Colors.neonGreen} style={{ marginVertical: Spacing.md }} />
+                            ) : progressionData.length < 2 ? (
+                              <EliteText variant="caption" style={styles.progressionEmpty}>
+                                Necesitas al menos 2 sesiones para ver la progresión
+                              </EliteText>
+                            ) : (
+                              <ProgressionLineChart data={progressionData} color={mgColor} />
+                            )}
+                          </View>
+                        )}
                       </LinearGradient>
                     </Pressable>
                   );
@@ -714,5 +807,26 @@ const styles = StyleSheet.create({
   },
   recencyWeekText: {
     color: '#5B9BD5',
+  },
+
+  // ── Progression chart ──
+  progressionContainer: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#2a2a2a',
+  },
+  progressionLabel: {
+    color: Colors.textSecondary,
+    letterSpacing: 2,
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    marginBottom: Spacing.sm,
+  },
+  progressionEmpty: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    textAlign: 'center',
+    paddingVertical: Spacing.md,
   },
 });
