@@ -589,12 +589,21 @@ export async function getSessionHistory(limit = 50): Promise<SessionHistoryEntry
   }
 }
 
-// === EXERCISE PROGRESSION ===
+// === EXERCISE PROGRESSION (Enhanced) ===
+
+/** Epley 1RM estimation */
+function calcEpley(weight: number, reps: number): number {
+  if (reps <= 0 || weight <= 0) return 0;
+  if (reps === 1) return weight;
+  return weight * (1 + reps / 30);
+}
 
 export interface ProgressionPoint {
   date: string;
-  maxWeight: number;
   dateLabel: string;
+  maxWeight: number;
+  estimated1RM: number;
+  maxByRepRange: Record<number, number>; // rep_range → max weight
 }
 
 export async function getExerciseProgression(exerciseId: string): Promise<ProgressionPoint[]> {
@@ -604,7 +613,7 @@ export async function getExerciseProgression(exerciseId: string): Promise<Progre
 
     const { data, error } = await supabase
       .from('exercise_logs')
-      .select('weight_kg, logged_at')
+      .select('reps, weight_kg, logged_at')
       .eq('user_id', user.id)
       .eq('exercise_id', exerciseId)
       .not('weight_kg', 'is', null)
@@ -613,19 +622,196 @@ export async function getExerciseProgression(exerciseId: string): Promise<Progre
 
     if (error || !data || data.length === 0) return [];
 
-    // Agrupar por fecha, MAX peso por día
-    const byDate = new Map<string, number>();
+    // Agrupar por fecha
+    const byDate = new Map<string, typeof data>();
     for (const row of data) {
       const dateKey = new Date(row.logged_at).toISOString().split('T')[0];
-      const current = byDate.get(dateKey) ?? 0;
-      if (row.weight_kg > current) byDate.set(dateKey, row.weight_kg);
+      const existing = byDate.get(dateKey) ?? [];
+      existing.push(row);
+      byDate.set(dateKey, existing);
     }
 
-    return Array.from(byDate.entries()).map(([date, maxWeight]) => {
+    return Array.from(byDate.entries()).map(([date, rows]) => {
       const d = new Date(date);
-      const dateLabel = `${d.getDate()}/${d.getMonth() + 1}`;
-      return { date, maxWeight, dateLabel };
+      let maxWeight = 0;
+      let estimated1RM = 0;
+      const maxByRepRange: Record<number, number> = {};
+
+      for (const r of rows) {
+        if (r.weight_kg > maxWeight) maxWeight = r.weight_kg;
+        const e1rm = calcEpley(r.weight_kg, r.reps);
+        if (e1rm > estimated1RM) estimated1RM = e1rm;
+
+        // Agrupar por rep range: 1, 3, 5, 8-10 (normalizar 8-10 como 8)
+        const rr = r.reps <= 2 ? 1 : r.reps <= 4 ? 3 : r.reps <= 6 ? 5 : 8;
+        if (!maxByRepRange[rr] || r.weight_kg > maxByRepRange[rr]) {
+          maxByRepRange[rr] = r.weight_kg;
+        }
+      }
+
+      return {
+        date,
+        dateLabel: `${d.getDate()}/${d.getMonth() + 1}`,
+        maxWeight,
+        estimated1RM: Math.round(estimated1RM * 10) / 10,
+        maxByRepRange,
+      };
     });
+  } catch {
+    return [];
+  }
+}
+
+// === EXERCISE SESSION HISTORY ===
+
+export interface ExerciseSessionEntry {
+  date: string;
+  dateLabel: string;
+  sets: { reps: number; weight_kg: number; rir: number | null }[];
+  maxWeight: number;
+  estimated1RM: number;
+}
+
+export async function getExerciseSessionHistory(exerciseId: string): Promise<ExerciseSessionEntry[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('exercise_logs')
+      .select('reps, weight_kg, rir, logged_at, set_number')
+      .eq('user_id', user.id)
+      .eq('exercise_id', exerciseId)
+      .order('logged_at', { ascending: false })
+      .limit(200);
+
+    if (error || !data || data.length === 0) return [];
+
+    // Agrupar por fecha
+    const byDate = new Map<string, typeof data>();
+    for (const row of data) {
+      const dateKey = new Date(row.logged_at).toISOString().split('T')[0];
+      const existing = byDate.get(dateKey) ?? [];
+      existing.push(row);
+      byDate.set(dateKey, existing);
+    }
+
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const yesterdayDate = new Date(now);
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterdayKey = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`;
+
+    return Array.from(byDate.entries()).map(([date, rows]) => {
+      let dateLabel: string;
+      if (date === todayKey) dateLabel = 'Hoy';
+      else if (date === yesterdayKey) dateLabel = 'Ayer';
+      else {
+        const d = new Date(date);
+        const monthShort = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        dateLabel = `${d.getDate()} ${monthShort[d.getMonth()]} ${d.getFullYear()}`;
+      }
+
+      let maxWeight = 0;
+      let estimated1RM = 0;
+      const sets = rows
+        .sort((a: any, b: any) => (a.set_number ?? 0) - (b.set_number ?? 0))
+        .map((r: any) => {
+          if (r.weight_kg > maxWeight) maxWeight = r.weight_kg;
+          const e = calcEpley(r.weight_kg ?? 0, r.reps ?? 0);
+          if (e > estimated1RM) estimated1RM = e;
+          return { reps: r.reps, weight_kg: r.weight_kg ?? 0, rir: r.rir ?? null };
+        });
+
+      return { date, dateLabel, sets, maxWeight, estimated1RM: Math.round(estimated1RM * 10) / 10 };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// === TOP EXERCISES ===
+
+export interface TopExercise {
+  exerciseId: string;
+  exerciseName: string;
+  muscleGroup: string;
+  totalSets: number;
+  latestEstimated1RM: number;
+  trend: 'up' | 'down' | 'stable';
+  last5Points: number[]; // últimos 5 valores de 1RM estimado para sparkline
+}
+
+export async function getTopExercises(limit = 5): Promise<TopExercise[]> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const firstOfMonth = new Date();
+    firstOfMonth.setDate(1);
+    firstOfMonth.setHours(0, 0, 0, 0);
+
+    const { data, error } = await supabase
+      .from('exercise_logs')
+      .select('exercise_id, reps, weight_kg, logged_at, exercises(name, muscle_group)')
+      .eq('user_id', user.id)
+      .gte('logged_at', firstOfMonth.toISOString())
+      .not('weight_kg', 'is', null)
+      .gt('weight_kg', 0);
+
+    if (error || !data || data.length === 0) return [];
+
+    // Agrupar por exercise_id
+    const byExercise = new Map<string, { name: string; mg: string; rows: any[] }>();
+    for (const row of data as any[]) {
+      const eid = row.exercise_id;
+      const existing = byExercise.get(eid);
+      if (existing) {
+        existing.rows.push(row);
+      } else {
+        byExercise.set(eid, {
+          name: row.exercises?.name ?? '',
+          mg: row.exercises?.muscle_group ?? '',
+          rows: [row],
+        });
+      }
+    }
+
+    // Calcular stats y ordenar por total sets
+    const results: TopExercise[] = [];
+    for (const [eid, { name, mg, rows }] of byExercise.entries()) {
+      const totalSets = rows.length;
+
+      // Agrupar por fecha para calcular 1RM por día
+      const byDate = new Map<string, number>();
+      for (const r of rows) {
+        const dk = new Date(r.logged_at).toISOString().split('T')[0];
+        const e1rm = calcEpley(r.weight_kg, r.reps);
+        const current = byDate.get(dk) ?? 0;
+        if (e1rm > current) byDate.set(dk, e1rm);
+      }
+
+      const dailyValues = Array.from(byDate.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([, v]) => Math.round(v * 10) / 10);
+
+      const latest = dailyValues[dailyValues.length - 1] ?? 0;
+      const prev = dailyValues.length >= 2 ? dailyValues[dailyValues.length - 2] : latest;
+      const trend: 'up' | 'down' | 'stable' = latest > prev ? 'up' : latest < prev ? 'down' : 'stable';
+      const last5 = dailyValues.slice(-5);
+
+      results.push({
+        exerciseId: eid,
+        exerciseName: name,
+        muscleGroup: mg,
+        totalSets,
+        latestEstimated1RM: latest,
+        trend,
+        last5Points: last5,
+      });
+    }
+
+    return results.sort((a, b) => b.totalSets - a.totalSets).slice(0, limit);
   } catch {
     return [];
   }
