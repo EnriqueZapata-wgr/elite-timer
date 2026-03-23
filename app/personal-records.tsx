@@ -15,8 +15,14 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
 import { ExerciseHistory } from '@/src/components/ExerciseHistory';
-import { getPersonalRecords, getExerciseProgression, type ProgressionPoint } from '@/src/services/exercise-service';
-import Svg, { Path, Circle as SvgCircle } from 'react-native-svg';
+import {
+  getPersonalRecords,
+  getExerciseProgression,
+  getExerciseSessionHistory,
+  type ProgressionPoint,
+  type ExerciseSessionEntry,
+} from '@/src/services/exercise-service';
+import Svg, { Path, Circle as SvgCircle, Line } from 'react-native-svg';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   MUSCLE_GROUPS,
@@ -109,60 +115,156 @@ const MUSCLE_GROUP_DESCRIPTIONS: Record<string, string> = {
 
 const REP_RANGES = [1, 2, 3, 4, 5];
 
-const CHART_WIDTH = Dimensions.get('window').width - Spacing.md * 2 - Spacing.md * 2; // card padding
-const CHART_HEIGHT = 130;
-const CHART_PAD = 24;
+const CHART_WIDTH = Dimensions.get('window').width - Spacing.md * 4;
+const CHART_HEIGHT = 150;
+const CHART_PAD = 28;
+
+// Colores por rep range
+const REP_RANGE_COLORS: Record<number, string> = {
+  1: '#a8e02a', // 1RM estimado (verde)
+  3: '#EF9F27', // 3RM (amarillo)
+  5: '#5B9BD5', // 5RM (azul)
+  8: '#888888', // 8-10RM (gris)
+};
+
+const REP_RANGE_LABELS: Record<number, string> = {
+  1: '1RM est.',
+  3: '3RM',
+  5: '5RM',
+  8: '8-10RM',
+};
 
 function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color: string }) {
+  const [activeLines, setActiveLines] = useState<Set<number>>(new Set([1])); // 1 = 1RM estimado
+
   if (data.length < 2) return null;
 
-  const maxW = Math.max(...data.map(d => d.maxWeight));
-  const minW = Math.min(...data.map(d => d.maxWeight));
-  const range = maxW - minW || 1;
+  // Recopilar todos los valores visibles para calcular escala Y
+  let allValues: number[] = [];
+  if (activeLines.has(1)) allValues.push(...data.map(d => d.estimated1RM));
+  for (const rr of [3, 5, 8]) {
+    if (activeLines.has(rr)) {
+      data.forEach(d => { if (d.maxByRepRange[rr]) allValues.push(d.maxByRepRange[rr]); });
+    }
+  }
+  if (allValues.length === 0) allValues = data.map(d => d.estimated1RM);
 
-  const points = data.map((d, i) => ({
+  const maxY = Math.max(...allValues);
+  const minY = Math.min(...allValues);
+  const range = maxY - minY || 1;
+
+  const toPoint = (i: number, val: number) => ({
     x: CHART_PAD + (i / (data.length - 1)) * (CHART_WIDTH - 2 * CHART_PAD),
-    y: CHART_HEIGHT - CHART_PAD - ((d.maxWeight - minW) / range) * (CHART_HEIGHT - 2 * CHART_PAD),
-  }));
+    y: CHART_HEIGHT - CHART_PAD - ((val - minY) / range) * (CHART_HEIGHT - 2 * CHART_PAD),
+  });
 
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const buildPath = (values: (number | undefined)[]) => {
+    const pts = values.map((v, i) => v !== undefined ? toPoint(i, v) : null).filter(Boolean) as { x: number; y: number }[];
+    if (pts.length < 2) return null;
+    return pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  };
 
-  // Mostrar max 6 labels en el eje X
-  const labelStep = Math.max(1, Math.floor(data.length / 6));
+  // 1RM estimado (verde sólido)
+  const e1rmPath = activeLines.has(1) ? buildPath(data.map(d => d.estimated1RM)) : null;
+  // Area fill bajo 1RM
+  const e1rmAreaPath = e1rmPath ? `${e1rmPath} L ${toPoint(data.length - 1, minY).x} ${CHART_HEIGHT - CHART_PAD} L ${CHART_PAD} ${CHART_HEIGHT - CHART_PAD} Z` : null;
+
+  // Rep range paths
+  const rrPaths: { rr: number; path: string }[] = [];
+  for (const rr of [3, 5, 8]) {
+    if (!activeLines.has(rr)) continue;
+    const path = buildPath(data.map(d => d.maxByRepRange[rr]));
+    if (path) rrPaths.push({ rr, path });
+  }
+
+  const toggleLine = (rr: number) => {
+    setActiveLines(prev => {
+      const next = new Set(prev);
+      if (next.has(rr)) next.delete(rr);
+      else next.add(rr);
+      return next;
+    });
+  };
+
+  // Grid lines
+  const gridYCount = 3;
+  const gridLines = Array.from({ length: gridYCount + 1 }, (_, i) => {
+    const val = minY + (range * i) / gridYCount;
+    const y = CHART_HEIGHT - CHART_PAD - (i / gridYCount) * (CHART_HEIGHT - 2 * CHART_PAD);
+    return { y, label: `${Math.round(val)}` };
+  });
+
+  const labelStep = Math.max(1, Math.floor(data.length / 5));
 
   return (
     <View>
       <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
-        <Path d={pathD} stroke={color} strokeWidth={2} fill="none" />
-        {points.map((p, i) => (
-          <SvgCircle key={i} cx={p.x} cy={p.y} r={3} fill={color} />
+        {/* Grid horizontal */}
+        {gridLines.map((g, i) => (
+          <Line key={i} x1={CHART_PAD} y1={g.y} x2={CHART_WIDTH - CHART_PAD} y2={g.y}
+            stroke="#1A1A1A" strokeWidth={1} />
         ))}
-        {/* Highlight del PR actual (el punto más alto) */}
-        {(() => {
-          const maxIdx = data.findIndex(d => d.maxWeight === maxW);
-          if (maxIdx < 0) return null;
-          const p = points[maxIdx];
-          return <SvgCircle cx={p.x} cy={p.y} r={6} fill={color} opacity={0.3} />;
-        })()}
+
+        {/* Area fill 1RM */}
+        {e1rmAreaPath && <Path d={e1rmAreaPath} fill={Colors.neonGreen} opacity={0.08} />}
+
+        {/* Rep range lines (punteadas) */}
+        {rrPaths.map(({ rr, path }) => (
+          <Path key={rr} d={path} stroke={REP_RANGE_COLORS[rr]} strokeWidth={1.5}
+            strokeDasharray="4,4" fill="none" />
+        ))}
+
+        {/* 1RM line (sólida) */}
+        {e1rmPath && <Path d={e1rmPath} stroke={Colors.neonGreen} strokeWidth={2} fill="none" />}
+
+        {/* Puntos 1RM */}
+        {activeLines.has(1) && data.map((d, i) => {
+          const p = toPoint(i, d.estimated1RM);
+          const isMax = d.estimated1RM === maxY;
+          return (
+            <SvgCircle key={`e1rm-${i}`} cx={p.x} cy={p.y}
+              r={isMax ? 5 : 3} fill={Colors.neonGreen}
+              opacity={isMax ? 1 : 0.8} />
+          );
+        })}
       </Svg>
-      {/* Labels X */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: CHART_PAD - 8, marginTop: 2 }}>
+
+      {/* Y axis labels */}
+      <View style={{ position: 'absolute', left: 0, top: 0, height: CHART_HEIGHT }}>
+        {gridLines.map((g, i) => (
+          <EliteText key={i} variant="caption" style={{
+            position: 'absolute', top: g.y - 6, left: 0,
+            fontSize: 8, color: Colors.textSecondary,
+          }}>{g.label}</EliteText>
+        ))}
+      </View>
+
+      {/* X labels */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: CHART_PAD - 6, marginTop: 2 }}>
         {data.map((d, i) =>
           i % labelStep === 0 || i === data.length - 1 ? (
             <EliteText key={i} variant="caption" style={{ fontSize: 8, color: Colors.textSecondary }}>
               {d.dateLabel}
             </EliteText>
-          ) : null
+          ) : <View key={i} />
         )}
       </View>
-      {/* Min/Max labels */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        <EliteText variant="caption" style={{ fontSize: 9, color: Colors.textSecondary }}>
-          Min: {minW}kg
-        </EliteText>
-        <EliteText variant="caption" style={{ fontSize: 9, color }}>
-          Max: {maxW}kg
-        </EliteText>
+
+      {/* Toggle pills */}
+      <View style={{ flexDirection: 'row', gap: 6, marginTop: Spacing.sm, flexWrap: 'wrap' }}>
+        {([1, 3, 5, 8] as const).map(rr => {
+          const active = activeLines.has(rr);
+          const c = REP_RANGE_COLORS[rr];
+          return (
+            <Pressable key={rr} onPress={() => toggleLine(rr)}
+              style={[styles.togglePill, active && { borderColor: c, backgroundColor: c + '15' }]}>
+              <View style={[styles.toggleDot, { backgroundColor: active ? c : '#333' }]} />
+              <EliteText variant="caption" style={[styles.toggleText, active && { color: c }]}>
+                {REP_RANGE_LABELS[rr]}
+              </EliteText>
+            </Pressable>
+          );
+        })}
       </View>
     </View>
   );
@@ -178,18 +280,23 @@ export default function PersonalRecordsScreen() {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [progressionData, setProgressionData] = useState<ProgressionPoint[]>([]);
+  const [sessionHistory, setSessionHistory] = useState<ExerciseSessionEntry[]>([]);
   const [progressionLoading, setProgressionLoading] = useState(false);
 
-  // Cargar progresión cuando se selecciona un ejercicio
+  // Cargar progresión y historial cuando se selecciona un ejercicio
   useEffect(() => {
     if (!selectedExerciseId) {
       setProgressionData([]);
+      setSessionHistory([]);
       return;
     }
     setProgressionLoading(true);
-    getExerciseProgression(selectedExerciseId)
-      .then(setProgressionData)
-      .catch(() => setProgressionData([]))
+    Promise.all([
+      getExerciseProgression(selectedExerciseId),
+      getExerciseSessionHistory(selectedExerciseId),
+    ])
+      .then(([prog, hist]) => { setProgressionData(prog); setSessionHistory(hist); })
+      .catch(() => { setProgressionData([]); setSessionHistory([]); })
       .finally(() => setProgressionLoading(false));
   }, [selectedExerciseId]);
 
@@ -479,7 +586,7 @@ export default function PersonalRecordsScreen() {
                           </View>
                         </View>
 
-                        {/* Gráfica de progresión (visible cuando seleccionado) */}
+                        {/* Gráfica + historial (visible cuando seleccionado) */}
                         {selectedExerciseId === entry.exerciseId && (
                           <View style={styles.progressionContainer}>
                             <EliteText variant="caption" style={styles.progressionLabel}>
@@ -488,11 +595,41 @@ export default function PersonalRecordsScreen() {
                             {progressionLoading ? (
                               <ActivityIndicator color={Colors.neonGreen} style={{ marginVertical: Spacing.md }} />
                             ) : progressionData.length < 2 ? (
-                              <EliteText variant="caption" style={styles.progressionEmpty}>
-                                Necesitas al menos 2 sesiones para ver la progresión
-                              </EliteText>
+                              <View style={styles.progressionEmptyBox}>
+                                <Ionicons name="barbell-outline" size={28} color={Colors.textSecondary} />
+                                <EliteText variant="caption" style={styles.progressionEmpty}>
+                                  Entrena más para ver tu progresión
+                                </EliteText>
+                              </View>
                             ) : (
                               <ProgressionLineChart data={progressionData} color={mgColor} />
+                            )}
+
+                            {/* Historial de sesiones */}
+                            {sessionHistory.length > 0 && (
+                              <View style={styles.sessionHistSection}>
+                                <EliteText variant="caption" style={styles.progressionLabel}>
+                                  HISTORIAL DE SESIONES
+                                </EliteText>
+                                {sessionHistory.slice(0, 8).map((session) => (
+                                  <View key={session.date} style={styles.sessionHistCard}>
+                                    <View style={styles.sessionHistHeader}>
+                                      <EliteText variant="caption" style={styles.sessionHistDate}>
+                                        {session.dateLabel}
+                                      </EliteText>
+                                      <EliteText variant="caption" style={[styles.sessionHist1RM, { color: mgColor }]}>
+                                        1RM est. {session.estimated1RM}kg
+                                      </EliteText>
+                                    </View>
+                                    {session.sets.map((set, si) => (
+                                      <EliteText key={si} variant="caption" style={styles.sessionHistSet}>
+                                        Set {si + 1}: {set.reps} reps × {set.weight_kg}kg
+                                        {set.rir != null ? ` @ RIR ${set.rir}` : ''}
+                                      </EliteText>
+                                    ))}
+                                  </View>
+                                ))}
+                              </View>
                             )}
                           </View>
                         )}
@@ -823,10 +960,67 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     marginBottom: Spacing.sm,
   },
+  progressionEmptyBox: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    gap: Spacing.sm,
+  },
   progressionEmpty: {
     color: Colors.textSecondary,
     fontSize: 11,
     textAlign: 'center',
-    paddingVertical: Spacing.md,
+  },
+
+  // ── Toggle pills ──
+  togglePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  toggleDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  toggleText: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontFamily: Fonts.semiBold,
+  },
+
+  // ── Session history ──
+  sessionHistSection: {
+    marginTop: Spacing.md,
+  },
+  sessionHistCard: {
+    paddingVertical: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#1a1a1a',
+  },
+  sessionHistHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sessionHistDate: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.bold,
+    fontSize: 11,
+  },
+  sessionHist1RM: {
+    fontFamily: Fonts.bold,
+    fontSize: 11,
+  },
+  sessionHistSet: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    paddingLeft: Spacing.sm,
+    lineHeight: 16,
   },
 });
