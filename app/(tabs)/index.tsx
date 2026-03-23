@@ -1,167 +1,439 @@
-import { View, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useState, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Dimensions } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
-import { DashboardCard } from '@/components/dashboard-card';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
-import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
+import { getRoutines } from '@/src/services/routine-service';
+import { flattenRoutine, calcRoutineStats } from '@/src/engine';
+import type { Routine } from '@/src/engine/types';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const ROUTINE_CARD_WIDTH = 200;
 
 /**
- * Dashboard — Panel principal con botón hero ENTRENAR + cards de navegación.
+ * Dashboard — Panel principal premium con hero card semanal,
+ * botón ENTRENAR con gradiente, rutinas recientes en scroll horizontal,
+ * grid de acceso rápido y actividad reciente.
  */
 export default function DashboardScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Atleta';
+  const [routines, setRoutines] = useState<Routine[]>([]);
+
+  // Recargar rutinas al volver a la pantalla
+  useFocusEffect(
+    useCallback(() => {
+      getRoutines().then(setRoutines).catch(() => {});
+    }, [])
+  );
 
   return (
     <ScreenContainer centered={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* ── Header ── */}
+        <View style={styles.header}>
           <EliteText variant="title" style={styles.brand}>ELITE</EliteText>
-          <EliteText variant="body" style={styles.greeting}>
-            Hola, {displayName}
-          </EliteText>
+          <AnimatedPressable onPress={() => router.push('/settings')} style={styles.settingsBtn}>
+            <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
+          </AnimatedPressable>
         </View>
-        <AnimatedPressable onPress={() => router.push('/settings')} style={styles.settingsButton}>
-          <Ionicons name="settings-outline" size={24} color={Colors.textSecondary} />
-        </AnimatedPressable>
-      </View>
 
-      {/* Hero — ENTRENAR */}
-      <Animated.View entering={FadeInUp.delay(50).springify()}>
-        <AnimatedPressable onPress={() => router.push('/programs')} scaleDown={0.98}>
+        {/* ── Hero Card — TU SEMANA ── */}
+        <Animated.View entering={FadeInUp.delay(50).springify()}>
           <LinearGradient
-            colors={['#a8e02a', '#7ab800']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroButton}
+            colors={['#1a2a1a', '#0a1a0a']}
+            style={styles.heroCard}
           >
-            <Ionicons name="flash" size={28} color={Colors.textOnGreen} />
-            <EliteText variant="subtitle" style={styles.heroText}>ENTRENAR</EliteText>
+            {/* Borde izquierdo verde */}
+            <View style={styles.heroAccent} />
+
+            {/* Watermark decorativo */}
+            <EliteText style={styles.heroWatermark}>⚡</EliteText>
+
+            <EliteText variant="caption" style={styles.heroLabel}>TU SEMANA</EliteText>
+
+            <View style={styles.heroMain}>
+              <EliteText style={styles.heroNumber}>0</EliteText>
+              <EliteText style={styles.heroUnit}>ENTRENOS</EliteText>
+            </View>
+
+            <View style={styles.heroStatsRow}>
+              <EliteText variant="caption" style={styles.heroStat}>0:00:00 tiempo</EliteText>
+              <EliteText variant="caption" style={styles.heroDot}>·</EliteText>
+              <EliteText variant="caption" style={styles.heroStat}>0kg volumen</EliteText>
+              <EliteText variant="caption" style={styles.heroDot}>·</EliteText>
+              <EliteText variant="caption" style={styles.heroStat}>0 PRs</EliteText>
+            </View>
           </LinearGradient>
-        </AnimatedPressable>
-      </Animated.View>
-
-      {/* Grid principal */}
-      <View style={styles.grid}>
-        <Animated.View entering={FadeInUp.delay(100).springify()} style={styles.card}>
-          <DashboardCard
-            icon="albums-outline"
-            title="Mis Rutinas"
-            description="Crea y organiza tus rutinas"
-            onPress={() => router.push('/programs')}
-          />
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.card}>
-          <DashboardCard
-            icon="timer-outline"
-            title="Programas Estándar"
-            description="Tabata, HIIT y más"
-            onPress={() => router.push('/standard-programs')}
-          />
+        {/* ── Botón ENTRENAR ── */}
+        <Animated.View entering={FadeInUp.delay(100).springify()}>
+          <AnimatedPressable onPress={() => router.push('/programs')} scaleDown={0.98}>
+            <LinearGradient
+              colors={['#c5f540', '#7ab800']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.trainButton}
+            >
+              <Ionicons name="flash" size={24} color={Colors.textOnGreen} />
+              <EliteText style={styles.trainText}>ENTRENAR</EliteText>
+              <View style={{ flex: 1 }} />
+              <Ionicons name="chevron-forward" size={24} color={Colors.textOnGreen} />
+            </LinearGradient>
+          </AnimatedPressable>
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.delay(300).springify()} style={styles.card}>
-          <DashboardCard
-            icon="barbell-outline"
-            title="Registrar entrenamiento"
-            description="Log manual de sets"
-            onPress={() => router.push('/log-exercise')}
-          />
+        {/* ── Sección RUTINAS ── */}
+        {routines.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(150).springify()}>
+            <View style={styles.sectionHeader}>
+              <EliteText variant="caption" style={styles.sectionLabel}>RUTINAS</EliteText>
+              <AnimatedPressable onPress={() => router.push('/programs')}>
+                <EliteText variant="caption" style={styles.sectionLink}>Ver todas ›</EliteText>
+              </AnimatedPressable>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.routinesScrollContent}
+            >
+              {routines.slice(0, 3).map((routine) => {
+                const isTimer = routine.mode === 'timer';
+                const gradColors: readonly [string, string] = isTimer
+                  ? ['#1a2a1a', '#0a1a0a']
+                  : ['#1a1a2a', '#0a0a1a'];
+                const accentColor = isTimer ? Colors.neonGreen : '#7F77DD';
+
+                let statsLabel = '';
+                try {
+                  const steps = flattenRoutine(routine);
+                  const stats = calcRoutineStats(steps);
+                  statsLabel = stats.formattedTotal;
+                } catch { /* sin stats */ }
+
+                return (
+                  <AnimatedPressable
+                    key={routine.id}
+                    onPress={() => {
+                      const target = routine.mode === 'routine'
+                        ? '/routine-execution'
+                        : '/execution';
+                      router.push({
+                        pathname: target as any,
+                        params: { routine: JSON.stringify(routine) },
+                      });
+                    }}
+                    style={styles.routineCard}
+                  >
+                    <LinearGradient colors={gradColors} style={styles.routineCardInner}>
+                      <EliteText variant="body" style={styles.routineCardName} numberOfLines={2}>
+                        {routine.name}
+                      </EliteText>
+                      <EliteText variant="caption" style={styles.routineCardMeta}>
+                        {statsLabel} · {isTimer ? 'Timer' : 'Rutina'}
+                      </EliteText>
+                      <View style={[styles.routinePlayBtn, { backgroundColor: accentColor }]}>
+                        <Ionicons name="play" size={14} color={Colors.black} />
+                      </View>
+                    </LinearGradient>
+                  </AnimatedPressable>
+                );
+              })}
+            </ScrollView>
+          </Animated.View>
+        )}
+
+        {/* ── ACCESO RÁPIDO — Grid 2×2 ── */}
+        <Animated.View entering={FadeInUp.delay(200).springify()}>
+          <EliteText variant="caption" style={[styles.sectionLabel, { marginBottom: Spacing.sm }]}>
+            ACCESO RÁPIDO
+          </EliteText>
+
+          <View style={styles.quickGrid}>
+            {/* Registrar */}
+            <AnimatedPressable
+              onPress={() => router.push('/log-exercise')}
+              style={styles.quickCard}
+            >
+              <LinearGradient colors={['#2a1f0a', '#1a1a1a']} style={styles.quickCardInner}>
+                <Ionicons name="barbell-outline" size={28} color="#EF9F27" />
+                <EliteText variant="body" style={styles.quickCardTitle}>Registrar</EliteText>
+              </LinearGradient>
+            </AnimatedPressable>
+
+            {/* Mis Marcas */}
+            <AnimatedPressable
+              onPress={() => router.push('/personal-records')}
+              style={styles.quickCard}
+            >
+              <LinearGradient colors={['#1a1a2a', '#1a1a1a']} style={styles.quickCardInner}>
+                <Ionicons name="trophy-outline" size={28} color="#7F77DD" />
+                <EliteText variant="body" style={styles.quickCardTitle}>Mis marcas</EliteText>
+              </LinearGradient>
+            </AnimatedPressable>
+
+            {/* Estándar */}
+            <AnimatedPressable
+              onPress={() => router.push('/standard-programs')}
+              style={styles.quickCard}
+            >
+              <LinearGradient colors={['#0a1a2a', '#1a1a1a']} style={styles.quickCardInner}>
+                <Ionicons name="timer-outline" size={28} color="#5B9BD5" />
+                <EliteText variant="body" style={styles.quickCardTitle}>Estándar</EliteText>
+              </LinearGradient>
+            </AnimatedPressable>
+
+            {/* Progreso (deshabilitado) */}
+            <View style={styles.quickCard}>
+              <LinearGradient colors={['#1a1a1a', '#151515']} style={[styles.quickCardInner, { opacity: 0.5 }]}>
+                <Ionicons name="trending-up-outline" size={28} color={Colors.textSecondary} />
+                <EliteText variant="body" style={[styles.quickCardTitle, { color: Colors.textSecondary }]}>
+                  Progreso
+                </EliteText>
+                <View style={styles.prontoBadge}>
+                  <EliteText variant="caption" style={styles.prontoBadgeText}>PRONTO</EliteText>
+                </View>
+              </LinearGradient>
+            </View>
+          </View>
         </Animated.View>
 
-        <Animated.View entering={FadeInUp.delay(400).springify()} style={styles.card}>
-          <DashboardCard
-            icon="trophy-outline"
-            title="Mis marcas personales"
-            description="Records de fuerza"
-            onPress={() => router.push('/personal-records')}
-          />
+        {/* ── ACTIVIDAD RECIENTE ── */}
+        <Animated.View entering={FadeInUp.delay(250).springify()}>
+          <EliteText variant="caption" style={[styles.sectionLabel, { marginTop: Spacing.lg, marginBottom: Spacing.sm }]}>
+            ACTIVIDAD RECIENTE
+          </EliteText>
+          <View style={styles.emptyActivity}>
+            <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
+              Sin actividad reciente
+            </EliteText>
+          </View>
         </Animated.View>
-      </View>
 
-      {/* Próximamente */}
-      <View style={styles.comingSoon}>
-        <Animated.View entering={FadeInUp.delay(500).springify()} style={styles.card}>
-          <DashboardCard
-            icon="calendar-outline"
-            title="Programa de Hoy"
-            description="Próximamente"
-            onPress={() => {}}
-            disabled
-          />
-        </Animated.View>
-        <Animated.View entering={FadeInUp.delay(600).springify()} style={styles.card}>
-          <DashboardCard
-            icon="trending-up-outline"
-            title="Mi Progreso"
-            description="Próximamente"
-            onPress={() => {}}
-            disabled
-          />
-        </Animated.View>
-      </View>
+        {/* Padding inferior para scroll */}
+        <View style={{ height: Spacing.xxl }} />
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
+// === ESTILOS ===
+
 const styles = StyleSheet.create({
+  // ── Header ──
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingTop: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.md,
   },
-  headerLeft: { flex: 1 },
   brand: {
-    fontSize: FontSizes.xl,
+    fontSize: 28,
+    fontFamily: Fonts.extraBold,
+    fontStyle: 'italic',
     letterSpacing: 6,
   },
-  greeting: {
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-    fontSize: FontSizes.md,
+  settingsBtn: {
+    padding: Spacing.sm,
   },
-  settingsButton: { padding: Spacing.sm },
 
-  // Hero
-  heroButton: {
+  // ── Hero Card TU SEMANA ──
+  heroCard: {
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    paddingLeft: Spacing.md + 6, // espacio para accent
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#2a3a2a',
+  },
+  heroAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: Colors.neonGreen,
+    borderTopLeftRadius: Radius.md,
+    borderBottomLeftRadius: Radius.md,
+  },
+  heroWatermark: {
+    position: 'absolute',
+    top: -10,
+    right: -5,
+    fontSize: 80,
+    opacity: 0.06,
+  },
+  heroLabel: {
+    color: Colors.textSecondary,
+    letterSpacing: 3,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    marginBottom: Spacing.xs,
+  },
+  heroMain: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  heroNumber: {
+    fontSize: 48,
+    fontFamily: Fonts.extraBold,
+    color: Colors.neonGreen,
+  },
+  heroUnit: {
+    fontSize: 16,
+    fontFamily: Fonts.bold,
+    color: Colors.textPrimary,
+  },
+  heroStatsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    height: 80,
-    borderRadius: 20,
-    marginBottom: Spacing.lg,
+    gap: Spacing.xs,
   },
-  heroText: {
-    color: Colors.textOnGreen,
+  heroStat: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+  },
+  heroDot: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+  },
+
+  // ── Botón ENTRENAR ──
+  trainButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 70,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    shadowColor: '#a8e02a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  trainText: {
     fontSize: 20,
     fontFamily: Fonts.bold,
+    color: Colors.textOnGreen,
     letterSpacing: 4,
+    marginLeft: Spacing.sm,
   },
 
-  // Grid
-  grid: {
+  // ── Sección headers ──
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  sectionLabel: {
+    color: Colors.textSecondary,
+    letterSpacing: 3,
+    fontSize: 12,
+    textTransform: 'uppercase',
+    fontFamily: Fonts.semiBold,
+  },
+  sectionLink: {
+    color: Colors.neonGreen,
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+  },
+
+  // ── Rutinas scroll horizontal ──
+  routinesScrollContent: {
+    gap: Spacing.sm,
+    paddingBottom: Spacing.md,
+  },
+  routineCard: {
+    width: ROUTINE_CARD_WIDTH,
+  },
+  routineCardInner: {
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    height: 120,
+    justifyContent: 'space-between',
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
+  },
+  routineCardName: {
+    fontFamily: Fonts.bold,
+    fontSize: 15,
+    color: Colors.textPrimary,
+  },
+  routineCardMeta: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+  },
+  routinePlayBtn: {
+    position: 'absolute',
+    bottom: Spacing.sm,
+    right: Spacing.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── Grid de acceso rápido ──
+  quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: Spacing.md,
+    gap: Spacing.sm,
   },
-  card: { width: '48%' },
+  quickCard: {
+    width: (SCREEN_WIDTH - Spacing.md * 2 - Spacing.sm) / 2,
+  },
+  quickCardInner: {
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    height: 100,
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
+  },
+  quickCardTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 14,
+  },
+  prontoBadge: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    backgroundColor: '#2a2a2a',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  prontoBadgeText: {
+    fontSize: 9,
+    color: Colors.textSecondary,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
+  },
 
-  comingSoon: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: Spacing.md,
-    opacity: 0.4,
+  // ── Actividad reciente ──
+  emptyActivity: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    padding: Spacing.lg,
+    alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
 });

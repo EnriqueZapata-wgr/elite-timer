@@ -1,8 +1,6 @@
 /**
- * Personal Records — Dashboard de PRs del usuario.
- *
- * Muestra PRs agrupados por ejercicio con tabla de rep ranges.
- * Filtrable por grupo muscular. Toca un ejercicio para ver su historial.
+ * Mis Marcas — Dashboard de PRs con hero card de rendimiento global,
+ * filtros por grupo muscular, y cards con gradientes por grupo.
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -12,6 +10,8 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
 import { ExerciseHistory } from '@/src/components/ExerciseHistory';
@@ -26,7 +26,6 @@ import type { PersonalRecord } from '@/src/types/exercise';
 
 // === HELPERS ===
 
-/** Agrupar PRs por ejercicio */
 function groupByExercise(records: PersonalRecord[]): Map<string, {
   exerciseId: string;
   exerciseName: string;
@@ -63,12 +62,10 @@ function groupByExercise(records: PersonalRecord[]): Map<string, {
   return groups;
 }
 
-/** Detectar si un PR es de hoy o esta semana */
 function getPRRecency(achievedAt: string): 'today' | 'week' | null {
   const date = new Date(achievedAt);
   const now = new Date();
 
-  // Mismo día
   if (
     date.getFullYear() === now.getFullYear() &&
     date.getMonth() === now.getMonth() &&
@@ -77,7 +74,6 @@ function getPRRecency(achievedAt: string): 'today' | 'week' | null {
     return 'today';
   }
 
-  // Misma semana (últimos 7 días)
   const diffMs = now.getTime() - date.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
   if (diffDays <= 7) return 'week';
@@ -85,7 +81,30 @@ function getPRRecency(achievedAt: string): 'today' | 'week' | null {
   return null;
 }
 
-// === REP RANGES A MOSTRAR ===
+// Gradientes oscuros por grupo muscular
+function getMuscleGroupGradient(mg: string): readonly [string, string] {
+  switch (mg) {
+    case 'chest': return ['#2a1515', '#1a0a0a'];
+    case 'back': return ['#0a1a2a', '#0a0a1a'];
+    case 'shoulders': return ['#2a1f0a', '#1a1a0a'];
+    case 'legs': return ['#1a2a1a', '#0a1a0a'];
+    case 'arms': return ['#1a1a2a', '#0a0a1a'];
+    case 'core': return ['#2a2a0a', '#1a1a0a'];
+    case 'full_body': return ['#0a2a2a', '#0a1a1a'];
+    default: return ['#1a1a1a', '#111111'];
+  }
+}
+
+// Descripciones de grupo
+const MUSCLE_GROUP_DESCRIPTIONS: Record<string, string> = {
+  chest: 'UPPER BODY',
+  back: 'UPPER BODY',
+  shoulders: 'UPPER BODY',
+  legs: 'LOWER BODY',
+  arms: 'UPPER BODY',
+  core: 'CORE',
+  full_body: 'FULL BODY',
+};
 
 const REP_RANGES = [1, 2, 3, 4, 5];
 
@@ -125,6 +144,22 @@ export default function PersonalRecordsScreen() {
 
   const exerciseGroups = groupByExercise(records);
   const groupedEntries = Array.from(exerciseGroups.values());
+  const totalPRs = records.length;
+
+  // PR más reciente
+  const mostRecentPR = records.length > 0
+    ? records.reduce((latest, pr) =>
+        new Date(pr.achieved_at) > new Date(latest.achieved_at) ? pr : latest
+      )
+    : null;
+
+  // Nivel basado en PRs
+  const getLevel = (count: number): string => {
+    if (count >= 50) return 'ELITE';
+    if (count >= 30) return 'AVANZADO';
+    if (count >= 15) return 'INTERMEDIO';
+    return 'PRINCIPIANTE';
+  };
 
   // Agrupar por muscle_group para la UI
   const byMuscle = new Map<string, typeof groupedEntries>();
@@ -137,17 +172,51 @@ export default function PersonalRecordsScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* Header */}
+      {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
         </Pressable>
         <EliteText variant="title" style={styles.headerTitle}>
-          MIS MARCAS PERSONALES
+          MIS MARCAS
         </EliteText>
       </View>
 
-      {/* Filtros por grupo muscular */}
+      {/* ── Hero Card — Score Global ── */}
+      <Animated.View entering={FadeInUp.delay(50).springify()}>
+        <LinearGradient colors={['#1a2a1a', '#0a1a0a']} style={styles.heroCard}>
+          <View style={styles.heroAccent} />
+          <EliteText style={styles.heroWatermark}>★</EliteText>
+
+          <View style={styles.heroTop}>
+            <View>
+              <EliteText variant="caption" style={styles.heroLabel}>RENDIMIENTO</EliteText>
+              <EliteText style={styles.heroLevel}>{getLevel(totalPRs)}</EliteText>
+            </View>
+            <View style={styles.heroStatsCol}>
+              <EliteText variant="caption" style={styles.heroStatValue}>{totalPRs} PRs totales</EliteText>
+              <EliteText variant="caption" style={styles.heroStatValue}>82% percentil</EliteText>
+            </View>
+          </View>
+
+          {mostRecentPR && (
+            <LinearGradient colors={['#111111', '#0a0a0a']} style={styles.recentPRCard}>
+              <View style={styles.recentPRRow}>
+                <Ionicons name="trending-up" size={16} color={Colors.neonGreen} />
+                <EliteText variant="caption" style={styles.recentPRLabel}>PR MÁS RECIENTE</EliteText>
+              </View>
+              <EliteText variant="body" style={styles.recentPRName}>
+                {mostRecentPR.exercise_name}
+              </EliteText>
+              <EliteText variant="body" style={styles.recentPRWeight}>
+                {mostRecentPR.weight_kg}kg × {mostRecentPR.rep_range} rep{mostRecentPR.rep_range > 1 ? 's' : ''}
+              </EliteText>
+            </LinearGradient>
+          )}
+        </LinearGradient>
+      </Animated.View>
+
+      {/* ── Filtros ── */}
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -165,9 +234,10 @@ export default function PersonalRecordsScreen() {
               onPress={() => setSelectedGroup(item)}
               style={[
                 styles.filterPill,
-                isSelected && { borderColor: color, backgroundColor: color + '20' },
+                isSelected && { borderColor: color, backgroundColor: color + '15' },
               ]}
             >
+              {item && <View style={[styles.filterDot, { backgroundColor: color }]} />}
               <EliteText
                 variant="caption"
                 style={[
@@ -207,106 +277,127 @@ export default function PersonalRecordsScreen() {
             />
           }
         >
-          {Array.from(byMuscle.entries()).map(([muscleGroup, exercises]) => (
-            <View key={muscleGroup} style={styles.muscleGroupSection}>
-              {/* Encabezado de grupo muscular */}
-              <View style={styles.muscleGroupHeader}>
-                <View style={[
-                  styles.muscleGroupDot,
-                  { backgroundColor: MUSCLE_GROUP_COLORS[muscleGroup] ?? '#888' },
-                ]} />
-                <EliteText variant="label" style={styles.muscleGroupTitle}>
-                  {MUSCLE_GROUP_LABELS[muscleGroup] ?? muscleGroup}
-                </EliteText>
-              </View>
+          {Array.from(byMuscle.entries()).map(([muscleGroup, exercises]) => {
+            const mgColor = MUSCLE_GROUP_COLORS[muscleGroup] ?? '#888';
+            const mgGrad = getMuscleGroupGradient(muscleGroup);
+            const mgDesc = MUSCLE_GROUP_DESCRIPTIONS[muscleGroup] ?? '';
 
-              {/* Ejercicios de este grupo */}
-              {exercises.map((entry) => {
-                // Construir mapa de rep_range → PR
-                const prMap = new Map<number, PersonalRecord>();
-                for (const pr of entry.records) {
-                  prMap.set(pr.rep_range, pr);
-                }
+            return (
+              <View key={muscleGroup} style={styles.muscleGroupSection}>
+                {/* Encabezado */}
+                <View style={styles.muscleGroupHeader}>
+                  <View style={[styles.muscleGroupDot, { backgroundColor: mgColor }]} />
+                  <EliteText variant="label" style={styles.muscleGroupTitle}>
+                    {MUSCLE_GROUP_LABELS[muscleGroup] ?? muscleGroup}
+                  </EliteText>
+                  {mgDesc && (
+                    <EliteText variant="caption" style={styles.muscleGroupDesc}>
+                      {mgDesc}
+                    </EliteText>
+                  )}
+                </View>
 
-                return (
-                  <Pressable
-                    key={entry.exerciseId}
-                    onPress={() => setSelectedExerciseId(
-                      selectedExerciseId === entry.exerciseId ? null : entry.exerciseId
-                    )}
-                    style={styles.exerciseCard}
-                  >
-                    {/* Nombre del ejercicio + 1RM estimado */}
-                    <View style={styles.exerciseHeader}>
-                      <EliteText variant="body" style={styles.exerciseName} numberOfLines={1}>
-                        {entry.exerciseName}
-                      </EliteText>
-                      <EliteText variant="caption" style={styles.estimated1rm}>
-                        Máximo estimado: {Math.round(entry.estimated1rm)}kg
-                      </EliteText>
-                    </View>
+                {/* Ejercicios */}
+                {exercises.map((entry) => {
+                  const prMap = new Map<number, PersonalRecord>();
+                  for (const pr of entry.records) {
+                    prMap.set(pr.rep_range, pr);
+                  }
 
-                    {/* Tabla de rep ranges */}
-                    <View style={styles.repRangeTable}>
-                      {/* Header */}
-                      <View style={styles.repRangeRow}>
-                        {REP_RANGES.map(rr => (
-                          <View key={rr} style={styles.repRangeCell}>
-                            <EliteText variant="caption" style={styles.repRangeHeader}>
-                              {rr} rep{rr > 1 ? 's' : ''}
-                            </EliteText>
-                          </View>
-                        ))}
-                      </View>
-                      {/* Valores */}
-                      <View style={styles.repRangeRow}>
-                        {REP_RANGES.map(rr => {
-                          const pr = prMap.get(rr);
-                          const recency = pr ? getPRRecency(pr.achieved_at) : null;
+                  // Rep range donde se logró el mejor PR
+                  const bestPRRange = entry.records.reduce((best, pr) =>
+                    pr.weight_kg > (best?.weight_kg ?? 0) ? pr : best
+                  ).rep_range;
 
-                          return (
-                            <View key={rr} style={styles.repRangeCell}>
-                              {pr ? (
-                                <>
-                                  <EliteText variant="body" style={styles.repRangeValue}>
-                                    {pr.weight_kg}kg
-                                  </EliteText>
-                                  {recency === 'today' && (
-                                    <View style={styles.recencyBadge}>
-                                      <EliteText variant="caption" style={styles.recencyBadgeText}>
-                                        HOY
-                                      </EliteText>
-                                    </View>
-                                  )}
-                                  {recency === 'week' && (
-                                    <View style={[styles.recencyBadge, styles.recencyWeek]}>
-                                      <EliteText variant="caption" style={[styles.recencyBadgeText, styles.recencyWeekText]}>
-                                        PR!
-                                      </EliteText>
-                                    </View>
-                                  )}
-                                </>
-                              ) : (
-                                <EliteText variant="body" style={styles.repRangeEmpty}>
-                                  —
+                  return (
+                    <Pressable
+                      key={entry.exerciseId}
+                      onPress={() => setSelectedExerciseId(
+                        selectedExerciseId === entry.exerciseId ? null : entry.exerciseId
+                      )}
+                    >
+                      <LinearGradient colors={mgGrad} style={styles.exerciseCard}>
+                        {/* Header */}
+                        <View style={styles.exerciseHeader}>
+                          <EliteText variant="body" style={styles.exerciseName} numberOfLines={1}>
+                            {entry.exerciseName}
+                          </EliteText>
+                          <EliteText variant="caption" style={styles.estimated1rm}>
+                            Máximo estimado: {Math.round(entry.estimated1rm)}kg
+                          </EliteText>
+                        </View>
+
+                        {/* Tabla de rep ranges */}
+                        <View style={styles.repRangeTable}>
+                          <View style={styles.repRangeRow}>
+                            {REP_RANGES.map(rr => (
+                              <View key={rr} style={styles.repRangeCell}>
+                                <EliteText variant="caption" style={styles.repRangeHeader}>
+                                  {rr} rep{rr > 1 ? 's' : ''}
                                 </EliteText>
-                              )}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
+                              </View>
+                            ))}
+                          </View>
+                          <View style={styles.repRangeRow}>
+                            {REP_RANGES.map(rr => {
+                              const pr = prMap.get(rr);
+                              const recency = pr ? getPRRecency(pr.achieved_at) : null;
+                              const isBestRange = rr === bestPRRange && pr;
+
+                              return (
+                                <View
+                                  key={rr}
+                                  style={[
+                                    styles.repRangeCell,
+                                    isBestRange && [styles.repRangeHighlighted, { backgroundColor: mgColor + '15' }],
+                                  ]}
+                                >
+                                  {pr ? (
+                                    <>
+                                      <EliteText variant="body" style={[
+                                        styles.repRangeValue,
+                                        isBestRange && { color: mgColor },
+                                      ]}>
+                                        {pr.weight_kg}kg
+                                      </EliteText>
+                                      {recency === 'today' && (
+                                        <View style={styles.recencyBadge}>
+                                          <EliteText variant="caption" style={styles.recencyBadgeText}>
+                                            HOY
+                                          </EliteText>
+                                        </View>
+                                      )}
+                                      {recency === 'week' && (
+                                        <View style={[styles.recencyBadge, styles.recencyWeek]}>
+                                          <EliteText variant="caption" style={[styles.recencyBadgeText, styles.recencyWeekText]}>
+                                            PR!
+                                          </EliteText>
+                                        </View>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <EliteText variant="body" style={styles.repRangeEmpty}>
+                                      —
+                                    </EliteText>
+                                  )}
+                                </View>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      </LinearGradient>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            );
+          })}
 
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
       )}
 
-      {/* Modal de historial de ejercicio */}
+      {/* Modal historial */}
       {selectedExerciseId && (
         <ExerciseHistory
           visible={!!selectedExerciseId}
@@ -326,7 +417,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.black,
   },
 
-  // --- Header ---
+  // ── Header ──
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -343,9 +434,92 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
   },
 
-  // --- Filtros ---
+  // ── Hero Card ──
+  heroCard: {
+    marginHorizontal: Spacing.md,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    paddingLeft: Spacing.md + 6,
+    marginBottom: Spacing.sm,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#2a3a2a',
+  },
+  heroAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: Colors.neonGreen,
+    borderTopLeftRadius: Radius.md,
+    borderBottomLeftRadius: Radius.md,
+  },
+  heroWatermark: {
+    position: 'absolute',
+    top: -15,
+    right: -5,
+    fontSize: 80,
+    opacity: 0.05,
+    color: '#FFD700',
+  },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.sm,
+  },
+  heroLabel: {
+    color: Colors.textSecondary,
+    letterSpacing: 3,
+    fontSize: 11,
+    marginBottom: 4,
+  },
+  heroLevel: {
+    fontSize: 32,
+    fontFamily: Fonts.extraBold,
+    color: Colors.neonGreen,
+    letterSpacing: 2,
+  },
+  heroStatsCol: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  heroStatValue: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+  },
+  recentPRCard: {
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
+  },
+  recentPRRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: 4,
+  },
+  recentPRLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    letterSpacing: 1,
+  },
+  recentPRName: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 13,
+  },
+  recentPRWeight: {
+    fontFamily: Fonts.bold,
+    color: Colors.neonGreen,
+    fontSize: 15,
+    marginTop: 2,
+  },
+
+  // ── Filtros ──
   filterList: {
-    maxHeight: 40,
+    maxHeight: 44,
     marginBottom: Spacing.sm,
   },
   filterContent: {
@@ -353,19 +527,27 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.pill,
     borderWidth: 1,
     borderColor: Colors.surfaceLight,
   },
+  filterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
   filterText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.semiBold,
-    fontSize: 11,
+    fontSize: 12,
   },
 
-  // --- Loading / Empty ---
+  // ── Loading / Empty ──
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -385,7 +567,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // --- Secciones por grupo muscular ---
+  // ── Secciones por grupo muscular ──
   muscleGroupSection: {
     paddingHorizontal: Spacing.md,
     marginBottom: Spacing.md,
@@ -403,17 +585,23 @@ const styles = StyleSheet.create({
   },
   muscleGroupTitle: {
     letterSpacing: 2,
-    fontSize: 12,
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+  },
+  muscleGroupDesc: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    letterSpacing: 1,
+    opacity: 0.6,
   },
 
-  // --- Card de ejercicio ---
+  // ── Card de ejercicio ──
   exerciseCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
     marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -422,7 +610,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   exerciseName: {
-    fontFamily: Fonts.semiBold,
+    fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
     flex: 1,
   },
@@ -432,7 +620,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
 
-  // --- Tabla de rep ranges ---
+  // ── Tabla de rep ranges ──
   repRangeTable: {
     gap: Spacing.xs,
   },
@@ -443,6 +631,11 @@ const styles = StyleSheet.create({
   repRangeCell: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 4,
+    borderRadius: Radius.sm,
+  },
+  repRangeHighlighted: {
+    borderRadius: Radius.sm,
   },
   repRangeHeader: {
     color: Colors.textSecondary,
@@ -452,18 +645,18 @@ const styles = StyleSheet.create({
   },
   repRangeValue: {
     fontFamily: Fonts.bold,
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.textPrimary,
   },
   repRangeEmpty: {
     color: Colors.disabled,
-    fontSize: 13,
+    fontSize: 14,
   },
 
-  // --- Badges de recencia ---
+  // ── Badges de recencia ──
   recencyBadge: {
     backgroundColor: Colors.neonGreen + '25',
-    paddingHorizontal: 4,
+    paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: Radius.pill,
     marginTop: 2,

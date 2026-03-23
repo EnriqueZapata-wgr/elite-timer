@@ -1,14 +1,16 @@
 /**
- * Pantalla Modo Rutina — Ejecución de rutinas de fuerza/hipertrofia.
+ * Modo Rutina — Ejecución de rutinas de fuerza/hipertrofia.
  *
  * El usuario controla el ritmo: countup en trabajo, semáforo en descanso,
  * registro de reps/peso integrado en cada set.
+ * Visual overhaul: gradientes funcionales, glow, inputs premium.
  */
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, TextInput, Modal } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import { EliteText } from '@/components/elite-text';
@@ -28,6 +30,14 @@ const ZONE_COLORS = {
   yellow: '#EF9F27',
   red: '#E24B4A',
   green: '#a8e02a',
+};
+
+// Gradientes oscuros por zona
+const ZONE_GRADIENTS: Record<string, readonly [string, string]> = {
+  green: ['#1a2a1a', '#0a1a0a'],
+  blue: ['#0a1a2a', '#0a0a1a'],
+  yellow: ['#2a1f0a', '#1a1a0a'],
+  red: ['#2a0a0a', '#1a0a0a'],
 };
 
 // === PANTALLA PRINCIPAL ===
@@ -68,7 +78,6 @@ function RoutineContent({ routine }: { routine: Routine }) {
   const [rir, setRir] = useState<number | null>(null);
   const lastWeightLoaded = useRef<string | null>(null);
 
-  // Cargar último peso usado cuando cambia el ejercicio
   useEffect(() => {
     const exerciseId = rm.currentExercise?.exerciseId;
     if (!exerciseId || lastWeightLoaded.current === exerciseId) return;
@@ -80,17 +89,15 @@ function RoutineContent({ routine }: { routine: Routine }) {
     });
   }, [rm.currentExercise?.exerciseId]);
 
-  // Al completar set, mantener reps/weight para el siguiente
   const handleCompleteSet = useCallback(async () => {
     await rm.completeSet(reps, weight, rpe, rir);
-    setRir(null); // Resetear RIR (es por set, no persistente)
+    setRir(null);
   }, [rm, reps, weight, rpe, rir]);
 
-  // Al cambiar de ejercicio, resetear inputs (peso se carga por useEffect)
   const handleStartWorking = useCallback(() => {
     setReps(10);
     setRpe(null);
-    lastWeightLoaded.current = null; // Forzar recarga del peso del nuevo ejercicio
+    lastWeightLoaded.current = null;
     rm.startWorking();
   }, [rm]);
 
@@ -104,18 +111,19 @@ function RoutineContent({ routine }: { routine: Routine }) {
           {rm.exercises.length} ejercicios
         </EliteText>
 
-        {/* Lista de ejercicios */}
         <View style={styles.exercisePreviewList}>
           {rm.exercises.map((ex, i) => (
-            <View key={ex.blockId} style={styles.exercisePreviewRow}>
-              <EliteText variant="caption" style={styles.exercisePreviewNum}>{i + 1}</EliteText>
+            <LinearGradient key={ex.blockId} colors={['#1a2a1a', '#111111']} style={styles.exercisePreviewRow}>
+              <View style={styles.exercisePreviewNum}>
+                <EliteText variant="caption" style={styles.exercisePreviewNumText}>{i + 1}</EliteText>
+              </View>
               <EliteText variant="body" style={styles.exercisePreviewName} numberOfLines={1}>
                 {ex.exerciseName}
               </EliteText>
               <EliteText variant="caption" style={styles.exercisePreviewSets}>
                 {ex.suggestedSets} {ex.suggestedSets === 1 ? 'set' : 'sets'}
               </EliteText>
-            </View>
+            </LinearGradient>
           ))}
         </View>
 
@@ -137,30 +145,30 @@ function RoutineContent({ routine }: { routine: Routine }) {
           <EliteText variant="body" style={styles.subtitle}>{routine.name}</EliteText>
 
           <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
+            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>TIEMPO</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {formatTime(rm.stats.totalDurationSeconds)}
               </EliteText>
-            </View>
-            <View style={styles.statCard}>
+            </LinearGradient>
+            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>EJERCICIOS</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {rm.stats.exercisesCompleted}
               </EliteText>
-            </View>
-            <View style={styles.statCard}>
+            </LinearGradient>
+            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>SETS</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {rm.stats.totalSets}
               </EliteText>
-            </View>
-            <View style={styles.statCard}>
+            </LinearGradient>
+            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>REPS TOTALES</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {rm.stats.totalReps}
               </EliteText>
-            </View>
+            </LinearGradient>
           </View>
 
           {/* Resumen por ejercicio */}
@@ -171,7 +179,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
             const maxWeight = Math.max(0, ...sets.map(s => s.weightKg ?? 0));
 
             return (
-              <View key={ex.blockId} style={styles.exerciseSummaryCard}>
+              <LinearGradient key={ex.blockId} colors={['#1a2a1a', '#111111']} style={styles.exerciseSummaryCard}>
                 <View style={styles.exerciseSummaryHeader}>
                   <Ionicons name="barbell-outline" size={16} color={Colors.neonGreen} />
                   <EliteText variant="body" style={styles.exerciseSummaryName} numberOfLines={1}>
@@ -190,7 +198,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
                     </EliteText>
                   </View>
                 ))}
-              </View>
+              </LinearGradient>
             );
           })}
 
@@ -206,31 +214,25 @@ function RoutineContent({ routine }: { routine: Routine }) {
   if (rm.phase === 'transition') {
     return (
       <SafeAreaView style={[styles.screen, styles.centered]}>
-        {/* Tiempo de sesión */}
         <EliteText variant="caption" style={styles.sessionTime}>
           Sesión {formatTime(rm.elapsedSeconds)}
         </EliteText>
-
         <EliteText variant="caption" style={styles.exerciseCounter}>
           Ejercicio {rm.currentExerciseIndex + 1} de {rm.exercises.length}
         </EliteText>
-
         <Ionicons name="barbell-outline" size={48} color={Colors.neonGreen} style={{ marginVertical: 16 }} />
-
         <EliteText variant="title" style={styles.bigExerciseName}>
           {rm.currentExercise?.exerciseName}
         </EliteText>
-
         <EliteText variant="body" style={styles.subtitle}>
           {rm.totalSuggestedSets} series sugeridas · {rm.currentExercise?.suggestedRestSeconds}s descanso
         </EliteText>
-
         <EliteButton label="EMPEZAR" onPress={handleStartWorking} style={{ marginTop: 32 }} />
       </SafeAreaView>
     );
   }
 
-  // === MODAL DE CONFIRMACIÓN (awaiting_next) ===
+  // === AWAITING_NEXT ===
   if (rm.phase === 'awaiting_next') {
     const nextEx = rm.nextExerciseData;
     return (
@@ -238,13 +240,11 @@ function RoutineContent({ routine }: { routine: Routine }) {
         <EliteText variant="caption" style={styles.sessionTime}>
           Sesión {formatTime(rm.elapsedSeconds)}
         </EliteText>
-
         <EliteText variant="title" style={{ marginTop: Spacing.lg, textAlign: 'center' }}>
           ¿Pasamos al siguiente ejercicio?
         </EliteText>
-
         {nextEx ? (
-          <View style={styles.transitionCard}>
+          <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.transitionCard}>
             <Ionicons name="barbell-outline" size={32} color={Colors.neonGreen} />
             <EliteText variant="subtitle" style={{ marginTop: Spacing.sm, textAlign: 'center' }}>
               {nextEx.exerciseName}
@@ -252,17 +252,16 @@ function RoutineContent({ routine }: { routine: Routine }) {
             <EliteText variant="caption" style={styles.subtitle}>
               {nextEx.suggestedSets} series sugeridas
             </EliteText>
-          </View>
+          </LinearGradient>
         ) : (
-          <View style={styles.transitionCard}>
+          <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.transitionCard}>
             <Ionicons name="checkmark-circle" size={32} color={Colors.neonGreen} />
             <EliteText variant="subtitle" style={{ marginTop: Spacing.sm }}>
               Último ejercicio completado
             </EliteText>
-          </View>
+          </LinearGradient>
         )}
 
-        {/* Botones */}
         <View style={{ width: '100%', gap: Spacing.sm, marginTop: Spacing.lg }}>
           <Pressable
             onPress={rm.confirmNextExercise}
@@ -275,15 +274,11 @@ function RoutineContent({ routine }: { routine: Routine }) {
           </Pressable>
 
           <Pressable
-            onPress={() => {
-              rm.addExtraSet();
-            }}
+            onPress={() => rm.addExtraSet()}
             style={({ pressed }) => [styles.outlineAction, pressed && { opacity: 0.7 }]}
           >
             <Ionicons name="add-circle-outline" size={18} color={Colors.neonGreen} />
-            <EliteText variant="body" style={styles.outlineActionText}>
-              + Serie extra
-            </EliteText>
+            <EliteText variant="body" style={styles.outlineActionText}>+ Serie extra</EliteText>
           </Pressable>
 
           <Pressable
@@ -303,81 +298,131 @@ function RoutineContent({ routine }: { routine: Routine }) {
   const isWorking = rm.phase === 'working';
   const isResting = rm.phase === 'resting';
   const zoneColor = isWorking ? ZONE_COLORS.green : ZONE_COLORS[rm.restZone];
+  const zoneGrad = isWorking ? ZONE_GRADIENTS.green : (ZONE_GRADIENTS[rm.restZone] ?? ZONE_GRADIENTS.blue);
   const currentSetNum = (rm.currentSets.length) + (isWorking ? 1 : 0);
+
+  // Dots de progreso de sets
+  const setDots = [];
+  for (let i = 0; i < rm.totalSuggestedSets; i++) {
+    const isCompleted = i < rm.currentSets.length;
+    const isActive = i === rm.currentSets.length && isWorking;
+    setDots.push({ isCompleted, isActive, index: i });
+  }
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* ── Hero Bar ── */}
+      <LinearGradient colors={zoneGrad} style={styles.heroBar}>
+        <View style={[styles.heroBarAccent, { backgroundColor: Colors.neonGreen }]} />
+
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
+          <Ionicons name="chevron-back" size={24} color={Colors.neonGreen} />
         </Pressable>
-        <View style={styles.headerCenter}>
-          <EliteText variant="caption" style={styles.sessionTime}>
-            {formatTime(rm.elapsedSeconds)}
+
+        <View style={styles.heroBarContent}>
+          <EliteText variant="body" style={styles.heroBarName} numberOfLines={1}>
+            {routine.name}
           </EliteText>
-          <EliteText variant="caption" style={styles.exerciseCounter}>
-            Ejercicio {rm.currentExerciseIndex + 1}/{rm.exercises.length}
+          <EliteText variant="caption" style={styles.heroBarSession}>
+            Sesión {formatTime(rm.elapsedSeconds)}
           </EliteText>
         </View>
-        <View style={{ width: 44 }} />
+
+        {/* Progress info */}
+        <View style={styles.heroBarProgress}>
+          <EliteText variant="caption" style={styles.heroBarProgressText}>
+            Ejercicio {rm.currentExerciseIndex + 1} de {rm.exercises.length} · {Math.round(((rm.currentExerciseIndex) / rm.exercises.length) * 100)}%
+          </EliteText>
+          <View style={styles.heroProgressBar}>
+            <View style={[styles.heroProgressFill, { width: `${((rm.currentExerciseIndex) / rm.exercises.length) * 100}%` }]} />
+          </View>
+        </View>
+      </LinearGradient>
+
+      {/* ── Ejercicio + Set ── */}
+      <View style={styles.exerciseSection}>
+        <EliteText variant="subtitle" style={styles.exerciseTitle} numberOfLines={1}>
+          {rm.currentExercise?.exerciseName}
+        </EliteText>
+        <EliteText variant="caption" style={[styles.setIndicator, { color: zoneColor }]}>
+          SET {currentSetNum} DE {rm.totalSuggestedSets}
+        </EliteText>
+        {/* Set dots */}
+        <View style={styles.setDotsRow}>
+          {setDots.map((dot) => (
+            <View
+              key={dot.index}
+              style={[
+                styles.setDot,
+                dot.isCompleted && { backgroundColor: Colors.neonGreen },
+                dot.isActive && { backgroundColor: zoneColor, borderWidth: 2, borderColor: zoneColor },
+                !dot.isCompleted && !dot.isActive && { backgroundColor: '#2a2a2a' },
+              ]}
+            />
+          ))}
+        </View>
       </View>
 
-      {/* Nombre del ejercicio */}
-      <EliteText variant="title" style={styles.exerciseTitle} numberOfLines={1}>
-        {rm.currentExercise?.exerciseName}
-      </EliteText>
+      {/* ── Timer Circular ── */}
+      <View style={[styles.timerCircleOuter, {
+        shadowColor: zoneColor,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+      }]}>
+        {/* Aura */}
+        <View style={[styles.timerAura, { backgroundColor: zoneColor + '08' }]} />
 
-      {/* Set indicator */}
-      <EliteText variant="caption" style={[styles.setIndicator, { color: zoneColor }]}>
-        {isWorking ? `Set ${currentSetNum} de ${rm.totalSuggestedSets}` :
-         `Descanso · Set ${rm.currentSets.length} completado`}
-      </EliteText>
-
-      {/* Timer grande */}
-      <View style={[styles.timerCircle, { borderColor: zoneColor }]}>
-        {isWorking && (
-          <>
-            <EliteText variant="caption" style={[styles.timerLabel, { color: zoneColor }]}>TRABAJO</EliteText>
-            <EliteText variant="title" style={[styles.timerValue, { color: zoneColor }]}>
-              {formatTime(rm.workSeconds)}
-            </EliteText>
-          </>
-        )}
-        {isResting && rm.restCountdown > 0 && (
-          <>
-            <EliteText variant="caption" style={[styles.timerLabel, { color: zoneColor }]}>DESCANSO</EliteText>
-            <EliteText variant="title" style={[styles.timerValue, { color: zoneColor }]}>
-              {formatTime(rm.restCountdown)}
-            </EliteText>
-            <EliteText variant="caption" style={styles.timerSub}>
-              {rm.restSeconds}s de {rm.suggestedRest}s
-            </EliteText>
-          </>
-        )}
-        {isResting && rm.restCountdown === 0 && (
-          <>
-            <EliteText variant="caption" style={[styles.timerLabel, { color: zoneColor }]}>
-              {rm.restZone === 'yellow' ? 'DESCANSO CUMPLIDO' : 'MUCHO DESCANSO'}
-            </EliteText>
-            <EliteText variant="title" style={[styles.timerValue, { color: zoneColor }]}>
-              +{formatTime(rm.restOvertime)}
-            </EliteText>
-            <EliteText variant="caption" style={styles.timerSub}>sobre sugerido</EliteText>
-          </>
-        )}
+        <View style={[styles.timerCircle, { borderColor: zoneColor }]}>
+          {isWorking && (
+            <>
+              <EliteText variant="caption" style={[styles.timerLabel, { color: zoneColor }]}>TRABAJO</EliteText>
+              <EliteText style={[styles.timerValue, { color: zoneColor }]}>
+                {formatTime(rm.workSeconds)}
+              </EliteText>
+            </>
+          )}
+          {isResting && rm.restCountdown > 0 && (
+            <>
+              <EliteText variant="caption" style={[styles.timerLabel, { color: zoneColor }]}>DESCANSO</EliteText>
+              <EliteText style={[styles.timerValue, { color: zoneColor }]}>
+                {formatTime(rm.restCountdown)}
+              </EliteText>
+              <EliteText variant="caption" style={styles.timerSub}>
+                {rm.restSeconds}s de {rm.suggestedRest}s
+              </EliteText>
+            </>
+          )}
+          {isResting && rm.restCountdown === 0 && (
+            <>
+              {/* Badge de zona */}
+              <View style={[styles.zoneBadge, { backgroundColor: zoneColor + '20', borderColor: zoneColor + '40' }]}>
+                <EliteText variant="caption" style={[styles.zoneBadgeText, { color: zoneColor }]}>
+                  {rm.restZone === 'yellow' ? '⚠ DESCANSO CUMPLIDO' : 'MUCHO DESCANSO'}
+                </EliteText>
+              </View>
+              <EliteText style={[styles.timerValue, { color: zoneColor }]}>
+                +{formatTime(rm.restOvertime)}
+              </EliteText>
+              <EliteText variant="caption" style={styles.timerSub}>
+                Sugerido: {rm.suggestedRest}s
+              </EliteText>
+            </>
+          )}
+        </View>
       </View>
 
       <ScrollView style={styles.bottomSection} showsVerticalScrollIndicator={false}>
-        {/* === INPUTS DE REPS/PESO (solo en working) === */}
+        {/* ── Inputs de Reps/Peso/RIR (solo working) ── */}
         {isWorking && (
           <View style={styles.inputsContainer}>
             {/* Reps */}
-            <View style={styles.inputGroup}>
+            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.inputCard}>
+              <View style={[styles.inputAccentLine, { backgroundColor: Colors.neonGreen }]} />
               <EliteText variant="caption" style={styles.inputLabel}>REPS</EliteText>
               <View style={styles.inputRow}>
                 <Pressable onPress={() => setReps(r => Math.max(1, r - 1))} style={styles.inputBtn}>
-                  <Ionicons name="remove" size={20} color={Colors.textPrimary} />
+                  <Ionicons name="remove" size={18} color={Colors.textPrimary} />
                 </Pressable>
                 <TextInput
                   style={styles.inputValue}
@@ -387,17 +432,18 @@ function RoutineContent({ routine }: { routine: Routine }) {
                   selectTextOnFocus
                 />
                 <Pressable onPress={() => setReps(r => r + 1)} style={styles.inputBtn}>
-                  <Ionicons name="add" size={20} color={Colors.textPrimary} />
+                  <Ionicons name="add" size={18} color={Colors.textPrimary} />
                 </Pressable>
               </View>
-            </View>
+            </LinearGradient>
 
             {/* Peso */}
-            <View style={styles.inputGroup}>
+            <LinearGradient colors={['#2a1f0a', '#111111']} style={styles.inputCard}>
+              <View style={[styles.inputAccentLine, { backgroundColor: '#EF9F27' }]} />
               <EliteText variant="caption" style={styles.inputLabel}>PESO (kg)</EliteText>
               <View style={styles.inputRow}>
                 <Pressable onPress={() => setWeight(w => Math.max(0, (w ?? 0) - 2.5))} style={styles.inputBtn}>
-                  <Ionicons name="remove" size={20} color={Colors.textPrimary} />
+                  <Ionicons name="remove" size={18} color={Colors.textPrimary} />
                 </Pressable>
                 <TextInput
                   style={styles.inputValue}
@@ -409,21 +455,22 @@ function RoutineContent({ routine }: { routine: Routine }) {
                   }}
                   keyboardType="decimal-pad"
                   selectTextOnFocus
-                  placeholder="Peso"
+                  placeholder="—"
                   placeholderTextColor={Colors.textSecondary}
                 />
                 <Pressable onPress={() => setWeight(w => (w ?? 0) + 2.5)} style={styles.inputBtn}>
-                  <Ionicons name="add" size={20} color={Colors.textPrimary} />
+                  <Ionicons name="add" size={18} color={Colors.textPrimary} />
                 </Pressable>
               </View>
-            </View>
+            </LinearGradient>
 
             {/* RIR */}
-            <View style={styles.inputGroup}>
+            <LinearGradient colors={['#0a1a2a', '#111111']} style={styles.inputCard}>
+              <View style={[styles.inputAccentLine, { backgroundColor: '#5B9BD5' }]} />
               <EliteText variant="caption" style={styles.inputLabel}>RIR</EliteText>
               <View style={styles.inputRow}>
                 <Pressable onPress={() => setRir(r => r !== null ? Math.max(0, r - 1) : 2)} style={styles.inputBtn}>
-                  <Ionicons name="remove" size={20} color={Colors.textPrimary} />
+                  <Ionicons name="remove" size={18} color={Colors.textPrimary} />
                 </Pressable>
                 <TextInput
                   style={styles.inputValue}
@@ -439,44 +486,72 @@ function RoutineContent({ routine }: { routine: Routine }) {
                   placeholderTextColor={Colors.textSecondary}
                 />
                 <Pressable onPress={() => setRir(r => r !== null ? Math.min(5, r + 1) : 3)} style={styles.inputBtn}>
-                  <Ionicons name="add" size={20} color={Colors.textPrimary} />
+                  <Ionicons name="add" size={18} color={Colors.textPrimary} />
                 </Pressable>
               </View>
-              <EliteText variant="caption" style={styles.rirHint}>0 = fallo · 5 = fácil</EliteText>
-            </View>
+            </LinearGradient>
           </View>
         )}
 
-        {/* Sets completados */}
+        {/* ── Sets completados ── */}
         {rm.currentSets.length > 0 && (
           <View style={styles.setsListContainer}>
             <EliteText variant="caption" style={styles.setsListTitle}>SETS COMPLETADOS</EliteText>
             {rm.currentSets.map(set => (
               <View key={set.setNumber} style={styles.completedSetRow}>
-                <EliteText variant="caption" style={styles.setNum}>Set {set.setNumber}</EliteText>
+                <View style={styles.setNumCircle}>
+                  <EliteText variant="caption" style={styles.setNumCircleText}>{set.setNumber}</EliteText>
+                </View>
                 <EliteText variant="caption" style={styles.setData}>
                   {set.reps} reps{set.weightKg != null ? ` × ${set.weightKg}kg` : ''}{set.rir != null ? ` @ RIR ${set.rir}` : ''}
-                  {set.rpe ? ` @${set.rpe}` : ''}
                 </EliteText>
                 <EliteText variant="caption" style={styles.setDuration}>
                   {formatTime(set.durationSeconds)}
                 </EliteText>
+                <Ionicons name="checkmark-circle" size={16} color={Colors.neonGreen} />
+              </View>
+            ))}
+
+            {/* Set activo */}
+            {isWorking && (
+              <View style={[styles.completedSetRow, styles.activeSetRow]}>
+                <View style={[styles.setNumCircle, { borderColor: zoneColor }]}>
+                  <EliteText variant="caption" style={[styles.setNumCircleText, { color: zoneColor }]}>
+                    {currentSetNum}
+                  </EliteText>
+                </View>
+                <EliteText variant="caption" style={[styles.setData, { color: zoneColor }]}>
+                  En progreso...
+                </EliteText>
+              </View>
+            )}
+
+            {/* Sets pendientes */}
+            {Array.from({ length: Math.max(0, rm.totalSuggestedSets - currentSetNum) }).map((_, i) => (
+              <View key={`pending-${i}`} style={styles.completedSetRow}>
+                <View style={[styles.setNumCircle, { borderColor: '#2a2a2a' }]}>
+                  <EliteText variant="caption" style={[styles.setNumCircleText, { color: '#2a2a2a' }]}>
+                    {currentSetNum + i + 1}
+                  </EliteText>
+                </View>
+                <EliteText variant="caption" style={[styles.setData, { color: '#2a2a2a' }]}>—</EliteText>
               </View>
             ))}
           </View>
         )}
 
-        {/* Preview siguiente ejercicio */}
+        {/* ── Preview siguiente ejercicio ── */}
         {rm.nextExerciseData && (
-          <View style={styles.nextExercisePreview}>
+          <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.nextExercisePreview}>
+            <View style={[styles.nextDot, { backgroundColor: Colors.neonGreen }]} />
             <EliteText variant="caption" style={styles.nextLabel}>SIGUIENTE</EliteText>
             <EliteText variant="body" style={styles.nextName} numberOfLines={1}>
               {rm.nextExerciseData.exerciseName}
             </EliteText>
             <EliteText variant="caption" style={styles.nextSets}>
-              {rm.nextExerciseData.suggestedSets} {rm.nextExerciseData.suggestedSets === 1 ? 'set' : 'sets'}
+              {rm.nextExerciseData.suggestedSets} sets
             </EliteText>
-          </View>
+          </LinearGradient>
         )}
 
         <View style={{ height: 120 }} />
@@ -536,23 +611,34 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
 
-  // --- Idle: lista de ejercicios ---
+  // ── Idle: lista de ejercicios ──
   exercisePreviewList: {
     width: '100%',
     marginTop: Spacing.lg,
-    gap: 4,
+    gap: Spacing.xs,
   },
   exercisePreviewRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.sm,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
   exercisePreviewNum: {
-    color: Colors.textSecondary,
-    width: 20,
-    textAlign: 'right',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.neonGreen + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exercisePreviewNumText: {
+    color: Colors.neonGreen,
+    fontFamily: Fonts.bold,
+    fontSize: 11,
   },
   exercisePreviewName: {
     flex: 1,
@@ -562,37 +648,75 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  // --- Header ---
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
+  // ── Hero Bar ──
+  heroBar: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    overflow: 'hidden',
+  },
+  heroBarAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
   },
   backBtn: {
+    position: 'absolute',
+    left: Spacing.sm,
+    top: Spacing.sm,
     padding: Spacing.xs,
-    width: 44,
+    zIndex: 10,
   },
-  headerCenter: {
-    flex: 1,
+  heroBarContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingLeft: Spacing.xl,
   },
-  sessionTime: {
+  heroBarName: {
+    fontFamily: Fonts.bold,
+    color: Colors.neonGreen,
+    fontSize: 15,
+    flex: 1,
+  },
+  heroBarSession: {
     color: Colors.textSecondary,
     fontVariant: ['tabular-nums'],
-    letterSpacing: 1,
+    fontSize: 12,
   },
-  exerciseCounter: {
+  heroBarProgress: {
+    paddingLeft: Spacing.xl,
+    marginTop: Spacing.xs,
+  },
+  heroBarProgressText: {
     color: Colors.textSecondary,
     fontSize: 11,
+    marginBottom: 3,
+  },
+  heroProgressBar: {
+    width: '100%',
+    height: 2,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 1,
+  },
+  heroProgressFill: {
+    height: '100%',
+    backgroundColor: Colors.neonGreen,
+    borderRadius: 1,
   },
 
-  // --- Ejercicio actual ---
+  // ── Ejercicio + Set ──
+  exerciseSection: {
+    alignItems: 'center',
+    paddingTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
   exerciseTitle: {
     textAlign: 'center',
-    fontSize: FontSizes.lg,
-    letterSpacing: 2,
-    paddingHorizontal: Spacing.md,
+    fontSize: 24,
+    color: Colors.textPrimary,
+    fontFamily: Fonts.bold,
   },
   bigExerciseName: {
     fontSize: FontSizes.xl,
@@ -600,30 +724,50 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   setIndicator: {
-    textAlign: 'center',
-    letterSpacing: 1,
+    letterSpacing: 2,
     marginTop: Spacing.xs,
-    fontSize: 12,
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+  },
+  setDotsRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  setDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 
-  // --- Timer circular ---
-  timerCircle: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+  // ── Timer ──
+  timerCircleOuter: {
     alignSelf: 'center',
     marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
+  timerAura: {
+    position: 'absolute',
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    top: -20,
+    left: -20,
+  },
+  timerCircle: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   timerLabel: {
     letterSpacing: 2,
-    fontSize: 11,
+    fontSize: 12,
   },
   timerValue: {
-    fontSize: 40,
+    fontSize: 44,
     fontFamily: Fonts.bold,
     fontVariant: ['tabular-nums'],
   },
@@ -631,38 +775,62 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 11,
   },
+  zoneBadge: {
+    position: 'absolute',
+    top: -14,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  zoneBadgeText: {
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
+  },
 
-  // --- Inputs de reps/peso ---
+  // ── Inputs ──
   bottomSection: {
     flex: 1,
     paddingHorizontal: Spacing.md,
   },
   inputsContainer: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Spacing.sm,
     marginBottom: Spacing.md,
   },
-  inputGroup: {
+  inputCard: {
     flex: 1,
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
     alignItems: 'center',
-    gap: Spacing.xs,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
+  },
+  inputAccentLine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
   },
   inputLabel: {
     color: Colors.textSecondary,
     letterSpacing: 1,
-    fontSize: 10,
+    fontSize: 11,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
   },
   inputBtn: {
-    width: 48,
-    height: 48,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#2a2a2a',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -671,38 +839,49 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.textPrimary,
     fontFamily: Fonts.bold,
-    fontSize: FontSizes.lg,
-    paddingVertical: Spacing.xs,
-    minWidth: 40,
-  },
-  rirHint: {
-    color: Colors.textSecondary,
-    fontSize: 9,
-    marginTop: 2,
+    fontSize: 28,
+    paddingVertical: 0,
+    minWidth: 30,
   },
 
-  // --- Sets completados ---
+  // ── Sets completados ──
   setsListContainer: {
     marginBottom: Spacing.md,
   },
   setsListTitle: {
     color: Colors.textSecondary,
     letterSpacing: 1,
-    marginBottom: Spacing.xs,
-    fontSize: 10,
+    marginBottom: Spacing.sm,
+    fontSize: 11,
   },
   completedSetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    paddingVertical: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.surfaceLight,
+    paddingVertical: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: Colors.neonGreen,
+    paddingLeft: Spacing.sm,
+    marginBottom: 2,
   },
-  setNum: {
-    color: Colors.textSecondary,
-    width: 40,
-    fontFamily: Fonts.semiBold,
+  activeSetRow: {
+    borderLeftColor: Colors.neonGreen,
+    backgroundColor: Colors.neonGreen + '08',
+    borderRadius: Radius.sm,
+  },
+  setNumCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.neonGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  setNumCircleText: {
+    color: Colors.neonGreen,
+    fontFamily: Fonts.bold,
+    fontSize: 10,
   },
   setData: {
     flex: 1,
@@ -715,23 +894,26 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
 
-  // --- Preview siguiente ---
+  // ── Preview siguiente ──
   nextExercisePreview: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    backgroundColor: Colors.surface,
     borderRadius: Radius.sm,
     padding: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
     marginBottom: Spacing.md,
+  },
+  nextDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   nextLabel: {
     color: Colors.textSecondary,
     letterSpacing: 1,
     fontSize: 10,
-    width: 65,
   },
   nextName: {
     flex: 1,
@@ -741,7 +923,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
 
-  // --- Acciones principales ---
+  // ── Acciones ──
   actionsBar: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
@@ -758,6 +940,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neonGreen,
     paddingVertical: Spacing.md,
     borderRadius: Radius.pill,
+    height: 60,
   },
   mainActionText: {
     color: Colors.textOnGreen,
@@ -803,16 +986,15 @@ const styles = StyleSheet.create({
   },
   transitionCard: {
     alignItems: 'center',
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.lg,
     marginTop: Spacing.lg,
     width: '100%',
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
 
-  // --- Completada ---
+  // ── Completada ──
   completedScroll: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
@@ -826,13 +1008,12 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   statCard: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     alignItems: 'center',
     width: '47%',
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
   statLabel: {
     color: Colors.textSecondary,
@@ -846,12 +1027,11 @@ const styles = StyleSheet.create({
   },
   exerciseSummaryCard: {
     width: '100%',
-    backgroundColor: Colors.surface,
     borderRadius: Radius.sm,
     padding: Spacing.sm,
     marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
   exerciseSummaryHeader: {
     flexDirection: 'row',
@@ -884,5 +1064,16 @@ const styles = StyleSheet.create({
   setDetailData: {
     color: Colors.textPrimary,
     fontSize: 10,
+  },
+
+  // ── Misc ──
+  sessionTime: {
+    color: Colors.textSecondary,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 1,
+  },
+  exerciseCounter: {
+    color: Colors.textSecondary,
+    fontSize: 11,
   },
 });

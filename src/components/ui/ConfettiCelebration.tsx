@@ -1,9 +1,10 @@
 /**
- * ConfettiCelebration — Partículas animadas para celebrar PRs.
- * 20 partículas con caída + rotación + fade.
+ * ConfettiCelebration — 30 partículas animadas con caída, rotación y fade.
+ * Colores: verde #a8e02a, dorado #FFD700, blanco #FFFFFF.
+ * Duración: 2.5 segundos.
  */
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -13,8 +14,11 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 
-const COLORS = ['#a8e02a', '#FFD700', '#a8e02a', '#FFD700', '#a8e02a'];
-const PARTICLE_COUNT = 20;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+const COLORS = ['#a8e02a', '#FFD700', '#FFFFFF', '#a8e02a', '#FFD700', '#FFFFFF'];
+const PARTICLE_COUNT = 30;
+const TOTAL_DURATION = 2500;
 
 interface Props {
   visible: boolean;
@@ -22,26 +26,36 @@ interface Props {
 }
 
 function Particle({ index, onDone }: { index: number; onDone?: () => void }) {
-  const translateY = useSharedValue(-20);
+  const translateY = useSharedValue(-50);
   const translateX = useSharedValue(0);
   const rotate = useSharedValue(0);
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
 
-  const startX = Math.random() * 100 - 50; // -50 to 50%
-  const left = 10 + Math.random() * 80; // 10% to 90%
-  const delay = Math.random() * 400;
-  const duration = 1500 + Math.random() * 800;
-  const size = 6 + Math.random() * 6;
+  const startX = Math.random() * 120 - 60;
+  const left = 5 + Math.random() * 90;
+  const delay = Math.random() * 500;
+  const duration = 1800 + Math.random() * 700;
+  const size = 5 + Math.random() * 8;
+  const isSquare = Math.random() > 0.5;
 
   useEffect(() => {
     translateX.value = startX;
-    translateY.value = withDelay(delay, withTiming(600, { duration, easing: Easing.in(Easing.quad) }));
-    rotate.value = withDelay(delay, withTiming(360 * (Math.random() > 0.5 ? 1 : -1), { duration }));
-    opacity.value = withDelay(delay + duration * 0.6, withTiming(0, { duration: duration * 0.4 }, () => {
-      if (index === 0 && onDone) runOnJS(onDone)();
-    }));
-    scale.value = withDelay(delay, withTiming(0.3, { duration }));
+    translateY.value = withDelay(
+      delay,
+      withTiming(SCREEN_HEIGHT + 50, { duration, easing: Easing.in(Easing.quad) })
+    );
+    rotate.value = withDelay(
+      delay,
+      withTiming(360 * (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random()), { duration })
+    );
+    opacity.value = withDelay(
+      delay + duration * 0.6,
+      withTiming(0, { duration: duration * 0.4 }, () => {
+        if (index === 0 && onDone) runOnJS(onDone)();
+      })
+    );
+    scale.value = withDelay(delay, withTiming(0.2, { duration }));
   }, []);
 
   const animStyle = useAnimatedStyle(() => ({
@@ -61,8 +75,8 @@ function Particle({ index, onDone }: { index: number; onDone?: () => void }) {
         left: `${left}%`,
         top: 0,
         width: size,
-        height: size,
-        borderRadius: size / 2,
+        height: isSquare ? size : size * 0.4,
+        borderRadius: isSquare ? size / 2 : size * 0.2,
         backgroundColor: COLORS[index % COLORS.length],
       },
       animStyle,

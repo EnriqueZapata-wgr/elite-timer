@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useKeepAwake } from 'expo-keep-awake';
 
 import { CircularTimer } from '@/components/circular-timer';
@@ -27,7 +28,6 @@ const STEP_COLORS: Record<string, string> = {
 
 const REST_BETWEEN_COLOR = '#888888';
 
-/** Color del anillo según tipo y si es rest_between */
 function getStepColor(step: ExecutionStep | null): string {
   if (!step) return Colors.neonGreen;
   if (step.isRestBetween) return REST_BETWEEN_COLOR;
@@ -39,6 +39,17 @@ const STEP_LABELS: Record<string, string> = {
   rest: 'DESCANSO',
   prep: 'PREPARACIÓN',
 };
+
+// Gradientes oscuros por tipo
+function getStepGradient(step: ExecutionStep | null): readonly [string, string] {
+  if (!step || step.isRestBetween) return ['#1a1a1a', '#111111'];
+  switch (step.type) {
+    case 'work': return ['#1a2a1a', '#0a1a0a'];
+    case 'rest': return ['#0a1a2a', '#0a0a1a'];
+    case 'prep': return ['#2a1f0a', '#1a1a0a'];
+    default: return ['#1a1a1a', '#111111'];
+  }
+}
 
 // === PANTALLA PRINCIPAL ===
 
@@ -76,8 +87,6 @@ export default function ExecutionScreen() {
 
 function ExecutionContent({ routine }: { routine: EngineRoutine }) {
   const router = useRouter();
-
-  // Mantener pantalla encendida mientras el timer está activo
   useKeepAwake();
 
   const {
@@ -102,8 +111,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
   } = useRoutineEngine(routine);
 
   // === SISTEMA DE LOGGING DE EJERCICIOS ===
-
-  // Tracking de sets por ejercicio durante la ejecución
   const [setLogVisible, setSetLogVisible] = useState(false);
   const [pendingExercise, setPendingExercise] = useState<{
     exerciseId: string;
@@ -111,16 +118,11 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     blockId: string;
     setNumber: number;
   } | null>(null);
-  // Contador de sets por exercise_id (acumulativo en la misma ejecución)
   const setCounters = useRef<Map<string, number>>(new Map());
-  // Logs registrados durante esta ejecución
   const [sessionLogs, setSessionLogs] = useState<ExerciseLog[]>([]);
-  // Step anterior para detectar transiciones
   const prevStepRef = useRef<ExecutionStep | null>(null);
-  // Flag para evitar doble-trigger
   const logShownForStep = useRef<number>(-1);
 
-  // Helper para mostrar el modal de log para un step que acaba de terminar
   const showLogForStep = useCallback((step: ExecutionStep) => {
     if (logShownForStep.current === step.stepIndex) return;
     logShownForStep.current = step.stepIndex;
@@ -137,7 +139,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     setSetLogVisible(true);
   }, []);
 
-  // Detectar cuando un step de work con ejercicio termina (transición a otro step)
   useEffect(() => {
     const prev = prevStepRef.current;
     prevStepRef.current = currentStep;
@@ -154,7 +155,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     }
   }, [currentStep, pause, showLogForStep]);
 
-  // Detectar cuando la rutina completa y el último step tenía ejercicio
   useEffect(() => {
     if (engineState === 'completed') {
       const prev = prevStepRef.current;
@@ -164,7 +164,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     }
   }, [engineState, showLogForStep]);
 
-  // Guardar un set
   const handleSaveSet = useCallback(async (data: {
     reps: number;
     weight_kg: number | null;
@@ -182,7 +181,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         set_number: pendingExercise.setNumber,
       });
 
-      // Agregar al log local de la sesión
       setSessionLogs(prev => [...prev, {
         id: `local-${Date.now()}`,
         exercise_id: pendingExercise.exerciseId,
@@ -200,18 +198,15 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
     setSetLogVisible(false);
     setPendingExercise(null);
-    // Continuar con el siguiente step
     play();
   }, [pendingExercise, play]);
 
-  // Saltar registro de set
   const handleSkipSet = useCallback(() => {
     setSetLogVisible(false);
     setPendingExercise(null);
     play();
   }, [play]);
 
-  // Generar resumen de ejercicios para la pantalla completada
   const exerciseSummaries = useMemo((): ExerciseSummary[] => {
     if (sessionLogs.length === 0) return [];
 
@@ -239,7 +234,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         max_weight: maxWeight,
         total_volume: totalVolume > 0 ? totalVolume : null,
         logs,
-        new_pr: false, // Se detectará por el trigger de la DB
+        new_pr: false,
       };
     });
   }, [sessionLogs]);
@@ -268,29 +263,29 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
             {routine.name}
           </EliteText>
 
-          {/* Stats grid — 2 filas × 2 columnas */}
+          {/* Stats grid */}
           <View style={styles.statsGrid}>
-            <View style={styles.statCard}>
+            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>TIEMPO TOTAL</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {formatTime(stats.actualDurationSeconds)}
               </EliteText>
-            </View>
-            <View style={styles.statCard}>
+            </LinearGradient>
+            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>TRABAJO</EliteText>
               <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.work }]}>
                 {formatTimeHuman(stats.workSeconds)}
               </EliteText>
               <EliteText variant="caption" style={styles.statRatio}>{workRatio}%</EliteText>
-            </View>
-            <View style={styles.statCard}>
+            </LinearGradient>
+            <LinearGradient colors={['#0a1a2a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>DESCANSO</EliteText>
               <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.rest }]}>
                 {formatTimeHuman(stats.restSeconds)}
               </EliteText>
               <EliteText variant="caption" style={styles.statRatio}>{restRatio}%</EliteText>
-            </View>
-            <View style={styles.statCard}>
+            </LinearGradient>
+            <LinearGradient colors={['#1a1a1a', '#111111']} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>STEPS</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {stats.stepsCompleted}
@@ -300,17 +295,21 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
                   {stats.stepsSkipped} saltados
                 </EliteText>
               )}
-            </View>
+            </LinearGradient>
           </View>
 
-          {/* Resumen de ejercicios registrados */}
+          {/* Resumen de ejercicios */}
           {exerciseSummaries.length > 0 && (
             <View style={styles.exerciseSummarySection}>
               <EliteText variant="label" style={styles.exerciseSummaryTitle}>
                 EJERCICIOS REGISTRADOS
               </EliteText>
               {exerciseSummaries.map((summary) => (
-                <View key={summary.exercise_id} style={styles.exerciseSummaryCard}>
+                <LinearGradient
+                  key={summary.exercise_id}
+                  colors={['#1a2a1a', '#111111']}
+                  style={styles.exerciseSummaryCard}
+                >
                   <View style={styles.exerciseSummaryHeader}>
                     <Ionicons name="barbell-outline" size={16} color={Colors.neonGreen} />
                     <EliteText variant="body" style={styles.exerciseSummaryName} numberOfLines={1}>
@@ -349,7 +348,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
                       </>
                     )}
                   </View>
-                  {/* Detalle set por set */}
                   {summary.logs.map((log) => (
                     <View key={log.id} style={styles.setDetail}>
                       <EliteText variant="caption" style={styles.setDetailNumber}>
@@ -362,7 +360,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
                       </EliteText>
                     </View>
                   ))}
-                </View>
+                </LinearGradient>
               ))}
             </View>
           )}
@@ -378,44 +376,64 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
   // === PANTALLA DE EJECUCIÓN ===
 
+  const heroGradient = getStepGradient(currentStep);
+
   return (
     <SafeAreaView style={styles.screen}>
-      {/* Botón regreso */}
-      <Pressable onPress={() => router.back()} style={styles.backButton}>
-        <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-      </Pressable>
+      {/* ── Hero Bar ── */}
+      <LinearGradient colors={heroGradient} style={styles.heroBar}>
+        {/* Borde izquierdo */}
+        <View style={[styles.heroBarAccent, { backgroundColor: stepColor }]} />
 
-      {/* Nombre de la rutina */}
-      <EliteText variant="title" style={styles.routineName}>
-        {routine.name}
-      </EliteText>
+        <Pressable onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color={Colors.neonGreen} />
+        </Pressable>
 
-      {/* Tiempo transcurrido · restante */}
-      <EliteText variant="caption" style={styles.timeInfo}>
-        Transcurrido {formatTime(elapsedSeconds)} · Restante {formatTime(totalRemainingSeconds)}
-      </EliteText>
+        <View style={styles.heroBarContent}>
+          <EliteText variant="body" style={styles.heroBarName} numberOfLines={1}>
+            {routine.name}
+          </EliteText>
+          <View style={styles.heroBarRight}>
+            <EliteText variant="caption" style={styles.heroBarTime}>
+              {formatTime(elapsedSeconds)} / {formatTime(elapsedSeconds + totalRemainingSeconds)}
+            </EliteText>
+            {/* Mini progress */}
+            <View style={styles.miniProgressBar}>
+              <View style={[styles.miniProgressFill, { width: `${totalProgress * 100}%`, backgroundColor: stepColor }]} />
+            </View>
+          </View>
+        </View>
 
-      {/* Contexto de rondas — pills por nivel */}
-      {currentStep && currentStep.context.rounds.length > 0 && (
-        <RoundsPills rounds={currentStep.context.rounds} />
-      )}
+        {/* Context pills */}
+        {currentStep && currentStep.context.rounds.length > 0 && (
+          <View style={styles.contextPills}>
+            {currentStep.context.rounds.map((r, i) => {
+              const pillColor = LEVEL_COLORS[i % LEVEL_COLORS.length];
+              return (
+                <View key={i} style={[styles.contextPill, { backgroundColor: pillColor + '15', borderColor: pillColor + '30' }]}>
+                  <EliteText variant="caption" style={[styles.contextPillText, { color: pillColor }]}>
+                    {r.label} {r.current}/{r.total}
+                  </EliteText>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </LinearGradient>
 
-      {/* Tipo de step + label prominente */}
+      {/* ── Step Info ── */}
       <View style={styles.stepInfo}>
-        {/* Dot de color + tipo */}
         <View style={styles.stepTypeRow}>
           <View style={[styles.stepDot, { backgroundColor: stepColor }]} />
           <EliteText variant="label" style={[styles.stepTypeLabel, { color: stepColor }]}>
             {currentStep?.isRestBetween ? 'DESCANSO ENTRE RONDAS' : STEP_LABELS[currentStep?.type ?? 'work']}
           </EliteText>
         </View>
-        {/* Label del step — prominente */}
         {currentStep && !currentStep.isRestBetween && (
           <EliteText variant="subtitle" style={styles.stepName}>
             {currentStep.label}
           </EliteText>
         )}
-        {/* Nombre del ejercicio si está asignado y es diferente del label */}
         {currentStep && currentStep.exerciseName && currentStep.exerciseName !== currentStep.label && (
           <View style={styles.exerciseIndicator}>
             <Ionicons name="barbell-outline" size={12} color={Colors.neonGreen} />
@@ -426,7 +444,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         )}
       </View>
 
-      {/* Circular Timer — se vacía conforme pasa el tiempo */}
+      {/* ── Timer Circular ── */}
       <View style={[styles.timerWrapper, {
         shadowColor: isCountdown ? '#E24B4A' : stepColor,
         shadowOffset: { width: 0, height: 0 },
@@ -434,6 +452,8 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         shadowRadius: 20,
         elevation: 10,
       }]}>
+        {/* Aura sutil detrás */}
+        <View style={[styles.timerAura, { backgroundColor: (isCountdown ? '#E24B4A' : stepColor) + '08' }]} />
         <CircularTimer
           timeLeft={remainingSeconds}
           progress={1 - stepProgress}
@@ -441,61 +461,90 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         />
       </View>
 
-      {/* Preview: Siguiente + Después */}
+      {/* ── Stats Row — 3 mini cards ── */}
+      <View style={styles.statsRow}>
+        <LinearGradient colors={['#1a1a1a', '#111111']} style={styles.miniStatCard}>
+          <EliteText variant="caption" style={styles.miniStatLabel}>PASO</EliteText>
+          <EliteText variant="body" style={styles.miniStatValue}>
+            {currentStepNumber}/{totalSteps}
+          </EliteText>
+          <View style={styles.miniStatProgress}>
+            <View style={[styles.miniStatProgressFill, { width: `${(currentStepNumber / totalSteps) * 100}%` }]} />
+          </View>
+        </LinearGradient>
+
+        <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.miniStatCard}>
+          <EliteText variant="caption" style={styles.miniStatLabel}>TRABAJO</EliteText>
+          <EliteText variant="body" style={[styles.miniStatValue, { color: STEP_COLORS.work }]}>
+            {routineStats ? formatTimeHuman(routineStats.workSeconds) : '0s'}
+          </EliteText>
+        </LinearGradient>
+
+        <LinearGradient colors={['#0a1a2a', '#111111']} style={styles.miniStatCard}>
+          <EliteText variant="caption" style={styles.miniStatLabel}>DESCANSO</EliteText>
+          <EliteText variant="body" style={[styles.miniStatValue, { color: STEP_COLORS.rest }]}>
+            {routineStats ? formatTimeHuman(routineStats.restSeconds) : '0s'}
+          </EliteText>
+        </LinearGradient>
+      </View>
+
+      {/* ── Preview: Siguiente + Después ── */}
       <View style={styles.previewContainer}>
         <StepPreviewRow label="SIGUIENTE" step={nextStep} isLast={!nextStep && currentStep !== null} />
         {stepAfterNext && <StepPreviewRow label="DESPUÉS" step={stepAfterNext} />}
       </View>
 
-      {/* Controles horizontales: ↺  ▶/⏸  ⏭ */}
-      <View style={styles.controlsRow}>
-        {/* Reiniciar step */}
-        <Pressable
-          onPress={restartStep}
-          style={({ pressed }) => [styles.controlSecondary, pressed && styles.controlPressed]}
-          disabled={engineState === 'idle'}
-        >
-          <Ionicons
-            name="refresh"
-            size={24}
-            color={engineState === 'idle' ? Colors.disabled : Colors.neonGreen}
-          />
-        </Pressable>
+      {/* ── Controles ── */}
+      <LinearGradient colors={['transparent', '#0a0a0a']} style={styles.controlsContainer}>
+        <View style={styles.controlsRow}>
+          <Pressable
+            onPress={restartStep}
+            style={({ pressed }) => [styles.controlSecondary, pressed && styles.controlPressed]}
+            disabled={engineState === 'idle'}
+          >
+            <Ionicons
+              name="refresh"
+              size={24}
+              color={engineState === 'idle' ? Colors.disabled : Colors.textSecondary}
+            />
+          </Pressable>
 
-        {/* Play / Pausa — botón principal */}
-        <Pressable
-          onPress={engineState === 'running' ? pause : play}
-          style={({ pressed }) => [styles.controlPrimary, pressed && styles.controlPressed]}
-        >
-          <Ionicons
-            name={engineState === 'running' ? 'pause' : 'play'}
-            size={32}
-            color={Colors.textOnGreen}
-          />
-        </Pressable>
+          <Pressable
+            onPress={engineState === 'running' ? pause : play}
+            style={({ pressed }) => [styles.controlPrimary, pressed && styles.controlPressed, {
+              shadowColor: Colors.neonGreen,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 15,
+            }]}
+          >
+            <Ionicons
+              name={engineState === 'running' ? 'pause' : 'play'}
+              size={32}
+              color={Colors.textOnGreen}
+            />
+          </Pressable>
 
-        {/* Skip */}
-        <Pressable
-          onPress={skip}
-          style={({ pressed }) => [styles.controlSecondary, pressed && styles.controlPressed]}
-          disabled={engineState === 'idle'}
-        >
-          <Ionicons
-            name="play-skip-forward"
-            size={24}
-            color={engineState === 'idle' ? Colors.disabled : Colors.neonGreen}
-          />
-        </Pressable>
-      </View>
-
-      {/* Barra de progreso total */}
-      <View style={styles.progressRow}>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${totalProgress * 100}%` }]} />
+          <Pressable
+            onPress={skip}
+            style={({ pressed }) => [styles.controlSecondary, pressed && styles.controlPressed]}
+            disabled={engineState === 'idle'}
+          >
+            <Ionicons
+              name="play-skip-forward"
+              size={24}
+              color={engineState === 'idle' ? Colors.disabled : Colors.textSecondary}
+            />
+          </Pressable>
         </View>
-      </View>
 
-      {/* Modal de registro de set */}
+        {/* Barra de progreso total */}
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${totalProgress * 100}%`, backgroundColor: stepColor }]} />
+        </View>
+      </LinearGradient>
+
+      {/* Modal de registro */}
       <SetLogModal
         visible={setLogVisible}
         exerciseName={pendingExercise?.exerciseName ?? ''}
@@ -509,7 +558,6 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
 // === COMPONENTES AUXILIARES ===
 
-/** Fila de preview: Siguiente / Después */
 function StepPreviewRow({
   label,
   step,
@@ -534,9 +582,10 @@ function StepPreviewRow({
 
   const color = getStepColor(step);
   const displayLabel = step.isRestBetween ? 'Descanso entre rondas' : step.label;
+  const previewGrad = getStepGradient(step);
 
   return (
-    <View style={styles.previewRow}>
+    <LinearGradient colors={previewGrad} style={styles.previewCard}>
       <EliteText variant="caption" style={styles.previewLabel}>{label}</EliteText>
       <View style={styles.previewContent}>
         <View style={[styles.previewDot, { backgroundColor: color }]} />
@@ -551,37 +600,11 @@ function StepPreviewRow({
           {formatTime(step.durationSeconds)}
         </EliteText>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
-/** Colores por profundidad de nivel (del más externo al más interno) */
 const LEVEL_COLORS = ['#9B59B6', '#a8e02a', '#EF9F27', '#5B9BD5', '#E24B4A', '#1ABC9C'];
-
-/** Pills apilados con el contexto de rondas */
-function RoundsPills({ rounds }: { rounds: ExecutionStep['context']['rounds'] }) {
-  // Si solo 1 nivel → fila horizontal. Si >1 → cada uno en su línea.
-  const isMulti = rounds.length > 1;
-
-  return (
-    <View style={[styles.roundsPills, isMulti && styles.roundsPillsColumn]}>
-      {rounds.map((r, i) => {
-        const color = LEVEL_COLORS[i % LEVEL_COLORS.length];
-        return (
-          <View key={i} style={styles.roundPill}>
-            <View style={[styles.roundPillDot, { backgroundColor: color }]} />
-            <EliteText variant="caption" style={styles.roundPillLabel} numberOfLines={1}>
-              {r.label}
-            </EliteText>
-            <EliteText variant="caption" style={[styles.roundPillCount, { color }]}>
-              {r.current} de {r.total}
-            </EliteText>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
 
 // === ESTILOS ===
 
@@ -590,70 +613,86 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.black,
     alignItems: 'center',
-    paddingHorizontal: Spacing.md,
   },
   centered: {
     justifyContent: 'center',
+    paddingHorizontal: Spacing.md,
+  },
+
+  // ── Hero Bar ──
+  heroBar: {
+    width: '100%',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderBottomLeftRadius: Radius.sm,
+    borderBottomRightRadius: Radius.sm,
+    overflow: 'hidden',
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  heroBarAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
   },
   backButton: {
-    position: 'absolute',
-    top: Spacing.xxl,
-    left: Spacing.md,
-    zIndex: 10,
-    padding: Spacing.sm,
+    padding: Spacing.xs,
+    marginRight: Spacing.xs,
   },
-
-  // --- Zona superior ---
-  routineName: {
-    marginTop: Spacing.xxl,
-    fontSize: FontSizes.lg,
-    letterSpacing: 4,
+  heroBarContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  timeInfo: {
+  heroBarName: {
+    fontFamily: Fonts.bold,
+    color: Colors.neonGreen,
+    fontSize: 15,
+    flex: 1,
+  },
+  heroBarRight: {
+    alignItems: 'flex-end',
+    marginLeft: Spacing.sm,
+  },
+  heroBarTime: {
     color: Colors.textSecondary,
-    marginTop: Spacing.xs,
     fontVariant: ['tabular-nums'],
-    letterSpacing: 0.5,
+    fontSize: 12,
   },
-  roundsPills: {
+  miniProgressBar: {
+    width: 60,
+    height: 2,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 1,
+    marginTop: 3,
+  },
+  miniProgressFill: {
+    height: '100%',
+    borderRadius: 1,
+  },
+  contextPills: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
     gap: Spacing.xs,
-    marginTop: Spacing.sm,
+    width: '100%',
+    paddingLeft: Spacing.xl,
+    marginTop: Spacing.xs,
   },
-  roundsPillsColumn: {
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  roundPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.surface,
+  contextPill: {
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: 2,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: Colors.surfaceLight,
   },
-  roundPillDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  roundPillLabel: {
-    color: Colors.textSecondary,
+  contextPillText: {
     fontSize: 11,
-    maxWidth: 120,
-  },
-  roundPillCount: {
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    fontVariant: ['tabular-nums'] as const,
+    fontFamily: Fonts.semiBold,
   },
 
-  // --- Step info ---
+  // ── Step Info ──
   stepInfo: {
     alignItems: 'center',
     marginTop: Spacing.md,
@@ -670,31 +709,91 @@ const styles = StyleSheet.create({
   },
   stepTypeLabel: {
     letterSpacing: 2,
-    fontSize: 13,
+    fontSize: 12,
   },
   stepName: {
     color: Colors.textPrimary,
     marginTop: Spacing.xs,
     fontSize: FontSizes.xl,
     fontFamily: Fonts.bold,
+    textAlign: 'center',
+    paddingHorizontal: Spacing.md,
   },
 
-  // --- Timer ---
+  // ── Timer ──
   timerWrapper: {
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
     marginBottom: Spacing.xs,
   },
+  timerAura: {
+    position: 'absolute',
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+    top: -20,
+    left: -20,
+  },
 
-  // --- Preview siguiente/después ---
+  // ── Stats Row ──
+  statsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  miniStatCard: {
+    flex: 1,
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
+  },
+  miniStatLabel: {
+    color: Colors.textSecondary,
+    fontSize: 9,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  miniStatValue: {
+    fontFamily: Fonts.bold,
+    fontSize: 14,
+    color: Colors.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  miniStatProgress: {
+    width: '100%',
+    height: 2,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 1,
+    marginTop: 4,
+  },
+  miniStatProgressFill: {
+    height: '100%',
+    backgroundColor: Colors.neonGreen,
+    borderRadius: 1,
+  },
+
+  // ── Preview ──
   previewContainer: {
     width: '100%',
-    paddingHorizontal: Spacing.sm,
-    gap: 2,
+    paddingHorizontal: Spacing.md,
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
   previewRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
   },
   previewLabel: {
     color: Colors.textSecondary,
@@ -727,12 +826,20 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
-  // --- Controles horizontales ---
+  // ── Controles ──
+  controlsContainer: {
+    width: '100%',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.md,
+    marginTop: 'auto',
+  },
   controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: Spacing.lg,
-    marginTop: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   controlPrimary: {
     width: 64,
@@ -754,12 +861,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
 
-  // --- Progreso ---
-  progressRow: {
-    width: '100%',
-    paddingHorizontal: Spacing.md,
-    marginTop: Spacing.lg,
-  },
+  // ── Progreso ──
   progressBar: {
     width: '100%',
     height: 3,
@@ -768,11 +870,10 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.neonGreen,
     borderRadius: 2,
   },
 
-  // --- Indicador de ejercicio en ejecución ---
+  // ── Ejercicio en ejecución ──
   exerciseIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -785,7 +886,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // --- Pantalla completada ---
+  // ── Pantalla completada ──
   completedScroll: {
     alignItems: 'center',
     paddingBottom: Spacing.xl,
@@ -807,13 +908,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
   },
   statCard: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     padding: Spacing.md,
     alignItems: 'center',
     width: '47%',
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
   statLabel: {
     color: Colors.textSecondary,
@@ -838,7 +938,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // --- Resumen de ejercicios ---
+  // ── Resumen de ejercicios ──
   exerciseSummarySection: {
     width: '100%',
     paddingHorizontal: Spacing.md,
@@ -850,12 +950,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   exerciseSummaryCard: {
-    backgroundColor: Colors.surface,
     borderRadius: Radius.sm,
     padding: Spacing.sm,
     marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
   exerciseSummaryHeader: {
     flexDirection: 'row',

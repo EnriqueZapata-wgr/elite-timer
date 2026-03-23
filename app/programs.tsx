@@ -1,21 +1,18 @@
 /**
- * Pantalla Mis Programas — Lista de rutinas del usuario (formato engine).
- *
- * Muestra rutinas guardadas con stats en vivo, botón FAB para crear nuevas,
- * y acciones de ejecutar, editar y eliminar en cada rutina.
- *
- * También mantiene compatibilidad con las rutinas legacy del ProgramsContext.
+ * Mis Rutinas — Lista con hero card de resumen, filtros por modo,
+ * cards con gradientes funcionales y FAB flotante.
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInRight } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { EmptyState } from '@/components/empty-state';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { flattenRoutine, calcRoutineStats, formatTimeHuman } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
 import type { RoutineCalcStats } from '@/src/engine/helpers';
@@ -26,13 +23,15 @@ import {
   generateUUID,
 } from '@/src/services/routine-service';
 
+type FilterMode = 'all' | 'timer' | 'routine';
+
 export default function ProgramsScreen() {
   const router = useRouter();
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterMode>('all');
 
-  // Recargar al volver a la pantalla (por si se guardó algo en el builder)
   useFocusEffect(
     useCallback(() => {
       loadRoutines();
@@ -51,7 +50,6 @@ export default function ProgramsScreen() {
     }
   };
 
-  /** Calcular stats de una rutina (con cache implícito via render) */
   const getStats = (routine: Routine): RoutineCalcStats | null => {
     try {
       const steps = flattenRoutine(routine);
@@ -61,7 +59,6 @@ export default function ProgramsScreen() {
     }
   };
 
-  /** Ejecutar rutina — rutar según modo */
   const playRoutine = (routine: Routine) => {
     const target = routine.mode === 'routine' ? '/routine-execution' : '/execution';
     router.push({
@@ -70,7 +67,6 @@ export default function ProgramsScreen() {
     });
   };
 
-  /** Abrir builder para editar */
   const editRoutine = (routine: Routine) => {
     router.push({
       pathname: '/builder',
@@ -78,7 +74,6 @@ export default function ProgramsScreen() {
     });
   };
 
-  /** Eliminar con confirmación */
   const handleDelete = (routine: Routine) => {
     Alert.alert(
       'Eliminar rutina',
@@ -101,12 +96,9 @@ export default function ProgramsScreen() {
     );
   };
 
-  /** Duplicar rutina con nuevos IDs */
   const handleDuplicate = async (routine: Routine) => {
     try {
-      // Mapa de IDs viejos → nuevos para mantener relaciones parent/child
       const idMap = new Map<string, string>();
-
       const cloneBlocks = (blocks: Routine['blocks']): Routine['blocks'] =>
         blocks.map(block => {
           const newId = generateUUID();
@@ -135,7 +127,6 @@ export default function ProgramsScreen() {
     }
   };
 
-  /** Contar ejercicios (work blocks con exercise_id) recursivamente */
   const countExercises = (routine: Routine): number => {
     let count = 0;
     const walk = (blocks: Routine['blocks']) => {
@@ -148,7 +139,6 @@ export default function ProgramsScreen() {
     return count;
   };
 
-  /** Generar texto de stats legible */
   const getStatsLabel = (routine: Routine, stats: RoutineCalcStats | null): string => {
     if (!stats) return '';
     const time = stats.formattedTotal;
@@ -159,11 +149,19 @@ export default function ProgramsScreen() {
     return time;
   };
 
+  // Rutinas filtradas
+  const filtered = routines.filter(r => {
+    if (filter === 'all') return true;
+    return r.mode === filter;
+  });
+
+  const timerCount = routines.filter(r => r.mode === 'timer').length;
+  const routineCount = routines.filter(r => r.mode === 'routine').length;
   const hasContent = routines.length > 0;
 
   return (
     <ScreenContainer centered={false}>
-      {/* Encabezado */}
+      {/* ── Header ── */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
@@ -191,69 +189,158 @@ export default function ProgramsScreen() {
         />
       ) : (
         <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-          {routines.map((routine, index) => {
+          {/* ── Hero Summary Card ── */}
+          <Animated.View entering={FadeInUp.delay(50).springify()}>
+            <LinearGradient colors={['#1a2a1a', '#0a1a0a']} style={styles.summaryCard}>
+              <View style={styles.summaryAccent} />
+              <EliteText style={styles.summaryWatermark}>⚡</EliteText>
+              <EliteText variant="subtitle" style={styles.summaryTitle}>
+                MIS RUTINAS
+              </EliteText>
+              <EliteText variant="caption" style={styles.summaryStats}>
+                {routines.length} rutinas · {timerCount} timers · {routineCount} rutinas
+              </EliteText>
+            </LinearGradient>
+          </Animated.View>
+
+          {/* ── Filter Pills ── */}
+          <Animated.View entering={FadeInUp.delay(100).springify()}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              <Pressable
+                onPress={() => setFilter('all')}
+                style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
+              >
+                <EliteText variant="caption" style={[
+                  styles.filterPillText,
+                  filter === 'all' && styles.filterPillTextActive,
+                ]}>
+                  Todas
+                </EliteText>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setFilter('timer')}
+                style={[
+                  styles.filterPill,
+                  filter === 'timer' && [styles.filterPillActive, { borderColor: Colors.neonGreen, backgroundColor: Colors.neonGreen + '15' }],
+                ]}
+              >
+                <View style={[styles.filterDot, { backgroundColor: Colors.neonGreen }]} />
+                <EliteText variant="caption" style={[
+                  styles.filterPillText,
+                  filter === 'timer' && { color: Colors.neonGreen },
+                ]}>
+                  Timers
+                </EliteText>
+              </Pressable>
+
+              <Pressable
+                onPress={() => setFilter('routine')}
+                style={[
+                  styles.filterPill,
+                  filter === 'routine' && [styles.filterPillActive, { borderColor: '#7F77DD', backgroundColor: '#7F77DD' + '15' }],
+                ]}
+              >
+                <View style={[styles.filterDot, { backgroundColor: '#7F77DD' }]} />
+                <EliteText variant="caption" style={[
+                  styles.filterPillText,
+                  filter === 'routine' && { color: '#7F77DD' },
+                ]}>
+                  Rutinas
+                </EliteText>
+              </Pressable>
+            </ScrollView>
+          </Animated.View>
+
+          {/* ── Cards de Rutina ── */}
+          {filtered.map((routine, index) => {
             const stats = getStats(routine);
             const statsLabel = getStatsLabel(routine, stats);
-            const modeIcon = routine.mode === 'routine' ? 'barbell-outline' : 'timer-outline';
+            const isTimer = routine.mode === 'timer';
+            const gradColors: readonly [string, string] = isTimer
+              ? ['#1a2a1a', '#0a1a0a']
+              : ['#1a1a2a', '#0a0a1a'];
+            const accentColor = isTimer ? Colors.neonGreen : '#7F77DD';
+            const modeLabel = isTimer ? 'TIMER' : 'RUTINA';
 
             return (
-              <Animated.View key={routine.id} entering={FadeInRight.delay(index * 80).springify()}>
-              <AnimatedPressable
-                onPress={() => playRoutine(routine)}
-                style={styles.card}
-              >
-                {/* Badge de modo */}
-                <Ionicons name={modeIcon as any} size={20} color={Colors.textSecondary} style={styles.modeIcon} />
+              <Animated.View key={routine.id} entering={FadeInRight.delay(index * 60).springify()}>
+                <AnimatedPressable
+                  onPress={() => playRoutine(routine)}
+                  style={styles.card}
+                >
+                  <LinearGradient colors={gradColors} style={styles.cardGradient}>
+                    {/* Borde izquierdo */}
+                    <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
 
-                {/* Info principal */}
-                <View style={styles.cardContent}>
-                  <EliteText variant="subtitle" style={styles.cardTitle} numberOfLines={2}>
-                    {routine.name}
-                  </EliteText>
+                    {/* Badge de modo */}
+                    <View style={[styles.modeBadge, { backgroundColor: accentColor + '20', borderColor: accentColor + '40' }]}>
+                      <EliteText variant="caption" style={[styles.modeBadgeText, { color: accentColor }]}>
+                        {modeLabel}
+                      </EliteText>
+                    </View>
 
-                  {/* Stats legibles */}
-                  {statsLabel ? (
-                    <EliteText variant="caption" style={styles.statText}>
-                      {statsLabel}
-                    </EliteText>
-                  ) : null}
-                </View>
+                    {/* Menú ⋮ */}
+                    <Pressable
+                      onPress={() => {
+                        Alert.alert(routine.name, '', [
+                          { text: 'Editar', onPress: () => editRoutine(routine) },
+                          { text: 'Copiar', onPress: () => handleDuplicate(routine) },
+                          { text: 'Eliminar', style: 'destructive', onPress: () => handleDelete(routine) },
+                          { text: 'Cancelar', style: 'cancel' },
+                        ]);
+                      }}
+                      hitSlop={12}
+                      style={styles.menuBtn}
+                    >
+                      <Ionicons name="ellipsis-vertical" size={18} color={Colors.textSecondary} />
+                    </Pressable>
 
-                {/* Acciones: menú (...) + Play */}
-                <View style={styles.cardActions}>
-                  <Pressable
-                    onPress={() => {
-                      Alert.alert(routine.name, '', [
-                        { text: 'Editar', onPress: () => editRoutine(routine) },
-                        { text: 'Copiar', onPress: () => handleDuplicate(routine) },
-                        { text: 'Eliminar', style: 'destructive', onPress: () => handleDelete(routine) },
-                        { text: 'Cancelar', style: 'cancel' },
-                      ]);
-                    }}
-                    hitSlop={8}
-                    style={styles.actionBtn}
-                  >
-                    <Ionicons name="ellipsis-vertical" size={20} color={Colors.textSecondary} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => playRoutine(routine)}
-                    hitSlop={8}
-                    style={styles.playBtn}
-                  >
-                    <Ionicons name="play-circle" size={40} color={Colors.neonGreen} />
-                  </Pressable>
-                </View>
-              </AnimatedPressable>
+                    {/* Contenido */}
+                    <View style={styles.cardBody}>
+                      <EliteText variant="subtitle" style={styles.cardTitle} numberOfLines={2}>
+                        {routine.name}
+                      </EliteText>
+                      {statsLabel ? (
+                        <EliteText variant="caption" style={styles.cardStats}>
+                          {statsLabel}
+                        </EliteText>
+                      ) : null}
+                      <EliteText variant="caption" style={styles.cardLastUsed}>
+                        Última vez: Nunca
+                      </EliteText>
+                    </View>
+
+                    {/* Botón play */}
+                    <Pressable
+                      onPress={() => playRoutine(routine)}
+                      hitSlop={8}
+                      style={[styles.playBtn, {
+                        shadowColor: accentColor,
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                      }]}
+                    >
+                      <View style={[styles.playBtnCircle, { backgroundColor: accentColor }]}>
+                        <Ionicons name="play" size={22} color={Colors.black} />
+                      </View>
+                    </Pressable>
+                  </LinearGradient>
+                </AnimatedPressable>
               </Animated.View>
             );
           })}
 
-          {/* Padding inferior */}
           <View style={{ height: 80 }} />
         </ScrollView>
       )}
 
-      {/* FAB — Botón flotante crear nueva rutina */}
+      {/* ── FAB ── */}
       <Pressable
         onPress={() => router.push('/builder')}
         style={({ pressed }) => [styles.fab, pressed && { opacity: 0.7 }]}
@@ -269,7 +356,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: Spacing.md,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.md,
     gap: Spacing.sm,
   },
   backButton: {
@@ -284,49 +371,152 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // --- Card de rutina ---
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderRadius: 16,
+  // ── Summary Card ──
+  summaryCard: {
+    borderRadius: Radius.md,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
+    paddingLeft: Spacing.md + 6,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#2A2A2A',
+    borderColor: '#2a3a2a',
   },
-  cardPressed: {
-    opacity: 0.85,
-    borderColor: Colors.neonGreen,
+  summaryAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: Colors.neonGreen,
+    borderTopLeftRadius: Radius.md,
+    borderBottomLeftRadius: Radius.md,
   },
-  modeIcon: {
-    marginRight: Spacing.sm,
+  summaryWatermark: {
+    position: 'absolute',
+    top: -10,
+    right: -5,
+    fontSize: 70,
+    opacity: 0.06,
   },
-  cardContent: {
-    flex: 1,
+  summaryTitle: {
+    fontSize: 22,
+    fontFamily: Fonts.bold,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.xs,
   },
-  cardTitle: {
-    fontSize: 15,
-  },
-  statText: {
+  summaryStats: {
     color: Colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  actionBtn: {
-    padding: Spacing.xs,
-  },
-  playBtn: {
-    padding: Spacing.xs,
+    fontSize: 13,
   },
 
-  // --- FAB ---
+  // ── Filter pills ──
+  filterRow: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.surfaceLight,
+  },
+  filterPillActive: {
+    borderColor: Colors.neonGreen,
+    backgroundColor: Colors.neonGreen + '15',
+  },
+  filterPillText: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.semiBold,
+    fontSize: 13,
+  },
+  filterPillTextActive: {
+    color: Colors.neonGreen,
+  },
+  filterDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  // ── Routine Card ──
+  card: {
+    marginBottom: Spacing.sm,
+  },
+  cardGradient: {
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    paddingLeft: Spacing.md + 6,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cardAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    borderTopLeftRadius: Radius.md,
+    borderBottomLeftRadius: Radius.md,
+  },
+  modeBadge: {
+    position: 'absolute',
+    top: Spacing.sm,
+    left: Spacing.md + 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+  },
+  modeBadgeText: {
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
+  },
+  menuBtn: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    padding: Spacing.xs,
+  },
+  cardBody: {
+    flex: 1,
+    paddingTop: Spacing.lg,
+  },
+  cardTitle: {
+    fontSize: 18,
+    color: Colors.textPrimary,
+    marginBottom: 4,
+  },
+  cardStats: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
+  },
+  cardLastUsed: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 4,
+    opacity: 0.7,
+  },
+  playBtn: {
+    marginLeft: Spacing.sm,
+  },
+  playBtnCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ── FAB ──
   fab: {
     position: 'absolute',
     bottom: Spacing.lg,
@@ -340,7 +530,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     shadowColor: Colors.neonGreen,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
   },
 });
