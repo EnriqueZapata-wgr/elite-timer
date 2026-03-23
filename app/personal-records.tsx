@@ -155,11 +155,19 @@ export default function PersonalRecordsScreen() {
 
   // Nivel basado en PRs
   const getLevel = (count: number): string => {
-    if (count >= 50) return 'ELITE';
-    if (count >= 30) return 'AVANZADO';
-    if (count >= 15) return 'INTERMEDIO';
+    if (count >= 26) return 'ELITE';
+    if (count >= 11) return 'AVANZADO';
+    if (count >= 4) return 'INTERMEDIO';
     return 'PRINCIPIANTE';
   };
+
+  // Percentil placeholder (consistente con nivel)
+  const percentile = Math.min(99, totalPRs * 5 + 20);
+
+  // Mayor 1RM estimado de todos los ejercicios
+  const best1RM = groupedEntries.length > 0
+    ? Math.round(Math.max(...groupedEntries.map(e => e.estimated1rm)))
+    : 0;
 
   // Agrupar por muscle_group para la UI
   const byMuscle = new Map<string, typeof groupedEntries>();
@@ -188,14 +196,24 @@ export default function PersonalRecordsScreen() {
           <View style={styles.heroAccent} />
           <EliteText style={styles.heroWatermark}>★</EliteText>
 
-          <View style={styles.heroTop}>
-            <View>
-              <EliteText variant="caption" style={styles.heroLabel}>RENDIMIENTO</EliteText>
-              <EliteText style={styles.heroLevel}>{getLevel(totalPRs)}</EliteText>
+          <EliteText variant="caption" style={styles.heroLabel}>RENDIMIENTO</EliteText>
+          <EliteText style={styles.heroLevel}>{getLevel(totalPRs)}</EliteText>
+
+          {/* Mini stats row */}
+          <View style={styles.heroMiniStats}>
+            <View style={styles.heroMiniStatItem}>
+              <EliteText style={styles.heroMiniStatValue}>{totalPRs}</EliteText>
+              <EliteText variant="caption" style={styles.heroMiniStatLabel}>PRs</EliteText>
             </View>
-            <View style={styles.heroStatsCol}>
-              <EliteText variant="caption" style={styles.heroStatValue}>{totalPRs} PRs totales</EliteText>
-              <EliteText variant="caption" style={styles.heroStatValue}>82% percentil</EliteText>
+            <View style={styles.heroMiniStatDivider} />
+            <View style={styles.heroMiniStatItem}>
+              <EliteText style={styles.heroMiniStatValue}>{percentile}%</EliteText>
+              <EliteText variant="caption" style={styles.heroMiniStatLabel}>Percentil</EliteText>
+            </View>
+            <View style={styles.heroMiniStatDivider} />
+            <View style={styles.heroMiniStatItem}>
+              <EliteText style={styles.heroMiniStatValue}>{best1RM > 0 ? `${best1RM}kg` : '—'}</EliteText>
+              <EliteText variant="caption" style={styles.heroMiniStatLabel}>1RM estimado</EliteText>
             </View>
           </View>
 
@@ -473,21 +491,42 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 3,
     fontSize: 11,
-    marginBottom: 4,
+    marginBottom: Spacing.xs,
   },
   heroLevel: {
-    fontSize: 32,
+    fontSize: 36,
     fontFamily: Fonts.extraBold,
     color: Colors.neonGreen,
-    letterSpacing: 2,
+    letterSpacing: 3,
+    textAlign: 'center',
+    alignSelf: 'center',
+    marginBottom: Spacing.md,
   },
-  heroStatsCol: {
-    alignItems: 'flex-end',
-    gap: 4,
+  heroMiniStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
   },
-  heroStatValue: {
+  heroMiniStatItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  heroMiniStatValue: {
+    fontSize: 20,
+    fontFamily: Fonts.bold,
+    color: Colors.textPrimary,
+  },
+  heroMiniStatLabel: {
     color: Colors.textSecondary,
-    fontSize: 12,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  heroMiniStatDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: '#2a2a2a',
   },
   recentPRCard: {
     borderRadius: Radius.sm,
@@ -520,7 +559,7 @@ const styles = StyleSheet.create({
   // ── Filtros ──
   filterList: {
     maxHeight: 44,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
   filterContent: {
     paddingHorizontal: Spacing.md,
