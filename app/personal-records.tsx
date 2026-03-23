@@ -558,17 +558,21 @@ const styles = StyleSheet.create({
 
   // ── Filtros ──
   filterList: {
-    maxHeight: 44,
+    height: 40,
+    minHeight: 40,
+    flexGrow: 0,
     marginBottom: Spacing.md,
   },
   filterContent: {
     paddingHorizontal: Spacing.md,
     gap: Spacing.xs,
+    alignItems: 'center',
   },
   filterPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    minWidth: 48,
     paddingHorizontal: Spacing.sm + 2,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.pill,
