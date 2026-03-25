@@ -1,9 +1,12 @@
 /**
- * Tab Layout — Navegación principal con 4 tabs:
- * HOY | Biblioteca | Progreso | Perfil
+ * Tab Layout — Navegación principal con 3 tabs:
+ * HOY | Yo | Kit
  *
  * Si el usuario es coach Y la pantalla es ancha (>1024px),
  * muestra el CoachPanelLayout en vez de las tabs normales.
+ *
+ * Las pantallas antiguas (biblioteca, progreso, perfil) siguen existiendo
+ * como archivos para no romper rutas, pero están ocultas del tab bar.
  */
 import { useState } from 'react';
 import { useWindowDimensions, View, Pressable, StyleSheet } from 'react-native';
@@ -31,7 +34,6 @@ export default function TabLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-      {/* Banner para volver al panel coach (solo en pantallas anchas cuando forzó vista de atleta) */}
       {forceAthleteView && width >= COACH_PANEL_MIN_WIDTH && isCoach && (
         <Pressable
           onPress={() => setForceAthleteView(false)}
@@ -62,6 +64,7 @@ export default function TabLayout() {
             fontSize: 11,
           },
         }}>
+        {/* ── Tabs visibles ── */}
         <Tabs.Screen
           name="index"
           options={{
@@ -72,31 +75,36 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="biblioteca"
+          name="yo"
           options={{
-            title: 'Biblioteca',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="library-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="progreso"
-          options={{
-            title: 'Progreso',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="trophy-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="perfil"
-          options={{
-            title: 'Perfil',
+            title: 'Yo',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="person-outline" size={size} color={color} />
             ),
           }}
+        />
+        <Tabs.Screen
+          name="kit"
+          options={{
+            title: 'Kit',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="grid-outline" size={size} color={color} />
+            ),
+          }}
+        />
+
+        {/* ── Tabs ocultas (siguen como rutas válidas pero no aparecen en el tab bar) ── */}
+        <Tabs.Screen
+          name="biblioteca"
+          options={{ href: null }}
+        />
+        <Tabs.Screen
+          name="progreso"
+          options={{ href: null }}
+        />
+        <Tabs.Screen
+          name="perfil"
+          options={{ href: null }}
         />
       </Tabs>
     </View>
