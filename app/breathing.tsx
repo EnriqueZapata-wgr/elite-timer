@@ -35,9 +35,26 @@ export default function BreathingScreen() {
     }
     return null;
   });
+  // Para box breathing: muestra config antes del timer
+  const [configuring, setConfiguring] = useState(false);
+
+  const handleSelect = (t: BreathingTemplate) => {
+    setSelected(t);
+    if (t.id === 'box-4') setConfiguring(true);
+  };
 
   if (!selected) {
-    return <SelectorScreen onSelect={setSelected} onBack={() => router.back()} />;
+    return <SelectorScreen onSelect={handleSelect} onBack={() => router.back()} />;
+  }
+
+  if (configuring && selected.id === 'box-4') {
+    return (
+      <BoxConfigScreen
+        template={selected}
+        onStart={(customTemplate) => { setSelected(customTemplate); setConfiguring(false); }}
+        onBack={() => { setConfiguring(false); setSelected(null); }}
+      />
+    );
   }
 
   return (
@@ -88,6 +105,102 @@ function SelectorScreen({ onSelect, onBack }: {
         ))}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// ══════════════════════════════
+// BOX BREATHING CONFIG
+// ══════════════════════════════
+
+function BoxConfigScreen({ template, onStart, onBack }: {
+  template: BreathingTemplate;
+  onStart: (t: BreathingTemplate) => void;
+  onBack: () => void;
+}) {
+  const [inhale, setInhale] = useState(4);
+  const [holdFull, setHoldFull] = useState(4);
+  const [exhale, setExhale] = useState(4);
+  const [holdEmpty, setHoldEmpty] = useState(4);
+  const [cycles, setCycles] = useState(18);
+
+  const cycleSeconds = inhale + holdFull + exhale + holdEmpty;
+  const totalSeconds = cycles * cycleSeconds;
+  const totalMin = Math.floor(totalSeconds / 60);
+  const totalSec = totalSeconds % 60;
+
+  const handleStart = () => {
+    const customTemplate: BreathingTemplate = {
+      ...template,
+      cycles,
+      durationMinutes: Math.ceil(totalSeconds / 60),
+      phases: [
+        { action: 'inhale', seconds: inhale, label: 'Inhala' },
+        { action: 'hold', seconds: holdFull, label: 'Retén' },
+        { action: 'exhale', seconds: exhale, label: 'Exhala' },
+        { action: 'hold_empty', seconds: holdEmpty, label: 'Vacío' },
+      ],
+    };
+    onStart(customTemplate);
+  };
+
+  return (
+    <SafeAreaView style={styles.screen}>
+      <Pressable onPress={onBack} style={styles.backBtn}>
+        <Ionicons name="chevron-back" size={28} color={PURPLE} />
+      </Pressable>
+
+      <View style={styles.configContainer}>
+        <EliteText style={styles.configTitle}>BOX BREATHING</EliteText>
+        <EliteText variant="caption" style={styles.configSub}>Configura cada lado de la caja</EliteText>
+
+        <View style={styles.configRows}>
+          <ConfigRow label="Inhala" value={inhale} onChange={setInhale} />
+          <ConfigRow label="Retén" value={holdFull} onChange={setHoldFull} />
+          <ConfigRow label="Exhala" value={exhale} onChange={setExhale} />
+          <ConfigRow label="Vacío" value={holdEmpty} onChange={setHoldEmpty} />
+        </View>
+
+        <View style={styles.configDivider} />
+
+        <ConfigRow label="Ciclos" value={cycles} onChange={setCycles} min={1} max={50} />
+
+        <EliteText variant="caption" style={styles.configTotal}>
+          Tiempo total: {totalMin > 0 ? `${totalMin}m ` : ''}{totalSec > 0 ? `${totalSec}s` : ''}
+          {' '}({inhale}-{holdFull}-{exhale}-{holdEmpty} × {cycles})
+        </EliteText>
+
+        <Pressable onPress={handleStart} style={styles.configStartBtn}>
+          <EliteText style={styles.configStartBtnText}>COMENZAR</EliteText>
+        </Pressable>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
+  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number;
+}) {
+  return (
+    <View style={styles.configRow}>
+      <EliteText variant="body" style={styles.configRowLabel}>{label}</EliteText>
+      <View style={styles.configStepper}>
+        <Pressable
+          onPress={() => onChange(Math.max(min, value - 1))}
+          disabled={value <= min}
+          style={[styles.configStepBtn, value <= min && { opacity: 0.3 }]}
+        >
+          <Ionicons name="remove" size={18} color={PURPLE} />
+        </Pressable>
+        <EliteText style={styles.configStepValue}>{value}<EliteText style={styles.configStepUnit}>s</EliteText></EliteText>
+        <Pressable
+          onPress={() => onChange(Math.min(max, value + 1))}
+          disabled={value >= max}
+          style={[styles.configStepBtn, value >= max && { opacity: 0.3 }]}
+        >
+          <Ionicons name="add" size={18} color={PURPLE} />
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -422,4 +535,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2,
   },
   doneBtnText: { color: PURPLE, fontFamily: Fonts.bold, letterSpacing: 2 },
+
+  // Config
+  configContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg,
+  },
+  configTitle: {
+    fontSize: 24, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 3, marginBottom: Spacing.xs,
+  },
+  configSub: { color: Colors.textSecondary, marginBottom: Spacing.xl, fontSize: 14 },
+  configRows: { width: '100%', gap: Spacing.sm },
+  configDivider: {
+    width: '100%', height: 1, backgroundColor: '#1a1a1a', marginVertical: Spacing.md,
+  },
+  configRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    width: '100%', paddingVertical: Spacing.xs,
+  },
+  configRowLabel: { fontFamily: Fonts.semiBold, fontSize: 16, color: Colors.textPrimary },
+  configStepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  configStepBtn: {
+    width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: PURPLE + '40',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  configStepValue: {
+    fontFamily: Fonts.extraBold, fontSize: 28, color: PURPLE, minWidth: 50, textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  configStepUnit: { fontSize: 16, fontFamily: Fonts.semiBold, color: Colors.textSecondary },
+  configTotal: {
+    color: Colors.textSecondary, marginTop: Spacing.lg, marginBottom: Spacing.xl, fontSize: 13,
+    fontFamily: Fonts.semiBold,
+  },
+  configStartBtn: {
+    backgroundColor: PURPLE, paddingHorizontal: Spacing.xl + Spacing.lg,
+    paddingVertical: Spacing.md, borderRadius: Radius.pill,
+    shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
+  },
+  configStartBtnText: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
 });
