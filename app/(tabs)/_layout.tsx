@@ -1,67 +1,122 @@
 /**
  * Tab Layout — Navegación principal con 4 tabs:
  * HOY | Biblioteca | Progreso | Perfil
+ *
+ * Si el usuario es coach Y la pantalla es ancha (>1024px),
+ * muestra el CoachPanelLayout en vez de las tabs normales.
  */
+import { useState } from 'react';
+import { useWindowDimensions, View, Pressable, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Fonts } from '@/constants/theme';
+import { EliteText } from '@/components/elite-text';
+import { useCoachStatus } from '@/src/hooks/useCoachStatus';
+import { CoachPanelLayout } from '@/src/screens/coach/CoachPanelLayout';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
+
+const COACH_PANEL_MIN_WIDTH = 1024;
 
 export default function TabLayout() {
+  const { width } = useWindowDimensions();
+  const { isCoach } = useCoachStatus();
+  const [forceAthleteView, setForceAthleteView] = useState(false);
+
+  const showCoachPanel = width >= COACH_PANEL_MIN_WIDTH && isCoach && !forceAthleteView;
+
+  if (showCoachPanel) {
+    return (
+      <CoachPanelLayout onSwitchToAthlete={() => setForceAthleteView(true)} />
+    );
+  }
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: Colors.neonGreen,
-        tabBarInactiveTintColor: Colors.textSecondary,
-        tabBarStyle: {
-          backgroundColor: Colors.black,
-          borderTopColor: '#1a1a1a',
-          borderTopWidth: 0.5,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 4,
-        },
-        tabBarLabelStyle: {
-          fontFamily: Fonts.semiBold,
-          fontSize: 11,
-        },
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Hoy',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="flash" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="biblioteca"
-        options={{
-          title: 'Biblioteca',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="library-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="progreso"
-        options={{
-          title: 'Progreso',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trophy-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="perfil"
-        options={{
-          title: 'Perfil',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      {/* Banner para volver al panel coach (solo en pantallas anchas cuando forzó vista de atleta) */}
+      {forceAthleteView && width >= COACH_PANEL_MIN_WIDTH && isCoach && (
+        <Pressable
+          onPress={() => setForceAthleteView(false)}
+          style={styles.coachBanner}
+        >
+          <Ionicons name="desktop-outline" size={14} color="#1D9E75" />
+          <EliteText variant="caption" style={styles.coachBannerText}>
+            Volver al Panel Coach
+          </EliteText>
+        </Pressable>
+      )}
+
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: Colors.neonGreen,
+          tabBarInactiveTintColor: Colors.textSecondary,
+          tabBarStyle: {
+            backgroundColor: Colors.black,
+            borderTopColor: '#1a1a1a',
+            borderTopWidth: 0.5,
+            height: 60,
+            paddingBottom: 8,
+            paddingTop: 4,
+          },
+          tabBarLabelStyle: {
+            fontFamily: Fonts.semiBold,
+            fontSize: 11,
+          },
+        }}>
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Hoy',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="flash" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="biblioteca"
+          options={{
+            title: 'Biblioteca',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="library-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="progreso"
+          options={{
+            title: 'Progreso',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="trophy-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="perfil"
+          options={{
+            title: 'Perfil',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="person-outline" size={size} color={color} />
+            ),
+          }}
+        />
+      </Tabs>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  coachBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: '#1D9E75' + '15',
+    paddingVertical: Spacing.xs + 2,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#1D9E75' + '30',
+  },
+  coachBannerText: {
+    color: '#1D9E75',
+    fontFamily: Fonts.semiBold,
+    fontSize: 12,
+  },
+});
