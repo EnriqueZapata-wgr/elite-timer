@@ -19,9 +19,9 @@ import {
   getTodayTimeline,
   toggleCompletion,
   getCompletionStats,
-  CATEGORY_CONFIG,
   type TimelineItem,
 } from '@/src/services/protocol-service';
+import { getCategoryColor, getCategoryLabel, getCategoryIcon } from '@/src/constants/categories';
 import { getWeeklyStats, type WeeklyStats } from '@/src/services/exercise-service';
 
 // === HELPERS ===
@@ -180,10 +180,11 @@ export default function TodayScreen() {
             {/* ── Timeline ── */}
             <View style={styles.timeline}>
               {timeline.map((item, idx) => {
-                const catConfig = CATEGORY_CONFIG[item.category] ?? { label: item.category, icon: 'ellipse-outline' };
+                const catLabel = getCategoryLabel(item.category);
+                const catIcon = getCategoryIcon(item.category);
+                const accentColor = getCategoryColor(item.category);
                 const past = isPast(item.scheduled_time);
                 const isTogglingThis = toggling === item.item_id;
-                const accentColor = item.accent_color || Colors.neonGreen;
 
                 return (
                   <Animated.View
@@ -229,9 +230,9 @@ export default function TodayScreen() {
                           <View style={styles.cardBody}>
                             <View style={styles.cardTopRow}>
                               <View style={[styles.categoryBadge, { backgroundColor: accentColor + '20' }]}>
-                                <Ionicons name={catConfig.icon as any} size={12} color={accentColor} />
+                                <Ionicons name={catIcon as any} size={12} color={accentColor} />
                                 <EliteText variant="caption" style={[styles.categoryText, { color: accentColor }]}>
-                                  {catConfig.label}
+                                  {catLabel}
                                 </EliteText>
                               </View>
                               {item.duration_minutes && (

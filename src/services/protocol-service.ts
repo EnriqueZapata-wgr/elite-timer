@@ -41,17 +41,8 @@ export interface CompletionStats {
   percentage: number;
 }
 
-// === CATEGORÍA LABELS E ICONOS ===
-
-export const CATEGORY_CONFIG: Record<string, { label: string; icon: string }> = {
-  fitness: { label: 'Fitness', icon: 'barbell-outline' },
-  nutrition: { label: 'Nutrición', icon: 'restaurant-outline' },
-  supplements: { label: 'Suplementos', icon: 'medical-outline' },
-  habits: { label: 'Hábitos', icon: 'sunny-outline' },
-  recovery: { label: 'Recuperación', icon: 'heart-outline' },
-  mind: { label: 'Mente', icon: 'brain-outline' },
-  sleep: { label: 'Sueño', icon: 'moon-outline' },
-};
+// Re-exportar helpers de categorías centralizadas
+export { getCategoryColor, getCategoryLabel, getCategoryIcon } from '@/src/constants/categories';
 
 // === QUERIES ===
 

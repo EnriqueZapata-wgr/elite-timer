@@ -16,25 +16,27 @@ import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getWeeklyStats, type WeeklyStats } from '@/src/services/exercise-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { INTERVENTION_TYPES, type InterventionType } from '@/src/constants/categories';
 
-// === CATEGORÍAS ===
+// === CATEGORÍAS (derivadas de la fuente única) ===
 
 interface Category {
-  key: string;
+  key: InterventionType;
   label: string;
   icon: string;
   color: string;
   active: boolean;
 }
 
-const CATEGORIES: Category[] = [
-  { key: 'fitness', label: 'Fitness', icon: 'barbell-outline', color: '#a8e02a', active: true },
-  { key: 'nutrition', label: 'Nutrición', icon: 'restaurant-outline', color: '#5B9BD5', active: false },
-  { key: 'mind', label: 'Mente', icon: 'sparkles-outline', color: '#7F77DD', active: false },
-  { key: 'optimization', label: 'Optimización', icon: 'flask-outline', color: '#EF9F27', active: false },
-  { key: 'metrics', label: 'Métricas', icon: 'analytics-outline', color: '#1D9E75', active: false },
-  { key: 'rest', label: 'Descanso', icon: 'moon-outline', color: '#E0E0E0', active: false },
-];
+const CATEGORIES: Category[] = (
+  ['fitness', 'nutrition', 'mind', 'optimization', 'metrics', 'rest'] as InterventionType[]
+).map(k => ({
+  key: k,
+  label: INTERVENTION_TYPES[k].label,
+  icon: INTERVENTION_TYPES[k].icon,
+  color: INTERVENTION_TYPES[k].color,
+  active: k === 'fitness',
+}));
 
 // === COMPONENTE ===
 

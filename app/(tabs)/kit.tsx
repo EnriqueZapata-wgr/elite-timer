@@ -13,7 +13,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { GradientCard } from '@/src/components/GradientCard';
+
 import { getRoutines } from '@/src/services/routine-service';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
@@ -170,9 +170,9 @@ export default function KitScreen() {
             <ToolCard
               icon="sparkles-outline"
               label="Meditación"
-              color="#5B9BD5"
-              active={false}
-              onPress={() => Alert.alert('Meditación', 'Próximamente')}
+              color="#7F77DD"
+              active
+              onPress={() => router.push('/meditation')}
             />
             <ToolCard
               icon="journal-outline"
@@ -196,21 +196,20 @@ function ToolCard({ icon, label, color, active, onPress }: {
   icon: string; label: string; color: string; active: boolean; onPress: () => void;
 }) {
   return (
-    <View style={styles.toolCard}>
-      <GradientCard
-        color={color}
-        onPress={onPress}
-        style={[styles.toolCardInner, !active && { opacity: 0.5 }]}
+    <Pressable onPress={onPress} style={styles.toolCard}>
+      <LinearGradient
+        colors={[color + '25', color + '0A', 'transparent']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.toolCardGradient, { borderColor: color + '28' }, !active && { opacity: 0.5 }]}
       >
-        <View style={styles.toolCardContent}>
-          <Ionicons name={icon as any} size={26} color={color} />
-          <EliteText variant="body" style={[styles.toolCardLabel, { color }]}>{label}</EliteText>
-          {!active && (
-            <EliteText variant="caption" style={styles.toolCardSoon}>Pronto</EliteText>
-          )}
-        </View>
-      </GradientCard>
-    </View>
+        <Ionicons name={icon as any} size={26} color={color} />
+        <EliteText variant="body" style={[styles.toolCardLabel, { color }]}>{label}</EliteText>
+        {!active && (
+          <EliteText variant="caption" style={styles.toolCardSoon}>Pronto</EliteText>
+        )}
+      </LinearGradient>
+    </Pressable>
   );
 }
 
@@ -347,14 +346,12 @@ const styles = StyleSheet.create({
     width: '48%',
     flexGrow: 1,
   },
-  toolCardInner: {
+  toolCardGradient: {
     height: 90,
-  },
-  toolCardContent: {
-    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: Spacing.md,
     gap: Spacing.xs,
   },
   toolCardLabel: {
