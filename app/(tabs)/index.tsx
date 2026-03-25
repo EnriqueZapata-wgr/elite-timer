@@ -114,7 +114,7 @@ export default function TodayScreen() {
   };
 
   // Tipos que navegan a otra pantalla (no hacen toggle)
-  const NAVIGABLE_TYPES = new Set(['routine', 'breathing', 'meditation']);
+  const NAVIGABLE_TYPES = new Set(['routine', 'breathing', 'meditation', 'emotional_checkin']);
 
   const handleItemPress = (item: TimelineItem) => {
     const lt = item.link_type;
@@ -125,6 +125,8 @@ export default function TodayScreen() {
       router.push({ pathname: '/breathing' as any, params: { protocolItemId: item.item_id } });
     } else if (lt === 'meditation') {
       router.push({ pathname: '/meditation' as any, params: { protocolItemId: item.item_id } });
+    } else if (lt === 'emotional_checkin') {
+      router.push({ pathname: '/checkin' as any, params: { protocolItemId: item.item_id } });
     } else if (lt === 'external_link' && item.link_url) {
       Linking.openURL(item.link_url).catch(() => {});
     } else if (lt === 'supplement_check') {

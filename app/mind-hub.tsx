@@ -63,8 +63,24 @@ export default function MindHubScreen() {
           </GradientCard>
         </Animated.View>
 
-        {/* Journaling (próximamente) */}
+        {/* Check-in emocional */}
         <Animated.View entering={FadeInUp.delay(200).springify()}>
+          <GradientCard color="#EFD54F" onPress={() => router.push('/checkin')} style={styles.heroCard}>
+            <View style={styles.heroCardBody}>
+              <Ionicons name="heart-circle-outline" size={28} color="#EFD54F" />
+              <View style={styles.heroCardInfo}>
+                <EliteText variant="body" style={[styles.heroCardTitle, { color: '#EFD54F' }]}>Check-in emocional</EliteText>
+                <EliteText variant="caption" style={styles.heroCardDesc}>
+                  ¿Cómo te sientes ahora? · 30 segundos
+                </EliteText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </View>
+          </GradientCard>
+        </Animated.View>
+
+        {/* Journaling (próximamente) */}
+        <Animated.View entering={FadeInUp.delay(250).springify()}>
           <View style={[styles.heroCardPlaceholder, { opacity: 0.4 }]}>
             <Ionicons name="journal-outline" size={28} color={PURPLE} />
             <View style={styles.heroCardInfo}>
