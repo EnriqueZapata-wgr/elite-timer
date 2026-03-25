@@ -9,7 +9,7 @@ import { View, StyleSheet, ScrollView, FlatList, Pressable, TextInput, ActivityI
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
-import { getClientList, type ClientSummary } from '@/src/services/coach-panel-service';
+import { getClientList, getCoachProfile, type ClientSummary } from '@/src/services/coach-panel-service';
 import { useCoachStatus } from '@/src/hooks/useCoachStatus';
 import { ClientDetailScreen } from './ClientDetailScreen';
 
@@ -26,8 +26,13 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [coachName, setCoachName] = useState('');
+  const [coachEmail, setCoachEmail] = useState('');
 
-  useEffect(() => { loadClients(); }, []);
+  useEffect(() => {
+    loadClients();
+    getCoachProfile().then(p => { setCoachName(p.full_name); setCoachEmail(p.email); }).catch(() => {});
+  }, []);
 
   const loadClients = async () => {
     setLoading(true);
@@ -45,14 +50,19 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
 
   const selectedClient = clients.find(c => c.client_id === selectedId);
 
-  // Tiempo transcurrido desde último entreno
-  const timeAgo = (dateStr: string | null): string => {
-    if (!dateStr) return 'Sin sesiones';
-    const diff = Date.now() - new Date(dateStr).getTime();
+  // Texto secundario del cliente: sesiones + tiempo desde último entreno
+  const clientMetaText = (item: ClientSummary): string => {
+    const sessionStr = item.sessions_this_month > 0
+      ? `${item.sessions_this_month} sesion${item.sessions_this_month !== 1 ? 'es' : ''}`
+      : 'Sin sesiones';
+
+    if (!item.last_workout) return sessionStr;
+
+    const diff = Date.now() - new Date(item.last_workout).getTime();
     const days = Math.floor(diff / 86400000);
-    if (days === 0) return 'Último entreno: hoy';
-    if (days === 1) return 'Último entreno: ayer';
-    return `Último entreno: hace ${days} días`;
+    const timeStr = days === 0 ? 'hoy' : days === 1 ? 'ayer' : `hace ${days} días`;
+
+    return `${sessionStr} · ${timeStr}`;
   };
 
   const handleCopyCode = async () => {
@@ -63,7 +73,8 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
 
   const renderClient = ({ item }: { item: ClientSummary }) => {
     const isSelected = item.client_id === selectedId;
-    const initials = item.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const displayName = item.full_name || item.email.split('@')[0] || 'Cliente';
+    const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
     return (
       <Pressable
@@ -79,19 +90,12 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
           <EliteText variant="body" style={[
             styles.clientName, isSelected && { color: TEAL },
           ]} numberOfLines={1}>
-            {item.full_name}
+            {displayName}
           </EliteText>
           <EliteText variant="caption" style={styles.clientMeta}>
-            {timeAgo(item.last_workout)}
+            {clientMetaText(item)}
           </EliteText>
         </View>
-        {item.sessions_this_month > 0 && (
-          <View style={styles.sessionsBadge}>
-            <EliteText variant="caption" style={styles.sessionsBadgeText}>
-              {item.sessions_this_month}
-            </EliteText>
-          </View>
-        )}
       </Pressable>
     );
   };
@@ -100,12 +104,29 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
     <View style={styles.container}>
       {/* ═══ SIDEBAR ═══ */}
       <View style={styles.sidebar}>
-        {/* Header */}
+        {/* Header con brand + identidad del coach */}
         <View style={styles.sidebarHeader}>
-          <View>
-            <EliteText style={styles.brandText}>ATP</EliteText>
-            <EliteText variant="caption" style={styles.brandSub}>Panel Coach</EliteText>
-          </View>
+          <EliteText style={styles.brandText}>ATP</EliteText>
+          <EliteText variant="caption" style={styles.brandSub}>Panel Coach</EliteText>
+
+          {/* Identidad del coach */}
+          {coachName ? (
+            <View style={styles.coachIdentity}>
+              <View style={styles.coachAvatar}>
+                <EliteText style={styles.coachAvatarText}>
+                  {coachName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+                </EliteText>
+              </View>
+              <View style={styles.coachIdentityInfo}>
+                <EliteText variant="body" style={styles.coachIdentityName} numberOfLines={1}>
+                  {coachName}
+                </EliteText>
+                <EliteText variant="caption" style={styles.coachIdentityEmail} numberOfLines={1}>
+                  {coachEmail}
+                </EliteText>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         {/* Código de coach */}
@@ -166,7 +187,8 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
         {selectedClient ? (
           <ClientDetailScreen
             clientId={selectedClient.client_id}
-            clientName={selectedClient.full_name}
+            clientName={selectedClient.full_name || selectedClient.email.split('@')[0]}
+            clientEmail={selectedClient.email}
             connectedAt={selectedClient.connected_at}
           />
         ) : (
@@ -205,6 +227,29 @@ const styles = StyleSheet.create({
     letterSpacing: 6,
   },
   brandSub: { color: '#AAAAAA', fontFamily: Fonts.semiBold, fontSize: 13, letterSpacing: 2, marginTop: 2 },
+
+  // Coach identity
+  coachIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: '#1a1a1a',
+  },
+  coachAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.neonGreen + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coachAvatarText: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 13 },
+  coachIdentityInfo: { flex: 1 },
+  coachIdentityName: { fontFamily: Fonts.semiBold, fontSize: 13, color: '#FFFFFF' },
+  coachIdentityEmail: { color: '#666666', fontSize: 11, marginTop: 1 },
 
   // Código
   codeBox: {
@@ -270,13 +315,6 @@ const styles = StyleSheet.create({
   clientItemInfo: { flex: 1 },
   clientName: { fontFamily: Fonts.semiBold, fontSize: 14, color: '#FFFFFF' },
   clientMeta: { color: '#AAAAAA', fontSize: 11, marginTop: 1 },
-  sessionsBadge: {
-    backgroundColor: TEAL + '20',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-  },
-  sessionsBadgeText: { color: TEAL, fontFamily: Fonts.bold, fontSize: 11 },
 
   // Switch
   switchBtn: {

@@ -71,6 +71,20 @@ export interface ClientSession {
 
 // === QUERIES ===
 
+/** Perfil del coach logueado (nombre, email) */
+export async function getCoachProfile(): Promise<{ full_name: string; email: string }> {
+  const user = await getAuthenticatedUser();
+  const { data } = await supabase
+    .from('profiles')
+    .select('full_name, email')
+    .eq('id', user.id)
+    .single();
+  return {
+    full_name: data?.full_name ?? user.email?.split('@')[0] ?? 'Coach',
+    email: data?.email ?? user.email ?? '',
+  };
+}
+
 /** Lista de clientes del coach con stats resumidos */
 export async function getClientList(): Promise<ClientSummary[]> {
   const user = await getAuthenticatedUser();

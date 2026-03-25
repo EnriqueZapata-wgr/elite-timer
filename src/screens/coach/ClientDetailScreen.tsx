@@ -27,16 +27,17 @@ const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 // Mapeo: PostgreSQL DOW (0=Dom) → columna del grid (0=Lun)
 const DOW_TO_COL = [6, 0, 1, 2, 3, 4, 5]; // Dom=6, Lun=0...Sáb=5
 
-type Tab = 'calendar' | 'routines' | 'progress' | 'history';
+type Tab = 'profile' | 'calendar' | 'routines' | 'progress' | 'history';
 
 interface Props {
   clientId: string;
   clientName: string;
+  clientEmail?: string;
   connectedAt: string;
 }
 
-export function ClientDetailScreen({ clientId, clientName, connectedAt }: Props) {
-  const [activeTab, setActiveTab] = useState<Tab>('calendar');
+export function ClientDetailScreen({ clientId, clientName, clientEmail, connectedAt }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [schedule, setSchedule] = useState<ClientScheduleItem[]>([]);
   const [routines, setRoutines] = useState<ClientRoutine[]>([]);
@@ -68,6 +69,7 @@ export function ClientDetailScreen({ clientId, clientName, connectedAt }: Props)
   const initials = clientName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
+    { key: 'profile', label: 'PERFIL', icon: 'person-outline' },
     { key: 'calendar', label: 'CALENDARIO', icon: 'calendar-outline' },
     { key: 'routines', label: 'RUTINAS', icon: 'barbell-outline' },
     { key: 'progress', label: 'PROGRESO', icon: 'trophy-outline' },
@@ -132,6 +134,13 @@ export function ClientDetailScreen({ clientId, clientName, connectedAt }: Props)
         {/* ── Tab Content ── */}
         {!loading && (
           <View style={styles.tabContent}>
+            {activeTab === 'profile' && (
+              <ProfileTab
+                clientName={clientName}
+                clientEmail={clientEmail ?? ''}
+                connectedAt={connectedAt}
+              />
+            )}
             {activeTab === 'calendar' && <CalendarTab schedule={schedule} />}
             {activeTab === 'routines' && (
               <RoutinesTab routines={routines} onAssign={() => setAssignVisible(true)} />
@@ -150,6 +159,84 @@ export function ClientDetailScreen({ clientId, clientName, connectedAt }: Props)
         onAssigned={loadData}
       />
     </ScrollView>
+  );
+}
+
+// ══════════════════════════
+// TAB: PERFIL
+// ══════════════════════════
+
+const UPCOMING_FEATURES = [
+  'Composición corporal', 'Edad metabólica', 'Edad biológica',
+  'Laboratorios', 'Biometrías', 'Plan nutricional', 'Hábitos', 'Estudios médicos',
+];
+
+function ProfileTab({ clientName, clientEmail, connectedAt }: {
+  clientName: string; clientEmail: string; connectedAt: string;
+}) {
+  return (
+    <View style={{ gap: Spacing.md }}>
+      {/* Información personal */}
+      <View style={styles.profileCard}>
+        <EliteText variant="caption" style={styles.profileCardLabel}>INFORMACIÓN PERSONAL</EliteText>
+        <ProfileRow label="Nombre" value={clientName} />
+        <ProfileRow label="Email" value={clientEmail} />
+        <ProfileRow
+          label="Conectado desde"
+          value={new Date(connectedAt).toLocaleDateString('es-MX', {
+            day: 'numeric', month: 'long', year: 'numeric',
+          })}
+        />
+      </View>
+
+      {/* Datos físicos */}
+      <View style={styles.profileCard}>
+        <EliteText variant="caption" style={styles.profileCardLabel}>DATOS FÍSICOS</EliteText>
+        <View style={styles.profilePlaceholderRow}>
+          {['Edad', 'Peso (kg)', 'Altura (cm)', 'Sexo'].map(field => (
+            <View key={field} style={styles.profilePlaceholderItem}>
+              <EliteText variant="caption" style={styles.profilePlaceholderLabel}>{field}</EliteText>
+              <EliteText variant="body" style={styles.profilePlaceholderValue}>—</EliteText>
+            </View>
+          ))}
+        </View>
+        <EliteText variant="caption" style={styles.profileComingSoon}>
+          Próximamente: editar datos del cliente
+        </EliteText>
+      </View>
+
+      {/* Notas del coach */}
+      <View style={styles.profileCard}>
+        <EliteText variant="caption" style={styles.profileCardLabel}>PLAN / NOTAS DEL COACH</EliteText>
+        <View style={styles.profileNotesPlaceholder}>
+          <Ionicons name="document-text-outline" size={24} color="#444" />
+          <EliteText variant="caption" style={styles.profileComingSoon}>
+            Próximamente: notas y plan de entrenamiento
+          </EliteText>
+        </View>
+      </View>
+
+      {/* Próximamente */}
+      <View style={[styles.profileCard, { opacity: 0.5 }]}>
+        <EliteText variant="caption" style={styles.profileCardLabel}>PRÓXIMAMENTE</EliteText>
+        <View style={styles.upcomingPills}>
+          {UPCOMING_FEATURES.map(feat => (
+            <View key={feat} style={styles.upcomingPill}>
+              <EliteText variant="caption" style={styles.upcomingPillText}>{feat}</EliteText>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function ProfileRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.profileRow}>
+      <EliteText variant="caption" style={styles.profileRowLabel}>{label}</EliteText>
+      <EliteText variant="body" style={styles.profileRowValue}>{value || '—'}</EliteText>
+    </View>
   );
 }
 
@@ -471,4 +558,71 @@ const styles = StyleSheet.create({
   historyDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: TEAL },
   historyTitle: { fontFamily: Fonts.semiBold, fontSize: 14 },
   historyMeta: { color: '#AAAAAA', fontSize: 12, marginTop: 2 },
+
+  // Profile tab
+  profileCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: '#222222',
+  },
+  profileCardLabel: {
+    color: '#AAAAAA',
+    letterSpacing: 2,
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    marginBottom: Spacing.sm,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs + 2,
+    borderBottomWidth: 1,
+    borderBottomColor: '#111111',
+  },
+  profileRowLabel: { color: '#666666', fontSize: 12 },
+  profileRowValue: { color: '#FFFFFF', fontSize: 14, fontFamily: Fonts.semiBold },
+  profilePlaceholderRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  profilePlaceholderItem: {
+    flex: 1,
+    backgroundColor: '#111111',
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    alignItems: 'center',
+  },
+  profilePlaceholderLabel: { color: '#666666', fontSize: 10, marginBottom: 4 },
+  profilePlaceholderValue: { color: '#444444', fontSize: 18, fontFamily: Fonts.bold },
+  profileComingSoon: {
+    color: '#444444',
+    fontSize: 11,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+  },
+  profileNotesPlaceholder: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  upcomingPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+  },
+  upcomingPill: {
+    backgroundColor: '#222222',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.pill,
+  },
+  upcomingPillText: {
+    color: '#666666',
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+  },
 });
