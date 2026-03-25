@@ -164,8 +164,8 @@ export default function KitScreen() {
               icon="leaf-outline"
               label="Respiración"
               color="#7F77DD"
-              active={false}
-              onPress={() => Alert.alert('Respiración', 'Próximamente')}
+              active
+              onPress={() => router.push('/breathing')}
             />
             <ToolCard
               icon="sparkles-outline"

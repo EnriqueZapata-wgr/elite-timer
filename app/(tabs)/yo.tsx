@@ -35,7 +35,7 @@ const CATEGORIES: Category[] = (
   label: INTERVENTION_TYPES[k].label,
   icon: INTERVENTION_TYPES[k].icon,
   color: INTERVENTION_TYPES[k].color,
-  active: k === 'fitness',
+  active: k === 'fitness' || k === 'mind',
 }));
 
 // === COMPONENTE ===
@@ -65,6 +65,8 @@ export default function YoScreen() {
   const handleCardPress = (cat: Category) => {
     if (cat.key === 'fitness') {
       router.push('/personal-records');
+    } else if (cat.key === 'mind') {
+      router.push('/mind-hub');
     } else {
       Alert.alert(cat.label, 'Próximamente');
     }
