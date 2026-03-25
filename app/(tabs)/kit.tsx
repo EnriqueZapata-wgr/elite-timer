@@ -13,6 +13,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { GradientCard } from '@/src/components/GradientCard';
 import { getRoutines } from '@/src/services/routine-service';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
@@ -195,15 +196,21 @@ function ToolCard({ icon, label, color, active, onPress }: {
   icon: string; label: string; color: string; active: boolean; onPress: () => void;
 }) {
   return (
-    <AnimatedPressable onPress={onPress} style={styles.toolCard}>
-      <View style={[styles.toolCardInner, !active && { opacity: 0.5 }]}>
-        <Ionicons name={icon as any} size={26} color={color} />
-        <EliteText variant="body" style={styles.toolCardLabel}>{label}</EliteText>
-        {!active && (
-          <EliteText variant="caption" style={styles.toolCardSoon}>Pronto</EliteText>
-        )}
-      </View>
-    </AnimatedPressable>
+    <View style={styles.toolCard}>
+      <GradientCard
+        color={color}
+        onPress={onPress}
+        style={[styles.toolCardInner, !active && { opacity: 0.5 }]}
+      >
+        <View style={styles.toolCardContent}>
+          <Ionicons name={icon as any} size={26} color={color} />
+          <EliteText variant="body" style={[styles.toolCardLabel, { color }]}>{label}</EliteText>
+          {!active && (
+            <EliteText variant="caption" style={styles.toolCardSoon}>Pronto</EliteText>
+          )}
+        </View>
+      </GradientCard>
+    </View>
   );
 }
 
@@ -341,15 +348,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   toolCardInner: {
-    backgroundColor: '#111111',
-    borderRadius: 12,
-    padding: Spacing.md,
+    height: 90,
+  },
+  toolCardContent: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    height: 90,
+    padding: Spacing.md,
     gap: Spacing.xs,
-    borderWidth: 0.5,
-    borderColor: '#2a2a2a',
   },
   toolCardLabel: {
     fontFamily: Fonts.semiBold,

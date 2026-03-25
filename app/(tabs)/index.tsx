@@ -13,6 +13,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { GradientCard } from '@/src/components/GradientCard';
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
 import {
   getTodayTimeline,
@@ -216,67 +217,63 @@ export default function TodayScreen() {
                       </View>
 
                       {/* Card */}
-                      <Pressable
+                      <GradientCard
+                        color={accentColor}
+                        onPress={() => handleItemPress(item)}
                         style={[
                           styles.card,
                           item.is_completed && styles.cardCompleted,
                         ]}
-                        onPress={() => handleItemPress(item)}
                       >
-                        {/* Barra de color izquierda */}
-                        <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
-
-                        <View style={styles.cardBody}>
-                          {/* Categoría badge */}
-                          <View style={styles.cardTopRow}>
-                            <View style={[styles.categoryBadge, { backgroundColor: accentColor + '15' }]}>
-                              <Ionicons name={catConfig.icon as any} size={12} color={accentColor} />
-                              <EliteText variant="caption" style={[styles.categoryText, { color: accentColor }]}>
-                                {catConfig.label}
-                              </EliteText>
+                        <View style={styles.cardInner}>
+                          <View style={styles.cardBody}>
+                            <View style={styles.cardTopRow}>
+                              <View style={[styles.categoryBadge, { backgroundColor: accentColor + '20' }]}>
+                                <Ionicons name={catConfig.icon as any} size={12} color={accentColor} />
+                                <EliteText variant="caption" style={[styles.categoryText, { color: accentColor }]}>
+                                  {catConfig.label}
+                                </EliteText>
+                              </View>
+                              {item.duration_minutes && (
+                                <EliteText variant="caption" style={styles.durationText}>
+                                  {item.duration_minutes} min
+                                </EliteText>
+                              )}
                             </View>
-                            {item.duration_minutes && (
-                              <EliteText variant="caption" style={styles.durationText}>
-                                {item.duration_minutes} min
+
+                            <EliteText variant="body" style={[
+                              styles.cardTitle,
+                              item.is_completed && styles.cardTitleCompleted,
+                            ]}>
+                              {item.title}
+                            </EliteText>
+
+                            {item.description && (
+                              <EliteText variant="caption" style={styles.cardDesc} numberOfLines={2}>
+                                {item.description}
                               </EliteText>
                             )}
                           </View>
 
-                          {/* Título */}
-                          <EliteText variant="body" style={[
-                            styles.cardTitle,
-                            item.is_completed && styles.cardTitleCompleted,
-                          ]}>
-                            {item.title}
-                          </EliteText>
-
-                          {/* Descripción */}
-                          {item.description && (
-                            <EliteText variant="caption" style={styles.cardDesc} numberOfLines={2}>
-                              {item.description}
-                            </EliteText>
-                          )}
+                          <Pressable
+                            onPress={() => handleToggle(item.item_id)}
+                            disabled={isTogglingThis}
+                            style={styles.checkArea}
+                            hitSlop={12}
+                          >
+                            <View style={[
+                              styles.checkbox,
+                              item.is_completed && styles.checkboxChecked,
+                            ]}>
+                              {isTogglingThis ? (
+                                <ActivityIndicator size="small" color={Colors.neonGreen} />
+                              ) : item.is_completed ? (
+                                <Ionicons name="checkmark" size={16} color={Colors.black} />
+                              ) : null}
+                            </View>
+                          </Pressable>
                         </View>
-
-                        {/* Checkbox */}
-                        <Pressable
-                          onPress={() => handleToggle(item.item_id)}
-                          disabled={isTogglingThis}
-                          style={styles.checkArea}
-                          hitSlop={12}
-                        >
-                          <View style={[
-                            styles.checkbox,
-                            item.is_completed && styles.checkboxChecked,
-                          ]}>
-                            {isTogglingThis ? (
-                              <ActivityIndicator size="small" color={Colors.neonGreen} />
-                            ) : item.is_completed ? (
-                              <Ionicons name="checkmark" size={16} color={Colors.black} />
-                            ) : null}
-                          </View>
-                        </Pressable>
-                      </Pressable>
+                      </GradientCard>
                     </View>
                   </Animated.View>
                 );
@@ -432,25 +429,18 @@ const styles = StyleSheet.create({
   // Card
   card: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
-    borderRadius: Radius.md,
     marginLeft: Spacing.sm,
     marginBottom: Spacing.sm,
-    flexDirection: 'row',
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: '#2a2a2a',
   },
   cardCompleted: {
-    opacity: 0.6,
+    opacity: 0.55,
   },
-  cardAccent: {
-    width: 3,
+  cardInner: {
+    flexDirection: 'row',
   },
   cardBody: {
     flex: 1,
-    padding: Spacing.sm,
-    paddingLeft: Spacing.sm + 2,
+    padding: Spacing.sm + 2,
   },
   cardTopRow: {
     flexDirection: 'row',

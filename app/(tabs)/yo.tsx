@@ -12,6 +12,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getWeeklyStats, type WeeklyStats } from '@/src/services/exercise-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
@@ -92,35 +93,35 @@ export default function YoScreen() {
               entering={FadeInUp.delay(100 + idx * 50).springify()}
               style={styles.gridItem}
             >
-              <AnimatedPressable onPress={() => handleCardPress(cat)}>
-                <View style={[styles.card, !cat.active && styles.cardInactive]}>
-                  {/* Barra de color izquierda */}
-                  <View style={[styles.cardAccent, { backgroundColor: cat.color }]} />
-
-                  <View style={styles.cardBody}>
-                    <View style={styles.cardIconRow}>
-                      <Ionicons name={cat.icon as any} size={24} color={cat.color} />
-                      {!cat.active && (
-                        <View style={styles.comingSoonBadge}>
-                          <EliteText variant="caption" style={styles.comingSoonText}>PRONTO</EliteText>
-                        </View>
-                      )}
-                    </View>
-                    <EliteText variant="body" style={styles.cardLabel}>{cat.label}</EliteText>
-                    <EliteText variant="caption" style={[
-                      styles.cardSubtitle,
-                      cat.active && { color: cat.color },
-                    ]}>
-                      {getSubtitle(cat)}
-                    </EliteText>
+              <GradientCard
+                color={cat.color}
+                onPress={() => handleCardPress(cat)}
+                style={[styles.card, !cat.active && styles.cardInactive]}
+              >
+                <View style={styles.cardBody}>
+                  <View style={styles.cardIconRow}>
+                    <Ionicons name={cat.icon as any} size={24} color={cat.color} />
+                    {!cat.active && (
+                      <View style={styles.comingSoonBadge}>
+                        <EliteText variant="caption" style={styles.comingSoonText}>PRONTO</EliteText>
+                      </View>
+                    )}
                   </View>
-
-                  {/* Chevron */}
-                  {cat.active && (
-                    <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} style={styles.cardChevron} />
-                  )}
+                  <EliteText variant="body" style={[styles.cardLabel, { color: cat.color }]}>
+                    {cat.label}
+                  </EliteText>
+                  <EliteText variant="caption" style={[
+                    styles.cardSubtitle,
+                    cat.active && { color: cat.color },
+                  ]}>
+                    {getSubtitle(cat)}
+                  </EliteText>
                 </View>
-              </AnimatedPressable>
+
+                {cat.active && (
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} style={styles.cardChevron} />
+                )}
+              </GradientCard>
             </Animated.View>
           ))}
         </View>
@@ -171,28 +172,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   card: {
-    backgroundColor: '#111111',
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 0.5,
-    borderColor: '#2a2a2a',
     minHeight: 110,
   },
   cardInactive: {
-    opacity: 0.6,
-  },
-  cardAccent: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 3,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+    opacity: 0.5,
   },
   cardBody: {
-    padding: 16,
-    paddingLeft: 16 + 3,
+    padding: 20,
   },
   cardIconRow: {
     flexDirection: 'row',
