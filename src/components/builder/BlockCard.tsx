@@ -1,8 +1,10 @@
 /**
- * BlockCard — Card recursiva para visualizar/editar un bloque.
+ * BlockCard — Card colapsable para visualizar/editar un bloque.
  *
- * Si el bloque es grupo: muestra header expandible + children indentados.
- * Si es hoja (work/rest/prep): muestra card compacta con edición inline.
+ * Grupo: header expandible con rondas, children indentados, config inline.
+ * Hoja (work/rest/prep): card compacta con barra de color por grupo muscular.
+ *
+ * Diseño: barra de color izquierda, drag handle, expand/collapse con chevron.
  */
 import { useState } from 'react';
 import { View, Pressable, StyleSheet, TextInput } from 'react-native';
@@ -38,23 +40,14 @@ const TYPE_LABELS: Record<string, string> = {
 
 interface BlockCardProps {
   block: Block;
-  /** Callback para actualizar el bloque */
   onUpdate: (updated: Block) => void;
-  /** Callback para eliminar el bloque */
   onDelete: () => void;
-  /** Callback para agregar un child (solo grupos) */
   onAddChild: (child: Block) => void;
-  /** Callback para duplicar este bloque como hermano */
   onDuplicate: () => void;
-  /** Mover arriba entre hermanos */
   onMoveUp: (() => void) | null;
-  /** Mover abajo entre hermanos */
   onMoveDown: (() => void) | null;
-  /** Profundidad en el árbol (para indentación) */
   depth: number;
-  /** Callback para abrir el picker de ejercicios. Recibe un callback para cuando se seleccione. */
   onAssignExercise?: () => void;
-  /** Función global para solicitar el picker de ejercicios (propaga a children) */
   onRequestExercisePicker?: (onSelect: (exercise: { id: string; name: string }) => void) => void;
 }
 
@@ -77,7 +70,7 @@ export function BlockCard({
 
   const isGroup = block.type === 'group';
   const blockColor = isGroup ? (block.color ?? '#888888') : TYPE_COLORS[block.type];
-  const indent = depth * 16;
+  const indent = depth * 12;
 
   // --- Helpers para actualizar campos ---
 
@@ -93,7 +86,6 @@ export function BlockCard({
 
   const deleteChild = (index: number) => {
     const children = (block.children ?? []).filter((_, i) => i !== index);
-    // Recalcular sort_order
     const reindexed = children.map((c, i) => ({ ...c, sort_order: i }));
     onUpdate({ ...block, children: reindexed });
   };
@@ -123,27 +115,32 @@ export function BlockCard({
     onUpdate({ ...block, children: reindexed });
   };
 
+  // Formato duración legible
+  const formatDur = (s: number | null) => {
+    if (!s) return '0s';
+    if (s >= 60) return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    return `${s}s`;
+  };
+
   // === RENDER GRUPO ===
 
   if (isGroup) {
+    const childCount = (block.children ?? []).length;
+
     return (
-      <View style={[styles.groupContainer, { marginLeft: indent }]}>
-        {/* Borde de color izquierdo */}
-        <View style={[styles.groupBorder, { backgroundColor: blockColor }]} />
+      <View style={[styles.cardOuter, { marginLeft: indent }, expanded && { borderColor: blockColor + '40' }]}>
+        {/* Barra color izquierda */}
+        <View style={[styles.accentBar, { backgroundColor: blockColor }]} />
 
-        <View style={styles.groupContent}>
-          {/* Header del grupo */}
-          <Pressable
-            onPress={() => setExpanded(!expanded)}
-            style={styles.groupHeader}
-          >
-            <Ionicons
-              name={expanded ? 'chevron-down' : 'chevron-forward'}
-              size={18}
-              color={Colors.textSecondary}
-            />
+        {/* Header colapsable */}
+        <Pressable onPress={() => setExpanded(!expanded)} style={styles.cardHeader}>
+          {/* Drag handle (visual) */}
+          <View style={styles.dragHandle}>
+            <Ionicons name="reorder-two-outline" size={18} color={Colors.textSecondary} />
+          </View>
 
-            {/* Label editable */}
+          {/* Label editable */}
+          <View style={styles.headerInfo}>
             {editing ? (
               <TextInput
                 style={styles.labelInput}
@@ -154,89 +151,80 @@ export function BlockCard({
                 selectTextOnFocus
               />
             ) : (
-              <Pressable onPress={() => setEditing(true)} style={styles.labelPress}>
-                <EliteText variant="subtitle" style={styles.groupLabel} numberOfLines={1}>
+              <Pressable onPress={() => setEditing(true)}>
+                <EliteText variant="subtitle" style={styles.groupName} numberOfLines={1}>
                   {block.label}
                 </EliteText>
               </Pressable>
             )}
+            <EliteText variant="caption" style={styles.subtitleText}>
+              {childCount} paso{childCount !== 1 ? 's' : ''} · {block.rounds} ronda{block.rounds !== 1 ? 's' : ''}
+              {block.rest_between_seconds > 0 ? ` · ${formatDur(block.rest_between_seconds)} descanso` : ''}
+            </EliteText>
+          </View>
 
-            {/* Badge de rounds */}
-            <View style={[styles.roundsBadge, { backgroundColor: blockColor + '30' }]}>
-              <EliteText variant="caption" style={[styles.roundsText, { color: blockColor }]}>
-                ×{block.rounds}
-              </EliteText>
-            </View>
+          {/* Badge rounds */}
+          <View style={[styles.roundsBadge, { backgroundColor: blockColor + '25' }]}>
+            <EliteText variant="caption" style={[styles.roundsBadgeText, { color: blockColor }]}>
+              ×{block.rounds}
+            </EliteText>
+          </View>
 
-            {/* Acciones */}
-            <View style={styles.actions}>
-              {onMoveUp && (
-                <Pressable onPress={onMoveUp} hitSlop={8}>
-                  <Ionicons name="arrow-up" size={16} color={Colors.textSecondary} />
-                </Pressable>
-              )}
-              {onMoveDown && (
-                <Pressable onPress={onMoveDown} hitSlop={8}>
-                  <Ionicons name="arrow-down" size={16} color={Colors.textSecondary} />
-                </Pressable>
-              )}
-              <Pressable onPress={onDuplicate} hitSlop={8}>
-                <Ionicons name="copy-outline" size={16} color={Colors.textSecondary} />
-              </Pressable>
-              <Pressable onPress={onDelete} hitSlop={8}>
-                <Ionicons name="trash-outline" size={16} color={Colors.error} />
-              </Pressable>
-            </View>
-          </Pressable>
+          {/* Chevron */}
+          <Ionicons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={Colors.textSecondary}
+          />
+        </Pressable>
 
-          {/* Configuración inline del grupo (siempre visible bajo header) */}
-          {expanded && (
-            <>
-              <View style={styles.groupConfig}>
-                {/* Rounds */}
-                <View style={styles.configRow}>
-                  <EliteText variant="caption" style={styles.configLabel}>Rondas</EliteText>
-                  <NumberStepper
-                    value={block.rounds}
-                    onChange={v => updateField('rounds', v)}
-                    min={1}
-                    max={999}
-                  />
-                </View>
-
-                {/* Descanso entre rounds */}
-                <View style={styles.configRow}>
-                  <EliteText variant="caption" style={styles.configLabel}>Descanso entre</EliteText>
-                  <NumberStepper
-                    value={block.rest_between_seconds}
-                    onChange={v => updateField('rest_between_seconds', v)}
-                    min={0}
-                    max={600}
-                    step={5}
-                    suffix="s"
-                  />
-                </View>
-
-                {/* Color */}
-                <View style={styles.configRow}>
-                  <EliteText variant="caption" style={styles.configLabel}>Color</EliteText>
-                  <View style={styles.colorRow}>
-                    {COLOR_PALETTE.map(c => (
-                      <Pressable
-                        key={c}
-                        onPress={() => updateField('color', c)}
-                        style={[
-                          styles.colorDot,
-                          { backgroundColor: c },
-                          block.color === c && styles.colorDotSelected,
-                        ]}
-                      />
-                    ))}
-                  </View>
+        {/* Contenido expandido */}
+        {expanded && (
+          <View style={styles.expandedContent}>
+            {/* Config: rondas, descanso, color */}
+            <View style={styles.configSection}>
+              <View style={styles.configRow}>
+                <EliteText variant="caption" style={styles.configLabel}>Rondas</EliteText>
+                <NumberStepper
+                  value={block.rounds}
+                  onChange={v => updateField('rounds', v)}
+                  min={1}
+                  max={999}
+                  accent={blockColor}
+                />
+              </View>
+              <View style={styles.configRow}>
+                <EliteText variant="caption" style={styles.configLabel}>Descanso entre</EliteText>
+                <NumberStepper
+                  value={block.rest_between_seconds}
+                  onChange={v => updateField('rest_between_seconds', v)}
+                  min={0}
+                  max={600}
+                  step={5}
+                  suffix="s"
+                  accent="#5B9BD5"
+                />
+              </View>
+              <View style={styles.configRow}>
+                <EliteText variant="caption" style={styles.configLabel}>Color</EliteText>
+                <View style={styles.colorRow}>
+                  {COLOR_PALETTE.map(c => (
+                    <Pressable
+                      key={c}
+                      onPress={() => updateField('color', c)}
+                      style={[
+                        styles.colorDot,
+                        { backgroundColor: c },
+                        block.color === c && styles.colorDotSelected,
+                      ]}
+                    />
+                  ))}
                 </View>
               </View>
+            </View>
 
-              {/* Children */}
+            {/* Children */}
+            <View style={styles.childrenZone}>
               {(block.children ?? []).map((child, index) => (
                 <BlockCard
                   key={child.id}
@@ -246,7 +234,6 @@ export function BlockCard({
                   onDelete={() => deleteChild(index)}
                   onDuplicate={() => duplicateChild(index)}
                   onAddChild={newChild => {
-                    // Agregar child al child (si es grupo)
                     const children = [...(child.children ?? [])];
                     const added = { ...newChild, parent_block_id: child.id, sort_order: children.length };
                     children.push(added);
@@ -266,12 +253,31 @@ export function BlockCard({
                   } : undefined}
                 />
               ))}
-
-              {/* Botón agregar child */}
               <AddBlockButton parentId={block.id} onAdd={addChild} />
-            </>
-          )}
-        </View>
+            </View>
+
+            {/* Acciones */}
+            <View style={styles.actionsBar}>
+              {onMoveUp && (
+                <Pressable onPress={onMoveUp} hitSlop={8} style={styles.actionBtn}>
+                  <Ionicons name="arrow-up" size={16} color={Colors.textSecondary} />
+                </Pressable>
+              )}
+              {onMoveDown && (
+                <Pressable onPress={onMoveDown} hitSlop={8} style={styles.actionBtn}>
+                  <Ionicons name="arrow-down" size={16} color={Colors.textSecondary} />
+                </Pressable>
+              )}
+              <Pressable onPress={onDuplicate} hitSlop={8} style={styles.actionBtn}>
+                <Ionicons name="copy-outline" size={16} color={Colors.textSecondary} />
+              </Pressable>
+              <View style={{ flex: 1 }} />
+              <Pressable onPress={onDelete} hitSlop={8} style={styles.actionBtn}>
+                <Ionicons name="trash-outline" size={16} color={Colors.error} />
+              </Pressable>
+            </View>
+          </View>
+        )}
       </View>
     );
   }
@@ -279,16 +285,21 @@ export function BlockCard({
   // === RENDER HOJA (work/rest/prep) ===
 
   return (
-    <View style={[styles.leafContainer, { marginLeft: indent }]}>
-      {/* Dot de color */}
-      <View style={[styles.leafDot, { backgroundColor: blockColor }]} />
+    <View style={[styles.cardOuter, { marginLeft: indent }]}>
+      {/* Barra color izquierda */}
+      <View style={[styles.accentBar, { backgroundColor: blockColor }]} />
 
-      <View style={styles.leafContent}>
-        {/* Primera fila: label + tipo + acciones */}
-        <View style={styles.leafHeader}>
+      {/* Header colapsable */}
+      <Pressable onPress={() => setExpanded(!expanded)} style={styles.cardHeader}>
+        {/* Drag handle */}
+        <View style={styles.dragHandle}>
+          <Ionicons name="reorder-two-outline" size={18} color={Colors.textSecondary} />
+        </View>
+
+        <View style={styles.headerInfo}>
           {editing ? (
             <TextInput
-              style={[styles.labelInput, { flex: 1 }]}
+              style={[styles.labelInput, { fontSize: 14 }]}
               value={block.label}
               onChangeText={t => updateField('label', t)}
               onBlur={() => setEditing(false)}
@@ -296,160 +307,158 @@ export function BlockCard({
               selectTextOnFocus
             />
           ) : (
-            <Pressable onPress={() => setEditing(true)} style={styles.labelPress}>
-              <EliteText variant="body" numberOfLines={1} style={styles.leafLabel}>
+            <Pressable onPress={() => setEditing(true)}>
+              <EliteText variant="body" style={styles.leafName} numberOfLines={1}>
                 {block.label}
+                {block.exercise_name ? ` — ${block.exercise_name}` : ''}
               </EliteText>
             </Pressable>
           )}
+          <EliteText variant="caption" style={styles.subtitleText}>
+            {TYPE_LABELS[block.type]} · {formatDur(block.duration_seconds)}
+          </EliteText>
+        </View>
 
+        {/* Badge duración */}
+        <View style={[styles.durationBadge, { backgroundColor: blockColor + '20' }]}>
+          <EliteText variant="caption" style={[styles.durationBadgeText, { color: blockColor }]}>
+            {formatDur(block.duration_seconds)}
+          </EliteText>
+        </View>
+
+        <Ionicons
+          name={expanded ? 'chevron-up' : 'chevron-down'}
+          size={18}
+          color={Colors.textSecondary}
+        />
+      </Pressable>
+
+      {/* Contenido expandido */}
+      {expanded && (
+        <View style={styles.expandedContent}>
           {/* Tipo selector */}
-          <View style={styles.typeSelector}>
-            {(['work', 'rest', 'prep'] as const).map(t => (
-              <Pressable
-                key={t}
-                onPress={() => {
-                  updateField('type', t);
-                  updateField('color', TYPE_COLORS[t]);
-                }}
-                style={[
-                  styles.typePill,
-                  block.type === t && { backgroundColor: TYPE_COLORS[t] + '30' },
-                ]}
-              >
-                <EliteText
-                  variant="caption"
+          <View style={styles.configRow}>
+            <EliteText variant="caption" style={styles.configLabel}>Tipo</EliteText>
+            <View style={styles.typeSelector}>
+              {(['work', 'rest', 'prep'] as const).map(t => (
+                <Pressable
+                  key={t}
+                  onPress={() => {
+                    updateField('type', t);
+                    updateField('color', TYPE_COLORS[t]);
+                  }}
                   style={[
-                    styles.typeText,
-                    block.type === t && { color: TYPE_COLORS[t] },
+                    styles.typePill,
+                    block.type === t && { backgroundColor: TYPE_COLORS[t] + '25', borderColor: TYPE_COLORS[t] + '50' },
                   ]}
                 >
-                  {TYPE_LABELS[t][0]}
-                </EliteText>
-              </Pressable>
-            ))}
+                  <View style={[styles.typeDot, { backgroundColor: TYPE_COLORS[t] }]} />
+                  <EliteText variant="caption" style={[
+                    styles.typeText,
+                    block.type === t && { color: TYPE_COLORS[t] },
+                  ]}>
+                    {TYPE_LABELS[t]}
+                  </EliteText>
+                </Pressable>
+              ))}
+            </View>
           </View>
 
+          {/* Duración */}
+          <View style={styles.configRow}>
+            <EliteText variant="caption" style={styles.configLabel}>Duración</EliteText>
+            <NumberStepper
+              value={block.duration_seconds ?? 0}
+              onChange={v => updateField('duration_seconds', v)}
+              min={1}
+              max={3600}
+              step={1}
+              suffix="s"
+              accent={blockColor}
+            />
+          </View>
+
+          {/* Ejercicio (solo work) */}
+          {block.type === 'work' && (
+            <View style={styles.exerciseSection}>
+              <EliteText variant="caption" style={styles.configLabel}>Ejercicio</EliteText>
+              {block.exercise_id && block.exercise_name ? (
+                <View style={styles.exerciseAssigned}>
+                  <Ionicons name="barbell-outline" size={14} color={Colors.neonGreen} />
+                  <EliteText variant="caption" style={styles.exerciseNameText} numberOfLines={1}>
+                    {block.exercise_name}
+                  </EliteText>
+                  <Pressable onPress={onAssignExercise} hitSlop={8} style={styles.changeBtn}>
+                    <EliteText variant="caption" style={styles.changeBtnText}>CAMBIAR</EliteText>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => { updateField('exercise_id', null); updateField('exercise_name', null); }}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="close-circle" size={16} color={Colors.textSecondary} />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable onPress={onAssignExercise} style={styles.assignBtn}>
+                  <Ionicons name="add-circle-outline" size={16} color={Colors.neonGreen} />
+                  <EliteText variant="caption" style={styles.assignBtnText}>Asignar ejercicio</EliteText>
+                </Pressable>
+              )}
+            </View>
+          )}
+
           {/* Acciones */}
-          <View style={styles.actions}>
+          <View style={styles.actionsBar}>
             {onMoveUp && (
-              <Pressable onPress={onMoveUp} hitSlop={8}>
+              <Pressable onPress={onMoveUp} hitSlop={8} style={styles.actionBtn}>
                 <Ionicons name="arrow-up" size={16} color={Colors.textSecondary} />
               </Pressable>
             )}
             {onMoveDown && (
-              <Pressable onPress={onMoveDown} hitSlop={8}>
+              <Pressable onPress={onMoveDown} hitSlop={8} style={styles.actionBtn}>
                 <Ionicons name="arrow-down" size={16} color={Colors.textSecondary} />
               </Pressable>
             )}
-            <Pressable onPress={onDuplicate} hitSlop={8}>
+            <Pressable onPress={onDuplicate} hitSlop={8} style={styles.actionBtn}>
               <Ionicons name="copy-outline" size={16} color={Colors.textSecondary} />
             </Pressable>
-            <Pressable onPress={onDelete} hitSlop={8}>
+            <View style={{ flex: 1 }} />
+            <Pressable onPress={onDelete} hitSlop={8} style={styles.actionBtn}>
               <Ionicons name="trash-outline" size={16} color={Colors.error} />
             </Pressable>
           </View>
         </View>
-
-        {/* Segunda fila: duración */}
-        <View style={styles.leafDurationRow}>
-          <EliteText variant="caption" style={styles.configLabel}>Duración</EliteText>
-          <NumberStepper
-            value={block.duration_seconds ?? 0}
-            onChange={v => updateField('duration_seconds', v)}
-            min={1}
-            max={3600}
-            step={1}
-            suffix="s"
-          />
-        </View>
-
-        {/* Tercera fila: ejercicio asignado (solo bloques work) */}
-        {block.type === 'work' && (
-          <View style={styles.exerciseRow}>
-            {block.exercise_id && block.exercise_name ? (
-              <View style={styles.exerciseAssigned}>
-                <Ionicons name="barbell-outline" size={14} color={Colors.neonGreen} />
-                <EliteText variant="caption" style={styles.exerciseNameText} numberOfLines={1}>
-                  {block.exercise_name}
-                </EliteText>
-                <Pressable
-                  onPress={() => {
-                    updateField('exercise_id', null);
-                    updateField('exercise_name', null);
-                  }}
-                  hitSlop={8}
-                >
-                  <Ionicons name="close-circle" size={16} color={Colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={onAssignExercise} hitSlop={8}>
-                  <Ionicons name="swap-horizontal" size={16} color={Colors.neonGreen} />
-                </Pressable>
-              </View>
-            ) : (
-              <Pressable
-                onPress={onAssignExercise}
-                style={styles.assignExerciseBtn}
-              >
-                <Ionicons name="barbell-outline" size={14} color={Colors.textSecondary} />
-                <EliteText variant="caption" style={styles.assignExerciseText}>
-                  Asignar ejercicio
-                </EliteText>
-              </Pressable>
-            )}
-          </View>
-        )}
-      </View>
+      )}
     </View>
   );
 }
 
-// === NUMBER STEPPER (subcomponente inline) ===
+// === NUMBER STEPPER ===
 
 function NumberStepper({
-  value,
-  onChange,
-  min = 0,
-  max = 999,
-  step = 1,
-  suffix = '',
+  value, onChange, min = 0, max = 999, step = 1, suffix = '', accent = Colors.neonGreen,
 }: {
-  value: number;
-  onChange: (v: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-  suffix?: string;
+  value: number; onChange: (v: number) => void;
+  min?: number; max?: number; step?: number; suffix?: string; accent?: string;
 }) {
-  const decrement = () => onChange(Math.max(min, value - step));
-  const increment = () => onChange(Math.min(max, value + step));
-
   return (
     <View style={styles.stepperRow}>
       <Pressable
-        onPress={decrement}
+        onPress={() => onChange(Math.max(min, value - step))}
         disabled={value <= min}
-        style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.5 }]}
+        style={[styles.stepperBtn, { borderColor: value <= min ? Colors.disabled : accent + '40' }]}
       >
-        <Ionicons
-          name="remove"
-          size={14}
-          color={value <= min ? Colors.disabled : Colors.neonGreen}
-        />
+        <Ionicons name="remove" size={14} color={value <= min ? Colors.disabled : accent} />
       </Pressable>
       <EliteText variant="body" style={styles.stepperValue}>
         {value}{suffix}
       </EliteText>
       <Pressable
-        onPress={increment}
+        onPress={() => onChange(Math.min(max, value + step))}
         disabled={value >= max}
-        style={({ pressed }) => [styles.stepperBtn, pressed && { opacity: 0.5 }]}
+        style={[styles.stepperBtn, { borderColor: value >= max ? Colors.disabled : accent + '40' }]}
       >
-        <Ionicons
-          name="add"
-          size={14}
-          color={value >= max ? Colors.disabled : Colors.neonGreen}
-        />
+        <Ionicons name="add" size={14} color={value >= max ? Colors.disabled : accent} />
       </Pressable>
     </View>
   );
@@ -458,110 +467,164 @@ function NumberStepper({
 // === ESTILOS ===
 
 const styles = StyleSheet.create({
-  // --- Grupo ---
-  groupContainer: {
-    flexDirection: 'row',
-    marginBottom: Spacing.xs,
+  // Card exterior (compartida grupo y hoja)
+  cardOuter: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: Radius.md,
+    marginBottom: Spacing.sm,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
   },
-  groupBorder: {
+  accentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
     width: 3,
-    borderRadius: 2,
-    marginRight: Spacing.sm,
+    borderTopLeftRadius: Radius.md,
+    borderBottomLeftRadius: Radius.md,
   },
-  groupContent: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
-  },
-  groupHeader: {
+
+  // Header (colapsable)
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
-    minHeight: 36,
+    paddingVertical: Spacing.sm,
+    paddingLeft: Spacing.sm,
+    paddingRight: Spacing.md,
+    gap: Spacing.sm,
   },
-  groupLabel: {
+  dragHandle: {
+    width: 24,
+    alignItems: 'center',
+    opacity: 0.5,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  groupName: {
     fontSize: 15,
+    fontFamily: Fonts.bold,
+    color: Colors.textPrimary,
+  },
+  leafName: {
+    fontSize: 14,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textPrimary,
+  },
+  subtitleText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
   },
   roundsBadge: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
     borderRadius: Radius.pill,
   },
-  roundsText: {
+  roundsBadgeText: {
     fontFamily: Fonts.bold,
     fontSize: 12,
   },
-  groupConfig: {
-    paddingTop: Spacing.xs,
+  durationBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  durationBadgeText: {
+    fontFamily: Fonts.bold,
+    fontSize: 11,
+  },
+
+  // Contenido expandido
+  expandedContent: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderTopWidth: 0.5,
+    borderTopColor: '#2a2a2a',
+  },
+
+  // Config
+  configSection: {
+    paddingTop: Spacing.sm,
     gap: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
   configRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 2,
+    paddingVertical: 4,
   },
   configLabel: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
   },
   colorRow: {
     flexDirection: 'row',
-    gap: Spacing.xs,
+    gap: 6,
   },
   colorDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
   },
   colorDotSelected: {
     borderWidth: 2,
     borderColor: Colors.textPrimary,
   },
 
-  // --- Hoja ---
-  leafContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.xs,
-    paddingLeft: Spacing.xs,
-  },
-  leafDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginTop: 14,
-    marginRight: Spacing.sm,
-  },
-  leafContent: {
-    flex: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
-  },
-  leafHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  leafLabel: {
-    fontSize: 14,
-  },
-  leafDurationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.xs,
+  // Children zone
+  childrenZone: {
+    paddingTop: Spacing.xs,
   },
 
-  // --- Ejercicio asignado ---
-  exerciseRow: {
+  // Actions bar
+  actionsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 0.5,
+    borderTopColor: '#2a2a2a',
     marginTop: Spacing.xs,
+  },
+  actionBtn: {
+    padding: 4,
+  },
+
+  // Tipo selector (hojas)
+  typeSelector: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  typePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  typeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  typeText: {
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textSecondary,
+  },
+
+  // Ejercicio
+  exerciseSection: {
+    gap: Spacing.xs,
+    paddingVertical: 4,
   },
   exerciseAssigned: {
     flexDirection: 'row',
@@ -570,84 +633,72 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neonGreen + '10',
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
+    paddingVertical: Spacing.xs + 2,
     borderWidth: 1,
-    borderColor: Colors.neonGreen + '30',
+    borderColor: Colors.neonGreen + '25',
   },
   exerciseNameText: {
     color: Colors.neonGreen,
     fontFamily: Fonts.semiBold,
-    fontSize: 11,
+    fontSize: 12,
     flex: 1,
   },
-  assignExerciseBtn: {
+  changeBtn: {
+    backgroundColor: Colors.neonGreen + '20',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.pill,
+  },
+  changeBtnText: {
+    color: Colors.neonGreen,
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
+  },
+  assignBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
     paddingVertical: Spacing.xs,
   },
-  assignExerciseText: {
-    color: Colors.textSecondary,
-    fontSize: 11,
+  assignBtnText: {
+    color: Colors.neonGreen,
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
   },
 
-  // --- Type selector ---
-  typeSelector: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  typePill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-  },
-  typeText: {
-    fontSize: 10,
-    fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
-  },
-
-  // --- Label editable ---
+  // Label editable
   labelInput: {
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textPrimary,
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: '#252525',
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
-    minWidth: 80,
-  },
-  labelPress: {
-    flex: 1,
   },
 
-  // --- Acciones ---
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    alignItems: 'center',
-  },
-
-  // --- Number stepper ---
+  // Number stepper
   stepperRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
   },
   stepperBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: Colors.surfaceLight,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperValue: {
-    minWidth: 40,
+    minWidth: 44,
     textAlign: 'center',
     fontFamily: Fonts.bold,
-    fontSize: 13,
+    fontSize: 14,
     fontVariant: ['tabular-nums'],
+    color: Colors.textPrimary,
   },
 });

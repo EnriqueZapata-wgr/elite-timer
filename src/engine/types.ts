@@ -43,6 +43,12 @@ export interface Routine {
   category: string;
   mode: RoutineMode;
   blocks: Block[];
+  /** UUID de la rutina original si fue clonada desde un share */
+  cloned_from?: string | null;
+  /** UUID del creador original */
+  original_creator_id?: string | null;
+  /** Nombre del creador original (resuelto por JOIN) */
+  original_creator_name?: string | null;
 }
 
 // === STEP COMPILADO ===

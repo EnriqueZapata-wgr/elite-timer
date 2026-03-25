@@ -10,14 +10,14 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   View, ScrollView, StyleSheet, Pressable, Alert, Modal,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, TextInput,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import { EliteText } from '@/components/elite-text';
-import { EliteButton } from '@/components/elite-button';
 import { StatsBar } from '@/src/components/builder/StatsBar';
 import { BlockCard } from '@/src/components/builder/BlockCard';
 import { AddBlockButton } from '@/src/components/builder/AddBlockButton';
@@ -32,12 +32,10 @@ import { ExercisePicker } from '@/src/components/ExercisePicker';
 import type { Exercise } from '@/src/types/exercise';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
-// === CATEGORÍAS ===
+// === CATEGORÍAS (solo Workout y Custom según diseño) ===
 
 const CATEGORIES = [
   { key: 'workout', label: 'Workout' },
-  { key: 'fasting', label: 'Fasting' },
-  { key: 'breathing', label: 'Breathing' },
   { key: 'custom', label: 'Custom' },
 ] as const;
 
@@ -60,9 +58,7 @@ export default function BuilderScreen() {
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
-  // Estado del picker de ejercicios
   const [exercisePickerVisible, setExercisePickerVisible] = useState(false);
-  // Callback que se invoca cuando se selecciona un ejercicio del picker
   const exercisePickerCallback = useRef<((exercise: { id: string; name: string }) => void) | null>(null);
 
   // Cargar rutina existente si viene routineId
@@ -72,7 +68,6 @@ export default function BuilderScreen() {
         if (params.routineId) {
           const existing = await getRoutine(params.routineId);
           if (existing) {
-            // Si es clon, generar nuevo ID y agregar "(copia)" al nombre
             if (params.clone === 'true') {
               setRoutine({
                 ...existing,
@@ -251,6 +246,8 @@ export default function BuilderScreen() {
 
   if (!loaded) return null;
 
+  const isEditing = params.routineId && params.clone !== 'true';
+
   return (
     <SafeAreaView style={styles.screen}>
       <KeyboardAvoidingView
@@ -263,7 +260,7 @@ export default function BuilderScreen() {
             <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
           </Pressable>
           <EliteText variant="title" style={styles.headerTitle}>
-            {params.routineId && params.clone !== 'true' ? 'EDITAR' : 'CREAR'} RUTINA
+            {isEditing ? 'EDITAR RUTINA' : 'CREAR RUTINA'}
           </EliteText>
         </View>
 
@@ -273,39 +270,51 @@ export default function BuilderScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* === NOMBRE === */}
-          <View style={styles.nameRow}>
-            <View style={styles.nameInputContainer}>
-              <Ionicons name="create-outline" size={18} color={Colors.textSecondary} />
-              <View style={styles.nameInputWrapper}>
-                {/* TextInput nativo para mayor control */}
-                <RoutineNameInput
-                  value={routine.name}
-                  onChangeText={name => updateRoutine(prev => ({ ...prev, name }))}
-                />
-              </View>
-            </View>
+          <View style={styles.nameSection}>
+            <EliteText variant="caption" style={styles.nameLabel}>NOMBRE DE LA RUTINA</EliteText>
+            <RoutineNameInput
+              value={routine.name}
+              onChangeText={name => updateRoutine(prev => ({ ...prev, name }))}
+            />
+            <View style={styles.nameAccent} />
           </View>
 
           {/* === MODO: Timer vs Rutina === */}
-          <View style={styles.modeRow}>
-            <Pressable
-              onPress={() => updateRoutine(prev => ({ ...prev, mode: 'timer' }))}
-              style={[styles.modePill, routine.mode === 'timer' && styles.modePillActive]}
-            >
-              <Ionicons name="timer-outline" size={14} color={routine.mode === 'timer' ? Colors.textOnGreen : Colors.textSecondary} />
-              <EliteText variant="caption" style={[styles.modeText, routine.mode === 'timer' && styles.modeTextActive]}>
-                Timer
-              </EliteText>
-            </Pressable>
-            <Pressable
-              onPress={() => updateRoutine(prev => ({ ...prev, mode: 'routine' }))}
-              style={[styles.modePill, routine.mode === 'routine' && styles.modePillActive]}
-            >
-              <Ionicons name="barbell-outline" size={14} color={routine.mode === 'routine' ? Colors.textOnGreen : Colors.textSecondary} />
-              <EliteText variant="caption" style={[styles.modeText, routine.mode === 'routine' && styles.modeTextActive]}>
-                Rutina
-              </EliteText>
-            </Pressable>
+          <View style={styles.modeContainer}>
+            <View style={styles.modeToggle}>
+              <Pressable
+                onPress={() => updateRoutine(prev => ({ ...prev, mode: 'timer' }))}
+                style={[styles.modePill, routine.mode === 'timer' && styles.modePillTimerActive]}
+              >
+                <Ionicons
+                  name="timer-outline"
+                  size={16}
+                  color={routine.mode === 'timer' ? Colors.textOnGreen : Colors.textSecondary}
+                />
+                <EliteText variant="caption" style={[
+                  styles.modeText,
+                  routine.mode === 'timer' && styles.modeTextTimerActive,
+                ]}>
+                  Timer
+                </EliteText>
+              </Pressable>
+              <Pressable
+                onPress={() => updateRoutine(prev => ({ ...prev, mode: 'routine' }))}
+                style={[styles.modePill, routine.mode === 'routine' && styles.modePillRoutineActive]}
+              >
+                <Ionicons
+                  name="barbell-outline"
+                  size={16}
+                  color={routine.mode === 'routine' ? '#fff' : Colors.textSecondary}
+                />
+                <EliteText variant="caption" style={[
+                  styles.modeText,
+                  routine.mode === 'routine' && styles.modeTextRoutineActive,
+                ]}>
+                  Rutina
+                </EliteText>
+              </Pressable>
+            </View>
           </View>
 
           {/* === CATEGORÍA === */}
@@ -358,7 +367,6 @@ export default function BuilderScreen() {
                   onDelete={() => deleteBlock(index)}
                   onDuplicate={() => duplicateBlock(index)}
                   onAddChild={child => {
-                    // Para agregar child a un bloque raíz grupo
                     const children = [...(block.children ?? [])];
                     const newChild = { ...child, parent_block_id: block.id, sort_order: children.length };
                     children.push(newChild);
@@ -380,7 +388,6 @@ export default function BuilderScreen() {
               ))
             )}
 
-            {/* Botón agregar bloque raíz */}
             <AddBlockButton
               parentId={null}
               onAdd={addRootBlock}
@@ -388,39 +395,49 @@ export default function BuilderScreen() {
             />
           </View>
 
-          {/* Padding inferior para scroll */}
+          {/* Padding inferior para scroll sobre footer */}
           <View style={{ height: 120 }} />
         </ScrollView>
 
-        {/* === FOOTER === */}
-        <View style={styles.footer}>
+        {/* === BOTTOM ACTION BAR === */}
+        <View style={styles.bottomBar}>
+          {/* PROBAR */}
           <Pressable
-            onPress={() => setPreviewVisible(true)}
-            style={({ pressed }) => [styles.footerBtn, pressed && { opacity: 0.6 }]}
+            onPress={handleTest}
             disabled={!stats || stats.totalSteps === 0}
+            style={({ pressed }) => [styles.bottomBtn, styles.bottomBtnOutline, pressed && { opacity: 0.6 }]}
           >
-            <Ionicons name="eye-outline" size={18} color={Colors.neonGreen} />
-            <EliteText variant="caption" style={styles.footerBtnText}>Preview</EliteText>
+            <Ionicons name="play" size={18} color={Colors.textSecondary} />
+            <EliteText variant="caption" style={styles.bottomBtnOutlineText}>PROBAR</EliteText>
           </Pressable>
 
+          {/* GUARDAR (protagonista) */}
           <Pressable
             onPress={handleSave}
             disabled={saving}
-            style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.6 }, saving && { opacity: 0.5 }]}
+            style={({ pressed }) => [pressed && { opacity: 0.8 }, saving && { opacity: 0.5 }]}
           >
-            <Ionicons name="save-outline" size={18} color={Colors.textOnGreen} />
-            <EliteText variant="caption" style={styles.saveBtnText}>
-              {saving ? 'Guardando...' : 'Guardar'}
-            </EliteText>
+            <LinearGradient
+              colors={['#c5f540', '#7ab800']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.saveBtn}
+            >
+              <Ionicons name="checkmark" size={20} color={Colors.textOnGreen} />
+              <EliteText variant="caption" style={styles.saveBtnText}>
+                {saving ? 'GUARDANDO...' : 'GUARDAR'}
+              </EliteText>
+            </LinearGradient>
           </Pressable>
 
+          {/* PREVIEW */}
           <Pressable
-            onPress={handleTest}
-            style={({ pressed }) => [styles.footerBtn, pressed && { opacity: 0.6 }]}
+            onPress={() => setPreviewVisible(true)}
             disabled={!stats || stats.totalSteps === 0}
+            style={({ pressed }) => [styles.bottomBtn, styles.bottomBtnOutline, pressed && { opacity: 0.6 }]}
           >
-            <Ionicons name="play" size={18} color={Colors.neonGreen} />
-            <EliteText variant="caption" style={styles.footerBtnText}>Probar</EliteText>
+            <Ionicons name="eye-outline" size={18} color={Colors.textSecondary} />
+            <EliteText variant="caption" style={styles.bottomBtnOutlineText}>PREVIEW</EliteText>
           </Pressable>
         </View>
 
@@ -476,6 +493,7 @@ export default function BuilderScreen() {
             </View>
           </View>
         </Modal>
+
         {/* === EXERCISE PICKER MODAL === */}
         <ExercisePicker
           visible={exercisePickerVisible}
@@ -490,9 +508,7 @@ export default function BuilderScreen() {
   );
 }
 
-// === COMPONENTE DE NOMBRE (evita re-renders del teclado) ===
-
-import { TextInput } from 'react-native';
+// === COMPONENTE DE NOMBRE ===
 
 function RoutineNameInput({
   value,
@@ -506,8 +522,8 @@ function RoutineNameInput({
       style={styles.nameInput}
       value={value}
       onChangeText={onChangeText}
-      placeholder="Nombre de la rutina"
-      placeholderTextColor={Colors.textSecondary}
+      placeholder="Mi rutina"
+      placeholderTextColor={Colors.textSecondary + '60'}
       maxLength={50}
     />
   );
@@ -538,40 +554,47 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: FontSizes.lg,
-    letterSpacing: 3,
+    letterSpacing: 2,
+    color: Colors.neonGreen,
   },
 
   // --- Nombre ---
-  nameRow: {
+  nameSection: {
     paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  nameInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
-    paddingHorizontal: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  nameInputWrapper: {
-    flex: 1,
+  nameLabel: {
+    color: Colors.textSecondary,
+    letterSpacing: 2,
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    marginBottom: Spacing.xs,
   },
   nameInput: {
-    fontFamily: Fonts.semiBold,
-    fontSize: FontSizes.md,
+    fontFamily: Fonts.extraBold,
+    fontSize: 32,
     color: Colors.textPrimary,
-    paddingVertical: Spacing.sm + 2,
+    paddingVertical: 4,
+    borderWidth: 0,
+  },
+  nameAccent: {
+    width: 48,
+    height: 3,
+    backgroundColor: Colors.neonGreen,
+    borderRadius: 2,
+    marginTop: 4,
   },
 
-  // --- Modo ---
-  modeRow: {
-    flexDirection: 'row',
+  // --- Modo toggle ---
+  modeContainer: {
     paddingHorizontal: Spacing.md,
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  modeToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a',
+    borderRadius: Radius.pill,
+    padding: 3,
   },
   modePill: {
     flex: 1,
@@ -581,21 +604,23 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
-    backgroundColor: Colors.surface,
   },
-  modePillActive: {
-    borderColor: Colors.neonGreen,
+  modePillTimerActive: {
     backgroundColor: Colors.neonGreen,
+  },
+  modePillRoutineActive: {
+    backgroundColor: '#7F77DD',
   },
   modeText: {
     color: Colors.textSecondary,
-    fontFamily: Fonts.semiBold,
+    fontFamily: Fonts.bold,
     fontSize: 13,
   },
-  modeTextActive: {
+  modeTextTimerActive: {
     color: Colors.textOnGreen,
+  },
+  modeTextRoutineActive: {
+    color: '#fff',
   },
 
   // --- Categoría ---
@@ -609,20 +634,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
+    backgroundColor: '#1a1a1a',
   },
   categoryPillActive: {
-    borderColor: Colors.neonGreen,
-    backgroundColor: Colors.neonGreen + '20',
+    backgroundColor: Colors.neonGreen,
   },
   categoryText: {
     color: Colors.textSecondary,
-    fontFamily: Fonts.semiBold,
+    fontFamily: Fonts.bold,
     fontSize: 12,
   },
   categoryTextActive: {
-    color: Colors.neonGreen,
+    color: Colors.textOnGreen,
   },
 
   // --- Stats ---
@@ -645,41 +668,53 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // --- Footer ---
-  footer: {
+  // --- Bottom Action Bar ---
+  bottomBar: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.surfaceLight,
     backgroundColor: Colors.black,
+    borderTopWidth: 0.5,
+    borderTopColor: '#1a1a1a',
   },
-  footerBtn: {
+  bottomBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    paddingVertical: Spacing.xs,
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.md,
   },
-  footerBtnText: {
-    color: Colors.neonGreen,
-    fontFamily: Fonts.semiBold,
+  bottomBtnOutline: {
+    borderWidth: 1,
+    borderColor: '#333',
+    borderRadius: Radius.pill,
+  },
+  bottomBtnOutlineText: {
+    color: Colors.textSecondary,
+    fontFamily: Fonts.bold,
     fontSize: 11,
+    letterSpacing: 1,
   },
   saveBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: Colors.neonGreen,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.pill,
+    shadowColor: '#a8e02a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   saveBtnText: {
     color: Colors.textOnGreen,
-    fontFamily: Fonts.bold,
+    fontFamily: Fonts.extraBold,
     fontSize: 13,
+    letterSpacing: 1,
   },
 
   // --- Preview modal ---
@@ -690,8 +725,8 @@ const styles = StyleSheet.create({
   },
   previewContainer: {
     backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radius.md,
-    borderTopRightRadius: Radius.md,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
     maxHeight: '70%',
     padding: Spacing.md,
   },
@@ -714,7 +749,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.surfaceLight,
+    borderBottomColor: '#1a1a1a',
   },
   previewIndex: {
     width: 28,

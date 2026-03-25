@@ -202,7 +202,7 @@ export default function ProgressScreen() {
                 <EliteText style={styles.heroStatNum}>
                   {(monthly?.volumeKg ?? 0) > 999
                     ? `${Math.round((monthly?.volumeKg ?? 0) / 1000)}k`
-                    : monthly?.volumeKg ?? 0}kg
+                    : `${monthly?.volumeKg ?? 0}kg`}
                 </EliteText>
                 <EliteText variant="caption" style={styles.heroStatLabel}>volumen</EliteText>
               </View>

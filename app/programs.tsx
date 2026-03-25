@@ -2,9 +2,9 @@
  * Mis Rutinas — Lista con hero card de resumen, filtros por modo,
  * cards con gradientes funcionales y FAB flotante.
  */
-import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useCallback, useEffect } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator, Share, Modal, BackHandler } from 'react-native';
+import { useRouter, useSegments, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
@@ -12,6 +12,8 @@ import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { EmptyState } from '@/components/empty-state';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { ScheduleModal } from '@/src/components/ScheduleModal';
+import { shareRoutine } from '@/src/services/share-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { flattenRoutine, calcRoutineStats, formatTimeHuman } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
@@ -27,7 +29,11 @@ type FilterMode = 'all' | 'timer' | 'routine';
 
 export default function ProgramsScreen() {
   const router = useRouter();
+  const segments = useSegments();
+  const isInTabs = segments[0] === '(tabs)';
   const [routines, setRoutines] = useState<Routine[]>([]);
+  const [scheduleRoutine, setScheduleRoutine] = useState<Routine | null>(null);
+  const [menuRoutine, setMenuRoutine] = useState<Routine | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>('all');
@@ -127,6 +133,17 @@ export default function ProgramsScreen() {
     }
   };
 
+  const handleShare = async (routine: Routine) => {
+    try {
+      const link = await shareRoutine(routine.id);
+      await Share.share({
+        message: `¡Prueba esta rutina en ATP!\n${routine.name}\n${link}`,
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo compartir la rutina.');
+    }
+  };
+
   const countExercises = (routine: Routine): number => {
     let count = 0;
     const walk = (blocks: Routine['blocks']) => {
@@ -163,10 +180,12 @@ export default function ProgramsScreen() {
     <ScreenContainer centered={false}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-        </Pressable>
-        <EliteText variant="title">MIS RUTINAS</EliteText>
+        {!isInTabs && (
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
+          </Pressable>
+        )}
+        <EliteText variant="title">{isInTabs ? 'BIBLIOTECA' : 'MIS RUTINAS'}</EliteText>
       </View>
 
       {loading ? (
@@ -286,14 +305,7 @@ export default function ProgramsScreen() {
 
                     {/* Menú ⋮ */}
                     <Pressable
-                      onPress={() => {
-                        Alert.alert(routine.name, '', [
-                          { text: 'Editar', onPress: () => editRoutine(routine) },
-                          { text: 'Copiar', onPress: () => handleDuplicate(routine) },
-                          { text: 'Eliminar', style: 'destructive', onPress: () => handleDelete(routine) },
-                          { text: 'Cancelar', style: 'cancel' },
-                        ]);
-                      }}
+                      onPress={() => setMenuRoutine(routine)}
                       hitSlop={12}
                       style={styles.menuBtn}
                     >
@@ -313,6 +325,14 @@ export default function ProgramsScreen() {
                       <EliteText variant="caption" style={styles.cardLastUsed}>
                         Última vez: Nunca
                       </EliteText>
+                      {routine.original_creator_name && (
+                        <View style={styles.creditRow}>
+                          <Ionicons name="link-outline" size={11} color={Colors.textSecondary} />
+                          <EliteText variant="caption" style={styles.creditText}>
+                            Basada en rutina de {routine.original_creator_name}
+                          </EliteText>
+                        </View>
+                      )}
                     </View>
 
                     {/* Botón play */}
@@ -347,7 +367,81 @@ export default function ProgramsScreen() {
       >
         <Ionicons name="add" size={28} color={Colors.textOnGreen} />
       </Pressable>
+
+      {/* ── Menú de acciones ── */}
+      <Modal
+        visible={menuRoutine !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuRoutine(null)}
+      >
+        <Pressable style={styles.menuOverlay} onPress={() => setMenuRoutine(null)}>
+          <Pressable style={styles.menuSheet} onPress={e => e.stopPropagation()}>
+            {/* Título */}
+            <EliteText variant="label" style={styles.menuTitle} numberOfLines={1}>
+              {menuRoutine?.name}
+            </EliteText>
+            <View style={styles.menuDivider} />
+
+            {/* Opciones */}
+            <MenuItem
+              icon="share-social-outline"
+              label="Compartir"
+              onPress={() => { const r = menuRoutine!; setMenuRoutine(null); handleShare(r); }}
+            />
+            <MenuItem
+              icon="calendar-outline"
+              label="Programar"
+              onPress={() => { const r = menuRoutine!; setMenuRoutine(null); setScheduleRoutine(r); }}
+            />
+            <MenuItem
+              icon="create-outline"
+              label="Editar"
+              onPress={() => { const r = menuRoutine!; setMenuRoutine(null); editRoutine(r); }}
+            />
+            <MenuItem
+              icon="copy-outline"
+              label="Copiar"
+              onPress={() => { const r = menuRoutine!; setMenuRoutine(null); handleDuplicate(r); }}
+            />
+            <View style={styles.menuDivider} />
+            <MenuItem
+              icon="trash-outline"
+              label="Eliminar"
+              color={Colors.error}
+              onPress={() => { const r = menuRoutine!; setMenuRoutine(null); handleDelete(r); }}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── Modal de programación ── */}
+      <ScheduleModal
+        visible={scheduleRoutine !== null}
+        onClose={() => setScheduleRoutine(null)}
+        routineId={scheduleRoutine?.id ?? ''}
+        routineName={scheduleRoutine?.name ?? ''}
+      />
     </ScreenContainer>
+  );
+}
+
+// === COMPONENTE AUXILIAR: MenuItem ===
+
+function MenuItem({ icon, label, color, onPress }: {
+  icon: string; label: string; color?: string; onPress: () => void;
+}) {
+  const tint = color ?? Colors.textPrimary;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+    >
+      <Ionicons name={icon as any} size={20} color={tint} />
+      <EliteText variant="body" style={[styles.menuItemLabel, { color: tint }]}>
+        {label}
+      </EliteText>
+    </Pressable>
   );
 }
 
@@ -505,6 +599,17 @@ const styles = StyleSheet.create({
     marginTop: 4,
     opacity: 0.7,
   },
+  creditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  creditText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
   playBtn: {
     marginLeft: Spacing.sm,
   },
@@ -532,5 +637,47 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 12,
+  },
+
+  // ── Menú modal ──
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  menuSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.lg,
+    borderTopRightRadius: Radius.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xl,
+    paddingHorizontal: Spacing.md,
+  },
+  menuTitle: {
+    color: Colors.textPrimary,
+    fontSize: 16,
+    fontFamily: Fonts.bold,
+    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  menuDivider: {
+    height: 1,
+    backgroundColor: Colors.surfaceLight,
+    marginVertical: Spacing.xs,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.sm,
+  },
+  menuItemPressed: {
+    backgroundColor: Colors.surfaceLight,
+  },
+  menuItemLabel: {
+    fontSize: 15,
+    fontFamily: Fonts.semiBold,
   },
 });

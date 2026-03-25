@@ -16,7 +16,7 @@ export default function IndexRedirect() {
   if (loading) {
     return (
       <View style={styles.splash}>
-        <EliteText variant="title" style={styles.logo}>ELITE</EliteText>
+        <EliteText variant="title" style={styles.logo}>ATP</EliteText>
         <ActivityIndicator size="large" color={Colors.neonGreen} style={styles.loader} />
       </View>
     );

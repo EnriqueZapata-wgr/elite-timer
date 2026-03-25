@@ -1,8 +1,7 @@
 /**
- * StatsBar — Barra compacta de estadísticas de rutina.
+ * StatsBar — Bento grid de estadísticas: TOTAL | TRABAJO | DESCANSO.
  *
- * Muestra tiempo total, trabajo/descanso, steps y ratio.
- * Se recalcula cada vez que cambia la rutina.
+ * Cada card tiene borde izquierdo de color y fondo oscuro premium.
  */
 import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
@@ -14,65 +13,64 @@ interface StatsBarProps {
 }
 
 export function StatsBar({ stats }: StatsBarProps) {
-  const workPercent = Math.round(stats.workRatio * 100);
-  const restPercent = Math.round(stats.restRatio * 100);
-
   return (
-    <View style={styles.container}>
-      <View style={styles.row}>
-        <View style={styles.stat}>
-          <EliteText variant="caption" style={styles.label}>TOTAL</EliteText>
-          <EliteText variant="body" style={styles.value}>{stats.formattedTotal}</EliteText>
-        </View>
-        <View style={styles.stat}>
-          <EliteText variant="caption" style={styles.label}>TRABAJO</EliteText>
-          <EliteText variant="body" style={[styles.value, { color: '#a8e02a' }]}>
-            {stats.formattedWork}
-          </EliteText>
-        </View>
-        <View style={styles.stat}>
-          <EliteText variant="caption" style={styles.label}>DESCANSO</EliteText>
-          <EliteText variant="body" style={[styles.value, { color: '#5B9BD5' }]}>
-            {stats.formattedRest}
-          </EliteText>
-        </View>
-      </View>
+    <View style={styles.row}>
+      <StatCard label="TOTAL" value={stats.formattedTotal} accentColor={Colors.textSecondary} />
+      <StatCard label="TRABAJO" value={stats.formattedWork} accentColor="#a8e02a" />
+      <StatCard label="DESCANSO" value={stats.formattedRest} accentColor="#5B9BD5" />
+    </View>
+  );
+}
+
+function StatCard({ label, value, accentColor }: {
+  label: string; value: string; accentColor: string;
+}) {
+  return (
+    <View style={styles.card}>
+      <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
+      <EliteText variant="caption" style={styles.label}>{label}</EliteText>
+      <EliteText variant="body" style={[styles.value, { color: accentColor === Colors.textSecondary ? Colors.textPrimary : accentColor }]}>
+        {value}
+      </EliteText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    padding: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.surfaceLight,
-    gap: Spacing.xs,
-  },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: Spacing.sm,
   },
-  stat: {
-    alignItems: 'center',
-    minWidth: 70,
+  card: {
+    flex: 1,
+    backgroundColor: '#1f1f1f',
+    borderRadius: Radius.sm,
+    padding: Spacing.sm,
+    paddingLeft: Spacing.sm + 6,
+    overflow: 'hidden',
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
+  },
+  cardAccent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    borderTopLeftRadius: Radius.sm,
+    borderBottomLeftRadius: Radius.sm,
   },
   label: {
-    letterSpacing: 1,
+    letterSpacing: 2,
     fontSize: 9,
     color: Colors.textSecondary,
+    fontFamily: Fonts.bold,
+    marginBottom: 2,
   },
   value: {
-    fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontFamily: Fonts.extraBold,
+    fontSize: 18,
     color: Colors.textPrimary,
-    fontVariant: ['tabular-nums'],
-  },
-  ratio: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 12,
-    color: Colors.textSecondary,
     fontVariant: ['tabular-nums'],
   },
 });

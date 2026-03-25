@@ -53,10 +53,10 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Branding ELITE */}
+          {/* Branding ATP */}
           <View style={styles.brand}>
             <View style={styles.accentLine} />
-            <EliteText variant="title" style={styles.logo}>ELITE</EliteText>
+            <EliteText variant="title" style={styles.logo}>ATP</EliteText>
             <EliteText variant="label" style={styles.tagline}>PERFORMANCE TIMER</EliteText>
             <View style={styles.accentLine} />
           </View>

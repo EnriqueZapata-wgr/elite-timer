@@ -1,5 +1,5 @@
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
@@ -31,6 +31,8 @@ const SOUND_STYLES: { value: SoundStyle; label: string }[] = [
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const segments = useSegments();
+  const isInTabs = segments[0] === '(tabs)';
   const { settings, updateSetting } = useSettings();
   const { user, signOut } = useAuth();
 
@@ -38,10 +40,12 @@ export default function SettingsScreen() {
     <ScreenContainer centered={false}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-        </Pressable>
-        <EliteText variant="title">AJUSTES</EliteText>
+        {!isInTabs && (
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
+          </Pressable>
+        )}
+        <EliteText variant="title">{isInTabs ? 'PERFIL' : 'AJUSTES'}</EliteText>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>

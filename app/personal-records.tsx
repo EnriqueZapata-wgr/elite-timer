@@ -7,7 +7,7 @@ import {
   View, ScrollView, StyleSheet, Pressable, FlatList,
   ActivityIndicator, RefreshControl, Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useSegments } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -274,6 +274,8 @@ function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color
 
 export default function PersonalRecordsScreen() {
   const router = useRouter();
+  const segments = useSegments();
+  const isInTabs = segments[0] === '(tabs)';
   const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -364,11 +366,13 @@ export default function PersonalRecordsScreen() {
     <SafeAreaView style={styles.screen}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-        </Pressable>
+        {!isInTabs && (
+          <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
+          </Pressable>
+        )}
         <EliteText variant="title" style={styles.headerTitle}>
-          MIS MARCAS
+          {isInTabs ? 'PROGRESO' : 'MIS MARCAS'}
         </EliteText>
       </View>
 

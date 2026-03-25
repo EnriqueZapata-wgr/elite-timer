@@ -46,7 +46,7 @@ export default function TimerScreen() {
       </Pressable>
 
       {/* Título de la app */}
-      <Text style={styles.title}>ELITE TIMER</Text>
+      <Text style={styles.title}>ATP</Text>
 
       {/* Selector de intervalos — fila de chips */}
       <IntervalSelector

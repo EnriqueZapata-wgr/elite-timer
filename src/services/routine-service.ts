@@ -166,10 +166,10 @@ export async function getRoutines(): Promise<Routine[]> {
   // getRoutines no fuerza refresh — si no hay sesión, retorna vacío silenciosamente
   if (!user) return [];
 
-  // Fetch rutinas
+  // Fetch rutinas (con JOIN a profiles para crédito de clones)
   const { data: routineRows, error: routineError } = await supabase
     .from('routines')
-    .select('*')
+    .select('*, original_creator:profiles!routines_original_creator_id_fkey(full_name)')
     .eq('creator_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -205,6 +205,9 @@ export async function getRoutines(): Promise<Routine[]> {
     category: r.category ?? 'workout',
     mode: (r.mode ?? 'timer') as Routine['mode'],
     blocks: buildTree(blocksByRoutine.get(r.id) ?? []),
+    cloned_from: r.cloned_from ?? null,
+    original_creator_id: r.original_creator_id ?? null,
+    original_creator_name: (r as any).original_creator?.full_name ?? null,
   }));
 }
 
@@ -304,6 +307,10 @@ export async function saveRoutine(routine: Routine): Promise<void> {
 /** Elimina una rutina del usuario autenticado (CASCADE elimina blocks) */
 export async function deleteRoutine(id: string): Promise<void> {
   const user = await getAuthenticatedUser();
+
+  // Borrar dependencias que referencian esta rutina (FK)
+  await supabase.from('scheduled_routines').delete().eq('routine_id', id).eq('user_id', user.id);
+  await supabase.from('routine_shares').delete().eq('routine_id', id).eq('creator_id', user.id);
 
   const { error } = await supabase
     .from('routines')
