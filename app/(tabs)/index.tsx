@@ -5,8 +5,8 @@
  * stats de completados y barra de progreso.
  * Si no hay protocolo asignado, muestra el estado vacío con rutinas programadas.
  */
-import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { useState, useCallback, useRef } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -104,11 +104,50 @@ export default function TodayScreen() {
     setToggling(null);
   };
 
+  // Toast
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2000);
+  };
+
+  // Tipos que navegan a otra pantalla (no hacen toggle)
+  const NAVIGABLE_TYPES = new Set(['routine', 'breathing', 'meditation']);
+
   const handleItemPress = (item: TimelineItem) => {
-    if (item.link_type === 'routine' && item.link_routine_id) {
+    const lt = item.link_type;
+
+    if (lt === 'routine' && item.link_routine_id) {
       router.push({ pathname: '/execution' as any, params: { routineId: item.link_routine_id } });
+    } else if (lt === 'breathing') {
+      router.push({ pathname: '/breathing' as any, params: { protocolItemId: item.item_id } });
+    } else if (lt === 'meditation') {
+      router.push({ pathname: '/meditation' as any, params: { protocolItemId: item.item_id } });
+    } else if (lt === 'external_link' && item.link_url) {
+      Linking.openURL(item.link_url).catch(() => {});
+    } else if (lt === 'supplement_check') {
+      handleToggle(item.item_id);
+      showToast('Suplementos registrados');
+    } else if (lt === 'habit_check') {
+      handleToggle(item.item_id);
+      showToast('Hábito registrado');
+    } else if (lt === 'fasting_window') {
+      handleToggle(item.item_id);
+      showToast('Registrado');
+    } else if (lt === 'meal_photo') {
+      handleToggle(item.item_id);
+      showToast('Próximamente: foto de comida');
+    } else if (lt === 'journal') {
+      handleToggle(item.item_id);
+      showToast('Próximamente: journaling');
+    } else {
+      handleToggle(item.item_id);
     }
   };
+
+  const isNavigable = (linkType: string | null) => NAVIGABLE_TYPES.has(linkType ?? '');
 
   const completionStats = getCompletionStats(timeline);
   const hasTimeline = timeline.length > 0;
@@ -256,6 +295,12 @@ export default function TodayScreen() {
                             )}
                           </View>
 
+                          {isNavigable(item.link_type) && (
+                            <View style={styles.navIndicator}>
+                              <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+                            </View>
+                          )}
+
                           <Pressable
                             onPress={() => handleToggle(item.item_id)}
                             disabled={isTogglingThis}
@@ -307,6 +352,13 @@ export default function TodayScreen() {
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
+
+      {/* Toast */}
+      {toast && (
+        <View style={styles.toast}>
+          <EliteText variant="caption" style={styles.toastText}>{toast}</EliteText>
+        </View>
+      )}
     </ScreenContainer>
   );
 }
@@ -535,6 +587,32 @@ const styles = StyleSheet.create({
   },
   emptyBtnText: {
     color: Colors.neonGreen,
+    fontFamily: Fonts.semiBold,
+  },
+
+  // Nav indicator (chevron en cards navegables)
+  navIndicator: {
+    justifyContent: 'center',
+    paddingRight: 2,
+  },
+
+  // Toast
+  toast: {
+    position: 'absolute',
+    bottom: Spacing.xl,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: '#2a2a2a',
+  },
+  toastText: {
+    color: Colors.textPrimary,
+    fontSize: 13,
     fontFamily: Fonts.semiBold,
   },
 });
