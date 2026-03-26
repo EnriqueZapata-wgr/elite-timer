@@ -4,7 +4,7 @@
  * Header + stats + 4 tabs: Calendario, Rutinas, Progreso, Historial.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Modal, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Modal, Alert, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
@@ -213,19 +213,86 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
     return (flags.find(f => f.condition_key === key)?.status as FlagStatus) ?? 'not_evaluated';
   };
 
+  const { width: screenW } = useWindowDimensions();
+  const isWide = screenW >= 1024;
+
+  const renderZoneCard = (zone: typeof CONDITION_ZONES[0]) => {
+    const isExpanded = expandedZones.has(zone.key);
+    const redCount = zone.conditions.filter(c => getFlag(c.key) === 'present').length;
+    const orangeCount = zone.conditions.filter(c => getFlag(c.key) === 'observation').length;
+    const greenCount = zone.conditions.filter(c => getFlag(c.key) === 'normal').length;
+    const statusDotColor = redCount > 0 ? '#E24B4A' : orangeCount > 0 ? '#EF9F27' : greenCount > 0 ? '#a8e02a' : '#444';
+    const visiblePills = isExpanded ? zone.conditions : zone.conditions.slice(0, 8);
+    const hiddenCount = isExpanded ? 0 : Math.max(0, zone.conditions.length - 8);
+
+    return (
+      <View key={zone.key} style={[styles.zoneCard, { borderLeftColor: zone.color }]}>
+        <Pressable onPress={() => toggleZone(zone.key)} style={styles.zoneHeader}>
+          <View style={[styles.zoneDot, { backgroundColor: statusDotColor }]} />
+          <EliteText variant="caption" style={[styles.zoneTitle, { color: zone.color }]}>
+            {zone.label}
+          </EliteText>
+          {(redCount > 0 || orangeCount > 0) && (
+            <View style={styles.zoneBadges}>
+              {redCount > 0 && <View style={[styles.zoneBadge, { backgroundColor: '#E24B4A20' }]}><EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 9, fontFamily: Fonts.bold }}>{redCount}</EliteText></View>}
+              {orangeCount > 0 && <View style={[styles.zoneBadge, { backgroundColor: '#EF9F2720' }]}><EliteText variant="caption" style={{ color: '#EF9F27', fontSize: 9, fontFamily: Fonts.bold }}>{orangeCount}</EliteText></View>}
+            </View>
+          )}
+        </Pressable>
+        <View style={styles.conditionPills}>
+          {visiblePills.map(cond => {
+            const status = getFlag(cond.key);
+            const st = FLAG_STATUSES[status];
+            return (
+              <Pressable key={cond.key} onPress={() => onFlagToggle(cond.key, zone.key)}
+                style={[styles.condPillSm, { backgroundColor: st.bgColor, borderColor: st.color + '40', borderStyle: status === 'not_evaluated' ? 'dashed' : 'solid' }]}>
+                <EliteText variant="caption" style={{ color: st.color, fontSize: 10, fontFamily: Fonts.semiBold }}>{cond.label}</EliteText>
+              </Pressable>
+            );
+          })}
+          {hiddenCount > 0 && <EliteText variant="caption" style={{ color: '#666', fontSize: 10 }}>+{hiddenCount} más</EliteText>}
+        </View>
+        {zone.key === 'oncologic' && zone.conditions.some(c => getFlag(c.key) === 'present') && (
+          <View style={styles.oncoNoteBox}>
+            <EliteText variant="caption" style={styles.oncoNoteLabel}>Nota oncológica</EliteText>
+            <EliteText variant="caption" style={styles.oncoNoteHint}>
+              {flags.find(f => f.zone === 'oncologic' && f.notes)?.notes || 'Long press en pill para detalles'}
+            </EliteText>
+          </View>
+        )}
+      </View>
+    );
+  };
+
   return (
-    <View style={{ gap: Spacing.md }}>
-      {/* Datos base */}
-      <View style={styles.profileCard}>
-        <EliteText variant="caption" style={styles.profileCardLabel}>INFORMACIÓN PERSONAL</EliteText>
-        <ProfileRow label="Nombre" value={clientName} />
-        <ProfileRow label="Email" value={clientEmail} />
-        <ProfileRow label="Conectado desde" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })} />
+    <View style={{ gap: 20 }}>
+      {/* ═══ FILA 1: DATOS BASE ═══ */}
+      <EliteText variant="caption" style={styles.rowLabel}>DATOS BASE</EliteText>
+      <View style={isWide ? styles.threeColRow : { gap: Spacing.sm }}>
+        <View style={isWide ? styles.threeColItem : undefined}>
+          <View style={styles.profileCard}>
+            <EliteText variant="caption" style={styles.profileCardLabel}>DATOS PERSONALES</EliteText>
+            <ProfileRow label="Nombre" value={clientName} />
+            <ProfileRow label="Email" value={clientEmail} />
+            <ProfileRow label="Conexión" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} />
+          </View>
+        </View>
+        <View style={isWide ? styles.threeColItem : undefined}>
+          <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
+        </View>
+        <View style={isWide ? styles.threeColItem : undefined}>
+          <View style={styles.profileCard}>
+            <EliteText variant="caption" style={styles.profileCardLabel}>OBJETIVOS</EliteText>
+            <EliteText variant="caption" style={{ color: '#666', fontSize: 11, fontStyle: 'italic' }}>
+              Próximamente: editar desde client_profiles
+            </EliteText>
+          </View>
+        </View>
       </View>
 
-      {/* ══════ SCORES DE SALUD ══════ */}
+      {/* ═══ FILA 2: SCORES ═══ */}
+      <EliteText variant="caption" style={styles.rowLabel}>SCORES DE SALUD</EliteText>
       <View style={styles.profileCard}>
-        <EliteText variant="caption" style={styles.profileCardLabel}>SCORES DE SALUD</EliteText>
         <View style={styles.scoresGrid}>
           <ScoreCard label="Edad biológica" value="—" unit="años" color="#7F77DD" />
           <ScoreCard label="Edad metabólica" value="—" unit="años" color="#EF9F27" />
@@ -237,96 +304,32 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         </EliteText>
       </View>
 
-      {/* ══════ TABLERO DE CONDICIONES ══════ */}
-      <EliteText variant="caption" style={[styles.profileCardLabel, { marginBottom: 0 }]}>
-        TABLERO DE CONDICIONES
+      {/* ═══ FILA 3: TABLERO DE CONDICIONES (grid 3 cols) ═══ */}
+      <EliteText variant="caption" style={styles.rowLabel}>TABLERO DE CONDICIONES</EliteText>
+      <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginTop: -12, marginBottom: Spacing.sm }}>
+        Toca pill para ciclar estado · long press para notas
       </EliteText>
-      <EliteText variant="caption" style={{ color: '#666', fontSize: 11, marginBottom: Spacing.sm }}>
-        Toca una pill para ciclar: no evaluado → normal → observación → presente
-      </EliteText>
-
-      {CONDITION_ZONES.map(zone => {
-        const isExpanded = expandedZones.has(zone.key);
-        const redCount = zone.conditions.filter(c => getFlag(c.key) === 'present').length;
-        const orangeCount = zone.conditions.filter(c => getFlag(c.key) === 'observation').length;
-
-        return (
-          <View key={zone.key} style={styles.profileCard}>
-            <Pressable onPress={() => toggleZone(zone.key)} style={styles.zoneHeader}>
-              <View style={[styles.zoneDot, { backgroundColor: zone.color }]} />
-              <EliteText variant="body" style={[styles.zoneTitle, { color: zone.color }]}>
-                {zone.label}
-              </EliteText>
-              {(redCount > 0 || orangeCount > 0) && (
-                <View style={styles.zoneBadges}>
-                  {redCount > 0 && (
-                    <View style={[styles.zoneBadge, { backgroundColor: '#E24B4A20' }]}>
-                      <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 10, fontFamily: Fonts.bold }}>{redCount}</EliteText>
-                    </View>
-                  )}
-                  {orangeCount > 0 && (
-                    <View style={[styles.zoneBadge, { backgroundColor: '#EF9F2720' }]}>
-                      <EliteText variant="caption" style={{ color: '#EF9F27', fontSize: 10, fontFamily: Fonts.bold }}>{orangeCount}</EliteText>
-                    </View>
-                  )}
-                </View>
-              )}
-              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
-            </Pressable>
-
-            {isExpanded && (
-              <View>
-                <View style={styles.conditionPills}>
-                  {zone.conditions.map(cond => {
-                    const status = getFlag(cond.key);
-                    const st = FLAG_STATUSES[status];
-                    return (
-                      <Pressable
-                        key={cond.key}
-                        onPress={() => onFlagToggle(cond.key, zone.key)}
-                        style={[styles.condPill, {
-                          backgroundColor: st.bgColor,
-                          borderColor: st.color + '40',
-                          borderStyle: status === 'not_evaluated' ? 'dashed' : 'solid',
-                        }]}
-                      >
-                        <EliteText variant="caption" style={[styles.condPillText, { color: st.color }]}>
-                          {cond.label}
-                        </EliteText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                {/* Nota para oncológico cuando hay condiciones presentes */}
-                {zone.key === 'oncologic' && zone.conditions.some(c => getFlag(c.key) === 'present') && (
-                  <View style={styles.oncoNoteBox}>
-                    <EliteText variant="caption" style={styles.oncoNoteLabel}>Nota oncológica (tipo de cáncer, estadio, etc.)</EliteText>
-                    <EliteText variant="caption" style={styles.oncoNoteHint}>
-                      {flags.find(f => f.zone === 'oncologic' && f.notes)?.notes || 'Sin nota — usa long press en la pill para agregar detalles'}
-                    </EliteText>
-                  </View>
-                )}
-              </View>
-            )}
+      <View style={isWide ? styles.condGrid : { gap: Spacing.sm }}>
+        {CONDITION_ZONES.map(zone => (
+          <View key={zone.key} style={isWide ? styles.condGridItem : undefined}>
+            {renderZoneCard(zone)}
           </View>
-        );
-      })}
-
-      {/* ══════ COMPOSICIÓN CORPORAL ══════ */}
-      <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
-
-      {/* ══════ FARMACOLOGÍA + SUPLEMENTOS (lado a lado en web) ══════ */}
-      <View style={styles.twoColRow}>
-        <View style={styles.twoColItem}>
-          <CollapsibleSection title="Farmacología" clientId={clientId} type="medications" />
-        </View>
-        <View style={styles.twoColItem}>
-          <CollapsibleSection title="Suplementos" clientId={clientId} type="supplements" />
-        </View>
+        ))}
       </View>
 
-      {/* ══════ ANTECEDENTES FAMILIARES ══════ */}
-      <CollapsibleSection title="Antecedentes familiares" clientId={clientId} type="family" />
+      {/* ═══ FILA 5: TRATAMIENTO (3 cols) ═══ */}
+      <EliteText variant="caption" style={styles.rowLabel}>TRATAMIENTO</EliteText>
+      <View style={isWide ? styles.threeColRow : { gap: Spacing.sm }}>
+        <View style={isWide ? styles.threeColItem : undefined}>
+          <CollapsibleSection title="Farmacología" clientId={clientId} type="medications" />
+        </View>
+        <View style={isWide ? styles.threeColItem : undefined}>
+          <CollapsibleSection title="Suplementos" clientId={clientId} type="supplements" />
+        </View>
+        <View style={isWide ? styles.threeColItem : undefined}>
+          <CollapsibleSection title="Antecedentes familiares" clientId={clientId} type="family" />
+        </View>
+      </View>
     </View>
   );
 }
@@ -1076,9 +1079,23 @@ const styles = StyleSheet.create({
   scoreLabel: { color: '#888', fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4, textAlign: 'center' },
   scoreValue: { fontSize: 28, fontFamily: Fonts.extraBold },
 
-  // Two column layout
-  twoColRow: { flexDirection: 'row', gap: Spacing.sm },
-  twoColItem: { flex: 1 },
+  // Grid layouts
+  threeColRow: { flexDirection: 'row', gap: 12 },
+  threeColItem: { flex: 1 },
+  condGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  condGridItem: { width: '32%', flexGrow: 1 },
+  rowLabel: {
+    color: '#666', letterSpacing: 3, fontSize: 10, fontFamily: Fonts.bold, marginBottom: Spacing.sm,
+  },
+
+  // Zone card (compact)
+  zoneCard: {
+    backgroundColor: '#111', borderRadius: 12, padding: 12,
+    borderWidth: 0.5, borderColor: '#222', borderLeftWidth: 3,
+  },
+  condPillSm: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, borderWidth: 1,
+  },
 
   // Section
   sectionTitle: { flex: 1, fontFamily: Fonts.bold, fontSize: 14, color: '#FFFFFF' },
