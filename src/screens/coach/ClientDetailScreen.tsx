@@ -1061,43 +1061,35 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
 
   const draft = consultations.find(c => c.status === 'draft');
 
-  const handleNew = () => {
+  const webConfirm = (msg: string) => typeof window !== 'undefined' ? window.confirm(msg) : true;
+
+  const handleNew = async () => {
     if (draft) {
-      // Continuar borrador existente
-      getConsultation(draft.id).then(c => { if (c) setActiveConsult(c); });
+      const c = await getConsultation(draft.id);
+      if (c) setActiveConsult(c);
       return;
     }
     const num = (consultations[0]?.consultation_number ?? 0) + 1;
-    Alert.alert(`¿Iniciar consulta #${num}?`, `Se creará una nueva consulta para ${clientName}.`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Iniciar', onPress: async () => {
-        setCreating(true);
-        try {
-          const id = await startConsultation(clientId);
-          const c = await getConsultation(id);
-          if (c) { setActiveConsult(c); await loadList(); }
-        } catch { /* */ }
-        setCreating(false);
-      }},
-    ]);
+    if (!webConfirm(`¿Iniciar consulta #${num} para ${clientName}?`)) return;
+    setCreating(true);
+    try {
+      const id = await startConsultation(clientId);
+      const c = await getConsultation(id);
+      if (c) { setActiveConsult(c); await loadList(); }
+    } catch (err: any) {
+      console.error('[startConsultation]', err);
+    }
+    setCreating(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!activeConsult) return;
     const num = activeConsult.consultation_number;
-    Alert.alert(`¿Eliminar Consulta #${num}?`, 'Esta acción eliminará permanentemente esta consulta y todos sus datos.', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Sí, eliminar', style: 'destructive', onPress: () => {
-        Alert.alert('¿Segurísimo?', 'Los datos NO se pueden recuperar. Esta acción es irreversible.', [
-          { text: 'No, mejor no', style: 'cancel' },
-          { text: 'Eliminar definitivamente', style: 'destructive', onPress: async () => {
-            try { await deleteConsultation(activeConsult.id); } catch { /* */ }
-            setActiveConsult(null);
-            loadList();
-          }},
-        ]);
-      }},
-    ]);
+    if (!webConfirm(`¿Eliminar Consulta #${num}? Esta acción es permanente.`)) return;
+    if (!webConfirm('¿Segurísimo? Los datos NO se pueden recuperar.')) return;
+    try { await deleteConsultation(activeConsult.id); } catch { /* */ }
+    setActiveConsult(null);
+    loadList();
   };
 
   const handleSaveField = async (field: string, value: string) => {
