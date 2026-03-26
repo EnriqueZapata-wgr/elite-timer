@@ -406,29 +406,15 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
       <EliteText variant="caption" style={styles.rowLabel}>DATOS BASE</EliteText>
       <View style={isWide ? styles.twoColRow : { gap: Spacing.sm }}>
         <View style={isWide ? { flex: 1 } : undefined}>
-          <View style={styles.profileCard}>
-            <EliteText variant="caption" style={styles.profileCardLabel}>DATOS PERSONALES</EliteText>
-            <ProfileRow label="Nombre" value={clientName} />
-            <ProfileRow label="Email" value={clientEmail} />
-            {profileLoaded && (
-              <View style={styles.dobRow}>
-                <EliteText variant="caption" style={styles.profileRowLabel}>Fecha de nacimiento</EliteText>
-                <TextInput
-                  style={styles.dobInput}
-                  defaultValue={profile?.date_of_birth ?? ''}
-                  onEndEditing={e => saveProfileField('date_of_birth', e.nativeEvent.text)}
-                  placeholder="AAAA-MM-DD"
-                  placeholderTextColor="#333"
-                />
-                {profile?.date_of_birth && (
-                  <EliteText variant="caption" style={styles.dobAge}>
-                    {Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000)} años
-                  </EliteText>
-                )}
-              </View>
-            )}
-            <ProfileRow label="Conexión" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} />
-          </View>
+          <EditableProfileCard
+            clientId={clientId}
+            clientName={clientName}
+            clientEmail={clientEmail}
+            connectedAt={connectedAt}
+            profile={profile}
+            profileLoaded={profileLoaded}
+            onSave={saveProfileField}
+          />
         </View>
         <View style={isWide ? { flex: 1 } : undefined}>
           <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
@@ -857,6 +843,108 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
         </Pressable>
       </Pressable>
     </Modal>
+  );
+}
+
+// Datos personales con candado (locked por default, unlock para editar)
+function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, profile, profileLoaded, onSave }: {
+  clientId: string; clientName: string; clientEmail: string; connectedAt: string;
+  profile: Record<string, any> | null; profileLoaded: boolean;
+  onSave: (key: string, value: string) => Promise<void>;
+}) {
+  const [unlocked, setUnlocked] = useState(false);
+  const [localName, setLocalName] = useState(clientName);
+
+  const handleSaveName = async () => {
+    if (localName.trim() && localName !== clientName) {
+      try {
+        const { supabase } = require('@/src/lib/supabase');
+        await supabase.from('profiles').update({ full_name: localName.trim() }).eq('id', clientId);
+      } catch { /* */ }
+    }
+  };
+
+  const age = profile?.date_of_birth
+    ? Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000)
+    : null;
+
+  return (
+    <View style={styles.profileCard}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <EliteText variant="caption" style={styles.profileCardLabel}>DATOS PERSONALES</EliteText>
+        <Pressable onPress={() => setUnlocked(!unlocked)} style={styles.lockBtn}>
+          <Ionicons name={unlocked ? 'lock-open-outline' : 'lock-closed-outline'} size={14} color={unlocked ? '#EF9F27' : '#555'} />
+          <EliteText variant="caption" style={{ color: unlocked ? '#EF9F27' : '#555', fontSize: 10 }}>
+            {unlocked ? 'Editando' : 'Editar'}
+          </EliteText>
+        </Pressable>
+      </View>
+
+      {unlocked ? (
+        <View style={{ gap: Spacing.xs }}>
+          <View>
+            <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginBottom: 2 }}>Nombre</EliteText>
+            <TextInput style={styles.editableInput} defaultValue={localName}
+              onChangeText={setLocalName} onEndEditing={handleSaveName}
+              placeholder="Nombre completo" placeholderTextColor="#333" />
+          </View>
+          <ProfileRow label="Email" value={clientEmail} />
+          {profileLoaded && (
+            <>
+              <View>
+                <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginBottom: 2 }}>Fecha de nacimiento</EliteText>
+                <TextInput style={styles.editableInput}
+                  defaultValue={profile?.date_of_birth ?? ''}
+                  onEndEditing={e => onSave('date_of_birth', e.nativeEvent.text)}
+                  placeholder="AAAA-MM-DD" placeholderTextColor="#333" />
+              </View>
+              <View>
+                <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginBottom: 2 }}>Sexo biológico</EliteText>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {['male', 'female'].map(s => (
+                    <Pressable key={s} onPress={() => onSave('biological_sex', s)}
+                      style={[styles.sexPill, profile?.biological_sex === s && styles.sexPillActive]}>
+                      <EliteText variant="caption" style={[styles.sexPillText, profile?.biological_sex === s && { color: TEAL }]}>
+                        {s === 'male' ? 'Masculino' : 'Femenino'}
+                      </EliteText>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              <View>
+                <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginBottom: 2 }}>Teléfono</EliteText>
+                <TextInput style={styles.editableInput} defaultValue={profile?.phone ?? ''}
+                  onEndEditing={e => onSave('phone', e.nativeEvent.text)}
+                  placeholder="Tel." placeholderTextColor="#333" keyboardType="phone-pad" />
+              </View>
+              <View>
+                <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginBottom: 2 }}>Ocupación</EliteText>
+                <TextInput style={styles.editableInput} defaultValue={profile?.occupation ?? ''}
+                  onEndEditing={e => onSave('occupation', e.nativeEvent.text)}
+                  placeholder="Ocupación" placeholderTextColor="#333" />
+              </View>
+              <View>
+                <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginBottom: 2 }}>Ciudad</EliteText>
+                <TextInput style={styles.editableInput} defaultValue={profile?.city ?? ''}
+                  onEndEditing={e => onSave('city', e.nativeEvent.text)}
+                  placeholder="Ciudad" placeholderTextColor="#333" />
+              </View>
+            </>
+          )}
+        </View>
+      ) : (
+        <View>
+          <ProfileRow label="Nombre" value={clientName || '—'} />
+          <ProfileRow label="Email" value={clientEmail} />
+          {age != null && <ProfileRow label="Edad" value={`${age} años`} />}
+          {profile?.biological_sex && <ProfileRow label="Sexo" value={profile.biological_sex === 'male' ? 'Masculino' : 'Femenino'} />}
+          {profile?.phone && <ProfileRow label="Tel." value={profile.phone} />}
+          {profile?.occupation && <ProfileRow label="Ocupación" value={profile.occupation} />}
+          {profile?.city && <ProfileRow label="Ciudad" value={profile.city} />}
+          <ProfileRow label="Conexión" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} />
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -1691,6 +1779,19 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.extraBold, fontSize: 22, paddingVertical: 2, minWidth: 40,
     fontVariant: ['tabular-nums'],
   },
+
+  // Lock button
+  lockBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.pill,
+    borderWidth: 1, borderColor: '#333',
+  },
+  sexPill: {
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 1, borderRadius: Radius.pill,
+    borderWidth: 1, borderColor: '#333',
+  },
+  sexPillActive: { borderColor: TEAL, backgroundColor: TEAL + '15' },
+  sexPillText: { color: '#666', fontSize: 12 },
 
   // DOB
   dobRow: {
