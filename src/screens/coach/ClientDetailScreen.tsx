@@ -387,6 +387,23 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
             <EliteText variant="caption" style={styles.profileCardLabel}>DATOS PERSONALES</EliteText>
             <ProfileRow label="Nombre" value={clientName} />
             <ProfileRow label="Email" value={clientEmail} />
+            {profileLoaded && (
+              <View style={styles.dobRow}>
+                <EliteText variant="caption" style={styles.profileRowLabel}>Fecha de nacimiento</EliteText>
+                <TextInput
+                  style={styles.dobInput}
+                  defaultValue={profile?.date_of_birth ?? ''}
+                  onEndEditing={e => saveProfileField('date_of_birth', e.nativeEvent.text)}
+                  placeholder="AAAA-MM-DD"
+                  placeholderTextColor="#333"
+                />
+                {profile?.date_of_birth && (
+                  <EliteText variant="caption" style={styles.dobAge}>
+                    {Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000)} años
+                  </EliteText>
+                )}
+              </View>
+            )}
             <ProfileRow label="Conexión" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} />
           </View>
         </View>
@@ -1302,6 +1319,18 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.extraBold, fontSize: 22, paddingVertical: 2, minWidth: 40,
     fontVariant: ['tabular-nums'],
   },
+
+  // DOB
+  dobRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: Spacing.xs + 2, borderBottomWidth: 1, borderBottomColor: '#111',
+  },
+  dobInput: {
+    backgroundColor: '#1a1a1a', borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
+    color: '#fff', fontSize: 13, fontFamily: Fonts.semiBold, borderWidth: 0.5, borderColor: '#2a2a2a',
+    minWidth: 110, textAlign: 'center',
+  },
+  dobAge: { color: TEAL, fontFamily: Fonts.bold, fontSize: 12 },
 
   // Editable fields
   editableInput: {
