@@ -32,6 +32,10 @@ export interface ClientStats {
   volume_kg: number;
   total_prs: number;
   streak_days: number;
+  conditions_present: number;
+  conditions_observation: number;
+  total_consultations: number;
+  compliance_pct: number;
 }
 
 export interface ClientScheduleItem {
@@ -190,11 +194,29 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
     }
   }
 
+  // Condiciones activas
+  const { data: flagsData } = await supabase
+    .from('condition_flags')
+    .select('status')
+    .eq('user_id', clientId);
+  const condPresent = (flagsData ?? []).filter(f => f.status === 'present').length;
+  const condObs = (flagsData ?? []).filter(f => f.status === 'observation').length;
+
+  // Total consultas
+  const { count: totalConsults } = await supabase
+    .from('consultations')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', clientId);
+
   return {
     sessions_this_month: sessionDates.size,
     volume_kg: Math.round(volumeKg),
     total_prs: totalPrs ?? 0,
     streak_days: streak,
+    conditions_present: condPresent,
+    conditions_observation: condObs,
+    total_consultations: totalConsults ?? 0,
+    compliance_pct: 0, // TODO: calcular desde protocol_completions
   };
 }
 

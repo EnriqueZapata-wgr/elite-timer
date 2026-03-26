@@ -87,7 +87,6 @@ export async function deleteConsultation(id: string): Promise<void> {
   const { error } = await supabase
     .from('consultations')
     .delete()
-    .eq('id', id)
-    .eq('status', 'draft');
+    .eq('id', id);
   if (error) throw error;
 }

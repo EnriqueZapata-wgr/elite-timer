@@ -153,13 +153,8 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
         ) : stats && (
           <View style={styles.statsRow}>
             <StatCard label="Sesiones" value={String(stats.sessions_this_month)} sub="este mes" color={TEAL} />
-            <StatCard
-              label="Volumen"
-              value={stats.volume_kg > 999 ? `${Math.round(stats.volume_kg / 1000)}k` : `${stats.volume_kg}kg`}
-              sub="este mes"
-              color="#5B9BD5"
-            />
-            <StatCard label="PRs" value={String(stats.total_prs)} sub="totales" color="#EF9F27" />
+            <StatCard label="Condiciones" value={stats.conditions_present > 0 || stats.conditions_observation > 0 ? `${stats.conditions_present}🔴 ${stats.conditions_observation}🟡` : '0'} sub="activas" color="#E24B4A" />
+            <StatCard label="Consultas" value={String(stats.total_consultations)} sub="totales" color="#5B9BD5" />
             <StatCard label="Racha" value={String(stats.streak_days)} sub="días" color={Colors.neonGreen} />
           </View>
         )}
@@ -618,7 +613,7 @@ function CollapsibleSection({ title, clientId, type }: {
                     {[
                       { l: 'Peso (kg)', v: latest.weight_kg, u: '' },
                       { l: 'Grasa (%)', v: latest.body_fat_pct, u: '' },
-                      { l: 'Músculo (%)', v: latest.muscle_mass_pct, u: '' },
+                      { l: 'Músculo (kg)', v: latest.muscle_mass_kg ?? latest.muscle_mass_pct, u: '' },
                       { l: 'Agua (%)', v: latest.body_water_pct, u: '' },
                       { l: 'G. Visceral', v: latest.visceral_fat, u: '' },
                       { l: 'Cintura (cm)', v: latest.waist_cm, u: '' },
@@ -765,7 +760,8 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
   const renderFields = () => {
     if (type === 'measurements') {
       const measLabels: Record<string, string> = {
-        weight_kg: 'Peso (kg)', body_fat_pct: 'Grasa corporal (%)', muscle_mass_pct: 'Masa muscular (%)',
+        weight_kg: 'Peso (kg)', body_fat_pct: 'Grasa corporal (%)',
+        muscle_mass_kg: 'Músculo (kg)', muscle_mass_pct: 'Músculo (%)',
         body_water_pct: 'Agua corporal (%)', visceral_fat: 'Grasa visceral',
         waist_cm: 'Cintura (cm)', hip_cm: 'Cadera (cm)', chest_cm: 'Abdomen (cm)',
         arm_cm: 'Bíceps contraído (cm)', leg_cm: 'Pierna (cm)',
@@ -929,6 +925,26 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
                   onEndEditing={e => onSave('city', e.nativeEvent.text)}
                   placeholder="Ciudad" placeholderTextColor="#333" />
               </View>
+              <View>
+                <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginBottom: 2 }}>¿Cómo nos conoció?</EliteText>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                  {['Instagram', 'Facebook', 'TikTok', 'YouTube', 'Google', 'Referido', 'Amigo/Familiar', 'Evento', 'ChatGPT/IA', 'Otro'].map(src => (
+                    <Pressable key={src} onPress={() => onSave('referral_source', src)}
+                      style={[styles.sexPill, profile?.referral_source === src && styles.sexPillActive]}>
+                      <EliteText variant="caption" style={[styles.sexPillText, profile?.referral_source === src && { color: TEAL }]}>
+                        {src}
+                      </EliteText>
+                    </Pressable>
+                  ))}
+                </View>
+                {(profile?.referral_source === 'Referido' || profile?.referral_source === 'Amigo/Familiar' || profile?.referral_source === 'Otro') && (
+                  <TextInput style={[styles.editableInput, { marginTop: 4 }]}
+                    defaultValue={profile?.referral_detail ?? ''}
+                    onEndEditing={e => onSave('referral_detail', e.nativeEvent.text)}
+                    placeholder={profile?.referral_source === 'Otro' ? 'Especifica' : '¿Quién te refirió?'}
+                    placeholderTextColor="#333" />
+                )}
+              </View>
             </>
           )}
         </View>
@@ -941,6 +957,9 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
           {profile?.phone && <ProfileRow label="Tel." value={profile.phone} />}
           {profile?.occupation && <ProfileRow label="Ocupación" value={profile.occupation} />}
           {profile?.city && <ProfileRow label="Ciudad" value={profile.city} />}
+          {profile?.referral_source && (
+            <ProfileRow label="Vía" value={`${profile.referral_source}${profile.referral_detail ? `: ${profile.referral_detail}` : ''}`} />
+          )}
           <ProfileRow label="Conexión" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} />
         </View>
       )}
@@ -1064,13 +1083,19 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
   };
 
   const handleDelete = () => {
-    if (!activeConsult || activeConsult.status !== 'draft') return;
-    Alert.alert('¿Eliminar borrador?', `Se eliminará la consulta #${activeConsult.consultation_number}.`, [
+    if (!activeConsult) return;
+    const num = activeConsult.consultation_number;
+    Alert.alert(`¿Eliminar Consulta #${num}?`, 'Esta acción eliminará permanentemente esta consulta y todos sus datos.', [
       { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        try { await deleteConsultation(activeConsult.id); } catch { /* */ }
-        setActiveConsult(null);
-        loadList();
+      { text: 'Sí, eliminar', style: 'destructive', onPress: () => {
+        Alert.alert('¿Segurísimo?', 'Los datos NO se pueden recuperar. Esta acción es irreversible.', [
+          { text: 'No, mejor no', style: 'cancel' },
+          { text: 'Eliminar definitivamente', style: 'destructive', onPress: async () => {
+            try { await deleteConsultation(activeConsult.id); } catch { /* */ }
+            setActiveConsult(null);
+            loadList();
+          }},
+        ]);
       }},
     ]);
   };
@@ -1264,18 +1289,20 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
                 </View>
               ))}
 
-              {isDraft && (
-                <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+              <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+                {isDraft && (
                   <Pressable onPress={handleComplete} style={styles.completeBtn}>
                     <Ionicons name="checkmark-circle" size={16} color="#000" />
                     <EliteText variant="caption" style={styles.completeBtnText}>Completar consulta</EliteText>
                   </Pressable>
-                  <Pressable onPress={handleDelete} style={styles.deleteDraftBtn}>
-                    <Ionicons name="trash-outline" size={14} color="#E24B4A" />
-                    <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12 }}>Eliminar borrador</EliteText>
-                  </Pressable>
-                </View>
-              )}
+                )}
+                <Pressable onPress={handleDelete} style={styles.deleteDraftBtn}>
+                  <Ionicons name={isDraft ? 'trash-outline' : 'warning-outline'} size={14} color="#E24B4A" />
+                  <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12 }}>
+                    {isDraft ? 'Eliminar borrador' : 'Eliminar consulta'}
+                  </EliteText>
+                </Pressable>
+              </View>
             </View>
           </View>
         </View>
