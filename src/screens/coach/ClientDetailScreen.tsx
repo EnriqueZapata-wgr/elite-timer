@@ -412,7 +412,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
           />
         </View>
         <View style={isWide ? { flex: 1 } : undefined}>
-          <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
+          <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" alwaysExpanded />
           {/* Barra visual de contexto de peso */}
           {profileLoaded && profile?.weight_highest_kg && profile?.weight_lowest_kg && (
             <WeightContextBar
@@ -552,16 +552,17 @@ const RELATION_COLORS: Record<string, string> = {
   'Abuel@': '#888', 'Otro': '#666',
 };
 
-function CollapsibleSection({ title, clientId, type }: {
+function CollapsibleSection({ title, clientId, type, alwaysExpanded }: {
   title: string; clientId: string; type: 'measurements' | 'medications' | 'supplements' | 'family';
+  alwaysExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(alwaysExpanded ?? false);
   const [data, setData] = useState<any[]>([]);
   const [latest, setLatest] = useState<any>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => { if (expanded && data.length === 0) loadData(); }, [expanded]);
+  useEffect(() => { if ((expanded || alwaysExpanded) && data.length === 0) loadData(); }, [expanded, alwaysExpanded]);
 
   const loadData = async () => {
     setLoading(true);
@@ -600,16 +601,18 @@ function CollapsibleSection({ title, clientId, type }: {
   };
 
   return (
-    <View style={styles.profileCard}>
-      <Pressable onPress={() => setExpanded(!expanded)} style={styles.zoneHeader}>
-        <EliteText variant="body" style={styles.sectionTitle}>{title}</EliteText>
-        {data.length > 0 && (
-          <View style={[styles.zoneBadge, { backgroundColor: TEAL + '20' }]}>
-            <EliteText variant="caption" style={{ color: TEAL, fontSize: 10, fontFamily: Fonts.bold }}>{data.length}</EliteText>
-          </View>
-        )}
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
-      </Pressable>
+    <View style={title ? styles.profileCard : undefined}>
+      {title ? (
+        <Pressable onPress={alwaysExpanded ? undefined : () => setExpanded(!expanded)} style={styles.zoneHeader}>
+          <EliteText variant="body" style={styles.sectionTitle}>{title}</EliteText>
+          {data.length > 0 && (
+            <View style={[styles.zoneBadge, { backgroundColor: TEAL + '20' }]}>
+              <EliteText variant="caption" style={{ color: TEAL, fontSize: 10, fontFamily: Fonts.bold }}>{data.length}</EliteText>
+            </View>
+          )}
+          {!alwaysExpanded && <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />}
+        </Pressable>
+      ) : null}
 
       {expanded && (
         <View style={{ marginTop: Spacing.sm }}>
@@ -1209,51 +1212,6 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
         <View style={isWide ? { flexDirection: 'row', gap: 16 } : { gap: Spacing.md }}>
           {/* ═══ COLUMNA IZQUIERDA: Datos clínicos editables ═══ */}
           <View style={isWide ? { flex: 55 } : undefined}>
-            {/* Composición corporal */}
-            <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
-
-            {/* Contexto de peso */}
-            {isDraft && consultProfile && (
-              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
-                <EliteText variant="caption" style={styles.profileCardLabel}>CONTEXTO DE PESO</EliteText>
-                <View style={{ gap: Spacing.sm }}>
-                  <View style={styles.weightCtxRow}>
-                    <EliteText variant="caption" style={styles.weightCtxLabel}>Más alto</EliteText>
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_highest_kg?.toString() ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_highest_kg', e.nativeEvent.text)}
-                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_highest_year ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_highest_year', e.nativeEvent.text)}
-                      placeholder="año o edad" placeholderTextColor="#333" />
-                  </View>
-                  <View style={styles.weightCtxRow}>
-                    <EliteText variant="caption" style={styles.weightCtxLabel}>Más bajo</EliteText>
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_lowest_kg?.toString() ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_lowest_kg', e.nativeEvent.text)}
-                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_lowest_year ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_lowest_year', e.nativeEvent.text)}
-                      placeholder="año o edad" placeholderTextColor="#333" />
-                  </View>
-                  <View style={styles.weightCtxRow}>
-                    <EliteText variant="caption" style={[styles.weightCtxLabel, { color: TEAL }]}>Ideal</EliteText>
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_ideal_kg?.toString() ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_ideal_kg', e.nativeEvent.text)}
-                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
-                    <TextInput style={[styles.weightCtxInput, { flex: 2 }]}
-                      defaultValue={consultProfile.weight_ideal_notes ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_ideal_notes', e.nativeEvent.text)}
-                      placeholder="notas (frame, estilo vida)" placeholderTextColor="#333" />
-                  </View>
-                </View>
-              </View>
-            )}
-
             {/* Tablero de condiciones (EDITABLE) */}
             {consultFlagsLoaded && isDraft && (
               <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
@@ -1361,20 +1319,67 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
                 </View>
               ))}
 
-              <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
-                {isDraft && (
-                  <Pressable onPress={handleComplete} style={styles.completeBtn}>
-                    <Ionicons name="checkmark-circle" size={16} color="#000" />
-                    <EliteText variant="caption" style={styles.completeBtnText}>Completar consulta</EliteText>
-                  </Pressable>
-                )}
-                <Pressable onPress={handleDelete} style={styles.deleteDraftBtn}>
-                  <Ionicons name={isDraft ? 'trash-outline' : 'warning-outline'} size={14} color="#E24B4A" />
-                  <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12 }}>
-                    {isDraft ? 'Eliminar borrador' : 'Eliminar consulta'}
-                  </EliteText>
-                </Pressable>
+            </View>
+
+            {/* Composición corporal (siempre expandida) */}
+            <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" alwaysExpanded />
+
+            {/* Contexto de peso */}
+            {isDraft && consultProfile && (
+              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={styles.profileCardLabel}>CONTEXTO DE PESO</EliteText>
+                <View style={{ gap: Spacing.sm }}>
+                  <View style={styles.weightCtxRow}>
+                    <EliteText variant="caption" style={styles.weightCtxLabel}>Más alto</EliteText>
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_highest_kg?.toString() ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_highest_kg', e.nativeEvent.text)}
+                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_highest_year ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_highest_year', e.nativeEvent.text)}
+                      placeholder="año o edad" placeholderTextColor="#333" />
+                  </View>
+                  <View style={styles.weightCtxRow}>
+                    <EliteText variant="caption" style={styles.weightCtxLabel}>Más bajo</EliteText>
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_lowest_kg?.toString() ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_lowest_kg', e.nativeEvent.text)}
+                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_lowest_year ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_lowest_year', e.nativeEvent.text)}
+                      placeholder="año o edad" placeholderTextColor="#333" />
+                  </View>
+                  <View style={styles.weightCtxRow}>
+                    <EliteText variant="caption" style={[styles.weightCtxLabel, { color: TEAL }]}>Ideal</EliteText>
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_ideal_kg?.toString() ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_ideal_kg', e.nativeEvent.text)}
+                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
+                    <TextInput style={[styles.weightCtxInput, { flex: 2 }]}
+                      defaultValue={consultProfile.weight_ideal_notes ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_ideal_notes', e.nativeEvent.text)}
+                      placeholder="notas (frame, estilo vida)" placeholderTextColor="#333" />
+                  </View>
+                </View>
               </View>
+            )}
+
+            {/* Meta: completar / eliminar */}
+            <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+              {isDraft && (
+                <Pressable onPress={handleComplete} style={styles.completeBtn}>
+                  <Ionicons name="checkmark-circle" size={16} color="#000" />
+                  <EliteText variant="caption" style={styles.completeBtnText}>Completar consulta</EliteText>
+                </Pressable>
+              )}
+              <Pressable onPress={handleDelete} style={styles.deleteDraftBtn}>
+                <Ionicons name={isDraft ? 'trash-outline' : 'warning-outline'} size={14} color="#E24B4A" />
+                <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12 }}>
+                  {isDraft ? 'Eliminar borrador' : 'Eliminar consulta'}
+                </EliteText>
+              </Pressable>
             </View>
           </View>
         </View>
