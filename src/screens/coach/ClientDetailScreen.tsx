@@ -1287,8 +1287,10 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
                     <DayCalendar
                       habits={habits}
                       onAdd={async (data) => {
-                        await addHabit(clientId, { ...data, consultation_id: activeConsult.id });
-                        setHabits(await getClientHabits(clientId));
+                        try {
+                          await addHabit(clientId, { ...data, consultation_id: activeConsult.id });
+                          setHabits(await getClientHabits(clientId));
+                        } catch (err: any) { console.error('[addHabit]', err); }
                       }}
                       onEdit={async (h, data) => {
                         await updateHabit(h.id, data);

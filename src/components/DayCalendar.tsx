@@ -8,6 +8,38 @@ import { EliteText } from '@/components/elite-text';
 import { HABIT_CATEGORIES, type DailyHabit } from '@/src/services/daily-habits-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 
+// TimePicker con botones +/- para hora y minuto
+function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const parts = value.split(':');
+  const h = parseInt(parts[0] || '0', 10);
+  const m = parseInt(parts[1] || '0', 10);
+
+  const setH = (nh: number) => {
+    const hh = ((nh % 24) + 24) % 24;
+    onChange(`${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  };
+  const setM = (nm: number) => {
+    const mm = ((nm % 60) + 60) % 60;
+    onChange(`${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+  };
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#1a1a1a', borderRadius: 8, padding: 6, borderWidth: 0.5, borderColor: '#2a2a2a' }}>
+      <View style={{ alignItems: 'center' }}>
+        <Pressable onPress={() => setH(h + 1)} hitSlop={8}><Ionicons name="chevron-up" size={14} color="#666" /></Pressable>
+        <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 20, fontVariant: ['tabular-nums'], minWidth: 30, textAlign: 'center' }}>{String(h).padStart(2, '0')}</EliteText>
+        <Pressable onPress={() => setH(h - 1)} hitSlop={8}><Ionicons name="chevron-down" size={14} color="#666" /></Pressable>
+      </View>
+      <EliteText style={{ color: '#444', fontSize: 20, fontFamily: Fonts.bold }}>:</EliteText>
+      <View style={{ alignItems: 'center' }}>
+        <Pressable onPress={() => setM(m + 15)} hitSlop={8}><Ionicons name="chevron-up" size={14} color="#666" /></Pressable>
+        <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 20, fontVariant: ['tabular-nums'], minWidth: 30, textAlign: 'center' }}>{String(m).padStart(2, '0')}</EliteText>
+        <Pressable onPress={() => setM(m - 15)} hitSlop={8}><Ionicons name="chevron-down" size={14} color="#666" /></Pressable>
+      </View>
+    </View>
+  );
+}
+
 const HOUR_H = 60; // px por hora
 const TOTAL_H = 24 * HOUR_H;
 const LABEL_W = 50;
@@ -66,13 +98,23 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
 
   const handleSave = () => {
     if (!form.title.trim()) return;
+    // Asegurar formato HH:MM:00 para Supabase TIME
+    const fmtTime = (t: string) => {
+      const clean = t.replace(/[^0-9:]/g, '');
+      const parts = clean.split(':');
+      const h = Math.min(23, Math.max(0, parseInt(parts[0] || '0', 10)));
+      const m = Math.min(59, Math.max(0, parseInt(parts[1] || '0', 10)));
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+    };
+    const startFmt = fmtTime(form.start);
+    const endFmt = fmtTime(form.end);
     if (modal?.habit) {
       onEdit?.(modal.habit, {
-        start_time: form.start, end_time: form.end,
+        start_time: startFmt, end_time: endFmt,
         title: form.title, category: form.category, notes: form.notes || null,
       } as any);
     } else {
-      onAdd?.({ start_time: form.start, end_time: form.end, title: form.title, category: form.category, notes: form.notes });
+      onAdd?.({ start_time: startFmt, end_time: endFmt, title: form.title, category: form.category, notes: form.notes });
     }
     setModal(null);
   };
@@ -144,14 +186,12 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
             <View style={s.timeRow}>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={s.fieldLabel}>Inicio</EliteText>
-                <TextInput style={s.input} value={form.start} onChangeText={v => setForm(p => ({ ...p, start: v }))}
-                  placeholder="HH:MM" placeholderTextColor="#333" />
+                <TimePicker value={form.start} onChange={v => setForm(p => ({ ...p, start: v }))} />
               </View>
               <EliteText style={{ color: '#444', fontSize: 18, paddingTop: 18 }}>→</EliteText>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={s.fieldLabel}>Fin</EliteText>
-                <TextInput style={s.input} value={form.end} onChangeText={v => setForm(p => ({ ...p, end: v }))}
-                  placeholder="HH:MM" placeholderTextColor="#333" />
+                <TimePicker value={form.end} onChange={v => setForm(p => ({ ...p, end: v }))} />
               </View>
             </View>
 
