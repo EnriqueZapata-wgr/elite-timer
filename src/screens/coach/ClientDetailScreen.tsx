@@ -20,6 +20,8 @@ import {
   type ClientPR,
   type ClientSession,
 } from '@/src/services/coach-panel-service';
+import { getConditionFlags, toggleConditionFlag, type ConditionFlag } from '@/src/services/client-profile-service';
+import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/condition-catalog';
 import { AssignRoutineModal } from './AssignRoutineModal';
 
 const TEAL = '#1D9E75';
@@ -45,24 +47,27 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
   const [history, setHistory] = useState<ClientSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [assignVisible, setAssignVisible] = useState(false);
+  const [flags, setFlags] = useState<ConditionFlag[]>([]);
 
   useEffect(() => { loadData(); }, [clientId]);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const [s, sc, r, p, h] = await Promise.all([
+      const [s, sc, r, p, h, f] = await Promise.all([
         getClientDetail(clientId).catch(() => null),
         getClientSchedule(clientId).catch(() => []),
         getClientRoutines(clientId).catch(() => []),
         getClientPRs(clientId).catch(() => []),
         getClientHistory(clientId).catch(() => []),
+        getConditionFlags(clientId).catch(() => []),
       ]);
       setStats(s);
       setSchedule(sc);
       setRoutines(r);
       setPRs(p);
       setHistory(h);
+      setFlags(f);
     } finally { setLoading(false); }
   };
 
@@ -136,9 +141,19 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
           <View style={styles.tabContent}>
             {activeTab === 'profile' && (
               <ProfileTab
+                clientId={clientId}
                 clientName={clientName}
                 clientEmail={clientEmail ?? ''}
                 connectedAt={connectedAt}
+                flags={flags}
+                onFlagToggle={async (key, zone) => {
+                  const newStatus = await toggleConditionFlag(clientId, key, zone);
+                  setFlags(prev => {
+                    const existing = prev.find(f => f.condition_key === key);
+                    if (existing) return prev.map(f => f.condition_key === key ? { ...f, status: newStatus } : f);
+                    return [...prev, { condition_key: key, zone, status: newStatus, notes: null, diagnosed_date: null, lab_value: null, medication: null }];
+                  });
+                }}
               />
             )}
             {activeTab === 'calendar' && <CalendarTab schedule={schedule} />}
@@ -166,63 +181,113 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
 // TAB: PERFIL
 // ══════════════════════════
 
-const UPCOMING_FEATURES = [
-  'Composición corporal', 'Edad metabólica', 'Edad biológica',
-  'Laboratorios', 'Biometrías', 'Plan nutricional', 'Hábitos', 'Estudios médicos',
-];
-
-function ProfileTab({ clientName, clientEmail, connectedAt }: {
-  clientName: string; clientEmail: string; connectedAt: string;
+function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onFlagToggle }: {
+  clientId: string; clientName: string; clientEmail: string; connectedAt: string;
+  flags: ConditionFlag[];
+  onFlagToggle: (key: string, zone: string) => Promise<void>;
 }) {
+  const [expandedZones, setExpandedZones] = useState<Set<string>>(() => {
+    // Auto-expandir zonas con flags rojos o naranjas
+    const active = new Set<string>();
+    for (const f of flags) {
+      if (f.status === 'present' || f.status === 'observation') active.add(f.zone);
+    }
+    return active;
+  });
+
+  const toggleZone = (zone: string) => {
+    setExpandedZones(prev => {
+      const next = new Set(prev);
+      if (next.has(zone)) next.delete(zone); else next.add(zone);
+      return next;
+    });
+  };
+
+  const getFlag = (key: string): FlagStatus => {
+    return (flags.find(f => f.condition_key === key)?.status as FlagStatus) ?? 'not_evaluated';
+  };
+
   return (
     <View style={{ gap: Spacing.md }}>
-      {/* Información personal */}
+      {/* Datos base */}
       <View style={styles.profileCard}>
         <EliteText variant="caption" style={styles.profileCardLabel}>INFORMACIÓN PERSONAL</EliteText>
         <ProfileRow label="Nombre" value={clientName} />
         <ProfileRow label="Email" value={clientEmail} />
-        <ProfileRow
-          label="Conectado desde"
-          value={new Date(connectedAt).toLocaleDateString('es-MX', {
-            day: 'numeric', month: 'long', year: 'numeric',
-          })}
-        />
+        <ProfileRow label="Conectado desde" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })} />
       </View>
 
-      {/* Datos físicos */}
-      <View style={styles.profileCard}>
-        <EliteText variant="caption" style={styles.profileCardLabel}>DATOS FÍSICOS</EliteText>
-        <View style={styles.profilePlaceholderRow}>
-          {['Edad', 'Peso (kg)', 'Altura (cm)', 'Sexo'].map(field => (
-            <View key={field} style={styles.profilePlaceholderItem}>
-              <EliteText variant="caption" style={styles.profilePlaceholderLabel}>{field}</EliteText>
-              <EliteText variant="body" style={styles.profilePlaceholderValue}>—</EliteText>
-            </View>
-          ))}
-        </View>
-        <EliteText variant="caption" style={styles.profileComingSoon}>
-          Próximamente: editar datos del cliente
-        </EliteText>
-      </View>
+      {/* ══════ TABLERO DE CONDICIONES ══════ */}
+      <EliteText variant="caption" style={[styles.profileCardLabel, { marginBottom: 0 }]}>
+        TABLERO DE CONDICIONES
+      </EliteText>
+      <EliteText variant="caption" style={{ color: '#666', fontSize: 11, marginBottom: Spacing.sm }}>
+        Toca una pill para ciclar: no evaluado → normal → observación → presente
+      </EliteText>
 
-      {/* Notas del coach */}
-      <View style={styles.profileCard}>
-        <EliteText variant="caption" style={styles.profileCardLabel}>PLAN / NOTAS DEL COACH</EliteText>
-        <View style={styles.profileNotesPlaceholder}>
-          <Ionicons name="document-text-outline" size={24} color="#444" />
-          <EliteText variant="caption" style={styles.profileComingSoon}>
-            Próximamente: notas y plan de entrenamiento
-          </EliteText>
-        </View>
-      </View>
+      {CONDITION_ZONES.map(zone => {
+        const isExpanded = expandedZones.has(zone.key);
+        const redCount = zone.conditions.filter(c => getFlag(c.key) === 'present').length;
+        const orangeCount = zone.conditions.filter(c => getFlag(c.key) === 'observation').length;
 
-      {/* Próximamente */}
-      <View style={[styles.profileCard, { opacity: 0.5 }]}>
+        return (
+          <View key={zone.key} style={styles.profileCard}>
+            <Pressable onPress={() => toggleZone(zone.key)} style={styles.zoneHeader}>
+              <View style={[styles.zoneDot, { backgroundColor: zone.color }]} />
+              <EliteText variant="body" style={[styles.zoneTitle, { color: zone.color }]}>
+                {zone.label}
+              </EliteText>
+              {(redCount > 0 || orangeCount > 0) && (
+                <View style={styles.zoneBadges}>
+                  {redCount > 0 && (
+                    <View style={[styles.zoneBadge, { backgroundColor: '#E24B4A20' }]}>
+                      <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 10, fontFamily: Fonts.bold }}>{redCount}</EliteText>
+                    </View>
+                  )}
+                  {orangeCount > 0 && (
+                    <View style={[styles.zoneBadge, { backgroundColor: '#EF9F2720' }]}>
+                      <EliteText variant="caption" style={{ color: '#EF9F27', fontSize: 10, fontFamily: Fonts.bold }}>{orangeCount}</EliteText>
+                    </View>
+                  )}
+                </View>
+              )}
+              <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
+            </Pressable>
+
+            {isExpanded && (
+              <View style={styles.conditionPills}>
+                {zone.conditions.map(cond => {
+                  const status = getFlag(cond.key);
+                  const st = FLAG_STATUSES[status];
+                  return (
+                    <Pressable
+                      key={cond.key}
+                      onPress={() => onFlagToggle(cond.key, zone.key)}
+                      style={[styles.condPill, {
+                        backgroundColor: st.bgColor,
+                        borderColor: st.color + '40',
+                        borderStyle: status === 'not_evaluated' ? 'dashed' : 'solid',
+                      }]}
+                    >
+                      <EliteText variant="caption" style={[styles.condPillText, { color: st.color }]}>
+                        {cond.label}
+                      </EliteText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        );
+      })}
+
+      {/* Placeholders futuros */}
+      <View style={[styles.profileCard, { opacity: 0.4 }]}>
         <EliteText variant="caption" style={styles.profileCardLabel}>PRÓXIMAMENTE</EliteText>
         <View style={styles.upcomingPills}>
-          {UPCOMING_FEATURES.map(feat => (
-            <View key={feat} style={styles.upcomingPill}>
-              <EliteText variant="caption" style={styles.upcomingPillText}>{feat}</EliteText>
+          {['Composición corporal', 'Laboratorios', 'Medicamentos', 'Suplementos', 'Antecedentes familiares'].map(f => (
+            <View key={f} style={styles.upcomingPill}>
+              <EliteText variant="caption" style={styles.upcomingPillText}>{f}</EliteText>
             </View>
           ))}
         </View>
@@ -625,4 +690,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: Fonts.semiBold,
   },
+
+  // Condition board
+  zoneHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  zoneDot: { width: 8, height: 8, borderRadius: 4 },
+  zoneTitle: { flex: 1, fontFamily: Fonts.bold, fontSize: 14 },
+  zoneBadges: { flexDirection: 'row', gap: 4 },
+  zoneBadge: {
+    paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.pill,
+  },
+  conditionPills: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.sm,
+  },
+  condPill: {
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 1,
+    borderRadius: Radius.pill, borderWidth: 1,
+  },
+  condPillText: { fontSize: 11, fontFamily: Fonts.semiBold },
 });
