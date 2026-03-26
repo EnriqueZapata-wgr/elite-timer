@@ -29,6 +29,7 @@ import {
   getFamilyHistory, addFamilyHistory, deleteFamilyHistory,
 } from '@/src/services/client-profile-service';
 import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/condition-catalog';
+import { askAtpAI } from '@/src/services/atp-ai-service';
 import { AssignRoutineModal } from './AssignRoutineModal';
 
 const TEAL = '#1D9E75';
@@ -55,6 +56,33 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
   const [loading, setLoading] = useState(true);
   const [assignVisible, setAssignVisible] = useState(false);
   const [flags, setFlags] = useState<ConditionFlag[]>([]);
+  const [aiVisible, setAiVisible] = useState(false);
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiResult, setAiResult] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleAskAI = async (question?: string) => {
+    setAiLoading(true);
+    setAiResult('');
+    try {
+      const result = await askAtpAI(clientId, question?.trim() || undefined);
+      setAiResult(result);
+    } catch (err: any) {
+      setAiResult(`Error: ${err.message ?? 'No se pudo generar el análisis'}`);
+    }
+    setAiLoading(false);
+  };
+
+  const handleSaveAiToNotes = async () => {
+    if (!aiResult) return;
+    try {
+      const current = (await getClientProfile(clientId))?.coach_notes ?? '';
+      const timestamp = new Date().toLocaleString('es-MX');
+      const updated = `${current}\n\n--- ATP AI (${timestamp}) ---\n${aiResult}`;
+      await upsertClientProfile(clientId, { coach_notes: updated.trim() });
+      Alert.alert('Guardado', 'Análisis agregado a las notas del coach.');
+    } catch { /* */ }
+  };
 
   useEffect(() => { loadData(); }, [clientId]);
 
@@ -104,6 +132,10 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
               })}
             </EliteText>
           </View>
+          <Pressable onPress={() => setAiVisible(true)} style={styles.aiBtn}>
+            <Ionicons name="sparkles" size={14} color={Colors.neonGreen} />
+            <EliteText variant="caption" style={styles.aiBtnText}>ATP AI</EliteText>
+          </Pressable>
           <View style={styles.activeBadge}>
             <View style={styles.activeDot} />
             <EliteText variant="caption" style={styles.activeText}>Activo</EliteText>
@@ -172,6 +204,70 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
           </View>
         )}
       </View>
+
+      {/* ═══ MODAL ATP AI ═══ */}
+      <Modal visible={aiVisible} transparent animationType="fade" onRequestClose={() => setAiVisible(false)}>
+        <Pressable style={styles.aiOverlay} onPress={() => !aiLoading && setAiVisible(false)}>
+          <Pressable style={styles.aiModal} onPress={e => e.stopPropagation()}>
+            <View style={styles.aiHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                <Ionicons name="sparkles" size={18} color={Colors.neonGreen} />
+                <EliteText variant="label" style={{ color: Colors.neonGreen, letterSpacing: 2 }}>ATP AI</EliteText>
+              </View>
+              <Pressable onPress={() => setAiVisible(false)}>
+                <Ionicons name="close" size={22} color="#666" />
+              </Pressable>
+            </View>
+
+            <EliteText variant="caption" style={{ color: '#888', marginBottom: Spacing.sm }}>
+              Análisis de {clientName}
+            </EliteText>
+
+            {!aiResult && !aiLoading && (
+              <>
+                <TextInput
+                  style={styles.aiInput}
+                  value={aiQuestion}
+                  onChangeText={setAiQuestion}
+                  placeholder="Pregunta específica (opcional)"
+                  placeholderTextColor="#444"
+                />
+                <Pressable onPress={() => handleAskAI(aiQuestion)} style={styles.aiGenerateBtn}>
+                  <Ionicons name="sparkles-outline" size={16} color="#000" />
+                  <EliteText variant="caption" style={styles.aiGenerateBtnText}>Generar análisis</EliteText>
+                </Pressable>
+              </>
+            )}
+
+            {aiLoading && (
+              <View style={styles.aiLoadingBox}>
+                <ActivityIndicator color={Colors.neonGreen} />
+                <EliteText variant="caption" style={{ color: '#888', marginTop: Spacing.sm }}>
+                  Analizando expediente...
+                </EliteText>
+              </View>
+            )}
+
+            {aiResult && !aiLoading && (
+              <>
+                <ScrollView style={styles.aiResultScroll} showsVerticalScrollIndicator={false}>
+                  <EliteText variant="body" style={styles.aiResultText}>{aiResult}</EliteText>
+                </ScrollView>
+                <View style={styles.aiActions}>
+                  <Pressable onPress={handleSaveAiToNotes} style={styles.aiActionBtn}>
+                    <Ionicons name="save-outline" size={14} color={TEAL} />
+                    <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Guardar en notas</EliteText>
+                  </Pressable>
+                  <Pressable onPress={() => { setAiResult(''); setAiQuestion(''); }} style={styles.aiActionBtn}>
+                    <Ionicons name="refresh-outline" size={14} color="#888" />
+                    <EliteText variant="caption" style={{ color: '#888' }}>Nueva consulta</EliteText>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <AssignRoutineModal
         visible={assignVisible}
@@ -1284,4 +1380,39 @@ const styles = StyleSheet.create({
   },
   modalSaveBtn: { backgroundColor: TEAL, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
   modalSaveBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: 13 },
+
+  // AI
+  aiBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.neonGreen + '10', borderWidth: 1, borderColor: Colors.neonGreen + '30',
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: 8,
+  },
+  aiBtnText: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1 },
+  aiOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
+  },
+  aiModal: {
+    backgroundColor: '#111', borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 600, maxHeight: '80%',
+    borderWidth: 1, borderColor: Colors.neonGreen + '20',
+  },
+  aiHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm,
+  },
+  aiInput: {
+    backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
+    color: '#fff', fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a', marginBottom: Spacing.sm,
+  },
+  aiGenerateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+    backgroundColor: Colors.neonGreen, paddingVertical: Spacing.sm + 2, borderRadius: Radius.pill,
+  },
+  aiGenerateBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: 13, letterSpacing: 1 },
+  aiLoadingBox: { alignItems: 'center', paddingVertical: Spacing.xl },
+  aiResultScroll: { maxHeight: 400, marginVertical: Spacing.sm },
+  aiResultText: { color: '#ddd', fontSize: 13, lineHeight: 22 },
+  aiActions: {
+    flexDirection: 'row', justifyContent: 'space-between', paddingTop: Spacing.sm,
+    borderTopWidth: 1, borderTopColor: '#1a1a1a',
+  },
+  aiActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: Spacing.xs },
 });
