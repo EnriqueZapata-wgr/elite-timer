@@ -165,60 +165,95 @@ export default function CheckinScreen() {
         </Animated.View>
       )}
 
-      {/* ═══ STEP 2: EMOCIONES ═══ */}
-      {step === 2 && quadrant && (
-        <Animated.View entering={SlideInRight.duration(250)} exiting={SlideOutLeft.duration(200)} style={styles.stepFlex}>
-          <EliteText style={[styles.mainTitle, { color: qColor }]}>{qd!.label}</EliteText>
-          <EliteText variant="caption" style={styles.mainSub}>Elige 1 o 2 emociones · mantén presionado para ver descripción</EliteText>
+      {/* ═══ STEP 2: EMOCIONES (grid por niveles de energía) ═══ */}
+      {step === 2 && quadrant && (() => {
+        // Agrupar emociones por nivel de energía (alto → bajo)
+        const quadrantEmotions = EMOTIONS.filter(e => e.quadrant === quadrant)
+          .sort((a, b) => b.energy - a.energy || b.intensity - a.intensity);
+        // Agrupar en filas por energía
+        const energyRows = new Map<number, typeof quadrantEmotions>();
+        for (const e of quadrantEmotions) {
+          const row = e.energy;
+          if (!energyRows.has(row)) energyRows.set(row, []);
+          energyRows.get(row)!.push(e);
+        }
+        // Ordenar cada fila por intensidad
+        for (const row of energyRows.values()) {
+          row.sort((a, b) => b.intensity - a.intensity);
+        }
+        const sortedKeys = [...energyRows.keys()].sort((a, b) => b - a);
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.emotionScroll}>
-            <View style={styles.emotionWrap}>
-              {EMOTIONS.filter(e => e.quadrant === quadrant).map(e => {
-                const sel = selectedEmotions.includes(e.id);
-                return (
-                  <Pressable
-                    key={e.id}
-                    onPress={() => toggleEmotion(e.id)}
-                    onLongPress={() => setTooltip(e)}
-                    onPressOut={() => setTooltip(null)}
-                    style={[
-                      styles.emotionPill,
-                      { borderColor: sel ? qColor : qColor + '25' },
-                      sel && { backgroundColor: qColor + '25' },
-                    ]}
-                  >
-                    <EliteText variant="caption" style={[
-                      styles.emotionText,
-                      { color: sel ? qColor : Colors.textSecondary },
-                      sel && { fontFamily: Fonts.bold },
-                    ]}>
-                      {e.label}
-                    </EliteText>
-                  </Pressable>
-                );
-              })}
+        return (
+          <Animated.View entering={SlideInRight.duration(250)} exiting={SlideOutLeft.duration(200)} style={styles.stepFlex}>
+            <EliteText style={[styles.mainTitle, { color: qColor }]}>{qd!.label}</EliteText>
+            <EliteText variant="caption" style={styles.mainSub}>
+              Elige 1 o 2 · mantén presionado para descripción
+            </EliteText>
+
+            {/* Ejes */}
+            <View style={styles.axisLabels}>
+              <EliteText variant="caption" style={styles.axisY}>↑ Más energía</EliteText>
+              <EliteText variant="caption" style={styles.axisX}>← Más sutil · Más intenso →</EliteText>
             </View>
-          </ScrollView>
 
-          {/* Tooltip */}
-          {tooltip && (
-            <View style={[styles.tooltip, { borderColor: qColor + '40' }]}>
-              <EliteText variant="body" style={[styles.tooltipTitle, { color: qColor }]}>
-                {tooltip.label}
-              </EliteText>
-              <EliteText variant="caption" style={styles.tooltipDesc}>
-                {tooltip.description}
-              </EliteText>
-            </View>
-          )}
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.emotionScroll}>
+              {sortedKeys.map(energyLevel => (
+                <View key={energyLevel} style={styles.energyRow}>
+                  {energyRows.get(energyLevel)!.map(e => {
+                    const sel = selectedEmotions.includes(e.id);
+                    return (
+                      <Pressable
+                        key={e.id}
+                        onPress={() => toggleEmotion(e.id)}
+                        onLongPress={() => setTooltip(e)}
+                        delayLongPress={400}
+                        style={[
+                          styles.emotionPill,
+                          { borderColor: sel ? qColor : qColor + '25' },
+                          sel && { backgroundColor: qColor + '30' },
+                        ]}
+                      >
+                        <EliteText variant="caption" style={[
+                          styles.emotionText,
+                          { color: sel ? qColor : Colors.textSecondary },
+                          sel && { fontFamily: Fonts.bold },
+                        ]}>
+                          {e.label}
+                        </EliteText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ))}
+              <EliteText variant="caption" style={styles.axisYBottom}>↓ Menos energía</EliteText>
+              <View style={{ height: 80 }} />
+            </ScrollView>
 
-          {selectedEmotions.length > 0 && (
-            <Pressable onPress={() => setStep(3)} style={[styles.nextBtn, { backgroundColor: qColor }]}>
-              <EliteText style={styles.nextBtnText}>Siguiente</EliteText>
-            </Pressable>
-          )}
-        </Animated.View>
-      )}
+            {/* Tooltip de descripción */}
+            {tooltip && (
+              <Pressable style={styles.tooltipOverlay} onPress={() => setTooltip(null)}>
+                <View style={[styles.tooltip, { borderColor: qColor + '40' }]}>
+                  <EliteText variant="body" style={[styles.tooltipTitle, { color: qColor }]}>
+                    {tooltip.label}
+                  </EliteText>
+                  <EliteText variant="caption" style={styles.tooltipDesc}>
+                    {tooltip.description}
+                  </EliteText>
+                  <EliteText variant="caption" style={styles.tooltipHint}>
+                    Toca para cerrar
+                  </EliteText>
+                </View>
+              </Pressable>
+            )}
+
+            {selectedEmotions.length > 0 && !tooltip && (
+              <Pressable onPress={() => setStep(3)} style={[styles.nextBtn, { backgroundColor: qColor }]}>
+                <EliteText style={styles.nextBtnText}>Siguiente</EliteText>
+              </Pressable>
+            )}
+          </Animated.View>
+        );
+      })()}
 
       {/* ═══ STEP 3: CONTEXTO ═══ */}
       {step === 3 && quadrant && (
@@ -333,23 +368,37 @@ const styles = StyleSheet.create({
   recentLabel: { color: Colors.textSecondary, fontSize: 12 },
   recentCircle: { width: 14, height: 14, borderRadius: 7 },
 
-  // Emotions
-  emotionScroll: { paddingBottom: 100 },
-  emotionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, justifyContent: 'center' },
+  // Axis labels
+  axisLabels: { alignItems: 'center', marginBottom: Spacing.xs },
+  axisY: { color: Colors.textSecondary + '60', fontSize: 10, fontFamily: Fonts.semiBold },
+  axisX: { color: Colors.textSecondary + '60', fontSize: 10, fontFamily: Fonts.semiBold, marginTop: 2 },
+  axisYBottom: { color: Colors.textSecondary + '60', fontSize: 10, fontFamily: Fonts.semiBold, textAlign: 'center', marginTop: Spacing.sm },
+
+  // Emotions grid por energía
+  emotionScroll: { paddingBottom: 20 },
+  energyRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs,
+    justifyContent: 'center', marginBottom: Spacing.xs,
+  },
   emotionPill: {
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.xs + 3,
     borderRadius: Radius.pill, borderWidth: 1,
   },
-  emotionText: { fontSize: 14 },
+  emotionText: { fontSize: 13 },
 
   // Tooltip
-  tooltip: {
-    position: 'absolute', bottom: 80, left: Spacing.lg, right: Spacing.lg,
-    backgroundColor: '#1a1a1a', borderRadius: 12, borderWidth: 1,
-    padding: Spacing.md, zIndex: 20,
+  tooltipOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center',
+    zIndex: 30, padding: Spacing.lg,
   },
-  tooltipTitle: { fontFamily: Fonts.bold, fontSize: 16, marginBottom: 4 },
-  tooltipDesc: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },
+  tooltip: {
+    backgroundColor: '#1a1a1a', borderRadius: 12, borderWidth: 1,
+    padding: Spacing.md, maxWidth: 320,
+  },
+  tooltipTitle: { fontFamily: Fonts.bold, fontSize: 18, marginBottom: Spacing.xs },
+  tooltipDesc: { color: Colors.textSecondary, fontSize: 14, lineHeight: 22 },
+  tooltipHint: { color: Colors.textSecondary + '60', fontSize: 11, textAlign: 'center', marginTop: Spacing.sm },
 
   nextBtn: {
     alignSelf: 'center', position: 'absolute', bottom: Spacing.lg,
