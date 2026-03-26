@@ -22,6 +22,7 @@ import {
 } from '@/src/services/coach-panel-service';
 import {
   getConditionFlags, toggleConditionFlag, type ConditionFlag,
+  getClientProfile, upsertClientProfile,
   getLatestMeasurements, getMeasurementHistory, addMeasurement,
   getMedications, addMedication, toggleMedication,
   getSupplements, addSupplement, toggleSupplement,
@@ -216,6 +217,22 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
   const { width: screenW } = useWindowDimensions();
   const isWide = screenW >= 1024;
 
+  // Perfil del cliente (objetivos, biomarcadores)
+  const [profile, setProfile] = useState<Record<string, any> | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+
+  useEffect(() => {
+    getClientProfile(clientId).then(p => { setProfile(p); setProfileLoaded(true); }).catch(() => setProfileLoaded(true));
+  }, [clientId]);
+
+  const saveProfileField = async (key: string, value: string) => {
+    const v = value.trim();
+    try {
+      await upsertClientProfile(clientId, { [key]: v || null });
+      setProfile(prev => ({ ...prev, [key]: v || null }));
+    } catch { /* */ }
+  };
+
   const renderZoneCard = (zone: typeof CONDITION_ZONES[0]) => {
     const isExpanded = expandedZones.has(zone.key);
     const redCount = zone.conditions.filter(c => getFlag(c.key) === 'present').length;
@@ -266,10 +283,10 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
 
   return (
     <View style={{ gap: 20 }}>
-      {/* ═══ FILA 1: DATOS BASE ═══ */}
+      {/* ═══ FILA 1a: DATOS BASE ═══ */}
       <EliteText variant="caption" style={styles.rowLabel}>DATOS BASE</EliteText>
-      <View style={isWide ? styles.threeColRow : { gap: Spacing.sm }}>
-        <View style={isWide ? styles.threeColItem : undefined}>
+      <View style={isWide ? styles.twoColRow : { gap: Spacing.sm }}>
+        <View style={isWide ? { flex: 1 } : undefined}>
           <View style={styles.profileCard}>
             <EliteText variant="caption" style={styles.profileCardLabel}>DATOS PERSONALES</EliteText>
             <ProfileRow label="Nombre" value={clientName} />
@@ -277,15 +294,64 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
             <ProfileRow label="Conexión" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} />
           </View>
         </View>
-        <View style={isWide ? styles.threeColItem : undefined}>
+        <View style={isWide ? { flex: 1 } : undefined}>
           <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
         </View>
-        <View style={isWide ? styles.threeColItem : undefined}>
+      </View>
+
+      {/* ═══ FILA 1b: BIOMARCADORES + OBJETIVOS ═══ */}
+      <View style={isWide ? styles.twoColRow : { gap: Spacing.sm }}>
+        <View style={isWide ? { flex: 1 } : undefined}>
+          <View style={styles.profileCard}>
+            <EliteText variant="caption" style={styles.profileCardLabel}>BIOMARCADORES FÍSICOS</EliteText>
+            {profileLoaded && (
+              <View style={styles.bioGrid}>
+                <BioField label="F. Agarre" unit="kg" color="#a8e02a"
+                  value={profile?.grip_strength_kg?.toString() ?? ''}
+                  onSave={v => saveProfileField('grip_strength_kg', v)} />
+                <View style={styles.bioFieldWide}>
+                  <EliteText variant="caption" style={styles.bioLabel}>Presión arterial</EliteText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <TextInput style={[styles.bioInput, { width: 44, color: '#E24B4A' }]}
+                      defaultValue={profile?.blood_pressure_sys?.toString() ?? ''}
+                      onEndEditing={e => saveProfileField('blood_pressure_sys', e.nativeEvent.text)}
+                      keyboardType="numeric" placeholder="120" placeholderTextColor="#333" />
+                    <EliteText style={{ color: '#666', fontSize: 16 }}>/</EliteText>
+                    <TextInput style={[styles.bioInput, { width: 44, color: '#E24B4A' }]}
+                      defaultValue={profile?.blood_pressure_dia?.toString() ?? ''}
+                      onEndEditing={e => saveProfileField('blood_pressure_dia', e.nativeEvent.text)}
+                      keyboardType="numeric" placeholder="80" placeholderTextColor="#333" />
+                  </View>
+                </View>
+                <BioField label="VO2 máx" unit="ml/kg/min" color="#5B9BD5"
+                  value={profile?.vo2_max?.toString() ?? ''}
+                  onSave={v => saveProfileField('vo2_max', v)} />
+                <BioField label="Edad metab." unit="años" color="#EF9F27"
+                  value={profile?.metabolic_age_impedance?.toString() ?? ''}
+                  onSave={v => saveProfileField('metabolic_age_impedance', v)} />
+              </View>
+            )}
+          </View>
+        </View>
+        <View style={isWide ? { flex: 1 } : undefined}>
           <View style={styles.profileCard}>
             <EliteText variant="caption" style={styles.profileCardLabel}>OBJETIVOS</EliteText>
-            <EliteText variant="caption" style={{ color: '#666', fontSize: 11, fontStyle: 'italic' }}>
-              Próximamente: editar desde client_profiles
-            </EliteText>
+            {profileLoaded && (
+              <View style={{ gap: Spacing.xs }}>
+                <EditableField label="Objetivo principal" fieldKey="primary_goal"
+                  value={profile?.primary_goal ?? ''} placeholder="Ej: Bajar 10kg de grasa en 6 meses"
+                  onSave={v => saveProfileField('primary_goal', v)} />
+                <EditableField label="Objetivos secundarios" fieldKey="secondary_goals"
+                  value={(profile?.secondary_goals ?? []).join(', ')} placeholder="Ej: Mejorar sueño, subir fuerza"
+                  onSave={v => saveProfileField('secondary_goals', `{${v}}`)} multiline />
+                <EditableField label="Plazo" fieldKey="goal_timeline"
+                  value={profile?.goal_timeline ?? ''} placeholder="Ej: 6 meses"
+                  onSave={v => saveProfileField('goal_timeline', v)} />
+                <EditableField label="Banderas rojas" fieldKey="red_flags"
+                  value={profile?.red_flags ?? ''} placeholder="Ej: Lesión rodilla, alergia a X"
+                  onSave={v => saveProfileField('red_flags', v)} isRed />
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -411,15 +477,16 @@ function CollapsibleSection({ title, clientId, type }: {
                 latest ? (
                   <View style={styles.measGrid}>
                     {[
-                      { l: 'Peso', v: latest.weight_kg, u: 'kg' },
-                      { l: '% Grasa', v: latest.body_fat_pct, u: '%' },
-                      { l: '% Músculo', v: latest.muscle_mass_pct, u: '%' },
+                      { l: 'Peso (kg)', v: latest.weight_kg, u: '' },
+                      { l: 'Grasa (%)', v: latest.body_fat_pct, u: '' },
+                      { l: 'Músculo (%)', v: latest.muscle_mass_pct, u: '' },
+                      { l: 'Agua (%)', v: latest.body_water_pct, u: '' },
                       { l: 'G. Visceral', v: latest.visceral_fat, u: '' },
-                      { l: 'Cintura', v: latest.waist_cm, u: 'cm' },
-                      { l: 'Cadera', v: latest.hip_cm, u: 'cm' },
-                      { l: 'Abdomen', v: latest.chest_cm, u: 'cm' },
-                      { l: 'Bíceps', v: latest.arm_cm, u: 'cm' },
-                      { l: 'Pierna', v: latest.leg_cm, u: 'cm' },
+                      { l: 'Cintura (cm)', v: latest.waist_cm, u: '' },
+                      { l: 'Cadera (cm)', v: latest.hip_cm, u: '' },
+                      { l: 'Abdomen (cm)', v: latest.chest_cm, u: '' },
+                      { l: 'Bíceps (cm)', v: latest.arm_cm, u: '' },
+                      { l: 'Pierna (cm)', v: latest.leg_cm, u: '' },
                     ].map(m => (
                       <View key={m.l} style={styles.measItem}>
                         <EliteText variant="caption" style={styles.measLabel}>{m.l}</EliteText>
@@ -558,9 +625,15 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
 
   const renderFields = () => {
     if (type === 'measurements') {
-      return ['weight_kg', 'body_fat_pct', 'muscle_mass_pct', 'visceral_fat', 'waist_cm', 'hip_cm', 'chest_cm', 'arm_cm', 'leg_cm'].map(k => (
+      const measLabels: Record<string, string> = {
+        weight_kg: 'Peso (kg)', body_fat_pct: 'Grasa corporal (%)', muscle_mass_pct: 'Masa muscular (%)',
+        body_water_pct: 'Agua corporal (%)', visceral_fat: 'Grasa visceral',
+        waist_cm: 'Cintura (cm)', hip_cm: 'Cadera (cm)', chest_cm: 'Abdomen (cm)',
+        arm_cm: 'Bíceps contraído (cm)', leg_cm: 'Pierna (cm)',
+      };
+      return Object.entries(measLabels).map(([k, label]) => (
         <View key={k} style={styles.modalField}>
-          <EliteText variant="caption" style={styles.modalFieldLabel}>{k.replace(/_/g, ' ')}</EliteText>
+          <EliteText variant="caption" style={styles.modalFieldLabel}>{label}</EliteText>
           <TextInput style={styles.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
             keyboardType="numeric" placeholderTextColor="#444" placeholder="0" />
         </View>
@@ -631,6 +704,46 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
         </Pressable>
       </Pressable>
     </Modal>
+  );
+}
+
+function BioField({ label, unit, color, value, onSave }: {
+  label: string; unit: string; color: string; value: string; onSave: (v: string) => void;
+}) {
+  return (
+    <View style={styles.bioItem}>
+      <EliteText variant="caption" style={styles.bioLabel}>{label}</EliteText>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+        <TextInput
+          style={[styles.bioInput, { color }]}
+          defaultValue={value}
+          onEndEditing={e => onSave(e.nativeEvent.text)}
+          keyboardType="numeric"
+          placeholder="—"
+          placeholderTextColor="#333"
+        />
+        <EliteText variant="caption" style={{ color: '#666', fontSize: 9 }}>{unit}</EliteText>
+      </View>
+    </View>
+  );
+}
+
+function EditableField({ label, value, placeholder, onSave, multiline, isRed }: {
+  label: string; fieldKey: string; value: string; placeholder: string;
+  onSave: (v: string) => void; multiline?: boolean; isRed?: boolean;
+}) {
+  return (
+    <View>
+      <EliteText variant="caption" style={{ color: isRed ? '#E24B4A80' : '#666', fontSize: 10, marginBottom: 2 }}>{label}</EliteText>
+      <TextInput
+        style={[styles.editableInput, isRed && { borderColor: '#E24B4A30' }]}
+        defaultValue={value}
+        onEndEditing={e => onSave(e.nativeEvent.text)}
+        placeholder={placeholder}
+        placeholderTextColor="#333"
+        multiline={multiline}
+      />
+    </View>
   );
 }
 
@@ -1082,6 +1195,23 @@ const styles = StyleSheet.create({
   // Grid layouts
   threeColRow: { flexDirection: 'row', gap: 12 },
   threeColItem: { flex: 1 },
+  twoColRow: { flexDirection: 'row', gap: 12 },
+
+  // Bio fields
+  bioGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  bioItem: { width: '45%', minWidth: 80 },
+  bioFieldWide: { width: '45%', minWidth: 80 },
+  bioLabel: { color: '#888', fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 2 },
+  bioInput: {
+    fontFamily: Fonts.extraBold, fontSize: 22, paddingVertical: 2, minWidth: 40,
+    fontVariant: ['tabular-nums'],
+  },
+
+  // Editable fields
+  editableInput: {
+    backgroundColor: '#1a1a1a', borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
+    color: '#fff', fontSize: 13, borderWidth: 0.5, borderColor: '#2a2a2a',
+  },
   condGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   condGridItem: { width: '32%', flexGrow: 1 },
   rowLabel: {
