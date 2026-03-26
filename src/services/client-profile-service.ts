@@ -114,6 +114,14 @@ export async function getMeasurementHistory(userId: string, limit = 5) {
   return data ?? [];
 }
 
+export async function addMeasurement(userId: string, data: Record<string, any>) {
+  const user = await getAuth();
+  const { error } = await supabase.from('body_measurements').insert({
+    user_id: userId, measured_by: user.id, ...data,
+  });
+  if (error) throw error;
+}
+
 // === MEDICATIONS ===
 
 export async function getMedications(userId: string) {
@@ -121,9 +129,25 @@ export async function getMedications(userId: string) {
     .from('medications')
     .select('*')
     .eq('user_id', userId)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
+    .order('is_active', { ascending: false })
+    .order('name');
   return data ?? [];
+}
+
+export async function addMedication(userId: string, med: Record<string, any>) {
+  const { error } = await supabase.from('medications').insert({ user_id: userId, ...med });
+  if (error) throw error;
+}
+
+export async function toggleMedication(medId: string, currentlyActive: boolean) {
+  const { error } = await supabase
+    .from('medications')
+    .update({
+      is_active: !currentlyActive,
+      ...(currentlyActive ? { ended_date: new Date().toISOString().split('T')[0] } : { ended_date: null }),
+    })
+    .eq('id', medId);
+  if (error) throw error;
 }
 
 // === SUPPLEMENTS ===
@@ -133,9 +157,25 @@ export async function getSupplements(userId: string) {
     .from('supplement_protocols')
     .select('*')
     .eq('user_id', userId)
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
+    .order('is_active', { ascending: false })
+    .order('name');
   return data ?? [];
+}
+
+export async function addSupplement(userId: string, supp: Record<string, any>) {
+  const user = await getAuth();
+  const { error } = await supabase.from('supplement_protocols').insert({
+    user_id: userId, prescribed_by: user.id, ...supp,
+  });
+  if (error) throw error;
+}
+
+export async function toggleSupplement(suppId: string, currentlyActive: boolean) {
+  const { error } = await supabase
+    .from('supplement_protocols')
+    .update({ is_active: !currentlyActive })
+    .eq('id', suppId);
+  if (error) throw error;
 }
 
 // === LABS ===
@@ -158,6 +198,16 @@ export async function getFamilyHistory(userId: string) {
     .from('family_history')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .order('relation', { ascending: true });
   return data ?? [];
+}
+
+export async function addFamilyHistory(userId: string, entry: { relation: string; condition: string; notes?: string }) {
+  const { error } = await supabase.from('family_history').insert({ user_id: userId, ...entry });
+  if (error) throw error;
+}
+
+export async function deleteFamilyHistory(id: string) {
+  const { error } = await supabase.from('family_history').delete().eq('id', id);
+  if (error) throw error;
 }

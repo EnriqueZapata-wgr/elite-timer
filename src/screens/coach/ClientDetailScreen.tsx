@@ -4,7 +4,7 @@
  * Header + stats + 4 tabs: Calendario, Rutinas, Progreso, Historial.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
@@ -20,7 +20,13 @@ import {
   type ClientPR,
   type ClientSession,
 } from '@/src/services/coach-panel-service';
-import { getConditionFlags, toggleConditionFlag, type ConditionFlag } from '@/src/services/client-profile-service';
+import {
+  getConditionFlags, toggleConditionFlag, type ConditionFlag,
+  getLatestMeasurements, getMeasurementHistory, addMeasurement,
+  getMedications, addMedication, toggleMedication,
+  getSupplements, addSupplement, toggleSupplement,
+  getFamilyHistory, addFamilyHistory, deleteFamilyHistory,
+} from '@/src/services/client-profile-service';
 import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/condition-catalog';
 import { AssignRoutineModal } from './AssignRoutineModal';
 
@@ -281,18 +287,321 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         );
       })}
 
-      {/* Placeholders futuros */}
-      <View style={[styles.profileCard, { opacity: 0.4 }]}>
-        <EliteText variant="caption" style={styles.profileCardLabel}>PRÓXIMAMENTE</EliteText>
-        <View style={styles.upcomingPills}>
-          {['Composición corporal', 'Laboratorios', 'Medicamentos', 'Suplementos', 'Antecedentes familiares'].map(f => (
-            <View key={f} style={styles.upcomingPill}>
-              <EliteText variant="caption" style={styles.upcomingPillText}>{f}</EliteText>
-            </View>
-          ))}
+      {/* ══════ COMPOSICIÓN CORPORAL ══════ */}
+      <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
+
+      {/* ══════ FARMACOLOGÍA + SUPLEMENTOS (lado a lado en web) ══════ */}
+      <View style={styles.twoColRow}>
+        <View style={styles.twoColItem}>
+          <CollapsibleSection title="Farmacología" clientId={clientId} type="medications" />
+        </View>
+        <View style={styles.twoColItem}>
+          <CollapsibleSection title="Suplementos" clientId={clientId} type="supplements" />
         </View>
       </View>
+
+      {/* ══════ ANTECEDENTES FAMILIARES ══════ */}
+      <CollapsibleSection title="Antecedentes familiares" clientId={clientId} type="family" />
     </View>
+  );
+}
+
+// ══════════════════════════
+// COLLAPSIBLE SECTION (measurements, meds, supps, family)
+// ══════════════════════════
+
+const RELATION_COLORS: Record<string, string> = {
+  Madre: '#D4537E', Padre: '#5B9BD5', 'Herman@': '#7F77DD',
+  'Abuel@': '#888', 'Otro': '#666',
+};
+
+function CollapsibleSection({ title, clientId, type }: {
+  title: string; clientId: string; type: 'measurements' | 'medications' | 'supplements' | 'family';
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [data, setData] = useState<any[]>([]);
+  const [latest, setLatest] = useState<any>(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { if (expanded && data.length === 0) loadData(); }, [expanded]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      if (type === 'measurements') {
+        const [l, h] = await Promise.all([
+          getLatestMeasurements(clientId).catch(() => null),
+          getMeasurementHistory(clientId, 10).catch(() => []),
+        ]);
+        setLatest(l);
+        setData(h);
+      } else if (type === 'medications') {
+        setData(await getMedications(clientId));
+      } else if (type === 'supplements') {
+        setData(await getSupplements(clientId));
+      } else if (type === 'family') {
+        setData(await getFamilyHistory(clientId));
+      }
+    } catch { /* */ }
+    setLoading(false);
+  };
+
+  const handleToggleMed = async (id: string, active: boolean) => {
+    await toggleMedication(id, active);
+    loadData();
+  };
+
+  const handleToggleSupp = async (id: string, active: boolean) => {
+    await toggleSupplement(id, active);
+    loadData();
+  };
+
+  const handleDeleteFamily = async (id: string) => {
+    await deleteFamilyHistory(id);
+    loadData();
+  };
+
+  return (
+    <View style={styles.profileCard}>
+      <Pressable onPress={() => setExpanded(!expanded)} style={styles.zoneHeader}>
+        <EliteText variant="body" style={styles.sectionTitle}>{title}</EliteText>
+        {data.length > 0 && (
+          <View style={[styles.zoneBadge, { backgroundColor: TEAL + '20' }]}>
+            <EliteText variant="caption" style={{ color: TEAL, fontSize: 10, fontFamily: Fonts.bold }}>{data.length}</EliteText>
+          </View>
+        )}
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
+      </Pressable>
+
+      {expanded && (
+        <View style={{ marginTop: Spacing.sm }}>
+          {loading ? <ActivityIndicator color={TEAL} size="small" /> : (
+            <>
+              {/* MEASUREMENTS */}
+              {type === 'measurements' && (
+                latest ? (
+                  <View style={styles.measGrid}>
+                    {[
+                      { l: 'Peso', v: latest.weight_kg, u: 'kg' },
+                      { l: '% Grasa', v: latest.body_fat_pct, u: '%' },
+                      { l: '% Músculo', v: latest.muscle_mass_pct, u: '%' },
+                      { l: 'G. Visceral', v: latest.visceral_fat, u: '' },
+                      { l: 'Cintura', v: latest.waist_cm, u: 'cm' },
+                      { l: 'Cadera', v: latest.hip_cm, u: 'cm' },
+                      { l: 'Brazo', v: latest.arm_cm, u: 'cm' },
+                      { l: 'Pierna', v: latest.leg_cm, u: 'cm' },
+                    ].map(m => (
+                      <View key={m.l} style={styles.measItem}>
+                        <EliteText variant="caption" style={styles.measLabel}>{m.l}</EliteText>
+                        <EliteText style={styles.measValue}>{m.v ?? '—'}{m.v ? m.u : ''}</EliteText>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <EliteText variant="caption" style={styles.emptySection}>Sin mediciones</EliteText>
+                )
+              )}
+
+              {/* MEDICATIONS */}
+              {type === 'medications' && (
+                data.length > 0 ? data.map((m: any) => (
+                  <View key={m.id} style={styles.listItem}>
+                    <View style={{ flex: 1 }}>
+                      <EliteText variant="body" style={styles.listItemName}>{m.name}</EliteText>
+                      <EliteText variant="caption" style={styles.listItemMeta}>
+                        {[m.dose, m.frequency, m.reason].filter(Boolean).join(' · ')}
+                      </EliteText>
+                    </View>
+                    <Pressable onPress={() => handleToggleMed(m.id, m.is_active)}>
+                      <View style={[styles.activePill, !m.is_active && { backgroundColor: '#333', borderColor: '#444' }]}>
+                        <EliteText variant="caption" style={[styles.activePillText, !m.is_active && { color: '#666' }]}>
+                          {m.is_active ? 'Activo' : 'Suspendido'}
+                        </EliteText>
+                      </View>
+                    </Pressable>
+                  </View>
+                )) : (
+                  <EliteText variant="caption" style={styles.emptySection}>Sin medicamentos</EliteText>
+                )
+              )}
+
+              {/* SUPPLEMENTS */}
+              {type === 'supplements' && (
+                data.length > 0 ? data.map((s: any) => (
+                  <View key={s.id} style={styles.listItem}>
+                    <View style={{ flex: 1 }}>
+                      <EliteText variant="body" style={styles.listItemName}>{s.name}</EliteText>
+                      <EliteText variant="caption" style={styles.listItemMeta}>
+                        {[s.dose, s.frequency, s.brand].filter(Boolean).join(' · ')}
+                      </EliteText>
+                    </View>
+                    <Pressable onPress={() => handleToggleSupp(s.id, s.is_active)}>
+                      <View style={[styles.activePill, !s.is_active && { backgroundColor: '#333', borderColor: '#444' }]}>
+                        <EliteText variant="caption" style={[styles.activePillText, !s.is_active && { color: '#666' }]}>
+                          {s.is_active ? 'Activo' : 'Suspendido'}
+                        </EliteText>
+                      </View>
+                    </Pressable>
+                  </View>
+                )) : (
+                  <EliteText variant="caption" style={styles.emptySection}>Sin suplementos</EliteText>
+                )
+              )}
+
+              {/* FAMILY HISTORY */}
+              {type === 'family' && (
+                data.length > 0 ? data.map((f: any) => (
+                  <View key={f.id} style={styles.listItem}>
+                    <View style={[styles.relationPill, { backgroundColor: (RELATION_COLORS[f.relation] ?? '#666') + '20' }]}>
+                      <EliteText variant="caption" style={{ color: RELATION_COLORS[f.relation] ?? '#666', fontSize: 10, fontFamily: Fonts.bold }}>
+                        {f.relation}
+                      </EliteText>
+                    </View>
+                    <EliteText variant="body" style={[styles.listItemName, { flex: 1 }]}>{f.condition}</EliteText>
+                    <Pressable onPress={() => handleDeleteFamily(f.id)} hitSlop={8}>
+                      <Ionicons name="close-circle-outline" size={16} color="#666" />
+                    </Pressable>
+                  </View>
+                )) : (
+                  <EliteText variant="caption" style={styles.emptySection}>Sin antecedentes</EliteText>
+                )
+              )}
+
+              {/* Botón agregar */}
+              <Pressable onPress={() => setShowAdd(true)} style={styles.addBtn}>
+                <Ionicons name="add-circle-outline" size={16} color={TEAL} />
+                <EliteText variant="caption" style={styles.addBtnText}>Agregar</EliteText>
+              </Pressable>
+
+              {/* Modal agregar */}
+              <AddModal
+                visible={showAdd}
+                type={type}
+                clientId={clientId}
+                onClose={() => setShowAdd(false)}
+                onSaved={() => { setShowAdd(false); loadData(); }}
+              />
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ══════════════════════════
+// ADD MODAL
+// ══════════════════════════
+
+function AddModal({ visible, type, clientId, onClose, onSaved }: {
+  visible: boolean; type: string; clientId: string; onClose: () => void; onSaved: () => void;
+}) {
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const set = (key: string, val: string) => setForm(prev => ({ ...prev, [key]: val }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (type === 'measurements') {
+        const nums: Record<string, number | undefined> = {};
+        for (const [k, v] of Object.entries(form)) {
+          if (v && !isNaN(Number(v))) nums[k] = Number(v);
+        }
+        await addMeasurement(clientId, nums);
+      } else if (type === 'medications') {
+        if (!form.name?.trim()) { setSaving(false); return; }
+        await addMedication(clientId, form);
+      } else if (type === 'supplements') {
+        if (!form.name?.trim()) { setSaving(false); return; }
+        await addSupplement(clientId, form);
+      } else if (type === 'family') {
+        if (!form.relation?.trim() || !form.condition?.trim()) { setSaving(false); return; }
+        await addFamilyHistory(clientId, { relation: form.relation, condition: form.condition, notes: form.notes });
+      }
+      setForm({});
+      onSaved();
+    } catch { /* */ }
+    setSaving(false);
+  };
+
+  const renderFields = () => {
+    if (type === 'measurements') {
+      return ['weight_kg', 'body_fat_pct', 'muscle_mass_pct', 'visceral_fat', 'waist_cm', 'hip_cm', 'arm_cm', 'leg_cm'].map(k => (
+        <View key={k} style={styles.modalField}>
+          <EliteText variant="caption" style={styles.modalFieldLabel}>{k.replace(/_/g, ' ')}</EliteText>
+          <TextInput style={styles.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
+            keyboardType="numeric" placeholderTextColor="#444" placeholder="0" />
+        </View>
+      ));
+    }
+    if (type === 'medications') {
+      return ['name', 'dose', 'frequency', 'reason', 'prescriber'].map(k => (
+        <View key={k} style={styles.modalField}>
+          <EliteText variant="caption" style={styles.modalFieldLabel}>{k === 'name' ? 'Nombre *' : k}</EliteText>
+          <TextInput style={styles.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
+            placeholderTextColor="#444" placeholder={k === 'name' ? 'Nombre del medicamento' : ''} />
+        </View>
+      ));
+    }
+    if (type === 'supplements') {
+      return ['name', 'dose', 'frequency', 'brand', 'reason'].map(k => (
+        <View key={k} style={styles.modalField}>
+          <EliteText variant="caption" style={styles.modalFieldLabel}>{k === 'name' ? 'Nombre *' : k}</EliteText>
+          <TextInput style={styles.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
+            placeholderTextColor="#444" placeholder={k === 'name' ? 'Nombre del suplemento' : ''} />
+        </View>
+      ));
+    }
+    if (type === 'family') {
+      return (
+        <>
+          <View style={styles.modalField}>
+            <EliteText variant="caption" style={styles.modalFieldLabel}>Relación *</EliteText>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {['Madre', 'Padre', 'Herman@', 'Abuel@', 'Otro'].map(r => (
+                <Pressable key={r} onPress={() => set('relation', r)}
+                  style={[styles.modalPill, form.relation === r && { backgroundColor: TEAL + '20', borderColor: TEAL }]}>
+                  <EliteText variant="caption" style={[styles.modalPillText, form.relation === r && { color: TEAL }]}>{r}</EliteText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <View style={styles.modalField}>
+            <EliteText variant="caption" style={styles.modalFieldLabel}>Condición *</EliteText>
+            <TextInput style={styles.modalInput} value={form.condition ?? ''} onChangeText={v => set('condition', v)}
+              placeholderTextColor="#444" placeholder="Ej: Diabetes tipo 2" />
+          </View>
+          <View style={styles.modalField}>
+            <EliteText variant="caption" style={styles.modalFieldLabel}>Notas</EliteText>
+            <TextInput style={[styles.modalInput, { height: 60 }]} value={form.notes ?? ''} onChangeText={v => set('notes', v)}
+              placeholderTextColor="#444" placeholder="Opcional" multiline />
+          </View>
+        </>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalContent} onPress={e => e.stopPropagation()}>
+          <EliteText variant="label" style={styles.modalTitle}>AGREGAR</EliteText>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {renderFields()}
+          </ScrollView>
+          <View style={styles.modalActions}>
+            <Pressable onPress={onClose}><EliteText variant="caption" style={{ color: '#666' }}>Cancelar</EliteText></Pressable>
+            <Pressable onPress={handleSave} disabled={saving} style={[styles.modalSaveBtn, saving && { opacity: 0.5 }]}>
+              <EliteText variant="caption" style={styles.modalSaveBtnText}>{saving ? 'Guardando...' : 'Guardar'}</EliteText>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -711,4 +1020,66 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill, borderWidth: 1,
   },
   condPillText: { fontSize: 11, fontFamily: Fonts.semiBold },
+
+  // Two column layout
+  twoColRow: { flexDirection: 'row', gap: Spacing.sm },
+  twoColItem: { flex: 1 },
+
+  // Section
+  sectionTitle: { flex: 1, fontFamily: Fonts.bold, fontSize: 14, color: '#FFFFFF' },
+  emptySection: { color: '#666', textAlign: 'center', paddingVertical: Spacing.md },
+
+  // Measurement grid
+  measGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  measItem: { width: '22%', minWidth: 70, backgroundColor: '#111', borderRadius: 8, padding: Spacing.sm, alignItems: 'center' },
+  measLabel: { color: '#666', fontSize: 9, marginBottom: 2 },
+  measValue: { color: '#fff', fontFamily: Fonts.bold, fontSize: 16, fontVariant: ['tabular-nums'] },
+
+  // List items (meds, supps, family)
+  listItem: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingVertical: Spacing.xs + 2, borderBottomWidth: 1, borderBottomColor: '#111',
+  },
+  listItemName: { fontFamily: Fonts.semiBold, fontSize: 13 },
+  listItemMeta: { color: '#888', fontSize: 11 },
+  activePill: {
+    paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill,
+    backgroundColor: 'rgba(168,224,42,0.1)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)',
+  },
+  activePillText: { color: Colors.neonGreen, fontSize: 10, fontFamily: Fonts.bold },
+  relationPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
+
+  // Add button
+  addBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, justifyContent: 'center',
+    paddingVertical: Spacing.sm, marginTop: Spacing.sm,
+    borderWidth: 1, borderColor: TEAL + '30', borderRadius: Radius.sm, borderStyle: 'dashed',
+  },
+  addBtnText: { color: TEAL, fontFamily: Fonts.semiBold, fontSize: 12 },
+
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
+  },
+  modalContent: {
+    backgroundColor: '#111', borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 420, maxHeight: '70%',
+    borderWidth: 1, borderColor: '#222',
+  },
+  modalTitle: { color: TEAL, letterSpacing: 3, fontSize: 13, marginBottom: Spacing.md },
+  modalField: { marginBottom: Spacing.sm },
+  modalFieldLabel: { color: '#888', fontSize: 11, marginBottom: 4, textTransform: 'capitalize' },
+  modalInput: {
+    backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
+    color: '#fff', fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a',
+  },
+  modalPill: {
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 1, borderRadius: Radius.pill,
+    borderWidth: 1, borderColor: '#333',
+  },
+  modalPillText: { color: '#888', fontSize: 12 },
+  modalActions: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md,
+  },
+  modalSaveBtn: { backgroundColor: TEAL, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
+  modalSaveBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: 13 },
 });
