@@ -30,6 +30,10 @@ import {
 } from '@/src/services/client-profile-service';
 import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/condition-catalog';
 import { askAtpAI } from '@/src/services/atp-ai-service';
+import {
+  startConsultation, getConsultations, getConsultation, updateConsultation,
+  completeConsultation, type Consultation,
+} from '@/src/services/consultation-service';
 import { AssignRoutineModal } from './AssignRoutineModal';
 
 const TEAL = '#1D9E75';
@@ -37,7 +41,7 @@ const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 // Mapeo: PostgreSQL DOW (0=Dom) → columna del grid (0=Lun)
 const DOW_TO_COL = [6, 0, 1, 2, 3, 4, 5]; // Dom=6, Lun=0...Sáb=5
 
-type Tab = 'profile' | 'calendar' | 'routines' | 'progress' | 'history';
+type Tab = 'profile' | 'consultations' | 'calendar' | 'routines' | 'progress' | 'history';
 
 interface Props {
   clientId: string;
@@ -110,6 +114,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
 
   const TABS: { key: Tab; label: string; icon: string }[] = [
     { key: 'profile', label: 'PERFIL', icon: 'person-outline' },
+    { key: 'consultations', label: 'CONSULTAS', icon: 'document-text-outline' },
     { key: 'calendar', label: 'CALENDARIO', icon: 'calendar-outline' },
     { key: 'routines', label: 'RUTINAS', icon: 'barbell-outline' },
     { key: 'progress', label: 'PROGRESO', icon: 'trophy-outline' },
@@ -194,6 +199,9 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                   });
                 }}
               />
+            )}
+            {activeTab === 'consultations' && (
+              <ConsultationsTab clientId={clientId} clientName={clientName} />
             )}
             {activeTab === 'calendar' && <CalendarTab schedule={schedule} />}
             {activeTab === 'routines' && (
@@ -884,6 +892,240 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
 // ══════════════════════════
 // TAB: CALENDARIO (grid 7 columnas Lun-Dom)
 // ══════════════════════════
+// TAB: CONSULTAS
+// ══════════════════════════
+
+const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
+  draft: { label: 'Borrador', color: '#EF9F27', bg: '#EF9F2715' },
+  completed: { label: 'Completada', color: '#a8e02a', bg: '#a8e02a15' },
+  signed: { label: 'Firmada', color: '#5B9BD5', bg: '#5B9BD515' },
+};
+
+function ConsultationsTab({ clientId, clientName }: { clientId: string; clientName: string }) {
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [activeConsult, setActiveConsult] = useState<Consultation | null>(null);
+  const [loadingList, setLoadingList] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const { width: sw } = useWindowDimensions();
+  const isWide = sw >= 1024;
+
+  useEffect(() => { loadList(); }, [clientId]);
+
+  const loadList = async () => {
+    setLoadingList(true);
+    try { setConsultations(await getConsultations(clientId)); } catch { /* */ }
+    setLoadingList(false);
+  };
+
+  const handleNew = async () => {
+    setCreating(true);
+    try {
+      const id = await startConsultation(clientId);
+      const c = await getConsultation(id);
+      if (c) { setActiveConsult(c); await loadList(); }
+    } catch { /* */ }
+    setCreating(false);
+  };
+
+  const handleSaveField = async (field: string, value: string) => {
+    if (!activeConsult) return;
+    try {
+      await updateConsultation(activeConsult.id, { [field]: value.trim() || null } as any);
+      setActiveConsult(prev => prev ? { ...prev, [field]: value.trim() || null } : null);
+    } catch { /* */ }
+  };
+
+  const handleComplete = async () => {
+    if (!activeConsult) return;
+    try {
+      await completeConsultation(activeConsult.id);
+      setActiveConsult(prev => prev ? { ...prev, status: 'completed' } : null);
+      loadList();
+    } catch { /* */ }
+  };
+
+  // Vista de consulta individual
+  if (activeConsult) {
+    const c = activeConsult;
+    const isDraft = c.status === 'draft';
+    const badge = STATUS_BADGE[c.status] ?? STATUS_BADGE.draft;
+    const changes = c.changes_summary;
+    const body = c.body_snapshot;
+    const bio = c.biomarkers_snapshot;
+
+    return (
+      <View>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md }}>
+          <Pressable onPress={() => { setActiveConsult(null); loadList(); }}>
+            <Ionicons name="arrow-back" size={20} color="#888" />
+          </Pressable>
+          <EliteText variant="body" style={{ fontFamily: Fonts.bold, flex: 1 }}>
+            Consulta #{c.consultation_number} — {new Date(c.consultation_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </EliteText>
+          <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+            <EliteText variant="caption" style={{ color: badge.color, fontSize: 10, fontFamily: Fonts.bold }}>{badge.label}</EliteText>
+          </View>
+        </View>
+
+        <View style={isWide ? { flexDirection: 'row', gap: 16 } : { gap: Spacing.md }}>
+          {/* Columna izquierda: Notas SOAP */}
+          <View style={isWide ? { flex: 3 } : undefined}>
+            <View style={styles.profileCard}>
+              <EliteText variant="caption" style={styles.profileCardLabel}>NOTAS CLÍNICAS (SOAP)</EliteText>
+              {[
+                { key: 'chief_complaint', label: 'Motivo de consulta', ph: '¿Por qué viene hoy?', multi: false },
+                { key: 'subjective_notes', label: 'S — Subjetivo', ph: 'Lo que el paciente reporta', multi: true },
+                { key: 'objective_notes', label: 'O — Objetivo', ph: 'Lo que observas', multi: true },
+                { key: 'assessment', label: 'A — Análisis', ph: 'Tu evaluación', multi: true },
+                { key: 'plan', label: 'P — Plan', ph: 'Plan hasta la próxima consulta', multi: true },
+                { key: 'general_notes', label: 'Notas generales', ph: 'Notas libres', multi: true },
+              ].map(f => (
+                <View key={f.key} style={{ marginBottom: Spacing.sm }}>
+                  <EliteText variant="caption" style={{ color: Colors.neonGreen + '80', fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
+                  <TextInput
+                    style={[styles.editableInput, f.multi && { minHeight: 60 }]}
+                    defaultValue={(c as any)[f.key] ?? ''}
+                    onEndEditing={e => handleSaveField(f.key, e.nativeEvent.text)}
+                    placeholder={f.ph}
+                    placeholderTextColor="#333"
+                    multiline={f.multi}
+                    editable={isDraft}
+                  />
+                </View>
+              ))}
+              {isDraft && (
+                <Pressable onPress={handleComplete} style={styles.completeBtn}>
+                  <Ionicons name="checkmark-circle" size={16} color="#000" />
+                  <EliteText variant="caption" style={styles.completeBtnText}>Completar consulta</EliteText>
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+          {/* Columna derecha: Snapshot */}
+          <View style={isWide ? { flex: 2 } : undefined}>
+            {/* Composición */}
+            {body && (
+              <View style={[styles.profileCard, { marginBottom: Spacing.sm }]}>
+                <EliteText variant="caption" style={styles.profileCardLabel}>COMPOSICIÓN (SNAPSHOT)</EliteText>
+                <View style={styles.measGrid}>
+                  {[
+                    { l: 'Peso', v: body.weight_kg, ch: changes?.weight_change },
+                    { l: 'Grasa', v: body.body_fat_pct, ch: changes?.fat_change },
+                    { l: 'Músculo', v: body.muscle_mass_pct, ch: null },
+                    { l: 'Cintura', v: body.waist_cm, ch: null },
+                  ].map(m => (
+                    <View key={m.l} style={styles.measItem}>
+                      <EliteText variant="caption" style={styles.measLabel}>{m.l}</EliteText>
+                      <EliteText style={styles.measValue}>{m.v ?? '—'}</EliteText>
+                      {m.ch != null && m.ch !== 0 && (
+                        <EliteText variant="caption" style={{ color: m.ch < 0 ? '#a8e02a' : '#E24B4A', fontSize: 10 }}>
+                          {m.ch > 0 ? '+' : ''}{Number(m.ch).toFixed(1)}
+                        </EliteText>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Condiciones */}
+            {c.conditions_snapshot && c.conditions_snapshot.length > 0 && (
+              <View style={[styles.profileCard, { marginBottom: Spacing.sm }]}>
+                <EliteText variant="caption" style={styles.profileCardLabel}>CONDICIONES (SNAPSHOT)</EliteText>
+                <View style={styles.conditionPills}>
+                  {(c.conditions_snapshot as any[]).map((cond: any) => {
+                    const st = FLAG_STATUSES[cond.status as keyof typeof FLAG_STATUSES] ?? FLAG_STATUSES.not_evaluated;
+                    return (
+                      <View key={cond.condition_key} style={[styles.condPillSm, { backgroundColor: st.bgColor, borderColor: st.color + '40' }]}>
+                        <EliteText variant="caption" style={{ color: st.color, fontSize: 10 }}>{cond.condition_key}</EliteText>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Meds + Supps */}
+            {((c.medications_snapshot as any[])?.length > 0 || (c.supplements_snapshot as any[])?.length > 0) && (
+              <View style={[styles.profileCard, { marginBottom: Spacing.sm }]}>
+                <EliteText variant="caption" style={styles.profileCardLabel}>TRATAMIENTO (SNAPSHOT)</EliteText>
+                {(c.medications_snapshot as any[] ?? []).map((m: any, i: number) => (
+                  <EliteText key={i} variant="caption" style={{ color: '#888', fontSize: 11 }}>💊 {m.name} {m.dose ?? ''}</EliteText>
+                ))}
+                {(c.supplements_snapshot as any[] ?? []).map((s: any, i: number) => (
+                  <EliteText key={i} variant="caption" style={{ color: '#888', fontSize: 11 }}>🧪 {s.name} {s.dose ?? ''}</EliteText>
+                ))}
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  // Vista de lista
+  return (
+    <View>
+      <Pressable onPress={handleNew} disabled={creating} style={[styles.newConsultBtn, creating && { opacity: 0.5 }]}>
+        <Ionicons name="add-circle-outline" size={18} color={Colors.neonGreen} />
+        <EliteText variant="body" style={styles.newConsultBtnText}>
+          {creating ? 'Creando...' : 'Nueva Consulta'}
+        </EliteText>
+      </Pressable>
+
+      {loadingList ? (
+        <ActivityIndicator color={TEAL} style={{ marginTop: Spacing.lg }} />
+      ) : consultations.length === 0 ? (
+        <EliteText variant="caption" style={{ color: '#666', textAlign: 'center', paddingVertical: Spacing.xl }}>
+          Sin consultas registradas. Inicia la primera.
+        </EliteText>
+      ) : (
+        consultations.map(c => {
+          const badge = STATUS_BADGE[c.status] ?? STATUS_BADGE.draft;
+          const changes = c.changes_summary;
+          return (
+            <Pressable key={c.id} onPress={async () => {
+              const full = await getConsultation(c.id);
+              if (full) setActiveConsult(full);
+            }} style={styles.consultCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                <EliteText variant="body" style={{ fontFamily: Fonts.bold, flex: 1 }}>
+                  Consulta #{c.consultation_number}
+                </EliteText>
+                <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
+                  <EliteText variant="caption" style={{ color: badge.color, fontSize: 9, fontFamily: Fonts.bold }}>{badge.label}</EliteText>
+                </View>
+              </View>
+              <EliteText variant="caption" style={{ color: '#888', marginTop: 2 }}>
+                {new Date(c.consultation_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </EliteText>
+              {c.chief_complaint && (
+                <EliteText variant="caption" style={{ color: '#aaa', marginTop: 4 }} numberOfLines={1}>
+                  {c.chief_complaint}
+                </EliteText>
+              )}
+              {changes && !changes.is_first && (changes.weight_change != null || changes.fat_change != null) && (
+                <EliteText variant="caption" style={{ color: '#666', marginTop: 4, fontSize: 11 }}>
+                  {changes.weight_change != null ? `${changes.weight_change > 0 ? '+' : ''}${Number(changes.weight_change).toFixed(1)} kg` : ''}
+                  {changes.fat_change != null ? ` · ${changes.fat_change > 0 ? '+' : ''}${Number(changes.fat_change).toFixed(1)}% grasa` : ''}
+                </EliteText>
+              )}
+              {changes?.is_first && (
+                <EliteText variant="caption" style={{ color: TEAL, marginTop: 4, fontSize: 11 }}>Primera consulta</EliteText>
+              )}
+            </Pressable>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
+// ══════════════════════════
+// TAB: CALENDARIO
+// ══════════════════════════
 
 function CalendarTab({ schedule }: { schedule: ClientScheduleItem[] }) {
   const weekly = schedule.filter(s => s.schedule_type === 'weekly_cycle');
@@ -1444,4 +1686,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: '#1a1a1a',
   },
   aiActionBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: Spacing.xs },
+
+  // Consultations
+  newConsultBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
+    backgroundColor: Colors.neonGreen + '10', borderWidth: 1, borderColor: Colors.neonGreen + '30',
+    borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.md,
+  },
+  newConsultBtnText: { color: Colors.neonGreen, fontFamily: Fonts.bold },
+  consultCard: {
+    backgroundColor: '#111', borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
+    borderWidth: 0.5, borderColor: '#222',
+  },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
+  completeBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+    backgroundColor: Colors.neonGreen, paddingVertical: Spacing.sm, borderRadius: Radius.pill, marginTop: Spacing.md,
+  },
+  completeBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: 13 },
 });
