@@ -223,6 +223,20 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         <ProfileRow label="Conectado desde" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })} />
       </View>
 
+      {/* ══════ SCORES DE SALUD ══════ */}
+      <View style={styles.profileCard}>
+        <EliteText variant="caption" style={styles.profileCardLabel}>SCORES DE SALUD</EliteText>
+        <View style={styles.scoresGrid}>
+          <ScoreCard label="Edad biológica" value="—" unit="años" color="#7F77DD" />
+          <ScoreCard label="Edad metabólica" value="—" unit="años" color="#EF9F27" />
+          <ScoreCard label="Ritmo de envejecimiento" value="—" unit="x" color="#E24B4A" />
+          <ScoreCard label="Salud funcional" value="—" unit="/100" color={TEAL} />
+        </View>
+        <EliteText variant="caption" style={{ color: '#444', fontSize: 10, textAlign: 'center', marginTop: Spacing.sm, fontStyle: 'italic' }}>
+          Próximamente: cálculo automático basado en labs, composición y hábitos
+        </EliteText>
+      </View>
+
       {/* ══════ TABLERO DE CONDICIONES ══════ */}
       <EliteText variant="caption" style={[styles.profileCardLabel, { marginBottom: 0 }]}>
         TABLERO DE CONDICIONES
@@ -261,26 +275,37 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
             </Pressable>
 
             {isExpanded && (
-              <View style={styles.conditionPills}>
-                {zone.conditions.map(cond => {
-                  const status = getFlag(cond.key);
-                  const st = FLAG_STATUSES[status];
-                  return (
-                    <Pressable
-                      key={cond.key}
-                      onPress={() => onFlagToggle(cond.key, zone.key)}
-                      style={[styles.condPill, {
-                        backgroundColor: st.bgColor,
-                        borderColor: st.color + '40',
-                        borderStyle: status === 'not_evaluated' ? 'dashed' : 'solid',
-                      }]}
-                    >
-                      <EliteText variant="caption" style={[styles.condPillText, { color: st.color }]}>
-                        {cond.label}
-                      </EliteText>
-                    </Pressable>
-                  );
-                })}
+              <View>
+                <View style={styles.conditionPills}>
+                  {zone.conditions.map(cond => {
+                    const status = getFlag(cond.key);
+                    const st = FLAG_STATUSES[status];
+                    return (
+                      <Pressable
+                        key={cond.key}
+                        onPress={() => onFlagToggle(cond.key, zone.key)}
+                        style={[styles.condPill, {
+                          backgroundColor: st.bgColor,
+                          borderColor: st.color + '40',
+                          borderStyle: status === 'not_evaluated' ? 'dashed' : 'solid',
+                        }]}
+                      >
+                        <EliteText variant="caption" style={[styles.condPillText, { color: st.color }]}>
+                          {cond.label}
+                        </EliteText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {/* Nota para oncológico cuando hay condiciones presentes */}
+                {zone.key === 'oncologic' && zone.conditions.some(c => getFlag(c.key) === 'present') && (
+                  <View style={styles.oncoNoteBox}>
+                    <EliteText variant="caption" style={styles.oncoNoteLabel}>Nota oncológica (tipo de cáncer, estadio, etc.)</EliteText>
+                    <EliteText variant="caption" style={styles.oncoNoteHint}>
+                      {flags.find(f => f.zone === 'oncologic' && f.notes)?.notes || 'Sin nota — usa long press en la pill para agregar detalles'}
+                    </EliteText>
+                  </View>
+                )}
               </View>
             )}
           </View>
@@ -389,7 +414,8 @@ function CollapsibleSection({ title, clientId, type }: {
                       { l: 'G. Visceral', v: latest.visceral_fat, u: '' },
                       { l: 'Cintura', v: latest.waist_cm, u: 'cm' },
                       { l: 'Cadera', v: latest.hip_cm, u: 'cm' },
-                      { l: 'Brazo', v: latest.arm_cm, u: 'cm' },
+                      { l: 'Abdomen', v: latest.chest_cm, u: 'cm' },
+                      { l: 'Bíceps', v: latest.arm_cm, u: 'cm' },
                       { l: 'Pierna', v: latest.leg_cm, u: 'cm' },
                     ].map(m => (
                       <View key={m.l} style={styles.measItem}>
@@ -529,7 +555,7 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
 
   const renderFields = () => {
     if (type === 'measurements') {
-      return ['weight_kg', 'body_fat_pct', 'muscle_mass_pct', 'visceral_fat', 'waist_cm', 'hip_cm', 'arm_cm', 'leg_cm'].map(k => (
+      return ['weight_kg', 'body_fat_pct', 'muscle_mass_pct', 'visceral_fat', 'waist_cm', 'hip_cm', 'chest_cm', 'arm_cm', 'leg_cm'].map(k => (
         <View key={k} style={styles.modalField}>
           <EliteText variant="caption" style={styles.modalFieldLabel}>{k.replace(/_/g, ' ')}</EliteText>
           <TextInput style={styles.modalInput} value={form[k] ?? ''} onChangeText={v => set(k, v)}
@@ -602,6 +628,18 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
         </Pressable>
       </Pressable>
     </Modal>
+  );
+}
+
+function ScoreCard({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
+  return (
+    <View style={styles.scoreCard}>
+      <EliteText variant="caption" style={styles.scoreLabel}>{label}</EliteText>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+        <EliteText style={[styles.scoreValue, { color }]}>{value}</EliteText>
+        <EliteText variant="caption" style={{ color: '#666', fontSize: 10 }}>{unit}</EliteText>
+      </View>
+    </View>
   );
 }
 
@@ -1020,6 +1058,23 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill, borderWidth: 1,
   },
   condPillText: { fontSize: 11, fontFamily: Fonts.semiBold },
+
+  // Oncologic note
+  oncoNoteBox: {
+    marginTop: Spacing.sm, backgroundColor: '#1a1a1a', borderRadius: 8,
+    padding: Spacing.sm, borderWidth: 1, borderColor: '#7F77DD30',
+  },
+  oncoNoteLabel: { color: '#7F77DD', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 },
+  oncoNoteHint: { color: '#666', fontSize: 11, fontStyle: 'italic' },
+
+  // Scores
+  scoresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  scoreCard: {
+    flex: 1, minWidth: '45%', backgroundColor: '#111', borderRadius: 10,
+    padding: Spacing.sm, alignItems: 'center',
+  },
+  scoreLabel: { color: '#888', fontSize: 9, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4, textAlign: 'center' },
+  scoreValue: { fontSize: 28, fontFamily: Fonts.extraBold },
 
   // Two column layout
   twoColRow: { flexDirection: 'row', gap: Spacing.sm },
