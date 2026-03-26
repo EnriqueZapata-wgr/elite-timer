@@ -70,6 +70,17 @@ Agua: ${profile?.water_liters_day || '—'}L | Cafeína: ${profile?.caffeine_cup
 Sueño: ${profile?.sleep_time_usual || '—'}-${profile?.wake_time_usual || '—'} (${profile?.sleep_hours_avg || '—'}h) Calidad: ${profile?.sleep_quality || '—'}/10
 `;
 
+  // Contexto de peso
+  if (profile?.weight_highest_kg || profile?.weight_lowest_kg || profile?.weight_ideal_kg) {
+    p += `\n## CONTEXTO DE PESO\n`;
+    if (profile.weight_highest_kg) p += `Más alto: ${profile.weight_highest_kg}kg${profile.weight_highest_year ? ` (${profile.weight_highest_year})` : ''}\n`;
+    if (profile.weight_lowest_kg) p += `Más bajo: ${profile.weight_lowest_kg}kg${profile.weight_lowest_year ? ` (${profile.weight_lowest_year})` : ''}\n`;
+    if (profile.weight_ideal_kg) p += `Ideal (coach): ${profile.weight_ideal_kg}kg${profile.weight_ideal_notes ? ` — ${profile.weight_ideal_notes}` : ''}\n`;
+    if (data.latestMeasurements?.weight_kg && profile.weight_ideal_kg) {
+      p += `Diferencia actual vs ideal: ${(Number(data.latestMeasurements.weight_kg) - Number(profile.weight_ideal_kg)).toFixed(1)}kg\n`;
+    }
+  }
+
   if (profile?.grip_strength_kg || profile?.vo2_max || profile?.blood_pressure_sys) {
     p += `\n## BIOMARCADORES\n`;
     if (profile.grip_strength_kg) p += `Agarre: ${profile.grip_strength_kg}kg | `;

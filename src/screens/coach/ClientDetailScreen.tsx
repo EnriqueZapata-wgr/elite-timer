@@ -413,6 +413,15 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         </View>
         <View style={isWide ? { flex: 1 } : undefined}>
           <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
+          {/* Barra visual de contexto de peso */}
+          {profileLoaded && profile?.weight_highest_kg && profile?.weight_lowest_kg && (
+            <WeightContextBar
+              lowest={Number(profile.weight_lowest_kg)}
+              current={null}
+              highest={Number(profile.weight_highest_kg)}
+              ideal={profile.weight_ideal_kg ? Number(profile.weight_ideal_kg) : undefined}
+            />
+          )}
         </View>
       </View>
 
@@ -967,6 +976,35 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
   );
 }
 
+function WeightContextBar({ lowest, current, highest, ideal }: {
+  lowest: number; current: number | null; highest: number; ideal?: number;
+}) {
+  const range = highest - lowest || 1;
+  const pct = (v: number) => Math.max(0, Math.min(100, ((v - lowest) / range) * 100));
+
+  return (
+    <View style={styles.weightBar}>
+      <View style={styles.weightBarTrack}>
+        {/* Points */}
+        <View style={[styles.weightBarPoint, { left: '0%', backgroundColor: '#a8e02a' }]} />
+        {current != null && (
+          <View style={[styles.weightBarPointLg, { left: `${pct(current)}%` }]} />
+        )}
+        <View style={[styles.weightBarPoint, { left: '100%', backgroundColor: '#E24B4A' }]} />
+        {ideal && (
+          <View style={[styles.weightBarPoint, { left: `${pct(ideal)}%`, backgroundColor: TEAL, borderWidth: 2, borderColor: TEAL }]} />
+        )}
+      </View>
+      <View style={styles.weightBarLabels}>
+        <EliteText variant="caption" style={{ color: '#a8e02a', fontSize: 10 }}>{lowest}kg</EliteText>
+        {current != null && <EliteText variant="caption" style={{ color: '#fff', fontSize: 10 }}>{current}kg</EliteText>}
+        {ideal && <EliteText variant="caption" style={{ color: TEAL, fontSize: 10 }}>Meta: {ideal}kg</EliteText>}
+        <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 10 }}>{highest}kg</EliteText>
+      </View>
+    </View>
+  );
+}
+
 function BioField({ label, unit, color, value, onSave }: {
   label: string; unit: string; color: string; value: string; onSave: (v: string) => void;
 }) {
@@ -1173,6 +1211,48 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
           <View style={isWide ? { flex: 55 } : undefined}>
             {/* Composición corporal */}
             <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
+
+            {/* Contexto de peso */}
+            {isDraft && consultProfile && (
+              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={styles.profileCardLabel}>CONTEXTO DE PESO</EliteText>
+                <View style={{ gap: Spacing.sm }}>
+                  <View style={styles.weightCtxRow}>
+                    <EliteText variant="caption" style={styles.weightCtxLabel}>Más alto</EliteText>
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_highest_kg?.toString() ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_highest_kg', e.nativeEvent.text)}
+                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_highest_year ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_highest_year', e.nativeEvent.text)}
+                      placeholder="año o edad" placeholderTextColor="#333" />
+                  </View>
+                  <View style={styles.weightCtxRow}>
+                    <EliteText variant="caption" style={styles.weightCtxLabel}>Más bajo</EliteText>
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_lowest_kg?.toString() ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_lowest_kg', e.nativeEvent.text)}
+                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_lowest_year ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_lowest_year', e.nativeEvent.text)}
+                      placeholder="año o edad" placeholderTextColor="#333" />
+                  </View>
+                  <View style={styles.weightCtxRow}>
+                    <EliteText variant="caption" style={[styles.weightCtxLabel, { color: TEAL }]}>Ideal</EliteText>
+                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
+                      defaultValue={consultProfile.weight_ideal_kg?.toString() ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_ideal_kg', e.nativeEvent.text)}
+                      placeholder="kg" placeholderTextColor="#333" keyboardType="numeric" />
+                    <TextInput style={[styles.weightCtxInput, { flex: 2 }]}
+                      defaultValue={consultProfile.weight_ideal_notes ?? ''}
+                      onEndEditing={e => saveConsultProfileField('weight_ideal_notes', e.nativeEvent.text)}
+                      placeholder="notas (frame, estilo vida)" placeholderTextColor="#333" />
+                  </View>
+                </View>
+              </View>
+            )}
 
             {/* Tablero de condiciones (EDITABLE) */}
             {consultFlagsLoaded && isDraft && (
@@ -1811,6 +1891,29 @@ const styles = StyleSheet.create({
   },
   sexPillActive: { borderColor: TEAL, backgroundColor: TEAL + '15' },
   sexPillText: { color: '#666', fontSize: 12 },
+
+  // Weight context
+  weightCtxRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  weightCtxLabel: { color: '#888', fontSize: 11, fontFamily: Fonts.bold, width: 55 },
+  weightCtxInput: {
+    backgroundColor: '#1a1a1a', borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
+    color: '#fff', fontSize: 13, borderWidth: 0.5, borderColor: '#2a2a2a',
+  },
+  weightBar: { marginTop: Spacing.sm, paddingHorizontal: 4 },
+  weightBarTrack: {
+    height: 3, backgroundColor: '#222', borderRadius: 2, position: 'relative', marginVertical: Spacing.sm,
+  },
+  weightBarPoint: {
+    position: 'absolute', width: 10, height: 10, borderRadius: 5, top: -3.5,
+    marginLeft: -5,
+  },
+  weightBarPointLg: {
+    position: 'absolute', width: 14, height: 14, borderRadius: 7, top: -5.5,
+    marginLeft: -7, backgroundColor: '#fff', borderWidth: 2, borderColor: '#fff',
+  },
+  weightBarLabels: {
+    flexDirection: 'row', justifyContent: 'space-between',
+  },
 
   // DOB
   dobRow: {
