@@ -70,13 +70,16 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
     return `${sessionStr} · ${timeStr}`;
   };
 
+  const [inviteError, setInviteError] = useState('');
+
   const handleInvite = async () => {
     const email = inviteEmail.trim().toLowerCase();
     if (!email || !email.includes('@') || !email.includes('.')) {
-      Alert.alert('Error', 'Ingresa un correo válido');
+      setInviteError('Ingresa un correo válido');
       return;
     }
     setInviting(true);
+    setInviteError('');
     try {
       const result = await inviteClientByEmail(email);
       if (inviteName.trim() && result.is_new) {
@@ -88,8 +91,11 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
       setShowInvite(false);
       setInviteEmail('');
       setInviteName('');
+      setInviteError('');
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo agregar');
+      const msg = err?.message ?? 'No se pudo agregar. ¿Ejecutaste la migración 008 en Supabase?';
+      setInviteError(msg);
+      console.error('[inviteClient]', err);
     }
     setInviting(false);
   };
@@ -251,8 +257,14 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
                 placeholderTextColor="#444"
               />
             </View>
+            {inviteError ? (
+              <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12, marginBottom: Spacing.sm }}>
+                {inviteError}
+              </EliteText>
+            ) : null}
+
             <View style={styles.inviteActions}>
-              <Pressable onPress={() => setShowInvite(false)}>
+              <Pressable onPress={() => { setShowInvite(false); setInviteError(''); }}>
                 <EliteText variant="caption" style={{ color: '#666' }}>Cancelar</EliteText>
               </Pressable>
               <Pressable
