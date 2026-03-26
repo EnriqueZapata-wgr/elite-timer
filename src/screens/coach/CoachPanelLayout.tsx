@@ -5,12 +5,13 @@
  * Área principal derecha: ficha del cliente seleccionado.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, FlatList, Pressable, TextInput, ActivityIndicator, Share } from 'react-native';
+import { View, StyleSheet, ScrollView, FlatList, Pressable, TextInput, ActivityIndicator, Share, Modal, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { getClientList, getCoachProfile, type ClientSummary } from '@/src/services/coach-panel-service';
-import { useCoachStatus } from '@/src/hooks/useCoachStatus';
+import { inviteClientByEmail, updateClientName } from '@/src/services/coach-service';
+import { useCoachStatus, refreshCoachStatus } from '@/src/hooks/useCoachStatus';
 import { ClientDetailScreen } from './ClientDetailScreen';
 
 const TEAL = '#1D9E75';
@@ -28,6 +29,10 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
   const [search, setSearch] = useState('');
   const [coachName, setCoachName] = useState('');
   const [coachEmail, setCoachEmail] = useState('');
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteName, setInviteName] = useState('');
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     loadClients();
@@ -65,6 +70,30 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
     return `${sessionStr} · ${timeStr}`;
   };
 
+  const handleInvite = async () => {
+    const email = inviteEmail.trim().toLowerCase();
+    if (!email || !email.includes('@') || !email.includes('.')) {
+      Alert.alert('Error', 'Ingresa un correo válido');
+      return;
+    }
+    setInviting(true);
+    try {
+      const result = await inviteClientByEmail(email);
+      if (inviteName.trim() && result.is_new) {
+        await updateClientName(result.client_id, inviteName.trim());
+      }
+      await loadClients();
+      await refreshCoachStatus();
+      setSelectedId(result.client_id);
+      setShowInvite(false);
+      setInviteEmail('');
+      setInviteName('');
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'No se pudo agregar');
+    }
+    setInviting(false);
+  };
+
   const handleCopyCode = async () => {
     if (!coachCode) return;
     try { await Share.share({ message: `Mi código de coach ATP: ${coachCode}` }); }
@@ -92,9 +121,16 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
           ]} numberOfLines={1}>
             {displayName}
           </EliteText>
-          <EliteText variant="caption" style={styles.clientMeta}>
-            {clientMetaText(item)}
-          </EliteText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <EliteText variant="caption" style={styles.clientMeta}>
+              {clientMetaText(item)}
+            </EliteText>
+            {(!item.full_name || item.full_name.trim() === '') && (
+              <View style={styles.pendingBadge}>
+                <EliteText variant="caption" style={styles.pendingBadgeText}>Pendiente</EliteText>
+              </View>
+            )}
+          </View>
         </View>
       </Pressable>
     );
@@ -157,6 +193,12 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
           )}
         </View>
 
+        {/* Botón agregar cliente */}
+        <Pressable onPress={() => setShowInvite(true)} style={styles.addClientBtn}>
+          <Ionicons name="person-add-outline" size={16} color={Colors.neonGreen} />
+          <EliteText variant="caption" style={styles.addClientBtnText}>Agregar cliente</EliteText>
+        </Pressable>
+
         {/* Lista de clientes */}
         {loading ? (
           <ActivityIndicator color={TEAL} style={{ marginTop: Spacing.xl }} />
@@ -181,6 +223,51 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
           <EliteText variant="caption" style={styles.switchText}>Ir a mi entrenamiento</EliteText>
         </Pressable>
       </View>
+
+      {/* ═══ MODAL INVITAR CLIENTE ═══ */}
+      <Modal visible={showInvite} transparent animationType="fade" onRequestClose={() => setShowInvite(false)}>
+        <Pressable style={styles.inviteOverlay} onPress={() => setShowInvite(false)}>
+          <Pressable style={styles.inviteModal} onPress={e => e.stopPropagation()}>
+            <EliteText variant="label" style={styles.inviteTitle}>AGREGAR CLIENTE</EliteText>
+            <View style={styles.inviteField}>
+              <EliteText variant="caption" style={styles.inviteLabel}>Email *</EliteText>
+              <TextInput
+                style={styles.inviteInput}
+                value={inviteEmail}
+                onChangeText={setInviteEmail}
+                placeholder="correo@ejemplo.com"
+                placeholderTextColor="#444"
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.inviteField}>
+              <EliteText variant="caption" style={styles.inviteLabel}>Nombre completo (opcional)</EliteText>
+              <TextInput
+                style={styles.inviteInput}
+                value={inviteName}
+                onChangeText={setInviteName}
+                placeholder="Nombre del cliente"
+                placeholderTextColor="#444"
+              />
+            </View>
+            <View style={styles.inviteActions}>
+              <Pressable onPress={() => setShowInvite(false)}>
+                <EliteText variant="caption" style={{ color: '#666' }}>Cancelar</EliteText>
+              </Pressable>
+              <Pressable
+                onPress={handleInvite}
+                disabled={inviting}
+                style={[styles.inviteSaveBtn, inviting && { opacity: 0.5 }]}
+              >
+                <EliteText variant="caption" style={styles.inviteSaveBtnText}>
+                  {inviting ? 'Agregando...' : 'Agregar'}
+                </EliteText>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* ═══ ÁREA PRINCIPAL ═══ */}
       <View style={styles.mainArea}>
@@ -314,7 +401,40 @@ const styles = StyleSheet.create({
   avatarText: { color: TEAL, fontFamily: Fonts.bold, fontSize: 14 },
   clientItemInfo: { flex: 1 },
   clientName: { fontFamily: Fonts.semiBold, fontSize: 14, color: '#FFFFFF' },
-  clientMeta: { color: '#AAAAAA', fontSize: 11, marginTop: 1 },
+  clientMeta: { color: '#AAAAAA', fontSize: 11 },
+  pendingBadge: { backgroundColor: '#333', paddingHorizontal: 5, paddingVertical: 1, borderRadius: Radius.pill },
+  pendingBadgeText: { color: '#888', fontSize: 8, fontFamily: Fonts.bold },
+
+  // Add client button
+  addClientBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+    marginHorizontal: Spacing.sm, marginTop: Spacing.sm, paddingVertical: Spacing.sm,
+    borderWidth: 1, borderColor: Colors.neonGreen + '30', borderRadius: Radius.sm, borderStyle: 'dashed',
+  },
+  addClientBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold, fontSize: 12 },
+
+  // Invite modal
+  inviteOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
+  },
+  inviteModal: {
+    backgroundColor: '#111', borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 400,
+    borderWidth: 1, borderColor: '#222',
+  },
+  inviteTitle: { color: Colors.neonGreen, letterSpacing: 3, fontSize: 13, marginBottom: Spacing.md },
+  inviteField: { marginBottom: Spacing.sm },
+  inviteLabel: { color: '#888', fontSize: 11, marginBottom: 4 },
+  inviteInput: {
+    backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
+    color: '#fff', fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a',
+  },
+  inviteActions: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md,
+  },
+  inviteSaveBtn: {
+    backgroundColor: Colors.neonGreen, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill,
+  },
+  inviteSaveBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: 13 },
 
   // Switch
   switchBtn: {

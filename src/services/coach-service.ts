@@ -118,3 +118,25 @@ export async function getCoachCode(): Promise<string | null> {
     .single();
   return data?.coach_code ?? null;
 }
+
+/** Invitar/crear cliente por email */
+export async function inviteClientByEmail(email: string): Promise<{
+  client_id: string; email: string; name: string | null; is_new: boolean;
+}> {
+  const user = await getAuthenticatedUser();
+  const { data, error } = await supabase.rpc('invite_client_by_email', {
+    p_coach_id: user.id,
+    p_email: email.trim().toLowerCase(),
+  });
+  if (error) throw new Error(error.message);
+  return data as any;
+}
+
+/** Actualizar nombre del cliente (para placeholders) */
+export async function updateClientName(clientId: string, fullName: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ full_name: fullName })
+    .eq('id', clientId);
+  if (error) throw error;
+}
