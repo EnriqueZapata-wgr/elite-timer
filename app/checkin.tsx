@@ -165,105 +165,58 @@ export default function CheckinScreen() {
         </Animated.View>
       )}
 
-      {/* ═══ STEP 2: EMOCIONES (plano 2D posicionado) ═══ */}
+      {/* ═══ STEP 2: EMOCIONES ═══ */}
       {step === 2 && quadrant && (() => {
-        const quadrantEmotions = EMOTIONS.filter(e => e.quadrant === quadrant);
-        const planeW = SW - Spacing.md * 2;
-        const planeH = 650;
-        const padX = 10;
-        const padY = 16;
+        const all = EMOTIONS.filter(e => e.quadrant === quadrant);
+        // Agrupar por bandas de energía (alto 8-10, medio 5-7, bajo 1-4)
+        const high = all.filter(e => e.energy >= 8).sort((a, b) => b.intensity - a.intensity);
+        const mid = all.filter(e => e.energy >= 5 && e.energy < 8).sort((a, b) => b.intensity - a.intensity);
+        const low = all.filter(e => e.energy < 5).sort((a, b) => b.intensity - a.intensity);
 
-        // Hash determinista para offset orgánico
-        const hash = (s: string) => {
-          let h = 0;
-          for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-          return h;
-        };
-
-        // Calcular posiciones
-        const positioned = quadrantEmotions.map(e => {
-          const baseX = padX + ((e.intensity - 1) / 9) * (planeW - padX * 2 - 80);
-          const baseY = padY + ((10 - e.energy) / 9) * (planeH - padY * 2 - 30);
-          const h = hash(e.id);
-          const offX = ((h % 29) - 14) * 1.2;
-          const offY = (((h >> 4) % 23) - 11) * 1.3;
-          return { ...e, x: Math.max(4, Math.min(planeW - 90, baseX + offX)), y: Math.max(4, baseY + offY) };
-        });
-
-        // Resolver colisiones simples
-        for (let i = 0; i < positioned.length; i++) {
-          for (let j = i + 1; j < positioned.length; j++) {
-            const dx = positioned[j].x - positioned[i].x;
-            const dy = positioned[j].y - positioned[i].y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 36) {
-              const push = (36 - dist) / 2 + 2;
-              const angle = Math.atan2(dy, dx);
-              positioned[j].x += Math.cos(angle) * push;
-              positioned[j].y += Math.sin(angle) * push;
-              positioned[i].x -= Math.cos(angle) * push;
-              positioned[i].y -= Math.sin(angle) * push;
-            }
-          }
-        }
+        const renderBand = (emotions: typeof all, label: string) => (
+          <View style={styles.emotionBand}>
+            <EliteText variant="caption" style={[styles.bandLabel, { color: qColor + '50' }]}>{label}</EliteText>
+            <View style={styles.bandWrap}>
+              {emotions.map(e => {
+                const sel = selectedEmotions.includes(e.id);
+                return (
+                  <Pressable
+                    key={e.id}
+                    onPress={() => toggleEmotion(e.id)}
+                    onLongPress={() => setTooltip(e)}
+                    delayLongPress={400}
+                    style={[
+                      styles.emotionPill,
+                      { borderColor: sel ? qColor + 'AA' : qColor + '25' },
+                      sel && { backgroundColor: qColor + '30' },
+                    ]}
+                  >
+                    <EliteText variant="caption" style={[
+                      styles.emotionText,
+                      { color: sel ? qColor : Colors.textSecondary },
+                      sel && { fontFamily: Fonts.bold },
+                    ]}>
+                      {e.label}
+                    </EliteText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        );
 
         return (
           <Animated.View entering={SlideInRight.duration(250)} exiting={SlideOutLeft.duration(200)} style={styles.stepFlex}>
             <EliteText style={[styles.mainTitle, { color: qColor }]}>{qd!.label}</EliteText>
             <EliteText variant="caption" style={styles.mainSub}>
-              Explora el mapa · toca para elegir · mantén para descripción
+              Elige 1 o 2 · mantén presionado para descripción
             </EliteText>
 
-            {/* Ejes fijos */}
-            <View style={styles.planeContainer}>
-              <EliteText variant="caption" style={styles.axisTop}>↑ Más energía</EliteText>
-              <EliteText variant="caption" style={styles.axisBottom}>↓ Menos energía</EliteText>
-              <EliteText variant="caption" style={styles.axisLeft}>Sutil</EliteText>
-              <EliteText variant="caption" style={styles.axisRight}>Intenso</EliteText>
-
-              <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={[styles.plane, { width: planeW, height: planeH }]}>
-                  {/* Cruz de ejes */}
-                  <View style={[styles.axisLineH, { top: planeH / 2, width: planeW }]} />
-                  <View style={[styles.axisLineV, { left: planeW / 2, height: planeH }]} />
-
-                  {/* Pills posicionadas */}
-                  {positioned.map(e => {
-                    const sel = selectedEmotions.includes(e.id);
-                    const isIntense = e.intensity >= 8;
-                    const isSubtle = e.intensity <= 3;
-                    return (
-                      <Pressable
-                        key={e.id}
-                        onPress={() => toggleEmotion(e.id)}
-                        onLongPress={() => setTooltip(e)}
-                        delayLongPress={400}
-                        style={[
-                          styles.mapPill,
-                          {
-                            left: e.x,
-                            top: e.y,
-                            borderColor: sel ? qColor + 'AA' : qColor + '30',
-                            backgroundColor: sel ? qColor + '35' : qColor + '0A',
-                          },
-                        ]}
-                      >
-                        <EliteText variant="caption" style={[
-                          styles.mapPillText,
-                          {
-                            color: sel ? qColor : Colors.textSecondary,
-                            fontSize: isIntense ? 13 : isSubtle ? 11 : 12,
-                          },
-                          sel && { fontFamily: Fonts.bold },
-                        ]}>
-                          {e.label}
-                        </EliteText>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </ScrollView>
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
+              {renderBand(high, '↑ Alta intensidad')}
+              {renderBand(mid, '— Media')}
+              {renderBand(low, '↓ Más sutil')}
+            </ScrollView>
 
             {/* Tooltip */}
             {tooltip && (
@@ -404,39 +357,20 @@ const styles = StyleSheet.create({
   recentLabel: { color: Colors.textSecondary, fontSize: 12 },
   recentCircle: { width: 14, height: 14, borderRadius: 7 },
 
-  // Plane container (2D emotion map)
-  planeContainer: { flex: 1, position: 'relative' },
-  plane: { position: 'relative' },
-  axisLineH: {
-    position: 'absolute', height: 1, backgroundColor: 'rgba(255,255,255,0.04)',
+  // Emotion bands
+  emotionBand: { marginBottom: Spacing.md },
+  bandLabel: {
+    fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2,
+    marginBottom: Spacing.xs, paddingLeft: 2,
   },
-  axisLineV: {
-    position: 'absolute', width: 1, backgroundColor: 'rgba(255,255,255,0.04)', top: 0,
+  bandWrap: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs,
   },
-  axisTop: {
-    color: 'rgba(255,255,255,0.2)', fontSize: 9, fontFamily: Fonts.semiBold,
-    textAlign: 'center', marginBottom: 2,
+  emotionPill: {
+    paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.xs + 3,
+    borderRadius: Radius.pill, borderWidth: 1,
   },
-  axisBottom: {
-    color: 'rgba(255,255,255,0.2)', fontSize: 9, fontFamily: Fonts.semiBold,
-    textAlign: 'center', marginTop: 2,
-  },
-  axisLeft: {
-    color: 'rgba(255,255,255,0.2)', fontSize: 9, fontFamily: Fonts.semiBold,
-    position: 'absolute', left: 0, top: '50%', zIndex: 5,
-  },
-  axisRight: {
-    color: 'rgba(255,255,255,0.2)', fontSize: 9, fontFamily: Fonts.semiBold,
-    position: 'absolute', right: 0, top: '50%', zIndex: 5,
-  },
-
-  // Positioned pills
-  mapPill: {
-    position: 'absolute',
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 20, borderWidth: 1,
-  },
-  mapPillText: { fontSize: 12 },
+  emotionText: { fontSize: 13 },
 
   // Tooltip
   tooltipOverlay: {
