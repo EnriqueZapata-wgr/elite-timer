@@ -168,10 +168,12 @@ export default function CheckinScreen() {
       {/* ═══ STEP 2: EMOCIONES ═══ */}
       {step === 2 && quadrant && (() => {
         const all = EMOTIONS.filter(e => e.quadrant === quadrant);
-        // Agrupar por bandas de energía (alto 8-10, medio 5-7, bajo 1-4)
-        const high = all.filter(e => e.energy >= 8).sort((a, b) => b.intensity - a.intensity);
-        const mid = all.filter(e => e.energy >= 5 && e.energy < 8).sort((a, b) => b.intensity - a.intensity);
-        const low = all.filter(e => e.energy < 5).sort((a, b) => b.intensity - a.intensity);
+        // Agrupar por terciles de intensidad RELATIVOS al cuadrante
+        const sorted = [...all].sort((a, b) => b.intensity - a.intensity);
+        const third = Math.ceil(sorted.length / 3);
+        const high = sorted.slice(0, third);
+        const mid = sorted.slice(third, third * 2);
+        const low = sorted.slice(third * 2);
 
         const renderBand = (emotions: typeof all, label: string) => (
           <View style={styles.emotionBand}>
