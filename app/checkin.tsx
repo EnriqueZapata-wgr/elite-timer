@@ -1,5 +1,6 @@
 /**
- * Check-in emocional — 3 pasos: cuadrante → emociones → contexto.
+ * Check-in emocional RULER — Reconocer → Etiquetar → Entender.
+ * 3 pasos: cuadrante → emociones (con descripciones) → contexto.
  */
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions } from 'react-native';
@@ -7,17 +8,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import {
   QUADRANTS, EMOTIONS, CONTEXT_WHERE, CONTEXT_WHO, CONTEXT_DOING,
-  type QuadrantKey,
+  type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
 import { saveCheckin, getTodayCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { vibrateMedium } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 
-const { width: SCREEN_W } = Dimensions.get('window');
+const { width: SW } = Dimensions.get('window');
+const CELL = (SW - Spacing.md * 2 - 2) / 2;
 
 export default function CheckinScreen() {
   const router = useRouter();
@@ -26,18 +29,18 @@ export default function CheckinScreen() {
   const [step, setStep] = useState(1);
   const [quadrant, setQuadrant] = useState<QuadrantKey | null>(null);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
+  const [tooltip, setTooltip] = useState<Emotion | null>(null);
   const [ctxWhere, setCtxWhere] = useState<string | null>(null);
   const [ctxWho, setCtxWho] = useState<string | null>(null);
   const [ctxDoing, setCtxDoing] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
-  const [recentCheckins, setRecentCheckins] = useState<CheckinRecord[]>([]);
+  const [recent, setRecent] = useState<CheckinRecord[]>([]);
 
-  useEffect(() => {
-    getTodayCheckins().then(setRecentCheckins).catch(() => {});
-  }, []);
+  useEffect(() => { getTodayCheckins().then(setRecent).catch(() => {}); }, []);
 
-  const qColor = quadrant ? QUADRANTS[quadrant].color : '#888';
+  const qd = quadrant ? QUADRANTS[quadrant] : null;
+  const qColor = qd?.color ?? '#888';
 
   const handleQuadrant = (q: QuadrantKey) => {
     setQuadrant(q);
@@ -70,20 +73,22 @@ export default function CheckinScreen() {
         try { await toggleCompletion(params.protocolItemId); } catch { /* */ }
       }
       vibrateMedium();
-      setStep(4); // done
+      setStep(4);
     } catch { /* */ }
     setSaving(false);
   };
 
-  // === STEP 4: DONE ===
+  // === DONE ===
   if (step === 4) {
     return (
       <SafeAreaView style={styles.screen}>
-        <Animated.View entering={FadeIn.duration(300)} style={styles.doneContainer}>
-          <View style={[styles.doneDot, { backgroundColor: qColor }]} />
+        <Animated.View entering={FadeIn.duration(400)} style={styles.doneContainer}>
+          <View style={[styles.donePulse, { backgroundColor: qColor + '20' }]}>
+            <View style={[styles.doneDot, { backgroundColor: qColor }]} />
+          </View>
           <EliteText style={[styles.doneTitle, { color: qColor }]}>Check-in registrado</EliteText>
           <EliteText variant="caption" style={styles.doneSub}>
-            {selectedEmotions.map(id => EMOTIONS.find(e => e.id === id)?.label).join(', ')}
+            {selectedEmotions.map(id => EMOTIONS.find(e => e.id === id)?.label).join(' · ')}
           </EliteText>
           <Pressable onPress={() => router.back()} style={[styles.doneBtn, { borderColor: qColor + '40' }]}>
             <EliteText variant="body" style={[styles.doneBtnText, { color: qColor }]}>Volver</EliteText>
@@ -95,7 +100,6 @@ export default function CheckinScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* Back */}
       <Pressable
         onPress={() => { if (step > 1) setStep(step - 1); else router.back(); }}
         style={styles.backBtn}
@@ -103,84 +107,110 @@ export default function CheckinScreen() {
         <Ionicons name="chevron-back" size={28} color={Colors.textSecondary} />
       </Pressable>
 
-      {/* Progress dots */}
+      {/* Dots */}
       <View style={styles.dots}>
         {[1, 2, 3].map(i => (
-          <View key={i} style={[styles.dot, i <= step && { backgroundColor: qColor || '#888' }]} />
+          <View key={i} style={[styles.dotIndicator, i <= step && { backgroundColor: qColor }]} />
         ))}
       </View>
 
-      {/* === STEP 1: MAPA === */}
+      {/* ═══ STEP 1: MAPA ═══ */}
       {step === 1 && (
-        <Animated.View entering={FadeIn.duration(200)} style={styles.stepContainer}>
-          <EliteText style={styles.stepTitle}>¿Cómo te sientes?</EliteText>
-          <EliteText variant="caption" style={styles.stepSub}>Toca el cuadrante que más se acerque</EliteText>
+        <Animated.View entering={FadeIn.duration(200)} style={styles.stepFlex}>
+          <EliteText style={styles.mainTitle}>¿Cómo te sientes?</EliteText>
+          <EliteText variant="caption" style={styles.mainSub}>Toca la zona que mejor describe tu estado</EliteText>
 
           <View style={styles.mapGrid}>
-            {(['high_pleasant', 'high_unpleasant', 'low_pleasant', 'low_unpleasant'] as QuadrantKey[]).map(q => {
-              const qd = QUADRANTS[q];
+            {(['high_pleasant', 'high_unpleasant', 'low_pleasant', 'low_unpleasant'] as QuadrantKey[]).map((q, i) => {
+              const d = QUADRANTS[q];
+              const isTopLeft = i === 0;
+              const isTopRight = i === 1;
+              const isBottomLeft = i === 2;
+              const isBottomRight = i === 3;
               return (
-                <Pressable
-                  key={q}
-                  onPress={() => handleQuadrant(q)}
-                  style={({ pressed }) => [
-                    styles.mapCell,
-                    { backgroundColor: pressed ? qd.color + '30' : qd.colorLight },
-                    { borderColor: qd.color + '30' },
-                  ]}
-                >
-                  <EliteText variant="caption" style={[styles.mapCellLabel, { color: qd.color }]}>
-                    {qd.label}
-                  </EliteText>
-                  <EliteText variant="caption" style={styles.mapCellDesc}>
-                    {qd.description}
-                  </EliteText>
+                <Pressable key={q} onPress={() => handleQuadrant(q)}>
+                  <LinearGradient
+                    colors={[d.color + '25', d.color + '08', 'transparent']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[
+                      styles.mapCell,
+                      { borderColor: d.color + '20' },
+                      isTopLeft && { borderTopLeftRadius: 20 },
+                      isTopRight && { borderTopRightRadius: 20 },
+                      isBottomLeft && { borderBottomLeftRadius: 20 },
+                      isBottomRight && { borderBottomRightRadius: 20 },
+                    ]}
+                  >
+                    <EliteText variant="caption" style={[styles.mapLabel, { color: d.color }]}>
+                      {d.label}
+                    </EliteText>
+                    <EliteText variant="caption" style={styles.mapExamples}>
+                      {d.examples.join(' · ')}
+                    </EliteText>
+                  </LinearGradient>
                 </Pressable>
               );
             })}
           </View>
 
-          {/* Recientes */}
-          {recentCheckins.length > 0 && (
+          {recent.length > 0 && (
             <View style={styles.recentRow}>
               <EliteText variant="caption" style={styles.recentLabel}>Hoy:</EliteText>
-              {recentCheckins.slice(0, 5).map(c => (
-                <View key={c.id} style={[styles.recentDot, { backgroundColor: QUADRANTS[c.quadrant].color }]} />
+              {recent.slice(0, 5).map(c => (
+                <View key={c.id} style={[styles.recentCircle, { backgroundColor: QUADRANTS[c.quadrant].color }]} />
               ))}
             </View>
           )}
         </Animated.View>
       )}
 
-      {/* === STEP 2: EMOCIONES === */}
+      {/* ═══ STEP 2: EMOCIONES ═══ */}
       {step === 2 && quadrant && (
-        <Animated.View entering={SlideInRight.duration(250)} exiting={SlideOutLeft.duration(200)} style={styles.stepContainer}>
-          <EliteText style={styles.stepTitle}>¿Qué palabra lo describe?</EliteText>
-          <EliteText variant="caption" style={styles.stepSub}>Elige 1 o 2 emociones</EliteText>
+        <Animated.View entering={SlideInRight.duration(250)} exiting={SlideOutLeft.duration(200)} style={styles.stepFlex}>
+          <EliteText style={[styles.mainTitle, { color: qColor }]}>{qd!.label}</EliteText>
+          <EliteText variant="caption" style={styles.mainSub}>Elige 1 o 2 emociones · mantén presionado para ver descripción</EliteText>
 
-          <View style={styles.emotionGrid}>
-            {EMOTIONS.filter(e => e.quadrant === quadrant).map(e => {
-              const sel = selectedEmotions.includes(e.id);
-              return (
-                <Pressable
-                  key={e.id}
-                  onPress={() => toggleEmotion(e.id)}
-                  style={[
-                    styles.emotionPill,
-                    { borderColor: sel ? qColor : qColor + '30' },
-                    sel && { backgroundColor: qColor + '30' },
-                  ]}
-                >
-                  <EliteText variant="caption" style={[
-                    styles.emotionPillText,
-                    { color: sel ? qColor : Colors.textSecondary },
-                  ]}>
-                    {e.label}
-                  </EliteText>
-                </Pressable>
-              );
-            })}
-          </View>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.emotionScroll}>
+            <View style={styles.emotionWrap}>
+              {EMOTIONS.filter(e => e.quadrant === quadrant).map(e => {
+                const sel = selectedEmotions.includes(e.id);
+                return (
+                  <Pressable
+                    key={e.id}
+                    onPress={() => toggleEmotion(e.id)}
+                    onLongPress={() => setTooltip(e)}
+                    onPressOut={() => setTooltip(null)}
+                    style={[
+                      styles.emotionPill,
+                      { borderColor: sel ? qColor : qColor + '25' },
+                      sel && { backgroundColor: qColor + '25' },
+                    ]}
+                  >
+                    <EliteText variant="caption" style={[
+                      styles.emotionText,
+                      { color: sel ? qColor : Colors.textSecondary },
+                      sel && { fontFamily: Fonts.bold },
+                    ]}>
+                      {e.label}
+                    </EliteText>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+
+          {/* Tooltip */}
+          {tooltip && (
+            <View style={[styles.tooltip, { borderColor: qColor + '40' }]}>
+              <EliteText variant="body" style={[styles.tooltipTitle, { color: qColor }]}>
+                {tooltip.label}
+              </EliteText>
+              <EliteText variant="caption" style={styles.tooltipDesc}>
+                {tooltip.description}
+              </EliteText>
+            </View>
+          )}
 
           {selectedEmotions.length > 0 && (
             <Pressable onPress={() => setStep(3)} style={[styles.nextBtn, { backgroundColor: qColor }]}>
@@ -190,70 +220,43 @@ export default function CheckinScreen() {
         </Animated.View>
       )}
 
-      {/* === STEP 3: CONTEXTO === */}
+      {/* ═══ STEP 3: CONTEXTO ═══ */}
       {step === 3 && quadrant && (
-        <Animated.View entering={SlideInRight.duration(250)} style={styles.stepContainer}>
+        <Animated.View entering={SlideInRight.duration(250)} style={styles.stepFlex}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            <EliteText style={styles.stepTitle}>Contexto</EliteText>
-            <EliteText variant="caption" style={styles.stepSub}>Opcional — agrega detalles rápidos</EliteText>
-
-            <EliteText variant="caption" style={styles.ctxLabel}>¿Dónde estás?</EliteText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.ctxRow}>
-                {CONTEXT_WHERE.map(w => (
-                  <Pressable key={w} onPress={() => setCtxWhere(ctxWhere === w ? null : w)}
-                    style={[styles.ctxPill, ctxWhere === w && styles.ctxPillActive]}>
-                    <EliteText variant="caption" style={[styles.ctxPillText, ctxWhere === w && styles.ctxPillTextActive]}>
-                      {w}
+            {/* Emociones seleccionadas como recordatorio */}
+            <View style={styles.selectedRow}>
+              {selectedEmotions.map(id => {
+                const e = EMOTIONS.find(em => em.id === id);
+                return (
+                  <View key={id} style={[styles.selectedPill, { backgroundColor: qColor + '25', borderColor: qColor + '40' }]}>
+                    <EliteText variant="caption" style={[styles.selectedText, { color: qColor }]}>
+                      {e?.label}
                     </EliteText>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
+                  </View>
+                );
+              })}
+            </View>
 
-            <EliteText variant="caption" style={styles.ctxLabel}>¿Con quién?</EliteText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.ctxRow}>
-                {CONTEXT_WHO.map(w => (
-                  <Pressable key={w} onPress={() => setCtxWho(ctxWho === w ? null : w)}
-                    style={[styles.ctxPill, ctxWho === w && styles.ctxPillActive]}>
-                    <EliteText variant="caption" style={[styles.ctxPillText, ctxWho === w && styles.ctxPillTextActive]}>
-                      {w}
-                    </EliteText>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
-
-            <EliteText variant="caption" style={styles.ctxLabel}>¿Qué haces?</EliteText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.ctxRow}>
-                {CONTEXT_DOING.map(w => (
-                  <Pressable key={w} onPress={() => setCtxDoing(ctxDoing === w ? null : w)}
-                    style={[styles.ctxPill, ctxDoing === w && styles.ctxPillActive]}>
-                    <EliteText variant="caption" style={[styles.ctxPillText, ctxDoing === w && styles.ctxPillTextActive]}>
-                      {w}
-                    </EliteText>
-                  </Pressable>
-                ))}
-              </View>
-            </ScrollView>
+            <ContextSection label="¿Dónde estás?" items={CONTEXT_WHERE} selected={ctxWhere} onSelect={v => setCtxWhere(ctxWhere === v ? null : v)} color={qColor} />
+            <ContextSection label="¿Con quién?" items={CONTEXT_WHO} selected={ctxWho} onSelect={v => setCtxWho(ctxWho === v ? null : v)} color={qColor} />
+            <ContextSection label="¿Qué estás haciendo?" items={CONTEXT_DOING} selected={ctxDoing} onSelect={v => setCtxDoing(ctxDoing === v ? null : v)} color={qColor} />
 
             <TextInput
               style={styles.noteInput}
               value={note}
               onChangeText={setNote}
               placeholder="¿Algo más? (opcional)"
-              placeholderTextColor={Colors.textSecondary + '60'}
+              placeholderTextColor={Colors.textSecondary + '50'}
               maxLength={200}
             />
 
             <Pressable
               onPress={handleSave}
               disabled={saving}
-              style={[styles.saveBtn, { backgroundColor: qColor }, saving && { opacity: 0.5 }]}
+              style={[styles.registerBtn, { backgroundColor: qColor }, saving && { opacity: 0.5 }]}
             >
-              <EliteText style={styles.saveBtnText}>
+              <EliteText style={styles.registerBtnText}>
                 {saving ? 'Guardando...' : 'REGISTRAR'}
               </EliteText>
             </Pressable>
@@ -266,7 +269,35 @@ export default function CheckinScreen() {
   );
 }
 
-const CELL_SIZE = (SCREEN_W - Spacing.md * 2 - Spacing.sm) / 2;
+// === CONTEXT SECTION ===
+
+function ContextSection({ label, items, selected, onSelect, color }: {
+  label: string; items: string[]; selected: string | null;
+  onSelect: (v: string) => void; color: string;
+}) {
+  return (
+    <View style={styles.ctxSection}>
+      <EliteText variant="caption" style={styles.ctxLabel}>{label}</EliteText>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={styles.ctxRow}>
+          {items.map(item => {
+            const sel = selected === item;
+            return (
+              <Pressable key={item} onPress={() => onSelect(item)}
+                style={[styles.ctxPill, sel && { backgroundColor: color + '15', borderColor: color + '30' }]}>
+                <EliteText variant="caption" style={[styles.ctxText, sel && { color, fontFamily: Fonts.semiBold }]}>
+                  {item}
+                </EliteText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+// === ESTILOS ===
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.black },
@@ -275,26 +306,24 @@ const styles = StyleSheet.create({
   },
   dots: {
     flexDirection: 'row', justifyContent: 'center', gap: 6,
-    paddingTop: Spacing.sm, marginBottom: Spacing.sm,
+    paddingTop: Spacing.sm, marginBottom: Spacing.xs,
   },
-  dot: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: '#333',
-  },
+  dotIndicator: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333' },
 
-  stepContainer: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: Spacing.xl },
-  stepTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: Colors.textPrimary, textAlign: 'center' },
-  stepSub: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs, marginBottom: Spacing.lg },
+  stepFlex: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
+  mainTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: Colors.textPrimary, textAlign: 'center' },
+  mainSub: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs, marginBottom: Spacing.lg, fontSize: 13 },
 
-  // Map grid
+  // Map
   mapGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, justifyContent: 'center',
+    flexDirection: 'row', flexWrap: 'wrap', gap: 2, justifyContent: 'center',
   },
   mapCell: {
-    width: CELL_SIZE, height: CELL_SIZE * 0.8, borderRadius: 16, borderWidth: 1,
+    width: CELL, height: CELL * 0.75, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center', padding: Spacing.md,
   },
-  mapCellLabel: { fontFamily: Fonts.bold, fontSize: 13, textAlign: 'center', marginBottom: Spacing.xs },
-  mapCellDesc: { color: Colors.textSecondary, fontSize: 12, textAlign: 'center' },
+  mapLabel: { fontFamily: Fonts.bold, fontSize: 13, textAlign: 'center', marginBottom: 6 },
+  mapExamples: { color: Colors.textSecondary, fontSize: 11, textAlign: 'center', lineHeight: 16 },
 
   // Recent
   recentRow: {
@@ -302,58 +331,75 @@ const styles = StyleSheet.create({
     gap: Spacing.xs, marginTop: Spacing.lg,
   },
   recentLabel: { color: Colors.textSecondary, fontSize: 12 },
-  recentDot: { width: 12, height: 12, borderRadius: 6 },
+  recentCircle: { width: 14, height: 14, borderRadius: 7 },
 
   // Emotions
-  emotionGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, justifyContent: 'center',
-  },
+  emotionScroll: { paddingBottom: 100 },
+  emotionWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, justifyContent: 'center' },
   emotionPill: {
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
     borderRadius: Radius.pill, borderWidth: 1,
   },
-  emotionPillText: { fontFamily: Fonts.semiBold, fontSize: 14 },
+  emotionText: { fontSize: 14 },
+
+  // Tooltip
+  tooltip: {
+    position: 'absolute', bottom: 80, left: Spacing.lg, right: Spacing.lg,
+    backgroundColor: '#1a1a1a', borderRadius: 12, borderWidth: 1,
+    padding: Spacing.md, zIndex: 20,
+  },
+  tooltipTitle: { fontFamily: Fonts.bold, fontSize: 16, marginBottom: 4 },
+  tooltipDesc: { color: Colors.textSecondary, fontSize: 13, lineHeight: 20 },
+
   nextBtn: {
-    alignSelf: 'center', marginTop: Spacing.xl,
+    alignSelf: 'center', position: 'absolute', bottom: Spacing.lg,
     paddingHorizontal: Spacing.xl + Spacing.lg, paddingVertical: Spacing.md,
     borderRadius: Radius.pill,
   },
   nextBtnText: { color: '#000', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 2 },
 
+  // Selected pills
+  selectedRow: {
+    flexDirection: 'row', justifyContent: 'center', gap: Spacing.sm, marginBottom: Spacing.lg,
+  },
+  selectedPill: {
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill, borderWidth: 1,
+  },
+  selectedText: { fontFamily: Fonts.bold, fontSize: 14 },
+
   // Context
+  ctxSection: { marginBottom: Spacing.md },
   ctxLabel: {
-    color: Colors.textSecondary, fontFamily: Fonts.bold, letterSpacing: 2, fontSize: 11,
-    marginTop: Spacing.md, marginBottom: Spacing.sm,
+    color: Colors.textSecondary, fontFamily: Fonts.bold, letterSpacing: 2,
+    fontSize: 11, marginBottom: Spacing.sm,
   },
   ctxRow: { flexDirection: 'row', gap: Spacing.xs, paddingRight: Spacing.md },
   ctxPill: {
-    paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.pill, backgroundColor: '#1a1a1a',
+    paddingHorizontal: Spacing.sm + 4, paddingVertical: Spacing.xs + 3,
+    borderRadius: Radius.pill, backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: 'transparent',
   },
-  ctxPillActive: { backgroundColor: '#333' },
-  ctxPillText: { color: Colors.textSecondary, fontSize: 13 },
-  ctxPillTextActive: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  ctxText: { color: Colors.textSecondary, fontSize: 13 },
 
   noteInput: {
     backgroundColor: '#1a1a1a', borderRadius: Radius.sm,
-    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
     color: Colors.textPrimary, fontFamily: Fonts.regular, fontSize: 14,
-    marginTop: Spacing.lg, borderWidth: 0.5, borderColor: '#2a2a2a',
+    marginTop: Spacing.sm, borderWidth: 0.5, borderColor: '#2a2a2a',
   },
 
-  saveBtn: {
+  registerBtn: {
     alignSelf: 'center', marginTop: Spacing.lg,
     paddingHorizontal: Spacing.xl + Spacing.lg, paddingVertical: Spacing.md,
     borderRadius: Radius.pill, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  saveBtnText: { color: '#000', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 2 },
+  registerBtnText: { color: '#000', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 2 },
 
   // Done
-  doneContainer: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md,
-  },
-  doneDot: { width: 24, height: 24, borderRadius: 12 },
+  doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  donePulse: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+  doneDot: { width: 32, height: 32, borderRadius: 16 },
   doneTitle: { fontSize: 22, fontFamily: Fonts.extraBold },
   doneSub: { color: Colors.textSecondary, fontSize: 14 },
   doneBtn: {
