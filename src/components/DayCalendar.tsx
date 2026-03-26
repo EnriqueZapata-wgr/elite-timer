@@ -10,31 +10,38 @@ import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 
 // TimePicker con botones +/- para hora y minuto
 function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const parts = value.split(':');
-  const h = parseInt(parts[0] || '0', 10);
-  const m = parseInt(parts[1] || '0', 10);
+  // Parsear con fallback a 0 si es NaN
+  const parts = (value || '00:00').split(':');
+  const h = Number(parts[0]) || 0;
+  const m = Number(parts[1]) || 0;
 
-  const setH = (nh: number) => {
-    const hh = ((nh % 24) + 24) % 24;
-    onChange(`${String(hh).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-  };
-  const setM = (nm: number) => {
-    const mm = ((nm % 60) + 60) % 60;
-    onChange(`${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
-  };
+  const fmt = (hh: number, mm: number) =>
+    `${String(((hh % 24) + 24) % 24).padStart(2, '0')}:${String(((mm % 60) + 60) % 60).padStart(2, '0')}`;
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: '#1a1a1a', borderRadius: 8, padding: 6, borderWidth: 0.5, borderColor: '#2a2a2a' }}>
-      <View style={{ alignItems: 'center' }}>
-        <Pressable onPress={() => setH(h + 1)} hitSlop={8}><Ionicons name="chevron-up" size={14} color="#666" /></Pressable>
-        <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 20, fontVariant: ['tabular-nums'], minWidth: 30, textAlign: 'center' }}>{String(h).padStart(2, '0')}</EliteText>
-        <Pressable onPress={() => setH(h - 1)} hitSlop={8}><Ionicons name="chevron-down" size={14} color="#666" /></Pressable>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1a1a1a', borderRadius: 8, padding: 8, borderWidth: 0.5, borderColor: '#2a2a2a' }}>
+      <View style={{ alignItems: 'center', minWidth: 36 }}>
+        <Pressable onPress={() => onChange(fmt(h + 1, m))} hitSlop={12} style={{ padding: 4 }}>
+          <Ionicons name="chevron-up" size={18} color="#888" />
+        </Pressable>
+        <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
+          {String(h).padStart(2, '0')}
+        </EliteText>
+        <Pressable onPress={() => onChange(fmt(h - 1, m))} hitSlop={12} style={{ padding: 4 }}>
+          <Ionicons name="chevron-down" size={18} color="#888" />
+        </Pressable>
       </View>
-      <EliteText style={{ color: '#444', fontSize: 20, fontFamily: Fonts.bold }}>:</EliteText>
-      <View style={{ alignItems: 'center' }}>
-        <Pressable onPress={() => setM(m + 15)} hitSlop={8}><Ionicons name="chevron-up" size={14} color="#666" /></Pressable>
-        <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 20, fontVariant: ['tabular-nums'], minWidth: 30, textAlign: 'center' }}>{String(m).padStart(2, '0')}</EliteText>
-        <Pressable onPress={() => setM(m - 15)} hitSlop={8}><Ionicons name="chevron-down" size={14} color="#666" /></Pressable>
+      <EliteText style={{ color: '#555', fontSize: 22, fontFamily: Fonts.bold }}>:</EliteText>
+      <View style={{ alignItems: 'center', minWidth: 36 }}>
+        <Pressable onPress={() => onChange(fmt(h, m + 15))} hitSlop={12} style={{ padding: 4 }}>
+          <Ionicons name="chevron-up" size={18} color="#888" />
+        </Pressable>
+        <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
+          {String(m).padStart(2, '0')}
+        </EliteText>
+        <Pressable onPress={() => onChange(fmt(h, m - 15))} hitSlop={12} style={{ padding: 4 }}>
+          <Ionicons name="chevron-down" size={18} color="#888" />
+        </Pressable>
       </View>
     </View>
   );
