@@ -16,11 +16,12 @@ interface ClientFullData {
   supplements: any[];
   familyHistory: any[];
   recentCheckins: any[];
+  consultations: any[];
 }
 
 // Recopilar TODOS los datos del cliente en paralelo
 async function gatherClientData(clientId: string): Promise<ClientFullData> {
-  const [profileRes, conditionsRes, measurementsRes, labsRes, medsRes, suppsRes, familyRes, checkinsRes] = await Promise.all([
+  const [profileRes, conditionsRes, measurementsRes, labsRes, medsRes, suppsRes, familyRes, checkinsRes, consultsRes] = await Promise.all([
     supabase.from('client_profiles').select('*').eq('user_id', clientId).single(),
     supabase.from('condition_flags').select('*').eq('user_id', clientId),
     supabase.from('body_measurements').select('*').eq('user_id', clientId).order('measured_at', { ascending: false }).limit(1),
@@ -29,6 +30,7 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supabase.from('supplement_protocols').select('*').eq('user_id', clientId).eq('is_active', true),
     supabase.from('family_history').select('*').eq('user_id', clientId),
     supabase.from('emotional_checkins').select('*').eq('user_id', clientId).order('created_at', { ascending: false }).limit(10),
+    supabase.from('consultations').select('consultation_number, consultation_date, status, chief_complaint, assessment, plan, changes_summary, body_snapshot, conditions_snapshot').eq('client_id', clientId).eq('status', 'completed').order('consultation_date', { ascending: false }).limit(5),
   ]);
 
   const { data: profileBasic } = await supabase.from('profiles').select('full_name, email').eq('id', clientId).single();
@@ -42,6 +44,7 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supplements: suppsRes.data || [],
     familyHistory: familyRes.data || [],
     recentCheckins: checkinsRes.data || [],
+    consultations: consultsRes.data || [],
   };
 }
 
@@ -129,6 +132,22 @@ Sueño: ${profile?.sleep_time_usual || '—'}-${profile?.wake_time_usual || '—
     if (profile.coach_notes) p += `Coach: ${profile.coach_notes}\n`;
     if (profile.nutrition_notes) p += `Nutrición: ${profile.nutrition_notes}\n`;
     if (profile.action_plan) p += `Plan: ${profile.action_plan}\n`;
+  }
+
+  // Histórico de consultas
+  if (data.consultations.length > 0) {
+    p += `\n## HISTÓRICO DE CONSULTAS\n`;
+    data.consultations.forEach((c: any) => {
+      const ch = c.changes_summary;
+      p += `Consulta #${c.consultation_number} (${c.consultation_date})`;
+      if (ch?.weight_change != null) p += ` | Peso: ${ch.weight_change > 0 ? '+' : ''}${ch.weight_change}kg`;
+      if (ch?.fat_change != null) p += ` | Grasa: ${ch.fat_change > 0 ? '+' : ''}${ch.fat_change}%`;
+      if (ch?.is_first) p += ' | Primera consulta';
+      p += '\n';
+      if (c.chief_complaint) p += `  Motivo: ${c.chief_complaint}\n`;
+      if (c.assessment) p += `  Análisis: ${c.assessment.substring(0, 200)}\n`;
+      if (c.plan) p += `  Plan: ${c.plan.substring(0, 200)}\n`;
+    });
   }
 
   if (customQuestion) {

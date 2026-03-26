@@ -32,7 +32,7 @@ import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/cond
 import { askAtpAI } from '@/src/services/atp-ai-service';
 import {
   startConsultation, getConsultations, getConsultation, updateConsultation,
-  completeConsultation, type Consultation,
+  completeConsultation, deleteConsultation, type Consultation,
 } from '@/src/services/consultation-service';
 import { AssignRoutineModal } from './AssignRoutineModal';
 
@@ -387,6 +387,14 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
 
   return (
     <View style={{ gap: 20 }}>
+      {/* Banner: ir a consultas */}
+      <Pressable style={styles.consultBanner}>
+        <Ionicons name="information-circle-outline" size={16} color={TEAL} />
+        <EliteText variant="caption" style={{ color: TEAL, flex: 1, fontSize: 11 }}>
+          Los datos clínicos se actualizan desde la tab Consultas
+        </EliteText>
+      </Pressable>
+
       {/* ═══ FILA 1a: DATOS BASE ═══ */}
       <EliteText variant="caption" style={styles.rowLabel}>DATOS BASE</EliteText>
       <View style={isWide ? styles.twoColRow : { gap: Spacing.sm }}>
@@ -491,18 +499,34 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         </EliteText>
       </View>
 
-      {/* ═══ FILA 3: TABLERO DE CONDICIONES (grid 3 cols) ═══ */}
-      <EliteText variant="caption" style={styles.rowLabel}>TABLERO DE CONDICIONES</EliteText>
-      <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginTop: -12, marginBottom: Spacing.sm }}>
-        Toca pill para ciclar estado · long press para notas
-      </EliteText>
-      <View style={isWide ? styles.condGrid : { gap: Spacing.sm }}>
-        {CONDITION_ZONES.map(zone => (
-          <View key={zone.key} style={isWide ? styles.condGridItem : undefined}>
-            {renderZoneCard(zone)}
+      {/* ═══ FILA 3: CONDICIONES ACTIVAS (solo lectura) ═══ */}
+      <EliteText variant="caption" style={styles.rowLabel}>CONDICIONES ACTIVAS</EliteText>
+      {(() => {
+        const activeFlags = flags.filter(f => f.status === 'observation' || f.status === 'present');
+        if (activeFlags.length === 0) {
+          return (
+            <View style={styles.profileCard}>
+              <EliteText variant="caption" style={{ color: '#666', textAlign: 'center', paddingVertical: Spacing.md }}>
+                Sin condiciones activas — todo normal o sin evaluar
+              </EliteText>
+            </View>
+          );
+        }
+        return (
+          <View style={styles.profileCard}>
+            <View style={styles.conditionPills}>
+              {activeFlags.map(f => {
+                const st = FLAG_STATUSES[f.status as keyof typeof FLAG_STATUSES];
+                return (
+                  <View key={f.condition_key} style={[styles.condPillSm, { backgroundColor: st.bgColor, borderColor: st.color + '40' }]}>
+                    <EliteText variant="caption" style={{ color: st.color, fontSize: 10, fontFamily: Fonts.semiBold }}>{f.condition_key}</EliteText>
+                  </View>
+                );
+              })}
+            </View>
           </View>
-        ))}
-      </View>
+        );
+      })()}
 
       {/* ═══ FILA 5: TRATAMIENTO (3 cols) ═══ */}
       <EliteText variant="caption" style={styles.rowLabel}>TRATAMIENTO</EliteText>
@@ -917,14 +941,39 @@ function ConsultationsTab({ clientId, clientName }: { clientId: string; clientNa
     setLoadingList(false);
   };
 
-  const handleNew = async () => {
-    setCreating(true);
-    try {
-      const id = await startConsultation(clientId);
-      const c = await getConsultation(id);
-      if (c) { setActiveConsult(c); await loadList(); }
-    } catch { /* */ }
-    setCreating(false);
+  const draft = consultations.find(c => c.status === 'draft');
+
+  const handleNew = () => {
+    if (draft) {
+      // Continuar borrador existente
+      getConsultation(draft.id).then(c => { if (c) setActiveConsult(c); });
+      return;
+    }
+    const num = (consultations[0]?.consultation_number ?? 0) + 1;
+    Alert.alert(`¿Iniciar consulta #${num}?`, `Se creará una nueva consulta para ${clientName}.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Iniciar', onPress: async () => {
+        setCreating(true);
+        try {
+          const id = await startConsultation(clientId);
+          const c = await getConsultation(id);
+          if (c) { setActiveConsult(c); await loadList(); }
+        } catch { /* */ }
+        setCreating(false);
+      }},
+    ]);
+  };
+
+  const handleDelete = () => {
+    if (!activeConsult || activeConsult.status !== 'draft') return;
+    Alert.alert('¿Eliminar borrador?', `Se eliminará la consulta #${activeConsult.consultation_number}.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try { await deleteConsultation(activeConsult.id); } catch { /* */ }
+        setActiveConsult(null);
+        loadList();
+      }},
+    ]);
   };
 
   const handleSaveField = async (field: string, value: string) => {
@@ -995,10 +1044,16 @@ function ConsultationsTab({ clientId, clientName }: { clientId: string; clientNa
                 </View>
               ))}
               {isDraft && (
-                <Pressable onPress={handleComplete} style={styles.completeBtn}>
-                  <Ionicons name="checkmark-circle" size={16} color="#000" />
-                  <EliteText variant="caption" style={styles.completeBtnText}>Completar consulta</EliteText>
-                </Pressable>
+                <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
+                  <Pressable onPress={handleComplete} style={styles.completeBtn}>
+                    <Ionicons name="checkmark-circle" size={16} color="#000" />
+                    <EliteText variant="caption" style={styles.completeBtnText}>Completar consulta</EliteText>
+                  </Pressable>
+                  <Pressable onPress={handleDelete} style={styles.deleteDraftBtn}>
+                    <Ionicons name="trash-outline" size={14} color="#E24B4A" />
+                    <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12 }}>Eliminar borrador</EliteText>
+                  </Pressable>
+                </View>
               )}
             </View>
           </View>
@@ -1068,10 +1123,10 @@ function ConsultationsTab({ clientId, clientName }: { clientId: string; clientNa
   // Vista de lista
   return (
     <View>
-      <Pressable onPress={handleNew} disabled={creating} style={[styles.newConsultBtn, creating && { opacity: 0.5 }]}>
-        <Ionicons name="add-circle-outline" size={18} color={Colors.neonGreen} />
-        <EliteText variant="body" style={styles.newConsultBtnText}>
-          {creating ? 'Creando...' : 'Nueva Consulta'}
+      <Pressable onPress={handleNew} disabled={creating} style={[styles.newConsultBtn, creating && { opacity: 0.5 }, draft && { borderColor: '#EF9F2730', backgroundColor: '#EF9F2708' }]}>
+        <Ionicons name={draft ? 'create-outline' : 'add-circle-outline'} size={18} color={draft ? '#EF9F27' : Colors.neonGreen} />
+        <EliteText variant="body" style={[styles.newConsultBtnText, draft && { color: '#EF9F27' }]}>
+          {creating ? 'Creando...' : draft ? `Continuar consulta #${draft.consultation_number}` : 'Nueva Consulta'}
         </EliteText>
       </Pressable>
 
@@ -1704,4 +1759,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neonGreen, paddingVertical: Spacing.sm, borderRadius: Radius.pill, marginTop: Spacing.md,
   },
   completeBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: 13 },
+  consultBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: TEAL + '08', borderWidth: 1, borderColor: TEAL + '20',
+    borderRadius: 8, padding: Spacing.sm,
+  },
+  deleteDraftBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+    paddingVertical: Spacing.sm, borderWidth: 1, borderColor: '#E24B4A30', borderRadius: Radius.pill,
+  },
 });
