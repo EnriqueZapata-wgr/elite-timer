@@ -981,6 +981,70 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
   );
 }
 
+// Metas con plazo: lista editable de goals con semanas + objetivo
+function TimedGoals({ goals, onChange, editable }: {
+  goals: { weeks: string; target: string }[];
+  onChange: (goals: { weeks: string; target: string }[]) => void;
+  editable: boolean;
+}) {
+  const [newWeeks, setNewWeeks] = useState('');
+  const [newTarget, setNewTarget] = useState('');
+
+  const handleAdd = () => {
+    if (!newWeeks.trim() || !newTarget.trim()) return;
+    onChange([...goals, { weeks: newWeeks.trim(), target: newTarget.trim() }]);
+    setNewWeeks('');
+    setNewTarget('');
+  };
+
+  const handleRemove = (idx: number) => {
+    onChange(goals.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <View style={{ gap: Spacing.xs }}>
+      {goals.map((g, i) => (
+        <View key={i} style={styles.goalRow}>
+          <View style={styles.goalWeeksBadge}>
+            <EliteText variant="caption" style={styles.goalWeeksText}>{g.weeks} sem</EliteText>
+          </View>
+          <EliteText variant="body" style={styles.goalTarget}>{g.target}</EliteText>
+          {editable && (
+            <Pressable onPress={() => handleRemove(i)} hitSlop={8}>
+              <Ionicons name="close-circle" size={16} color="#555" />
+            </Pressable>
+          )}
+        </View>
+      ))}
+      {editable && (
+        <View style={styles.goalAddRow}>
+          <TextInput
+            style={[styles.goalInput, { width: 50 }]}
+            value={newWeeks}
+            onChangeText={setNewWeeks}
+            placeholder="Sem"
+            placeholderTextColor="#333"
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={[styles.goalInput, { flex: 1 }]}
+            value={newTarget}
+            onChangeText={setNewTarget}
+            placeholder="Ej: Hemoglobina 15-18, grasa visceral <9"
+            placeholderTextColor="#333"
+          />
+          <Pressable onPress={handleAdd} style={styles.goalAddBtn}>
+            <Ionicons name="add" size={18} color={Colors.neonGreen} />
+          </Pressable>
+        </View>
+      )}
+      {goals.length === 0 && !editable && (
+        <EliteText variant="caption" style={{ color: '#555', fontSize: 11 }}>Sin metas definidas</EliteText>
+      )}
+    </View>
+  );
+}
+
 function WeightContextBar({ lowest, current, highest, ideal }: {
   lowest: number; current: number | null; highest: number; ideal?: number;
 }) {
@@ -1358,6 +1422,35 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
                 </View>
               ))}
 
+            </View>
+
+            {/* Descripción del día */}
+            <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
+              <EliteText variant="caption" style={styles.profileCardLabel}>DESCRIPCIÓN DEL DÍA</EliteText>
+              <EliteText variant="caption" style={{ color: '#555', fontSize: 10, marginBottom: Spacing.xs }}>
+                ¿Cómo se ve un día típico de esta persona?
+              </EliteText>
+              <TextInput
+                style={[styles.editableInput, { minHeight: 80 }]}
+                defaultValue={(c as any).day_description ?? ''}
+                onEndEditing={e => handleSaveField('day_description', e.nativeEvent.text)}
+                placeholder="Ej: Se levanta a las 6, desayuna cereal, maneja 1hr al trabajo, come en la calle..."
+                placeholderTextColor="#333"
+                multiline
+                editable={isDraft}
+              />
+            </View>
+
+            {/* Metas con plazo */}
+            <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
+              <EliteText variant="caption" style={styles.profileCardLabel}>METAS CON PLAZO</EliteText>
+              <TimedGoals
+                goals={(() => { try { return JSON.parse((c as any).timed_goals || '[]'); } catch { return []; } })()}
+                onChange={async (goals: any[]) => {
+                  handleSaveField('timed_goals', JSON.stringify(goals));
+                }}
+                editable={isDraft}
+              />
             </View>
 
             {/* Composición corporal (siempre expandida) */}
@@ -2106,6 +2199,29 @@ const styles = StyleSheet.create({
     backgroundColor: TEAL + '08', borderWidth: 1, borderColor: TEAL + '20',
     borderRadius: 8, padding: Spacing.sm,
   },
+  // Timed goals
+  goalRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingVertical: Spacing.xs + 1, borderBottomWidth: 1, borderBottomColor: '#111',
+  },
+  goalWeeksBadge: {
+    backgroundColor: Colors.neonGreen + '15', paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.neonGreen + '30', minWidth: 55, alignItems: 'center',
+  },
+  goalWeeksText: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 11 },
+  goalTarget: { flex: 1, fontSize: 13, color: '#ddd' },
+  goalAddRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs,
+  },
+  goalInput: {
+    backgroundColor: '#1a1a1a', borderRadius: 6, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
+    color: '#fff', fontSize: 13, borderWidth: 0.5, borderColor: '#2a2a2a',
+  },
+  goalAddBtn: {
+    width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: Colors.neonGreen + '40',
+    alignItems: 'center', justifyContent: 'center',
+  },
+
   deleteDraftBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
     paddingVertical: Spacing.sm, borderWidth: 1, borderColor: '#E24B4A30', borderRadius: Radius.pill,
