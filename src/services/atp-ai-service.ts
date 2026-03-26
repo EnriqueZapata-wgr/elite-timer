@@ -17,11 +17,12 @@ interface ClientFullData {
   familyHistory: any[];
   recentCheckins: any[];
   consultations: any[];
+  dailyHabits: any[];
 }
 
 // Recopilar TODOS los datos del cliente en paralelo
 async function gatherClientData(clientId: string): Promise<ClientFullData> {
-  const [profileRes, conditionsRes, measurementsRes, labsRes, medsRes, suppsRes, familyRes, checkinsRes, consultsRes] = await Promise.all([
+  const [profileRes, conditionsRes, measurementsRes, labsRes, medsRes, suppsRes, familyRes, checkinsRes, consultsRes, habitsRes] = await Promise.all([
     supabase.from('client_profiles').select('*').eq('user_id', clientId).single(),
     supabase.from('condition_flags').select('*').eq('user_id', clientId),
     supabase.from('body_measurements').select('*').eq('user_id', clientId).order('measured_at', { ascending: false }).limit(1),
@@ -31,6 +32,7 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supabase.from('family_history').select('*').eq('user_id', clientId),
     supabase.from('emotional_checkins').select('*').eq('user_id', clientId).order('created_at', { ascending: false }).limit(10),
     supabase.from('consultations').select('consultation_number, consultation_date, status, chief_complaint, assessment, plan, changes_summary, body_snapshot, conditions_snapshot').eq('client_id', clientId).eq('status', 'completed').order('consultation_date', { ascending: false }).limit(5),
+    supabase.from('client_daily_habits').select('start_time, end_time, title, category').eq('user_id', clientId).eq('is_current', true).order('start_time'),
   ]);
 
   const { data: profileBasic } = await supabase.from('profiles').select('full_name, email').eq('id', clientId).single();
@@ -45,6 +47,7 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     familyHistory: familyRes.data || [],
     recentCheckins: checkinsRes.data || [],
     consultations: consultsRes.data || [],
+    dailyHabits: habitsRes.data || [],
   };
 }
 
@@ -143,6 +146,15 @@ Sueño: ${profile?.sleep_time_usual || '—'}-${profile?.wake_time_usual || '—
     if (profile.coach_notes) p += `Coach: ${profile.coach_notes}\n`;
     if (profile.nutrition_notes) p += `Nutrición: ${profile.nutrition_notes}\n`;
     if (profile.action_plan) p += `Plan: ${profile.action_plan}\n`;
+  }
+
+  // Hábitos diarios
+  if (data.dailyHabits.length > 0) {
+    p += `\n## RUTINA DIARIA ACTUAL\n`;
+    data.dailyHabits.forEach((h: any) => {
+      p += `${h.start_time?.slice(0, 5)} - ${h.end_time?.slice(0, 5)}: ${h.title} (${h.category})\n`;
+    });
+    p += `\nAnaliza ventanas de oportunidad, hábitos perjudiciales, horarios de comida, sueño y oportunidades de biohacking.\n`;
   }
 
   // Histórico de consultas

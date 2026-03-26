@@ -30,6 +30,8 @@ import {
 } from '@/src/services/client-profile-service';
 import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/condition-catalog';
 import { askAtpAI } from '@/src/services/atp-ai-service';
+import { getClientHabits, addHabit, updateHabit, deleteHabit, type DailyHabit } from '@/src/services/daily-habits-service';
+import { DayCalendar } from '@/src/components/DayCalendar';
 import {
   startConsultation, getConsultations, getConsultation, updateConsultation,
   completeConsultation, deleteConsultation, type Consultation,
@@ -1154,11 +1156,14 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
   const [consultFlags, setConsultFlags] = useState<ConditionFlag[]>([]);
   const [consultFlagsLoaded, setConsultFlagsLoaded] = useState(false);
   const [consultProfile, setConsultProfile] = useState<Record<string, any> | null>(null);
+  const [habits, setHabits] = useState<DailyHabit[]>([]);
+  const [showHabits, setShowHabits] = useState(false);
 
   useEffect(() => {
     if (activeConsult) {
       getConditionFlags(clientId).then(f => { setConsultFlags(f); setConsultFlagsLoaded(true); }).catch(() => setConsultFlagsLoaded(true));
       getClientProfile(clientId).then(setConsultProfile).catch(() => {});
+      getClientHabits(clientId).then(setHabits).catch(() => {});
     }
   }, [activeConsult?.id]);
 
@@ -1264,6 +1269,38 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
                     );
                   })}
                 </View>
+              </View>
+            )}
+
+            {/* Mapa de hábitos diarios */}
+            {isDraft && (
+              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
+                <Pressable onPress={() => setShowHabits(!showHabits)} style={styles.zoneHeader}>
+                  <Ionicons name="time-outline" size={16} color={Colors.neonGreen} />
+                  <EliteText variant="body" style={[styles.sectionTitle, { color: Colors.neonGreen }]}>
+                    Mapear día del paciente
+                  </EliteText>
+                  <Ionicons name={showHabits ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
+                </Pressable>
+                {showHabits && (
+                  <View style={{ marginTop: Spacing.sm }}>
+                    <DayCalendar
+                      habits={habits}
+                      onAdd={async (data) => {
+                        await addHabit(clientId, { ...data, consultation_id: activeConsult.id });
+                        setHabits(await getClientHabits(clientId));
+                      }}
+                      onEdit={async (h, data) => {
+                        await updateHabit(h.id, data);
+                        setHabits(await getClientHabits(clientId));
+                      }}
+                      onDelete={async (id) => {
+                        await deleteHabit(id);
+                        setHabits(await getClientHabits(clientId));
+                      }}
+                    />
+                  </View>
+                )}
               </View>
             )}
 
