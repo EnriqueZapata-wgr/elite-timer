@@ -201,7 +201,14 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
               />
             )}
             {activeTab === 'consultations' && (
-              <ConsultationsTab clientId={clientId} clientName={clientName} />
+              <ConsultationsTab clientId={clientId} clientName={clientName} flags={flags} onFlagToggle={async (key, zone) => {
+                const newStatus = await toggleConditionFlag(clientId, key, zone);
+                setFlags(prev => {
+                  const existing = prev.find(f => f.condition_key === key);
+                  if (existing) return prev.map(f => f.condition_key === key ? { ...f, status: newStatus } : f);
+                  return [...prev, { condition_key: key, zone, status: newStatus, notes: null, diagnosed_date: null, lab_value: null, medication: null }];
+                });
+              }} />
             )}
             {activeTab === 'calendar' && <CalendarTab schedule={schedule} />}
             {activeTab === 'routines' && (
@@ -465,21 +472,19 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         <View style={isWide ? { flex: 1 } : undefined}>
           <View style={styles.profileCard}>
             <EliteText variant="caption" style={styles.profileCardLabel}>OBJETIVOS</EliteText>
-            {profileLoaded && (
+            {profileLoaded ? (
               <View style={{ gap: Spacing.xs }}>
-                <EditableField label="Objetivo principal" fieldKey="primary_goal"
-                  value={profile?.primary_goal ?? ''} placeholder="Ej: Bajar 10kg de grasa en 6 meses"
-                  onSave={v => saveProfileField('primary_goal', v)} />
-                <EditableField label="Objetivos secundarios" fieldKey="secondary_goals"
-                  value={(profile?.secondary_goals ?? []).join(', ')} placeholder="Ej: Mejorar sueño, subir fuerza"
-                  onSave={v => saveProfileField('secondary_goals', `{${v}}`)} multiline />
-                <EditableField label="Plazo" fieldKey="goal_timeline"
-                  value={profile?.goal_timeline ?? ''} placeholder="Ej: 6 meses"
-                  onSave={v => saveProfileField('goal_timeline', v)} />
-                <EditableField label="Banderas rojas" fieldKey="red_flags"
-                  value={profile?.red_flags ?? ''} placeholder="Ej: Lesión rodilla, alergia a X"
-                  onSave={v => saveProfileField('red_flags', v)} isRed />
+                <ProfileRow label="Objetivo" value={profile?.primary_goal ?? '—'} />
+                <ProfileRow label="Plazo" value={profile?.goal_timeline ?? '—'} />
+                {profile?.red_flags && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: 2 }}>
+                    <Ionicons name="warning-outline" size={12} color="#E24B4A" />
+                    <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 11 }}>{profile.red_flags}</EliteText>
+                  </View>
+                )}
               </View>
+            ) : (
+              <EliteText variant="caption" style={{ color: '#666', fontSize: 11 }}>Sin objetivos — definir en consulta</EliteText>
             )}
           </View>
         </View>
@@ -528,8 +533,11 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         );
       })()}
 
-      {/* ═══ FILA 5: TRATAMIENTO (3 cols) ═══ */}
+      {/* ═══ FILA 5: TRATAMIENTO (solo lectura) ═══ */}
       <EliteText variant="caption" style={styles.rowLabel}>TRATAMIENTO</EliteText>
+      <EliteText variant="caption" style={{ color: '#555', fontSize: 10, marginTop: -12, marginBottom: Spacing.sm }}>
+        Editar desde Consultas
+      </EliteText>
       <View style={isWide ? styles.threeColRow : { gap: Spacing.sm }}>
         <View style={isWide ? styles.threeColItem : undefined}>
           <CollapsibleSection title="Farmacología" clientId={clientId} type="medications" />
@@ -925,7 +933,10 @@ const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }>
   signed: { label: 'Firmada', color: '#5B9BD5', bg: '#5B9BD515' },
 };
 
-function ConsultationsTab({ clientId, clientName }: { clientId: string; clientName: string }) {
+function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagToggle: parentFlagToggle }: {
+  clientId: string; clientName: string; flags: ConditionFlag[];
+  onFlagToggle: (key: string, zone: string) => Promise<void>;
+}) {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [activeConsult, setActiveConsult] = useState<Consultation | null>(null);
   const [loadingList, setLoadingList] = useState(true);
@@ -993,20 +1004,55 @@ function ConsultationsTab({ clientId, clientName }: { clientId: string; clientNa
     } catch { /* */ }
   };
 
+  // Estado local para condiciones editables en la consulta
+  const [consultFlags, setConsultFlags] = useState<ConditionFlag[]>([]);
+  const [consultFlagsLoaded, setConsultFlagsLoaded] = useState(false);
+  const [consultProfile, setConsultProfile] = useState<Record<string, any> | null>(null);
+
+  useEffect(() => {
+    if (activeConsult) {
+      getConditionFlags(clientId).then(f => { setConsultFlags(f); setConsultFlagsLoaded(true); }).catch(() => setConsultFlagsLoaded(true));
+      getClientProfile(clientId).then(setConsultProfile).catch(() => {});
+    }
+  }, [activeConsult?.id]);
+
+  const saveConsultProfileField = async (key: string, value: string) => {
+    try {
+      await upsertClientProfile(clientId, { [key]: value.trim() || null });
+      setConsultProfile(prev => ({ ...prev, [key]: value.trim() || null }));
+    } catch { /* */ }
+  };
+
+  const handleConsultFlagToggle = async (key: string, zone: string) => {
+    if (!activeConsult) return;
+    const newStatus = await toggleConditionFlag(clientId, key, zone);
+    setConsultFlags(prev => {
+      const existing = prev.find(f => f.condition_key === key);
+      if (existing) return prev.map(f => f.condition_key === key ? { ...f, status: newStatus } : f);
+      return [...prev, { condition_key: key, zone, status: newStatus, notes: null, diagnosed_date: null, lab_value: null, medication: null }];
+    });
+    // Update snapshot in consultation
+    const allFlags = await getConditionFlags(clientId);
+    const snapshot = allFlags.filter(f => f.status !== 'not_evaluated');
+    await updateConsultation(activeConsult.id, { conditions_snapshot: snapshot } as any);
+  };
+
+  const getConsultFlag = (key: string): FlagStatus => {
+    return (consultFlags.find(f => f.condition_key === key)?.status as FlagStatus) ?? 'not_evaluated';
+  };
+
   // Vista de consulta individual
   if (activeConsult) {
     const c = activeConsult;
     const isDraft = c.status === 'draft';
     const badge = STATUS_BADGE[c.status] ?? STATUS_BADGE.draft;
     const changes = c.changes_summary;
-    const body = c.body_snapshot;
-    const bio = c.biomarkers_snapshot;
 
     return (
       <View>
         {/* Header */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.md }}>
-          <Pressable onPress={() => { setActiveConsult(null); loadList(); }}>
+          <Pressable onPress={() => { setActiveConsult(null); setConsultFlagsLoaded(false); loadList(); }}>
             <Ionicons name="arrow-back" size={20} color="#888" />
           </Pressable>
           <EliteText variant="body" style={{ fontFamily: Fonts.bold, flex: 1 }}>
@@ -1018,8 +1064,97 @@ function ConsultationsTab({ clientId, clientName }: { clientId: string; clientNa
         </View>
 
         <View style={isWide ? { flexDirection: 'row', gap: 16 } : { gap: Spacing.md }}>
-          {/* Columna izquierda: Notas SOAP */}
-          <View style={isWide ? { flex: 3 } : undefined}>
+          {/* ═══ COLUMNA IZQUIERDA: Datos clínicos editables ═══ */}
+          <View style={isWide ? { flex: 55 } : undefined}>
+            {/* Composición corporal */}
+            <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" />
+
+            {/* Tablero de condiciones (EDITABLE) */}
+            {consultFlagsLoaded && isDraft && (
+              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={styles.profileCardLabel}>TABLERO DE CONDICIONES</EliteText>
+                <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginBottom: Spacing.sm }}>
+                  Toca pill para ciclar estado
+                </EliteText>
+                <View style={isWide ? styles.condGrid : { gap: Spacing.xs }}>
+                  {CONDITION_ZONES.map(zone => {
+                    const redC = zone.conditions.filter(co => getConsultFlag(co.key) === 'present').length;
+                    const orangeC = zone.conditions.filter(co => getConsultFlag(co.key) === 'observation').length;
+                    const statusDot = redC > 0 ? '#E24B4A' : orangeC > 0 ? '#EF9F27' : '#444';
+                    return (
+                      <View key={zone.key} style={isWide ? styles.condGridItem : undefined}>
+                        <View style={[styles.zoneCard, { borderLeftColor: zone.color, marginBottom: Spacing.xs }]}>
+                          <View style={styles.zoneHeader}>
+                            <View style={[styles.zoneDot, { backgroundColor: statusDot }]} />
+                            <EliteText variant="caption" style={[styles.zoneTitle, { color: zone.color }]}>{zone.label}</EliteText>
+                          </View>
+                          <View style={styles.conditionPills}>
+                            {zone.conditions.map(cond => {
+                              const st2 = FLAG_STATUSES[getConsultFlag(cond.key)];
+                              return (
+                                <Pressable key={cond.key} onPress={() => handleConsultFlagToggle(cond.key, zone.key)}
+                                  style={[styles.condPillSm, { backgroundColor: st2.bgColor, borderColor: st2.color + '40', borderStyle: getConsultFlag(cond.key) === 'not_evaluated' ? 'dashed' : 'solid' }]}>
+                                  <EliteText variant="caption" style={{ color: st2.color, fontSize: 10, fontFamily: Fonts.semiBold }}>{cond.label}</EliteText>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Condiciones snapshot (solo lectura si completada) */}
+            {!isDraft && c.conditions_snapshot && (c.conditions_snapshot as any[]).length > 0 && (
+              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
+                <EliteText variant="caption" style={styles.profileCardLabel}>CONDICIONES (SNAPSHOT)</EliteText>
+                <View style={styles.conditionPills}>
+                  {(c.conditions_snapshot as any[]).map((cond: any) => {
+                    const st3 = FLAG_STATUSES[cond.status as keyof typeof FLAG_STATUSES] ?? FLAG_STATUSES.not_evaluated;
+                    return (
+                      <View key={cond.condition_key} style={[styles.condPillSm, { backgroundColor: st3.bgColor, borderColor: st3.color + '40' }]}>
+                        <EliteText variant="caption" style={{ color: st3.color, fontSize: 10 }}>{cond.condition_key}</EliteText>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            {/* Medicamentos y suplementos */}
+            <View style={{ marginTop: Spacing.sm, gap: Spacing.sm }}>
+              <CollapsibleSection title="Farmacología" clientId={clientId} type="medications" />
+              <CollapsibleSection title="Suplementos" clientId={clientId} type="supplements" />
+              <CollapsibleSection title="Antecedentes familiares" clientId={clientId} type="family" />
+            </View>
+          </View>
+
+          {/* ═══ COLUMNA DERECHA: Notas + objetivos ═══ */}
+          <View style={isWide ? { flex: 45 } : undefined}>
+            {/* Objetivos (editables en consulta) */}
+            <View style={[styles.profileCard, { marginBottom: Spacing.sm }]}>
+              <EliteText variant="caption" style={styles.profileCardLabel}>OBJETIVOS</EliteText>
+              {[
+                { key: 'primary_goal', label: 'Objetivo principal', ph: 'Ej: Bajar 10kg en 6 meses' },
+                { key: 'goal_timeline', label: 'Plazo', ph: 'Ej: 6 meses' },
+                { key: 'red_flags', label: 'Banderas rojas', ph: 'Ej: Lesión rodilla' },
+              ].map(f => (
+                <View key={f.key} style={{ marginBottom: Spacing.xs }}>
+                  <EliteText variant="caption" style={{ color: f.key === 'red_flags' ? '#E24B4A80' : '#666', fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
+                  <TextInput
+                    style={[styles.editableInput, f.key === 'red_flags' && { borderColor: '#E24B4A30' }]}
+                    defaultValue={consultProfile?.[f.key] ?? ''}
+                    onEndEditing={e => saveConsultProfileField(f.key, e.nativeEvent.text)}
+                    placeholder={f.ph} placeholderTextColor="#333" editable={isDraft}
+                  />
+                </View>
+              ))}
+            </View>
+
+            {/* Notas SOAP */}
             <View style={styles.profileCard}>
               <EliteText variant="caption" style={styles.profileCardLabel}>NOTAS CLÍNICAS (SOAP)</EliteText>
               {[
@@ -1036,13 +1171,11 @@ function ConsultationsTab({ clientId, clientName }: { clientId: string; clientNa
                     style={[styles.editableInput, f.multi && { minHeight: 60 }]}
                     defaultValue={(c as any)[f.key] ?? ''}
                     onEndEditing={e => handleSaveField(f.key, e.nativeEvent.text)}
-                    placeholder={f.ph}
-                    placeholderTextColor="#333"
-                    multiline={f.multi}
-                    editable={isDraft}
+                    placeholder={f.ph} placeholderTextColor="#333" multiline={f.multi} editable={isDraft}
                   />
                 </View>
               ))}
+
               {isDraft && (
                 <View style={{ gap: Spacing.sm, marginTop: Spacing.md }}>
                   <Pressable onPress={handleComplete} style={styles.completeBtn}>
@@ -1056,64 +1189,6 @@ function ConsultationsTab({ clientId, clientName }: { clientId: string; clientNa
                 </View>
               )}
             </View>
-          </View>
-
-          {/* Columna derecha: Snapshot */}
-          <View style={isWide ? { flex: 2 } : undefined}>
-            {/* Composición */}
-            {body && (
-              <View style={[styles.profileCard, { marginBottom: Spacing.sm }]}>
-                <EliteText variant="caption" style={styles.profileCardLabel}>COMPOSICIÓN (SNAPSHOT)</EliteText>
-                <View style={styles.measGrid}>
-                  {[
-                    { l: 'Peso', v: body.weight_kg, ch: changes?.weight_change },
-                    { l: 'Grasa', v: body.body_fat_pct, ch: changes?.fat_change },
-                    { l: 'Músculo', v: body.muscle_mass_pct, ch: null },
-                    { l: 'Cintura', v: body.waist_cm, ch: null },
-                  ].map(m => (
-                    <View key={m.l} style={styles.measItem}>
-                      <EliteText variant="caption" style={styles.measLabel}>{m.l}</EliteText>
-                      <EliteText style={styles.measValue}>{m.v ?? '—'}</EliteText>
-                      {m.ch != null && m.ch !== 0 && (
-                        <EliteText variant="caption" style={{ color: m.ch < 0 ? '#a8e02a' : '#E24B4A', fontSize: 10 }}>
-                          {m.ch > 0 ? '+' : ''}{Number(m.ch).toFixed(1)}
-                        </EliteText>
-                      )}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Condiciones */}
-            {c.conditions_snapshot && c.conditions_snapshot.length > 0 && (
-              <View style={[styles.profileCard, { marginBottom: Spacing.sm }]}>
-                <EliteText variant="caption" style={styles.profileCardLabel}>CONDICIONES (SNAPSHOT)</EliteText>
-                <View style={styles.conditionPills}>
-                  {(c.conditions_snapshot as any[]).map((cond: any) => {
-                    const st = FLAG_STATUSES[cond.status as keyof typeof FLAG_STATUSES] ?? FLAG_STATUSES.not_evaluated;
-                    return (
-                      <View key={cond.condition_key} style={[styles.condPillSm, { backgroundColor: st.bgColor, borderColor: st.color + '40' }]}>
-                        <EliteText variant="caption" style={{ color: st.color, fontSize: 10 }}>{cond.condition_key}</EliteText>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-
-            {/* Meds + Supps */}
-            {((c.medications_snapshot as any[])?.length > 0 || (c.supplements_snapshot as any[])?.length > 0) && (
-              <View style={[styles.profileCard, { marginBottom: Spacing.sm }]}>
-                <EliteText variant="caption" style={styles.profileCardLabel}>TRATAMIENTO (SNAPSHOT)</EliteText>
-                {(c.medications_snapshot as any[] ?? []).map((m: any, i: number) => (
-                  <EliteText key={i} variant="caption" style={{ color: '#888', fontSize: 11 }}>💊 {m.name} {m.dose ?? ''}</EliteText>
-                ))}
-                {(c.supplements_snapshot as any[] ?? []).map((s: any, i: number) => (
-                  <EliteText key={i} variant="caption" style={{ color: '#888', fontSize: 11 }}>🧪 {s.name} {s.dose ?? ''}</EliteText>
-                ))}
-              </View>
-            )}
           </View>
         </View>
       </View>
