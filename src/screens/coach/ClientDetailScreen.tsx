@@ -1664,15 +1664,16 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
 // ══════════════════════════
 
 const LAB_SECTIONS = [
-  { label: 'Metabólico', keys: ['glucose', 'hba1c', 'insulin', 'homa_ir'] },
-  { label: 'Lipídico', keys: ['cholesterol_total', 'hdl', 'ldl', 'triglycerides', 'vldl', 'apo_b'] },
-  { label: 'Tiroideo', keys: ['tsh', 't3_free', 't4_free'] },
-  { label: 'Hormonal', keys: ['testosterone', 'cortisol', 'estradiol', 'dhea', 'fsh', 'lh', 'prolactin', 'anti_tpo', 'anti_tg'] },
-  { label: 'Vitaminas', keys: ['vitamin_d', 'vitamin_b12', 'iron', 'ferritin', 'magnesium', 'zinc', 'folate'] },
-  { label: 'Inflamación', keys: ['pcr', 'homocysteine', 'rheumatoid_factor', 'ldh', 'cpk', 'aso'] },
-  { label: 'Hepático', keys: ['alt', 'ast', 'ggt', 'bilirubin', 'alp', 'albumin'] },
-  { label: 'Renal', keys: ['creatinine', 'uric_acid', 'bun', 'urea', 'sodium', 'potassium', 'chloride'] },
-  { label: 'Hematológico', keys: ['hemoglobin', 'hematocrit', 'platelets', 'wbc', 'lymphocyte_pct', 'mcv', 'rdw'] },
+  { label: 'Metabólico', keys: ['glucose', 'hba1c', 'insulin', 'homa_ir', 'fructosamine', 'c_peptide'] },
+  { label: 'Lipídico', keys: ['cholesterol_total', 'hdl', 'ldl', 'triglycerides', 'vldl', 'apo_b', 'non_hdl_cholesterol', 'lp_a'] },
+  { label: 'Tiroideo', keys: ['tsh', 't3_free', 't4_free', 'total_t3', 'total_t4'] },
+  { label: 'Hormonal', keys: ['testosterone', 'testosterone_free', 'cortisol', 'estradiol', 'dhea', 'progesterone', 'fsh', 'lh', 'prolactin', 'shbg', 'igf1', 'anti_tpo', 'anti_tg'] },
+  { label: 'Vitaminas/Minerales', keys: ['vitamin_d', 'vitamin_b12', 'iron', 'ferritin', 'magnesium', 'zinc', 'folate', 'calcium', 'phosphorus', 'iron_binding', 'iron_saturation', 'transferrin'] },
+  { label: 'Inflamación', keys: ['pcr', 'homocysteine', 'rheumatoid_factor', 'ldh', 'cpk', 'aso', 'esr', 'fibrinogen', 'complement_c3', 'complement_c4'] },
+  { label: 'Hepático', keys: ['alt', 'ast', 'ggt', 'bilirubin', 'bilirubin_direct', 'bilirubin_indirect', 'alp', 'albumin', 'total_protein', 'globulin', 'ag_ratio'] },
+  { label: 'Renal', keys: ['creatinine', 'uric_acid', 'bun', 'urea', 'gfr', 'sodium', 'potassium', 'chloride', 'co2'] },
+  { label: 'Hematológico', keys: ['hemoglobin', 'hematocrit', 'rbc', 'platelets', 'wbc', 'mcv', 'mch', 'mchc', 'rdw', 'mpv', 'neutrophils_pct', 'lymphocyte_pct', 'monocytes_pct', 'eosinophils_pct', 'basophils_pct'] },
+  { label: 'Coagulación', keys: ['pt', 'ptt', 'inr'] },
 ];
 
 function LabsTab({ clientId }: { clientId: string }) {
@@ -1824,6 +1825,22 @@ function LabsTab({ clientId }: { clientId: string }) {
                       </View>
                     );
                   })}
+
+                  {/* Otros valores (no mapeados) */}
+                  {lab.other_values && Array.isArray(lab.other_values) && lab.other_values.length > 0 && (
+                    <View style={{ marginBottom: Spacing.sm }}>
+                      <EliteText variant="caption" style={{ color: '#EF9F27', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 }}>
+                        OTROS VALORES
+                      </EliteText>
+                      {lab.other_values.map((ov: any, idx: number) => (
+                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: '#111' }}>
+                          <EliteText variant="caption" style={{ flex: 1, color: '#aaa', fontSize: 12 }}>{ov.name}</EliteText>
+                          <EliteText variant="body" style={{ color: '#EF9F27', fontFamily: Fonts.bold, fontSize: 14 }}>{ov.value}</EliteText>
+                          <EliteText variant="caption" style={{ color: '#666', fontSize: 10, marginLeft: 4 }}>{ov.unit}</EliteText>
+                        </View>
+                      ))}
+                    </View>
+                  )}
 
                   {/* Actions */}
                   <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>

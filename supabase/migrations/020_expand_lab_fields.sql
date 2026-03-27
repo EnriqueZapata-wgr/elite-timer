@@ -1,0 +1,68 @@
+-- PENDIENTE: Ejecutar manualmente en Supabase SQL Editor
+
+-- Biometría hemática detallada
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS rbc NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS mch NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS mchc NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS mpv NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS neutrophils_pct NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS monocytes_pct NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS eosinophils_pct NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS basophils_pct NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS bands_pct NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS neutrophils_abs NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS lymphocytes_abs NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS monocytes_abs NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS eosinophils_abs NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS basophils_abs NUMERIC;
+
+-- Hepático extendido
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS bilirubin_direct NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS bilirubin_indirect NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS total_protein NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS globulin NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS ag_ratio NUMERIC;
+
+-- Renal extendido
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS gfr NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS calcium NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS phosphorus NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS co2 NUMERIC;
+
+-- Lipídico extendido
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS non_hdl_cholesterol NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS lp_a NUMERIC;
+
+-- Hormonal extendido
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS total_t3 NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS total_t4 NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS shbg NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS igf1 NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS growth_hormone NUMERIC;
+
+-- Glucosa extendido
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS fructosamine NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS c_peptide NUMERIC;
+
+-- Inflamación extendido
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS esr NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS fibrinogen NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS complement_c3 NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS complement_c4 NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS ana NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS anti_dna NUMERIC;
+
+-- Orina
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS urine_ph NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS urine_density NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS urine_protein TEXT;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS urine_glucose TEXT;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS urine_blood TEXT;
+
+-- Coagulación
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS pt NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS ptt NUMERIC;
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS inr NUMERIC;
+
+-- Otros valores no mapeados
+ALTER TABLE lab_results ADD COLUMN IF NOT EXISTS other_values JSONB DEFAULT '[]';

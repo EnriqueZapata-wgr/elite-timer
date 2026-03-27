@@ -81,65 +81,52 @@ export async function extractLabValues(uploadId: string): Promise<{
 
     const prompt = `Analiza este estudio de laboratorio y extrae TODOS los valores.
 
-IMPORTANTE: Los estudios están en español (México). Mapea estos sinónimos:
-- Ácido fólico / Folatos → folate
-- Ácido úrico → uric_acid
-- Nitrógeno ureico / BUN → bun
-- Glucosa en ayunas / Glucosa basal → glucose
-- Hemoglobina glucosilada / HbA1c / A1C → hba1c
-- Colesterol total → cholesterol_total
-- Triglicéridos → triglycerides
-- Proteína C reactiva / PCR ultrasensible / PCR-us → pcr
-- TGP / ALT / Transaminasa glutámico pirúvica → alt
-- TGO / AST / Transaminasa glutámico oxalacética → ast
-- GGT / Gamma glutamil transferasa → ggt
-- Fosfatasa alcalina / FA → alp
-- DHL / LDH / Deshidrogenasa láctica → ldh
-- Creatinina sérica → creatinine
-- Hierro sérico → iron
-- TIBC / Capacidad fijación hierro → iron_binding
-- Saturación de transferrina → iron_saturation
-- VCM / MCV / Volumen corpuscular medio → mcv
-- ADE / RDW / Amplitud distribución eritrocitaria → rdw
-- Leucocitos / Glóbulos blancos → wbc
-- Linfocitos % → lymphocyte_pct
-- Plaquetas / Trombocitos → platelets
-- Hemoglobina → hemoglobin
-- Hematocrito / Hto → hematocrit
-- Bilirrubina total → bilirubin
-- Albúmina → albumin
-- 25-OH Vitamina D / Calcidiol → vitamin_d
-- Vitamina B12 / Cianocobalamina → vitamin_b12
-- Ferritina → ferritin
-- Magnesio → magnesium
-- Zinc → zinc
-- Homocisteína → homocysteine
-- Factor reumatoide / FR → rheumatoid_factor
-- Antiestreptolisinas / ASO / ASLO → aso
-- IgA → iga, IgE → ige, IgG → igg, IgM → igm
-- TSH → tsh, T3 libre → t3_free, T4 libre → t4_free
-- Testosterona total → testosterone, Estradiol / E2 → estradiol
-- Cortisol → cortisol, DHEA-S → dhea, Progesterona → progesterone
-- FSH → fsh, LH → lh, Prolactina / PRL → prolactin
-- Anti-TG / Anti-tiroglobulina → anti_tg
-- Anti-TPO / Anti-peroxidasa → anti_tpo
-- Insulina basal → insulin, HOMA / HOMA-IR → homa_ir
-- Apo B → apo_b, CPK / CK total → cpk
-- Urea → urea, Sodio / Na → sodium, Potasio / K → potassium
-- Cloro / Cl → chloride, VLDL → vldl, Transferrina → transferrin
-- HDL → hdl, LDL → ldl, Colesterol HDL → hdl, Colesterol LDL → ldl
+IMPORTANTE: Estudios en español (México). Mapea sinónimos a estos keys exactos:
+glucose, hba1c, insulin, homa_ir, cholesterol_total, hdl, ldl, triglycerides, vldl, apo_b, non_hdl_cholesterol, lp_a,
+tsh, t3_free, t4_free, total_t3, total_t4, testosterone, testosterone_free, estradiol, cortisol, dhea, progesterone, fsh, lh, prolactin, shbg, igf1,
+vitamin_d, vitamin_b12, iron, ferritin, magnesium, zinc, folate, calcium, phosphorus,
+pcr, homocysteine, rheumatoid_factor, ldh, cpk, aso, esr, fibrinogen, complement_c3, complement_c4,
+alt, ast, ggt, bilirubin, bilirubin_direct, bilirubin_indirect, alp, albumin, total_protein, globulin, ag_ratio,
+creatinine, uric_acid, bun, urea, sodium, potassium, chloride, co2, gfr,
+hemoglobin, hematocrit, platelets, wbc, rbc, mcv, mch, mchc, rdw, mpv,
+lymphocyte_pct, lymphocytes_abs, neutrophils_pct, neutrophils_abs, monocytes_pct, monocytes_abs, eosinophils_pct, eosinophils_abs, basophils_pct, basophils_abs, bands_pct,
+iga, ige, igg, igm, anti_tpo, anti_tg,
+iron_binding, iron_saturation, transferrin, free_iron,
+fructosamine, c_peptide, pt, ptt, inr, urine_ph, urine_density
 
-Responde SOLAMENTE con un JSON válido (sin backticks ni markdown) con este formato:
-{"lab_name": "nombre del lab o null", "lab_date": "YYYY-MM-DD o null", "values": {"glucose": {"value": 95, "unit": "mg/dL"}, "hba1c": {"value": 5.4, "unit": "%"}, ...}, "other_values": [{"name": "nombre original", "value": 123, "unit": "mg/dL"}]}
+Sinónimos español→key:
+Glucosa ayunas→glucose | HbA1c/A1C→hba1c | Insulina→insulin | HOMA→homa_ir
+Colesterol total→cholesterol_total | Triglicéridos→triglycerides | HDL→hdl | LDL→ldl | VLDL→vldl
+TGP/ALT→alt | TGO/AST→ast | GGT→ggt | FA/Fosfatasa alcalina→alp | DHL/LDH→ldh
+Creatinina→creatinine | Ácido úrico→uric_acid | BUN/Nitrógeno ureico→bun | Urea→urea
+Eritrocitos/Glóbulos rojos→rbc | VCM/MCV→mcv | HCM→mch | CMHC→mchc | VPM→mpv
+ADE/RDW→rdw | Leucocitos→wbc | Linfocitos %→lymphocyte_pct | Neutrófilos %→neutrophils_pct
+Monocitos %→monocytes_pct | Eosinófilos %→eosinophils_pct | Basófilos %→basophils_pct
+Bilirrubina total→bilirubin | Bilirrubina directa→bilirubin_direct | Bilirrubina indirecta→bilirubin_indirect
+Proteínas totales→total_protein | Globulina→globulin | Relación A/G→ag_ratio
+TFG/Depuración→gfr | Calcio→calcium | Fósforo→phosphorus | CO2/Bicarbonato→co2
+TSH→tsh | T3 libre→t3_free | T4 libre→t4_free | T3 total→total_t3 | T4 total→total_t4
+Testosterona→testosterone | Estradiol→estradiol | Cortisol→cortisol | DHEA-S→dhea
+FSH→fsh | LH→lh | Prolactina→prolactin | SHBG→shbg | IGF-1→igf1
+Vitamina D/25-OH→vitamin_d | B12→vitamin_b12 | Ácido fólico→folate
+Ferritina→ferritin | Magnesio→magnesium | Zinc→zinc | Hierro sérico→iron
+TIBC→iron_binding | Saturación transferrina→iron_saturation | Transferrina→transferrin
+PCR/PCR-us→pcr | Homocisteína→homocysteine | FR→rheumatoid_factor | ASO/ASLO→aso
+VSG/Eritrosedimentación→esr | Fibrinógeno→fibrinogen | C3→complement_c3 | C4→complement_c4
+TP/Tiempo protrombina→pt | TTP/TPT→ptt | INR→inr
+Péptido C→c_peptide | Fructosamina→fructosamine | Sodio/Na→sodium | Potasio/K→potassium | Cloro/Cl→chloride
+pH urinario→urine_ph | Densidad urinaria→urine_density
 
-Solo incluye valores encontrados. Si un valor no está en el documento, NO lo incluyas. Valores que no mapeen a ningún campo conocido van en other_values con su nombre original en español.`;
+Responde SOLO JSON válido (sin backticks):
+{"lab_name":"...","lab_date":"YYYY-MM-DD o null","values":{"glucose":{"value":95,"unit":"mg/dL"},...},"other_values":[{"name":"nombre original","value":123,"unit":"mg/dL"}]}
+Solo valores encontrados. No mapeados→other_values.`;
 
     const result = await callAnthropic(
       [{ role: 'user', content: [
         { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
         { type: 'text', text: prompt },
       ]}],
-      4000,
+      8000,
     );
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
@@ -166,6 +153,11 @@ Solo incluye valores encontrados. Si un valor no está en el documento, NO lo in
       if (val && (val as any).value != null) {
         labData[key] = (val as any).value;
       }
+    }
+
+    // Save other_values as JSONB
+    if (otherValues.length > 0) {
+      labData.other_values = otherValues;
     }
 
     const { data: labResult, error: labError } = await supabase
