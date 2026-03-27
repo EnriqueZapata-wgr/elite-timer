@@ -480,11 +480,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg,
   },
   breathCircle: {
-    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
-    backgroundColor: PURPLE + '20', borderWidth: 2, borderColor: PURPLE,
+    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: 999,
+    backgroundColor: PURPLE + '15', borderWidth: 3, borderColor: PURPLE,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4, shadowRadius: 30, elevation: 10,
+    shadowOpacity: 0.3, shadowRadius: 25, elevation: 8,
   },
   breathCircleInner: { alignItems: 'center' },
   actionText: {

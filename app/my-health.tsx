@@ -6,9 +6,11 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-// ImagePicker requiere rebuild nativo — importar con try/catch
+// Módulos nativos — importar con try/catch para OTA compat
 let ImagePicker: any = null;
-try { ImagePicker = require('expo-image-picker'); } catch { /* no disponible en OTA */ }
+try { ImagePicker = require('expo-image-picker'); } catch { /* */ }
+let DocumentPicker: any = null;
+try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -53,6 +55,28 @@ export default function MyHealthScreen() {
 
     if (res.canceled || !res.assets?.[0]?.base64) return;
     await processUpload(res.assets[0].base64, 'image');
+  };
+
+  const handlePickPDF = async () => {
+    if (!DocumentPicker) {
+      Alert.alert('No disponible', 'Necesitas actualizar la app. Instala el APK más reciente.');
+      return;
+    }
+    try {
+      const res = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+      if (res.canceled || !res.assets?.[0]) return;
+      const uri = res.assets[0].uri;
+      const fileRes = await fetch(uri);
+      const blob = await fileRes.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+      await processUpload(base64, 'pdf');
+    } catch (err: any) {
+      setResult({ error: err.message ?? 'Error al seleccionar PDF' });
+    }
   };
 
   const processUpload = async (base64: string, fileType: 'image' | 'pdf') => {
@@ -105,6 +129,10 @@ export default function MyHealthScreen() {
               <Pressable onPress={() => handlePickImage(false)} style={s.uploadBtn} disabled={uploading || processing}>
                 <Ionicons name="images-outline" size={18} color={TEAL} />
                 <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Galería</EliteText>
+              </Pressable>
+              <Pressable onPress={handlePickPDF} style={s.uploadBtn} disabled={uploading || processing}>
+                <Ionicons name="document-outline" size={18} color={TEAL} />
+                <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>PDF</EliteText>
               </Pressable>
             </View>
           </View>

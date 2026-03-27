@@ -175,6 +175,20 @@ export default function KitScreen() {
               onPress={() => router.push('/meditation')}
             />
             <ToolCard
+              icon="heart-circle-outline"
+              label="Check-in"
+              color="#7F77DD"
+              active
+              onPress={() => router.push('/checkin')}
+            />
+            <ToolCard
+              icon="flask-outline"
+              label="Mi Salud"
+              color="#1D9E75"
+              active
+              onPress={() => router.push('/my-health')}
+            />
+            <ToolCard
               icon="journal-outline"
               label="Journaling"
               color="#EF9F27"
