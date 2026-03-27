@@ -91,6 +91,7 @@ export default function RootLayout() {
                 <Stack.Screen name="meditation" options={{ animation: 'fade' }} />
                 <Stack.Screen name="breathing" options={{ animation: 'fade' }} />
                 <Stack.Screen name="checkin" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="my-health" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="mind-hub" options={{ animation: 'slide_from_right' }} />
               </Stack>
               <StatusBar style="light" />

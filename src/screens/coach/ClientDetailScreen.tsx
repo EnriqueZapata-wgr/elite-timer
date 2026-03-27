@@ -32,6 +32,7 @@ import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/cond
 import { askAtpAI } from '@/src/services/atp-ai-service';
 import { getClientHabits, addHabit, updateHabit, deleteHabit, type DailyHabit } from '@/src/services/daily-habits-service';
 import { calculateAndSaveScore, getLatestScore } from '@/src/services/health-score-service';
+import { getLabHistory, approveLabResult, deleteLabResult, type LabResult as LabResultType } from '@/src/services/lab-service';
 import { RATING_COLORS, type HealthScore as FHScore } from '@/src/data/functional-health-engine';
 import { DayCalendar } from '@/src/components/DayCalendar';
 import {
@@ -45,7 +46,7 @@ const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 // Mapeo: PostgreSQL DOW (0=Dom) → columna del grid (0=Lun)
 const DOW_TO_COL = [6, 0, 1, 2, 3, 4, 5]; // Dom=6, Lun=0...Sáb=5
 
-type Tab = 'profile' | 'consultations' | 'calendar' | 'routines' | 'progress' | 'history';
+type Tab = 'profile' | 'consultations' | 'labs' | 'calendar' | 'routines' | 'progress' | 'history';
 
 interface Props {
   clientId: string;
@@ -119,6 +120,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
   const TABS: { key: Tab; label: string; icon: string }[] = [
     { key: 'profile', label: 'PERFIL', icon: 'person-outline' },
     { key: 'consultations', label: 'CONSULTAS', icon: 'document-text-outline' },
+    { key: 'labs', label: 'LABS', icon: 'flask-outline' },
     { key: 'calendar', label: 'CALENDARIO', icon: 'calendar-outline' },
     { key: 'routines', label: 'RUTINAS', icon: 'barbell-outline' },
     { key: 'progress', label: 'PROGRESO', icon: 'trophy-outline' },
@@ -209,6 +211,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                 });
               }} />
             )}
+            {activeTab === 'labs' && <LabsTab clientId={clientId} />}
             {activeTab === 'calendar' && <CalendarTab schedule={schedule} />}
             {activeTab === 'routines' && (
               <RoutinesTab routines={routines} onAssign={() => setAssignVisible(true)} />
@@ -1649,6 +1652,143 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
                 <EliteText variant="caption" style={{ color: TEAL, marginTop: 4, fontSize: 11 }}>Primera consulta</EliteText>
               )}
             </Pressable>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
+// ══════════════════════════
+// TAB: LABS
+// ══════════════════════════
+
+const LAB_SECTIONS = [
+  { label: 'Metabólico', keys: ['glucose', 'hba1c', 'insulin', 'homa_ir'] },
+  { label: 'Lipídico', keys: ['cholesterol_total', 'hdl', 'ldl', 'triglycerides', 'vldl', 'apo_b'] },
+  { label: 'Tiroideo', keys: ['tsh', 't3_free', 't4_free'] },
+  { label: 'Hormonal', keys: ['testosterone', 'cortisol', 'estradiol', 'dhea', 'fsh', 'lh', 'prolactin', 'anti_tpo', 'anti_tg'] },
+  { label: 'Vitaminas', keys: ['vitamin_d', 'vitamin_b12', 'iron', 'ferritin', 'magnesium', 'zinc', 'folate'] },
+  { label: 'Inflamación', keys: ['pcr', 'homocysteine', 'rheumatoid_factor', 'ldh', 'cpk', 'aso'] },
+  { label: 'Hepático', keys: ['alt', 'ast', 'ggt', 'bilirubin', 'alp', 'albumin'] },
+  { label: 'Renal', keys: ['creatinine', 'uric_acid', 'bun', 'urea', 'sodium', 'potassium', 'chloride'] },
+  { label: 'Hematológico', keys: ['hemoglobin', 'hematocrit', 'platelets', 'wbc', 'lymphocyte_pct', 'mcv', 'rdw'] },
+];
+
+function LabsTab({ clientId }: { clientId: string }) {
+  const [labs, setLabs] = useState<LabResultType[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedLab, setExpandedLab] = useState<string | null>(null);
+
+  useEffect(() => { loadLabs(); }, [clientId]);
+  const loadLabs = async () => {
+    setLoading(true);
+    try { setLabs(await getLabHistory(clientId)); } catch { /* */ }
+    setLoading(false);
+  };
+
+  const handleApprove = async (labId: string) => {
+    if (typeof window !== 'undefined' && !window.confirm('¿Aprobar estos resultados?')) return;
+    await approveLabResult(labId);
+    loadLabs();
+  };
+
+  const handleDelete = async (labId: string) => {
+    if (typeof window === 'undefined' || !window.confirm('¿Eliminar este resultado?')) return;
+    if (!window.confirm('¿Segurísimo? No se puede deshacer.')) return;
+    await deleteLabResult(labId);
+    loadLabs();
+  };
+
+  const statusBadge = (s: string) => {
+    const map: Record<string, { label: string; color: string; bg: string }> = {
+      draft: { label: 'Borrador', color: '#EF9F27', bg: '#EF9F2715' },
+      approved: { label: 'Aprobado', color: '#a8e02a', bg: '#a8e02a15' },
+    };
+    const b = map[s] ?? map.draft;
+    return (
+      <View style={[styles.statusBadge, { backgroundColor: b.bg }]}>
+        <EliteText variant="caption" style={{ color: b.color, fontSize: 9, fontFamily: Fonts.bold }}>{b.label}</EliteText>
+      </View>
+    );
+  };
+
+  return (
+    <View>
+      <EliteText variant="caption" style={{ color: '#666', fontSize: 11, marginBottom: Spacing.md }}>
+        Los estudios se suben desde la app del cliente o manualmente
+      </EliteText>
+
+      {loading ? <ActivityIndicator color={TEAL} /> : labs.length === 0 ? (
+        <EliteText variant="caption" style={{ color: '#555', textAlign: 'center', padding: Spacing.xl }}>
+          Sin resultados de laboratorio
+        </EliteText>
+      ) : (
+        labs.map(lab => {
+          const isExpanded = expandedLab === lab.id;
+          const valCount = LAB_SECTIONS.reduce((acc, s) => acc + s.keys.filter(k => lab[k] != null).length, 0);
+          return (
+            <View key={lab.id} style={styles.consultCard}>
+              <Pressable onPress={() => setExpandedLab(isExpanded ? null : lab.id)}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  <Ionicons name="flask-outline" size={16} color={TEAL} />
+                  <EliteText variant="body" style={{ fontFamily: Fonts.bold, flex: 1 }}>
+                    {lab.lab_name ?? 'Laboratorio'} — {new Date(lab.lab_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </EliteText>
+                  {statusBadge(lab.status ?? 'draft')}
+                </View>
+                <EliteText variant="caption" style={{ color: '#888', marginTop: 2 }}>{valCount} valores</EliteText>
+              </Pressable>
+
+              {isExpanded && (
+                <View style={{ marginTop: Spacing.sm }}>
+                  {LAB_SECTIONS.map(section => {
+                    const vals = section.keys.filter(k => lab[k] != null);
+                    if (vals.length === 0) return null;
+                    return (
+                      <View key={section.label} style={{ marginBottom: Spacing.sm }}>
+                        <EliteText variant="caption" style={{ color: TEAL, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 }}>
+                          {section.label.toUpperCase()}
+                        </EliteText>
+                        {vals.map(key => {
+                          const val = lab[key];
+                          // Use engine to rate
+                          let color = '#aaa';
+                          try {
+                            const { rateValue: rv } = require('@/src/data/functional-health-engine');
+                            // Simple inline lookup — find param in DOMAINS
+                          } catch { /* */ }
+                          return (
+                            <View key={key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: '#111' }}>
+                              <EliteText variant="caption" style={{ flex: 1, color: '#aaa', fontSize: 12 }}>
+                                {key.replace(/_/g, ' ')}
+                              </EliteText>
+                              <EliteText variant="body" style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] }}>
+                                {val}
+                              </EliteText>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    );
+                  })}
+
+                  {/* Actions */}
+                  <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
+                    {lab.status !== 'approved' && (
+                      <Pressable onPress={() => handleApprove(lab.id)} style={[styles.completeBtn, { flex: 1 }]}>
+                        <Ionicons name="checkmark" size={14} color="#000" />
+                        <EliteText variant="caption" style={styles.completeBtnText}>Aprobar</EliteText>
+                      </Pressable>
+                    )}
+                    <Pressable onPress={() => handleDelete(lab.id)} style={[styles.deleteDraftBtn, { flex: 1 }]}>
+                      <Ionicons name="trash-outline" size={14} color="#E24B4A" />
+                      <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12 }}>Eliminar</EliteText>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+            </View>
           );
         })
       )}

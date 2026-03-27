@@ -35,7 +35,7 @@ const CATEGORIES: Category[] = (
   label: INTERVENTION_TYPES[k].label,
   icon: INTERVENTION_TYPES[k].icon,
   color: INTERVENTION_TYPES[k].color,
-  active: k === 'fitness' || k === 'mind',
+  active: k === 'fitness' || k === 'mind' || k === 'metrics',
 }));
 
 // === COMPONENTE ===
@@ -67,6 +67,8 @@ export default function YoScreen() {
       router.push('/personal-records');
     } else if (cat.key === 'mind') {
       router.push('/mind-hub');
+    } else if (cat.key === 'metrics') {
+      router.push('/my-health');
     } else {
       Alert.alert(cat.label, 'Próximamente');
     }
