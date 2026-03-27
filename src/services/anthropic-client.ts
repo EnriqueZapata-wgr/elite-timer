@@ -14,5 +14,6 @@ export async function callAnthropic(
   });
 
   if (error) throw new Error(error.message || 'Error calling AI proxy');
+  if (data?.error) throw new Error(data.error);
   return data;
 }

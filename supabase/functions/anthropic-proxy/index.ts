@@ -12,6 +12,7 @@ serve(async (req) => {
   }
 
   try {
+    // Auth
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -20,17 +21,25 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    const { messages, max_tokens, model } = await req.json()
+    const body = await req.json()
+    const { messages, max_tokens, model } = body
+
+    const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': Deno.env.get('ANTHROPIC_API_KEY')!,
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
@@ -42,13 +51,18 @@ serve(async (req) => {
 
     const data = await response.json()
 
+    if (!response.ok) {
+      return new Response(JSON.stringify({ error: `Anthropic API: ${data?.error?.message || response.status}` }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
     return new Response(JSON.stringify(data), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ error: error.message || 'Unknown error' }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
 })
