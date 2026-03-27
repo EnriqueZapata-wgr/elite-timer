@@ -503,7 +503,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
           />
         </View>
         <View style={isWide ? { flex: 1 } : undefined}>
-          <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" alwaysExpanded sex={(profile?.biological_sex as Sex) ?? 'male'} />
+          <CollapsibleSection title="Composición y biomarcadores" clientId={clientId} type="measurements" alwaysExpanded sex={(profile?.biological_sex as Sex) ?? 'male'} />
           {/* Barra visual de contexto de peso */}
           {profileLoaded && profile?.weight_highest_kg && profile?.weight_lowest_kg && (
             <WeightContextBar
@@ -805,8 +805,14 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
                       { l: 'Abdomen (cm)', v: latest.chest_cm, k: '' },
                       { l: 'Bíceps (cm)', v: latest.arm_cm, k: '' },
                       { l: 'Pierna (cm)', v: latest.leg_cm, k: '' },
-                    ].map(m => {
-                      const rating = m.k ? rateBodyValue(m.k, m.v != null ? Number(m.v) : null, sex ?? 'male') : null;
+                      { l: 'F. Agarre (kg)', v: latest.grip_strength_kg, k: 'grip_strength_kg' },
+                      { l: 'PA sistólica', v: latest.blood_pressure_sys, k: 'blood_pressure_sys' },
+                      { l: 'PA diastólica', v: latest.blood_pressure_dia, k: 'blood_pressure_dia' },
+                      { l: 'VO2 máx', v: latest.vo2_max, k: 'vo2_max' },
+                      { l: 'Edad metab.', v: latest.metabolic_age_impedance, k: '' },
+                    ].filter(m => m.v != null).map(m => {
+                      const bioKeys = ['grip_strength_kg', 'blood_pressure_sys', 'blood_pressure_dia', 'vo2_max'];
+                      const rating = m.k ? (bioKeys.includes(m.k) ? rateBioValue(m.k, Number(m.v), sex ?? 'male') : rateBodyValue(m.k, Number(m.v), sex ?? 'male')) : null;
                       const hasRating = rating && rating.level !== 'no_data';
                       return (
                         <View key={m.l} style={[styles.measItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6, paddingHorizontal: 4 } : undefined]}>
@@ -937,10 +943,19 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
     try {
       if (type === 'measurements') {
         const nums: Record<string, number | undefined> = {};
+        const bioKeys = ['grip_strength_kg', 'blood_pressure_sys', 'blood_pressure_dia', 'vo2_max', 'metabolic_age_impedance'];
+        const bioData: Record<string, any> = {};
         for (const [k, v] of Object.entries(form)) {
-          if (v && !isNaN(Number(v))) nums[k] = Number(v);
+          if (v && !isNaN(Number(v))) {
+            nums[k] = Number(v);
+            if (bioKeys.includes(k)) bioData[k] = Number(v);
+          }
         }
         await addMeasurement(clientId, nums);
+        // Sincronizar biomarcadores al perfil también
+        if (Object.keys(bioData).length > 0) {
+          await upsertClientProfile(clientId, bioData);
+        }
       } else if (type === 'medications') {
         if (!form.name?.trim()) { setSaving(false); return; }
         await addMedication(clientId, form);
@@ -965,6 +980,9 @@ function AddModal({ visible, type, clientId, onClose, onSaved }: {
         body_water_pct: 'Agua corporal (%)', visceral_fat: 'Grasa visceral',
         waist_cm: 'Cintura (cm)', hip_cm: 'Cadera (cm)', chest_cm: 'Abdomen (cm)',
         arm_cm: 'Bíceps contraído (cm)', leg_cm: 'Pierna (cm)',
+        grip_strength_kg: 'F. Agarre (kg)', blood_pressure_sys: 'PA sistólica',
+        blood_pressure_dia: 'PA diastólica', vo2_max: 'VO2 máx (ml/kg/min)',
+        metabolic_age_impedance: 'Edad metabólica (años)',
       };
       return Object.entries(measLabels).map(([k, label]) => (
         <View key={k} style={styles.modalField}>
@@ -1650,7 +1668,7 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
             </View>
 
             {/* Composición corporal (siempre expandida) */}
-            <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" alwaysExpanded sex={(consultProfile?.biological_sex as Sex) ?? 'male'} />
+            <CollapsibleSection title="Composición y biomarcadores" clientId={clientId} type="measurements" alwaysExpanded sex={(consultProfile?.biological_sex as Sex) ?? 'male'} />
 
             {/* Contexto de peso */}
             {isDraft && consultProfile && (
