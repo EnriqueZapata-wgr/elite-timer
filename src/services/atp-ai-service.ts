@@ -201,3 +201,46 @@ export async function askAtpAI(clientId: string, customQuestion?: string): Promi
 
   return result.content?.map((c: any) => c.text || '').join('\n') || 'No se pudo generar el análisis.';
 }
+
+// === AI REPORTS CRUD ===
+
+export interface AiReport {
+  id: string;
+  client_id: string;
+  coach_id: string;
+  question: string | null;
+  report: string;
+  created_at: string;
+}
+
+/** Guardar reporte de IA */
+export async function saveAiReport(clientId: string, report: string, question?: string): Promise<AiReport> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('No autenticado');
+
+  const { data, error } = await supabase
+    .from('ai_reports')
+    .insert({ client_id: clientId, coach_id: user.id, report, question: question || null })
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as AiReport;
+}
+
+/** Obtener historial de reportes IA de un cliente */
+export async function getAiReports(clientId: string, limit = 20): Promise<AiReport[]> {
+  const { data } = await supabase
+    .from('ai_reports')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  return (data ?? []) as AiReport[];
+}
+
+/** Eliminar reporte IA */
+export async function deleteAiReport(reportId: string): Promise<void> {
+  const { error } = await supabase.from('ai_reports').delete().eq('id', reportId);
+  if (error) throw new Error(error.message);
+}

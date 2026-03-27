@@ -29,7 +29,7 @@ import {
   getFamilyHistory, addFamilyHistory, deleteFamilyHistory,
 } from '@/src/services/client-profile-service';
 import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/condition-catalog';
-import { askAtpAI } from '@/src/services/atp-ai-service';
+import { askAtpAI, saveAiReport, getAiReports, deleteAiReport, type AiReport } from '@/src/services/atp-ai-service';
 import { getClientHabits, addHabit, updateHabit, deleteHabit, type DailyHabit } from '@/src/services/daily-habits-service';
 import { calculateAndSaveScore, getLatestScore } from '@/src/services/health-score-service';
 import { getLabHistory, approveLabResult, deleteLabResult, deleteLabUpload, getFailedUploads, uploadLabFile, extractLabValues, type LabResult as LabResultType, type LabUpload } from '@/src/services/lab-service';
@@ -71,10 +71,19 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiResult, setAiResult] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiSaved, setAiSaved] = useState(false);
+  const [aiReports, setAiReports] = useState<AiReport[]>([]);
+  const [aiShowHistory, setAiShowHistory] = useState(false);
+  const [aiExpandedReport, setAiExpandedReport] = useState<string | null>(null);
+
+  const loadAiReports = async () => {
+    try { setAiReports(await getAiReports(clientId)); } catch { /* */ }
+  };
 
   const handleAskAI = async (question?: string) => {
     setAiLoading(true);
     setAiResult('');
+    setAiSaved(false);
     try {
       const result = await askAtpAI(clientId, question?.trim() || undefined);
       setAiResult(result);
@@ -84,15 +93,18 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
     setAiLoading(false);
   };
 
-  const handleSaveAiToNotes = async () => {
-    if (!aiResult) return;
+  const handleSaveAiReport = async () => {
+    if (!aiResult || aiSaved) return;
     try {
-      const current = (await getClientProfile(clientId))?.coach_notes ?? '';
-      const timestamp = new Date().toLocaleString('es-MX');
-      const updated = `${current}\n\n--- ATP AI (${timestamp}) ---\n${aiResult}`;
-      await upsertClientProfile(clientId, { coach_notes: updated.trim() });
-      Alert.alert('Guardado', 'Análisis agregado a las notas del coach.');
+      await saveAiReport(clientId, aiResult, aiQuestion.trim() || undefined);
+      setAiSaved(true);
+      loadAiReports();
     } catch { /* */ }
+  };
+
+  const handleDeleteAiReport = async (id: string) => {
+    if (typeof window !== 'undefined' && !window.confirm('¿Eliminar este reporte?')) return;
+    try { await deleteAiReport(id); loadAiReports(); } catch { /* */ }
   };
 
   useEffect(() => { loadData(); }, [clientId]);
@@ -233,55 +245,112 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                 <Ionicons name="sparkles" size={18} color={Colors.neonGreen} />
                 <EliteText variant="label" style={{ color: Colors.neonGreen, letterSpacing: 2 }}>ATP AI</EliteText>
               </View>
-              <Pressable onPress={() => setAiVisible(false)}>
-                <Ionicons name="close" size={22} color="#666" />
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                <Pressable onPress={() => { setAiShowHistory(!aiShowHistory); if (!aiShowHistory) loadAiReports(); }}>
+                  <Ionicons name={aiShowHistory ? 'sparkles-outline' : 'time-outline'} size={20} color="#888" />
+                </Pressable>
+                <Pressable onPress={() => setAiVisible(false)}>
+                  <Ionicons name="close" size={22} color="#666" />
+                </Pressable>
+              </View>
             </View>
 
             <EliteText variant="caption" style={{ color: '#888', marginBottom: Spacing.sm }}>
-              Análisis de {clientName}
+              {aiShowHistory ? 'Historial de análisis' : `Análisis de ${clientName}`}
             </EliteText>
 
-            {!aiResult && !aiLoading && (
+            {/* ── HISTORIAL ── */}
+            {aiShowHistory ? (
+              <ScrollView style={styles.aiResultScroll} showsVerticalScrollIndicator={false}>
+                {aiReports.length === 0 ? (
+                  <EliteText variant="caption" style={{ color: '#555', textAlign: 'center', padding: Spacing.lg }}>
+                    Sin reportes guardados
+                  </EliteText>
+                ) : aiReports.map(r => {
+                  const isExp = aiExpandedReport === r.id;
+                  return (
+                    <View key={r.id} style={{ backgroundColor: '#1a1a1a', borderRadius: 8, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+                      <Pressable onPress={() => setAiExpandedReport(isExp ? null : r.id)}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <View style={{ flex: 1 }}>
+                            <EliteText variant="caption" style={{ color: Colors.neonGreen, fontSize: 10, fontFamily: Fonts.bold }}>
+                              {new Date(r.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </EliteText>
+                            {r.question && (
+                              <EliteText variant="caption" style={{ color: '#aaa', fontSize: 11, marginTop: 2 }}>
+                                Pregunta: {r.question}
+                              </EliteText>
+                            )}
+                            {!isExp && (
+                              <EliteText variant="caption" style={{ color: '#777', fontSize: 11, marginTop: 2 }} numberOfLines={2}>
+                                {r.report.substring(0, 120)}...
+                              </EliteText>
+                            )}
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
+                            <Pressable onPress={() => handleDeleteAiReport(r.id)} style={{ padding: 4 }}>
+                              <Ionicons name="trash-outline" size={14} color="#E24B4A" />
+                            </Pressable>
+                            <Ionicons name={isExp ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
+                          </View>
+                        </View>
+                      </Pressable>
+                      {isExp && (
+                        <EliteText variant="body" style={{ color: '#ddd', fontSize: 13, lineHeight: 22, marginTop: Spacing.sm }}>
+                          {r.report}
+                        </EliteText>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            ) : (
               <>
-                <TextInput
-                  style={styles.aiInput}
-                  value={aiQuestion}
-                  onChangeText={setAiQuestion}
-                  placeholder="Pregunta específica (opcional)"
-                  placeholderTextColor="#444"
-                />
-                <Pressable onPress={() => handleAskAI(aiQuestion)} style={styles.aiGenerateBtn}>
-                  <Ionicons name="sparkles-outline" size={16} color="#000" />
-                  <EliteText variant="caption" style={styles.aiGenerateBtnText}>Generar análisis</EliteText>
-                </Pressable>
-              </>
-            )}
+                {/* ── GENERAR NUEVO ── */}
+                {!aiResult && !aiLoading && (
+                  <>
+                    <TextInput
+                      style={styles.aiInput}
+                      value={aiQuestion}
+                      onChangeText={setAiQuestion}
+                      placeholder="Pregunta específica (opcional)"
+                      placeholderTextColor="#444"
+                    />
+                    <Pressable onPress={() => handleAskAI(aiQuestion)} style={styles.aiGenerateBtn}>
+                      <Ionicons name="sparkles-outline" size={16} color="#000" />
+                      <EliteText variant="caption" style={styles.aiGenerateBtnText}>Generar análisis</EliteText>
+                    </Pressable>
+                  </>
+                )}
 
-            {aiLoading && (
-              <View style={styles.aiLoadingBox}>
-                <ActivityIndicator color={Colors.neonGreen} />
-                <EliteText variant="caption" style={{ color: '#888', marginTop: Spacing.sm }}>
-                  Analizando expediente...
-                </EliteText>
-              </View>
-            )}
+                {aiLoading && (
+                  <View style={styles.aiLoadingBox}>
+                    <ActivityIndicator color={Colors.neonGreen} />
+                    <EliteText variant="caption" style={{ color: '#888', marginTop: Spacing.sm }}>
+                      Analizando expediente...
+                    </EliteText>
+                  </View>
+                )}
 
-            {aiResult && !aiLoading && (
-              <>
-                <ScrollView style={styles.aiResultScroll} showsVerticalScrollIndicator={false}>
-                  <EliteText variant="body" style={styles.aiResultText}>{aiResult}</EliteText>
-                </ScrollView>
-                <View style={styles.aiActions}>
-                  <Pressable onPress={handleSaveAiToNotes} style={styles.aiActionBtn}>
-                    <Ionicons name="save-outline" size={14} color={TEAL} />
-                    <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Guardar en notas</EliteText>
-                  </Pressable>
-                  <Pressable onPress={() => { setAiResult(''); setAiQuestion(''); }} style={styles.aiActionBtn}>
-                    <Ionicons name="refresh-outline" size={14} color="#888" />
-                    <EliteText variant="caption" style={{ color: '#888' }}>Nueva consulta</EliteText>
-                  </Pressable>
-                </View>
+                {aiResult && !aiLoading && (
+                  <>
+                    <ScrollView style={styles.aiResultScroll} showsVerticalScrollIndicator={false}>
+                      <EliteText variant="body" style={styles.aiResultText}>{aiResult}</EliteText>
+                    </ScrollView>
+                    <View style={styles.aiActions}>
+                      <Pressable onPress={handleSaveAiReport} style={[styles.aiActionBtn, aiSaved && { opacity: 0.5 }]} disabled={aiSaved}>
+                        <Ionicons name={aiSaved ? 'checkmark-circle' : 'save-outline'} size={14} color={aiSaved ? '#a8e02a' : TEAL} />
+                        <EliteText variant="caption" style={{ color: aiSaved ? '#a8e02a' : TEAL, fontFamily: Fonts.semiBold }}>
+                          {aiSaved ? 'Guardado' : 'Guardar reporte'}
+                        </EliteText>
+                      </Pressable>
+                      <Pressable onPress={() => { setAiResult(''); setAiQuestion(''); setAiSaved(false); }} style={styles.aiActionBtn}>
+                        <Ionicons name="refresh-outline" size={14} color="#888" />
+                        <EliteText variant="caption" style={{ color: '#888' }}>Nueva consulta</EliteText>
+                      </Pressable>
+                    </View>
+                  </>
+                )}
               </>
             )}
           </Pressable>
