@@ -2,7 +2,7 @@
  * Lab Service — Upload, extracción IA, CRUD de resultados de laboratorio.
  */
 import { supabase } from '@/src/lib/supabase';
-import Constants from 'expo-constants';
+import { callAnthropic } from '@/src/services/anthropic-client';
 
 async function getAuth() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -60,9 +60,6 @@ export async function uploadLabFile(
 export async function extractLabValues(uploadId: string): Promise<{
   labResultId: string; extractedCount: number; otherValues: any[];
 } | { error: string }> {
-  const apiKey = Constants.expoConfig?.extra?.anthropicApiKey || process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-  if (!apiKey) return { error: 'API key de Anthropic no configurada' };
-
   // Get upload info
   const { data: upload } = await supabase.from('lab_uploads').select('*').eq('id', uploadId).single();
   if (!upload) return { error: 'Upload no encontrado' };
@@ -84,21 +81,14 @@ export async function extractLabValues(uploadId: string): Promise<{
 
     const prompt = `Analiza este estudio de laboratorio y extrae TODOS los valores. Responde SOLAMENTE con un JSON válido (sin backticks) con: {"lab_name": "...", "lab_date": "YYYY-MM-DD o null", "values": {"glucose": {"value": 95, "unit": "mg/dL"}, ...}, "other_values": [...]}. Incluye todos los biomarcadores que encuentres. Solo valores numéricos. Si no encuentras un valor, no lo incluyas.`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        messages: [{ role: 'user', content: [
-          { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
-          { type: 'text', text: prompt },
-        ]}],
-      }),
-    });
+    const result = await callAnthropic(
+      [{ role: 'user', content: [
+        { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
+        { type: 'text', text: prompt },
+      ]}],
+      4000,
+    );
 
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
-    const result = await response.json();
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
 
     // Parse JSON (clean backticks if present)

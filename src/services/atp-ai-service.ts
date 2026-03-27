@@ -5,7 +5,7 @@
  * para Claude, que retorna un reporte clínico.
  */
 import { supabase } from '@/src/lib/supabase';
-import Constants from 'expo-constants';
+import { callAnthropic } from '@/src/services/anthropic-client';
 
 interface ClientFullData {
   profile: any;
@@ -189,37 +189,15 @@ Sé directo y concreto. Sin disclaimers genéricos.`;
   return p;
 }
 
-/** Llamar a Claude API para análisis */
+/** Llamar a Claude via Edge Function proxy */
 export async function askAtpAI(clientId: string, customQuestion?: string): Promise<string> {
-  const apiKey = Constants.expoConfig?.extra?.anthropicApiKey
-    || process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-
-  if (!apiKey) {
-    return '⚠️ API key de Anthropic no configurada.\n\nAgrega EXPO_PUBLIC_ANTHROPIC_API_KEY a tu archivo .env para habilitar ATP AI.';
-  }
-
   const data = await gatherClientData(clientId);
   const prompt = buildPrompt(data, customQuestion);
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
+  const result = await callAnthropic(
+    [{ role: 'user', content: prompt }],
+    4000,
+  );
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Error de API: ${response.status} — ${err}`);
-  }
-
-  const result = await response.json();
   return result.content?.map((c: any) => c.text || '').join('\n') || 'No se pudo generar el análisis.';
 }
