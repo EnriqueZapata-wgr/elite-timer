@@ -31,6 +31,8 @@ import {
 import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/condition-catalog';
 import { askAtpAI } from '@/src/services/atp-ai-service';
 import { getClientHabits, addHabit, updateHabit, deleteHabit, type DailyHabit } from '@/src/services/daily-habits-service';
+import { calculateAndSaveScore, getLatestScore } from '@/src/services/health-score-service';
+import { RATING_COLORS, type HealthScore as FHScore } from '@/src/data/functional-health-engine';
 import { DayCalendar } from '@/src/components/DayCalendar';
 import {
   startConsultation, getConsultations, getConsultation, updateConsultation,
@@ -328,10 +330,23 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
   // Perfil del cliente (objetivos, biomarcadores)
   const [profile, setProfile] = useState<Record<string, any> | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [healthScore, setHealthScore] = useState<FHScore | null>(null);
+  const [scoreLoading, setScoreLoading] = useState(false);
+  const [scoreExpanded, setScoreExpanded] = useState(false);
 
   useEffect(() => {
     getClientProfile(clientId).then(p => { setProfile(p); setProfileLoaded(true); }).catch(() => setProfileLoaded(true));
+    getLatestScore(clientId).then(setHealthScore).catch(() => {});
   }, [clientId]);
+
+  const handleRecalculate = async () => {
+    setScoreLoading(true);
+    try {
+      const s = await calculateAndSaveScore(clientId);
+      setHealthScore(s);
+    } catch (err: any) { console.error('[calcScore]', err); }
+    setScoreLoading(false);
+  };
 
   const saveProfileField = async (key: string, value: string) => {
     const v = value.trim();
@@ -486,14 +501,78 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
       <EliteText variant="caption" style={styles.rowLabel}>SCORES DE SALUD</EliteText>
       <View style={styles.profileCard}>
         <View style={styles.scoresGrid}>
-          <ScoreCard label="Edad biológica" value="—" unit="años" color="#7F77DD" />
-          <ScoreCard label="Edad metabólica" value="—" unit="años" color="#EF9F27" />
-          <ScoreCard label="Ritmo de envejecimiento" value="—" unit="x" color="#E24B4A" />
-          <ScoreCard label="Salud funcional" value="—" unit="/100" color={TEAL} />
+          <ScoreCard
+            label="Edad biológica"
+            value={healthScore?.biologicalAge ? Math.round(healthScore.biologicalAge).toString() : '—'}
+            unit="años"
+            color={healthScore?.biologicalAge && profile?.date_of_birth
+              ? healthScore.biologicalAge < Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000) ? '#a8e02a' : '#E24B4A'
+              : '#7F77DD'}
+          />
+          <ScoreCard
+            label="Edad metabólica"
+            value={healthScore?.metabolicAge ? healthScore.metabolicAge.toString() : profile?.metabolic_age_impedance?.toString() ?? '—'}
+            unit="años"
+            color="#EF9F27"
+          />
+          <ScoreCard
+            label="Envejecimiento"
+            value={healthScore?.agingRate ? healthScore.agingRate.toFixed(1) : '—'}
+            unit="x"
+            color={healthScore?.agingRate ? (healthScore.agingRate < 10 ? '#a8e02a' : healthScore.agingRate < 12 ? '#EF9F27' : '#E24B4A') : '#E24B4A'}
+          />
+          <ScoreCard
+            label="Salud funcional"
+            value={healthScore?.functionalHealthScore ? Math.round(healthScore.functionalHealthScore).toString() : '—'}
+            unit="/100"
+            color={healthScore?.functionalHealthScore ? (healthScore.functionalHealthScore > 80 ? '#a8e02a' : healthScore.functionalHealthScore > 60 ? '#EF9F27' : '#E24B4A') : TEAL}
+          />
         </View>
-        <EliteText variant="caption" style={{ color: '#444', fontSize: 10, textAlign: 'center', marginTop: Spacing.sm, fontStyle: 'italic' }}>
-          Próximamente: cálculo automático basado en labs, composición y hábitos
-        </EliteText>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm }}>
+          {healthScore?.evaluationQuality != null && (
+            <EliteText variant="caption" style={{ color: '#555', fontSize: 10 }}>
+              Calidad evaluación: {Math.round(healthScore.evaluationQuality)}%
+            </EliteText>
+          )}
+          <Pressable onPress={handleRecalculate} disabled={scoreLoading}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 }}>
+            <Ionicons name={scoreLoading ? 'hourglass-outline' : 'refresh-outline'} size={14} color={TEAL} />
+            <EliteText variant="caption" style={{ color: TEAL, fontSize: 10 }}>
+              {scoreLoading ? 'Calculando...' : 'Recalcular'}
+            </EliteText>
+          </Pressable>
+        </View>
+
+        {/* Detalle por dominio (expandible) */}
+        {healthScore && healthScore.domains.length > 0 && (
+          <>
+            <Pressable onPress={() => setScoreExpanded(!scoreExpanded)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: Spacing.sm }}>
+              <Ionicons name={scoreExpanded ? 'chevron-up' : 'chevron-down'} size={14} color="#666" />
+              <EliteText variant="caption" style={{ color: '#666', fontSize: 10 }}>
+                {scoreExpanded ? 'Ocultar dominios' : 'Ver 10 dominios'}
+              </EliteText>
+            </Pressable>
+            {scoreExpanded && (
+              <View style={{ marginTop: Spacing.sm, gap: Spacing.xs }}>
+                {healthScore.domains.map(d => {
+                  const sf = Math.round(d.functionalScore);
+                  const ce = Math.round(d.evaluationQuality * 100);
+                  const barColor = sf >= 80 ? '#a8e02a' : sf >= 60 ? '#EF9F27' : '#E24B4A';
+                  return (
+                    <View key={d.key} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                      <EliteText variant="caption" style={{ color: '#aaa', fontSize: 10, width: 90 }}>{d.name}</EliteText>
+                      <View style={{ flex: 1, height: 6, backgroundColor: '#1a1a1a', borderRadius: 3, overflow: 'hidden' }}>
+                        <View style={{ width: `${sf}%`, height: '100%', backgroundColor: barColor, borderRadius: 3 }} />
+                      </View>
+                      <EliteText variant="caption" style={{ color: barColor, fontSize: 10, width: 25, textAlign: 'right' }}>{sf}</EliteText>
+                      <EliteText variant="caption" style={{ color: '#555', fontSize: 9, width: 30 }}>CE:{ce}%</EliteText>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </>
+        )}
       </View>
 
       {/* ═══ FILA 3: CONDICIONES ACTIVAS (solo lectura) ═══ */}
