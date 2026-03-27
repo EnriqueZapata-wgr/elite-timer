@@ -1,5 +1,4 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,25 +11,12 @@ serve(async (req) => {
   }
 
   try {
-    // Auth
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    )
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-
     const body = await req.json()
     const { messages, max_tokens, model } = body
 
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), {
+      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured on server' }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -52,7 +38,7 @@ serve(async (req) => {
     const data = await response.json()
 
     if (!response.ok) {
-      return new Response(JSON.stringify({ error: `Anthropic API: ${data?.error?.message || response.status}` }), {
+      return new Response(JSON.stringify({ error: `Anthropic: ${data?.error?.message || response.status}` }), {
         status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
