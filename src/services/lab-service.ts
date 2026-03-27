@@ -79,7 +79,60 @@ export async function extractLabValues(uploadId: string): Promise<{
     const mediaType = upload.file_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
     const contentType = upload.file_type === 'pdf' ? 'document' : 'image';
 
-    const prompt = `Analiza este estudio de laboratorio y extrae TODOS los valores. Responde SOLAMENTE con un JSON válido (sin backticks) con: {"lab_name": "...", "lab_date": "YYYY-MM-DD o null", "values": {"glucose": {"value": 95, "unit": "mg/dL"}, ...}, "other_values": [...]}. Incluye todos los biomarcadores que encuentres. Solo valores numéricos. Si no encuentras un valor, no lo incluyas.`;
+    const prompt = `Analiza este estudio de laboratorio y extrae TODOS los valores.
+
+IMPORTANTE: Los estudios están en español (México). Mapea estos sinónimos:
+- Ácido fólico / Folatos → folate
+- Ácido úrico → uric_acid
+- Nitrógeno ureico / BUN → bun
+- Glucosa en ayunas / Glucosa basal → glucose
+- Hemoglobina glucosilada / HbA1c / A1C → hba1c
+- Colesterol total → cholesterol_total
+- Triglicéridos → triglycerides
+- Proteína C reactiva / PCR ultrasensible / PCR-us → pcr
+- TGP / ALT / Transaminasa glutámico pirúvica → alt
+- TGO / AST / Transaminasa glutámico oxalacética → ast
+- GGT / Gamma glutamil transferasa → ggt
+- Fosfatasa alcalina / FA → alp
+- DHL / LDH / Deshidrogenasa láctica → ldh
+- Creatinina sérica → creatinine
+- Hierro sérico → iron
+- TIBC / Capacidad fijación hierro → iron_binding
+- Saturación de transferrina → iron_saturation
+- VCM / MCV / Volumen corpuscular medio → mcv
+- ADE / RDW / Amplitud distribución eritrocitaria → rdw
+- Leucocitos / Glóbulos blancos → wbc
+- Linfocitos % → lymphocyte_pct
+- Plaquetas / Trombocitos → platelets
+- Hemoglobina → hemoglobin
+- Hematocrito / Hto → hematocrit
+- Bilirrubina total → bilirubin
+- Albúmina → albumin
+- 25-OH Vitamina D / Calcidiol → vitamin_d
+- Vitamina B12 / Cianocobalamina → vitamin_b12
+- Ferritina → ferritin
+- Magnesio → magnesium
+- Zinc → zinc
+- Homocisteína → homocysteine
+- Factor reumatoide / FR → rheumatoid_factor
+- Antiestreptolisinas / ASO / ASLO → aso
+- IgA → iga, IgE → ige, IgG → igg, IgM → igm
+- TSH → tsh, T3 libre → t3_free, T4 libre → t4_free
+- Testosterona total → testosterone, Estradiol / E2 → estradiol
+- Cortisol → cortisol, DHEA-S → dhea, Progesterona → progesterone
+- FSH → fsh, LH → lh, Prolactina / PRL → prolactin
+- Anti-TG / Anti-tiroglobulina → anti_tg
+- Anti-TPO / Anti-peroxidasa → anti_tpo
+- Insulina basal → insulin, HOMA / HOMA-IR → homa_ir
+- Apo B → apo_b, CPK / CK total → cpk
+- Urea → urea, Sodio / Na → sodium, Potasio / K → potassium
+- Cloro / Cl → chloride, VLDL → vldl, Transferrina → transferrin
+- HDL → hdl, LDL → ldl, Colesterol HDL → hdl, Colesterol LDL → ldl
+
+Responde SOLAMENTE con un JSON válido (sin backticks ni markdown) con este formato:
+{"lab_name": "nombre del lab o null", "lab_date": "YYYY-MM-DD o null", "values": {"glucose": {"value": 95, "unit": "mg/dL"}, "hba1c": {"value": 5.4, "unit": "%"}, ...}, "other_values": [{"name": "nombre original", "value": 123, "unit": "mg/dL"}]}
+
+Solo incluye valores encontrados. Si un valor no está en el documento, NO lo incluyas. Valores que no mapeen a ningún campo conocido van en other_values con su nombre original en español.`;
 
     const result = await callAnthropic(
       [{ role: 'user', content: [
