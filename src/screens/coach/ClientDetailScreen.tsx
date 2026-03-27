@@ -32,7 +32,7 @@ import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/cond
 import { askAtpAI } from '@/src/services/atp-ai-service';
 import { getClientHabits, addHabit, updateHabit, deleteHabit, type DailyHabit } from '@/src/services/daily-habits-service';
 import { calculateAndSaveScore, getLatestScore } from '@/src/services/health-score-service';
-import { getLabHistory, approveLabResult, deleteLabResult, type LabResult as LabResultType } from '@/src/services/lab-service';
+import { getLabHistory, approveLabResult, deleteLabResult, uploadLabFile, extractLabValues, type LabResult as LabResultType } from '@/src/services/lab-service';
 import { RATING_COLORS, type HealthScore as FHScore } from '@/src/data/functional-health-engine';
 import { DayCalendar } from '@/src/components/DayCalendar';
 import {
@@ -1679,12 +1679,50 @@ function LabsTab({ clientId }: { clientId: string }) {
   const [labs, setLabs] = useState<LabResultType[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLab, setExpandedLab] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState<{ text: string; color: string } | null>(null);
 
   useEffect(() => { loadLabs(); }, [clientId]);
   const loadLabs = async () => {
     setLoading(true);
     try { setLabs(await getLabHistory(clientId)); } catch { /* */ }
     setLoading(false);
+  };
+
+  const handleUploadWeb = () => {
+    if (typeof document === 'undefined') return;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,application/pdf';
+    input.onchange = async (e: any) => {
+      const file = e.target?.files?.[0];
+      if (!file) return;
+      const fileType: 'image' | 'pdf' = file.type.includes('pdf') ? 'pdf' : 'image';
+      setUploading(true);
+      setUploadMsg({ text: 'Subiendo archivo...', color: TEAL });
+      try {
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve((reader.result as string).split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const { uploadId } = await uploadLabFile(clientId, base64, fileType, file.name);
+        setUploadMsg({ text: 'Analizando con IA...', color: TEAL });
+        const result = await extractLabValues(uploadId);
+        if ('error' in result) {
+          setUploadMsg({ text: `Error: ${result.error}`, color: '#E24B4A' });
+        } else {
+          setUploadMsg({ text: `¡Listo! ${result.extractedCount} valores extraídos`, color: '#a8e02a' });
+          loadLabs();
+        }
+      } catch (err: any) {
+        setUploadMsg({ text: `Error: ${err.message ?? 'Fallo al subir'}`, color: '#E24B4A' });
+      }
+      setUploading(false);
+      setTimeout(() => setUploadMsg(null), 5000);
+    };
+    input.click();
   };
 
   const handleApprove = async (labId: string) => {
@@ -1715,8 +1753,22 @@ function LabsTab({ clientId }: { clientId: string }) {
 
   return (
     <View>
-      <EliteText variant="caption" style={{ color: '#666', fontSize: 11, marginBottom: Spacing.md }}>
-        Los estudios se suben desde la app del cliente o manualmente
+      {/* Botón subir estudio */}
+      <Pressable onPress={handleUploadWeb} disabled={uploading} style={[styles.newConsultBtn, uploading && { opacity: 0.5 }]}>
+        <Ionicons name={uploading ? 'hourglass-outline' : 'cloud-upload-outline'} size={18} color={TEAL} />
+        <EliteText variant="body" style={{ color: TEAL, fontFamily: Fonts.bold }}>
+          {uploading ? 'Procesando...' : 'Subir estudio de laboratorio'}
+        </EliteText>
+      </Pressable>
+
+      {uploadMsg && (
+        <View style={{ backgroundColor: uploadMsg.color + '10', borderWidth: 1, borderColor: uploadMsg.color + '30', borderRadius: 8, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+          <EliteText variant="caption" style={{ color: uploadMsg.color, fontSize: 12 }}>{uploadMsg.text}</EliteText>
+        </View>
+      )}
+
+      <EliteText variant="caption" style={{ color: '#555', fontSize: 10, marginBottom: Spacing.md }}>
+        El cliente también puede subir estudios desde su app
       </EliteText>
 
       {loading ? <ActivityIndicator color={TEAL} /> : labs.length === 0 ? (
