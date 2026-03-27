@@ -6,7 +6,9 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } fro
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
+// ImagePicker requiere rebuild nativo — importar con try/catch
+let ImagePicker: any = null;
+try { ImagePicker = require('expo-image-picker'); } catch { /* no disponible en OTA */ }
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -40,7 +42,11 @@ export default function MyHealthScreen() {
   };
 
   const handlePickImage = async (useCamera: boolean) => {
-    const opts: ImagePicker.ImagePickerOptions = { quality: 0.8, base64: true };
+    if (!ImagePicker) {
+      Alert.alert('No disponible', 'Necesitas actualizar la app para usar la cámara. Instala el APK más reciente.');
+      return;
+    }
+    const opts = { quality: 0.8, base64: true };
     const res = useCamera
       ? await ImagePicker.launchCameraAsync(opts)
       : await ImagePicker.launchImageLibraryAsync(opts);
