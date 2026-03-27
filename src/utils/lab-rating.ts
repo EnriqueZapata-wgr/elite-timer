@@ -116,6 +116,10 @@ function findParam(engineKey: string) {
 }
 
 // Evaluar un valor contra un array de thresholds [t0..t7]
+// Estructura: [t0 t1 t2 t3 t4 t5 t6 t7]
+//   t[3]-t[4] = rango óptimo
+//   t[0]-t[2] = umbrales por debajo (o por encima si invertido)
+//   t[5]-t[7] = umbrales por encima (o por debajo si invertido)
 function rateAgainstRanges(value: number, t: (number | null)[]): { level: RatingLevel; direction: Direction } {
   if (t[3] !== null && t[4] !== null) {
     if (t[3] <= t[4]) {
@@ -132,14 +136,36 @@ function rateAgainstRanges(value: number, t: (number | null)[]): { level: Rating
       if (t[6] !== null && value <= t[6]) return { level: 'risk', direction: 'above' };
       if (t[7] !== null && value <= t[7]) return { level: 'critical', direction: 'above' };
       return { level: 'out_of_range', direction: 'above' };
-    } else {
-      // Higher is better: t[3] > t[4] (ej: hemoglobina, HDL)
-      if (value >= t[3]) return { level: 'optimal', direction: 'in_range' };
-      if (value >= t[4]) return { level: 'acceptable', direction: 'below' };
-      if (t[5] !== null && value >= t[5]) return { level: 'risk', direction: 'below' };
-      if (t[6] !== null && value >= t[6]) return { level: 'critical', direction: 'below' };
+    }
+
+    // t[3] > t[4] — Dos casos:
+    const hasBidirectional = t[0] !== null || t[1] !== null || t[2] !== null;
+
+    if (hasBidirectional) {
+      // Rango bidireccional invertido (ej: grasa corporal, colesterol, visceral)
+      // Óptimo entre t[4] (bajo) y t[3] (alto), umbrales invertidos:
+      //   Arriba de t[3] → t[2] aceptable, t[1] riesgo, t[0] crítico
+      //   Abajo de t[4] → t[5] aceptable, t[6] riesgo, t[7] crítico
+      if (value >= t[4] && value <= t[3]) return { level: 'optimal', direction: 'in_range' };
+      if (value > t[3]) {
+        if (t[2] !== null && value <= t[2]) return { level: 'acceptable', direction: 'above' };
+        if (t[1] !== null && value <= t[1]) return { level: 'risk', direction: 'above' };
+        if (t[0] !== null && value <= t[0]) return { level: 'critical', direction: 'above' };
+        return { level: 'out_of_range', direction: 'above' };
+      }
+      // value < t[4]
+      if (t[5] !== null && value >= t[5]) return { level: 'acceptable', direction: 'below' };
+      if (t[6] !== null && value >= t[6]) return { level: 'risk', direction: 'below' };
+      if (t[7] !== null && value >= t[7]) return { level: 'critical', direction: 'below' };
       return { level: 'out_of_range', direction: 'below' };
     }
+
+    // Higher is better (ej: HDL, hemoglobina) — t[0-2] son null
+    if (value >= t[3]) return { level: 'optimal', direction: 'in_range' };
+    if (value >= t[4]) return { level: 'acceptable', direction: 'below' };
+    if (t[5] !== null && value >= t[5]) return { level: 'risk', direction: 'below' };
+    if (t[6] !== null && value >= t[6]) return { level: 'critical', direction: 'below' };
+    return { level: 'out_of_range', direction: 'below' };
   }
   // Lower is better: t[3] === null means only upper thresholds
   if (t[3] === null && t[4] !== null) {
