@@ -43,7 +43,7 @@ async function preload(key: string, asset: number): Promise<void> {
     const { sound } = await Audio.Sound.createAsync(asset, { shouldPlay: false });
     cache.set(key, sound);
   } catch (e) {
-    console.warn(`[sounds] preload "${key}" falló:`, e);
+    if (__DEV__) console.warn(`[sounds] preload "${key}" falló:`, e);
   }
 }
 
@@ -56,7 +56,7 @@ async function play(key: string, volume: number): Promise<void> {
     await sound.setVolumeAsync(Math.max(0, Math.min(1, volume)));
     await sound.playAsync();
   } catch (e) {
-    console.warn(`[sounds] play "${key}" falló:`, e);
+    if (__DEV__) console.warn(`[sounds] play "${key}" falló:`, e);
   }
 }
 

@@ -95,7 +95,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
     } catch (err: any) {
       const msg = err?.message ?? 'No se pudo agregar. ¿Ejecutaste la migración 008 en Supabase?';
       setInviteError(msg);
-      console.error('[inviteClient]', err);
+      if (__DEV__) console.error('[inviteClient]', err);
     }
     setInviting(false);
   };

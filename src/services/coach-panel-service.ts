@@ -208,6 +208,26 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
     .select('id', { count: 'exact', head: true })
     .eq('client_id', clientId);
 
+  // Compliance del protocolo este mes
+  let compliancePct = 0;
+  try {
+    const { data: compData } = await supabase
+      .from('protocol_completions')
+      .select('id')
+      .eq('user_id', clientId)
+      .gte('completion_date', startOfMonth.toISOString().split('T')[0]);
+    const { count: totalItems } = await supabase
+      .from('protocol_items')
+      .select('id', { count: 'exact', head: true })
+      .in('protocol_id', (
+        await supabase.from('protocol_assignments').select('protocol_id').eq('user_id', clientId).eq('is_active', true)
+      ).data?.map((a: any) => a.protocol_id) ?? []);
+    const daysInMonth = new Date().getDate();
+    const expectedTotal = (totalItems ?? 0) * daysInMonth;
+    const completedTotal = compData?.length ?? 0;
+    compliancePct = expectedTotal > 0 ? Math.round((completedTotal / expectedTotal) * 100) : 0;
+  } catch { /* tabla puede no existir */ }
+
   return {
     sessions_this_month: sessionDates.size,
     volume_kg: Math.round(volumeKg),
@@ -216,7 +236,7 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
     conditions_present: condPresent,
     conditions_observation: condObs,
     total_consultations: totalConsults ?? 0,
-    compliance_pct: 0, // TODO: calcular desde protocol_completions
+    compliance_pct: compliancePct,
   };
 }
 

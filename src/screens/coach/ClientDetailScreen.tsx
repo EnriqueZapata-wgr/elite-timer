@@ -347,7 +347,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
     try {
       const s = await calculateAndSaveScore(clientId);
       setHealthScore(s);
-    } catch (err: any) { console.error('[calcScore]', err); }
+    } catch (err: any) { if (__DEV__) console.error('[calcScore]', err); }
     setScoreLoading(false);
   };
 
@@ -1266,7 +1266,7 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
       const c = await getConsultation(id);
       if (c) { setActiveConsult(c); await loadList(); }
     } catch (err: any) {
-      console.error('[startConsultation]', err);
+      if (__DEV__) console.error('[startConsultation]', err);
     }
     setCreating(false);
   };
@@ -1436,7 +1436,7 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
                         try {
                           await addHabit(clientId, { ...data, consultation_id: activeConsult.id });
                           setHabits(await getClientHabits(clientId));
-                        } catch (err: any) { console.error('[addHabit]', err); }
+                        } catch (err: any) { if (__DEV__) console.error('[addHabit]', err); }
                       }}
                       onEdit={async (h, data) => {
                         await updateHabit(h.id, data);
