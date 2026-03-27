@@ -32,8 +32,10 @@ import { CONDITION_ZONES, FLAG_STATUSES, type FlagStatus } from '@/src/data/cond
 import { askAtpAI } from '@/src/services/atp-ai-service';
 import { getClientHabits, addHabit, updateHabit, deleteHabit, type DailyHabit } from '@/src/services/daily-habits-service';
 import { calculateAndSaveScore, getLatestScore } from '@/src/services/health-score-service';
-import { getLabHistory, approveLabResult, deleteLabResult, uploadLabFile, extractLabValues, type LabResult as LabResultType } from '@/src/services/lab-service';
+import { getLabHistory, approveLabResult, deleteLabResult, deleteLabUpload, getFailedUploads, uploadLabFile, extractLabValues, type LabResult as LabResultType, type LabUpload } from '@/src/services/lab-service';
 import { RATING_COLORS, type HealthScore as FHScore } from '@/src/data/functional-health-engine';
+import { rateLabValue, rateBodyValue, rateBioValue, type ValueRating } from '@/src/utils/lab-rating';
+import type { Sex } from '@/src/data/functional-health-engine';
 import { DayCalendar } from '@/src/components/DayCalendar';
 import {
   startConsultation, getConsultations, getConsultation, updateConsultation,
@@ -432,7 +434,7 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
           />
         </View>
         <View style={isWide ? { flex: 1 } : undefined}>
-          <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" alwaysExpanded />
+          <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" alwaysExpanded sex={(profile?.biological_sex as Sex) ?? 'male'} />
           {/* Barra visual de contexto de peso */}
           {profileLoaded && profile?.weight_highest_kg && profile?.weight_lowest_kg && (
             <WeightContextBar
@@ -450,33 +452,50 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
         <View style={isWide ? { flex: 1 } : undefined}>
           <View style={styles.profileCard}>
             <EliteText variant="caption" style={styles.profileCardLabel}>BIOMARCADORES FÍSICOS</EliteText>
-            {profileLoaded && (
+            {profileLoaded && (() => {
+              const sx = (profile?.biological_sex as Sex) ?? 'male';
+              const sysR = rateBioValue('blood_pressure_sys', profile?.blood_pressure_sys ? Number(profile.blood_pressure_sys) : null, sx);
+              const diaR = rateBioValue('blood_pressure_dia', profile?.blood_pressure_dia ? Number(profile.blood_pressure_dia) : null, sx);
+              const bpColor = sysR.level !== 'no_data' ? sysR.color : diaR.level !== 'no_data' ? diaR.color : '#E24B4A';
+              const bpRating = sysR.level !== 'no_data' ? sysR : diaR.level !== 'no_data' ? diaR : null;
+              return (
               <View style={styles.bioGrid}>
                 <BioField label="F. Agarre" unit="kg" color="#a8e02a"
                   value={profile?.grip_strength_kg?.toString() ?? ''}
-                  onSave={v => saveProfileField('grip_strength_kg', v)} />
-                <View style={styles.bioFieldWide}>
-                  <EliteText variant="caption" style={styles.bioLabel}>Presión arterial</EliteText>
+                  onSave={v => saveProfileField('grip_strength_kg', v)}
+                  rating={rateBioValue('grip_strength_kg', profile?.grip_strength_kg ? Number(profile.grip_strength_kg) : null, sx)} />
+                <View style={[styles.bioFieldWide, bpRating && bpRating.level !== 'no_data' ? { backgroundColor: bpRating.bgColor, borderRadius: 6 } : undefined]}>
+                  <EliteText variant="caption" style={styles.bioLabel}>
+                    {bpRating && bpRating.level !== 'no_data' && <EliteText style={{ fontSize: 12, color: bpRating.color }}>{bpRating.arrow} </EliteText>}
+                    Presión arterial
+                  </EliteText>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <TextInput style={[styles.bioInput, { width: 44, color: '#E24B4A' }]}
+                    <TextInput style={[styles.bioInput, { width: 44, color: bpColor }]}
                       defaultValue={profile?.blood_pressure_sys?.toString() ?? ''}
                       onEndEditing={e => saveProfileField('blood_pressure_sys', e.nativeEvent.text)}
                       keyboardType="numeric" placeholder="120" placeholderTextColor="#333" />
                     <EliteText style={{ color: '#666', fontSize: 16 }}>/</EliteText>
-                    <TextInput style={[styles.bioInput, { width: 44, color: '#E24B4A' }]}
+                    <TextInput style={[styles.bioInput, { width: 44, color: bpColor }]}
                       defaultValue={profile?.blood_pressure_dia?.toString() ?? ''}
                       onEndEditing={e => saveProfileField('blood_pressure_dia', e.nativeEvent.text)}
                       keyboardType="numeric" placeholder="80" placeholderTextColor="#333" />
+                    {bpRating && bpRating.level !== 'no_data' && (
+                      <View style={{ backgroundColor: bpRating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, marginLeft: 2 }}>
+                        <EliteText variant="caption" style={{ color: bpRating.color, fontSize: 8, fontFamily: Fonts.bold }}>{bpRating.label}</EliteText>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <BioField label="VO2 máx" unit="ml/kg/min" color="#5B9BD5"
                   value={profile?.vo2_max?.toString() ?? ''}
-                  onSave={v => saveProfileField('vo2_max', v)} />
+                  onSave={v => saveProfileField('vo2_max', v)}
+                  rating={rateBioValue('vo2_max', profile?.vo2_max ? Number(profile.vo2_max) : null, sx)} />
                 <BioField label="Edad metab." unit="años" color="#EF9F27"
                   value={profile?.metabolic_age_impedance?.toString() ?? ''}
                   onSave={v => saveProfileField('metabolic_age_impedance', v)} />
               </View>
-            )}
+              );
+            })()}
           </View>
         </View>
         <View style={isWide ? { flex: 1 } : undefined}>
@@ -636,9 +655,9 @@ const RELATION_COLORS: Record<string, string> = {
   'Abuel@': '#888', 'Otro': '#666',
 };
 
-function CollapsibleSection({ title, clientId, type, alwaysExpanded }: {
+function CollapsibleSection({ title, clientId, type, alwaysExpanded, sex }: {
   title: string; clientId: string; type: 'measurements' | 'medications' | 'supplements' | 'family';
-  alwaysExpanded?: boolean;
+  alwaysExpanded?: boolean; sex?: Sex;
 }) {
   const [expanded, setExpanded] = useState(alwaysExpanded ?? false);
   const [data, setData] = useState<any[]>([]);
@@ -707,22 +726,38 @@ function CollapsibleSection({ title, clientId, type, alwaysExpanded }: {
                 latest ? (
                   <View style={styles.measGrid}>
                     {[
-                      { l: 'Peso (kg)', v: latest.weight_kg, u: '' },
-                      { l: 'Grasa (%)', v: latest.body_fat_pct, u: '' },
-                      { l: 'Músculo (kg)', v: latest.muscle_mass_kg ?? latest.muscle_mass_pct, u: '' },
-                      { l: 'Agua (%)', v: latest.body_water_pct, u: '' },
-                      { l: 'G. Visceral', v: latest.visceral_fat, u: '' },
-                      { l: 'Cintura (cm)', v: latest.waist_cm, u: '' },
-                      { l: 'Cadera (cm)', v: latest.hip_cm, u: '' },
-                      { l: 'Abdomen (cm)', v: latest.chest_cm, u: '' },
-                      { l: 'Bíceps (cm)', v: latest.arm_cm, u: '' },
-                      { l: 'Pierna (cm)', v: latest.leg_cm, u: '' },
-                    ].map(m => (
-                      <View key={m.l} style={styles.measItem}>
-                        <EliteText variant="caption" style={styles.measLabel}>{m.l}</EliteText>
-                        <EliteText style={styles.measValue}>{m.v ?? '—'}{m.v ? m.u : ''}</EliteText>
-                      </View>
-                    ))}
+                      { l: 'Peso (kg)', v: latest.weight_kg, k: '' },
+                      { l: 'Grasa (%)', v: latest.body_fat_pct, k: 'body_fat_pct' },
+                      { l: 'Músculo (kg)', v: latest.muscle_mass_kg ?? latest.muscle_mass_pct, k: 'muscle_mass_pct' },
+                      { l: 'Agua (%)', v: latest.body_water_pct, k: '' },
+                      { l: 'G. Visceral', v: latest.visceral_fat, k: 'visceral_fat' },
+                      { l: 'Cintura (cm)', v: latest.waist_cm, k: '' },
+                      { l: 'Cadera (cm)', v: latest.hip_cm, k: '' },
+                      { l: 'Abdomen (cm)', v: latest.chest_cm, k: '' },
+                      { l: 'Bíceps (cm)', v: latest.arm_cm, k: '' },
+                      { l: 'Pierna (cm)', v: latest.leg_cm, k: '' },
+                    ].map(m => {
+                      const rating = m.k ? rateBodyValue(m.k, m.v != null ? Number(m.v) : null, sex ?? 'male') : null;
+                      const hasRating = rating && rating.level !== 'no_data';
+                      return (
+                        <View key={m.l} style={[styles.measItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6, paddingHorizontal: 4 } : undefined]}>
+                          <EliteText variant="caption" style={styles.measLabel}>
+                            {hasRating && <EliteText style={{ fontSize: 12, color: rating.color }}>{rating.arrow} </EliteText>}
+                            {m.l}
+                          </EliteText>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <EliteText style={[styles.measValue, hasRating ? { color: rating.color } : undefined]}>
+                              {m.v ?? '—'}
+                            </EliteText>
+                            {hasRating && (
+                              <View style={{ backgroundColor: rating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 }}>
+                                <EliteText variant="caption" style={{ color: rating.color, fontSize: 8, fontFamily: Fonts.bold }}>{rating.label}</EliteText>
+                              </View>
+                            )}
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
                 ) : (
                   <EliteText variant="caption" style={styles.emptySection}>Sin mediciones</EliteText>
@@ -1156,15 +1191,20 @@ function WeightContextBar({ lowest, current, highest, ideal }: {
   );
 }
 
-function BioField({ label, unit, color, value, onSave }: {
-  label: string; unit: string; color: string; value: string; onSave: (v: string) => void;
+function BioField({ label, unit, color, value, onSave, rating }: {
+  label: string; unit: string; color: string; value: string; onSave: (v: string) => void; rating?: ValueRating;
 }) {
+  const hasRating = rating && rating.level !== 'no_data';
+  const displayColor = hasRating ? rating.color : color;
   return (
-    <View style={styles.bioItem}>
-      <EliteText variant="caption" style={styles.bioLabel}>{label}</EliteText>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+    <View style={[styles.bioItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6 } : undefined]}>
+      <EliteText variant="caption" style={styles.bioLabel}>
+        {hasRating && <EliteText style={{ fontSize: 12, color: rating.color }}>{rating.arrow} </EliteText>}
+        {label}
+      </EliteText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
         <TextInput
-          style={[styles.bioInput, { color }]}
+          style={[styles.bioInput, { color: displayColor }]}
           defaultValue={value}
           onEndEditing={e => onSave(e.nativeEvent.text)}
           keyboardType="numeric"
@@ -1172,6 +1212,11 @@ function BioField({ label, unit, color, value, onSave }: {
           placeholderTextColor="#333"
         />
         <EliteText variant="caption" style={{ color: '#666', fontSize: 9 }}>{unit}</EliteText>
+        {hasRating && (
+          <View style={{ backgroundColor: rating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 }}>
+            <EliteText variant="caption" style={{ color: rating.color, fontSize: 8, fontFamily: Fonts.bold }}>{rating.label}</EliteText>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -1536,7 +1581,7 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
             </View>
 
             {/* Composición corporal (siempre expandida) */}
-            <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" alwaysExpanded />
+            <CollapsibleSection title="Composición corporal" clientId={clientId} type="measurements" alwaysExpanded sex={(consultProfile?.biological_sex as Sex) ?? 'male'} />
 
             {/* Contexto de peso */}
             {isDraft && consultProfile && (
@@ -1678,15 +1723,30 @@ const LAB_SECTIONS = [
 
 function LabsTab({ clientId }: { clientId: string }) {
   const [labs, setLabs] = useState<LabResultType[]>([]);
+  const [failedUploads, setFailedUploads] = useState<LabUpload[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLab, setExpandedLab] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<{ text: string; color: string } | null>(null);
+  const [clientSex, setClientSex] = useState<Sex>('male');
 
-  useEffect(() => { loadLabs(); }, [clientId]);
+  useEffect(() => { loadLabs(); loadSex(); }, [clientId]);
+  const loadSex = async () => {
+    try {
+      const p = await getClientProfile(clientId);
+      if (p?.biological_sex) setClientSex(p.biological_sex as Sex);
+    } catch { /* */ }
+  };
   const loadLabs = async () => {
     setLoading(true);
-    try { setLabs(await getLabHistory(clientId)); } catch { /* */ }
+    try {
+      const [labsData, uploadsData] = await Promise.all([
+        getLabHistory(clientId),
+        getFailedUploads(clientId),
+      ]);
+      setLabs(labsData);
+      setFailedUploads(uploadsData);
+    } catch { /* */ }
     setLoading(false);
   };
 
@@ -1772,6 +1832,35 @@ function LabsTab({ clientId }: { clientId: string }) {
         El cliente también puede subir estudios desde su app
       </EliteText>
 
+      {/* Uploads fallidos/pendientes */}
+      {failedUploads.length > 0 && (
+        <View style={{ marginBottom: Spacing.md }}>
+          <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 4 }}>
+            UPLOADS PENDIENTES / FALLIDOS
+          </EliteText>
+          {failedUploads.map(u => (
+            <View key={u.id} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a0a0a', borderRadius: 8, padding: Spacing.sm, marginBottom: 4 }}>
+              <Ionicons name={u.status === 'failed' ? 'alert-circle' : 'hourglass-outline'} size={14} color={u.status === 'failed' ? '#E24B4A' : '#EF9F27'} />
+              <View style={{ flex: 1, marginLeft: Spacing.sm }}>
+                <EliteText variant="caption" style={{ color: '#aaa', fontSize: 11 }}>
+                  {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : u.status === 'processing' ? 'Procesando' : 'Subido'}
+                </EliteText>
+                {u.error_message && <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 10 }}>{u.error_message}</EliteText>}
+              </View>
+              <Pressable
+                onPress={async () => {
+                  if (typeof window !== 'undefined' && !window.confirm('¿Eliminar este upload?')) return;
+                  try { await deleteLabUpload(u.id); loadLabs(); } catch { /* */ }
+                }}
+                style={{ padding: 6 }}
+              >
+                <Ionicons name="trash-outline" size={16} color="#E24B4A" />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
+
       {loading ? <ActivityIndicator color={TEAL} /> : labs.length === 0 ? (
         <EliteText variant="caption" style={{ color: '#555', textAlign: 'center', padding: Spacing.xl }}>
           Sin resultados de laboratorio
@@ -1805,20 +1894,25 @@ function LabsTab({ clientId }: { clientId: string }) {
                         </EliteText>
                         {vals.map(key => {
                           const val = lab[key];
-                          // Use engine to rate
-                          let color = '#aaa';
-                          try {
-                            const { rateValue: rv } = require('@/src/data/functional-health-engine');
-                            // Simple inline lookup — find param in DOMAINS
-                          } catch { /* */ }
+                          const rating = rateLabValue(key, Number(val), clientSex);
                           return (
-                            <View key={key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: '#111' }}>
-                              <EliteText variant="caption" style={{ flex: 1, color: '#aaa', fontSize: 12 }}>
+                            <View key={key} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 6, marginBottom: 2, borderRadius: 6, backgroundColor: rating.level !== 'no_data' ? rating.bgColor : 'transparent' }}>
+                              <EliteText style={{ fontSize: 16, color: rating.color, width: 20, textAlign: 'center' }}>
+                                {rating.arrow}
+                              </EliteText>
+                              <EliteText variant="caption" style={{ flex: 1, color: '#fff', fontSize: 12, marginLeft: 4 }}>
                                 {key.replace(/_/g, ' ')}
                               </EliteText>
-                              <EliteText variant="body" style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] }}>
+                              <EliteText variant="body" style={{ color: rating.color, fontFamily: Fonts.bold, fontSize: 14, fontVariant: ['tabular-nums'] }}>
                                 {val}
                               </EliteText>
+                              {rating.level !== 'no_data' && (
+                                <View style={{ backgroundColor: rating.bgColor, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, marginLeft: 8 }}>
+                                  <EliteText variant="caption" style={{ color: rating.color, fontSize: 10, fontFamily: Fonts.bold }}>
+                                    {rating.label}
+                                  </EliteText>
+                                </View>
+                              )}
                             </View>
                           );
                         })}
