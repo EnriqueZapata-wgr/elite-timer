@@ -6,10 +6,12 @@
  */
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, FlatList, Pressable, TextInput, ActivityIndicator, Share, Modal, Alert, Image } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { useAuth } from '@/src/contexts/auth-context';
 import { getClientList, getCoachProfile, type ClientSummary } from '@/src/services/coach-panel-service';
 import { inviteClientByEmail, updateClientName } from '@/src/services/coach-service';
 import { useCoachStatus, refreshCoachStatus } from '@/src/hooks/useCoachStatus';
@@ -23,6 +25,8 @@ interface Props {
 }
 
 export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
+  const router = useRouter();
+  const { signOut } = useAuth();
   const { coachCode } = useCoachStatus();
   const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -228,6 +232,23 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
         <Pressable onPress={onSwitchToAthlete} style={styles.switchBtn}>
           <Ionicons name="fitness-outline" size={18} color={Colors.textSecondary} />
           <EliteText variant="caption" style={styles.switchText}>Ir a mi entrenamiento</EliteText>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            if (typeof window !== 'undefined' && window.confirm) {
+              if (!window.confirm('¿Seguro que quieres cerrar sesión?')) return;
+              signOut().then(() => router.replace('/login'));
+            } else {
+              Alert.alert('Cerrar sesión', '¿Seguro que quieres cerrar sesión?', [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Cerrar sesión', style: 'destructive', onPress: async () => { await signOut(); router.replace('/login'); } },
+              ]);
+            }
+          }}
+          style={styles.logoutBtn}
+        >
+          <Ionicons name="log-out-outline" size={18} color={SEMANTIC.error} />
+          <EliteText variant="caption" style={styles.logoutText}>Cerrar sesión</EliteText>
         </Pressable>
       </View>
 
@@ -459,6 +480,17 @@ const styles = StyleSheet.create({
     borderTopColor: SURFACES.cardLight,
   },
   switchText: { color: TEXT_COLORS.secondary, fontSize: 13 },
+
+  // Logout
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  logoutText: { color: SEMANTIC.error, fontSize: 13 },
 
   // Main
   mainArea: { flex: 1, backgroundColor: ATP_BRAND.black },

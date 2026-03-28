@@ -417,12 +417,22 @@ export default function SettingsScreen() {
 
         {/* ── Sesión ── */}
         <Animated.View entering={FadeInUp.delay(950).springify()} style={styles.logoutContainer}>
-          <EliteButton
-            label="CERRAR SESIÓN"
-            onPress={async () => { await signOut(); router.replace('/login'); }}
-            variant="outline"
+          <Pressable
+            onPress={() => {
+              if (typeof window !== 'undefined' && window.confirm) {
+                if (!window.confirm('¿Seguro que quieres cerrar sesión?')) return;
+                signOut().then(() => router.replace('/login'));
+              } else {
+                Alert.alert('Cerrar sesión', '¿Seguro que quieres cerrar sesión?', [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Cerrar sesión', style: 'destructive', onPress: async () => { await signOut(); router.replace('/login'); } },
+                ]);
+              }
+            }}
             style={styles.logoutButton}
-          />
+          >
+            <EliteText variant="body" style={styles.logoutText}>Cerrar sesión</EliteText>
+          </Pressable>
         </Animated.View>
 
         <View style={{ height: 40 }} />
@@ -763,6 +773,12 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
   },
   logoutButton: {
-    minWidth: 200,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+  },
+  logoutText: {
+    color: Colors.error,
+    fontFamily: Fonts.semiBold,
+    fontSize: 15,
   },
 });
