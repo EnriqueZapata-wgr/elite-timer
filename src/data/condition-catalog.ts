@@ -2,6 +2,7 @@
  * Catálogo de condiciones médicas por zona — Tablero del coach.
  * Cada condición es un flag con 4 estados: no evaluado → normal → observación → presente.
  */
+import { ATP_BRAND, CATEGORY_COLORS, SEMANTIC } from '../constants/brand';
 
 export interface ConditionDef {
   key: string;
@@ -18,7 +19,7 @@ export interface ZoneDef {
 
 export const CONDITION_ZONES: ZoneDef[] = [
   {
-    key: 'metabolic', label: 'Metabólico', color: '#EF9F27',
+    key: 'metabolic', label: 'Metabólico', color: SEMANTIC.warning,
     conditions: [
       { key: 'insulin_resistance', label: 'Resistencia a insulina', zone: 'metabolic' },
       { key: 'diabetes_t1', label: 'Diabetes tipo 1', zone: 'metabolic' },
@@ -37,7 +38,7 @@ export const CONDITION_ZONES: ZoneDef[] = [
     ],
   },
   {
-    key: 'digestive', label: 'Digestivo', color: '#5B9BD5',
+    key: 'digestive', label: 'Digestivo', color: CATEGORY_COLORS.nutrition,
     conditions: [
       { key: 'ibs', label: 'Colon irritable (SII)', zone: 'digestive' },
       { key: 'gerd', label: 'Reflujo (ERGE)', zone: 'digestive' },
@@ -67,7 +68,7 @@ export const CONDITION_ZONES: ZoneDef[] = [
     ],
   },
   {
-    key: 'cardiovascular', label: 'Cardiovascular', color: '#E24B4A',
+    key: 'cardiovascular', label: 'Cardiovascular', color: SEMANTIC.error,
     conditions: [
       { key: 'hypertension', label: 'Hipertensión', zone: 'cardiovascular' },
       { key: 'hypotension', label: 'Hipotensión', zone: 'cardiovascular' },
@@ -79,7 +80,7 @@ export const CONDITION_ZONES: ZoneDef[] = [
     ],
   },
   {
-    key: 'hematologic', label: 'Hematológico', color: '#E24B4A',
+    key: 'hematologic', label: 'Hematológico', color: SEMANTIC.error,
     conditions: [
       { key: 'anemia', label: 'Anemia', zone: 'hematologic' },
       { key: 'iron_deficiency', label: 'Deficiencia de hierro', zone: 'hematologic' },
@@ -90,7 +91,7 @@ export const CONDITION_ZONES: ZoneDef[] = [
     ],
   },
   {
-    key: 'renal', label: 'Renal', color: '#1D9E75',
+    key: 'renal', label: 'Renal', color: CATEGORY_COLORS.metrics,
     conditions: [
       { key: 'kidney_stones', label: 'Cálculos renales', zone: 'renal' },
       { key: 'ckd', label: 'Enfermedad renal crónica', zone: 'renal' },
@@ -118,7 +119,7 @@ export const CONDITION_ZONES: ZoneDef[] = [
     ],
   },
   {
-    key: 'oncologic', label: 'Oncológico', color: '#7F77DD',
+    key: 'oncologic', label: 'Oncológico', color: CATEGORY_COLORS.mind,
     conditions: [
       { key: 'cancer_active', label: 'Cáncer activo', zone: 'oncologic' },
       { key: 'cancer_remission', label: 'Cáncer en remisión', zone: 'oncologic' },
@@ -128,7 +129,7 @@ export const CONDITION_ZONES: ZoneDef[] = [
     ],
   },
   {
-    key: 'musculoskeletal', label: 'Musculoesquelético', color: '#a8e02a',
+    key: 'musculoskeletal', label: 'Musculoesquelético', color: ATP_BRAND.lime,
     conditions: [
       { key: 'herniated_disc', label: 'Hernia de disco', zone: 'musculoskeletal' },
       { key: 'knee_injury', label: 'Lesión de rodilla', zone: 'musculoskeletal' },
@@ -143,7 +144,7 @@ export const CONDITION_ZONES: ZoneDef[] = [
     ],
   },
   {
-    key: 'neurologic', label: 'Neurológico / Mental', color: '#7F77DD',
+    key: 'neurologic', label: 'Neurológico / Mental', color: CATEGORY_COLORS.mind,
     conditions: [
       { key: 'anxiety_disorder', label: 'Trastorno de ansiedad', zone: 'neurologic' },
       { key: 'depression', label: 'Depresión', zone: 'neurologic' },
@@ -160,7 +161,7 @@ export const CONDITION_ZONES: ZoneDef[] = [
     ],
   },
   {
-    key: 'habits', label: 'Hábitos y Estilo de Vida', color: '#EF9F27',
+    key: 'habits', label: 'Hábitos y Estilo de Vida', color: SEMANTIC.warning,
     conditions: [
       { key: 'smoking', label: 'Tabaquismo', zone: 'habits' },
       { key: 'alcohol_excess', label: 'Exceso de alcohol', zone: 'habits' },
@@ -183,9 +184,9 @@ export type FlagStatus = 'not_evaluated' | 'normal' | 'observation' | 'present';
 
 export const FLAG_STATUSES: Record<FlagStatus, { label: string; color: string; bgColor: string }> = {
   not_evaluated: { label: 'No evaluado', color: '#666666', bgColor: '#333333' },
-  normal: { label: 'Normal', color: '#a8e02a', bgColor: 'rgba(168, 224, 42, 0.1)' },
-  observation: { label: 'En observación', color: '#EF9F27', bgColor: 'rgba(239, 159, 39, 0.1)' },
-  present: { label: 'Presente', color: '#E24B4A', bgColor: 'rgba(226, 75, 74, 0.15)' },
+  normal: { label: 'Normal', color: SEMANTIC.success, bgColor: 'rgba(168, 224, 42, 0.1)' },
+  observation: { label: 'En observación', color: SEMANTIC.warning, bgColor: 'rgba(239, 159, 39, 0.1)' },
+  present: { label: 'Presente', color: SEMANTIC.error, bgColor: 'rgba(226, 75, 74, 0.15)' },
 };
 
 /** Ciclo de estados al hacer tap */

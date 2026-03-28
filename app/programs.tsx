@@ -15,6 +15,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ScheduleModal } from '@/src/components/ScheduleModal';
 import { shareRoutine } from '@/src/services/share-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { flattenRoutine, calcRoutineStats, formatTimeHuman } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
 import type { RoutineCalcStats } from '@/src/engine/helpers';
@@ -261,13 +262,13 @@ export default function ProgramsScreen() {
                 onPress={() => setFilter('routine')}
                 style={[
                   styles.filterPill,
-                  filter === 'routine' && [styles.filterPillActive, { borderColor: '#7F77DD', backgroundColor: '#7F77DD' + '15' }],
+                  filter === 'routine' && [styles.filterPillActive, { borderColor: CATEGORY_COLORS.mind, backgroundColor: CATEGORY_COLORS.mind + '15' }],
                 ]}
               >
-                <View style={[styles.filterDot, { backgroundColor: '#7F77DD' }]} />
+                <View style={[styles.filterDot, { backgroundColor: CATEGORY_COLORS.mind }]} />
                 <EliteText variant="caption" style={[
                   styles.filterPillText,
-                  filter === 'routine' && { color: '#7F77DD' },
+                  filter === 'routine' && { color: CATEGORY_COLORS.mind },
                 ]}>
                   Rutinas
                 </EliteText>
@@ -283,7 +284,7 @@ export default function ProgramsScreen() {
             const gradColors: readonly [string, string] = isTimer
               ? ['#1a2a1a', '#0a1a0a']
               : ['#1a1a2a', '#0a0a1a'];
-            const accentColor = isTimer ? Colors.neonGreen : '#7F77DD';
+            const accentColor = isTimer ? Colors.neonGreen : CATEGORY_COLORS.mind;
             const modeLabel = isTimer ? 'TIMER' : 'RUTINA';
 
             return (
@@ -546,7 +547,7 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.md + 6,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
     flexDirection: 'row',
     alignItems: 'center',
   },

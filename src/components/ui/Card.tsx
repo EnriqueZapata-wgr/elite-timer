@@ -3,6 +3,7 @@
  */
 import { type ReactNode } from 'react';
 import { View, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
+import { Colors } from '@/constants/theme';
 
 type CardVariant = 'elevated' | 'glass' | 'accent';
 
@@ -34,7 +35,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   elevated: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: Colors.surfaceLight,
     borderWidth: 0.5,
     borderColor: '#2A2A2A',
   },
@@ -44,10 +45,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.1)',
   },
   accent: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: Colors.surfaceLight,
     borderWidth: 0.5,
     borderColor: '#2A2A2A',
     borderLeftWidth: 3,
-    borderLeftColor: '#a8e02a',
+    borderLeftColor: Colors.neonGreen,
   },
 });

@@ -16,6 +16,7 @@ import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getShareInfo, cloneFromShare, type ShareInfo } from '@/src/services/share-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { CATEGORY_COLORS } from '@/src/constants/brand';
 
 export default function SharedRoutineScreen() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function SharedRoutineScreen() {
   };
 
   const isTimer = info?.routine_mode === 'timer';
-  const accentColor = isTimer ? Colors.neonGreen : '#7F77DD';
+  const accentColor = isTimer ? Colors.neonGreen : CATEGORY_COLORS.mind;
 
   return (
     <ScreenContainer centered>
@@ -221,7 +222,7 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.lg + 6,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
     marginBottom: Spacing.lg,
   },
   cardAccent: {
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 30,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: Colors.border,
   },
 
   // Botones

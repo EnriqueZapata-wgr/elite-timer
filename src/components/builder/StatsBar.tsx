@@ -16,8 +16,8 @@ export function StatsBar({ stats }: StatsBarProps) {
   return (
     <View style={styles.row}>
       <StatCard label="TOTAL" value={stats.formattedTotal} accentColor={Colors.textSecondary} />
-      <StatCard label="TRABAJO" value={stats.formattedWork} accentColor="#a8e02a" />
-      <StatCard label="DESCANSO" value={stats.formattedRest} accentColor="#5B9BD5" />
+      <StatCard label="TRABAJO" value={stats.formattedWork} accentColor={Colors.neonGreen} />
+      <StatCard label="DESCANSO" value={stats.formattedRest} accentColor={Colors.info} />
     </View>
   );
 }

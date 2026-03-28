@@ -194,7 +194,7 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
                   </Pressable>
 
                   <Pressable style={styles.optionCard} onPress={() => setMode('date')}>
-                    <Ionicons name="calendar-outline" size={24} color="#5B9BD5" />
+                    <Ionicons name="calendar-outline" size={24} color={Colors.info} />
                     <View style={styles.optionText}>
                       <EliteText variant="body" style={styles.optionTitle}>Fecha específica</EliteText>
                       <EliteText variant="caption">Un solo día</EliteText>

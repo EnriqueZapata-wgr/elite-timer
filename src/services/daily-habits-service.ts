@@ -2,6 +2,7 @@
  * Daily Habits Service — Mapa de hábitos diarios del paciente.
  */
 import { supabase } from '@/src/lib/supabase';
+import { ATP_BRAND, CATEGORY_COLORS, SEMANTIC } from '../constants/brand';
 
 export interface DailyHabit {
   id: string;
@@ -16,16 +17,16 @@ export interface DailyHabit {
 }
 
 export const HABIT_CATEGORIES: Record<string, { label: string; color: string }> = {
-  sleep: { label: 'Sueño', color: '#5B9BD5' },
+  sleep: { label: 'Sueño', color: CATEGORY_COLORS.nutrition },
   meal: { label: 'Comida', color: '#5DCAA5' },
   work: { label: 'Trabajo', color: '#888780' },
-  exercise: { label: 'Ejercicio', color: '#a8e02a' },
+  exercise: { label: 'Ejercicio', color: ATP_BRAND.lime },
   commute: { label: 'Traslado', color: '#B4B2A9' },
-  screen: { label: 'Pantallas', color: '#E24B4A' },
+  screen: { label: 'Pantallas', color: SEMANTIC.error },
   social: { label: 'Social', color: '#D4537E' },
   hygiene: { label: 'Higiene', color: '#E0E0E0' },
-  supplement: { label: 'Suplementos', color: '#1D9E75' },
-  relaxation: { label: 'Relajación', color: '#7F77DD' },
+  supplement: { label: 'Suplementos', color: CATEGORY_COLORS.metrics },
+  relaxation: { label: 'Relajación', color: CATEGORY_COLORS.mind },
   other: { label: 'Otro', color: '#666666' },
 };
 

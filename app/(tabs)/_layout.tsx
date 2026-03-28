@@ -16,6 +16,7 @@ import { EliteText } from '@/components/elite-text';
 import { useCoachStatus } from '@/src/hooks/useCoachStatus';
 import { CoachPanelLayout } from '@/src/screens/coach/CoachPanelLayout';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { ATP_BRAND, SURFACES, CATEGORY_COLORS } from '@/src/constants/brand';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
 
@@ -39,7 +40,7 @@ export default function TabLayout() {
           onPress={() => setForceAthleteView(false)}
           style={styles.coachBanner}
         >
-          <Ionicons name="desktop-outline" size={14} color="#1D9E75" />
+          <Ionicons name="desktop-outline" size={14} color={CATEGORY_COLORS.metrics} />
           <EliteText variant="caption" style={styles.coachBannerText}>
             Volver al Panel Coach
           </EliteText>
@@ -49,11 +50,11 @@ export default function TabLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: Colors.neonGreen,
-          tabBarInactiveTintColor: Colors.textSecondary,
+          tabBarActiveTintColor: ATP_BRAND.lime,
+          tabBarInactiveTintColor: Colors.textMuted,
           tabBarStyle: {
-            backgroundColor: Colors.black,
-            borderTopColor: '#1a1a1a',
+            backgroundColor: SURFACES.base,
+            borderTopColor: SURFACES.cardLight,
             borderTopWidth: 0.5,
             height: 60,
             paddingBottom: 8,
@@ -117,13 +118,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.xs,
-    backgroundColor: '#1D9E75' + '15',
+    backgroundColor: CATEGORY_COLORS.metrics + '15',
     paddingVertical: Spacing.xs + 2,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#1D9E75' + '30',
+    borderBottomColor: CATEGORY_COLORS.metrics + '30',
   },
   coachBannerText: {
-    color: '#1D9E75',
+    color: CATEGORY_COLORS.metrics,
     fontFamily: Fonts.semiBold,
     fontSize: 12,
   },

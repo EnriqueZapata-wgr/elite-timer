@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert, Share } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter, useSegments, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
@@ -22,10 +23,11 @@ import {
   type CoachConnection,
 } from '@/src/services/coach-service';
 import { Colors, Fonts, Spacing, Radius } from '@/constants/theme';
+import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
 
 // === CONSTANTES ===
 
-const COACH_TEAL = '#1D9E75';
+const COACH_TEAL = CATEGORY_COLORS.metrics;
 
 const LANGUAGES: { value: VoiceLanguage; label: string }[] = [
   { value: 'es-MX', label: 'Español (MX)' },
@@ -143,18 +145,18 @@ export default function SettingsScreen() {
   return (
     <ScreenContainer centered={false}>
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.header}>
         {!isInTabs && (
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
           </Pressable>
         )}
         <EliteText variant="title">{isInTabs ? 'PERFIL' : 'AJUSTES'}</EliteText>
-      </View>
+      </Animated.View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Cuenta del usuario */}
-        <View style={styles.accountBox}>
+        <Animated.View entering={FadeInUp.delay(150).springify()} style={styles.accountBox}>
           <Ionicons name="person-circle-outline" size={32} color={Colors.neonGreen} />
           <View style={styles.accountInfo}>
             <EliteText variant="body" style={styles.accountName}>
@@ -164,250 +166,264 @@ export default function SettingsScreen() {
               {user?.email}
             </EliteText>
           </View>
-        </View>
+        </Animated.View>
 
         {/* ══════ CONECTAR CON COACH ══════ */}
-        <SectionLabel color={COACH_TEAL}>CONECTAR CON COACH</SectionLabel>
+        <Animated.View entering={FadeInUp.delay(250).springify()}>
+          <SectionLabel color={COACH_TEAL}>CONECTAR CON COACH</SectionLabel>
 
-        <View style={styles.coachSection}>
-          <EliteText variant="caption" style={styles.coachHint}>
-            Ingresa el código de 6 dígitos de tu coach
-          </EliteText>
-          <View style={styles.connectRow}>
-            <TextInput
-              style={styles.codeInput}
-              value={connectCode}
-              onChangeText={t => setConnectCode(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
-              placeholder="ABC123"
-              placeholderTextColor={Colors.textSecondary + '40'}
-              maxLength={6}
-              autoCapitalize="characters"
-            />
-            <Pressable
-              onPress={handleConnect}
-              disabled={connecting || connectCode.length < 6}
-              style={[styles.connectBtn, (connecting || connectCode.length < 6) && { opacity: 0.4 }]}
-            >
-              <EliteText variant="caption" style={styles.connectBtnText}>
-                {connecting ? 'CONECTANDO...' : 'CONECTAR'}
-              </EliteText>
-            </Pressable>
-          </View>
-
-          {/* Lista de coaches conectados */}
-          {coaches.length > 0 && (
-            <View style={styles.connectionList}>
-              <EliteText variant="caption" style={styles.connectionListLabel}>MIS COACHES</EliteText>
-              {coaches.map(c => (
-                <ConnectionCard
-                  key={c.id}
-                  name={c.profile_name}
-                  date={formatDate(c.connected_at)}
-                  color={COACH_TEAL}
-                  onDisconnect={() => handleDisconnectCoach(c)}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-
-        <Divider />
-
-        {/* ══════ SOY COACH ══════ */}
-        <SectionLabel color={COACH_TEAL}>SOY COACH</SectionLabel>
-
-        <View style={styles.coachSection}>
-          {coachCode ? (
-            <>
-              <EliteText variant="caption" style={styles.coachHint}>
-                Comparte este código con tus atletas
-              </EliteText>
-              <View style={styles.codeDisplay}>
-                <EliteText style={styles.codeDisplayText}>{coachCode}</EliteText>
-                <Pressable onPress={handleCopyCode} style={styles.copyBtn}>
-                  <Ionicons name="share-outline" size={18} color={COACH_TEAL} />
-                  <EliteText variant="caption" style={styles.copyBtnText}>Compartir</EliteText>
-                </Pressable>
-              </View>
-
-              {/* Lista de clientes */}
-              {clients.length > 0 && (
-                <View style={styles.connectionList}>
-                  <EliteText variant="caption" style={styles.connectionListLabel}>
-                    MIS ATLETAS ({clients.length})
-                  </EliteText>
-                  {clients.map(c => (
-                    <ConnectionCard
-                      key={c.id}
-                      name={c.profile_name}
-                      date={formatDate(c.connected_at)}
-                      color={COACH_TEAL}
-                      onDisconnect={() => handleDisconnectClient(c)}
-                    />
-                  ))}
-                </View>
-              )}
-
-              <EliteText variant="caption" style={styles.webHint}>
-                Accede al panel de coach desde la versión web
-              </EliteText>
-            </>
-          ) : (
-            <>
-              <EliteText variant="caption" style={styles.coachHint}>
-                Genera un código para que tus atletas se conecten contigo
-              </EliteText>
+          <View style={styles.coachSection}>
+            <EliteText variant="caption" style={styles.coachHint}>
+              Ingresa el código de 6 dígitos de tu coach
+            </EliteText>
+            <View style={styles.connectRow}>
+              <TextInput
+                style={styles.codeInput}
+                value={connectCode}
+                onChangeText={t => setConnectCode(t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                placeholder="ABC123"
+                placeholderTextColor={Colors.textSecondary + '40'}
+                maxLength={6}
+                autoCapitalize="characters"
+              />
               <Pressable
-                onPress={handleGenerateCode}
-                disabled={generatingCode}
-                style={[styles.generateBtn, generatingCode && { opacity: 0.5 }]}
+                onPress={handleConnect}
+                disabled={connecting || connectCode.length < 6}
+                style={[styles.connectBtn, (connecting || connectCode.length < 6) && { opacity: 0.4 }]}
               >
-                <Ionicons name="key-outline" size={18} color={COACH_TEAL} />
-                <EliteText variant="body" style={styles.generateBtnText}>
-                  {generatingCode ? 'Generando...' : 'Generar mi código de coach'}
+                <EliteText variant="caption" style={styles.connectBtnText}>
+                  {connecting ? 'CONECTANDO...' : 'CONECTAR'}
                 </EliteText>
               </Pressable>
-            </>
-          )}
-        </View>
+            </View>
 
-        <Divider />
+            {/* Lista de coaches conectados */}
+            {coaches.length > 0 && (
+              <View style={styles.connectionList}>
+                <EliteText variant="caption" style={styles.connectionListLabel}>MIS COACHES</EliteText>
+                {coaches.map(c => (
+                  <ConnectionCard
+                    key={c.id}
+                    name={c.profile_name}
+                    date={formatDate(c.connected_at)}
+                    color={COACH_TEAL}
+                    onDisconnect={() => handleDisconnectCoach(c)}
+                  />
+                ))}
+              </View>
+            )}
+          </View>
+
+          <Divider />
+        </Animated.View>
+
+        {/* ══════ SOY COACH ══════ */}
+        <Animated.View entering={FadeInUp.delay(350).springify()}>
+          <SectionLabel color={COACH_TEAL}>SOY COACH</SectionLabel>
+
+          <View style={styles.coachSection}>
+            {coachCode ? (
+              <>
+                <EliteText variant="caption" style={styles.coachHint}>
+                  Comparte este código con tus atletas
+                </EliteText>
+                <View style={styles.codeDisplay}>
+                  <EliteText style={styles.codeDisplayText}>{coachCode}</EliteText>
+                  <Pressable onPress={handleCopyCode} style={styles.copyBtn}>
+                    <Ionicons name="share-outline" size={18} color={COACH_TEAL} />
+                    <EliteText variant="caption" style={styles.copyBtnText}>Compartir</EliteText>
+                  </Pressable>
+                </View>
+
+                {/* Lista de clientes */}
+                {clients.length > 0 && (
+                  <View style={styles.connectionList}>
+                    <EliteText variant="caption" style={styles.connectionListLabel}>
+                      MIS ATLETAS ({clients.length})
+                    </EliteText>
+                    {clients.map(c => (
+                      <ConnectionCard
+                        key={c.id}
+                        name={c.profile_name}
+                        date={formatDate(c.connected_at)}
+                        color={COACH_TEAL}
+                        onDisconnect={() => handleDisconnectClient(c)}
+                      />
+                    ))}
+                  </View>
+                )}
+
+                <EliteText variant="caption" style={styles.webHint}>
+                  Accede al panel de coach desde la versión web
+                </EliteText>
+              </>
+            ) : (
+              <>
+                <EliteText variant="caption" style={styles.coachHint}>
+                  Genera un código para que tus atletas se conecten contigo
+                </EliteText>
+                <Pressable
+                  onPress={handleGenerateCode}
+                  disabled={generatingCode}
+                  style={[styles.generateBtn, generatingCode && { opacity: 0.5 }]}
+                >
+                  <Ionicons name="key-outline" size={18} color={COACH_TEAL} />
+                  <EliteText variant="body" style={styles.generateBtnText}>
+                    {generatingCode ? 'Generando...' : 'Generar mi código de coach'}
+                  </EliteText>
+                </Pressable>
+              </>
+            )}
+          </View>
+
+          <Divider />
+        </Animated.View>
 
         {/* ── Voz y audio ── */}
-        <SectionLabel>VOZ Y AUDIO</SectionLabel>
+        <Animated.View entering={FadeInUp.delay(450).springify()}>
+          <SectionLabel>VOZ Y AUDIO</SectionLabel>
 
-        <EliteToggle
-          label="Voz del timer"
-          description="Anuncia ejercicios y rondas"
-          value={settings.voiceEnabled}
-          onValueChange={v => updateSetting('voiceEnabled', v)}
-        />
+          <EliteToggle
+            label="Voz del timer"
+            description="Anuncia ejercicios y rondas"
+            value={settings.voiceEnabled}
+            onValueChange={v => updateSetting('voiceEnabled', v)}
+          />
 
-        {settings.voiceEnabled && (
-          <>
-            <EliteText variant="caption" style={styles.chipLabel}>IDIOMA DE VOZ</EliteText>
-            <View style={styles.chipRow}>
-              {LANGUAGES.map(lang => (
-                <Chip
-                  key={lang.value}
-                  label={lang.label}
-                  selected={settings.voiceLanguage === lang.value}
-                  onPress={() => updateSetting('voiceLanguage', lang.value)}
-                />
-              ))}
-            </View>
-          </>
-        )}
+          {settings.voiceEnabled && (
+            <>
+              <EliteText variant="caption" style={styles.chipLabel}>IDIOMA DE VOZ</EliteText>
+              <View style={styles.chipRow}>
+                {LANGUAGES.map(lang => (
+                  <Chip
+                    key={lang.value}
+                    label={lang.label}
+                    selected={settings.voiceLanguage === lang.value}
+                    onPress={() => updateSetting('voiceLanguage', lang.value)}
+                  />
+                ))}
+              </View>
+            </>
+          )}
 
-        <EliteToggle
-          label="Cuenta regresiva hablada"
-          description='"3, 2, 1" al final de cada paso'
-          value={settings.countdownSpoken}
-          onValueChange={v => updateSetting('countdownSpoken', v)}
-        />
+          <EliteToggle
+            label="Cuenta regresiva hablada"
+            description='"3, 2, 1" al final de cada paso'
+            value={settings.countdownSpoken}
+            onValueChange={v => updateSetting('countdownSpoken', v)}
+          />
 
-        <Divider />
+          <Divider />
+        </Animated.View>
 
         {/* ── Sonidos ── */}
-        <SectionLabel>SONIDOS</SectionLabel>
+        <Animated.View entering={FadeInUp.delay(550).springify()}>
+          <SectionLabel>SONIDOS</SectionLabel>
 
-        <EliteToggle
-          label="Sonidos de transición"
-          description="Beep al cambiar de paso"
-          value={settings.soundsEnabled}
-          onValueChange={v => updateSetting('soundsEnabled', v)}
-        />
+          <EliteToggle
+            label="Sonidos de transición"
+            description="Beep al cambiar de paso"
+            value={settings.soundsEnabled}
+            onValueChange={v => updateSetting('soundsEnabled', v)}
+          />
 
-        {settings.soundsEnabled && (
-          <>
-            <EliteText variant="caption" style={styles.chipLabel}>ESTILO DE SONIDO</EliteText>
-            <View style={styles.chipRow}>
-              {SOUND_STYLES.map(style => (
-                <Chip
-                  key={style.value}
-                  label={style.label}
-                  selected={settings.soundStyle === style.value}
-                  onPress={() => updateSetting('soundStyle', style.value)}
-                />
-              ))}
-            </View>
-
-            <View style={styles.volumeRow}>
-              <EliteText variant="body">Volumen</EliteText>
-              <View style={styles.volumeControl}>
-                <Pressable onPress={() => updateSetting('soundVolume', Math.max(0, settings.soundVolume - 10))}>
-                  <Ionicons name="remove-circle-outline" size={24} color={Colors.neonGreen} />
-                </Pressable>
-                <EliteText variant="subtitle" style={styles.volumeValue}>
-                  {settings.soundVolume}%
-                </EliteText>
-                <Pressable onPress={() => updateSetting('soundVolume', Math.min(100, settings.soundVolume + 10))}>
-                  <Ionicons name="add-circle-outline" size={24} color={Colors.neonGreen} />
-                </Pressable>
+          {settings.soundsEnabled && (
+            <>
+              <EliteText variant="caption" style={styles.chipLabel}>ESTILO DE SONIDO</EliteText>
+              <View style={styles.chipRow}>
+                {SOUND_STYLES.map(style => (
+                  <Chip
+                    key={style.value}
+                    label={style.label}
+                    selected={settings.soundStyle === style.value}
+                    onPress={() => updateSetting('soundStyle', style.value)}
+                  />
+                ))}
               </View>
-            </View>
-          </>
-        )}
 
-        <Divider />
+              <View style={styles.volumeRow}>
+                <EliteText variant="body">Volumen</EliteText>
+                <View style={styles.volumeControl}>
+                  <Pressable onPress={() => updateSetting('soundVolume', Math.max(0, settings.soundVolume - 10))}>
+                    <Ionicons name="remove-circle-outline" size={24} color={Colors.neonGreen} />
+                  </Pressable>
+                  <EliteText variant="subtitle" style={styles.volumeValue}>
+                    {settings.soundVolume}%
+                  </EliteText>
+                  <Pressable onPress={() => updateSetting('soundVolume', Math.min(100, settings.soundVolume + 10))}>
+                    <Ionicons name="add-circle-outline" size={24} color={Colors.neonGreen} />
+                  </Pressable>
+                </View>
+              </View>
+            </>
+          )}
+
+          <Divider />
+        </Animated.View>
 
         {/* ── Vibración ── */}
-        <SectionLabel>VIBRACIÓN</SectionLabel>
+        <Animated.View entering={FadeInUp.delay(650).springify()}>
+          <SectionLabel>VIBRACIÓN</SectionLabel>
 
-        <EliteToggle
-          label="Vibración"
-          description="Al cambiar de paso y cuenta regresiva"
-          value={settings.vibrationEnabled}
-          onValueChange={v => updateSetting('vibrationEnabled', v)}
-        />
+          <EliteToggle
+            label="Vibración"
+            description="Al cambiar de paso y cuenta regresiva"
+            value={settings.vibrationEnabled}
+            onValueChange={v => updateSetting('vibrationEnabled', v)}
+          />
 
-        <Divider />
+          <Divider />
+        </Animated.View>
 
         {/* ── Pantalla ── */}
-        <SectionLabel>PANTALLA</SectionLabel>
+        <Animated.View entering={FadeInUp.delay(750).springify()}>
+          <SectionLabel>PANTALLA</SectionLabel>
 
-        <EliteToggle
-          label="Mantener pantalla encendida"
-          description="Mientras el timer corre"
-          value={settings.keepAwake}
-          onValueChange={v => updateSetting('keepAwake', v)}
-        />
+          <EliteToggle
+            label="Mantener pantalla encendida"
+            description="Mientras el timer corre"
+            value={settings.keepAwake}
+            onValueChange={v => updateSetting('keepAwake', v)}
+          />
 
-        <Divider />
+          <Divider />
+        </Animated.View>
 
         {/* ── Zona de prueba ── */}
-        <View style={styles.testBox}>
-          <EliteText variant="caption" style={styles.testLabel}>PROBAR</EliteText>
-          <View style={styles.testRow}>
-            <TestButton
-              icon="mic-outline"
-              label="Voz"
-              onPress={() => speak('Probando la voz del timer', settings.voiceLanguage)}
-            />
-            <TestButton
-              icon="volume-high-outline"
-              label="Sonido"
-              onPress={() => { initAudio(); setSoundStyle(settings.soundStyle); playBeep(settings.soundVolume / 100); }}
-            />
-            <TestButton
-              icon="phone-portrait-outline"
-              label="Vibración"
-              onPress={() => vibrateMedium()}
-            />
+        <Animated.View entering={FadeInUp.delay(850).springify()}>
+          <View style={styles.testBox}>
+            <EliteText variant="caption" style={styles.testLabel}>PROBAR</EliteText>
+            <View style={styles.testRow}>
+              <TestButton
+                icon="mic-outline"
+                label="Voz"
+                onPress={() => speak('Probando la voz del timer', settings.voiceLanguage)}
+              />
+              <TestButton
+                icon="volume-high-outline"
+                label="Sonido"
+                onPress={() => { initAudio(); setSoundStyle(settings.soundStyle); playBeep(settings.soundVolume / 100); }}
+              />
+              <TestButton
+                icon="phone-portrait-outline"
+                label="Vibración"
+                onPress={() => vibrateMedium()}
+              />
+            </View>
           </View>
-        </View>
 
-        <Divider />
+          <Divider />
+        </Animated.View>
 
         {/* ── Sesión ── */}
-        <View style={styles.logoutContainer}>
+        <Animated.View entering={FadeInUp.delay(950).springify()} style={styles.logoutContainer}>
           <EliteButton
             label="CERRAR SESIÓN"
             onPress={async () => { await signOut(); router.replace('/login'); }}
             variant="outline"
             style={styles.logoutButton}
           />
-        </View>
+        </Animated.View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -520,7 +536,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm + 2,
     color: Colors.textPrimary,
@@ -536,7 +552,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
   },
   connectBtnText: {
-    color: '#fff',
+    color: TEXT_COLORS.primary,
     fontFamily: Fonts.bold,
     fontSize: 12,
     letterSpacing: 1,
@@ -615,7 +631,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     padding: Spacing.sm,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   avatar: {
     width: 36,

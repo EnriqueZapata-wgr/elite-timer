@@ -12,18 +12,19 @@ import { EliteButton } from '@/components/elite-button';
 import { useRoutineEngine } from '@/hooks/use-routine-engine';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
-import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
+import { Colors, Fonts, Spacing, FontSizes, Radius, BlockColors } from '@/constants/theme';
+import { SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, BLOCK_COLORS, CATEGORY_COLORS } from '@/src/constants/brand';
 import type { Routine as EngineRoutine, ExecutionStep } from '@/src/engine/types';
 
 // === COLORES POR TIPO DE STEP ===
 
 const STEP_COLORS: Record<string, string> = {
-  work: '#a8e02a',
-  rest: '#5B9BD5',
-  prep: '#EF9F27',
+  work: BLOCK_COLORS.exercise,
+  rest: BLOCK_COLORS.rest,
+  prep: BLOCK_COLORS.transition,
 };
 
-const REST_BETWEEN_COLOR = '#888888';
+const REST_BETWEEN_COLOR = TEXT_COLORS.secondary;
 
 function getStepColor(step: ExecutionStep | null): string {
   if (!step) return Colors.neonGreen;
@@ -39,12 +40,12 @@ const STEP_LABELS: Record<string, string> = {
 
 // Gradientes oscuros por tipo
 function getStepGradient(step: ExecutionStep | null): readonly [string, string] {
-  if (!step || step.isRestBetween) return ['#1a1a1a', '#111111'];
+  if (!step || step.isRestBetween) return [Colors.surfaceLight, Colors.surface];
   switch (step.type) {
     case 'work': return ['#1a2a1a', '#0a1a0a'];
     case 'rest': return ['#0a1a2a', '#0a0a1a'];
     case 'prep': return ['#2a1f0a', '#1a1a0a'];
-    default: return ['#1a1a1a', '#111111'];
+    default: return [Colors.surfaceLight, Colors.surface];
   }
 }
 
@@ -247,18 +248,18 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
       {/* ── Timer Circular ── */}
       <View style={[styles.timerWrapper, {
-        shadowColor: isCountdown ? '#E24B4A' : stepColor,
+        shadowColor: isCountdown ? SEMANTIC.error : stepColor,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.3,
         shadowRadius: 20,
         elevation: 10,
       }]}>
         {/* Aura sutil detrás */}
-        <View style={[styles.timerAura, { backgroundColor: (isCountdown ? '#E24B4A' : stepColor) + '08' }]} />
+        <View style={[styles.timerAura, { backgroundColor: (isCountdown ? SEMANTIC.error : stepColor) + '08' }]} />
         <CircularTimer
           timeLeft={remainingSeconds}
           progress={1 - stepProgress}
-          color={isCountdown ? '#E24B4A' : stepColor}
+          color={isCountdown ? SEMANTIC.error : stepColor}
         />
       </View>
 
@@ -397,7 +398,7 @@ function StepPreviewRow({
   );
 }
 
-const LEVEL_COLORS = ['#9B59B6', '#a8e02a', '#EF9F27', '#5B9BD5', '#E24B4A', '#1ABC9C'];
+const LEVEL_COLORS = ['#9B59B6', BLOCK_COLORS.exercise, BLOCK_COLORS.transition, BLOCK_COLORS.rest, SEMANTIC.error, ATP_BRAND.teal2];
 
 // === ESTILOS ===
 
@@ -459,7 +460,7 @@ const styles = StyleSheet.create({
   miniProgressBar: {
     width: 60,
     height: 2,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: Colors.border,
     borderRadius: 1,
     marginTop: 3,
   },
@@ -540,7 +541,7 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     alignItems: 'center',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   miniStatLabel: {
     color: Colors.textSecondary,
@@ -557,7 +558,7 @@ const styles = StyleSheet.create({
   miniStatProgress: {
     width: '100%',
     height: 2,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: Colors.border,
     borderRadius: 1,
     marginTop: 4,
   },
@@ -580,7 +581,7 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     borderRadius: Radius.sm,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   previewRow: {
     flexDirection: 'row',
@@ -646,7 +647,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: Colors.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -658,7 +659,7 @@ const styles = StyleSheet.create({
   progressBar: {
     width: '100%',
     height: 3,
-    backgroundColor: '#1A1A1A',
+    backgroundColor: Colors.surfaceLight,
     borderRadius: 2,
   },
   progressFill: {
@@ -706,7 +707,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '47%',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   statLabel: {
     color: Colors.textSecondary,
@@ -723,7 +724,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statSkipped: {
-    color: '#E24B4A',
+    color: SEMANTIC.error,
     marginTop: 2,
   },
   completedButtons: {

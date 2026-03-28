@@ -23,7 +23,8 @@ import {
   type ExerciseSessionEntry,
 } from '@/src/services/exercise-service';
 import Svg, { Path, Circle as SvgCircle, Line } from 'react-native-svg';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
+import { BLOCK_COLORS, SEMANTIC, CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import {
   MUSCLE_GROUPS,
   MUSCLE_GROUP_LABELS,
@@ -98,7 +99,7 @@ function getMuscleGroupGradient(mg: string): readonly [string, string] {
     case 'arms': return ['#1a1a2a', '#0a0a1a'];
     case 'core': return ['#2a2a0a', '#1a1a0a'];
     case 'full_body': return ['#0a2a2a', '#0a1a1a'];
-    default: return ['#1a1a1a', '#111111'];
+    default: return [Colors.surfaceLight, Colors.surface];
   }
 }
 
@@ -121,10 +122,10 @@ const CHART_PAD = 28;
 
 // Colores por rep range
 const REP_RANGE_COLORS: Record<number, string> = {
-  1: '#a8e02a', // 1RM estimado (verde)
-  3: '#EF9F27', // 3RM (amarillo)
-  5: '#5B9BD5', // 5RM (azul)
-  8: '#888888', // 8-10RM (gris)
+  1: BLOCK_COLORS.exercise, // 1RM estimado (verde)
+  3: SEMANTIC.warning, // 3RM (amarillo)
+  5: SEMANTIC.info, // 5RM (azul)
+  8: TEXT_COLORS.secondary, // 8-10RM (gris)
 };
 
 const REP_RANGE_LABELS: Record<number, string> = {
@@ -202,7 +203,7 @@ function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color
         {/* Grid horizontal */}
         {gridLines.map((g, i) => (
           <Line key={i} x1={CHART_PAD} y1={g.y} x2={CHART_WIDTH - CHART_PAD} y2={g.y}
-            stroke="#1A1A1A" strokeWidth={1} />
+            stroke={Colors.surfaceLight} strokeWidth={1} />
         ))}
 
         {/* Area fill 1RM */}
@@ -258,7 +259,7 @@ function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color
           return (
             <Pressable key={rr} onPress={() => toggleLine(rr)}
               style={[styles.togglePill, active && { borderColor: c, backgroundColor: c + '15' }]}>
-              <View style={[styles.toggleDot, { backgroundColor: active ? c : '#333' }]} />
+              <View style={[styles.toggleDot, { backgroundColor: active ? c : Colors.disabled }]} />
               <EliteText variant="caption" style={[styles.toggleText, active && { color: c }]}>
                 {REP_RANGE_LABELS[rr]}
               </EliteText>
@@ -404,7 +405,7 @@ export default function PersonalRecordsScreen() {
           </View>
 
           {mostRecentPR && (
-            <LinearGradient colors={['#111111', '#0a0a0a']} style={styles.recentPRCard}>
+            <LinearGradient colors={[Colors.surface, '#0a0a0a']} style={styles.recentPRCard}>
               <View style={styles.recentPRRow}>
                 <Ionicons name="trending-up" size={16} color={Colors.neonGreen} />
                 <EliteText variant="caption" style={styles.recentPRLabel}>PR MÁS RECIENTE</EliteText>
@@ -482,7 +483,7 @@ export default function PersonalRecordsScreen() {
           }
         >
           {Array.from(byMuscle.entries()).map(([muscleGroup, exercises]) => {
-            const mgColor = MUSCLE_GROUP_COLORS[muscleGroup] ?? '#888';
+            const mgColor = MUSCLE_GROUP_COLORS[muscleGroup] ?? Colors.textSecondary;
             const mgGrad = getMuscleGroupGradient(muscleGroup);
             const mgDesc = MUSCLE_GROUP_DESCRIPTIONS[muscleGroup] ?? '';
 
@@ -760,13 +761,13 @@ const styles = StyleSheet.create({
   heroMiniStatDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: Colors.border,
   },
   recentPRCard: {
     borderRadius: Radius.sm,
     padding: Spacing.sm,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   recentPRRow: {
     flexDirection: 'row',
@@ -878,7 +879,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.sm,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   exerciseHeader: {
     flexDirection: 'row',
@@ -944,10 +945,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
   },
   recencyWeek: {
-    backgroundColor: '#5B9BD5' + '25',
+    backgroundColor: SEMANTIC.info + '25',
   },
   recencyWeekText: {
-    color: '#5B9BD5',
+    color: SEMANTIC.info,
   },
 
   // ── Progression chart ──
@@ -955,7 +956,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingTop: Spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#2a2a2a',
+    borderTopColor: Colors.border,
   },
   progressionLabel: {
     color: Colors.textSecondary,
@@ -984,7 +985,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: Radius.pill,
     borderWidth: 1,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   toggleDot: {
     width: 6,
@@ -1004,7 +1005,7 @@ const styles = StyleSheet.create({
   sessionHistCard: {
     paddingVertical: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: Colors.surfaceLight,
   },
   sessionHistHeader: {
     flexDirection: 'row',

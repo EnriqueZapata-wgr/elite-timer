@@ -21,15 +21,16 @@ import { useRoutineMode } from '@/src/hooks/useRoutineMode';
 import { getLastWeight } from '@/src/services/exercise-service';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
+import { BLOCK_COLORS, SEMANTIC, CATEGORY_COLORS } from '@/src/constants/brand';
 import type { Routine } from '@/src/engine/types';
 
 // === COLORES DEL SEMÁFORO ===
 
 const ZONE_COLORS = {
-  blue: '#5B9BD5',
-  yellow: '#EF9F27',
-  red: '#E24B4A',
-  green: '#a8e02a',
+  blue: BLOCK_COLORS.rest,
+  yellow: BLOCK_COLORS.transition,
+  red: SEMANTIC.error,
+  green: BLOCK_COLORS.exercise,
 };
 
 // Gradientes oscuros por zona
@@ -454,7 +455,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
                 styles.setDot,
                 dot.isCompleted && { backgroundColor: Colors.neonGreen },
                 dot.isActive && { backgroundColor: zoneColor, borderWidth: 2, borderColor: zoneColor },
-                !dot.isCompleted && !dot.isActive && { backgroundColor: '#2a2a2a' },
+                !dot.isCompleted && !dot.isActive && { backgroundColor: Colors.border },
               ]}
             />
           ))}
@@ -537,7 +538,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
 
             {/* Peso */}
             <LinearGradient colors={['#2a1f0a', '#111111']} style={styles.inputCard}>
-              <View style={[styles.inputAccentLine, { backgroundColor: '#EF9F27' }]} />
+              <View style={[styles.inputAccentLine, { backgroundColor: SEMANTIC.warning }]} />
               <EliteText variant="caption" style={styles.inputLabel}>PESO (kg)</EliteText>
               <View style={styles.inputRow}>
                 <Pressable onPress={() => setWeight(w => Math.max(0, (w ?? 0) - 2.5))} style={styles.inputBtn}>
@@ -564,7 +565,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
 
             {/* RIR */}
             <LinearGradient colors={['#0a1a2a', '#111111']} style={styles.inputCard}>
-              <View style={[styles.inputAccentLine, { backgroundColor: '#5B9BD5' }]} />
+              <View style={[styles.inputAccentLine, { backgroundColor: SEMANTIC.info }]} />
               <EliteText variant="caption" style={styles.inputLabel}>RIR</EliteText>
               <View style={styles.inputRow}>
                 <Pressable onPress={() => setRir(r => r !== null ? Math.max(0, r - 1) : 2)} style={styles.inputBtn}>
@@ -627,12 +628,12 @@ function RoutineContent({ routine }: { routine: Routine }) {
             {/* Sets pendientes */}
             {Array.from({ length: Math.max(0, rm.totalSuggestedSets - currentSetNum) }).map((_, i) => (
               <View key={`pending-${i}`} style={styles.completedSetRow}>
-                <View style={[styles.setNumCircle, { borderColor: '#2a2a2a' }]}>
-                  <EliteText variant="caption" style={[styles.setNumCircleText, { color: '#2a2a2a' }]}>
+                <View style={[styles.setNumCircle, { borderColor: Colors.border }]}>
+                  <EliteText variant="caption" style={[styles.setNumCircleText, { color: Colors.border }]}>
                     {currentSetNum + i + 1}
                   </EliteText>
                 </View>
-                <EliteText variant="caption" style={[styles.setData, { color: '#2a2a2a' }]}>—</EliteText>
+                <EliteText variant="caption" style={[styles.setData, { color: Colors.border }]}>—</EliteText>
               </View>
             ))}
           </View>
@@ -723,7 +724,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     borderRadius: Radius.sm,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   exercisePreviewNum: {
     width: 24,
@@ -795,7 +796,7 @@ const styles = StyleSheet.create({
   heroProgressBar: {
     width: '100%',
     height: 2,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: Colors.border,
     borderRadius: 1,
   },
   heroProgressFill: {
@@ -905,7 +906,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   inputAccentLine: {
     position: 'absolute',
@@ -929,7 +930,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1001,7 +1002,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.sm,
     padding: Spacing.sm,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
     marginBottom: Spacing.md,
   },
   nextDot: {
@@ -1090,7 +1091,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     width: '100%',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
 
   // ── Completada ──
@@ -1112,7 +1113,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '47%',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   statLabel: {
     color: Colors.textSecondary,
@@ -1130,7 +1131,7 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
     marginBottom: Spacing.sm,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   exerciseSummaryHeader: {
     flexDirection: 'row',

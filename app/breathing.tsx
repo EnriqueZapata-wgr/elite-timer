@@ -17,8 +17,9 @@ import { vibrateMedium } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 
-const PURPLE = '#7F77DD';
+const PURPLE = CATEGORY_COLORS.mind;
 
 // === COMPONENTE PRINCIPAL ===
 
@@ -488,7 +489,7 @@ const styles = StyleSheet.create({
   },
   breathCircleInner: { alignItems: 'center' },
   actionText: {
-    fontSize: 24, fontFamily: Fonts.extraBold, color: '#fff', letterSpacing: 2,
+    fontSize: 24, fontFamily: Fonts.extraBold, color: TEXT_COLORS.primary, letterSpacing: 2,
   },
   phaseCountdown: {
     fontSize: 40, fontFamily: Fonts.extraBold, color: PURPLE, fontVariant: ['tabular-nums'],
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   totalProgressBar: {
-    width: '100%', height: 3, backgroundColor: '#1a1a1a', borderRadius: 2, overflow: 'hidden',
+    width: '100%', height: 3, backgroundColor: Colors.surfaceLight, borderRadius: 2, overflow: 'hidden',
   },
   totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: 2 },
   idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: 14 },
@@ -516,7 +517,7 @@ const styles = StyleSheet.create({
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  mainBtnText: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
+  mainBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
   endBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
   endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: 13, letterSpacing: 2 },
 
@@ -546,7 +547,7 @@ const styles = StyleSheet.create({
   configSub: { color: Colors.textSecondary, marginBottom: Spacing.xl, fontSize: 14 },
   configRows: { width: '100%', gap: Spacing.sm },
   configDivider: {
-    width: '100%', height: 1, backgroundColor: '#1a1a1a', marginVertical: Spacing.md,
+    width: '100%', height: 1, backgroundColor: Colors.surfaceLight, marginVertical: Spacing.md,
   },
   configRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -573,5 +574,5 @@ const styles = StyleSheet.create({
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  configStartBtnText: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
+  configStartBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
 });

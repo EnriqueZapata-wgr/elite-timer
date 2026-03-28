@@ -2,34 +2,39 @@
  * Sistema de diseño ELITE — Colores, tipografía y espaciado.
  *
  * Todos los componentes importan de aquí en vez de hardcodear valores.
- * Así un cambio de color o fuente se refleja en toda la app.
+ * Los colores vienen de brand.ts (única fuente de verdad).
  */
+import { ATP_BRAND, SURFACES, TEXT_COLORS, BLOCK_COLORS, SEMANTIC } from '@/src/constants/brand';
 
 // === COLORES ===
 
 export const Colors = {
   // Primarios
-  black: '#000000',           // Fondo principal
-  neonGreen: '#a8e02a',       // Color de acento — botones, progreso, texto destacado
+  black: ATP_BRAND.black,
+  neonGreen: ATP_BRAND.lime,
 
-  // Superficies — variaciones de gris oscuro para crear profundidad
-  surface: '#111111',         // Cards, contenedores elevados
-  surfaceLight: '#1a1a1a',    // Bordes, separadores, pista del timer
+  // Superficies
+  surface: SURFACES.card,
+  surfaceLight: SURFACES.cardLight,
+  surfaceBase: SURFACES.base,
+  border: SURFACES.border,
 
   // Texto
-  textPrimary: '#ffffff',     // Texto principal sobre fondo negro
-  textSecondary: '#888888',   // Texto secundario, hints, labels inactivos
-  textOnGreen: '#000000',     // Texto sobre fondo verde neón (botones)
+  textPrimary: TEXT_COLORS.primary,
+  textSecondary: TEXT_COLORS.secondary,
+  textMuted: TEXT_COLORS.muted,
+  textOnGreen: TEXT_COLORS.onAccent,
 
   // Estados
-  error: '#ff4444',           // Errores, alertas
-  disabled: '#333333',        // Elementos deshabilitados
+  error: SEMANTIC.error,
+  warning: SEMANTIC.warning,
+  success: SEMANTIC.success,
+  info: SEMANTIC.info,
+  disabled: SURFACES.disabled,
 } as const;
 
 // === TIPOGRAFÍA ===
 
-// Nombres de las fuentes tal como se registran en expo-font.
-// Estos strings se usan en fontFamily de los estilos.
 export const Fonts = {
   regular: 'Poppins_400Regular',
   semiBold: 'Poppins_600SemiBold',
@@ -37,22 +42,19 @@ export const Fonts = {
   extraBold: 'Poppins_800ExtraBold',
 } as const;
 
-// Jerarquía tipográfica premium — cada nivel tiene un uso claro.
 export const FontSizes = {
-  xs: 12,        // Captions, badges, metadata
-  sm: 14,        // Body text, descripciones
-  md: 16,        // Subheadings, labels de sección
-  lg: 22,        // Headings, nombres de ejercicios
-  xl: 28,        // Display, títulos de pantalla
-  stat: 24,      // Números de stats
-  xxl: 48,       // Timer secundario
-  timer: 56,     // Timer principal (números grandes, monospace)
+  xs: 12,
+  sm: 14,
+  md: 16,
+  lg: 22,
+  xl: 28,
+  stat: 24,
+  xxl: 48,
+  timer: 56,
 } as const;
 
 // === ESPACIADO ===
 
-// Múltiplos de 4px para un ritmo visual consistente.
-// Evita "magic numbers" dispersos en los estilos.
 export const Spacing = {
   xs: 4,
   sm: 8,
@@ -65,20 +67,15 @@ export const Spacing = {
 // === BORDES ===
 
 export const Radius = {
-  sm: 8,         // Inputs, chips pequeños
-  md: 16,        // Cards, contenedores
-  lg: 24,        // Chips grandes
-  pill: 50,      // Botones pill (completamente redondos)
+  sm: 8,
+  md: 16,
+  lg: 24,
+  pill: 50,
 } as const;
 
 // === COLORES POR TIPO DE BLOQUE ===
 
-export const BlockColors = {
-  exercise: '#a8e02a',    // Verde neón — acción principal
-  rest: '#4a90d9',        // Azul calmante — descanso
-  transition: '#f5a623',  // Naranja — transición/atención
-  final: '#e74c3c',       // Rojo — bloque final
-} as const;
+export const BlockColors = BLOCK_COLORS;
 
 // === ETIQUETAS DE BLOQUES ===
 

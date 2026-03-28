@@ -2,6 +2,7 @@
  * Biblioteca de ejercicios de respiración con ciclos y fases.
  */
 import type { InterventionType } from '@/src/constants/categories';
+import { CATEGORY_COLORS } from '../constants/brand';
 
 export interface BreathingPhase {
   action: 'inhale' | 'hold' | 'exhale' | 'hold_empty';
@@ -21,7 +22,7 @@ export interface BreathingTemplate {
   closingMessage: string;
 }
 
-const P = '#7F77DD';
+const P = CATEGORY_COLORS.mind;
 
 export const BREATHING_LIBRARY: BreathingTemplate[] = [
   {

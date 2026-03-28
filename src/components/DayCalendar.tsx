@@ -19,28 +19,28 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
     `${String(((hh % 24) + 24) % 24).padStart(2, '0')}:${String(((mm % 60) + 60) % 60).padStart(2, '0')}`;
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#1a1a1a', borderRadius: 8, padding: 8, borderWidth: 0.5, borderColor: '#2a2a2a' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Colors.surfaceLight, borderRadius: 8, padding: 8, borderWidth: 0.5, borderColor: '#2a2a2a' }}>
       <View style={{ alignItems: 'center', minWidth: 36 }}>
         <Pressable onPress={() => onChange(fmt(h + 1, m))} hitSlop={12} style={{ padding: 4 }}>
-          <Ionicons name="chevron-up" size={18} color="#888" />
+          <Ionicons name="chevron-up" size={18} color={Colors.textSecondary} />
         </Pressable>
-        <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
+        <EliteText style={{ color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
           {String(h).padStart(2, '0')}
         </EliteText>
         <Pressable onPress={() => onChange(fmt(h - 1, m))} hitSlop={12} style={{ padding: 4 }}>
-          <Ionicons name="chevron-down" size={18} color="#888" />
+          <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
         </Pressable>
       </View>
-      <EliteText style={{ color: '#555', fontSize: 22, fontFamily: Fonts.bold }}>:</EliteText>
+      <EliteText style={{ color: Colors.textMuted, fontSize: 22, fontFamily: Fonts.bold }}>:</EliteText>
       <View style={{ alignItems: 'center', minWidth: 36 }}>
         <Pressable onPress={() => onChange(fmt(h, m + 15))} hitSlop={12} style={{ padding: 4 }}>
-          <Ionicons name="chevron-up" size={18} color="#888" />
+          <Ionicons name="chevron-up" size={18} color={Colors.textSecondary} />
         </Pressable>
-        <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
+        <EliteText style={{ color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: 22, fontVariant: ['tabular-nums'] }}>
           {String(m).padStart(2, '0')}
         </EliteText>
         <Pressable onPress={() => onChange(fmt(h, m - 15))} hitSlop={12} style={{ padding: 4 }}>
-          <Ionicons name="chevron-down" size={18} color="#888" />
+          <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
         </Pressable>
       </View>
     </View>
@@ -195,7 +195,7 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
                 <EliteText variant="caption" style={s.fieldLabel}>Inicio</EliteText>
                 <TimePicker value={form.start} onChange={v => setForm(p => ({ ...p, start: v }))} />
               </View>
-              <EliteText style={{ color: '#444', fontSize: 18, paddingTop: 18 }}>→</EliteText>
+              <EliteText style={{ color: Colors.disabled, fontSize: 18, paddingTop: 18 }}>→</EliteText>
               <View style={{ flex: 1 }}>
                 <EliteText variant="caption" style={s.fieldLabel}>Fin</EliteText>
                 <TimePicker value={form.end} onChange={v => setForm(p => ({ ...p, end: v }))} />
@@ -204,7 +204,7 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
 
             <EliteText variant="caption" style={s.fieldLabel}>Actividad</EliteText>
             <TextInput style={s.input} value={form.title} onChangeText={v => setForm(p => ({ ...p, title: v }))}
-              placeholder="Ej: Desayuno, Oficina, Gym" placeholderTextColor="#333" />
+              placeholder="Ej: Desayuno, Oficina, Gym" placeholderTextColor={Colors.disabled} />
 
             <EliteText variant="caption" style={s.fieldLabel}>Categoría</EliteText>
             <View style={s.catGrid}>
@@ -219,17 +219,17 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
 
             <EliteText variant="caption" style={s.fieldLabel}>Notas</EliteText>
             <TextInput style={[s.input, { height: 40 }]} value={form.notes}
-              onChangeText={v => setForm(p => ({ ...p, notes: v }))} placeholder="Opcional" placeholderTextColor="#333" multiline />
+              onChangeText={v => setForm(p => ({ ...p, notes: v }))} placeholder="Opcional" placeholderTextColor={Colors.disabled} multiline />
 
             <View style={s.actions}>
               {modal?.habit && (
                 <Pressable onPress={handleDelete}>
-                  <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12 }}>Eliminar</EliteText>
+                  <EliteText variant="caption" style={{ color: Colors.error, fontSize: 12 }}>Eliminar</EliteText>
                 </Pressable>
               )}
               <View style={{ flex: 1 }} />
               <Pressable onPress={() => setModal(null)}>
-                <EliteText variant="caption" style={{ color: '#666' }}>Cancelar</EliteText>
+                <EliteText variant="caption" style={{ color: Colors.textMuted }}>Cancelar</EliteText>
               </Pressable>
               <Pressable onPress={handleSave} style={s.saveBtn}>
                 <EliteText variant="caption" style={s.saveBtnText}>Guardar</EliteText>
@@ -243,30 +243,30 @@ export function DayCalendar({ habits, onAdd, onEdit, onDelete, readOnly }: Props
 }
 
 const s = StyleSheet.create({
-  container: { height: 400, borderRadius: 12, overflow: 'hidden', backgroundColor: '#0a0a0a', borderWidth: 0.5, borderColor: '#1a1a1a' },
+  container: { height: 400, borderRadius: 12, overflow: 'hidden', backgroundColor: Colors.surfaceBase, borderWidth: 0.5, borderColor: Colors.surfaceLight },
   hourRow: { position: 'absolute', left: 0, right: 0, height: HOUR_H, flexDirection: 'row', alignItems: 'flex-start' },
-  hourLabel: { width: LABEL_W, color: '#555', fontSize: 10, textAlign: 'right', paddingRight: 8, paddingTop: -6 },
-  hourLine: { flex: 1, height: 0.5, backgroundColor: '#1a1a1a', marginTop: 0 },
+  hourLabel: { width: LABEL_W, color: Colors.textMuted, fontSize: 10, textAlign: 'right', paddingRight: 8, paddingTop: -6 },
+  hourLine: { flex: 1, height: 0.5, backgroundColor: Colors.surfaceLight, marginTop: 0 },
   block: {
     position: 'absolute', left: LABEL_W + 4, right: 8, borderRadius: 6, borderLeftWidth: 3,
     paddingHorizontal: 8, paddingVertical: 3, justifyContent: 'center',
   },
-  blockTitle: { color: '#fff', fontSize: 11, fontFamily: Fonts.semiBold },
+  blockTitle: { color: Colors.textPrimary, fontSize: 11, fontFamily: Fonts.semiBold },
   blockTime: { color: '#aaa', fontSize: 9 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg },
-  modal: { backgroundColor: '#111', borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: '#222' },
+  modal: { backgroundColor: Colors.surface, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 400, borderWidth: 1, borderColor: Colors.border },
   modalTitle: { color: Colors.neonGreen, letterSpacing: 2, fontSize: 12, marginBottom: Spacing.md },
-  fieldLabel: { color: '#888', fontSize: 10, marginBottom: 4, marginTop: Spacing.sm },
+  fieldLabel: { color: Colors.textSecondary, fontSize: 10, marginBottom: 4, marginTop: Spacing.sm },
   input: {
-    backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
-    color: '#fff', fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a',
+    backgroundColor: Colors.surfaceLight, borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs + 2,
+    color: Colors.textPrimary, fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a',
   },
   timeRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-end' },
   catGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  catPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.pill, borderWidth: 1, borderColor: '#333' },
+  catPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: Radius.pill, borderWidth: 1, borderColor: Colors.disabled },
   catDot: { width: 6, height: 6, borderRadius: 3 },
-  catText: { color: '#888', fontSize: 11 },
+  catText: { color: Colors.textSecondary, fontSize: 11 },
   actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.md },
   saveBtn: { backgroundColor: Colors.neonGreen, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
-  saveBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: 13 },
+  saveBtnText: { color: Colors.black, fontFamily: Fonts.bold, fontSize: 13 },
 });

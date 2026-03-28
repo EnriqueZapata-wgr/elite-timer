@@ -13,6 +13,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
+import { CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
 import { MUSCLE_GROUP_COLORS } from '@/src/types/exercise';
 import {
   getMonthlyStats,
@@ -72,7 +73,7 @@ function BarChart({ data: rawData, color, height = 120 }: {
               borderRadius: 4,
               minHeight: item.value > 0 ? 6 : 2,
             }} />
-            {item.value === 0 && <View style={{ width: '70%', height: 2, backgroundColor: '#1a1a1a', borderRadius: 1 }} />}
+            {item.value === 0 && <View style={{ width: '70%', height: 2, backgroundColor: Colors.surfaceLight, borderRadius: 1 }} />}
             <EliteText variant="caption" style={{ fontSize: 8, color: Colors.textSecondary, marginTop: 4 }}>
               {item.label}
             </EliteText>
@@ -238,7 +239,7 @@ export default function ProgressScreen() {
             <EliteText variant="caption" style={styles.chartLabel}>VOLUMEN SEMANAL</EliteText>
             <EliteText variant="caption" style={styles.chartSublabel}>kg totales por semana · 8 semanas</EliteText>
             {volChart.length > 0 ? (
-              <BarChart data={volChart} color="#EF9F27" />
+              <BarChart data={volChart} color={SEMANTIC.warning} />
             ) : (
               <View style={styles.chartEmpty}>
                 <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
@@ -256,9 +257,9 @@ export default function ProgressScreen() {
               MÁS TRABAJADOS ESTE MES
             </EliteText>
             {topExercises.map((ex, i) => {
-              const mgColor = MUSCLE_GROUP_COLORS[ex.muscleGroup] ?? '#888';
+              const mgColor = MUSCLE_GROUP_COLORS[ex.muscleGroup] ?? Colors.textSecondary;
               const trendIcon = ex.trend === 'up' ? 'arrow-up' : ex.trend === 'down' ? 'arrow-down' : 'remove';
-              const trendColor = ex.trend === 'up' ? Colors.neonGreen : ex.trend === 'down' ? '#E24B4A' : Colors.textSecondary;
+              const trendColor = ex.trend === 'up' ? Colors.neonGreen : ex.trend === 'down' ? SEMANTIC.error : Colors.textSecondary;
 
               return (
                 <Pressable key={ex.exerciseId} onPress={() => router.push('/personal-records')}>
@@ -316,7 +317,7 @@ export default function ProgressScreen() {
                 <View key={dayLabel} style={styles.prDayGroup}>
                   <EliteText variant="caption" style={styles.prDayLabel}>{dayLabel}</EliteText>
                   {prs.map(pr => {
-                    const mgColor = MUSCLE_GROUP_COLORS[pr.muscle_group ?? ''] ?? '#888';
+                    const mgColor = MUSCLE_GROUP_COLORS[pr.muscle_group ?? ''] ?? Colors.textSecondary;
                     return (
                       <Pressable key={pr.id} onPress={() => router.push('/personal-records')}>
                         <View style={styles.prRow}>
@@ -391,7 +392,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 3,
-    backgroundColor: '#1D9E75',
+    backgroundColor: CATEGORY_COLORS.metrics,
     borderTopLeftRadius: Radius.md,
     borderBottomLeftRadius: Radius.md,
   },
@@ -430,7 +431,7 @@ const styles = StyleSheet.create({
   heroStatDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: Colors.border,
   },
 
   // Chart cards
@@ -440,7 +441,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginBottom: Spacing.md,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   chartLabel: {
     color: Colors.textSecondary,
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: Colors.surfaceLight,
   },
   prDot: {
     width: 8,
@@ -534,7 +535,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
     gap: Spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: Colors.surfaceLight,
   },
   topExRank: {
     color: Colors.textSecondary,

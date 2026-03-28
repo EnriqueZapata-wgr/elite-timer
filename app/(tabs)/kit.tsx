@@ -18,8 +18,9 @@ import { getRoutines } from '@/src/services/routine-service';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { CATEGORY_COLORS, SURFACES } from '@/src/constants/brand';
 
-const AMBER = '#EF9F27';
+const AMBER = CATEGORY_COLORS.optimization;
 
 export default function KitScreen() {
   const router = useRouter();
@@ -70,7 +71,7 @@ export default function KitScreen() {
             >
               {routines.slice(0, 5).map(routine => {
                 const isTimer = routine.mode === 'timer';
-                const accentColor = isTimer ? Colors.neonGreen : '#7F77DD';
+                const accentColor = isTimer ? Colors.neonGreen : CATEGORY_COLORS.mind;
                 const time = getRoutineTime(routine);
 
                 return (
@@ -138,8 +139,8 @@ export default function KitScreen() {
         {/* ── Protocolos (placeholder) ── */}
         <Animated.View entering={FadeInUp.delay(200).springify()}>
           <View style={[styles.linkCard, { opacity: 0.5 }]}>
-            <View style={[styles.linkCardAccent, { backgroundColor: '#1D9E75' }]} />
-            <Ionicons name="document-text-outline" size={22} color="#1D9E75" />
+            <View style={[styles.linkCardAccent, { backgroundColor: CATEGORY_COLORS.metrics }]} />
+            <Ionicons name="document-text-outline" size={22} color={CATEGORY_COLORS.metrics} />
             <View style={styles.linkCardInfo}>
               <EliteText variant="body" style={styles.linkCardTitle}>Protocolos</EliteText>
               <EliteText variant="caption" style={styles.linkCardSub}>Próximamente: protocolos de tu coach</EliteText>
@@ -163,35 +164,35 @@ export default function KitScreen() {
             <ToolCard
               icon="leaf-outline"
               label="Respiración"
-              color="#7F77DD"
+              color={CATEGORY_COLORS.mind}
               active
               onPress={() => router.push('/breathing')}
             />
             <ToolCard
               icon="sparkles-outline"
               label="Meditación"
-              color="#7F77DD"
+              color={CATEGORY_COLORS.mind}
               active
               onPress={() => router.push('/meditation')}
             />
             <ToolCard
               icon="heart-circle-outline"
               label="Check-in"
-              color="#7F77DD"
+              color={CATEGORY_COLORS.mind}
               active
               onPress={() => router.push('/checkin')}
             />
             <ToolCard
               icon="flask-outline"
               label="Mi Salud"
-              color="#1D9E75"
+              color={CATEGORY_COLORS.metrics}
               active
               onPress={() => router.push('/my-health')}
             />
             <ToolCard
               icon="journal-outline"
               label="Journaling"
-              color="#EF9F27"
+              color={CATEGORY_COLORS.optimization}
               active={false}
               onPress={() => Alert.alert('Journaling', 'Próximamente')}
             />
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
     height: 110,
     justifyContent: 'space-between',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   routineCardName: {
     fontFamily: Fonts.bold,
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.lg,
     gap: Spacing.sm,
-    backgroundColor: '#111',
+    backgroundColor: Colors.surface,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: Colors.neonGreen + '20',
@@ -328,14 +329,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    backgroundColor: '#111111',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: Spacing.md,
     paddingLeft: Spacing.md + 3,
     marginBottom: Spacing.sm,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   linkCardAccent: {
     position: 'absolute',
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   toolCardSoon: {
-    color: '#666',
+    color: Colors.textMuted,
     fontSize: 10,
   },
 });

@@ -5,6 +5,7 @@
  */
 import { useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
@@ -54,12 +55,12 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Branding ATP */}
-          <View style={styles.brand}>
+          <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.brand}>
             <Image source={require('@/assets/images/logo-horizontal-dark.png')} style={styles.logoImg} resizeMode="contain" />
-          </View>
+          </Animated.View>
 
           {/* Formulario */}
-          <View style={styles.form}>
+          <Animated.View entering={FadeInUp.delay(150).springify()} style={styles.form}>
             <EliteInput
               label="EMAIL"
               placeholder="tu@email.com"
@@ -120,7 +121,7 @@ export default function LoginScreen() {
                 ¿Olvidaste tu contraseña?
               </EliteText>
             </Pressable>
-          </View>
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenContainer>

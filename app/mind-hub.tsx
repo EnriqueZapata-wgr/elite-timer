@@ -11,8 +11,9 @@ import { GradientCard } from '@/src/components/GradientCard';
 import { MEDITATION_LIBRARY } from '@/src/data/meditation-library';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
+import { CATEGORY_COLORS, SURFACES } from '@/src/constants/brand';
 
-const PURPLE = '#7F77DD';
+const PURPLE = CATEGORY_COLORS.mind;
 
 export default function MindHubScreen() {
   const router = useRouter();
@@ -117,6 +118,6 @@ const styles = StyleSheet.create({
   heroCardDesc: { color: Colors.textSecondary, fontSize: 13, marginTop: 2 },
   heroCardPlaceholder: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md,
-    backgroundColor: '#111', borderRadius: 16, borderWidth: 1, borderColor: '#222',
+    backgroundColor: Colors.surface, borderRadius: 16, borderWidth: 1, borderColor: Colors.border,
   },
 });

@@ -3,6 +3,7 @@
  * Lenguaje inclusivo: sustantivos neutros, frases sin género, @ solo como último recurso.
  * Cada emoción tiene descripción cálida en segunda persona.
  */
+import { SEMANTIC, CATEGORY_COLORS } from '../constants/brand';
 
 export type QuadrantKey = 'high_pleasant' | 'high_unpleasant' | 'low_pleasant' | 'low_unpleasant';
 
@@ -21,7 +22,7 @@ export const QUADRANTS = {
   high_pleasant: {
     key: 'high_pleasant' as QuadrantKey,
     label: 'Alta energía · Agradable',
-    color: '#EFD54F',
+    color: SEMANTIC.acceptable,
     colorLight: 'rgba(239, 213, 79, 0.15)',
     description: 'Con motivación, emoción, vitalidad',
     examples: ['Con motivación', 'Con emoción', 'Feliz', 'Con inspiración'],
@@ -29,7 +30,7 @@ export const QUADRANTS = {
   high_unpleasant: {
     key: 'high_unpleasant' as QuadrantKey,
     label: 'Alta energía · Desagradable',
-    color: '#E24B4A',
+    color: SEMANTIC.error,
     colorLight: 'rgba(226, 75, 74, 0.15)',
     description: 'Con ansiedad, frustración, enojo',
     examples: ['Con ansiedad', 'Con frustración', 'Con estrés', 'Con enojo'],
@@ -45,7 +46,7 @@ export const QUADRANTS = {
   low_unpleasant: {
     key: 'low_unpleasant' as QuadrantKey,
     label: 'Baja energía · Desagradable',
-    color: '#5B9BD5',
+    color: CATEGORY_COLORS.nutrition,
     colorLight: 'rgba(91, 155, 213, 0.15)',
     description: 'Triste, con cansancio, sin motivación',
     examples: ['Triste', 'Con cansancio', 'Sin motivación', 'En soledad'],

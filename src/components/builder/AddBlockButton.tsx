@@ -33,21 +33,21 @@ const STEP_OPTIONS: {
     type: 'work',
     label: 'Trabajo',
     icon: 'flash-outline',
-    color: '#a8e02a',
+    color: Colors.neonGreen,
     description: 'Ejercicio o acción activa',
   },
   {
     type: 'rest',
     label: 'Descanso',
     icon: 'pause-outline',
-    color: '#5B9BD5',
+    color: Colors.info,
     description: 'Pausa entre ejercicios',
   },
   {
     type: 'prep',
     label: 'Preparación',
     icon: 'hourglass-outline',
-    color: '#EF9F27',
+    color: Colors.warning,
     description: 'Tiempo de transición',
   },
 ];
@@ -72,7 +72,7 @@ function createDefaultBlock(type: Block['type'], parentId: string | null): Block
         type: 'group',
         label: 'Bloque',
         duration_seconds: null,
-        color: '#888888',
+        color: Colors.textSecondary,
         children: [],
       };
     case 'work':
@@ -81,7 +81,7 @@ function createDefaultBlock(type: Block['type'], parentId: string | null): Block
         type: 'work',
         label: 'Trabajo',
         duration_seconds: 30,
-        color: '#a8e02a',
+        color: Colors.neonGreen,
       };
     case 'rest':
       return {
@@ -89,7 +89,7 @@ function createDefaultBlock(type: Block['type'], parentId: string | null): Block
         type: 'rest',
         label: 'Descanso',
         duration_seconds: 15,
-        color: '#5B9BD5',
+        color: Colors.info,
       };
     case 'prep':
       return {
@@ -97,7 +97,7 @@ function createDefaultBlock(type: Block['type'], parentId: string | null): Block
         type: 'prep',
         label: 'Preparación',
         duration_seconds: 10,
-        color: '#EF9F27',
+        color: Colors.warning,
       };
   }
 }
@@ -140,14 +140,14 @@ export function AddBlockButton({ parentId, onAdd, label = 'Agregar paso' }: AddB
               onPress={() => handleSelect('group')}
               style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
             >
-              <View style={[styles.menuDot, { backgroundColor: '#888888' }]} />
+              <View style={[styles.menuDot, { backgroundColor: Colors.textSecondary }]} />
               <View style={styles.menuItemContent}>
                 <EliteText variant="body" style={styles.menuItemLabel}>
                   Grupo
                 </EliteText>
                 <EliteText variant="caption">Contiene pasos, se repite N rondas</EliteText>
               </View>
-              <Ionicons name="layers-outline" size={20} color="#888888" />
+              <Ionicons name="layers-outline" size={20} color={Colors.textSecondary} />
             </Pressable>
 
             {/* Separador visual */}

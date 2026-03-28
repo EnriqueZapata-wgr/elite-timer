@@ -3,6 +3,7 @@
  */
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,8 +17,9 @@ import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult } from '@/src/services/lab-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { CATEGORY_COLORS, SEMANTIC, SURFACES } from '@/src/constants/brand';
 
-const TEAL = '#1D9E75';
+const TEAL = CATEGORY_COLORS.metrics;
 
 export default function MyHealthScreen() {
   const router = useRouter();
@@ -108,9 +110,12 @@ export default function MyHealthScreen() {
       </Pressable>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        <EliteText style={s.title}>MI SALUD</EliteText>
+        <Animated.View entering={FadeInUp.delay(50).springify()}>
+          <EliteText style={s.title}>MI SALUD</EliteText>
+        </Animated.View>
 
         {/* Subir estudio */}
+        <Animated.View entering={FadeInUp.delay(150).springify()}>
         <GradientCard color={TEAL} style={s.uploadCard}>
           <View style={s.uploadBody}>
             <Ionicons name="cloud-upload-outline" size={32} color={TEAL} />
@@ -137,6 +142,7 @@ export default function MyHealthScreen() {
             </View>
           </View>
         </GradientCard>
+        </Animated.View>
 
         {/* Status */}
         {uploading && (
@@ -152,29 +158,29 @@ export default function MyHealthScreen() {
           </View>
         )}
         {result && 'count' in result && (
-          <View style={[s.statusBox, { borderColor: '#a8e02a30' }]}>
-            <Ionicons name="checkmark-circle" size={20} color="#a8e02a" />
-            <EliteText variant="caption" style={{ color: '#a8e02a' }}>
+          <View style={[s.statusBox, { borderColor: Colors.neonGreen + '30' }]}>
+            <Ionicons name="checkmark-circle" size={20} color={Colors.neonGreen} />
+            <EliteText variant="caption" style={{ color: Colors.neonGreen }}>
               ¡Estudio analizado! {result.count} valores extraídos. Tu coach lo revisará.
             </EliteText>
           </View>
         )}
         {result && 'error' in result && (
-          <View style={[s.statusBox, { borderColor: '#E24B4A30' }]}>
-            <Ionicons name="alert-circle" size={20} color="#E24B4A" />
-            <EliteText variant="caption" style={{ color: '#E24B4A' }}>{result.error}</EliteText>
+          <View style={[s.statusBox, { borderColor: SEMANTIC.error + '30' }]}>
+            <Ionicons name="alert-circle" size={20} color={SEMANTIC.error} />
+            <EliteText variant="caption" style={{ color: SEMANTIC.error }}>{result.error}</EliteText>
           </View>
         )}
 
         {/* Uploads fallidos */}
         {uploads.filter(u => u.status === 'failed' || u.status === 'processing').length > 0 && (
           <>
-            <EliteText variant="caption" style={[s.sectionLabel, { color: '#E24B4A' }]}>UPLOADS CON ERROR</EliteText>
+            <EliteText variant="caption" style={[s.sectionLabel, { color: SEMANTIC.error }]}>UPLOADS CON ERROR</EliteText>
             {uploads.filter(u => u.status === 'failed' || u.status === 'processing').map(u => (
-              <View key={u.id} style={[s.labCard, { borderColor: '#E24B4A20' }]}>
+              <View key={u.id} style={[s.labCard, { borderColor: SEMANTIC.error + '20' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                  <Ionicons name="alert-circle" size={16} color="#E24B4A" />
-                  <EliteText variant="caption" style={{ color: '#aaa', flex: 1, fontSize: 12 }}>
+                  <Ionicons name="alert-circle" size={16} color={SEMANTIC.error} />
+                  <EliteText variant="caption" style={{ color: Colors.textSecondary, flex: 1, fontSize: 12 }}>
                     {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : 'Procesando'}
                   </EliteText>
                   <Pressable
@@ -188,11 +194,11 @@ export default function MyHealthScreen() {
                     }}
                     style={{ padding: 6 }}
                   >
-                    <Ionicons name="trash-outline" size={18} color="#E24B4A" />
+                    <Ionicons name="trash-outline" size={18} color={SEMANTIC.error} />
                   </Pressable>
                 </View>
                 {u.error_message && (
-                  <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 10, marginTop: 4 }}>{u.error_message}</EliteText>
+                  <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10, marginTop: 4 }}>{u.error_message}</EliteText>
                 )}
               </View>
             ))}
@@ -201,10 +207,10 @@ export default function MyHealthScreen() {
 
         {/* Labs */}
         {loading ? <ActivityIndicator color={TEAL} style={{ marginTop: Spacing.xl }} /> : (
-          <>
+          <Animated.View entering={FadeInUp.delay(250).springify()}>
             <EliteText variant="caption" style={s.sectionLabel}>MIS ESTUDIOS</EliteText>
             {labs.length === 0 ? (
-              <EliteText variant="caption" style={{ color: '#555', textAlign: 'center', padding: Spacing.lg }}>
+              <EliteText variant="caption" style={{ color: Colors.textMuted, textAlign: 'center', padding: Spacing.lg }}>
                 Sin estudios registrados
               </EliteText>
             ) : (
@@ -215,14 +221,14 @@ export default function MyHealthScreen() {
                     <EliteText variant="body" style={{ fontFamily: Fonts.semiBold, flex: 1 }}>
                       {lab.lab_name ?? 'Laboratorio'}
                     </EliteText>
-                    <View style={[s.badge, lab.status === 'approved' ? { backgroundColor: '#a8e02a15' } : { backgroundColor: '#EF9F2715' }]}>
-                      <EliteText variant="caption" style={{ color: lab.status === 'approved' ? '#a8e02a' : '#EF9F27', fontSize: 9, fontFamily: Fonts.bold }}>
+                    <View style={[s.badge, lab.status === 'approved' ? { backgroundColor: Colors.neonGreen + '15' } : { backgroundColor: SEMANTIC.warning + '15' }]}>
+                      <EliteText variant="caption" style={{ color: lab.status === 'approved' ? Colors.neonGreen : SEMANTIC.warning, fontSize: 9, fontFamily: Fonts.bold }}>
                         {lab.status === 'approved' ? 'Aprobado' : 'En revisión'}
                       </EliteText>
                     </View>
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                    <EliteText variant="caption" style={{ color: '#888' }}>
+                    <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
                       {new Date(lab.lab_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </EliteText>
                     {lab.status !== 'approved' && (
@@ -237,14 +243,14 @@ export default function MyHealthScreen() {
                         }}
                         style={{ padding: 4 }}
                       >
-                        <Ionicons name="trash-outline" size={16} color="#E24B4A" />
+                        <Ionicons name="trash-outline" size={16} color={SEMANTIC.error} />
                       </Pressable>
                     )}
                   </View>
                 </View>
               ))
             )}
-          </>
+          </Animated.View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -271,8 +277,8 @@ const s = StyleSheet.create({
   },
   sectionLabel: { color: Colors.textSecondary, letterSpacing: 3, fontSize: 12, fontFamily: Fonts.bold, marginTop: Spacing.lg, marginBottom: Spacing.sm },
   labCard: {
-    backgroundColor: '#111', borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
-    borderWidth: 0.5, borderColor: '#222',
+    backgroundColor: Colors.surface, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
+    borderWidth: 0.5, borderColor: Colors.border,
   },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
 });

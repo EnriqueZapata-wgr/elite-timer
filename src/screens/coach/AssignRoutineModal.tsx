@@ -7,9 +7,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { getCoachRoutines, assignRoutineToClient, type ClientRoutine } from '@/src/services/coach-panel-service';
 
-const TEAL = '#1D9E75';
+const TEAL = CATEGORY_COLORS.metrics;
 const DAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
 
 interface Props {
@@ -86,7 +87,7 @@ export function AssignRoutineModal({ visible, onClose, clientId, clientName, onA
                     style={styles.routineItem}
                   >
                     <View style={[styles.routineDot, {
-                      backgroundColor: r.mode === 'timer' ? Colors.neonGreen : '#7F77DD',
+                      backgroundColor: r.mode === 'timer' ? Colors.neonGreen : CATEGORY_COLORS.mind,
                     }]} />
                     <View style={styles.routineInfo}>
                       <EliteText variant="body" style={styles.routineName}>{r.name}</EliteText>
@@ -189,7 +190,7 @@ const styles = StyleSheet.create({
   emptyText: { color: Colors.textSecondary, textAlign: 'center', padding: Spacing.lg },
   routineItem: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    paddingVertical: Spacing.sm, borderBottomWidth: 0.5, borderBottomColor: '#1a1a1a',
+    paddingVertical: Spacing.sm, borderBottomWidth: 0.5, borderBottomColor: Colors.surfaceLight,
   },
   routineDot: { width: 8, height: 8, borderRadius: 4 },
   routineInfo: { flex: 1 },

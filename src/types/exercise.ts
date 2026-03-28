@@ -4,6 +4,7 @@
  * Estos tipos reflejan las tablas exercises, exercise_logs y personal_records
  * en Supabase.
  */
+import { ATP_BRAND, CATEGORY_COLORS, SEMANTIC } from '../constants/brand';
 
 /** Ejercicio de la biblioteca (público o custom del usuario) */
 export interface Exercise {
@@ -110,10 +111,10 @@ export const MUSCLE_GROUP_LABELS: Record<string, string> = {
 /** Colores por grupo muscular */
 export const MUSCLE_GROUP_COLORS: Record<string, string> = {
   chest: '#E06666',
-  back: '#5B9BD5',
-  shoulders: '#EF9F27',
-  legs: '#a8e02a',
+  back: CATEGORY_COLORS.nutrition,
+  shoulders: SEMANTIC.warning,
+  legs: ATP_BRAND.lime,
   arms: '#9B59B6',
   core: '#F1C232',
-  full_body: '#1ABC9C',
+  full_body: ATP_BRAND.teal2,
 };

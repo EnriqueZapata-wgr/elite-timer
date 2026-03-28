@@ -3,6 +3,7 @@
  * Conecta lab_results columns con el motor de salud (functional-health-engine).
  */
 import { DOMAINS, type Sex, type RatingLevel } from '../data/functional-health-engine';
+import { SEMANTIC } from '../constants/brand';
 
 export type Direction = 'above' | 'below' | 'in_range' | null;
 
@@ -16,12 +17,12 @@ export interface ValueRating {
 }
 
 const RATING_CONFIG: Record<RatingLevel | 'no_data', { color: string; bgColor: string; label: string }> = {
-  optimal:      { color: '#a8e02a', bgColor: 'rgba(168,224,42,0.12)',  label: 'Óptimo' },
-  acceptable:   { color: '#EFD54F', bgColor: 'rgba(239,213,79,0.12)', label: 'Aceptable' },
-  risk:         { color: '#EF9F27', bgColor: 'rgba(239,159,39,0.12)', label: 'Riesgo' },
-  critical:     { color: '#E24B4A', bgColor: 'rgba(226,75,74,0.12)',  label: 'Crítico' },
-  out_of_range: { color: '#E24B4A', bgColor: 'rgba(226,75,74,0.20)', label: 'Fuera de rango' },
-  no_data:      { color: '#666',    bgColor: 'rgba(102,102,102,0.12)', label: 'Sin dato' },
+  optimal:      { color: SEMANTIC.success,    bgColor: 'rgba(168,224,42,0.12)',  label: 'Óptimo' },
+  acceptable:   { color: SEMANTIC.acceptable, bgColor: 'rgba(239,213,79,0.12)', label: 'Aceptable' },
+  risk:         { color: SEMANTIC.warning,    bgColor: 'rgba(239,159,39,0.12)', label: 'Riesgo' },
+  critical:     { color: SEMANTIC.error,      bgColor: 'rgba(226,75,74,0.12)',  label: 'Crítico' },
+  out_of_range: { color: SEMANTIC.error,      bgColor: 'rgba(226,75,74,0.20)', label: 'Fuera de rango' },
+  no_data:      { color: '#666',              bgColor: 'rgba(102,102,102,0.12)', label: 'Sin dato' },
 };
 
 // Mapeo: columna de lab_results → key(s) del motor de salud

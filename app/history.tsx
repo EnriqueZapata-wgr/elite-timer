@@ -7,6 +7,7 @@ import {
   View, StyleSheet, ScrollView, Pressable,
   ActivityIndicator, RefreshControl,
 } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
+import { CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
 import {
   getSessionHistory,
   type SessionHistoryEntry,
@@ -81,12 +83,12 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
         </Pressable>
         <EliteText variant="title" style={styles.headerTitle}>HISTORIAL</EliteText>
-      </View>
+      </Animated.View>
 
       {loading ? (
         <View style={styles.centered}>
@@ -103,6 +105,7 @@ export default function HistoryScreen() {
           </EliteText>
         </View>
       ) : (
+        <Animated.View entering={FadeInUp.delay(150).springify()} style={{ flex: 1 }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -118,7 +121,7 @@ export default function HistoryScreen() {
                 const gradColors: readonly [string, string] = isTimer
                   ? ['#1a2a1a', '#0a1a0a']
                   : ['#1a1a2a', '#0a0a1a'];
-                const accentColor = isTimer ? Colors.neonGreen : '#7F77DD';
+                const accentColor = isTimer ? Colors.neonGreen : CATEGORY_COLORS.mind;
                 const modeLabel = isTimer ? 'TIMER' : 'RUTINA';
 
                 return (
@@ -148,7 +151,7 @@ export default function HistoryScreen() {
                         {session.status !== 'completed' && (
                           <>
                             <EliteText variant="caption" style={styles.sessionMetaDot}>·</EliteText>
-                            <EliteText variant="caption" style={[styles.sessionMetaText, { color: '#EF9F27' }]}>
+                            <EliteText variant="caption" style={[styles.sessionMetaText, { color: SEMANTIC.warning }]}>
                               Abandonada
                             </EliteText>
                           </>
@@ -163,6 +166,7 @@ export default function HistoryScreen() {
 
           <View style={{ height: Spacing.xxl }} />
         </ScrollView>
+        </Animated.View>
       )}
     </SafeAreaView>
   );
@@ -219,7 +223,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   sessionAccent: {
     position: 'absolute',

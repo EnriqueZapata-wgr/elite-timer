@@ -208,13 +208,13 @@ const styles = StyleSheet.create({
     bottom: 12,
   },
   comingSoonBadge: {
-    backgroundColor: '#222',
+    backgroundColor: Colors.border,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: Radius.pill,
   },
   comingSoonText: {
-    color: '#666',
+    color: Colors.textMuted,
     fontSize: 9,
     fontFamily: Fonts.bold,
     letterSpacing: 1,

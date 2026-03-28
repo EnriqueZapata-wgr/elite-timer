@@ -15,6 +15,7 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/GradientCard';
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
+import { CATEGORY_COLORS, SEMANTIC, SURFACES } from '@/src/constants/brand';
 import {
   getTodayTimeline,
   toggleCompletion,
@@ -204,13 +205,13 @@ export default function TodayScreen() {
                   </EliteText>
                 </View>
                 <View style={styles.weekPill}>
-                  <Ionicons name="trending-up-outline" size={14} color="#5B9BD5" />
+                  <Ionicons name="trending-up-outline" size={14} color={CATEGORY_COLORS.nutrition} />
                   <EliteText variant="caption" style={styles.weekPillText}>
                     {weekStats.volumeKg > 999 ? `${Math.round(weekStats.volumeKg / 1000)}k` : `${weekStats.volumeKg}kg`}
                   </EliteText>
                 </View>
                 <View style={styles.weekPill}>
-                  <Ionicons name="trophy-outline" size={14} color="#EF9F27" />
+                  <Ionicons name="trophy-outline" size={14} color={SEMANTIC.warning} />
                   <EliteText variant="caption" style={styles.weekPillText}>
                     {weekStats.prs} PRs
                   </EliteText>
@@ -248,7 +249,7 @@ export default function TodayScreen() {
                         {idx > 0 && <View style={styles.lineSegment} />}
                         <View style={[
                           styles.dot,
-                          { backgroundColor: item.is_completed ? Colors.neonGreen : (past ? '#333' : accentColor + '40') },
+                          { backgroundColor: item.is_completed ? Colors.neonGreen : (past ? Colors.disabled : accentColor + '40') },
                           item.is_completed && { borderColor: Colors.neonGreen },
                         ]}>
                           {item.is_completed && (
@@ -405,7 +406,7 @@ const styles = StyleSheet.create({
   progressPercent: { color: Colors.neonGreen, fontFamily: Fonts.bold },
   progressBar: {
     height: 4,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -425,12 +426,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.pill,
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   weekPillText: { color: Colors.textSecondary, fontSize: 12, fontFamily: Fonts.semiBold },
 
@@ -463,22 +464,22 @@ const styles = StyleSheet.create({
   lineSegment: {
     width: 1.5,
     height: 14,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
   },
   lineSegmentBottom: {
     width: 1.5,
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
   },
   dot: {
     width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#111',
+    backgroundColor: Colors.surface,
   },
 
   // Card
@@ -547,7 +548,7 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#333',
+    borderColor: Colors.disabled,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -604,13 +605,13 @@ const styles = StyleSheet.create({
     bottom: Spacing.xl,
     left: Spacing.lg,
     right: Spacing.lg,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
     borderRadius: 8,
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.md,
     alignItems: 'center',
     borderWidth: 0.5,
-    borderColor: '#2a2a2a',
+    borderColor: Colors.border,
   },
   toastText: {
     color: Colors.textPrimary,

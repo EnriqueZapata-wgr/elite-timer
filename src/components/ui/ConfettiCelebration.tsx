@@ -5,6 +5,7 @@
  */
 import { useEffect } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
+import { Colors } from '@/constants/theme';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,7 +17,7 @@ import Animated, {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const COLORS = ['#a8e02a', '#FFD700', '#FFFFFF', '#a8e02a', '#FFD700', '#FFFFFF'];
+const COLORS = [Colors.neonGreen, '#FFD700', Colors.textPrimary, Colors.neonGreen, '#FFD700', Colors.textPrimary];
 const PARTICLE_COUNT = 30;
 const TOTAL_DURATION = 2500;
 

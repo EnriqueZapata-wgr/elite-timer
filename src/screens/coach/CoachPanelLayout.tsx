@@ -9,12 +9,13 @@ import { View, StyleSheet, ScrollView, FlatList, Pressable, TextInput, ActivityI
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
 import { getClientList, getCoachProfile, type ClientSummary } from '@/src/services/coach-panel-service';
 import { inviteClientByEmail, updateClientName } from '@/src/services/coach-service';
 import { useCoachStatus, refreshCoachStatus } from '@/src/hooks/useCoachStatus';
 import { ClientDetailScreen } from './ClientDetailScreen';
 
-const TEAL = '#1D9E75';
+const TEAL = CATEGORY_COLORS.metrics;
 const SIDEBAR_W = 300;
 
 interface Props {
@@ -258,7 +259,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
               />
             </View>
             {inviteError ? (
-              <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 12, marginBottom: Spacing.sm }}>
+              <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 12, marginBottom: Spacing.sm }}>
                 {inviteError}
               </EliteText>
             ) : null}
@@ -292,7 +293,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
           />
         ) : (
           <View style={styles.emptyMain}>
-            <Ionicons name="people-outline" size={56} color={'#666666'} />
+            <Ionicons name="people-outline" size={56} color={TEXT_COLORS.muted} />
             <EliteText variant="body" style={styles.emptyMainText}>
               Selecciona un cliente para ver su información
             </EliteText>
@@ -304,28 +305,28 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, flexDirection: 'row', backgroundColor: '#000000' },
+  container: { flex: 1, flexDirection: 'row', backgroundColor: ATP_BRAND.black },
 
   // ── Sidebar ──
   sidebar: {
     width: SIDEBAR_W,
-    backgroundColor: '#111111',
+    backgroundColor: SURFACES.base,
     borderRightWidth: 1,
-    borderRightColor: '#1a1a1a',
+    borderRightColor: SURFACES.cardLight,
   },
   sidebarHeader: {
     padding: Spacing.md,
     paddingTop: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: SURFACES.cardLight,
   },
   brandText: {
     fontFamily: Fonts.extraBold,
     fontSize: 28,
-    color: Colors.neonGreen,
+    color: ATP_BRAND.lime,
     letterSpacing: 6,
   },
-  brandSub: { color: '#AAAAAA', fontFamily: Fonts.semiBold, fontSize: 13, letterSpacing: 2, marginTop: 2 },
+  brandSub: { color: TEXT_COLORS.secondary, fontFamily: Fonts.semiBold, fontSize: 13, letterSpacing: 2, marginTop: 2 },
 
   // Coach identity
   coachIdentity: {
@@ -335,20 +336,20 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
+    borderTopColor: SURFACES.cardLight,
   },
   coachAvatar: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: Colors.neonGreen + '20',
+    backgroundColor: ATP_BRAND.lime + '20',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  coachAvatarText: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 13 },
+  coachAvatarText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: 13 },
   coachIdentityInfo: { flex: 1 },
-  coachIdentityName: { fontFamily: Fonts.semiBold, fontSize: 13, color: '#FFFFFF' },
-  coachIdentityEmail: { color: '#666666', fontSize: 11, marginTop: 1 },
+  coachIdentityName: { fontFamily: Fonts.semiBold, fontSize: 13, color: TEXT_COLORS.primary },
+  coachIdentityEmail: { color: TEXT_COLORS.muted, fontSize: 11, marginTop: 1 },
 
   // Código
   codeBox: {
@@ -358,9 +359,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: SURFACES.cardLight,
   },
-  codeLabel: { color: '#666666', fontSize: 9, letterSpacing: 2, fontFamily: Fonts.bold },
+  codeLabel: { color: TEXT_COLORS.muted, fontSize: 9, letterSpacing: 2, fontFamily: Fonts.bold },
   codeValue: { fontFamily: 'monospace', fontSize: 18, color: TEAL, letterSpacing: 6, fontWeight: '700' },
 
   // Búsqueda
@@ -370,15 +371,15 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     margin: Spacing.sm,
     marginBottom: 0,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: SURFACES.cardLight,
     borderRadius: Radius.sm,
     paddingHorizontal: Spacing.sm,
     borderWidth: 1,
-    borderColor: '#222222',
+    borderColor: SURFACES.border,
   },
   searchInput: {
     flex: 1,
-    color: '#FFFFFF',
+    color: TEXT_COLORS.primary,
     fontFamily: Fonts.regular,
     fontSize: 13,
     paddingVertical: Spacing.sm,
@@ -386,7 +387,7 @@ const styles = StyleSheet.create({
 
   // Lista
   clientList: { flex: 1, marginTop: Spacing.xs },
-  emptyList: { color: '#666666', textAlign: 'center', padding: Spacing.lg },
+  emptyList: { color: TEXT_COLORS.muted, textAlign: 'center', padding: Spacing.lg },
 
   // Client item
   clientItem: {
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
   },
   clientItemSelected: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: SURFACES.cardLight,
     borderLeftColor: TEAL,
   },
   avatar: {
@@ -412,41 +413,41 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: TEAL, fontFamily: Fonts.bold, fontSize: 14 },
   clientItemInfo: { flex: 1 },
-  clientName: { fontFamily: Fonts.semiBold, fontSize: 14, color: '#FFFFFF' },
-  clientMeta: { color: '#AAAAAA', fontSize: 11 },
-  pendingBadge: { backgroundColor: '#333', paddingHorizontal: 5, paddingVertical: 1, borderRadius: Radius.pill },
-  pendingBadgeText: { color: '#888', fontSize: 8, fontFamily: Fonts.bold },
+  clientName: { fontFamily: Fonts.semiBold, fontSize: 14, color: TEXT_COLORS.primary },
+  clientMeta: { color: TEXT_COLORS.secondary, fontSize: 11 },
+  pendingBadge: { backgroundColor: SURFACES.disabled, paddingHorizontal: 5, paddingVertical: 1, borderRadius: Radius.pill },
+  pendingBadgeText: { color: TEXT_COLORS.secondary, fontSize: 8, fontFamily: Fonts.bold },
 
   // Add client button
   addClientBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
     marginHorizontal: Spacing.sm, marginTop: Spacing.sm, paddingVertical: Spacing.sm,
-    borderWidth: 1, borderColor: Colors.neonGreen + '30', borderRadius: Radius.sm, borderStyle: 'dashed',
+    borderWidth: 1, borderColor: ATP_BRAND.lime + '30', borderRadius: Radius.sm, borderStyle: 'dashed',
   },
-  addClientBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold, fontSize: 12 },
+  addClientBtnText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: 12 },
 
   // Invite modal
   inviteOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center', padding: Spacing.lg,
   },
   inviteModal: {
-    backgroundColor: '#111', borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 400,
-    borderWidth: 1, borderColor: '#222',
+    backgroundColor: SURFACES.card, borderRadius: 16, padding: Spacing.md, width: '100%', maxWidth: 400,
+    borderWidth: 1, borderColor: SURFACES.border,
   },
-  inviteTitle: { color: Colors.neonGreen, letterSpacing: 3, fontSize: 13, marginBottom: Spacing.md },
+  inviteTitle: { color: ATP_BRAND.lime, letterSpacing: 3, fontSize: 13, marginBottom: Spacing.md },
   inviteField: { marginBottom: Spacing.sm },
-  inviteLabel: { color: '#888', fontSize: 11, marginBottom: 4 },
+  inviteLabel: { color: TEXT_COLORS.secondary, fontSize: 11, marginBottom: 4 },
   inviteInput: {
-    backgroundColor: '#1a1a1a', borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
-    color: '#fff', fontSize: 14, borderWidth: 0.5, borderColor: '#2a2a2a',
+    backgroundColor: SURFACES.cardLight, borderRadius: 8, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm,
+    color: TEXT_COLORS.primary, fontSize: 14, borderWidth: 0.5, borderColor: SURFACES.border,
   },
   inviteActions: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.md,
   },
   inviteSaveBtn: {
-    backgroundColor: Colors.neonGreen, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill,
+    backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill,
   },
-  inviteSaveBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: 13 },
+  inviteSaveBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: 13 },
 
   // Switch
   switchBtn: {
@@ -455,12 +456,12 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     padding: Spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
+    borderTopColor: SURFACES.cardLight,
   },
-  switchText: { color: '#AAAAAA', fontSize: 13 },
+  switchText: { color: TEXT_COLORS.secondary, fontSize: 13 },
 
   // Main
-  mainArea: { flex: 1, backgroundColor: '#000000' },
+  mainArea: { flex: 1, backgroundColor: ATP_BRAND.black },
   emptyMain: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
-  emptyMainText: { color: '#666666', fontSize: 16 },
+  emptyMainText: { color: TEXT_COLORS.muted, fontSize: 16 },
 });

@@ -2,6 +2,7 @@
  * Motor de Salud Funcional — 144 parámetros, 10 dominios, PhenoAge de Levine.
  * Rangos funcionales por sexo, ajustes por composición corporal.
  */
+import { SEMANTIC } from '../constants/brand';
 
 export type Sex = 'male' | 'female';
 export type RatingLevel = 'out_of_range' | 'critical' | 'risk' | 'acceptable' | 'optimal';
@@ -406,10 +407,10 @@ export function mapPatientDataToInput(
 }
 
 export const RATING_COLORS: Record<string, string> = {
-  optimal: '#a8e02a',
-  acceptable: '#EFD54F',
-  risk: '#EF9F27',
-  critical: '#E24B4A',
-  out_of_range: '#E24B4A',
-  no_data: '#444444',
+  optimal: SEMANTIC.success,
+  acceptable: SEMANTIC.acceptable,
+  risk: SEMANTIC.warning,
+  critical: SEMANTIC.error,
+  out_of_range: SEMANTIC.error,
+  no_data: SEMANTIC.noData,
 };

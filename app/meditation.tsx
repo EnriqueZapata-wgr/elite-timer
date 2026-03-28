@@ -25,8 +25,9 @@ import {
   type MeditationPhase,
 } from '@/src/data/meditation-library';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 
-const PURPLE = '#7F77DD';
+const PURPLE = CATEGORY_COLORS.mind;
 
 // === COMPONENTE PRINCIPAL ===
 
@@ -373,7 +374,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: 4, marginBottom: Spacing.lg,
   },
   phaseDot: {
-    width: 6, height: 6, borderRadius: 3, backgroundColor: '#333',
+    width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.disabled,
   },
   phaseDotDone: { backgroundColor: PURPLE },
   phaseDotCurrent: { backgroundColor: PURPLE, width: 16, borderRadius: 3 },
@@ -386,7 +387,7 @@ const styles = StyleSheet.create({
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  mainBtnText: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
+  mainBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
   endBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
   endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: 13, letterSpacing: 2 },
 

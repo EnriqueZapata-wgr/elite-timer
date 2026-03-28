@@ -11,6 +11,7 @@ import { View, Pressable, StyleSheet, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND } from '@/src/constants/brand';
 import type { Block } from '@/src/engine/types';
 import { deepCopyBlock } from '@/src/utils/routine-storage';
 import { AddBlockButton } from './AddBlockButton';
@@ -18,16 +19,16 @@ import { AddBlockButton } from './AddBlockButton';
 // === PALETA DE COLORES PARA GRUPOS ===
 
 const COLOR_PALETTE = [
-  '#888888', '#a8e02a', '#5B9BD5', '#EF9F27',
-  '#E24B4A', '#9B59B6', '#1ABC9C', '#F39C12',
+  Colors.textSecondary, Colors.neonGreen, Colors.info, Colors.warning,
+  Colors.error, '#9B59B6', ATP_BRAND.teal2, '#F39C12',
 ];
 
 // === COLORES POR TIPO DE BLOQUE ===
 
 const TYPE_COLORS: Record<string, string> = {
-  work: '#a8e02a',
-  rest: '#5B9BD5',
-  prep: '#EF9F27',
+  work: Colors.neonGreen,
+  rest: Colors.info,
+  prep: Colors.warning,
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -69,7 +70,7 @@ export function BlockCard({
   const [editing, setEditing] = useState(false);
 
   const isGroup = block.type === 'group';
-  const blockColor = isGroup ? (block.color ?? '#888888') : TYPE_COLORS[block.type];
+  const blockColor = isGroup ? (block.color ?? Colors.textSecondary) : TYPE_COLORS[block.type];
   const indent = depth * 12;
 
   // --- Helpers para actualizar campos ---
@@ -202,7 +203,7 @@ export function BlockCard({
                   max={600}
                   step={5}
                   suffix="s"
-                  accent="#5B9BD5"
+                  accent={Colors.info}
                 />
               </View>
               <View style={styles.configRow}>
@@ -469,7 +470,7 @@ function NumberStepper({
 const styles = StyleSheet.create({
   // Card exterior (compartida grupo y hoja)
   cardOuter: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
     borderRadius: Radius.md,
     marginBottom: Spacing.sm,
     overflow: 'hidden',
@@ -688,7 +689,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

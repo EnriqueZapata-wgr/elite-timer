@@ -12,6 +12,7 @@ import {
   View, ScrollView, StyleSheet, Pressable, Alert, Modal,
   KeyboardAvoidingView, Platform, TextInput,
 } from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,7 +31,8 @@ import { generateUUID as generateId } from '@/src/services/routine-service';
 import { deepCopyBlock } from '@/src/utils/routine-storage';
 import { ExercisePicker } from '@/src/components/ExercisePicker';
 import type { Exercise } from '@/src/types/exercise';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC } from '@/src/constants/brand';
 
 // === CATEGORÍAS (solo Workout y Custom según diseño) ===
 
@@ -255,14 +257,14 @@ export default function BuilderScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* === HEADER === */}
-        <View style={styles.header}>
+        <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.header}>
           <Pressable onPress={handleBack} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
           </Pressable>
           <EliteText variant="title" style={styles.headerTitle}>
             {isEditing ? 'EDITAR RUTINA' : 'CREAR RUTINA'}
           </EliteText>
-        </View>
+        </Animated.View>
 
         <ScrollView
           style={styles.flex}
@@ -305,7 +307,7 @@ export default function BuilderScreen() {
                 <Ionicons
                   name="barbell-outline"
                   size={16}
-                  color={routine.mode === 'routine' ? '#fff' : Colors.textSecondary}
+                  color={routine.mode === 'routine' ? TEXT_COLORS.primary : Colors.textSecondary}
                 />
                 <EliteText variant="caption" style={[
                   styles.modeText,
@@ -349,7 +351,7 @@ export default function BuilderScreen() {
           )}
 
           {/* === ZONA DE BLOQUES === */}
-          <View style={styles.blocksZone}>
+          <Animated.View entering={FadeInUp.delay(150).springify()} style={styles.blocksZone}>
             {routine.blocks.length === 0 ? (
               <View style={styles.emptyBlocks}>
                 <Ionicons name="layers-outline" size={48} color={Colors.textSecondary} />
@@ -393,7 +395,7 @@ export default function BuilderScreen() {
               onAdd={addRootBlock}
               label="Agregar bloque"
             />
-          </View>
+          </Animated.View>
 
           {/* Padding inferior para scroll sobre footer */}
           <View style={{ height: 120 }} />
@@ -469,10 +471,10 @@ export default function BuilderScreen() {
                         styles.previewDot,
                         {
                           backgroundColor: step.isRestBetween
-                            ? '#888'
-                            : step.type === 'work' ? '#a8e02a'
-                            : step.type === 'rest' ? '#5B9BD5'
-                            : '#EF9F27',
+                            ? Colors.textSecondary
+                            : step.type === 'work' ? BlockColors.exercise
+                            : step.type === 'rest' ? BlockColors.rest
+                            : BlockColors.transition,
                         },
                       ]}
                     />
@@ -592,7 +594,7 @@ const styles = StyleSheet.create({
   },
   modeToggle: {
     flexDirection: 'row',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
     borderRadius: Radius.pill,
     padding: 3,
   },
@@ -609,7 +611,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neonGreen,
   },
   modePillRoutineActive: {
-    backgroundColor: '#7F77DD',
+    backgroundColor: CATEGORY_COLORS.mind,
   },
   modeText: {
     color: Colors.textSecondary,
@@ -620,7 +622,7 @@ const styles = StyleSheet.create({
     color: Colors.textOnGreen,
   },
   modeTextRoutineActive: {
-    color: '#fff',
+    color: TEXT_COLORS.primary,
   },
 
   // --- Categoría ---
@@ -634,7 +636,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.pill,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Colors.surfaceLight,
   },
   categoryPillActive: {
     backgroundColor: Colors.neonGreen,
@@ -677,7 +679,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     backgroundColor: Colors.black,
     borderTopWidth: 0.5,
-    borderTopColor: '#1a1a1a',
+    borderTopColor: Colors.surfaceLight,
   },
   bottomBtn: {
     flexDirection: 'row',
@@ -688,7 +690,7 @@ const styles = StyleSheet.create({
   },
   bottomBtnOutline: {
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: Colors.disabled,
     borderRadius: Radius.pill,
   },
   bottomBtnOutlineText: {
@@ -704,7 +706,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.pill,
-    shadowColor: '#a8e02a',
+    shadowColor: Colors.neonGreen,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -749,7 +751,7 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     paddingVertical: Spacing.xs + 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#1a1a1a',
+    borderBottomColor: Colors.surfaceLight,
   },
   previewIndex: {
     width: 28,
