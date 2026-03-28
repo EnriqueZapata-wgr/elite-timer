@@ -166,7 +166,7 @@ Solo valores encontrados. No mapeados→other_values.`;
       .select('id')
       .single();
 
-    if (labError) throw labError;
+    if (labError) throw new Error(labError.message || JSON.stringify(labError));
 
     // Update upload
     await supabase.from('lab_uploads').update({
@@ -220,6 +220,42 @@ export async function approveLabResult(labId: string): Promise<void> {
 }
 
 export async function deleteLabResult(labId: string): Promise<void> {
+  // Obtener upload_id antes de borrar
+  const { data: lab } = await supabase.from('lab_results').select('upload_id').eq('id', labId).single();
+
+  // Romper referencias circulares antes de borrar
+  if (lab?.upload_id) {
+    await supabase.from('lab_uploads').update({ lab_result_id: null }).eq('lab_result_id', labId);
+  }
+  // Romper referencia desde consultations
+  await supabase.from('consultations').update({ lab_result_id: null }).eq('lab_result_id', labId);
+
   const { error } = await supabase.from('lab_results').delete().eq('id', labId);
-  if (error) throw error;
+  if (error) throw new Error(error.message || JSON.stringify(error));
+
+  // Limpiar upload huérfano
+  if (lab?.upload_id) {
+    await supabase.from('lab_uploads').delete().eq('id', lab.upload_id);
+  }
+}
+
+export async function deleteLabUpload(uploadId: string): Promise<void> {
+  // Romper referencia circular: lab_results.upload_id → null
+  await supabase.from('lab_results').update({ upload_id: null }).eq('upload_id', uploadId);
+  // Borrar lab_results que vinieron de este upload
+  await supabase.from('lab_results').delete().eq('upload_id', uploadId);
+
+  const { error } = await supabase.from('lab_uploads').delete().eq('id', uploadId);
+  if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
+/** Obtener uploads que fallaron o quedaron huérfanos (sin lab_result) */
+export async function getFailedUploads(userId: string): Promise<LabUpload[]> {
+  const { data } = await supabase
+    .from('lab_uploads')
+    .select('*')
+    .eq('user_id', userId)
+    .in('status', ['failed', 'processing', 'uploaded'])
+    .order('uploaded_at', { ascending: false });
+  return (data ?? []) as LabUpload[];
 }

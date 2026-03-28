@@ -14,7 +14,7 @@ try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
-import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, type LabUpload, type LabResult } from '@/src/services/lab-service';
+import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult } from '@/src/services/lab-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 
 const TEAL = '#1D9E75';
@@ -166,7 +166,40 @@ export default function MyHealthScreen() {
           </View>
         )}
 
-        {/* Labs aprobados */}
+        {/* Uploads fallidos */}
+        {uploads.filter(u => u.status === 'failed' || u.status === 'processing').length > 0 && (
+          <>
+            <EliteText variant="caption" style={[s.sectionLabel, { color: '#E24B4A' }]}>UPLOADS CON ERROR</EliteText>
+            {uploads.filter(u => u.status === 'failed' || u.status === 'processing').map(u => (
+              <View key={u.id} style={[s.labCard, { borderColor: '#E24B4A20' }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                  <Ionicons name="alert-circle" size={16} color="#E24B4A" />
+                  <EliteText variant="caption" style={{ color: '#aaa', flex: 1, fontSize: 12 }}>
+                    {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : 'Procesando'}
+                  </EliteText>
+                  <Pressable
+                    onPress={() => {
+                      Alert.alert('Eliminar', '¿Eliminar este upload fallido?', [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Eliminar', style: 'destructive', onPress: async () => {
+                          try { await deleteLabUpload(u.id); loadData(); } catch { /* */ }
+                        }},
+                      ]);
+                    }}
+                    style={{ padding: 6 }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color="#E24B4A" />
+                  </Pressable>
+                </View>
+                {u.error_message && (
+                  <EliteText variant="caption" style={{ color: '#E24B4A', fontSize: 10, marginTop: 4 }}>{u.error_message}</EliteText>
+                )}
+              </View>
+            ))}
+          </>
+        )}
+
+        {/* Labs */}
         {loading ? <ActivityIndicator color={TEAL} style={{ marginTop: Spacing.xl }} /> : (
           <>
             <EliteText variant="caption" style={s.sectionLabel}>MIS ESTUDIOS</EliteText>
@@ -188,9 +221,26 @@ export default function MyHealthScreen() {
                       </EliteText>
                     </View>
                   </View>
-                  <EliteText variant="caption" style={{ color: '#888', marginTop: 2 }}>
-                    {new Date(lab.lab_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
-                  </EliteText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                    <EliteText variant="caption" style={{ color: '#888' }}>
+                      {new Date(lab.lab_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </EliteText>
+                    {lab.status !== 'approved' && (
+                      <Pressable
+                        onPress={() => {
+                          Alert.alert('Eliminar', '¿Eliminar este estudio?', [
+                            { text: 'Cancelar', style: 'cancel' },
+                            { text: 'Eliminar', style: 'destructive', onPress: async () => {
+                              try { await deleteLabResult(lab.id); loadData(); } catch { /* */ }
+                            }},
+                          ]);
+                        }}
+                        style={{ padding: 4 }}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#E24B4A" />
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
               ))
             )}
