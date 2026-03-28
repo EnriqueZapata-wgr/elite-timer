@@ -9,7 +9,7 @@ import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeInLeft, FadeInRight } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -154,48 +154,24 @@ export default function KitScreen() {
             HERRAMIENTAS
           </EliteText>
           <View style={styles.toolsGrid}>
-            <ToolCard
-              icon="timer-outline"
-              label="Timer"
-              color={Colors.neonGreen}
-              active
-              onPress={() => router.push('/timer')}
-            />
-            <ToolCard
-              icon="leaf-outline"
-              label="Respiración"
-              color={CATEGORY_COLORS.mind}
-              active
-              onPress={() => router.push('/breathing')}
-            />
-            <ToolCard
-              icon="sparkles-outline"
-              label="Meditación"
-              color={CATEGORY_COLORS.mind}
-              active
-              onPress={() => router.push('/meditation')}
-            />
-            <ToolCard
-              icon="heart-circle-outline"
-              label="Check-in"
-              color={CATEGORY_COLORS.mind}
-              active
-              onPress={() => router.push('/checkin')}
-            />
-            <ToolCard
-              icon="flask-outline"
-              label="Mi Salud"
-              color={CATEGORY_COLORS.metrics}
-              active
-              onPress={() => router.push('/my-health')}
-            />
-            <ToolCard
-              icon="journal-outline"
-              label="Journaling"
-              color={CATEGORY_COLORS.optimization}
-              active={false}
-              onPress={() => Alert.alert('Journaling', 'Próximamente')}
-            />
+            {[
+              { icon: 'timer-outline', label: 'Timer', color: Colors.neonGreen, active: true, route: '/timer' },
+              { icon: 'leaf-outline', label: 'Respiración', color: CATEGORY_COLORS.mind, active: true, route: '/breathing' },
+              { icon: 'sparkles-outline', label: 'Meditación', color: CATEGORY_COLORS.mind, active: true, route: '/meditation' },
+              { icon: 'heart-circle-outline', label: 'Check-in', color: CATEGORY_COLORS.mind, active: true, route: '/checkin' },
+              { icon: 'flask-outline', label: 'Mi Salud', color: CATEGORY_COLORS.metrics, active: true, route: '/my-health' },
+              { icon: 'journal-outline', label: 'Journaling', color: CATEGORY_COLORS.optimization, active: false, route: '' },
+            ].map((tool, idx) => (
+              <Animated.View key={tool.label} entering={(idx % 2 === 0 ? FadeInLeft : FadeInRight).delay(300 + idx * 70).duration(400).springify()}>
+                <ToolCard
+                  icon={tool.icon}
+                  label={tool.label}
+                  color={tool.color}
+                  active={tool.active}
+                  onPress={() => tool.active ? router.push(tool.route as any) : Alert.alert(tool.label, 'Próximamente')}
+                />
+              </Animated.View>
+            ))}
           </View>
         </Animated.View>
 

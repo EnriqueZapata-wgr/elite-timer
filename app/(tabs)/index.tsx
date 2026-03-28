@@ -9,7 +9,7 @@ import { useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInUp, FadeInLeft, ZoomIn, useAnimatedStyle, useSharedValue, withTiming, withSpring, Easing } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -231,7 +231,7 @@ export default function TodayScreen() {
                 return (
                   <Animated.View
                     key={item.item_id}
-                    entering={FadeInUp.delay(200 + idx * 30).springify()}
+                    entering={FadeInLeft.delay(200 + idx * 60).duration(400).springify()}
                   >
                     <View style={styles.timelineRow}>
                       {/* Hora */}
@@ -253,7 +253,9 @@ export default function TodayScreen() {
                           item.is_completed && { borderColor: Colors.neonGreen },
                         ]}>
                           {item.is_completed && (
-                            <Ionicons name="checkmark" size={10} color={Colors.black} />
+                            <Animated.View entering={ZoomIn.duration(300).springify()}>
+                              <Ionicons name="checkmark" size={10} color={Colors.black} />
+                            </Animated.View>
                           )}
                         </View>
                         {idx < timeline.length - 1 && <View style={styles.lineSegmentBottom} />}

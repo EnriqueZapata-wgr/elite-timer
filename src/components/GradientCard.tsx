@@ -1,12 +1,19 @@
 /**
- * GradientCard — Card estilo Oura Ring con gradiente sutil de color.
+ * GradientCard — Card estilo premium con gradiente sutil + spring scale.
  *
  * Gradiente diagonal del color (opacity ~0.15) → transparente.
- * Border sutil del color. Border radius 16.
+ * Press: spring scale bounce (0.97) con feedback táctil.
  */
 import { type ReactNode } from 'react';
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface GradientCardProps {
   color: string;
@@ -17,8 +24,13 @@ interface GradientCardProps {
 }
 
 export function GradientCard({ color, children, style, onPress, disabled }: GradientCardProps) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   const flatStyle = StyleSheet.flatten(style);
-  // Extraer flex del style para pasarlo al wrapper Pressable
   const { flex, flexGrow, flexShrink, flexBasis, alignSelf, margin, marginLeft, marginRight,
     marginTop, marginBottom, marginHorizontal, marginVertical, width, height, minHeight,
     maxWidth, maxHeight, ...innerStyle } = (flatStyle ?? {}) as any;
@@ -57,13 +69,19 @@ export function GradientCard({ color, children, style, onPress, disabled }: Grad
 
   if (onPress) {
     return (
-      <Pressable
+      <AnimatedPressable
         onPress={onPress}
         disabled={disabled}
-        style={({ pressed }) => [outerStyle, pressed ? { opacity: 0.8 } : undefined]}
+        onPressIn={() => {
+          scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });
+        }}
+        onPressOut={() => {
+          scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+        }}
+        style={[animatedStyle, outerStyle, disabled && { opacity: 0.4 }]}
       >
         {content}
-      </Pressable>
+      </AnimatedPressable>
     );
   }
 

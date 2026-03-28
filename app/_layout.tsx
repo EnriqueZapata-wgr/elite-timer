@@ -81,8 +81,8 @@ export default function RootLayout() {
             <SessionsProvider>
               <Stack screenOptions={{
                 headerShown: false,
-                animation: 'slide_from_right',
-                animationDuration: 250,
+                animation: 'ios_from_right',
+                animationDuration: 300,
               }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(tabs)" />
