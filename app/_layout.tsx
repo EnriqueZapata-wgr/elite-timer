@@ -5,10 +5,12 @@
  * La redirección auth/app se maneja en index.tsx con <Redirect>.
  */
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
@@ -51,6 +53,21 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  // Buscar y aplicar updates OTA al abrir la app
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    async function checkUpdate() {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch { /* silenciar en dev */ }
+    }
+    checkUpdate();
+  }, []);
 
   if (!fontsLoaded) {
     return null;
