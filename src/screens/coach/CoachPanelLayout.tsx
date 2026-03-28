@@ -5,7 +5,7 @@
  * Área principal derecha: ficha del cliente seleccionado.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, FlatList, Pressable, TextInput, ActivityIndicator, Share, Modal, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, FlatList, Pressable, TextInput, ActivityIndicator, Share, Modal, Alert, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
@@ -148,7 +148,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
       <View style={styles.sidebar}>
         {/* Header con brand + identidad del coach */}
         <View style={styles.sidebarHeader}>
-          <EliteText style={styles.brandText}>ATP</EliteText>
+          <Image source={require('@/assets/images/logo-horizontal.png')} style={{ width: 150, height: 50, marginBottom: 4 }} resizeMode="contain" />
           <EliteText variant="caption" style={styles.brandSub}>Panel Coach</EliteText>
 
           {/* Identidad del coach */}

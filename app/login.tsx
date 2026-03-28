@@ -4,7 +4,7 @@
  * Branding ELITE + campos de email/password + links a registro y recuperación.
  */
 import { useState } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenContainer } from '@/components/screen-container';
@@ -55,10 +55,7 @@ export default function LoginScreen() {
         >
           {/* Branding ATP */}
           <View style={styles.brand}>
-            <View style={styles.accentLine} />
-            <EliteText variant="title" style={styles.logo}>ATP</EliteText>
-            <EliteText variant="label" style={styles.tagline}>PERFORMANCE TIMER</EliteText>
-            <View style={styles.accentLine} />
+            <Image source={require('@/assets/images/logo-horizontal.png')} style={styles.logoImg} resizeMode="contain" />
           </View>
 
           {/* Formulario */}
@@ -144,20 +141,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xxl,
   },
-  logo: {
-    fontSize: 56,
-    letterSpacing: 16,
-  },
-  tagline: {
-    letterSpacing: 6,
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.lg,
-  },
-  accentLine: {
-    width: 60,
-    height: 2,
-    backgroundColor: Colors.neonGreen,
-    marginVertical: Spacing.md,
+  logoImg: {
+    width: 250,
+    height: 100,
   },
   // Formulario
   form: {

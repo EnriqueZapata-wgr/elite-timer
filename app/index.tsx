@@ -1,14 +1,13 @@
 /**
  * Index — Redirect según estado de autenticación.
- *
- * Si hay sesión → Dashboard (tabs). Si no → Login.
- * Mientras verifica, muestra splash ELITE con loader.
+ * Mientras verifica, muestra logo vertical ATP con loader.
  */
 import { Redirect } from 'expo-router';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { useAuth } from '@/src/contexts/auth-context';
-import { EliteText } from '@/components/elite-text';
 import { Colors } from '@/constants/theme';
+
+const logoVertical = require('@/assets/images/logo-vertical.png');
 
 export default function IndexRedirect() {
   const { session, loading } = useAuth();
@@ -16,7 +15,7 @@ export default function IndexRedirect() {
   if (loading) {
     return (
       <View style={styles.splash}>
-        <EliteText variant="title" style={styles.logo}>ATP</EliteText>
+        <Image source={logoVertical} style={styles.logo} resizeMode="contain" />
         <ActivityIndicator size="large" color={Colors.neonGreen} style={styles.loader} />
       </View>
     );
@@ -34,8 +33,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
-    fontSize: 48,
-    letterSpacing: 16,
+    width: 280,
+    height: 280,
   },
   loader: {
     marginTop: 24,
