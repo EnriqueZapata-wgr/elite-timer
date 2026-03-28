@@ -3,9 +3,9 @@
  *
  * Header + stats + 4 tabs: Calendario, Rutinas, Progreso, Historial.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, TextInput, Modal, Alert, useWindowDimensions } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import {
@@ -131,13 +131,13 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
 
   const initials = clientName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const TABS: { key: Tab; label: string; icon: string }[] = [
+  const TABS: { key: Tab; label: string; icon: string; lib?: 'mci' }[] = [
     { key: 'profile', label: 'PERFIL', icon: 'person-outline' },
-    { key: 'consultations', label: 'CONSULTAS', icon: 'document-text-outline' },
-    { key: 'labs', label: 'LABS', icon: 'flask-outline' },
+    { key: 'consultations', label: 'CONSULTAS', icon: 'clipboard-text-outline', lib: 'mci' },
+    { key: 'labs', label: 'LABS', icon: 'flask-outline', lib: 'mci' },
     { key: 'calendar', label: 'CALENDARIO', icon: 'calendar-outline' },
     { key: 'routines', label: 'RUTINAS', icon: 'barbell-outline' },
-    { key: 'progress', label: 'PROGRESO', icon: 'trophy-outline' },
+    { key: 'progress', label: 'PROGRESO', icon: 'trending-up-outline' },
     { key: 'history', label: 'HISTORIAL', icon: 'time-outline' },
   ];
 
@@ -187,7 +187,10 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
               onPress={() => setActiveTab(t.key)}
               style={[styles.tab, activeTab === t.key && styles.tabActive]}
             >
-              <Ionicons name={t.icon as any} size={16} color={activeTab === t.key ? TEAL : '#666666'} />
+              {t.lib === 'mci'
+                ? <MaterialCommunityIcons name={t.icon as any} size={16} color={activeTab === t.key ? TEAL : '#666666'} />
+                : <Ionicons name={t.icon as any} size={16} color={activeTab === t.key ? TEAL : '#666666'} />
+              }
               <EliteText variant="caption" style={[styles.tabLabel, activeTab === t.key && { color: TEAL }]}>
                 {t.label}
               </EliteText>
@@ -422,12 +425,25 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
     setScoreLoading(false);
   };
 
+  const BIO_NUMERIC_KEYS = ['grip_strength_kg', 'blood_pressure_sys', 'blood_pressure_dia', 'vo2_max', 'metabolic_age_impedance'];
+  const [bioSavedKey, setBioSavedKey] = useState<string | null>(null);
+
   const saveProfileField = async (key: string, value: string) => {
     const v = value.trim();
     try {
-      await upsertClientProfile(clientId, { [key]: v || null });
-      setProfile(prev => ({ ...prev, [key]: v || null }));
-    } catch { /* */ }
+      const numVal = BIO_NUMERIC_KEYS.includes(key) && v ? Number(v) : undefined;
+      const val = BIO_NUMERIC_KEYS.includes(key)
+        ? (v && !isNaN(numVal!) ? numVal! : null)
+        : (v || null);
+      await upsertClientProfile(clientId, { [key]: val });
+      setProfile(prev => ({ ...prev, [key]: val }));
+      if (BIO_NUMERIC_KEYS.includes(key)) {
+        setBioSavedKey(key);
+        setTimeout(() => setBioSavedKey(prev => prev === key ? null : prev), 1500);
+      }
+    } catch (err: any) {
+      if (__DEV__) console.error('[saveProfileField]', key, err);
+    }
   };
 
   const renderZoneCard = (zone: typeof CONDITION_ZONES[0]) => {
@@ -532,36 +548,26 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
                 <BioField label="F. Agarre" unit="kg" color="#a8e02a"
                   value={profile?.grip_strength_kg?.toString() ?? ''}
                   onSave={v => saveProfileField('grip_strength_kg', v)}
+                  saved={bioSavedKey === 'grip_strength_kg'}
                   rating={rateBioValue('grip_strength_kg', profile?.grip_strength_kg ? Number(profile.grip_strength_kg) : null, sx)} />
-                <View style={[styles.bioFieldWide, bpRating && bpRating.level !== 'no_data' ? { backgroundColor: bpRating.bgColor, borderRadius: 6 } : undefined]}>
-                  <EliteText variant="caption" style={styles.bioLabel}>
-                    {bpRating && bpRating.level !== 'no_data' && <EliteText style={{ fontSize: 12, color: bpRating.color }}>{bpRating.arrow} </EliteText>}
-                    Presión arterial
-                  </EliteText>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <TextInput style={[styles.bioInput, { width: 44, color: bpColor }]}
-                      defaultValue={profile?.blood_pressure_sys?.toString() ?? ''}
-                      onEndEditing={e => saveProfileField('blood_pressure_sys', e.nativeEvent.text)}
-                      keyboardType="numeric" placeholder="120" placeholderTextColor="#333" />
-                    <EliteText style={{ color: '#666', fontSize: 16 }}>/</EliteText>
-                    <TextInput style={[styles.bioInput, { width: 44, color: bpColor }]}
-                      defaultValue={profile?.blood_pressure_dia?.toString() ?? ''}
-                      onEndEditing={e => saveProfileField('blood_pressure_dia', e.nativeEvent.text)}
-                      keyboardType="numeric" placeholder="80" placeholderTextColor="#333" />
-                    {bpRating && bpRating.level !== 'no_data' && (
-                      <View style={{ backgroundColor: bpRating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, marginLeft: 2 }}>
-                        <EliteText variant="caption" style={{ color: bpRating.color, fontSize: 8, fontFamily: Fonts.bold }}>{bpRating.label}</EliteText>
-                      </View>
-                    )}
-                  </View>
-                </View>
+                <DebouncedBPField
+                  sysValue={profile?.blood_pressure_sys?.toString() ?? ''}
+                  diaValue={profile?.blood_pressure_dia?.toString() ?? ''}
+                  onSaveSys={v => saveProfileField('blood_pressure_sys', v)}
+                  onSaveDia={v => saveProfileField('blood_pressure_dia', v)}
+                  bpColor={bpColor}
+                  bpRating={bpRating}
+                  saved={bioSavedKey === 'blood_pressure_sys' || bioSavedKey === 'blood_pressure_dia'}
+                />
                 <BioField label="VO2 máx" unit="ml/kg/min" color="#5B9BD5"
                   value={profile?.vo2_max?.toString() ?? ''}
                   onSave={v => saveProfileField('vo2_max', v)}
+                  saved={bioSavedKey === 'vo2_max'}
                   rating={rateBioValue('vo2_max', profile?.vo2_max ? Number(profile.vo2_max) : null, sx)} />
                 <BioField label="Edad metab." unit="años" color="#EF9F27"
                   value={profile?.metabolic_age_impedance?.toString() ?? ''}
-                  onSave={v => saveProfileField('metabolic_age_impedance', v)} />
+                  onSave={v => saveProfileField('metabolic_age_impedance', v)}
+                  saved={bioSavedKey === 'metabolic_age_impedance'} />
               </View>
               );
             })()}
@@ -601,16 +607,16 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
               : '#7F77DD'}
           />
           <ScoreCard
-            label="Edad metabólica"
-            value={healthScore?.metabolicAge ? healthScore.metabolicAge.toString() : profile?.metabolic_age_impedance?.toString() ?? '—'}
-            unit="años"
-            color="#EF9F27"
+            label="Calidad evaluación"
+            value={healthScore?.evaluationQuality != null ? `${Math.round(healthScore.evaluationQuality)}` : '—'}
+            unit="%"
+            color={healthScore?.evaluationQuality ? (healthScore.evaluationQuality > 70 ? '#a8e02a' : healthScore.evaluationQuality > 40 ? '#EF9F27' : '#E24B4A') : TEAL}
           />
           <ScoreCard
             label="Envejecimiento"
-            value={healthScore?.agingRate ? healthScore.agingRate.toFixed(1) : '—'}
+            value={healthScore?.agingRate ? healthScore.agingRate.toFixed(2) : '—'}
             unit="x"
-            color={healthScore?.agingRate ? (healthScore.agingRate < 10 ? '#a8e02a' : healthScore.agingRate < 12 ? '#EF9F27' : '#E24B4A') : '#E24B4A'}
+            color={healthScore?.agingRate ? (healthScore.agingRate < 1.0 ? '#a8e02a' : healthScore.agingRate < 1.1 ? '#EF9F27' : '#E24B4A') : '#E24B4A'}
           />
           <ScoreCard
             label="Salud funcional"
@@ -619,12 +625,18 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
             color={healthScore?.functionalHealthScore ? (healthScore.functionalHealthScore > 80 ? '#a8e02a' : healthScore.functionalHealthScore > 60 ? '#EF9F27' : '#E24B4A') : TEAL}
           />
         </View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: Spacing.sm }}>
-          {healthScore?.evaluationQuality != null && (
-            <EliteText variant="caption" style={{ color: '#555', fontSize: 10 }}>
-              Calidad evaluación: {Math.round(healthScore.evaluationQuality)}%
+        {/* Faltan datos para PhenoAge */}
+        {healthScore && !healthScore.biologicalAge && healthScore.phenoAgeMissing && healthScore.phenoAgeMissing.length > 0 && (
+          <View style={{ marginTop: Spacing.sm, backgroundColor: '#1a1a1a', borderRadius: 6, padding: Spacing.sm }}>
+            <EliteText variant="caption" style={{ color: '#EF9F27', fontSize: 10, marginBottom: 2 }}>
+              Faltan {healthScore.phenoAgeMissing.length} de 9 biomarcadores para PhenoAge:
             </EliteText>
-          )}
+            <EliteText variant="caption" style={{ color: '#666', fontSize: 10 }}>
+              {healthScore.phenoAgeMissing.join(', ')}
+            </EliteText>
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: Spacing.sm }}>
           <Pressable onPress={handleRecalculate} disabled={scoreLoading}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 }}>
             <Ionicons name={scoreLoading ? 'hourglass-outline' : 'refresh-outline'} size={14} color={TEAL} />
@@ -1278,22 +1290,32 @@ function WeightContextBar({ lowest, current, highest, ideal }: {
   );
 }
 
-function BioField({ label, unit, color, value, onSave, rating }: {
-  label: string; unit: string; color: string; value: string; onSave: (v: string) => void; rating?: ValueRating;
+function BioField({ label, unit, color, value, onSave, rating, saved }: {
+  label: string; unit: string; color: string; value: string; onSave: (v: string) => void; rating?: ValueRating; saved?: boolean;
 }) {
+  const [text, setText] = useState(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChange = (newText: string) => {
+    setText(newText);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onSave(newText), 500);
+  };
+
   const hasRating = rating && rating.level !== 'no_data';
   const displayColor = hasRating ? rating.color : color;
   return (
     <View style={[styles.bioItem, hasRating ? { backgroundColor: rating.bgColor, borderRadius: 6 } : undefined]}>
       <EliteText variant="caption" style={styles.bioLabel}>
+        {saved && <EliteText style={{ fontSize: 10, color: '#a8e02a' }}>{'✓ '}</EliteText>}
         {hasRating && <EliteText style={{ fontSize: 12, color: rating.color }}>{rating.arrow} </EliteText>}
         {label}
       </EliteText>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
         <TextInput
           style={[styles.bioInput, { color: displayColor }]}
-          defaultValue={value}
-          onEndEditing={e => onSave(e.nativeEvent.text)}
+          value={text}
+          onChangeText={handleChange}
           keyboardType="numeric"
           placeholder="—"
           placeholderTextColor="#333"
@@ -1302,6 +1324,52 @@ function BioField({ label, unit, color, value, onSave, rating }: {
         {hasRating && (
           <View style={{ backgroundColor: rating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10 }}>
             <EliteText variant="caption" style={{ color: rating.color, fontSize: 8, fontFamily: Fonts.bold }}>{rating.label}</EliteText>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function DebouncedBPField({ sysValue, diaValue, onSaveSys, onSaveDia, bpColor, bpRating, saved }: {
+  sysValue: string; diaValue: string; onSaveSys: (v: string) => void; onSaveDia: (v: string) => void;
+  bpColor: string; bpRating: ValueRating | null; saved?: boolean;
+}) {
+  const [sys, setSys] = useState(sysValue);
+  const [dia, setDia] = useState(diaValue);
+  const sysTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const diaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSys = (v: string) => {
+    setSys(v);
+    if (sysTimer.current) clearTimeout(sysTimer.current);
+    sysTimer.current = setTimeout(() => onSaveSys(v), 500);
+  };
+  const handleDia = (v: string) => {
+    setDia(v);
+    if (diaTimer.current) clearTimeout(diaTimer.current);
+    diaTimer.current = setTimeout(() => onSaveDia(v), 500);
+  };
+
+  const hasRating = bpRating && bpRating.level !== 'no_data';
+  return (
+    <View style={[styles.bioFieldWide, hasRating ? { backgroundColor: bpRating.bgColor, borderRadius: 6 } : undefined]}>
+      <EliteText variant="caption" style={styles.bioLabel}>
+        {saved && <EliteText style={{ fontSize: 10, color: '#a8e02a' }}>{'✓ '}</EliteText>}
+        {hasRating && <EliteText style={{ fontSize: 12, color: bpRating.color }}>{bpRating.arrow} </EliteText>}
+        Presión arterial
+      </EliteText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <TextInput style={[styles.bioInput, { width: 44, color: bpColor }]}
+          value={sys} onChangeText={handleSys}
+          keyboardType="numeric" placeholder="120" placeholderTextColor="#333" />
+        <EliteText style={{ color: '#666', fontSize: 16 }}>/</EliteText>
+        <TextInput style={[styles.bioInput, { width: 44, color: bpColor }]}
+          value={dia} onChangeText={handleDia}
+          keyboardType="numeric" placeholder="80" placeholderTextColor="#333" />
+        {hasRating && (
+          <View style={{ backgroundColor: bpRating.bgColor, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 10, marginLeft: 2 }}>
+            <EliteText variant="caption" style={{ color: bpRating.color, fontSize: 8, fontFamily: Fonts.bold }}>{bpRating.label}</EliteText>
           </View>
         )}
       </View>

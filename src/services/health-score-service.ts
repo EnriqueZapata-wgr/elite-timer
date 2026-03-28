@@ -9,7 +9,7 @@ import {
 export async function calculateAndSaveScore(userId: string, consultationId?: string): Promise<HealthScore> {
   // Obtener datos
   const [labsRes, bodyRes, profileRes] = await Promise.all([
-    supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
+    supabase.from('lab_results').select('*').eq('user_id', userId).eq('status', 'approved').order('lab_date', { ascending: false }).limit(1),
     supabase.from('body_measurements').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
     supabase.from('client_profiles').select('*').eq('user_id', userId).single(),
   ]);
@@ -65,6 +65,16 @@ export async function getLatestScore(userId: string): Promise<HealthScore | null
 
   if (!data) return null;
 
+  // Reconstruir marcadores PhenoAge faltantes desde el snapshot guardado
+  const phenoKeys = ['albumin', 'creatinine', 'glucose_fasting', 'crp', 'lymphocyte_pct', 'mcv', 'rdw_cv', 'alp', 'wbc'];
+  const phenoLabels: Record<string, string> = {
+    albumin: 'Albúmina', creatinine: 'Creatinina', glucose_fasting: 'Glucosa',
+    crp: 'PCR', lymphocyte_pct: 'Linfocitos %', mcv: 'VCM',
+    rdw_cv: 'RDW', alp: 'FA', wbc: 'Leucocitos',
+  };
+  const snapshot = data.input_snapshot ?? {};
+  const missing = phenoKeys.filter(k => snapshot[k] == null).map(k => phenoLabels[k] ?? k);
+
   return {
     functionalHealthScore: data.functional_health_score,
     evaluationQuality: data.evaluation_quality,
@@ -73,5 +83,6 @@ export async function getLatestScore(userId: string): Promise<HealthScore | null
     agingRate: data.aging_rate,
     domains: data.domain_scores ?? [],
     phenoAge: data.pheno_age_detail,
+    phenoAgeMissing: missing.length > 0 ? missing : undefined,
   };
 }

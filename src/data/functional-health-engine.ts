@@ -50,6 +50,7 @@ export interface HealthScore {
   agingRate: number;
   domains: DomainResult[];
   phenoAge: PhenoAgeResult | null;
+  phenoAgeMissing?: string[];
 }
 
 // === RATE VALUE ===
@@ -276,7 +277,7 @@ function calculatePhenoAge(
   for (const r of rules) { if (r.c(vals)) { adjs.push({ marker: r.l, impact: r.i }); totalAdj += r.i; } }
 
   const bioFinal = bioCalc + totalAdj;
-  const agingRate = age > 0 ? (bioFinal / age) * 10 : 0;
+  const agingRate = age > 0 ? bioFinal / age : 0;
 
   return { phenoAge, biologicalAgeFinal: bioFinal, mortScore, agingRate, adjustments: adjs };
 }
@@ -325,15 +326,23 @@ export function calculateHealthScore(
 
   // PhenoAge
   let phenoAgeResult: PhenoAgeResult | null = null;
-  const phenoKeys = ['albumin', 'creatinine', 'glucose_fasting', 'crp', 'wbc'];
+  // PhenoAge requiere 7 de 9 biomarcadores
+  const phenoKeys = ['albumin', 'creatinine', 'glucose_fasting', 'crp', 'lymphocyte_pct', 'mcv', 'rdw_cv', 'alp', 'wbc'];
+  const phenoLabels: Record<string, string> = {
+    albumin: 'Albúmina', creatinine: 'Creatinina', glucose_fasting: 'Glucosa',
+    crp: 'PCR', lymphocyte_pct: 'Linfocitos %', mcv: 'VCM',
+    rdw_cv: 'RDW', alp: 'FA', wbc: 'Leucocitos',
+  };
   const available = phenoKeys.filter(k => inputValues[k] != null).length;
-  if (available >= 3 && chronologicalAge > 0) {
+  if (available >= 7 && chronologicalAge > 0) {
     phenoAgeResult = calculatePhenoAge(
       { ...Object.fromEntries(Object.entries(inputValues).filter(([, v]) => v != null).map(([k, v]) => [k, v as number])), chronological_age: chronologicalAge },
       bodyValues,
       sex,
     );
   }
+
+  const missingPhenoMarkers = phenoKeys.filter(k => inputValues[k] == null).map(k => phenoLabels[k] ?? k);
 
   return {
     functionalHealthScore: globalSF,
@@ -343,6 +352,7 @@ export function calculateHealthScore(
     agingRate: phenoAgeResult?.agingRate ?? 0,
     domains: domainResults,
     phenoAge: phenoAgeResult,
+    phenoAgeMissing: missingPhenoMarkers.length > 0 ? missingPhenoMarkers : undefined,
   };
 }
 
@@ -368,6 +378,8 @@ export function mapPatientDataToInput(
     i['creatinine'] = labs.creatinine; i['uric_acid'] = labs.uric_acid; i['uric_acid_r'] = labs.uric_acid;
     i['bun'] = labs.bun; i['hemoglobin'] = labs.hemoglobin; i['hematocrit'] = labs.hematocrit; i['wbc'] = labs.wbc;
     i['albumin'] = labs.albumin; i['alp'] = labs.alp; i['mcv'] = labs.mcv; i['rdw_cv'] = labs.rdw;
+    // Aliases para PhenoAge (usa 'glucose' y 'rdw' internamente)
+    i['glucose'] = labs.glucose; i['rdw'] = labs.rdw;
     i['lymphocyte_pct'] = labs.lymphocyte_pct; i['ldh'] = labs.ldh; i['ldh_imm'] = labs.ldh;
     i['bilirubin'] = labs.bilirubin; i['bilirubin_imm'] = labs.bilirubin;
     i['sodium'] = labs.sodium; i['potassium'] = labs.potassium; i['folate'] = labs.folate;
