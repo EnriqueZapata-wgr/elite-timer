@@ -55,7 +55,7 @@ export default function LoginScreen() {
         >
           {/* Branding ATP */}
           <View style={styles.brand}>
-            <Image source={require('@/assets/images/logo-horizontal.png')} style={styles.logoImg} resizeMode="contain" />
+            <Image source={require('@/assets/images/logo-horizontal-dark.png')} style={styles.logoImg} resizeMode="contain" />
           </View>
 
           {/* Formulario */}

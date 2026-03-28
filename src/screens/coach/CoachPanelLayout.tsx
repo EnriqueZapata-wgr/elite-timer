@@ -148,7 +148,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
       <View style={styles.sidebar}>
         {/* Header con brand + identidad del coach */}
         <View style={styles.sidebarHeader}>
-          <Image source={require('@/assets/images/logo-horizontal.png')} style={{ width: 150, height: 50, marginBottom: 4 }} resizeMode="contain" />
+          <Image source={require('@/assets/images/logo-horizontal-dark.png')} style={{ width: 150, height: 50, marginBottom: 4 }} resizeMode="contain" />
           <EliteText variant="caption" style={styles.brandSub}>Panel Coach</EliteText>
 
           {/* Identidad del coach */}

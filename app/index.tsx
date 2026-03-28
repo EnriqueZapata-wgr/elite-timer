@@ -7,7 +7,7 @@ import { View, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Colors } from '@/constants/theme';
 
-const logoVertical = require('@/assets/images/logo-vertical.png');
+const logoVertical = require('@/assets/images/splash-icon.png');
 
 export default function IndexRedirect() {
   const { session, loading } = useAuth();
