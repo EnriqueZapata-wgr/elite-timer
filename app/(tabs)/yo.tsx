@@ -15,7 +15,9 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getWeeklyStats, type WeeklyStats } from '@/src/services/exercise-service';
+import { getUserChronotype, type ChronotypeData } from '@/src/services/quiz-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { ATP_BRAND, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { INTERVENTION_TYPES, type InterventionType } from '@/src/constants/categories';
 
 // === CATEGORÍAS (derivadas de la fuente única) ===
@@ -46,10 +48,13 @@ export default function YoScreen() {
   const [weekStats, setWeekStats] = useState<WeeklyStats>({
     workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0,
   });
+  const [chronotype, setChronotype] = useState<ChronotypeData | null>(null);
+  const [chronoLoaded, setChronoLoaded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       getWeeklyStats().then(setWeekStats).catch(() => {});
+      getUserChronotype().then(c => { setChronotype(c); setChronoLoaded(true); }).catch(() => setChronoLoaded(true));
     }, [])
   );
 
@@ -90,6 +95,41 @@ export default function YoScreen() {
             </AnimatedPressable>
           </View>
         </Animated.View>
+
+        {/* ── Cronotipo ── */}
+        {chronoLoaded && (
+          <Animated.View entering={FadeInUp.delay(80).springify()}>
+            {chronotype ? (
+              <AnimatedPressable onPress={() => router.push('/quiz/chronotype' as any)} style={styles.chronoCard}>
+                <EliteText style={styles.chronoEmoji}>
+                  {chronotype.chronotype === 'lion' ? '🦁' : chronotype.chronotype === 'bear' ? '🐻' : chronotype.chronotype === 'wolf' ? '🐺' : '🐬'}
+                </EliteText>
+                <View style={{ flex: 1 }}>
+                  <EliteText variant="body" style={styles.chronoName}>
+                    {chronotype.chronotype === 'lion' ? 'León' : chronotype.chronotype === 'bear' ? 'Oso' : chronotype.chronotype === 'wolf' ? 'Lobo' : 'Delfín'}
+                  </EliteText>
+                  <EliteText variant="caption" style={styles.chronoSub}>
+                    Despertar {chronotype.wake_time?.slice(0, 5)} · Dormir {chronotype.sleep_time?.slice(0, 5)}
+                  </EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+              </AnimatedPressable>
+            ) : (
+              <AnimatedPressable onPress={() => router.push('/quiz/chronotype' as any)} style={styles.chronoInvite}>
+                <View style={styles.chronoInviteLeft}>
+                  <EliteText style={{ fontSize: 28 }}>🧬</EliteText>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <EliteText variant="body" style={styles.chronoInviteTitle}>Descubre tu cronotipo</EliteText>
+                  <EliteText variant="caption" style={styles.chronoInviteSub}>
+                    ¿León, oso, lobo o delfín? Optimiza tus horarios.
+                  </EliteText>
+                </View>
+                <Ionicons name="arrow-forward" size={18} color={ATP_BRAND.lime} />
+              </AnimatedPressable>
+            )}
+          </Animated.View>
+        )}
 
         {/* ── Grid de categorías ── */}
         <View style={styles.grid}>
@@ -219,4 +259,41 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     letterSpacing: 1,
   },
+
+  // Cronotipo
+  chronoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: SURFACES.card,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: SURFACES.border,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  chronoEmoji: { fontSize: 32 },
+  chronoName: { fontFamily: Fonts.bold, color: Colors.textPrimary, fontSize: 16 },
+  chronoSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  chronoInvite: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: ATP_BRAND.lime + '10',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: ATP_BRAND.lime + '30',
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  chronoInviteLeft: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: ATP_BRAND.lime + '15',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chronoInviteTitle: { fontFamily: Fonts.bold, color: ATP_BRAND.lime, fontSize: 15 },
+  chronoInviteSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
 });
