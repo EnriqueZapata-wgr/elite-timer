@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert, Share } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert, Share, Platform } from 'react-native';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter, useSegments, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -435,6 +437,14 @@ export default function SettingsScreen() {
           </Pressable>
         </Animated.View>
 
+        {/* ── Versión ── */}
+        <View style={styles.versionContainer}>
+          <EliteText variant="caption" style={styles.versionText}>
+            ATP v{Constants.expoConfig?.version ?? '?'}
+            {Platform.OS !== 'web' && Updates.updateId ? ` · OTA ${Updates.updateId.slice(0, 8)}` : ''}
+          </EliteText>
+        </View>
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </ScreenContainer>
@@ -780,5 +790,13 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontFamily: Fonts.semiBold,
     fontSize: 15,
+  },
+  versionContainer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+  },
+  versionText: {
+    color: Colors.textMuted,
+    fontSize: 11,
   },
 });
