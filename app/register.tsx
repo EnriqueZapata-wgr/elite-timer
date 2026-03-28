@@ -51,11 +51,16 @@ export default function RegisterScreen() {
     if (result.error) {
       setError(result.error);
     } else {
-      Alert.alert(
-        'Cuenta creada',
-        'Tu cuenta ha sido creada exitosamente.',
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }],
-      );
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert('Cuenta creada exitosamente.');
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert(
+          'Cuenta creada',
+          'Tu cuenta ha sido creada exitosamente.',
+          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }],
+        );
+      }
     }
   };
 
