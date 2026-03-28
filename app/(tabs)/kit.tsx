@@ -9,7 +9,7 @@ import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { FadeInUp, FadeInLeft, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -162,7 +162,7 @@ export default function KitScreen() {
               { icon: 'flask-outline', label: 'Mi Salud', color: CATEGORY_COLORS.metrics, active: true, route: '/my-health' },
               { icon: 'journal-outline', label: 'Journaling', color: CATEGORY_COLORS.optimization, active: false, route: '' },
             ].map((tool, idx) => (
-              <Animated.View key={tool.label} entering={(idx % 2 === 0 ? FadeInLeft : FadeInRight).delay(300 + idx * 70).duration(400).springify()}>
+              <Animated.View key={tool.label} style={styles.toolCard} entering={FadeInUp.delay(300 + idx * 70).duration(400).springify()}>
                 <ToolCard
                   icon={tool.icon}
                   label={tool.label}
@@ -187,7 +187,7 @@ function ToolCard({ icon, label, color, active, onPress }: {
   icon: string; label: string; color: string; active: boolean; onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={styles.toolCard}>
+    <Pressable onPress={onPress}>
       <LinearGradient
         colors={[color + '25', color + '0A', 'transparent']}
         start={{ x: 0, y: 0 }}

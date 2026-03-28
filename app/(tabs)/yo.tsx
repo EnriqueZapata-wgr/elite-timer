@@ -8,7 +8,7 @@ import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp, FadeInLeft, FadeInRight } from 'react-native-reanimated';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -136,7 +136,7 @@ export default function YoScreen() {
           {CATEGORIES.map((cat, idx) => (
             <Animated.View
               key={cat.key}
-              entering={(idx % 2 === 0 ? FadeInLeft : FadeInRight).delay(100 + idx * 80).duration(400).springify()}
+              entering={FadeInUp.delay(120 + idx * 80).duration(400).springify()}
               style={styles.gridItem}
             >
               <GradientCard
