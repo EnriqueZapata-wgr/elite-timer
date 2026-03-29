@@ -48,6 +48,8 @@ import {
   addFileToStudy, type ClinicalStudy,
 } from '@/src/services/clinical-study-service';
 import { STUDY_TYPES, STUDY_CATEGORIES, getStudyType } from '@/src/data/study-types';
+import { SectionSaveHeader } from '@/src/components/coach/SectionSaveHeader';
+import { SaveableSection } from '@/src/components/coach/SaveableSection';
 
 const TEAL = CATEGORY_COLORS.metrics;
 const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -1090,107 +1092,159 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
   onSave: (key: string, value: string) => Promise<void>;
 }) {
   const [unlocked, setUnlocked] = useState(false);
-  const [localName, setLocalName] = useState(clientName);
+  // Controlled form state
+  const [form, setForm] = useState({
+    full_name: clientName,
+    date_of_birth: profile?.date_of_birth ?? '',
+    biological_sex: profile?.biological_sex ?? '',
+    phone: profile?.phone ?? '',
+    occupation: profile?.occupation ?? '',
+    city: profile?.city ?? '',
+    referral_source: profile?.referral_source ?? '',
+    referral_detail: profile?.referral_detail ?? '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saved' | 'error'>('idle');
 
-  const handleSaveName = async () => {
-    if (localName.trim() && localName !== clientName) {
-      try {
-        const { supabase } = require('@/src/lib/supabase');
-        await supabase.from('profiles').update({ full_name: localName.trim() }).eq('id', clientId);
-      } catch { /* */ }
+  // Sync when profile loads
+  useEffect(() => {
+    if (profile) {
+      setForm(prev => ({
+        ...prev,
+        date_of_birth: profile.date_of_birth ?? prev.date_of_birth,
+        biological_sex: profile.biological_sex ?? prev.biological_sex,
+        phone: profile.phone ?? prev.phone,
+        occupation: profile.occupation ?? prev.occupation,
+        city: profile.city ?? prev.city,
+        referral_source: profile.referral_source ?? prev.referral_source,
+        referral_detail: profile.referral_detail ?? prev.referral_detail,
+      }));
     }
+  }, [profile]);
+
+  const setF = (key: string, value: string) => {
+    setForm(prev => ({ ...prev, [key]: value }));
+    setSaveStatus('idle');
   };
 
-  const age = profile?.date_of_birth
-    ? Math.floor((Date.now() - new Date(profile.date_of_birth).getTime()) / 31557600000)
+  const handleSaveAll = async () => {
+    setSaving(true);
+    setSaveStatus('idle');
+    try {
+      // Save name to profiles table
+      if (form.full_name.trim() && form.full_name !== clientName) {
+        const { supabase } = require('@/src/lib/supabase');
+        await supabase.from('profiles').update({ full_name: form.full_name.trim() }).eq('id', clientId);
+      }
+      // Save rest to client_profiles
+      await upsertClientProfile(clientId, {
+        date_of_birth: form.date_of_birth || null,
+        biological_sex: form.biological_sex || null,
+        phone: form.phone || null,
+        occupation: form.occupation || null,
+        city: form.city || null,
+        referral_source: form.referral_source || null,
+        referral_detail: form.referral_detail || null,
+      });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    } catch (err: any) {
+      setSaveStatus('error');
+      if (__DEV__) console.error('[savePersonal]', err);
+    }
+    setSaving(false);
+  };
+
+  const age = form.date_of_birth
+    ? Math.floor((Date.now() - new Date(form.date_of_birth).getTime()) / 31557600000)
     : null;
 
   return (
-    <View style={styles.profileCard}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <EliteText variant="caption" style={styles.profileCardLabel}>DATOS PERSONALES</EliteText>
-        <Pressable onPress={() => setUnlocked(!unlocked)} style={styles.lockBtn}>
-          <Ionicons name={unlocked ? 'lock-open-outline' : 'lock-closed-outline'} size={14} color={unlocked ? SEMANTIC.warning : TEXT_COLORS.muted} />
-          <EliteText variant="caption" style={{ color: unlocked ? SEMANTIC.warning : TEXT_COLORS.muted, fontSize: 10 }}>
-            {unlocked ? 'Editando' : 'Editar'}
-          </EliteText>
-        </Pressable>
-      </View>
-
+    <SaveableSection hasChanges={unlocked && saveStatus === 'idle'}>
       {unlocked ? (
-        <View style={{ gap: Spacing.xs }}>
-          <View>
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Nombre</EliteText>
-            <TextInput style={styles.editableInput} defaultValue={localName}
-              onChangeText={setLocalName} onEndEditing={handleSaveName}
-              placeholder="Nombre completo" placeholderTextColor={SURFACES.disabled} />
+        <View>
+          <SectionSaveHeader title="DATOS PERSONALES" hasChanges={true} isSaving={saving}
+            saveStatus={saving ? 'saving' : saveStatus === 'saved' ? 'saved' : saveStatus === 'error' ? 'error' : 'idle'}
+            onSave={handleSaveAll} />
+          <View style={{ gap: Spacing.xs }}>
+            <View>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Nombre</EliteText>
+              <TextInput style={styles.editableInput} value={form.full_name}
+                onChangeText={v => setF('full_name', v)}
+                placeholder="Nombre completo" placeholderTextColor={SURFACES.disabled} />
+            </View>
+            <ProfileRow label="Email" value={clientEmail} />
+            {profileLoaded && (
+              <>
+                <View>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Fecha de nacimiento</EliteText>
+                  <TextInput style={styles.editableInput} value={form.date_of_birth}
+                    onChangeText={v => setF('date_of_birth', v)}
+                    placeholder="AAAA-MM-DD" placeholderTextColor={SURFACES.disabled} />
+                </View>
+                <View>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Sexo biológico</EliteText>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    {['male', 'female'].map(s => (
+                      <Pressable key={s} onPress={() => setF('biological_sex', s)}
+                        style={[styles.sexPill, form.biological_sex === s && styles.sexPillActive]}>
+                        <EliteText variant="caption" style={[styles.sexPillText, form.biological_sex === s && { color: TEAL }]}>
+                          {s === 'male' ? 'Masculino' : 'Femenino'}
+                        </EliteText>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                <View>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Teléfono</EliteText>
+                  <TextInput style={styles.editableInput} value={form.phone}
+                    onChangeText={v => setF('phone', v)}
+                    placeholder="Tel." placeholderTextColor={SURFACES.disabled} keyboardType="phone-pad" />
+                </View>
+                <View>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Ocupación</EliteText>
+                  <TextInput style={styles.editableInput} value={form.occupation}
+                    onChangeText={v => setF('occupation', v)}
+                    placeholder="Ocupación" placeholderTextColor={SURFACES.disabled} />
+                </View>
+                <View>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Ciudad</EliteText>
+                  <TextInput style={styles.editableInput} value={form.city}
+                    onChangeText={v => setF('city', v)}
+                    placeholder="Ciudad" placeholderTextColor={SURFACES.disabled} />
+                </View>
+                <View>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>¿Cómo nos conoció?</EliteText>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                    {['Instagram', 'Facebook', 'TikTok', 'YouTube', 'Google', 'Referido', 'Amigo/Familiar', 'Evento', 'ChatGPT/IA', 'Otro'].map(src => (
+                      <Pressable key={src} onPress={() => setF('referral_source', src)}
+                        style={[styles.sexPill, form.referral_source === src && styles.sexPillActive]}>
+                        <EliteText variant="caption" style={[styles.sexPillText, form.referral_source === src && { color: TEAL }]}>
+                          {src}
+                        </EliteText>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {(form.referral_source === 'Referido' || form.referral_source === 'Amigo/Familiar' || form.referral_source === 'Otro') && (
+                    <TextInput style={[styles.editableInput, { marginTop: 4 }]} value={form.referral_detail}
+                      onChangeText={v => setF('referral_detail', v)}
+                      placeholder={form.referral_source === 'Otro' ? 'Especifica' : '¿Quién te refirió?'}
+                      placeholderTextColor={SURFACES.disabled} />
+                  )}
+                </View>
+              </>
+            )}
           </View>
-          <ProfileRow label="Email" value={clientEmail} />
-          {profileLoaded && (
-            <>
-              <View>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Fecha de nacimiento</EliteText>
-                <TextInput style={styles.editableInput}
-                  defaultValue={profile?.date_of_birth ?? ''}
-                  onEndEditing={e => onSave('date_of_birth', e.nativeEvent.text)}
-                  placeholder="AAAA-MM-DD" placeholderTextColor={SURFACES.disabled} />
-              </View>
-              <View>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Sexo biológico</EliteText>
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  {['male', 'female'].map(s => (
-                    <Pressable key={s} onPress={() => onSave('biological_sex', s)}
-                      style={[styles.sexPill, profile?.biological_sex === s && styles.sexPillActive]}>
-                      <EliteText variant="caption" style={[styles.sexPillText, profile?.biological_sex === s && { color: TEAL }]}>
-                        {s === 'male' ? 'Masculino' : 'Femenino'}
-                      </EliteText>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-              <View>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Teléfono</EliteText>
-                <TextInput style={styles.editableInput} defaultValue={profile?.phone ?? ''}
-                  onEndEditing={e => onSave('phone', e.nativeEvent.text)}
-                  placeholder="Tel." placeholderTextColor={SURFACES.disabled} keyboardType="phone-pad" />
-              </View>
-              <View>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Ocupación</EliteText>
-                <TextInput style={styles.editableInput} defaultValue={profile?.occupation ?? ''}
-                  onEndEditing={e => onSave('occupation', e.nativeEvent.text)}
-                  placeholder="Ocupación" placeholderTextColor={SURFACES.disabled} />
-              </View>
-              <View>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>Ciudad</EliteText>
-                <TextInput style={styles.editableInput} defaultValue={profile?.city ?? ''}
-                  onEndEditing={e => onSave('city', e.nativeEvent.text)}
-                  placeholder="Ciudad" placeholderTextColor={SURFACES.disabled} />
-              </View>
-              <View>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>¿Cómo nos conoció?</EliteText>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-                  {['Instagram', 'Facebook', 'TikTok', 'YouTube', 'Google', 'Referido', 'Amigo/Familiar', 'Evento', 'ChatGPT/IA', 'Otro'].map(src => (
-                    <Pressable key={src} onPress={() => onSave('referral_source', src)}
-                      style={[styles.sexPill, profile?.referral_source === src && styles.sexPillActive]}>
-                      <EliteText variant="caption" style={[styles.sexPillText, profile?.referral_source === src && { color: TEAL }]}>
-                        {src}
-                      </EliteText>
-                    </Pressable>
-                  ))}
-                </View>
-                {(profile?.referral_source === 'Referido' || profile?.referral_source === 'Amigo/Familiar' || profile?.referral_source === 'Otro') && (
-                  <TextInput style={[styles.editableInput, { marginTop: 4 }]}
-                    defaultValue={profile?.referral_detail ?? ''}
-                    onEndEditing={e => onSave('referral_detail', e.nativeEvent.text)}
-                    placeholder={profile?.referral_source === 'Otro' ? 'Especifica' : '¿Quién te refirió?'}
-                    placeholderTextColor={SURFACES.disabled} />
-                )}
-              </View>
-            </>
-          )}
         </View>
       ) : (
         <View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <EliteText variant="caption" style={styles.profileCardLabel}>DATOS PERSONALES</EliteText>
+            <Pressable onPress={() => setUnlocked(true)} style={styles.lockBtn}>
+              <Ionicons name="lock-closed-outline" size={14} color={TEXT_COLORS.muted} />
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>Editar</EliteText>
+            </Pressable>
+          </View>
           <ProfileRow label="Nombre" value={clientName || '—'} />
           <ProfileRow label="Email" value={clientEmail} />
           {age != null && <ProfileRow label="Edad" value={`${age} años`} />}
@@ -1204,7 +1258,7 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
           <ProfileRow label="Conexión" value={new Date(connectedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })} />
         </View>
       )}
-    </View>
+    </SaveableSection>
   );
 }
 
@@ -1715,49 +1769,20 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
 
           {/* ═══ COLUMNA DERECHA: Notas + objetivos ═══ */}
           <View style={isWide ? { flex: 45 } : undefined}>
-            {/* Objetivos (editables en consulta) */}
-            <View style={[styles.profileCard, { marginBottom: Spacing.sm }]}>
-              <EliteText variant="caption" style={styles.profileCardLabel}>OBJETIVOS</EliteText>
-              {[
-                { key: 'primary_goal', label: 'Objetivo principal', ph: 'Ej: Bajar 10kg en 6 meses' },
-                { key: 'goal_timeline', label: 'Plazo', ph: 'Ej: 6 meses' },
-                { key: 'red_flags', label: 'Banderas rojas', ph: 'Ej: Lesión rodilla' },
-              ].map(f => (
-                <View key={f.key} style={{ marginBottom: Spacing.xs }}>
-                  <EliteText variant="caption" style={{ color: f.key === 'red_flags' ? SEMANTIC.error + '80' : TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
-                  <TextInput
-                    style={[styles.editableInput, f.key === 'red_flags' && { borderColor: SEMANTIC.error + '30' }]}
-                    defaultValue={consultProfile?.[f.key] ?? ''}
-                    onEndEditing={e => saveConsultProfileField(f.key, e.nativeEvent.text)}
-                    placeholder={f.ph} placeholderTextColor={SURFACES.disabled} editable={isDraft}
-                  />
-                </View>
-              ))}
-            </View>
+            {/* Objetivos (editables en consulta) — con guardado explícito */}
+            <ObjectivesSaveSection
+              profile={consultProfile}
+              isDraft={isDraft}
+              clientId={clientId}
+              onSaved={(updates) => setConsultProfile((prev: any) => ({ ...prev, ...updates }))}
+            />
 
-            {/* Notas SOAP */}
-            <View style={styles.profileCard}>
-              <EliteText variant="caption" style={styles.profileCardLabel}>NOTAS CLÍNICAS (SOAP)</EliteText>
-              {[
-                { key: 'chief_complaint', label: 'Motivo de consulta', ph: '¿Por qué viene hoy?', multi: false },
-                { key: 'subjective_notes', label: 'S — Subjetivo', ph: 'Lo que el paciente reporta', multi: true },
-                { key: 'objective_notes', label: 'O — Objetivo', ph: 'Lo que observas', multi: true },
-                { key: 'assessment', label: 'A — Análisis', ph: 'Tu evaluación', multi: true },
-                { key: 'plan', label: 'P — Plan', ph: 'Plan hasta la próxima consulta', multi: true },
-                { key: 'general_notes', label: 'Notas generales', ph: 'Notas libres', multi: true },
-              ].map(f => (
-                <View key={f.key} style={{ marginBottom: Spacing.sm }}>
-                  <EliteText variant="caption" style={{ color: Colors.neonGreen + '80', fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
-                  <TextInput
-                    style={[styles.editableInput, f.multi && { minHeight: 60 }]}
-                    defaultValue={(c as any)[f.key] ?? ''}
-                    onEndEditing={e => handleSaveField(f.key, e.nativeEvent.text)}
-                    placeholder={f.ph} placeholderTextColor={SURFACES.disabled} multiline={f.multi} editable={isDraft}
-                  />
-                </View>
-              ))}
-
-            </View>
+            {/* Notas SOAP — con guardado explícito */}
+            <SoapNotesSaveSection
+              consultation={c}
+              isDraft={isDraft}
+              onSaved={(updates) => setActiveConsult((prev: any) => prev ? { ...prev, ...updates } : null)}
+            />
 
             {/* Descripción del día */}
             <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
@@ -2168,6 +2193,139 @@ function LabsTab({ clientId }: { clientId: string }) {
 }
 
 // ══════════════════════════
+// ══════════════════════════
+// SAVEABLE SECTIONS (consulta)
+// ══════════════════════════
+
+function ObjectivesSaveSection({ profile, isDraft, clientId, onSaved }: {
+  profile: Record<string, any> | null; isDraft: boolean; clientId: string;
+  onSaved: (updates: Record<string, any>) => void;
+}) {
+  const [form, setForm] = useState({
+    primary_goal: profile?.primary_goal ?? '',
+    goal_timeline: profile?.goal_timeline ?? '',
+    red_flags: profile?.red_flags ?? '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        primary_goal: profile.primary_goal ?? '',
+        goal_timeline: profile.goal_timeline ?? '',
+        red_flags: profile.red_flags ?? '',
+      });
+    }
+  }, [profile]);
+
+  const hasChanges = form.primary_goal !== (profile?.primary_goal ?? '') ||
+    form.goal_timeline !== (profile?.goal_timeline ?? '') ||
+    form.red_flags !== (profile?.red_flags ?? '');
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await upsertClientProfile(clientId, {
+        primary_goal: form.primary_goal || null,
+        goal_timeline: form.goal_timeline || null,
+        red_flags: form.red_flags || null,
+      });
+      onSaved(form);
+      setStatus('saved');
+      setTimeout(() => setStatus('idle'), 3000);
+    } catch {
+      setStatus('error');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <SaveableSection hasChanges={hasChanges}>
+      <SectionSaveHeader title="OBJETIVOS" hasChanges={hasChanges} isSaving={saving}
+        saveStatus={saving ? 'saving' : status} onSave={handleSave} />
+      {[
+        { key: 'primary_goal', label: 'Objetivo principal', ph: 'Ej: Bajar 10kg en 6 meses' },
+        { key: 'goal_timeline', label: 'Plazo', ph: 'Ej: 6 meses' },
+        { key: 'red_flags', label: 'Banderas rojas', ph: 'Ej: Lesión rodilla' },
+      ].map(f => (
+        <View key={f.key} style={{ marginBottom: Spacing.xs }}>
+          <EliteText variant="caption" style={{ color: f.key === 'red_flags' ? SEMANTIC.error + '80' : TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
+          <TextInput
+            style={[styles.editableInput, f.key === 'red_flags' && { borderColor: SEMANTIC.error + '30' }]}
+            value={form[f.key as keyof typeof form]}
+            onChangeText={v => { setForm(prev => ({ ...prev, [f.key]: v })); setStatus('idle'); }}
+            placeholder={f.ph} placeholderTextColor={SURFACES.disabled} editable={isDraft}
+          />
+        </View>
+      ))}
+    </SaveableSection>
+  );
+}
+
+function SoapNotesSaveSection({ consultation, isDraft, onSaved }: {
+  consultation: Consultation; isDraft: boolean;
+  onSaved: (updates: Record<string, any>) => void;
+}) {
+  const fields = [
+    { key: 'chief_complaint', label: 'Motivo de consulta', ph: '¿Por qué viene hoy?', multi: false },
+    { key: 'subjective_notes', label: 'S — Subjetivo', ph: 'Lo que el paciente reporta', multi: true },
+    { key: 'objective_notes', label: 'O — Objetivo', ph: 'Lo que observas', multi: true },
+    { key: 'assessment', label: 'A — Análisis', ph: 'Tu evaluación', multi: true },
+    { key: 'plan', label: 'P — Plan', ph: 'Plan hasta la próxima consulta', multi: true },
+    { key: 'general_notes', label: 'Notas generales', ph: 'Notas libres', multi: true },
+  ] as const;
+
+  const [form, setForm] = useState(() => {
+    const initial: Record<string, string> = {};
+    for (const f of fields) initial[f.key] = (consultation as any)[f.key] ?? '';
+    return initial;
+  });
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    const updated: Record<string, string> = {};
+    for (const f of fields) updated[f.key] = (consultation as any)[f.key] ?? '';
+    setForm(updated);
+  }, [consultation.id]);
+
+  const hasChanges = fields.some(f => form[f.key] !== ((consultation as any)[f.key] ?? ''));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updates: Record<string, string | null> = {};
+      for (const f of fields) updates[f.key] = form[f.key]?.trim() || null;
+      await updateConsultation(consultation.id, updates as any);
+      onSaved(updates);
+      setStatus('saved');
+      setTimeout(() => setStatus('idle'), 3000);
+    } catch {
+      setStatus('error');
+    }
+    setSaving(false);
+  };
+
+  return (
+    <SaveableSection hasChanges={hasChanges}>
+      <SectionSaveHeader title="NOTAS CLÍNICAS (SOAP)" hasChanges={hasChanges} isSaving={saving}
+        saveStatus={saving ? 'saving' : status} onSave={handleSave} titleColor={Colors.neonGreen} />
+      {fields.map(f => (
+        <View key={f.key} style={{ marginBottom: Spacing.sm }}>
+          <EliteText variant="caption" style={{ color: Colors.neonGreen + '80', fontSize: 10, marginBottom: 2 }}>{f.label}</EliteText>
+          <TextInput
+            style={[styles.editableInput, f.multi && { minHeight: 60 }]}
+            value={form[f.key]}
+            onChangeText={v => { setForm(prev => ({ ...prev, [f.key]: v })); setStatus('idle'); }}
+            placeholder={f.ph} placeholderTextColor={SURFACES.disabled} multiline={f.multi} editable={isDraft}
+          />
+        </View>
+      ))}
+    </SaveableSection>
+  );
+}
+
 // TAB: ESTUDIOS CLÍNICOS
 // ══════════════════════════
 
