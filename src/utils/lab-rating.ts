@@ -162,10 +162,12 @@ function rateAgainstRanges(value: number, t: (number | null)[]): { level: Rating
     }
 
     // Higher is better (ej: HDL, hemoglobina) — t[0-2] son null
+    // t[7] es el piso: entre t[7] y t[6] sigue siendo crítico
     if (value >= t[3]) return { level: 'optimal', direction: 'in_range' };
     if (value >= t[4]) return { level: 'acceptable', direction: 'below' };
     if (t[5] !== null && value >= t[5]) return { level: 'risk', direction: 'below' };
     if (t[6] !== null && value >= t[6]) return { level: 'critical', direction: 'below' };
+    if (t[7] !== null && value >= t[7]) return { level: 'critical', direction: 'below' };
     return { level: 'out_of_range', direction: 'below' };
   }
   // Lower is better: t[3] === null means only upper thresholds

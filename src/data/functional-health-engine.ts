@@ -57,31 +57,61 @@ export interface HealthScore {
 // === RATE VALUE ===
 
 function rateValue(value: number, t: (number | null)[]): { rating: RatingLevel; score: number } {
-  if (t[3] !== null && t[4] !== null) {
-    if (t[3] <= t[4]) {
-      // Rango normal: óptimo entre t[3] y t[4]
-      if (value >= t[3] && value <= t[4]) return { rating: 'optimal', score: 100 };
-      if (value < t[3]) {
-        if (t[2] !== null && value >= t[2]) return { rating: 'acceptable', score: 80 };
-        if (t[1] !== null && value >= t[1]) return { rating: 'risk', score: 50 };
-        if (t[0] !== null && value >= t[0]) return { rating: 'critical', score: 25 };
+  if (t[3] === null || t[4] === null) return { rating: 'acceptable', score: 80 };
+
+  const hasLeftSide = t[0] !== null || t[1] !== null || t[2] !== null;
+
+  if (t[3] <= t[4]) {
+    // ASCENDENTE: t[0] < t[1] < t[2] < t[3] ← óptimo → t[4] < t[5] < t[6] < t[7]
+    if (value >= t[3] && value <= t[4]) return { rating: 'optimal', score: 100 };
+
+    if (value < t[3]) {
+      if (t[2] !== null && value >= t[2]) return { rating: 'acceptable', score: 80 };
+      if (t[1] !== null && value >= t[1]) return { rating: 'risk', score: 50 };
+      if (t[0] !== null && value >= t[0]) return { rating: 'critical', score: 25 };
+      return { rating: 'out_of_range', score: 0 };
+    }
+
+    if (value > t[4]) {
+      if (t[5] !== null && value <= t[5]) return { rating: 'acceptable', score: 80 };
+      if (t[6] !== null && value <= t[6]) return { rating: 'risk', score: 50 };
+      if (t[7] !== null && value <= t[7]) return { rating: 'critical', score: 25 };
+      return { rating: 'out_of_range', score: 0 };
+    }
+  } else {
+    // DESCENDENTE: t[3] > t[4]
+
+    if (hasLeftSide) {
+      // CASO B — Bidireccional: óptimo entre t[4] y t[3]
+      if (value >= t[4] && value <= t[3]) return { rating: 'optimal', score: 100 };
+
+      // Lado alto (value > t[3])
+      if (value > t[3]) {
+        if (t[2] !== null && value <= t[2]) return { rating: 'acceptable', score: 80 };
+        if (t[1] !== null && value <= t[1]) return { rating: 'risk', score: 50 };
+        if (t[0] !== null && value <= t[0]) return { rating: 'critical', score: 25 };
         return { rating: 'out_of_range', score: 0 };
       }
-      if (value > t[4]) {
-        if (t[5] !== null && value <= t[5]) return { rating: 'acceptable', score: 80 };
-        if (t[6] !== null && value <= t[6]) return { rating: 'risk', score: 50 };
-        if (t[7] !== null && value <= t[7]) return { rating: 'critical', score: 25 };
+
+      // Lado bajo (value < t[4])
+      if (value < t[4]) {
+        if (t[5] !== null && value >= t[5]) return { rating: 'acceptable', score: 80 };
+        if (t[6] !== null && value >= t[6]) return { rating: 'risk', score: 50 };
+        if (t[7] !== null && value >= t[7]) return { rating: 'critical', score: 25 };
         return { rating: 'out_of_range', score: 0 };
       }
     } else {
-      // Higher is better: t[3] > t[4]
+      // CASO A — Higher is better (lado izquierdo todo null)
+      // t[7] es el piso: entre t[7] y t[6] sigue siendo crítico
       if (value >= t[3]) return { rating: 'optimal', score: 100 };
       if (value >= t[4]) return { rating: 'acceptable', score: 80 };
       if (t[5] !== null && value >= t[5]) return { rating: 'risk', score: 50 };
       if (t[6] !== null && value >= t[6]) return { rating: 'critical', score: 25 };
+      if (t[7] !== null && value >= t[7]) return { rating: 'critical', score: 25 };
       return { rating: 'out_of_range', score: 0 };
     }
   }
+
   return { rating: 'acceptable', score: 80 };
 }
 
@@ -119,11 +149,11 @@ export const DOMAINS: Domain[] = [
     p('ast', 'AST', 'cardiovascular', 'lab', 'U/l', 0.05, [50,45,35,25,15,10,5,0], [50,45,35,25,15,10,5,0]),
     p('vldl', 'VLDL', 'cardiovascular', 'lab', 'mg/dl', 0.05, [0,1,2,5,15,20,30,35], [0,1,2,5,15,20,30,35]),
     p('bilirubin', 'Bilirrubina', 'cardiovascular', 'lab', 'mg/dl', 0.05, [1.6,1.5,1.2,1,0.3,null,null,null], [1.6,1.5,1.2,1,0.3,null,null,null]),
-    p('apo_b', 'Apo B', 'cardiovascular', 'lab', 'mg/dl', 0.05, [150,120,100,90,50,40,0,null], [150,120,100,90,50,40,0,null]),
+    p('apo_b', 'Apo B', 'cardiovascular', 'lab', 'mg/dl', 0.05, [180,150,120,90,50,40,20,0], [180,150,120,90,50,40,20,0]),
   ]},
   { key: 'hormonal', name: 'Hormonal', weight: 0.12, parameters: [
     p('tsh', 'TSH', 'hormonal', 'lab', 'μU/ml', 0.18, [null,null,null,0.9,2,2.5,3,3.5], [null,null,null,0.9,2,2.5,3,3.5]),
-    p('cortisol_am', 'Cortisol AM', 'hormonal', 'lab', 'μg/dl', 0.18, [null,null,null,15,12,10,8.5,8], [null,null,null,15,12,10,8.5,8]),
+    p('cortisol_am', 'Cortisol AM', 'hormonal', 'lab', 'μg/dl', 0.18, [4,6,8,10,18,20,23,25], [4,6,8,10,18,20,23,25]),
     p('testosterone_total', 'Testosterona total', 'hormonal', 'lab', 'ng/ml', 0.15, [null,null,null,12,7,6,4.5,3], [null,null,null,12,7,6,4.5,3]),
     p('t3_free', 'T3 libre', 'hormonal', 'lab', 'ng/dl', 0.12, [null,null,null,4.2,3.2,2.8,2.5,2.2], [null,null,null,4.2,3.2,2.8,2.5,2.2]),
     p('anti_tpo', 'Anti-TPO', 'hormonal', 'lab', 'UI/ml', 0.10, [null,null,null,0,10,20,30,35], [null,null,null,0,10,20,30,35]),
