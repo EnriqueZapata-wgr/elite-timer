@@ -326,18 +326,33 @@ export async function getRecipe(recipeId: string): Promise<Recipe | null> {
 // === LABEL ANALYSIS ===
 
 export async function analyzeLabelPhoto(
-  photoBase64: string, productName?: string,
+  photoBase64: string, productName?: string, useContext?: string,
 ): Promise<any> {
   const response = await callAnthropic([{
     role: 'user',
     content: [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } },
       { type: 'text', text: `Analiza esta etiqueta de producto alimenticio. ${productName ? 'Producto: ' + productName : ''}
-Responde SOLO con JSON válido (sin backticks ni markdown):
-{"product_name":"nombre del producto","cleanliness_score":75,"ingredients_count":12,"natural_ingredients":8,"additives":["E621","E150d"],"additive_alerts":[{"name":"Glutamato monosódico","code":"E621","risk":"medio","explanation":"Potenciador de sabor artificial"}],"sugar_g":12,"sodium_mg":450,"has_trans_fat":false,"ultra_processed":false,"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["bajo_azucar"],"red_flags":["alto en sodio"],"suggestions":"Alternativa más limpia concreta"}
+CONTEXTO DE USO: ${useContext || 'No especificado'}
 
-Score de limpieza: 90-100=alimento limpio, 70-89=aceptable, 50-69=procesado, 30-49=ultra-procesado, 0-29=evitar.
-Evalúa: cantidad de ingredientes, aditivos artificiales, azúcares añadidos, aceites hidrogenados, colorantes.` }
+REGLA CRÍTICA: Evalúa el producto SEGÚN SU PROPÓSITO.
+Electrolitos DEBEN tener sodio, potasio, magnesio — eso es BUENO, no penalizar.
+Proteína en polvo DEBE tener alta proteína — no penalizar por "exceso de proteína".
+Aceite de oliva DEBE ser 100% grasa — no penalizar por "alto en grasa".
+Evalúa si el producto CUMPLE BIEN su propósito, no si es una comida balanceada.
+
+SCORING AJUSTADO POR CONTEXTO:
+- ¿Cumple su propósito? (ingredientes correctos para lo que es): 40 pts
+- ¿Ingredientes limpios? (sin aditivos innecesarios): 30 pts
+- ¿Formas de buena calidad? (ej: sal marina > sal refinada): 20 pts
+- ¿Sin ingredientes controversiales innecesarios?: 10 pts
+
+100 = perfecto para su propósito con ingredientes impecables.
+Ejemplos: Sardinas (sardinas, aceite de oliva, sal) = 92-95. Electrolitos puros (sodio, potasio, magnesio) sin aditivos = 95-100. Stevia orgánica pura = 95-100.
+Un producto de 3 ingredientes naturales que cumple su función PUEDE sacar 95-100.
+
+Responde SOLO con JSON válido (sin backticks ni markdown):
+{"product_name":"nombre del producto","cleanliness_score":75,"ingredients_count":12,"natural_ingredients":8,"additives":["E621","E150d"],"additive_alerts":[{"name":"Glutamato monosódico","code":"E621","risk":"medio","explanation":"Potenciador de sabor artificial"}],"sugar_g":12,"sodium_mg":450,"has_trans_fat":false,"ultra_processed":false,"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["sin_azucar","ingredientes_naturales"],"red_flags":["contiene colorantes artificiales"],"suggestions":"Alternativa más limpia concreta"}` }
     ],
   }], 2000, 'claude-sonnet-4-20250514');
 
@@ -352,18 +367,29 @@ Evalúa: cantidad de ingredientes, aditivos artificiales, azúcares añadidos, a
 // === SUPPLEMENT ANALYSIS ===
 
 export async function analyzeSupplementPhoto(
-  photoBase64: string, supplementName?: string,
+  photoBase64: string, supplementName?: string, useContext?: string,
 ): Promise<any> {
   const response = await callAnthropic([{
     role: 'user',
     content: [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } },
       { type: 'text', text: `Analiza esta etiqueta de suplemento. ${supplementName ? 'Suplemento: ' + supplementName : ''}
-Responde SOLO con JSON válido (sin backticks ni markdown):
-{"supplement_name":"nombre","quality_score":75,"form":"cápsula","active_ingredients":[{"name":"Vitamina D3","amount":"2000 IU","form":"colecalciferol","bioavailability":"alta"}],"inactive_ingredients":["estearato de magnesio","dióxido de titanio"],"red_flags":["Contiene dióxido de titanio"],"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["vitamina_d"],"suggestions":"Sugerencia de mejora o alternativa","daily_dose":"1 cápsula","interactions":"Precauciones relevantes si las hay, o null"}
+CONTEXTO DE USO: ${useContext || 'No especificado'}
 
-Score de calidad: 90-100=excelente (formas biodisponibles, sin rellenos tóxicos), 70-89=bueno, 50-69=aceptable, 30-49=baja calidad, 0-29=evitar.
-Evalúa: formas activas vs baratas, biodisponibilidad, excipientes tóxicos, dosis terapéuticas vs insuficientes.` }
+REGLA CRÍTICA: Evalúa el suplemento SEGÚN SU PROPÓSITO.
+SCORING DE SUPLEMENTOS:
+- ¿Formas biodisponibles? (citrato/bisglicinato > óxido, metilcobalamina > cianocobalamina): 30 pts
+- ¿Dosis terapéuticas adecuadas? (no subdosificado): 25 pts
+- ¿Excipientes limpios? (sin dióxido de titanio, talco, colorantes): 25 pts
+- ¿Ingredientes activos correctos para el propósito?: 20 pts
+
+100 = grado clínico, formas óptimas, sin excipientes cuestionables.
+90-99 = excelente, mínimas observaciones. 80-89 = bueno, alguna forma subóptima.
+<70 = calidad cuestionable o ingredientes innecesarios.
+Magnesio bisglicinato puro con cápsula vegetal = 95-100.
+
+Responde SOLO con JSON válido (sin backticks ni markdown):
+{"supplement_name":"nombre","quality_score":75,"form":"cápsula","active_ingredients":[{"name":"Vitamina D3","amount":"2000 IU","form":"colecalciferol","bioavailability":"alta"}],"inactive_ingredients":["estearato de magnesio","dióxido de titanio"],"red_flags":["Contiene dióxido de titanio"],"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["buena_biodisponibilidad","formas_optimas"],"suggestions":"Sugerencia de mejora o alternativa","daily_dose":"1 cápsula","interactions":"Precauciones relevantes si las hay, o null"}` }
     ],
   }], 2000, 'claude-sonnet-4-20250514');
 

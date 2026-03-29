@@ -65,6 +65,74 @@ const MODE_CFG = {
   supplement: { title: 'Escanear Suplemento', icon: 'medkit-outline' as const, color: PURPLE },
 };
 
+const LABEL_CONTEXT = [
+  { key: 'exercise', emoji: '\u{1F3C3}', label: 'Ejercicio/deporte' },
+  { key: 'cooking', emoji: '\u{1F373}', label: 'Cocinar' },
+  { key: 'daily_drink', emoji: '\u{1F964}', label: 'Bebida diaria' },
+  { key: 'snack', emoji: '\u{1F36B}', label: 'Snack' },
+  { key: 'kids', emoji: '\u{1F476}', label: 'Para niños' },
+  { key: 'health', emoji: '\u{1F48A}', label: 'Salud específica' },
+  { key: 'curiosity', emoji: '\u{1F937}', label: 'Solo curiosidad' },
+];
+
+const SUPPLEMENT_CONTEXT = [
+  { key: 'performance', emoji: '\u{1F4AA}', label: 'Rendimiento' },
+  { key: 'sleep', emoji: '\u{1F634}', label: 'Sueño' },
+  { key: 'cognitive', emoji: '\u{1F9E0}', label: 'Cognitivo' },
+  { key: 'heart', emoji: '\u{2764}\u{FE0F}', label: 'Corazón' },
+  { key: 'bones', emoji: '\u{1F9B4}', label: 'Huesos/articulaciones' },
+  { key: 'antiinflammatory', emoji: '\u{1F525}', label: 'Antiinflamatorio' },
+  { key: 'hormonal', emoji: '\u{1F9EC}', label: 'Hormonal' },
+  { key: 'immunity', emoji: '\u{1F9A0}', label: 'Inmunidad' },
+  { key: 'digestion', emoji: '\u{1FAB4}', label: 'Digestión' },
+  { key: 'general', emoji: '\u{1F937}', label: 'General' },
+];
+
+// === TAG COLORS — Semáforo verde/amarillo/rojo ===
+
+const POSITIVE_TAGS = [
+  'sin_azucar', 'sin azucar', 'ingredientes_naturales', 'ingredientes naturales',
+  'conserva_tradicional', 'conserva tradicional', 'alta_proteina', 'alta proteina',
+  'grasas_saludables', 'grasas saludables', 'alto_omega3', 'alto omega3',
+  'sin_aditivos', 'sin aditivos', 'organico', 'orgánico', 'sin_conservadores',
+  'sin conservadores', 'fibra', 'alta_fibra', 'anti_inflamatorio', 'antiinflamatorio',
+  'sin_gluten', 'sin gluten', 'fermentado', 'probiotico', 'prebiotico',
+  'bajo_indice_glucemico', 'sin_procesados', 'alimento_real', 'buena_biodisponibilidad',
+  'formas_optimas', 'dosis_terapeutica', 'sin_excipientes_daninos', 'capsula_vegetal',
+  'clean_label', 'sin_colorantes', 'sin_saborizantes_artificiales', 'bajo_azucar',
+  'bajo_sodio', 'rico_en_fibra', 'vitaminas', 'minerales', 'antioxidantes',
+];
+
+const NEGATIVE_TAGS = [
+  'ultra_procesado', 'ultraprocesado', 'azucar_alta', 'alto_azucar',
+  'colorantes_artificiales', 'exceso_sodio', 'grasas_trans', 'aceite_industrial',
+  'glutamato', 'aspartame', 'excipientes_cuestionables', 'subdosificado',
+  'formas_pobres', 'dioxido_titanio', 'bht', 'bha', 'tartrazina',
+  'jarabe_maiz', 'aceite_palma_hidrogenado', 'alto_en_azucar',
+];
+
+const CAUTION_TAGS = [
+  'sodio_moderado', 'azucar_moderada', 'procesado_minimo',
+  'contiene_soya', 'contiene_lacteos', 'cafeina', 'excipientes_aceptables',
+];
+
+function getTagColor(tag: string): { bg: string; text: string } {
+  const n = tag.toLowerCase().trim().replace(/\s+/g, '_');
+  if (POSITIVE_TAGS.some(p => n.includes(p) || p.includes(n)))
+    return { bg: 'rgba(168,224,42,0.15)', text: ATP_BRAND.lime };
+  if (NEGATIVE_TAGS.some(p => n.includes(p) || p.includes(n)))
+    return { bg: 'rgba(226,75,74,0.15)', text: SEMANTIC.error };
+  if (CAUTION_TAGS.some(p => n.includes(p) || p.includes(n)))
+    return { bg: 'rgba(239,159,39,0.15)', text: SEMANTIC.warning };
+  // Inferencia heurística
+  if (n.startsWith('sin_') || n.startsWith('sin ') || n.includes('natural') || n.includes('limpio') || n.includes('buena') || n.includes('optim') || n.includes('puro'))
+    return { bg: 'rgba(168,224,42,0.15)', text: ATP_BRAND.lime };
+  if (n.includes('exceso') || n.includes('artificial') || n.includes('procesado') || n.includes('riesgo'))
+    return { bg: 'rgba(226,75,74,0.15)', text: SEMANTIC.error };
+  // Neutral
+  return { bg: 'rgba(255,255,255,0.06)', text: TEXT_COLORS.secondary };
+}
+
 function autoMealType(): string {
   const h = new Date().getHours();
   if (h >= 5 && h < 11) return 'breakfast';
@@ -226,6 +294,7 @@ export default function FoodScanScreen() {
   const [description, setDescription] = useState('');
   const [hungerKey, setHungerKey] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
+  const [useCtx, setUseCtx] = useState<string | null>(null);
 
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -303,9 +372,11 @@ export default function FoodScanScreen() {
         const desc = [description, hunger ? `Estado: ${hunger}` : ''].filter(Boolean).join('. ');
         analysis = await analyzeFoodPhoto(photoBase64, desc || undefined);
       } else if (mode === 'label') {
-        analysis = await analyzeLabelPhoto(photoBase64, productName || undefined);
+        const ctxLabel = useCtx ? LABEL_CONTEXT.find(c => c.key === useCtx)?.label : undefined;
+        analysis = await analyzeLabelPhoto(photoBase64, productName || undefined, ctxLabel);
       } else {
-        analysis = await analyzeSupplementPhoto(photoBase64, productName || undefined);
+        const ctxSupp = useCtx ? SUPPLEMENT_CONTEXT.find(c => c.key === useCtx)?.label : undefined;
+        analysis = await analyzeSupplementPhoto(photoBase64, productName || undefined, ctxSupp);
       }
       vibrateHeavy();
       setResult(analysis);
@@ -386,7 +457,7 @@ export default function FoodScanScreen() {
 
   const resetAndScan = () => {
     setResult(null); setPhotoUri(null); setPhotoBase64(null);
-    setSaved(false); setDescription(''); setProductName('');
+    setSaved(false); setDescription(''); setProductName(''); setUseCtx(null);
     setHungerKey(null); setMealType(autoMealType()); setStep('capture');
     setTimeout(openCamera, 150);
   };
@@ -563,6 +634,29 @@ export default function FoodScanScreen() {
                 placeholderTextColor={TEXT_COLORS.muted}
                 returnKeyType="done"
               />
+
+              {/* Contexto de uso */}
+              <EliteText variant="caption" style={[st.sectionLabel, { marginTop: Spacing.lg }]}>
+                ¿Para qué lo usas?
+              </EliteText>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {(mode === 'label' ? LABEL_CONTEXT : SUPPLEMENT_CONTEXT).map(c => {
+                  const active = useCtx === c.key;
+                  return (
+                    <AnimatedPressable key={c.key} scaleDown={0.94}
+                      onPress={() => { vibrateLight(); setUseCtx(active ? null : c.key); }}
+                      style={[st.mealChip, active && { backgroundColor: cfg.color + '18', borderColor: cfg.color + '50' }]}>
+                      <EliteText style={{ fontSize: 14 }}>{c.emoji}</EliteText>
+                      <EliteText style={{
+                        fontSize: 12, fontFamily: active ? Fonts.bold : Fonts.regular,
+                        color: active ? cfg.color : TEXT_COLORS.secondary,
+                      }}>
+                        {c.label}
+                      </EliteText>
+                    </AnimatedPressable>
+                  );
+                })}
+              </View>
             </View>
           )}
         </Animated.View>
@@ -838,7 +932,7 @@ export default function FoodScanScreen() {
         {(result.suggestions || result.better_alternative) && (
           <Animated.View entering={FadeInDown.delay(1050).springify()}>
             <View style={st.tipCard}>
-              <Ionicons name="bulb-outline" size={18} color={SEMANTIC.acceptable} />
+              <Ionicons name="bulb-outline" size={18} color={ATP_BRAND.teal2} />
               <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: 13, flex: 1, lineHeight: 20 }}>
                 {result.suggestions || result.better_alternative}
               </EliteText>
@@ -846,17 +940,20 @@ export default function FoodScanScreen() {
           </Animated.View>
         )}
 
-        {/* Tags */}
+        {/* Tags — semaforizados */}
         {result.tags?.length > 0 && (
           <Animated.View entering={FadeInDown.delay(1150).springify()}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.md }}>
-              {result.tags.map((t: string, i: number) => (
-                <View key={i} style={[st.tagChip, { borderColor: cfg.color + '25' }]}>
-                  <EliteText variant="caption" style={{ color: cfg.color, fontSize: 11 }}>
-                    {t.replace(/_/g, ' ')}
-                  </EliteText>
-                </View>
-              ))}
+              {result.tags.map((t: string, i: number) => {
+                const tc = getTagColor(t);
+                return (
+                  <View key={i} style={[st.tagChip, { backgroundColor: tc.bg, borderColor: tc.text + '25' }]}>
+                    <EliteText variant="caption" style={{ color: tc.text, fontSize: 11 }}>
+                      {t.replace(/_/g, ' ')}
+                    </EliteText>
+                  </View>
+                );
+              })}
             </View>
           </Animated.View>
         )}
@@ -1034,7 +1131,7 @@ const st = StyleSheet.create({
   },
   tipCard: {
     flexDirection: 'row', gap: 10, alignItems: 'flex-start',
-    backgroundColor: SEMANTIC.acceptable + '08', borderRadius: R, padding: 14, marginTop: Spacing.md,
+    backgroundColor: 'rgba(26,188,156,0.08)', borderRadius: R, padding: 14, marginTop: Spacing.md,
   },
   tagChip: {
     backgroundColor: SURFACES.card, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10,
