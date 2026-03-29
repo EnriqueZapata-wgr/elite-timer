@@ -1,11 +1,12 @@
 /**
  * ConfettiCelebration — 30 partículas animadas con caída, rotación y fade.
- * Colores: verde #a8e02a, dorado #FFD700, blanco #FFFFFF.
+ * Colores: gradiente ATP (lima → teal) + nutrición + mind.
  * Duración: 2.5 segundos.
  */
 import { useEffect } from 'react';
 import { StyleSheet, View, Dimensions } from 'react-native';
 import { Colors } from '@/constants/theme';
+import { ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -17,7 +18,7 @@ import Animated, {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const COLORS = [Colors.neonGreen, '#FFD700', Colors.textPrimary, Colors.neonGreen, '#FFD700', Colors.textPrimary];
+const confettiColors = [ATP_BRAND.lime, ATP_BRAND.green1, ATP_BRAND.green2, ATP_BRAND.teal1, ATP_BRAND.teal2, CATEGORY_COLORS.nutrition, CATEGORY_COLORS.mind];
 const PARTICLE_COUNT = 30;
 const TOTAL_DURATION = 2500;
 
@@ -78,7 +79,7 @@ function Particle({ index, onDone }: { index: number; onDone?: () => void }) {
         width: size,
         height: isSquare ? size : size * 0.4,
         borderRadius: isSquare ? size / 2 : size * 0.2,
-        backgroundColor: COLORS[index % COLORS.length],
+        backgroundColor: confettiColors[index % confettiColors.length],
       },
       animStyle,
     ]} />

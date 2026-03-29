@@ -5,7 +5,7 @@ import { View, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC } from '@/src/constants/brand';
-import { Fonts, Spacing } from '@/constants/theme';
+import { Fonts, Spacing, Radius } from '@/constants/theme';
 import type { SaveStatus } from '@/src/hooks/useSectionSave';
 
 interface Props {
@@ -64,10 +64,10 @@ export function SectionSaveHeader({ title, hasChanges, isSaving, saveStatus, err
 
 const st = StyleSheet.create({
   container: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  title: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2, color: TEXT_COLORS.secondary },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  title: { fontSize: 12, fontFamily: Fonts.bold, letterSpacing: 2, color: TEXT_COLORS.secondary },
   unsavedDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: SEMANTIC.warning },
-  btn: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 6, minWidth: 90, alignItems: 'center' },
+  btn: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm, minWidth: 90, alignItems: 'center' },
   btnActive: { backgroundColor: ATP_BRAND.lime },
   btnSaved: { backgroundColor: ATP_BRAND.lime + '20' },
   btnError: { backgroundColor: SEMANTIC.error + '20' },

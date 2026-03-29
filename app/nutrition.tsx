@@ -193,8 +193,8 @@ export default function NutritionScreen() {
               </EliteText>
             </AnimatedPressable>
             <AnimatedPressable onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } }); }} style={st.scanBtn}>
-              <Ionicons name="medkit-outline" size={18} color="#7F77DD" />
-              <EliteText variant="caption" style={{ color: '#7F77DD', fontFamily: Fonts.semiBold, fontSize: 11 }}>
+              <Ionicons name="medkit-outline" size={18} color={CATEGORY_COLORS.mind} />
+              <EliteText variant="caption" style={{ color: CATEGORY_COLORS.mind, fontFamily: Fonts.semiBold, fontSize: 11 }}>
                 Escanear suplemento
               </EliteText>
             </AnimatedPressable>
