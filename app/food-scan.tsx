@@ -27,6 +27,7 @@ import {
   analyzeFoodPhoto, analyzeLabelPhoto, analyzeSupplementPhoto,
   logFood, uploadFoodPhoto,
 } from '@/src/services/nutrition-service';
+import { analyzeFoodText, reanalyzeFood } from '@/src/services/nutrition-service';
 import { Colors, Spacing, Fonts } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
 
@@ -301,6 +302,16 @@ export default function FoodScanScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Nuevos estados para modo food editable
+  const [textInput, setTextInput] = useState('');
+  const [inputType, setInputType] = useState<'photo' | 'text'>('photo');
+  const [ingredients, setIngredients] = useState<any[]>([]);
+  const [editedTotals, setEditedTotals] = useState<any>(null);
+  const [wasEdited, setWasEdited] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
+  const [addingIngredient, setAddingIngredient] = useState(false);
+  const [newIngredientName, setNewIngredientName] = useState('');
+
   // Analyzing — anillo rotatorio
   const analyzeRotation = useSharedValue(0);
   const analyzeGlow = useSharedValue(0.3);
@@ -337,6 +348,7 @@ export default function FoodScanScreen() {
       vibrateLight();
       setPhotoUri(res.assets[0].uri);
       setPhotoBase64(res.assets[0].base64 ?? null);
+      setInputType('photo');
       setStep('preview');
     }
   };
@@ -354,6 +366,7 @@ export default function FoodScanScreen() {
       vibrateLight();
       setPhotoUri(res.assets[0].uri);
       setPhotoBase64(res.assets[0].base64 ?? null);
+      setInputType('photo');
       setStep('preview');
     }
   };
@@ -361,22 +374,37 @@ export default function FoodScanScreen() {
   // === ANÁLISIS ===
 
   const handleAnalyze = async () => {
-    if (!photoBase64) return;
+    // Para food con texto, no necesita foto
+    if (mode === 'food' && inputType === 'text' && !textInput.trim()) return;
+    if (mode !== 'food' && !photoBase64) return;
+    if (mode === 'food' && inputType === 'photo' && !photoBase64) return;
+
     vibrateMedium();
     setStep('analyzing');
     setError(null);
     try {
       let analysis: any;
       if (mode === 'food') {
-        const hunger = hungerKey ? HUNGER_OPTIONS.find(h => h.key === hungerKey)?.label : undefined;
-        const desc = [description, hunger ? `Estado: ${hunger}` : ''].filter(Boolean).join('. ');
-        analysis = await analyzeFoodPhoto(photoBase64, desc || undefined);
+        if (inputType === 'text') {
+          // Análisis por texto — sin foto
+          const hunger = hungerKey ? HUNGER_OPTIONS.find(h => h.key === hungerKey)?.label : undefined;
+          const fullText = [textInput, hunger ? `Estado: ${hunger}` : ''].filter(Boolean).join('. ');
+          analysis = await analyzeFoodText(fullText);
+        } else {
+          // Análisis por foto
+          const hunger = hungerKey ? HUNGER_OPTIONS.find(h => h.key === hungerKey)?.label : undefined;
+          const desc = [description, hunger ? `Estado: ${hunger}` : ''].filter(Boolean).join('. ');
+          analysis = await analyzeFoodPhoto(photoBase64!, desc || undefined);
+        }
+        // Poblar ingredientes y totales editables
+        setIngredients(analysis.ingredients || []);
+        setEditedTotals(analysis.totals || null);
       } else if (mode === 'label') {
         const ctxLabel = useCtx ? LABEL_CONTEXT.find(c => c.key === useCtx)?.label : undefined;
-        analysis = await analyzeLabelPhoto(photoBase64, productName || undefined, ctxLabel);
+        analysis = await analyzeLabelPhoto(photoBase64!, productName || undefined, ctxLabel);
       } else {
         const ctxSupp = useCtx ? SUPPLEMENT_CONTEXT.find(c => c.key === useCtx)?.label : undefined;
-        analysis = await analyzeSupplementPhoto(photoBase64, productName || undefined, ctxSupp);
+        analysis = await analyzeSupplementPhoto(photoBase64!, productName || undefined, ctxSupp);
       }
       vibrateHeavy();
       setResult(analysis);
@@ -399,13 +427,24 @@ export default function FoodScanScreen() {
       }
       const hungerVal = hungerKey ? HUNGER_OPTIONS.find(h => h.key === hungerKey)?.value : undefined;
       const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      const totals = editedTotals || result.totals;
       await logFood({
         meal_type: mealType,
-        description: result.food_identified || description || 'Sin descripción',
-        photo_url: photoUrl, meal_time: now, hunger_level: hungerVal,
-        ai_analysis: result, calories: result.estimated_calories,
-        protein_g: result.estimated_protein, carbs_g: result.estimated_carbs,
-        fat_g: result.estimated_fat,
+        description: result.food_identified || description || textInput || 'Sin descripción',
+        photo_url: photoUrl,
+        meal_time: now,
+        hunger_level: hungerVal,
+        ai_analysis: {
+          ...result,
+          ingredients: ingredients,
+          totals: totals,
+          input_type: inputType,
+          was_edited: wasEdited,
+        },
+        calories: totals?.calories,
+        protein_g: totals?.protein,
+        carbs_g: totals?.carbs,
+        fat_g: totals?.fat,
       });
       vibrateHeavy();
       setSaved(true);
@@ -425,7 +464,7 @@ export default function FoodScanScreen() {
       const hungerVal = hungerKey ? HUNGER_OPTIONS.find(h => h.key === hungerKey)?.value : undefined;
       const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
       await logFood({
-        meal_type: mealType, description: description || 'Sin descripción',
+        meal_type: mealType, description: description || textInput || 'Sin descripción',
         photo_url: photoUrl, meal_time: now, hunger_level: hungerVal,
       });
       vibrateLight();
@@ -434,6 +473,52 @@ export default function FoodScanScreen() {
       Alert.alert('Error', err.message || 'No se pudo guardar');
     }
     setSaving(false);
+  };
+
+  // === HANDLERS INGREDIENTES EDITABLES ===
+
+  const removeIngredient = (idx: number) => {
+    vibrateLight();
+    const updated = ingredients.filter((_, i) => i !== idx);
+    setIngredients(updated);
+    setEditedTotals(recalcTotals(updated));
+    setWasEdited(true);
+  };
+
+  const handleAddIngredient = () => {
+    if (!newIngredientName.trim()) return;
+    vibrateLight();
+    setIngredients(prev => [...prev, {
+      name: newIngredientName.trim(),
+      portion: '~1 porción',
+      calories: 0, protein: 0, carbs: 0, fat: 0,
+    }]);
+    setNewIngredientName('');
+    setAddingIngredient(false);
+    setWasEdited(true);
+  };
+
+  function recalcTotals(ings: any[]) {
+    return {
+      calories: ings.reduce((s, i) => s + (i.calories || 0), 0),
+      protein: ings.reduce((s, i) => s + (i.protein || 0), 0),
+      carbs: ings.reduce((s, i) => s + (i.carbs || 0), 0),
+      fat: ings.reduce((s, i) => s + (i.fat || 0), 0),
+      fiber: ings.reduce((s, i) => s + (i.fiber || 0), 0),
+    };
+  }
+
+  const handleRecalculate = async () => {
+    setRecalculating(true);
+    try {
+      const newResult = await reanalyzeFood(ingredients, mealType);
+      setResult(newResult);
+      setIngredients(newResult.ingredients || []);
+      setEditedTotals(newResult.totals || null);
+      setWasEdited(false);
+      vibrateHeavy();
+    } catch { /* silencioso */ }
+    setRecalculating(false);
   };
 
   // === HELPERS ===
@@ -459,64 +544,149 @@ export default function FoodScanScreen() {
     setResult(null); setPhotoUri(null); setPhotoBase64(null);
     setSaved(false); setDescription(''); setProductName(''); setUseCtx(null);
     setHungerKey(null); setMealType(autoMealType()); setStep('capture');
+    // Reset nuevos estados de food editable
+    setTextInput(''); setInputType('photo'); setIngredients([]);
+    setEditedTotals(null); setWasEdited(false);
+    setAddingIngredient(false); setNewIngredientName('');
     setTimeout(openCamera, 150);
+  };
+
+  // Manejar envío de texto desde capture (food mode)
+  const handleTextSubmit = () => {
+    if (!textInput.trim()) return;
+    vibrateLight();
+    setInputType('text');
+    setStep('preview');
   };
 
   // ═══════════════════════════════════════════
   // CAPTURE
   // ═══════════════════════════════════════════
 
-  if (step === 'capture') return (
-    <SafeAreaView style={st.screen}>
-      <Pressable onPress={() => router.back()} style={st.back} hitSlop={12}>
-        <Ionicons name="chevron-back" size={24} color={TEXT_COLORS.secondary} />
-      </Pressable>
-      <View style={st.captureCenter}>
-        <Animated.View entering={FadeIn.duration(600)} style={{ alignItems: 'center' }}>
-          {/* Anillo decorativo */}
-          <View style={[st.captureRing, { borderColor: cfg.color + '18' }]}>
-            <View style={[st.captureRingInner, { borderColor: cfg.color + '35' }]}>
-              <Ionicons name={cfg.icon} size={40} color={cfg.color} />
+  if (step === 'capture') {
+    // Modo food: cámara + barra de texto
+    if (mode === 'food') {
+      return (
+        <SafeAreaView style={st.screen}>
+          <Pressable onPress={() => router.back()} style={st.back} hitSlop={12}>
+            <Ionicons name="chevron-back" size={24} color={TEXT_COLORS.secondary} />
+          </Pressable>
+
+          <View style={{ flex: 1 }}>
+            {/* Zona superior: cámara (50%) */}
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Animated.View entering={FadeIn.duration(600)} style={{ alignItems: 'center' }}>
+                {/* Anillo decorativo */}
+                <View style={[st.captureRing, { borderColor: cfg.color + '18' }]}>
+                  <View style={[st.captureRingInner, { borderColor: cfg.color + '35' }]}>
+                    <Ionicons name={cfg.icon} size={40} color={cfg.color} />
+                  </View>
+                </View>
+
+                <EliteText style={{ fontSize: 22, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
+                  {cfg.title}
+                </EliteText>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: 13 }}>
+                  Foto o describe lo que comiste
+                </EliteText>
+              </Animated.View>
+
+              <Animated.View entering={FadeInDown.delay(200).springify().damping(18)} style={{ marginTop: 28, alignItems: 'center', width: '100%', paddingHorizontal: Spacing.xl }}>
+                {/* Botones: shutter + galería */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.lg }}>
+                  {/* Galería (icono pequeño) */}
+                  <Pressable onPress={openGallery} hitSlop={10}
+                    style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border, alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="images-outline" size={20} color={TEXT_COLORS.secondary} />
+                  </Pressable>
+
+                  {/* Botón principal — shutter */}
+                  <AnimatedPressable onPress={openCamera} scaleDown={0.92} style={[st.shutterOuter, { borderColor: cfg.color }]}>
+                    <View style={[st.shutterInner, { backgroundColor: cfg.color }]}>
+                      <Ionicons name="camera" size={28} color={TEXT_COLORS.onAccent} />
+                    </View>
+                  </AnimatedPressable>
+
+                  {/* Spacer para centrar el shutter */}
+                  <View style={{ width: 44 }} />
+                </View>
+              </Animated.View>
             </View>
-          </View>
 
-          <EliteText style={{ fontSize: 22, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
-            {cfg.title}
-          </EliteText>
-          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: 13 }}>
-            Toma una foto para analizar con IA
-          </EliteText>
-        </Animated.View>
-
-        <Animated.View entering={FadeInDown.delay(200).springify().damping(18)} style={st.captureBtns}>
-          {/* Botón principal — shutter */}
-          <AnimatedPressable onPress={openCamera} scaleDown={0.92} style={[st.shutterOuter, { borderColor: cfg.color }]}>
-            <View style={[st.shutterInner, { backgroundColor: cfg.color }]}>
-              <Ionicons name="camera" size={28} color={TEXT_COLORS.onAccent} />
-            </View>
-          </AnimatedPressable>
-
-          <View style={st.captureSecRow}>
-            <GlassButton onPress={openGallery}>
-              <Ionicons name="images-outline" size={18} color={TEXT_COLORS.primary} />
-              <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 14, fontFamily: Fonts.semiBold }}>
-                Galería
+            {/* Zona inferior: barra de texto tipo chat */}
+            <Animated.View entering={FadeInDown.delay(350).springify().damping(18)}
+              style={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg }}>
+              <View style={st.textBarWrap}>
+                <TextInput
+                  style={st.textBarInput}
+                  value={textInput}
+                  onChangeText={setTextInput}
+                  placeholder="Describe lo que comiste..."
+                  placeholderTextColor={TEXT_COLORS.muted}
+                  returnKeyType="send"
+                  onSubmitEditing={handleTextSubmit}
+                  multiline={false}
+                />
+                <AnimatedPressable
+                  onPress={handleTextSubmit}
+                  scaleDown={0.9}
+                  style={[st.textBarSend, { backgroundColor: textInput.trim() ? cfg.color : SURFACES.cardLight }]}>
+                  <Ionicons name="arrow-up" size={18} color={textInput.trim() ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
+                </AnimatedPressable>
+              </View>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11, marginTop: 6, textAlign: 'center' }}>
+                Tip: usa el micrófono de tu teclado 🎤
               </EliteText>
-            </GlassButton>
+            </Animated.View>
+          </View>
+        </SafeAreaView>
+      );
+    }
 
-            {mode === 'food' && (
-              <GlassButton onPress={() => setStep('preview')}>
-                <Ionicons name="text-outline" size={18} color={TEXT_COLORS.primary} />
+    // Modo label / supplement: capture original
+    return (
+      <SafeAreaView style={st.screen}>
+        <Pressable onPress={() => router.back()} style={st.back} hitSlop={12}>
+          <Ionicons name="chevron-back" size={24} color={TEXT_COLORS.secondary} />
+        </Pressable>
+        <View style={st.captureCenter}>
+          <Animated.View entering={FadeIn.duration(600)} style={{ alignItems: 'center' }}>
+            {/* Anillo decorativo */}
+            <View style={[st.captureRing, { borderColor: cfg.color + '18' }]}>
+              <View style={[st.captureRingInner, { borderColor: cfg.color + '35' }]}>
+                <Ionicons name={cfg.icon} size={40} color={cfg.color} />
+              </View>
+            </View>
+
+            <EliteText style={{ fontSize: 22, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
+              {cfg.title}
+            </EliteText>
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: 13 }}>
+              Toma una foto para analizar con IA
+            </EliteText>
+          </Animated.View>
+
+          <Animated.View entering={FadeInDown.delay(200).springify().damping(18)} style={st.captureBtns}>
+            {/* Botón principal — shutter */}
+            <AnimatedPressable onPress={openCamera} scaleDown={0.92} style={[st.shutterOuter, { borderColor: cfg.color }]}>
+              <View style={[st.shutterInner, { backgroundColor: cfg.color }]}>
+                <Ionicons name="camera" size={28} color={TEXT_COLORS.onAccent} />
+              </View>
+            </AnimatedPressable>
+
+            <View style={st.captureSecRow}>
+              <GlassButton onPress={openGallery}>
+                <Ionicons name="images-outline" size={18} color={TEXT_COLORS.primary} />
                 <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 14, fontFamily: Fonts.semiBold }}>
-                  Solo texto
+                  Galería
                 </EliteText>
               </GlassButton>
-            )}
-          </View>
-        </Animated.View>
-      </View>
-    </SafeAreaView>
-  );
+            </View>
+          </Animated.View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // ═══════════════════════════════════════════
   // PREVIEW
@@ -532,8 +702,18 @@ export default function FoodScanScreen() {
         contentContainerStyle={{ paddingTop: Spacing.xxl + Spacing.sm, paddingHorizontal: Spacing.lg, paddingBottom: 100 }}
         keyboardShouldPersistTaps="handled">
 
-        {/* Foto */}
-        {photoUri ? (
+        {/* Foto o burbuja de texto (food mode) */}
+        {mode === 'food' && inputType === 'text' ? (
+          // Burbuja de texto — sin foto
+          <Animated.View entering={FadeIn.duration(400).springify()}>
+            <View style={st.textBubble}>
+              <Ionicons name="chatbubble-ellipses-outline" size={20} color={cfg.color} style={{ marginRight: 8 }} />
+              <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 15, flex: 1, lineHeight: 22 }}>
+                {textInput}
+              </EliteText>
+            </View>
+          </Animated.View>
+        ) : photoUri ? (
           <Animated.View entering={FadeIn.duration(400).springify()}>
             <View style={st.photoWrap}>
               <Image source={{ uri: photoUri }} style={st.photo} resizeMode="cover" />
@@ -587,15 +767,28 @@ export default function FoodScanScreen() {
                 })}
               </ScrollView>
 
-              {/* Descripción */}
-              <TextInput
-                style={st.input}
-                value={description}
-                onChangeText={setDescription}
-                placeholder="¿Qué es? (la IA identifica sola)"
-                placeholderTextColor={TEXT_COLORS.muted}
-                returnKeyType="done"
-              />
+              {/* Descripción extra (opcional, expandible) */}
+              {inputType === 'photo' && (
+                <TextInput
+                  style={st.input}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="¿Qué es? (la IA identifica sola)"
+                  placeholderTextColor={TEXT_COLORS.muted}
+                  returnKeyType="done"
+                />
+              )}
+
+              {inputType === 'text' && (
+                <TextInput
+                  style={st.input}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="¿Algo más? (contexto adicional)"
+                  placeholderTextColor={TEXT_COLORS.muted}
+                  returnKeyType="done"
+                />
+              )}
 
               {/* Hambre */}
               <EliteText variant="caption" style={[st.sectionLabel, { marginTop: Spacing.lg }]}>
@@ -674,8 +867,15 @@ export default function FoodScanScreen() {
         {/* CTA */}
         <Animated.View entering={FadeInDown.delay(300).springify().damping(18)}>
           <View style={{ marginTop: Spacing.xl, gap: Spacing.sm }}>
-            <AnimatedPressable onPress={handleAnalyze} disabled={!photoBase64} scaleDown={0.96}
-              style={[st.ctaBtn, { backgroundColor: cfg.color, opacity: photoBase64 ? 1 : 0.3 }]}>
+            {/* Botón analizar — habilitado por foto o texto */}
+            <AnimatedPressable
+              onPress={handleAnalyze}
+              disabled={mode === 'food' ? (inputType === 'text' ? !textInput.trim() : !photoBase64) : !photoBase64}
+              scaleDown={0.96}
+              style={[st.ctaBtn, {
+                backgroundColor: cfg.color,
+                opacity: (mode === 'food' ? (inputType === 'text' ? !!textInput.trim() : !!photoBase64) : !!photoBase64) ? 1 : 0.3,
+              }]}>
               <Ionicons name="sparkles" size={20} color={TEXT_COLORS.onAccent} />
               <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: 17 }}>
                 Analizar con IA
@@ -758,6 +958,9 @@ export default function FoodScanScreen() {
   const sc = getScore();
   const scColor = scoreToColor(sc);
 
+  // Totales para macros (usa editados si hay, o los del resultado)
+  const displayTotals = editedTotals || result.totals;
+
   return (
     <SafeAreaView style={st.screen}>
       <Pressable onPress={() => router.back()} style={st.back} hitSlop={12}>
@@ -783,14 +986,91 @@ export default function FoodScanScreen() {
           </EliteText>
         </Animated.View>
 
-        {/* FOOD: Macros */}
+        {/* FOOD: Ingredientes editables + Macros */}
         {mode === 'food' && (
-          <View style={st.macrosRow}>
-            <MacroPill label="Calorías" value={`${result.estimated_calories ?? '—'}`} unit="kcal" color={TEXT_COLORS.primary} delay={400} />
-            <MacroPill label="Proteína" value={`${result.estimated_protein ?? '—'}`} unit="g" color={BLUE} delay={500} />
-            <MacroPill label="Carbos" value={`${result.estimated_carbs ?? '—'}`} unit="g" color={SEMANTIC.acceptable} delay={600} />
-            <MacroPill label="Grasa" value={`${result.estimated_fat ?? '—'}`} unit="g" color={SEMANTIC.warning} delay={700} />
-          </View>
+          <>
+            {/* Ingredientes detectados */}
+            <Animated.View entering={FadeInDown.delay(400).springify().damping(18)}>
+              <View style={[st.card, { marginTop: Spacing.lg }]}>
+                <EliteText variant="caption" style={st.sectionLabel}>Ingredientes detectados</EliteText>
+                {ingredients.map((ing, idx) => (
+                  <View key={idx} style={st.foodIngredientRow}>
+                    <View style={{ flex: 1 }}>
+                      <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 14 }}>{ing.name}</EliteText>
+                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11 }}>{ing.portion}</EliteText>
+                    </View>
+                    <EliteText variant="caption" style={{ color: BLUE, fontSize: 11 }}>
+                      {ing.calories}cal · {ing.protein}p
+                    </EliteText>
+                    <Pressable onPress={() => removeIngredient(idx)} hitSlop={8}>
+                      <Ionicons name="close-circle-outline" size={18} color={TEXT_COLORS.muted} />
+                    </Pressable>
+                  </View>
+                ))}
+
+                {/* Agregar ingrediente */}
+                {addingIngredient ? (
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                    <TextInput
+                      style={[st.input, { flex: 1, marginTop: 0 }]}
+                      value={newIngredientName}
+                      onChangeText={setNewIngredientName}
+                      placeholder="¿Qué más?"
+                      placeholderTextColor={TEXT_COLORS.muted}
+                      returnKeyType="done"
+                      onSubmitEditing={handleAddIngredient}
+                    />
+                    <Pressable onPress={handleAddIngredient}>
+                      <Ionicons name="checkmark-circle" size={28} color={BLUE} />
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Pressable onPress={() => setAddingIngredient(true)} style={{ marginTop: 8 }}>
+                    <EliteText style={{ color: BLUE, fontSize: 13 }}>+ Agregar ingrediente</EliteText>
+                  </Pressable>
+                )}
+              </View>
+            </Animated.View>
+
+            {/* Macros — usa editedTotals o result.totals */}
+            <View style={st.macrosRow}>
+              <MacroPill label="Calorías" value={`${displayTotals?.calories ?? result.estimated_calories ?? '—'}`} unit="kcal" color={TEXT_COLORS.primary} delay={500} />
+              <MacroPill label="Proteína" value={`${displayTotals?.protein ?? result.estimated_protein ?? '—'}`} unit="g" color={BLUE} delay={600} />
+              <MacroPill label="Carbos" value={`${displayTotals?.carbs ?? result.estimated_carbs ?? '—'}`} unit="g" color={SEMANTIC.acceptable} delay={700} />
+              <MacroPill label="Grasa" value={`${displayTotals?.fat ?? result.estimated_fat ?? '—'}`} unit="g" color={SEMANTIC.warning} delay={800} />
+            </View>
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11, textAlign: 'center', marginTop: 4 }}>
+              Estimados aproximados
+            </EliteText>
+
+            {/* Puntos buenos */}
+            {result.good_points?.length > 0 && (
+              <Animated.View entering={FadeInDown.delay(850).springify()}>
+                <View style={{ marginTop: Spacing.md }}>
+                  {result.good_points.map((p: string, i: number) => (
+                    <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                      <Ionicons name="checkmark-circle" size={14} color={ATP_BRAND.lime} />
+                      <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: 13 }}>{p}</EliteText>
+                    </View>
+                  ))}
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Puntos a mejorar */}
+            {result.improve_points?.length > 0 && (
+              <Animated.View entering={FadeInDown.delay(900).springify()}>
+                <View style={{ marginTop: Spacing.xs }}>
+                  {result.improve_points.map((p: string, i: number) => (
+                    <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                      <Ionicons name="arrow-up-circle" size={14} color={SEMANTIC.warning} />
+                      <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: 13 }}>{p}</EliteText>
+                    </View>
+                  ))}
+                </View>
+              </Animated.View>
+            )}
+          </>
         )}
 
         {/* LABEL: Stats + additive alerts */}
@@ -904,7 +1184,7 @@ export default function FoodScanScreen() {
 
         {/* Feedback */}
         {result.feedback && (
-          <Animated.View entering={FadeInDown.delay(mode === 'food' ? 800 : 900).springify().damping(18)}>
+          <Animated.View entering={FadeInDown.delay(mode === 'food' ? 950 : 900).springify().damping(18)}>
             <View style={[st.card, { borderLeftColor: cfg.color, borderLeftWidth: 3, marginTop: Spacing.lg }]}>
               <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 15, lineHeight: 22 }}>
                 {result.feedback}
@@ -915,7 +1195,7 @@ export default function FoodScanScreen() {
 
         {/* Red flags */}
         {result.red_flags?.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(950).springify()}>
+          <Animated.View entering={FadeInDown.delay(1000).springify()}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.md }}>
               {result.red_flags.map((f: string, i: number) => (
                 <View key={i} style={st.flagChip}>
@@ -961,12 +1241,24 @@ export default function FoodScanScreen() {
         {/* Acciones */}
         <Animated.View entering={FadeInDown.delay(1250).springify().damping(18)}>
           <View style={{ marginTop: Spacing.xl, gap: Spacing.sm }}>
+            {/* Guardar (food) */}
             {mode === 'food' && !saved && (
               <AnimatedPressable onPress={handleSaveFood} disabled={saving} scaleDown={0.96}
                 style={[st.ctaBtn, { backgroundColor: cfg.color }]}>
                 <Ionicons name={saving ? 'hourglass-outline' : 'checkmark-circle'} size={20} color={TEXT_COLORS.onAccent} />
                 <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: 17 }}>
-                  {saving ? 'Guardando...' : 'Guardar registro'}
+                  {saving ? 'Guardando...' : 'Guardar \u2713'}
+                </EliteText>
+              </AnimatedPressable>
+            )}
+
+            {/* Recalcular con IA (solo si editó ingredientes) */}
+            {mode === 'food' && wasEdited && !saved && (
+              <AnimatedPressable onPress={handleRecalculate} disabled={recalculating} scaleDown={0.96}
+                style={[st.outlineBtn, { borderColor: BLUE + '50' }]}>
+                <Ionicons name={recalculating ? 'hourglass-outline' : 'refresh'} size={18} color={BLUE} />
+                <EliteText style={{ color: BLUE, fontFamily: Fonts.semiBold, fontSize: 15 }}>
+                  {recalculating ? 'Recalculando...' : 'Recalcular con IA'}
                 </EliteText>
               </AnimatedPressable>
             )}
@@ -1031,6 +1323,28 @@ const st = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   captureSecRow: { flexDirection: 'row', gap: Spacing.md },
+
+  // Barra de texto tipo chat (food capture)
+  textBarWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: SURFACES.card, borderRadius: 24, borderWidth: 1, borderColor: SURFACES.border,
+    paddingHorizontal: 16, paddingVertical: 6,
+  },
+  textBarInput: {
+    flex: 1, color: TEXT_COLORS.primary, fontSize: 15, fontFamily: Fonts.regular,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 8,
+  },
+  textBarSend: {
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Burbuja de texto en preview
+  textBubble: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    backgroundColor: SURFACES.card, borderRadius: R, borderWidth: 1, borderColor: SURFACES.border,
+    padding: 16, marginBottom: 4,
+  },
 
   // Glass button
   glassBtn: {
@@ -1122,6 +1436,12 @@ const st = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: SURFACES.card, borderRadius: 16, borderWidth: 1, borderColor: SURFACES.border,
     padding: 14, marginBottom: 8,
+  },
+  // Fila de ingrediente editable (food mode result)
+  foodIngredientRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: SURFACES.border,
   },
   excipientChip: {
     backgroundColor: SURFACES.cardLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,

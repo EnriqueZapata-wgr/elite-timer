@@ -133,43 +133,81 @@ export async function uploadFoodPhoto(base64Data: string): Promise<string> {
   return urlData?.signedUrl ?? '';
 }
 
+// Prompt base ATP de nutrición — evalúa CALIDAD, no solo calorías
+function buildFoodPrompt(plan: NutritionPlan | null, description?: string, extra?: string): string {
+  const planCtx = plan ? `
+Plan nutricional activo:
+- Dieta: ${plan.diet_type ?? 'no definido'} | Cal: ${plan.calorie_target ?? '?'}kcal | Prot: ${plan.protein_target ?? '?'}g
+- Evitar: ${(plan.foods_to_avoid ?? []).join(', ') || 'nada'}
+- Priorizar: ${(plan.foods_to_prioritize ?? []).join(', ') || 'nada'}
+- Alergias: ${(plan.allergies ?? []).join(', ') || 'ninguna'}` : '';
+
+  return `Eres el analista nutricional de ATP. Evalúas CALIDAD nutricional, no conteo exacto de calorías. Datos APROXIMADOS.
+${description ? 'El usuario describe: ' + description : ''}
+${extra || ''}${planCtx}
+
+FILOSOFÍA: ¿Tiene proteína suficiente (>25g ideal)? ¿Verduras/fibra? ¿Grasas saludables o industriales? ¿Comida REAL o procesada? ¿Azúcar/harina refinada?
+
+SCORE: 90-100=ejemplar, 75-89=muy bien, 60-74=aceptable, 40-59=mejorable, 0-39=ultra-procesado/cochinada.
+
+Responde SOLO JSON válido (sin backticks):
+{"food_identified":"Descripción del platillo","ingredients":[{"name":"Huevos revueltos","portion":"~150g (3 huevos)","calories":210,"protein":18,"carbs":2,"fat":15},{"name":"Aguacate","portion":"~1/2 pieza","calories":120,"protein":1,"carbs":6,"fat":11}],"totals":{"calories":330,"protein":19,"carbs":8,"fat":26,"fiber":4},"score":82,"score_label":"Buena","feedback":"Evaluación en español coloquial, 2-3 oraciones enfocadas en calidad.","good_points":["Proteína completa","Grasas saludables"],"improve_points":["Agregar más verduras de color"],"tags":["alta_proteina","grasas_saludables"],"red_flags":[],"suggestions":"Una sugerencia concreta"}
+
+Porciones en LENGUAJE NATURAL: "1/2 pieza", "~1 taza", "3 huevos", "~150g".`;
+}
+
+function parseFoodResult(text: string): any {
+  try {
+    return JSON.parse(text.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+  } catch {
+    return { food_identified: 'No identificado', score: 50, ingredients: [], totals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }, feedback: text, good_points: [], improve_points: [], tags: [], red_flags: [] };
+  }
+}
+
 export async function analyzeFoodPhoto(
   photoBase64: string, description?: string,
 ): Promise<any> {
   const userId = await getUserId();
   const plan = await getActivePlan(userId).catch(() => null);
-
-  const planContext = plan ? `
-El paciente tiene este plan nutricional:
-- Tipo de dieta: ${plan.diet_type ?? 'no definido'}
-- Calorías objetivo: ${plan.calorie_target ?? 'no definido'} kcal/día
-- Proteína objetivo: ${plan.protein_target ?? 'no definido'}g/día
-- Alimentos a evitar: ${(plan.foods_to_avoid ?? []).join(', ') || 'ninguno'}
-- Alimentos a priorizar: ${(plan.foods_to_prioritize ?? []).join(', ') || 'ninguno'}
-- Alergias: ${(plan.allergies ?? []).join(', ') || 'ninguna'}
-` : '';
+  const prompt = buildFoodPrompt(plan, description);
 
   const response = await callAnthropic([{
     role: 'user',
     content: [
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } },
-      { type: 'text', text: `Analiza esta comida. ${description ? 'El usuario describe: ' + description : ''}
-${planContext}
-Responde SOLO con JSON válido (sin backticks ni markdown):
-{"food_identified":"descripción","score":85,"estimated_calories":450,"estimated_protein":32,"estimated_carbs":15,"estimated_fat":28,"estimated_fiber":8,"feedback":"Retroalimentación en español coloquial, 1-2 oraciones.","tags":["alta_proteina"],"red_flags":[],"suggestions":"Una sugerencia concreta"}
-
-Score: 90-100=perfecto, 70-89=bueno, 50-69=aceptable, 30-49=desviación, 0-29=fuera del plan.
-Si no hay plan, evalúa con principios de salud funcional.` }
+      { type: 'text', text: `Analiza esta comida desde la foto.\n${prompt}` },
     ],
-  }], 1500, 'claude-sonnet-4-20250514');
+  }], 2000, 'claude-sonnet-4-20250514');
 
-  const text = response?.content?.[0]?.text ?? '{}';
-  try {
-    const clean = text.replace(/```json?\n?/g, '').replace(/```/g, '').trim();
-    return JSON.parse(clean);
-  } catch {
-    return { food_identified: 'No identificado', score: 50, feedback: text, tags: [], red_flags: [] };
-  }
+  return parseFoodResult(response?.content?.[0]?.text ?? '{}');
+}
+
+export async function analyzeFoodText(description: string): Promise<any> {
+  const userId = await getUserId();
+  const plan = await getActivePlan(userId).catch(() => null);
+  const prompt = buildFoodPrompt(plan, description);
+
+  const response = await callAnthropic([{
+    role: 'user',
+    content: `Analiza esta comida descrita por el usuario. NO hay foto — estima desde la descripción.\n${prompt}`,
+  }], 2000, 'claude-sonnet-4-20250514');
+
+  return parseFoodResult(response?.content?.[0]?.text ?? '{}');
+}
+
+/** Recalcular con IA después de editar ingredientes */
+export async function reanalyzeFood(ingredients: any[], mealType?: string): Promise<any> {
+  const userId = await getUserId();
+  const plan = await getActivePlan(userId).catch(() => null);
+  const desc = ingredients.map(i => `${i.name} (${i.portion})`).join(', ');
+  const prompt = buildFoodPrompt(plan, desc, mealType ? `Tipo: ${mealType}` : '');
+
+  const response = await callAnthropic([{
+    role: 'user',
+    content: `El usuario editó los ingredientes. Recalcula score y feedback.\n${prompt}`,
+  }], 2000, 'claude-sonnet-4-20250514');
+
+  return parseFoodResult(response?.content?.[0]?.text ?? '{}');
 }
 
 // === HYDRATION ===
@@ -399,4 +437,49 @@ Responde SOLO con JSON válido (sin backticks ni markdown):
   } catch {
     return { supplement_name: supplementName ?? 'No identificado', quality_score: 50, feedback: text, active_ingredients: [], inactive_ingredients: [], red_flags: [] };
   }
+}
+
+// === COACH HELPERS ===
+
+export async function getDailyScoresRange(userId: string, startDate: string, endDate: string): Promise<any[]> {
+  const { data } = await supabase.from('daily_nutrition_scores').select('*')
+    .eq('user_id', userId).gte('date', startDate).lte('date', endDate).order('date');
+  return data ?? [];
+}
+
+export async function getFastingLogsRange(userId: string, startDate: string, endDate: string): Promise<FastingLog[]> {
+  const { data } = await supabase.from('fasting_logs').select('*')
+    .eq('user_id', userId).gte('date', startDate).lte('date', endDate).order('date');
+  return data ?? [];
+}
+
+export async function updateFoodLog(logId: string, updates: Partial<FoodLog>): Promise<void> {
+  const { error } = await supabase.from('food_logs').update(updates).eq('id', logId);
+  if (error) throw error;
+}
+
+/** Sugerir una comida que cubra el déficit de macros del día */
+export async function suggestMealForDeficit(
+  clientId: string, currentTotals: { calories: number; protein: number; carbs: number; fat: number },
+): Promise<string> {
+  const plan = await getActivePlan(clientId).catch(() => null);
+  if (!plan) return 'No hay plan activo para calcular déficit.';
+
+  const deficit = {
+    calories: (plan.calorie_target ?? 2000) - currentTotals.calories,
+    protein: (plan.protein_target ?? 120) - currentTotals.protein,
+    carbs: (plan.carb_target ?? 200) - currentTotals.carbs,
+    fat: (plan.fat_target ?? 70) - currentTotals.fat,
+  };
+
+  const response = await callAnthropic([{
+    role: 'user',
+    content: `Eres nutriólogo ATP. El paciente lleva hoy: ${currentTotals.calories}kcal, ${currentTotals.protein}g prot, ${currentTotals.carbs}g carb, ${currentTotals.fat}g grasa.
+Le faltan: ~${Math.max(0, deficit.calories)}kcal, ~${Math.max(0, deficit.protein)}g prot, ~${Math.max(0, deficit.carbs)}g carb, ~${Math.max(0, deficit.fat)}g grasa.
+${plan.foods_to_avoid?.length ? `Evitar: ${plan.foods_to_avoid.join(', ')}` : ''}
+${plan.foods_to_prioritize?.length ? `Priorizar: ${plan.foods_to_prioritize.join(', ')}` : ''}
+Sugiere UNA comida concreta (alimentos y porciones) que cubra lo faltante. Sé específico. Responde en 2-3 oraciones en español coloquial.`,
+  }], 500, 'claude-sonnet-4-20250514');
+
+  return response?.content?.[0]?.text ?? 'No se pudo generar sugerencia.';
 }

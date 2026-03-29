@@ -50,6 +50,7 @@ import {
 import { STUDY_TYPES, STUDY_CATEGORIES, getStudyType } from '@/src/data/study-types';
 import {
   getActivePlan, createPlan, updatePlan, getFoodLogsRange, getHydrationForUser,
+  getDailyScoresRange, getFastingLogsRange, updateFoodLog, deleteFoodLog, suggestMealForDeficit,
   type NutritionPlan, type FoodLog, type DailyNutritionScore,
 } from '@/src/services/nutrition-service';
 import { SectionSaveHeader } from '@/src/components/coach/SectionSaveHeader';
@@ -2424,7 +2425,13 @@ function SoapNotesSaveSection({ consultation, isDraft, onSaved }: {
 function NutritionCoachTab({ clientId }: { clientId: string }) {
   const [plan, setPlan] = useState<NutritionPlan | null>(null);
   const [foods, setFoods] = useState<FoodLog[]>([]);
+  const [scores, setScores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(today());
+  const [viewMode, setViewMode] = useState<'today' | 'yesterday' | 'week'>('today');
+  const [expandedFoodId, setExpandedFoodId] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [loadingSuggestion, setLoadingSuggestion] = useState(false);
 
   // Plan form
   const [planForm, setPlanForm] = useState({
@@ -2435,32 +2442,34 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   const [planSaving, setPlanSaving] = useState(false);
   const [planStatus, setPlanStatus] = useState<'idle' | 'saved' | 'error'>('idle');
 
-  useEffect(() => { loadData(); }, [clientId]);
+  useEffect(() => { loadData(); }, [clientId, viewMode, selectedDate]);
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const [p, f] = await Promise.all([
-        getActivePlan(clientId).catch(() => null),
-        getFoodLogsRange(clientId, sevenDaysAgo(), today()).catch(() => []),
-      ]);
-      setPlan(p);
-      setFoods(f);
-      if (p) {
-        setPlanForm({
-          name: p.name ?? '', diet_type: p.diet_type ?? '', calorie_target: p.calorie_target?.toString() ?? '',
-          protein_target: p.protein_target?.toString() ?? '', carb_target: p.carb_target?.toString() ?? '',
-          fat_target: p.fat_target?.toString() ?? '', fiber_target: p.fiber_target?.toString() ?? '',
-          water_target: p.water_target?.toString() ?? '', fasting_hours: p.fasting_hours?.toString() ?? '',
-          feeding_window_start: p.feeding_window_start ?? '', feeding_window_end: p.feeding_window_end ?? '',
-          meals_per_day: p.meals_per_day?.toString() ?? '3',
-          foods_to_avoid: (p.foods_to_avoid ?? []).join(', '),
-          foods_to_prioritize: (p.foods_to_prioritize ?? []).join(', '),
-          allergies: (p.allergies ?? []).join(', '),
-          notes: p.notes ?? '',
-        });
-      }
-    } catch { /* */ }
+    const start = viewMode === 'week' ? fourteenDaysAgo() : selectedDate;
+    const end = selectedDate;
+    const [p, f, sc] = await Promise.all([
+      getActivePlan(clientId).catch(() => null),
+      getFoodLogsRange(clientId, start, end).catch(() => []),
+      getDailyScoresRange(clientId, start, end).catch(() => []),
+    ]);
+    setPlan(p);
+    setFoods(f);
+    setScores(sc);
+    if (p) {
+      setPlanForm({
+        name: p.name ?? '', diet_type: p.diet_type ?? '', calorie_target: p.calorie_target?.toString() ?? '',
+        protein_target: p.protein_target?.toString() ?? '', carb_target: p.carb_target?.toString() ?? '',
+        fat_target: p.fat_target?.toString() ?? '', fiber_target: p.fiber_target?.toString() ?? '',
+        water_target: p.water_target?.toString() ?? '', fasting_hours: p.fasting_hours?.toString() ?? '',
+        feeding_window_start: p.feeding_window_start ?? '', feeding_window_end: p.feeding_window_end ?? '',
+        meals_per_day: p.meals_per_day?.toString() ?? '3',
+        foods_to_avoid: (p.foods_to_avoid ?? []).join(', '),
+        foods_to_prioritize: (p.foods_to_prioritize ?? []).join(', '),
+        allergies: (p.allergies ?? []).join(', '),
+        notes: p.notes ?? '',
+      });
+    }
     setLoading(false);
   };
 
@@ -2499,6 +2508,97 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
 
   const setF = (key: string, value: string) => { setPlanForm(prev => ({ ...prev, [key]: value })); setPlanStatus('idle'); };
 
+  // Macros del día seleccionado
+  const dayFoods = foods.filter(f => f.date === selectedDate)
+    .sort((a, b) => (a.meal_time ?? '').localeCompare(b.meal_time ?? ''));
+  const dayTotals = {
+    calories: dayFoods.reduce((s, f) => s + (f.ai_analysis?.totals?.calories ?? f.ai_analysis?.estimated_calories ?? f.calories ?? 0), 0),
+    protein: dayFoods.reduce((s, f) => s + (f.ai_analysis?.totals?.protein ?? f.ai_analysis?.estimated_protein ?? f.protein_g ?? 0), 0),
+    carbs: dayFoods.reduce((s, f) => s + (f.ai_analysis?.totals?.carbs ?? f.ai_analysis?.estimated_carbs ?? f.carbs_g ?? 0), 0),
+    fat: dayFoods.reduce((s, f) => s + (f.ai_analysis?.totals?.fat ?? f.ai_analysis?.estimated_fat ?? f.fat_g ?? 0), 0),
+  };
+  const dayScore = scores.find(s => s.date === selectedDate);
+
+  // Últimos 7 días para grid semanal
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(); d.setDate(d.getDate() - (6 - i));
+    const dateStr = d.toISOString().split('T')[0];
+    const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    return { date: dateStr, label: dayNames[d.getDay()] };
+  });
+
+  // Patrones de 14 días
+  const computePatterns = () => {
+    const patterns: { text: string; type: 'success' | 'warning' | 'error' }[] = [];
+    const last14Foods = foods;
+    const last14Scores = scores;
+
+    // Proteína baja sostenida
+    if (plan?.protein_target && last14Scores.length >= 5) {
+      const lowProtDays = last14Scores.filter(s => s.total_protein != null && s.total_protein < (plan.protein_target ?? 80) * 0.7);
+      if (lowProtDays.length >= 5) {
+        patterns.push({ text: `Proteina baja en ${lowProtDays.length} de ${last14Scores.length} dias (< 70% del objetivo)`, type: 'error' });
+      }
+    }
+
+    // Comidas perdidas
+    const last7Scores = last14Scores.filter(s => {
+      const d = new Date(s.date); const diff = (Date.now() - d.getTime()) / 86400000;
+      return diff <= 7;
+    });
+    const missedMeals = last7Scores.filter(s => (s.meals_logged ?? 0) < (plan?.meals_per_day ?? 3) * 0.5);
+    if (missedMeals.length >= 3) {
+      patterns.push({ text: `Comidas insuficientes en ${missedMeals.length} de los ultimos 7 dias`, type: 'warning' });
+    }
+
+    // Hidratación baja
+    const lowWaterDays = last14Scores.filter(s => s.hydration_score != null && s.hydration_score < 50);
+    if (lowWaterDays.length >= 3) {
+      patterns.push({ text: `Hidratacion baja en ${lowWaterDays.length} dias`, type: 'warning' });
+    }
+
+    // Red flags recurrentes
+    const flagCounts: Record<string, number> = {};
+    last14Scores.forEach(s => {
+      (s.red_flags ?? []).forEach((f: string) => { flagCounts[f] = (flagCounts[f] ?? 0) + 1; });
+    });
+    Object.entries(flagCounts).forEach(([flag, count]) => {
+      if (count >= 3) {
+        patterns.push({ text: `"${flag}" detectado ${count} veces en 14 dias`, type: 'error' });
+      }
+    });
+
+    // Highlights positivos
+    const goodDays = last14Scores.filter(s => (s.overall_score ?? 0) >= 75);
+    if (goodDays.length >= 5) {
+      patterns.push({ text: `${goodDays.length} dias con score >= 75 — buena adherencia`, type: 'success' });
+    }
+
+    return patterns;
+  };
+
+  // Sugerencia IA
+  const handleSuggest = async () => {
+    setLoadingSuggestion(true);
+    setSuggestion(null);
+    try {
+      const result = await suggestMealForDeficit(clientId, dayTotals);
+      setSuggestion(result);
+    } catch {
+      setSuggestion('Error al generar sugerencia.');
+    }
+    setLoadingSuggestion(false);
+  };
+
+  // Color de tag
+  const getTagColor = (tag: string) => {
+    const positive = ['alta_proteina', 'grasas_saludables', 'ingredientes_naturales', 'fibra', 'omega3', 'antioxidantes', 'comida_real'];
+    const negative = ['ultra_procesado', 'alto_azucar', 'grasa_trans', 'harinas_refinadas', 'exceso_sodio'];
+    if (positive.some(p => tag.includes(p))) return SEMANTIC.success;
+    if (negative.some(n => tag.includes(n))) return SEMANTIC.error;
+    return CATEGORY_COLORS.nutrition;
+  };
+
   if (loading) return <ActivityIndicator color={CATEGORY_COLORS.nutrition} style={{ marginVertical: Spacing.lg }} />;
 
   const NI = ({ label, field, placeholder, kb }: { label: string; field: string; placeholder: string; kb?: string }) => (
@@ -2510,9 +2610,35 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     </View>
   );
 
+  const pillStyle = {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+    borderWidth: 1, borderColor: SURFACES.border, backgroundColor: SURFACES.card,
+  };
+  const activePillStyle = {
+    borderColor: CATEGORY_COLORS.nutrition, backgroundColor: CATEGORY_COLORS.nutrition + '15',
+  };
+  const sectionLabelStyle = {
+    color: CATEGORY_COLORS.nutrition, letterSpacing: 2, marginTop: Spacing.md, marginBottom: Spacing.sm,
+  };
+  const weekDayCellStyle = {
+    alignItems: 'center' as const, padding: Spacing.xs, borderRadius: 8,
+    borderWidth: 1, borderColor: SURFACES.border, backgroundColor: SURFACES.card,
+    minWidth: 42,
+  };
+
+  const patterns = computePatterns();
+
+  // Déficit respecto al plan
+  const deficit = plan ? {
+    calories: Math.max(0, (plan.calorie_target ?? 0) - dayTotals.calories),
+    protein: Math.max(0, (plan.protein_target ?? 0) - dayTotals.protein),
+    carbs: Math.max(0, (plan.carb_target ?? 0) - dayTotals.carbs),
+    fat: Math.max(0, (plan.fat_target ?? 0) - dayTotals.fat),
+  } : null;
+
   return (
     <View>
-      {/* Plan activo */}
+      {/* ═══ Row 1: Plan nutricional ═══ */}
       <SaveableSection hasChanges={planStatus === 'idle' && plan != null}>
         <SectionSaveHeader title="PLAN NUTRICIONAL" hasChanges={true} isSaving={planSaving}
           saveStatus={planSaving ? 'saving' : planStatus} onSave={handleSavePlan} titleColor={CATEGORY_COLORS.nutrition} />
@@ -2548,48 +2674,280 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         </View>
       </SaveableSection>
 
-      {/* Food logs recientes */}
-      <EliteText variant="caption" style={[styles.profileCardLabel, { color: CATEGORY_COLORS.nutrition, marginTop: Spacing.md }]}>
-        REGISTRO DE COMIDAS (7 DÍAS)
-      </EliteText>
-      {foods.length === 0 ? (
+      {/* ═══ Row 2: Resumen del día ═══ */}
+      <EliteText variant="caption" style={sectionLabelStyle}>RESUMEN DEL DIA</EliteText>
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+        {(['today', 'yesterday', 'week'] as const).map(v => (
+          <Pressable key={v} onPress={() => { setViewMode(v); setSelectedDate(v === 'yesterday' ? yesterday() : today()); }}
+            style={[pillStyle, viewMode === v && activePillStyle]}>
+            <EliteText variant="caption" style={{ color: viewMode === v ? CATEGORY_COLORS.nutrition : TEXT_COLORS.muted, fontSize: 11 }}>
+              {v === 'today' ? 'Hoy' : v === 'yesterday' ? 'Ayer' : 'Semana'}
+            </EliteText>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Score + macros */}
+      <View style={{ backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs }}>
+          <View style={{
+            width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: (dayScore?.overall_score >= 75 ? SEMANTIC.success : dayScore?.overall_score >= 50 ? SEMANTIC.warning : dayScore?.overall_score ? SEMANTIC.error : TEXT_COLORS.muted) + '20',
+          }}>
+            <EliteText style={{
+              fontFamily: Fonts.bold, fontSize: 16,
+              color: dayScore?.overall_score >= 75 ? SEMANTIC.success : dayScore?.overall_score >= 50 ? SEMANTIC.warning : dayScore?.overall_score ? SEMANTIC.error : TEXT_COLORS.muted,
+            }}>
+              {dayScore?.overall_score ?? '--'}
+            </EliteText>
+          </View>
+          <View style={{ flex: 1 }}>
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12, fontFamily: Fonts.semiBold }}>
+              Score del {selectedDate === today() ? 'hoy' : selectedDate}
+            </EliteText>
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>
+              {dayFoods.length} comidas registradas
+            </EliteText>
+          </View>
+        </View>
+
+        {/* Macros row */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.xs }}>
+          {[
+            { label: 'Cal', value: Math.round(dayTotals.calories), target: plan?.calorie_target, unit: '' },
+            { label: 'Prot', value: Math.round(dayTotals.protein), target: plan?.protein_target, unit: 'g' },
+            { label: 'Carb', value: Math.round(dayTotals.carbs), target: plan?.carb_target, unit: 'g' },
+            { label: 'Grasa', value: Math.round(dayTotals.fat), target: plan?.fat_target, unit: 'g' },
+          ].map(m => {
+            const pct = m.target ? Math.round((m.value / m.target) * 100) : null;
+            const col = pct != null ? (pct >= 80 ? SEMANTIC.success : pct >= 50 ? SEMANTIC.warning : SEMANTIC.error) : TEXT_COLORS.secondary;
+            return (
+              <View key={m.label} style={{ alignItems: 'center', flex: 1 }}>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{m.label}</EliteText>
+                <EliteText style={{ color: col, fontFamily: Fonts.bold, fontSize: 14 }}>
+                  {m.value}{m.unit}
+                </EliteText>
+                {m.target != null && (
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 8 }}>
+                    / {m.target}{m.unit}
+                  </EliteText>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* ═══ Row 3: Timeline de comidas ═══ */}
+      <EliteText variant="caption" style={sectionLabelStyle}>COMIDAS</EliteText>
+      {dayFoods.length === 0 ? (
         <View style={{ alignItems: 'center', padding: Spacing.lg }}>
           <Ionicons name="restaurant-outline" size={28} color={TEXT_COLORS.muted} />
-          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: Spacing.sm }}>Sin registros de comida</EliteText>
+          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: Spacing.sm }}>
+            Sin registros de comida para {selectedDate === today() ? 'hoy' : selectedDate}
+          </EliteText>
         </View>
       ) : (
-        foods.slice(0, 15).map(food => {
+        dayFoods.map(food => {
           const ai = food.ai_analysis;
-          const scoreCol = ai?.score >= 80 ? SEMANTIC.success : ai?.score >= 60 ? SEMANTIC.warning : ai?.score ? SEMANTIC.error : TEXT_COLORS.muted;
+          const sc = ai?.score;
+          const scoreCol = sc >= 80 ? SEMANTIC.success : sc >= 60 ? SEMANTIC.warning : sc ? SEMANTIC.error : TEXT_COLORS.muted;
+          const isExpanded = expandedFoodId === food.id;
           return (
-            <View key={food.id} style={{ backgroundColor: SURFACES.card, borderRadius: 10, borderWidth: 0.5, borderColor: SURFACES.border, borderLeftWidth: 3, borderLeftColor: CATEGORY_COLORS.nutrition, padding: Spacing.sm, marginBottom: Spacing.xs }}>
+            <Pressable key={food.id} onPress={() => setExpandedFoodId(isExpanded ? null : food.id)}
+              style={{
+                backgroundColor: SURFACES.card, borderRadius: 10, borderWidth: 0.5,
+                borderColor: isExpanded ? CATEGORY_COLORS.nutrition + '60' : SURFACES.border,
+                borderLeftWidth: 3, borderLeftColor: CATEGORY_COLORS.nutrition,
+                padding: Spacing.sm, marginBottom: Spacing.xs,
+              }}>
+              {/* Header: descripción + score */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                 <View style={{ flex: 1 }}>
                   <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12 }}>{food.description}</EliteText>
                   <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>
-                    {food.date} · {food.meal_type}
-                    {ai?.estimated_calories ? ` · ${ai.estimated_calories} kcal` : ''}
+                    {food.meal_type}{food.meal_time ? ` · ${food.meal_time}` : ''} · {food.date}
                   </EliteText>
                 </View>
-                {ai?.score != null && (
+                {sc != null && (
                   <View style={{ backgroundColor: scoreCol + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                    <EliteText variant="caption" style={{ color: scoreCol, fontFamily: Fonts.bold, fontSize: 11 }}>{ai.score}</EliteText>
+                    <EliteText variant="caption" style={{ color: scoreCol, fontFamily: Fonts.bold, fontSize: 11 }}>{sc}</EliteText>
                   </View>
                 )}
               </View>
-              {ai?.feedback && (
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginTop: 2 }}>{ai.feedback}</EliteText>
+
+              {/* Inline macros */}
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginTop: 4 }}>
+                {ai?.totals?.calories ?? ai?.estimated_calories ?? food.calories ?? 0} cal
+                {' · '}{ai?.totals?.protein ?? ai?.estimated_protein ?? food.protein_g ?? 0}g prot
+                {' · '}{ai?.totals?.carbs ?? ai?.estimated_carbs ?? food.carbs_g ?? 0}g carb
+                {' · '}{ai?.totals?.fat ?? ai?.estimated_fat ?? food.fat_g ?? 0}g fat
+              </EliteText>
+
+              {/* Tags */}
+              {ai?.tags && ai.tags.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                  {(ai.tags as string[]).map((tag: string, i: number) => (
+                    <View key={i} style={{ backgroundColor: getTagColor(tag) + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 }}>
+                      <EliteText variant="caption" style={{ color: getTagColor(tag), fontSize: 8 }}>
+                        {tag.replace(/_/g, ' ')}
+                      </EliteText>
+                    </View>
+                  ))}
+                </View>
               )}
-            </View>
+
+              {/* Feedback (colapsable) */}
+              {ai?.feedback && isExpanded && (
+                <View style={{ marginTop: Spacing.xs, paddingTop: Spacing.xs, borderTopWidth: 0.5, borderTopColor: SURFACES.border }}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>{ai.feedback}</EliteText>
+                </View>
+              )}
+
+              {/* Ingredientes expandidos */}
+              {ai?.ingredients && isExpanded && (
+                <View style={{ marginTop: Spacing.xs }}>
+                  <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 9, fontFamily: Fonts.bold, marginBottom: 2 }}>
+                    INGREDIENTES
+                  </EliteText>
+                  {(ai.ingredients as any[]).map((ing: any, i: number) => (
+                    <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 1 }}>
+                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 9, flex: 1 }}>
+                        {ing.name} ({ing.portion})
+                      </EliteText>
+                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>
+                        {ing.calories ?? 0}cal · {ing.protein ?? 0}p
+                      </EliteText>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Red flags */}
+              {ai?.red_flags && ai.red_flags.length > 0 && isExpanded && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+                  {(ai.red_flags as string[]).map((flag: string, i: number) => (
+                    <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 }}>
+                      <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 8 }}>{flag}</EliteText>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Expand hint */}
+              {!isExpanded && ai?.feedback && (
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 8, marginTop: 2 }}>
+                  Toca para ver detalles
+                </EliteText>
+              )}
+            </Pressable>
           );
         })
+      )}
+
+      {/* ═══ Row 4: Lo que falta + sugerencia IA ═══ */}
+      {plan && dayFoods.length > 0 && deficit && (
+        <View>
+          <EliteText variant="caption" style={sectionLabelStyle}>LO QUE FALTA HOY</EliteText>
+          <View style={{ backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              {[
+                { label: 'Cal', value: deficit.calories, unit: '' },
+                { label: 'Prot', value: Math.round(deficit.protein), unit: 'g' },
+                { label: 'Carb', value: Math.round(deficit.carbs), unit: 'g' },
+                { label: 'Grasa', value: Math.round(deficit.fat), unit: 'g' },
+              ].map(m => (
+                <View key={m.label} style={{ alignItems: 'center', flex: 1 }}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{m.label}</EliteText>
+                  <EliteText style={{ color: m.value > 0 ? SEMANTIC.warning : SEMANTIC.success, fontFamily: Fonts.bold, fontSize: 14 }}>
+                    {m.value > 0 ? `-${Math.round(m.value)}` : '0'}{m.unit}
+                  </EliteText>
+                </View>
+              ))}
+            </View>
+
+            {/* Botón sugerir comida */}
+            <Pressable onPress={handleSuggest} disabled={loadingSuggestion}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+                backgroundColor: CATEGORY_COLORS.nutrition + '15', borderWidth: 1, borderColor: CATEGORY_COLORS.nutrition + '30',
+                borderRadius: 10, paddingVertical: Spacing.sm, marginTop: Spacing.sm,
+              }}>
+              {loadingSuggestion ? (
+                <ActivityIndicator color={CATEGORY_COLORS.nutrition} size="small" />
+              ) : (
+                <Ionicons name="sparkles-outline" size={14} color={CATEGORY_COLORS.nutrition} />
+              )}
+              <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: 11 }}>
+                {loadingSuggestion ? 'Generando...' : 'Sugerir comida con IA'}
+              </EliteText>
+            </Pressable>
+
+            {/* Sugerencia IA */}
+            {suggestion && (
+              <View style={{ marginTop: Spacing.sm, backgroundColor: CATEGORY_COLORS.nutrition + '08', borderRadius: 8, padding: Spacing.sm, borderLeftWidth: 2, borderLeftColor: CATEGORY_COLORS.nutrition }}>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 11, lineHeight: 16 }}>
+                  {suggestion}
+                </EliteText>
+              </View>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* ═══ Row 5: Vista semanal (7-day grid) ═══ */}
+      <EliteText variant="caption" style={sectionLabelStyle}>ULTIMA SEMANA</EliteText>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
+        {last7Days.map(day => {
+          const ds = scores.find(s => s.date === day.date);
+          const df = foods.filter(f => f.date === day.date);
+          const scVal = ds?.overall_score;
+          const color = scVal >= 75 ? SEMANTIC.success : scVal >= 50 ? SEMANTIC.warning : scVal ? SEMANTIC.error : TEXT_COLORS.muted;
+          const isToday = day.date === today();
+          const isSelected = day.date === selectedDate;
+          return (
+            <Pressable key={day.date} onPress={() => { setSelectedDate(day.date); setViewMode('today'); }}
+              style={[weekDayCellStyle, isToday && { borderColor: CATEGORY_COLORS.nutrition }, isSelected && { backgroundColor: CATEGORY_COLORS.nutrition + '10' }]}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{day.label}</EliteText>
+              <EliteText style={{ color, fontFamily: Fonts.bold, fontSize: 14 }}>{scVal ?? '--'}</EliteText>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 8 }}>{df.length} com</EliteText>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* ═══ Row 6: Patrones detectados (14 días) ═══ */}
+      {patterns.length > 0 && (
+        <View>
+          <EliteText variant="caption" style={sectionLabelStyle}>PATRONES DETECTADOS</EliteText>
+          {patterns.map((p, i) => {
+            const bg = p.type === 'success' ? SEMANTIC.success : p.type === 'warning' ? SEMANTIC.warning : SEMANTIC.error;
+            return (
+              <View key={i} style={{
+                backgroundColor: bg + '10', borderRadius: 10, borderLeftWidth: 3, borderLeftColor: bg,
+                padding: Spacing.sm, marginBottom: Spacing.xs, borderWidth: 0.5, borderColor: bg + '20',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>
+                  <Ionicons
+                    name={p.type === 'success' ? 'checkmark-circle' : p.type === 'warning' ? 'alert-circle' : 'warning'}
+                    size={14} color={bg} />
+                  <EliteText variant="caption" style={{ color: bg, fontSize: 11, flex: 1 }}>
+                    {p.text}
+                  </EliteText>
+                </View>
+              </View>
+            );
+          })}
+        </View>
       )}
     </View>
   );
 }
 
 function today() { return new Date().toISOString().split('T')[0]; }
+function yesterday() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; }
 function sevenDaysAgo() { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split('T')[0]; }
+function fourteenDaysAgo() { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString().split('T')[0]; }
 
 // TAB: ESTUDIOS CLÍNICOS
 // ══════════════════════════
