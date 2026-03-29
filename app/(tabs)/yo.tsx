@@ -1,14 +1,14 @@
 /**
  * Yo — "¿Cómo voy?" Dashboard personal del usuario.
  *
- * Muestra scores de salud, composición corporal, cronotipo,
- * quizzes y acciones rápidas.
+ * Scores de salud, composición corporal, cronotipo, quizzes, acciones.
  */
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -26,6 +26,13 @@ const CHRONO_META: Record<string, { emoji: string; name: string; desc: string }>
   dolphin: { emoji: '🐬', name: 'Delfín', desc: 'Mente activa' },
 };
 
+const SCORE_META = [
+  { key: 'bio', label: 'Edad biológica', icon: 'fitness-outline', accent: CATEGORY_COLORS.mind },
+  { key: 'func', label: 'Salud funcional', icon: 'heart-outline', accent: ATP_BRAND.teal2 },
+  { key: 'aging', label: 'Envejecimiento', icon: 'hourglass-outline', accent: SEMANTIC.warning },
+  { key: 'eval', label: 'Calidad eval.', icon: 'clipboard-outline', accent: ATP_BRAND.green1 },
+] as const;
+
 // === COMPONENTE ===
 
 export default function YoScreen() {
@@ -36,16 +43,12 @@ export default function YoScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
-    try {
-      const d = await getDashboardData();
-      setData(d);
-    } catch { /* silenciar */ }
+    try { setData(await getDashboardData()); } catch { /* silenciar */ }
     setLoading(false);
     setRefreshing(false);
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
-
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   const userName = user?.user_metadata?.full_name || data?.profile?.full_name || user?.email?.split('@')[0] || 'Atleta';
@@ -57,25 +60,34 @@ export default function YoScreen() {
   const hs = data?.healthScore;
   const comp = data?.composition;
   const chrono = data?.chronotype;
-  const chronoMeta = chrono ? CHRONO_META[chrono.chronotype] : null;
+  const cm = chrono ? CHRONO_META[chrono.chronotype] : null;
 
-  // Colores funcionales para composición
-  const fatColor = comp?.body_fat_pct != null
-    ? (comp.body_fat_pct < 20 ? SEMANTIC.success : comp.body_fat_pct < 28 ? SEMANTIC.warning : SEMANTIC.error)
-    : TEXT_COLORS.muted;
-  const muscleColor = comp?.muscle_mass_pct != null
-    ? (comp.muscle_mass_pct > 38 ? SEMANTIC.success : comp.muscle_mass_pct > 30 ? SEMANTIC.warning : SEMANTIC.error)
-    : TEXT_COLORS.muted;
-  const visceralColor = comp?.visceral_fat != null
-    ? (comp.visceral_fat < 7 ? SEMANTIC.success : comp.visceral_fat < 13 ? SEMANTIC.warning : SEMANTIC.error)
-    : TEXT_COLORS.muted;
+  // Valores de scores
+  const scoreValues = {
+    bio: hs?.biologicalAge ? Math.round(hs.biologicalAge).toString() : null,
+    func: hs?.functionalHealthScore ? Math.round(hs.functionalHealthScore).toString() : null,
+    aging: hs?.agingRate ? hs.agingRate.toFixed(2) : null,
+    eval: hs?.evaluationQuality != null ? Math.round(hs.evaluationQuality).toString() : null,
+  };
+  const scoreUnits = { bio: 'años', func: '/100', aging: 'x', eval: '%' };
+  const scoreColors = {
+    bio: hs?.biologicalAge && data?.chronologicalAge ? (hs.biologicalAge < data.chronologicalAge ? SEMANTIC.success : SEMANTIC.error) : null,
+    func: hs?.functionalHealthScore ? (hs.functionalHealthScore > 80 ? SEMANTIC.success : hs.functionalHealthScore > 60 ? SEMANTIC.warning : SEMANTIC.error) : null,
+    aging: hs?.agingRate ? (hs.agingRate < 1.0 ? SEMANTIC.success : hs.agingRate < 1.1 ? SEMANTIC.warning : SEMANTIC.error) : null,
+    eval: hs?.evaluationQuality ? (hs.evaluationQuality > 70 ? SEMANTIC.success : hs.evaluationQuality > 40 ? SEMANTIC.warning : SEMANTIC.error) : null,
+  };
+  const scoreProgress = {
+    bio: 0, func: hs?.functionalHealthScore ? hs.functionalHealthScore / 100 : 0,
+    aging: 0, eval: hs?.evaluationQuality ? hs.evaluationQuality / 100 : 0,
+  };
+
+  // Colores composición
+  const fatColor = comp?.body_fat_pct != null ? (comp.body_fat_pct < 20 ? SEMANTIC.success : comp.body_fat_pct < 28 ? SEMANTIC.warning : SEMANTIC.error) : null;
+  const muscleColor = comp?.muscle_mass_pct != null ? (comp.muscle_mass_pct > 38 ? SEMANTIC.success : comp.muscle_mass_pct > 30 ? SEMANTIC.warning : SEMANTIC.error) : null;
+  const visceralColor = comp?.visceral_fat != null ? (comp.visceral_fat < 7 ? SEMANTIC.success : comp.visceral_fat < 13 ? SEMANTIC.warning : SEMANTIC.error) : null;
 
   if (loading) {
-    return (
-      <ScreenContainer centered>
-        <ActivityIndicator size="large" color={ATP_BRAND.lime} />
-      </ScreenContainer>
-    );
+    return <ScreenContainer centered><ActivityIndicator size="large" color={ATP_BRAND.lime} /></ScreenContainer>;
   }
 
   return (
@@ -84,155 +96,179 @@ export default function YoScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ATP_BRAND.lime} />}
       >
-        {/* ══ SECCIÓN 1: Header ══ */}
-        <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <View style={s.header}>
-            <View style={s.avatar}>
-              <EliteText style={s.avatarText}>{initials}</EliteText>
+        {/* ══ 1. HEADER ══ */}
+        <Animated.View entering={FadeIn.delay(50).duration(400)}>
+          <View style={st.header}>
+            <View style={st.avatarRing}>
+              <LinearGradient colors={[ATP_BRAND.lime, ATP_BRAND.teal2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={st.avatarGradient}>
+                <View style={st.avatarInner}>
+                  <EliteText style={st.avatarText}>{initials}</EliteText>
+                </View>
+              </LinearGradient>
             </View>
             <View style={{ flex: 1 }}>
-              <EliteText style={s.headerName}>{userName}</EliteText>
-              {memberSince ? (
-                <EliteText variant="caption" style={s.headerSince}>Miembro desde {memberSince}</EliteText>
-              ) : null}
-              {chronoMeta && (
-                <View style={s.chronoPill}>
-                  <EliteText style={{ fontSize: 14 }}>{chronoMeta.emoji}</EliteText>
-                  <EliteText variant="caption" style={s.chronoPillText}>{chronoMeta.name}</EliteText>
+              <EliteText style={st.headerName}>{userName}</EliteText>
+              {memberSince ? <EliteText variant="caption" style={st.headerSince}>Miembro desde {memberSince}</EliteText> : null}
+              {cm && (
+                <View style={[st.chronoPill, { backgroundColor: CATEGORY_COLORS.optimization + '20' }]}>
+                  <EliteText style={{ fontSize: 14 }}>{cm.emoji}</EliteText>
+                  <EliteText variant="caption" style={st.chronoPillText}>{cm.name}</EliteText>
                 </View>
               )}
             </View>
-            <AnimatedPressable onPress={() => router.push('/settings')} style={s.settingsBtn}>
+            <AnimatedPressable onPress={() => router.push('/settings')} style={st.settingsBtn}>
               <Ionicons name="settings-outline" size={22} color={Colors.textSecondary} />
             </AnimatedPressable>
           </View>
         </Animated.View>
 
-        {/* ══ SECCIÓN 2: Scores de salud ══ */}
-        <Animated.View entering={FadeInUp.delay(120).springify()}>
-          <SectionLabel>SCORES DE SALUD</SectionLabel>
-          <View style={s.scoresGrid}>
-            <ScoreCard
-              label="Edad biológica"
-              value={hs?.biologicalAge ? Math.round(hs.biologicalAge).toString() : '—'}
-              unit="años"
-              color={hs?.biologicalAge && data?.chronologicalAge
-                ? (hs.biologicalAge < data.chronologicalAge ? SEMANTIC.success : SEMANTIC.error)
-                : TEXT_COLORS.muted}
-              onPress={() => router.push('/my-health' as any)}
-            />
-            <ScoreCard
-              label="Salud funcional"
-              value={hs?.functionalHealthScore ? Math.round(hs.functionalHealthScore).toString() : '—'}
-              unit="/100"
-              color={hs?.functionalHealthScore
-                ? (hs.functionalHealthScore > 80 ? SEMANTIC.success : hs.functionalHealthScore > 60 ? SEMANTIC.warning : SEMANTIC.error)
-                : TEXT_COLORS.muted}
-              progress={hs?.functionalHealthScore ? hs.functionalHealthScore / 100 : 0}
-              onPress={() => router.push('/my-health' as any)}
-            />
-            <ScoreCard
-              label="Envejecimiento"
-              value={hs?.agingRate ? hs.agingRate.toFixed(2) : '—'}
-              unit="x"
-              color={hs?.agingRate
-                ? (hs.agingRate < 1.0 ? SEMANTIC.success : hs.agingRate < 1.1 ? SEMANTIC.warning : SEMANTIC.error)
-                : TEXT_COLORS.muted}
-              onPress={() => router.push('/my-health' as any)}
-            />
-            <ScoreCard
-              label="Calidad eval."
-              value={hs?.evaluationQuality != null ? Math.round(hs.evaluationQuality).toString() : '—'}
-              unit="%"
-              color={hs?.evaluationQuality
-                ? (hs.evaluationQuality > 70 ? SEMANTIC.success : hs.evaluationQuality > 40 ? SEMANTIC.warning : SEMANTIC.error)
-                : TEXT_COLORS.muted}
-              progress={hs?.evaluationQuality ? hs.evaluationQuality / 100 : 0}
-              onPress={() => router.push('/my-health' as any)}
-            />
-          </View>
-          {!hs && (
-            <EliteText variant="caption" style={s.emptyHint}>Sube tus labs para calcular tus scores</EliteText>
-          )}
-        </Animated.View>
+        {/* ══ 2. SCORES DE SALUD ══ */}
+        <SectionLabel>SCORES DE SALUD</SectionLabel>
+        <View style={st.scoresGrid}>
+          {SCORE_META.map((sm, idx) => {
+            const val = scoreValues[sm.key as keyof typeof scoreValues];
+            const color = scoreColors[sm.key as keyof typeof scoreColors];
+            const prog = scoreProgress[sm.key as keyof typeof scoreProgress];
+            const unit = scoreUnits[sm.key as keyof typeof scoreUnits];
+            return (
+              <Animated.View key={sm.key} entering={FadeInUp.delay(100 + idx * 80).duration(400).springify()} style={st.scoreCardWrap}>
+                <AnimatedPressable onPress={() => router.push('/my-health' as any)} style={[st.scoreCard, { borderLeftColor: sm.accent }]}>
+                  <View style={st.scoreCardHeader}>
+                    <Ionicons name={sm.icon as any} size={val ? 16 : 36} color={val ? sm.accent : sm.accent + '40'} />
+                    <EliteText variant="caption" style={[st.scoreCardLabel, { color: sm.accent }]}>{sm.label}</EliteText>
+                  </View>
+                  {val ? (
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+                        <EliteText style={[st.scoreCardValue, { color: color ?? sm.accent }]}>{val}</EliteText>
+                        <EliteText variant="caption" style={st.scoreCardUnit}>{unit}</EliteText>
+                      </View>
+                      {prog > 0 && (
+                        <View style={st.miniBar}>
+                          <View style={[st.miniBarFill, { width: `${Math.min(prog * 100, 100)}%`, backgroundColor: color ?? sm.accent }]} />
+                        </View>
+                      )}
+                    </>
+                  ) : (
+                    <EliteText variant="caption" style={st.scoreCardEmpty}>Sube labs</EliteText>
+                  )}
+                </AnimatedPressable>
+              </Animated.View>
+            );
+          })}
+        </View>
 
-        {/* ══ SECCIÓN 3: Composición corporal ══ */}
-        <Animated.View entering={FadeInUp.delay(200).springify()}>
+        {/* ══ 3. COMPOSICIÓN CORPORAL ══ */}
+        <Animated.View entering={FadeInUp.delay(450).springify()}>
           <SectionLabel>COMPOSICIÓN CORPORAL</SectionLabel>
           {comp ? (
-            <AnimatedPressable onPress={() => router.push('/my-health' as any)} style={s.compCard}>
+            <AnimatedPressable onPress={() => router.push('/my-health' as any)} style={st.compCard}>
               <CompStat label="Peso" value={comp.weight_kg != null ? `${comp.weight_kg}` : '—'} unit="kg" color={TEXT_COLORS.primary} />
-              <View style={s.compDivider} />
-              <CompStat label="Grasa" value={comp.body_fat_pct != null ? `${comp.body_fat_pct}` : '—'} unit="%" color={fatColor} />
-              <View style={s.compDivider} />
-              <CompStat label="Músculo" value={comp.muscle_mass_pct != null ? `${comp.muscle_mass_pct}` : '—'} unit="%" color={muscleColor} />
-              <View style={s.compDivider} />
-              <CompStat label="Visceral" value={comp.visceral_fat != null ? `${comp.visceral_fat}` : '—'} unit="" color={visceralColor} />
+              <View style={st.compDivider} />
+              <CompStat label="Grasa" value={comp.body_fat_pct != null ? `${comp.body_fat_pct}` : '—'} unit="%" color={fatColor ?? TEXT_COLORS.muted} />
+              <View style={st.compDivider} />
+              <CompStat label="Músculo" value={comp.muscle_mass_pct != null ? `${comp.muscle_mass_pct}` : '—'} unit="%" color={muscleColor ?? TEXT_COLORS.muted} />
+              <View style={st.compDivider} />
+              <CompStat label="Visceral" value={comp.visceral_fat != null ? `${comp.visceral_fat}` : '—'} unit="" color={visceralColor ?? TEXT_COLORS.muted} />
             </AnimatedPressable>
           ) : (
-            <View style={s.emptyCard}>
-              <Ionicons name="body-outline" size={24} color={TEXT_COLORS.muted} />
-              <EliteText variant="caption" style={s.emptyCardText}>Tu coach registrará esto en consulta</EliteText>
+            <View style={st.compEmptyRow}>
+              {[
+                { icon: 'scale-outline', label: 'Peso', sub: 'kg' },
+                { icon: 'flame-outline', label: 'Grasa', sub: '%' },
+                { icon: 'barbell-outline', label: 'Músculo', sub: '%' },
+                { icon: 'shield-outline', label: 'Visceral', sub: '' },
+              ].map((item, i) => (
+                <View key={item.label} style={st.compEmptyCard}>
+                  <Ionicons name={item.icon as any} size={20} color={TEXT_COLORS.muted} />
+                  <EliteText variant="caption" style={st.compEmptyLabel}>{item.label}</EliteText>
+                  <EliteText style={st.compEmptyValue}>—</EliteText>
+                </View>
+              ))}
             </View>
           )}
         </Animated.View>
 
-        {/* ══ SECCIÓN 4: Cronotipo ══ */}
-        <Animated.View entering={FadeInUp.delay(280).springify()}>
+        {/* ══ 4. CRONOTIPO (hero card) ══ */}
+        <Animated.View entering={FadeInUp.delay(550).springify()}>
           <SectionLabel>MI CRONOTIPO</SectionLabel>
-          {chrono && chronoMeta ? (
-            <AnimatedPressable onPress={() => router.push('/quiz/chronotype' as any)} style={s.chronoCard}>
-              <View style={s.chronoTop}>
-                <EliteText style={s.chronoEmoji}>{chronoMeta.emoji}</EliteText>
-                <View style={{ flex: 1 }}>
-                  <EliteText style={s.chronoName}>{chronoMeta.name}</EliteText>
-                  <EliteText variant="caption" style={s.chronoDesc}>{chronoMeta.desc}</EliteText>
+          {chrono && cm ? (
+            <AnimatedPressable onPress={() => router.push('/quiz/chronotype' as any)}>
+              <LinearGradient
+                colors={[ATP_BRAND.lime + '12', ATP_BRAND.teal2 + '08', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={st.chronoHero}
+              >
+                <View style={st.chronoTop}>
+                  <EliteText style={st.chronoEmoji}>{cm.emoji}</EliteText>
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={st.chronoName}>{cm.name}</EliteText>
+                    <EliteText variant="caption" style={st.chronoDesc}>{cm.desc}</EliteText>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.muted} />
                 </View>
-              </View>
-              <View style={s.chronoTimeline}>
-                <ChronoTime icon="sunny-outline" label="Despertar" time={chrono.wake_time?.slice(0, 5)} color={SEMANTIC.success} />
-                <ChronoTime icon="barbell-outline" label="Entreno" time={chrono.peak_physical_start?.slice(0, 5)} color={CATEGORY_COLORS.fitness} />
-                <ChronoTime icon="bulb-outline" label="Foco" time={chrono.peak_focus_start?.slice(0, 5)} color={CATEGORY_COLORS.mind} />
-                <ChronoTime icon="moon-outline" label="Dormir" time={chrono.sleep_time?.slice(0, 5)} color={SEMANTIC.info} />
-              </View>
+                {/* Timeline horizontal */}
+                <View style={st.chronoTimeline}>
+                  {[
+                    { icon: 'sunny-outline', label: 'Despertar', time: chrono.wake_time?.slice(0, 5), color: SEMANTIC.success },
+                    { icon: 'barbell-outline', label: 'Entreno', time: chrono.peak_physical_start?.slice(0, 5), color: CATEGORY_COLORS.fitness },
+                    { icon: 'bulb-outline', label: 'Foco', time: chrono.peak_focus_start?.slice(0, 5), color: CATEGORY_COLORS.mind },
+                    { icon: 'moon-outline', label: 'Dormir', time: chrono.sleep_time?.slice(0, 5), color: SEMANTIC.info },
+                  ].map((t, i, arr) => (
+                    <View key={t.label} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <View style={st.chronoTimeItem}>
+                        <View style={[st.chronoTimeDot, { backgroundColor: t.color + '25' }]}>
+                          <Ionicons name={t.icon as any} size={14} color={t.color} />
+                        </View>
+                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 9 }}>{t.label}</EliteText>
+                        <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 12, fontFamily: Fonts.bold }}>{t.time}</EliteText>
+                      </View>
+                      {i < arr.length - 1 && <View style={st.chronoTimeConnector} />}
+                    </View>
+                  ))}
+                </View>
+              </LinearGradient>
             </AnimatedPressable>
           ) : (
-            <AnimatedPressable onPress={() => router.push('/quiz/chronotype' as any)} style={s.chronoInvite}>
-              <View style={s.chronoInviteIcon}>
-                <EliteText style={{ fontSize: 28 }}>🧬</EliteText>
-              </View>
-              <View style={{ flex: 1 }}>
-                <EliteText variant="body" style={s.chronoInviteTitle}>Descubre tu cronotipo</EliteText>
-                <EliteText variant="caption" style={s.chronoInviteSub}>10 preguntas · 2 minutos</EliteText>
-              </View>
-              <Ionicons name="arrow-forward" size={18} color={ATP_BRAND.lime} />
+            <AnimatedPressable onPress={() => router.push('/quiz/chronotype' as any)}>
+              <LinearGradient
+                colors={[ATP_BRAND.lime + '15', ATP_BRAND.teal2 + '08', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={st.chronoInvite}
+              >
+                <View style={st.chronoInviteIcon}>
+                  <EliteText style={{ fontSize: 32 }}>🧬</EliteText>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <EliteText variant="body" style={st.chronoInviteTitle}>Descubre tu cronotipo</EliteText>
+                  <EliteText variant="caption" style={st.chronoInviteSub}>10 preguntas · 2 minutos</EliteText>
+                </View>
+                <Ionicons name="arrow-forward" size={20} color={ATP_BRAND.lime} />
+              </LinearGradient>
             </AnimatedPressable>
           )}
         </Animated.View>
 
-        {/* ══ SECCIÓN 5: Quizzes ══ */}
-        <Animated.View entering={FadeInUp.delay(360).springify()}>
+        {/* ══ 5. QUIZZES (2 columnas) ══ */}
+        <Animated.View entering={FadeInUp.delay(650).springify()}>
           <SectionLabel>QUIZZES</SectionLabel>
-          <View style={s.quizGrid}>
-            <QuizPill
-              emoji="🧬"
-              label="Cronotipo"
-              done={!!chrono}
-              onPress={() => router.push('/quiz/chronotype' as any)}
-            />
-            <QuizPill emoji="⚡" label="Energía" done={false} disabled />
-            <QuizPill emoji="😴" label="Sueño" done={false} disabled />
-            <QuizPill emoji="🧠" label="Estrés" done={false} disabled />
+          <View style={st.quizGrid}>
+            <QuizCard emoji="🧬" label="Cronotipo" done={!!chrono} onPress={() => router.push('/quiz/chronotype' as any)} />
+            <QuizCard emoji="⚡" label="Energía" disabled />
+            <QuizCard emoji="😴" label="Sueño" disabled />
+            <QuizCard emoji="🧠" label="Estrés" disabled />
           </View>
         </Animated.View>
 
-        {/* ══ SECCIÓN 6: Acciones rápidas ══ */}
-        <Animated.View entering={FadeInUp.delay(440).springify()}>
+        {/* ══ 6. ACCIONES RÁPIDAS ══ */}
+        <Animated.View entering={FadeInUp.delay(750).springify()}>
           <SectionLabel>ACCIONES</SectionLabel>
-          <View style={s.actionsRow}>
-            <ActionBtn icon="flask-outline" label="Mi Salud" color={CATEGORY_COLORS.metrics} onPress={() => router.push('/my-health' as any)} />
-            <ActionBtn icon="heart-circle-outline" label="Check-in" color={CATEGORY_COLORS.mind} onPress={() => router.push('/checkin' as any)} />
-            <ActionBtn icon="journal-outline" label="Journal" color={CATEGORY_COLORS.optimization} disabled />
+          <View style={{ gap: Spacing.sm }}>
+            <ActionCard icon="flask-outline" label="Mi Salud" sub="Sube tus estudios" color={CATEGORY_COLORS.metrics} onPress={() => router.push('/my-health' as any)} />
+            <ActionCard icon="heart-circle-outline" label="Check-in" sub="¿Cómo te sientes?" color={CATEGORY_COLORS.mind} onPress={() => router.push('/checkin' as any)} />
+            <ActionCard icon="journal-outline" label="Journal" sub="Reflexión del día" color={CATEGORY_COLORS.optimization} disabled />
           </View>
         </Animated.View>
 
@@ -245,265 +281,148 @@ export default function YoScreen() {
 // === SUB-COMPONENTES ===
 
 function SectionLabel({ children }: { children: string }) {
-  return (
-    <EliteText variant="caption" style={s.sectionLabel}>{children}</EliteText>
-  );
-}
-
-function ScoreCard({ label, value, unit, color, progress, onPress }: {
-  label: string; value: string; unit: string; color: string; progress?: number; onPress?: () => void;
-}) {
-  return (
-    <AnimatedPressable onPress={onPress} style={s.scoreCard}>
-      <EliteText variant="caption" style={s.scoreCardLabel}>{label}</EliteText>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-        <EliteText style={[s.scoreCardValue, { color }]}>{value}</EliteText>
-        <EliteText variant="caption" style={s.scoreCardUnit}>{unit}</EliteText>
-      </View>
-      {progress != null && progress > 0 && (
-        <View style={s.miniBar}>
-          <View style={[s.miniBarFill, { width: `${Math.min(progress * 100, 100)}%`, backgroundColor: color }]} />
-        </View>
-      )}
-    </AnimatedPressable>
-  );
+  return <EliteText variant="caption" style={st.sectionLabel}>{children}</EliteText>;
 }
 
 function CompStat({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
   return (
-    <View style={s.compStat}>
-      <EliteText variant="caption" style={s.compStatLabel}>{label}</EliteText>
+    <View style={st.compStat}>
+      <EliteText variant="caption" style={st.compStatLabel}>{label}</EliteText>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 1 }}>
-        <EliteText style={[s.compStatValue, { color }]}>{value}</EliteText>
+        <EliteText style={[st.compStatValue, { color }]}>{value}</EliteText>
         {unit ? <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>{unit}</EliteText> : null}
       </View>
     </View>
   );
 }
 
-function ChronoTime({ icon, label, time, color }: { icon: string; label: string; time: string; color: string }) {
-  return (
-    <View style={s.chronoTimeItem}>
-      <Ionicons name={icon as any} size={14} color={color} />
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>{label}</EliteText>
-      <EliteText variant="caption" style={[s.chronoTimeValue, { color }]}>{time}</EliteText>
-    </View>
-  );
-}
-
-function QuizPill({ emoji, label, done, disabled, onPress }: {
-  emoji: string; label: string; done: boolean; disabled?: boolean; onPress?: () => void;
+function QuizCard({ emoji, label, done, disabled, onPress }: {
+  emoji: string; label: string; done?: boolean; disabled?: boolean; onPress?: () => void;
 }) {
   return (
     <AnimatedPressable
       onPress={onPress}
       disabled={disabled}
-      style={[s.quizPill, done && s.quizPillDone, disabled && { opacity: 0.4 }]}
+      style={[
+        st.quizCard,
+        done && { backgroundColor: SEMANTIC.success + '10', borderColor: SEMANTIC.success + '30' },
+        disabled && { opacity: 0.4 },
+      ]}
     >
-      <EliteText style={{ fontSize: 16 }}>{emoji}</EliteText>
-      <EliteText variant="caption" style={[s.quizPillLabel, done && { color: SEMANTIC.success }]}>{label}</EliteText>
-      {done && <Ionicons name="checkmark-circle" size={14} color={SEMANTIC.success} />}
-      {disabled && <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>Pronto</EliteText>}
+      <EliteText style={{ fontSize: 20 }}>{emoji}</EliteText>
+      <EliteText variant="body" style={[st.quizCardLabel, done && { color: SEMANTIC.success }]}>{label}</EliteText>
+      {done && <Ionicons name="checkmark-circle" size={16} color={SEMANTIC.success} />}
+      {disabled && (
+        <View style={st.quizCardSoonBadge}>
+          <EliteText variant="caption" style={st.quizCardSoonText}>Pronto</EliteText>
+        </View>
+      )}
     </AnimatedPressable>
   );
 }
 
-function ActionBtn({ icon, label, color, onPress, disabled }: {
-  icon: string; label: string; color: string; onPress?: () => void; disabled?: boolean;
+function ActionCard({ icon, label, sub, color, onPress, disabled }: {
+  icon: string; label: string; sub: string; color: string; onPress?: () => void; disabled?: boolean;
 }) {
   return (
-    <AnimatedPressable onPress={onPress} disabled={disabled} style={[s.actionBtn, disabled && { opacity: 0.4 }]}>
-      <View style={[s.actionIcon, { backgroundColor: color + '15' }]}>
-        <Ionicons name={icon as any} size={22} color={color} />
+    <AnimatedPressable onPress={onPress} disabled={disabled} style={[st.actionCard, { borderLeftColor: color }, disabled && { opacity: 0.4 }]}>
+      <View style={[st.actionIcon, { backgroundColor: color + '12' }]}>
+        <Ionicons name={icon as any} size={20} color={color} />
       </View>
-      <EliteText variant="caption" style={s.actionLabel}>{label}</EliteText>
+      <View style={{ flex: 1 }}>
+        <EliteText variant="body" style={st.actionLabel}>{label}</EliteText>
+        <EliteText variant="caption" style={st.actionSub}>{sub}</EliteText>
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.muted} />
     </AnimatedPressable>
   );
 }
 
 // === ESTILOS ===
 
-const s = StyleSheet.create({
+const st = StyleSheet.create({
   // Header
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: ATP_BRAND.lime + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: 18 },
-  headerName: { fontFamily: Fonts.bold, fontSize: 20, color: TEXT_COLORS.primary },
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
+  avatarRing: { width: 64, height: 64, borderRadius: 32 },
+  avatarGradient: { width: 64, height: 64, borderRadius: 32, padding: 3 },
+  avatarInner: { flex: 1, borderRadius: 30, backgroundColor: SURFACES.base, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: 20 },
+  headerName: { fontFamily: Fonts.bold, fontSize: 24, color: TEXT_COLORS.primary },
   headerSince: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 2 },
   settingsBtn: { padding: Spacing.sm },
-  chronoPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: SURFACES.card,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  chronoPillText: { color: TEXT_COLORS.primary, fontSize: 11, fontFamily: Fonts.semiBold },
+  chronoPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start', marginTop: 6 },
+  chronoPillText: { color: TEXT_COLORS.primary, fontSize: 12, fontFamily: Fonts.semiBold },
 
   // Section labels
-  sectionLabel: {
-    color: TEXT_COLORS.secondary,
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    letterSpacing: 2,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
-  },
+  sectionLabel: { color: TEXT_COLORS.secondary, fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2, marginTop: Spacing.xl, marginBottom: Spacing.sm },
 
-  // Scores grid
-  scoresGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
+  // Scores
+  scoresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  scoreCardWrap: { width: '48%', flexGrow: 1 },
   scoreCard: {
-    width: '48%',
-    flexGrow: 1,
-    backgroundColor: SURFACES.card,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: SURFACES.border,
-    padding: Spacing.md,
+    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    borderLeftWidth: 3, padding: Spacing.md,
   },
-  scoreCardLabel: { color: TEXT_COLORS.secondary, fontSize: 11, marginBottom: 4 },
-  scoreCardValue: { fontSize: 28, fontFamily: Fonts.extraBold },
+  scoreCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  scoreCardLabel: { fontSize: 11, fontFamily: Fonts.semiBold },
+  scoreCardValue: { fontSize: 32, fontFamily: Fonts.extraBold },
   scoreCardUnit: { color: TEXT_COLORS.muted, fontSize: 12 },
-  miniBar: {
-    height: 3,
-    backgroundColor: SURFACES.cardLight,
-    borderRadius: 2,
-    marginTop: Spacing.sm,
-    overflow: 'hidden',
-  },
+  scoreCardEmpty: { color: TEXT_COLORS.muted, fontSize: 12, marginTop: 4 },
+  miniBar: { height: 3, backgroundColor: SURFACES.cardLight, borderRadius: 2, marginTop: Spacing.sm, overflow: 'hidden' },
   miniBarFill: { height: '100%', borderRadius: 2 },
-  emptyHint: { color: TEXT_COLORS.muted, fontSize: 11, textAlign: 'center', marginTop: Spacing.sm },
 
-  // Composition
+  // Composition (with data)
   compCard: {
-    flexDirection: 'row',
-    backgroundColor: SURFACES.card,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: SURFACES.border,
-    padding: Spacing.md,
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    flexDirection: 'row', backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    padding: Spacing.md, justifyContent: 'space-around', alignItems: 'center',
   },
   compDivider: { width: 1, height: 30, backgroundColor: SURFACES.border },
   compStat: { alignItems: 'center' },
   compStatLabel: { color: TEXT_COLORS.secondary, fontSize: 10, marginBottom: 2 },
   compStatValue: { fontSize: 20, fontFamily: Fonts.bold },
-  emptyCard: {
-    backgroundColor: SURFACES.card,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: SURFACES.border,
-    padding: Spacing.lg,
-    alignItems: 'center',
-    gap: Spacing.sm,
+  // Composition (empty)
+  compEmptyRow: { flexDirection: 'row', gap: 8 },
+  compEmptyCard: {
+    flex: 1, backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    padding: Spacing.sm, alignItems: 'center', gap: 4,
   },
-  emptyCardText: { color: TEXT_COLORS.muted, fontSize: 12 },
+  compEmptyLabel: { color: TEXT_COLORS.muted, fontSize: 10 },
+  compEmptyValue: { color: TEXT_COLORS.muted, fontSize: 18, fontFamily: Fonts.bold },
 
-  // Chronotype
-  chronoCard: {
-    backgroundColor: SURFACES.card,
-    borderRadius: 12,
-    borderWidth: 0.5,
-    borderColor: SURFACES.border,
-    padding: Spacing.md,
-  },
-  chronoTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  chronoEmoji: { fontSize: 36 },
-  chronoName: { fontFamily: Fonts.bold, fontSize: 18, color: TEXT_COLORS.primary },
-  chronoDesc: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 2 },
-  chronoTimeline: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: 0.5,
-    borderTopColor: SURFACES.border,
-    paddingTop: Spacing.sm,
-  },
-  chronoTimeItem: { alignItems: 'center', gap: 2 },
-  chronoTimeValue: { fontSize: 12, fontFamily: Fonts.bold },
-  chronoInvite: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    backgroundColor: ATP_BRAND.lime + '10',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: ATP_BRAND.lime + '30',
-    padding: Spacing.md,
-  },
-  chronoInviteIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: ATP_BRAND.lime + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chronoInviteTitle: { fontFamily: Fonts.bold, color: ATP_BRAND.lime, fontSize: 15 },
-  chronoInviteSub: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 2 },
+  // Chronotype hero
+  chronoHero: { borderRadius: 16, borderWidth: 1, borderColor: ATP_BRAND.lime + '20', padding: Spacing.md, overflow: 'hidden' },
+  chronoTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
+  chronoEmoji: { fontSize: 48 },
+  chronoName: { fontFamily: Fonts.extraBold, fontSize: 22, color: TEXT_COLORS.primary },
+  chronoDesc: { color: TEXT_COLORS.secondary, fontSize: 13, marginTop: 2 },
+  chronoTimeline: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderTopWidth: 0.5, borderTopColor: SURFACES.border, paddingTop: Spacing.md },
+  chronoTimeItem: { alignItems: 'center', gap: 3 },
+  chronoTimeDot: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  chronoTimeConnector: { width: 16, height: 1, backgroundColor: SURFACES.border, marginTop: 14 },
+  // Chronotype invite
+  chronoInvite: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, borderRadius: 16, borderWidth: 1, borderColor: ATP_BRAND.lime + '30', padding: Spacing.lg, overflow: 'hidden' },
+  chronoInviteIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: ATP_BRAND.lime + '15', alignItems: 'center', justifyContent: 'center' },
+  chronoInviteTitle: { fontFamily: Fonts.bold, color: ATP_BRAND.lime, fontSize: 17 },
+  chronoInviteSub: { color: TEXT_COLORS.secondary, fontSize: 13, marginTop: 2 },
 
-  // Quizzes
-  quizGrid: {
-    flexDirection: 'row',
-    gap: 10,
+  // Quizzes (2 columnas)
+  quizGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  quizCard: {
+    width: '48%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    paddingHorizontal: 12, paddingVertical: 14,
   },
-  quizPill: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: SURFACES.card,
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: SURFACES.border,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-  },
-  quizPillDone: { borderColor: SEMANTIC.success + '40' },
-  quizPillLabel: { color: TEXT_COLORS.primary, fontSize: 11, fontFamily: Fonts.semiBold, flex: 1 },
+  quizCardLabel: { flex: 1, color: TEXT_COLORS.primary, fontSize: 14, fontFamily: Fonts.semiBold },
+  quizCardSoonBadge: { backgroundColor: SURFACES.disabled, paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.pill },
+  quizCardSoonText: { color: TEXT_COLORS.muted, fontSize: 9, fontFamily: Fonts.bold },
 
   // Actions
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 12,
+  actionCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    borderLeftWidth: 3, padding: Spacing.md,
   },
-  actionBtn: {
-    flex: 1,
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  actionIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionLabel: { color: TEXT_COLORS.secondary, fontSize: 11 },
+  actionIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontFamily: Fonts.semiBold, color: TEXT_COLORS.primary, fontSize: 14 },
+  actionSub: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 1 },
 });
