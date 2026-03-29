@@ -166,16 +166,14 @@ export default function KitScreen() {
               { icon: 'flask-outline', label: 'Mi Salud', color: CATEGORY_COLORS.metrics, active: true, route: '/my-health' },
               { icon: 'journal-outline', label: 'Journaling', color: CATEGORY_COLORS.optimization, active: false, route: '' },
             ].map((tool, idx) => (
-              <StaggerItem key={tool.label} index={idx}>
-                <View style={styles.toolCard}>
-                  <ToolCard
-                    icon={tool.icon}
-                    label={tool.label}
-                    color={tool.color}
-                    active={tool.active}
-                    onPress={() => tool.active ? router.push(tool.route as any) : Alert.alert(tool.label, 'Próximamente')}
-                  />
-                </View>
+              <StaggerItem key={tool.label} index={idx} style={styles.toolCard}>
+                <ToolCard
+                  icon={tool.icon}
+                  label={tool.label}
+                  color={tool.color}
+                  active={tool.active}
+                  onPress={() => tool.active ? router.push(tool.route as any) : Alert.alert(tool.label, 'Próximamente')}
+                />
               </StaggerItem>
             ))}
           </View>
