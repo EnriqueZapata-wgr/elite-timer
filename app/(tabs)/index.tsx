@@ -361,6 +361,39 @@ export default function TodayScreen() {
           />
         )}
 
+        {/* ── Accesos rápidos ── */}
+        <Animated.View entering={FadeInUp.delay(300).springify()}>
+          <EliteText variant="caption" style={styles.quickAccessLabel}>ACCESOS RÁPIDOS</EliteText>
+          <View style={styles.quickAccessRow}>
+            <GradientCard color={CATEGORY_COLORS.nutrition}
+              onPress={() => { haptic.light(); router.push('/nutrition'); }}
+              style={styles.quickAccessCard}>
+              <View style={styles.quickAccessInner}>
+                <Ionicons name="restaurant-outline" size={24} color={CATEGORY_COLORS.nutrition} />
+                <EliteText style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: 13 }}>
+                  Nutrición
+                </EliteText>
+                <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: 10 }}>
+                  Registra comidas
+                </EliteText>
+              </View>
+            </GradientCard>
+            <GradientCard color={CATEGORY_COLORS.mind}
+              onPress={() => { haptic.light(); router.push('/mind-hub'); }}
+              style={styles.quickAccessCard}>
+              <View style={styles.quickAccessInner}>
+                <Ionicons name="sparkles-outline" size={24} color={CATEGORY_COLORS.mind} />
+                <EliteText style={{ color: CATEGORY_COLORS.mind, fontFamily: Fonts.bold, fontSize: 13 }}>
+                  Mente
+                </EliteText>
+                <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: 10 }}>
+                  Medita y respira
+                </EliteText>
+              </View>
+            </GradientCard>
+          </View>
+        </Animated.View>
+
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
 
@@ -589,5 +622,27 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
     fontSize: 13,
     fontFamily: Fonts.semiBold,
+  },
+
+  // Accesos rápidos
+  quickAccessLabel: {
+    color: Colors.textSecondary,
+    letterSpacing: 3,
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  quickAccessRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  quickAccessCard: {
+    flex: 1,
+    padding: Spacing.md,
+  },
+  quickAccessInner: {
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
 });
