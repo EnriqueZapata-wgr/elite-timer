@@ -51,6 +51,7 @@ import { STUDY_TYPES, STUDY_CATEGORIES, getStudyType } from '@/src/data/study-ty
 import {
   getActivePlan, createPlan, updatePlan, getFoodLogsRange, getHydrationForUser,
   getDailyScoresRange, getFastingLogsRange, updateFoodLog, deleteFoodLog, suggestMealForDeficit,
+  logFood, reanalyzeFood, analyzeFoodText,
   type NutritionPlan, type FoodLog, type DailyNutritionScore,
 } from '@/src/services/nutrition-service';
 import { SectionSaveHeader } from '@/src/components/coach/SectionSaveHeader';
@@ -2433,6 +2434,16 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [loadingSuggestion, setLoadingSuggestion] = useState(false);
 
+  // Edición de comidas
+  const [editingFoodId, setEditingFoodId] = useState<string | null>(null);
+  const [editIngredients, setEditIngredients] = useState<any[]>([]);
+  const [addingFood, setAddingFood] = useState(false);
+  const [newFoodType, setNewFoodType] = useState('lunch');
+  const [newFoodDesc, setNewFoodDesc] = useState('');
+  const [newFoodTime, setNewFoodTime] = useState('');
+  const [savingNewFood, setSavingNewFood] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
+
   // Plan form
   const [planForm, setPlanForm] = useState({
     name: '', diet_type: '', calorie_target: '', protein_target: '', carb_target: '', fat_target: '',
@@ -2507,6 +2518,101 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   };
 
   const setF = (key: string, value: string) => { setPlanForm(prev => ({ ...prev, [key]: value })); setPlanStatus('idle'); };
+
+  // --- Handlers de edición / creación / borrado ---
+  const handleDeleteFood = async (foodId: string) => {
+    Alert.alert('Eliminar comida', '¿Seguro que deseas eliminar este registro?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        try { await deleteFoodLog(foodId); loadData(); } catch { /* */ }
+      }},
+    ]);
+  };
+
+  const handleAddFood = async (withAI = false) => {
+    if (!newFoodDesc.trim()) return;
+    setSavingNewFood(true);
+    try {
+      let aiData: any = undefined;
+      if (withAI) {
+        aiData = await analyzeFoodText(newFoodDesc.trim());
+      }
+      await logFood({
+        user_id: clientId,
+        date: selectedDate,
+        meal_type: newFoodType,
+        description: newFoodDesc.trim(),
+        meal_time: newFoodTime || undefined,
+        ai_analysis: aiData || undefined,
+        calories: aiData?.totals?.calories,
+        protein_g: aiData?.totals?.protein,
+        carbs_g: aiData?.totals?.carbs,
+        fat_g: aiData?.totals?.fat,
+      });
+      setNewFoodDesc(''); setNewFoodTime(''); setAddingFood(false);
+      loadData();
+    } catch { /* */ }
+    setSavingNewFood(false);
+  };
+
+  const handleStartEdit = (food: FoodLog) => {
+    setEditingFoodId(food.id);
+    setEditIngredients(food.ai_analysis?.ingredients || []);
+  };
+
+  const handleSaveEdit = async (foodId: string) => {
+    try {
+      const totals = editIngredients.reduce((s: any, i: any) => ({
+        calories: s.calories + (i.calories || 0),
+        protein: s.protein + (i.protein || 0),
+        carbs: s.carbs + (i.carbs || 0),
+        fat: s.fat + (i.fat || 0),
+      }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+      const food = dayFoods.find(f => f.id === foodId);
+      const updatedAnalysis = { ...food?.ai_analysis, ingredients: editIngredients, totals, was_edited: true };
+      await updateFoodLog(foodId, {
+        ai_analysis: updatedAnalysis,
+        calories: totals.calories,
+        protein_g: totals.protein,
+        carbs_g: totals.carbs,
+        fat_g: totals.fat,
+      } as any);
+      setEditingFoodId(null);
+      loadData();
+    } catch { /* */ }
+  };
+
+  const handleRecalcWithAI = async (foodId: string) => {
+    setRecalculating(true);
+    try {
+      const result = await reanalyzeFood(editIngredients);
+      setEditIngredients(result.ingredients || editIngredients);
+      const food = dayFoods.find(f => f.id === foodId);
+      await updateFoodLog(foodId, {
+        ai_analysis: { ...result, was_edited: true },
+        calories: result.totals?.calories,
+        protein_g: result.totals?.protein,
+        carbs_g: result.totals?.carbs,
+        fat_g: result.totals?.fat,
+      } as any);
+      setEditingFoodId(null);
+      loadData();
+    } catch { /* */ }
+    setRecalculating(false);
+  };
+
+  // Sustituciones rápidas de ingredientes
+  const SUBSTITUTIONS: Record<string, string> = {
+    'tortilla de maiz': 'Tortilla de nopal',
+    'tortilla de harina': 'Tortilla de nopal',
+    'pan blanco': 'Pan integral',
+    'arroz blanco': 'Quinoa',
+    'refresco': 'Agua mineral',
+    'jugo': 'Fruta entera',
+    'crema': 'Yogurt griego',
+    'aceite de canola': 'Aceite de oliva',
+  };
 
   // Macros del día seleccionado
   const dayFoods = foods.filter(f => f.date === selectedDate)
@@ -2611,7 +2717,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   );
 
   const pillStyle = {
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.card,
     borderWidth: 1, borderColor: SURFACES.border, backgroundColor: SURFACES.card,
   };
   const activePillStyle = {
@@ -2621,9 +2727,12 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     color: CATEGORY_COLORS.nutrition, letterSpacing: 2, marginTop: Spacing.md, marginBottom: Spacing.sm,
   };
   const weekDayCellStyle = {
-    alignItems: 'center' as const, padding: Spacing.xs, borderRadius: 8,
+    alignItems: 'center' as const, padding: Spacing.xs, borderRadius: Radius.sm,
     borderWidth: 1, borderColor: SURFACES.border, backgroundColor: SURFACES.card,
     minWidth: 42,
+  };
+  const miniCardStyle = {
+    flex: 1, backgroundColor: SURFACES.cardLight, borderRadius: Radius.sm, paddingVertical: Spacing.xs, alignItems: 'center' as const,
   };
 
   const patterns = computePatterns();
@@ -2635,6 +2744,15 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     carbs: Math.max(0, (plan.carb_target ?? 0) - dayTotals.carbs),
     fat: Math.max(0, (plan.fat_target ?? 0) - dayTotals.fat),
   } : null;
+
+  // Macros con porcentaje para barras de progreso
+  const scoreCol = dayScore?.overall_score >= 75 ? SEMANTIC.success : dayScore?.overall_score >= 50 ? SEMANTIC.warning : dayScore?.overall_score ? SEMANTIC.error : TEXT_COLORS.muted;
+  const macros = [
+    { label: 'Calorías', value: Math.round(dayTotals.calories), target: plan?.calorie_target ?? 0, unit: '', color: CATEGORY_COLORS.nutrition, pct: plan?.calorie_target ? (dayTotals.calories / plan.calorie_target) * 100 : 0 },
+    { label: 'Proteína', value: Math.round(dayTotals.protein), target: plan?.protein_target ?? 0, unit: 'g', color: SEMANTIC.success, pct: plan?.protein_target ? (dayTotals.protein / plan.protein_target) * 100 : 0 },
+    { label: 'Carbos', value: Math.round(dayTotals.carbs), target: plan?.carb_target ?? 0, unit: 'g', color: SEMANTIC.warning, pct: plan?.carb_target ? (dayTotals.carbs / plan.carb_target) * 100 : 0 },
+    { label: 'Grasa', value: Math.round(dayTotals.fat), target: plan?.fat_target ?? 0, unit: 'g', color: SEMANTIC.error, pct: plan?.fat_target ? (dayTotals.fat / plan.fat_target) * 100 : 0 },
+  ];
 
   return (
     <View>
@@ -2676,7 +2794,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
 
       {/* ═══ Row 2: Resumen del día ═══ */}
       <EliteText variant="caption" style={sectionLabelStyle}>RESUMEN DEL DIA</EliteText>
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.md }}>
         {(['today', 'yesterday', 'week'] as const).map(v => (
           <Pressable key={v} onPress={() => { setViewMode(v); setSelectedDate(v === 'yesterday' ? yesterday() : today()); }}
             style={[pillStyle, viewMode === v && activePillStyle]}>
@@ -2687,55 +2805,62 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         ))}
       </View>
 
-      {/* Score + macros */}
-      <View style={{ backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm, marginBottom: Spacing.sm }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.xs }}>
+      {/* Score circle + macro progress bars */}
+      <View style={{ backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+          {/* Score circle */}
           <View style={{
-            width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
-            backgroundColor: (dayScore?.overall_score >= 75 ? SEMANTIC.success : dayScore?.overall_score >= 50 ? SEMANTIC.warning : dayScore?.overall_score ? SEMANTIC.error : TEXT_COLORS.muted) + '20',
+            width: 90, height: 90, borderRadius: Radius.pill, borderWidth: 4,
+            borderColor: scoreCol, alignItems: 'center', justifyContent: 'center',
+            backgroundColor: scoreCol + '10',
           }}>
-            <EliteText style={{
-              fontFamily: Fonts.bold, fontSize: 16,
-              color: dayScore?.overall_score >= 75 ? SEMANTIC.success : dayScore?.overall_score >= 50 ? SEMANTIC.warning : dayScore?.overall_score ? SEMANTIC.error : TEXT_COLORS.muted,
-            }}>
+            <EliteText style={{ fontFamily: Fonts.extraBold, fontSize: 28, color: scoreCol }}>
               {dayScore?.overall_score ?? '--'}
             </EliteText>
+            <EliteText variant="caption" style={{ color: scoreCol, fontSize: 9, letterSpacing: 1 }}>CALIDAD</EliteText>
           </View>
-          <View style={{ flex: 1 }}>
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12, fontFamily: Fonts.semiBold }}>
-              Score del {selectedDate === today() ? 'hoy' : selectedDate}
+
+          {/* Macro progress bars */}
+          <View style={{ flex: 1, gap: 6 }}>
+            {macros.map(m => (
+              <View key={m.label}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{m.label}</EliteText>
+                  <EliteText variant="caption" style={{ color: m.color, fontSize: 9 }}>
+                    {m.value}{m.unit} / {m.target}{m.unit}
+                  </EliteText>
+                </View>
+                <View style={{ height: 4, backgroundColor: SURFACES.cardLight, borderRadius: 2, overflow: 'hidden' }}>
+                  <View style={{ width: `${Math.min(100, m.pct)}%` as any, height: '100%', backgroundColor: m.color, borderRadius: 2 }} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Mini cards: water / fasting / fiber */}
+        <View style={{ flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.sm }}>
+          <View style={miniCardStyle}>
+            <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10 }}>
+              {'💧'} {plan?.water_target ? `-- / ${plan.water_target}L` : '-- / --'}
             </EliteText>
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>
-              {dayFoods.length} comidas registradas
+          </View>
+          <View style={miniCardStyle}>
+            <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10 }}>
+              {'⏱️'} {plan?.fasting_hours ? `${plan.fasting_hours}h ayuno` : '--'}
+            </EliteText>
+          </View>
+          <View style={miniCardStyle}>
+            <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10 }}>
+              {'🥬'} {plan?.fiber_target ? `-- / ${plan.fiber_target}g fibra` : '-- / --'}
             </EliteText>
           </View>
         </View>
 
-        {/* Macros row */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.xs }}>
-          {[
-            { label: 'Cal', value: Math.round(dayTotals.calories), target: plan?.calorie_target, unit: '' },
-            { label: 'Prot', value: Math.round(dayTotals.protein), target: plan?.protein_target, unit: 'g' },
-            { label: 'Carb', value: Math.round(dayTotals.carbs), target: plan?.carb_target, unit: 'g' },
-            { label: 'Grasa', value: Math.round(dayTotals.fat), target: plan?.fat_target, unit: 'g' },
-          ].map(m => {
-            const pct = m.target ? Math.round((m.value / m.target) * 100) : null;
-            const col = pct != null ? (pct >= 80 ? SEMANTIC.success : pct >= 50 ? SEMANTIC.warning : SEMANTIC.error) : TEXT_COLORS.secondary;
-            return (
-              <View key={m.label} style={{ alignItems: 'center', flex: 1 }}>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{m.label}</EliteText>
-                <EliteText style={{ color: col, fontFamily: Fonts.bold, fontSize: 14 }}>
-                  {m.value}{m.unit}
-                </EliteText>
-                {m.target != null && (
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 8 }}>
-                    / {m.target}{m.unit}
-                  </EliteText>
-                )}
-              </View>
-            );
-          })}
-        </View>
+        {/* Date + meals count */}
+        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginTop: Spacing.xs, textAlign: 'center' }}>
+          {selectedDate === today() ? 'Hoy' : selectedDate} — {dayFoods.length} comidas registradas
+        </EliteText>
       </View>
 
       {/* ═══ Row 3: Timeline de comidas ═══ */}
@@ -2751,12 +2876,73 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         dayFoods.map(food => {
           const ai = food.ai_analysis;
           const sc = ai?.score;
-          const scoreCol = sc >= 80 ? SEMANTIC.success : sc >= 60 ? SEMANTIC.warning : sc ? SEMANTIC.error : TEXT_COLORS.muted;
+          const foodScoreCol = sc >= 80 ? SEMANTIC.success : sc >= 60 ? SEMANTIC.warning : sc ? SEMANTIC.error : TEXT_COLORS.muted;
           const isExpanded = expandedFoodId === food.id;
+
+          // Modo edición inline
+          if (editingFoodId === food.id) {
+            return (
+              <View key={food.id} style={{
+                backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 1,
+                borderColor: CATEGORY_COLORS.nutrition + '40', padding: Spacing.sm, marginBottom: Spacing.xs,
+              }}>
+                <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: 10, marginBottom: Spacing.xs }}>
+                  EDITANDO: {food.description}
+                </EliteText>
+                {editIngredients.map((ing, idx) => {
+                  const subKey = Object.keys(SUBSTITUTIONS).find(k => ing.name.toLowerCase().includes(k));
+                  return (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 3, borderBottomWidth: 0.5, borderBottomColor: SURFACES.border }}>
+                      <Ionicons name="checkmark-circle" size={14} color={SEMANTIC.success} />
+                      <View style={{ flex: 1 }}>
+                        <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12 }}>{ing.name}</EliteText>
+                        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{ing.portion} · {ing.calories ?? 0}cal · {ing.protein ?? 0}g prot</EliteText>
+                      </View>
+                      {subKey && (
+                        <Pressable onPress={() => {
+                          const updated = [...editIngredients];
+                          updated[idx] = { ...updated[idx], name: SUBSTITUTIONS[subKey] };
+                          setEditIngredients(updated);
+                        }} style={{ backgroundColor: SEMANTIC.success + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
+                          <EliteText variant="caption" style={{ color: SEMANTIC.success, fontSize: 8 }}>{'→'} {SUBSTITUTIONS[subKey]}</EliteText>
+                        </Pressable>
+                      )}
+                      <Pressable onPress={() => setEditIngredients(editIngredients.filter((_, i) => i !== idx))}>
+                        <Ionicons name="close-circle" size={16} color={SEMANTIC.error + '80'} />
+                      </Pressable>
+                    </View>
+                  );
+                })}
+                {/* Agregar ingrediente */}
+                <Pressable onPress={() => setEditIngredients([...editIngredients, { name: 'Nuevo ingrediente', portion: '~1 porción', calories: 0, protein: 0, carbs: 0, fat: 0 }])}
+                  style={{ borderWidth: 1, borderColor: SURFACES.border, borderStyle: 'dashed', borderRadius: Radius.sm, padding: Spacing.xs, alignItems: 'center', marginTop: Spacing.xs }}>
+                  <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10 }}>+ Agregar ingrediente</EliteText>
+                </Pressable>
+                {/* Botones del editor */}
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.sm }}>
+                  <Pressable onPress={() => setEditingFoodId(null)}>
+                    <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>Cancelar</EliteText>
+                  </Pressable>
+                  <Pressable onPress={() => handleRecalcWithAI(food.id)} disabled={recalculating}
+                    style={{ backgroundColor: CATEGORY_COLORS.nutrition + '15', paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
+                    <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10, fontFamily: Fonts.bold }}>
+                      {recalculating ? 'Analizando...' : 'Recalcular con IA'}
+                    </EliteText>
+                  </Pressable>
+                  <Pressable onPress={() => handleSaveEdit(food.id)}
+                    style={{ backgroundColor: SEMANTIC.success, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
+                    <EliteText variant="caption" style={{ color: TEXT_COLORS.onAccent, fontSize: 10, fontFamily: Fonts.bold }}>Guardar</EliteText>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }
+
+          // Modo normal (card de comida)
           return (
             <Pressable key={food.id} onPress={() => setExpandedFoodId(isExpanded ? null : food.id)}
               style={{
-                backgroundColor: SURFACES.card, borderRadius: 10, borderWidth: 0.5,
+                backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5,
                 borderColor: isExpanded ? CATEGORY_COLORS.nutrition + '60' : SURFACES.border,
                 borderLeftWidth: 3, borderLeftColor: CATEGORY_COLORS.nutrition,
                 padding: Spacing.sm, marginBottom: Spacing.xs,
@@ -2770,8 +2956,8 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                   </EliteText>
                 </View>
                 {sc != null && (
-                  <View style={{ backgroundColor: scoreCol + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                    <EliteText variant="caption" style={{ color: scoreCol, fontFamily: Fonts.bold, fontSize: 11 }}>{sc}</EliteText>
+                  <View style={{ backgroundColor: foodScoreCol + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.card }}>
+                    <EliteText variant="caption" style={{ color: foodScoreCol, fontFamily: Fonts.bold, fontSize: 11 }}>{sc}</EliteText>
                   </View>
                 )}
               </View>
@@ -2788,7 +2974,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
               {ai?.tags && ai.tags.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                   {(ai.tags as string[]).map((tag: string, i: number) => (
-                    <View key={i} style={{ backgroundColor: getTagColor(tag) + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 }}>
+                    <View key={i} style={{ backgroundColor: getTagColor(tag) + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.sm }}>
                       <EliteText variant="caption" style={{ color: getTagColor(tag), fontSize: 8 }}>
                         {tag.replace(/_/g, ' ')}
                       </EliteText>
@@ -2797,8 +2983,8 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                 </View>
               )}
 
-              {/* Feedback (colapsable) */}
-              {ai?.feedback && isExpanded && (
+              {/* Feedback (colapsable) — solo si score < 80 */}
+              {ai?.feedback && isExpanded && (ai?.score ?? 100) < 80 && (
                 <View style={{ marginTop: Spacing.xs, paddingTop: Spacing.xs, borderTopWidth: 0.5, borderTopColor: SURFACES.border }}>
                   <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>{ai.feedback}</EliteText>
                 </View>
@@ -2827,10 +3013,24 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
               {ai?.red_flags && ai.red_flags.length > 0 && isExpanded && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                   {(ai.red_flags as string[]).map((flag: string, i: number) => (
-                    <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 }}>
+                    <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.sm }}>
                       <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 8 }}>{flag}</EliteText>
                     </View>
                   ))}
+                </View>
+              )}
+
+              {/* Action buttons (edit + delete) when expanded */}
+              {isExpanded && (
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.xs }}>
+                  <Pressable onPress={() => handleStartEdit(food)} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Ionicons name="pencil-outline" size={12} color={CATEGORY_COLORS.nutrition} />
+                    <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10 }}>Editar</EliteText>
+                  </Pressable>
+                  <Pressable onPress={() => handleDeleteFood(food.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    <Ionicons name="trash-outline" size={12} color={SEMANTIC.error} />
+                    <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10 }}>Eliminar</EliteText>
+                  </Pressable>
                 </View>
               )}
 
@@ -2845,52 +3045,95 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
         })
       )}
 
-      {/* ═══ Row 4: Lo que falta + sugerencia IA ═══ */}
+      {/* Formulario inline para agregar comida */}
+      {addingFood && (
+        <View style={{ backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: CATEGORY_COLORS.nutrition + '40', padding: Spacing.sm, marginBottom: Spacing.sm }}>
+          <View style={{ flexDirection: 'row', gap: 6, marginBottom: Spacing.sm }}>
+            {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map(t => (
+              <Pressable key={t} onPress={() => setNewFoodType(t)}
+                style={[pillStyle, newFoodType === t && activePillStyle]}>
+                <EliteText variant="caption" style={{ color: newFoodType === t ? CATEGORY_COLORS.nutrition : TEXT_COLORS.muted, fontSize: 10 }}>
+                  {t === 'breakfast' ? 'Desayuno' : t === 'lunch' ? 'Comida' : t === 'dinner' ? 'Cena' : 'Snack'}
+                </EliteText>
+              </Pressable>
+            ))}
+          </View>
+          <TextInput style={styles.editableInput} value={newFoodDesc} onChangeText={setNewFoodDesc}
+            placeholder="Describe la comida" placeholderTextColor={SURFACES.disabled} />
+          <TextInput style={[styles.editableInput, { marginTop: Spacing.xs }]} value={newFoodTime} onChangeText={setNewFoodTime}
+            placeholder="Hora (ej: 14:30)" placeholderTextColor={SURFACES.disabled} />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.sm }}>
+            <Pressable onPress={() => setAddingFood(false)}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted }}>Cancelar</EliteText>
+            </Pressable>
+            <Pressable onPress={() => handleAddFood(false)} disabled={savingNewFood}
+              style={{ backgroundColor: SURFACES.border, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 10 }}>
+                {savingNewFood ? 'Guardando...' : 'Guardar'}
+              </EliteText>
+            </Pressable>
+            <Pressable onPress={() => handleAddFood(true)} disabled={savingNewFood}
+              style={{ backgroundColor: CATEGORY_COLORS.nutrition, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.onAccent, fontSize: 10, fontFamily: Fonts.bold }}>
+                {savingNewFood ? 'Analizando...' : 'Guardar + IA'}
+              </EliteText>
+            </Pressable>
+          </View>
+        </View>
+      )}
+      <Pressable onPress={() => setAddingFood(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing.sm }}>
+        <Ionicons name="add-circle-outline" size={14} color={CATEGORY_COLORS.nutrition} />
+        <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.semiBold, fontSize: 11 }}>Agregar comida</EliteText>
+      </Pressable>
+
+      {/* ═══ Row 4: Lo que falta + sugerencia IA (2-column) ═══ */}
       {plan && dayFoods.length > 0 && deficit && (
         <View>
           <EliteText variant="caption" style={sectionLabelStyle}>LO QUE FALTA HOY</EliteText>
-          <View style={{ backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm, marginBottom: Spacing.sm }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+            {/* Left: deficit */}
+            <View style={{ flex: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm }}>
+              <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: 10, marginBottom: Spacing.xs }}>DEFICIT</EliteText>
               {[
                 { label: 'Cal', value: deficit.calories, unit: '' },
                 { label: 'Prot', value: Math.round(deficit.protein), unit: 'g' },
                 { label: 'Carb', value: Math.round(deficit.carbs), unit: 'g' },
                 { label: 'Grasa', value: Math.round(deficit.fat), unit: 'g' },
               ].map(m => (
-                <View key={m.label} style={{ alignItems: 'center', flex: 1 }}>
+                <View key={m.label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2 }}>
                   <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>{m.label}</EliteText>
-                  <EliteText style={{ color: m.value > 0 ? SEMANTIC.warning : SEMANTIC.success, fontFamily: Fonts.bold, fontSize: 14 }}>
+                  <EliteText variant="caption" style={{ color: m.value > 0 ? SEMANTIC.warning : SEMANTIC.success, fontFamily: Fonts.bold, fontSize: 11 }}>
                     {m.value > 0 ? `-${Math.round(m.value)}` : '0'}{m.unit}
                   </EliteText>
                 </View>
               ))}
             </View>
-
-            {/* Botón sugerir comida */}
-            <Pressable onPress={handleSuggest} disabled={loadingSuggestion}
-              style={{
-                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
-                backgroundColor: CATEGORY_COLORS.nutrition + '15', borderWidth: 1, borderColor: CATEGORY_COLORS.nutrition + '30',
-                borderRadius: 10, paddingVertical: Spacing.sm, marginTop: Spacing.sm,
-              }}>
-              {loadingSuggestion ? (
-                <ActivityIndicator color={CATEGORY_COLORS.nutrition} size="small" />
-              ) : (
-                <Ionicons name="sparkles-outline" size={14} color={CATEGORY_COLORS.nutrition} />
-              )}
-              <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: 11 }}>
-                {loadingSuggestion ? 'Generando...' : 'Sugerir comida con IA'}
-              </EliteText>
-            </Pressable>
-
-            {/* Sugerencia IA */}
-            {suggestion && (
-              <View style={{ marginTop: Spacing.sm, backgroundColor: CATEGORY_COLORS.nutrition + '08', borderRadius: 8, padding: Spacing.sm, borderLeftWidth: 2, borderLeftColor: CATEGORY_COLORS.nutrition }}>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 11, lineHeight: 16 }}>
-                  {suggestion}
+            {/* Right: suggestion */}
+            <View style={{ flex: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, borderLeftWidth: 3, borderLeftColor: TEAL, padding: Spacing.sm }}>
+              <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.bold, fontSize: 10, marginBottom: Spacing.xs }}>SUGERENCIA IA</EliteText>
+              <Pressable onPress={handleSuggest} disabled={loadingSuggestion}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+                  backgroundColor: CATEGORY_COLORS.nutrition + '15', borderWidth: 1, borderColor: CATEGORY_COLORS.nutrition + '30',
+                  borderRadius: Radius.sm, paddingVertical: Spacing.xs,
+                }}>
+                {loadingSuggestion ? (
+                  <ActivityIndicator color={CATEGORY_COLORS.nutrition} size="small" />
+                ) : (
+                  <Ionicons name="sparkles-outline" size={12} color={CATEGORY_COLORS.nutrition} />
+                )}
+                <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: 10 }}>
+                  {loadingSuggestion ? 'Generando...' : 'Sugerir comida'}
                 </EliteText>
-              </View>
-            )}
+              </Pressable>
+              {suggestion && (
+                <View style={{ marginTop: Spacing.xs, backgroundColor: CATEGORY_COLORS.nutrition + '08', borderRadius: Radius.sm, padding: Spacing.xs }}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 10, lineHeight: 14 }}>
+                    {suggestion}
+                  </EliteText>
+                </View>
+              )}
+            </View>
           </View>
         </View>
       )}
@@ -2924,7 +3167,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
             const bg = p.type === 'success' ? SEMANTIC.success : p.type === 'warning' ? SEMANTIC.warning : SEMANTIC.error;
             return (
               <View key={i} style={{
-                backgroundColor: bg + '10', borderRadius: 10, borderLeftWidth: 3, borderLeftColor: bg,
+                backgroundColor: bg + '10', borderRadius: Radius.card, borderLeftWidth: 3, borderLeftColor: bg,
                 padding: Spacing.sm, marginBottom: Spacing.xs, borderWidth: 0.5, borderColor: bg + '20',
               }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.xs }}>

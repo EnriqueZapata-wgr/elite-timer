@@ -87,11 +87,13 @@ export async function logFood(data: {
   meal_type: string; description: string; photo_url?: string; meal_time?: string;
   hunger_level?: number; satisfaction_level?: number; notes?: string;
   ai_analysis?: any; calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number;
+  user_id?: string; date?: string;
 }): Promise<FoodLog> {
-  const userId = await getUserId();
-  const today = new Date().toISOString().split('T')[0];
+  const userId = data.user_id || await getUserId();
+  const date = data.date || new Date().toISOString().split('T')[0];
+  const { user_id: _, date: __, ...rest } = data;
   const { data: log, error } = await supabase.from('food_logs')
-    .insert({ user_id: userId, date: today, ...data }).select('*').single();
+    .insert({ user_id: userId, date, ...rest }).select('*').single();
   if (error) throw error;
   return log;
 }
