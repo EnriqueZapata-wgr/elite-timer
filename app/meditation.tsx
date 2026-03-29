@@ -26,6 +26,7 @@ import {
 } from '@/src/data/meditation-library';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
+import { BackButton } from '@/src/components/ui/BackButton';
 
 const PURPLE = CATEGORY_COLORS.mind;
 
@@ -84,9 +85,9 @@ function LibraryScreen({ onSelect, onBack }: {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Pressable onPress={onBack} style={styles.backBtn}>
-        <Ionicons name="chevron-back" size={28} color={PURPLE} />
-      </Pressable>
+      <View style={styles.backBtn}>
+        <BackButton onPress={onBack} color={PURPLE} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.libContent}>
         <EliteText style={styles.libTitle}>MEDITACIÓN</EliteText>
@@ -232,9 +233,9 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
   // === Timer activo ===
   return (
     <SafeAreaView style={styles.screen}>
-      <Pressable onPress={onBack} style={styles.backBtn}>
-        <Ionicons name="chevron-back" size={28} color={PURPLE} />
-      </Pressable>
+      <View style={styles.backBtn}>
+        <BackButton onPress={onBack} color={PURPLE} />
+      </View>
 
       <View style={styles.timerContainer}>
         {/* Header */}

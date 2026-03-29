@@ -67,7 +67,9 @@ export const Spacing = {
 // === BORDES ===
 
 export const Radius = {
+  xs: 4,
   sm: 8,
+  card: 12,    // Radio estándar para cards (CARD_STYLE.borderRadius)
   md: 16,
   lg: 24,
   pill: 50,

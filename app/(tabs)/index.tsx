@@ -13,6 +13,8 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { StaggerItem } from '@/src/components/ui/StaggerItem';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { GradientCard } from '@/src/components/GradientCard';
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES } from '@/src/constants/brand';
@@ -194,7 +196,7 @@ export default function TodayScreen() {
               <SkeletonLoader variant="stat-card" />
               <SkeletonLoader variant="stat-card" />
             </View>
-            {[...Array(4)].map((_, i) => <SkeletonLoader key={i} height={44} style={{ borderRadius: 8 }} />)}
+            {[...Array(4)].map((_, i) => <SkeletonLoader key={i} height={44} style={{ borderRadius: Radius.sm }} />)}
           </View>
         ) : hasTimeline ? (
           <>
@@ -250,10 +252,7 @@ export default function TodayScreen() {
                 const isTogglingThis = toggling === item.item_id;
 
                 return (
-                  <Animated.View
-                    key={item.item_id}
-                    entering={FadeInUp.delay(200 + idx * 60).duration(400).springify()}
-                  >
+                  <StaggerItem key={item.item_id} index={idx} delay={60}>
                     <View style={styles.timelineRow}>
                       {/* Hora */}
                       <View style={styles.timeCol}>
@@ -345,33 +344,21 @@ export default function TodayScreen() {
                         </View>
                       </GradientCard>
                     </View>
-                  </Animated.View>
+                  </StaggerItem>
                 );
               })}
             </View>
           </>
         ) : (
           /* ── Estado vacío (sin protocolo) ── */
-          <Animated.View entering={FadeInUp.delay(100).springify()}>
-            <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={48} color={Colors.textSecondary} />
-              <EliteText variant="body" style={styles.emptyTitle}>
-                Sin protocolo asignado
-              </EliteText>
-              <EliteText variant="caption" style={styles.emptySubtitle}>
-                Tu coach puede asignarte un protocolo diario, o puedes entrenar directamente
-              </EliteText>
-              <View style={styles.emptyActions}>
-                <AnimatedPressable
-                  onPress={() => { haptic.light(); router.push('/(tabs)/biblioteca' as any); }}
-                  style={styles.emptyBtn}
-                >
-                  <Ionicons name="flash" size={18} color={Colors.neonGreen} />
-                  <EliteText variant="caption" style={styles.emptyBtnText}>Entrenar</EliteText>
-                </AnimatedPressable>
-              </View>
-            </View>
-          </Animated.View>
+          <EmptyState
+            icon="today-outline"
+            title="Tu día está vacío"
+            subtitle="Completa el quiz de cronotipo para personalizar tu día"
+            actionLabel="Hacer quiz"
+            onAction={() => router.push('/quiz/chronotype' as any)}
+            color="#a8e02a"
+          />
         )}
 
         <View style={{ height: Spacing.xxl }} />
@@ -428,13 +415,13 @@ const styles = StyleSheet.create({
   progressBar: {
     height: 4,
     backgroundColor: Colors.surfaceLight,
-    borderRadius: 2,
+    borderRadius: Radius.xs,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     backgroundColor: Colors.neonGreen,
-    borderRadius: 2,
+    borderRadius: Radius.xs,
   },
 
   // Week pills
@@ -495,7 +482,7 @@ const styles = StyleSheet.create({
   dot: {
     width: 18,
     height: 18,
-    borderRadius: 9,
+    borderRadius: Radius.sm,
     borderWidth: 2,
     borderColor: Colors.border,
     alignItems: 'center',
@@ -567,7 +554,7 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: Radius.card,
     borderWidth: 2,
     borderColor: Colors.disabled,
     alignItems: 'center',
@@ -576,42 +563,6 @@ const styles = StyleSheet.create({
   checkboxChecked: {
     backgroundColor: Colors.neonGreen,
     borderColor: Colors.neonGreen,
-  },
-
-  // Empty state
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xxl,
-    gap: Spacing.md,
-  },
-  emptyTitle: {
-    fontFamily: Fonts.semiBold,
-    fontSize: 16,
-  },
-  emptySubtitle: {
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  emptyActions: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  emptyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.neonGreen + '40',
-    backgroundColor: Colors.neonGreen + '10',
-  },
-  emptyBtnText: {
-    color: Colors.neonGreen,
-    fontFamily: Fonts.semiBold,
   },
 
   // Nav indicator (chevron en cards navegables)
@@ -627,7 +578,7 @@ const styles = StyleSheet.create({
     left: Spacing.lg,
     right: Spacing.lg,
     backgroundColor: Colors.surfaceLight,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.md,
     alignItems: 'center',

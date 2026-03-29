@@ -18,6 +18,7 @@ import { playBeep, initAudio } from '@/src/utils/sounds';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
+import { BackButton } from '@/src/components/ui/BackButton';
 
 const PURPLE = CATEGORY_COLORS.mind;
 
@@ -81,9 +82,9 @@ function SelectorScreen({ onSelect, onBack }: {
 }) {
   return (
     <SafeAreaView style={styles.screen}>
-      <Pressable onPress={onBack} style={styles.backBtn}>
-        <Ionicons name="chevron-back" size={28} color={PURPLE} />
-      </Pressable>
+      <View style={styles.backBtn}>
+        <BackButton onPress={onBack} color={PURPLE} />
+      </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.selectorContent}>
         <EliteText style={styles.selectorTitle}>RESPIRACIÓN</EliteText>
         <EliteText variant="caption" style={styles.selectorSub}>
@@ -146,9 +147,9 @@ function BoxConfigScreen({ template, onStart, onBack }: {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Pressable onPress={onBack} style={styles.backBtn}>
-        <Ionicons name="chevron-back" size={28} color={PURPLE} />
-      </Pressable>
+      <View style={styles.backBtn}>
+        <BackButton onPress={onBack} color={PURPLE} />
+      </View>
 
       <View style={styles.configContainer}>
         <EliteText style={styles.configTitle}>BOX BREATHING</EliteText>
@@ -361,9 +362,9 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   // === Timer activo ===
   return (
     <SafeAreaView style={styles.screen}>
-      <Pressable onPress={onBack} style={styles.backBtn}>
-        <Ionicons name="chevron-back" size={28} color={PURPLE} />
-      </Pressable>
+      <View style={styles.backBtn}>
+        <BackButton onPress={onBack} color={PURPLE} />
+      </View>
 
       <View style={styles.timerContainer}>
         {/* Header */}
@@ -556,7 +557,7 @@ const styles = StyleSheet.create({
   configRowLabel: { fontFamily: Fonts.semiBold, fontSize: 16, color: Colors.textPrimary },
   configStepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   configStepBtn: {
-    width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: PURPLE + '40',
+    width: 44, height: 44, borderRadius: Radius.lg, borderWidth: 1, borderColor: PURPLE + '40',
     alignItems: 'center', justifyContent: 'center',
   },
   configStepValue: {

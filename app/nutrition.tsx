@@ -2,13 +2,16 @@
  * Nutrición — Dashboard diario de alimentación, hidratación y ayuno.
  */
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { StaggerItem } from '@/src/components/ui/StaggerItem';
+import { EmptyState } from '@/src/components/ui/EmptyState';
+import { BackButton } from '@/src/components/ui/BackButton';
 import { useAuth } from '@/src/contexts/auth-context';
 import {
   getFoodLogs, getHydration, addWater, getActiveFast,
@@ -101,9 +104,9 @@ export default function NutritionScreen() {
 
   return (
     <SafeAreaView style={st.screen}>
-      <Pressable onPress={() => router.back()} style={st.backBtn}>
-        <Ionicons name="chevron-back" size={28} color={BLUE} />
-      </Pressable>
+      <View style={st.backBtn}>
+        <BackButton color={BLUE} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.content}>
         <Animated.View entering={FadeInUp.delay(50).springify()}>
@@ -205,16 +208,21 @@ export default function NutritionScreen() {
         <Animated.View entering={FadeInUp.delay(260).springify()}>
           <EliteText variant="caption" style={st.sectionLabel}>COMIDAS DE HOY</EliteText>
           {foods.length === 0 ? (
-            <View style={st.emptyCard}>
-              <Ionicons name="restaurant-outline" size={28} color={TEXT_COLORS.muted} />
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted }}>Sin registros hoy</EliteText>
-            </View>
+            <EmptyState
+              icon="restaurant-outline"
+              title="Sin comidas registradas"
+              subtitle="Toma una foto de tu comida para empezar"
+              actionLabel="Registrar comida"
+              onAction={() => router.push({ pathname: '/food-scan', params: { mode: 'food' } })}
+              color="#5B9BD5"
+            />
           ) : (
             foods.map((food, idx) => {
               const ai = food.ai_analysis;
               const mealEmoji = food.meal_type === 'breakfast' ? '🌅' : food.meal_type === 'lunch' ? '☀️' : food.meal_type === 'dinner' ? '🌙' : '🍎';
               return (
-                <View key={food.id} style={st.foodCard}>
+                <StaggerItem key={food.id} index={idx}>
+                <View style={st.foodCard}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                     <EliteText style={{ fontSize: 20 }}>{mealEmoji}</EliteText>
                     <View style={{ flex: 1 }}>
@@ -239,13 +247,14 @@ export default function NutritionScreen() {
                   {ai?.red_flags?.length > 0 && (
                     <View style={{ flexDirection: 'row', gap: 4, marginTop: 4 }}>
                       {ai.red_flags.map((f: string, i: number) => (
-                        <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                        <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
                           <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 9 }}>{f}</EliteText>
                         </View>
                       ))}
                     </View>
                   )}
                 </View>
+                </StaggerItem>
               );
             })
           )}
@@ -266,7 +275,7 @@ export default function NutritionScreen() {
               {plan.foods_to_avoid?.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: Spacing.sm }}>
                   {plan.foods_to_avoid.map((f: string, i: number) => (
-                    <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                    <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
                       <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 9 }}>✕ {f}</EliteText>
                     </View>
                   ))}
@@ -275,7 +284,7 @@ export default function NutritionScreen() {
               {plan.foods_to_prioritize?.length > 0 && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                   {plan.foods_to_prioritize.map((f: string, i: number) => (
-                    <View key={i} style={{ backgroundColor: SEMANTIC.success + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
+                    <View key={i} style={{ backgroundColor: SEMANTIC.success + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
                       <EliteText variant="caption" style={{ color: SEMANTIC.success, fontSize: 9 }}>✓ {f}</EliteText>
                     </View>
                   ))}
@@ -299,7 +308,7 @@ export default function NutritionScreen() {
                   {r.tags?.length > 0 && (
                     <View style={{ flexDirection: 'row', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
                       {(r.tags as string[]).slice(0, 2).map((t, i) => (
-                        <View key={i} style={{ backgroundColor: BLUE + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6 }}>
+                        <View key={i} style={{ backgroundColor: BLUE + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: Radius.xs }}>
                           <EliteText variant="caption" style={{ color: BLUE, fontSize: 8 }}>{t.replace('_', ' ')}</EliteText>
                         </View>
                       ))}
@@ -325,7 +334,7 @@ const st = StyleSheet.create({
 
   // Summary
   summaryCard: {
-    backgroundColor: BLUE + '08', borderRadius: 16, borderWidth: 1, borderColor: BLUE + '20',
+    backgroundColor: BLUE + '08', borderRadius: Radius.md, borderWidth: 1, borderColor: BLUE + '20',
     padding: Spacing.md, marginBottom: Spacing.md,
   },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
@@ -334,14 +343,14 @@ const st = StyleSheet.create({
   summaryLabel: { color: TEXT_COLORS.secondary, fontSize: 10, marginTop: 2 },
   summaryDivider: { width: 1, height: 30, backgroundColor: BLUE + '20' },
   miniSection: { marginTop: Spacing.sm },
-  miniBar: { height: 4, backgroundColor: SURFACES.cardLight, borderRadius: 2, overflow: 'hidden', marginTop: 4 },
-  miniBarFill: { height: '100%', borderRadius: 2 },
+  miniBar: { height: 4, backgroundColor: SURFACES.cardLight, borderRadius: Radius.xs, overflow: 'hidden', marginTop: 4 },
+  miniBarFill: { height: '100%', borderRadius: Radius.xs },
 
   // Quick actions
   quickActions: { flexDirection: 'row', gap: 10, marginBottom: Spacing.sm },
   quickBtn: {
     flex: 1, alignItems: 'center', gap: 4, backgroundColor: SURFACES.card,
-    borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.md,
+    borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.md,
   },
   quickLabel: { fontSize: 11, fontFamily: Fonts.semiBold },
 
@@ -349,7 +358,7 @@ const st = StyleSheet.create({
   scanRow: { flexDirection: 'row', gap: 10, marginBottom: Spacing.md },
   scanBtn: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: SURFACES.card, borderRadius: 10, borderWidth: 0.5, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     paddingVertical: Spacing.sm,
   },
 
@@ -358,24 +367,24 @@ const st = StyleSheet.create({
 
   // Foods
   emptyCard: {
-    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     padding: Spacing.lg, alignItems: 'center', gap: Spacing.sm,
   },
   foodCard: {
-    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     borderLeftWidth: 3, borderLeftColor: BLUE, padding: Spacing.md, marginBottom: Spacing.sm,
   },
-  scorePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  scorePill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.card },
 
   // Plan
   planCard: {
-    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: BLUE + '30',
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: BLUE + '30',
     borderLeftWidth: 3, borderLeftColor: BLUE, padding: Spacing.md,
   },
 
   // Recipes
   recipeCard: {
-    width: 180, backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    width: 180, backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     padding: Spacing.md,
   },
 });

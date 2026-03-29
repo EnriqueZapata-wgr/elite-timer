@@ -12,6 +12,8 @@ import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { StaggerItem } from '@/src/components/ui/StaggerItem';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
@@ -152,29 +154,31 @@ export default function YoScreen() {
             const prog = scoreProgress[sm.key as keyof typeof scoreProgress];
             const unit = scoreUnits[sm.key as keyof typeof scoreUnits];
             return (
-              <Animated.View key={sm.key} entering={FadeInUp.delay(100 + idx * 80).duration(400).springify()} style={st.scoreCardWrap}>
-                <AnimatedPressable onPress={() => { haptic.selection(); router.push('/my-health' as any); }} style={[st.scoreCard, { borderLeftColor: sm.accent }]}>
-                  <View style={st.scoreCardHeader}>
-                    <Ionicons name={sm.icon as any} size={val ? 16 : 36} color={val ? sm.accent : sm.accent + '40'} />
-                    <EliteText variant="caption" style={[st.scoreCardLabel, { color: sm.accent }]}>{sm.label}</EliteText>
-                  </View>
-                  {val ? (
-                    <>
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-                        <EliteText style={[st.scoreCardValue, { color: color ?? sm.accent }]}>{val}</EliteText>
-                        <EliteText variant="caption" style={st.scoreCardUnit}>{unit}</EliteText>
-                      </View>
-                      {prog > 0 && (
-                        <View style={st.miniBar}>
-                          <View style={[st.miniBarFill, { width: `${Math.min(prog * 100, 100)}%`, backgroundColor: color ?? sm.accent }]} />
+              <View key={sm.key} style={st.scoreCardWrap}>
+                <StaggerItem index={idx} delay={80}>
+                  <AnimatedPressable onPress={() => { haptic.selection(); router.push('/my-health' as any); }} style={[st.scoreCard, { borderLeftColor: sm.accent }]}>
+                    <View style={st.scoreCardHeader}>
+                      <Ionicons name={sm.icon as any} size={val ? 16 : 36} color={val ? sm.accent : sm.accent + '40'} />
+                      <EliteText variant="caption" style={[st.scoreCardLabel, { color: sm.accent }]}>{sm.label}</EliteText>
+                    </View>
+                    {val ? (
+                      <>
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+                          <EliteText style={[st.scoreCardValue, { color: color ?? sm.accent }]}>{val}</EliteText>
+                          <EliteText variant="caption" style={st.scoreCardUnit}>{unit}</EliteText>
                         </View>
-                      )}
-                    </>
-                  ) : (
-                    <EliteText variant="caption" style={st.scoreCardEmpty}>Sube labs</EliteText>
-                  )}
-                </AnimatedPressable>
-              </Animated.View>
+                        {prog > 0 && (
+                          <View style={st.miniBar}>
+                            <View style={[st.miniBarFill, { width: `${Math.min(prog * 100, 100)}%`, backgroundColor: color ?? sm.accent }]} />
+                          </View>
+                        )}
+                      </>
+                    ) : (
+                      <EliteText variant="caption" style={st.scoreCardEmpty}>Sube labs</EliteText>
+                    )}
+                  </AnimatedPressable>
+                </StaggerItem>
+              </View>
             );
           })}
         </View>
@@ -364,9 +368,9 @@ function ActionCard({ icon, label, sub, color, onPress, disabled }: {
 const st = StyleSheet.create({
   // Header
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
-  avatarRing: { width: 64, height: 64, borderRadius: 32 },
-  avatarGradient: { width: 64, height: 64, borderRadius: 32, padding: 3 },
-  avatarInner: { flex: 1, borderRadius: 30, backgroundColor: SURFACES.base, alignItems: 'center', justifyContent: 'center' },
+  avatarRing: { width: 64, height: 64, borderRadius: Radius.pill },
+  avatarGradient: { width: 64, height: 64, borderRadius: Radius.pill, padding: 3 },
+  avatarInner: { flex: 1, borderRadius: Radius.pill, backgroundColor: SURFACES.base, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: 20 },
   headerName: { fontFamily: Fonts.bold, fontSize: 24, color: TEXT_COLORS.primary },
   headerSince: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 2 },
@@ -381,7 +385,7 @@ const st = StyleSheet.create({
   scoresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   scoreCardWrap: { width: '48%', flexGrow: 1 },
   scoreCard: {
-    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     borderLeftWidth: 3, padding: Spacing.md,
   },
   scoreCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
@@ -389,12 +393,12 @@ const st = StyleSheet.create({
   scoreCardValue: { fontSize: 32, fontFamily: Fonts.extraBold },
   scoreCardUnit: { color: TEXT_COLORS.muted, fontSize: 12 },
   scoreCardEmpty: { color: TEXT_COLORS.muted, fontSize: 12, marginTop: 4 },
-  miniBar: { height: 3, backgroundColor: SURFACES.cardLight, borderRadius: 2, marginTop: Spacing.sm, overflow: 'hidden' },
-  miniBarFill: { height: '100%', borderRadius: 2 },
+  miniBar: { height: 3, backgroundColor: SURFACES.cardLight, borderRadius: Radius.xs, marginTop: Spacing.sm, overflow: 'hidden' },
+  miniBarFill: { height: '100%', borderRadius: Radius.xs },
 
   // Composition (with data)
   compCard: {
-    flexDirection: 'row', backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    flexDirection: 'row', backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     padding: Spacing.md, justifyContent: 'space-around', alignItems: 'center',
   },
   compDivider: { width: 1, height: 30, backgroundColor: SURFACES.border },
@@ -404,25 +408,25 @@ const st = StyleSheet.create({
   // Composition (empty)
   compEmptyRow: { flexDirection: 'row', gap: 8 },
   compEmptyCard: {
-    flex: 1, backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    flex: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     padding: Spacing.sm, alignItems: 'center', gap: 4,
   },
   compEmptyLabel: { color: TEXT_COLORS.muted, fontSize: 10 },
   compEmptyValue: { color: TEXT_COLORS.muted, fontSize: 18, fontFamily: Fonts.bold },
 
   // Chronotype hero
-  chronoHero: { borderRadius: 16, borderWidth: 1, borderColor: ATP_BRAND.lime + '20', padding: Spacing.md, overflow: 'hidden' },
+  chronoHero: { borderRadius: Radius.md, borderWidth: 1, borderColor: ATP_BRAND.lime + '20', padding: Spacing.md, overflow: 'hidden' },
   chronoTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
   chronoEmoji: { fontSize: 48 },
   chronoName: { fontFamily: Fonts.extraBold, fontSize: 22, color: TEXT_COLORS.primary },
   chronoDesc: { color: TEXT_COLORS.secondary, fontSize: 13, marginTop: 2 },
   chronoTimeline: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderTopWidth: 0.5, borderTopColor: SURFACES.border, paddingTop: Spacing.md },
   chronoTimeItem: { alignItems: 'center', gap: 3 },
-  chronoTimeDot: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  chronoTimeDot: { width: 30, height: 30, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   chronoTimeConnector: { width: 16, height: 1, backgroundColor: SURFACES.border, marginTop: 14 },
   // Chronotype invite
-  chronoInvite: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, borderRadius: 16, borderWidth: 1, borderColor: ATP_BRAND.lime + '30', padding: Spacing.lg, overflow: 'hidden' },
-  chronoInviteIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: ATP_BRAND.lime + '15', alignItems: 'center', justifyContent: 'center' },
+  chronoInvite: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, borderRadius: Radius.md, borderWidth: 1, borderColor: ATP_BRAND.lime + '30', padding: Spacing.lg, overflow: 'hidden' },
+  chronoInviteIcon: { width: 56, height: 56, borderRadius: Radius.pill, backgroundColor: ATP_BRAND.lime + '15', alignItems: 'center', justifyContent: 'center' },
   chronoInviteTitle: { fontFamily: Fonts.bold, color: ATP_BRAND.lime, fontSize: 17 },
   chronoInviteSub: { color: TEXT_COLORS.secondary, fontSize: 13, marginTop: 2 },
 
@@ -430,7 +434,7 @@ const st = StyleSheet.create({
   quizGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   quizCard: {
     width: '48%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     paddingHorizontal: 12, paddingVertical: 14,
   },
   quizCardLabel: { flex: 1, color: TEXT_COLORS.primary, fontSize: 14, fontFamily: Fonts.semiBold },
@@ -440,10 +444,10 @@ const st = StyleSheet.create({
   // Actions
   actionCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     borderLeftWidth: 3, padding: Spacing.md,
   },
-  actionIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionIcon: { width: 40, height: 40, borderRadius: Radius.card, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontFamily: Fonts.semiBold, color: TEXT_COLORS.primary, fontSize: 14 },
   actionSub: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 1 },
 });

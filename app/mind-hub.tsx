@@ -1,13 +1,15 @@
 /**
  * Mind Hub — Punto de entrada para Meditación, Respiración y Journaling.
  */
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
+import { StaggerItem } from '@/src/components/ui/StaggerItem';
+import { BackButton } from '@/src/components/ui/BackButton';
 import { MEDITATION_LIBRARY } from '@/src/data/meditation-library';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
 import { haptic } from '@/src/utils/haptics';
@@ -21,9 +23,9 @@ export default function MindHubScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Pressable onPress={() => router.back()} style={styles.backBtn}>
-        <Ionicons name="chevron-back" size={28} color={PURPLE} />
-      </Pressable>
+      <View style={styles.backBtn}>
+        <BackButton color={PURPLE} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInUp.delay(50).springify()}>
@@ -34,7 +36,7 @@ export default function MindHubScreen() {
         </Animated.View>
 
         {/* Meditación */}
-        <Animated.View entering={FadeInUp.delay(100).springify()}>
+        <StaggerItem index={0}>
           <GradientCard color={PURPLE} onPress={() => { haptic.light(); router.push('/meditation'); }} style={styles.heroCard}>
             <View style={styles.heroCardBody}>
               <Ionicons name="sparkles-outline" size={28} color={PURPLE} />
@@ -47,10 +49,10 @@ export default function MindHubScreen() {
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </View>
           </GradientCard>
-        </Animated.View>
+        </StaggerItem>
 
         {/* Respiración */}
-        <Animated.View entering={FadeInUp.delay(150).springify()}>
+        <StaggerItem index={1}>
           <GradientCard color={PURPLE} onPress={() => { haptic.light(); router.push('/breathing'); }} style={styles.heroCard}>
             <View style={styles.heroCardBody}>
               <Ionicons name="leaf-outline" size={28} color={PURPLE} />
@@ -63,10 +65,10 @@ export default function MindHubScreen() {
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </View>
           </GradientCard>
-        </Animated.View>
+        </StaggerItem>
 
         {/* Check-in emocional */}
-        <Animated.View entering={FadeInUp.delay(200).springify()}>
+        <StaggerItem index={2}>
           <GradientCard color={PURPLE} onPress={() => { haptic.light(); router.push('/checkin'); }} style={styles.heroCard}>
             <View style={styles.heroCardBody}>
               <Ionicons name="heart-circle-outline" size={28} color={PURPLE} />
@@ -79,10 +81,10 @@ export default function MindHubScreen() {
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </View>
           </GradientCard>
-        </Animated.View>
+        </StaggerItem>
 
         {/* Journaling (próximamente) */}
-        <Animated.View entering={FadeInUp.delay(250).springify()}>
+        <StaggerItem index={3}>
           <View style={[styles.heroCardPlaceholder, { opacity: 0.4 }]}>
             <Ionicons name="journal-outline" size={28} color={PURPLE} />
             <View style={styles.heroCardInfo}>
@@ -92,7 +94,7 @@ export default function MindHubScreen() {
               </EliteText>
             </View>
           </View>
-        </Animated.View>
+        </StaggerItem>
       </ScrollView>
     </SafeAreaView>
   );
@@ -119,6 +121,6 @@ const styles = StyleSheet.create({
   heroCardDesc: { color: Colors.textSecondary, fontSize: 13, marginTop: 2 },
   heroCardPlaceholder: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md,
-    backgroundColor: Colors.surface, borderRadius: 16, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border,
   },
 });

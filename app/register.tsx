@@ -15,6 +15,7 @@ import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Fonts } from '@/constants/theme';
+import { BackButton } from '@/src/components/ui/BackButton';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -81,9 +82,7 @@ export default function RegisterScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
-              <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-            </Pressable>
+            <BackButton color={Colors.neonGreen} />
             <EliteText variant="title" style={styles.title}>CREAR CUENTA</EliteText>
           </View>
 
@@ -181,12 +180,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xl,
     gap: Spacing.sm,
-  },
-  backButton: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   title: {
     letterSpacing: 3,

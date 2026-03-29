@@ -28,7 +28,8 @@ import {
   logFood, uploadFoodPhoto,
 } from '@/src/services/nutrition-service';
 import { analyzeFoodText, reanalyzeFood } from '@/src/services/nutrition-service';
-import { Colors, Spacing, Fonts } from '@/constants/theme';
+import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
+import { BackButton } from '@/src/components/ui/BackButton';
 import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
 
 // === CONSTANTES ===
@@ -40,8 +41,6 @@ const BLUE = CATEGORY_COLORS.nutrition;
 const PURPLE = CATEGORY_COLORS.mind;
 const { width: SW } = Dimensions.get('window');
 const PHOTO_SIZE = SW - Spacing.lg * 2;
-const R = 24; // Radio Apple (grande, consistente)
-
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const MEAL_TYPES = [
@@ -568,9 +567,9 @@ export default function FoodScanScreen() {
     if (mode === 'food') {
       return (
         <SafeAreaView style={st.screen}>
-          <Pressable onPress={() => router.back()} style={st.back} hitSlop={12}>
-            <Ionicons name="chevron-back" size={24} color={TEXT_COLORS.secondary} />
-          </Pressable>
+          <View style={st.back}>
+            <BackButton color={TEXT_COLORS.secondary} />
+          </View>
 
           <View style={{ flex: 1 }}>
             {/* Zona superior: cámara (50%) */}
@@ -596,7 +595,7 @@ export default function FoodScanScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.lg }}>
                   {/* Galería (icono pequeño) */}
                   <Pressable onPress={openGallery} hitSlop={10}
-                    style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border, alignItems: 'center', justifyContent: 'center' }}>
+                    style={{ width: 44, height: 44, borderRadius: Radius.lg, backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border, alignItems: 'center', justifyContent: 'center' }}>
                     <Ionicons name="images-outline" size={20} color={TEXT_COLORS.secondary} />
                   </Pressable>
 
@@ -646,9 +645,9 @@ export default function FoodScanScreen() {
     // Modo label / supplement: capture original
     return (
       <SafeAreaView style={st.screen}>
-        <Pressable onPress={() => router.back()} style={st.back} hitSlop={12}>
-          <Ionicons name="chevron-back" size={24} color={TEXT_COLORS.secondary} />
-        </Pressable>
+        <View style={st.back}>
+          <BackButton color={TEXT_COLORS.secondary} />
+        </View>
         <View style={st.captureCenter}>
           <Animated.View entering={FadeIn.duration(600)} style={{ alignItems: 'center' }}>
             {/* Anillo decorativo */}
@@ -694,9 +693,9 @@ export default function FoodScanScreen() {
 
   if (step === 'preview') return (
     <SafeAreaView style={st.screen}>
-      <Pressable onPress={() => router.back()} style={st.back} hitSlop={12}>
-        <Ionicons name="chevron-back" size={24} color={TEXT_COLORS.secondary} />
-      </Pressable>
+      <View style={st.back}>
+        <BackButton color={TEXT_COLORS.secondary} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: Spacing.xxl + Spacing.sm, paddingHorizontal: Spacing.lg, paddingBottom: 100 }}
@@ -963,9 +962,9 @@ export default function FoodScanScreen() {
 
   return (
     <SafeAreaView style={st.screen}>
-      <Pressable onPress={() => router.back()} style={st.back} hitSlop={12}>
-        <Ionicons name="close" size={24} color={TEXT_COLORS.secondary} />
-      </Pressable>
+      <View style={st.back}>
+        <BackButton icon="close" color={TEXT_COLORS.secondary} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingTop: Spacing.xxl + Spacing.md, paddingHorizontal: Spacing.lg, paddingBottom: 120 }}>
@@ -1306,20 +1305,20 @@ const st = StyleSheet.create({
   // Capture
   captureCenter: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingBottom: 60 },
   captureRing: {
-    width: 130, height: 130, borderRadius: 65, borderWidth: 1.5,
+    width: 130, height: 130, borderRadius: Radius.pill, borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center',
   },
   captureRingInner: {
-    width: 100, height: 100, borderRadius: 50, borderWidth: 1,
+    width: 100, height: 100, borderRadius: Radius.pill, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   captureBtns: { marginTop: 40, alignItems: 'center', gap: Spacing.lg, width: '100%', paddingHorizontal: Spacing.xl },
   shutterOuter: {
-    width: 80, height: 80, borderRadius: 40, borderWidth: 3,
+    width: 80, height: 80, borderRadius: Radius.pill, borderWidth: 3,
     alignItems: 'center', justifyContent: 'center',
   },
   shutterInner: {
-    width: 64, height: 64, borderRadius: 32,
+    width: 64, height: 64, borderRadius: Radius.pill,
     alignItems: 'center', justifyContent: 'center',
   },
   captureSecRow: { flexDirection: 'row', gap: Spacing.md },
@@ -1327,7 +1326,7 @@ const st = StyleSheet.create({
   // Barra de texto tipo chat (food capture)
   textBarWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: SURFACES.card, borderRadius: 24, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: SURFACES.border,
     paddingHorizontal: 16, paddingVertical: 6,
   },
   textBarInput: {
@@ -1335,20 +1334,20 @@ const st = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 10 : 8,
   },
   textBarSend: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 32, height: 32, borderRadius: Radius.md,
     alignItems: 'center', justifyContent: 'center',
   },
 
   // Burbuja de texto en preview
   textBubble: {
     flexDirection: 'row', alignItems: 'flex-start',
-    backgroundColor: SURFACES.card, borderRadius: R, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: SURFACES.border,
     padding: 16, marginBottom: 4,
   },
 
   // Glass button
   glassBtn: {
-    borderRadius: 16, overflow: 'hidden', minWidth: 120,
+    borderRadius: Radius.md, overflow: 'hidden', minWidth: 120,
   },
   glassBtnInner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -1356,17 +1355,17 @@ const st = StyleSheet.create({
   },
 
   // Preview
-  photoWrap: { borderRadius: R, overflow: 'hidden', backgroundColor: SURFACES.card },
+  photoWrap: { borderRadius: Radius.lg, overflow: 'hidden', backgroundColor: SURFACES.card },
   photo: { width: '100%', aspectRatio: 4 / 3 },
   photoControls: {
     position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', gap: 8,
   },
   photoCtrlBtn: {
-    width: 44, height: 44, borderRadius: 22, overflow: 'hidden',
+    width: 44, height: 44, borderRadius: Radius.lg, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
   noPhoto: {
-    height: 200, borderRadius: R, backgroundColor: SURFACES.card,
+    height: 200, borderRadius: Radius.lg, backgroundColor: SURFACES.card,
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: SURFACES.border,
     borderStyle: 'dashed',
   },
@@ -1376,29 +1375,29 @@ const st = StyleSheet.create({
   },
   mealChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 10, borderRadius: Radius.card,
     backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border,
   },
   input: {
-    backgroundColor: SURFACES.card, borderRadius: 14, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 1, borderColor: SURFACES.border,
     paddingHorizontal: 16, paddingVertical: 14, color: TEXT_COLORS.primary,
     fontSize: 15, fontFamily: Fonts.regular, marginTop: Spacing.sm,
   },
   hungerCard: {
-    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 16,
+    flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: Radius.md,
     backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border,
   },
   errorCard: {
     flexDirection: 'row', gap: 10, alignItems: 'center',
-    backgroundColor: SEMANTIC.error + '10', borderRadius: 14, padding: 14, marginTop: Spacing.md,
+    backgroundColor: SEMANTIC.error + '10', borderRadius: Radius.card, padding: 14, marginTop: Spacing.md,
   },
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    paddingVertical: 16, borderRadius: 16,
+    paddingVertical: 16, borderRadius: Radius.md,
   },
   outlineBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    paddingVertical: 14, borderRadius: 16, borderWidth: 1, borderColor: SURFACES.border,
+    paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1, borderColor: SURFACES.border,
   },
 
   // Analyzing
@@ -1406,7 +1405,7 @@ const st = StyleSheet.create({
     flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl,
   },
   analyzingGlow: {
-    position: 'absolute', width: 200, height: 200, borderRadius: 100,
+    position: 'absolute', width: 200, height: 200, borderRadius: Radius.pill,
     ...Platform.select({
       ios: { shadowColor: '#5B9BD5', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.4, shadowRadius: 60 },
       default: {},
@@ -1420,21 +1419,21 @@ const st = StyleSheet.create({
   },
   macroPill: {
     flex: 1, alignItems: 'center', paddingVertical: 14,
-    backgroundColor: SURFACES.card, borderRadius: 16, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.md, borderWidth: 1, borderColor: SURFACES.border,
   },
   card: {
-    backgroundColor: SURFACES.card, borderRadius: R, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.lg, borderWidth: 1, borderColor: SURFACES.border,
     padding: 16,
   },
   additiveRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: SURFACES.card, borderRadius: 16, borderWidth: 1, borderColor: SEMANTIC.error + '15',
+    backgroundColor: SURFACES.card, borderRadius: Radius.md, borderWidth: 1, borderColor: SEMANTIC.error + '15',
     padding: 14, marginBottom: 8,
   },
-  riskBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  riskBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.sm },
   ingredientRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: SURFACES.card, borderRadius: 16, borderWidth: 1, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.md, borderWidth: 1, borderColor: SURFACES.border,
     padding: 14, marginBottom: 8,
   },
   // Fila de ingrediente editable (food mode result)
@@ -1444,17 +1443,17 @@ const st = StyleSheet.create({
     borderBottomColor: SURFACES.border,
   },
   excipientChip: {
-    backgroundColor: SURFACES.cardLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,
+    backgroundColor: SURFACES.cardLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.card,
   },
   flagChip: {
-    backgroundColor: SEMANTIC.error + '10', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,
+    backgroundColor: SEMANTIC.error + '10', paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.card,
   },
   tipCard: {
     flexDirection: 'row', gap: 10, alignItems: 'flex-start',
-    backgroundColor: 'rgba(26,188,156,0.08)', borderRadius: R, padding: 14, marginTop: Spacing.md,
+    backgroundColor: 'rgba(26,188,156,0.08)', borderRadius: Radius.lg, padding: 14, marginTop: Spacing.md,
   },
   tagChip: {
-    backgroundColor: SURFACES.card, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10,
+    backgroundColor: SURFACES.card, paddingHorizontal: 12, paddingVertical: 5, borderRadius: Radius.card,
     borderWidth: 1,
   },
   savedRow: {
@@ -1462,7 +1461,7 @@ const st = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   savedCheck: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: ATP_BRAND.lime,
+    width: 28, height: 28, borderRadius: Radius.card, backgroundColor: ATP_BRAND.lime,
     alignItems: 'center', justifyContent: 'center',
   },
 });

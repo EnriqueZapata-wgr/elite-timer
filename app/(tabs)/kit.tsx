@@ -13,6 +13,8 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { StaggerItem } from '@/src/components/ui/StaggerItem';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 
 import { getRoutines } from '@/src/services/routine-service';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
@@ -113,14 +115,12 @@ export default function KitScreen() {
               </AnimatedPressable>
             </ScrollView>
           ) : (
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/builder'); }} style={{ marginBottom: Spacing.md }}>
-              <View style={styles.emptyRoutines}>
-                <Ionicons name="add-circle-outline" size={32} color={Colors.neonGreen} />
-                <EliteText variant="body" style={styles.emptyRoutinesText}>
-                  Crea tu primera rutina
-                </EliteText>
-              </View>
-            </AnimatedPressable>
+            <EmptyState
+              icon="barbell-outline"
+              title="Sin rutinas asignadas"
+              subtitle="Tu coach te asignará rutinas pronto"
+              color="#a8e02a"
+            />
           )}
         </Animated.View>
 
@@ -166,15 +166,17 @@ export default function KitScreen() {
               { icon: 'flask-outline', label: 'Mi Salud', color: CATEGORY_COLORS.metrics, active: true, route: '/my-health' },
               { icon: 'journal-outline', label: 'Journaling', color: CATEGORY_COLORS.optimization, active: false, route: '' },
             ].map((tool, idx) => (
-              <Animated.View key={tool.label} style={styles.toolCard} entering={FadeInUp.delay(300 + idx * 70).duration(400).springify()}>
-                <ToolCard
-                  icon={tool.icon}
-                  label={tool.label}
-                  color={tool.color}
-                  active={tool.active}
-                  onPress={() => tool.active ? router.push(tool.route as any) : Alert.alert(tool.label, 'Próximamente')}
-                />
-              </Animated.View>
+              <StaggerItem key={tool.label} index={idx}>
+                <View style={styles.toolCard}>
+                  <ToolCard
+                    icon={tool.icon}
+                    label={tool.label}
+                    color={tool.color}
+                    active={tool.active}
+                    onPress={() => tool.active ? router.push(tool.route as any) : Alert.alert(tool.label, 'Próximamente')}
+                  />
+                </View>
+              </StaggerItem>
             ))}
           </View>
         </Animated.View>
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
     right: Spacing.sm,
     width: 30,
     height: 30,
-    borderRadius: 15,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -289,28 +291,13 @@ const styles = StyleSheet.create({
     color: Colors.neonGreen,
     fontFamily: Fonts.semiBold,
   },
-  emptyRoutines: {
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
-    gap: Spacing.sm,
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.neonGreen + '20',
-    borderStyle: 'dashed',
-  },
-  emptyRoutinesText: {
-    color: Colors.neonGreen,
-    fontFamily: Fonts.semiBold,
-  },
-
   // Link cards
   linkCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: Radius.card,
     padding: Spacing.md,
     paddingLeft: Spacing.md + 3,
     marginBottom: Spacing.sm,
@@ -324,8 +311,8 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 3,
-    borderTopLeftRadius: 12,
-    borderBottomLeftRadius: 12,
+    borderTopLeftRadius: Radius.card,
+    borderBottomLeftRadius: Radius.card,
   },
   linkCardInfo: { flex: 1 },
   linkCardTitle: { fontFamily: Fonts.semiBold, fontSize: 15 },
@@ -343,7 +330,7 @@ const styles = StyleSheet.create({
   },
   toolCardGradient: {
     height: 90,
-    borderRadius: 16,
+    borderRadius: Radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
