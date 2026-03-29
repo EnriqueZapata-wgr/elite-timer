@@ -48,6 +48,10 @@ import {
   addFileToStudy, type ClinicalStudy,
 } from '@/src/services/clinical-study-service';
 import { STUDY_TYPES, STUDY_CATEGORIES, getStudyType } from '@/src/data/study-types';
+import {
+  getActivePlan, createPlan, updatePlan, getFoodLogsRange, getHydrationForUser,
+  type NutritionPlan, type FoodLog, type DailyNutritionScore,
+} from '@/src/services/nutrition-service';
 import { SectionSaveHeader } from '@/src/components/coach/SectionSaveHeader';
 import { SaveableSection } from '@/src/components/coach/SaveableSection';
 
@@ -56,7 +60,7 @@ const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 // Mapeo: PostgreSQL DOW (0=Dom) → columna del grid (0=Lun)
 const DOW_TO_COL = [6, 0, 1, 2, 3, 4, 5]; // Dom=6, Lun=0...Sáb=5
 
-type Tab = 'profile' | 'consultations' | 'labs' | 'studies' | 'calendar' | 'routines' | 'progress' | 'history';
+type Tab = 'profile' | 'consultations' | 'nutrition' | 'labs' | 'studies' | 'calendar' | 'routines' | 'progress' | 'history';
 
 interface Props {
   clientId: string;
@@ -142,6 +146,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
   const TABS: { key: Tab; label: string; icon: string; lib?: 'mci' }[] = [
     { key: 'profile', label: 'PERFIL', icon: 'person-outline' },
     { key: 'consultations', label: 'CONSULTAS', icon: 'clipboard-text-outline', lib: 'mci' },
+    { key: 'nutrition', label: 'NUTRICIÓN', icon: 'restaurant-outline' },
     { key: 'labs', label: 'LABS', icon: 'flask-outline', lib: 'mci' },
     { key: 'studies', label: 'ESTUDIOS', icon: 'document-text-outline' },
     { key: 'calendar', label: 'CALENDARIO', icon: 'calendar-outline' },
@@ -237,6 +242,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                 });
               }} />
             )}
+            {activeTab === 'nutrition' && <NutritionCoachTab clientId={clientId} />}
             {activeTab === 'labs' && <LabsTab clientId={clientId} />}
             {activeTab === 'studies' && <StudiesTab clientId={clientId} />}
             {activeTab === 'calendar' && <CalendarTab schedule={schedule} />}
@@ -2410,6 +2416,180 @@ function SoapNotesSaveSection({ consultation, isDraft, onSaved }: {
     </SaveableSection>
   );
 }
+
+// ══════════════════════════
+// TAB: NUTRICIÓN (coach)
+// ══════════════════════════
+
+function NutritionCoachTab({ clientId }: { clientId: string }) {
+  const [plan, setPlan] = useState<NutritionPlan | null>(null);
+  const [foods, setFoods] = useState<FoodLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Plan form
+  const [planForm, setPlanForm] = useState({
+    name: '', diet_type: '', calorie_target: '', protein_target: '', carb_target: '', fat_target: '',
+    fiber_target: '', water_target: '', fasting_hours: '', feeding_window_start: '', feeding_window_end: '',
+    meals_per_day: '3', foods_to_avoid: '', foods_to_prioritize: '', allergies: '', notes: '',
+  });
+  const [planSaving, setPlanSaving] = useState(false);
+  const [planStatus, setPlanStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  useEffect(() => { loadData(); }, [clientId]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [p, f] = await Promise.all([
+        getActivePlan(clientId).catch(() => null),
+        getFoodLogsRange(clientId, sevenDaysAgo(), today()).catch(() => []),
+      ]);
+      setPlan(p);
+      setFoods(f);
+      if (p) {
+        setPlanForm({
+          name: p.name ?? '', diet_type: p.diet_type ?? '', calorie_target: p.calorie_target?.toString() ?? '',
+          protein_target: p.protein_target?.toString() ?? '', carb_target: p.carb_target?.toString() ?? '',
+          fat_target: p.fat_target?.toString() ?? '', fiber_target: p.fiber_target?.toString() ?? '',
+          water_target: p.water_target?.toString() ?? '', fasting_hours: p.fasting_hours?.toString() ?? '',
+          feeding_window_start: p.feeding_window_start ?? '', feeding_window_end: p.feeding_window_end ?? '',
+          meals_per_day: p.meals_per_day?.toString() ?? '3',
+          foods_to_avoid: (p.foods_to_avoid ?? []).join(', '),
+          foods_to_prioritize: (p.foods_to_prioritize ?? []).join(', '),
+          allergies: (p.allergies ?? []).join(', '),
+          notes: p.notes ?? '',
+        });
+      }
+    } catch { /* */ }
+    setLoading(false);
+  };
+
+  const handleSavePlan = async () => {
+    setPlanSaving(true);
+    try {
+      const data: any = {
+        name: planForm.name || 'Plan nutricional',
+        diet_type: planForm.diet_type || null,
+        calorie_target: planForm.calorie_target ? Number(planForm.calorie_target) : null,
+        protein_target: planForm.protein_target ? Number(planForm.protein_target) : null,
+        carb_target: planForm.carb_target ? Number(planForm.carb_target) : null,
+        fat_target: planForm.fat_target ? Number(planForm.fat_target) : null,
+        fiber_target: planForm.fiber_target ? Number(planForm.fiber_target) : null,
+        water_target: planForm.water_target ? Number(planForm.water_target) : null,
+        fasting_hours: planForm.fasting_hours ? Number(planForm.fasting_hours) : null,
+        feeding_window_start: planForm.feeding_window_start || null,
+        feeding_window_end: planForm.feeding_window_end || null,
+        meals_per_day: planForm.meals_per_day ? Number(planForm.meals_per_day) : 3,
+        foods_to_avoid: planForm.foods_to_avoid ? planForm.foods_to_avoid.split(',').map(s => s.trim()).filter(Boolean) : [],
+        foods_to_prioritize: planForm.foods_to_prioritize ? planForm.foods_to_prioritize.split(',').map(s => s.trim()).filter(Boolean) : [],
+        allergies: planForm.allergies ? planForm.allergies.split(',').map(s => s.trim()).filter(Boolean) : [],
+        notes: planForm.notes || null,
+      };
+      if (plan) {
+        await updatePlan(plan.id, data);
+      } else {
+        await createPlan({ ...data, user_id: clientId });
+      }
+      setPlanStatus('saved');
+      setTimeout(() => setPlanStatus('idle'), 3000);
+      loadData();
+    } catch { setPlanStatus('error'); }
+    setPlanSaving(false);
+  };
+
+  const setF = (key: string, value: string) => { setPlanForm(prev => ({ ...prev, [key]: value })); setPlanStatus('idle'); };
+
+  if (loading) return <ActivityIndicator color={CATEGORY_COLORS.nutrition} style={{ marginVertical: Spacing.lg }} />;
+
+  const NI = ({ label, field, placeholder, kb }: { label: string; field: string; placeholder: string; kb?: string }) => (
+    <View style={{ flex: 1 }}>
+      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9, marginBottom: 2 }}>{label}</EliteText>
+      <TextInput style={styles.editableInput} value={planForm[field as keyof typeof planForm]}
+        onChangeText={v => setF(field, v)} placeholder={placeholder} placeholderTextColor={SURFACES.disabled}
+        keyboardType={kb as any ?? 'default'} />
+    </View>
+  );
+
+  return (
+    <View>
+      {/* Plan activo */}
+      <SaveableSection hasChanges={planStatus === 'idle' && plan != null}>
+        <SectionSaveHeader title="PLAN NUTRICIONAL" hasChanges={true} isSaving={planSaving}
+          saveStatus={planSaving ? 'saving' : planStatus} onSave={handleSavePlan} titleColor={CATEGORY_COLORS.nutrition} />
+
+        <NI label="Nombre del plan" field="name" placeholder="Ej: Plan anti-inflamatorio" />
+        <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
+          <NI label="Tipo dieta" field="diet_type" placeholder="mediterranean" />
+          <NI label="Comidas/día" field="meals_per_day" placeholder="3" kb="numeric" />
+        </View>
+        <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
+          <NI label="Calorías" field="calorie_target" placeholder="kcal" kb="numeric" />
+          <NI label="Proteína (g)" field="protein_target" placeholder="g" kb="numeric" />
+          <NI label="Carbos (g)" field="carb_target" placeholder="g" kb="numeric" />
+          <NI label="Grasa (g)" field="fat_target" placeholder="g" kb="numeric" />
+        </View>
+        <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
+          <NI label="Agua (L)" field="water_target" placeholder="2.5" kb="numeric" />
+          <NI label="Ayuno (h)" field="fasting_hours" placeholder="16" kb="numeric" />
+          <NI label="Ventana inicio" field="feeding_window_start" placeholder="12:00" />
+          <NI label="Ventana fin" field="feeding_window_end" placeholder="20:00" />
+        </View>
+        <View style={{ marginTop: Spacing.sm }}>
+          <NI label="Alimentos a evitar (separados por coma)" field="foods_to_avoid" placeholder="gluten, lácteos, azúcar" />
+        </View>
+        <View style={{ marginTop: Spacing.sm }}>
+          <NI label="Alimentos a priorizar (separados por coma)" field="foods_to_prioritize" placeholder="verduras, omega 3, proteína magra" />
+        </View>
+        <View style={{ marginTop: Spacing.sm }}>
+          <NI label="Alergias (separadas por coma)" field="allergies" placeholder="nueces, mariscos" />
+        </View>
+        <View style={{ marginTop: Spacing.sm }}>
+          <NI label="Notas" field="notes" placeholder="Notas adicionales del plan" />
+        </View>
+      </SaveableSection>
+
+      {/* Food logs recientes */}
+      <EliteText variant="caption" style={[styles.profileCardLabel, { color: CATEGORY_COLORS.nutrition, marginTop: Spacing.md }]}>
+        REGISTRO DE COMIDAS (7 DÍAS)
+      </EliteText>
+      {foods.length === 0 ? (
+        <View style={{ alignItems: 'center', padding: Spacing.lg }}>
+          <Ionicons name="restaurant-outline" size={28} color={TEXT_COLORS.muted} />
+          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: Spacing.sm }}>Sin registros de comida</EliteText>
+        </View>
+      ) : (
+        foods.slice(0, 15).map(food => {
+          const ai = food.ai_analysis;
+          const scoreCol = ai?.score >= 80 ? SEMANTIC.success : ai?.score >= 60 ? SEMANTIC.warning : ai?.score ? SEMANTIC.error : TEXT_COLORS.muted;
+          return (
+            <View key={food.id} style={{ backgroundColor: SURFACES.card, borderRadius: 10, borderWidth: 0.5, borderColor: SURFACES.border, borderLeftWidth: 3, borderLeftColor: CATEGORY_COLORS.nutrition, padding: Spacing.sm, marginBottom: Spacing.xs }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12 }}>{food.description}</EliteText>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9 }}>
+                    {food.date} · {food.meal_type}
+                    {ai?.estimated_calories ? ` · ${ai.estimated_calories} kcal` : ''}
+                  </EliteText>
+                </View>
+                {ai?.score != null && (
+                  <View style={{ backgroundColor: scoreCol + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                    <EliteText variant="caption" style={{ color: scoreCol, fontFamily: Fonts.bold, fontSize: 11 }}>{ai.score}</EliteText>
+                  </View>
+                )}
+              </View>
+              {ai?.feedback && (
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginTop: 2 }}>{ai.feedback}</EliteText>
+              )}
+            </View>
+          );
+        })
+      )}
+    </View>
+  );
+}
+
+function today() { return new Date().toISOString().split('T')[0]; }
+function sevenDaysAgo() { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split('T')[0]; }
 
 // TAB: ESTUDIOS CLÍNICOS
 // ══════════════════════════

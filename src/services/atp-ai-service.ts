@@ -19,11 +19,13 @@ interface ClientFullData {
   consultations: any[];
   dailyHabits: any[];
   clinicalStudies: any[];
+  nutritionPlan: any;
+  recentFoodLogs: any[];
 }
 
 // Recopilar TODOS los datos del cliente en paralelo
 async function gatherClientData(clientId: string): Promise<ClientFullData> {
-  const [profileRes, conditionsRes, measurementsRes, labsRes, medsRes, suppsRes, familyRes, checkinsRes, consultsRes, habitsRes, studiesRes] = await Promise.all([
+  const [profileRes, conditionsRes, measurementsRes, labsRes, medsRes, suppsRes, familyRes, checkinsRes, consultsRes, habitsRes, studiesRes, nutritionPlanRes, foodLogsRes] = await Promise.all([
     supabase.from('client_profiles').select('*').eq('user_id', clientId).single(),
     supabase.from('condition_flags').select('*').eq('user_id', clientId),
     supabase.from('body_measurements').select('*').eq('user_id', clientId).order('measured_at', { ascending: false }).limit(1),
@@ -35,6 +37,8 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supabase.from('consultations').select('consultation_number, consultation_date, status, chief_complaint, assessment, plan, changes_summary, body_snapshot, conditions_snapshot').eq('client_id', clientId).eq('status', 'completed').order('consultation_date', { ascending: false }).limit(5),
     supabase.from('client_daily_habits').select('start_time, end_time, title, category').eq('user_id', clientId).eq('is_current', true).order('start_time'),
     supabase.from('clinical_studies').select('study_name, study_type, study_date, original_interpretation, findings, coach_notes').eq('user_id', clientId).order('study_date', { ascending: false }).limit(10),
+    supabase.from('nutrition_plans').select('*').eq('user_id', clientId).eq('status', 'active').limit(1).single(),
+    supabase.from('food_logs').select('date, meal_type, description, ai_analysis').eq('user_id', clientId).order('date', { ascending: false }).limit(21),
   ]);
 
   const { data: profileBasic } = await supabase.from('profiles').select('full_name, email').eq('id', clientId).single();
@@ -51,6 +55,8 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     consultations: consultsRes.data || [],
     dailyHabits: habitsRes.data || [],
     clinicalStudies: studiesRes.data || [],
+    nutritionPlan: nutritionPlanRes.data ?? null,
+    recentFoodLogs: foodLogsRes.data || [],
   };
 }
 
@@ -173,6 +179,25 @@ Sueño: ${profile?.sleep_time_usual || '—'}-${profile?.wake_time_usual || '—
       if (c.chief_complaint) p += `  Motivo: ${c.chief_complaint}\n`;
       if (c.assessment) p += `  Análisis: ${c.assessment.substring(0, 200)}\n`;
       if (c.plan) p += `  Plan: ${c.plan.substring(0, 200)}\n`;
+    });
+  }
+
+  // Nutrición
+  if (data.nutritionPlan) {
+    const np = data.nutritionPlan;
+    p += `\n## NUTRICIÓN\nPlan activo: ${np.name} (${np.diet_type ?? 'general'})`;
+    if (np.calorie_target) p += `\nObjetivo: ${np.calorie_target}kcal, ${np.protein_target ?? '?'}g prot, ${np.carb_target ?? '?'}g carb, ${np.fat_target ?? '?'}g grasa`;
+    if (np.fasting_hours) p += `\nAyuno: ${np.fasting_hours}h (${np.feeding_window_start ?? '?'}-${np.feeding_window_end ?? '?'})`;
+    if (np.foods_to_avoid?.length) p += `\nEvitar: ${np.foods_to_avoid.join(', ')}`;
+    if (np.foods_to_prioritize?.length) p += `\nPriorizar: ${np.foods_to_prioritize.join(', ')}`;
+  }
+  if (data.recentFoodLogs.length > 0) {
+    p += `\n\nRegistro alimentario reciente (últimos 7 días):\n`;
+    data.recentFoodLogs.slice(0, 14).forEach(f => {
+      p += `- ${f.date} ${f.meal_type}: ${f.description}`;
+      if (f.ai_analysis?.score) p += ` (score: ${f.ai_analysis.score}/100)`;
+      if (f.ai_analysis?.red_flags?.length) p += ` ⚠️ ${f.ai_analysis.red_flags.join(', ')}`;
+      p += '\n';
     });
   }
 

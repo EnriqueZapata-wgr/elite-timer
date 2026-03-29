@@ -156,6 +156,7 @@ export default function KitScreen() {
           <View style={styles.toolsGrid}>
             {[
               { icon: 'timer-outline', label: 'Timer', color: Colors.neonGreen, active: true, route: '/timer' },
+              { icon: 'restaurant-outline', label: 'Nutrición', color: CATEGORY_COLORS.nutrition, active: true, route: '/nutrition' },
               { icon: 'leaf-outline', label: 'Respiración', color: CATEGORY_COLORS.mind, active: true, route: '/breathing' },
               { icon: 'sparkles-outline', label: 'Meditación', color: CATEGORY_COLORS.mind, active: true, route: '/meditation' },
               { icon: 'heart-circle-outline', label: 'Check-in', color: CATEGORY_COLORS.mind, active: true, route: '/checkin' },
