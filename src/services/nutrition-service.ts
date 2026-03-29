@@ -86,6 +86,7 @@ export async function updatePlan(planId: string, updates: Partial<NutritionPlan>
 export async function logFood(data: {
   meal_type: string; description: string; photo_url?: string; meal_time?: string;
   hunger_level?: number; satisfaction_level?: number; notes?: string;
+  ai_analysis?: any; calories?: number; protein_g?: number; carbs_g?: number; fat_g?: number;
 }): Promise<FoodLog> {
   const userId = await getUserId();
   const today = new Date().toISOString().split('T')[0];
@@ -320,4 +321,56 @@ export async function getRecipes(limit = 20): Promise<Recipe[]> {
 export async function getRecipe(recipeId: string): Promise<Recipe | null> {
   const { data } = await supabase.from('recipes').select('*').eq('id', recipeId).single();
   return data;
+}
+
+// === LABEL ANALYSIS ===
+
+export async function analyzeLabelPhoto(
+  photoBase64: string, productName?: string,
+): Promise<any> {
+  const response = await callAnthropic([{
+    role: 'user',
+    content: [
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } },
+      { type: 'text', text: `Analiza esta etiqueta de producto alimenticio. ${productName ? 'Producto: ' + productName : ''}
+Responde SOLO con JSON válido (sin backticks ni markdown):
+{"product_name":"nombre del producto","cleanliness_score":75,"ingredients_count":12,"natural_ingredients":8,"additives":["E621","E150d"],"additive_alerts":[{"name":"Glutamato monosódico","code":"E621","risk":"medio","explanation":"Potenciador de sabor artificial"}],"sugar_g":12,"sodium_mg":450,"has_trans_fat":false,"ultra_processed":false,"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["bajo_azucar"],"red_flags":["alto en sodio"],"suggestions":"Alternativa más limpia concreta"}
+
+Score de limpieza: 90-100=alimento limpio, 70-89=aceptable, 50-69=procesado, 30-49=ultra-procesado, 0-29=evitar.
+Evalúa: cantidad de ingredientes, aditivos artificiales, azúcares añadidos, aceites hidrogenados, colorantes.` }
+    ],
+  }], 2000, 'claude-sonnet-4-20250514');
+
+  const text = response?.content?.[0]?.text ?? '{}';
+  try {
+    return JSON.parse(text.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+  } catch {
+    return { product_name: productName ?? 'No identificado', cleanliness_score: 50, feedback: text, additives: [], additive_alerts: [], red_flags: [] };
+  }
+}
+
+// === SUPPLEMENT ANALYSIS ===
+
+export async function analyzeSupplementPhoto(
+  photoBase64: string, supplementName?: string,
+): Promise<any> {
+  const response = await callAnthropic([{
+    role: 'user',
+    content: [
+      { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } },
+      { type: 'text', text: `Analiza esta etiqueta de suplemento. ${supplementName ? 'Suplemento: ' + supplementName : ''}
+Responde SOLO con JSON válido (sin backticks ni markdown):
+{"supplement_name":"nombre","quality_score":75,"form":"cápsula","active_ingredients":[{"name":"Vitamina D3","amount":"2000 IU","form":"colecalciferol","bioavailability":"alta"}],"inactive_ingredients":["estearato de magnesio","dióxido de titanio"],"red_flags":["Contiene dióxido de titanio"],"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["vitamina_d"],"suggestions":"Sugerencia de mejora o alternativa","daily_dose":"1 cápsula","interactions":"Precauciones relevantes si las hay, o null"}
+
+Score de calidad: 90-100=excelente (formas biodisponibles, sin rellenos tóxicos), 70-89=bueno, 50-69=aceptable, 30-49=baja calidad, 0-29=evitar.
+Evalúa: formas activas vs baratas, biodisponibilidad, excipientes tóxicos, dosis terapéuticas vs insuficientes.` }
+    ],
+  }], 2000, 'claude-sonnet-4-20250514');
+
+  const text = response?.content?.[0]?.text ?? '{}';
+  try {
+    return JSON.parse(text.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
+  } catch {
+    return { supplement_name: supplementName ?? 'No identificado', quality_score: 50, feedback: text, active_ingredients: [], inactive_ingredients: [], red_flags: [] };
+  }
 }

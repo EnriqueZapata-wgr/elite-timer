@@ -2,7 +2,7 @@
  * Nutrición — Dashboard diario de alimentación, hidratación y ayuno.
  */
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -11,7 +11,7 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import {
-  getFoodLogs, logFood, getHydration, addWater, getActiveFast,
+  getFoodLogs, getHydration, addWater, getActiveFast,
   startFast, endFast, getActivePlan, calculateDailyScore, getRecipes,
   type FoodLog, type HydrationLog, type FastingLog, type NutritionPlan, type DailyNutritionScore, type Recipe,
 } from '@/src/services/nutrition-service';
@@ -33,12 +33,6 @@ export default function NutritionScreen() {
   const [addingWater, setAddingWater] = useState(false);
   const [togglingFast, setTogglingFast] = useState(false);
 
-  // Quick add food
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [quickDesc, setQuickDesc] = useState('');
-  const [quickType, setQuickType] = useState('lunch');
-  const [quickSaving, setQuickSaving] = useState(false);
-
   const loadData = useCallback(async () => {
     try {
       const [f, h, fa, p, r] = await Promise.all([
@@ -53,7 +47,6 @@ export default function NutritionScreen() {
       setFasting(fa);
       setPlan(p);
       setRecipes(r);
-      // Calculate score
       calculateDailyScore().then(setScore).catch(() => {});
     } catch { /* */ }
     setLoading(false);
@@ -82,18 +75,6 @@ export default function NutritionScreen() {
       }
     } catch { /* */ }
     setTogglingFast(false);
-  };
-
-  const handleQuickAdd = async () => {
-    if (!quickDesc.trim()) return;
-    setQuickSaving(true);
-    try {
-      await logFood({ meal_type: quickType, description: quickDesc.trim() });
-      setQuickDesc('');
-      setShowQuickAdd(false);
-      loadData();
-    } catch { /* */ }
-    setQuickSaving(false);
   };
 
   const waterPct = hydration ? Math.min(100, Math.round((hydration.total_ml / hydration.target_ml) * 100)) : 0;
@@ -183,9 +164,9 @@ export default function NutritionScreen() {
         {/* ══ Acciones rápidas ══ */}
         <Animated.View entering={FadeInUp.delay(180).springify()}>
           <View style={st.quickActions}>
-            <AnimatedPressable onPress={() => setShowQuickAdd(true)} style={st.quickBtn}>
-              <Ionicons name="restaurant-outline" size={22} color={BLUE} />
-              <EliteText variant="caption" style={[st.quickLabel, { color: BLUE }]}>Registrar comida</EliteText>
+            <AnimatedPressable onPress={() => router.push({ pathname: '/food-scan', params: { mode: 'food' } })} style={st.quickBtn}>
+              <Ionicons name="camera-outline" size={22} color={BLUE} />
+              <EliteText variant="caption" style={[st.quickLabel, { color: BLUE }]}>Escanear comida</EliteText>
             </AnimatedPressable>
             <AnimatedPressable onPress={() => handleAddWater(250)} disabled={addingWater} style={st.quickBtn}>
               <Ionicons name="water-outline" size={22} color={BLUE} />
@@ -198,43 +179,22 @@ export default function NutritionScreen() {
               </EliteText>
             </AnimatedPressable>
           </View>
+          {/* Escaneos secundarios */}
+          <View style={st.scanRow}>
+            <AnimatedPressable onPress={() => router.push({ pathname: '/food-scan', params: { mode: 'label' } })} style={st.scanBtn}>
+              <Ionicons name="barcode-outline" size={18} color={SEMANTIC.warning} />
+              <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: 11 }}>
+                Escanear etiqueta
+              </EliteText>
+            </AnimatedPressable>
+            <AnimatedPressable onPress={() => router.push({ pathname: '/food-scan', params: { mode: 'supplement' } })} style={st.scanBtn}>
+              <Ionicons name="medkit-outline" size={18} color="#7F77DD" />
+              <EliteText variant="caption" style={{ color: '#7F77DD', fontFamily: Fonts.semiBold, fontSize: 11 }}>
+                Escanear suplemento
+              </EliteText>
+            </AnimatedPressable>
+          </View>
         </Animated.View>
-
-        {/* ══ Quick add modal inline ══ */}
-        {showQuickAdd && (
-          <Animated.View entering={FadeInUp.springify()}>
-            <View style={st.quickAddCard}>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: Spacing.sm }}>
-                {[
-                  { key: 'breakfast', label: '🌅 Desayuno' },
-                  { key: 'lunch', label: '☀️ Comida' },
-                  { key: 'dinner', label: '🌙 Cena' },
-                  { key: 'snack', label: '🍎 Snack' },
-                ].map(t => (
-                  <Pressable key={t.key} onPress={() => setQuickType(t.key)}
-                    style={[st.mealPill, quickType === t.key && { backgroundColor: BLUE + '25', borderColor: BLUE }]}>
-                    <EliteText variant="caption" style={{ color: quickType === t.key ? BLUE : TEXT_COLORS.secondary, fontSize: 12 }}>
-                      {t.label}
-                    </EliteText>
-                  </Pressable>
-                ))}
-              </View>
-              <TextInput style={st.quickInput} value={quickDesc} onChangeText={setQuickDesc}
-                placeholder="¿Qué comiste?" placeholderTextColor={TEXT_COLORS.muted} multiline />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.sm }}>
-                <Pressable onPress={() => setShowQuickAdd(false)}>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted }}>Cancelar</EliteText>
-                </Pressable>
-                <Pressable onPress={handleQuickAdd} disabled={quickSaving}
-                  style={{ backgroundColor: BLUE, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 8 }}>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold }}>
-                    {quickSaving ? 'Guardando...' : 'Guardar'}
-                  </EliteText>
-                </Pressable>
-              </View>
-            </View>
-          </Animated.View>
-        )}
 
         {/* ══ Comidas del día ══ */}
         <Animated.View entering={FadeInUp.delay(260).springify()}>
@@ -373,25 +333,19 @@ const st = StyleSheet.create({
   miniBarFill: { height: '100%', borderRadius: 2 },
 
   // Quick actions
-  quickActions: { flexDirection: 'row', gap: 10, marginBottom: Spacing.md },
+  quickActions: { flexDirection: 'row', gap: 10, marginBottom: Spacing.sm },
   quickBtn: {
     flex: 1, alignItems: 'center', gap: 4, backgroundColor: SURFACES.card,
     borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.md,
   },
   quickLabel: { fontSize: 11, fontFamily: Fonts.semiBold },
 
-  // Quick add
-  quickAddCard: {
-    backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: BLUE + '30',
-    padding: Spacing.md, marginBottom: Spacing.md,
-  },
-  mealPill: {
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
-    backgroundColor: SURFACES.cardLight, borderWidth: 1, borderColor: 'transparent',
-  },
-  quickInput: {
-    backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm,
-    color: TEXT_COLORS.primary, fontSize: 14, minHeight: 50,
+  // Scan buttons
+  scanRow: { flexDirection: 'row', gap: 10, marginBottom: Spacing.md },
+  scanBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: SURFACES.card, borderRadius: 10, borderWidth: 0.5, borderColor: SURFACES.border,
+    paddingVertical: Spacing.sm,
   },
 
   // Section
