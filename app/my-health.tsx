@@ -16,6 +16,8 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult } from '@/src/services/lab-service';
+import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-service';
+import { getStudyType } from '@/src/data/study-types';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES } from '@/src/constants/brand';
 
@@ -28,6 +30,8 @@ export default function MyHealthScreen() {
 
   const [uploads, setUploads] = useState<LabUpload[]>([]);
   const [labs, setLabs] = useState<LabResult[]>([]);
+  const [studies, setStudies] = useState<ClinicalStudy[]>([]);
+  const [expandedStudy, setExpandedStudy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -38,9 +42,14 @@ export default function MyHealthScreen() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [u, l] = await Promise.all([getLabUploads(userId), getLabHistory(userId)]);
+      const [u, l, st] = await Promise.all([
+        getLabUploads(userId),
+        getLabHistory(userId),
+        getStudies(userId, 10).catch(() => []),
+      ]);
       setUploads(u);
       setLabs(l);
+      setStudies(st.filter(s => s.status === 'interpreted' || s.status === 'reviewed'));
     } catch { /* */ }
     setLoading(false);
   };
@@ -208,10 +217,10 @@ export default function MyHealthScreen() {
         {/* Labs */}
         {loading ? <ActivityIndicator color={TEAL} style={{ marginTop: Spacing.xl }} /> : (
           <Animated.View entering={FadeInUp.delay(250).springify()}>
-            <EliteText variant="caption" style={s.sectionLabel}>MIS ESTUDIOS</EliteText>
+            <EliteText variant="caption" style={s.sectionLabel}>MIS LABS</EliteText>
             {labs.length === 0 ? (
               <EliteText variant="caption" style={{ color: Colors.textMuted, textAlign: 'center', padding: Spacing.lg }}>
-                Sin estudios registrados
+                Sin labs registrados
               </EliteText>
             ) : (
               labs.map(lab => (
@@ -252,6 +261,63 @@ export default function MyHealthScreen() {
             )}
           </Animated.View>
         )}
+        {/* ── Estudios clínicos ── */}
+        {studies.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(350).springify()}>
+            <EliteText variant="caption" style={s.sectionLabel}>MIS ESTUDIOS</EliteText>
+            {studies.map(study => {
+              const st = getStudyType(study.study_type);
+              const isExpanded = expandedStudy === study.id;
+              const findings = (study.findings ?? []) as string[];
+              const isReviewed = study.status === 'reviewed';
+              return (
+                <Pressable key={study.id} onPress={() => setExpandedStudy(isExpanded ? null : study.id)}
+                  style={s.studyCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                    <EliteText style={{ fontSize: 20 }}>{st.emoji}</EliteText>
+                    <View style={{ flex: 1 }}>
+                      <EliteText variant="body" style={{ color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: 14 }}>{study.study_name}</EliteText>
+                      <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: 11 }}>
+                        {new Date(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </EliteText>
+                    </View>
+                    <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.textSecondary} />
+                  </View>
+                  {findings.length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: Spacing.sm }}>
+                      {findings.map((f, i) => (
+                        <View key={i} style={{ backgroundColor: TEAL + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                          <EliteText variant="caption" style={{ color: TEAL, fontSize: 10 }}>{f}</EliteText>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {isExpanded && (
+                    <View style={{ marginTop: Spacing.md }}>
+                      {isReviewed && study.patient_summary ? (
+                        <View style={s.studySummary}>
+                          <EliteText variant="caption" style={{ color: TEAL, fontSize: 10, fontFamily: Fonts.bold, marginBottom: 4 }}>
+                            ¿Qué significa tu estudio?
+                          </EliteText>
+                          <EliteText variant="caption" style={{ color: Colors.textPrimary, fontSize: 13, lineHeight: 20 }}>
+                            {study.patient_summary}
+                          </EliteText>
+                        </View>
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.sm }}>
+                          <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
+                          <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
+                            Tu coach está revisando tu estudio
+                          </EliteText>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </Pressable>
+              );
+            })}
+          </Animated.View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -281,4 +347,11 @@ const s = StyleSheet.create({
     borderWidth: 0.5, borderColor: Colors.border,
   },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
+  studyCard: {
+    backgroundColor: Colors.surface, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
+    borderWidth: 0.5, borderColor: Colors.border, borderLeftWidth: 3, borderLeftColor: TEAL,
+  },
+  studySummary: {
+    backgroundColor: '#0a1a15', borderRadius: 8, padding: Spacing.md, borderLeftWidth: 2, borderLeftColor: TEAL,
+  },
 });

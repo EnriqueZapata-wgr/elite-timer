@@ -43,13 +43,18 @@ import {
   completeConsultation, deleteConsultation, type Consultation,
 } from '@/src/services/consultation-service';
 import { AssignRoutineModal } from './AssignRoutineModal';
+import {
+  getStudies, createStudy, deleteStudy, updateStudy, interpretStudy, markAsReviewed,
+  addFileToStudy, type ClinicalStudy,
+} from '@/src/services/clinical-study-service';
+import { STUDY_TYPES, STUDY_CATEGORIES, getStudyType } from '@/src/data/study-types';
 
 const TEAL = CATEGORY_COLORS.metrics;
 const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 // Mapeo: PostgreSQL DOW (0=Dom) → columna del grid (0=Lun)
 const DOW_TO_COL = [6, 0, 1, 2, 3, 4, 5]; // Dom=6, Lun=0...Sáb=5
 
-type Tab = 'profile' | 'consultations' | 'labs' | 'calendar' | 'routines' | 'progress' | 'history';
+type Tab = 'profile' | 'consultations' | 'labs' | 'studies' | 'calendar' | 'routines' | 'progress' | 'history';
 
 interface Props {
   clientId: string;
@@ -136,6 +141,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
     { key: 'profile', label: 'PERFIL', icon: 'person-outline' },
     { key: 'consultations', label: 'CONSULTAS', icon: 'clipboard-text-outline', lib: 'mci' },
     { key: 'labs', label: 'LABS', icon: 'flask-outline', lib: 'mci' },
+    { key: 'studies', label: 'ESTUDIOS', icon: 'document-text-outline' },
     { key: 'calendar', label: 'CALENDARIO', icon: 'calendar-outline' },
     { key: 'routines', label: 'RUTINAS', icon: 'barbell-outline' },
     { key: 'progress', label: 'PROGRESO', icon: 'trending-up-outline' },
@@ -230,6 +236,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
               }} />
             )}
             {activeTab === 'labs' && <LabsTab clientId={clientId} />}
+            {activeTab === 'studies' && <StudiesTab clientId={clientId} />}
             {activeTab === 'calendar' && <CalendarTab schedule={schedule} />}
             {activeTab === 'routines' && (
               <RoutinesTab routines={routines} onAssign={() => setAssignVisible(true)} />
@@ -594,6 +601,9 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
           </View>
         </View>
       </View>
+
+      {/* ═══ ESTUDIOS RECIENTES ═══ */}
+      <RecentStudies clientId={clientId} />
 
       {/* ═══ FILA 2: SCORES ═══ */}
       <EliteText variant="caption" style={styles.rowLabel}>SCORES DE SALUD</EliteText>
@@ -1397,6 +1407,48 @@ function EditableField({ label, value, placeholder, onSave, multiline, isRed }: 
   );
 }
 
+function RecentStudies({ clientId }: { clientId: string }) {
+  const [studies, setStudies] = useState<ClinicalStudy[]>([]);
+  useEffect(() => { getStudies(clientId, 5).then(setStudies).catch(() => {}); }, [clientId]);
+  if (studies.length === 0) return null;
+  const pending = studies.filter(s => s.status === 'uploaded' || s.status === 'processing').length;
+  return (
+    <View style={{ marginBottom: Spacing.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm }}>
+        <EliteText variant="caption" style={styles.rowLabel}>ESTUDIOS RECIENTES</EliteText>
+        {pending > 0 && (
+          <View style={{ backgroundColor: SEMANTIC.warning + '20', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+            <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 9, fontFamily: Fonts.bold }}>{pending} pendiente{pending > 1 ? 's' : ''}</EliteText>
+          </View>
+        )}
+      </View>
+      {studies.map(s => {
+        const st = getStudyType(s.study_type);
+        const findings = (s.findings ?? []) as string[];
+        return (
+          <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 4 }}>
+            <EliteText style={{ fontSize: 16 }}>{st.emoji}</EliteText>
+            <View style={{ flex: 1 }}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12 }}>
+                {s.study_name} — {new Date(s.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </EliteText>
+              {findings.length > 0 && (
+                <View style={{ flexDirection: 'row', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
+                  {findings.slice(0, 3).map((f, i) => (
+                    <View key={i} style={{ backgroundColor: CATEGORY_COLORS.metrics + '15', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 8 }}>
+                      <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 9 }}>{f}</EliteText>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function ScoreCard({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
   return (
     <View style={styles.scoreCard}>
@@ -2111,6 +2163,275 @@ function LabsTab({ clientId }: { clientId: string }) {
           );
         })
       )}
+    </View>
+  );
+}
+
+// ══════════════════════════
+// TAB: ESTUDIOS CLÍNICOS
+// ══════════════════════════
+
+function StudiesTab({ clientId }: { clientId: string }) {
+  const [studies, setStudies] = useState<ClinicalStudy[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [interpreting, setInterpreting] = useState<string | null>(null);
+
+  // Create form
+  const [newType, setNewType] = useState('ultrasound');
+  const [newName, setNewName] = useState('');
+  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newPhysician, setNewPhysician] = useState('');
+  const [newLab, setNewLab] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => { loadStudies(); }, [clientId]);
+
+  const loadStudies = async () => {
+    setLoading(true);
+    try { setStudies(await getStudies(clientId)); } catch { /* */ }
+    setLoading(false);
+  };
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    setCreating(true);
+    try {
+      await createStudy({
+        user_id: clientId,
+        study_type: newType,
+        study_name: newName.trim(),
+        study_date: newDate,
+        ordering_physician: newPhysician.trim() || undefined,
+        performing_lab: newLab.trim() || undefined,
+      });
+      setShowCreate(false);
+      setNewName('');
+      setNewPhysician('');
+      setNewLab('');
+      loadStudies();
+    } catch (err: any) {
+      if (__DEV__) console.error('[createStudy]', err);
+    }
+    setCreating(false);
+  };
+
+  const handleInterpret = async (studyId: string) => {
+    setInterpreting(studyId);
+    try {
+      await interpretStudy(studyId);
+      loadStudies();
+    } catch (err: any) {
+      if (__DEV__) console.error('[interpretStudy]', err);
+    }
+    setInterpreting(null);
+  };
+
+  const handleDelete = async (studyId: string) => {
+    if (typeof window !== 'undefined') {
+      if (!window.confirm('¿Eliminar este estudio?')) return;
+    }
+    try { await deleteStudy(studyId); loadStudies(); } catch { /* */ }
+  };
+
+  const handleReview = async (studyId: string) => {
+    try { await markAsReviewed(studyId); loadStudies(); } catch { /* */ }
+  };
+
+  const handleSaveNotes = async (studyId: string, notes: string) => {
+    try { await updateStudy(studyId, { coach_notes: notes } as any); } catch { /* */ }
+  };
+
+  const handleSaveSummary = async (studyId: string, summary: string) => {
+    try { await updateStudy(studyId, { patient_summary: summary } as any); } catch { /* */ }
+  };
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, { label: string; color: string }> = {
+      uploaded: { label: 'Pendiente', color: TEXT_COLORS.muted },
+      processing: { label: 'Procesando...', color: SEMANTIC.warning },
+      interpreted: { label: 'Interpretado', color: SEMANTIC.info },
+      reviewed: { label: 'Revisado ✓', color: SEMANTIC.success },
+    };
+    const s = map[status] ?? map.uploaded;
+    return (
+      <View style={{ backgroundColor: s.color + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+        <EliteText variant="caption" style={{ color: s.color, fontSize: 10, fontFamily: Fonts.bold }}>{s.label}</EliteText>
+      </View>
+    );
+  };
+
+  return (
+    <View>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md }}>
+        <EliteText variant="label" style={{ color: CATEGORY_COLORS.metrics, letterSpacing: 2 }}>ESTUDIOS CLÍNICOS</EliteText>
+        <Pressable onPress={() => setShowCreate(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Ionicons name="add-circle-outline" size={16} color={CATEGORY_COLORS.metrics} />
+          <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontFamily: Fonts.semiBold }}>Subir estudio</EliteText>
+        </Pressable>
+      </View>
+
+      {/* Create modal */}
+      {showCreate && (
+        <View style={{ backgroundColor: SURFACES.card, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.md, borderWidth: 0.5, borderColor: SURFACES.border }}>
+          <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginBottom: 4 }}>Tipo de estudio</EliteText>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: Spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {STUDY_TYPES.map(st => (
+                <Pressable key={st.key} onPress={() => { setNewType(st.key); if (!newName) setNewName(st.label); }}
+                  style={{ backgroundColor: newType === st.key ? CATEGORY_COLORS.metrics + '20' : SURFACES.cardLight, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, borderWidth: newType === st.key ? 1 : 0, borderColor: CATEGORY_COLORS.metrics + '50' }}>
+                  <EliteText variant="caption" style={{ color: newType === st.key ? CATEGORY_COLORS.metrics : TEXT_COLORS.secondary, fontSize: 11 }}>{st.emoji} {st.label}</EliteText>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+          <TextInput style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 14, marginBottom: Spacing.sm }}
+            value={newName} onChangeText={setNewName} placeholder="Nombre del estudio" placeholderTextColor={TEXT_COLORS.muted} />
+          <TextInput style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 14, marginBottom: Spacing.sm }}
+            value={newDate} onChangeText={setNewDate} placeholder="Fecha (YYYY-MM-DD)" placeholderTextColor={TEXT_COLORS.muted} />
+          <TextInput style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 14, marginBottom: Spacing.sm }}
+            value={newPhysician} onChangeText={setNewPhysician} placeholder="Médico (opcional)" placeholderTextColor={TEXT_COLORS.muted} />
+          <TextInput style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 14, marginBottom: Spacing.sm }}
+            value={newLab} onChangeText={setNewLab} placeholder="Laboratorio/Clínica (opcional)" placeholderTextColor={TEXT_COLORS.muted} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: Spacing.sm }}>
+            <Pressable onPress={() => setShowCreate(false)}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted }}>Cancelar</EliteText>
+            </Pressable>
+            <Pressable onPress={handleCreate} disabled={creating}
+              style={{ backgroundColor: CATEGORY_COLORS.metrics, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: 8 }}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold }}>
+                {creating ? 'Guardando...' : 'Guardar'}
+              </EliteText>
+            </Pressable>
+          </View>
+        </View>
+      )}
+
+      {/* Loading */}
+      {loading && <ActivityIndicator color={CATEGORY_COLORS.metrics} style={{ marginVertical: Spacing.lg }} />}
+
+      {/* Empty */}
+      {!loading && studies.length === 0 && (
+        <View style={{ alignItems: 'center', padding: Spacing.xl }}>
+          <Ionicons name="document-text-outline" size={40} color={TEXT_COLORS.muted} />
+          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: Spacing.sm }}>Sin estudios clínicos</EliteText>
+        </View>
+      )}
+
+      {/* List */}
+      {studies.map(study => {
+        const st = getStudyType(study.study_type);
+        const isExpanded = expandedId === study.id;
+        const isInterpreting = interpreting === study.id;
+        const findings = (study.findings ?? []) as string[];
+
+        return (
+          <View key={study.id} style={{ backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, borderLeftWidth: 3, borderLeftColor: CATEGORY_COLORS.metrics, marginBottom: Spacing.sm, overflow: 'hidden' }}>
+            {/* Header */}
+            <Pressable onPress={() => setExpandedId(isExpanded ? null : study.id)} style={{ padding: Spacing.md }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
+                <EliteText style={{ fontSize: 20 }}>{st.emoji}</EliteText>
+                <View style={{ flex: 1 }}>
+                  <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: 14 }}>{study.study_name}</EliteText>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11 }}>
+                    {new Date(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {study.ordering_physician ? ` · Dr. ${study.ordering_physician}` : ''}
+                  </EliteText>
+                </View>
+                {statusBadge(study.status)}
+                <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={TEXT_COLORS.muted} />
+              </View>
+
+              {/* Findings pills */}
+              {findings.length > 0 && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: Spacing.sm }}>
+                  {findings.map((f, i) => (
+                    <View key={i} style={{ backgroundColor: CATEGORY_COLORS.metrics + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                      <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 10 }}>{f}</EliteText>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </Pressable>
+
+            {/* Expanded content */}
+            {isExpanded && (
+              <View style={{ padding: Spacing.md, paddingTop: 0, gap: Spacing.md }}>
+                {/* Interpretación clínica */}
+                {study.original_interpretation ? (
+                  <View style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm }}>
+                    <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 10, fontFamily: Fonts.bold, marginBottom: 4 }}>INTERPRETACIÓN CLÍNICA</EliteText>
+                    <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12, lineHeight: 18 }}>{study.original_interpretation}</EliteText>
+                  </View>
+                ) : null}
+
+                {/* Resumen para paciente */}
+                <View style={{ backgroundColor: '#0a1a15', borderRadius: 8, padding: Spacing.sm, borderLeftWidth: 2, borderLeftColor: CATEGORY_COLORS.metrics }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                    <Ionicons name="eye-outline" size={12} color={CATEGORY_COLORS.metrics} />
+                    <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 10, fontFamily: Fonts.bold }}>RESUMEN PARA PACIENTE</EliteText>
+                  </View>
+                  <TextInput
+                    style={{ color: TEXT_COLORS.primary, fontSize: 12, lineHeight: 18, minHeight: 40 }}
+                    value={study.patient_summary ?? ''}
+                    onEndEditing={e => handleSaveSummary(study.id, e.nativeEvent.text)}
+                    placeholder="El resumen aparecerá aquí después de interpretar..."
+                    placeholderTextColor={TEXT_COLORS.muted}
+                    multiline
+                  />
+                </View>
+
+                {/* Notas del coach */}
+                <View>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginBottom: 4 }}>Notas del coach</EliteText>
+                  <TextInput
+                    style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 12, minHeight: 40 }}
+                    defaultValue={study.coach_notes ?? ''}
+                    onEndEditing={e => handleSaveNotes(study.id, e.nativeEvent.text)}
+                    placeholder="Notas privadas..."
+                    placeholderTextColor={TEXT_COLORS.muted}
+                    multiline
+                  />
+                </View>
+
+                {/* Botones */}
+                <View style={{ flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' }}>
+                  {study.status !== 'interpreted' && study.status !== 'reviewed' && (
+                    <Pressable onPress={() => handleInterpret(study.id)} disabled={isInterpreting}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: CATEGORY_COLORS.metrics + '20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                      <Ionicons name="sparkles" size={14} color={CATEGORY_COLORS.metrics} />
+                      <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 11 }}>
+                        {isInterpreting ? 'Interpretando...' : 'Interpretar con IA'}
+                      </EliteText>
+                    </Pressable>
+                  )}
+                  {study.status === 'interpreted' && (
+                    <>
+                      <Pressable onPress={() => handleReview(study.id)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: SEMANTIC.success + '20', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }}>
+                        <Ionicons name="checkmark-circle-outline" size={14} color={SEMANTIC.success} />
+                        <EliteText variant="caption" style={{ color: SEMANTIC.success, fontSize: 11 }}>Marcar revisado</EliteText>
+                      </Pressable>
+                      <Pressable onPress={() => handleInterpret(study.id)} disabled={isInterpreting}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6 }}>
+                        <Ionicons name="refresh-outline" size={14} color={TEXT_COLORS.secondary} />
+                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11 }}>Reintepretar</EliteText>
+                      </Pressable>
+                    </>
+                  )}
+                  <Pressable onPress={() => handleDelete(study.id)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6 }}>
+                    <Ionicons name="trash-outline" size={14} color={SEMANTIC.error} />
+                    <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 11 }}>Eliminar</EliteText>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
