@@ -15,6 +15,7 @@ import {
   startFast, endFast, getActivePlan, calculateDailyScore, getRecipes,
   type FoodLog, type HydrationLog, type FastingLog, type NutritionPlan, type DailyNutritionScore, type Recipe,
 } from '@/src/services/nutrition-service';
+import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
 
@@ -54,7 +55,9 @@ export default function NutritionScreen() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
+  // Haptic al agregar agua
   const handleAddWater = async (ml = 250) => {
+    haptic.light();
     setAddingWater(true);
     try {
       const updated = await addWater(ml);
@@ -63,7 +66,9 @@ export default function NutritionScreen() {
     setAddingWater(false);
   };
 
+  // Haptic al alternar ayuno
   const handleToggleFast = async () => {
+    haptic.medium();
     setTogglingFast(true);
     try {
       if (fasting?.status === 'active') {
@@ -164,7 +169,7 @@ export default function NutritionScreen() {
         {/* ══ Acciones rápidas ══ */}
         <Animated.View entering={FadeInUp.delay(180).springify()}>
           <View style={st.quickActions}>
-            <AnimatedPressable onPress={() => router.push({ pathname: '/food-scan', params: { mode: 'food' } })} style={st.quickBtn}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'food' } }); }} style={st.quickBtn}>
               <Ionicons name="camera-outline" size={22} color={BLUE} />
               <EliteText variant="caption" style={[st.quickLabel, { color: BLUE }]}>Escanear comida</EliteText>
             </AnimatedPressable>
@@ -181,13 +186,13 @@ export default function NutritionScreen() {
           </View>
           {/* Escaneos secundarios */}
           <View style={st.scanRow}>
-            <AnimatedPressable onPress={() => router.push({ pathname: '/food-scan', params: { mode: 'label' } })} style={st.scanBtn}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } }); }} style={st.scanBtn}>
               <Ionicons name="barcode-outline" size={18} color={SEMANTIC.warning} />
               <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: 11 }}>
                 Escanear etiqueta
               </EliteText>
             </AnimatedPressable>
-            <AnimatedPressable onPress={() => router.push({ pathname: '/food-scan', params: { mode: 'supplement' } })} style={st.scanBtn}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } }); }} style={st.scanBtn}>
               <Ionicons name="medkit-outline" size={18} color="#7F77DD" />
               <EliteText variant="caption" style={{ color: '#7F77DD', fontFamily: Fonts.semiBold, fontSize: 11 }}>
                 Escanear suplemento

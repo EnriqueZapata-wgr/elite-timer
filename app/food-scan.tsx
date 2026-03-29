@@ -1362,7 +1362,7 @@ const st = StyleSheet.create({
     position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', gap: 8,
   },
   photoCtrlBtn: {
-    width: 36, height: 36, borderRadius: 18, overflow: 'hidden',
+    width: 44, height: 44, borderRadius: 22, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
   noPhoto: {

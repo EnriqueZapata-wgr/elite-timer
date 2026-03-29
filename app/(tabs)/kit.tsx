@@ -19,6 +19,8 @@ import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES } from '@/src/constants/brand';
+import { haptic } from '@/src/utils/haptics';
+import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 
 const AMBER = CATEGORY_COLORS.optimization;
 
@@ -33,6 +35,7 @@ export default function KitScreen() {
   );
 
   const playRoutine = (routine: Routine) => {
+    haptic.light(); // feedback háptico al ejecutar rutina
     const target = routine.mode === 'routine' ? '/routine-execution' : '/execution';
     router.push({ pathname: target as any, params: { routine: JSON.stringify(routine) } });
   };
@@ -58,7 +61,7 @@ export default function KitScreen() {
         <Animated.View entering={FadeInUp.delay(100).springify()}>
           <View style={styles.sectionHeader}>
             <EliteText variant="caption" style={styles.sectionLabel}>MIS RUTINAS</EliteText>
-            <AnimatedPressable onPress={() => router.push('/programs')}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/programs'); }}>
               <EliteText variant="caption" style={styles.seeAll}>Ver todas ›</EliteText>
             </AnimatedPressable>
           </View>
@@ -100,7 +103,7 @@ export default function KitScreen() {
 
               {/* Card "Crear nueva" */}
               <AnimatedPressable
-                onPress={() => router.push('/builder')}
+                onPress={() => { haptic.light(); router.push('/builder'); }}
                 style={styles.routineCard}
               >
                 <View style={styles.createCard}>
@@ -110,7 +113,7 @@ export default function KitScreen() {
               </AnimatedPressable>
             </ScrollView>
           ) : (
-            <AnimatedPressable onPress={() => router.push('/builder')} style={{ marginBottom: Spacing.md }}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/builder'); }} style={{ marginBottom: Spacing.md }}>
               <View style={styles.emptyRoutines}>
                 <Ionicons name="add-circle-outline" size={32} color={Colors.neonGreen} />
                 <EliteText variant="body" style={styles.emptyRoutinesText}>
@@ -123,7 +126,7 @@ export default function KitScreen() {
 
         {/* ── Ejercicios ── */}
         <Animated.View entering={FadeInUp.delay(150).springify()}>
-          <AnimatedPressable onPress={() => router.push('/log-exercise')}>
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/log-exercise'); }}>
             <View style={styles.linkCard}>
               <View style={[styles.linkCardAccent, { backgroundColor: Colors.neonGreen }]} />
               <Ionicons name="barbell-outline" size={22} color={Colors.neonGreen} />
@@ -188,7 +191,7 @@ function ToolCard({ icon, label, color, active, onPress }: {
   icon: string; label: string; color: string; active: boolean; onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress}>
+    <Pressable onPress={() => { haptic.light(); onPress(); }}>
       <LinearGradient
         colors={[color + '25', color + '0A', 'transparent']}
         start={{ x: 0, y: 0 }}

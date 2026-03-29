@@ -13,6 +13,7 @@ import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
+import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 export default function LoginScreen() {
@@ -25,7 +26,9 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Haptic en login: light al enviar, success/error según resultado
   const handleLogin = async () => {
+    haptic.light();
     if (!email.trim() || !password.trim()) {
       setError('Completa todos los campos');
       return;
@@ -37,8 +40,10 @@ export default function LoginScreen() {
     setLoading(false);
 
     if (result.error) {
+      haptic.error();
       setError(result.error);
     } else {
+      haptic.success();
       router.replace('/(tabs)');
     }
   };
@@ -84,6 +89,7 @@ export default function LoginScreen() {
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeButton}
+                hitSlop={8}
               >
                 <Ionicons
                   name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -161,7 +167,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: Spacing.md,
     top: 38,
-    padding: Spacing.xs,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   error: {
     color: Colors.error,

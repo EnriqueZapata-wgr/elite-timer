@@ -16,7 +16,7 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useTimer } from '@/hooks/use-timer';
 import { toggleCompletion } from '@/src/services/protocol-service';
-import { vibrateMedium } from '@/src/utils/haptics';
+import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import {
   MEDITATION_LIBRARY,
@@ -102,7 +102,7 @@ function LibraryScreen({ onSelect, onBack }: {
             </View>
 
             {group.meditations.map(m => (
-              <GradientCard key={m.id} color={PURPLE} onPress={() => onSelect(m)} style={styles.libCard}>
+              <GradientCard key={m.id} color={PURPLE} onPress={() => { haptic.light(); onSelect(m); }} style={styles.libCard}>
                 <View style={styles.libCardBody}>
                   <View style={styles.libCardInfo}>
                     <EliteText variant="body" style={styles.libCardTitle}>{m.title}</EliteText>
@@ -284,12 +284,12 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
         {/* Controles */}
         <View style={styles.controls}>
           {status === 'idle' ? (
-            <Pressable onPress={start} style={styles.mainBtn}>
+            <Pressable onPress={() => { haptic.medium(); start(); }} style={styles.mainBtn}>
               <EliteText style={styles.mainBtnText}>COMENZAR</EliteText>
             </Pressable>
           ) : status === 'running' ? (
             <>
-              <Pressable onPress={pause} style={styles.mainBtn}>
+              <Pressable onPress={() => { haptic.medium(); pause(); }} style={styles.mainBtn}>
                 <EliteText style={styles.mainBtnText}>PAUSAR</EliteText>
               </Pressable>
               <Pressable onPress={handleEnd} style={styles.endBtn}>
@@ -298,7 +298,7 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
             </>
           ) : status === 'paused' ? (
             <>
-              <Pressable onPress={start} style={styles.mainBtn}>
+              <Pressable onPress={() => { haptic.medium(); start(); }} style={styles.mainBtn}>
                 <EliteText style={styles.mainBtnText}>REANUDAR</EliteText>
               </Pressable>
               <Pressable onPress={handleEnd} style={styles.endBtn}>

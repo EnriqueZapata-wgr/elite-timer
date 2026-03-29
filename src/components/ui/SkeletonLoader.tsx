@@ -2,6 +2,7 @@
  * SkeletonLoader — Loading state elegante con shimmer/pulse.
  */
 import { View, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
+import { SURFACES } from '@/src/constants/brand';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -58,6 +59,6 @@ const VARIANT_STYLES: Record<Variant, ViewStyle> = {
 
 const styles = StyleSheet.create({
   base: {
-    backgroundColor: '#1A1A1A',
+    backgroundColor: SURFACES.cardLight,
   },
 });

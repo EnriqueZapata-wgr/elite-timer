@@ -103,3 +103,11 @@ export const BUTTON_STYLES = {
     borderRadius: 8,
   },
 } as const;
+
+// ═══ UTILIDADES ═══
+
+/** Helper para aplicar opacidad a un color hex sin string concat */
+export function withOpacity(hex: string, opacity: number): string {
+  const alpha = Math.round(opacity * 255).toString(16).padStart(2, '0');
+  return hex + alpha;
+}

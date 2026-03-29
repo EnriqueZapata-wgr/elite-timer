@@ -16,6 +16,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS } from '@/src/constants/brand';
+import { haptic } from '@/src/utils/haptics';
+import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 
 // === CONSTANTES ===
 
@@ -87,7 +89,26 @@ export default function YoScreen() {
   const visceralColor = comp?.visceral_fat != null ? (comp.visceral_fat < 7 ? SEMANTIC.success : comp.visceral_fat < 13 ? SEMANTIC.warning : SEMANTIC.error) : null;
 
   if (loading) {
-    return <ScreenContainer centered><ActivityIndicator size="large" color={ATP_BRAND.lime} /></ScreenContainer>;
+    /* Skeleton de carga — reemplaza ActivityIndicator */
+    return (
+      <ScreenContainer centered={false}>
+        <View style={{ padding: 16, gap: 12 }}>
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+            <SkeletonLoader variant="circle" width={60} height={60} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <SkeletonLoader variant="text-line" width="60%" />
+              <SkeletonLoader variant="text-line" width="40%" />
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <SkeletonLoader variant="stat-card" />
+            <SkeletonLoader variant="stat-card" />
+          </View>
+          <SkeletonLoader variant="card" />
+          <SkeletonLoader variant="card" height={60} />
+        </View>
+      </ScreenContainer>
+    );
   }
 
   return (
@@ -116,7 +137,7 @@ export default function YoScreen() {
                 </View>
               )}
             </View>
-            <AnimatedPressable onPress={() => router.push('/settings')} style={st.settingsBtn}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={st.settingsBtn}>
               <Ionicons name="settings-outline" size={22} color={Colors.textSecondary} />
             </AnimatedPressable>
           </View>
@@ -132,7 +153,7 @@ export default function YoScreen() {
             const unit = scoreUnits[sm.key as keyof typeof scoreUnits];
             return (
               <Animated.View key={sm.key} entering={FadeInUp.delay(100 + idx * 80).duration(400).springify()} style={st.scoreCardWrap}>
-                <AnimatedPressable onPress={() => router.push('/my-health' as any)} style={[st.scoreCard, { borderLeftColor: sm.accent }]}>
+                <AnimatedPressable onPress={() => { haptic.selection(); router.push('/my-health' as any); }} style={[st.scoreCard, { borderLeftColor: sm.accent }]}>
                   <View style={st.scoreCardHeader}>
                     <Ionicons name={sm.icon as any} size={val ? 16 : 36} color={val ? sm.accent : sm.accent + '40'} />
                     <EliteText variant="caption" style={[st.scoreCardLabel, { color: sm.accent }]}>{sm.label}</EliteText>
@@ -162,7 +183,7 @@ export default function YoScreen() {
         <Animated.View entering={FadeInUp.delay(450).springify()}>
           <SectionLabel>COMPOSICIÓN CORPORAL</SectionLabel>
           {comp ? (
-            <AnimatedPressable onPress={() => router.push('/my-health' as any)} style={st.compCard}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={st.compCard}>
               <CompStat label="Peso" value={comp.weight_kg != null ? `${comp.weight_kg}` : '—'} unit="kg" color={TEXT_COLORS.primary} />
               <View style={st.compDivider} />
               <CompStat label="Grasa" value={comp.body_fat_pct != null ? `${comp.body_fat_pct}` : '—'} unit="%" color={fatColor ?? TEXT_COLORS.muted} />
@@ -193,7 +214,7 @@ export default function YoScreen() {
         <Animated.View entering={FadeInUp.delay(550).springify()}>
           <SectionLabel>MI CRONOTIPO</SectionLabel>
           {chrono && cm ? (
-            <AnimatedPressable onPress={() => router.push('/quiz/chronotype' as any)}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/quiz/chronotype' as any); }}>
               <LinearGradient
                 colors={[ATP_BRAND.lime + '12', ATP_BRAND.teal2 + '08', 'transparent']}
                 start={{ x: 0, y: 0 }}
@@ -231,7 +252,7 @@ export default function YoScreen() {
               </LinearGradient>
             </AnimatedPressable>
           ) : (
-            <AnimatedPressable onPress={() => router.push('/quiz/chronotype' as any)}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/quiz/chronotype' as any); }}>
               <LinearGradient
                 colors={[ATP_BRAND.lime + '15', ATP_BRAND.teal2 + '08', 'transparent']}
                 start={{ x: 0, y: 0 }}
@@ -301,7 +322,7 @@ function QuizCard({ emoji, label, done, disabled, onPress }: {
 }) {
   return (
     <AnimatedPressable
-      onPress={onPress}
+      onPress={() => { haptic.selection(); onPress?.(); }}
       disabled={disabled}
       style={[
         st.quizCard,
@@ -325,7 +346,7 @@ function ActionCard({ icon, label, sub, color, onPress, disabled }: {
   icon: string; label: string; sub: string; color: string; onPress?: () => void; disabled?: boolean;
 }) {
   return (
-    <AnimatedPressable onPress={onPress} disabled={disabled} style={[st.actionCard, { borderLeftColor: color }, disabled && { opacity: 0.4 }]}>
+    <AnimatedPressable onPress={() => { haptic.light(); onPress?.(); }} disabled={disabled} style={[st.actionCard, { borderLeftColor: color }, disabled && { opacity: 0.4 }]}>
       <View style={[st.actionIcon, { backgroundColor: color + '12' }]}>
         <Ionicons name={icon as any} size={20} color={color} />
       </View>

@@ -112,6 +112,7 @@ export default function RootLayout() {
                 <Stack.Screen name="mind-hub" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz/chronotype" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="food-scan" options={{ animation: 'slide_from_bottom' }} />
               </Stack>
               <StatusBar style="light" />
             </SessionsProvider>

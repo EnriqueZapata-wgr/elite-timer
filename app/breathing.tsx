@@ -13,7 +13,7 @@ import AnimatedRN, { FadeIn } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { toggleCompletion } from '@/src/services/protocol-service';
-import { vibrateMedium } from '@/src/utils/haptics';
+import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
@@ -186,7 +186,7 @@ function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
       <EliteText variant="body" style={styles.configRowLabel}>{label}</EliteText>
       <View style={styles.configStepper}>
         <Pressable
-          onPress={() => onChange(Math.max(min, value - 1))}
+          onPress={() => { haptic.light(); onChange(Math.max(min, value - 1)); }}
           disabled={value <= min}
           style={[styles.configStepBtn, value <= min && { opacity: 0.3 }]}
         >
@@ -194,7 +194,7 @@ function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
         </Pressable>
         <EliteText style={styles.configStepValue}>{value}<EliteText style={styles.configStepUnit}>s</EliteText></EliteText>
         <Pressable
-          onPress={() => onChange(Math.min(max, value + 1))}
+          onPress={() => { haptic.light(); onChange(Math.min(max, value + 1)); }}
           disabled={value >= max}
           style={[styles.configStepBtn, value >= max && { opacity: 0.3 }]}
         >
@@ -556,7 +556,7 @@ const styles = StyleSheet.create({
   configRowLabel: { fontFamily: Fonts.semiBold, fontSize: 16, color: Colors.textPrimary },
   configStepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   configStepBtn: {
-    width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: PURPLE + '40',
+    width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: PURPLE + '40',
     alignItems: 'center', justifyContent: 'center',
   },
   configStepValue: {

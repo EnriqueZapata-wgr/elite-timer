@@ -37,3 +37,18 @@ export function vibrateCountdown(): void {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
   } catch { /* no disponible */ }
 }
+
+// === API de objeto — más limpia para imports ===
+
+const safe = (fn: () => void) => { try { fn(); } catch { /* */ } };
+const isNative = Platform.OS !== 'web';
+
+export const haptic = {
+  light: () => { if (isNative) safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)); },
+  medium: () => { if (isNative) safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)); },
+  heavy: () => { if (isNative) safe(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)); },
+  success: () => { if (isNative) safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)); },
+  warning: () => { if (isNative) safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)); },
+  error: () => { if (isNative) safe(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)); },
+  selection: () => { if (isNative) safe(() => Haptics.selectionAsync()); },
+};

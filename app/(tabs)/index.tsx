@@ -16,6 +16,8 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/GradientCard';
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES } from '@/src/constants/brand';
+import { haptic } from '@/src/utils/haptics';
+import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import {
   getTodayTimeline,
   toggleCompletion,
@@ -93,6 +95,7 @@ export default function TodayScreen() {
   );
 
   const handleToggle = async (itemId: string) => {
+    haptic.light(); // feedback háptico al marcar/desmarcar
     setToggling(itemId);
     try {
       const newState = await toggleCompletion(itemId);
@@ -121,28 +124,38 @@ export default function TodayScreen() {
     const lt = item.link_type;
 
     if (lt === 'routine' && item.link_routine_id) {
+      haptic.light();
       router.push({ pathname: '/execution' as any, params: { routineId: item.link_routine_id } });
     } else if (lt === 'breathing') {
+      haptic.light();
       router.push({ pathname: '/breathing' as any, params: { protocolItemId: item.item_id } });
     } else if (lt === 'meditation') {
+      haptic.light();
       router.push({ pathname: '/meditation' as any, params: { protocolItemId: item.item_id } });
     } else if (lt === 'emotional_checkin') {
+      haptic.light();
       router.push({ pathname: '/checkin' as any, params: { protocolItemId: item.item_id } });
     } else if (lt === 'external_link' && item.link_url) {
+      haptic.light();
       Linking.openURL(item.link_url).catch(() => {});
     } else if (lt === 'supplement_check') {
+      haptic.success(); // feedback de éxito al registrar
       handleToggle(item.item_id);
       showToast('Suplementos registrados');
     } else if (lt === 'habit_check') {
+      haptic.success();
       handleToggle(item.item_id);
       showToast('Hábito registrado');
     } else if (lt === 'fasting_window') {
+      haptic.success();
       handleToggle(item.item_id);
       showToast('Registrado');
     } else if (lt === 'meal_photo') {
+      haptic.success();
       handleToggle(item.item_id);
       showToast('Próximamente: foto de comida');
     } else if (lt === 'journal') {
+      haptic.success();
       handleToggle(item.item_id);
       showToast('Próximamente: journaling');
     } else {
@@ -167,14 +180,22 @@ export default function TodayScreen() {
               </EliteText>
               <EliteText style={styles.heroTitle}>Tu día</EliteText>
             </View>
-            <AnimatedPressable onPress={() => router.push('/settings')} style={styles.settingsBtn}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={styles.settingsBtn}>
               <Ionicons name="settings-outline" size={22} color={Colors.textSecondary} />
             </AnimatedPressable>
           </View>
         </Animated.View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={Colors.neonGreen} style={styles.loader} />
+          /* Skeleton de carga — reemplaza ActivityIndicator */
+          <View style={{ padding: 16, gap: 12 }}>
+            <SkeletonLoader variant="card" />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <SkeletonLoader variant="stat-card" />
+              <SkeletonLoader variant="stat-card" />
+            </View>
+            {[...Array(4)].map((_, i) => <SkeletonLoader key={i} height={44} style={{ borderRadius: 8 }} />)}
+          </View>
         ) : hasTimeline ? (
           <>
             {/* ── Progress bar ── */}
@@ -342,7 +363,7 @@ export default function TodayScreen() {
               </EliteText>
               <View style={styles.emptyActions}>
                 <AnimatedPressable
-                  onPress={() => router.push('/(tabs)/biblioteca' as any)}
+                  onPress={() => { haptic.light(); router.push('/(tabs)/biblioteca' as any); }}
                   style={styles.emptyBtn}
                 >
                   <Ionicons name="flash" size={18} color={Colors.neonGreen} />

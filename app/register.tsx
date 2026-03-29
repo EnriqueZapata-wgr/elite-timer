@@ -13,6 +13,7 @@ import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
+import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Fonts } from '@/constants/theme';
 
 export default function RegisterScreen() {
@@ -36,7 +37,9 @@ export default function RegisterScreen() {
     return null;
   };
 
+  // Haptic en registro: light al enviar, success si se crea la cuenta
   const handleRegister = async () => {
+    haptic.light();
     const validationError = validate();
     if (validationError) {
       setError(validationError);
@@ -51,6 +54,7 @@ export default function RegisterScreen() {
     if (result.error) {
       setError(result.error);
     } else {
+      haptic.success();
       if (typeof window !== 'undefined' && window.alert) {
         window.alert('Cuenta creada exitosamente.');
         router.replace('/(tabs)');
@@ -77,7 +81,7 @@ export default function RegisterScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} style={styles.backButton}>
+            <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
               <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
             </Pressable>
             <EliteText variant="title" style={styles.title}>CREAR CUENTA</EliteText>
@@ -179,7 +183,10 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   backButton: {
-    padding: Spacing.xs,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     letterSpacing: 3,

@@ -10,6 +10,7 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { MEDITATION_LIBRARY } from '@/src/data/meditation-library';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
+import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES } from '@/src/constants/brand';
 
@@ -34,7 +35,7 @@ export default function MindHubScreen() {
 
         {/* Meditación */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
-          <GradientCard color={PURPLE} onPress={() => router.push('/meditation')} style={styles.heroCard}>
+          <GradientCard color={PURPLE} onPress={() => { haptic.light(); router.push('/meditation'); }} style={styles.heroCard}>
             <View style={styles.heroCardBody}>
               <Ionicons name="sparkles-outline" size={28} color={PURPLE} />
               <View style={styles.heroCardInfo}>
@@ -50,7 +51,7 @@ export default function MindHubScreen() {
 
         {/* Respiración */}
         <Animated.View entering={FadeInUp.delay(150).springify()}>
-          <GradientCard color={PURPLE} onPress={() => router.push('/breathing')} style={styles.heroCard}>
+          <GradientCard color={PURPLE} onPress={() => { haptic.light(); router.push('/breathing'); }} style={styles.heroCard}>
             <View style={styles.heroCardBody}>
               <Ionicons name="leaf-outline" size={28} color={PURPLE} />
               <View style={styles.heroCardInfo}>
@@ -66,7 +67,7 @@ export default function MindHubScreen() {
 
         {/* Check-in emocional */}
         <Animated.View entering={FadeInUp.delay(200).springify()}>
-          <GradientCard color={PURPLE} onPress={() => router.push('/checkin')} style={styles.heroCard}>
+          <GradientCard color={PURPLE} onPress={() => { haptic.light(); router.push('/checkin'); }} style={styles.heroCard}>
             <View style={styles.heroCardBody}>
               <Ionicons name="heart-circle-outline" size={28} color={PURPLE} />
               <View style={styles.heroCardInfo}>
