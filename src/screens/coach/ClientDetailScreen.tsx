@@ -1446,13 +1446,23 @@ function EditableField({ label, value, placeholder, onSave, multiline, isRed }: 
   label: string; fieldKey: string; value: string; placeholder: string;
   onSave: (v: string) => void; multiline?: boolean; isRed?: boolean;
 }) {
+  const [text, setText] = useState(value);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChange = (v: string) => {
+    setText(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => onSave(v), 1000);
+  };
+
   return (
     <View>
       <EliteText variant="caption" style={{ color: isRed ? SEMANTIC.error + '80' : TEXT_COLORS.muted, fontSize: 10, marginBottom: 2 }}>{label}</EliteText>
       <TextInput
         style={[styles.editableInput, isRed && { borderColor: SEMANTIC.error + '30' }]}
-        defaultValue={value}
-        onEndEditing={e => onSave(e.nativeEvent.text)}
+        value={text}
+        onChangeText={handleChange}
+        onEndEditing={() => onSave(text)}
         placeholder={placeholder}
         placeholderTextColor={SURFACES.disabled}
         multiline={multiline}
@@ -1784,22 +1794,12 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
               onSaved={(updates) => setActiveConsult((prev: any) => prev ? { ...prev, ...updates } : null)}
             />
 
-            {/* Descripción del día */}
-            <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
-              <EliteText variant="caption" style={styles.profileCardLabel}>DESCRIPCIÓN DEL DÍA</EliteText>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: Spacing.xs }}>
-                ¿Cómo se ve un día típico de esta persona?
-              </EliteText>
-              <TextInput
-                style={[styles.editableInput, { minHeight: 80 }]}
-                defaultValue={(c as any).day_description ?? ''}
-                onEndEditing={e => handleSaveField('day_description', e.nativeEvent.text)}
-                placeholder="Ej: Se levanta a las 6, desayuna cereal, maneja 1hr al trabajo, come en la calle..."
-                placeholderTextColor={SURFACES.disabled}
-                multiline
-                editable={isDraft}
-              />
-            </View>
+            {/* Descripción del día — con guardado explícito */}
+            <DayDescriptionSaveSection
+              consultation={c}
+              isDraft={isDraft}
+              onSaved={(v) => setActiveConsult((prev: any) => prev ? { ...prev, day_description: v } : null)}
+            />
 
             {/* Metas con plazo */}
             <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
@@ -1816,46 +1816,13 @@ function ConsultationsTab({ clientId, clientName, flags: parentFlags, onFlagTogg
             {/* Composición corporal (siempre expandida) */}
             <CollapsibleSection title="Composición y biomarcadores" clientId={clientId} type="measurements" alwaysExpanded sex={(consultProfile?.biological_sex as Sex) ?? 'male'} />
 
-            {/* Contexto de peso */}
+            {/* Contexto de peso — con guardado explícito */}
             {isDraft && consultProfile && (
-              <View style={[styles.profileCard, { marginTop: Spacing.sm }]}>
-                <EliteText variant="caption" style={styles.profileCardLabel}>CONTEXTO DE PESO</EliteText>
-                <View style={{ gap: Spacing.sm }}>
-                  <View style={styles.weightCtxRow}>
-                    <EliteText variant="caption" style={styles.weightCtxLabel}>Más alto</EliteText>
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_highest_kg?.toString() ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_highest_kg', e.nativeEvent.text)}
-                      placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_highest_year ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_highest_year', e.nativeEvent.text)}
-                      placeholder="año o edad" placeholderTextColor={SURFACES.disabled} />
-                  </View>
-                  <View style={styles.weightCtxRow}>
-                    <EliteText variant="caption" style={styles.weightCtxLabel}>Más bajo</EliteText>
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_lowest_kg?.toString() ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_lowest_kg', e.nativeEvent.text)}
-                      placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_lowest_year ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_lowest_year', e.nativeEvent.text)}
-                      placeholder="año o edad" placeholderTextColor={SURFACES.disabled} />
-                  </View>
-                  <View style={styles.weightCtxRow}>
-                    <EliteText variant="caption" style={[styles.weightCtxLabel, { color: TEAL }]}>Ideal</EliteText>
-                    <TextInput style={[styles.weightCtxInput, { flex: 1 }]}
-                      defaultValue={consultProfile.weight_ideal_kg?.toString() ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_ideal_kg', e.nativeEvent.text)}
-                      placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
-                    <TextInput style={[styles.weightCtxInput, { flex: 2 }]}
-                      defaultValue={consultProfile.weight_ideal_notes ?? ''}
-                      onEndEditing={e => saveConsultProfileField('weight_ideal_notes', e.nativeEvent.text)}
-                      placeholder="notas (frame, estilo vida)" placeholderTextColor={SURFACES.disabled} />
-                  </View>
-                </View>
-              </View>
+              <WeightContextSaveSection
+                profile={consultProfile}
+                clientId={clientId}
+                onSaved={(updates) => setConsultProfile((prev: any) => ({ ...prev, ...updates }))}
+              />
             )}
 
             {/* Meta: completar / eliminar */}
@@ -2197,6 +2164,124 @@ function LabsTab({ clientId }: { clientId: string }) {
 // SAVEABLE SECTIONS (consulta)
 // ══════════════════════════
 
+function DayDescriptionSaveSection({ consultation, isDraft, onSaved }: {
+  consultation: Consultation; isDraft: boolean; onSaved: (v: string) => void;
+}) {
+  const [text, setText] = useState((consultation as any).day_description ?? '');
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+  const original = (consultation as any).day_description ?? '';
+
+  useEffect(() => { setText((consultation as any).day_description ?? ''); }, [consultation.id]);
+
+  const hasChanges = text !== original;
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateConsultation(consultation.id, { day_description: text.trim() || null } as any);
+      onSaved(text.trim());
+      setStatus('saved');
+      setTimeout(() => setStatus('idle'), 3000);
+    } catch { setStatus('error'); }
+    setSaving(false);
+  };
+
+  return (
+    <SaveableSection hasChanges={hasChanges}>
+      <SectionSaveHeader title="DESCRIPCIÓN DEL DÍA" hasChanges={hasChanges} isSaving={saving}
+        saveStatus={saving ? 'saving' : status} onSave={handleSave} />
+      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10, marginBottom: Spacing.xs }}>
+        ¿Cómo se ve un día típico de esta persona?
+      </EliteText>
+      <TextInput
+        style={[styles.editableInput, { minHeight: 80 }]}
+        value={text}
+        onChangeText={v => { setText(v); setStatus('idle'); }}
+        placeholder="Ej: Se levanta a las 6, desayuna cereal, maneja 1hr al trabajo..."
+        placeholderTextColor={SURFACES.disabled}
+        multiline editable={isDraft}
+      />
+    </SaveableSection>
+  );
+}
+
+function WeightContextSaveSection({ profile, clientId, onSaved }: {
+  profile: Record<string, any>; clientId: string;
+  onSaved: (updates: Record<string, any>) => void;
+}) {
+  const [form, setForm] = useState({
+    weight_highest_kg: profile.weight_highest_kg?.toString() ?? '',
+    weight_highest_year: profile.weight_highest_year ?? '',
+    weight_lowest_kg: profile.weight_lowest_kg?.toString() ?? '',
+    weight_lowest_year: profile.weight_lowest_year ?? '',
+    weight_ideal_kg: profile.weight_ideal_kg?.toString() ?? '',
+    weight_ideal_notes: profile.weight_ideal_notes ?? '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    setForm({
+      weight_highest_kg: profile.weight_highest_kg?.toString() ?? '',
+      weight_highest_year: profile.weight_highest_year ?? '',
+      weight_lowest_kg: profile.weight_lowest_kg?.toString() ?? '',
+      weight_lowest_year: profile.weight_lowest_year ?? '',
+      weight_ideal_kg: profile.weight_ideal_kg?.toString() ?? '',
+      weight_ideal_notes: profile.weight_ideal_notes ?? '',
+    });
+  }, [profile]);
+
+  const hasChanges = Object.keys(form).some(k => form[k as keyof typeof form] !== (profile[k]?.toString() ?? ''));
+
+  const setF = (key: string, value: string) => { setForm(prev => ({ ...prev, [key]: value })); setStatus('idle'); };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const data: Record<string, any> = {};
+      for (const [k, v] of Object.entries(form)) {
+        data[k] = k.includes('_kg') && v ? Number(v) : (v || null);
+      }
+      await upsertClientProfile(clientId, data);
+      onSaved(data);
+      setStatus('saved');
+      setTimeout(() => setStatus('idle'), 3000);
+    } catch { setStatus('error'); }
+    setSaving(false);
+  };
+
+  return (
+    <SaveableSection hasChanges={hasChanges}>
+      <SectionSaveHeader title="CONTEXTO DE PESO" hasChanges={hasChanges} isSaving={saving}
+        saveStatus={saving ? 'saving' : status} onSave={handleSave} />
+      <View style={{ gap: Spacing.sm }}>
+        <View style={styles.weightCtxRow}>
+          <EliteText variant="caption" style={styles.weightCtxLabel}>Más alto</EliteText>
+          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_highest_kg}
+            onChangeText={v => setF('weight_highest_kg', v)} placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
+          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_highest_year}
+            onChangeText={v => setF('weight_highest_year', v)} placeholder="año o edad" placeholderTextColor={SURFACES.disabled} />
+        </View>
+        <View style={styles.weightCtxRow}>
+          <EliteText variant="caption" style={styles.weightCtxLabel}>Más bajo</EliteText>
+          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_lowest_kg}
+            onChangeText={v => setF('weight_lowest_kg', v)} placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
+          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_lowest_year}
+            onChangeText={v => setF('weight_lowest_year', v)} placeholder="año o edad" placeholderTextColor={SURFACES.disabled} />
+        </View>
+        <View style={styles.weightCtxRow}>
+          <EliteText variant="caption" style={[styles.weightCtxLabel, { color: TEAL }]}>Ideal</EliteText>
+          <TextInput style={[styles.weightCtxInput, { flex: 1 }]} value={form.weight_ideal_kg}
+            onChangeText={v => setF('weight_ideal_kg', v)} placeholder="kg" placeholderTextColor={SURFACES.disabled} keyboardType="numeric" />
+          <TextInput style={[styles.weightCtxInput, { flex: 2 }]} value={form.weight_ideal_notes}
+            onChangeText={v => setF('weight_ideal_notes', v)} placeholder="notas (frame, estilo vida)" placeholderTextColor={SURFACES.disabled} />
+        </View>
+      </View>
+    </SaveableSection>
+  );
+}
+
 function ObjectivesSaveSection({ profile, isDraft, clientId, onSaved }: {
   profile: Record<string, any> | null; isDraft: boolean; clientId: string;
   onSaved: (updates: Record<string, any>) => void;
@@ -2328,6 +2413,73 @@ function SoapNotesSaveSection({ consultation, isDraft, onSaved }: {
 
 // TAB: ESTUDIOS CLÍNICOS
 // ══════════════════════════
+
+function StudySummaryField({ studyId, initial, onSave }: { studyId: string; initial: string; onSave: (id: string, v: string) => void }) {
+  const [text, setText] = useState(initial);
+  const [saved, setSaved] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChange = (v: string) => {
+    setText(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      onSave(studyId, v);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }, 1000);
+  };
+
+  return (
+    <View style={{ backgroundColor: '#0a1a15', borderRadius: 8, padding: Spacing.sm, borderLeftWidth: 2, borderLeftColor: CATEGORY_COLORS.metrics }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <Ionicons name="eye-outline" size={12} color={CATEGORY_COLORS.metrics} />
+        <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 10, fontFamily: Fonts.bold }}>RESUMEN PARA PACIENTE</EliteText>
+        {saved && <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 9 }}>✓ Guardado</EliteText>}
+      </View>
+      <TextInput
+        style={{ color: TEXT_COLORS.primary, fontSize: 12, lineHeight: 18, minHeight: 40 }}
+        value={text}
+        onChangeText={handleChange}
+        placeholder="El resumen aparecerá aquí después de interpretar..."
+        placeholderTextColor={TEXT_COLORS.muted}
+        multiline
+      />
+    </View>
+  );
+}
+
+function StudyNotesField({ studyId, initial, onSave }: { studyId: string; initial: string; onSave: (id: string, v: string) => void }) {
+  const [text, setText] = useState(initial);
+  const [saved, setSaved] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleChange = (v: string) => {
+    setText(v);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      onSave(studyId, v);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }, 1000);
+  };
+
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>Notas del coach</EliteText>
+        {saved && <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 9 }}>✓ Guardado</EliteText>}
+      </View>
+      <TextInput
+        style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 12, minHeight: 40 }}
+        value={text}
+        onChangeText={handleChange}
+        placeholder="Notas privadas..."
+        placeholderTextColor={TEXT_COLORS.muted}
+        multiline
+      />
+    </View>
+  );
+}
 
 function StudiesTab({ clientId }: { clientId: string }) {
   const [studies, setStudies] = useState<ClinicalStudy[]>([]);
@@ -2526,33 +2678,10 @@ function StudiesTab({ clientId }: { clientId: string }) {
                 ) : null}
 
                 {/* Resumen para paciente */}
-                <View style={{ backgroundColor: '#0a1a15', borderRadius: 8, padding: Spacing.sm, borderLeftWidth: 2, borderLeftColor: CATEGORY_COLORS.metrics }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                    <Ionicons name="eye-outline" size={12} color={CATEGORY_COLORS.metrics} />
-                    <EliteText variant="caption" style={{ color: CATEGORY_COLORS.metrics, fontSize: 10, fontFamily: Fonts.bold }}>RESUMEN PARA PACIENTE</EliteText>
-                  </View>
-                  <TextInput
-                    style={{ color: TEXT_COLORS.primary, fontSize: 12, lineHeight: 18, minHeight: 40 }}
-                    value={study.patient_summary ?? ''}
-                    onEndEditing={e => handleSaveSummary(study.id, e.nativeEvent.text)}
-                    placeholder="El resumen aparecerá aquí después de interpretar..."
-                    placeholderTextColor={TEXT_COLORS.muted}
-                    multiline
-                  />
-                </View>
+                <StudySummaryField studyId={study.id} initial={study.patient_summary ?? ''} onSave={handleSaveSummary} />
 
                 {/* Notas del coach */}
-                <View>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginBottom: 4 }}>Notas del coach</EliteText>
-                  <TextInput
-                    style={{ backgroundColor: SURFACES.cardLight, borderRadius: 8, padding: Spacing.sm, color: TEXT_COLORS.primary, fontSize: 12, minHeight: 40 }}
-                    defaultValue={study.coach_notes ?? ''}
-                    onEndEditing={e => handleSaveNotes(study.id, e.nativeEvent.text)}
-                    placeholder="Notas privadas..."
-                    placeholderTextColor={TEXT_COLORS.muted}
-                    multiline
-                  />
-                </View>
+                <StudyNotesField studyId={study.id} initial={study.coach_notes ?? ''} onSave={handleSaveNotes} />
 
                 {/* Botones */}
                 <View style={{ flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap' }}>
