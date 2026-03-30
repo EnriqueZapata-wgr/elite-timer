@@ -197,21 +197,14 @@ export default function NutritionScreen() {
               </EliteText>
             </AnimatedPressable>
           </View>
-          {/* Escaneos secundarios */}
-          <View style={st.scanRow}>
-            <AnimatedPressable onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } }); }} style={st.scanBtn}>
-              <Ionicons name="barcode-outline" size={18} color={SEMANTIC.warning} />
-              <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
-                Escanear etiqueta
-              </EliteText>
-            </AnimatedPressable>
-            <AnimatedPressable onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } }); }} style={st.scanBtn}>
-              <Ionicons name="medkit-outline" size={18} color={CATEGORY_COLORS.mind} />
-              <EliteText variant="caption" style={{ color: CATEGORY_COLORS.mind, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
-                Escanear suplemento
-              </EliteText>
-            </AnimatedPressable>
-          </View>
+          {/* Link a Smart Shopping */}
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/smart-shopping' as any); }} style={st.smartShoppingLink}>
+            <Ionicons name="cart-outline" size={16} color={CATEGORY_COLORS.optimization} />
+            <EliteText variant="caption" style={{ color: CATEGORY_COLORS.optimization, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
+              Escanear etiquetas y suplementos
+            </EliteText>
+            <Ionicons name="chevron-forward" size={14} color={CATEGORY_COLORS.optimization} />
+          </AnimatedPressable>
         </Animated.View>
 
         {/* ══ Comidas del día ══ */}
@@ -364,12 +357,10 @@ const st = StyleSheet.create({
   },
   quickLabel: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
-  // Scan buttons
-  scanRow: { flexDirection: 'row', gap: 10, marginBottom: Spacing.md },
-  scanBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
-    paddingVertical: Spacing.sm,
+  // Smart shopping link
+  smartShoppingLink: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: Spacing.sm, marginBottom: Spacing.md,
   },
 
   // Section

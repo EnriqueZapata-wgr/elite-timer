@@ -17,17 +17,17 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS } from '@/src/constants/brand';
+import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 
 // === CONSTANTES ===
 
-const CHRONO_META: Record<string, { emoji: string; name: string; desc: string }> = {
-  lion: { emoji: '🦁', name: 'León', desc: 'Madrugador natural' },
-  bear: { emoji: '🐻', name: 'Oso', desc: 'Ritmo solar' },
-  wolf: { emoji: '🐺', name: 'Lobo', desc: 'Noctámbulo creativo' },
-  dolphin: { emoji: '🐬', name: 'Delfín', desc: 'Mente activa' },
+const CHRONO_META: Record<string, { icon: string; color: string; name: string; desc: string }> = {
+  lion: { icon: 'sunny-outline', color: '#EF9F27', name: 'León', desc: 'Madrugador natural' },
+  bear: { icon: 'leaf-outline', color: '#a8e02a', name: 'Oso', desc: 'Ritmo solar' },
+  wolf: { icon: 'moon-outline', color: '#7F77DD', name: 'Lobo', desc: 'Noctámbulo creativo' },
+  dolphin: { icon: 'water-outline', color: '#5B9BD5', name: 'Delfín', desc: 'Mente activa' },
 };
 
 const SCORE_META = [
@@ -133,9 +133,9 @@ export default function YoScreen() {
               <EliteText style={st.headerName}>{userName}</EliteText>
               {memberSince ? <EliteText variant="caption" style={st.headerSince}>Miembro desde {memberSince}</EliteText> : null}
               {cm && (
-                <View style={[st.chronoPill, { backgroundColor: CATEGORY_COLORS.optimization + '20' }]}>
-                  <EliteText style={{ fontSize: FontSizes.md }}>{cm.emoji}</EliteText>
-                  <EliteText variant="caption" style={st.chronoPillText}>{cm.name}</EliteText>
+                <View style={[st.chronoPill, { backgroundColor: withOpacity(cm.color, 0.12) }]}>
+                  <Ionicons name={cm.icon as any} size={14} color={cm.color} />
+                  <EliteText variant="caption" style={[st.chronoPillText, { color: cm.color }]}>{cm.name}</EliteText>
                 </View>
               )}
             </View>
@@ -226,9 +226,11 @@ export default function YoScreen() {
                 style={st.chronoHero}
               >
                 <View style={st.chronoTop}>
-                  <EliteText style={st.chronoEmoji}>{cm.emoji}</EliteText>
+                  <View style={[st.chronoIconWrap, { backgroundColor: withOpacity(cm.color, 0.15) }]}>
+                    <Ionicons name={cm.icon as any} size={28} color={cm.color} />
+                  </View>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={st.chronoName}>{cm.name}</EliteText>
+                    <EliteText style={[st.chronoName, { color: cm.color }]}>{cm.name}</EliteText>
                     <EliteText variant="caption" style={st.chronoDesc}>{cm.desc}</EliteText>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.muted} />
@@ -417,8 +419,8 @@ const st = StyleSheet.create({
   // Chronotype hero
   chronoHero: { borderRadius: Radius.md, borderWidth: 1, borderColor: ATP_BRAND.lime + '20', padding: Spacing.md, overflow: 'hidden' },
   chronoTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
-  chronoEmoji: { fontSize: 48 },
-  chronoName: { fontFamily: Fonts.extraBold, fontSize: 22, color: TEXT_COLORS.primary },
+  chronoIconWrap: { width: 56, height: 56, borderRadius: Radius.pill, alignItems: 'center', justifyContent: 'center' },
+  chronoName: { fontFamily: Fonts.extraBold, fontSize: 22 },
   chronoDesc: { color: TEXT_COLORS.secondary, fontSize: FontSizes.md, marginTop: 2 },
   chronoTimeline: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderTopWidth: 0.5, borderTopColor: SURFACES.border, paddingTop: Spacing.md },
   chronoTimeItem: { alignItems: 'center', gap: 3 },

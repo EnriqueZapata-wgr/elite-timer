@@ -139,16 +139,19 @@ export default function KitScreen() {
           </AnimatedPressable>
         </Animated.View>
 
-        {/* ── Protocolos (placeholder) ── */}
+        {/* ── Protocolos ── */}
         <Animated.View entering={FadeInUp.delay(200).springify()}>
-          <View style={[styles.linkCard, { opacity: 0.5 }]}>
-            <View style={[styles.linkCardAccent, { backgroundColor: CATEGORY_COLORS.metrics }]} />
-            <Ionicons name="document-text-outline" size={22} color={CATEGORY_COLORS.metrics} />
-            <View style={styles.linkCardInfo}>
-              <EliteText variant="body" style={styles.linkCardTitle}>Protocolos</EliteText>
-              <EliteText variant="caption" style={styles.linkCardSub}>Próximamente: protocolos de tu coach</EliteText>
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/protocol-explorer' as any); }}>
+            <View style={styles.linkCard}>
+              <View style={[styles.linkCardAccent, { backgroundColor: CATEGORY_COLORS.metrics }]} />
+              <Ionicons name="flask-outline" size={22} color={CATEGORY_COLORS.metrics} />
+              <View style={styles.linkCardInfo}>
+                <EliteText variant="body" style={styles.linkCardTitle}>Protocolos</EliteText>
+                <EliteText variant="caption" style={styles.linkCardSub}>Explora y activa protocolos</EliteText>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
             </View>
-          </View>
+          </AnimatedPressable>
         </Animated.View>
 
         {/* ── Herramientas (grid 2x2) ── */}
@@ -164,6 +167,7 @@ export default function KitScreen() {
               { icon: 'sparkles-outline', label: 'Meditación', color: CATEGORY_COLORS.mind, active: true, route: '/meditation' },
               { icon: 'heart-circle-outline', label: 'Check-in', color: CATEGORY_COLORS.mind, active: true, route: '/checkin' },
               { icon: 'flask-outline', label: 'Mi Salud', color: CATEGORY_COLORS.metrics, active: true, route: '/my-health' },
+              { icon: 'cart-outline', label: 'Compras', color: CATEGORY_COLORS.optimization, active: true, route: '/smart-shopping' },
               { icon: 'journal-outline', label: 'Journaling', color: CATEGORY_COLORS.optimization, active: false, route: '' },
             ].map((tool, idx) => (
               <StaggerItem key={tool.label} index={idx} style={styles.toolCard}>

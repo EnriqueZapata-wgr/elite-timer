@@ -93,6 +93,12 @@ export default function TodayScreen() {
     useCallback(() => {
       let cancelled = false;
       async function load() {
+        // Si el plan cargado es de otro día, forzar recarga visual
+        const today = new Date().toISOString().split('T')[0];
+        if (dayPlan && dayPlan.date !== today) {
+          setDayPlan(null);
+          setTimeline([]);
+        }
         setLoading(true);
         try {
           // Cargar stats semanales + cronotipo en paralelo

@@ -56,7 +56,10 @@ export default function MyHealthScreen() {
 
   const handlePickImage = async (useCamera: boolean) => {
     if (!ImagePicker) {
-      Alert.alert('No disponible', 'Necesitas actualizar la app para usar la cámara. Instala el APK más reciente.');
+      Alert.alert(
+        'Cámara no disponible',
+        'Toma una captura de pantalla de tu estudio y súbela desde la galería.',
+      );
       return;
     }
     const opts = { quality: 0.8, base64: true };
@@ -70,7 +73,15 @@ export default function MyHealthScreen() {
 
   const handlePickPDF = async () => {
     if (!DocumentPicker) {
-      Alert.alert('No disponible', 'Necesitas actualizar la app. Instala el APK más reciente.');
+      Alert.alert(
+        'PDF no disponible en esta versión',
+        'Toma una foto del documento con la cámara — la IA puede leerlo igual de bien.',
+        [
+          { text: 'Tomar foto', onPress: () => handlePickImage(true) },
+          { text: 'Galería', onPress: () => handlePickImage(false) },
+          { text: 'Cancelar', style: 'cancel' },
+        ],
+      );
       return;
     }
     try {
