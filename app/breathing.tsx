@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg,
   },
   breathCircle: {
-    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: 999,
+    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: Radius.pill,
     backgroundColor: PURPLE + '15', borderWidth: 3, borderColor: PURPLE,
     alignItems: 'center', justifyContent: 'center',
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 0 },
@@ -505,9 +505,9 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   totalProgressBar: {
-    width: '100%', height: 3, backgroundColor: Colors.surfaceLight, borderRadius: 2, overflow: 'hidden',
+    width: '100%', height: 3, backgroundColor: Colors.surfaceLight, borderRadius: Radius.xs, overflow: 'hidden',
   },
-  totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: 2 },
+  totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: Radius.xs },
   idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: 14 },
 
   // Controles

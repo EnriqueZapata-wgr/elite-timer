@@ -2,7 +2,7 @@
  * Nutrición — Dashboard diario de alimentación, hidratación y ayuno.
  */
 import { useState, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -19,6 +19,7 @@ import {
   type FoodLog, type HydrationLog, type FastingLog, type NutritionPlan, type DailyNutritionScore, type Recipe,
 } from '@/src/services/nutrition-service';
 import { haptic } from '@/src/utils/haptics';
+import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
 
@@ -97,7 +98,16 @@ export default function NutritionScreen() {
   if (loading) {
     return (
       <SafeAreaView style={st.screen}>
-        <ActivityIndicator size="large" color={BLUE} style={{ flex: 1 }} />
+        <View style={{ padding: Spacing.md, paddingTop: Spacing.xxl + Spacing.lg, gap: Spacing.sm }}>
+          <SkeletonLoader variant="card" height={120} />
+          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+            <SkeletonLoader variant="stat-card" />
+            <SkeletonLoader variant="stat-card" />
+            <SkeletonLoader variant="stat-card" />
+          </View>
+          <SkeletonLoader variant="card" height={60} />
+          <SkeletonLoader variant="card" height={60} />
+        </View>
       </SafeAreaView>
     );
   }

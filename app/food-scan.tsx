@@ -22,7 +22,7 @@ import { BlurView } from 'expo-blur';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { vibrateLight, vibrateMedium, vibrateHeavy } from '@/src/utils/haptics';
+import { haptic } from '@/src/utils/haptics';
 import {
   analyzeFoodPhoto, analyzeLabelPhoto, analyzeSupplementPhoto,
   logFood, uploadFoodPhoto,
@@ -344,7 +344,7 @@ export default function FoodScanScreen() {
     }
     const res = await ImagePicker.launchCameraAsync({ quality: 0.6, base64: true });
     if (!res.canceled && res.assets[0]) {
-      vibrateLight();
+      haptic.light();
       setPhotoUri(res.assets[0].uri);
       setPhotoBase64(res.assets[0].base64 ?? null);
       setInputType('photo');
@@ -362,7 +362,7 @@ export default function FoodScanScreen() {
       quality: 0.6, base64: true, mediaTypes: ['images'],
     });
     if (!res.canceled && res.assets[0]) {
-      vibrateLight();
+      haptic.light();
       setPhotoUri(res.assets[0].uri);
       setPhotoBase64(res.assets[0].base64 ?? null);
       setInputType('photo');
@@ -378,7 +378,7 @@ export default function FoodScanScreen() {
     if (mode !== 'food' && !photoBase64) return;
     if (mode === 'food' && inputType === 'photo' && !photoBase64) return;
 
-    vibrateMedium();
+    haptic.medium();
     setStep('analyzing');
     setError(null);
     try {
@@ -405,7 +405,7 @@ export default function FoodScanScreen() {
         const ctxSupp = useCtx ? SUPPLEMENT_CONTEXT.find(c => c.key === useCtx)?.label : undefined;
         analysis = await analyzeSupplementPhoto(photoBase64!, productName || undefined, ctxSupp);
       }
-      vibrateHeavy();
+      haptic.success();
       setResult(analysis);
       setStep('result');
     } catch (err: any) {
@@ -445,7 +445,7 @@ export default function FoodScanScreen() {
         carbs_g: totals?.carbs,
         fat_g: totals?.fat,
       });
-      vibrateHeavy();
+      haptic.success();
       setSaved(true);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo guardar');
@@ -466,7 +466,7 @@ export default function FoodScanScreen() {
         meal_type: mealType, description: description || textInput || 'Sin descripción',
         photo_url: photoUrl, meal_time: now, hunger_level: hungerVal,
       });
-      vibrateLight();
+      haptic.light();
       router.back();
     } catch (err: any) {
       Alert.alert('Error', err.message || 'No se pudo guardar');
@@ -477,7 +477,7 @@ export default function FoodScanScreen() {
   // === HANDLERS INGREDIENTES EDITABLES ===
 
   const removeIngredient = (idx: number) => {
-    vibrateLight();
+    haptic.light();
     const updated = ingredients.filter((_, i) => i !== idx);
     setIngredients(updated);
     setEditedTotals(recalcTotals(updated));
@@ -486,7 +486,7 @@ export default function FoodScanScreen() {
 
   const handleAddIngredient = () => {
     if (!newIngredientName.trim()) return;
-    vibrateLight();
+    haptic.light();
     setIngredients(prev => [...prev, {
       name: newIngredientName.trim(),
       portion: '~1 porción',
@@ -515,7 +515,7 @@ export default function FoodScanScreen() {
       setIngredients(newResult.ingredients || []);
       setEditedTotals(newResult.totals || null);
       setWasEdited(false);
-      vibrateHeavy();
+      haptic.success();
     } catch { /* silencioso */ }
     setRecalculating(false);
   };
@@ -553,7 +553,7 @@ export default function FoodScanScreen() {
   // Manejar envío de texto desde capture (food mode)
   const handleTextSubmit = () => {
     if (!textInput.trim()) return;
-    vibrateLight();
+    haptic.light();
     setInputType('text');
     setStep('preview');
   };
@@ -752,7 +752,7 @@ export default function FoodScanScreen() {
                   const active = mealType === t.key;
                   return (
                     <AnimatedPressable key={t.key} scaleDown={0.94}
-                      onPress={() => { vibrateLight(); setMealType(t.key); }}
+                      onPress={() => { haptic.light(); setMealType(t.key); }}
                       style={[st.mealChip, active && { backgroundColor: cfg.color + '18', borderColor: cfg.color + '50' }]}>
                       <EliteText style={{ fontSize: 16 }}>{t.emoji}</EliteText>
                       <EliteText style={{
@@ -798,7 +798,7 @@ export default function FoodScanScreen() {
                   const active = hungerKey === h.key;
                   return (
                     <AnimatedPressable key={h.key} scaleDown={0.92}
-                      onPress={() => { vibrateLight(); setHungerKey(active ? null : h.key); }}
+                      onPress={() => { haptic.light(); setHungerKey(active ? null : h.key); }}
                       style={[st.hungerCard, active && { backgroundColor: cfg.color + '12', borderColor: cfg.color + '40' }]}>
                       <EliteText style={{ fontSize: 24 }}>{h.emoji}</EliteText>
                       <EliteText variant="caption" style={{
@@ -836,7 +836,7 @@ export default function FoodScanScreen() {
                   const active = useCtx === c.key;
                   return (
                     <AnimatedPressable key={c.key} scaleDown={0.94}
-                      onPress={() => { vibrateLight(); setUseCtx(active ? null : c.key); }}
+                      onPress={() => { haptic.light(); setUseCtx(active ? null : c.key); }}
                       style={[st.mealChip, active && { backgroundColor: cfg.color + '18', borderColor: cfg.color + '50' }]}>
                       <EliteText style={{ fontSize: 14 }}>{c.emoji}</EliteText>
                       <EliteText style={{

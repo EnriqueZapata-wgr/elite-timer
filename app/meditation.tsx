@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: 4, marginBottom: Spacing.lg,
   },
   phaseDot: {
-    width: 6, height: 6, borderRadius: 3, backgroundColor: Colors.disabled,
+    width: 6, height: 6, borderRadius: Radius.xs, backgroundColor: Colors.disabled,
   },
   phaseDotDone: { backgroundColor: PURPLE },
   phaseDotCurrent: { backgroundColor: PURPLE, width: 16, borderRadius: 3 },

@@ -5,7 +5,7 @@
  * Cada plantilla se expande para mostrar fases, acciones y botón de activación.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -21,6 +21,7 @@ import { getPublicTemplates, assignProtocol, getUserProtocols, generateDailyPlan
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
+import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 
 // === COMPONENTES AUXILIARES ===
 
@@ -119,10 +120,9 @@ export default function ProtocolExplorerScreen() {
       {/* Loading */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={ATP_BRAND.lime} />
-          <EliteText variant="caption" style={styles.loadingText}>
-            Cargando protocolos...
-          </EliteText>
+          <SkeletonLoader variant="card" />
+          <SkeletonLoader variant="card" height={100} />
+          <SkeletonLoader variant="card" height={100} />
         </View>
       ) : (
         <ScrollView
@@ -312,13 +312,9 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
     gap: Spacing.md,
-  },
-  loadingText: {
-    color: TEXT_COLORS.muted,
-    fontSize: 13,
   },
   scrollView: {
     flex: 1,

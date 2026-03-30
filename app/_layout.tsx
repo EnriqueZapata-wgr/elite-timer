@@ -114,6 +114,7 @@ export default function RootLayout() {
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-scan" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="protocol-explorer" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="smart-shopping" options={{ animation: 'slide_from_right' }} />
               </Stack>
               <StatusBar style="light" />
             </SessionsProvider>

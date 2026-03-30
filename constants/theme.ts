@@ -43,14 +43,16 @@ export const Fonts = {
 } as const;
 
 export const FontSizes = {
-  xs: 12,
-  sm: 14,
-  md: 16,
-  lg: 22,
-  xl: 28,
-  stat: 24,
-  xxl: 48,
-  timer: 56,
+  xs: 10,      // captions tiny (9-10)
+  sm: 12,      // captions estándar (11-12)
+  md: 14,      // body (13-14)
+  lg: 16,      // subtítulos (15-16)
+  xl: 18,      // títulos pequeños (17-18)
+  xxl: 24,     // stats, headings
+  hero: 28,    // títulos hero
+  display: 32, // títulos grandes
+  stat: 24,    // alias para stats
+  timer: 56,   // display del timer
 } as const;
 
 // === ESPACIADO ===
