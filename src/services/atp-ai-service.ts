@@ -21,6 +21,8 @@ interface ClientFullData {
   clinicalStudies: any[];
   nutritionPlan: any;
   recentFoodLogs: any[];
+  activeProtocols: any[];
+  complianceStats: any;
 }
 
 // Recopilar TODOS los datos del cliente en paralelo
@@ -41,6 +43,26 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supabase.from('food_logs').select('date, meal_type, description, ai_analysis').eq('user_id', clientId).order('date', { ascending: false }).limit(21),
   ]);
 
+  // Protocolos y compliance (tablas nuevas — pueden no existir aún)
+  let activeProtocols: any[] = [];
+  let complianceStats: any = null;
+  try {
+    const protRes = await supabase.from('user_protocols').select('name, status, current_phase, started_at, template:protocol_templates(name, tier, category)')
+      .eq('user_id', clientId).eq('status', 'active');
+    activeProtocols = protRes.data || [];
+
+    const twoWeeksAgo = new Date(); twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    const planRes = await supabase.from('daily_plans').select('date, compliance_pct, total_actions, completed_actions, actions')
+      .eq('user_id', clientId).gte('date', twoWeeksAgo.toISOString().split('T')[0]).order('date');
+    if (planRes.data?.length) {
+      const plans = planRes.data;
+      const avg = Math.round(plans.reduce((s: number, p: any) => s + (p.compliance_pct || 0), 0) / plans.length);
+      let streak = 0;
+      for (const p of [...plans].reverse()) { if (p.compliance_pct >= 75) streak++; else break; }
+      complianceStats = { avgCompliance: avg, streak, days: plans.length };
+    }
+  } catch { /* tablas 029 aún no ejecutadas */ }
+
   const { data: profileBasic } = await supabase.from('profiles').select('full_name, email').eq('id', clientId).single();
 
   return {
@@ -57,6 +79,8 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     clinicalStudies: studiesRes.data || [],
     nutritionPlan: nutritionPlanRes.data ?? null,
     recentFoodLogs: foodLogsRes.data || [],
+    activeProtocols,
+    complianceStats,
   };
 }
 
@@ -199,6 +223,20 @@ Sueño: ${profile?.sleep_time_usual || '—'}-${profile?.wake_time_usual || '—
       if (f.ai_analysis?.red_flags?.length) p += ` ⚠️ ${f.ai_analysis.red_flags.join(', ')}`;
       p += '\n';
     });
+  }
+
+  // Protocolos activos y compliance
+  if (data.activeProtocols.length > 0) {
+    p += `\n## PROTOCOLOS ACTIVOS\n`;
+    data.activeProtocols.forEach((up: any) => {
+      p += `- ${up.name} (Fase ${up.current_phase}, desde ${new Date(up.started_at).toLocaleDateString()})`;
+      if (up.template?.category) p += ` [${up.template.category}]`;
+      p += '\n';
+    });
+    if (data.complianceStats) {
+      p += `\nCompliance promedio 14 días: ${data.complianceStats.avgCompliance}%\n`;
+      p += `Racha actual: ${data.complianceStats.streak} días\n`;
+    }
   }
 
   // Estudios clínicos
