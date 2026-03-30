@@ -153,7 +153,7 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
           </Pressable>
         )}
-        <EliteText variant="title">{isInTabs ? 'PERFIL' : 'AJUSTES'}</EliteText>
+        <EliteText variant="title">AJUSTES</EliteText>
       </Animated.View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -168,6 +168,68 @@ export default function SettingsScreen() {
               {user?.email}
             </EliteText>
           </View>
+        </Animated.View>
+
+        {/* ══════ MI PROTOCOLO ══════ */}
+        <Animated.View entering={FadeInUp.delay(200).springify()}>
+          <SectionLabel>MI PROTOCOLO</SectionLabel>
+
+          {/* Cronotipo pill */}
+          <Pressable onPress={() => router.push('/quiz/chronotype' as any)} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="sunny-outline" size={20} color={CATEGORY_COLORS.optimization} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Mi cronotipo</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Toca para cambiar</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
+
+          {/* Protocolos activos */}
+          <Pressable onPress={() => router.push('/protocol-explorer' as any)} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="flask-outline" size={20} color={CATEGORY_COLORS.metrics} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Protocolos activos</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Explorar y gestionar</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
+
+          <Divider />
+        </Animated.View>
+
+        {/* ══════ APP ══════ */}
+        <Animated.View entering={FadeInUp.delay(220).springify()}>
+          <SectionLabel>APP</SectionLabel>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="moon-outline" size={20} color={Colors.textSecondary} />
+              <EliteText variant="body" style={styles.settingRowLabel}>Tema</EliteText>
+            </View>
+            <EliteText variant="caption" style={{ color: Colors.neonGreen }}>Oscuro</EliteText>
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="language-outline" size={20} color={Colors.textSecondary} />
+              <EliteText variant="body" style={styles.settingRowLabel}>Idioma</EliteText>
+            </View>
+            <EliteText variant="caption" style={{ color: Colors.neonGreen }}>Español</EliteText>
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="resize-outline" size={20} color={Colors.textSecondary} />
+              <EliteText variant="body" style={styles.settingRowLabel}>Unidades</EliteText>
+            </View>
+            <EliteText variant="caption" style={{ color: Colors.neonGreen }}>Métrico</EliteText>
+          </View>
+
+          <Divider />
         </Animated.View>
 
         {/* ══════ CONECTAR CON COACH ══════ */}
@@ -417,8 +479,9 @@ export default function SettingsScreen() {
           <Divider />
         </Animated.View>
 
-        {/* ── Sesión ── */}
-        <Animated.View entering={FadeInUp.delay(950).springify()} style={styles.logoutContainer}>
+        {/* ── Cuenta ── */}
+        <Animated.View entering={FadeInUp.delay(950).springify()}>
+          <SectionLabel color={Colors.error}>CUENTA</SectionLabel>
           <Pressable
             onPress={() => {
               if (typeof window !== 'undefined' && window.confirm) {
@@ -433,7 +496,24 @@ export default function SettingsScreen() {
             }}
             style={styles.logoutButton}
           >
+            <Ionicons name="log-out-outline" size={20} color={Colors.error} />
             <EliteText variant="body" style={styles.logoutText}>Cerrar sesión</EliteText>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Alert.alert(
+                'Eliminar cuenta',
+                '¿Estás seguro? Esta acción es irreversible. Se borrarán todos tus datos.',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Eliminar', style: 'destructive', onPress: () => Alert.alert('Contactar soporte', 'Envía un email a soporte@atpperformance.com para eliminar tu cuenta.') },
+                ],
+              );
+            }}
+            style={styles.deleteButton}
+          >
+            <Ionicons name="trash-outline" size={20} color={Colors.error} />
+            <EliteText variant="body" style={styles.deleteText}>Eliminar cuenta</EliteText>
           </Pressable>
         </Animated.View>
 
@@ -778,11 +858,11 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  logoutContainer: {
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-  },
   logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.xl,
   },
@@ -790,6 +870,44 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontFamily: Fonts.semiBold,
     fontSize: 15,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    marginTop: Spacing.xs,
+  },
+  deleteText: {
+    color: Colors.error,
+    fontFamily: Fonts.semiBold,
+    fontSize: 14,
+    opacity: 0.7,
+  },
+  // Setting rows
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: Spacing.sm + 2,
+    paddingHorizontal: Spacing.xs,
+  },
+  settingRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    flex: 1,
+  },
+  settingRowLabel: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 14,
+  },
+  settingRowSub: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
   },
   versionContainer: {
     alignItems: 'center',
