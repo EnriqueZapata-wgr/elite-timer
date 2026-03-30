@@ -19,7 +19,7 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { getRoutines } from '@/src/services/routine-service';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   title: {
-    fontSize: 32,
+    fontSize: FontSizes.display,
     fontFamily: Fonts.extraBold,
     color: AMBER,
     letterSpacing: 4,
@@ -232,12 +232,12 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: Colors.textSecondary,
     letterSpacing: 3,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
   },
   seeAll: {
     color: Colors.neonGreen,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
   },
 
@@ -257,12 +257,12 @@ const styles = StyleSheet.create({
   },
   routineCardName: {
     fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
     color: Colors.textPrimary,
   },
   routineCardMeta: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
   },
   routinePlayBtn: {
     position: 'absolute',
@@ -313,8 +313,8 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: Radius.card,
   },
   linkCardInfo: { flex: 1 },
-  linkCardTitle: { fontFamily: Fonts.semiBold, fontSize: 15 },
-  linkCardSub: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  linkCardTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg },
+  linkCardSub: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 2 },
 
   // Tools grid
   toolsGrid: {
@@ -336,10 +336,10 @@ const styles = StyleSheet.create({
   },
   toolCardLabel: {
     fontFamily: Fonts.semiBold,
-    fontSize: 13,
+    fontSize: FontSizes.md,
   },
   toolCardSoon: {
     color: Colors.textMuted,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
   },
 });

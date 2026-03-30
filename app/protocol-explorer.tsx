@@ -18,7 +18,7 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getPublicTemplates, assignProtocol, getUserProtocols, generateDailyPlan } from '@/src/services/protocol-builder-service';
-import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
+import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
@@ -29,7 +29,7 @@ import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 function Pill({ text, color }: { text: string; color: string }) {
   return (
     <View style={{ backgroundColor: withOpacity(color, 0.12), paddingHorizontal: 8, paddingVertical: 3, borderRadius: Radius.sm }}>
-      <EliteText variant="caption" style={{ color, fontSize: 10 }}>{text}</EliteText>
+      <EliteText variant="caption" style={{ color, fontSize: FontSizes.xs }}>{text}</EliteText>
     </View>
   );
 }
@@ -220,7 +220,7 @@ export default function ProtocolExplorerScreen() {
                                 </EliteText>
                                 {t.phases.map((phase: any, k: number) => (
                                   <View key={k} style={styles.phaseRow}>
-                                    <EliteText variant="caption" style={{ color: catColor, fontSize: 11 }}>
+                                    <EliteText variant="caption" style={{ color: catColor, fontSize: FontSizes.sm }}>
                                       {k + 1}.
                                     </EliteText>
                                     <View style={styles.phaseInfo}>
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   title: {
-    fontSize: 28,
+    fontSize: FontSizes.hero,
     fontFamily: Fonts.extraBold,
     color: ATP_BRAND.lime,
     letterSpacing: 3,
@@ -329,7 +329,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: TEXT_COLORS.muted,
     fontFamily: Fonts.bold,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     letterSpacing: 2,
     marginBottom: Spacing.sm,
   },
@@ -353,11 +353,11 @@ const styles = StyleSheet.create({
   activeName: {
     color: TEXT_COLORS.primary,
     fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
   activeMeta: {
     color: TEXT_COLORS.muted,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
   },
   activeBadge: {
     backgroundColor: withOpacity(SEMANTIC.success, 0.12),
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   },
   activeBadgeText: {
     color: SEMANTIC.success,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
   },
   // Templates
@@ -382,11 +382,11 @@ const styles = StyleSheet.create({
   templateName: {
     color: TEXT_COLORS.primary,
     fontFamily: Fonts.bold,
-    fontSize: 16,
+    fontSize: FontSizes.lg,
   },
   templateDesc: {
     color: TEXT_COLORS.secondary,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     marginTop: 2,
   },
   pillRow: {
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   phasesLabel: {
     fontFamily: Fonts.bold,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     letterSpacing: 1,
   },
   phaseRow: {
@@ -414,15 +414,15 @@ const styles = StyleSheet.create({
   },
   phaseName: {
     color: TEXT_COLORS.primary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
   },
   phaseDesc: {
     color: TEXT_COLORS.muted,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
   },
   actionsCount: {
     color: TEXT_COLORS.secondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     marginTop: 8,
   },
   activateBtn: {
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   activateBtnText: {
     color: TEXT_COLORS.onAccent,
     fontFamily: Fonts.bold,
-    fontSize: 15,
+    fontSize: FontSizes.lg,
   },
   alreadyActiveContainer: {
     backgroundColor: withOpacity(SEMANTIC.success, 0.08),
@@ -447,7 +447,7 @@ const styles = StyleSheet.create({
   alreadyActiveText: {
     color: SEMANTIC.success,
     fontFamily: Fonts.bold,
-    fontSize: 13,
+    fontSize: FontSizes.md,
   },
   chevronContainer: {
     alignItems: 'center',

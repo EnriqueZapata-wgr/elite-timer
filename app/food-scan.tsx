@@ -28,7 +28,7 @@ import {
   logFood, uploadFoodPhoto,
 } from '@/src/services/nutrition-service';
 import { analyzeFoodText, reanalyzeFood } from '@/src/services/nutrition-service';
-import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
+import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
 
@@ -213,13 +213,13 @@ function MacroPill({ label, value, unit, color, delay: d }: {
 }) {
   return (
     <Animated.View entering={FadeInUp.delay(d).springify().damping(16)} style={st.macroPill}>
-      <EliteText style={{ fontSize: 24, fontFamily: Fonts.extraBold, color, includeFontPadding: false }}>
+      <EliteText style={{ fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color, includeFontPadding: false }}>
         {value}
       </EliteText>
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 9, marginTop: -2 }}>
+      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: -2 }}>
         {unit}
       </EliteText>
-      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginTop: 2 }}>
+      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 2 }}>
         {label}
       </EliteText>
     </Animated.View>
@@ -585,7 +585,7 @@ export default function FoodScanScreen() {
                 <EliteText style={{ fontSize: 22, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
                   {cfg.title}
                 </EliteText>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: 13 }}>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: FontSizes.md }}>
                   Foto o describe lo que comiste
                 </EliteText>
               </Animated.View>
@@ -633,7 +633,7 @@ export default function FoodScanScreen() {
                   <Ionicons name="arrow-up" size={18} color={textInput.trim() ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
                 </AnimatedPressable>
               </View>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11, marginTop: 6, textAlign: 'center' }}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm, marginTop: 6, textAlign: 'center' }}>
                 Tip: usa el micrófono de tu teclado 🎤
               </EliteText>
             </Animated.View>
@@ -660,7 +660,7 @@ export default function FoodScanScreen() {
             <EliteText style={{ fontSize: 22, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
               {cfg.title}
             </EliteText>
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: 13 }}>
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: FontSizes.md }}>
               Toma una foto para analizar con IA
             </EliteText>
           </Animated.View>
@@ -676,7 +676,7 @@ export default function FoodScanScreen() {
             <View style={st.captureSecRow}>
               <GlassButton onPress={openGallery}>
                 <Ionicons name="images-outline" size={18} color={TEXT_COLORS.primary} />
-                <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 14, fontFamily: Fonts.semiBold }}>
+                <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold }}>
                   Galería
                 </EliteText>
               </GlassButton>
@@ -707,7 +707,7 @@ export default function FoodScanScreen() {
           <Animated.View entering={FadeIn.duration(400).springify()}>
             <View style={st.textBubble}>
               <Ionicons name="chatbubble-ellipses-outline" size={20} color={cfg.color} style={{ marginRight: 8 }} />
-              <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 15, flex: 1, lineHeight: 22 }}>
+              <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.lg, flex: 1, lineHeight: 22 }}>
                 {textInput}
               </EliteText>
             </View>
@@ -754,9 +754,9 @@ export default function FoodScanScreen() {
                     <AnimatedPressable key={t.key} scaleDown={0.94}
                       onPress={() => { haptic.light(); setMealType(t.key); }}
                       style={[st.mealChip, active && { backgroundColor: cfg.color + '18', borderColor: cfg.color + '50' }]}>
-                      <EliteText style={{ fontSize: 16 }}>{t.emoji}</EliteText>
+                      <EliteText style={{ fontSize: FontSizes.lg }}>{t.emoji}</EliteText>
                       <EliteText style={{
-                        fontSize: 13, fontFamily: active ? Fonts.bold : Fonts.regular,
+                        fontSize: FontSizes.md, fontFamily: active ? Fonts.bold : Fonts.regular,
                         color: active ? cfg.color : TEXT_COLORS.secondary,
                       }}>
                         {t.label}
@@ -800,9 +800,9 @@ export default function FoodScanScreen() {
                     <AnimatedPressable key={h.key} scaleDown={0.92}
                       onPress={() => { haptic.light(); setHungerKey(active ? null : h.key); }}
                       style={[st.hungerCard, active && { backgroundColor: cfg.color + '12', borderColor: cfg.color + '40' }]}>
-                      <EliteText style={{ fontSize: 24 }}>{h.emoji}</EliteText>
+                      <EliteText style={{ fontSize: FontSizes.xxl }}>{h.emoji}</EliteText>
                       <EliteText variant="caption" style={{
-                        fontSize: 10, marginTop: 3,
+                        fontSize: FontSizes.xs, marginTop: 3,
                         color: active ? cfg.color : TEXT_COLORS.muted,
                         fontFamily: active ? Fonts.bold : Fonts.regular,
                       }}>
@@ -838,9 +838,9 @@ export default function FoodScanScreen() {
                     <AnimatedPressable key={c.key} scaleDown={0.94}
                       onPress={() => { haptic.light(); setUseCtx(active ? null : c.key); }}
                       style={[st.mealChip, active && { backgroundColor: cfg.color + '18', borderColor: cfg.color + '50' }]}>
-                      <EliteText style={{ fontSize: 14 }}>{c.emoji}</EliteText>
+                      <EliteText style={{ fontSize: FontSizes.md }}>{c.emoji}</EliteText>
                       <EliteText style={{
-                        fontSize: 12, fontFamily: active ? Fonts.bold : Fonts.regular,
+                        fontSize: FontSizes.sm, fontFamily: active ? Fonts.bold : Fonts.regular,
                         color: active ? cfg.color : TEXT_COLORS.secondary,
                       }}>
                         {c.label}
@@ -858,7 +858,7 @@ export default function FoodScanScreen() {
           <Animated.View entering={FadeInDown.springify()}>
             <View style={st.errorCard}>
               <Ionicons name="alert-circle" size={18} color={SEMANTIC.error} />
-              <EliteText style={{ color: SEMANTIC.error, fontSize: 13, flex: 1 }}>{error}</EliteText>
+              <EliteText style={{ color: SEMANTIC.error, fontSize: FontSizes.md, flex: 1 }}>{error}</EliteText>
             </View>
           </Animated.View>
         )}
@@ -876,7 +876,7 @@ export default function FoodScanScreen() {
                 opacity: (mode === 'food' ? (inputType === 'text' ? !!textInput.trim() : !!photoBase64) : !!photoBase64) ? 1 : 0.3,
               }]}>
               <Ionicons name="sparkles" size={20} color={TEXT_COLORS.onAccent} />
-              <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: 17 }}>
+              <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                 Analizar con IA
               </EliteText>
             </AnimatedPressable>
@@ -884,7 +884,7 @@ export default function FoodScanScreen() {
             {mode === 'food' && (
               <Pressable onPress={handleSaveWithout} disabled={saving}
                 style={{ alignSelf: 'center', paddingVertical: Spacing.sm }}>
-                <EliteText style={{ color: TEXT_COLORS.muted, fontSize: 14 }}>
+                <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>
                   {saving ? 'Guardando...' : 'Guardar sin analizar'}
                 </EliteText>
               </Pressable>
@@ -938,7 +938,7 @@ export default function FoodScanScreen() {
           <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: 20, marginTop: Spacing.xl }}>
             Analizando
           </EliteText>
-          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 6, fontSize: 14, textAlign: 'center' }}>
+          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 6, fontSize: FontSizes.md, textAlign: 'center' }}>
             {mode === 'food' ? 'Identificando comida y nutrientes'
               : mode === 'label' ? 'Leyendo ingredientes y aditivos'
               : 'Evaluando calidad y biodisponibilidad'}
@@ -973,7 +973,7 @@ export default function FoodScanScreen() {
         <Animated.View entering={FadeIn.delay(100).duration(600)} style={{ alignItems: 'center' }}>
           <ScoreRing score={sc} accent={cfg.color} />
           <EliteText style={{
-            color: scColor, fontSize: 15, fontFamily: Fonts.semiBold, marginTop: Spacing.sm,
+            color: scColor, fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, marginTop: Spacing.sm,
           }}>
             {getScoreLabel()}
           </EliteText>
@@ -995,10 +995,10 @@ export default function FoodScanScreen() {
                 {ingredients.map((ing, idx) => (
                   <View key={idx} style={st.foodIngredientRow}>
                     <View style={{ flex: 1 }}>
-                      <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 14 }}>{ing.name}</EliteText>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11 }}>{ing.portion}</EliteText>
+                      <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.md }}>{ing.name}</EliteText>
+                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm }}>{ing.portion}</EliteText>
                     </View>
-                    <EliteText variant="caption" style={{ color: BLUE, fontSize: 11 }}>
+                    <EliteText variant="caption" style={{ color: BLUE, fontSize: FontSizes.sm }}>
                       {ing.calories}cal · {ing.protein}p
                     </EliteText>
                     <Pressable onPress={() => removeIngredient(idx)} hitSlop={8}>
@@ -1025,7 +1025,7 @@ export default function FoodScanScreen() {
                   </View>
                 ) : (
                   <Pressable onPress={() => setAddingIngredient(true)} style={{ marginTop: 8 }}>
-                    <EliteText style={{ color: BLUE, fontSize: 13 }}>+ Agregar ingrediente</EliteText>
+                    <EliteText style={{ color: BLUE, fontSize: FontSizes.md }}>+ Agregar ingrediente</EliteText>
                   </Pressable>
                 )}
               </View>
@@ -1038,7 +1038,7 @@ export default function FoodScanScreen() {
               <MacroPill label="Carbos" value={`${displayTotals?.carbs ?? result.estimated_carbs ?? '—'}`} unit="g" color={SEMANTIC.acceptable} delay={700} />
               <MacroPill label="Grasa" value={`${displayTotals?.fat ?? result.estimated_fat ?? '—'}`} unit="g" color={SEMANTIC.warning} delay={800} />
             </View>
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11, textAlign: 'center', marginTop: 4 }}>
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm, textAlign: 'center', marginTop: 4 }}>
               Estimados aproximados
             </EliteText>
 
@@ -1049,7 +1049,7 @@ export default function FoodScanScreen() {
                   {result.good_points.map((p: string, i: number) => (
                     <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
                       <Ionicons name="checkmark-circle" size={14} color={ATP_BRAND.lime} />
-                      <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: 13 }}>{p}</EliteText>
+                      <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md }}>{p}</EliteText>
                     </View>
                   ))}
                 </View>
@@ -1063,7 +1063,7 @@ export default function FoodScanScreen() {
                   {result.improve_points.map((p: string, i: number) => (
                     <View key={i} style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
                       <Ionicons name="arrow-up-circle" size={14} color={SEMANTIC.warning} />
-                      <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: 13 }}>{p}</EliteText>
+                      <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md }}>{p}</EliteText>
                     </View>
                   ))}
                 </View>
@@ -1090,11 +1090,11 @@ export default function FoodScanScreen() {
                   <Animated.View key={i} entering={SlideInRight.delay(800 + i * 80).springify().damping(18)}>
                     <View style={st.additiveRow}>
                       <View style={{ flex: 1 }}>
-                        <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: 14 }}>
+                        <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>
                           {a.code ? `${a.code} ` : ''}{a.name}
                         </EliteText>
                         {a.explanation && (
-                          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 12, marginTop: 2 }}>
+                          <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm, marginTop: 2 }}>
                             {a.explanation}
                           </EliteText>
                         )}
@@ -1104,7 +1104,7 @@ export default function FoodScanScreen() {
                       }]}>
                         <EliteText variant="caption" style={{
                           color: a.risk === 'alto' ? SEMANTIC.error : a.risk === 'medio' ? SEMANTIC.warning : ATP_BRAND.lime,
-                          fontSize: 10, fontFamily: Fonts.bold,
+                          fontSize: FontSizes.xs, fontFamily: Fonts.bold,
                         }}>
                           {(a.risk ?? 'bajo').toUpperCase()}
                         </EliteText>
@@ -1129,22 +1129,22 @@ export default function FoodScanScreen() {
                   <Animated.View key={i} entering={SlideInRight.delay(500 + i * 80).springify().damping(18)}>
                     <View style={st.ingredientRow}>
                       <View style={{ flex: 1 }}>
-                        <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: 14 }}>
+                        <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>
                           {ing.name}
                         </EliteText>
                         <View style={{ flexDirection: 'row', gap: 10, marginTop: 3 }}>
-                          {ing.form && <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 11 }}>
+                          {ing.form && <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm }}>
                             {ing.form}
                           </EliteText>}
                           {ing.bioavailability && <EliteText variant="caption" style={{
                             color: ing.bioavailability === 'alta' ? ATP_BRAND.lime : ing.bioavailability === 'media' ? SEMANTIC.warning : SEMANTIC.error,
-                            fontSize: 11, fontFamily: Fonts.bold,
+                            fontSize: FontSizes.sm, fontFamily: Fonts.bold,
                           }}>
                             Bio: {ing.bioavailability}
                           </EliteText>}
                         </View>
                       </View>
-                      <EliteText style={{ color: cfg.color, fontFamily: Fonts.bold, fontSize: 13 }}>
+                      <EliteText style={{ color: cfg.color, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
                         {ing.amount}
                       </EliteText>
                     </View>
@@ -1160,7 +1160,7 @@ export default function FoodScanScreen() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {result.inactive_ingredients.map((ing: string, i: number) => (
                     <View key={i} style={st.excipientChip}>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 12 }}>{ing}</EliteText>
+                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm }}>{ing}</EliteText>
                     </View>
                   ))}
                 </View>
@@ -1169,10 +1169,10 @@ export default function FoodScanScreen() {
             {result.interactions && result.interactions !== 'null' && (
               <Animated.View entering={FadeInDown.delay(800).springify()}>
                 <View style={[st.card, { borderLeftColor: SEMANTIC.warning, borderLeftWidth: 3, marginTop: Spacing.md }]}>
-                  <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1 }}>
+                  <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1 }}>
                     PRECAUCIONES
                   </EliteText>
-                  <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: 13, marginTop: 4 }}>
+                  <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md, marginTop: 4 }}>
                     {result.interactions}
                   </EliteText>
                 </View>
@@ -1185,7 +1185,7 @@ export default function FoodScanScreen() {
         {result.feedback && (
           <Animated.View entering={FadeInDown.delay(mode === 'food' ? 950 : 900).springify().damping(18)}>
             <View style={[st.card, { borderLeftColor: cfg.color, borderLeftWidth: 3, marginTop: Spacing.lg }]}>
-              <EliteText style={{ color: TEXT_COLORS.primary, fontSize: 15, lineHeight: 22 }}>
+              <EliteText style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.lg, lineHeight: 22 }}>
                 {result.feedback}
               </EliteText>
             </View>
@@ -1198,7 +1198,7 @@ export default function FoodScanScreen() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.md }}>
               {result.red_flags.map((f: string, i: number) => (
                 <View key={i} style={st.flagChip}>
-                  <EliteText style={{ color: SEMANTIC.error, fontSize: 12 }}>
+                  <EliteText style={{ color: SEMANTIC.error, fontSize: FontSizes.sm }}>
                     {'\u26A0\uFE0F'} {f}
                   </EliteText>
                 </View>
@@ -1212,7 +1212,7 @@ export default function FoodScanScreen() {
           <Animated.View entering={FadeInDown.delay(1050).springify()}>
             <View style={st.tipCard}>
               <Ionicons name="bulb-outline" size={18} color={ATP_BRAND.teal2} />
-              <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: 13, flex: 1, lineHeight: 20 }}>
+              <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md, flex: 1, lineHeight: 20 }}>
                 {result.suggestions || result.better_alternative}
               </EliteText>
             </View>
@@ -1227,7 +1227,7 @@ export default function FoodScanScreen() {
                 const tc = getTagColor(t);
                 return (
                   <View key={i} style={[st.tagChip, { backgroundColor: tc.bg, borderColor: tc.text + '25' }]}>
-                    <EliteText variant="caption" style={{ color: tc.text, fontSize: 11 }}>
+                    <EliteText variant="caption" style={{ color: tc.text, fontSize: FontSizes.sm }}>
                       {t.replace(/_/g, ' ')}
                     </EliteText>
                   </View>
@@ -1245,7 +1245,7 @@ export default function FoodScanScreen() {
               <AnimatedPressable onPress={handleSaveFood} disabled={saving} scaleDown={0.96}
                 style={[st.ctaBtn, { backgroundColor: cfg.color }]}>
                 <Ionicons name={saving ? 'hourglass-outline' : 'checkmark-circle'} size={20} color={TEXT_COLORS.onAccent} />
-                <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: 17 }}>
+                <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                   {saving ? 'Guardando...' : 'Guardar \u2713'}
                 </EliteText>
               </AnimatedPressable>
@@ -1256,7 +1256,7 @@ export default function FoodScanScreen() {
               <AnimatedPressable onPress={handleRecalculate} disabled={recalculating} scaleDown={0.96}
                 style={[st.outlineBtn, { borderColor: BLUE + '50' }]}>
                 <Ionicons name={recalculating ? 'hourglass-outline' : 'refresh'} size={18} color={BLUE} />
-                <EliteText style={{ color: BLUE, fontFamily: Fonts.semiBold, fontSize: 15 }}>
+                <EliteText style={{ color: BLUE, fontFamily: Fonts.semiBold, fontSize: FontSizes.lg }}>
                   {recalculating ? 'Recalculando...' : 'Recalcular con IA'}
                 </EliteText>
               </AnimatedPressable>
@@ -1268,7 +1268,7 @@ export default function FoodScanScreen() {
                   <View style={st.savedCheck}>
                     <Ionicons name="checkmark" size={20} color={TEXT_COLORS.onAccent} />
                   </View>
-                  <EliteText style={{ color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: 17 }}>
+                  <EliteText style={{ color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
                     Guardado
                   </EliteText>
                 </View>
@@ -1277,13 +1277,13 @@ export default function FoodScanScreen() {
 
             <AnimatedPressable onPress={resetAndScan} scaleDown={0.96} style={st.outlineBtn}>
               <Ionicons name="camera-outline" size={18} color={cfg.color} />
-              <EliteText style={{ color: cfg.color, fontFamily: Fonts.semiBold, fontSize: 15 }}>
+              <EliteText style={{ color: cfg.color, fontFamily: Fonts.semiBold, fontSize: FontSizes.lg }}>
                 Escanear otro
               </EliteText>
             </AnimatedPressable>
 
             <Pressable onPress={() => router.back()} style={{ alignSelf: 'center', paddingVertical: Spacing.md }}>
-              <EliteText style={{ color: TEXT_COLORS.muted, fontSize: 14 }}>
+              <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>
                 Volver
               </EliteText>
             </Pressable>
@@ -1330,7 +1330,7 @@ const st = StyleSheet.create({
     paddingHorizontal: 16, paddingVertical: 6,
   },
   textBarInput: {
-    flex: 1, color: TEXT_COLORS.primary, fontSize: 15, fontFamily: Fonts.regular,
+    flex: 1, color: TEXT_COLORS.primary, fontSize: FontSizes.lg, fontFamily: Fonts.regular,
     paddingVertical: Platform.OS === 'ios' ? 10 : 8,
   },
   textBarSend: {
@@ -1370,7 +1370,7 @@ const st = StyleSheet.create({
     borderStyle: 'dashed',
   },
   sectionLabel: {
-    color: TEXT_COLORS.secondary, fontSize: 13, fontFamily: Fonts.semiBold,
+    color: TEXT_COLORS.secondary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold,
     marginBottom: 10, letterSpacing: 0.5,
   },
   mealChip: {
@@ -1381,7 +1381,7 @@ const st = StyleSheet.create({
   input: {
     backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 1, borderColor: SURFACES.border,
     paddingHorizontal: 16, paddingVertical: 14, color: TEXT_COLORS.primary,
-    fontSize: 15, fontFamily: Fonts.regular, marginTop: Spacing.sm,
+    fontSize: FontSizes.lg, fontFamily: Fonts.regular, marginTop: Spacing.sm,
   },
   hungerCard: {
     flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: Radius.md,

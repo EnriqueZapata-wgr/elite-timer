@@ -16,7 +16,7 @@ import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
@@ -134,7 +134,7 @@ export default function YoScreen() {
               {memberSince ? <EliteText variant="caption" style={st.headerSince}>Miembro desde {memberSince}</EliteText> : null}
               {cm && (
                 <View style={[st.chronoPill, { backgroundColor: CATEGORY_COLORS.optimization + '20' }]}>
-                  <EliteText style={{ fontSize: 14 }}>{cm.emoji}</EliteText>
+                  <EliteText style={{ fontSize: FontSizes.md }}>{cm.emoji}</EliteText>
                   <EliteText variant="caption" style={st.chronoPillText}>{cm.name}</EliteText>
                 </View>
               )}
@@ -246,8 +246,8 @@ export default function YoScreen() {
                         <View style={[st.chronoTimeDot, { backgroundColor: t.color + '25' }]}>
                           <Ionicons name={t.icon as any} size={14} color={t.color} />
                         </View>
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 9 }}>{t.label}</EliteText>
-                        <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: 12, fontFamily: Fonts.bold }}>{t.time}</EliteText>
+                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>{t.label}</EliteText>
+                        <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{t.time}</EliteText>
                       </View>
                       {i < arr.length - 1 && <View style={st.chronoTimeConnector} />}
                     </View>
@@ -264,7 +264,7 @@ export default function YoScreen() {
                 style={st.chronoInvite}
               >
                 <View style={st.chronoInviteIcon}>
-                  <EliteText style={{ fontSize: 32 }}>🧬</EliteText>
+                  <EliteText style={{ fontSize: FontSizes.display }}>🧬</EliteText>
                 </View>
                 <View style={{ flex: 1 }}>
                   <EliteText variant="body" style={st.chronoInviteTitle}>Descubre tu cronotipo</EliteText>
@@ -315,7 +315,7 @@ function CompStat({ label, value, unit, color }: { label: string; value: string;
       <EliteText variant="caption" style={st.compStatLabel}>{label}</EliteText>
       <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 1 }}>
         <EliteText style={[st.compStatValue, { color }]}>{value}</EliteText>
-        {unit ? <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: 10 }}>{unit}</EliteText> : null}
+        {unit ? <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs }}>{unit}</EliteText> : null}
       </View>
     </View>
   );
@@ -372,14 +372,14 @@ const st = StyleSheet.create({
   avatarGradient: { width: 64, height: 64, borderRadius: Radius.pill, padding: 3 },
   avatarInner: { flex: 1, borderRadius: Radius.pill, backgroundColor: SURFACES.base, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: 20 },
-  headerName: { fontFamily: Fonts.bold, fontSize: 24, color: TEXT_COLORS.primary },
-  headerSince: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 2 },
+  headerName: { fontFamily: Fonts.bold, fontSize: FontSizes.xxl, color: TEXT_COLORS.primary },
+  headerSince: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginTop: 2 },
   settingsBtn: { padding: Spacing.sm },
   chronoPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4, alignSelf: 'flex-start', marginTop: 6 },
-  chronoPillText: { color: TEXT_COLORS.primary, fontSize: 12, fontFamily: Fonts.semiBold },
+  chronoPillText: { color: TEXT_COLORS.primary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   // Section labels
-  sectionLabel: { color: TEXT_COLORS.secondary, fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2, marginTop: Spacing.xl, marginBottom: Spacing.sm },
+  sectionLabel: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2, marginTop: Spacing.xl, marginBottom: Spacing.sm },
 
   // Scores
   scoresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -389,10 +389,10 @@ const st = StyleSheet.create({
     borderLeftWidth: 3, padding: Spacing.md,
   },
   scoreCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  scoreCardLabel: { fontSize: 11, fontFamily: Fonts.semiBold },
-  scoreCardValue: { fontSize: 32, fontFamily: Fonts.extraBold },
-  scoreCardUnit: { color: TEXT_COLORS.muted, fontSize: 12 },
-  scoreCardEmpty: { color: TEXT_COLORS.muted, fontSize: 12, marginTop: 4 },
+  scoreCardLabel: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  scoreCardValue: { fontSize: FontSizes.display, fontFamily: Fonts.extraBold },
+  scoreCardUnit: { color: TEXT_COLORS.muted, fontSize: FontSizes.sm },
+  scoreCardEmpty: { color: TEXT_COLORS.muted, fontSize: FontSizes.sm, marginTop: 4 },
   miniBar: { height: 3, backgroundColor: SURFACES.cardLight, borderRadius: Radius.xs, marginTop: Spacing.sm, overflow: 'hidden' },
   miniBarFill: { height: '100%', borderRadius: Radius.xs },
 
@@ -403,7 +403,7 @@ const st = StyleSheet.create({
   },
   compDivider: { width: 1, height: 30, backgroundColor: SURFACES.border },
   compStat: { alignItems: 'center' },
-  compStatLabel: { color: TEXT_COLORS.secondary, fontSize: 10, marginBottom: 2 },
+  compStatLabel: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginBottom: 2 },
   compStatValue: { fontSize: 20, fontFamily: Fonts.bold },
   // Composition (empty)
   compEmptyRow: { flexDirection: 'row', gap: 8 },
@@ -411,15 +411,15 @@ const st = StyleSheet.create({
     flex: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     padding: Spacing.sm, alignItems: 'center', gap: 4,
   },
-  compEmptyLabel: { color: TEXT_COLORS.muted, fontSize: 10 },
-  compEmptyValue: { color: TEXT_COLORS.muted, fontSize: 18, fontFamily: Fonts.bold },
+  compEmptyLabel: { color: TEXT_COLORS.muted, fontSize: FontSizes.xs },
+  compEmptyValue: { color: TEXT_COLORS.muted, fontSize: FontSizes.xl, fontFamily: Fonts.bold },
 
   // Chronotype hero
   chronoHero: { borderRadius: Radius.md, borderWidth: 1, borderColor: ATP_BRAND.lime + '20', padding: Spacing.md, overflow: 'hidden' },
   chronoTop: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginBottom: Spacing.md },
   chronoEmoji: { fontSize: 48 },
   chronoName: { fontFamily: Fonts.extraBold, fontSize: 22, color: TEXT_COLORS.primary },
-  chronoDesc: { color: TEXT_COLORS.secondary, fontSize: 13, marginTop: 2 },
+  chronoDesc: { color: TEXT_COLORS.secondary, fontSize: FontSizes.md, marginTop: 2 },
   chronoTimeline: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderTopWidth: 0.5, borderTopColor: SURFACES.border, paddingTop: Spacing.md },
   chronoTimeItem: { alignItems: 'center', gap: 3 },
   chronoTimeDot: { width: 30, height: 30, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
@@ -427,8 +427,8 @@ const st = StyleSheet.create({
   // Chronotype invite
   chronoInvite: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, borderRadius: Radius.md, borderWidth: 1, borderColor: ATP_BRAND.lime + '30', padding: Spacing.lg, overflow: 'hidden' },
   chronoInviteIcon: { width: 56, height: 56, borderRadius: Radius.pill, backgroundColor: ATP_BRAND.lime + '15', alignItems: 'center', justifyContent: 'center' },
-  chronoInviteTitle: { fontFamily: Fonts.bold, color: ATP_BRAND.lime, fontSize: 17 },
-  chronoInviteSub: { color: TEXT_COLORS.secondary, fontSize: 13, marginTop: 2 },
+  chronoInviteTitle: { fontFamily: Fonts.bold, color: ATP_BRAND.lime, fontSize: FontSizes.xl },
+  chronoInviteSub: { color: TEXT_COLORS.secondary, fontSize: FontSizes.md, marginTop: 2 },
 
   // Quizzes (2 columnas)
   quizGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -437,9 +437,9 @@ const st = StyleSheet.create({
     backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
     paddingHorizontal: 12, paddingVertical: 14,
   },
-  quizCardLabel: { flex: 1, color: TEXT_COLORS.primary, fontSize: 14, fontFamily: Fonts.semiBold },
+  quizCardLabel: { flex: 1, color: TEXT_COLORS.primary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
   quizCardSoonBadge: { backgroundColor: SURFACES.disabled, paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.pill },
-  quizCardSoonText: { color: TEXT_COLORS.muted, fontSize: 9, fontFamily: Fonts.bold },
+  quizCardSoonText: { color: TEXT_COLORS.muted, fontSize: FontSizes.xs, fontFamily: Fonts.bold },
 
   // Actions
   actionCard: {
@@ -448,6 +448,6 @@ const st = StyleSheet.create({
     borderLeftWidth: 3, padding: Spacing.md,
   },
   actionIcon: { width: 40, height: 40, borderRadius: Radius.card, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { fontFamily: Fonts.semiBold, color: TEXT_COLORS.primary, fontSize: 14 },
-  actionSub: { color: TEXT_COLORS.secondary, fontSize: 12, marginTop: 1 },
+  actionLabel: { fontFamily: Fonts.semiBold, color: TEXT_COLORS.primary, fontSize: FontSizes.md },
+  actionSub: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginTop: 1 },
 });

@@ -24,7 +24,7 @@ import {
   type MeditationTemplate,
   type MeditationPhase,
 } from '@/src/data/meditation-library';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
 
@@ -328,24 +328,24 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
   libTitle: {
-    fontSize: 32, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
+    fontSize: FontSizes.display, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
   },
-  libSubtitle: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: 14 },
+  libSubtitle: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
   libGroup: { marginBottom: Spacing.lg },
   libGroupHeader: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm,
   },
-  libGroupLabel: { fontFamily: Fonts.bold, color: PURPLE, fontSize: 15 },
+  libGroupLabel: { fontFamily: Fonts.bold, color: PURPLE, fontSize: FontSizes.lg },
   libCard: { marginBottom: Spacing.xs },
   libCardBody: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.md,
   },
   libCardInfo: { flex: 1 },
-  libCardTitle: { fontFamily: Fonts.semiBold, fontSize: 15 },
-  libCardDesc: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
+  libCardTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg },
+  libCardDesc: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 2 },
   libCardRight: { alignItems: 'center', marginLeft: Spacing.md },
-  libCardDuration: { fontFamily: Fonts.extraBold, fontSize: 24, color: PURPLE },
-  libCardMin: { color: Colors.textSecondary, fontSize: 10 },
+  libCardDuration: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, color: PURPLE },
+  libCardMin: { color: Colors.textSecondary, fontSize: FontSizes.xs },
 
   // Timer
   timerContainer: {
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   timerTitle: {
     fontSize: 22, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 2,
   },
-  timerType: { color: Colors.textSecondary, marginTop: 4, marginBottom: Spacing.md, fontSize: 13 },
+  timerType: { color: Colors.textSecondary, marginTop: 4, marginBottom: Spacing.md, fontSize: FontSizes.md },
   timerWrapper: { marginBottom: Spacing.md },
 
   // Texto de fase
@@ -362,11 +362,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', paddingHorizontal: Spacing.lg, minHeight: 80, marginBottom: Spacing.md,
   },
   phaseText: {
-    color: Colors.textPrimary, fontSize: 18, fontFamily: Fonts.bold,
+    color: Colors.textPrimary, fontSize: FontSizes.xl, fontFamily: Fonts.bold,
     textAlign: 'center', lineHeight: 26,
   },
   phaseInstruction: {
-    color: Colors.textSecondary, fontSize: 14, textAlign: 'center',
+    color: Colors.textSecondary, fontSize: FontSizes.md, textAlign: 'center',
     marginTop: Spacing.xs, lineHeight: 20,
   },
 
@@ -388,19 +388,19 @@ const styles = StyleSheet.create({
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  mainBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
+  mainBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
   endBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
-  endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: 13, letterSpacing: 2 },
+  endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, letterSpacing: 2 },
 
   // Completado
   completedContainer: {
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg, gap: Spacing.sm,
   },
-  completedTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: PURPLE },
-  completedSub: { color: Colors.textSecondary, fontSize: 14 },
+  completedTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: PURPLE },
+  completedSub: { color: Colors.textSecondary, fontSize: FontSizes.md },
   completedMessage: {
     color: Colors.textSecondary, fontStyle: 'italic', textAlign: 'center',
-    fontSize: 16, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
+    fontSize: FontSizes.lg, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
   },
   doneBtn: {
     borderWidth: 1, borderColor: PURPLE + '40', borderRadius: Radius.pill,

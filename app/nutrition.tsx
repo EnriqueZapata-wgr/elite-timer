@@ -20,7 +20,7 @@ import {
 } from '@/src/services/nutrition-service';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
 
 const BLUE = CATEGORY_COLORS.nutrition;
@@ -152,8 +152,8 @@ export default function NutritionScreen() {
             {/* Hidratación mini bar */}
             <View style={st.miniSection}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <EliteText variant="caption" style={{ color: BLUE, fontSize: 10 }}>💧 Hidratación</EliteText>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>
+                <EliteText variant="caption" style={{ color: BLUE, fontSize: FontSizes.xs }}>💧 Hidratación</EliteText>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>
                   {hydration ? `${(hydration.total_ml / 1000).toFixed(1)} / ${(hydration.target_ml / 1000).toFixed(1)}L` : '0 / 2.5L'}
                 </EliteText>
               </View>
@@ -166,8 +166,8 @@ export default function NutritionScreen() {
             {(fasting?.status === 'active' || plan?.fasting_hours) && (
               <View style={st.miniSection}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: 10 }}>⏱️ Ayuno</EliteText>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>
+                  <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: FontSizes.xs }}>⏱️ Ayuno</EliteText>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>
                     {fasting?.status === 'active' ? `${fastingHours.toFixed(1)} / ${fastingTarget}h` : 'Inactivo'}
                   </EliteText>
                 </View>
@@ -201,13 +201,13 @@ export default function NutritionScreen() {
           <View style={st.scanRow}>
             <AnimatedPressable onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } }); }} style={st.scanBtn}>
               <Ionicons name="barcode-outline" size={18} color={SEMANTIC.warning} />
-              <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: 11 }}>
+              <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
                 Escanear etiqueta
               </EliteText>
             </AnimatedPressable>
             <AnimatedPressable onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } }); }} style={st.scanBtn}>
               <Ionicons name="medkit-outline" size={18} color={CATEGORY_COLORS.mind} />
-              <EliteText variant="caption" style={{ color: CATEGORY_COLORS.mind, fontFamily: Fonts.semiBold, fontSize: 11 }}>
+              <EliteText variant="caption" style={{ color: CATEGORY_COLORS.mind, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
                 Escanear suplemento
               </EliteText>
             </AnimatedPressable>
@@ -236,21 +236,21 @@ export default function NutritionScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                     <EliteText style={{ fontSize: 20 }}>{mealEmoji}</EliteText>
                     <View style={{ flex: 1 }}>
-                      <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontSize: 14 }}>{food.description}</EliteText>
+                      <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontSize: FontSizes.md }}>{food.description}</EliteText>
                       {food.meal_time && (
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10 }}>{food.meal_time}</EliteText>
+                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>{food.meal_time}</EliteText>
                       )}
                     </View>
                     {ai?.score != null && (
                       <View style={[st.scorePill, { backgroundColor: scoreColor(ai.score) + '20' }]}>
-                        <EliteText variant="caption" style={{ color: scoreColor(ai.score), fontFamily: Fonts.bold, fontSize: 12 }}>
+                        <EliteText variant="caption" style={{ color: scoreColor(ai.score), fontFamily: Fonts.bold, fontSize: FontSizes.sm }}>
                           {ai.score}
                         </EliteText>
                       </View>
                     )}
                   </View>
                   {ai?.feedback && (
-                    <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11, marginTop: 4 }}>
+                    <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginTop: 4 }}>
                       {ai.feedback}
                     </EliteText>
                   )}
@@ -258,7 +258,7 @@ export default function NutritionScreen() {
                     <View style={{ flexDirection: 'row', gap: 4, marginTop: 4 }}>
                       {ai.red_flags.map((f: string, i: number) => (
                         <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
-                          <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 9 }}>{f}</EliteText>
+                          <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: FontSizes.xs }}>{f}</EliteText>
                         </View>
                       ))}
                     </View>
@@ -286,7 +286,7 @@ export default function NutritionScreen() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: Spacing.sm }}>
                   {plan.foods_to_avoid.map((f: string, i: number) => (
                     <View key={i} style={{ backgroundColor: SEMANTIC.error + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
-                      <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 9 }}>✕ {f}</EliteText>
+                      <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: FontSizes.xs }}>✕ {f}</EliteText>
                     </View>
                   ))}
                 </View>
@@ -295,7 +295,7 @@ export default function NutritionScreen() {
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                   {plan.foods_to_prioritize.map((f: string, i: number) => (
                     <View key={i} style={{ backgroundColor: SEMANTIC.success + '15', paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
-                      <EliteText variant="caption" style={{ color: SEMANTIC.success, fontSize: 9 }}>✓ {f}</EliteText>
+                      <EliteText variant="caption" style={{ color: SEMANTIC.success, fontSize: FontSizes.xs }}>✓ {f}</EliteText>
                     </View>
                   ))}
                 </View>
@@ -311,8 +311,8 @@ export default function NutritionScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
               {recipes.map(r => (
                 <View key={r.id} style={st.recipeCard}>
-                  <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: 13 }}>{r.name}</EliteText>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 10, marginTop: 2 }}>
+                  <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{r.name}</EliteText>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 2 }}>
                     {r.calories} kcal · {r.protein_g}g prot · {r.prep_time_min ?? 0}min
                   </EliteText>
                   {r.tags?.length > 0 && (
@@ -340,7 +340,7 @@ const st = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.black },
   backBtn: { position: 'absolute', top: Spacing.xxl, left: Spacing.md, zIndex: 10, padding: Spacing.sm },
   content: { paddingTop: Spacing.xxl + Spacing.lg, paddingHorizontal: Spacing.md },
-  title: { fontSize: 32, fontFamily: Fonts.extraBold, color: BLUE, letterSpacing: 4, marginBottom: Spacing.lg },
+  title: { fontSize: FontSizes.display, fontFamily: Fonts.extraBold, color: BLUE, letterSpacing: 4, marginBottom: Spacing.lg },
 
   // Summary
   summaryCard: {
@@ -349,8 +349,8 @@ const st = StyleSheet.create({
   },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
   summaryItem: { alignItems: 'center' },
-  summaryValue: { fontSize: 28, fontFamily: Fonts.extraBold },
-  summaryLabel: { color: TEXT_COLORS.secondary, fontSize: 10, marginTop: 2 },
+  summaryValue: { fontSize: FontSizes.hero, fontFamily: Fonts.extraBold },
+  summaryLabel: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 2 },
   summaryDivider: { width: 1, height: 30, backgroundColor: BLUE + '20' },
   miniSection: { marginTop: Spacing.sm },
   miniBar: { height: 4, backgroundColor: SURFACES.cardLight, borderRadius: Radius.xs, overflow: 'hidden', marginTop: 4 },
@@ -362,7 +362,7 @@ const st = StyleSheet.create({
     flex: 1, alignItems: 'center', gap: 4, backgroundColor: SURFACES.card,
     borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.md,
   },
-  quickLabel: { fontSize: 11, fontFamily: Fonts.semiBold },
+  quickLabel: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   // Scan buttons
   scanRow: { flexDirection: 'row', gap: 10, marginBottom: Spacing.md },
@@ -373,7 +373,7 @@ const st = StyleSheet.create({
   },
 
   // Section
-  sectionLabel: { color: BLUE, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: 11, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  sectionLabel: { color: BLUE, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginTop: Spacing.lg, marginBottom: Spacing.sm },
 
   // Foods
   emptyCard: {

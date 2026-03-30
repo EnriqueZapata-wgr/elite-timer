@@ -16,7 +16,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { GradientCard } from '@/src/components/GradientCard';
-import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
+import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
@@ -408,7 +408,7 @@ export default function TodayScreen() {
                                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}
                               >
                                 <Ionicons name="open-outline" size={12} color={catColor} />
-                                <EliteText variant="caption" style={{ color: catColor, fontSize: 10 }}>Abrir</EliteText>
+                                <EliteText variant="caption" style={{ color: catColor, fontSize: FontSizes.xs }}>Abrir</EliteText>
                               </Pressable>
                             )}
                           </View>
@@ -622,10 +622,10 @@ export default function TodayScreen() {
               style={styles.quickAccessCard}>
               <View style={styles.quickAccessInner}>
                 <Ionicons name="restaurant-outline" size={24} color={CATEGORY_COLORS.nutrition} />
-                <EliteText style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: 13 }}>
+                <EliteText style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
                   Nutrición
                 </EliteText>
-                <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: 10 }}>
+                <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: FontSizes.xs }}>
                   Registra comidas
                 </EliteText>
               </View>
@@ -635,10 +635,10 @@ export default function TodayScreen() {
               style={styles.quickAccessCard}>
               <View style={styles.quickAccessInner}>
                 <Ionicons name="sparkles-outline" size={24} color={CATEGORY_COLORS.mind} />
-                <EliteText style={{ color: CATEGORY_COLORS.mind, fontFamily: Fonts.bold, fontSize: 13 }}>
+                <EliteText style={{ color: CATEGORY_COLORS.mind, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
                   Mente
                 </EliteText>
-                <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: 10 }}>
+                <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: FontSizes.xs }}>
                   Medita y respira
                 </EliteText>
               </View>
@@ -674,11 +674,11 @@ const styles = StyleSheet.create({
   dateLabel: {
     color: Colors.neonGreen,
     letterSpacing: 4,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: FontSizes.hero,
     fontFamily: Fonts.extraBold,
     color: Colors.textPrimary,
     marginTop: 4,
@@ -694,8 +694,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.xs,
   },
-  progressText: { color: Colors.textSecondary, fontSize: 13 },
-  progressCount: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: 13 },
+  progressText: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  progressCount: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: FontSizes.md },
   progressPercent: { color: Colors.neonGreen, fontFamily: Fonts.bold },
   progressBar: {
     height: 4,
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: Colors.border,
   },
-  weekPillText: { color: Colors.textSecondary, fontSize: 12, fontFamily: Fonts.semiBold },
+  weekPillText: { color: Colors.textSecondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   // Timeline
   timeline: { paddingBottom: Spacing.lg },
@@ -744,7 +744,7 @@ const styles = StyleSheet.create({
   },
   timeText: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
     fontVariant: ['tabular-nums'],
   },
@@ -806,17 +806,17 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   categoryText: {
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     letterSpacing: 0.5,
   },
   durationText: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
   },
   cardTitle: {
-    fontSize: 14,
+    fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
     color: Colors.textPrimary,
   },
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
   },
   cardDesc: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     marginTop: 2,
     lineHeight: 16,
   },
@@ -872,7 +872,7 @@ const styles = StyleSheet.create({
   },
   toastText: {
     color: Colors.textPrimary,
-    fontSize: 13,
+    fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
   },
 
@@ -880,7 +880,7 @@ const styles = StyleSheet.create({
   quickAccessLabel: {
     color: Colors.textSecondary,
     letterSpacing: 3,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
     marginTop: Spacing.lg,
     marginBottom: Spacing.sm,

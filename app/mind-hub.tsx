@@ -13,7 +13,7 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { MEDITATION_LIBRARY } from '@/src/data/meditation-library';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
 import { haptic } from '@/src/utils/haptics';
-import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
+import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES } from '@/src/constants/brand';
 
 const PURPLE = CATEGORY_COLORS.mind;
@@ -109,16 +109,16 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xxl + Spacing.lg, paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl,
   },
   title: {
-    fontSize: 32, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
+    fontSize: FontSizes.display, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
   },
-  subtitle: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: 14 },
+  subtitle: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
   heroCard: { marginBottom: Spacing.sm },
   heroCardBody: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md,
   },
   heroCardInfo: { flex: 1 },
-  heroCardTitle: { fontFamily: Fonts.bold, fontSize: 18, color: PURPLE },
-  heroCardDesc: { color: Colors.textSecondary, fontSize: 13, marginTop: 2 },
+  heroCardTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.xl, color: PURPLE },
+  heroCardDesc: { color: Colors.textSecondary, fontSize: FontSizes.md, marginTop: 2 },
   heroCardPlaceholder: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md,
     backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border,

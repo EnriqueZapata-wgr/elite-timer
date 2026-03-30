@@ -16,7 +16,7 @@ import { toggleCompletion } from '@/src/services/protocol-service';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
 
@@ -456,17 +456,17 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xxl + Spacing.lg, paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl,
   },
   selectorTitle: {
-    fontSize: 32, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
+    fontSize: FontSizes.display, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
   },
-  selectorSub: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: 14 },
+  selectorSub: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
   selectorCard: { marginBottom: Spacing.sm },
   selectorCardBody: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.md,
   },
   selectorCardInfo: { flex: 1 },
-  selectorCardTitle: { fontFamily: Fonts.bold, fontSize: 16, color: PURPLE },
-  selectorCardDesc: { color: Colors.textSecondary, fontSize: 12, marginTop: 2 },
-  selectorCardMeta: { color: Colors.textSecondary, fontSize: 11, marginTop: 4, fontFamily: Fonts.semiBold },
+  selectorCardTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: PURPLE },
+  selectorCardDesc: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 2 },
+  selectorCardMeta: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 4, fontFamily: Fonts.semiBold },
 
   // Timer
   timerContainer: {
@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   },
   breathCircleInner: { alignItems: 'center' },
   actionText: {
-    fontSize: 24, fontFamily: Fonts.extraBold, color: TEXT_COLORS.primary, letterSpacing: 2,
+    fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: TEXT_COLORS.primary, letterSpacing: 2,
   },
   phaseCountdown: {
     fontSize: 40, fontFamily: Fonts.extraBold, color: PURPLE, fontVariant: ['tabular-nums'],
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
 
   // Info
   infoSection: { alignItems: 'center', marginBottom: Spacing.lg, width: '60%' },
-  cycleText: { color: Colors.textSecondary, fontSize: 13, fontFamily: Fonts.semiBold, marginBottom: Spacing.xs },
+  cycleText: { color: Colors.textSecondary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold, marginBottom: Spacing.xs },
   remainingText: {
     color: PURPLE, fontSize: 20, fontFamily: Fonts.bold, fontVariant: ['tabular-nums'],
     marginBottom: Spacing.sm,
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
     width: '100%', height: 3, backgroundColor: Colors.surfaceLight, borderRadius: Radius.xs, overflow: 'hidden',
   },
   totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: Radius.xs },
-  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: 14 },
+  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
 
   // Controles
   controls: { alignItems: 'center', gap: Spacing.md },
@@ -518,19 +518,19 @@ const styles = StyleSheet.create({
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  mainBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
+  mainBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
   endBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
-  endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: 13, letterSpacing: 2 },
+  endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, letterSpacing: 2 },
 
   // Completado
   completedContainer: {
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg, gap: Spacing.sm,
   },
-  completedTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: PURPLE },
-  completedSub: { color: Colors.textSecondary, fontSize: 14 },
+  completedTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: PURPLE },
+  completedSub: { color: Colors.textSecondary, fontSize: FontSizes.md },
   completedMessage: {
     color: Colors.textSecondary, fontStyle: 'italic', textAlign: 'center',
-    fontSize: 16, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
+    fontSize: FontSizes.lg, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
   },
   doneBtn: {
     borderWidth: 1, borderColor: PURPLE + '40', borderRadius: Radius.pill,
@@ -543,9 +543,9 @@ const styles = StyleSheet.create({
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg,
   },
   configTitle: {
-    fontSize: 24, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 3, marginBottom: Spacing.xs,
+    fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 3, marginBottom: Spacing.xs,
   },
-  configSub: { color: Colors.textSecondary, marginBottom: Spacing.xl, fontSize: 14 },
+  configSub: { color: Colors.textSecondary, marginBottom: Spacing.xl, fontSize: FontSizes.md },
   configRows: { width: '100%', gap: Spacing.sm },
   configDivider: {
     width: '100%', height: 1, backgroundColor: Colors.surfaceLight, marginVertical: Spacing.md,
@@ -554,19 +554,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     width: '100%', paddingVertical: Spacing.xs,
   },
-  configRowLabel: { fontFamily: Fonts.semiBold, fontSize: 16, color: Colors.textPrimary },
+  configRowLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: Colors.textPrimary },
   configStepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   configStepBtn: {
     width: 44, height: 44, borderRadius: Radius.lg, borderWidth: 1, borderColor: PURPLE + '40',
     alignItems: 'center', justifyContent: 'center',
   },
   configStepValue: {
-    fontFamily: Fonts.extraBold, fontSize: 28, color: PURPLE, minWidth: 50, textAlign: 'center',
+    fontFamily: Fonts.extraBold, fontSize: FontSizes.hero, color: PURPLE, minWidth: 50, textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
-  configStepUnit: { fontSize: 16, fontFamily: Fonts.semiBold, color: Colors.textSecondary },
+  configStepUnit: { fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, color: Colors.textSecondary },
   configTotal: {
-    color: Colors.textSecondary, marginTop: Spacing.lg, marginBottom: Spacing.xl, fontSize: 13,
+    color: Colors.textSecondary, marginTop: Spacing.lg, marginBottom: Spacing.xl, fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
   },
   configStartBtn: {
@@ -575,5 +575,5 @@ const styles = StyleSheet.create({
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  configStartBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 3 },
+  configStartBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
 });
