@@ -3,7 +3,7 @@
  *
  * Muestra las actividades del día hora por hora con checkboxes,
  * stats de completados y barra de progreso.
- * Si no hay protocolo asignado, muestra el estado vacío con rutinas programadas.
+ * Usa el sistema nuevo (daily_plans) con fallback al legacy (protocol-service).
  */
 import { useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
@@ -26,8 +26,20 @@ import {
   getCompletionStats,
   type TimelineItem,
 } from '@/src/services/protocol-service';
+import {
+  getTodayPlan,
+  toggleAction,
+  skipAction,
+  addActionToPlan,
+  removeActionFromPlan,
+  resetDay,
+  type DailyPlan,
+  type PlanAction,
+} from '@/src/services/protocol-builder-service';
+import { useAuth } from '@/src/contexts/auth-context';
 import { getCategoryColor, getCategoryLabel, getCategoryIcon } from '@/src/constants/categories';
 import { getWeeklyStats, type WeeklyStats } from '@/src/services/exercise-service';
+import { getUserChronotype } from '@/src/services/quiz-service';
 
 // === HELPERS ===
 
@@ -66,12 +78,16 @@ function isPast(timeStr: string): boolean {
 
 export default function TodayScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [dayPlan, setDayPlan] = useState<DailyPlan | null>(null);
+  const [dataSource, setDataSource] = useState<'new' | 'legacy' | null>(null);
   const [weekStats, setWeekStats] = useState<WeeklyStats>({
     workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0,
   });
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [hasChronotype, setHasChronotype] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,13 +95,44 @@ export default function TodayScreen() {
       async function load() {
         setLoading(true);
         try {
-          const [items, stats] = await Promise.all([
-            getTodayTimeline().catch(() => []),
-            getWeeklyStats().catch(() => ({ workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0 })),
-          ]);
-          if (!cancelled) {
-            setTimeline(items);
-            setWeekStats(stats);
+          // Cargar stats semanales + cronotipo en paralelo
+          const statsPromise = getWeeklyStats().catch(() => ({ workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0 }));
+          const chronoPromise = getUserChronotype().catch(() => null);
+
+          // Intentar nuevo sistema → fallback legacy
+          if (user?.id) {
+            const [result, stats, chrono] = await Promise.all([
+              getTodayPlan(user.id).catch(() => ({ source: null as 'new' | 'legacy' | null, plan: null, legacyItems: undefined })),
+              statsPromise,
+              chronoPromise,
+            ]);
+            if (!cancelled) setHasChronotype(!!chrono);
+            if (!cancelled) {
+              setWeekStats(stats);
+              setDataSource(result.source);
+              if (result.source === 'new' && result.plan) {
+                setDayPlan(result.plan);
+                setTimeline([]); // Limpiar legacy
+              } else if (result.source === 'legacy' && result.legacyItems) {
+                setTimeline(result.legacyItems);
+                setDayPlan(null);
+              } else {
+                setTimeline([]);
+                setDayPlan(null);
+              }
+            }
+          } else {
+            // Sin usuario autenticado — fallback legacy sin user_id
+            const [items, stats] = await Promise.all([
+              getTodayTimeline().catch(() => []),
+              statsPromise,
+            ]);
+            if (!cancelled) {
+              setTimeline(items);
+              setWeekStats(stats);
+              setDayPlan(null);
+              setDataSource(null);
+            }
           }
         } finally {
           if (!cancelled) setLoading(false);
@@ -93,20 +140,30 @@ export default function TodayScreen() {
       }
       load();
       return () => { cancelled = true; };
-    }, [])
+    }, [user?.id])
   );
 
-  const handleToggle = async (itemId: string) => {
-    haptic.light(); // feedback háptico al marcar/desmarcar
-    setToggling(itemId);
-    try {
-      const newState = await toggleCompletion(itemId);
-      setTimeline(prev => prev.map(item =>
-        item.item_id === itemId
-          ? { ...item, is_completed: newState, completed_at: newState ? new Date().toISOString() : null }
-          : item
-      ));
-    } catch { /* silenciar */ }
+  /** Toggle para nuevo sistema o legacy */
+  const handleToggle = async (actionId: string) => {
+    haptic.light();
+    setToggling(actionId);
+    if (dataSource === 'new' && dayPlan && user?.id) {
+      // Sistema nuevo: toggleAction en daily_plans
+      try {
+        const updated = await toggleAction(user.id, new Date().toISOString().split('T')[0], actionId);
+        setDayPlan(updated);
+      } catch { /* silenciar */ }
+    } else {
+      // Fallback legacy
+      try {
+        const newState = await toggleCompletion(actionId);
+        setTimeline(prev => prev.map(item =>
+          item.item_id === actionId
+            ? { ...item, is_completed: newState, completed_at: newState ? new Date().toISOString() : null }
+            : item
+        ));
+      } catch { /* silenciar */ }
+    }
     setToggling(null);
   };
 
@@ -198,9 +255,193 @@ export default function TodayScreen() {
             </View>
             {[...Array(4)].map((_, i) => <SkeletonLoader key={i} height={44} style={{ borderRadius: Radius.sm }} />)}
           </View>
-        ) : hasTimeline ? (
+        ) : dataSource === 'new' && dayPlan && dayPlan.actions.length > 0 ? (
           <>
-            {/* ── Progress bar ── */}
+            {/* ── Compliance header (nuevo sistema) ── */}
+            <Animated.View entering={FadeInUp.delay(100).springify()}>
+              <View style={styles.progressSection}>
+                <View style={styles.progressHeader}>
+                  <EliteText variant="body" style={styles.progressText}>
+                    <EliteText style={styles.progressCount}>{dayPlan.completed_actions}</EliteText>
+                    /{dayPlan.total_actions} completados
+                  </EliteText>
+                  <EliteText variant="caption" style={styles.progressPercent}>
+                    {dayPlan.compliance_pct}%
+                  </EliteText>
+                </View>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${dayPlan.compliance_pct}%` }]} />
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* ── Weekly stats pills ── */}
+            <Animated.View entering={FadeInUp.delay(150).springify()}>
+              <View style={styles.weekPills}>
+                <View style={styles.weekPill}>
+                  <Ionicons name="barbell-outline" size={14} color={Colors.neonGreen} />
+                  <EliteText variant="caption" style={styles.weekPillText}>
+                    {weekStats.workouts} entrenos
+                  </EliteText>
+                </View>
+                <View style={styles.weekPill}>
+                  <Ionicons name="trending-up-outline" size={14} color={CATEGORY_COLORS.nutrition} />
+                  <EliteText variant="caption" style={styles.weekPillText}>
+                    {weekStats.volumeKg > 999 ? `${Math.round(weekStats.volumeKg / 1000)}k` : `${weekStats.volumeKg}kg`}
+                  </EliteText>
+                </View>
+                <View style={styles.weekPill}>
+                  <Ionicons name="trophy-outline" size={14} color={SEMANTIC.warning} />
+                  <EliteText variant="caption" style={styles.weekPillText}>
+                    {weekStats.prs} PRs
+                  </EliteText>
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* ── Actions timeline (nuevo sistema) ── */}
+            <View style={styles.timeline}>
+              {dayPlan.actions.map((action, idx) => {
+                const catColor = getCategoryColor(action.category);
+                const past = isPast(action.scheduled_time);
+                const isOverdue = past && !action.completed && !action.skipped;
+                const isTogglingThis = toggling === action.id;
+
+                return (
+                  <StaggerItem key={action.id} index={idx} delay={40}>
+                    <View style={styles.timelineRow}>
+                      {/* Hora */}
+                      <View style={styles.timeCol}>
+                        <EliteText variant="caption" style={[
+                          styles.timeText,
+                          action.completed && { color: Colors.neonGreen },
+                        ]}>
+                          {formatTime(action.scheduled_time)}
+                        </EliteText>
+                      </View>
+
+                      {/* Línea vertical + dot */}
+                      <View style={styles.lineCol}>
+                        {idx > 0 && <View style={styles.lineSegment} />}
+                        <View style={[
+                          styles.dot,
+                          { backgroundColor: action.completed ? Colors.neonGreen : (past ? Colors.disabled : catColor + '40') },
+                          action.completed && { borderColor: Colors.neonGreen },
+                        ]}>
+                          {action.completed && (
+                            <Ionicons name="checkmark" size={10} color={Colors.black} />
+                          )}
+                        </View>
+                        {idx < dayPlan.actions.length - 1 && <View style={styles.lineSegmentBottom} />}
+                      </View>
+
+                      {/* Card */}
+                      <GradientCard
+                        color={isOverdue ? SEMANTIC.error : catColor}
+                        onPress={() => {
+                          haptic.light();
+                          // Navegación para link_type o toggle
+                          if (action.link_type && !action.completed) {
+                            const routes: Record<string, string> = {
+                              meditation: '/meditation',
+                              breathing: '/breathing',
+                              food_scan: '/food-scan',
+                              checkin: '/checkin',
+                              routine: '/programs',
+                            };
+                            const route = routes[action.link_type];
+                            if (route) {
+                              router.push(route as any);
+                              return;
+                            }
+                          }
+                          handleToggle(action.id);
+                        }}
+                        style={[
+                          styles.card,
+                          action.completed && styles.cardCompleted,
+                        ]}
+                      >
+                        <View style={styles.cardInner}>
+                          <View style={styles.cardBody}>
+                            <View style={styles.cardTopRow}>
+                              <View style={[styles.categoryBadge, { backgroundColor: catColor + '20' }]}>
+                                <Ionicons name={getCategoryIcon(action.category) as any} size={12} color={catColor} />
+                                <EliteText variant="caption" style={[styles.categoryText, { color: catColor }]}>
+                                  {getCategoryLabel(action.category)}
+                                </EliteText>
+                              </View>
+                              {action.duration_min > 0 && (
+                                <EliteText variant="caption" style={styles.durationText}>
+                                  {action.duration_min} min
+                                </EliteText>
+                              )}
+                            </View>
+
+                            <EliteText variant="body" style={[
+                              styles.cardTitle,
+                              action.completed && styles.cardTitleCompleted,
+                            ]}>
+                              {action.name}
+                            </EliteText>
+
+                            {action.protocol_name && action.protocol_name !== 'Manual' && (
+                              <EliteText variant="caption" style={styles.cardDesc}>
+                                {action.protocol_name}
+                              </EliteText>
+                            )}
+
+                            {action.link_type && !action.completed && (
+                              <Pressable
+                                onPress={() => {
+                                  haptic.light();
+                                  const routes: Record<string, string> = {
+                                    meditation: '/meditation',
+                                    breathing: '/breathing',
+                                    food_scan: '/food-scan',
+                                    checkin: '/checkin',
+                                    routine: '/programs',
+                                  };
+                                  const route = routes[action.link_type!];
+                                  if (route) router.push(route as any);
+                                }}
+                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}
+                              >
+                                <Ionicons name="open-outline" size={12} color={catColor} />
+                                <EliteText variant="caption" style={{ color: catColor, fontSize: 10 }}>Abrir</EliteText>
+                              </Pressable>
+                            )}
+                          </View>
+
+                          {/* Checkbox */}
+                          <Pressable
+                            onPress={() => handleToggle(action.id)}
+                            disabled={isTogglingThis}
+                            style={styles.checkArea}
+                            hitSlop={12}
+                          >
+                            <View style={[
+                              styles.checkbox,
+                              action.completed && styles.checkboxChecked,
+                            ]}>
+                              {isTogglingThis ? (
+                                <ActivityIndicator size="small" color={Colors.neonGreen} />
+                              ) : action.completed ? (
+                                <Ionicons name="checkmark" size={16} color={Colors.black} />
+                              ) : null}
+                            </View>
+                          </Pressable>
+                        </View>
+                      </GradientCard>
+                    </View>
+                  </StaggerItem>
+                );
+              })}
+            </View>
+          </>
+        ) : dataSource !== 'new' && hasTimeline ? (
+          <>
+            {/* ── Progress bar (legacy) ── */}
             <Animated.View entering={FadeInUp.delay(100).springify()}>
               <View style={styles.progressSection}>
                 <View style={styles.progressHeader}>
@@ -242,7 +483,7 @@ export default function TodayScreen() {
               </View>
             </Animated.View>
 
-            {/* ── Timeline ── */}
+            {/* ── Timeline (legacy) ── */}
             <View style={styles.timeline}>
               {timeline.map((item, idx) => {
                 const catLabel = getCategoryLabel(item.category);
@@ -350,15 +591,26 @@ export default function TodayScreen() {
             </View>
           </>
         ) : (
-          /* ── Estado vacío (sin protocolo) ── */
-          <EmptyState
-            icon="today-outline"
-            title="Tu día está vacío"
-            subtitle="Completa el quiz de cronotipo para personalizar tu día"
-            actionLabel="Hacer quiz"
-            onAction={() => router.push('/quiz/chronotype' as any)}
-            color="#a8e02a"
-          />
+          /* ── Estado vacío (sin protocolo ni plan) ── */
+          hasChronotype ? (
+            <EmptyState
+              icon="flask-outline"
+              title="Sin protocolos activos"
+              subtitle="Explora y activa un protocolo para llenar tu día"
+              actionLabel="Explorar protocolos"
+              onAction={() => router.push('/protocol-explorer' as any)}
+              color="#a8e02a"
+            />
+          ) : (
+            <EmptyState
+              icon="today-outline"
+              title="Tu día está vacío"
+              subtitle="Completa el quiz de cronotipo para personalizar tu día"
+              actionLabel="Hacer quiz"
+              onAction={() => router.push('/quiz/chronotype' as any)}
+              color="#a8e02a"
+            />
+          )
         )}
 
         {/* ── Accesos rápidos ── */}
