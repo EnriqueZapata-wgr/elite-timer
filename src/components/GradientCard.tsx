@@ -20,10 +20,11 @@ interface GradientCardProps {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  onLongPress?: () => void;
   disabled?: boolean;
 }
 
-export function GradientCard({ color, children, style, onPress, disabled }: GradientCardProps) {
+export function GradientCard({ color, children, style, onPress, onLongPress, disabled }: GradientCardProps) {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -67,10 +68,11 @@ export function GradientCard({ color, children, style, onPress, disabled }: Grad
     </LinearGradient>
   );
 
-  if (onPress) {
+  if (onPress || onLongPress) {
     return (
       <AnimatedPressable
         onPress={onPress}
+        onLongPress={onLongPress}
         disabled={disabled}
         onPressIn={() => {
           scale.value = withSpring(0.96, { damping: 15, stiffness: 400 });

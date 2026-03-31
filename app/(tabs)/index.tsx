@@ -6,7 +6,7 @@
  * Usa el sistema nuevo (daily_plans) con fallback al legacy (protocol-service).
  */
 import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -17,7 +17,7 @@ import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { GradientCard } from '@/src/components/GradientCard';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SEMANTIC, SURFACES } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import {
@@ -72,6 +72,28 @@ function isPast(timeStr: string): boolean {
   const itemMinutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   return nowMinutes > itemMinutes;
+}
+
+/** Color de compliance según porcentaje */
+function complianceColor(pct: number): string {
+  if (pct >= 75) return SEMANTIC.success;
+  if (pct >= 50) return SEMANTIC.warning;
+  return SEMANTIC.error;
+}
+
+/** Determina si una acción es la próxima por completar */
+function isNextAction(actions: PlanAction[], idx: number): boolean {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const action = actions[idx];
+  if (action.completed || action.skipped) return false;
+  const parts = action.scheduled_time.split(':');
+  const actionMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  // Es "próxima" si es la primera no completada cuya hora ya pasó o es la siguiente
+  for (let i = 0; i < idx; i++) {
+    if (!actions[i].completed && !actions[i].skipped) return false; // hay una antes sin completar
+  }
+  return true;
 }
 
 // === COMPONENTE PRINCIPAL ===
@@ -173,6 +195,31 @@ export default function TodayScreen() {
     setToggling(null);
   };
 
+  /** Long press → menú de acciones rápidas */
+  const handleLongPress = (action: PlanAction) => {
+    if (dataSource !== 'new' || !dayPlan || !user?.id) return;
+    haptic.medium();
+    const today = new Date().toISOString().split('T')[0];
+    Alert.alert(action.name, undefined, [
+      { text: 'Completar', onPress: () => handleToggle(action.id) },
+      { text: 'Saltar hoy', onPress: async () => {
+        try {
+          const updated = await skipAction(user.id, today, action.id);
+          setDayPlan(updated);
+          showToast('Acción saltada');
+        } catch { /* */ }
+      }},
+      { text: 'Quitar del día', style: 'destructive', onPress: async () => {
+        try {
+          const updated = await removeActionFromPlan(user.id, today, action.id);
+          setDayPlan(updated);
+          showToast('Acción eliminada');
+        } catch { /* */ }
+      }},
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
   // Toast
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -265,18 +312,36 @@ export default function TodayScreen() {
           <>
             {/* ── Compliance header (nuevo sistema) ── */}
             <Animated.View entering={FadeInUp.delay(100).springify()}>
+              {/* ── Protocol pills (4.1) ── */}
+              {dayPlan.source_protocols && dayPlan.source_protocols.length > 0 && (
+                <View style={styles.protocolPills}>
+                  {dayPlan.actions
+                    .reduce((names: string[], a) => {
+                      if (a.protocol_name && a.protocol_name !== 'Manual' && !names.includes(a.protocol_name)) names.push(a.protocol_name);
+                      return names;
+                    }, [])
+                    .map(name => (
+                      <AnimatedPressable key={name} onPress={() => { haptic.light(); router.push('/protocol-explorer' as any); }} style={styles.protocolPill}>
+                        <Ionicons name="flask-outline" size={12} color={Colors.neonGreen} />
+                        <EliteText variant="caption" style={styles.protocolPillText}>{name}</EliteText>
+                      </AnimatedPressable>
+                    ))}
+                </View>
+              )}
+
+              {/* ── Compliance bar (4.3 — semantic color) ── */}
               <View style={styles.progressSection}>
                 <View style={styles.progressHeader}>
                   <EliteText variant="body" style={styles.progressText}>
-                    <EliteText style={styles.progressCount}>{dayPlan.completed_actions}</EliteText>
+                    <EliteText style={[styles.progressCount, { color: complianceColor(dayPlan.compliance_pct) }]}>{dayPlan.completed_actions}</EliteText>
                     /{dayPlan.total_actions} completados
                   </EliteText>
-                  <EliteText variant="caption" style={styles.progressPercent}>
+                  <EliteText variant="caption" style={[styles.progressPercent, { color: complianceColor(dayPlan.compliance_pct) }]}>
                     {dayPlan.compliance_pct}%
                   </EliteText>
                 </View>
                 <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${dayPlan.compliance_pct}%` }]} />
+                  <View style={[styles.progressFill, { width: `${dayPlan.compliance_pct}%`, backgroundColor: complianceColor(dayPlan.compliance_pct) }]} />
                 </View>
               </View>
             </Animated.View>
@@ -311,6 +376,7 @@ export default function TodayScreen() {
                 const catColor = getCategoryColor(action.category);
                 const past = isPast(action.scheduled_time);
                 const isOverdue = past && !action.completed && !action.skipped;
+                const isNext = isNextAction(dayPlan.actions, idx);
                 const isTogglingThis = toggling === action.id;
 
                 return (
@@ -321,9 +387,15 @@ export default function TodayScreen() {
                         <EliteText variant="caption" style={[
                           styles.timeText,
                           action.completed && { color: Colors.neonGreen },
+                          isOverdue && { color: SEMANTIC.error },
                         ]}>
                           {formatTime(action.scheduled_time)}
                         </EliteText>
+                        {isNext && (
+                          <View style={styles.nowBadge}>
+                            <EliteText variant="caption" style={styles.nowBadgeText}>AHORA</EliteText>
+                          </View>
+                        )}
                       </View>
 
                       {/* Línea vertical + dot */}
@@ -331,11 +403,15 @@ export default function TodayScreen() {
                         {idx > 0 && <View style={styles.lineSegment} />}
                         <View style={[
                           styles.dot,
-                          { backgroundColor: action.completed ? Colors.neonGreen : (past ? Colors.disabled : catColor + '40') },
+                          { backgroundColor: action.completed ? Colors.neonGreen : action.skipped ? Colors.disabled : (past ? Colors.disabled : catColor + '40') },
                           action.completed && { borderColor: Colors.neonGreen },
+                          isNext && { borderColor: catColor, borderWidth: 2.5 },
                         ]}>
                           {action.completed && (
                             <Ionicons name="checkmark" size={10} color={Colors.black} />
+                          )}
+                          {action.skipped && (
+                            <Ionicons name="remove" size={10} color={Colors.textSecondary} />
                           )}
                         </View>
                         {idx < dayPlan.actions.length - 1 && <View style={styles.lineSegmentBottom} />}
@@ -363,9 +439,12 @@ export default function TodayScreen() {
                           }
                           handleToggle(action.id);
                         }}
+                        onLongPress={() => handleLongPress(action)}
                         style={[
                           styles.card,
                           action.completed && styles.cardCompleted,
+                          action.skipped && styles.cardSkipped,
+                          isNext && styles.cardNext,
                         ]}
                       >
                         <View style={styles.cardInner}>
@@ -377,7 +456,15 @@ export default function TodayScreen() {
                                   {getCategoryLabel(action.category)}
                                 </EliteText>
                               </View>
-                              {action.duration_min > 0 && (
+                              {isOverdue && (
+                                <View style={styles.overdueBadge}>
+                                  <EliteText variant="caption" style={styles.overdueText}>Pendiente</EliteText>
+                                </View>
+                              )}
+                              {action.skipped && (
+                                <EliteText variant="caption" style={{ color: Colors.textMuted, fontSize: FontSizes.xs }}>Saltada</EliteText>
+                              )}
+                              {action.duration_min > 0 && !isOverdue && !action.skipped && (
                                 <EliteText variant="caption" style={styles.durationText}>
                                   {action.duration_min} min
                                 </EliteText>
@@ -387,6 +474,7 @@ export default function TodayScreen() {
                             <EliteText variant="body" style={[
                               styles.cardTitle,
                               action.completed && styles.cardTitleCompleted,
+                              action.skipped && { color: Colors.textMuted },
                             ]}>
                               {action.name}
                             </EliteText>
@@ -790,6 +878,13 @@ const styles = StyleSheet.create({
   cardCompleted: {
     opacity: 0.55,
   },
+  cardSkipped: {
+    opacity: 0.35,
+  },
+  cardNext: {
+    borderWidth: 1,
+    borderColor: Colors.neonGreen + '40',
+  },
   cardInner: {
     flexDirection: 'row',
   },
@@ -902,5 +997,57 @@ const styles = StyleSheet.create({
   quickAccessInner: {
     alignItems: 'center',
     gap: Spacing.xs,
+  },
+
+  // Protocol pills (4.1)
+  protocolPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  protocolPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.surfaceLight,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.pill,
+    borderWidth: 0.5,
+    borderColor: Colors.neonGreen + '30',
+  },
+  protocolPillText: {
+    color: Colors.neonGreen,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+  },
+
+  // Now badge (4.4)
+  nowBadge: {
+    backgroundColor: Colors.neonGreen,
+    borderRadius: Radius.xs,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    marginTop: 2,
+  },
+  nowBadgeText: {
+    color: Colors.black,
+    fontSize: 8,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
+  },
+
+  // Overdue badge (4.5)
+  overdueBadge: {
+    backgroundColor: SEMANTIC.error + '20',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: Radius.xs,
+  },
+  overdueText: {
+    color: SEMANTIC.error,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
   },
 });

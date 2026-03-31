@@ -89,7 +89,10 @@ export default function ProtocolExplorerScreen() {
             await assignProtocol(user.id, templateId, null, 'self');
             await generateDailyPlan(user.id, undefined, true);
             haptic.success();
-            Alert.alert('Protocolo activado', 'Tu día se ha actualizado con las nuevas acciones.');
+            Alert.alert('Protocolo activado', 'Tu día se ha actualizado con las nuevas acciones.', [
+              { text: 'Ver mi día', onPress: () => router.replace('/(tabs)') },
+              { text: 'Seguir explorando', onPress: () => loadData() },
+            ]);
             loadData();
           } catch (err: any) {
             haptic.error();
