@@ -9,7 +9,7 @@ import {
 export async function calculateAndSaveScore(userId: string, consultationId?: string): Promise<HealthScore> {
   // Obtener datos
   const [labsRes, bodyRes, profileRes] = await Promise.all([
-    supabase.from('lab_results').select('*').eq('user_id', userId).eq('status', 'approved').order('lab_date', { ascending: false }).limit(1),
+    supabase.from('lab_results').select('*').eq('user_id', userId).in('status', ['approved', 'pending_review']).order('lab_date', { ascending: false }).limit(1),
     supabase.from('body_measurements').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
     supabase.from('client_profiles').select('*').eq('user_id', userId).single(),
   ]);
