@@ -116,6 +116,8 @@ export default function RootLayout() {
                 <Stack.Screen name="protocol-explorer" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="smart-shopping" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-input" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="quiz-take" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="quizzes" options={{ headerShown: false, animation: 'slide_from_right' }} />
               </Stack>
               <StatusBar style="light" />
             </SessionsProvider>
