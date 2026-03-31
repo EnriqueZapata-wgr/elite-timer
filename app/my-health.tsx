@@ -20,6 +20,7 @@ import { calculateAndSaveScore, getLatestScore, ensureClientProfile } from '@/sr
 import type { HealthScore } from '@/src/data/functional-health-engine';
 import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-service';
 import { getStudyType } from '@/src/data/study-types';
+import { getLatestMeasurement, type HealthMeasurement } from '@/src/services/health-measurement-service';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -34,6 +35,7 @@ export default function MyHealthScreen() {
 
   const [uploads, setUploads] = useState<LabUpload[]>([]);
   const [labs, setLabs] = useState<LabResult[]>([]);
+  const [healthMeasure, setHealthMeasure] = useState<HealthMeasurement | null>(null);
   const [studies, setStudies] = useState<ClinicalStudy[]>([]);
   const [expandedStudy, setExpandedStudy] = useState<string | null>(null);
   const [healthScore, setHealthScore] = useState<HealthScore | null>(null);
@@ -48,16 +50,18 @@ export default function MyHealthScreen() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [u, l, st, hs] = await Promise.all([
+      const [u, l, st, hs, hm] = await Promise.all([
         getLabUploads(userId),
         getLabHistory(userId),
         getStudies(userId, 10).catch(() => []),
         getLatestScore(userId).catch(() => null),
+        getLatestMeasurement(userId).catch(() => null),
       ]);
       setUploads(u);
       setLabs(l);
       setStudies(st.filter(s => s.status === 'interpreted' || s.status === 'reviewed'));
       setHealthScore(hs);
+      setHealthMeasure(hm);
     } catch { /* */ }
     setLoading(false);
   };
@@ -197,6 +201,22 @@ export default function MyHealthScreen() {
     setUploading(false);
     setProcessing(false);
   };
+
+  // Recomendaciones para mejorar la evaluación
+  const impactColor = (impact: string) => impact === 'muy alto' ? SEMANTIC.error : impact === 'alto' ? SEMANTIC.warning : CATEGORY_COLORS.nutrition;
+
+  const getRecommendations = (hm: HealthMeasurement | null, labList: LabResult[], hs: HealthScore | null) => {
+    const recs: { icon: string; title: string; desc: string; impact: string; route: string }[] = [];
+    if (!labList.length) recs.push({ icon: 'flask-outline', title: 'Sube laboratorios', desc: 'La IA calcula tu edad biológica con PhenoAge', impact: 'muy alto', route: '/my-health' });
+    if (!hm?.grip_strength_kg) recs.push({ icon: 'hand-left-outline', title: 'Fuerza de agarre', desc: 'Predictor #1 de longevidad', impact: 'alto', route: '/health-input' });
+    if (!hm?.body_fat_pct) recs.push({ icon: 'body-outline', title: '% Grasa corporal', desc: 'Báscula de bioimpedancia mejora tu score', impact: 'alto', route: '/health-input' });
+    if (!hm?.systolic_bp) recs.push({ icon: 'heart-outline', title: 'Presión arterial', desc: 'Hipertensión es silenciosa', impact: 'alto', route: '/health-input' });
+    if (!hm?.vo2max_estimate) recs.push({ icon: 'fitness-outline', title: 'VO2max', desc: 'Mejor predictor de mortalidad por todas las causas', impact: 'alto', route: '/health-input' });
+    if (!hm?.waist_cm) recs.push({ icon: 'resize-outline', title: 'Medidas corporales', desc: 'Ratio cintura/cadera = marcador cardiovascular', impact: 'medio', route: '/health-input' });
+    return recs;
+  };
+
+  const recs = getRecommendations(healthMeasure, labs, healthScore);
 
   return (
     <SafeAreaView style={s.screen}>
@@ -360,6 +380,25 @@ export default function MyHealthScreen() {
             </EliteText>
           </AnimatedPressable>
         ) : null}
+
+        {/* Recomendaciones */}
+        {recs.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(250).springify()}>
+            <EliteText variant="caption" style={s.sectionLabel}>MEJORA TU EVALUACIÓN</EliteText>
+            {recs.map((rec, i) => (
+              <AnimatedPressable key={rec.title} onPress={() => { haptic.light(); router.push(rec.route as any); }} style={s.recCard}>
+                <Ionicons name={rec.icon as any} size={20} color={impactColor(rec.impact)} />
+                <View style={{ flex: 1 }}>
+                  <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{rec.title}</EliteText>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>{rec.desc}</EliteText>
+                </View>
+                <View style={{ backgroundColor: withOpacity(impactColor(rec.impact), 0.12), paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
+                  <EliteText variant="caption" style={{ color: impactColor(rec.impact), fontSize: 8, fontFamily: Fonts.bold }}>{rec.impact.toUpperCase()}</EliteText>
+                </View>
+              </AnimatedPressable>
+            ))}
+          </Animated.View>
+        )}
 
         {/* Uploads fallidos */}
         {uploads.filter(u => u.status === 'failed' || u.status === 'processing').length > 0 && (
@@ -580,6 +619,11 @@ const s = StyleSheet.create({
   calcBtnHero: {
     backgroundColor: TEAL, borderRadius: Radius.card, alignItems: 'center',
     padding: Spacing.lg, gap: Spacing.xs, marginVertical: Spacing.md,
+  },
+  recCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,
+    borderWidth: 0.5, borderColor: SURFACES.border, marginBottom: Spacing.sm,
   },
   studyCard: {
     backgroundColor: Colors.surface, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,

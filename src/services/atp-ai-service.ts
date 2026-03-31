@@ -23,6 +23,8 @@ interface ClientFullData {
   recentFoodLogs: any[];
   activeProtocols: any[];
   complianceStats: any;
+  healthMeasurement: any;
+  personalRecords: any[];
 }
 
 // Recopilar TODOS los datos del cliente en paralelo
@@ -41,6 +43,12 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supabase.from('clinical_studies').select('study_name, study_type, study_date, original_interpretation, findings, coach_notes').eq('user_id', clientId).order('study_date', { ascending: false }).limit(10),
     supabase.from('nutrition_plans').select('*').eq('user_id', clientId).eq('status', 'active').limit(1).single(),
     supabase.from('food_logs').select('date, meal_type, description, ai_analysis').eq('user_id', clientId).order('date', { ascending: false }).limit(21),
+  ]);
+
+  // Health measurements y personal records
+  const [hmRes, prRes] = await Promise.all([
+    supabase.from('health_measurements').select('*').eq('user_id', clientId).order('date', { ascending: false }).limit(1),
+    supabase.from('personal_records').select('exercise_name, weight_kg, reps, achieved_at').eq('user_id', clientId).order('achieved_at', { ascending: false }).limit(15),
   ]);
 
   // Protocolos y compliance (tablas nuevas — pueden no existir aún)
@@ -81,6 +89,8 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     recentFoodLogs: foodLogsRes.data || [],
     activeProtocols,
     complianceStats,
+    healthMeasurement: hmRes.data?.[0] || null,
+    personalRecords: prRes.data || [],
   };
 }
 
@@ -237,6 +247,24 @@ Sueño: ${profile?.sleep_time_usual || '—'}-${profile?.wake_time_usual || '—
       p += `\nCompliance promedio 14 días: ${data.complianceStats.avgCompliance}%\n`;
       p += `Racha actual: ${data.complianceStats.streak} días\n`;
     }
+  }
+
+  // Datos físicos (health_measurements)
+  if (data.healthMeasurement) {
+    const hm = data.healthMeasurement;
+    p += `\n## DATOS FÍSICOS\n`;
+    p += `Peso: ${hm.weight_kg ?? '—'}kg, Grasa: ${hm.body_fat_pct ?? '—'}%, Músculo: ${hm.muscle_mass_kg ?? '—'}kg, Visceral: ${hm.visceral_fat ?? '—'}\n`;
+    p += `PA: ${hm.systolic_bp ?? '—'}/${hm.diastolic_bp ?? '—'}, FC reposo: ${hm.resting_hr ?? '—'}bpm\n`;
+    p += `Fuerza agarre: ${hm.grip_strength_kg ?? '—'}kg, VO2max: ${hm.vo2max_estimate ?? '—'}\n`;
+    p += `Energía: ${hm.energy_level ?? '—'}/10, Sueño: ${hm.sleep_quality ?? '—'}/10, Estrés: ${hm.stress_level ?? '—'}/10\n`;
+  }
+
+  // Personal records
+  if (data.personalRecords.length > 0) {
+    p += `\n## PERSONAL RECORDS\n`;
+    data.personalRecords.forEach((pr: any) => {
+      p += `${pr.exercise_name}: ${pr.weight_kg}kg x${pr.reps} (${pr.achieved_at})\n`;
+    });
   }
 
   // Estudios clínicos
