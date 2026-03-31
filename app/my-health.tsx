@@ -16,7 +16,7 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult } from '@/src/services/lab-service';
-import { calculateAndSaveScore, getLatestScore } from '@/src/services/health-score-service';
+import { calculateAndSaveScore, getLatestScore, ensureClientProfile } from '@/src/services/health-score-service';
 import type { HealthScore } from '@/src/data/functional-health-engine';
 import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-service';
 import { getStudyType } from '@/src/data/study-types';
@@ -62,19 +62,63 @@ export default function MyHealthScreen() {
     setLoading(false);
   };
 
-  /** Calcular/recalcular scores de salud */
+  /** Calcular/recalcular scores de salud — pide datos de perfil si faltan */
   const handleCalculateScore = async () => {
     haptic.light();
+    // Verificar que exista perfil con fecha de nacimiento
+    const hasProfile = await ensureClientProfile(userId);
+    if (!hasProfile) {
+      // Pedir datos mínimos
+      promptForProfile();
+      return;
+    }
+    doCalculate();
+  };
+
+  const doCalculate = async () => {
     setCalculating(true);
     try {
       const score = await calculateAndSaveScore(userId);
       setHealthScore(score);
       haptic.success();
     } catch (err: any) {
-      Alert.alert('Error al calcular', err.message || 'Verifica que tengas labs subidos y un perfil completo.');
+      Alert.alert('Error al calcular', err.message || 'Verifica que tengas labs subidos.');
       haptic.error();
     }
     setCalculating(false);
+  };
+
+  const promptForProfile = () => {
+    Alert.alert(
+      'Datos necesarios',
+      'Para calcular tu edad biológica necesitamos tu fecha de nacimiento y sexo biológico.\n\n¿Cuál es tu sexo biológico?',
+      [
+        { text: 'Hombre', onPress: () => promptAge('male') },
+        { text: 'Mujer', onPress: () => promptAge('female') },
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+    );
+  };
+
+  const promptAge = (sex: string) => {
+    Alert.alert(
+      '¿Tu rango de edad?',
+      'Selecciona el más cercano:',
+      [
+        { text: '25-30', onPress: () => saveProfileAndCalc(sex, 27) },
+        { text: '31-35', onPress: () => saveProfileAndCalc(sex, 33) },
+        { text: '36-40', onPress: () => saveProfileAndCalc(sex, 38) },
+        { text: '41-50', onPress: () => saveProfileAndCalc(sex, 45) },
+        { text: '51+', onPress: () => saveProfileAndCalc(sex, 55) },
+      ],
+    );
+  };
+
+  const saveProfileAndCalc = async (sex: string, age: number) => {
+    const dob = new Date();
+    dob.setFullYear(dob.getFullYear() - age);
+    await ensureClientProfile(userId, dob.toISOString().split('T')[0], sex);
+    doCalculate();
   };
 
   const handlePickImage = async (useCamera: boolean) => {
@@ -137,11 +181,14 @@ export default function MyHealthScreen() {
         setResult({ error: extractResult.error });
       } else {
         setResult({ count: extractResult.extractedCount });
-        // Calcular scores automáticamente después de extraer
+        // Calcular scores automáticamente si hay perfil completo
         try {
-          const score = await calculateAndSaveScore(userId);
-          setHealthScore(score);
-        } catch { /* perfil incompleto, no bloquear */ }
+          const hasProfile = await ensureClientProfile(userId);
+          if (hasProfile) {
+            const score = await calculateAndSaveScore(userId);
+            setHealthScore(score);
+          }
+        } catch { /* perfil incompleto, el usuario puede calcular manualmente */ }
       }
       loadData();
     } catch (err: any) {
@@ -363,9 +410,18 @@ export default function MyHealthScreen() {
                     <EliteText variant="body" style={{ fontFamily: Fonts.semiBold, flex: 1 }}>
                       {lab.lab_name ?? 'Laboratorio'}
                     </EliteText>
-                    <View style={[s.badge, lab.status === 'approved' ? { backgroundColor: Colors.neonGreen + '15' } : { backgroundColor: SEMANTIC.warning + '15' }]}>
-                      <EliteText variant="caption" style={{ color: lab.status === 'approved' ? Colors.neonGreen : SEMANTIC.warning, fontSize: 9, fontFamily: Fonts.bold }}>
-                        {lab.status === 'approved' ? 'Aprobado' : 'En revisión'}
+                    <View style={[s.badge, {
+                      backgroundColor: lab.status === 'approved' ? Colors.neonGreen + '15'
+                        : lab.status === 'draft' ? TEAL + '15'
+                        : SEMANTIC.warning + '15'
+                    }]}>
+                      <EliteText variant="caption" style={{
+                        color: lab.status === 'approved' ? Colors.neonGreen
+                          : lab.status === 'draft' ? TEAL
+                          : SEMANTIC.warning,
+                        fontSize: 9, fontFamily: Fonts.bold
+                      }}>
+                        {lab.status === 'approved' ? 'Aprobado' : lab.status === 'draft' ? 'Extraído' : 'En revisión'}
                       </EliteText>
                     </View>
                   </View>

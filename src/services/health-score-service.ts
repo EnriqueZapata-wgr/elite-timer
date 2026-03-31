@@ -6,17 +6,43 @@ import {
   calculateHealthScore, mapPatientDataToInput, type HealthScore, type Sex,
 } from '@/src/data/functional-health-engine';
 
+/** Crea client_profile mínimo si no existe. Retorna true si ya tenía date_of_birth. */
+export async function ensureClientProfile(userId: string, dob?: string, sex?: string): Promise<boolean> {
+  const { data } = await supabase.from('client_profiles').select('date_of_birth').eq('user_id', userId).single();
+  if (data?.date_of_birth) return true;
+
+  // Upsert con los datos proporcionados
+  if (dob) {
+    await supabase.from('client_profiles').upsert({
+      user_id: userId,
+      date_of_birth: dob,
+      biological_sex: sex || 'male',
+    }, { onConflict: 'user_id' });
+    return true;
+  }
+  return false;
+}
+
 export async function calculateAndSaveScore(userId: string, consultationId?: string): Promise<HealthScore> {
   // Obtener datos
   const [labsRes, bodyRes, profileRes] = await Promise.all([
-    supabase.from('lab_results').select('*').eq('user_id', userId).in('status', ['approved', 'pending_review']).order('lab_date', { ascending: false }).limit(1),
+    supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
     supabase.from('body_measurements').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
     supabase.from('client_profiles').select('*').eq('user_id', userId).single(),
   ]);
 
   const labs = labsRes.data?.[0] ?? null;
   const body = bodyRes.data?.[0] ?? null;
-  const profile = profileRes.data ?? null;
+  let profile = profileRes.data ?? null;
+
+  // Si no hay client_profile, intentar crear uno mínimo desde profiles
+  if (!profile) {
+    const { data: userProfile } = await supabase
+      .from('profiles').select('date_of_birth, biological_sex').eq('id', userId).single();
+    if (userProfile) profile = userProfile;
+  }
+
+  if (!labs) throw new Error('No se encontraron resultados de laboratorio. Sube un estudio primero.');
 
   const sex: Sex = (profile?.biological_sex === 'female') ? 'female' : 'male';
   const dob = profile?.date_of_birth;
