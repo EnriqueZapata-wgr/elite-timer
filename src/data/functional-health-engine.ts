@@ -352,8 +352,17 @@ export function calculateHealthScore(
     });
   }
 
-  let globalSF = 0, globalCE = 0;
-  for (const dr of domainResults) { globalSF += dr.functionalScore * dr.weight; globalCE += dr.evaluationQuality * dr.weight; }
+  // Score ponderado: solo dominios con datos contribuyen al global
+  let globalSF = 0, globalCE = 0, weightWithData = 0;
+  for (const dr of domainResults) {
+    if (dr.evaluationQuality > 0) {
+      globalSF += dr.functionalScore * dr.weight;
+      weightWithData += dr.weight;
+    }
+    globalCE += dr.evaluationQuality * dr.weight;
+  }
+  // Normalizar: dividir entre peso de dominios CON datos
+  if (weightWithData > 0) globalSF = globalSF / weightWithData;
 
   // PhenoAge
   let phenoAgeResult: PhenoAgeResult | null = null;
