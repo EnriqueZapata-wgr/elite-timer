@@ -21,6 +21,8 @@ import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacit
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 
+const TEAL = CATEGORY_COLORS.metrics;
+
 // === CONSTANTES ===
 
 const CHRONO_META: Record<string, { icon: string; color: string; name: string; desc: string }> = {
@@ -212,6 +214,14 @@ export default function YoScreen() {
               ))}
             </View>
           )}
+          {/* Botón evaluar salud */}
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/health-input' as any); }} style={st.evalBtn}>
+            <Ionicons name="clipboard-outline" size={16} color={TEAL} />
+            <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
+              Completar evaluación de salud
+            </EliteText>
+            <Ionicons name="chevron-forward" size={14} color={TEAL} />
+          </AnimatedPressable>
         </Animated.View>
 
         {/* ══ 4. CRONOTIPO (hero card) ══ */}
@@ -452,4 +462,10 @@ const st = StyleSheet.create({
   actionIcon: { width: 40, height: 40, borderRadius: Radius.card, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontFamily: Fonts.semiBold, color: TEXT_COLORS.primary, fontSize: FontSizes.md },
   actionSub: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginTop: 1 },
+
+  // Eval button
+  evalBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+    paddingVertical: Spacing.sm, marginTop: Spacing.sm,
+  },
 });
