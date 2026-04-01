@@ -124,23 +124,27 @@ export default function QuizTakeScreen() {
     });
   };
 
-  /** Aceptar recomendaciones y activar protocolos */
+  /** Guardar resultados y activar protocolos seleccionados */
   const handleAccept = async () => {
     if (!quiz || !user) return;
     setActivating(true);
     try {
       const accepted = recommendations.filter(r => selectedRecs.has(r.protocol_key));
-      // Guardar respuesta del quiz
+      // Siempre guardar respuesta del quiz (con o sin recomendaciones)
       await saveQuizResponse(
         user.id, quiz.quiz_id, answers, domainScores,
         recommendations.map(r => r.protocol_key),
         accepted.map(r => r.protocol_key),
       );
-      // Activar protocolos seleccionados
-      const count = await activateRecommendedProtocols(user.id, accepted);
-      haptic.success();
-      if (count > 0) {
-        Alert.alert('Listo', `Se activaron ${count} protocolo${count > 1 ? 's' : ''}.`);
+      // Activar protocolos seleccionados (si hay)
+      if (accepted.length > 0) {
+        const count = await activateRecommendedProtocols(user.id, accepted);
+        if (count > 0) {
+          haptic.success();
+          Alert.alert('Listo', `Se activaron ${count} protocolo${count > 1 ? 's' : ''}.`);
+        }
+      } else {
+        haptic.success();
       }
       router.replace('/(tabs)');
     } catch {
@@ -415,11 +419,11 @@ export default function QuizTakeScreen() {
       <View style={styles.bottomBar}>
         <AnimatedPressable
           onPress={handleAccept}
-          disabled={activating || selectedRecs.size === 0}
-          style={[styles.primaryBtn, (activating || selectedRecs.size === 0) && { opacity: 0.5 }]}
+          disabled={activating}
+          style={[styles.primaryBtn, activating && { opacity: 0.5 }]}
         >
           <EliteText variant="subtitle" style={styles.primaryBtnText}>
-            {activating ? 'Activando...' : 'Aceptar recomendaciones'}
+            {activating ? 'Guardando...' : selectedRecs.size > 0 ? 'Aceptar recomendaciones' : 'Guardar resultados'}
           </EliteText>
         </AnimatedPressable>
 
