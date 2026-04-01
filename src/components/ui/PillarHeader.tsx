@@ -15,6 +15,7 @@ const PILLAR_COLORS: Record<string, string> = {
   optimization: CATEGORY_COLORS.optimization,
   metrics: CATEGORY_COLORS.metrics,
   rest: CATEGORY_COLORS.rest,
+  cycle: '#D4537E',
 };
 
 interface Props {
