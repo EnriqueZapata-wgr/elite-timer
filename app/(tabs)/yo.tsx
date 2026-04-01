@@ -16,6 +16,7 @@ import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
+import { generateMasterHealthReport, type MasterHealthReport, type DomainScore, type Recommendation } from '@/src/services/health-score-engine';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -32,13 +33,6 @@ const CHRONO_META: Record<string, { icon: string; color: string; name: string; d
   dolphin: { icon: 'water-outline', color: '#5B9BD5', name: 'Delfín', desc: 'Mente activa' },
 };
 
-const SCORE_META = [
-  { key: 'bio', label: 'Edad biológica', icon: 'fitness-outline', accent: CATEGORY_COLORS.mind },
-  { key: 'func', label: 'Salud funcional', icon: 'heart-outline', accent: ATP_BRAND.teal2 },
-  { key: 'aging', label: 'Envejecimiento', icon: 'hourglass-outline', accent: SEMANTIC.warning },
-  { key: 'eval', label: 'Calidad eval.', icon: 'clipboard-outline', accent: ATP_BRAND.green1 },
-] as const;
-
 // === COMPONENTE ===
 
 export default function YoScreen() {
@@ -47,12 +41,23 @@ export default function YoScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [healthReport, setHealthReport] = useState<MasterHealthReport | null>(null);
+  const [healthLoading, setHealthLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     try { setData(await getDashboardData()); } catch { /* silenciar */ }
     setLoading(false);
     setRefreshing(false);
-  }, []);
+    // Cargar reporte maestro de salud
+    try {
+      if (user?.id) {
+        setHealthLoading(true);
+        const report = await generateMasterHealthReport(user.id);
+        setHealthReport(report);
+        setHealthLoading(false);
+      }
+    } catch { setHealthLoading(false); }
+  }, [user?.id]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
   const onRefresh = () => { setRefreshing(true); loadData(); };
@@ -63,29 +68,9 @@ export default function YoScreen() {
     : '';
   const initials = userName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  const hs = data?.healthScore;
   const comp = data?.composition;
   const chrono = data?.chronotype;
   const cm = chrono ? CHRONO_META[chrono.chronotype] : null;
-
-  // Valores de scores
-  const scoreValues = {
-    bio: hs?.biologicalAge ? Math.round(hs.biologicalAge).toString() : null,
-    func: hs?.functionalHealthScore ? Math.round(hs.functionalHealthScore).toString() : null,
-    aging: hs?.agingRate ? hs.agingRate.toFixed(2) : null,
-    eval: hs?.evaluationQuality != null ? Math.round(hs.evaluationQuality).toString() : null,
-  };
-  const scoreUnits = { bio: 'años', func: '/100', aging: 'x', eval: '%' };
-  const scoreColors = {
-    bio: hs?.biologicalAge && data?.chronologicalAge ? (hs.biologicalAge < data.chronologicalAge ? SEMANTIC.success : SEMANTIC.error) : null,
-    func: hs?.functionalHealthScore ? (hs.functionalHealthScore > 80 ? SEMANTIC.success : hs.functionalHealthScore > 60 ? SEMANTIC.warning : SEMANTIC.error) : null,
-    aging: hs?.agingRate ? (hs.agingRate < 1.0 ? SEMANTIC.success : hs.agingRate < 1.1 ? SEMANTIC.warning : SEMANTIC.error) : null,
-    eval: hs?.evaluationQuality ? (hs.evaluationQuality > 70 ? SEMANTIC.success : hs.evaluationQuality > 40 ? SEMANTIC.warning : SEMANTIC.error) : null,
-  };
-  const scoreProgress = {
-    bio: 0, func: hs?.functionalHealthScore ? hs.functionalHealthScore / 100 : 0,
-    aging: 0, eval: hs?.evaluationQuality ? hs.evaluationQuality / 100 : 0,
-  };
 
   // Colores composición
   const fatColor = comp?.body_fat_pct != null ? (comp.body_fat_pct < 20 ? SEMANTIC.success : comp.body_fat_pct < 28 ? SEMANTIC.warning : SEMANTIC.error) : null;
@@ -147,43 +132,126 @@ export default function YoScreen() {
           </View>
         </Animated.View>
 
-        {/* ══ 2. SCORES DE SALUD ══ */}
-        <SectionLabel>SCORES DE SALUD</SectionLabel>
-        <View style={st.scoresGrid}>
-          {SCORE_META.map((sm, idx) => {
-            const val = scoreValues[sm.key as keyof typeof scoreValues];
-            const color = scoreColors[sm.key as keyof typeof scoreColors];
-            const prog = scoreProgress[sm.key as keyof typeof scoreProgress];
-            const unit = scoreUnits[sm.key as keyof typeof scoreUnits];
-            return (
-              <View key={sm.key} style={st.scoreCardWrap}>
-                <StaggerItem index={idx} delay={80}>
-                  <AnimatedPressable onPress={() => { haptic.selection(); router.push('/my-health' as any); }} style={[st.scoreCard, { borderLeftColor: sm.accent }]}>
-                    <View style={st.scoreCardHeader}>
-                      <Ionicons name={sm.icon as any} size={val ? 16 : 36} color={val ? sm.accent : sm.accent + '40'} />
-                      <EliteText variant="caption" style={[st.scoreCardLabel, { color: sm.accent }]}>{sm.label}</EliteText>
-                    </View>
-                    {val ? (
-                      <>
-                        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-                          <EliteText style={[st.scoreCardValue, { color: color ?? sm.accent }]}>{val}</EliteText>
-                          <EliteText variant="caption" style={st.scoreCardUnit}>{unit}</EliteText>
-                        </View>
-                        {prog > 0 && (
-                          <View style={st.miniBar}>
-                            <View style={[st.miniBarFill, { width: `${Math.min(prog * 100, 100)}%`, backgroundColor: color ?? sm.accent }]} />
-                          </View>
-                        )}
-                      </>
-                    ) : (
-                      <EliteText variant="caption" style={st.scoreCardEmpty}>Sube labs</EliteText>
-                    )}
-                  </AnimatedPressable>
-                </StaggerItem>
+        {/* ══ 2. SALUD FUNCIONAL ══ */}
+        <SectionLabel>SALUD FUNCIONAL</SectionLabel>
+
+        {healthLoading ? (
+          <View style={{ gap: Spacing.sm }}>
+            <SkeletonLoader variant="card" height={100} />
+            <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+              <SkeletonLoader variant="stat-card" />
+              <SkeletonLoader variant="stat-card" />
+            </View>
+          </View>
+        ) : healthReport ? (
+          <>
+            {/* Hero score */}
+            <View style={st.heroScoreCard}>
+              <View style={st.heroScoreRow}>
+                <EliteText style={[st.heroScoreValue, { color: healthReport.functionalHealth.color }]}>
+                  {healthReport.functionalHealth.value}
+                </EliteText>
+                <View style={{ flex: 1 }}>
+                  <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg }}>
+                    Salud Funcional
+                  </EliteText>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>
+                    {healthReport.functionalHealth.level} · {healthReport.evaluationQuality.completedSources}/{healthReport.evaluationQuality.totalSources} fuentes
+                  </EliteText>
+                </View>
               </View>
-            );
-          })}
-        </View>
+              <View style={st.heroBar}>
+                <View style={[st.heroBarFill, { width: `${healthReport.functionalHealth.value}%`, backgroundColor: healthReport.functionalHealth.color }]} />
+              </View>
+            </View>
+
+            {/* Age + Aging rate cards */}
+            <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
+              <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={[st.ageCard, { flex: 1 }]}>
+                <Ionicons name="fitness-outline" size={16} color={healthReport.biologicalAge.delta && healthReport.biologicalAge.delta < 0 ? SEMANTIC.success : healthReport.biologicalAge.value ? SEMANTIC.warning : TEXT_COLORS.muted} />
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>Edad biológica</EliteText>
+                <EliteText style={[st.ageValue, { color: healthReport.biologicalAge.delta && healthReport.biologicalAge.delta < 0 ? SEMANTIC.success : healthReport.biologicalAge.value ? SEMANTIC.warning : TEXT_COLORS.muted }]}>
+                  {healthReport.biologicalAge.value ? Math.round(healthReport.biologicalAge.value) : '—'}
+                </EliteText>
+                {healthReport.biologicalAge.delta !== null && (
+                  <EliteText variant="caption" style={{ color: healthReport.biologicalAge.delta < 0 ? SEMANTIC.success : SEMANTIC.error, fontSize: FontSizes.xs }}>
+                    {healthReport.biologicalAge.delta > 0 ? '+' : ''}{healthReport.biologicalAge.delta} vs {healthReport.biologicalAge.chronologicalAge}
+                  </EliteText>
+                )}
+              </AnimatedPressable>
+
+              <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={[st.ageCard, { flex: 1 }]}>
+                <Ionicons name="hourglass-outline" size={16} color={healthReport.agingRate.color} />
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>Envejecimiento</EliteText>
+                <EliteText style={[st.ageValue, { color: healthReport.agingRate.color }]}>
+                  {healthReport.agingRate.value ? healthReport.agingRate.value.toFixed(2) + 'x' : '—'}
+                </EliteText>
+                <EliteText variant="caption" style={{ color: healthReport.agingRate.color, fontSize: FontSizes.xs }}>
+                  {healthReport.agingRate.label}
+                </EliteText>
+              </AnimatedPressable>
+            </View>
+
+            {/* Domains */}
+            <View style={{ marginTop: Spacing.md }}>
+              <EliteText variant="caption" style={[st.sectionLabel, { marginTop: 0, marginBottom: Spacing.sm }]}>DOMINIOS</EliteText>
+              {healthReport.functionalHealth.domains.map((d, i) => (
+                <View key={d.domain} style={st.domainRow}>
+                  <Ionicons name={d.icon as any} size={14} color={d.color} />
+                  <EliteText variant="caption" style={st.domainLabel}>{d.label}</EliteText>
+                  <View style={st.domainBarBg}>
+                    <View style={[st.domainBarFill, { width: `${d.score}%`, backgroundColor: d.color }]} />
+                  </View>
+                  <EliteText variant="caption" style={[st.domainPct, { color: d.color }]}>{d.score}</EliteText>
+                </View>
+              ))}
+            </View>
+
+            {/* Recommendations to improve evaluation */}
+            {healthReport.recommendations.toImproveEvaluation.length > 0 && (
+              <View style={{ marginTop: Spacing.md }}>
+                <EliteText variant="caption" style={[st.sectionLabel, { marginTop: 0, marginBottom: Spacing.sm }]}>
+                  MEJORA TU EVALUACIÓN ({healthReport.evaluationQuality.completedSources}/{healthReport.evaluationQuality.totalSources})
+                </EliteText>
+                {healthReport.recommendations.toImproveEvaluation.slice(0, 3).map((rec, i) => (
+                  <StaggerItem key={rec.id} index={i}>
+                    <AnimatedPressable onPress={() => { haptic.light(); router.push(rec.route as any); }} style={st.recCard}>
+                      <Ionicons name={rec.icon as any} size={18} color={rec.impact === 'critical' ? SEMANTIC.error : SEMANTIC.warning} />
+                      <View style={{ flex: 1 }}>
+                        <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{rec.title}</EliteText>
+                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>{rec.impactLabel}</EliteText>
+                      </View>
+                      <Ionicons name="chevron-forward" size={14} color={TEXT_COLORS.muted} />
+                    </AnimatedPressable>
+                  </StaggerItem>
+                ))}
+              </View>
+            )}
+
+            {/* Protocol impact */}
+            {healthReport.recommendations.protocolImpact.length > 0 && (
+              <View style={{ marginTop: Spacing.md }}>
+                <EliteText variant="caption" style={[st.sectionLabel, { marginTop: 0, marginBottom: Spacing.sm }]}>PROTOCOLOS</EliteText>
+                {healthReport.recommendations.protocolImpact.slice(0, 3).map((p, i) => (
+                  <View key={p.protocolName} style={st.protoCard}>
+                    <Ionicons name={p.isActive ? 'checkmark-circle' : 'add-circle-outline'} size={18} color={p.isActive ? SEMANTIC.success : ATP_BRAND.lime} />
+                    <View style={{ flex: 1 }}>
+                      <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>{p.protocolName}</EliteText>
+                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>
+                        {p.estimatedImpact} · {p.timeToImpact}
+                      </EliteText>
+                    </View>
+                    {!p.isActive && (
+                      <AnimatedPressable onPress={() => { haptic.light(); router.push('/protocol-explorer' as any); }} style={st.protoActivateBtn}>
+                        <EliteText variant="caption" style={{ color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>Activar</EliteText>
+                      </AnimatedPressable>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        ) : null}
 
         {/* ══ 3. COMPOSICIÓN CORPORAL ══ */}
         <Animated.View entering={FadeInUp.delay(450).springify()}>
@@ -393,20 +461,39 @@ const st = StyleSheet.create({
   // Section labels
   sectionLabel: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2, marginTop: Spacing.xl, marginBottom: Spacing.sm },
 
-  // Scores
-  scoresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  scoreCardWrap: { width: '48%', flexGrow: 1 },
-  scoreCard: {
+  // Health master
+  heroScoreCard: {
     backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
-    borderLeftWidth: 3, padding: Spacing.md,
+    padding: Spacing.md,
   },
-  scoreCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  scoreCardLabel: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  scoreCardValue: { fontSize: FontSizes.display, fontFamily: Fonts.extraBold },
-  scoreCardUnit: { color: TEXT_COLORS.muted, fontSize: FontSizes.sm },
-  scoreCardEmpty: { color: TEXT_COLORS.muted, fontSize: FontSizes.sm, marginTop: 4 },
-  miniBar: { height: 3, backgroundColor: SURFACES.cardLight, borderRadius: Radius.xs, marginTop: Spacing.sm, overflow: 'hidden' },
-  miniBarFill: { height: '100%', borderRadius: Radius.xs },
+  heroScoreRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  heroScoreValue: { fontSize: 48, fontFamily: Fonts.extraBold },
+  heroBar: { height: 6, backgroundColor: SURFACES.cardLight, borderRadius: Radius.xs, overflow: 'hidden', marginTop: Spacing.sm },
+  heroBarFill: { height: '100%', borderRadius: Radius.xs },
+  ageCard: {
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
+    padding: Spacing.md, alignItems: 'center', gap: 2,
+  },
+  ageValue: { fontSize: FontSizes.display, fontFamily: Fonts.extraBold },
+  domainRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 6 },
+  domainLabel: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, width: 85 },
+  domainBarBg: { flex: 1, height: 4, backgroundColor: SURFACES.cardLight, borderRadius: Radius.xs, overflow: 'hidden' },
+  domainBarFill: { height: '100%', borderRadius: Radius.xs },
+  domainPct: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, width: 28, textAlign: 'right' },
+  recCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.sm + 2,
+    borderWidth: 0.5, borderColor: SURFACES.border, marginBottom: Spacing.xs,
+  },
+  protoCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.sm + 2,
+    borderWidth: 0.5, borderColor: SURFACES.border, marginBottom: Spacing.xs,
+  },
+  protoActivateBtn: {
+    paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: ATP_BRAND.lime + '40',
+  },
 
   // Composition (with data)
   compCard: {
