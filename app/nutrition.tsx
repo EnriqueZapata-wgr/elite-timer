@@ -368,7 +368,30 @@ export default function NutritionScreen() {
           )}
         </Animated.View>
 
-        {/* ══ 6. Recetas sugeridas ══ */}
+        {/* ══ 6. Analiza productos ══ */}
+        <Animated.View entering={FadeInUp.delay(380).springify()}>
+          <EliteText variant="caption" style={s.sectionLabel}>ANALIZA PRODUCTOS</EliteText>
+          <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
+            <AnimatedPressable
+              style={s.analyzeCard}
+              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } } as any); }}
+            >
+              <Ionicons name="barcode-outline" size={22} color={SEMANTIC.warning} />
+              <EliteText style={s.analyzeTitle}>Etiquetas</EliteText>
+              <EliteText variant="caption" style={s.analyzeSub}>Foto de producto → aditivos</EliteText>
+            </AnimatedPressable>
+            <AnimatedPressable
+              style={s.analyzeCard}
+              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } } as any); }}
+            >
+              <Ionicons name="medkit-outline" size={22} color={CATEGORY_COLORS.metrics} />
+              <EliteText style={s.analyzeTitle}>Suplementos</EliteText>
+              <EliteText variant="caption" style={s.analyzeSub}>Evalúa calidad y dosis</EliteText>
+            </AnimatedPressable>
+          </View>
+        </Animated.View>
+
+        {/* ══ 7. Recetas sugeridas ══ */}
         {recipes.length > 0 && (
           <Animated.View entering={FadeInUp.delay(400).springify()}>
             <EliteText variant="caption" style={s.sectionLabel}>RECETAS SUGERIDAS</EliteText>
@@ -482,6 +505,14 @@ const s = StyleSheet.create({
     width: 180, backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,
     borderWidth: 0.5, borderColor: SURFACES.border,
   },
+
+  // Analyze cards
+  analyzeCard: {
+    flex: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md, gap: 6,
+    borderWidth: 0.5, borderColor: SURFACES.border,
+  },
+  analyzeTitle: { color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  analyzeSub: { color: TEXT_COLORS.muted, fontSize: FontSizes.xs, lineHeight: 14 },
 
   // Insights
   insightCard: {

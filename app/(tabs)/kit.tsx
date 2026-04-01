@@ -167,7 +167,6 @@ export default function KitScreen() {
               { icon: 'sparkles-outline', label: 'Meditación', color: CATEGORY_COLORS.mind, active: true, route: '/meditation' },
               { icon: 'heart-circle-outline', label: 'Check-in', color: CATEGORY_COLORS.mind, active: true, route: '/checkin' },
               { icon: 'flask-outline', label: 'Mi Salud', color: CATEGORY_COLORS.metrics, active: true, route: '/my-health' },
-              { icon: 'cart-outline', label: 'Compras', color: CATEGORY_COLORS.optimization, active: true, route: '/smart-shopping' },
               { icon: 'clipboard-outline', label: 'Evaluaciones', color: CATEGORY_COLORS.metrics, active: true, route: '/quizzes' },
               { icon: 'journal-outline', label: 'Journaling', color: CATEGORY_COLORS.optimization, active: true, route: '/journal' },
             ].map((tool, idx) => (
