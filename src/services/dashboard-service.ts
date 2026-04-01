@@ -35,13 +35,25 @@ async function getUserId(): Promise<string> {
 export async function getDashboardData(): Promise<DashboardData> {
   const userId = await getUserId();
 
-  const [profileRes, bodyRes, chronotype, healthScore] = await Promise.all([
+  const [profileRes, bodyRes, hmRes, chronotype, healthScore] = await Promise.all([
     supabase.from('profiles').select('full_name, email, created_at').eq('id', userId).single(),
     supabase.from('body_measurements').select('weight_kg, body_fat_pct, muscle_mass_pct, visceral_fat, measured_at')
       .eq('user_id', userId).order('measured_at', { ascending: false }).limit(1).single(),
+    supabase.from('health_measurements').select('weight_kg, body_fat_pct, muscle_mass_kg, visceral_fat, date')
+      .eq('user_id', userId).order('date', { ascending: false }).limit(1).single(),
     getUserChronotype().catch(() => null),
     getLatestScore(userId).catch(() => null),
   ]);
+
+  // Composición: body_measurements primero, fallback a health_measurements
+  const body = bodyRes.data;
+  const hm = hmRes.data;
+  const composition = body?.weight_kg ? body : hm ? {
+    weight_kg: hm.weight_kg,
+    body_fat_pct: hm.body_fat_pct,
+    muscle_mass_pct: hm.muscle_mass_kg && hm.weight_kg ? Math.round((hm.muscle_mass_kg / hm.weight_kg) * 100 * 10) / 10 : null,
+    visceral_fat: hm.visceral_fat,
+  } : null;
 
   // Edad cronológica desde client_profiles
   let chronologicalAge: number | null = null;
@@ -54,7 +66,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     profile: profileRes.data,
     chronotype,
     healthScore,
-    composition: bodyRes.data ?? null,
+    composition,
     chronologicalAge,
   };
 }
