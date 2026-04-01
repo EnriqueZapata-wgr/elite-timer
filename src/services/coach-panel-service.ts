@@ -25,6 +25,7 @@ export interface ClientSummary {
   connected_at: string;
   sessions_this_month: number;
   last_workout: string | null;
+  last_consultation: string | null;
 }
 
 export interface ClientStats {
@@ -116,17 +117,32 @@ export async function getClientList(): Promise<ClientSummary[]> {
     .in('user_id', clientIds)
     .gte('logged_at', startOfMonth.toISOString());
 
-  const statsByClient = new Map<string, { sessions: Set<string>; lastWorkout: string | null }>();
+  // Última consulta por cliente
+  const { data: consults } = await supabase
+    .from('consultations')
+    .select('client_id, date')
+    .in('client_id', clientIds)
+    .order('date', { ascending: false });
+
+  const statsByClient = new Map<string, { sessions: Set<string>; lastWorkout: string | null; lastConsult: string | null }>();
   for (const log of (logs ?? [])) {
     const dateStr = new Date(log.logged_at).toISOString().split('T')[0];
     if (!statsByClient.has(log.user_id)) {
-      statsByClient.set(log.user_id, { sessions: new Set(), lastWorkout: null });
+      statsByClient.set(log.user_id, { sessions: new Set(), lastWorkout: null, lastConsult: null });
     }
     const entry = statsByClient.get(log.user_id)!;
     entry.sessions.add(dateStr);
     if (!entry.lastWorkout || log.logged_at > entry.lastWorkout) {
       entry.lastWorkout = log.logged_at;
     }
+  }
+  // Mapear consultas (solo la más reciente por cliente)
+  for (const c of (consults ?? [])) {
+    if (!statsByClient.has(c.client_id)) {
+      statsByClient.set(c.client_id, { sessions: new Set(), lastWorkout: null, lastConsult: null });
+    }
+    const entry = statsByClient.get(c.client_id)!;
+    if (!entry.lastConsult) entry.lastConsult = c.date; // ya está ordenado desc
   }
 
   return connections.map(c => ({
@@ -136,6 +152,7 @@ export async function getClientList(): Promise<ClientSummary[]> {
     connected_at: c.connected_at,
     sessions_this_month: statsByClient.get(c.client_id)?.sessions.size ?? 0,
     last_workout: statsByClient.get(c.client_id)?.lastWorkout ?? null,
+    last_consultation: statsByClient.get(c.client_id)?.lastConsult ?? null,
   }));
 }
 

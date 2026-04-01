@@ -69,9 +69,10 @@ interface Props {
   clientName: string;
   clientEmail?: string;
   connectedAt: string;
+  onClientUpdated?: () => void;
 }
 
-export function ClientDetailScreen({ clientId, clientName, clientEmail, connectedAt }: Props) {
+export function ClientDetailScreen({ clientId, clientName, clientEmail, connectedAt, onClientUpdated }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('profile');
   const [stats, setStats] = useState<ClientStats | null>(null);
   const [schedule, setSchedule] = useState<ClientScheduleItem[]>([]);
@@ -232,6 +233,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
                     return [...prev, { condition_key: key, zone, status: newStatus, notes: null, diagnosed_date: null, lab_value: null, medication: null }];
                   });
                 }}
+                onClientUpdated={onClientUpdated}
               />
             )}
             {activeTab === 'consultations' && (
@@ -393,10 +395,11 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
 // TAB: PERFIL
 // ══════════════════════════
 
-function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onFlagToggle }: {
+function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onFlagToggle, onClientUpdated }: {
   clientId: string; clientName: string; clientEmail: string; connectedAt: string;
   flags: ConditionFlag[];
   onFlagToggle: (key: string, zone: string) => Promise<void>;
+  onClientUpdated?: () => void;
 }) {
   const [expandedZones, setExpandedZones] = useState<Set<string>>(() => {
     // Auto-expandir zonas con flags rojos o naranjas
@@ -447,6 +450,8 @@ function ProfileTab({ clientId, clientName, clientEmail, connectedAt, flags, onF
   const [bioSavedKey, setBioSavedKey] = useState<string | null>(null);
 
   const saveProfileField = async (key: string, value: string) => {
+    // Señal especial: el nombre cambió, refrescar sidebar
+    if (key === '__name_changed__') { onClientUpdated?.(); return; }
     const v = value.trim();
     try {
       const numVal = BIO_NUMERIC_KEYS.includes(key) && v ? Number(v) : undefined;
@@ -1156,6 +1161,8 @@ function EditableProfileCard({ clientId, clientName, clientEmail, connectedAt, p
       });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 3000);
+      // Notificar al panel para refrescar sidebar
+      if (form.full_name !== clientName) onSave('__name_changed__', form.full_name);
     } catch (err: any) {
       setSaveStatus('error');
       if (__DEV__) console.error('[savePersonal]', err);

@@ -60,8 +60,16 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
 
   const selectedClient = clients.find(c => c.client_id === selectedId);
 
-  // Texto secundario del cliente: sesiones + tiempo desde último entreno
+  // Texto secundario del cliente: consulta + sesiones
   const clientMetaText = (item: ClientSummary): string => {
+    // Última consulta primero (más relevante para el coach)
+    if (item.last_consultation) {
+      const d = new Date(item.last_consultation + 'T12:00:00');
+      const consultStr = `Consulta: ${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}`;
+      const sessionStr = item.sessions_this_month > 0 ? ` · ${item.sessions_this_month} sesiones` : '';
+      return consultStr + sessionStr;
+    }
+
     const sessionStr = item.sessions_this_month > 0
       ? `${item.sessions_this_month} sesion${item.sessions_this_month !== 1 ? 'es' : ''}`
       : 'Sin sesiones';
@@ -311,6 +319,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
             clientName={selectedClient.full_name || selectedClient.email.split('@')[0]}
             clientEmail={selectedClient.email}
             connectedAt={selectedClient.connected_at}
+            onClientUpdated={loadClients}
           />
         ) : (
           <View style={styles.emptyMain}>
