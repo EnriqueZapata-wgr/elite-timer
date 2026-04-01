@@ -53,6 +53,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     body_fat_pct: hm.body_fat_pct,
     muscle_mass_pct: hm.muscle_mass_kg && hm.weight_kg ? Math.round((hm.muscle_mass_kg / hm.weight_kg) * 100 * 10) / 10 : null,
     visceral_fat: hm.visceral_fat,
+    measured_at: hm.date,
   } : null;
 
   // Edad cronológica desde client_profiles
