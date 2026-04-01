@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { BackButton } from '@/src/components/ui/BackButton';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { useAuth } from '@/src/contexts/auth-context';
 import {
   getLatestMeasurement, saveMeasurement, countCompleteSections,
@@ -186,10 +186,7 @@ export default function HealthInputScreen() {
 
   return (
     <SafeAreaView style={st.screen}>
-      <View style={st.header}>
-        <BackButton color={TEAL} />
-        <EliteText style={st.title}>EVALUACIÓN</EliteText>
-      </View>
+      <PillarHeader pillar="metrics" title="Evaluación" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.content}>
         {/* Progreso */}

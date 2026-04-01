@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { BackButton } from '@/src/components/ui/BackButton';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
@@ -121,10 +121,7 @@ export default function JournalScreen() {
 
   return (
     <SafeAreaView style={s.screen}>
-      <View style={s.header}>
-        <BackButton color={AMBER} />
-        <EliteText style={s.title}>JOURNALING</EliteText>
-      </View>
+      <PillarHeader pillar="mind" title="Journal" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         <EliteText variant="caption" style={s.date}>{today}</EliteText>

@@ -9,7 +9,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
-import { BackButton } from '@/src/components/ui/BackButton';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { MEDITATION_LIBRARY } from '@/src/data/meditation-library';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
 import { haptic } from '@/src/utils/haptics';
@@ -23,13 +23,10 @@ export default function MindHubScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.backBtn}>
-        <BackButton color={PURPLE} />
-      </View>
+      <PillarHeader pillar="mind" title="Mente" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <EliteText style={styles.title}>MENTE</EliteText>
           <EliteText variant="caption" style={styles.subtitle}>
             Meditación, respiración y más
           </EliteText>
