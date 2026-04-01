@@ -193,11 +193,13 @@ export async function generateMasterHealthReport(userId: string): Promise<Master
     };
   });
 
-  // Score global ponderado solo por dominios con fuentes
+  // Score funcional: usar el del motor de labs si existe (fuente de verdad), sino promediar dominios
+  const labBasedScore = hs?.functionalHealthScore && hs.functionalHealthScore > 0
+    ? Math.round(hs.functionalHealthScore) : null;
   const domainsWithData = domains.filter(d => d.sources.length > 0);
-  const functionalValue = domainsWithData.length > 0
-    ? Math.round(domainsWithData.reduce((s, d) => s + d.score, 0) / domainsWithData.length)
-    : 50;
+  const domainAvg = domainsWithData.length > 0
+    ? Math.round(domainsWithData.reduce((s, d) => s + d.score, 0) / domainsWithData.length) : 50;
+  const functionalValue = labBasedScore ?? domainAvg;
   const fhLevel = functionalValue >= 85 ? 'Élite' : functionalValue >= 70 ? 'Óptimo' : functionalValue >= 55 ? 'Bueno' : functionalValue >= 40 ? 'Aceptable' : functionalValue >= 25 ? 'En riesgo' : 'Crítico';
   const fhColor = functionalValue >= 70 ? '#a8e02a' : functionalValue >= 40 ? '#EF9F27' : '#E24B4A';
 
