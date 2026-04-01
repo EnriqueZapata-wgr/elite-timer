@@ -22,6 +22,7 @@ import {
   type QuizData, type QuizQuestion, type QuizRecommendation,
 } from '@/src/services/quiz-engine-service';
 import { haptic } from '@/src/utils/haptics';
+import { supabase } from '@/src/lib/supabase';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
 
@@ -30,7 +31,8 @@ const TEAL = CATEGORY_COLORS.metrics;
 
 export default function QuizTakeScreen() {
   const router = useRouter();
-  const { quiz_id } = useLocalSearchParams<{ quiz_id: string }>();
+  const { quiz_id, from } = useLocalSearchParams<{ quiz_id: string; from?: string }>();
+  const isOnboarding = from === 'onboarding';
   const { user } = useAuth();
 
   // === ESTADO ===
@@ -146,7 +148,13 @@ export default function QuizTakeScreen() {
       } else {
         haptic.success();
       }
-      router.replace('/(tabs)');
+      // If from onboarding, go to completion screen
+      if (isOnboarding) {
+        await supabase.from('profiles').update({ onboarding_step: 'completed', onboarding_completed_at: new Date().toISOString() }).eq('id', user.id).then(() => {}, () => {});
+        router.replace('/onboarding-complete' as any);
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch {
       Alert.alert('Error', 'No se pudieron activar los protocolos.');
     } finally {
@@ -201,6 +209,14 @@ export default function QuizTakeScreen() {
         </View>
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           <Animated.View entering={FadeInUp.duration(400)}>
+            {isOnboarding && (
+              <View style={{ marginBottom: Spacing.md }}>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, letterSpacing: 2, fontSize: FontSizes.xs }}>PASO 3 DE 3</EliteText>
+                <View style={{ height: 3, backgroundColor: Colors.surfaceLight, borderRadius: 2, marginTop: Spacing.xs }}>
+                  <View style={{ height: '100%', width: '100%', backgroundColor: Colors.neonGreen, borderRadius: 2 }} />
+                </View>
+              </View>
+            )}
             <EliteText
               variant="title"
               style={[styles.quizTitle, { color: TEAL }]}

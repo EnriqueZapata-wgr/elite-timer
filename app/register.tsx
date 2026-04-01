@@ -58,12 +58,12 @@ export default function RegisterScreen() {
       haptic.success();
       if (typeof window !== 'undefined' && window.alert) {
         window.alert('Cuenta creada exitosamente.');
-        router.replace('/(tabs)');
+        router.replace('/onboarding-basics' as any);
       } else {
         Alert.alert(
           'Cuenta creada',
           'Tu cuenta ha sido creada exitosamente.',
-          [{ text: 'OK', onPress: () => router.replace('/(tabs)') }],
+          [{ text: 'OK', onPress: () => router.replace('/onboarding-basics' as any) }],
         );
       }
     }

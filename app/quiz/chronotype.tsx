@@ -5,7 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown, FadeIn, ZoomIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { ScreenContainer } from '@/components/screen-container';
@@ -13,6 +13,7 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS } from '@/src/constants/brand';
+import { supabase } from '@/src/lib/supabase';
 import {
   getQuizTemplate, submitQuizResult, saveUserChronotype,
   calculateChronotypeScores, determineChronotype,
@@ -42,6 +43,7 @@ type Phase = 'quiz' | 'result';
 
 export default function ChronotypeQuizScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ from?: string }>();
   const [quiz, setQuiz] = useState<QuizTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentQ, setCurrentQ] = useState(0);
@@ -117,7 +119,18 @@ export default function ChronotypeQuizScreen() {
         await submitQuizResult(quiz.id, answers, scores, result, { schedule });
         await saveUserChronotype(result, schedule, scores);
       }
-      router.replace('/(tabs)');
+      // Update onboarding step
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('profiles').update({ onboarding_step: 'chronotype' }).eq('id', user.id).then(() => {}, () => {});
+      }
+      // If from onboarding, continue to quiz integral
+      const fromOnboarding = params?.from === 'onboarding';
+      if (fromOnboarding) {
+        router.replace('/quiz-take?quiz_id=lifestyle_assessment&from=onboarding' as any);
+      } else {
+        router.replace('/(tabs)');
+      }
     } catch (err) {
       if (__DEV__) console.error('[chronotype save]', err);
     }
