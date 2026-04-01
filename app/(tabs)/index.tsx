@@ -271,9 +271,8 @@ export default function TodayScreen() {
       handleToggle(item.item_id);
       showToast('Próximamente: foto de comida');
     } else if (lt === 'journal') {
-      haptic.success();
-      handleToggle(item.item_id);
-      showToast('Próximamente: journaling');
+      haptic.light();
+      router.push('/journal' as any);
     } else {
       handleToggle(item.item_id);
     }

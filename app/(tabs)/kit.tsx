@@ -169,7 +169,7 @@ export default function KitScreen() {
               { icon: 'flask-outline', label: 'Mi Salud', color: CATEGORY_COLORS.metrics, active: true, route: '/my-health' },
               { icon: 'cart-outline', label: 'Compras', color: CATEGORY_COLORS.optimization, active: true, route: '/smart-shopping' },
               { icon: 'clipboard-outline', label: 'Evaluaciones', color: CATEGORY_COLORS.metrics, active: true, route: '/quizzes' },
-              { icon: 'journal-outline', label: 'Journaling', color: CATEGORY_COLORS.optimization, active: false, route: '' },
+              { icon: 'journal-outline', label: 'Journaling', color: CATEGORY_COLORS.optimization, active: true, route: '/journal' },
             ].map((tool, idx) => (
               <StaggerItem key={tool.label} index={idx} style={styles.toolCard}>
                 <ToolCard
