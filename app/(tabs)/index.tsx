@@ -6,7 +6,7 @@
  * Usa el sistema nuevo (daily_plans) con fallback al legacy (protocol-service).
  */
 import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -20,6 +20,9 @@ import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
+import { renderActionContent } from '@/src/components/hoy/ActionContentRenderer';
+
+if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 import {
   getTodayTimeline,
   toggleCompletion,
@@ -110,6 +113,7 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
   const [hasChronotype, setHasChronotype] = useState(false);
+  const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -421,23 +425,10 @@ export default function TodayScreen() {
                       <GradientCard
                         color={isOverdue ? SEMANTIC.error : catColor}
                         onPress={() => {
+                          // Expandir/colapsar al tap
+                          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                           haptic.light();
-                          // Navegación para link_type o toggle
-                          if (action.link_type && !action.completed) {
-                            const routes: Record<string, string> = {
-                              meditation: '/meditation',
-                              breathing: '/breathing',
-                              food_scan: '/food-scan',
-                              checkin: '/checkin',
-                              routine: '/programs',
-                            };
-                            const route = routes[action.link_type];
-                            if (route) {
-                              router.push(route as any);
-                              return;
-                            }
-                          }
-                          handleToggle(action.id);
+                          setExpandedActionId(expandedActionId === action.id ? null : action.id);
                         }}
                         onLongPress={() => handleLongPress(action)}
                         style={[
@@ -485,6 +476,12 @@ export default function TodayScreen() {
                               </EliteText>
                             )}
 
+                            {/* Chevron indicador de contenido expandible */}
+                            {!expandedActionId && action.instructions && (
+                              <Ionicons name="chevron-down" size={12} color={Colors.textMuted} style={{ marginTop: 2 }} />
+                            )}
+
+                            {/* Link de navegación si tiene link_type */}
                             {action.link_type && !action.completed && (
                               <Pressable
                                 onPress={() => {
@@ -504,6 +501,14 @@ export default function TodayScreen() {
                                 <Ionicons name="open-outline" size={12} color={catColor} />
                                 <EliteText variant="caption" style={{ color: catColor, fontSize: FontSizes.xs }}>Abrir</EliteText>
                               </Pressable>
+                            )}
+
+                            {/* Contenido expandido */}
+                            {expandedActionId === action.id && action.instructions && (
+                              <View style={styles.expandedContent}>
+                                <View style={styles.expandSeparator} />
+                                {renderActionContent(action)}
+                              </View>
                             )}
                           </View>
 
@@ -997,6 +1002,16 @@ const styles = StyleSheet.create({
   quickAccessInner: {
     alignItems: 'center',
     gap: Spacing.xs,
+  },
+
+  // Expanded content
+  expandedContent: {
+    marginTop: Spacing.xs,
+  },
+  expandSeparator: {
+    height: 0.5,
+    backgroundColor: Colors.surfaceLight,
+    marginBottom: Spacing.sm,
   },
 
   // Protocol pills (4.1)
