@@ -16,15 +16,25 @@ export default function IndexRedirect() {
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
 
+  const [onboardingRoute, setOnboardingRoute] = useState<string | null>(null);
+
   useEffect(() => {
     if (session?.user?.id && !loading) {
       setCheckingOnboarding(true);
       supabase.from('profiles').select('onboarding_step').eq('id', session.user.id).single()
         .then(({ data }) => {
-          setOnboardingDone(data?.onboarding_step === 'completed');
+          const step = data?.onboarding_step;
+          if (step === 'completed') {
+            setOnboardingDone(true);
+          } else {
+            setOnboardingDone(false);
+            // Redirigir al paso correcto
+            if (step === 'chronotype') setOnboardingRoute('/quiz-take?quiz_id=lifestyle_assessment&from=onboarding');
+            else if (step === 'basics') setOnboardingRoute('/quiz/chronotype?from=onboarding');
+            else setOnboardingRoute('/onboarding-basics');
+          }
           setCheckingOnboarding(false);
-        })
-        .then(undefined, () => { setOnboardingDone(true); setCheckingOnboarding(false); });
+        }, () => { setOnboardingDone(true); setCheckingOnboarding(false); });
     }
   }, [session?.user?.id, loading]);
 
@@ -38,7 +48,7 @@ export default function IndexRedirect() {
   }
 
   if (!session) return <Redirect href={'/onboarding' as any} />;
-  if (onboardingDone === false) return <Redirect href={'/onboarding-basics' as any} />;
+  if (onboardingDone === false && onboardingRoute) return <Redirect href={onboardingRoute as any} />;
   return <Redirect href="/(tabs)" />;
 }
 

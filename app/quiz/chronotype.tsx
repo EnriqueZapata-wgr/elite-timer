@@ -234,6 +234,15 @@ export default function ChronotypeQuizScreen() {
   return (
     <ScreenContainer centered={false}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.resultContent}>
+        {/* Step indicator (onboarding) */}
+        {params?.from === 'onboarding' && (
+          <View style={{ marginBottom: Spacing.md }}>
+            <EliteText variant="caption" style={{ color: ATP_BRAND.lime, letterSpacing: 2, fontSize: 11 }}>PASO 2 DE 3</EliteText>
+            <View style={{ height: 4, backgroundColor: SURFACES.cardLight, borderRadius: 2, marginTop: Spacing.xs, overflow: 'hidden' }}>
+              <View style={{ height: '100%', width: '66%', backgroundColor: ATP_BRAND.lime, borderRadius: 2 }} />
+            </View>
+          </View>
+        )}
         {/* Animal reveal */}
         <Animated.View entering={ZoomIn.delay(200).springify()} style={styles.revealContainer}>
           <EliteText style={styles.revealEmoji}>{ANIMAL_EMOJIS[result]}</EliteText>
@@ -292,8 +301,10 @@ export default function ChronotypeQuizScreen() {
               <ActivityIndicator size="small" color={TEXT_COLORS.onAccent} />
             ) : (
               <>
-                <Ionicons name="flash" size={18} color={TEXT_COLORS.onAccent} />
-                <EliteText variant="body" style={styles.activateBtnText}>Activar mi cronotipo</EliteText>
+                <Ionicons name={params?.from === 'onboarding' ? 'arrow-forward' : 'flash'} size={18} color={TEXT_COLORS.onAccent} />
+                <EliteText variant="body" style={styles.activateBtnText}>
+                  {params?.from === 'onboarding' ? 'Continuar a evaluación →' : 'Activar mi cronotipo'}
+                </EliteText>
               </>
             )}
           </AnimatedPressable>
