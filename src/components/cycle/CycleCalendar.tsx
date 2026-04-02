@@ -126,12 +126,19 @@ export function CycleCalendar({
     }
   };
 
-  /** Verifica si un día es parte de un período registrado */
+  /** Verifica si un día es parte de un período de sangrado */
   const isPeriodDay = (d: number) => {
     const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    return periods.some(
-      (p) => date >= p.start_date && (!p.end_date || date <= p.end_date),
-    );
+    const todayStr = new Date().toISOString().split('T')[0];
+    return periods.some((p) => {
+      if (date < p.start_date) return false;
+      if (p.end_date) return date <= p.end_date; // período cerrado
+      // Período abierto: solo marcar hasta hoy o periodLength días, lo que sea menor
+      const startMs = new Date(p.start_date).getTime();
+      const dateMs = new Date(date).getTime();
+      const daysSinceStart = Math.floor((dateMs - startMs) / 86400000);
+      return date <= todayStr && daysSinceStart < periodLength;
+    });
   };
 
   /** Verifica si un día es hoy */
