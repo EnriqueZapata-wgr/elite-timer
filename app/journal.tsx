@@ -1,10 +1,10 @@
 /**
- * Journaling — Escritura reflexiva con prompts rotativos y mood tracking.
+ * Journal — Escritura reflexiva con 4 tipos: Gratitud, Visión, Estoico, Descarga.
+ * Selector de tipo + formulario específico + mood tracking + historial.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -15,200 +15,253 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, ATP_BRAND, withOpacity, SEMANTIC } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { useFocusEffect } from 'expo-router';
 
-const AMBER = CATEGORY_COLORS.optimization;
+// ═══ CONSTANTES ═══
 
-// ═══ PROMPTS ═══
+const PURPLE = '#7F77DD';
 
-const PROMPTS = [
-  '¿Qué fue lo más estresante de hoy? Escríbelo sin filtro. No busques soluciones — solo sácalo de la cabeza.',
-  '¿Qué te preocupa en este momento? Escribe todo, sin censura.',
-  'Si pudieras decirle algo a la persona que más te frustró hoy, ¿qué sería?',
-  'Escribe 3 cosas por las que estás agradecido hoy. Pueden ser pequeñas.',
-  '¿Quién hizo algo bueno por ti recientemente? ¿Se lo dijiste?',
-  '¿Qué parte de tu cuerpo funcionó bien hoy? Agradécele.',
-  '¿Qué aprendiste hoy que no sabías ayer?',
-  'Si repitieras hoy, ¿qué harías diferente?',
-  '¿Qué hábito de tu protocolo te costó más hoy? ¿Por qué?',
-  '¿Cómo te quieres sentir dentro de 90 días? Descríbelo en detalle.',
-  'Si tu yo de hace 1 año te viera hoy, ¿qué diría?',
-  '¿Qué es lo único que, si lo hicieras todos los días, cambiaría todo?',
-  '¿Cómo se siente tu cuerpo en este momento? Escanéalo de pies a cabeza.',
-  '¿Dormiste bien anoche? Si no, ¿qué crees que lo causó?',
-  '¿Qué comiste hoy que te hizo sentir bien? ¿Y qué te hizo sentir mal?',
-  '¿Tuviste una conversación significativa hoy? ¿Con quién?',
-  '¿Hay algo que necesitas decir y no has dicho?',
-  '¿Por qué empezaste ATP? ¿Sigue siendo la misma razón?',
-  '¿Qué te daría más energía: hacer algo nuevo o dejar de hacer algo viejo?',
-  'Escribe una carta a tu yo de dentro de 6 meses.',
+const JOURNAL_TYPES = [
+  { key: 'gratitude', label: 'Gratitud', icon: 'heart-outline' as const, color: '#D4537E', description: '9 preguntas de agradecimiento' },
+  { key: 'vision', label: 'Visión', icon: 'telescope-outline' as const, color: '#1D9E75', description: 'Tu futuro en 1, 3 y 5 años' },
+  { key: 'stoic', label: 'Estoico', icon: 'library-outline' as const, color: PURPLE, description: 'Reflexión al estilo Séneca' },
+  { key: 'work_dump', label: 'Descarga', icon: 'briefcase-outline' as const, color: '#EF9F27', description: 'Vacía pendientes de tu cabeza' },
+] as const;
+
+const STOIC_QUESTIONS = [
+  '¿Qué hice bien hoy?',
+  '¿Qué pude hacer mejor?',
+  '¿Dónde caí en vicios?',
+  '¿Dónde fui virtuoso?',
+  '¿Qué aprendí del mundo?',
+  '¿Qué aprendí de mí?',
 ];
 
-function getDayOfYear(): number {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 0);
-  return Math.floor((now.getTime() - start.getTime()) / 86400000);
-}
+const STOIC_QUOTES = [
+  '"No es que tengamos poco tiempo, sino que perdemos mucho." — Séneca',
+  '"La felicidad de tu vida depende de la calidad de tus pensamientos." — Marco Aurelio',
+  '"Lo que nos perturba no son las cosas, sino nuestra opinión sobre ellas." — Epicteto',
+  '"Sufres más en la imaginación que en la realidad." — Séneca',
+  '"Primero dí lo que serías; luego haz lo que tengas que hacer." — Epicteto',
+  '"El mejor momento para plantar un árbol fue hace 20 años. El segundo mejor es ahora." — Marco Aurelio',
+];
 
-// ═══ TIPOS ═══
-
-interface JournalEntry {
-  id: string;
-  date: string;
-  prompt: string | null;
-  content: string;
-  mood_before: number | null;
-  mood_after: number | null;
-  created_at: string;
-}
-
-// ═══ COMPONENTE ═══
+// ═══ COMPONENTE PRINCIPAL ═══
 
 export default function JournalScreen() {
-  const router = useRouter();
   const { user } = useAuth();
-  const userId = user?.id ?? '';
 
-  const [promptIdx, setPromptIdx] = useState(getDayOfYear() % PROMPTS.length);
-  const [content, setContent] = useState('');
+  // Modo: selector vs formulario
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [entries, setEntries] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Estado de Gratitud
+  const [gratPersonal, setGratPersonal] = useState(['', '', '']);
+  const [gratProfessional, setGratProfessional] = useState(['', '', '']);
+  const [gratSelf, setGratSelf] = useState(['', '', '']);
+
+  // Estado de Visión
+  const [vision1, setVision1] = useState('');
+  const [vision3, setVision3] = useState('');
+  const [vision5, setVision5] = useState('');
+
+  // Estado de Estoico
+  const [stoicAnswers, setStoicAnswers] = useState<string[]>(['', '', '', '', '', '']);
+
+  // Estado de Descarga
+  const [tasks, setTasks] = useState<string[]>(['']);
+  const [freeform, setFreeform] = useState('');
+
+  // Mood
   const [moodBefore, setMoodBefore] = useState<number | null>(null);
   const [moodAfter, setMoodAfter] = useState<number | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [expandedEntry, setExpandedEntry] = useState<string | null>(null);
 
-  const today = new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
-  const canSave = content.trim().length >= 20;
+  // Cargar entradas al enfocar la pantalla
+  useFocusEffect(useCallback(() => {
+    if (user?.id) loadEntries();
+  }, [user?.id]));
 
-  useFocusEffect(useCallback(() => { if (userId) loadEntries(); }, [userId]));
+  async function loadEntries() {
+    const { data } = await supabase.from('journal_entries').select('*')
+      .eq('user_id', user?.id).order('created_at', { ascending: false }).limit(10);
+    setEntries(data ?? []);
+  }
 
-  const loadEntries = async () => {
-    const { data } = await supabase
-      .from('journal_entries').select('*')
-      .eq('user_id', userId).order('date', { ascending: false }).limit(7);
-    setEntries((data ?? []) as JournalEntry[]);
-  };
+  // Resetear todo el formulario
+  function resetForm() {
+    setGratPersonal(['', '', '']); setGratProfessional(['', '', '']); setGratSelf(['', '', '']);
+    setVision1(''); setVision3(''); setVision5('');
+    setStoicAnswers(['', '', '', '', '', '']);
+    setTasks(['']); setFreeform('');
+    setMoodBefore(null); setMoodAfter(null);
+  }
 
-  const handleSave = async () => {
-    if (!canSave || !userId) return;
+  // Verificar si hay contenido suficiente para mostrar mood after
+  function hasEnoughContent(): boolean {
+    switch (selectedType) {
+      case 'gratitude': return [...gratPersonal, ...gratProfessional, ...gratSelf].filter(Boolean).length >= 3;
+      case 'vision': return [vision1, vision3, vision5].some(v => v.length >= 20);
+      case 'stoic': return stoicAnswers.filter(Boolean).length >= 2;
+      case 'work_dump': return tasks.filter(Boolean).length >= 1 || freeform.length >= 20;
+      default: return false;
+    }
+  }
+
+  // ═══ GUARDAR ═══
+
+  async function handleSave() {
     haptic.medium();
     setSaving(true);
+    let content = '';
+    let structuredData: any = {};
+
+    switch (selectedType) {
+      case 'gratitude':
+        content = [...gratPersonal, ...gratProfessional, ...gratSelf].filter(Boolean).join('\n');
+        structuredData = { personal: gratPersonal, professional: gratProfessional, self: gratSelf };
+        break;
+      case 'vision':
+        content = [vision1, vision3, vision5].filter(Boolean).join('\n\n');
+        structuredData = { year1: vision1, year3: vision3, year5: vision5 };
+        break;
+      case 'stoic':
+        content = stoicAnswers.filter(Boolean).join('\n');
+        structuredData = { answers: stoicAnswers };
+        break;
+      case 'work_dump':
+        content = [...tasks.filter(Boolean), freeform].filter(Boolean).join('\n');
+        structuredData = { tasks: tasks.filter(Boolean).map(t => ({ text: t, done: false })), freeform };
+        break;
+    }
+
+    if (!content.trim()) {
+      Alert.alert('Vacío', 'Escribe algo antes de guardar.');
+      setSaving(false);
+      return;
+    }
+
     try {
       await supabase.from('journal_entries').insert({
-        user_id: userId,
+        user_id: user?.id,
         date: new Date().toISOString().split('T')[0],
-        prompt: PROMPTS[promptIdx],
-        content: content.trim(),
+        journal_type: selectedType,
+        content,
+        structured_data: structuredData,
         mood_before: moodBefore,
         mood_after: moodAfter,
       });
       haptic.success();
-      setContent('');
-      setMoodBefore(null);
-      setMoodAfter(null);
+      Alert.alert('Guardado', 'Tu entrada se ha guardado.');
+      setSelectedType(null);
+      resetForm();
       loadEntries();
-      Alert.alert('Guardado', 'Tu entrada de hoy se ha guardado.');
     } catch {
       Alert.alert('Error', 'No se pudo guardar.');
     }
     setSaving(false);
-  };
+  }
 
-  const nextPrompt = () => {
-    haptic.light();
-    setPromptIdx((promptIdx + 1) % PROMPTS.length);
-  };
+  // ═══ RENDER ═══
+
+  // Si hay tipo seleccionado, mostrar formulario
+  if (selectedType) {
+    const typeInfo = JOURNAL_TYPES.find(t => t.key === selectedType)!;
+    return (
+      <SafeAreaView style={s.screen}>
+        <PillarHeader pillar="mind" title="Journal" />
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+          {/* Botón volver */}
+          <Pressable onPress={() => { haptic.light(); setSelectedType(null); resetForm(); }} style={s.backBtn}>
+            <Ionicons name="arrow-back" size={18} color={TEXT_COLORS.secondary} />
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm }}>Volver</EliteText>
+          </Pressable>
+
+          {/* Título del tipo */}
+          <Animated.View entering={FadeInUp.delay(50).springify()} style={s.formHeader}>
+            <Ionicons name={typeInfo.icon} size={24} color={typeInfo.color} />
+            <EliteText style={[s.formTitle, { color: typeInfo.color }]}>{typeInfo.label}</EliteText>
+          </Animated.View>
+
+          {/* Mood antes */}
+          <Animated.View entering={FadeInUp.delay(100).springify()}>
+            <EliteText variant="caption" style={s.label}>¿Cómo te sientes ahora?</EliteText>
+            <MoodSelector value={moodBefore} onChange={setMoodBefore} />
+          </Animated.View>
+
+          {/* Formulario específico */}
+          <Animated.View entering={FadeInUp.delay(150).springify()}>
+            {selectedType === 'gratitude' && <GratitudeForm personal={gratPersonal} setPersonal={setGratPersonal} professional={gratProfessional} setProfessional={setGratProfessional} self={gratSelf} setSelf={setGratSelf} />}
+            {selectedType === 'vision' && <VisionForm v1={vision1} setV1={setVision1} v3={vision3} setV3={setVision3} v5={vision5} setV5={setVision5} />}
+            {selectedType === 'stoic' && <StoicForm answers={stoicAnswers} setAnswers={setStoicAnswers} />}
+            {selectedType === 'work_dump' && <WorkDumpForm tasks={tasks} setTasks={setTasks} freeform={freeform} setFreeform={setFreeform} />}
+          </Animated.View>
+
+          {/* Mood después */}
+          {hasEnoughContent() && (
+            <Animated.View entering={FadeInUp.springify()}>
+              <EliteText variant="caption" style={s.label}>¿Cómo te sientes después de escribir?</EliteText>
+              <MoodSelector value={moodAfter} onChange={setMoodAfter} />
+            </Animated.View>
+          )}
+
+          {/* Botón guardar */}
+          <AnimatedPressable onPress={handleSave} disabled={saving} style={[s.saveBtn, { backgroundColor: typeInfo.color }]}>
+            <Ionicons name="save-outline" size={18} color={Colors.black} />
+            <EliteText style={s.saveBtnText}>{saving ? 'Guardando...' : 'Guardar entrada'}</EliteText>
+          </AnimatedPressable>
+
+          <View style={{ height: Spacing.xxl * 2 }} />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // ═══ SELECTOR DE TIPO ═══
 
   return (
     <SafeAreaView style={s.screen}>
       <PillarHeader pillar="mind" title="Journal" />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        <EliteText variant="caption" style={s.subtitle}>Elige tu práctica de hoy</EliteText>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        <EliteText variant="caption" style={s.date}>{today}</EliteText>
+        {JOURNAL_TYPES.map((type, idx) => (
+          <StaggerItem key={type.key} index={idx}>
+            <AnimatedPressable onPress={() => { haptic.light(); setSelectedType(type.key); }}>
+              <View style={[s.typeCard, { borderLeftColor: type.color }]}>
+                <Ionicons name={type.icon} size={22} color={type.color} />
+                <View style={s.typeInfo}>
+                  <EliteText style={s.typeLabel}>{type.label}</EliteText>
+                  <EliteText variant="caption" style={s.typeDesc}>{type.description}</EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.muted} />
+              </View>
+            </AnimatedPressable>
+          </StaggerItem>
+        ))}
 
-        {/* Prompt */}
-        <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <View style={s.promptCard}>
-            <View style={s.promptHeader}>
-              <Ionicons name="bulb-outline" size={16} color={AMBER} />
-              <EliteText variant="caption" style={{ color: AMBER, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>PROMPT DE HOY</EliteText>
-              <Pressable onPress={nextPrompt} hitSlop={8}>
-                <Ionicons name="refresh-outline" size={16} color={TEXT_COLORS.muted} />
-              </Pressable>
-            </View>
-            <EliteText style={s.promptText}>{PROMPTS[promptIdx]}</EliteText>
-          </View>
-        </Animated.View>
-
-        {/* Mood antes */}
-        <Animated.View entering={FadeInUp.delay(100).springify()}>
-          <EliteText variant="caption" style={s.label}>¿Cómo te sientes ahora?</EliteText>
-          <MoodSelector value={moodBefore} onChange={setMoodBefore} />
-        </Animated.View>
-
-        {/* Textarea */}
-        <Animated.View entering={FadeInUp.delay(150).springify()}>
-          <TextInput
-            style={s.textArea}
-            placeholder="Escribe aquí..."
-            placeholderTextColor={TEXT_COLORS.muted}
-            value={content}
-            onChangeText={setContent}
-            multiline
-            textAlignVertical="top"
-          />
-          <EliteText variant="caption" style={s.charCount}>
-            {content.length < 20 ? `Mínimo 20 caracteres (${content.length}/20)` : `${content.length} caracteres`}
-          </EliteText>
-        </Animated.View>
-
-        {/* Mood después */}
-        {content.length >= 20 && (
-          <Animated.View entering={FadeInUp.springify()}>
-            <EliteText variant="caption" style={s.label}>¿Cómo te sientes después de escribir?</EliteText>
-            <MoodSelector value={moodAfter} onChange={setMoodAfter} />
-          </Animated.View>
-        )}
-
-        {/* Guardar */}
-        <AnimatedPressable onPress={handleSave} disabled={!canSave || saving} style={[s.saveBtn, !canSave && { opacity: 0.4 }]}>
-          <Ionicons name="save-outline" size={18} color={Colors.black} />
-          <EliteText style={s.saveBtnText}>{saving ? 'Guardando...' : 'Guardar entrada'}</EliteText>
-        </AnimatedPressable>
-
-        {/* Ciencia */}
-        <View style={s.scienceBox}>
-          <Ionicons name="flask-outline" size={14} color={TEXT_COLORS.muted} />
-          <EliteText variant="caption" style={s.scienceText}>
-            Escribir lo que te preocupa reduce cortisol mediblemente en 24 horas. No es terapia — es fisiología.
-          </EliteText>
-        </View>
-
-        {/* Historial */}
+        {/* Entradas recientes */}
         {entries.length > 0 && (
-          <View style={s.historySection}>
-            <EliteText variant="caption" style={s.historyLabel}>ENTRADAS ANTERIORES</EliteText>
+          <View style={s.recentSection}>
+            <EliteText variant="caption" style={s.recentLabel}>ENTRADAS RECIENTES</EliteText>
             {entries.map((entry, idx) => {
-              const isExpanded = expandedEntry === entry.id;
-              const dateStr = new Date(entry.date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+              const typeInfo = JOURNAL_TYPES.find(t => t.key === entry.journal_type);
+              const typeColor = typeInfo?.color ?? PURPLE;
+              const typeLabel = typeInfo?.label ?? entry.journal_type ?? 'Libre';
+              const dateStr = new Date(entry.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+              const preview = entry.content?.slice(0, 80) || '';
               return (
-                <StaggerItem key={entry.id} index={idx}>
-                  <Pressable onPress={() => { haptic.light(); setExpandedEntry(isExpanded ? null : entry.id); }} style={s.entryCard}>
+                <StaggerItem key={entry.id ?? idx} index={idx}>
+                  <View style={s.entryCard}>
                     <View style={s.entryHeader}>
-                      <EliteText variant="caption" style={{ color: AMBER, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>{dateStr}</EliteText>
-                      {entry.mood_before && entry.mood_after && (
-                        <EliteText variant="caption" style={{ color: entry.mood_after > entry.mood_before ? SEMANTIC.success : TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>
-                          {entry.mood_before} → {entry.mood_after}
-                        </EliteText>
-                      )}
+                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>{dateStr}</EliteText>
+                      <View style={[s.typeBadge, { backgroundColor: withOpacity(typeColor, 0.12) }]}>
+                        <EliteText variant="caption" style={{ color: typeColor, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{typeLabel}</EliteText>
+                      </View>
                     </View>
-                    <EliteText variant="caption" style={s.entryPreview} numberOfLines={isExpanded ? undefined : 2}>
-                      {entry.content}
-                    </EliteText>
-                    {entry.prompt && isExpanded && (
-                      <EliteText variant="caption" style={s.entryPrompt}>Prompt: {entry.prompt.slice(0, 60)}...</EliteText>
-                    )}
-                  </Pressable>
+                    <EliteText variant="caption" numberOfLines={2} style={s.entryPreview}>{preview}</EliteText>
+                  </View>
                 </StaggerItem>
               );
             })}
@@ -218,6 +271,108 @@ export default function JournalScreen() {
         <View style={{ height: Spacing.xxl * 2 }} />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// ═══ FORMULARIOS ═══
+
+function GratitudeForm({ personal, setPersonal, professional, setProfessional, self, setSelf }: {
+  personal: string[]; setPersonal: (v: string[]) => void;
+  professional: string[]; setProfessional: (v: string[]) => void;
+  self: string[]; setSelf: (v: string[]) => void;
+}) {
+  const updateArr = (arr: string[], setter: (v: string[]) => void, idx: number, val: string) => {
+    const copy = [...arr]; copy[idx] = val; setter(copy);
+  };
+  const sections = [
+    { title: 'Personal', data: personal, setter: setPersonal, placeholder: 'Algo por lo que estás agradecido...' },
+    { title: 'Profesional', data: professional, setter: setProfessional, placeholder: 'En tu trabajo o proyectos...' },
+    { title: 'A ti mismo', data: self, setter: setSelf, placeholder: 'Algo que te reconoces...' },
+  ];
+  return (
+    <View>
+      {sections.map(sec => (
+        <View key={sec.title} style={s.formSection}>
+          <EliteText variant="caption" style={[s.sectionTitle, { color: '#D4537E' }]}>{sec.title}</EliteText>
+          {sec.data.map((val, i) => (
+            <TextInput key={i} style={s.input} value={val} onChangeText={v => updateArr(sec.data, sec.setter, i, v)}
+              placeholder={`${i + 1}. ${sec.placeholder}`} placeholderTextColor={TEXT_COLORS.muted} />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function VisionForm({ v1, setV1, v3, setV3, v5, setV5 }: {
+  v1: string; setV1: (v: string) => void; v3: string; setV3: (v: string) => void; v5: string; setV5: (v: string) => void;
+}) {
+  const fields = [
+    { label: 'En 1 año...', value: v1, setter: setV1, placeholder: '¿Dónde te ves en 1 año?' },
+    { label: 'En 3 años...', value: v3, setter: setV3, placeholder: '¿Cómo será tu vida en 3 años?' },
+    { label: 'En 5 años...', value: v5, setter: setV5, placeholder: '¿Cuál es tu visión a 5 años?' },
+  ];
+  return (
+    <View>
+      {fields.map(f => (
+        <View key={f.label} style={s.formSection}>
+          <EliteText variant="caption" style={[s.sectionTitle, { color: '#1D9E75' }]}>{f.label}</EliteText>
+          <TextInput style={[s.input, { minHeight: 100 }]} value={f.value} onChangeText={f.setter}
+            placeholder={f.placeholder} placeholderTextColor={TEXT_COLORS.muted} multiline textAlignVertical="top" />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function StoicForm({ answers, setAnswers }: { answers: string[]; setAnswers: (v: string[]) => void }) {
+  const quoteIdx = new Date().getDate() % STOIC_QUOTES.length;
+  const update = (idx: number, val: string) => { const copy = [...answers]; copy[idx] = val; setAnswers(copy); };
+  return (
+    <View>
+      {/* Cita estoica rotativa */}
+      <View style={s.quoteBox}>
+        <Ionicons name="book-outline" size={14} color={PURPLE} />
+        <EliteText variant="caption" style={s.quoteText}>{STOIC_QUOTES[quoteIdx]}</EliteText>
+      </View>
+      {STOIC_QUESTIONS.map((q, i) => (
+        <View key={i} style={s.formSection}>
+          <EliteText variant="caption" style={[s.sectionTitle, { color: PURPLE }]}>{q}</EliteText>
+          <TextInput style={s.input} value={answers[i]} onChangeText={v => update(i, v)}
+            placeholder="Tu reflexión..." placeholderTextColor={TEXT_COLORS.muted} multiline />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function WorkDumpForm({ tasks, setTasks, freeform, setFreeform }: {
+  tasks: string[]; setTasks: (v: string[]) => void; freeform: string; setFreeform: (v: string) => void;
+}) {
+  const updateTask = (idx: number, val: string) => { const copy = [...tasks]; copy[idx] = val; setTasks(copy); };
+  const removeTask = (idx: number) => { const copy = tasks.filter((_, i) => i !== idx); setTasks(copy.length ? copy : ['']); };
+  const addTask = () => { haptic.light(); setTasks([...tasks, '']); };
+  return (
+    <View>
+      <EliteText variant="caption" style={[s.sectionTitle, { color: '#EF9F27' }]}>Pendientes</EliteText>
+      {tasks.map((t, i) => (
+        <View key={i} style={s.taskRow}>
+          <TextInput style={[s.input, { flex: 1 }]} value={t} onChangeText={v => updateTask(i, v)}
+            placeholder={`Pendiente ${i + 1}...`} placeholderTextColor={TEXT_COLORS.muted} />
+          <Pressable onPress={() => removeTask(i)} hitSlop={8} style={s.removeBtn}>
+            <Ionicons name="close-circle" size={20} color={SEMANTIC.error} />
+          </Pressable>
+        </View>
+      ))}
+      <Pressable onPress={addTask} style={s.addTaskBtn}>
+        <Ionicons name="add-circle-outline" size={18} color="#EF9F27" />
+        <EliteText variant="caption" style={{ color: '#EF9F27', fontSize: FontSizes.sm }}>Agregar pendiente</EliteText>
+      </Pressable>
+
+      <EliteText variant="caption" style={[s.sectionTitle, { color: '#EF9F27', marginTop: Spacing.lg }]}>Descarga libre</EliteText>
+      <TextInput style={[s.input, { minHeight: 120 }]} value={freeform} onChangeText={setFreeform}
+        placeholder="Escribe todo lo que tengas en la cabeza..." placeholderTextColor={TEXT_COLORS.muted} multiline textAlignVertical="top" />
+    </View>
   );
 }
 
@@ -244,45 +399,67 @@ function MoodSelector({ value, onChange }: { value: number | null; onChange: (v:
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.black },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, gap: Spacing.xs },
-  title: { fontSize: FontSizes.hero, fontFamily: Fonts.extraBold, color: AMBER, letterSpacing: 3 },
-  content: { paddingHorizontal: Spacing.md },
-  date: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.md },
+  scroll: { paddingHorizontal: Spacing.md },
+  subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.md, marginTop: Spacing.xs },
 
-  // Prompt
-  promptCard: { backgroundColor: withOpacity(AMBER, 0.08), borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: withOpacity(AMBER, 0.2), marginBottom: Spacing.md },
-  promptHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.sm },
-  promptText: { color: TEXT_COLORS.primary, fontSize: FontSizes.md, lineHeight: 22, fontStyle: 'italic' },
+  // Selector de tipo
+  typeCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    borderWidth: 0.5, borderColor: SURFACES.border,
+    borderLeftWidth: 3, padding: Spacing.md, marginBottom: Spacing.sm,
+  },
+  typeInfo: { flex: 1 },
+  typeLabel: { color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  typeDesc: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 2 },
+
+  // Entradas recientes
+  recentSection: { marginTop: Spacing.xl },
+  recentLabel: { color: TEXT_COLORS.secondary, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
+  entryCard: {
+    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    borderWidth: 0.5, borderColor: SURFACES.border,
+    padding: Spacing.md, marginBottom: Spacing.sm,
+  },
+  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
+  typeBadge: { borderRadius: Radius.pill, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
+  entryPreview: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, lineHeight: 18 },
+
+  // Formulario
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.md, marginTop: Spacing.xs },
+  formHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
+  formTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 1 },
+  formSection: { marginBottom: Spacing.md },
+  sectionTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1, marginBottom: Spacing.xs },
+  input: {
+    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
+    color: TEXT_COLORS.primary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
+    padding: Spacing.md, marginBottom: Spacing.xs, lineHeight: 22,
+  },
 
   // Mood
   label: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs, marginTop: Spacing.md },
   moodRow: { flexDirection: 'row', gap: 6, marginBottom: Spacing.md },
   moodDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: SURFACES.border, alignItems: 'center', justifyContent: 'center' },
 
-  // Text area
-  textArea: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
-    color: TEXT_COLORS.primary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
-    padding: Spacing.md, minHeight: 160, lineHeight: 22,
-  },
-  charCount: { color: TEXT_COLORS.muted, fontSize: FontSizes.xs, textAlign: 'right', marginTop: Spacing.xs },
+  // Work dump
+  taskRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  removeBtn: { paddingBottom: Spacing.xs },
+  addTaskBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs, marginBottom: Spacing.md },
 
-  // Save
+  // Estoico
+  quoteBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm,
+    backgroundColor: withOpacity(PURPLE, 0.08), borderRadius: Radius.card,
+    padding: Spacing.md, borderWidth: 1, borderColor: withOpacity(PURPLE, 0.2),
+    marginBottom: Spacing.lg,
+  },
+  quoteText: { flex: 1, color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, lineHeight: 18, fontStyle: 'italic' },
+
+  // Guardar
   saveBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
-    backgroundColor: AMBER, borderRadius: Radius.card, paddingVertical: Spacing.md, marginTop: Spacing.md,
+    borderRadius: Radius.card, paddingVertical: Spacing.md, marginTop: Spacing.lg,
   },
   saveBtnText: { color: Colors.black, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-
-  // Science
-  scienceBox: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm, marginTop: Spacing.md, padding: Spacing.sm },
-  scienceText: { flex: 1, color: TEXT_COLORS.muted, fontSize: FontSizes.xs, lineHeight: 16 },
-
-  // History
-  historySection: { marginTop: Spacing.xl },
-  historyLabel: { color: TEXT_COLORS.secondary, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
-  entryCard: { backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border, borderLeftWidth: 3, borderLeftColor: AMBER, padding: Spacing.md, marginBottom: Spacing.sm },
-  entryHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xs },
-  entryPreview: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, lineHeight: 18 },
-  entryPrompt: { color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: Spacing.xs, fontStyle: 'italic' },
 });
