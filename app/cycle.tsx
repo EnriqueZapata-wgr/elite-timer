@@ -12,6 +12,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getCycleInfo, startPeriod, endPeriod, logSymptoms, getTodaySymptoms, PHASES, type PhaseInfo } from '@/src/services/cycle-service';
+import { CycleCalendar, CycleLineChart } from '@/src/components/cycle/CycleCalendar';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
@@ -268,7 +269,17 @@ export default function CycleScreen() {
           </View>
         </Animated.View>
 
-        {/* 7. Botones de período */}
+        {/* 7. Calendario visual */}
+        <Animated.View entering={FadeInUp.delay(340).springify()}>
+          <EliteText style={s.cardLabel}>CALENDARIO</EliteText>
+          <CycleCalendar
+            periods={info.periods}
+            cycleLength={info.cycleLen}
+            periodLength={info.periodLen}
+          />
+        </Animated.View>
+
+        {/* 8. Botones de período */}
         <Animated.View entering={FadeInUp.delay(350).springify()}>
           <View style={s.periodSection}>
             {info.isOnPeriod ? (
