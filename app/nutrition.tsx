@@ -3,7 +3,7 @@
  * Carga datos directamente desde Supabase sin service intermedio.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Image, TextInput, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -17,6 +17,7 @@ import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
+import { NutritionGapsCard } from '@/src/components/nutrition/NutritionGapsCard';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 
@@ -96,6 +97,14 @@ export default function NutritionScreen() {
   const [dailyScore, setDailyScore] = useState<number | null>(null);
   const [macros, setMacros] = useState({ calories: 0, protein: 0, carbs: 0, fat: 0 });
 
+  // ── Ayuno: modales y estado extendido ──
+  const [showFastStartModal, setShowFastStartModal] = useState(false);
+  const [showFastStopModal, setShowFastStopModal] = useState(false);
+  const [fastManualHH, setFastManualHH] = useState('');
+  const [fastManualMM, setFastManualMM] = useState('');
+  const [fastTargetSelection, setFastTargetSelection] = useState(16);
+  const [completedFast, setCompletedFast] = useState<{ duration: string; start: string; end: string } | null>(null);
+
   // ── Carga de datos ──
   const loadData = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -146,6 +155,27 @@ export default function NutritionScreen() {
         setFastingMins(0);
       }
 
+      // Ayuno completado hoy (para mostrar resumen)
+      const { data: completedData } = await supabase
+        .from('fasting_logs')
+        .select('started_at, ended_at')
+        .eq('user_id', user.id)
+        .gte('started_at', today + 'T00:00:00')
+        .not('ended_at', 'is', null)
+        .order('ended_at', { ascending: false })
+        .limit(1);
+      if (completedData?.[0]) {
+        const s = new Date(completedData[0].started_at);
+        const e = new Date(completedData[0].ended_at);
+        const diffMs = e.getTime() - s.getTime();
+        const h = Math.floor(diffMs / 3600000);
+        const m = Math.floor((diffMs % 3600000) / 60000);
+        const fmt = (d: Date) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        setCompletedFast({ duration: `${h}h ${m}m`, start: fmt(s), end: fmt(e) });
+      } else if (!activeFast) {
+        setCompletedFast(null);
+      }
+
       // Recetas
       setRecipes(recipeRes.data ?? []);
     } catch { /* silencioso */ }
@@ -179,34 +209,72 @@ export default function NutritionScreen() {
     } catch { setWaterMl(prev => prev - ml); } // rollback
   };
 
-  // ── Toggle ayuno ──
-  const toggleFasting = async () => {
+  // ── Abrir modal de ayuno ──
+  const handleFastingPress = () => {
     haptic.medium();
+    const now = new Date();
+    setFastManualHH(String(now.getHours()).padStart(2, '0'));
+    setFastManualMM(String(now.getMinutes()).padStart(2, '0'));
     if (isFasting) {
-      // Detener ayuno activo
-      try {
-        const { data } = await supabase.from('fasting_logs').select('id').eq('user_id', user?.id).is('ended_at', null).order('started_at', { ascending: false }).limit(1);
-        if (data?.[0]) {
-          await supabase.from('fasting_logs').update({ ended_at: new Date().toISOString() }).eq('id', data[0].id);
-        }
-      } catch { /* silencioso */ }
-      setIsFasting(false);
-      setFastingStart(null);
-      setFastingHours(0);
-      setFastingMins(0);
+      setShowFastStopModal(true);
     } else {
-      // Iniciar ayuno
-      const now = new Date();
-      try {
-        await supabase.from('fasting_logs').insert({
-          user_id: user?.id, started_at: now.toISOString(), target_hours: fastingTarget,
-        });
-      } catch { return; }
-      setIsFasting(true);
-      setFastingStart(now);
-      setFastingHours(0);
-      setFastingMins(0);
+      setFastTargetSelection(16);
+      setShowFastStartModal(true);
     }
+  };
+
+  // ── Iniciar ayuno (ahora o a otra hora) ──
+  const startFasting = async (useCustomTime: boolean) => {
+    let startTime: Date;
+    if (useCustomTime) {
+      const hh = Math.min(23, Math.max(0, parseInt(fastManualHH) || 0));
+      const mm = Math.min(59, Math.max(0, parseInt(fastManualMM) || 0));
+      startTime = new Date();
+      startTime.setHours(hh, mm, 0, 0);
+    } else {
+      startTime = new Date();
+    }
+    try {
+      await supabase.from('fasting_logs').insert({
+        user_id: user?.id, started_at: startTime.toISOString(), target_hours: fastTargetSelection,
+      });
+    } catch { return; }
+    setIsFasting(true);
+    setFastingStart(startTime);
+    setFastingHours(0);
+    setFastingMins(0);
+    setShowFastStartModal(false);
+  };
+
+  // ── Detener ayuno (ahora o a otra hora) ──
+  const stopFasting = async (useCustomTime: boolean) => {
+    let endTime: Date;
+    if (useCustomTime) {
+      const hh = Math.min(23, Math.max(0, parseInt(fastManualHH) || 0));
+      const mm = Math.min(59, Math.max(0, parseInt(fastManualMM) || 0));
+      endTime = new Date();
+      endTime.setHours(hh, mm, 0, 0);
+    } else {
+      endTime = new Date();
+    }
+    try {
+      const { data } = await supabase.from('fasting_logs').select('id, started_at').eq('user_id', user?.id).is('ended_at', null).order('started_at', { ascending: false }).limit(1);
+      if (data?.[0]) {
+        await supabase.from('fasting_logs').update({ ended_at: endTime.toISOString() }).eq('id', data[0].id);
+        // Calcular duración para mostrar resumen
+        const s = new Date(data[0].started_at);
+        const diffMs = endTime.getTime() - s.getTime();
+        const h = Math.floor(diffMs / 3600000);
+        const m = Math.floor((diffMs % 3600000) / 60000);
+        const fmt = (d: Date) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+        setCompletedFast({ duration: `${h}h ${m}m`, start: fmt(s), end: fmt(endTime) });
+      }
+    } catch { /* silencioso */ }
+    setIsFasting(false);
+    setFastingStart(null);
+    setFastingHours(0);
+    setFastingMins(0);
+    setShowFastStopModal(false);
   };
 
   // ── Derivados ──
@@ -311,13 +379,29 @@ export default function NutritionScreen() {
                 </EliteText>
               )}
             </View>
+
+            {/* Ayuno completado hoy */}
+            {!isFasting && completedFast && (
+              <View style={{ backgroundColor: withOpacity(SEMANTIC.success, 0.08), borderRadius: Radius.sm, padding: Spacing.sm, marginBottom: Spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="checkmark-circle" size={16} color={SEMANTIC.success} />
+                  <EliteText style={{ color: SEMANTIC.success, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
+                    Ayuno completado: {completedFast.duration}
+                  </EliteText>
+                </View>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 2, marginLeft: 22 }}>
+                  {completedFast.start} → {completedFast.end}
+                </EliteText>
+              </View>
+            )}
+
             {isFasting && (
               <>
                 <View style={s.progressBar}>
                   <View style={[s.progressFill, { width: `${fastPct}%`, backgroundColor: fastPct >= 100 ? SEMANTIC.success : SEMANTIC.warning }]} />
                 </View>
                 <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 4 }}>
-                  {fastingHours}h {fastingMins}m de {fastingTarget}h objetivo
+                  {fastingHours}h {fastingMins}m de {fastTargetSelection}h objetivo
                 </EliteText>
                 <View style={{ gap: 4, marginTop: Spacing.sm }}>
                   <FastingZone hours={12} label="Cetosis ligera" reached={fastingHours >= 12} />
@@ -327,12 +411,123 @@ export default function NutritionScreen() {
                 </View>
               </>
             )}
-            <AnimatedPressable onPress={toggleFasting} style={[s.fastingBtn, isFasting && { borderColor: SEMANTIC.error }]}>
+
+            {/* Botón principal iniciar/detener */}
+            <AnimatedPressable onPress={handleFastingPress} style={[s.fastingBtn, isFasting && { borderColor: SEMANTIC.error }]}>
               <Ionicons name={isFasting ? 'stop-circle-outline' : 'play-circle-outline'} size={18} color={isFasting ? SEMANTIC.error : SEMANTIC.warning} />
               <EliteText style={{ color: isFasting ? SEMANTIC.error : SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
                 {isFasting ? 'Detener ayuno' : 'Iniciar ayuno'}
               </EliteText>
             </AnimatedPressable>
+
+            {/* ── Modal: Iniciar ayuno ── */}
+            {showFastStartModal && (
+              <View style={s.fastModal}>
+                <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.md, marginBottom: Spacing.sm }}>
+                  Iniciar ayuno
+                </EliteText>
+
+                {/* Selector de objetivo */}
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginBottom: 6 }}>Objetivo</EliteText>
+                <View style={{ flexDirection: 'row', gap: 6, marginBottom: Spacing.md, flexWrap: 'wrap' }}>
+                  {[12, 14, 16, 18, 24].map(h => (
+                    <Pressable
+                      key={h}
+                      onPress={() => setFastTargetSelection(h)}
+                      style={[s.targetPill, fastTargetSelection === h && { backgroundColor: SEMANTIC.warning, borderColor: SEMANTIC.warning }]}
+                    >
+                      <EliteText style={{ color: fastTargetSelection === h ? '#000' : TEXT_COLORS.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs }}>
+                        {h}h
+                      </EliteText>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {/* Opciones: Ahora / A otra hora */}
+                <AnimatedPressable onPress={() => startFasting(false)} style={s.fastModalBtn}>
+                  <Ionicons name="flash-outline" size={16} color={SEMANTIC.warning} />
+                  <EliteText style={{ color: SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>Ahora mismo</EliteText>
+                </AnimatedPressable>
+
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: Spacing.sm, marginBottom: 6 }}>
+                  O elige una hora:
+                </EliteText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm }}>
+                  <TextInput
+                    style={s.timeInput}
+                    value={fastManualHH}
+                    onChangeText={t => setFastManualHH(t.replace(/[^0-9]/g, '').slice(0, 2))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    placeholder="HH"
+                    placeholderTextColor={TEXT_COLORS.muted}
+                  />
+                  <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.lg }}>:</EliteText>
+                  <TextInput
+                    style={s.timeInput}
+                    value={fastManualMM}
+                    onChangeText={t => setFastManualMM(t.replace(/[^0-9]/g, '').slice(0, 2))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    placeholder="MM"
+                    placeholderTextColor={TEXT_COLORS.muted}
+                  />
+                  <AnimatedPressable onPress={() => startFasting(true)} style={[s.fastModalBtn, { flex: 1, marginTop: 0 }]}>
+                    <EliteText style={{ color: SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>Iniciar a esa hora</EliteText>
+                  </AnimatedPressable>
+                </View>
+
+                <Pressable onPress={() => setShowFastStartModal(false)} style={{ alignItems: 'center', paddingVertical: 8 }}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs }}>Cancelar</EliteText>
+                </Pressable>
+              </View>
+            )}
+
+            {/* ── Modal: Detener ayuno ── */}
+            {showFastStopModal && (
+              <View style={s.fastModal}>
+                <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.md, marginBottom: Spacing.sm }}>
+                  Detener ayuno
+                </EliteText>
+
+                <AnimatedPressable onPress={() => stopFasting(false)} style={[s.fastModalBtn, { borderColor: SEMANTIC.error }]}>
+                  <Ionicons name="stop-circle-outline" size={16} color={SEMANTIC.error} />
+                  <EliteText style={{ color: SEMANTIC.error, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>Ahora mismo</EliteText>
+                </AnimatedPressable>
+
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: Spacing.sm, marginBottom: 6 }}>
+                  O elige la hora en que rompiste el ayuno:
+                </EliteText>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm }}>
+                  <TextInput
+                    style={s.timeInput}
+                    value={fastManualHH}
+                    onChangeText={t => setFastManualHH(t.replace(/[^0-9]/g, '').slice(0, 2))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    placeholder="HH"
+                    placeholderTextColor={TEXT_COLORS.muted}
+                  />
+                  <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.lg }}>:</EliteText>
+                  <TextInput
+                    style={s.timeInput}
+                    value={fastManualMM}
+                    onChangeText={t => setFastManualMM(t.replace(/[^0-9]/g, '').slice(0, 2))}
+                    keyboardType="number-pad"
+                    maxLength={2}
+                    placeholder="MM"
+                    placeholderTextColor={TEXT_COLORS.muted}
+                  />
+                  <AnimatedPressable onPress={() => stopFasting(true)} style={[s.fastModalBtn, { flex: 1, marginTop: 0, borderColor: SEMANTIC.error }]}>
+                    <EliteText style={{ color: SEMANTIC.error, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>Detener a esa hora</EliteText>
+                  </AnimatedPressable>
+                </View>
+
+                <Pressable onPress={() => setShowFastStopModal(false)} style={{ alignItems: 'center', paddingVertical: 8 }}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs }}>Cancelar</EliteText>
+                </Pressable>
+              </View>
+            )}
           </View>
         </Animated.View>
 
@@ -346,6 +541,15 @@ export default function NutritionScreen() {
             <EliteText style={{ color: Colors.textOnGreen, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>Escanear comida</EliteText>
           </AnimatedPressable>
         </Animated.View>
+
+        {/* ══ 4b. Registrar por descripción ══ */}
+        <AnimatedPressable
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: '#111', borderRadius: 12, borderWidth: 0.5, borderColor: '#333', marginBottom: 16, marginTop: 8 }}
+          onPress={() => router.push('/food-text' as any)}
+        >
+          <Ionicons name="create-outline" size={18} color="#5B9BD5" />
+          <EliteText style={{ fontSize: 14, color: '#5B9BD5', fontWeight: '500' }}>Registrar por descripción</EliteText>
+        </AnimatedPressable>
 
         {/* ══ 5. Registro de hoy ══ */}
         <Animated.View entering={FadeInUp.delay(330).springify()}>
@@ -367,6 +571,13 @@ export default function NutritionScreen() {
             ))
           )}
         </Animated.View>
+
+        {/* ══ 5b. Lo que te falta hoy ══ */}
+        {foodLogs.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(360).springify()} style={{ marginTop: Spacing.sm }}>
+            <NutritionGapsCard consumed={{ calories: macros.calories, protein: macros.protein, carbs: macros.carbs, fat: macros.fat }} />
+          </Animated.View>
+        )}
 
         {/* ══ 6. Analiza productos ══ */}
         <Animated.View entering={FadeInUp.delay(380).springify()}>
@@ -483,6 +694,26 @@ const s = StyleSheet.create({
   scanButton: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm,
     backgroundColor: Colors.neonGreen, borderRadius: Radius.card, paddingVertical: Spacing.md, marginTop: Spacing.md,
+  },
+
+  // Modal inline de ayuno
+  fastModal: {
+    backgroundColor: SURFACES.cardLight, borderRadius: Radius.sm, padding: Spacing.md, marginTop: Spacing.sm,
+  },
+  fastModalBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: Spacing.sm, borderRadius: Radius.sm,
+    borderWidth: 1, borderColor: SEMANTIC.warning, marginTop: 4,
+  },
+  targetPill: {
+    paddingHorizontal: 14, paddingVertical: 6, borderRadius: Radius.sm,
+    borderWidth: 1, borderColor: SURFACES.border,
+  },
+  timeInput: {
+    width: 48, textAlign: 'center' as const, color: TEXT_COLORS.primary,
+    fontFamily: Fonts.bold, fontSize: FontSizes.lg,
+    backgroundColor: SURFACES.card, borderRadius: Radius.xs, borderWidth: 1, borderColor: SURFACES.border,
+    paddingVertical: 6,
   },
 
   // Sección
