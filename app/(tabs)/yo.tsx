@@ -20,6 +20,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { generateMasterHealthReport, type MasterHealthReport, type DomainScore, type Recommendation } from '@/src/services/health-score-engine';
 import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
+import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -48,6 +49,7 @@ export default function YoScreen() {
   const [healthReport, setHealthReport] = useState<MasterHealthReport | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
   const [dailyScore, setDailyScore] = useState<DailyHealthScore | null>(null);
+  const [wearableData, setWearableData] = useState<WearableData | null>(null);
 
   const loadData = useCallback(async () => {
     try { setData(await getDashboardData()); } catch { /* silenciar */ }
@@ -60,6 +62,15 @@ export default function YoScreen() {
         setDailyScore(score);
       }
     } catch { /* degradar graciosamente */ }
+    // Cargar datos de wearable
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const available = await isWearableAvailable();
+      if (available) {
+        const data = await getWearableDataForDate(today);
+        if (data) setWearableData(data);
+      }
+    } catch { /* wearable no disponible */ }
     // Cargar reporte maestro de salud
     try {
       if (user?.id) {
@@ -151,6 +162,64 @@ export default function YoScreen() {
           <Animated.View entering={FadeInUp.delay(150).springify()}>
             <SectionLabel>SCORE DEL DÍA</SectionLabel>
             <DailyScoreCard score={dailyScore} />
+          </Animated.View>
+        )}
+
+        {/* ══ WEARABLE DATA ══ */}
+        {wearableData && (
+          <Animated.View entering={FadeInUp.delay(200).springify()}>
+            <SectionLabel>DISPOSITIVO</SectionLabel>
+            <View style={st.wearableCard}>
+              <View style={st.wearableGrid}>
+                {wearableData.steps != null && (
+                  <View style={st.wearableItem}>
+                    <Ionicons name="footsteps-outline" size={18} color={SEMANTIC.success} />
+                    <EliteText style={st.wearableValue}>{wearableData.steps.toLocaleString()}</EliteText>
+                    <EliteText variant="caption" style={st.wearableLabel}>Pasos</EliteText>
+                  </View>
+                )}
+                {wearableData.restingHR != null && (
+                  <View style={st.wearableItem}>
+                    <Ionicons name="heart-outline" size={18} color={SEMANTIC.error} />
+                    <EliteText style={st.wearableValue}>{wearableData.restingHR}</EliteText>
+                    <EliteText variant="caption" style={st.wearableLabel}>FC reposo</EliteText>
+                  </View>
+                )}
+                {wearableData.hrv != null && (
+                  <View style={st.wearableItem}>
+                    <Ionicons name="pulse-outline" size={18} color={CATEGORY_COLORS.mind} />
+                    <EliteText style={st.wearableValue}>{wearableData.hrv}</EliteText>
+                    <EliteText variant="caption" style={st.wearableLabel}>HRV</EliteText>
+                  </View>
+                )}
+                {wearableData.sleep?.totalHours != null && (
+                  <View style={st.wearableItem}>
+                    <Ionicons name="moon-outline" size={18} color={SEMANTIC.info} />
+                    <EliteText style={st.wearableValue}>{wearableData.sleep.totalHours}h</EliteText>
+                    <EliteText variant="caption" style={st.wearableLabel}>Sueño</EliteText>
+                  </View>
+                )}
+                {wearableData.spo2 != null && (
+                  <View style={st.wearableItem}>
+                    <Ionicons name="water-outline" size={18} color={CATEGORY_COLORS.metrics} />
+                    <EliteText style={st.wearableValue}>{wearableData.spo2}%</EliteText>
+                    <EliteText variant="caption" style={st.wearableLabel}>SpO2</EliteText>
+                  </View>
+                )}
+                {wearableData.activeMinutes != null && (
+                  <View style={st.wearableItem}>
+                    <Ionicons name="flame-outline" size={18} color={CATEGORY_COLORS.optimization} />
+                    <EliteText style={st.wearableValue}>{wearableData.activeMinutes}</EliteText>
+                    <EliteText variant="caption" style={st.wearableLabel}>Min activos</EliteText>
+                  </View>
+                )}
+              </View>
+              {wearableData.source && (
+                <EliteText variant="caption" style={st.wearableSource}>
+                  Fuente: {wearableData.source}
+                </EliteText>
+              )}
+            </View>
           </Animated.View>
         )}
 
@@ -671,6 +740,45 @@ const st = StyleSheet.create({
   actionIcon: { width: 40, height: 40, borderRadius: Radius.card, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontFamily: Fonts.semiBold, color: TEXT_COLORS.primary, fontSize: FontSizes.md },
   actionSub: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginTop: 1 },
+
+  // Wearable data card
+  wearableCard: {
+    backgroundColor: SURFACES.card,
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
+    borderColor: SURFACES.border,
+    padding: Spacing.md,
+  },
+  wearableGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  wearableItem: {
+    width: '30%',
+    flexGrow: 1,
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: Spacing.sm,
+  },
+  wearableValue: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.bold,
+    color: TEXT_COLORS.primary,
+  },
+  wearableLabel: {
+    color: TEXT_COLORS.secondary,
+    fontSize: FontSizes.xs,
+  },
+  wearableSource: {
+    color: TEXT_COLORS.muted,
+    fontSize: FontSizes.xs,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    borderTopWidth: 0.5,
+    borderTopColor: SURFACES.border,
+    paddingTop: Spacing.xs,
+  },
 
   // Eval button
   evalBtn: {

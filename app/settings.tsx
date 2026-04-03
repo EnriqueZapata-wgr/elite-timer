@@ -25,6 +25,14 @@ import {
   disconnectClient,
   type CoachConnection,
 } from '@/src/services/coach-service';
+import {
+  isWearableAvailable,
+  requestWearablePermissions,
+  getConnectedSource,
+  disconnectWearable,
+  getWearableDataForDate,
+  saveWearableToSupabase,
+} from '@/src/services/wearable-service';
 import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
 
@@ -60,10 +68,17 @@ export default function SettingsScreen() {
   const [connecting, setConnecting] = useState(false);
   const [generatingCode, setGeneratingCode] = useState(false);
 
-  // Cargar datos de coach al enfocar
+  // Estado wearable
+  const [wearableConnected, setWearableConnected] = useState(false);
+  const [wearableSource, setWearableSource] = useState('');
+  const [wearableLastSync, setWearableLastSync] = useState<string | null>(null);
+  const [wearableConnecting, setWearableConnecting] = useState(false);
+
+  // Cargar datos de coach y wearable al enfocar
   useFocusEffect(
     useCallback(() => {
       loadCoachData();
+      checkWearable();
     }, [])
   );
 
@@ -78,6 +93,66 @@ export default function SettingsScreen() {
       setCoaches(myCoaches);
       setClients(myClients);
     } catch { /* silenciar */ }
+  };
+
+  // Verificar si hay wearable conectado
+  const checkWearable = async () => {
+    try {
+      const available = await isWearableAvailable();
+      setWearableConnected(available);
+      if (available) {
+        setWearableSource(getConnectedSource());
+      }
+    } catch { /* silenciar */ }
+  };
+
+  // Conectar wearable
+  const handleConnectWearable = async () => {
+    setWearableConnecting(true);
+    try {
+      const granted = await requestWearablePermissions();
+      if (granted) {
+        const src = getConnectedSource();
+        setWearableConnected(true);
+        setWearableSource(src);
+        setWearableLastSync(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }));
+        Alert.alert('Conectado', `${src} conectado correctamente.`);
+      } else {
+        Alert.alert('Permisos', 'No se otorgaron los permisos de salud.');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err.message ?? 'No se pudo conectar el dispositivo.');
+    } finally {
+      setWearableConnecting(false);
+    }
+  };
+
+  // Sincronizar datos del wearable
+  const handleSyncWearable = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const data = await getWearableDataForDate(today);
+      if (data) {
+        await saveWearableToSupabase(user?.id ?? '', data);
+        setWearableLastSync(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }));
+        Alert.alert('Sincronizado', 'Datos actualizados correctamente.');
+      }
+    } catch {
+      Alert.alert('Error', 'No se pudieron sincronizar los datos.');
+    }
+  };
+
+  // Desconectar wearable
+  const handleDisconnectWearable = () => {
+    Alert.alert('Desconectar dispositivo', `¿Desconectar ${wearableSource}?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Desconectar', style: 'destructive', onPress: async () => {
+        await disconnectWearable();
+        setWearableConnected(false);
+        setWearableSource('');
+        setWearableLastSync(null);
+      }},
+    ]);
   };
 
   const handleConnect = async () => {
@@ -446,8 +521,82 @@ export default function SettingsScreen() {
           <Divider />
         </Animated.View>
 
-        {/* ── Zona de prueba ── */}
+        {/* ══════ DISPOSITIVOS ══════ */}
         <Animated.View entering={FadeInUp.delay(850).springify()}>
+          <SectionLabel>DISPOSITIVOS</SectionLabel>
+
+          <View style={styles.wearableCard}>
+            <View style={styles.wearableHeader}>
+              <Ionicons name="watch-outline" size={22} color={CATEGORY_COLORS.metrics} />
+              <View style={{ flex: 1 }}>
+                <EliteText variant="body" style={styles.wearableTitle}>
+                  Wearables y dispositivos
+                </EliteText>
+                <EliteText variant="caption" style={styles.wearableDesc}>
+                  Conecta Apple Health o Google Health para datos automáticos de sueño, pasos, FC y HRV.
+                </EliteText>
+              </View>
+            </View>
+
+            {wearableConnected ? (
+              <View style={styles.wearableConnectedSection}>
+                {/* Estado conectado */}
+                <View style={styles.wearableStatusRow}>
+                  <View style={styles.wearableStatusLeft}>
+                    <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
+                    <EliteText variant="body" style={styles.wearableSourceText}>
+                      {wearableSource}
+                    </EliteText>
+                  </View>
+                  <EliteText variant="caption" style={styles.wearableConnectedBadge}>
+                    Conectado
+                  </EliteText>
+                </View>
+
+                {/* Última sincronización */}
+                {wearableLastSync && (
+                  <EliteText variant="caption" style={styles.wearableSyncTime}>
+                    Última sincronización: {wearableLastSync}
+                  </EliteText>
+                )}
+
+                {/* Botones de acción */}
+                <View style={styles.wearableActions}>
+                  <Pressable onPress={handleSyncWearable} style={styles.wearableSyncBtn}>
+                    <Ionicons name="sync-outline" size={16} color={CATEGORY_COLORS.metrics} />
+                    <EliteText variant="caption" style={styles.wearableSyncBtnText}>
+                      Sincronizar ahora
+                    </EliteText>
+                  </Pressable>
+                  <Pressable onPress={handleDisconnectWearable} style={styles.wearableDisconnectBtn}>
+                    <Ionicons name="close-circle-outline" size={16} color={Colors.textSecondary} />
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Pressable
+                onPress={handleConnectWearable}
+                disabled={wearableConnecting}
+                style={[styles.wearableConnectBtn, wearableConnecting && { opacity: 0.5 }]}
+              >
+                <Ionicons name="bluetooth-outline" size={18} color={CATEGORY_COLORS.metrics} />
+                <EliteText variant="body" style={styles.wearableConnectBtnText}>
+                  {wearableConnecting ? 'Conectando...' : 'Conectar dispositivo'}
+                </EliteText>
+              </Pressable>
+            )}
+
+            {/* Dispositivos compatibles */}
+            <EliteText variant="caption" style={styles.wearableCompatible}>
+              Apple Health · Google Health · Oura · Garmin · Samsung · Whoop
+            </EliteText>
+          </View>
+
+          <Divider />
+        </Animated.View>
+
+        {/* ── Zona de prueba ── */}
+        <Animated.View entering={FadeInUp.delay(950).springify()}>
           <View style={styles.testBox}>
             <EliteText variant="caption" style={styles.testLabel}>PROBAR</EliteText>
             <View style={styles.testRow}>
@@ -473,7 +622,7 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* ── Cuenta ── */}
-        <Animated.View entering={FadeInUp.delay(950).springify()}>
+        <Animated.View entering={FadeInUp.delay(1050).springify()}>
           <SectionLabel color={Colors.error}>CUENTA</SectionLabel>
           <Pressable
             onPress={() => {
@@ -907,6 +1056,110 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.sm,
     marginTop: 1,
   },
+  // ── Wearable styles ──
+  wearableCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: 0.5,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    gap: Spacing.md,
+  },
+  wearableHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.md,
+  },
+  wearableTitle: {
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.md,
+    color: Colors.textPrimary,
+  },
+  wearableDesc: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  wearableConnectedSection: {
+    gap: Spacing.sm,
+  },
+  wearableStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  wearableStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  wearableSourceText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.md,
+    color: Colors.textPrimary,
+  },
+  wearableConnectedBadge: {
+    color: Colors.success,
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.sm,
+    letterSpacing: 1,
+  },
+  wearableSyncTime: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
+  },
+  wearableActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  wearableSyncBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    backgroundColor: CATEGORY_COLORS.metrics + '10',
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: CATEGORY_COLORS.metrics + '30',
+    paddingVertical: Spacing.sm,
+  },
+  wearableSyncBtnText: {
+    color: CATEGORY_COLORS.metrics,
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.sm,
+  },
+  wearableDisconnectBtn: {
+    padding: Spacing.sm,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  wearableConnectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: CATEGORY_COLORS.metrics + '10',
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: CATEGORY_COLORS.metrics + '30',
+    paddingVertical: Spacing.md,
+  },
+  wearableConnectBtnText: {
+    color: CATEGORY_COLORS.metrics,
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.md,
+  },
+  wearableCompatible: {
+    color: Colors.textMuted,
+    fontSize: FontSizes.xs,
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+
   versionContainer: {
     alignItems: 'center',
     marginTop: Spacing.xl,

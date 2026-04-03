@@ -44,6 +44,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getCategoryColor, getCategoryLabel, getCategoryIcon } from '@/src/constants/categories';
 import { getWeeklyStats, type WeeklyStats } from '@/src/services/exercise-service';
 import { getUserChronotype } from '@/src/services/quiz-service';
+import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 
 // === HELPERS ===
 
@@ -116,6 +117,7 @@ export default function TodayScreen() {
   const [toggling, setToggling] = useState<string | null>(null);
   const [hasChronotype, setHasChronotype] = useState(false);
   const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
+  const [wearableData, setWearableData] = useState<WearableData | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -168,6 +170,15 @@ export default function TodayScreen() {
               setDataSource(null);
             }
           }
+          // Cargar datos de wearable para readiness
+          try {
+            const today = new Date().toISOString().split('T')[0];
+            const wAvailable = await isWearableAvailable();
+            if (wAvailable && !cancelled) {
+              const wData = await getWearableDataForDate(today);
+              if (wData && !cancelled) setWearableData(wData);
+            }
+          } catch { /* wearable no disponible */ }
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -303,6 +314,55 @@ export default function TodayScreen() {
             </AnimatedPressable>
           </View>
         </Animated.View>
+
+        {/* ── Readiness indicator (wearable) ── */}
+        {wearableData?.recovery != null && (
+          <Animated.View entering={FadeInUp.delay(80).springify()}>
+            <View style={[
+              styles.readinessCard,
+              {
+                borderLeftColor: wearableData.recovery >= 80
+                  ? SEMANTIC.success
+                  : wearableData.recovery >= 60
+                    ? SEMANTIC.warning
+                    : SEMANTIC.error,
+              },
+            ]}>
+              <View style={styles.readinessRow}>
+                <Ionicons
+                  name="fitness-outline"
+                  size={18}
+                  color={
+                    wearableData.recovery >= 80
+                      ? SEMANTIC.success
+                      : wearableData.recovery >= 60
+                        ? SEMANTIC.warning
+                        : SEMANTIC.error
+                  }
+                />
+                <EliteText variant="body" style={[
+                  styles.readinessScore,
+                  {
+                    color: wearableData.recovery >= 80
+                      ? SEMANTIC.success
+                      : wearableData.recovery >= 60
+                        ? SEMANTIC.warning
+                        : SEMANTIC.error,
+                  },
+                ]}>
+                  READINESS {wearableData.recovery}
+                </EliteText>
+              </View>
+              <EliteText variant="caption" style={styles.readinessHint}>
+                {wearableData.recovery >= 80
+                  ? 'Listo para entrenar fuerte'
+                  : wearableData.recovery >= 60
+                    ? 'Entrena moderado hoy'
+                    : 'Prioriza recuperación'}
+              </EliteText>
+            </View>
+          </Animated.View>
+        )}
 
         {loading ? (
           /* Skeleton de carga — reemplaza ActivityIndicator */
@@ -791,6 +851,33 @@ const styles = StyleSheet.create({
   },
   settingsBtn: { padding: Spacing.sm },
   loader: { marginTop: Spacing.xxl },
+
+  // Readiness card (wearable)
+  readinessCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
+    borderColor: Colors.border,
+    borderLeftWidth: 3,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    gap: Spacing.xs,
+  },
+  readinessRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  readinessScore: {
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.md,
+    letterSpacing: 2,
+  },
+  readinessHint: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.sm,
+    marginLeft: Spacing.sm + 18, // alineado con el texto (icono 18 + gap sm)
+  },
 
   // Progress
   progressSection: { marginBottom: Spacing.md },
