@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Circle } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
@@ -18,6 +19,7 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { generateMasterHealthReport, type MasterHealthReport, type DomainScore, type Recommendation } from '@/src/services/health-score-engine';
+import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -45,11 +47,19 @@ export default function YoScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [healthReport, setHealthReport] = useState<MasterHealthReport | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
+  const [dailyScore, setDailyScore] = useState<DailyHealthScore | null>(null);
 
   const loadData = useCallback(async () => {
     try { setData(await getDashboardData()); } catch { /* silenciar */ }
     setLoading(false);
     setRefreshing(false);
+    // Cargar Daily Health Score
+    try {
+      if (user?.id) {
+        const score = await calculateDailyHealthScore(user.id);
+        setDailyScore(score);
+      }
+    } catch { /* degradar graciosamente */ }
     // Cargar reporte maestro de salud
     try {
       if (user?.id) {
@@ -135,6 +145,14 @@ export default function YoScreen() {
             </AnimatedPressable>
           </View>
         </Animated.View>
+
+        {/* ══ DAILY HEALTH SCORE ══ */}
+        {dailyScore && (
+          <Animated.View entering={FadeInUp.delay(150).springify()}>
+            <SectionLabel>SCORE DEL DÍA</SectionLabel>
+            <DailyScoreCard score={dailyScore} />
+          </Animated.View>
+        )}
 
         {/* ══ 2. SALUD FUNCIONAL ══ */}
         <SectionLabel>SALUD FUNCIONAL</SectionLabel>
@@ -430,6 +448,101 @@ function QuizCard({ emoji, label, done, disabled, onPress }: {
   );
 }
 
+// === DAILY SCORE CARD ===
+
+/** Etiquetas en español para cada componente */
+const COMPONENT_LABELS: Record<string, string> = {
+  sleep: 'Sueño',
+  activity: 'Actividad',
+  nutrition: 'Nutrición',
+  stress: 'Estrés',
+  recovery: 'Recuperación',
+  compliance: 'Protocolo',
+};
+
+/** Arco SVG circular de progreso */
+function ScoreCircle({ score, color, size = 100 }: { score: number; color: string; size?: number }) {
+  const strokeWidth = 8;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const progress = Math.min(100, Math.max(0, score));
+  const strokeDashoffset = circumference * (1 - progress / 100);
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute' }}>
+        {/* Fondo del arco */}
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={SURFACES.cardLight}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Arco de progreso */}
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={`${circumference}`}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          rotation="-90"
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <EliteText style={[dsSt.circleScore, { color }]}>{score}</EliteText>
+    </View>
+  );
+}
+
+/** Barra de progreso mini para cada componente */
+function ComponentBar({ label, score, color }: { label: string; score: number; color: string }) {
+  const fillColor = score >= 70 ? '#A8E02A' : score >= 40 ? '#EF9F27' : '#E24B4A';
+  return (
+    <View style={dsSt.compBarRow}>
+      <EliteText variant="caption" style={dsSt.compBarLabel}>{label}</EliteText>
+      <View style={dsSt.compBarBg}>
+        <View style={[dsSt.compBarFill, { width: `${Math.min(100, score)}%`, backgroundColor: fillColor }]} />
+      </View>
+      <EliteText variant="caption" style={[dsSt.compBarValue, { color: fillColor }]}>{score}</EliteText>
+    </View>
+  );
+}
+
+/** Card hero del Daily Health Score */
+function DailyScoreCard({ score }: { score: DailyHealthScore }) {
+  const components = score.components;
+  // Orden: fila 1 (sueño, actividad, nutrición), fila 2 (estrés, recuperación, protocolo)
+  const keys: (keyof typeof components)[] = ['sleep', 'activity', 'nutrition', 'stress', 'recovery', 'compliance'];
+
+  return (
+    <View style={dsSt.card}>
+      {/* Fila superior: círculo + nivel */}
+      <View style={dsSt.heroRow}>
+        <ScoreCircle score={score.overall} color={score.color} size={100} />
+        <View style={dsSt.heroInfo}>
+          <EliteText style={[dsSt.levelText, { color: score.color }]}>{score.level}</EliteText>
+          <EliteText variant="caption" style={dsSt.levelSub}>Score diario de salud</EliteText>
+        </View>
+      </View>
+
+      {/* Grid 3×2 de componentes */}
+      <View style={dsSt.compGrid}>
+        {keys.map((key) => (
+          <View key={key} style={dsSt.compCell}>
+            <ComponentBar label={COMPONENT_LABELS[key]} score={components[key].score} color={score.color} />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function ActionCard({ icon, label, sub, color, onPress, disabled }: {
   icon: string; label: string; sub: string; color: string; onPress?: () => void; disabled?: boolean;
 }) {
@@ -563,5 +676,76 @@ const st = StyleSheet.create({
   evalBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
     paddingVertical: Spacing.sm, marginTop: Spacing.sm,
+  },
+});
+
+// === ESTILOS: Daily Score Card ===
+
+const dsSt = StyleSheet.create({
+  card: {
+    backgroundColor: SURFACES.card,
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
+    borderColor: SURFACES.border,
+    padding: Spacing.lg,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  circleScore: {
+    fontSize: FontSizes.mega,
+    fontFamily: Fonts.extraBold,
+  },
+  heroInfo: {
+    flex: 1,
+  },
+  levelText: {
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.xxl,
+  },
+  levelSub: {
+    color: TEXT_COLORS.secondary,
+    fontSize: FontSizes.sm,
+    marginTop: 2,
+  },
+  // Grid de componentes (3×2)
+  compGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    borderTopWidth: 0.5,
+    borderTopColor: SURFACES.border,
+    paddingTop: Spacing.md,
+  },
+  compCell: {
+    width: '30%',
+    flexGrow: 1,
+  },
+  // Barra de componente individual
+  compBarRow: {
+    gap: 2,
+  },
+  compBarLabel: {
+    color: TEXT_COLORS.secondary,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+  },
+  compBarBg: {
+    height: 4,
+    backgroundColor: SURFACES.cardLight,
+    borderRadius: Radius.xs,
+    overflow: 'hidden',
+  },
+  compBarFill: {
+    height: '100%',
+    borderRadius: Radius.xs,
+  },
+  compBarValue: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
+    textAlign: 'right',
   },
 });
