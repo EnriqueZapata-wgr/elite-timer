@@ -11,10 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.atpperformance.elitetimer",
-      "infoPlist": {
-        "NSHealthShareUsageDescription": "ATP Performance necesita acceso a tus datos de salud para mostrarte métricas de sueño, actividad, frecuencia cardíaca y recuperación."
-      }
+      "bundleIdentifier": "com.atpperformance.elitetimer"
     },
     "android": {
       "adaptiveIcon": {
@@ -50,7 +47,12 @@
       "expo-font",
       "expo-audio",
       "expo-secure-store",
-      "@kingstinct/react-native-healthkit",
+      [
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "ATP Performance necesita acceso a tus datos de salud para mostrarte métricas de sueño, actividad, frecuencia cardíaca y recuperación."
+        }
+      ],
       [
         "react-native-health-connect",
         {
