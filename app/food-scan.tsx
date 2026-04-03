@@ -199,7 +199,7 @@ function ScoreRing({ score, size = 160, accent }: { score: number; size?: number
           transform={`rotate(-90, ${size / 2}, ${size / 2})`}
         />
       </Svg>
-      <EliteText style={{ fontSize: 48, fontFamily: Fonts.extraBold, color, includeFontPadding: false }}>
+      <EliteText style={{ fontSize: FontSizes.mega, fontFamily: Fonts.extraBold, color, includeFontPadding: false }}>
         {display}
       </EliteText>
     </View>
@@ -582,7 +582,7 @@ export default function FoodScanScreen() {
                   </View>
                 </View>
 
-                <EliteText style={{ fontSize: 22, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
+                <EliteText style={{ fontSize: FontSizes.xxl, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
                   {cfg.title}
                 </EliteText>
                 <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: FontSizes.md }}>
@@ -657,7 +657,7 @@ export default function FoodScanScreen() {
               </View>
             </View>
 
-            <EliteText style={{ fontSize: 22, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
+            <EliteText style={{ fontSize: FontSizes.xxl, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginTop: Spacing.lg }}>
               {cfg.title}
             </EliteText>
             <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 4, fontSize: FontSizes.md }}>
@@ -935,7 +935,7 @@ export default function FoodScanScreen() {
             <Ionicons name="sparkles" size={32} color={cfg.color} />
           </View>
 
-          <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: 20, marginTop: Spacing.xl }}>
+          <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xxl, marginTop: Spacing.xl }}>
             Analizando
           </EliteText>
           <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, marginTop: 6, fontSize: FontSizes.md, textAlign: 'center' }}>
@@ -978,7 +978,7 @@ export default function FoodScanScreen() {
             {getScoreLabel()}
           </EliteText>
           <EliteText style={{
-            color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: 22,
+            color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xxl,
             textAlign: 'center', marginTop: Spacing.xs,
           }}>
             {getTitle()}

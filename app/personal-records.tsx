@@ -25,7 +25,7 @@ import {
 } from '@/src/services/exercise-service';
 import Svg, { Path, Circle as SvgCircle, Line } from 'react-native-svg';
 import { Colors, Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
-import { BLOCK_COLORS, SEMANTIC, CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
+import { BLOCK_COLORS, SEMANTIC, CATEGORY_COLORS, SURFACES, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import {
   MUSCLE_GROUPS,
   MUSCLE_GROUP_LABELS,
@@ -92,16 +92,9 @@ function getPRRecency(achievedAt: string): 'today' | 'week' | null {
 
 // Gradientes oscuros por grupo muscular
 function getMuscleGroupGradient(mg: string): readonly [string, string] {
-  switch (mg) {
-    case 'chest': return ['#2a1515', '#1a0a0a'];
-    case 'back': return ['#0a1a2a', '#0a0a1a'];
-    case 'shoulders': return ['#2a1f0a', '#1a1a0a'];
-    case 'legs': return ['#1a2a1a', '#0a1a0a'];
-    case 'arms': return ['#1a1a2a', '#0a0a1a'];
-    case 'core': return ['#2a2a0a', '#1a1a0a'];
-    case 'full_body': return ['#0a2a2a', '#0a1a1a'];
-    default: return [Colors.surfaceLight, Colors.surface];
-  }
+  const mgColor = MUSCLE_GROUP_COLORS[mg];
+  if (mgColor) return [withOpacity(mgColor, 0.08), withOpacity(mgColor, 0.02)];
+  return [Colors.surfaceLight, Colors.surface];
 }
 
 // Descripciones de grupo
@@ -236,7 +229,7 @@ function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color
         {gridLines.map((g, i) => (
           <EliteText key={i} variant="caption" style={{
             position: 'absolute', top: g.y - 6, left: 0,
-            fontSize: 8, color: Colors.textSecondary,
+            fontSize: FontSizes.xs, color: Colors.textSecondary,
           }}>{g.label}</EliteText>
         ))}
       </View>
@@ -245,7 +238,7 @@ function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: CHART_PAD - 6, marginTop: 2 }}>
         {data.map((d, i) =>
           i % labelStep === 0 || i === data.length - 1 ? (
-            <EliteText key={i} variant="caption" style={{ fontSize: 8, color: Colors.textSecondary }}>
+            <EliteText key={i} variant="caption" style={{ fontSize: FontSizes.xs, color: Colors.textSecondary }}>
               {d.dateLabel}
             </EliteText>
           ) : <View key={i} />
@@ -369,7 +362,7 @@ export default function PersonalRecordsScreen() {
 
       {/* ── Hero Card — Score Global ── */}
       <Animated.View entering={FadeInUp.delay(50).springify()}>
-        <LinearGradient colors={['#1a2a1a', '#0a1a0a']} style={styles.heroCard}>
+        <LinearGradient colors={[withOpacity(CATEGORY_COLORS.fitness, 0.04), withOpacity(CATEGORY_COLORS.fitness, 0.02)]} style={styles.heroCard}>
           <View style={styles.heroAccent} />
           <EliteText style={styles.heroWatermark}>★</EliteText>
 
@@ -395,7 +388,7 @@ export default function PersonalRecordsScreen() {
           </View>
 
           {mostRecentPR && (
-            <LinearGradient colors={[Colors.surface, '#0a0a0a']} style={styles.recentPRCard}>
+            <LinearGradient colors={[Colors.surface, SURFACES.base]} style={styles.recentPRCard}>
               <View style={styles.recentPRRow}>
                 <Ionicons name="trending-up" size={16} color={Colors.neonGreen} />
                 <EliteText variant="caption" style={styles.recentPRLabel}>PR MÁS RECIENTE</EliteText>
@@ -686,7 +679,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     overflow: 'hidden',
     borderWidth: 0.5,
-    borderColor: '#2a3a2a',
+    borderColor: withOpacity(CATEGORY_COLORS.fitness, 0.12),
   },
   heroAccent: {
     position: 'absolute',
@@ -702,9 +695,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -15,
     right: -5,
-    fontSize: 80,
+    fontSize: FontSizes.timer,
     opacity: 0.05,
-    color: '#FFD700',
+    color: SEMANTIC.warning,
   },
   heroTop: {
     flexDirection: 'row',
@@ -715,11 +708,11 @@ const styles = StyleSheet.create({
   heroLabel: {
     color: Colors.textSecondary,
     letterSpacing: 3,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     marginBottom: Spacing.xs,
   },
   heroLevel: {
-    fontSize: 36,
+    fontSize: FontSizes.mega,
     fontFamily: Fonts.extraBold,
     color: Colors.neonGreen,
     letterSpacing: 3,
@@ -738,13 +731,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroMiniStatValue: {
-    fontSize: 20,
+    fontSize: FontSizes.xxl,
     fontFamily: Fonts.bold,
     color: Colors.textPrimary,
   },
   heroMiniStatLabel: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     letterSpacing: 0.5,
     marginTop: 2,
   },
@@ -767,17 +760,17 @@ const styles = StyleSheet.create({
   },
   recentPRLabel: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     letterSpacing: 1,
   },
   recentPRName: {
     fontFamily: Fonts.semiBold,
-    fontSize: 13,
+    fontSize: FontSizes.md,
   },
   recentPRWeight: {
     fontFamily: Fonts.bold,
     color: Colors.neonGreen,
-    fontSize: 15,
+    fontSize: FontSizes.lg,
     marginTop: 2,
   },
 
@@ -807,12 +800,12 @@ const styles = StyleSheet.create({
   filterDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: Radius.xs,
   },
   filterText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.semiBold,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
 
   // ── Loading / Empty ──
@@ -832,7 +825,7 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     color: Colors.textSecondary,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
 
   // ── Secciones por grupo muscular ──
@@ -853,12 +846,12 @@ const styles = StyleSheet.create({
   },
   muscleGroupTitle: {
     letterSpacing: 2,
-    fontSize: 13,
+    fontSize: FontSizes.md,
     fontFamily: Fonts.bold,
   },
   muscleGroupDesc: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     letterSpacing: 1,
     opacity: 0.6,
   },
@@ -885,7 +878,7 @@ const styles = StyleSheet.create({
   estimated1rm: {
     color: Colors.neonGreen,
     fontFamily: Fonts.bold,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
   },
 
   // ── Tabla de rep ranges ──
@@ -907,18 +900,18 @@ const styles = StyleSheet.create({
   },
   repRangeHeader: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     letterSpacing: 0.5,
   },
   repRangeValue: {
     fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
     color: Colors.textPrimary,
   },
   repRangeEmpty: {
     color: Colors.disabled,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
 
   // ── Badges de recencia ──
@@ -931,7 +924,7 @@ const styles = StyleSheet.create({
   },
   recencyBadgeText: {
     color: Colors.neonGreen,
-    fontSize: 8,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
   },
   recencyWeek: {
@@ -951,7 +944,7 @@ const styles = StyleSheet.create({
   progressionLabel: {
     color: Colors.textSecondary,
     letterSpacing: 2,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     marginBottom: Spacing.sm,
   },
@@ -962,7 +955,7 @@ const styles = StyleSheet.create({
   },
   progressionEmpty: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     textAlign: 'center',
   },
 
@@ -984,7 +977,7 @@ const styles = StyleSheet.create({
   },
   toggleText: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
   },
 
@@ -1006,15 +999,15 @@ const styles = StyleSheet.create({
   sessionHistDate: {
     color: Colors.textSecondary,
     fontFamily: Fonts.bold,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
   },
   sessionHist1RM: {
     fontFamily: Fonts.bold,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
   },
   sessionHistSet: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     paddingLeft: Spacing.sm,
     lineHeight: 16,
   },

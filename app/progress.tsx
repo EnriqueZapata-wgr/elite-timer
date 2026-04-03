@@ -62,7 +62,7 @@ function BarChart({ data: rawData, color, height = 120 }: {
         return (
           <View key={i} style={{ flex: 1, alignItems: 'center' }}>
             <EliteText variant="caption" style={{
-              fontSize: 10, fontFamily: Fonts.bold, marginBottom: 2,
+              fontSize: FontSizes.xs, fontFamily: Fonts.bold, marginBottom: 2,
               color: item.value > 0 ? (item.isCurrent ? color : Colors.textSecondary) : 'transparent',
             }}>
               {item.value > 999 ? `${Math.round(item.value / 1000)}k` : item.value}
@@ -75,7 +75,7 @@ function BarChart({ data: rawData, color, height = 120 }: {
               minHeight: item.value > 0 ? 6 : 2,
             }} />
             {item.value === 0 && <View style={{ width: '70%', height: 2, backgroundColor: Colors.surfaceLight, borderRadius: 1 }} />}
-            <EliteText variant="caption" style={{ fontSize: 8, color: Colors.textSecondary, marginTop: 4 }}>
+            <EliteText variant="caption" style={{ fontSize: FontSizes.xs, color: Colors.textSecondary, marginTop: 4 }}>
               {item.label}
             </EliteText>
           </View>
@@ -397,13 +397,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -10,
     right: -5,
-    fontSize: 60,
+    fontSize: FontSizes.timer,
     opacity: 0.06,
   },
   heroLabel: {
     color: Colors.textSecondary,
     letterSpacing: 3,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
     marginBottom: Spacing.md,
   },
@@ -416,13 +416,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   heroStatNum: {
-    fontSize: 20,
+    fontSize: FontSizes.xxl,
     fontFamily: Fonts.bold,
     color: Colors.textPrimary,
   },
   heroStatLabel: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     marginTop: 2,
   },
   heroStatDivider: {
@@ -443,13 +443,13 @@ const styles = StyleSheet.create({
   chartLabel: {
     color: Colors.textSecondary,
     letterSpacing: 2,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
     marginBottom: 2,
   },
   chartSublabel: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     marginBottom: Spacing.md,
     opacity: 0.6,
   },
@@ -470,12 +470,12 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: Colors.textSecondary,
     letterSpacing: 2,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
   },
   sectionLink: {
     color: Colors.neonGreen,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
   },
 
@@ -505,11 +505,11 @@ const styles = StyleSheet.create({
   },
   prName: {
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
   prMeta: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     marginTop: 2,
   },
   prBadge: {
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   prBadgeText: {
     color: Colors.neonGreen,
     fontFamily: Fonts.bold,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
   },
 
   // Top exercises
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
   topExRank: {
     color: Colors.textSecondary,
     fontFamily: Fonts.bold,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     width: 16,
     textAlign: 'center',
   },
@@ -551,11 +551,11 @@ const styles = StyleSheet.create({
   },
   topExName: {
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
   topExMeta: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     marginTop: 1,
   },
 
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontFamily: Fonts.bold,
     letterSpacing: 1,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     paddingHorizontal: Spacing.md,
     marginBottom: 4,
   },

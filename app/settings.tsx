@@ -25,7 +25,7 @@ import {
   disconnectClient,
   type CoachConnection,
 } from '@/src/services/coach-service';
-import { Colors, Fonts, Spacing, Radius } from '@/constants/theme';
+import { Colors, Fonts, Spacing, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
 
 // === CONSTANTES ===
@@ -622,7 +622,7 @@ const styles = StyleSheet.create({
   },
   coachHint: {
     color: Colors.textSecondary,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
   connectRow: {
     flexDirection: 'row',
@@ -639,7 +639,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     color: Colors.textPrimary,
     fontFamily: 'monospace',
-    fontSize: 20,
+    fontSize: FontSizes.xxl,
     letterSpacing: 8,
     textAlign: 'center',
   },
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
   connectBtnText: {
     color: TEXT_COLORS.primary,
     fontFamily: Fonts.bold,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     letterSpacing: 1,
   },
   codeDisplay: {
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
   },
   codeDisplayText: {
     fontFamily: 'monospace',
-    fontSize: 32,
+    fontSize: FontSizes.display,
     letterSpacing: 10,
     color: COACH_TEAL,
     fontWeight: '800',
@@ -685,7 +685,7 @@ const styles = StyleSheet.create({
   copyBtnText: {
     color: COACH_TEAL,
     fontFamily: Fonts.semiBold,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
   generateBtn: {
     flexDirection: 'row',
@@ -700,11 +700,11 @@ const styles = StyleSheet.create({
   generateBtnText: {
     color: COACH_TEAL,
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
   webHint: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: Spacing.sm,
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   connectionListLabel: {
     color: Colors.textSecondary,
     letterSpacing: 2,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     marginBottom: 2,
   },
@@ -740,18 +740,18 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
   connectionInfo: {
     flex: 1,
   },
   connectionName: {
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
   connectionDate: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     marginTop: 1,
   },
   disconnectBtn: {
@@ -785,7 +785,7 @@ const styles = StyleSheet.create({
   },
   chipText: {
     color: Colors.textSecondary,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
   chipTextSelected: {
     color: Colors.neonGreen,
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
   },
   volumeValue: {
     color: Colors.neonGreen,
-    fontSize: 18,
+    fontSize: FontSizes.xl,
     minWidth: 45,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
@@ -867,7 +867,7 @@ const styles = StyleSheet.create({
   logoutText: {
     color: Colors.error,
     fontFamily: Fonts.semiBold,
-    fontSize: 15,
+    fontSize: FontSizes.lg,
   },
   deleteButton: {
     flexDirection: 'row',
@@ -881,7 +881,7 @@ const styles = StyleSheet.create({
   deleteText: {
     color: Colors.error,
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
     opacity: 0.7,
   },
   // Setting rows
@@ -900,11 +900,11 @@ const styles = StyleSheet.create({
   },
   settingRowLabel: {
     fontFamily: Fonts.semiBold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
   settingRowSub: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     marginTop: 1,
   },
   versionContainer: {
@@ -913,6 +913,6 @@ const styles = StyleSheet.create({
   },
   versionText: {
     color: Colors.textMuted,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
   },
 });

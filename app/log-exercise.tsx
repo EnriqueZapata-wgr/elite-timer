@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   },
   setInputLabel: {
     color: Colors.textSecondary,
-    fontSize: 9,
+    fontSize: FontSizes.xs,
     letterSpacing: 0.5,
   },
   setInput: {
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   },
   rpeMiniText: {
     color: Colors.textSecondary,
-    fontSize: 9,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
   },
   rpeMiniTextActive: {

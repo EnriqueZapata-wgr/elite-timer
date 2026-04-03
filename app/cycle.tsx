@@ -322,7 +322,7 @@ const s = StyleSheet.create({
   },
   cycleBarFill: { height: '100%', borderRadius: Radius.xs },
   dot: {
-    width: 24, height: 24, borderRadius: 12, borderWidth: 1.5,
+    width: 24, height: 24, borderRadius: Radius.card, borderWidth: 1.5,
     borderColor: SURFACES.border, alignItems: 'center', justifyContent: 'center',
   },
   saveBtn: {

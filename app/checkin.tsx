@@ -17,7 +17,7 @@ import { saveCheckin, getTodayCheckins, type CheckinRecord } from '@/src/service
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { vibrateMedium } from '@/src/utils/haptics';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 
 const { width: SW } = Dimensions.get('window');
@@ -41,7 +41,7 @@ export default function CheckinScreen() {
   useEffect(() => { getTodayCheckins().then(setRecent).catch(() => {}); }, []);
 
   const qd = quadrant ? QUADRANTS[quadrant] : null;
-  const qColor = qd?.color ?? '#888';
+  const qColor = qd?.color ?? TEXT_COLORS.secondary;
 
   const handleQuadrant = (q: QuadrantKey) => {
     setQuadrant(q);
@@ -132,10 +132,10 @@ export default function CheckinScreen() {
                     style={[
                       styles.mapCell,
                       { borderColor: d.color + '20' },
-                      isTopLeft && { borderTopLeftRadius: 20 },
-                      isTopRight && { borderTopRightRadius: 20 },
-                      isBottomLeft && { borderBottomLeftRadius: 20 },
-                      isBottomRight && { borderBottomRightRadius: 20 },
+                      isTopLeft && { borderTopLeftRadius: Radius.lg },
+                      isTopRight && { borderTopRightRadius: Radius.lg },
+                      isBottomLeft && { borderBottomLeftRadius: Radius.lg },
+                      isBottomRight && { borderBottomRightRadius: Radius.lg },
                     ]}
                   >
                     <EliteText variant="caption" style={[styles.mapLabel, { color: d.color }]}>
@@ -327,11 +327,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'center', gap: 6,
     paddingTop: Spacing.sm, marginBottom: Spacing.xs,
   },
-  dotIndicator: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333' },
+  dotIndicator: { width: 8, height: 8, borderRadius: Radius.xs, backgroundColor: SURFACES.disabled },
 
   stepFlex: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
-  mainTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: Colors.textPrimary, textAlign: 'center' },
-  mainSub: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs, marginBottom: Spacing.lg, fontSize: 13 },
+  mainTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: Colors.textPrimary, textAlign: 'center' },
+  mainSub: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs, marginBottom: Spacing.lg, fontSize: FontSizes.md },
 
   // Map
   mapGrid: {
@@ -341,21 +341,21 @@ const styles = StyleSheet.create({
     width: CELL, height: CELL * 0.75, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center', padding: Spacing.md,
   },
-  mapLabel: { fontFamily: Fonts.bold, fontSize: 13, textAlign: 'center', marginBottom: 6 },
-  mapExamples: { color: Colors.textSecondary, fontSize: 11, textAlign: 'center', lineHeight: 16 },
+  mapLabel: { fontFamily: Fonts.bold, fontSize: FontSizes.md, textAlign: 'center', marginBottom: 6 },
+  mapExamples: { color: Colors.textSecondary, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 16 },
 
   // Recent
   recentRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: Spacing.xs, marginTop: Spacing.lg,
   },
-  recentLabel: { color: Colors.textSecondary, fontSize: 12 },
+  recentLabel: { color: Colors.textSecondary, fontSize: FontSizes.sm },
   recentCircle: { width: 14, height: 14, borderRadius: 7 },
 
   // Emotion bands
   emotionBand: { marginBottom: Spacing.md },
   bandLabel: {
-    fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2,
+    fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2,
     marginBottom: Spacing.xs, paddingLeft: 2,
   },
   bandWrap: {
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.xs + 3,
     borderRadius: Radius.pill, borderWidth: 1,
   },
-  emotionText: { fontSize: 13 },
+  emotionText: { fontSize: FontSizes.md },
 
   // Tooltip
   tooltipOverlay: {
@@ -374,19 +374,19 @@ const styles = StyleSheet.create({
     zIndex: 30, padding: Spacing.lg,
   },
   tooltip: {
-    backgroundColor: '#1a1a1a', borderRadius: 12, borderWidth: 1,
+    backgroundColor: SURFACES.cardLight, borderRadius: Radius.card, borderWidth: 1,
     padding: Spacing.md, maxWidth: 320,
   },
-  tooltipTitle: { fontFamily: Fonts.bold, fontSize: 18, marginBottom: Spacing.xs },
-  tooltipDesc: { color: Colors.textSecondary, fontSize: 14, lineHeight: 22 },
-  tooltipHint: { color: Colors.textSecondary + '60', fontSize: 11, textAlign: 'center', marginTop: Spacing.sm },
+  tooltipTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.xl, marginBottom: Spacing.xs },
+  tooltipDesc: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 22 },
+  tooltipHint: { color: Colors.textSecondary + '60', fontSize: FontSizes.sm, textAlign: 'center', marginTop: Spacing.sm },
 
   nextBtn: {
     alignSelf: 'center', position: 'absolute', bottom: Spacing.lg,
     paddingHorizontal: Spacing.xl + Spacing.lg, paddingVertical: Spacing.md,
     borderRadius: Radius.pill,
   },
-  nextBtnText: { color: '#000', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 2 },
+  nextBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 2 },
 
   // Selected pills
   selectedRow: {
@@ -396,26 +396,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
     borderRadius: Radius.pill, borderWidth: 1,
   },
-  selectedText: { fontFamily: Fonts.bold, fontSize: 14 },
+  selectedText: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
 
   // Context
   ctxSection: { marginBottom: Spacing.md },
   ctxLabel: {
     color: Colors.textSecondary, fontFamily: Fonts.bold, letterSpacing: 2,
-    fontSize: 11, marginBottom: Spacing.sm,
+    fontSize: FontSizes.sm, marginBottom: Spacing.sm,
   },
   ctxRow: { flexDirection: 'row', gap: Spacing.xs, paddingRight: Spacing.md },
   ctxPill: {
     paddingHorizontal: Spacing.sm + 4, paddingVertical: Spacing.xs + 3,
-    borderRadius: Radius.pill, backgroundColor: '#1a1a1a', borderWidth: 1, borderColor: 'transparent',
+    borderRadius: Radius.pill, backgroundColor: SURFACES.cardLight, borderWidth: 1, borderColor: 'transparent',
   },
-  ctxText: { color: Colors.textSecondary, fontSize: 13 },
+  ctxText: { color: Colors.textSecondary, fontSize: FontSizes.md },
 
   noteInput: {
-    backgroundColor: '#1a1a1a', borderRadius: Radius.sm,
+    backgroundColor: SURFACES.cardLight, borderRadius: Radius.sm,
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
-    color: Colors.textPrimary, fontFamily: Fonts.regular, fontSize: 14,
-    marginTop: Spacing.sm, borderWidth: 0.5, borderColor: '#2a2a2a',
+    color: Colors.textPrimary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
+    marginTop: Spacing.sm, borderWidth: 0.5, borderColor: SURFACES.border,
   },
 
   registerBtn: {
@@ -424,14 +424,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  registerBtnText: { color: '#000', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 2 },
+  registerBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 2 },
 
   // Done
   doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
   donePulse: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
-  doneDot: { width: 32, height: 32, borderRadius: 16 },
-  doneTitle: { fontSize: 22, fontFamily: Fonts.extraBold },
-  doneSub: { color: Colors.textSecondary, fontSize: 14 },
+  doneDot: { width: 32, height: 32, borderRadius: Radius.md },
+  doneTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
+  doneSub: { color: Colors.textSecondary, fontSize: FontSizes.md },
   doneBtn: {
     borderWidth: 1, borderRadius: Radius.pill,
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, marginTop: Spacing.md,

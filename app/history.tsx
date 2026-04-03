@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
 
   // Empty
   emptyText: { color: Colors.textSecondary },
-  emptySubtext: { color: Colors.textSecondary, fontSize: 12 },
+  emptySubtext: { color: Colors.textSecondary, fontSize: FontSizes.sm },
 
   // Date group
   dateGroup: {
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   dateLabel: {
     color: Colors.textSecondary,
     letterSpacing: 2,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
     marginBottom: Spacing.sm,
   },
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   sessionName: {
     fontFamily: Fonts.bold,
-    fontSize: 15,
+    fontSize: FontSizes.lg,
     flex: 1,
     marginRight: Spacing.sm,
   },
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.pill,
   },
   modeBadgeText: {
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     letterSpacing: 1,
   },
@@ -261,11 +261,11 @@ const styles = StyleSheet.create({
   },
   sessionMetaText: {
     color: Colors.textSecondary,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
     fontVariant: ['tabular-nums'],
   },
   sessionMetaDot: {
     color: Colors.textSecondary,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
 });

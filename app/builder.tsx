@@ -562,13 +562,13 @@ const styles = StyleSheet.create({
   nameLabel: {
     color: Colors.textSecondary,
     letterSpacing: 2,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     marginBottom: Spacing.xs,
   },
   nameInput: {
     fontFamily: Fonts.extraBold,
-    fontSize: 32,
+    fontSize: FontSizes.display,
     color: Colors.textPrimary,
     paddingVertical: 4,
     borderWidth: 0,
@@ -610,7 +610,7 @@ const styles = StyleSheet.create({
   modeText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.bold,
-    fontSize: 13,
+    fontSize: FontSizes.md,
   },
   modeTextTimerActive: {
     color: Colors.textOnGreen,
@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   categoryText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.bold,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
   categoryTextActive: {
     color: Colors.textOnGreen,
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   bottomBtnOutlineText: {
     color: Colors.textSecondary,
     fontFamily: Fonts.bold,
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     letterSpacing: 1,
   },
   saveBtn: {
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   saveBtnText: {
     color: Colors.textOnGreen,
     fontFamily: Fonts.extraBold,
-    fontSize: 13,
+    fontSize: FontSizes.md,
     letterSpacing: 1,
   },
 
@@ -756,16 +756,16 @@ const styles = StyleSheet.create({
   previewDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: Radius.xs,
   },
   previewLabel: {
     flex: 1,
-    fontSize: 13,
+    fontSize: FontSizes.md,
   },
   previewTime: {
     color: Colors.textSecondary,
     fontVariant: ['tabular-nums'],
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
   previewMore: {
     textAlign: 'center',

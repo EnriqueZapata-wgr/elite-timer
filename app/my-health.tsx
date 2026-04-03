@@ -389,7 +389,7 @@ export default function MyHealthScreen() {
                   <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>{rec.desc}</EliteText>
                 </View>
                 <View style={{ backgroundColor: withOpacity(impactColor(rec.impact), 0.12), paddingHorizontal: 6, paddingVertical: 2, borderRadius: Radius.sm }}>
-                  <EliteText variant="caption" style={{ color: impactColor(rec.impact), fontSize: 8, fontFamily: Fonts.bold }}>{rec.impact.toUpperCase()}</EliteText>
+                  <EliteText variant="caption" style={{ color: impactColor(rec.impact), fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{rec.impact.toUpperCase()}</EliteText>
                 </View>
               </AnimatedPressable>
             ))}
@@ -404,7 +404,7 @@ export default function MyHealthScreen() {
               <View key={u.id} style={[s.labCard, { borderColor: SEMANTIC.error + '20' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                   <Ionicons name="alert-circle" size={16} color={SEMANTIC.error} />
-                  <EliteText variant="caption" style={{ color: Colors.textSecondary, flex: 1, fontSize: 12 }}>
+                  <EliteText variant="caption" style={{ color: Colors.textSecondary, flex: 1, fontSize: FontSizes.sm }}>
                     {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : 'Procesando'}
                   </EliteText>
                   <Pressable
@@ -422,7 +422,7 @@ export default function MyHealthScreen() {
                   </Pressable>
                 </View>
                 {u.error_message && (
-                  <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10, marginTop: 4 }}>{u.error_message}</EliteText>
+                  <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: FontSizes.xs, marginTop: 4 }}>{u.error_message}</EliteText>
                 )}
               </View>
             ))}
@@ -454,7 +454,7 @@ export default function MyHealthScreen() {
                         color: lab.status === 'approved' ? Colors.neonGreen
                           : lab.status === 'draft' ? TEAL
                           : SEMANTIC.warning,
-                        fontSize: 9, fontFamily: Fonts.bold
+                        fontSize: FontSizes.xs, fontFamily: Fonts.bold
                       }}>
                         {lab.status === 'approved' ? 'Aprobado' : lab.status === 'draft' ? 'Extraído' : 'En revisión'}
                       </EliteText>
@@ -498,10 +498,10 @@ export default function MyHealthScreen() {
                 <Pressable key={study.id} onPress={() => setExpandedStudy(isExpanded ? null : study.id)}
                   style={s.studyCard}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                    <EliteText style={{ fontSize: 20 }}>{st.emoji}</EliteText>
+                    <EliteText style={{ fontSize: FontSizes.xxl }}>{st.emoji}</EliteText>
                     <View style={{ flex: 1 }}>
-                      <EliteText variant="body" style={{ color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: 14 }}>{study.study_name}</EliteText>
-                      <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: 11 }}>
+                      <EliteText variant="body" style={{ color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{study.study_name}</EliteText>
+                      <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: FontSizes.sm }}>
                         {new Date(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </EliteText>
                     </View>
@@ -510,8 +510,8 @@ export default function MyHealthScreen() {
                   {findings.length > 0 && (
                     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: Spacing.sm }}>
                       {findings.map((f, i) => (
-                        <View key={i} style={{ backgroundColor: TEAL + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                          <EliteText variant="caption" style={{ color: TEAL, fontSize: 10 }}>{f}</EliteText>
+                        <View key={i} style={{ backgroundColor: TEAL + '15', paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.card }}>
+                          <EliteText variant="caption" style={{ color: TEAL, fontSize: FontSizes.xs }}>{f}</EliteText>
                         </View>
                       ))}
                     </View>
@@ -520,10 +520,10 @@ export default function MyHealthScreen() {
                     <View style={{ marginTop: Spacing.md }}>
                       {isReviewed && study.patient_summary ? (
                         <View style={s.studySummary}>
-                          <EliteText variant="caption" style={{ color: TEAL, fontSize: 10, fontFamily: Fonts.bold, marginBottom: 4 }}>
+                          <EliteText variant="caption" style={{ color: TEAL, fontSize: FontSizes.xs, fontFamily: Fonts.bold, marginBottom: 4 }}>
                             ¿Qué significa tu estudio?
                           </EliteText>
-                          <EliteText variant="caption" style={{ color: Colors.textPrimary, fontSize: 13, lineHeight: 20 }}>
+                          <EliteText variant="caption" style={{ color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 20 }}>
                             {study.patient_summary}
                           </EliteText>
                         </View>
@@ -580,11 +580,11 @@ const s = StyleSheet.create({
   statusBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: TEAL + '08', borderWidth: 1, borderColor: TEAL + '20',
-    borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.md,
+    borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.md,
   },
-  sectionLabel: { color: Colors.textSecondary, letterSpacing: 3, fontSize: 12, fontFamily: Fonts.bold, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  sectionLabel: { color: Colors.textSecondary, letterSpacing: 3, fontSize: FontSizes.sm, fontFamily: Fonts.bold, marginTop: Spacing.lg, marginBottom: Spacing.sm },
   labCard: {
-    backgroundColor: Colors.surface, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
     borderWidth: 0.5, borderColor: Colors.border,
   },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
@@ -620,10 +620,10 @@ const s = StyleSheet.create({
     borderWidth: 0.5, borderColor: SURFACES.border, marginBottom: Spacing.sm,
   },
   studyCard: {
-    backgroundColor: Colors.surface, borderRadius: 12, padding: Spacing.md, marginBottom: Spacing.sm,
+    backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
     borderWidth: 0.5, borderColor: Colors.border, borderLeftWidth: 3, borderLeftColor: TEAL,
   },
   studySummary: {
-    backgroundColor: '#0a1a15', borderRadius: 8, padding: Spacing.md, borderLeftWidth: 2, borderLeftColor: TEAL,
+    backgroundColor: withOpacity(CATEGORY_COLORS.metrics, 0.04), borderRadius: Radius.sm, padding: Spacing.md, borderLeftWidth: 2, borderLeftColor: TEAL,
   },
 });

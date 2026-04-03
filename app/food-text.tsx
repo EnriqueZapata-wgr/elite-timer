@@ -435,7 +435,7 @@ export default function FoodTextScreen() {
                 <EliteText style={s.saveBtnText}>Guardando...</EliteText>
               ) : (
                 <>
-                  <Ionicons name="checkmark-circle" size={22} color="#000" />
+                  <Ionicons name="checkmark-circle" size={22} color={TEXT_COLORS.onAccent} />
                   <EliteText style={s.saveBtnText}>
                     {ingredients.length > 0 ? 'Guardar comida' : 'Guardar como texto'}
                   </EliteText>
@@ -496,10 +496,10 @@ const s = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111',
-    borderRadius: 12,
+    backgroundColor: SURFACES.card,
+    borderRadius: Radius.card,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: SURFACES.disabled,
     paddingHorizontal: Spacing.sm + 4,
     marginBottom: Spacing.sm,
     marginTop: Spacing.sm,
@@ -510,7 +510,7 @@ const s = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 48,
-    color: '#fff',
+    color: TEXT_COLORS.primary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
   },
@@ -535,7 +535,7 @@ const s = StyleSheet.create({
   categoryDot: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: Spacing.sm,
@@ -614,16 +614,16 @@ const s = StyleSheet.create({
   gramsInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111',
-    borderRadius: 8,
+    backgroundColor: SURFACES.card,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: SURFACES.disabled,
     paddingHorizontal: Spacing.sm,
   },
   gramsInput: {
     width: 60,
     height: 36,
-    color: '#fff',
+    color: TEXT_COLORS.primary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
     textAlign: 'center',
@@ -714,11 +714,11 @@ const s = StyleSheet.create({
   timeInput: {
     width: 56,
     height: 44,
-    backgroundColor: '#111',
-    borderRadius: 8,
+    backgroundColor: SURFACES.card,
+    borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#333',
-    color: '#fff',
+    borderColor: SURFACES.disabled,
+    color: TEXT_COLORS.primary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xl,
     textAlign: 'center',
@@ -746,7 +746,7 @@ const s = StyleSheet.create({
     opacity: 0.4,
   },
   saveBtnText: {
-    color: '#000',
+    color: TEXT_COLORS.onAccent,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.lg,
   },

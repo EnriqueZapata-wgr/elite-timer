@@ -13,7 +13,7 @@ import { useRoutineEngine } from '@/hooks/use-routine-engine';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius, BlockColors } from '@/constants/theme';
-import { SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, BLOCK_COLORS, CATEGORY_COLORS } from '@/src/constants/brand';
+import { SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, BLOCK_COLORS, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 import type { Routine as EngineRoutine, ExecutionStep } from '@/src/engine/types';
 
 // === COLORES POR TIPO DE STEP ===
@@ -42,9 +42,9 @@ const STEP_LABELS: Record<string, string> = {
 function getStepGradient(step: ExecutionStep | null): readonly [string, string] {
   if (!step || step.isRestBetween) return [Colors.surfaceLight, Colors.surface];
   switch (step.type) {
-    case 'work': return ['#1a2a1a', '#0a1a0a'];
-    case 'rest': return ['#0a1a2a', '#0a0a1a'];
-    case 'prep': return ['#2a1f0a', '#1a1a0a'];
+    case 'work': return [withOpacity(CATEGORY_COLORS.fitness, 0.04), withOpacity(CATEGORY_COLORS.fitness, 0.02)];
+    case 'rest': return [withOpacity(CATEGORY_COLORS.nutrition, 0.04), withOpacity(CATEGORY_COLORS.nutrition, 0.02)];
+    case 'prep': return [withOpacity(CATEGORY_COLORS.optimization, 0.04), withOpacity(CATEGORY_COLORS.optimization, 0.02)];
     default: return [Colors.surfaceLight, Colors.surface];
   }
 }
@@ -134,27 +134,27 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
           {/* Stats grid */}
           <View style={styles.statsGrid}>
-            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
+            <LinearGradient colors={[withOpacity(CATEGORY_COLORS.fitness, 0.04), SURFACES.card]} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>TIEMPO TOTAL</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {formatTime(stats.actualDurationSeconds)}
               </EliteText>
             </LinearGradient>
-            <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.statCard}>
+            <LinearGradient colors={[withOpacity(CATEGORY_COLORS.fitness, 0.04), SURFACES.card]} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>TRABAJO</EliteText>
               <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.work }]}>
                 {formatTimeHuman(stats.workSeconds)}
               </EliteText>
               <EliteText variant="caption" style={styles.statRatio}>{workRatio}%</EliteText>
             </LinearGradient>
-            <LinearGradient colors={['#0a1a2a', '#111111']} style={styles.statCard}>
+            <LinearGradient colors={[withOpacity(CATEGORY_COLORS.nutrition, 0.04), SURFACES.card]} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>DESCANSO</EliteText>
               <EliteText variant="subtitle" style={[styles.statValue, { color: STEP_COLORS.rest }]}>
                 {formatTimeHuman(stats.restSeconds)}
               </EliteText>
               <EliteText variant="caption" style={styles.statRatio}>{restRatio}%</EliteText>
             </LinearGradient>
-            <LinearGradient colors={['#1a1a1a', '#111111']} style={styles.statCard}>
+            <LinearGradient colors={[SURFACES.cardLight, SURFACES.card]} style={styles.statCard}>
               <EliteText variant="caption" style={styles.statLabel}>STEPS</EliteText>
               <EliteText variant="subtitle" style={styles.statValue}>
                 {stats.stepsCompleted}
@@ -265,7 +265,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
       {/* ── Stats Row — 3 mini cards ── */}
       <View style={styles.statsRow}>
-        <LinearGradient colors={['#1a1a1a', '#111111']} style={styles.miniStatCard}>
+        <LinearGradient colors={[SURFACES.cardLight, SURFACES.card]} style={styles.miniStatCard}>
           <EliteText variant="caption" style={styles.miniStatLabel}>PASO</EliteText>
           <EliteText variant="body" style={styles.miniStatValue}>
             {currentStepNumber}/{totalSteps}
@@ -275,14 +275,14 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
           </View>
         </LinearGradient>
 
-        <LinearGradient colors={['#1a2a1a', '#111111']} style={styles.miniStatCard}>
+        <LinearGradient colors={[withOpacity(CATEGORY_COLORS.fitness, 0.04), SURFACES.card]} style={styles.miniStatCard}>
           <EliteText variant="caption" style={styles.miniStatLabel}>TRABAJO</EliteText>
           <EliteText variant="body" style={[styles.miniStatValue, { color: STEP_COLORS.work }]}>
             {routineStats ? formatTimeHuman(routineStats.workSeconds) : '0s'}
           </EliteText>
         </LinearGradient>
 
-        <LinearGradient colors={['#0a1a2a', '#111111']} style={styles.miniStatCard}>
+        <LinearGradient colors={[withOpacity(CATEGORY_COLORS.nutrition, 0.04), SURFACES.card]} style={styles.miniStatCard}>
           <EliteText variant="caption" style={styles.miniStatLabel}>DESCANSO</EliteText>
           <EliteText variant="body" style={[styles.miniStatValue, { color: STEP_COLORS.rest }]}>
             {routineStats ? formatTimeHuman(routineStats.restSeconds) : '0s'}
@@ -297,7 +297,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
       </View>
 
       {/* ── Controles ── */}
-      <LinearGradient colors={['transparent', '#0a0a0a']} style={styles.controlsContainer}>
+      <LinearGradient colors={['transparent', SURFACES.base]} style={styles.controlsContainer}>
         <View style={styles.controlsRow}>
           <Pressable
             onPress={restartStep}
@@ -398,7 +398,7 @@ function StepPreviewRow({
   );
 }
 
-const LEVEL_COLORS = ['#9B59B6', BLOCK_COLORS.exercise, BLOCK_COLORS.transition, BLOCK_COLORS.rest, SEMANTIC.error, ATP_BRAND.teal2];
+const LEVEL_COLORS = [CATEGORY_COLORS.mind, BLOCK_COLORS.exercise, BLOCK_COLORS.transition, BLOCK_COLORS.rest, SEMANTIC.error, ATP_BRAND.teal2];
 
 // === ESTILOS ===
 
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   heroBarName: {
     fontFamily: Fonts.bold,
     color: Colors.neonGreen,
-    fontSize: 15,
+    fontSize: FontSizes.lg,
     flex: 1,
   },
   heroBarRight: {
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   heroBarTime: {
     color: Colors.textSecondary,
     fontVariant: ['tabular-nums'],
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
   miniProgressBar: {
     width: 60,
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   contextPillText: {
-    fontSize: 11,
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
   },
 
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   },
   stepTypeLabel: {
     letterSpacing: 2,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
   stepName: {
     color: Colors.textPrimary,
@@ -545,13 +545,13 @@ const styles = StyleSheet.create({
   },
   miniStatLabel: {
     color: Colors.textSecondary,
-    fontSize: 9,
+    fontSize: FontSizes.xs,
     letterSpacing: 1,
     marginBottom: 2,
   },
   miniStatValue: {
     fontFamily: Fonts.bold,
-    fontSize: 14,
+    fontSize: FontSizes.md,
     color: Colors.textPrimary,
     fontVariant: ['tabular-nums'],
   },
@@ -593,7 +593,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 1,
     width: 75,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
   },
   previewContent: {
     flex: 1,
@@ -604,12 +604,12 @@ const styles = StyleSheet.create({
   previewDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: Radius.xs,
   },
   previewName: {
     flex: 1,
     color: Colors.textPrimary,
-    fontSize: 14,
+    fontSize: FontSizes.md,
   },
   previewTime: {
     color: Colors.textSecondary,
@@ -646,7 +646,7 @@ const styles = StyleSheet.create({
   controlSecondary: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: Radius.lg,
     backgroundColor: Colors.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
   exerciseIndicatorText: {
     color: Colors.neonGreen,
     fontFamily: Fonts.semiBold,
-    fontSize: 12,
+    fontSize: FontSizes.sm,
   },
 
   // ── Pantalla completada ──
@@ -713,11 +713,11 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 1,
     marginBottom: Spacing.xs,
-    fontSize: 10,
+    fontSize: FontSizes.xs,
   },
   statValue: {
     color: Colors.neonGreen,
-    fontSize: 20,
+    fontSize: FontSizes.xxl,
   },
   statRatio: {
     color: Colors.textSecondary,
