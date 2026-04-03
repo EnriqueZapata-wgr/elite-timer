@@ -1,16 +1,12 @@
 /**
  * Servicio de wearables — Integración con Apple HealthKit y Google Health Connect.
  *
- * IMPORTANTE: Los paquetes nativos (@kingstinct/react-native-healthkit,
- * react-native-health-connect) NO están instalados todavía.
- * Todas las funciones retornan null/false hasta que se instalen
- * y se haga un build nativo con EAS Build.
+ * Los paquetes nativos están instalados:
+ * - iOS: @kingstinct/react-native-healthkit
+ * - Android: react-native-health-connect
  *
- * Cuando los paquetes se instalen, descomentar los bloques marcados con
- * [NATIVE] y el código funcionará automáticamente.
- *
- * iOS:  @kingstinct/react-native-healthkit
- * Android: react-native-health-connect
+ * REQUIERE build nativo (eas build). NO funciona en Expo Go.
+ * En OTA updates sobre un build que ya tiene los módulos, sí funciona.
  */
 import { Platform } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
@@ -20,23 +16,23 @@ import { supabase } from '@/src/lib/supabase';
 // ============================================================
 
 export interface WearableData {
-  source: string;                   // 'apple_health' | 'google_health' | 'manual'
-  lastSync: string;                 // ISO timestamp
+  source: string;
+  lastSync: string;
   sleep?: {
     totalHours: number;
     deepHours: number;
     remHours: number;
     lightHours: number;
-    efficiency: number;             // 0-100
+    efficiency: number;
     bedTime: string;
     wakeTime: string;
   };
   steps?: number;
   activeMinutes?: number;
   restingHR?: number;
-  hrv?: number;                     // SDNN en ms
-  spo2?: number;                    // porcentaje 0-100
-  recovery?: number;                // score derivado 0-100
+  hrv?: number;
+  spo2?: number;
+  recovery?: number;
   calories?: {
     total: number;
     active: number;
@@ -48,7 +44,6 @@ export interface WearableData {
 // Helpers internos
 // ============================================================
 
-/** Calcula un score de recuperación basado en HRV + resting HR */
 function calculateRecovery(hrv?: number, restingHR?: number): number | undefined {
   if (hrv == null && restingHR == null) return undefined;
   let score = 50;
@@ -62,33 +57,24 @@ function calculateRecovery(hrv?: number, restingHR?: number): number | undefined
   return Math.round(score);
 }
 
-/**
- * Flag interno: ¿están los módulos nativos disponibles?
- * Se pone en true automáticamente cuando se instalan los paquetes
- * y se hace build nativo. Por ahora es false (OTA-safe).
- */
-const NATIVE_MODULES_INSTALLED = false;
-
 // ============================================================
 // 1. Verificar disponibilidad
 // ============================================================
 
 export async function isWearableAvailable(): Promise<boolean> {
-  if (!NATIVE_MODULES_INSTALLED) return false;
-
-  // [NATIVE] Cuando los paquetes estén instalados, descomentar:
-  // try {
-  //   if (Platform.OS === 'ios') {
-  //     const HK = require('@kingstinct/react-native-healthkit');
-  //     return !!HK;
-  //   }
-  //   if (Platform.OS === 'android') {
-  //     const HC = require('react-native-health-connect');
-  //     return !!HC;
-  //   }
-  // } catch { return false; }
-
-  return false;
+  try {
+    if (Platform.OS === 'ios') {
+      const HK = require('@kingstinct/react-native-healthkit');
+      return !!HK;
+    }
+    if (Platform.OS === 'android') {
+      const HC = require('react-native-health-connect');
+      return !!HC;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 // ============================================================
@@ -96,97 +82,329 @@ export async function isWearableAvailable(): Promise<boolean> {
 // ============================================================
 
 export async function requestWearablePermissions(): Promise<boolean> {
-  if (!NATIVE_MODULES_INSTALLED) return false;
+  if (Platform.OS === 'ios') {
+    try {
+      const HK = require('@kingstinct/react-native-healthkit');
+      const { HKQuantityTypeIdentifier, HKCategoryTypeIdentifier } = HK;
+      await HK.requestAuthorization([
+        HKQuantityTypeIdentifier.stepCount,
+        HKQuantityTypeIdentifier.heartRate,
+        HKQuantityTypeIdentifier.restingHeartRate,
+        HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
+        HKQuantityTypeIdentifier.oxygenSaturation,
+        HKQuantityTypeIdentifier.activeEnergyBurned,
+        HKQuantityTypeIdentifier.basalEnergyBurned,
+        HKQuantityTypeIdentifier.appleExerciseTime,
+        HKCategoryTypeIdentifier.sleepAnalysis,
+      ], []);
+      return true;
+    } catch (e) {
+      console.warn('[Wearable] Error permisos HealthKit:', e);
+      return false;
+    }
+  }
 
-  // [NATIVE] iOS: Apple HealthKit
-  // if (Platform.OS === 'ios') {
-  //   try {
-  //     const HK = require('@kingstinct/react-native-healthkit');
-  //     const { HKQuantityTypeIdentifier, HKCategoryTypeIdentifier } = HK;
-  //     await HK.requestAuthorization([
-  //       HKQuantityTypeIdentifier.stepCount,
-  //       HKQuantityTypeIdentifier.heartRate,
-  //       HKQuantityTypeIdentifier.restingHeartRate,
-  //       HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
-  //       HKQuantityTypeIdentifier.oxygenSaturation,
-  //       HKQuantityTypeIdentifier.activeEnergyBurned,
-  //       HKQuantityTypeIdentifier.basalEnergyBurned,
-  //       HKQuantityTypeIdentifier.appleExerciseTime,
-  //       HKCategoryTypeIdentifier.sleepAnalysis,
-  //     ], []);
-  //     return true;
-  //   } catch (e) {
-  //     console.warn('[Wearable] Error permisos HealthKit:', e);
-  //     return false;
-  //   }
-  // }
-
-  // [NATIVE] Android: Google Health Connect
-  // if (Platform.OS === 'android') {
-  //   try {
-  //     const HC = require('react-native-health-connect');
-  //     await HC.initialize();
-  //     await HC.requestPermission([
-  //       { accessType: 'read', recordType: 'Steps' },
-  //       { accessType: 'read', recordType: 'HeartRate' },
-  //       { accessType: 'read', recordType: 'RestingHeartRate' },
-  //       { accessType: 'read', recordType: 'HeartRateVariabilityRmssd' },
-  //       { accessType: 'read', recordType: 'OxygenSaturation' },
-  //       { accessType: 'read', recordType: 'SleepSession' },
-  //       { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
-  //       { accessType: 'read', recordType: 'ExerciseSession' },
-  //     ]);
-  //     return true;
-  //   } catch (e) {
-  //     console.warn('[Wearable] Error permisos Health Connect:', e);
-  //     return false;
-  //   }
-  // }
+  if (Platform.OS === 'android') {
+    try {
+      const HC = require('react-native-health-connect');
+      const isInit = await HC.initialize();
+      if (!isInit) return false;
+      const granted = await HC.requestPermission([
+        { accessType: 'read', recordType: 'Steps' },
+        { accessType: 'read', recordType: 'HeartRate' },
+        { accessType: 'read', recordType: 'RestingHeartRate' },
+        { accessType: 'read', recordType: 'HeartRateVariabilityRmssd' },
+        { accessType: 'read', recordType: 'OxygenSaturation' },
+        { accessType: 'read', recordType: 'SleepSession' },
+        { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
+        { accessType: 'read', recordType: 'ExerciseSession' },
+      ]);
+      return Array.isArray(granted) && granted.length > 0;
+    } catch (e) {
+      console.warn('[Wearable] Error permisos Health Connect:', e);
+      return false;
+    }
+  }
 
   return false;
 }
 
 // ============================================================
-// 3. Leer datos del día (cross-platform)
+// 3. Leer datos — Apple HealthKit (iOS)
 // ============================================================
 
-/**
- * Lee todos los datos de salud del wearable para una fecha dada.
- * Retorna null si no hay módulo nativo instalado.
- *
- * Cuando NATIVE_MODULES_INSTALLED sea true, esta función delegará
- * a getHealthKitData() o getHealthConnectData() según la plataforma.
- */
-export async function getWearableDataForDate(date: string): Promise<WearableData | null> {
-  if (!NATIVE_MODULES_INSTALLED) return null;
+async function getHealthKitData(date: string): Promise<WearableData | null> {
+  try {
+    const HK = require('@kingstinct/react-native-healthkit');
+    const {
+      HKQuantityTypeIdentifier,
+      HKCategoryTypeIdentifier,
+      queryQuantitySamples,
+      queryCategorySamples,
+      queryStatisticsForQuantity,
+    } = HK;
 
-  // [NATIVE] Descomentar cuando los paquetes estén instalados:
-  // try {
-  //   if (Platform.OS === 'ios') return await getHealthKitData(date);
-  //   if (Platform.OS === 'android') return await getHealthConnectData(date);
-  // } catch (e) {
-  //   console.warn('[Wearable] Error obteniendo datos:', e);
-  // }
+    const dayStart = new Date(date + 'T00:00:00');
+    const dayEnd = new Date(date + 'T23:59:59.999');
+    const sleepSearchStart = new Date(dayStart.getTime() - 12 * 60 * 60 * 1000);
 
-  return null;
+    const result: WearableData = {
+      source: 'Apple Health',
+      lastSync: new Date().toISOString(),
+    };
+
+    // Pasos
+    try {
+      const sr = await queryStatisticsForQuantity(HKQuantityTypeIdentifier.stepCount, {
+        from: dayStart.toISOString(), to: dayEnd.toISOString(),
+      });
+      if (sr?.sumQuantity?.doubleValue != null) result.steps = Math.round(sr.sumQuantity.doubleValue);
+    } catch {}
+
+    // FC en reposo
+    try {
+      const rhr = await queryQuantitySamples(HKQuantityTypeIdentifier.restingHeartRate, {
+        from: dayStart.toISOString(), to: dayEnd.toISOString(), ascending: false, limit: 1,
+      });
+      if (rhr?.length > 0) result.restingHR = Math.round(rhr[0].quantity);
+    } catch {}
+
+    // HRV (SDNN)
+    try {
+      const hrv = await queryQuantitySamples(HKQuantityTypeIdentifier.heartRateVariabilitySDNN, {
+        from: dayStart.toISOString(), to: dayEnd.toISOString(), ascending: false, limit: 1,
+      });
+      if (hrv?.length > 0) result.hrv = Math.round(hrv[0].quantity * 10) / 10;
+    } catch {}
+
+    // SpO2
+    try {
+      const spo2 = await queryQuantitySamples(HKQuantityTypeIdentifier.oxygenSaturation, {
+        from: dayStart.toISOString(), to: dayEnd.toISOString(), ascending: false, limit: 1,
+      });
+      if (spo2?.length > 0) result.spo2 = Math.round(spo2[0].quantity * 100);
+    } catch {}
+
+    // Calorías activas
+    let activeCals = 0;
+    try {
+      const ac = await queryStatisticsForQuantity(HKQuantityTypeIdentifier.activeEnergyBurned, {
+        from: dayStart.toISOString(), to: dayEnd.toISOString(),
+      });
+      if (ac?.sumQuantity?.doubleValue != null) activeCals = Math.round(ac.sumQuantity.doubleValue);
+    } catch {}
+
+    // Calorías basales
+    let basalCals = 0;
+    try {
+      const bc = await queryStatisticsForQuantity(HKQuantityTypeIdentifier.basalEnergyBurned, {
+        from: dayStart.toISOString(), to: dayEnd.toISOString(),
+      });
+      if (bc?.sumQuantity?.doubleValue != null) basalCals = Math.round(bc.sumQuantity.doubleValue);
+    } catch {}
+
+    if (activeCals > 0 || basalCals > 0) {
+      result.calories = { active: activeCals, basal: basalCals, total: activeCals + basalCals };
+    }
+
+    // Minutos de ejercicio
+    try {
+      const ex = await queryStatisticsForQuantity(HKQuantityTypeIdentifier.appleExerciseTime, {
+        from: dayStart.toISOString(), to: dayEnd.toISOString(),
+      });
+      if (ex?.sumQuantity?.doubleValue != null) result.activeMinutes = Math.round(ex.sumQuantity.doubleValue);
+    } catch {}
+
+    // Sueño (12h lookback)
+    try {
+      const sleepSamples = await queryCategorySamples(HKCategoryTypeIdentifier.sleepAnalysis, {
+        from: sleepSearchStart.toISOString(), to: dayEnd.toISOString(), ascending: true,
+      });
+
+      if (sleepSamples?.length > 0) {
+        let deepMin = 0, remMin = 0, coreMin = 0, totalMin = 0;
+        let bedTime: string | null = null, wakeTime: string | null = null;
+
+        for (const s of sleepSamples) {
+          const dur = (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / 60000;
+          if (!bedTime || new Date(s.startDate) < new Date(bedTime)) bedTime = s.startDate;
+          if (!wakeTime || new Date(s.endDate) > new Date(wakeTime)) wakeTime = s.endDate;
+
+          switch (s.value) {
+            case 4: deepMin += dur; totalMin += dur; break;    // AsleepDeep
+            case 5: remMin += dur; totalMin += dur; break;     // AsleepREM
+            case 3: case 1: coreMin += dur; totalMin += dur; break; // AsleepCore / Unspecified
+          }
+        }
+
+        if (totalMin > 0 && bedTime && wakeTime) {
+          const inBed = (new Date(wakeTime).getTime() - new Date(bedTime).getTime()) / 60000;
+          result.sleep = {
+            totalHours: Math.round((totalMin / 60) * 100) / 100,
+            deepHours: Math.round((deepMin / 60) * 100) / 100,
+            remHours: Math.round((remMin / 60) * 100) / 100,
+            lightHours: Math.round((coreMin / 60) * 100) / 100,
+            efficiency: inBed > 0 ? Math.round((totalMin / inBed) * 100) : 0,
+            bedTime,
+            wakeTime,
+          };
+        }
+      }
+    } catch {}
+
+    result.recovery = calculateRecovery(result.hrv, result.restingHR);
+    return result;
+  } catch (error) {
+    console.warn('[Wearable] HealthKit error:', error);
+    return null;
+  }
 }
 
 // ============================================================
-// 4. Persistir en Supabase
+// 4. Leer datos — Google Health Connect (Android)
 // ============================================================
 
-/**
- * Guarda (upsert) los datos del wearable en health_measurements.
- * Funciona independientemente de los módulos nativos — se puede
- * llamar con datos de cualquier fuente.
- */
-export async function saveWearableToSupabase(
-  userId: string,
-  data: WearableData,
-): Promise<boolean> {
+async function getHealthConnectData(date: string): Promise<WearableData | null> {
+  try {
+    const HC = require('react-native-health-connect');
+    const isInit = await HC.initialize();
+    if (!isInit) return null;
+
+    const dayStart = new Date(date + 'T00:00:00').toISOString();
+    const dayEnd = new Date(date + 'T23:59:59.999').toISOString();
+    const sleepStart = new Date(new Date(date + 'T00:00:00').getTime() - 12 * 3600000).toISOString();
+    const tf = { operator: 'between' as const, startTime: dayStart, endTime: dayEnd };
+
+    const result: WearableData = {
+      source: 'Google Health',
+      lastSync: new Date().toISOString(),
+    };
+
+    // Pasos
+    try {
+      const s = await HC.readRecords('Steps', { timeRangeFilter: tf });
+      if (s?.records?.length > 0) result.steps = s.records.reduce((a: number, r: any) => a + (r.count || 0), 0);
+    } catch {}
+
+    // FC en reposo
+    try {
+      const r = await HC.readRecords('RestingHeartRate', { timeRangeFilter: tf });
+      if (r?.records?.length > 0) {
+        const last = r.records[r.records.length - 1];
+        result.restingHR = Math.round(last.samples?.[0]?.beatsPerMinute ?? last.beatsPerMinute ?? 0);
+      }
+    } catch {}
+
+    // HRV
+    try {
+      const h = await HC.readRecords('HeartRateVariabilityRmssd', { timeRangeFilter: tf });
+      if (h?.records?.length > 0) {
+        const last = h.records[h.records.length - 1];
+        if (last.heartRateVariabilityMillis != null) result.hrv = Math.round(last.heartRateVariabilityMillis * 10) / 10;
+      }
+    } catch {}
+
+    // SpO2
+    try {
+      const o = await HC.readRecords('OxygenSaturation', { timeRangeFilter: tf });
+      if (o?.records?.length > 0) result.spo2 = Math.round(o.records[o.records.length - 1].percentage ?? 0);
+    } catch {}
+
+    // Calorías activas
+    let activeCals = 0;
+    try {
+      const c = await HC.readRecords('ActiveCaloriesBurned', { timeRangeFilter: tf });
+      if (c?.records?.length > 0) activeCals = Math.round(c.records.reduce((a: number, r: any) => a + (r.energy?.inKilocalories || 0), 0));
+    } catch {}
+
+    if (activeCals > 0) result.calories = { active: activeCals, basal: 0, total: activeCals };
+
+    // Minutos de ejercicio
+    try {
+      const e = await HC.readRecords('ExerciseSession', { timeRangeFilter: tf });
+      if (e?.records?.length > 0) {
+        let mins = 0;
+        for (const session of e.records) {
+          mins += (new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000;
+        }
+        result.activeMinutes = Math.round(mins);
+      }
+    } catch {}
+
+    // Sueño
+    try {
+      const sl = await HC.readRecords('SleepSession', {
+        timeRangeFilter: { operator: 'between' as const, startTime: sleepStart, endTime: dayEnd },
+      });
+      if (sl?.records?.length > 0) {
+        let deepMin = 0, remMin = 0, lightMin = 0, totalMin = 0;
+        let bedTime: string | null = null, wakeTime: string | null = null;
+
+        for (const session of sl.records) {
+          if (!bedTime || session.startTime < bedTime) bedTime = session.startTime;
+          if (!wakeTime || session.endTime > wakeTime) wakeTime = session.endTime;
+
+          if (session.stages?.length > 0) {
+            for (const stage of session.stages) {
+              const dur = (new Date(stage.endTime).getTime() - new Date(stage.startTime).getTime()) / 60000;
+              switch (stage.stage) {
+                case 5: deepMin += dur; totalMin += dur; break;   // Deep
+                case 6: remMin += dur; totalMin += dur; break;    // REM
+                case 4: case 2: lightMin += dur; totalMin += dur; break; // Light / Sleeping
+              }
+            }
+          } else {
+            const dur = (new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000;
+            lightMin += dur;
+            totalMin += dur;
+          }
+        }
+
+        if (totalMin > 0 && bedTime && wakeTime) {
+          const inBed = (new Date(wakeTime).getTime() - new Date(bedTime).getTime()) / 60000;
+          result.sleep = {
+            totalHours: Math.round((totalMin / 60) * 100) / 100,
+            deepHours: Math.round((deepMin / 60) * 100) / 100,
+            remHours: Math.round((remMin / 60) * 100) / 100,
+            lightHours: Math.round((lightMin / 60) * 100) / 100,
+            efficiency: inBed > 0 ? Math.round((totalMin / inBed) * 100) : 0,
+            bedTime,
+            wakeTime,
+          };
+        }
+      }
+    } catch {}
+
+    result.recovery = calculateRecovery(result.hrv, result.restingHR);
+    return result;
+  } catch (error) {
+    console.warn('[Wearable] Health Connect error:', error);
+    return null;
+  }
+}
+
+// ============================================================
+// 5. API pública — Leer datos del día (cross-platform)
+// ============================================================
+
+export async function getWearableDataForDate(date: string): Promise<WearableData | null> {
+  try {
+    if (Platform.OS === 'ios') return await getHealthKitData(date);
+    if (Platform.OS === 'android') return await getHealthConnectData(date);
+    return null;
+  } catch (error) {
+    console.warn('[Wearable] Error obteniendo datos:', error);
+    return null;
+  }
+}
+
+// ============================================================
+// 6. Persistir en Supabase
+// ============================================================
+
+export async function saveWearableToSupabase(userId: string, data: WearableData): Promise<boolean> {
   try {
     const date = data.lastSync.split('T')[0];
-
     const payload: Record<string, any> = {
       user_id: userId,
       date,
@@ -198,158 +416,50 @@ export async function saveWearableToSupabase(
     if (data.steps != null) payload.steps_daily = data.steps;
     if (data.activeMinutes != null) payload.exercise_min_weekly = data.activeMinutes;
 
-    // Campos extendidos en JSON
-    const wearableJson: Record<string, any> = {
-      source: data.source,
-      lastSync: data.lastSync,
-    };
+    const wearableJson: Record<string, any> = { source: data.source, lastSync: data.lastSync };
     if (data.hrv != null) wearableJson.hrv = data.hrv;
     if (data.spo2 != null) wearableJson.spo2 = data.spo2;
     if (data.recovery != null) wearableJson.recovery = data.recovery;
     if (data.sleep) wearableJson.sleep = data.sleep;
     if (data.calories) wearableJson.calories = data.calories;
-    if (data.activeMinutes != null) wearableJson.activeMinutes = data.activeMinutes;
-
     payload.wearable_data = wearableJson;
 
-    const { error } = await supabase
-      .from('health_measurements')
-      .upsert(payload, { onConflict: 'user_id,date' });
-
-    if (error) {
-      console.warn('[Wearable] Error guardando en Supabase:', error);
-      return false;
-    }
+    const { error } = await supabase.from('health_measurements').upsert(payload, { onConflict: 'user_id,date' });
+    if (error) { console.warn('[Wearable] Supabase error:', error); return false; }
     return true;
   } catch (error) {
-    console.warn('[Wearable] Error en saveWearableToSupabase:', error);
+    console.warn('[Wearable] saveWearableToSupabase error:', error);
     return false;
   }
 }
 
 // ============================================================
-// 5. Helpers de estado de conexión
+// 7. Helpers
 // ============================================================
 
-/** Retorna el nombre de la fuente conectada según la plataforma */
 export function getConnectedSource(): string {
   if (Platform.OS === 'ios') return 'Apple Health';
   if (Platform.OS === 'android') return 'Google Health';
   return 'Desconocido';
 }
 
-/** Placeholder para desconectar — los permisos se revocan desde Ajustes del OS */
 export async function disconnectWearable(): Promise<void> {
-  console.log('[Wearable] Desconexión solicitada por el usuario');
+  console.log('[Wearable] Desconexión solicitada');
 }
 
-// ============================================================
-// 6. Sincronización completa (conveniencia)
-// ============================================================
-
-/**
- * Flujo completo: verificar → permisos → leer datos → guardar en Supabase.
- * Pensado para un botón "Sincronizar Wearable" en la UI.
- */
 export async function syncWearableData(userId: string, date?: string): Promise<WearableData | null> {
   try {
     const available = await isWearableAvailable();
     if (!available) return null;
-
-    const hasPermission = await requestWearablePermissions();
-    if (!hasPermission) return null;
-
-    const targetDate = date ?? new Date().toISOString().split('T')[0];
-    const data = await getWearableDataForDate(targetDate);
+    const ok = await requestWearablePermissions();
+    if (!ok) return null;
+    const d = date ?? new Date().toISOString().split('T')[0];
+    const data = await getWearableDataForDate(d);
     if (!data) return null;
-
     await saveWearableToSupabase(userId, data);
     return data;
   } catch (error) {
-    console.warn('[Wearable] Error en syncWearableData:', error);
+    console.warn('[Wearable] syncWearableData error:', error);
     return null;
   }
 }
-
-// ============================================================
-// [NATIVE] Código de lectura de Apple HealthKit (iOS)
-// ============================================================
-//
-// Descomentar cuando se instale @kingstinct/react-native-healthkit
-// y se haga build nativo:
-//
-// async function getHealthKitData(date: string): Promise<WearableData | null> {
-//   const HK = require('@kingstinct/react-native-healthkit');
-//   const { HKQuantityTypeIdentifier, HKCategoryTypeIdentifier,
-//           queryQuantitySamples, queryCategorySamples, queryStatisticsForQuantity } = HK;
-//   const dayStart = new Date(date + 'T00:00:00');
-//   const dayEnd = new Date(date + 'T23:59:59.999');
-//   const result: WearableData = { source: 'apple_health', lastSync: new Date().toISOString() };
-//
-//   // Pasos
-//   const stepsResult = await queryStatisticsForQuantity(HKQuantityTypeIdentifier.stepCount,
-//     { from: dayStart.toISOString(), to: dayEnd.toISOString() });
-//   if (stepsResult?.sumQuantity?.doubleValue) result.steps = Math.round(stepsResult.sumQuantity.doubleValue);
-//
-//   // Resting HR
-//   const rhrSamples = await queryQuantitySamples(HKQuantityTypeIdentifier.restingHeartRate,
-//     { from: dayStart.toISOString(), to: dayEnd.toISOString(), ascending: false, limit: 1 });
-//   if (rhrSamples?.length > 0) result.restingHR = Math.round(rhrSamples[0].quantity);
-//
-//   // HRV
-//   const hrvSamples = await queryQuantitySamples(HKQuantityTypeIdentifier.heartRateVariabilitySDNN,
-//     { from: dayStart.toISOString(), to: dayEnd.toISOString(), ascending: false, limit: 1 });
-//   if (hrvSamples?.length > 0) result.hrv = Math.round(hrvSamples[0].quantity * 10) / 10;
-//
-//   // SpO2
-//   const spo2Samples = await queryQuantitySamples(HKQuantityTypeIdentifier.oxygenSaturation,
-//     { from: dayStart.toISOString(), to: dayEnd.toISOString(), ascending: false, limit: 1 });
-//   if (spo2Samples?.length > 0) result.spo2 = Math.round(spo2Samples[0].quantity * 100);
-//
-//   // Sleep (12h lookback)
-//   const sleepStart = new Date(dayStart.getTime() - 12 * 60 * 60 * 1000);
-//   const sleepSamples = await queryCategorySamples(HKCategoryTypeIdentifier.sleepAnalysis,
-//     { from: sleepStart.toISOString(), to: dayEnd.toISOString() });
-//   // ... procesar etapas de sueño ...
-//
-//   result.recovery = calculateRecovery(result.hrv, result.restingHR);
-//   return result;
-// }
-
-// ============================================================
-// [NATIVE] Código de lectura de Google Health Connect (Android)
-// ============================================================
-//
-// Descomentar cuando se instale react-native-health-connect
-// y se haga build nativo:
-//
-// async function getHealthConnectData(date: string): Promise<WearableData | null> {
-//   const HC = require('react-native-health-connect');
-//   await HC.initialize();
-//   const dayStart = new Date(date + 'T00:00:00').toISOString();
-//   const dayEnd = new Date(date + 'T23:59:59.999').toISOString();
-//   const timeRangeFilter = { operator: 'between', startTime: dayStart, endTime: dayEnd };
-//   const result: WearableData = { source: 'google_health', lastSync: new Date().toISOString() };
-//
-//   // Pasos
-//   const steps = await HC.readRecords('Steps', { timeRangeFilter });
-//   result.steps = steps.records?.reduce((s: number, r: any) => s + (r.count || 0), 0);
-//
-//   // Resting HR
-//   const rhr = await HC.readRecords('RestingHeartRate', { timeRangeFilter });
-//   if (rhr.records?.length > 0) result.restingHR = Math.round(rhr.records.at(-1).beatsPerMinute);
-//
-//   // HRV
-//   const hrv = await HC.readRecords('HeartRateVariabilityRmssd', { timeRangeFilter });
-//   if (hrv.records?.length > 0) result.hrv = Math.round(hrv.records.at(-1).heartRateVariabilityMillis);
-//
-//   // Sleep (12h lookback)
-//   const sleepStart = new Date(new Date(date + 'T00:00:00').getTime() - 12*3600000).toISOString();
-//   const sleep = await HC.readRecords('SleepSession', {
-//     timeRangeFilter: { operator: 'between', startTime: sleepStart, endTime: dayEnd }
-//   });
-//   // ... procesar etapas de sueño ...
-//
-//   result.recovery = calculateRecovery(result.hrv, result.restingHR);
-//   return result;
-// }
