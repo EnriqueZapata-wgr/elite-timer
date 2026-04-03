@@ -15,6 +15,7 @@ const AnimatedPressableBase = Animated.createAnimatedComponent(Pressable);
 interface Props {
   onPress?: () => void;
   onLongPress?: () => void;
+  delayLongPress?: number;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
   scaleDown?: number;
@@ -25,6 +26,7 @@ interface Props {
 export function AnimatedPressable({
   onPress,
   onLongPress,
+  delayLongPress,
   disabled,
   style,
   scaleDown = 0.97,
@@ -41,6 +43,7 @@ export function AnimatedPressable({
     <AnimatedPressableBase
       onPress={onPress}
       onLongPress={onLongPress}
+      delayLongPress={delayLongPress}
       disabled={disabled}
       hitSlop={hitSlop}
       onPressIn={() => {

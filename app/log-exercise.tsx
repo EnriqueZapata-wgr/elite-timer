@@ -14,7 +14,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { EliteText } from '@/components/elite-text';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteButton } from '@/components/elite-button';
+import { haptic } from '@/src/utils/haptics';
 import { ExercisePicker } from '@/src/components/ExercisePicker';
 import { logExerciseSets } from '@/src/services/exercise-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -91,6 +93,7 @@ export default function LogExerciseScreen() {
           set_number: i + 1,
         })),
       );
+      haptic.success();
       Alert.alert(
         'Guardado',
         `${validSets.length} set(s) de ${selectedExercise.name} registrados.`,
@@ -121,7 +124,7 @@ export default function LogExerciseScreen() {
         >
           {/* Selector de ejercicio */}
           <Pressable
-            onPress={() => setPickerVisible(true)}
+            onPress={() => { haptic.light(); setPickerVisible(true); }}
             style={styles.exerciseSelector}
           >
             {selectedExercise ? (
@@ -197,7 +200,7 @@ export default function LogExerciseScreen() {
                       {RPE_OPTIONS.map(v => (
                         <Pressable
                           key={v}
-                          onPress={() => updateSet(index, 'rpe', set.rpe === v ? null : v)}
+                          onPress={() => { haptic.light(); updateSet(index, 'rpe', set.rpe === v ? null : v); }}
                           style={[
                             styles.rpeMini,
                             set.rpe === v && styles.rpeMiniActive,
@@ -227,12 +230,12 @@ export default function LogExerciseScreen() {
               ))}
 
               {/* Agregar set */}
-              <Pressable onPress={addSet} style={styles.addSetButton}>
+              <AnimatedPressable onPress={() => { haptic.light(); addSet(); }} style={styles.addSetButton}>
                 <Ionicons name="add-circle-outline" size={20} color={Colors.neonGreen} />
                 <EliteText variant="body" style={styles.addSetText}>
                   Agregar set
                 </EliteText>
-              </Pressable>
+              </AnimatedPressable>
             </View>
           )}
 

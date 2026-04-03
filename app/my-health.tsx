@@ -22,6 +22,7 @@ import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-se
 import { getStudyType } from '@/src/data/study-types';
 import { getLatestMeasurement, type HealthMeasurement } from '@/src/services/health-measurement-service';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -430,7 +431,12 @@ export default function MyHealthScreen() {
         )}
 
         {/* Labs */}
-        {loading ? <ActivityIndicator color={TEAL} style={{ marginTop: Spacing.xl }} /> : (
+        {loading ? (
+          <View style={{ marginTop: Spacing.xl, gap: Spacing.sm }}>
+            <SkeletonLoader variant="card" height={60} />
+            <SkeletonLoader variant="card" height={60} />
+          </View>
+        ) : (
           <Animated.View entering={FadeInUp.delay(250).springify()}>
             <EliteText variant="caption" style={s.sectionLabel}>MIS LABS</EliteText>
             {labs.length === 0 ? (

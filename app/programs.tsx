@@ -9,12 +9,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
+import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { EmptyState } from '@/components/empty-state';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ScheduleModal } from '@/src/components/ScheduleModal';
 import { shareRoutine } from '@/src/services/share-service';
+import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { flattenRoutine, calcRoutineStats, formatTimeHuman } from '@/src/engine';
@@ -66,6 +68,7 @@ export default function ProgramsScreen() {
   };
 
   const playRoutine = (routine: Routine) => {
+    haptic.light();
     const target = routine.mode === 'routine' ? '/routine-execution' : '/execution';
     router.push({
       pathname: target as any,
@@ -183,8 +186,10 @@ export default function ProgramsScreen() {
       <ScreenHeader title="Programas" />
 
       {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={Colors.neonGreen} />
+        <View style={{ padding: Spacing.md, gap: Spacing.sm }}>
+          <SkeletonLoader variant="card" height={90} />
+          <SkeletonLoader variant="card" height={90} />
+          <SkeletonLoader variant="card" height={90} />
         </View>
       ) : error ? (
         <EmptyState
@@ -224,7 +229,7 @@ export default function ProgramsScreen() {
               contentContainerStyle={styles.filterRow}
             >
               <Pressable
-                onPress={() => setFilter('all')}
+                onPress={() => { haptic.light(); setFilter('all'); }}
                 style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
               >
                 <EliteText variant="caption" style={[
@@ -236,7 +241,7 @@ export default function ProgramsScreen() {
               </Pressable>
 
               <Pressable
-                onPress={() => setFilter('timer')}
+                onPress={() => { haptic.light(); setFilter('timer'); }}
                 style={[
                   styles.filterPill,
                   filter === 'timer' && [styles.filterPillActive, { borderColor: Colors.neonGreen, backgroundColor: Colors.neonGreen + '15' }],
@@ -252,7 +257,7 @@ export default function ProgramsScreen() {
               </Pressable>
 
               <Pressable
-                onPress={() => setFilter('routine')}
+                onPress={() => { haptic.light(); setFilter('routine'); }}
                 style={[
                   styles.filterPill,
                   filter === 'routine' && [styles.filterPillActive, { borderColor: CATEGORY_COLORS.mind, backgroundColor: CATEGORY_COLORS.mind + '15' }],
@@ -356,7 +361,7 @@ export default function ProgramsScreen() {
 
       {/* ── FAB ── */}
       <Pressable
-        onPress={() => router.push('/builder')}
+        onPress={() => { haptic.light(); router.push('/builder'); }}
         style={({ pressed }) => [styles.fab, pressed && { opacity: 0.7 }]}
       >
         <Ionicons name="add" size={28} color={Colors.textOnGreen} />

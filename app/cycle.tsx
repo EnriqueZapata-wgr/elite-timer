@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -144,21 +145,14 @@ export default function CycleScreen() {
     return (
       <SafeAreaView style={s.screen}>
         <PillarHeader pillar="cycle" title="Ciclo" />
-        <View style={{ flex: 1, justifyContent: 'center', padding: Spacing.xl }}>
-          <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xl, textAlign: 'center' }}>
-            Tracking de ciclo menstrual
-          </EliteText>
-          <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.md, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>
-            Registra tu ciclo para recibir recomendaciones de ejercicio, nutrición y labs ajustadas a tu fase.
-          </EliteText>
-          <AnimatedPressable onPress={handleStartPeriod} style={[s.setupBtn, { marginTop: Spacing.xl }]}>
-            <Ionicons name="water" size={20} color="#000" />
-            <EliteText style={{ color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.lg }}>Empezó mi período</EliteText>
-          </AnimatedPressable>
-          <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.md }}>
-            También disponible en modo acompañamiento para entender el ciclo de tu pareja.
-          </EliteText>
-        </View>
+        <EmptyState
+          icon="water-outline"
+          title="Tracking de ciclo menstrual"
+          subtitle="Registra tu ciclo para recibir recomendaciones de ejercicio, nutrición y labs ajustadas a tu fase."
+          actionLabel="Empezó mi período"
+          onAction={handleStartPeriod}
+          color={PINK}
+        />
       </SafeAreaView>
     );
   }

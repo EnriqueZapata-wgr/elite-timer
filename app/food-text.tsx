@@ -19,6 +19,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { searchFoods, calculateNutrients } from '@/src/data/food-database';
 import type { FoodItem } from '@/src/data/food-database';
+import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity,
@@ -129,6 +130,7 @@ export default function FoodTextScreen() {
 
   // --- Agregar ingrediente desde autocompletado ---
   const addIngredient = useCallback((food: FoodItem) => {
+    haptic.light();
     setIngredients(prev => [
       ...prev,
       { food, grams: food.servingGrams, id: `${food.name}-${Date.now()}` },
@@ -162,6 +164,7 @@ export default function FoodTextScreen() {
       const today = new Date().toISOString().split('T')[0];
       const mealTime = `${timeHH.padStart(2, '0')}:${timeMM.padStart(2, '0')}:00`;
 
+      haptic.success();
       if (ingredients.length > 0) {
         // Caso 1: Con ingredientes seleccionados → macros calculados
         const description = ingredients.map(i => `${i.food.name} (${i.grams}g)`).join(', ');

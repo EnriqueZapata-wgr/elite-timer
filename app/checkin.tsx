@@ -9,6 +9,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import {
   QUADRANTS, EMOTIONS, CONTEXT_WHERE, CONTEXT_WHO, CONTEXT_DOING,
   type QuadrantKey, type Emotion,
@@ -124,7 +125,7 @@ export default function CheckinScreen() {
               const isBottomLeft = i === 2;
               const isBottomRight = i === 3;
               return (
-                <Pressable key={q} onPress={() => handleQuadrant(q)}>
+                <AnimatedPressable key={q} onPress={() => handleQuadrant(q)}>
                   <LinearGradient
                     colors={[d.color + '25', d.color + '08', 'transparent']}
                     start={{ x: 0, y: 0 }}
@@ -145,7 +146,7 @@ export default function CheckinScreen() {
                       {d.examples.join(' · ')}
                     </EliteText>
                   </LinearGradient>
-                </Pressable>
+                </AnimatedPressable>
               );
             })}
           </View>
@@ -178,7 +179,7 @@ export default function CheckinScreen() {
               {emotions.map(e => {
                 const sel = selectedEmotions.includes(e.id);
                 return (
-                  <Pressable
+                  <AnimatedPressable
                     key={e.id}
                     onPress={() => toggleEmotion(e.id)}
                     onLongPress={() => setTooltip(e)}
@@ -196,7 +197,7 @@ export default function CheckinScreen() {
                     ]}>
                       {e.label}
                     </EliteText>
-                  </Pressable>
+                  </AnimatedPressable>
                 );
               })}
             </View>

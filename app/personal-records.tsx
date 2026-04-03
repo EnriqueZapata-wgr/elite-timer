@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
+import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { ExerciseHistory } from '@/src/components/ExerciseHistory';
 import {
@@ -24,6 +25,7 @@ import {
   type ExerciseSessionEntry,
 } from '@/src/services/exercise-service';
 import Svg, { Path, Circle as SvgCircle, Line } from 'react-native-svg';
+import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
 import { BLOCK_COLORS, SEMANTIC, CATEGORY_COLORS, SURFACES, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import {
@@ -419,7 +421,7 @@ export default function PersonalRecordsScreen() {
 
           return (
             <Pressable
-              onPress={() => setSelectedGroup(item)}
+              onPress={() => { haptic.light(); setSelectedGroup(item); }}
               style={[
                 styles.filterPill,
                 isSelected && { borderColor: color, backgroundColor: color + '15' },
@@ -441,8 +443,10 @@ export default function PersonalRecordsScreen() {
       />
 
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator color={Colors.neonGreen} size="large" />
+        <View style={{ paddingHorizontal: Spacing.md, gap: Spacing.sm }}>
+          <SkeletonLoader variant="card" height={80} />
+          <SkeletonLoader variant="card" height={80} />
+          <SkeletonLoader variant="card" height={80} />
         </View>
       ) : groupedEntries.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -500,9 +504,9 @@ export default function PersonalRecordsScreen() {
                   return (
                     <Pressable
                       key={entry.exerciseId}
-                      onPress={() => setSelectedExerciseId(
+                      onPress={() => { haptic.light(); setSelectedExerciseId(
                         selectedExerciseId === entry.exerciseId ? null : entry.exerciseId
-                      )}
+                      ); }}
                     >
                       <LinearGradient colors={mgGrad} style={styles.exerciseCard}>
                         {/* Header */}
