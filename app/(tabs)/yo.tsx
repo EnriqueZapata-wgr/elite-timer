@@ -9,7 +9,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
-import { ScreenContainer } from '@/components/screen-container';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
@@ -37,6 +38,7 @@ const CHRONO_META: Record<string, { icon: string; color: string; name: string; d
 
 export default function YoScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +82,8 @@ export default function YoScreen() {
   if (loading) {
     /* Skeleton de carga — reemplaza ActivityIndicator */
     return (
-      <ScreenContainer centered={false}>
+      <View style={[st.container, { paddingTop: insets.top }]}>
+        <StatusBar style="light" />
         <View style={{ padding: 16, gap: 12 }}>
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
             <SkeletonLoader variant="circle" width={60} height={60} />
@@ -96,12 +99,13 @@ export default function YoScreen() {
           <SkeletonLoader variant="card" />
           <SkeletonLoader variant="card" height={60} />
         </View>
-      </ScreenContainer>
+      </View>
     );
   }
 
   return (
-    <ScreenContainer centered={false}>
+    <View style={[st.container, { paddingTop: insets.top }]}>
+      <StatusBar style="light" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ATP_BRAND.lime} />}
@@ -379,7 +383,7 @@ export default function YoScreen() {
 
         <View style={{ height: Spacing.xxl * 2 }} />
       </ScrollView>
-    </ScreenContainer>
+    </View>
   );
 }
 
@@ -446,6 +450,11 @@ function ActionCard({ icon, label, sub, color, onPress, disabled }: {
 // === ESTILOS ===
 
 const st = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+  },
   // Header
   header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingTop: Spacing.lg, paddingBottom: Spacing.sm },
   avatarRing: { width: 64, height: 64, borderRadius: Radius.pill },

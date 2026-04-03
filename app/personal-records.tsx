@@ -7,13 +7,14 @@ import {
   View, ScrollView, StyleSheet, Pressable, FlatList,
   ActivityIndicator, RefreshControl, Dimensions,
 } from 'react-native';
-import { useRouter, useSegments } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { ExerciseHistory } from '@/src/components/ExerciseHistory';
 import {
   getPersonalRecords,
@@ -275,8 +276,6 @@ function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color
 
 export default function PersonalRecordsScreen() {
   const router = useRouter();
-  const segments = useSegments();
-  const isInTabs = segments[0] === '(tabs)';
   const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -364,18 +363,9 @@ export default function PersonalRecordsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       {/* ── Header ── */}
-      <View style={styles.header}>
-        {!isInTabs && (
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-          </Pressable>
-        )}
-        <EliteText variant="title" style={styles.headerTitle}>
-          {isInTabs ? 'PROGRESO' : 'MIS MARCAS'}
-        </EliteText>
-      </View>
+      <ScreenHeader title="Records" />
 
       {/* ── Hero Card — Score Global ── */}
       <Animated.View entering={FadeInUp.delay(50).springify()}>
@@ -658,7 +648,7 @@ export default function PersonalRecordsScreen() {
           onClose={() => setSelectedExerciseId(null)}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

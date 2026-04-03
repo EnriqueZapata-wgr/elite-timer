@@ -6,7 +6,6 @@ import { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
@@ -17,7 +16,9 @@ import {
 import { saveCheckin, getTodayCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { vibrateMedium } from '@/src/utils/haptics';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 
 const { width: SW } = Dimensions.get('window');
 const CELL = (SW - Spacing.md * 2 - 2) / 2;
@@ -100,12 +101,7 @@ export default function CheckinScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <Pressable
-        onPress={() => { if (step > 1) setStep(step - 1); else router.back(); }}
-        style={styles.backBtn}
-      >
-        <Ionicons name="chevron-back" size={28} color={Colors.textSecondary} />
-      </Pressable>
+      <PillarHeader pillar="mind" title="Check-in" />
 
       {/* Dots */}
       <View style={styles.dots}>
@@ -327,9 +323,6 @@ function ContextSection({ label, items, selected, onSelect, color }: {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.black },
-  backBtn: {
-    position: 'absolute', top: Spacing.xxl, left: Spacing.md, zIndex: 10, padding: Spacing.sm,
-  },
   dots: {
     flexDirection: 'row', justifyContent: 'center', gap: 6,
     paddingTop: Spacing.sm, marginBottom: Spacing.xs,

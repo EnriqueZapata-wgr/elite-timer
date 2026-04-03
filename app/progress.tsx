@@ -6,11 +6,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
@@ -161,21 +162,17 @@ export default function ProgressScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.screen, styles.centered]}>
+      <View style={[styles.screen, styles.centered]}>
+        <ScreenHeader title="Progreso" />
         <ActivityIndicator size="large" color={Colors.neonGreen} />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-        </Pressable>
-        <EliteText variant="title" style={styles.headerTitle}>MI PROGRESO</EliteText>
-      </View>
+      <ScreenHeader title="Progreso" />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* ── Sección 1: Resumen del mes ── */}
@@ -347,7 +344,7 @@ export default function ProgressScreen() {
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

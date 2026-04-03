@@ -1,6 +1,7 @@
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ScreenContainer } from '@/components/screen-container';
+import { StatusBar } from 'expo-status-bar';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { SessionStat } from '@/components/session-stat';
@@ -28,10 +29,12 @@ export default function SessionSummaryScreen() {
 
   if (!session) {
     return (
-      <ScreenContainer>
+      <View style={[styles.screenRoot, styles.screenCentered]}>
+        <StatusBar style="light" />
+        <ScreenHeader title="Resumen" />
         <EliteText variant="title">SIN DATOS</EliteText>
         <EliteButton label="VOLVER" onPress={() => router.replace('/(tabs)')} />
-      </ScreenContainer>
+      </View>
     );
   }
 
@@ -49,7 +52,9 @@ export default function SessionSummaryScreen() {
     : 100;
 
   return (
-    <ScreenContainer centered={false}>
+    <View style={styles.screenRoot}>
+      <StatusBar style="light" />
+      <ScreenHeader title="Resumen" />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Encabezado */}
         <View style={styles.header}>
@@ -138,11 +143,20 @@ export default function SessionSummaryScreen() {
           style={styles.repeatButton}
         />
       </View>
-    </ScreenContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+  },
+  screenCentered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   header: {
     alignItems: 'center',
     paddingTop: Spacing.xl,

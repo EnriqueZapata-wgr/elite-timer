@@ -19,6 +19,7 @@ import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
 
 const PURPLE = CATEGORY_COLORS.mind;
 
@@ -82,11 +83,8 @@ function SelectorScreen({ onSelect, onBack }: {
 }) {
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.backBtn}>
-        <BackButton onPress={onBack} color={PURPLE} />
-      </View>
+      <PillarHeader pillar="mind" title="Respiración" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.selectorContent}>
-        <EliteText style={styles.selectorTitle}>RESPIRACIÓN</EliteText>
         <EliteText variant="caption" style={styles.selectorSub}>
           {BREATHING_LIBRARY.length} ejercicios de respiración
         </EliteText>
@@ -453,10 +451,7 @@ const styles = StyleSheet.create({
 
   // Selector
   selectorContent: {
-    paddingTop: Spacing.xxl + Spacing.lg, paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl,
-  },
-  selectorTitle: {
-    fontSize: FontSizes.display, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
+    paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl,
   },
   selectorSub: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
   selectorCard: { marginBottom: Spacing.sm },

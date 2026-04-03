@@ -3,9 +3,10 @@ import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert, Share, Platf
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useRouter, useSegments, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenContainer } from '@/components/screen-container';
+import { StatusBar } from 'expo-status-bar';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { EliteToggle } from '@/components/elite-toggle';
@@ -48,8 +49,6 @@ const SOUND_STYLES: { value: SoundStyle; label: string }[] = [
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const segments = useSegments();
-  const isInTabs = segments[0] === '(tabs)';
   const { settings, updateSetting } = useSettings();
   const { user, signOut } = useAuth();
 
@@ -145,16 +144,10 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScreenContainer centered={false}>
+    <View style={styles.screenRoot}>
+      <StatusBar style="light" />
       {/* Header */}
-      <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.header}>
-        {!isInTabs && (
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-          </Pressable>
-        )}
-        <EliteText variant="title">AJUSTES</EliteText>
-      </Animated.View>
+      <ScreenHeader title="Ajustes" />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Cuenta del usuario */}
@@ -527,7 +520,7 @@ export default function SettingsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </ScreenContainer>
+    </View>
   );
 }
 
@@ -596,6 +589,11 @@ function ConnectionCard({ name, date, color, onDisconnect }: {
 // === ESTILOS ===
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

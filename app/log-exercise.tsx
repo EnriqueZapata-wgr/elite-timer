@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 import { EliteText } from '@/components/elite-text';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteButton } from '@/components/elite-button';
 import { ExercisePicker } from '@/src/components/ExercisePicker';
 import { logExerciseSets } from '@/src/services/exercise-service';
@@ -105,20 +106,13 @@ export default function LogExerciseScreen() {
   const RPE_OPTIONS = [6, 7, 8, 9, 10];
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-          </Pressable>
-          <EliteText variant="title" style={styles.headerTitle}>
-            REGISTRAR EJERCICIO
-          </EliteText>
-        </View>
+        <ScreenHeader title="Registrar" />
 
         <ScrollView
           style={styles.flex}
@@ -266,7 +260,7 @@ export default function LogExerciseScreen() {
           }}
         />
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

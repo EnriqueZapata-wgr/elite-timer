@@ -4,11 +4,12 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, ActivityIndicator, Share, Modal, BackHandler } from 'react-native';
-import { useRouter, useSegments, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeInRight } from 'react-native-reanimated';
-import { ScreenContainer } from '@/components/screen-container';
+import { StatusBar } from 'expo-status-bar';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { EmptyState } from '@/components/empty-state';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -30,8 +31,6 @@ type FilterMode = 'all' | 'timer' | 'routine';
 
 export default function ProgramsScreen() {
   const router = useRouter();
-  const segments = useSegments();
-  const isInTabs = segments[0] === '(tabs)';
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [scheduleRoutine, setScheduleRoutine] = useState<Routine | null>(null);
   const [menuRoutine, setMenuRoutine] = useState<Routine | null>(null);
@@ -178,16 +177,10 @@ export default function ProgramsScreen() {
   const hasContent = routines.length > 0;
 
   return (
-    <ScreenContainer centered={false}>
+    <View style={styles.screenRoot}>
+      <StatusBar style="light" />
       {/* ── Header ── */}
-      <View style={styles.header}>
-        {!isInTabs && (
-          <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-          </Pressable>
-        )}
-        <EliteText variant="title">{isInTabs ? 'BIBLIOTECA' : 'MIS RUTINAS'}</EliteText>
-      </View>
+      <ScreenHeader title="Programas" />
 
       {loading ? (
         <View style={styles.centered}>
@@ -423,7 +416,7 @@ export default function ProgramsScreen() {
         routineId={scheduleRoutine?.id ?? ''}
         routineName={scheduleRoutine?.name ?? ''}
       />
-    </ScreenContainer>
+    </View>
   );
 }
 
@@ -447,6 +440,11 @@ function MenuItem({ icon, label, color, onPress }: {
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

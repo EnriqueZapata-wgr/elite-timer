@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, StyleSheet, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { ScreenContainer } from '@/components/screen-container';
+import { StatusBar } from 'expo-status-bar';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
@@ -30,14 +30,10 @@ export default function CreateProgramScreen() {
   };
 
   return (
-    <ScreenContainer centered={false}>
+    <View style={styles.screenRoot}>
+      <StatusBar style="light" />
       {/* Encabezado */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-        </Pressable>
-        <EliteText variant="title">CREAR PROGRAMA</EliteText>
-      </View>
+      <ScreenHeader title="Nuevo Programa" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -70,11 +66,16 @@ export default function CreateProgramScreen() {
           disabled={!name.trim()}
         />
       </View>
-    </ScreenContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

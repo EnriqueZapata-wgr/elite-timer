@@ -10,10 +10,11 @@ import {
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { EliteText } from '@/components/elite-text';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
@@ -81,14 +82,9 @@ export default function HistoryScreen() {
   const grouped = groupByDate(sessions);
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       {/* Header */}
-      <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-        </Pressable>
-        <EliteText variant="title" style={styles.headerTitle}>HISTORIAL</EliteText>
-      </Animated.View>
+      <ScreenHeader title="Historial" />
 
       {loading ? (
         <View style={styles.centered}>
@@ -168,7 +164,7 @@ export default function HistoryScreen() {
         </ScrollView>
         </Animated.View>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

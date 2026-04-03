@@ -10,7 +10,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { ScreenContainer } from '@/components/screen-container';
+import { StatusBar } from 'expo-status-bar';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -65,7 +66,9 @@ export default function SharedRoutineScreen() {
   const accentColor = isTimer ? Colors.neonGreen : CATEGORY_COLORS.mind;
 
   return (
-    <ScreenContainer centered>
+    <View style={[styles.screenRoot, styles.screenCentered]}>
+      <StatusBar style="light" />
+      <ScreenHeader title="Rutina" />
       {loading ? (
         <ActivityIndicator size="large" color={Colors.neonGreen} />
       ) : error && !info ? (
@@ -184,11 +187,20 @@ export default function SharedRoutineScreen() {
           )}
         </Animated.View>
       ) : null}
-    </ScreenContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+  },
+  screenCentered: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   center: {
     alignItems: 'center',
     gap: Spacing.md,

@@ -8,7 +8,8 @@ import { useState } from 'react';
 import { ScrollView, View, StyleSheet, Pressable, Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenContainer } from '@/components/screen-container';
+import { StatusBar } from 'expo-status-bar';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { EliteCard } from '@/components/elite-card';
 import { STANDARD_PROGRAMS, STANDARD_ROUTINES } from '@/constants/standard-programs';
@@ -65,14 +66,10 @@ export default function StandardProgramsScreen() {
   };
 
   return (
-    <ScreenContainer centered={false}>
+    <View style={styles.screenRoot}>
+      <StatusBar style="light" />
       {/* Encabezado */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-        </Pressable>
-        <EliteText variant="title">PROGRAMAS ESTÁNDAR</EliteText>
-      </View>
+      <ScreenHeader title="Programas" />
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {STANDARD_PROGRAMS.map(program => {
@@ -140,11 +137,16 @@ export default function StandardProgramsScreen() {
           </View>
         </Pressable>
       </Modal>
-    </ScreenContainer>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

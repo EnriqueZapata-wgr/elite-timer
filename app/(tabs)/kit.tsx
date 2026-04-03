@@ -10,7 +10,8 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { ScreenContainer } from '@/components/screen-container';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
@@ -28,6 +29,7 @@ const AMBER = CATEGORY_COLORS.optimization;
 
 export default function KitScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [routines, setRoutines] = useState<Routine[]>([]);
 
   useFocusEffect(
@@ -50,7 +52,8 @@ export default function KitScreen() {
   };
 
   return (
-    <ScreenContainer centered={false}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* ── Header ── */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
@@ -186,7 +189,7 @@ export default function KitScreen() {
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
-    </ScreenContainer>
+    </View>
   );
 }
 
@@ -216,6 +219,11 @@ function ToolCard({ icon, label, color, active, onPress }: {
 // === ESTILOS ===
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.black,
+    paddingHorizontal: Spacing.md,
+  },
   header: {
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,

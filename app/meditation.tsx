@@ -27,6 +27,7 @@ import {
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
 
 const PURPLE = CATEGORY_COLORS.mind;
 
@@ -85,12 +86,9 @@ function LibraryScreen({ onSelect, onBack }: {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.backBtn}>
-        <BackButton onPress={onBack} color={PURPLE} />
-      </View>
+      <PillarHeader pillar="mind" title="Meditación" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.libContent}>
-        <EliteText style={styles.libTitle}>MEDITACIÓN</EliteText>
         <EliteText variant="caption" style={styles.libSubtitle}>
           {MEDITATION_LIBRARY.length} sesiones guiadas
         </EliteText>
@@ -323,12 +321,8 @@ const styles = StyleSheet.create({
 
   // Biblioteca
   libContent: {
-    paddingTop: Spacing.xxl + Spacing.lg,
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.xxl,
-  },
-  libTitle: {
-    fontSize: FontSizes.display, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
   },
   libSubtitle: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
   libGroup: { marginBottom: Spacing.lg },

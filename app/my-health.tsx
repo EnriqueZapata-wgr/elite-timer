@@ -22,6 +22,7 @@ import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-se
 import { getStudyType } from '@/src/data/study-types';
 import { getLatestMeasurement, type HealthMeasurement } from '@/src/services/health-measurement-service';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, TEXT_COLORS } from '@/src/constants/brand';
@@ -220,14 +221,9 @@ export default function MyHealthScreen() {
 
   return (
     <SafeAreaView style={s.screen}>
-      <Pressable onPress={() => router.back()} style={s.backBtn}>
-        <Ionicons name="chevron-back" size={28} color={TEAL} />
-      </Pressable>
+      <PillarHeader pillar="metrics" title="Mi Salud" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <EliteText style={s.title}>MI SALUD</EliteText>
-        </Animated.View>
 
         {/* Subir estudio */}
         <Animated.View entering={FadeInUp.delay(150).springify()}>
@@ -572,9 +568,7 @@ function ScoreCard({ label, value, unit, icon, color }: {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.black },
-  backBtn: { position: 'absolute', top: Spacing.xxl, left: Spacing.md, zIndex: 10, padding: Spacing.sm },
-  content: { paddingTop: Spacing.xxl + Spacing.lg, paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
-  title: { fontSize: 32, fontFamily: Fonts.extraBold, color: TEAL, letterSpacing: 4, marginBottom: Spacing.lg },
+  content: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   uploadCard: { marginBottom: Spacing.md },
   uploadBody: { alignItems: 'center', padding: Spacing.lg },
   uploadBtns: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.md },

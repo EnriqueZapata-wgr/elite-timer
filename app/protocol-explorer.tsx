@@ -12,7 +12,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { BackButton } from '@/src/components/ui/BackButton';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { GradientCard } from '@/src/components/GradientCard';
@@ -110,15 +110,7 @@ export default function ProtocolExplorerScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       {/* Header */}
-      <View style={styles.header}>
-        <BackButton />
-        <EliteText
-          variant="title"
-          style={styles.title}
-        >
-          Protocolos
-        </EliteText>
-      </View>
+      <PillarHeader pillar="optimization" title="Protocolos" />
 
       {/* Loading */}
       {loading ? (
@@ -299,19 +291,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: ATP_BRAND.black,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: Spacing.xs,
-  },
-  title: {
-    fontSize: FontSizes.hero,
-    fontFamily: Fonts.extraBold,
-    color: ATP_BRAND.lime,
-    letterSpacing: 3,
   },
   loadingContainer: {
     flex: 1,

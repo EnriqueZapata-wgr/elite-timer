@@ -15,10 +15,11 @@ import {
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { EliteText } from '@/components/elite-text';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { StatsBar } from '@/src/components/builder/StatsBar';
 import { BlockCard } from '@/src/components/builder/BlockCard';
 import { AddBlockButton } from '@/src/components/builder/AddBlockButton';
@@ -251,20 +252,13 @@ export default function BuilderScreen() {
   const isEditing = params.routineId && params.clone !== 'true';
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* === HEADER === */}
-        <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.header}>
-          <Pressable onPress={handleBack} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
-          </Pressable>
-          <EliteText variant="title" style={styles.headerTitle}>
-            {isEditing ? 'EDITAR RUTINA' : 'CREAR RUTINA'}
-          </EliteText>
-        </Animated.View>
+        <ScreenHeader title="Constructor" onBack={handleBack} />
 
         <ScrollView
           style={styles.flex}
@@ -506,7 +500,7 @@ export default function BuilderScreen() {
           onSelect={handleExerciseSelected}
         />
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

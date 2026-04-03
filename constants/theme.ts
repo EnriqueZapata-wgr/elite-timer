@@ -51,6 +51,7 @@ export const FontSizes = {
   xxl: 24,     // stats, headings
   hero: 28,    // títulos hero
   display: 32, // títulos grandes
+  mega: 42,    // scores grandes (daily health, etc)
   stat: 24,    // alias para stats
   timer: 56,   // display del timer
 } as const;
