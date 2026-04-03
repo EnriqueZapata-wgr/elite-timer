@@ -5,13 +5,14 @@
  * stats de completados y barra de progreso.
  * Usa el sistema nuevo (daily_plans) con fallback al legacy (protocol-service).
  */
-import { useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { useState, useCallback, useRef, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, LayoutAnimation, Platform, UIManager, Image } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Svg, { Circle } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
@@ -296,77 +297,414 @@ export default function TodayScreen() {
   const completionStats = getCompletionStats(timeline);
   const hasTimeline = timeline.length > 0;
 
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar style="light" />
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* ── Header ── */}
-        <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <EliteText variant="caption" style={styles.dateLabel}>
-                {formatTodayHeader()}
+  // === NUEVO: filtro de categorías ===
+  const [activeFilter, setActiveFilter] = useState('TODO');
+
+  const filteredActions = useMemo(() => {
+    const actions = dayPlan?.actions || [];
+    if (activeFilter === 'TODO') return actions;
+    const filterMap: Record<string, string[]> = {
+      'FITNESS': ['fitness', 'exercise'],
+      'NUTRICION': ['nutrition', 'meal', 'supplement'],
+      'MENTAL': ['mind', 'meditation', 'breathing', 'journaling'],
+      'HABITOS': ['habit', 'optimization', 'sleep', 'rest'],
+    };
+    const cats = filterMap[activeFilter] || [];
+    return actions.filter(a => cats.some(c => (a.category || '').toLowerCase().includes(c) || (a.link_type || '').includes(c)));
+  }, [dayPlan?.actions, activeFilter]);
+
+  /** Color de categoría para el timeline mockup */
+  function getTimelineCatColor(category?: string): string {
+    if (!category) return '#444';
+    const c = category.toLowerCase();
+    if (c.includes('fitness') || c.includes('exercise')) return '#a8e02a';
+    if (c.includes('nutrition') || c.includes('meal') || c.includes('supplement')) return '#5B9BD5';
+    if (c.includes('mind') || c.includes('meditation') || c.includes('breathing')) return '#7F77DD';
+    if (c.includes('optimization') || c.includes('habit')) return '#EF9F27';
+    if (c.includes('rest') || c.includes('sleep')) return '#666';
+    return '#444';
+  }
+
+  // === Datos derivados para Daily Score ===
+  const totalActions = dayPlan?.actions?.length || timeline.length || 0;
+  const completedActions = dayPlan
+    ? dayPlan.actions.filter(a => a.completed).length
+    : completionStats.completed;
+  const dailyScorePct = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0;
+
+  const sleepHours = wearableData?.sleep?.totalHours ?? null;
+  const stepsCount = wearableData?.steps ?? null;
+  const sleepProgress = sleepHours ? Math.min(sleepHours / 8, 1) : 0;
+  const stepsProgress = stepsCount ? Math.min(stepsCount / 10000, 1) : 0;
+  const actionsProgress = totalActions > 0 ? completedActions / totalActions : 0;
+
+  const userName = user?.user_metadata?.full_name?.split(' ')[0]?.toUpperCase()
+    || user?.email?.split('@')[0]?.toUpperCase()
+    || 'ATLETA';
+  const avatarUrl = user?.user_metadata?.avatar_url || null;
+
+  // === SUB-COMPONENTES INLINE ===
+
+  /** Barra de progreso mini con label y valor */
+  const MiniMetricBar = ({ label, value, progress, color }: {
+    label: string; value: string; progress: number; color: string;
+  }) => (
+    <View style={s.miniMetric}>
+      <View style={s.miniMetricHeader}>
+        <EliteText variant="caption" style={s.miniMetricLabel}>{label}</EliteText>
+        <EliteText variant="caption" style={[s.miniMetricValue, { color }]}>{value}</EliteText>
+      </View>
+      <View style={s.miniMetricTrack}>
+        <View style={[s.miniMetricFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: color }]} />
+      </View>
+    </View>
+  );
+
+  /** Card del timeline con línea vertical + dot */
+  const TimelineCard = ({ action, isFirst, isLast, isCurrent, onToggle, onExpand, isExpanded }: {
+    action: PlanAction;
+    isFirst: boolean;
+    isLast: boolean;
+    isCurrent: boolean;
+    onToggle: () => void;
+    onExpand: () => void;
+    isExpanded: boolean;
+  }) => {
+    const catColor = getTimelineCatColor(action.category);
+    const past = isPast(action.scheduled_time);
+    const isOverdue = past && !action.completed && !action.skipped;
+    const isTogglingThis = toggling === action.id;
+
+    return (
+      <View style={s.tlRow}>
+        {/* Línea vertical + dot */}
+        <View style={s.tlLineCol}>
+          <View style={[s.tlLineSegment, isFirst && { backgroundColor: 'transparent' }]} />
+          <View style={[
+            s.tlDot,
+            action.completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
+            isCurrent && { borderColor: catColor, borderWidth: 2.5, backgroundColor: catColor + '30' },
+            action.skipped && { backgroundColor: Colors.disabled, borderColor: Colors.disabled },
+          ]}>
+            {action.completed && <Ionicons name="checkmark" size={8} color={Colors.black} />}
+          </View>
+          <View style={[s.tlLineSegment, isLast && { backgroundColor: 'transparent' }]} />
+        </View>
+
+        {/* Card */}
+        <AnimatedPressable
+          onPress={() => {
+            haptic.light();
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            onExpand();
+          }}
+          onLongPress={() => handleLongPress(action)}
+          style={[
+            s.tlCard,
+            { borderLeftColor: catColor },
+            action.completed && s.tlCardCompleted,
+            action.skipped && s.tlCardSkipped,
+            isCurrent && { borderColor: catColor + '40', borderWidth: 1 },
+          ]}
+        >
+          {/* Hora + categoría */}
+          <View style={s.tlCardHeader}>
+            <EliteText variant="caption" style={[s.tlTime, action.completed && { color: Colors.neonGreen }, isOverdue && { color: SEMANTIC.error }]}>
+              {formatTime(action.scheduled_time)}
+            </EliteText>
+            <EliteText variant="caption" style={[s.tlCategoryLabel, { color: catColor }]}>
+              {getCategoryLabel(action.category)}
+            </EliteText>
+            {isOverdue && (
+              <View style={s.tlOverdueBadge}>
+                <EliteText variant="caption" style={s.tlOverdueText}>PENDIENTE</EliteText>
+              </View>
+            )}
+            {action.duration_min > 0 && !isOverdue && (
+              <EliteText variant="caption" style={s.tlDuration}>{action.duration_min} min</EliteText>
+            )}
+          </View>
+
+          {/* Título + checkbox */}
+          <View style={s.tlCardBody}>
+            <View style={s.tlCardContent}>
+              <EliteText variant="body" style={[
+                s.tlTitle,
+                action.completed && s.tlTitleCompleted,
+                action.skipped && { color: Colors.textMuted },
+              ]}>
+                {action.name}
               </EliteText>
-              <EliteText style={styles.heroTitle}>Tu día</EliteText>
+
+              {action.protocol_name && action.protocol_name !== 'Manual' && (
+                <EliteText variant="caption" style={s.tlSubtitle}>{action.protocol_name}</EliteText>
+              )}
+
+              {/* Link de navegación */}
+              {action.link_type && !action.completed && (
+                <AnimatedPressable
+                  onPress={() => {
+                    haptic.light();
+                    const routes: Record<string, string> = {
+                      meditation: '/meditation',
+                      breathing: '/breathing',
+                      food_scan: '/food-scan',
+                      checkin: '/checkin',
+                      routine: '/programs',
+                    };
+                    const route = routes[action.link_type!];
+                    if (route) router.push(route as any);
+                  }}
+                  style={s.tlOpenLink}
+                >
+                  <Ionicons name="open-outline" size={11} color={catColor} />
+                  <EliteText variant="caption" style={{ color: catColor, fontSize: FontSizes.xs }}>Abrir</EliteText>
+                </AnimatedPressable>
+              )}
+
+              {/* Expandir indicador */}
+              {!isExpanded && action.instructions && (
+                <Ionicons name="chevron-down" size={11} color={Colors.textMuted} style={{ marginTop: 2 }} />
+              )}
+
+              {/* Contenido expandido */}
+              {isExpanded && action.instructions && (
+                <View style={s.tlExpanded}>
+                  <View style={s.tlExpandSep} />
+                  {renderActionContent(action)}
+                </View>
+              )}
             </View>
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={styles.settingsBtn}>
-              <Ionicons name="settings-outline" size={22} color={Colors.textSecondary} />
+
+            {/* Checkbox */}
+            <AnimatedPressable
+              onPress={() => { haptic.light(); onToggle(); }}
+              disabled={isTogglingThis}
+              style={s.tlCheckArea}
+            >
+              <View style={[
+                s.tlCheckbox,
+                action.completed && s.tlCheckboxChecked,
+              ]}>
+                {isTogglingThis ? (
+                  <ActivityIndicator size="small" color={Colors.neonGreen} />
+                ) : action.completed ? (
+                  <Ionicons name="checkmark" size={14} color={Colors.black} />
+                ) : null}
+              </View>
             </AnimatedPressable>
+          </View>
+        </AnimatedPressable>
+      </View>
+    );
+  };
+
+  /** Card del timeline para sistema legacy */
+  const LegacyTimelineCard = ({ item, isFirst, isLast }: {
+    item: TimelineItem; isFirst: boolean; isLast: boolean;
+  }) => {
+    const catColor = getTimelineCatColor(item.category);
+    const past = isPast(item.scheduled_time);
+    const isTogglingThis = toggling === item.item_id;
+
+    return (
+      <View style={s.tlRow}>
+        <View style={s.tlLineCol}>
+          <View style={[s.tlLineSegment, isFirst && { backgroundColor: 'transparent' }]} />
+          <View style={[
+            s.tlDot,
+            item.is_completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
+          ]}>
+            {item.is_completed && <Ionicons name="checkmark" size={8} color={Colors.black} />}
+          </View>
+          <View style={[s.tlLineSegment, isLast && { backgroundColor: 'transparent' }]} />
+        </View>
+
+        <AnimatedPressable
+          onPress={() => { haptic.light(); handleItemPress(item); }}
+          style={[
+            s.tlCard,
+            { borderLeftColor: catColor },
+            item.is_completed && s.tlCardCompleted,
+          ]}
+        >
+          <View style={s.tlCardHeader}>
+            <EliteText variant="caption" style={[s.tlTime, item.is_completed && { color: Colors.neonGreen }]}>
+              {formatTime(item.scheduled_time)}
+            </EliteText>
+            <EliteText variant="caption" style={[s.tlCategoryLabel, { color: catColor }]}>
+              {getCategoryLabel(item.category)}
+            </EliteText>
+            {item.duration_minutes != null && (
+              <EliteText variant="caption" style={s.tlDuration}>{item.duration_minutes} min</EliteText>
+            )}
+          </View>
+
+          <View style={s.tlCardBody}>
+            <View style={s.tlCardContent}>
+              <EliteText variant="body" style={[s.tlTitle, item.is_completed && s.tlTitleCompleted]}>
+                {item.title}
+              </EliteText>
+              {item.description && (
+                <EliteText variant="caption" style={s.tlSubtitle} numberOfLines={2}>{item.description}</EliteText>
+              )}
+            </View>
+
+            {isNavigable(item.link_type) && (
+              <View style={s.tlNavChevron}>
+                <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+              </View>
+            )}
+
+            <AnimatedPressable
+              onPress={() => { haptic.light(); handleToggle(item.item_id); }}
+              disabled={isTogglingThis}
+              style={s.tlCheckArea}
+            >
+              <View style={[s.tlCheckbox, item.is_completed && s.tlCheckboxChecked]}>
+                {isTogglingThis ? (
+                  <ActivityIndicator size="small" color={Colors.neonGreen} />
+                ) : item.is_completed ? (
+                  <Ionicons name="checkmark" size={14} color={Colors.black} />
+                ) : null}
+              </View>
+            </AnimatedPressable>
+          </View>
+        </AnimatedPressable>
+      </View>
+    );
+  };
+
+  // === Filtros de categoría ===
+  const FILTER_OPTIONS = ['TODO', 'FITNESS', 'NUTRICION', 'MENTAL', 'HABITOS'] as const;
+
+  // SVG circle params
+  const CIRCLE_SIZE = 160;
+  const CIRCLE_STROKE = 10;
+  const CIRCLE_RADIUS = (CIRCLE_SIZE - CIRCLE_STROKE) / 2;
+  const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
+  const scoreOffset = CIRCLE_CIRCUMFERENCE * (1 - dailyScorePct / 100);
+
+  return (
+    <View style={[s.container, { paddingTop: insets.top }]}>
+      <StatusBar style="light" />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+
+        {/* ── 1. Top bar ── */}
+        <Animated.View entering={FadeInUp.delay(50).springify()}>
+          <View style={s.topBar}>
+            <View style={s.topBarLeft}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={s.avatar} />
+              ) : (
+                <View style={s.avatarFallback}>
+                  <EliteText style={s.avatarInitial}>{userName.charAt(0)}</EliteText>
+                </View>
+              )}
+              <View>
+                <EliteText variant="caption" style={s.brandLabel}>ATP DAILY</EliteText>
+              </View>
+            </View>
+            <View style={s.topBarRight}>
+              <AnimatedPressable onPress={() => { haptic.light(); }} style={s.topBarIcon}>
+                <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
+              </AnimatedPressable>
+              <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={s.topBarIcon}>
+                <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
+              </AnimatedPressable>
+            </View>
           </View>
         </Animated.View>
 
-        {/* ── Readiness indicator (wearable) ── */}
-        {wearableData?.recovery != null && (
-          <Animated.View entering={FadeInUp.delay(80).springify()}>
-            <View style={[
-              styles.readinessCard,
-              {
-                borderLeftColor: wearableData.recovery >= 80
-                  ? SEMANTIC.success
-                  : wearableData.recovery >= 60
-                    ? SEMANTIC.warning
-                    : SEMANTIC.error,
-              },
-            ]}>
-              <View style={styles.readinessRow}>
-                <Ionicons
-                  name="fitness-outline"
-                  size={18}
-                  color={
-                    wearableData.recovery >= 80
-                      ? SEMANTIC.success
-                      : wearableData.recovery >= 60
-                        ? SEMANTIC.warning
-                        : SEMANTIC.error
-                  }
-                />
-                <EliteText variant="body" style={[
-                  styles.readinessScore,
-                  {
-                    color: wearableData.recovery >= 80
-                      ? SEMANTIC.success
-                      : wearableData.recovery >= 60
-                        ? SEMANTIC.warning
-                        : SEMANTIC.error,
-                  },
-                ]}>
-                  READINESS {wearableData.recovery}
-                </EliteText>
-              </View>
-              <EliteText variant="caption" style={styles.readinessHint}>
-                {wearableData.recovery >= 80
-                  ? 'Listo para entrenar fuerte'
-                  : wearableData.recovery >= 60
-                    ? 'Entrena moderado hoy'
-                    : 'Prioriza recuperación'}
-              </EliteText>
-            </View>
-          </Animated.View>
-        )}
+        {/* ── 2. Greeting + date ── */}
+        <Animated.View entering={FadeInUp.delay(80).springify()}>
+          <EliteText style={s.greeting}>HOLA, {userName}</EliteText>
+          <EliteText variant="caption" style={s.dateLabel}>{formatTodayHeader()}</EliteText>
+        </Animated.View>
 
+        {/* ── 3. Daily Score Hero ── */}
+        <Animated.View entering={FadeInUp.delay(120).springify()}>
+          <View style={s.scoreHero}>
+            <View style={s.scoreCircleWrap}>
+              <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE}>
+                {/* Track */}
+                <Circle
+                  cx={CIRCLE_SIZE / 2}
+                  cy={CIRCLE_SIZE / 2}
+                  r={CIRCLE_RADIUS}
+                  stroke="#1a1a1a"
+                  strokeWidth={CIRCLE_STROKE}
+                  fill="none"
+                />
+                {/* Progress */}
+                <Circle
+                  cx={CIRCLE_SIZE / 2}
+                  cy={CIRCLE_SIZE / 2}
+                  r={CIRCLE_RADIUS}
+                  stroke={complianceColor(dailyScorePct)}
+                  strokeWidth={CIRCLE_STROKE}
+                  fill="none"
+                  strokeDasharray={`${CIRCLE_CIRCUMFERENCE}`}
+                  strokeDashoffset={scoreOffset}
+                  strokeLinecap="round"
+                  rotation="-90"
+                  origin={`${CIRCLE_SIZE / 2}, ${CIRCLE_SIZE / 2}`}
+                />
+              </Svg>
+              <View style={s.scoreTextWrap}>
+                <EliteText style={s.scoreNumber}>{dailyScorePct}</EliteText>
+                <EliteText variant="caption" style={s.scoreUnit}>%</EliteText>
+              </View>
+            </View>
+
+            {/* Mini metric bars */}
+            <View style={s.miniMetrics}>
+              <MiniMetricBar
+                label="ACCIONES"
+                value={`${completedActions}/${totalActions}`}
+                progress={actionsProgress}
+                color={Colors.neonGreen}
+              />
+              {sleepHours != null && (
+                <MiniMetricBar
+                  label="SUENO"
+                  value={`${sleepHours.toFixed(1)}h`}
+                  progress={sleepProgress}
+                  color={CATEGORY_COLORS.mind}
+                />
+              )}
+              {stepsCount != null && (
+                <MiniMetricBar
+                  label="PASOS"
+                  value={stepsCount >= 1000 ? `${(stepsCount / 1000).toFixed(1)}k` : `${stepsCount}`}
+                  progress={stepsProgress}
+                  color={CATEGORY_COLORS.nutrition}
+                />
+              )}
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ── 4. Category filters ── */}
+        <Animated.View entering={FadeInUp.delay(160).springify()}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filtersScroll} contentContainerStyle={s.filtersContent}>
+            {FILTER_OPTIONS.map(f => (
+              <AnimatedPressable
+                key={f}
+                onPress={() => { haptic.light(); setActiveFilter(f); }}
+                style={[s.filterPill, activeFilter === f && s.filterPillActive]}
+              >
+                <EliteText variant="caption" style={[s.filterPillText, activeFilter === f && s.filterPillTextActive]}>
+                  {f}
+                </EliteText>
+              </AnimatedPressable>
+            ))}
+          </ScrollView>
+        </Animated.View>
+
+        {/* ── 5. Timeline ── */}
         {loading ? (
-          /* Skeleton de carga — reemplaza ActivityIndicator */
-          <View style={{ padding: 16, gap: 12 }}>
+          <View style={s.skeletonWrap}>
             <SkeletonLoader variant="card" />
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <SkeletonLoader variant="stat-card" />
@@ -374,390 +712,43 @@ export default function TodayScreen() {
             </View>
             {[...Array(4)].map((_, i) => <SkeletonLoader key={i} height={44} style={{ borderRadius: Radius.sm }} />)}
           </View>
-        ) : dataSource === 'new' && dayPlan && dayPlan.actions.length > 0 ? (
-          <>
-            {/* ── Compliance header (nuevo sistema) ── */}
-            <Animated.View entering={FadeInUp.delay(100).springify()}>
-              {/* ── Protocol pills (4.1) ── */}
-              {dayPlan.source_protocols && dayPlan.source_protocols.length > 0 && (
-                <View style={styles.protocolPills}>
-                  {dayPlan.actions
-                    .reduce((names: string[], a) => {
-                      if (a.protocol_name && a.protocol_name !== 'Manual' && !names.includes(a.protocol_name)) names.push(a.protocol_name);
-                      return names;
-                    }, [])
-                    .map(name => (
-                      <AnimatedPressable key={name} onPress={() => { haptic.light(); router.push('/protocol-explorer' as any); }} style={styles.protocolPill}>
-                        <Ionicons name="flask-outline" size={12} color={Colors.neonGreen} />
-                        <EliteText variant="caption" style={styles.protocolPillText}>{name}</EliteText>
-                      </AnimatedPressable>
-                    ))}
-                </View>
-              )}
-
-              {/* ── Compliance bar (4.3 — semantic color) ── */}
-              <View style={styles.progressSection}>
-                <View style={styles.progressHeader}>
-                  <EliteText variant="body" style={styles.progressText}>
-                    <EliteText style={[styles.progressCount, { color: complianceColor(dayPlan.compliance_pct) }]}>{dayPlan.completed_actions}</EliteText>
-                    /{dayPlan.total_actions} completados
-                  </EliteText>
-                  <EliteText variant="caption" style={[styles.progressPercent, { color: complianceColor(dayPlan.compliance_pct) }]}>
-                    {dayPlan.compliance_pct}%
-                  </EliteText>
-                </View>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${dayPlan.compliance_pct}%`, backgroundColor: complianceColor(dayPlan.compliance_pct) }]} />
-                </View>
-              </View>
-            </Animated.View>
-
-            {/* ── Weekly stats pills ── */}
-            <Animated.View entering={FadeInUp.delay(150).springify()}>
-              <View style={styles.weekPills}>
-                <View style={styles.weekPill}>
-                  <Ionicons name="barbell-outline" size={14} color={Colors.neonGreen} />
-                  <EliteText variant="caption" style={styles.weekPillText}>
-                    {weekStats.workouts} entrenos
-                  </EliteText>
-                </View>
-                <View style={styles.weekPill}>
-                  <Ionicons name="trending-up-outline" size={14} color={CATEGORY_COLORS.nutrition} />
-                  <EliteText variant="caption" style={styles.weekPillText}>
-                    {weekStats.volumeKg > 999 ? `${Math.round(weekStats.volumeKg / 1000)}k` : `${weekStats.volumeKg}kg`}
-                  </EliteText>
-                </View>
-                <View style={styles.weekPill}>
-                  <Ionicons name="trophy-outline" size={14} color={SEMANTIC.warning} />
-                  <EliteText variant="caption" style={styles.weekPillText}>
-                    {weekStats.prs} PRs
-                  </EliteText>
-                </View>
-              </View>
-            </Animated.View>
-
-            {/* ── Actions timeline (nuevo sistema) ── */}
-            <View style={styles.timeline}>
-              {dayPlan.actions.map((action, idx) => {
-                const catColor = getCategoryColor(action.category);
-                const past = isPast(action.scheduled_time);
-                const isOverdue = past && !action.completed && !action.skipped;
-                const isNext = isNextAction(dayPlan.actions, idx);
-                const isTogglingThis = toggling === action.id;
-
-                return (
-                  <StaggerItem key={action.id} index={idx} delay={40}>
-                    <View style={styles.timelineRow}>
-                      {/* Hora */}
-                      <View style={styles.timeCol}>
-                        <EliteText variant="caption" style={[
-                          styles.timeText,
-                          action.completed && { color: Colors.neonGreen },
-                          isOverdue && { color: SEMANTIC.error },
-                        ]}>
-                          {formatTime(action.scheduled_time)}
-                        </EliteText>
-                        {isNext && (
-                          <View style={styles.nowBadge}>
-                            <EliteText variant="caption" style={styles.nowBadgeText}>AHORA</EliteText>
-                          </View>
-                        )}
-                      </View>
-
-                      {/* Línea vertical + dot */}
-                      <View style={styles.lineCol}>
-                        {idx > 0 && <View style={styles.lineSegment} />}
-                        <View style={[
-                          styles.dot,
-                          { backgroundColor: action.completed ? Colors.neonGreen : action.skipped ? Colors.disabled : (past ? Colors.disabled : catColor + '40') },
-                          action.completed && { borderColor: Colors.neonGreen },
-                          isNext && { borderColor: catColor, borderWidth: 2.5 },
-                        ]}>
-                          {action.completed && (
-                            <Ionicons name="checkmark" size={10} color={Colors.black} />
-                          )}
-                          {action.skipped && (
-                            <Ionicons name="remove" size={10} color={Colors.textSecondary} />
-                          )}
-                        </View>
-                        {idx < dayPlan.actions.length - 1 && <View style={styles.lineSegmentBottom} />}
-                      </View>
-
-                      {/* Card */}
-                      <GradientCard
-                        color={isOverdue ? SEMANTIC.error : catColor}
-                        onPress={() => {
-                          // Expandir/colapsar al tap
-                          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                          haptic.light();
-                          setExpandedActionId(expandedActionId === action.id ? null : action.id);
-                        }}
-                        onLongPress={() => handleLongPress(action)}
-                        style={[
-                          styles.card,
-                          action.completed && styles.cardCompleted,
-                          action.skipped && styles.cardSkipped,
-                          isNext && styles.cardNext,
-                        ]}
-                      >
-                        <View style={styles.cardInner}>
-                          <View style={styles.cardBody}>
-                            <View style={styles.cardTopRow}>
-                              <View style={[styles.categoryBadge, { backgroundColor: catColor + '20' }]}>
-                                <Ionicons name={getCategoryIcon(action.category) as any} size={12} color={catColor} />
-                                <EliteText variant="caption" style={[styles.categoryText, { color: catColor }]}>
-                                  {getCategoryLabel(action.category)}
-                                </EliteText>
-                              </View>
-                              {isOverdue && (
-                                <View style={styles.overdueBadge}>
-                                  <EliteText variant="caption" style={styles.overdueText}>Pendiente</EliteText>
-                                </View>
-                              )}
-                              {action.skipped && (
-                                <EliteText variant="caption" style={{ color: Colors.textMuted, fontSize: FontSizes.xs }}>Saltada</EliteText>
-                              )}
-                              {action.duration_min > 0 && !isOverdue && !action.skipped && (
-                                <EliteText variant="caption" style={styles.durationText}>
-                                  {action.duration_min} min
-                                </EliteText>
-                              )}
-                            </View>
-
-                            <EliteText variant="body" style={[
-                              styles.cardTitle,
-                              action.completed && styles.cardTitleCompleted,
-                              action.skipped && { color: Colors.textMuted },
-                            ]}>
-                              {action.name}
-                            </EliteText>
-
-                            {action.protocol_name && action.protocol_name !== 'Manual' && (
-                              <EliteText variant="caption" style={styles.cardDesc}>
-                                {action.protocol_name}
-                              </EliteText>
-                            )}
-
-                            {/* Chevron indicador de contenido expandible */}
-                            {!expandedActionId && action.instructions && (
-                              <Ionicons name="chevron-down" size={12} color={Colors.textMuted} style={{ marginTop: 2 }} />
-                            )}
-
-                            {/* Link de navegación si tiene link_type */}
-                            {action.link_type && !action.completed && (
-                              <Pressable
-                                onPress={() => {
-                                  haptic.light();
-                                  const routes: Record<string, string> = {
-                                    meditation: '/meditation',
-                                    breathing: '/breathing',
-                                    food_scan: '/food-scan',
-                                    checkin: '/checkin',
-                                    routine: '/programs',
-                                  };
-                                  const route = routes[action.link_type!];
-                                  if (route) router.push(route as any);
-                                }}
-                                style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}
-                              >
-                                <Ionicons name="open-outline" size={12} color={catColor} />
-                                <EliteText variant="caption" style={{ color: catColor, fontSize: FontSizes.xs }}>Abrir</EliteText>
-                              </Pressable>
-                            )}
-
-                            {/* Contenido expandido */}
-                            {expandedActionId === action.id && action.instructions && (
-                              <View style={styles.expandedContent}>
-                                <View style={styles.expandSeparator} />
-                                {renderActionContent(action)}
-                              </View>
-                            )}
-                          </View>
-
-                          {/* Checkbox */}
-                          <Pressable
-                            onPress={() => handleToggle(action.id)}
-                            disabled={isTogglingThis}
-                            style={styles.checkArea}
-                            hitSlop={12}
-                          >
-                            <View style={[
-                              styles.checkbox,
-                              action.completed && styles.checkboxChecked,
-                            ]}>
-                              {isTogglingThis ? (
-                                <ActivityIndicator size="small" color={Colors.neonGreen} />
-                              ) : action.completed ? (
-                                <Ionicons name="checkmark" size={16} color={Colors.black} />
-                              ) : null}
-                            </View>
-                          </Pressable>
-                        </View>
-                      </GradientCard>
-                    </View>
-                  </StaggerItem>
-                );
-              })}
-            </View>
-          </>
+        ) : dataSource === 'new' && dayPlan && filteredActions.length > 0 ? (
+          <View style={s.timeline}>
+            {filteredActions.map((action, idx) => {
+              const isCurrent = isNextAction(dayPlan.actions, dayPlan.actions.indexOf(action));
+              return (
+                <StaggerItem key={action.id} index={idx} delay={40}>
+                  <TimelineCard
+                    action={action}
+                    isFirst={idx === 0}
+                    isLast={idx === filteredActions.length - 1}
+                    isCurrent={isCurrent}
+                    onToggle={() => handleToggle(action.id)}
+                    onExpand={() => setExpandedActionId(expandedActionId === action.id ? null : action.id)}
+                    isExpanded={expandedActionId === action.id}
+                  />
+                </StaggerItem>
+              );
+            })}
+          </View>
         ) : dataSource !== 'new' && hasTimeline ? (
-          <>
-            {/* ── Progress bar (legacy) ── */}
-            <Animated.View entering={FadeInUp.delay(100).springify()}>
-              <View style={styles.progressSection}>
-                <View style={styles.progressHeader}>
-                  <EliteText variant="body" style={styles.progressText}>
-                    <EliteText style={styles.progressCount}>{completionStats.completed}</EliteText>
-                    /{completionStats.total} completados
-                  </EliteText>
-                  <EliteText variant="caption" style={styles.progressPercent}>
-                    {completionStats.percentage}%
-                  </EliteText>
-                </View>
-                <View style={styles.progressBar}>
-                  <View style={[styles.progressFill, { width: `${completionStats.percentage}%` }]} />
-                </View>
-              </View>
-            </Animated.View>
-
-            {/* ── Weekly stats pills ── */}
-            <Animated.View entering={FadeInUp.delay(150).springify()}>
-              <View style={styles.weekPills}>
-                <View style={styles.weekPill}>
-                  <Ionicons name="barbell-outline" size={14} color={Colors.neonGreen} />
-                  <EliteText variant="caption" style={styles.weekPillText}>
-                    {weekStats.workouts} entrenos
-                  </EliteText>
-                </View>
-                <View style={styles.weekPill}>
-                  <Ionicons name="trending-up-outline" size={14} color={CATEGORY_COLORS.nutrition} />
-                  <EliteText variant="caption" style={styles.weekPillText}>
-                    {weekStats.volumeKg > 999 ? `${Math.round(weekStats.volumeKg / 1000)}k` : `${weekStats.volumeKg}kg`}
-                  </EliteText>
-                </View>
-                <View style={styles.weekPill}>
-                  <Ionicons name="trophy-outline" size={14} color={SEMANTIC.warning} />
-                  <EliteText variant="caption" style={styles.weekPillText}>
-                    {weekStats.prs} PRs
-                  </EliteText>
-                </View>
-              </View>
-            </Animated.View>
-
-            {/* ── Timeline (legacy) ── */}
-            <View style={styles.timeline}>
-              {timeline.map((item, idx) => {
-                const catLabel = getCategoryLabel(item.category);
-                const catIcon = getCategoryIcon(item.category);
-                const accentColor = getCategoryColor(item.category);
-                const past = isPast(item.scheduled_time);
-                const isTogglingThis = toggling === item.item_id;
-
-                return (
-                  <StaggerItem key={item.item_id} index={idx} delay={60}>
-                    <View style={styles.timelineRow}>
-                      {/* Hora */}
-                      <View style={styles.timeCol}>
-                        <EliteText variant="caption" style={[
-                          styles.timeText,
-                          item.is_completed && { color: Colors.neonGreen },
-                        ]}>
-                          {formatTime(item.scheduled_time)}
-                        </EliteText>
-                      </View>
-
-                      {/* Línea vertical + dot */}
-                      <View style={styles.lineCol}>
-                        {idx > 0 && <View style={styles.lineSegment} />}
-                        <View style={[
-                          styles.dot,
-                          { backgroundColor: item.is_completed ? Colors.neonGreen : (past ? Colors.disabled : accentColor + '40') },
-                          item.is_completed && { borderColor: Colors.neonGreen },
-                        ]}>
-                          {item.is_completed && (
-                            <Ionicons name="checkmark" size={10} color={Colors.black} />
-                          )}
-                        </View>
-                        {idx < timeline.length - 1 && <View style={styles.lineSegmentBottom} />}
-                      </View>
-
-                      {/* Card */}
-                      <GradientCard
-                        color={accentColor}
-                        onPress={() => handleItemPress(item)}
-                        style={[
-                          styles.card,
-                          item.is_completed && styles.cardCompleted,
-                        ]}
-                      >
-                        <View style={styles.cardInner}>
-                          <View style={styles.cardBody}>
-                            <View style={styles.cardTopRow}>
-                              <View style={[styles.categoryBadge, { backgroundColor: accentColor + '20' }]}>
-                                <Ionicons name={catIcon as any} size={12} color={accentColor} />
-                                <EliteText variant="caption" style={[styles.categoryText, { color: accentColor }]}>
-                                  {catLabel}
-                                </EliteText>
-                              </View>
-                              {item.duration_minutes && (
-                                <EliteText variant="caption" style={styles.durationText}>
-                                  {item.duration_minutes} min
-                                </EliteText>
-                              )}
-                            </View>
-
-                            <EliteText variant="body" style={[
-                              styles.cardTitle,
-                              item.is_completed && styles.cardTitleCompleted,
-                            ]}>
-                              {item.title}
-                            </EliteText>
-
-                            {item.description && (
-                              <EliteText variant="caption" style={styles.cardDesc} numberOfLines={2}>
-                                {item.description}
-                              </EliteText>
-                            )}
-                          </View>
-
-                          {isNavigable(item.link_type) && (
-                            <View style={styles.navIndicator}>
-                              <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
-                            </View>
-                          )}
-
-                          <Pressable
-                            onPress={() => handleToggle(item.item_id)}
-                            disabled={isTogglingThis}
-                            style={styles.checkArea}
-                            hitSlop={12}
-                          >
-                            <View style={[
-                              styles.checkbox,
-                              item.is_completed && styles.checkboxChecked,
-                            ]}>
-                              {isTogglingThis ? (
-                                <ActivityIndicator size="small" color={Colors.neonGreen} />
-                              ) : item.is_completed ? (
-                                <Ionicons name="checkmark" size={16} color={Colors.black} />
-                              ) : null}
-                            </View>
-                          </Pressable>
-                        </View>
-                      </GradientCard>
-                    </View>
-                  </StaggerItem>
-                );
-              })}
-            </View>
-          </>
-        ) : (
-          /* ── Estado vacío (sin protocolo ni plan) ── */
+          <View style={s.timeline}>
+            {timeline.map((item, idx) => (
+              <StaggerItem key={item.item_id} index={idx} delay={60}>
+                <LegacyTimelineCard
+                  item={item}
+                  isFirst={idx === 0}
+                  isLast={idx === timeline.length - 1}
+                />
+              </StaggerItem>
+            ))}
+          </View>
+        ) : !loading ? (
           hasChronotype ? (
             <EmptyState
               icon="flask-outline"
               title="Sin protocolos activos"
-              subtitle="Explora y activa un protocolo para llenar tu día"
+              subtitle="Explora y activa un protocolo para llenar tu dia"
               actionLabel="Explorar protocolos"
               onAction={() => router.push('/protocol-explorer' as any)}
               color="#a8e02a"
@@ -765,55 +756,59 @@ export default function TodayScreen() {
           ) : (
             <EmptyState
               icon="today-outline"
-              title="Tu día está vacío"
-              subtitle="Completa el quiz de cronotipo para personalizar tu día"
+              title="Tu dia esta vacio"
+              subtitle="Completa el quiz de cronotipo para personalizar tu dia"
               actionLabel="Hacer quiz"
               onAction={() => router.push('/quiz/chronotype' as any)}
               color="#a8e02a"
             />
           )
-        )}
+        ) : null}
 
-        {/* ── Accesos rápidos ── */}
-        <Animated.View entering={FadeInUp.delay(300).springify()}>
-          <EliteText variant="caption" style={styles.quickAccessLabel}>ACCESOS RÁPIDOS</EliteText>
-          <View style={styles.quickAccessRow}>
-            <GradientCard color={CATEGORY_COLORS.nutrition}
-              onPress={() => { haptic.light(); router.push('/nutrition'); }}
-              style={styles.quickAccessCard}>
-              <View style={styles.quickAccessInner}>
-                <Ionicons name="restaurant-outline" size={24} color={CATEGORY_COLORS.nutrition} />
-                <EliteText style={{ color: CATEGORY_COLORS.nutrition, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
-                  Nutrición
+        {/* ── 6. Bottom metrics (wearable) ── */}
+        {wearableData?.recovery != null && (
+          <Animated.View entering={FadeInUp.delay(250).springify()}>
+            <View style={s.bottomMetrics}>
+              <View style={s.metricCard}>
+                <Ionicons name="fitness-outline" size={16} color={
+                  wearableData.recovery >= 80 ? SEMANTIC.success
+                    : wearableData.recovery >= 60 ? SEMANTIC.warning
+                      : SEMANTIC.error
+                } />
+                <EliteText variant="caption" style={s.metricCardLabel}>READINESS</EliteText>
+                <EliteText style={[s.metricCardValue, {
+                  color: wearableData.recovery >= 80 ? SEMANTIC.success
+                    : wearableData.recovery >= 60 ? SEMANTIC.warning
+                      : SEMANTIC.error,
+                }]}>
+                  {wearableData.recovery}
                 </EliteText>
-                <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: FontSizes.xs }}>
-                  Registra comidas
-                </EliteText>
-              </View>
-            </GradientCard>
-            <GradientCard color={CATEGORY_COLORS.mind}
-              onPress={() => { haptic.light(); router.push('/mind-hub'); }}
-              style={styles.quickAccessCard}>
-              <View style={styles.quickAccessInner}>
-                <Ionicons name="sparkles-outline" size={24} color={CATEGORY_COLORS.mind} />
-                <EliteText style={{ color: CATEGORY_COLORS.mind, fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
-                  Mente
-                </EliteText>
-                <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: FontSizes.xs }}>
-                  Medita y respira
+                <EliteText variant="caption" style={s.metricCardHint}>
+                  {wearableData.recovery >= 80 ? 'Listo' : wearableData.recovery >= 60 ? 'Moderado' : 'Recupera'}
                 </EliteText>
               </View>
-            </GradientCard>
-          </View>
-        </Animated.View>
+
+              {wearableData.hrv != null && (
+                <View style={s.metricCard}>
+                  <Ionicons name="pulse-outline" size={16} color={CATEGORY_COLORS.metrics} />
+                  <EliteText variant="caption" style={s.metricCardLabel}>HRV</EliteText>
+                  <EliteText style={[s.metricCardValue, { color: CATEGORY_COLORS.metrics }]}>
+                    {Math.round(wearableData.hrv)}
+                  </EliteText>
+                  <EliteText variant="caption" style={s.metricCardHint}>ms</EliteText>
+                </View>
+              )}
+            </View>
+          </Animated.View>
+        )}
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
 
       {/* Toast */}
       {toast && (
-        <View style={styles.toast}>
-          <EliteText variant="caption" style={styles.toastText}>{toast}</EliteText>
+        <View style={s.toast}>
+          <EliteText variant="caption" style={s.toastText}>{toast}</EliteText>
         </View>
       )}
     </View>
@@ -822,341 +817,375 @@ export default function TodayScreen() {
 
 // === ESTILOS ===
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.black,
+    backgroundColor: '#000',
+  },
+  scrollContent: {
     paddingHorizontal: Spacing.md,
   },
-  // Header
-  header: {
+
+  // ── Top bar ──
+  topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    alignItems: 'center',
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xs,
   },
-  headerLeft: {},
-  dateLabel: {
+  topBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  topBarRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  topBarIcon: {
+    padding: Spacing.xs,
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: Colors.neonGreen,
+  },
+  avatarFallback: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1.5,
+    borderColor: Colors.neonGreen,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
     color: Colors.neonGreen,
-    letterSpacing: 4,
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.md,
+  },
+  brandLabel: {
+    color: Colors.neonGreen,
+    letterSpacing: 3,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
   },
-  heroTitle: {
+
+  // ── Greeting ──
+  greeting: {
     fontSize: FontSizes.hero,
     fontFamily: Fonts.extraBold,
     color: Colors.textPrimary,
-    marginTop: 4,
+    marginTop: Spacing.md,
+    letterSpacing: 1,
   },
-  settingsBtn: { padding: Spacing.sm },
-  loader: { marginTop: Spacing.xxl },
-
-  // Readiness card (wearable)
-  readinessCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: Colors.border,
-    borderLeftWidth: 3,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    gap: Spacing.xs,
-  },
-  readinessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  readinessScore: {
-    fontFamily: Fonts.bold,
-    fontSize: FontSizes.md,
-    letterSpacing: 2,
-  },
-  readinessHint: {
+  dateLabel: {
     color: Colors.textSecondary,
+    letterSpacing: 2,
     fontSize: FontSizes.sm,
-    marginLeft: Spacing.sm + 18, // alineado con el texto (icono 18 + gap sm)
+    fontFamily: Fonts.semiBold,
+    marginTop: 2,
+    marginBottom: Spacing.lg,
   },
 
-  // Progress
-  progressSection: { marginBottom: Spacing.md },
-  progressHeader: {
+  // ── Score hero ──
+  scoreHero: {
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  scoreCircleWrap: {
+    width: 160,
+    height: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.md,
+  },
+  scoreTextWrap: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  scoreNumber: {
+    fontSize: FontSizes.mega,
+    fontFamily: Fonts.extraBold,
+    color: Colors.textPrimary,
+  },
+  scoreUnit: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.bold,
+    color: Colors.textSecondary,
+    marginTop: 8,
+  },
+
+  // ── Mini metrics ──
+  miniMetrics: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    width: '100%',
+    justifyContent: 'center',
+  },
+  miniMetric: {
+    flex: 1,
+    maxWidth: 110,
+  },
+  miniMetricHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.xs,
+    marginBottom: 3,
   },
-  progressText: { color: Colors.textSecondary, fontSize: FontSizes.md },
-  progressCount: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: FontSizes.md },
-  progressPercent: { color: Colors.neonGreen, fontFamily: Fonts.bold },
-  progressBar: {
-    height: 4,
-    backgroundColor: Colors.surfaceLight,
-    borderRadius: Radius.xs,
+  miniMetricLabel: {
+    color: '#666',
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
+  },
+  miniMetricValue: {
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+  },
+  miniMetricTrack: {
+    height: 3,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 2,
     overflow: 'hidden',
   },
-  progressFill: {
+  miniMetricFill: {
     height: '100%',
-    backgroundColor: Colors.neonGreen,
-    borderRadius: Radius.xs,
+    borderRadius: 2,
   },
 
-  // Week pills
-  weekPills: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
+  // ── Category filters ──
+  filtersScroll: {
+    marginBottom: Spacing.md,
   },
-  weekPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    backgroundColor: Colors.surfaceLight,
-    paddingHorizontal: Spacing.sm,
+  filtersContent: {
+    gap: Spacing.sm,
+    paddingRight: Spacing.md,
+  },
+  filterPill: {
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs + 2,
     borderRadius: Radius.pill,
-    borderWidth: 0.5,
-    borderColor: Colors.border,
+    backgroundColor: '#0d0d0d',
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
   },
-  weekPillText: { color: Colors.textSecondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+  filterPillActive: {
+    backgroundColor: Colors.neonGreen + '15',
+    borderColor: Colors.neonGreen,
+  },
+  filterPillText: {
+    color: '#555',
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1.5,
+  },
+  filterPillTextActive: {
+    color: Colors.neonGreen,
+  },
 
-  // Timeline
-  timeline: { paddingBottom: Spacing.lg },
-  timelineRow: {
+  // ── Skeleton ──
+  skeletonWrap: {
+    gap: 12,
+    paddingVertical: Spacing.md,
+  },
+
+  // ── Timeline ──
+  timeline: {
+    paddingBottom: Spacing.md,
+  },
+  tlRow: {
     flexDirection: 'row',
-    minHeight: 80,
+    minHeight: 72,
   },
-
-  // Time column
-  timeCol: {
-    width: 60,
-    alignItems: 'flex-end',
-    paddingRight: Spacing.sm,
-    paddingTop: 14,
-  },
-  timeText: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-    fontVariant: ['tabular-nums'],
-  },
-
-  // Line column
-  lineCol: {
-    width: 24,
+  tlLineCol: {
+    width: 28,
     alignItems: 'center',
   },
-  lineSegment: {
-    width: 1.5,
-    height: 14,
-    backgroundColor: Colors.surfaceLight,
-  },
-  lineSegmentBottom: {
+  tlLineSegment: {
     width: 1.5,
     flex: 1,
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: '#1a1a1a',
   },
-  dot: {
-    width: 18,
-    height: 18,
-    borderRadius: Radius.sm,
+  tlDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: '#333',
+    backgroundColor: '#0a0a0a',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
   },
-
-  // Card
-  card: {
+  tlCard: {
     flex: 1,
     marginLeft: Spacing.sm,
     marginBottom: Spacing.sm,
-  },
-  cardCompleted: {
-    opacity: 0.55,
-  },
-  cardSkipped: {
-    opacity: 0.35,
-  },
-  cardNext: {
-    borderWidth: 1,
-    borderColor: Colors.neonGreen + '40',
-  },
-  cardInner: {
-    flexDirection: 'row',
-  },
-  cardBody: {
-    flex: 1,
+    backgroundColor: '#0a0a0a',
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
+    borderColor: '#1a1a1a',
+    borderLeftWidth: 3,
     padding: Spacing.sm + 2,
   },
-  cardTopRow: {
+  tlCardCompleted: {
+    opacity: 0.5,
+  },
+  tlCardSkipped: {
+    opacity: 0.3,
+  },
+  tlCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: Spacing.sm,
     marginBottom: 4,
   },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: Radius.pill,
-  },
-  categoryText: {
+  tlTime: {
+    color: Colors.textSecondary,
     fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+    fontVariant: ['tabular-nums'],
+  },
+  tlCategoryLabel: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  tlOverdueBadge: {
+    backgroundColor: SEMANTIC.error + '20',
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: Radius.xs,
+  },
+  tlOverdueText: {
+    color: SEMANTIC.error,
+    fontSize: 8,
     fontFamily: Fonts.bold,
     letterSpacing: 0.5,
   },
-  durationText: {
-    color: Colors.textSecondary,
+  tlDuration: {
+    color: Colors.textMuted,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
+    marginLeft: 'auto',
   },
-  cardTitle: {
+  tlCardBody: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  tlCardContent: {
+    flex: 1,
+  },
+  tlTitle: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
     color: Colors.textPrimary,
+    lineHeight: 20,
   },
-  cardTitleCompleted: {
+  tlTitleCompleted: {
     textDecorationLine: 'line-through',
     color: Colors.textSecondary,
   },
-  cardDesc: {
+  tlSubtitle: {
     color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginTop: 2,
     lineHeight: 16,
   },
-
-  // Checkbox
-  checkArea: {
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.sm,
+  tlOpenLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 4,
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: Radius.card,
+  tlExpanded: {
+    marginTop: Spacing.xs,
+  },
+  tlExpandSep: {
+    height: 0.5,
+    backgroundColor: '#1a1a1a',
+    marginBottom: Spacing.sm,
+  },
+  tlNavChevron: {
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  tlCheckArea: {
+    justifyContent: 'center',
+    paddingLeft: Spacing.sm,
+  },
+  tlCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 2,
-    borderColor: Colors.disabled,
+    borderColor: '#333',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: {
+  tlCheckboxChecked: {
     backgroundColor: Colors.neonGreen,
     borderColor: Colors.neonGreen,
   },
 
-  // Nav indicator (chevron en cards navegables)
-  navIndicator: {
-    justifyContent: 'center',
-    paddingRight: 2,
+  // ── Bottom metrics ──
+  bottomMetrics: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  metricCard: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
+    borderColor: '#1a1a1a',
+    padding: Spacing.md,
+    alignItems: 'center',
+    gap: 4,
+  },
+  metricCardLabel: {
+    color: '#555',
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+    letterSpacing: 2,
+  },
+  metricCardValue: {
+    fontSize: FontSizes.xxl,
+    fontFamily: Fonts.extraBold,
+    color: Colors.textPrimary,
+  },
+  metricCardHint: {
+    color: Colors.textSecondary,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
   },
 
-  // Toast
+  // ── Toast ──
   toast: {
     position: 'absolute',
     bottom: Spacing.xl,
     left: Spacing.lg,
     right: Spacing.lg,
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: '#1a1a1a',
     borderRadius: Radius.sm,
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.md,
     alignItems: 'center',
     borderWidth: 0.5,
-    borderColor: Colors.border,
+    borderColor: '#222',
   },
   toastText: {
     color: Colors.textPrimary,
     fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
-  },
-
-  // Accesos rápidos
-  quickAccessLabel: {
-    color: Colors.textSecondary,
-    letterSpacing: 3,
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    marginTop: Spacing.lg,
-    marginBottom: Spacing.sm,
-  },
-  quickAccessRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  quickAccessCard: {
-    flex: 1,
-    padding: Spacing.md,
-  },
-  quickAccessInner: {
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-
-  // Expanded content
-  expandedContent: {
-    marginTop: Spacing.xs,
-  },
-  expandSeparator: {
-    height: 0.5,
-    backgroundColor: Colors.surfaceLight,
-    marginBottom: Spacing.sm,
-  },
-
-  // Protocol pills (4.1)
-  protocolPills: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-    marginBottom: Spacing.sm,
-  },
-  protocolPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: Colors.surfaceLight,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: Radius.pill,
-    borderWidth: 0.5,
-    borderColor: Colors.neonGreen + '30',
-  },
-  protocolPillText: {
-    color: Colors.neonGreen,
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.semiBold,
-  },
-
-  // Now badge (4.4)
-  nowBadge: {
-    backgroundColor: Colors.neonGreen,
-    borderRadius: Radius.xs,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    marginTop: 2,
-  },
-  nowBadgeText: {
-    color: Colors.black,
-    fontSize: 8,
-    fontFamily: Fonts.bold,
-    letterSpacing: 1,
-  },
-
-  // Overdue badge (4.5)
-  overdueBadge: {
-    backgroundColor: SEMANTIC.error + '20',
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: Radius.xs,
-  },
-  overdueText: {
-    color: SEMANTIC.error,
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.bold,
   },
 });
