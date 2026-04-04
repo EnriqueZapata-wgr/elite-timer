@@ -62,9 +62,9 @@ function formatTodayHeader(): string {
 
 /** Formatea "HH:MM:SS" o "HH:MM" a "5:30 AM" */
 function formatTime(timeStr: string): string {
-  const parts = timeStr.split(':');
-  let h = parseInt(parts[0], 10);
-  const m = parts[1];
+  const parts = timeStr?.split(':') ?? [];
+  let h = parseInt(parts[0] ?? '0', 10);
+  const m = parts[1] ?? '00';
   const ampm = h >= 12 ? 'PM' : 'AM';
   if (h > 12) h -= 12;
   if (h === 0) h = 12;
@@ -74,8 +74,8 @@ function formatTime(timeStr: string): string {
 /** Determina si un item ya pasó según la hora */
 function isPast(timeStr: string): boolean {
   const now = new Date();
-  const parts = timeStr.split(':');
-  const itemMinutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  const parts = timeStr?.split(':') ?? [];
+  const itemMinutes = parseInt(parts[0] ?? '0', 10) * 60 + parseInt(parts[1] ?? '0', 10);
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   return nowMinutes > itemMinutes;
 }
@@ -93,8 +93,8 @@ function isNextAction(actions: PlanAction[], idx: number): boolean {
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const action = actions[idx];
   if (action.completed || action.skipped) return false;
-  const parts = action.scheduled_time.split(':');
-  const actionMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  const parts = action.scheduled_time?.split(':') ?? [];
+  const actionMin = parseInt(parts[0] ?? '0', 10) * 60 + parseInt(parts[1] ?? '0', 10);
   // Es "próxima" si es la primera no completada cuya hora ya pasó o es la siguiente
   for (let i = 0; i < idx; i++) {
     if (!actions[i].completed && !actions[i].skipped) return false; // hay una antes sin completar

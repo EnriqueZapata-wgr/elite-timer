@@ -58,7 +58,7 @@ export default function KitScreen() {
   const getRoutineTime = (routine: Routine): string => {
     try {
       const steps = flattenRoutine(routine);
-      return calcRoutineStats(steps).formattedTotal;
+      return calcRoutineStats(steps)?.formattedTotal ?? '';
     } catch { return ''; }
   };
 

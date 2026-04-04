@@ -257,7 +257,7 @@ export default function YoScreen() {
         {/* ═══════════════════════════════════════════
             4. IMPROVE EVALUATION — Green-tinted card
             ═══════════════════════════════════════════ */}
-        {healthReport && healthReport.recommendations.toImproveEvaluation.length > 0 && (
+        {healthReport && healthReport.recommendations?.toImproveEvaluation?.length > 0 && (
           <Animated.View entering={FadeInUp.delay(300).springify()}>
             <View style={s.improveCard}>
               <View style={s.improveHeader}>
@@ -266,7 +266,7 @@ export default function YoScreen() {
                 </View>
                 <EliteText style={s.improveTitle}>MEJORA TU EVALUACIÓN</EliteText>
               </View>
-              {healthReport.recommendations.toImproveEvaluation.slice(0, 2).map((rec) => (
+              {(healthReport.recommendations?.toImproveEvaluation ?? []).slice(0, 2).map((rec) => (
                 <AnimatedPressable key={rec.id} onPress={() => { haptic.light(); router.push(rec.route as any); }} style={s.improveRow}>
                   <Ionicons name={rec.icon as any} size={16} color={rec.impact === 'critical' ? SEMANTIC.error : SEMANTIC.warning} />
                   <View style={{ flex: 1 }}>
