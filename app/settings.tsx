@@ -538,53 +538,13 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            {wearableConnected ? (
-              <View style={styles.wearableConnectedSection}>
-                {/* Estado conectado */}
-                <View style={styles.wearableStatusRow}>
-                  <View style={styles.wearableStatusLeft}>
-                    <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-                    <EliteText variant="body" style={styles.wearableSourceText}>
-                      {wearableSource}
-                    </EliteText>
-                  </View>
-                  <EliteText variant="caption" style={styles.wearableConnectedBadge}>
-                    Conectado
-                  </EliteText>
-                </View>
-
-                {/* Última sincronización */}
-                {wearableLastSync && (
-                  <EliteText variant="caption" style={styles.wearableSyncTime}>
-                    Última sincronización: {wearableLastSync}
-                  </EliteText>
-                )}
-
-                {/* Botones de acción */}
-                <View style={styles.wearableActions}>
-                  <Pressable onPress={handleSyncWearable} style={styles.wearableSyncBtn}>
-                    <Ionicons name="sync-outline" size={16} color={CATEGORY_COLORS.metrics} />
-                    <EliteText variant="caption" style={styles.wearableSyncBtnText}>
-                      Sincronizar ahora
-                    </EliteText>
-                  </Pressable>
-                  <Pressable onPress={handleDisconnectWearable} style={styles.wearableDisconnectBtn}>
-                    <Ionicons name="close-circle-outline" size={16} color={Colors.textSecondary} />
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <Pressable
-                onPress={handleConnectWearable}
-                disabled={wearableConnecting}
-                style={[styles.wearableConnectBtn, wearableConnecting && { opacity: 0.5 }]}
-              >
-                <Ionicons name="bluetooth-outline" size={18} color={CATEGORY_COLORS.metrics} />
-                <EliteText variant="body" style={styles.wearableConnectBtnText}>
-                  {wearableConnecting ? 'Conectando...' : 'Conectar dispositivo'}
-                </EliteText>
-              </Pressable>
-            )}
+            {/* Wearables desactivados temporalmente */}
+            <View style={[styles.wearableConnectBtn, { opacity: 0.5 }]}>
+              <Ionicons name="bluetooth-outline" size={18} color={Colors.textSecondary} />
+              <EliteText variant="body" style={[styles.wearableConnectBtnText, { color: Colors.textSecondary }]}>
+                Próximamente
+              </EliteText>
+            </View>
 
             {/* Dispositivos compatibles */}
             <EliteText variant="caption" style={styles.wearableCompatible}>
