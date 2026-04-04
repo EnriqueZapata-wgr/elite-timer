@@ -544,7 +544,7 @@ export default function NutritionScreen() {
 
         {/* ══ 4b. Registrar por descripción ══ */}
         <AnimatedPressable
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: '#111', borderRadius: 12, borderWidth: 0.5, borderColor: '#333', marginBottom: 16, marginTop: 8 }}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, backgroundColor: SURFACES.card, borderRadius: 12, borderWidth: 0.5, borderColor: SURFACES.border, marginBottom: 16, marginTop: 8 }}
           onPress={() => router.push('/food-text' as any)}
         >
           <Ionicons name="create-outline" size={18} color="#5B9BD5" />

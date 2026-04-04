@@ -24,9 +24,9 @@ export const ATP_BRAND = {
 
 export const SURFACES = {
   base: '#0A0A0A',       // Tab bar, sidebar (casi negro, sutil)
-  card: '#111111',       // Cards, contenedores elevados
+  card: '#0A0A0A',       // Cards, contenedores elevados (unificado con rediseño)
   cardLight: '#1A1A1A',  // Bordes, separadores, pista del timer
-  border: '#222222',     // Bordes sutiles de cards
+  border: '#1A1A1A',     // Bordes sutiles de cards (unificado con rediseño)
   disabled: '#333333',   // Elementos deshabilitados
 } as const;
 
