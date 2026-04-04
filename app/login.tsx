@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
   },
   forgotLink: {
-    color: Colors.textSecondary,
+    color: Colors.neonGreen,
     textAlign: 'center',
   },
 });
