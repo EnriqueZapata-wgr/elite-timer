@@ -46,19 +46,7 @@
       ],
       "expo-font",
       "expo-audio",
-      "expo-secure-store",
-      [
-        "@kingstinct/react-native-healthkit",
-        {
-          "NSHealthShareUsageDescription": "ATP Performance necesita acceso a tus datos de salud para mostrarte métricas de sueño, actividad, frecuencia cardíaca y recuperación."
-        }
-      ],
-      [
-        "react-native-health-connect",
-        {
-          "requestPermissionsBackCompat": true
-        }
-      ]
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
