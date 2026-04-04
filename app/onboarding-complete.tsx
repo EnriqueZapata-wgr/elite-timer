@@ -1,28 +1,36 @@
 /**
  * Onboarding Complete — Pantalla de transición "Generando tu día".
  *
- * Muestra progreso falso mientras genera el plan diario, luego navega al home.
+ * Muestra progreso con círculo SVG animado, mensajes progresivos,
+ * genera el plan diario, activa trial de 7 días, y navega al home.
  */
 import { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
-import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT_COLORS, SURFACES } from '@/src/constants/brand';
+import { Spacing, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND, TEXT_COLORS } from '@/src/constants/brand';
 
 const MESSAGES = [
-  'Combinando tus protocolos...',
+  'Analizando tus respuestas...',
+  'Combinando protocolos seleccionados...',
   'Ajustando a tu cronotipo...',
   'Creando timeline personalizado...',
   '¡Listo!',
 ];
+
+// Parámetros SVG
+const CIRCLE_SIZE = 120;
+const CIRCLE_STROKE = 6;
+const CIRCLE_RADIUS = (CIRCLE_SIZE - CIRCLE_STROKE) / 2;
+const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
 
 export default function OnboardingCompleteScreen() {
   const router = useRouter();
@@ -31,81 +39,178 @@ export default function OnboardingCompleteScreen() {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    // Progreso falso: avanza en 4 pasos
-    const timers = MESSAGES.map((_, i) =>
-      setTimeout(() => {
-        setMessageIndex(i);
-        setProgress((i + 1) / MESSAGES.length);
-      }, i * 900),
-    );
+    let cancelled = false;
 
-    // Acción real: generar plan y navegar
-    const finishTimer = setTimeout(async () => {
+    const generate = async () => {
+      // Paso 1: Analizando
+      setMessageIndex(0);
+      setProgress(0.2);
+      await new Promise(r => setTimeout(r, 800));
+      if (cancelled) return;
+
+      // Paso 2: Combinando
+      setMessageIndex(1);
+      setProgress(0.4);
+      await new Promise(r => setTimeout(r, 800));
+      if (cancelled) return;
+
+      // Paso 3: Ajustando + generar plan real
+      setMessageIndex(2);
+      setProgress(0.6);
       try {
-        if (user) {
+        if (user?.id) {
           await generateDailyPlan(user.id, undefined, true);
-          await supabase.from('profiles').update({ onboarding_step: 'completed' }).eq('id', user.id);
         }
       } catch { /* falla silenciosa — el plan se genera en home */ }
+      if (cancelled) return;
 
+      // Paso 4: Creando timeline
+      setMessageIndex(3);
+      setProgress(0.9);
+      await new Promise(r => setTimeout(r, 600));
+      if (cancelled) return;
+
+      // Activar trial de 7 días Standard
+      try {
+        if (user?.id) {
+          const { data: existingSub } = await supabase
+            .from('user_subscriptions')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (!existingSub) {
+            const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+            await supabase.from('user_subscriptions').insert({
+              user_id: user.id,
+              tier: 'standard',
+              status: 'trialing',
+              trial_end: trialEnd,
+              current_period_start: new Date().toISOString(),
+              current_period_end: trialEnd,
+            });
+          }
+        }
+      } catch { /* tabla puede no existir aún — silenciar */ }
+
+      // Paso 5: ¡Listo!
+      setMessageIndex(4);
+      setProgress(1);
       haptic.success();
-      router.replace('/(tabs)');
-    }, 3500);
+      await new Promise(r => setTimeout(r, 500));
+      if (cancelled) return;
 
-    return () => {
-      timers.forEach(clearTimeout);
-      clearTimeout(finishTimer);
+      // Marcar onboarding como completado y navegar
+      try {
+        if (user?.id) {
+          await supabase.from('profiles').update({ onboarding_step: 'completed' }).eq('id', user.id);
+        }
+      } catch { /* silenciar */ }
+
+      router.replace('/(tabs)');
     };
+
+    generate();
+    return () => { cancelled = true; };
   }, []);
 
+  const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - progress);
+
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.content}>
-        {/* Icono */}
+        {/* Logo */}
         <Animated.View entering={FadeInUp.duration(500)}>
-          <Ionicons
-            name={messageIndex === MESSAGES.length - 1 ? 'checkmark-circle' : 'pulse'}
-            size={80}
-            color={ATP_BRAND.lime}
-          />
+          <EliteText style={styles.logo}>ATP</EliteText>
         </Animated.View>
+
+        {/* Círculo animado de progreso */}
+        <Animated.View entering={FadeInUp.delay(100).duration(500)} style={styles.circleWrap}>
+          <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE}>
+            {/* Track */}
+            <Circle
+              cx={CIRCLE_SIZE / 2}
+              cy={CIRCLE_SIZE / 2}
+              r={CIRCLE_RADIUS}
+              stroke="#1a1a1a"
+              strokeWidth={CIRCLE_STROKE}
+              fill="none"
+            />
+            {/* Progreso */}
+            <Circle
+              cx={CIRCLE_SIZE / 2}
+              cy={CIRCLE_SIZE / 2}
+              r={CIRCLE_RADIUS}
+              stroke={ATP_BRAND.lime}
+              strokeWidth={CIRCLE_STROKE}
+              fill="none"
+              strokeDasharray={`${CIRCLE_CIRCUMFERENCE}`}
+              strokeDashoffset={strokeDashoffset}
+              strokeLinecap="round"
+              rotation="-90"
+              origin={`${CIRCLE_SIZE / 2}, ${CIRCLE_SIZE / 2}`}
+            />
+          </Svg>
+          {/* Ícono dentro del círculo */}
+          <View style={styles.circleIcon}>
+            <Ionicons
+              name={messageIndex >= MESSAGES.length - 1 ? 'checkmark' : 'flash'}
+              size={32}
+              color={ATP_BRAND.lime}
+            />
+          </View>
+        </Animated.View>
+
+        {/* Título */}
+        <EliteText style={styles.title}>Generando tu día...</EliteText>
 
         {/* Mensaje actual */}
         <Animated.View entering={FadeIn.duration(300)} key={messageIndex}>
-          <EliteText variant="subtitle" style={styles.message}>
+          <EliteText style={styles.message}>
             {MESSAGES[messageIndex]}
           </EliteText>
         </Animated.View>
-
-        {/* Barra de progreso */}
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-        </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.black },
-  content: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.xl },
-  message: {
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    alignItems: 'center',
+    gap: 24,
+  },
+  logo: {
+    fontSize: 32,
+    fontFamily: Fonts.extraBold,
+    color: ATP_BRAND.lime,
+    letterSpacing: 4,
+  },
+  circleWrap: {
+    width: CIRCLE_SIZE,
+    height: CIRCLE_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleIcon: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
     fontSize: FontSizes.xl,
-    color: TEXT_COLORS.primary,
-    textAlign: 'center',
-    marginTop: Spacing.xl,
-    marginBottom: Spacing.xl,
+    fontFamily: Fonts.semiBold,
+    color: '#fff',
   },
-  progressTrack: {
-    width: '80%',
-    height: 6,
-    backgroundColor: SURFACES.cardLight,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: ATP_BRAND.lime,
-    borderRadius: 3,
+  message: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.regular,
+    color: '#666',
   },
 });
