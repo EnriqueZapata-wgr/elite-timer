@@ -23,6 +23,8 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT_COLORS, SEMANTIC } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
+import { ExplanationModal } from '@/src/components/ui/ExplanationModal';
+import { DOMAIN_EXPLANATIONS, type DomainExplanation } from '@/src/data/domain-explanations';
 
 // === CONSTANTES ===
 
@@ -46,6 +48,9 @@ export default function YoScreen() {
   const [healthLoading, setHealthLoading] = useState(true);
   const [dailyScore, setDailyScore] = useState<DailyHealthScore | null>(null);
   const [wearableData, setWearableData] = useState<WearableData | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [selectedDomain, setSelectedDomain] = useState<DomainExplanation | null>(null);
+  const [selectedScore, setSelectedScore] = useState<number | undefined>(undefined);
 
   const loadData = useCallback(async () => {
     try { setData(await getDashboardData()); } catch { /* silenciar */ }
@@ -308,16 +313,26 @@ export default function YoScreen() {
               <EliteText style={s.domainsTitle}>DOMINIOS DE SALUD</EliteText>
               <EliteText style={{ fontSize: 9, fontFamily: Fonts.regular, color: '#444', marginTop: -8, marginBottom: 8 }}>Toca un dominio para más info</EliteText>
               {sortedDomains.map((d) => (
-                <View key={d.domain} style={s.domainRow}>
-                  <View style={s.domainIconWrap}>
-                    <Ionicons name={d.icon as any} size={13} color={d.color} />
+                <AnimatedPressable key={d.domain} onPress={() => {
+                  haptic.light();
+                  const exp = DOMAIN_EXPLANATIONS[d.domain] ?? DOMAIN_EXPLANATIONS[d.label?.toLowerCase()] ?? null;
+                  if (exp) {
+                    setSelectedDomain(exp);
+                    setSelectedScore(d.score);
+                    setShowExplanation(true);
+                  }
+                }}>
+                  <View style={s.domainRow}>
+                    <View style={s.domainIconWrap}>
+                      <Ionicons name={d.icon as any} size={13} color={d.color} />
+                    </View>
+                    <EliteText style={s.domainLabel}>{d.label}</EliteText>
+                    <View style={s.domainBarBg}>
+                      <View style={[s.domainBarFill, { width: `${Math.min(100, d.score)}%`, backgroundColor: d.color }]} />
+                    </View>
+                    <EliteText style={[s.domainPct, { color: d.color }]}>{d.score}</EliteText>
                   </View>
-                  <EliteText style={s.domainLabel}>{d.label}</EliteText>
-                  <View style={s.domainBarBg}>
-                    <View style={[s.domainBarFill, { width: `${Math.min(100, d.score)}%`, backgroundColor: d.color }]} />
-                  </View>
-                  <EliteText style={[s.domainPct, { color: d.color }]}>{d.score}</EliteText>
-                </View>
+                </AnimatedPressable>
               ))}
             </View>
           </Animated.View>
@@ -370,8 +385,32 @@ export default function YoScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* ═══════════════════════════════════════════
+            8. CONNECT WEARABLE BANNER
+            ═══════════════════════════════════════════ */}
+        {!wearableData && (
+          <Animated.View entering={FadeInUp.delay(550).springify()}>
+            <AnimatedPressable style={s.connectBanner} onPress={() => { haptic.light(); router.push('/settings'); }}>
+              <Ionicons name="watch-outline" size={20} color={ATP_BRAND.lime} />
+              <View style={{ flex: 1 }}>
+                <EliteText style={s.connectBannerTitle}>Conecta tu dispositivo</EliteText>
+                <EliteText style={s.connectBannerDesc}>Apple Watch, Oura, Garmin para mejorar tus scores</EliteText>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#555" />
+            </AnimatedPressable>
+          </Animated.View>
+        )}
+
         <View style={{ height: Spacing.xxl * 2 }} />
       </ScrollView>
+
+      {/* Modal de explicación de dominio */}
+      <ExplanationModal
+        visible={showExplanation}
+        onClose={() => setShowExplanation(false)}
+        explanation={selectedDomain}
+        currentScore={selectedScore}
+      />
     </View>
   );
 }
@@ -741,5 +780,29 @@ const s = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     color: '#555',
     letterSpacing: 1,
+  },
+
+  // ── 8. Connect Wearable Banner ──
+  connectBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#0d1a0a',
+    borderRadius: 20,
+    padding: Spacing.md,
+    marginTop: 12,
+    borderWidth: 0.5,
+    borderColor: 'rgba(168,224,42,0.15)',
+  },
+  connectBannerTitle: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.semiBold,
+    color: '#fff',
+  },
+  connectBannerDesc: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.regular,
+    color: '#666',
+    marginTop: 2,
   },
 });
