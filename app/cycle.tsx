@@ -94,11 +94,22 @@ export default function CycleScreen() {
     setLoading(false);
   };
 
-  const handleStartPeriod = async () => {
+  const handleStartPeriod = () => {
     if (!userId) return;
     haptic.medium();
-    await startPeriod(userId);
-    loadData();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yStr = yesterday.toISOString().split('T')[0];
+    const dayBefore = new Date();
+    dayBefore.setDate(dayBefore.getDate() - 2);
+    const dbStr = dayBefore.toISOString().split('T')[0];
+
+    Alert.alert('¿Cuándo empezó tu período?', undefined, [
+      { text: 'Hoy', onPress: async () => { await startPeriod(userId); loadData(); } },
+      { text: 'Ayer', onPress: async () => { await startPeriod(userId, yStr); loadData(); } },
+      { text: 'Antier', onPress: async () => { await startPeriod(userId, dbStr); loadData(); } },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
   };
 
   const handleEndPeriod = async () => {

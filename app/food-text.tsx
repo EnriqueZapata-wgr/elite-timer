@@ -328,7 +328,7 @@ export default function FoodTextScreen() {
                           style={s.gramsInput}
                           value={ing.grams > 0 ? ing.grams.toString() : ''}
                           onChangeText={(t) => updateGrams(ing.id, t)}
-                          keyboardType="number-pad"
+                          keyboardType="decimal-pad"
                           selectTextOnFocus
                         />
                         <EliteText style={s.gramsLabel}>g</EliteText>

@@ -25,7 +25,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 const TOOLS = [
   { name: 'Timer', subtitle: 'INTERVALOS & AMRAP', icon: 'timer-outline' as const, color: '#a8e02a', route: '/timer' },
   { name: 'Nutrición', subtitle: 'MACROS & TRACKING', icon: 'nutrition-outline' as const, color: '#5B9BD5', route: '/nutrition' },
-  { name: 'Respiración', subtitle: 'ENFOQUE & CALMA', icon: 'body-outline' as const, color: '#D4537E', route: '/breathing' },
+  { name: 'Respiración', subtitle: 'ENFOQUE & CALMA', icon: 'pulse-outline' as const, color: '#7F77DD', route: '/breathing' },
   { name: 'Mi Salud', subtitle: 'EVALUACIONES', icon: 'analytics-outline' as const, color: '#5B9BD5', route: '/my-health' },
   { name: 'Meditación', subtitle: 'MINDFULNESS', icon: 'sparkles-outline' as const, color: '#7F77DD', route: '/meditation' },
   { name: 'Journal', subtitle: 'REFLEXIÓN DIARIA', icon: 'book-outline' as const, color: '#7F77DD', route: '/journal' },

@@ -113,8 +113,9 @@ export async function getCycleInfo(userId: string) {
   };
 }
 
-export async function startPeriod(userId: string) {
-  return supabase.from('cycle_periods').insert({ user_id: userId, start_date: new Date().toISOString().split('T')[0] });
+export async function startPeriod(userId: string, date?: string) {
+  const startDate = date ?? new Date().toISOString().split('T')[0];
+  return supabase.from('cycle_periods').insert({ user_id: userId, start_date: startDate });
 }
 
 export async function endPeriod(userId: string) {

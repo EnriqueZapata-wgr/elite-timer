@@ -256,7 +256,7 @@ export default function HealthInputScreen() {
                             style={st.input}
                             value={(data as any)[field.key]?.toString() ?? ''}
                             onChangeText={(v) => updateField(field.key, v)}
-                            keyboardType="numeric"
+                            keyboardType="decimal-pad"
                             placeholder="—"
                             placeholderTextColor={TEXT_COLORS.muted}
                           />
