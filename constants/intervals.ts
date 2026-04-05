@@ -10,17 +10,15 @@ export interface IntervalOption {
  * Lista de intervalos preconfigurados.
  * El orden del array es el orden en que aparecen en pantalla.
  *
- * Tabata y Personalizado quedan deshabilitados porque requieren
- * lógica adicional que se implementará después:
- * - Tabata necesita ciclos de trabajo/descanso en useTimer
- * - Personalizado necesita un input numérico
+ * Tabata: 20s trabajo / 10s descanso × 8 rondas = 240s total
+ * Personalizado: Abre input para que el usuario ponga sus segundos
  */
 export const INTERVALS: IntervalOption[] = [
-  { id: '30s',    label: '30s',          seconds: 30,  enabled: true },
-  { id: '60s',    label: '60s',          seconds: 60,  enabled: true },
-  { id: '90s',    label: '90s',          seconds: 90,  enabled: true },
-  { id: 'tabata', label: 'Tabata',       seconds: 0,   enabled: false },
-  { id: 'custom', label: 'Personalizado', seconds: 0,  enabled: false },
+  { id: '30s',    label: '30s',          seconds: 30,   enabled: true },
+  { id: '60s',    label: '60s',          seconds: 60,   enabled: true },
+  { id: '90s',    label: '90s',          seconds: 90,   enabled: true },
+  { id: 'tabata', label: 'Tabata',       seconds: 240,  enabled: true },
+  { id: 'custom', label: 'Personalizado', seconds: 0,   enabled: true },
 ];
 
 // Intervalo seleccionado por defecto al abrir la app

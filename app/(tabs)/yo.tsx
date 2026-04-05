@@ -315,12 +315,21 @@ export default function YoScreen() {
               {sortedDomains.map((d) => (
                 <AnimatedPressable key={d.domain} onPress={() => {
                   haptic.light();
-                  const exp = DOMAIN_EXPLANATIONS[d.domain] ?? DOMAIN_EXPLANATIONS[d.label?.toLowerCase()] ?? null;
-                  if (exp) {
-                    setSelectedDomain(exp);
-                    setSelectedScore(d.score);
-                    setShowExplanation(true);
-                  }
+                  // Buscar por key del dominio, label normalizado, o crear fallback
+                  const normalizedLabel = d.label?.toLowerCase()?.normalize('NFD')?.replace(/[\u0300-\u036f]/g, '') ?? '';
+                  const exp = DOMAIN_EXPLANATIONS[d.domain]
+                    ?? DOMAIN_EXPLANATIONS[normalizedLabel]
+                    ?? {
+                      name: d.label ?? d.domain,
+                      icon: d.icon ?? 'information-circle-outline',
+                      color: d.color ?? '#888',
+                      whatItMeans: `Este dominio evalúa un aspecto de tu salud. Tu score actual es ${d.score}.`,
+                      howToImprove: ['Completa más evaluaciones para mejorar este score', 'Registra datos de salud regularmente'],
+                      dataNeeded: ['Más datos necesarios para una evaluación completa'],
+                    };
+                  setSelectedDomain(exp);
+                  setSelectedScore(d.score);
+                  setShowExplanation(true);
                 }}>
                   <View style={s.domainRow}>
                     <View style={s.domainIconWrap}>

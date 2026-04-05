@@ -86,17 +86,22 @@ export default function ProtocolExplorerScreen() {
         onPress: async () => {
           setActivating(templateId);
           try {
+            console.log('[ProtocolExplorer] Activando protocolo:', templateId);
             await assignProtocol(user.id, templateId, null, 'self');
-            await generateDailyPlan(user.id, undefined, true);
+            console.log('[ProtocolExplorer] Protocolo asignado, regenerando plan...');
+            await generateDailyPlan(user.id, undefined, true).catch((e: any) => {
+              console.warn('[ProtocolExplorer] Error generando plan (no fatal):', e?.message);
+            });
             haptic.success();
-            Alert.alert('Protocolo activado', 'Tu día se ha actualizado con las nuevas acciones.', [
+            Alert.alert('Protocolo activado', 'Tu timeline se ha actualizado con las nuevas acciones.', [
               { text: 'Ver mi día', onPress: () => router.replace('/(tabs)') },
               { text: 'Seguir explorando', onPress: () => loadData() },
             ]);
             loadData();
           } catch (err: any) {
             haptic.error();
-            Alert.alert('Error', err.message || 'No se pudo activar');
+            console.error('[ProtocolExplorer] Error completo:', err);
+            Alert.alert('Error al activar', err?.message || 'No se pudo activar el protocolo. Verifica tu conexión.');
           }
           setActivating(null);
         },

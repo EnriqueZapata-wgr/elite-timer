@@ -56,6 +56,7 @@ export default function JournalScreen() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [entries, setEntries] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [userSex, setUserSex] = useState<string>('male');
 
   // Estado de Gratitud
   const [gratPersonal, setGratPersonal] = useState(['', '', '']);
@@ -78,9 +79,13 @@ export default function JournalScreen() {
   const [moodBefore, setMoodBefore] = useState<number | null>(null);
   const [moodAfter, setMoodAfter] = useState<number | null>(null);
 
-  // Cargar entradas al enfocar la pantalla
+  // Cargar entradas y sexo al enfocar la pantalla
   useFocusEffect(useCallback(() => {
-    if (user?.id) loadEntries();
+    if (user?.id) {
+      loadEntries();
+      supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).single()
+        .then(({ data }) => { if (data?.biological_sex) setUserSex(data.biological_sex); }, () => {});
+    }
   }, [user?.id]));
 
   async function loadEntries() {
@@ -192,7 +197,7 @@ export default function JournalScreen() {
 
           {/* Formulario específico */}
           <Animated.View entering={FadeInUp.delay(150).springify()}>
-            {selectedType === 'gratitude' && <GratitudeForm personal={gratPersonal} setPersonal={setGratPersonal} professional={gratProfessional} setProfessional={setGratProfessional} self={gratSelf} setSelf={setGratSelf} />}
+            {selectedType === 'gratitude' && <GratitudeForm personal={gratPersonal} setPersonal={setGratPersonal} professional={gratProfessional} setProfessional={setGratProfessional} self={gratSelf} setSelf={setGratSelf} sex={userSex} />}
             {selectedType === 'vision' && <VisionForm v1={vision1} setV1={setVision1} v3={vision3} setV3={setVision3} v5={vision5} setV5={setVision5} />}
             {selectedType === 'stoic' && <StoicForm answers={stoicAnswers} setAnswers={setStoicAnswers} />}
             {selectedType === 'work_dump' && <WorkDumpForm tasks={tasks} setTasks={setTasks} freeform={freeform} setFreeform={setFreeform} />}
@@ -276,18 +281,20 @@ export default function JournalScreen() {
 
 // ═══ FORMULARIOS ═══
 
-function GratitudeForm({ personal, setPersonal, professional, setProfessional, self, setSelf }: {
+function GratitudeForm({ personal, setPersonal, professional, setProfessional, self, setSelf, sex }: {
   personal: string[]; setPersonal: (v: string[]) => void;
   professional: string[]; setProfessional: (v: string[]) => void;
   self: string[]; setSelf: (v: string[]) => void;
+  sex?: string;
 }) {
   const updateArr = (arr: string[], setter: (v: string[]) => void, idx: number, val: string) => {
     const copy = [...arr]; copy[idx] = val; setter(copy);
   };
+  const isFemale = sex === 'female';
   const sections = [
-    { title: 'Personal', data: personal, setter: setPersonal, placeholder: 'Algo por lo que estás agradecido...' },
+    { title: 'Personal', data: personal, setter: setPersonal, placeholder: isFemale ? 'Algo por lo que estás agradecida...' : 'Algo por lo que estás agradecido...' },
     { title: 'Profesional', data: professional, setter: setProfessional, placeholder: 'En tu trabajo o proyectos...' },
-    { title: 'A ti mismo', data: self, setter: setSelf, placeholder: 'Algo que te reconoces...' },
+    { title: isFemale ? 'A ti misma' : 'A ti mismo', data: self, setter: setSelf, placeholder: 'Algo que te reconoces...' },
   ];
   return (
     <View>
