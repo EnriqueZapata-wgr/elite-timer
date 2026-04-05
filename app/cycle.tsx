@@ -2,7 +2,7 @@
  * Ciclo Menstrual — Tracking de fases, síntomas, suplementos y labs.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -60,6 +60,9 @@ export default function CycleScreen() {
   const userId = user?.id ?? '';
 
   const [loading, setLoading] = useState(true);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [manualDay, setManualDay] = useState('');
+  const [manualMonth, setManualMonth] = useState('');
   const [info, setInfo] = useState<Awaited<ReturnType<typeof getCycleInfo>>>(null);
   const [symptoms, setSymptoms] = useState<Record<string, number | null>>({
     energy: null, mood: null, cramps: null, bloating: null, anxiety: null, sleep: null,
@@ -97,19 +100,31 @@ export default function CycleScreen() {
   const handleStartPeriod = () => {
     if (!userId) return;
     haptic.medium();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yStr = yesterday.toISOString().split('T')[0];
-    const dayBefore = new Date();
-    dayBefore.setDate(dayBefore.getDate() - 2);
-    const dbStr = dayBefore.toISOString().split('T')[0];
+    setManualDay('');
+    setManualMonth('');
+    setShowDatePicker(true);
+  };
 
-    Alert.alert('¿Cuándo empezó tu período?', undefined, [
-      { text: 'Hoy', onPress: async () => { await startPeriod(userId); loadData(); } },
-      { text: 'Ayer', onPress: async () => { await startPeriod(userId, yStr); loadData(); } },
-      { text: 'Antier', onPress: async () => { await startPeriod(userId, dbStr); loadData(); } },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+  const confirmStartPeriod = async (date: Date) => {
+    setShowDatePicker(false);
+    const dateStr = date.toISOString().split('T')[0];
+    await startPeriod(userId, dateStr);
+    haptic.success();
+    loadData();
+  };
+
+  const confirmManualDate = () => {
+    const d = parseInt(manualDay, 10);
+    const m = parseInt(manualMonth, 10);
+    if (!d || !m || d < 1 || d > 31 || m < 1 || m > 12) {
+      Alert.alert('Fecha inválida', 'Ingresa día y mes válidos.');
+      return;
+    }
+    const now = new Date();
+    const date = new Date(now.getFullYear(), m - 1, d);
+    // Si la fecha es en el futuro, usar el año anterior
+    if (date > now) date.setFullYear(date.getFullYear() - 1);
+    confirmStartPeriod(date);
   };
 
   const handleEndPeriod = async () => {
@@ -301,6 +316,68 @@ export default function CycleScreen() {
         </Animated.View>
 
       </ScrollView>
+
+      {/* ── Modal para seleccionar fecha de inicio ── */}
+      <Modal visible={showDatePicker} transparent animationType="slide" onRequestClose={() => setShowDatePicker(false)}>
+        <Pressable style={s.dateOverlay} onPress={() => setShowDatePicker(false)}>
+          <Pressable style={s.dateModal} onPress={() => {}}>
+            <EliteText style={s.dateModalTitle}>¿Cuándo empezó tu período?</EliteText>
+
+            {/* Opciones rápidas */}
+            <View style={s.dateQuickRow}>
+              <AnimatedPressable style={s.dateQuickBtn} onPress={() => confirmStartPeriod(new Date())}>
+                <EliteText style={s.dateQuickText}>Hoy</EliteText>
+              </AnimatedPressable>
+              <AnimatedPressable style={s.dateQuickBtn} onPress={() => {
+                const y = new Date(); y.setDate(y.getDate() - 1); confirmStartPeriod(y);
+              }}>
+                <EliteText style={s.dateQuickText}>Ayer</EliteText>
+              </AnimatedPressable>
+              <AnimatedPressable style={s.dateQuickBtn} onPress={() => {
+                const d = new Date(); d.setDate(d.getDate() - 2); confirmStartPeriod(d);
+              }}>
+                <EliteText style={s.dateQuickText}>Antier</EliteText>
+              </AnimatedPressable>
+            </View>
+
+            {/* Fecha manual */}
+            <EliteText style={s.dateManualLabel}>O ingresa la fecha:</EliteText>
+            <View style={s.dateManualRow}>
+              <TextInput
+                style={s.dateManualInput}
+                placeholder="DD"
+                placeholderTextColor="#444"
+                keyboardType="number-pad"
+                maxLength={2}
+                value={manualDay}
+                onChangeText={setManualDay}
+              />
+              <EliteText style={{ color: '#444', fontSize: 18 }}>/</EliteText>
+              <TextInput
+                style={s.dateManualInput}
+                placeholder="MM"
+                placeholderTextColor="#444"
+                keyboardType="number-pad"
+                maxLength={2}
+                value={manualMonth}
+                onChangeText={setManualMonth}
+              />
+            </View>
+
+            <AnimatedPressable
+              style={[s.dateConfirmBtn, (!manualDay || !manualMonth) && { opacity: 0.4 }]}
+              onPress={confirmManualDate}
+              disabled={!manualDay || !manualMonth}
+            >
+              <EliteText style={s.dateConfirmText}>Confirmar fecha</EliteText>
+            </AnimatedPressable>
+
+            <AnimatedPressable onPress={() => setShowDatePicker(false)} style={{ alignItems: 'center', paddingVertical: 12 }}>
+              <EliteText style={{ color: '#888', fontSize: FontSizes.sm }}>Cancelar</EliteText>
+            </AnimatedPressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -342,5 +419,83 @@ const s = StyleSheet.create({
   setupBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: PINK, borderRadius: Radius.card, paddingVertical: Spacing.md,
+  },
+
+  // ── Date picker modal ──
+  dateOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end',
+  },
+  dateModal: {
+    backgroundColor: '#0a0a0a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: Spacing.lg,
+  },
+  dateModalTitle: {
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.bold,
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  dateQuickRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: Spacing.lg,
+  },
+  dateQuickBtn: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    borderRadius: Radius.card,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: PINK + '40',
+  },
+  dateQuickText: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.semiBold,
+    color: PINK,
+  },
+  dateManualLabel: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.regular,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  dateManualRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginBottom: Spacing.lg,
+  },
+  dateManualInput: {
+    width: 60,
+    backgroundColor: '#1a1a1a',
+    borderRadius: Radius.sm,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.semiBold,
+    color: '#fff',
+    textAlign: 'center',
+    borderWidth: 0.5,
+    borderColor: '#333',
+  },
+  dateConfirmBtn: {
+    backgroundColor: PINK,
+    borderRadius: Radius.card,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  dateConfirmText: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.bold,
+    color: '#fff',
   },
 });
