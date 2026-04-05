@@ -196,12 +196,12 @@ export default function YoScreen() {
             {dailyScore && (
               <View style={s.miniScoreGrid}>
                 {([
-                  { key: 'sleep' as const, abbr: 'SLP' },
-                  { key: 'recovery' as const, abbr: 'RCV' },
-                  { key: 'compliance' as const, abbr: 'PRT' },
-                  { key: 'activity' as const, abbr: 'ACT' },
-                  { key: 'nutrition' as const, abbr: 'NUT' },
-                  { key: 'stress' as const, abbr: 'STR' },
+                  { key: 'sleep' as const, abbr: 'Sueño' },
+                  { key: 'recovery' as const, abbr: 'Recup.' },
+                  { key: 'compliance' as const, abbr: 'Protoc.' },
+                  { key: 'activity' as const, abbr: 'Activ.' },
+                  { key: 'nutrition' as const, abbr: 'Nutric.' },
+                  { key: 'stress' as const, abbr: 'Estrés' },
                 ]).map((item) => {
                   const val = dailyScore.components[item.key]?.score ?? 0;
                   const c = scoreColor(val);
@@ -224,7 +224,7 @@ export default function YoScreen() {
           <View style={s.ageRow}>
             {/* Biological Age */}
             <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCard}>
-              <EliteText style={s.ageLabel}>BIOLOGICAL AGE</EliteText>
+              <EliteText style={s.ageLabel}>EDAD BIOLÓGICA</EliteText>
               <EliteText style={[s.ageBigNum, {
                 color: healthReport?.biologicalAge?.delta != null && healthReport.biologicalAge.delta < 0
                   ? SEMANTIC.success
@@ -243,7 +243,7 @@ export default function YoScreen() {
 
             {/* Aging Rate */}
             <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCard}>
-              <EliteText style={s.ageLabel}>AGING RATE</EliteText>
+              <EliteText style={s.ageLabel}>RITMO DE ENVEJECIMIENTO</EliteText>
               <EliteText style={[s.ageBigNum, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
                 {healthReport?.agingRate?.value ? healthReport.agingRate.value.toFixed(2) + 'x' : '--'}
               </EliteText>
@@ -264,7 +264,7 @@ export default function YoScreen() {
                 <View style={s.improveIconWrap}>
                   <Ionicons name="flash" size={14} color={ATP_BRAND.lime} />
                 </View>
-                <EliteText style={s.improveTitle}>MEJORA TU EVALUACIÓN</EliteText>
+                <EliteText style={s.improveTitle}>MEJORA TU SCORE</EliteText>
               </View>
               {(healthReport.recommendations?.toImproveEvaluation ?? []).slice(0, 2).map((rec) => (
                 <AnimatedPressable key={rec.id} onPress={() => { haptic.light(); router.push(rec.route as any); }} style={s.improveRow}>
@@ -306,6 +306,7 @@ export default function YoScreen() {
           <Animated.View entering={FadeInUp.delay(400).springify()}>
             <View style={s.domainsCard}>
               <EliteText style={s.domainsTitle}>DOMINIOS DE SALUD</EliteText>
+              <EliteText style={{ fontSize: 9, fontFamily: Fonts.regular, color: '#444', marginTop: -8, marginBottom: 8 }}>Toca un dominio para más info</EliteText>
               {sortedDomains.map((d) => (
                 <View key={d.domain} style={s.domainRow}>
                   <View style={s.domainIconWrap}>
@@ -327,11 +328,12 @@ export default function YoScreen() {
             ═══════════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(500).springify()}>
           <EliteText style={s.sectionTitle}>COMPOSICIÓN CORPORAL</EliteText>
+
           <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }}>
             <View style={s.compGrid}>
               {/* Body Fat % */}
               <View style={s.compCard}>
-                <EliteText style={s.compLabel}>BODY FAT</EliteText>
+                <EliteText style={s.compLabel}>GRASA CORPORAL</EliteText>
                 <EliteText style={[s.compValue, { color: fatColor ?? TEXT_COLORS.muted }]}>
                   {comp?.body_fat_pct != null ? `${comp.body_fat_pct}` : '--'}
                 </EliteText>
@@ -340,7 +342,7 @@ export default function YoScreen() {
 
               {/* Lean Mass */}
               <View style={s.compCard}>
-                <EliteText style={s.compLabel}>LEAN MASS</EliteText>
+                <EliteText style={s.compLabel}>MASA MAGRA</EliteText>
                 <EliteText style={[s.compValue, { color: muscleColor ?? TEXT_COLORS.muted }]}>
                   {comp?.muscle_mass_pct != null ? `${comp.muscle_mass_pct}` : '--'}
                 </EliteText>
@@ -349,7 +351,7 @@ export default function YoScreen() {
 
               {/* Visceral Fat */}
               <View style={s.compCard}>
-                <EliteText style={s.compLabel}>VISCERAL FAT</EliteText>
+                <EliteText style={s.compLabel}>GRASA VISCERAL</EliteText>
                 <EliteText style={[s.compValue, { color: visceralColor ?? TEXT_COLORS.muted }]}>
                   {comp?.visceral_fat != null ? `${comp.visceral_fat}` : '--'}
                 </EliteText>
