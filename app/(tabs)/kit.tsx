@@ -1,8 +1,8 @@
 /**
- * Kit — "¿Qué tengo?" Caja de herramientas del usuario.
+ * Kit — "¿Qué tengo?" Caja de herramientas organizada por pilares ATP.
  *
  * Secciones: Top bar, Mis Rutinas (scroll horizontal),
- * Herramientas (grid 2 columnas), Banner de evaluación.
+ * ATP Fitness, ATP Nutrición, ATP Mente, ATP Salud, ATP Ciclo.
  */
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
@@ -21,17 +21,53 @@ import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 
-// ── Herramientas del grid ──
-const TOOLS = [
-  { name: 'Timer', subtitle: 'INTERVALOS & AMRAP', icon: 'timer-outline' as const, color: '#a8e02a', route: '/timer' },
-  { name: 'Nutrición', subtitle: 'MACROS & TRACKING', icon: 'nutrition-outline' as const, color: '#5B9BD5', route: '/nutrition' },
-  { name: 'Respiración', subtitle: 'ENFOQUE & CALMA', icon: 'pulse-outline' as const, color: '#7F77DD', route: '/breathing' },
-  { name: 'Mi Salud', subtitle: 'EVALUACIONES', icon: 'analytics-outline' as const, color: '#5B9BD5', route: '/my-health' },
-  { name: 'Meditación', subtitle: 'MINDFULNESS', icon: 'sparkles-outline' as const, color: '#7F77DD', route: '/meditation' },
-  { name: 'Journal', subtitle: 'REFLEXIÓN DIARIA', icon: 'book-outline' as const, color: '#7F77DD', route: '/journal' },
-  { name: 'Check-in', subtitle: 'ESTADO EMOCIONAL', icon: 'heart-outline' as const, color: '#7F77DD', route: '/checkin' },
-  { name: 'Protocolos', subtitle: 'EXPLORAR & ACTIVAR', icon: 'documents-outline' as const, color: '#1D9E75', route: '/protocol-explorer' },
-  { name: 'Ciclo', subtitle: 'SEGUIMIENTO', icon: 'flower-outline' as const, color: '#D4537E', route: '/cycle' },
+// ── Pilares con sus herramientas ──
+const PILLARS = [
+  {
+    title: 'ATP FITNESS',
+    color: '#a8e02a',
+    tools: [
+      { name: 'Timer', subtitle: 'Intervalos', icon: 'timer-outline' as const, route: '/timer' },
+      { name: 'Ejercicios', subtitle: 'Registrar', icon: 'barbell-outline' as const, route: '/log-exercise' },
+      { name: 'Records', subtitle: 'Tus PRs', icon: 'trophy-outline' as const, route: '/personal-records' },
+      { name: 'Progreso', subtitle: 'Historial', icon: 'trending-up-outline' as const, route: '/progress' },
+    ],
+  },
+  {
+    title: 'ATP NUTRICIÓN',
+    color: '#5B9BD5',
+    tools: [
+      { name: 'Nutrición', subtitle: 'Dashboard', icon: 'nutrition-outline' as const, route: '/nutrition' },
+      { name: 'Registrar', subtitle: 'Comida', icon: 'restaurant-outline' as const, route: '/food-text' },
+      { name: 'Escanear', subtitle: 'Foto', icon: 'camera-outline' as const, route: '/food-scan' },
+    ],
+  },
+  {
+    title: 'ATP MENTE',
+    color: '#7F77DD',
+    tools: [
+      { name: 'Meditación', subtitle: 'Mindfulness', icon: 'sparkles-outline' as const, route: '/meditation' },
+      { name: 'Respiración', subtitle: 'Enfoque', icon: 'pulse-outline' as const, route: '/breathing' },
+      { name: 'Check-in', subtitle: 'Emocional', icon: 'heart-outline' as const, route: '/checkin' },
+      { name: 'Journal', subtitle: 'Reflexión', icon: 'book-outline' as const, route: '/journal' },
+    ],
+  },
+  {
+    title: 'ATP SALUD',
+    color: '#1D9E75',
+    tools: [
+      { name: 'Mi Salud', subtitle: 'Evaluación', icon: 'analytics-outline' as const, route: '/my-health' },
+      { name: 'Protocolos', subtitle: 'Explorar', icon: 'documents-outline' as const, route: '/protocol-explorer' },
+      { name: 'Quizzes', subtitle: 'Evalúate', icon: 'clipboard-outline' as const, route: '/quizzes' },
+    ],
+  },
+  {
+    title: 'ATP CICLO',
+    color: '#D4537E',
+    tools: [
+      { name: 'Ciclo', subtitle: 'Tracking', icon: 'flower-outline' as const, route: '/cycle' },
+    ],
+  },
 ];
 
 export default function KitScreen() {
@@ -82,9 +118,6 @@ export default function KitScreen() {
               <EliteText style={s.subtitle}>TU CAJA DE HERRAMIENTAS</EliteText>
             </View>
             <View style={s.topBarRight}>
-              <AnimatedPressable onPress={() => { haptic.light(); }}>
-                <Ionicons name="search-outline" size={22} color={Colors.textSecondary} />
-              </AnimatedPressable>
               <View style={s.avatar}>
                 <EliteText style={s.avatarText}>{userInitial}</EliteText>
               </View>
@@ -113,25 +146,15 @@ export default function KitScreen() {
               return (
                 <View key={routine.id} style={s.routineCard}>
                   <View style={s.routineCardInner}>
-                    {/* Nivel / tipo */}
                     <EliteText style={s.routineDifficulty}>
                       {isTimer ? 'TIMER' : 'RUTINA'}
                     </EliteText>
-
-                    {/* Nombre */}
                     <EliteText style={s.routineCardName} numberOfLines={2}>
                       {routine.name}
                     </EliteText>
-
-                    {/* Tiempo + meta */}
                     <View style={s.routineBottomRow}>
-                      <EliteText style={s.routineCardMeta}>
-                        {time}
-                      </EliteText>
-                      <AnimatedPressable
-                        onPress={() => playRoutine(routine)}
-                        style={s.routinePlayBtn}
-                      >
+                      <EliteText style={s.routineCardMeta}>{time}</EliteText>
+                      <AnimatedPressable onPress={() => playRoutine(routine)} style={s.routinePlayBtn}>
                         <Ionicons name="play" size={16} color="#000" />
                       </AnimatedPressable>
                     </View>
@@ -153,30 +176,33 @@ export default function KitScreen() {
           </ScrollView>
         </Animated.View>
 
-        {/* ── Herramientas grid ── */}
-        <Animated.View entering={FadeInUp.delay(200).springify()}>
-          <EliteText style={[s.sectionLabel, { marginTop: Spacing.lg, marginBottom: Spacing.sm }]}>
-            HERRAMIENTAS
-          </EliteText>
-          <View style={s.toolsGrid}>
-            {TOOLS.map(tool => (
-              <AnimatedPressable
-                key={tool.name}
-                onPress={() => { haptic.light(); router.push(tool.route as any); }}
-                style={s.toolCard}
-              >
-                <View style={[s.toolCardInner, { borderTopColor: tool.color }]}>
-                  <Ionicons name={tool.icon as any} size={24} color={tool.color} />
-                  <EliteText style={s.toolCardName}>{tool.name}</EliteText>
-                  <EliteText style={s.toolCardSub}>{tool.subtitle}</EliteText>
-                </View>
-              </AnimatedPressable>
-            ))}
-          </View>
-        </Animated.View>
+        {/* ── Pilares con herramientas ── */}
+        {PILLARS.map((pillar, pIdx) => (
+          <Animated.View key={pillar.title} entering={FadeInUp.delay(150 + pIdx * 60).springify()}>
+            <View style={s.pillarSection}>
+              <View style={s.pillarHeader}>
+                <View style={[s.pillarDot, { backgroundColor: pillar.color }]} />
+                <EliteText style={s.pillarTitle}>{pillar.title}</EliteText>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.pillarScroll}>
+                {pillar.tools.map(tool => (
+                  <AnimatedPressable
+                    key={tool.name}
+                    style={[s.toolCardH, { borderTopColor: pillar.color }]}
+                    onPress={() => { haptic.light(); router.push(tool.route as any); }}
+                  >
+                    <Ionicons name={tool.icon as any} size={22} color={pillar.color} />
+                    <EliteText style={s.toolCardName}>{tool.name}</EliteText>
+                    <EliteText style={s.toolCardSub}>{tool.subtitle.toUpperCase()}</EliteText>
+                  </AnimatedPressable>
+                ))}
+              </ScrollView>
+            </View>
+          </Animated.View>
+        ))}
 
         {/* ── Banner de evaluación ── */}
-        <Animated.View entering={FadeInUp.delay(300).springify()}>
+        <Animated.View entering={FadeInUp.delay(500).springify()}>
           <AnimatedPressable
             onPress={() => { haptic.light(); router.push('/quizzes' as any); }}
             style={s.evalBanner}
@@ -202,7 +228,6 @@ const s = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000',
-    paddingHorizontal: Spacing.md,
   },
 
   // Top bar
@@ -212,6 +237,7 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
   },
   title: {
     fontSize: FontSizes.display,
@@ -254,6 +280,7 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
   },
   sectionLabel: {
     color: Colors.textSecondary,
@@ -271,6 +298,7 @@ const s = StyleSheet.create({
   routinesScroll: {
     gap: Spacing.sm,
     paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
   },
   routineCard: {
     width: 260,
@@ -333,38 +361,54 @@ const s = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Tools grid
-  toolsGrid: {
+  // Pilares
+  pillarSection: {
+    marginTop: Spacing.lg,
+  },
+  pillarHeader: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  pillarDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  pillarTitle: {
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+    color: '#fff',
+    letterSpacing: 2,
+  },
+  pillarScroll: {
+    paddingHorizontal: Spacing.md,
     gap: 10,
   },
-  toolCard: {
-    width: '47%',
-  },
-  toolCardInner: {
-    backgroundColor: '#0d0d0d',
-    borderRadius: Radius.card,
-    borderTopWidth: 3,
-    borderTopColor: '#a8e02a',
-    borderWidth: 0.5,
-    borderColor: '#151515',
+
+  // Tool card horizontal
+  toolCardH: {
+    width: 120,
+    backgroundColor: '#0a0a0a',
+    borderRadius: Radius.lg,
     padding: Spacing.md,
-    height: 100,
-    justifyContent: 'center',
-    gap: 4,
+    borderTopWidth: 3,
+    borderWidth: 0.5,
+    borderColor: '#1a1a1a',
+    gap: 6,
   },
   toolCardName: {
-    fontFamily: Fonts.bold,
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.semiBold,
     color: '#fff',
-    marginTop: 4,
+    marginTop: 2,
   },
   toolCardSub: {
-    fontFamily: Fonts.regular,
-    fontSize: FontSizes.xs,
-    color: Colors.textSecondary,
+    fontSize: 9,
+    fontFamily: Fonts.semiBold,
+    color: '#555',
     letterSpacing: 1,
   },
 
@@ -379,6 +423,7 @@ const s = StyleSheet.create({
     borderColor: 'rgba(168,224,42,0.15)',
     padding: Spacing.md,
     marginTop: Spacing.lg,
+    marginHorizontal: Spacing.md,
   },
   evalTitle: {
     fontFamily: Fonts.bold,
