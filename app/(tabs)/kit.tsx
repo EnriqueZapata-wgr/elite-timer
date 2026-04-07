@@ -27,8 +27,9 @@ const PILLARS = [
     title: 'ATP FITNESS',
     color: '#a8e02a',
     tools: [
+      { name: 'Fitness', subtitle: 'Centro', icon: 'fitness-outline' as const, route: '/fitness-hub' },
       { name: 'Timer', subtitle: 'Intervalos', icon: 'timer-outline' as const, route: '/timer' },
-      { name: 'Ejercicios', subtitle: 'Registrar', icon: 'barbell-outline' as const, route: '/log-exercise' },
+      { name: 'Cardio', subtitle: 'Registrar', icon: 'walk-outline' as const, route: '/log-cardio' },
       { name: 'Records', subtitle: 'Tus PRs', icon: 'trophy-outline' as const, route: '/personal-records' },
       { name: 'Progreso', subtitle: 'Historial', icon: 'trending-up-outline' as const, route: '/progress' },
     ],
