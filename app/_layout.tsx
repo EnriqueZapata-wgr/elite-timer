@@ -124,6 +124,9 @@ export default function RootLayout() {
                 <Stack.Screen name="journal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-text" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
+                <Stack.Screen name="fitness-hub" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="log-cardio" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
+                <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />
               </Stack>
               <StatusBar style="light" />
             </SessionsProvider>
