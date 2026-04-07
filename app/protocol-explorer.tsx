@@ -5,8 +5,25 @@
  * Cada plantilla se expande para mostrar fases, acciones y botón de activación.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+
+/**
+ * confirmAsync — Confirmación cross-platform.
+ * En web Alert.alert ignora los botones y solo muestra OK,
+ * por eso usamos window.confirm() directamente.
+ */
+function confirmAsync(title: string, message: string): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    return Promise.resolve(typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`));
+  }
+  return new Promise(resolve => {
+    Alert.alert(title, message, [
+      { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'Activar', onPress: () => resolve(true) },
+    ]);
+  });
+}
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -79,34 +96,50 @@ export default function ProtocolExplorerScreen() {
   // Activar protocolo con confirmación
   const handleActivate = async (templateId: string, templateName: string) => {
     if (!user?.id) return;
-    Alert.alert('Activar protocolo', `¿Activar "${templateName}"? Tu día se actualizará.`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Activar',
-        onPress: async () => {
-          setActivating(templateId);
-          try {
-            console.log('[ProtocolExplorer] Activando protocolo:', templateId);
-            await assignProtocol(user.id, templateId, null, 'self');
-            console.log('[ProtocolExplorer] Protocolo asignado, regenerando plan...');
-            await generateDailyPlan(user.id, undefined, true).catch((e: any) => {
-              console.warn('[ProtocolExplorer] Error generando plan (no fatal):', e?.message);
-            });
-            haptic.success();
-            Alert.alert('Protocolo activado', 'Tu timeline se ha actualizado con las nuevas acciones.', [
-              { text: 'Ver mi día', onPress: () => router.replace('/(tabs)') },
-              { text: 'Seguir explorando', onPress: () => loadData() },
-            ]);
-            loadData();
-          } catch (err: any) {
-            haptic.error();
-            console.error('[ProtocolExplorer] Error completo:', err);
-            Alert.alert('Error al activar', err?.message || 'No se pudo activar el protocolo. Verifica tu conexión.');
-          }
-          setActivating(null);
-        },
-      },
-    ]);
+
+    // Confirmacion cross-platform (web no soporta Alert.alert con multiples botones)
+    const confirmed = await confirmAsync(
+      'Activar protocolo',
+      `¿Activar "${templateName}"? Tu día se actualizará.`,
+    );
+    if (!confirmed) return;
+
+    setActivating(templateId);
+    try {
+      console.log('[ProtocolExplorer] Activando protocolo:', templateId);
+      await assignProtocol(user.id, templateId, null, 'self');
+      console.log('[ProtocolExplorer] Protocolo asignado, regenerando plan...');
+      await generateDailyPlan(user.id, undefined, true).catch((e: any) => {
+        console.warn('[ProtocolExplorer] Error generando plan (no fatal):', e?.message);
+      });
+      haptic.success();
+
+      // En web Alert.alert tampoco soporta los 2 botones del exito,
+      // asi que usamos window.confirm para preguntar si ir al dia
+      if (Platform.OS === 'web') {
+        const goToDay = typeof window !== 'undefined' && window.confirm(
+          'Protocolo activado.\n\n¿Ver mi día ahora? (Cancelar para seguir explorando)',
+        );
+        if (goToDay) router.replace('/(tabs)');
+        else loadData();
+      } else {
+        Alert.alert('Protocolo activado', 'Tu timeline se ha actualizado con las nuevas acciones.', [
+          { text: 'Ver mi día', onPress: () => router.replace('/(tabs)') },
+          { text: 'Seguir explorando', onPress: () => loadData() },
+        ]);
+        loadData();
+      }
+    } catch (err: any) {
+      haptic.error();
+      console.error('[ProtocolExplorer] Error completo:', err);
+      const msg = err?.message || 'No se pudo activar el protocolo. Verifica tu conexión.';
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.alert(`Error al activar\n\n${msg}`);
+      } else {
+        Alert.alert('Error al activar', msg);
+      }
+    }
+    setActivating(null);
   };
 
   // Protocolos activos filtrados
