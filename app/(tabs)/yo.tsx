@@ -259,6 +259,18 @@ export default function YoScreen() {
           </View>
         </Animated.View>
 
+        {/* Botón de Reportes — acceso al hub de gráficas */}
+        <Animated.View entering={FadeInUp.delay(220).springify()}>
+          <AnimatedPressable
+            onPress={() => { haptic.light(); router.push('/reports' as any); }}
+            style={s.reportsBtn}
+          >
+            <Ionicons name="bar-chart-outline" size={16} color={ATP_BRAND.lime} />
+            <EliteText style={s.reportsBtnText}>VER REPORTES</EliteText>
+            <Ionicons name="chevron-forward" size={14} color={ATP_BRAND.lime} />
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* ═══════════════════════════════════════════
             4. IMPROVE EVALUATION — Green-tinted card
             ═══════════════════════════════════════════ */}
@@ -616,6 +628,26 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontFamily: Fonts.semiBold,
     letterSpacing: 0.5,
+  },
+
+  // ── Reportes button ──
+  reportsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(168,224,42,0.06)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(168,224,42,0.25)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginTop: 12,
+  },
+  reportsBtnText: {
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    color: ATP_BRAND.lime,
+    letterSpacing: 2,
   },
 
   // ── 4. Improve Evaluation ──

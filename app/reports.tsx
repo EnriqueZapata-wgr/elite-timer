@@ -1,0 +1,288 @@
+/**
+ * Reports — Pantalla de reportes (estilo Oura) con graficas:
+ *   - Selector de periodo (Semana / Mes / 3 Meses / Todo)
+ *   - Nutricion (calorias diarias + promedios)
+ *   - Hidratacion (ml diarios)
+ *   - Ejercicio (sesiones, volumen, PRs)
+ *   - Compliance (% diario de cumplimiento)
+ */
+import { useState, useCallback } from 'react';
+import { View, ScrollView, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+
+import { EliteText } from '@/components/elite-text';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { SimpleBarChart, SimpleLineChart } from '@/src/components/charts/SimpleCharts';
+import { haptic } from '@/src/utils/haptics';
+import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { CATEGORY_COLORS } from '@/src/constants/brand';
+import {
+  getNutritionReport,
+  getHydrationReport,
+  getExerciseReport,
+  getComplianceReport,
+  type ReportPeriod,
+  type NutritionReport,
+  type HydrationReport,
+  type ExerciseReport,
+  type ComplianceReport,
+} from '@/src/services/reports-service';
+
+const LIME = CATEGORY_COLORS.fitness;
+const BLUE = CATEGORY_COLORS.nutrition;
+
+const PERIODS: { key: ReportPeriod; label: string }[] = [
+  { key: 'week',    label: 'Semana' },
+  { key: 'month',   label: 'Mes' },
+  { key: '3month',  label: '3 Meses' },
+  { key: 'all',     label: 'Todo' },
+];
+
+export default function ReportsScreen() {
+  const [period, setPeriod] = useState<ReportPeriod>('week');
+
+  const [nutrition, setNutrition] = useState<NutritionReport>({ daily: [], avgCalories: 0, avgProtein: 0, avgScore: 0 });
+  const [hydration, setHydration] = useState<HydrationReport>({ daily: [], avgMl: 0 });
+  const [exercise, setExercise] = useState<ExerciseReport>({ sessionsPerWeek: 0, totalVolumeKg: 0, prsThisPeriod: 0, cardioSessions: 0 });
+  const [compliance, setCompliance] = useState<ComplianceReport>({ daily: [], avgPct: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
+    Promise.all([
+      getNutritionReport(period),
+      getHydrationReport(period),
+      getExerciseReport(period),
+      getComplianceReport(period),
+    ]).then(([n, h, e, c]) => {
+      setNutrition(n);
+      setHydration(h);
+      setExercise(e);
+      setCompliance(c);
+    }).finally(() => setLoading(false));
+  }, [period]));
+
+  return (
+    <SafeAreaView style={s.screen} edges={['top']}>
+      <ScreenHeader title="Reportes" />
+
+      {/* Selector de periodo */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.periodRow}
+        style={s.periodScroll}
+      >
+        {PERIODS.map(p => {
+          const active = p.key === period;
+          return (
+            <AnimatedPressable
+              key={p.key}
+              onPress={() => { haptic.light(); setPeriod(p.key); }}
+              style={[s.periodPill, active && s.periodPillActive]}
+            >
+              <EliteText style={[s.periodText, active && s.periodTextActive]}>{p.label.toUpperCase()}</EliteText>
+            </AnimatedPressable>
+          );
+        })}
+      </ScrollView>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        {loading && (
+          <View style={s.loadingBox}>
+            <EliteText style={s.loadingText}>Cargando reporte…</EliteText>
+          </View>
+        )}
+
+        {/* NUTRICION */}
+        <Animated.View entering={FadeInUp.delay(50).springify()} style={s.chartCard}>
+          <View style={s.chartHeader}>
+            <Ionicons name="nutrition-outline" size={18} color={BLUE} />
+            <EliteText style={s.chartTitle}>NUTRICIÓN</EliteText>
+          </View>
+
+          <View style={s.statsRow}>
+            <Stat value={nutrition.avgCalories || '—'} label="kcal/día" />
+            <Stat value={`${nutrition.avgProtein || '—'}g`} label="proteína" />
+            <Stat value={nutrition.avgScore || '—'} label="score" />
+          </View>
+
+          {nutrition.daily.length > 0 && (
+            <SimpleBarChart
+              data={nutrition.daily}
+              color={BLUE}
+              unit=""
+              target={2000}
+            />
+          )}
+        </Animated.View>
+
+        {/* HIDRATACION */}
+        <Animated.View entering={FadeInUp.delay(100).springify()} style={s.chartCard}>
+          <View style={s.chartHeader}>
+            <Ionicons name="water-outline" size={18} color={BLUE} />
+            <EliteText style={s.chartTitle}>HIDRATACIÓN</EliteText>
+          </View>
+
+          <View style={s.statsRow}>
+            <Stat value={hydration.avgMl > 0 ? `${(hydration.avgMl / 1000).toFixed(1)}L` : '—'} label="promedio" />
+          </View>
+
+          {hydration.daily.length > 0 && (
+            <SimpleBarChart
+              data={hydration.daily}
+              color={BLUE}
+              unit="ml"
+              target={2500}
+            />
+          )}
+        </Animated.View>
+
+        {/* EJERCICIO */}
+        <Animated.View entering={FadeInUp.delay(150).springify()} style={s.chartCard}>
+          <View style={s.chartHeader}>
+            <Ionicons name="barbell-outline" size={18} color={LIME} />
+            <EliteText style={s.chartTitle}>EJERCICIO</EliteText>
+          </View>
+
+          <View style={s.statsRow}>
+            <Stat value={exercise.sessionsPerWeek} label="sesiones/sem" />
+            <Stat value={exercise.totalVolumeKg > 0 ? `${(exercise.totalVolumeKg / 1000).toFixed(1)}t` : '—'} label="volumen" />
+            <Stat value={exercise.prsThisPeriod} label="PRs" />
+            <Stat value={exercise.cardioSessions} label="cardio" />
+          </View>
+        </Animated.View>
+
+        {/* COMPLIANCE */}
+        <Animated.View entering={FadeInUp.delay(200).springify()} style={s.chartCard}>
+          <View style={s.chartHeader}>
+            <Ionicons name="checkmark-done-outline" size={18} color={LIME} />
+            <EliteText style={s.chartTitle}>COMPLIANCE</EliteText>
+          </View>
+
+          <View style={s.statsRow}>
+            <Stat value={compliance.avgPct > 0 ? `${compliance.avgPct}%` : '—'} label="promedio" />
+          </View>
+
+          {compliance.daily.length > 0 && (
+            compliance.daily.length >= 14 ? (
+              <SimpleLineChart data={compliance.daily} color={LIME} target={80} />
+            ) : (
+              <SimpleBarChart data={compliance.daily} color={LIME} unit="%" target={80} />
+            )
+          )}
+        </Animated.View>
+
+        <View style={{ height: 80 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// === STAT ITEM ===
+function Stat({ value, label }: { value: number | string; label: string }) {
+  return (
+    <View style={s.stat}>
+      <EliteText style={s.statValue}>{value}</EliteText>
+      <EliteText style={s.statLabel}>{label.toUpperCase()}</EliteText>
+    </View>
+  );
+}
+
+// === ESTILOS ===
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: '#000' },
+
+  // Selector de periodo
+  periodScroll: { maxHeight: 48 },
+  periodRow: {
+    paddingHorizontal: Spacing.md,
+    gap: 8,
+    paddingVertical: 4,
+  },
+  periodPill: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: Radius.pill,
+    backgroundColor: '#0a0a0a',
+    borderWidth: 0.5,
+    borderColor: '#1a1a1a',
+    height: 34,
+    justifyContent: 'center',
+  },
+  periodPillActive: {
+    backgroundColor: LIME,
+    borderColor: LIME,
+  },
+  periodText: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
+    color: Colors.textSecondary,
+    letterSpacing: 1.5,
+  },
+  periodTextActive: { color: '#000' },
+
+  content: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+  },
+
+  loadingBox: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.regular,
+    color: Colors.textSecondary,
+  },
+
+  // Chart cards
+  chartCard: {
+    backgroundColor: '#0a0a0a',
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
+    borderColor: '#1a1a1a',
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  chartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: Spacing.sm,
+  },
+  chartTitle: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
+    color: '#fff',
+    letterSpacing: 2,
+  },
+
+  statsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+    flexWrap: 'wrap',
+  },
+  stat: {
+    flex: 1,
+    minWidth: 70,
+  },
+  statValue: {
+    fontSize: FontSizes.xl,
+    fontFamily: Fonts.bold,
+    color: '#fff',
+  },
+  statLabel: {
+    fontSize: 9,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textSecondary,
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+});
