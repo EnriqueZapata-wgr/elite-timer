@@ -6,22 +6,27 @@
  * Usa el sistema nuevo (daily_plans) con fallback al legacy (protocol-service).
  */
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, LayoutAnimation, Platform, UIManager, ImageBackground, Text } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { GradientCard } from '@/src/components/GradientCard';
+import { GradientCard } from '@/src/components/ui/GradientCard';
+import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { FilterPills } from '@/src/components/ui/FilterPills';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, CARD } from '@/src/constants/brand';
+import {
+  CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, CARD,
+  getScoreColor, getScoreLabel, getScoreMessage, getHoyBackgroundRequire,
+  PILLAR_GRADIENTS,
+} from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { renderActionContent } from '@/src/components/hoy/ActionContentRenderer';
@@ -346,21 +351,6 @@ export default function TodayScreen() {
 
   // === SUB-COMPONENTES INLINE ===
 
-  /** Barra de progreso mini con label y valor */
-  const MiniMetricBar = ({ label, value, progress, color }: {
-    label: string; value: string; progress: number; color: string;
-  }) => (
-    <View style={s.miniMetric}>
-      <View style={s.miniMetricHeader}>
-        <EliteText variant="caption" style={s.miniMetricLabel}>{label}</EliteText>
-        <EliteText variant="caption" style={[s.miniMetricValue, { color }]}>{value}</EliteText>
-      </View>
-      <View style={s.miniMetricTrack}>
-        <View style={[s.miniMetricFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: color }]} />
-      </View>
-    </View>
-  );
-
   /** Card del timeline con línea vertical + dot */
   const TimelineCard = ({ action, isFirst, isLast, isCurrent, onToggle, onExpand, isExpanded }: {
     action: PlanAction;
@@ -579,106 +569,61 @@ export default function TodayScreen() {
   // === Filtros de categoría ===
   const FILTER_OPTIONS = ['TODO', 'FITNESS', 'NUTRICION', 'MENTAL', 'HABITOS'] as const;
 
-  // SVG circle params
-  const CIRCLE_SIZE = 160;
-  const CIRCLE_STROKE = 10;
-  const CIRCLE_RADIUS = (CIRCLE_SIZE - CIRCLE_STROKE) / 2;
-  const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * CIRCLE_RADIUS;
-  const scoreOffset = CIRCLE_CIRCUMFERENCE * (1 - dailyScorePct / 100);
+  // === Premium hero context ===
+  const hour = new Date().getHours();
+  const heroBg = getHoyBackgroundRequire(hour, dailyScorePct);
+  const scoreColor = getScoreColor(dailyScorePct);
+  const scoreLabel = getScoreLabel(dailyScorePct);
+  const scoreMessage = getScoreMessage(dailyScorePct, hour);
+  const greeting = hour < 12 ? 'Buenos dias' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
   return (
     <TabScreen>
       <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
-        {/* ── 1. Top bar ── */}
-        <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <View style={s.topBar}>
-            <View style={s.topBarLeft}>
-              <UserAvatar uri={avatarUrl} name={userName} />
-              <View>
-                <EliteText variant="caption" style={s.brandLabel}>ATP DAILY</EliteText>
+        {/* ── HERO con imagen de fondo + ATP Score animado ── */}
+        <ImageBackground source={heroBg} style={s.heroBg} imageStyle={s.heroBgImage}>
+          <LinearGradient
+            colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.85)', '#000']}
+            locations={[0, 0.6, 1]}
+            style={s.heroGradient}
+          >
+            {/* Top bar */}
+            <Animated.View entering={FadeInUp.delay(50).springify()}>
+              <View style={s.topBar}>
+                <View style={s.topBarLeft}>
+                  <UserAvatar uri={avatarUrl} name={userName} />
+                  <View>
+                    <EliteText variant="caption" style={s.brandLabel}>ATP DAILY</EliteText>
+                  </View>
+                </View>
+                <View style={s.topBarRight}>
+                  <AnimatedPressable onPress={() => { haptic.light(); }} style={s.topBarIcon}>
+                    <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
+                  </AnimatedPressable>
+                  <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={s.topBarIcon}>
+                    <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
+                  </AnimatedPressable>
+                </View>
               </View>
-            </View>
-            <View style={s.topBarRight}>
-              <AnimatedPressable onPress={() => { haptic.light(); }} style={s.topBarIcon}>
-                <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
-              </AnimatedPressable>
-              <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={s.topBarIcon}>
-                <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
-              </AnimatedPressable>
-            </View>
-          </View>
-        </Animated.View>
+            </Animated.View>
 
-        {/* ── 2. Greeting + date ── */}
-        <Animated.View entering={FadeInUp.delay(80).springify()}>
-          <EliteText style={s.greeting}>HOLA, {userName}</EliteText>
-          <EliteText variant="caption" style={s.dateLabel}>{formatTodayHeader()}</EliteText>
-        </Animated.View>
+            {/* Greeting */}
+            <Animated.View entering={FadeInUp.delay(80).springify()} style={s.heroGreetingWrap}>
+              <EliteText style={s.heroGreeting}>{greeting},</EliteText>
+              <EliteText style={s.heroName}>{userName}</EliteText>
+              <EliteText variant="caption" style={s.heroDate}>{formatTodayHeader()}</EliteText>
+            </Animated.View>
 
-        {/* ── 3. Daily Score Hero ── */}
-        <Animated.View entering={FadeInUp.delay(120).springify()}>
-          <View style={s.scoreHero}>
-            <View style={s.scoreCircleWrap}>
-              <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE}>
-                {/* Track */}
-                <Circle
-                  cx={CIRCLE_SIZE / 2}
-                  cy={CIRCLE_SIZE / 2}
-                  r={CIRCLE_RADIUS}
-                  stroke="#1a1a1a"
-                  strokeWidth={CIRCLE_STROKE}
-                  fill="none"
-                />
-                {/* Progress */}
-                <Circle
-                  cx={CIRCLE_SIZE / 2}
-                  cy={CIRCLE_SIZE / 2}
-                  r={CIRCLE_RADIUS}
-                  stroke={complianceColor(dailyScorePct)}
-                  strokeWidth={CIRCLE_STROKE}
-                  fill="none"
-                  strokeDasharray={`${CIRCLE_CIRCUMFERENCE}`}
-                  strokeDashoffset={scoreOffset}
-                  strokeLinecap="round"
-                  rotation="-90"
-                  origin={`${CIRCLE_SIZE / 2}, ${CIRCLE_SIZE / 2}`}
-                />
-              </Svg>
-              <View style={s.scoreTextWrap}>
-                <EliteText style={s.scoreNumber}>{dailyScorePct}</EliteText>
-                <EliteText variant="caption" style={s.scoreUnit}>%</EliteText>
-              </View>
-            </View>
-
-            {/* Mini metric bars */}
-            <View style={s.miniMetrics}>
-              <MiniMetricBar
-                label="ACCIONES"
-                value={`${completedActions}/${totalActions}`}
-                progress={actionsProgress}
-                color={Colors.neonGreen}
-              />
-              {sleepHours != null && (
-                <MiniMetricBar
-                  label="SUENO"
-                  value={`${sleepHours.toFixed(1)}h`}
-                  progress={sleepProgress}
-                  color={CATEGORY_COLORS.mind}
-                />
-              )}
-              {stepsCount != null && (
-                <MiniMetricBar
-                  label="PASOS"
-                  value={stepsCount >= 1000 ? `${(stepsCount / 1000).toFixed(1)}k` : `${stepsCount}`}
-                  progress={stepsProgress}
-                  color={CATEGORY_COLORS.nutrition}
-                />
-              )}
-            </View>
-          </View>
-        </Animated.View>
+            {/* ATP Score animado */}
+            <Animated.View entering={FadeInUp.delay(120).springify()} style={s.heroScoreWrap}>
+              <AnimatedScoreRing score={dailyScorePct} size={180} strokeWidth={4} label="ATP SCORE" />
+              <Text style={[s.heroScoreLabel, { color: scoreColor }]}>{scoreLabel}</Text>
+              <Text style={s.heroScoreMessage}>{scoreMessage}</Text>
+            </Animated.View>
+          </LinearGradient>
+        </ImageBackground>
 
         {/* ── 4. Category filters ── */}
         <Animated.View entering={FadeInUp.delay(160).springify()} style={s.filtersWrap}>
@@ -855,72 +800,62 @@ const s = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
 
-  // ── Score hero ──
-  scoreHero: {
-    alignItems: 'center',
+  // ── HERO con imagen de fondo ──
+  heroBg: {
+    marginHorizontal: -Spacing.md,
+    marginTop: -Spacing.sm,
+  },
+  heroBgImage: {
+    opacity: 0.55,
+  },
+  heroGradient: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.lg,
+  },
+  heroGreetingWrap: {
+    marginTop: Spacing.lg,
     marginBottom: Spacing.lg,
+    alignItems: 'flex-start',
   },
-  scoreCircleWrap: {
-    width: 160,
-    height: 160,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  scoreTextWrap: {
-    position: 'absolute',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  scoreNumber: {
-    fontSize: FontSizes.mega,
-    fontFamily: Fonts.extraBold,
-    color: Colors.textPrimary,
-  },
-  scoreUnit: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
-    marginTop: 8,
-  },
-
-  // ── Mini metrics ──
-  miniMetrics: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    width: '100%',
-    justifyContent: 'center',
-  },
-  miniMetric: {
-    flex: 1,
-    maxWidth: 110,
-  },
-  miniMetricHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 3,
-  },
-  miniMetricLabel: {
-    color: '#666',
-    fontSize: 9,
-    fontFamily: Fonts.bold,
+  heroGreeting: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.7)',
     letterSpacing: 1,
   },
-  miniMetricValue: {
-    fontSize: 9,
+  heroName: {
+    fontSize: FontSizes.hero,
+    fontFamily: Fonts.extraBold,
+    color: '#fff',
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  heroDate: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 2,
+    marginTop: 4,
+  },
+  heroScoreWrap: {
+    alignItems: 'center',
+    marginTop: Spacing.lg,
+  },
+  heroScoreLabel: {
+    fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
+    letterSpacing: 3,
+    marginTop: Spacing.md,
   },
-  miniMetricTrack: {
-    height: 3,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  miniMetricFill: {
-    height: '100%',
-    borderRadius: 2,
+  heroScoreMessage: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.75)',
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    lineHeight: 20,
   },
 
   // ── Category filters ──
@@ -967,8 +902,6 @@ const s = StyleSheet.create({
     marginBottom: Spacing.sm,
     backgroundColor: CARD.bg,
     borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     borderLeftWidth: 3,
     padding: Spacing.sm + 2,
   },
@@ -1083,8 +1016,6 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: CARD.bg,
     borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     padding: Spacing.md,
     alignItems: 'center',
     gap: 4,
