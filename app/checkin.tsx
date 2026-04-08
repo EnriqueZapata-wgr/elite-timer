@@ -4,7 +4,6 @@
  */
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +19,7 @@ import { vibrateMedium } from '@/src/utils/haptics';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { Screen } from '@/src/components/ui/Screen';
 
 const { width: SW } = Dimensions.get('window');
 const CELL = (SW - Spacing.md * 2 - 2) / 2;
@@ -83,7 +83,7 @@ export default function CheckinScreen() {
   // === DONE ===
   if (step === 4) {
     return (
-      <SafeAreaView style={styles.screen}>
+      <Screen>
         <Animated.View entering={FadeIn.duration(400)} style={styles.doneContainer}>
           <View style={[styles.donePulse, { backgroundColor: qColor + '20' }]}>
             <View style={[styles.doneDot, { backgroundColor: qColor }]} />
@@ -96,12 +96,12 @@ export default function CheckinScreen() {
             <EliteText variant="body" style={[styles.doneBtnText, { color: qColor }]}>Volver</EliteText>
           </Pressable>
         </Animated.View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <Screen>
       <PillarHeader pillar="mind" title="Check-in" />
 
       {/* Dots */}
@@ -288,7 +288,7 @@ export default function CheckinScreen() {
           </ScrollView>
         </Animated.View>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 

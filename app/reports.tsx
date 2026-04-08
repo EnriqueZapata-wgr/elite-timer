@@ -8,18 +8,18 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
-import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
-import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { Screen } from '@/src/components/ui/Screen';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { FilterPills } from '@/src/components/ui/FilterPills';
 import { SimpleBarChart, SimpleLineChart } from '@/src/components/charts/SimpleCharts';
-import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, CARD } from '@/src/constants/brand';
 import {
   getNutritionReport,
   getHydrationReport,
@@ -35,15 +35,18 @@ import {
 const LIME = CATEGORY_COLORS.fitness;
 const BLUE = CATEGORY_COLORS.nutrition;
 
-const PERIODS: { key: ReportPeriod; label: string }[] = [
-  { key: 'week',    label: 'Semana' },
-  { key: 'month',   label: 'Mes' },
-  { key: '3month',  label: '3 Meses' },
-  { key: 'all',     label: 'Todo' },
-];
+type PeriodLabel = 'Semana' | 'Mes' | '3 Meses' | 'Todo';
+const PERIOD_LABELS: readonly PeriodLabel[] = ['Semana', 'Mes', '3 Meses', 'Todo'];
+const LABEL_TO_KEY: Record<PeriodLabel, ReportPeriod> = {
+  'Semana': 'week',
+  'Mes': 'month',
+  '3 Meses': '3month',
+  'Todo': 'all',
+};
 
 export default function ReportsScreen() {
-  const [period, setPeriod] = useState<ReportPeriod>('week');
+  const [periodLabel, setPeriodLabel] = useState<PeriodLabel>('Semana');
+  const period = LABEL_TO_KEY[periodLabel];
 
   const [nutrition, setNutrition] = useState<NutritionReport>({ daily: [], avgCalories: 0, avgProtein: 0, avgScore: 0 });
   const [hydration, setHydration] = useState<HydrationReport>({ daily: [], avgMl: 0 });
@@ -67,29 +70,13 @@ export default function ReportsScreen() {
   }, [period]));
 
   return (
-    <SafeAreaView style={s.screen} edges={['top']}>
-      <ScreenHeader title="Reportes" />
+    <Screen>
+      <PillarHeader pillar="metrics" title="Reportes" />
 
       {/* Selector de periodo */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.periodRow}
-        style={s.periodScroll}
-      >
-        {PERIODS.map(p => {
-          const active = p.key === period;
-          return (
-            <AnimatedPressable
-              key={p.key}
-              onPress={() => { haptic.light(); setPeriod(p.key); }}
-              style={[s.periodPill, active && s.periodPillActive]}
-            >
-              <EliteText style={[s.periodText, active && s.periodTextActive]}>{p.label.toUpperCase()}</EliteText>
-            </AnimatedPressable>
-          );
-        })}
-      </ScrollView>
+      <View style={s.periodWrap}>
+        <FilterPills options={PERIOD_LABELS} selected={periodLabel} onSelect={setPeriodLabel} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         {loading && (
@@ -179,7 +166,7 @@ export default function ReportsScreen() {
 
         <View style={{ height: 80 }} />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -195,36 +182,11 @@ function Stat({ value, label }: { value: number | string; label: string }) {
 
 // === ESTILOS ===
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
-
   // Selector de periodo
-  periodScroll: { maxHeight: 48 },
-  periodRow: {
-    paddingHorizontal: Spacing.md,
-    gap: 8,
-    paddingVertical: 4,
+  periodWrap: {
+    paddingTop: Spacing.sm,
+    paddingBottom: 4,
   },
-  periodPill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: Radius.pill,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-    height: 34,
-    justifyContent: 'center',
-  },
-  periodPillActive: {
-    backgroundColor: LIME,
-    borderColor: LIME,
-  },
-  periodText: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
-    letterSpacing: 1.5,
-  },
-  periodTextActive: { color: '#000' },
 
   content: {
     paddingHorizontal: Spacing.md,
@@ -243,10 +205,10 @@ const s = StyleSheet.create({
 
   // Chart cards
   chartCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 0.5,
-    borderColor: '#1a1a1a',
+    borderColor: CARD.borderColor,
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },

@@ -19,7 +19,7 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, CARD, BG } from '@/src/constants/brand';
 import {
   logCardioSession,
   formatPace,
@@ -320,7 +320,7 @@ function rpeLabel(rpe: number): string {
 // === ESTILOS ===
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
+  screen: { flex: 1, backgroundColor: BG.screen },
   flex: { flex: 1 },
   content: {
     paddingHorizontal: Spacing.md,
@@ -348,7 +348,7 @@ const s = StyleSheet.create({
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.pill,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -371,7 +371,7 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
   },
   input: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.md,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -389,7 +389,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.sm,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
   },
@@ -424,7 +424,7 @@ const s = StyleSheet.create({
   timeInput: {
     width: 64,
     height: 56,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.md,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -476,7 +476,7 @@ const s = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
     alignItems: 'center',
@@ -513,7 +513,7 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.sm,
     borderTopWidth: 0.5,
     borderTopColor: '#1a1a1a',
-    backgroundColor: '#000',
+    backgroundColor: BG.screen,
   },
   saveBtn: {
     backgroundColor: LIME,

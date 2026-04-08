@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 // Módulos nativos — importar con try/catch para OTA compat
@@ -27,6 +26,8 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, TEXT_COLORS } from '@/src/constants/brand';
+import { Screen } from '@/src/components/ui/Screen';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
 
 const TEAL = CATEGORY_COLORS.metrics;
 
@@ -221,7 +222,7 @@ export default function MyHealthScreen() {
   const recs = getRecommendations(healthMeasure, labs, healthScore);
 
   return (
-    <SafeAreaView style={s.screen}>
+    <Screen>
       <PillarHeader pillar="metrics" title="Mi Salud" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
@@ -287,7 +288,7 @@ export default function MyHealthScreen() {
         {/* ── SCORES DE SALUD ── */}
         {healthScore ? (
           <Animated.View entering={FadeInUp.delay(200).springify()}>
-            <EliteText variant="caption" style={s.sectionLabel}>TUS SCORES</EliteText>
+            <SectionTitle style={s.sectionLabelSpacing}>TUS SCORES</SectionTitle>
             <View style={s.scoresGrid}>
               <ScoreCard
                 label="Edad biológica"
@@ -340,7 +341,7 @@ export default function MyHealthScreen() {
             {/* Dominios */}
             {healthScore.domains && healthScore.domains.length > 0 && (
               <View style={s.domainsSection}>
-                <EliteText variant="caption" style={[s.sectionLabel, { marginTop: Spacing.sm }]}>DOMINIOS</EliteText>
+                <SectionTitle style={{ marginTop: Spacing.sm }}>DOMINIOS</SectionTitle>
                 {healthScore.domains.map((d: any) => {
                   const pct = Math.round(d.functionalScore ?? 0);
                   const barColor = pct > 80 ? SEMANTIC.success : pct > 60 ? SEMANTIC.warning : SEMANTIC.error;
@@ -381,7 +382,7 @@ export default function MyHealthScreen() {
         {/* Recomendaciones */}
         {recs.length > 0 && (
           <Animated.View entering={FadeInUp.delay(250).springify()}>
-            <EliteText variant="caption" style={s.sectionLabel}>MEJORA TU EVALUACIÓN</EliteText>
+            <SectionTitle style={s.sectionLabelSpacing}>MEJORA TU EVALUACIÓN</SectionTitle>
             {recs.map((rec, i) => (
               <AnimatedPressable key={rec.title} onPress={() => { haptic.light(); router.push(rec.route as any); }} style={s.recCard}>
                 <Ionicons name={rec.icon as any} size={20} color={impactColor(rec.impact)} />
@@ -400,7 +401,7 @@ export default function MyHealthScreen() {
         {/* Uploads fallidos */}
         {uploads.filter(u => u.status === 'failed' || u.status === 'processing').length > 0 && (
           <>
-            <EliteText variant="caption" style={[s.sectionLabel, { color: SEMANTIC.error }]}>UPLOADS CON ERROR</EliteText>
+            <SectionTitle style={[s.sectionLabelSpacing, { color: SEMANTIC.error }]}>UPLOADS CON ERROR</SectionTitle>
             {uploads.filter(u => u.status === 'failed' || u.status === 'processing').map(u => (
               <View key={u.id} style={[s.labCard, { borderColor: SEMANTIC.error + '20' }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
@@ -438,7 +439,7 @@ export default function MyHealthScreen() {
           </View>
         ) : (
           <Animated.View entering={FadeInUp.delay(250).springify()}>
-            <EliteText variant="caption" style={s.sectionLabel}>MIS LABS</EliteText>
+            <SectionTitle style={s.sectionLabelSpacing}>MIS LABS</SectionTitle>
             {labs.length === 0 ? (
               <EliteText variant="caption" style={{ color: Colors.textMuted, textAlign: 'center', padding: Spacing.lg }}>
                 Sin labs registrados
@@ -494,7 +495,7 @@ export default function MyHealthScreen() {
         {/* ── Estudios clínicos ── */}
         {studies.length > 0 && (
           <Animated.View entering={FadeInUp.delay(350).springify()}>
-            <EliteText variant="caption" style={s.sectionLabel}>MIS ESTUDIOS</EliteText>
+            <SectionTitle style={s.sectionLabelSpacing}>MIS ESTUDIOS</SectionTitle>
             {studies.map(study => {
               const st = getStudyType(study.study_type);
               const isExpanded = expandedStudy === study.id;
@@ -549,7 +550,7 @@ export default function MyHealthScreen() {
           </Animated.View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -588,7 +589,7 @@ const s = StyleSheet.create({
     backgroundColor: TEAL + '08', borderWidth: 1, borderColor: TEAL + '20',
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.md,
   },
-  sectionLabel: { color: Colors.textSecondary, letterSpacing: 3, fontSize: FontSizes.sm, fontFamily: Fonts.bold, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  sectionLabelSpacing: { marginTop: Spacing.lg },
   labCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
     borderWidth: 0.5, borderColor: Colors.border,

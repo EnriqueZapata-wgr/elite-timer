@@ -7,6 +7,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { EliteToggle } from '@/components/elite-toggle';
@@ -637,9 +638,9 @@ export default function SettingsScreen() {
 
 function SectionLabel({ children, color }: { children: string; color?: string }) {
   return (
-    <EliteText variant="label" style={[styles.sectionLabel, color ? { color } : undefined]}>
+    <SectionTitle style={color ? { color, marginTop: 16 } : { marginTop: 16 }}>
       {children}
-    </EliteText>
+    </SectionTitle>
   );
 }
 

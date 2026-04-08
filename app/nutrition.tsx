@@ -19,7 +19,8 @@ import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { NutritionGapsCard } from '@/src/components/nutrition/NutritionGapsCard';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG } from '@/src/constants/brand';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
@@ -553,7 +554,7 @@ export default function NutritionScreen() {
 
         {/* ══ 5. Registro de hoy ══ */}
         <Animated.View entering={FadeInUp.delay(330).springify()}>
-          <EliteText variant="caption" style={s.sectionLabel}>REGISTRO DE HOY</EliteText>
+          <SectionTitle>REGISTRO DE HOY</SectionTitle>
           {foodLogs.length === 0 ? (
             <EmptyState
               icon="restaurant-outline"
@@ -581,7 +582,7 @@ export default function NutritionScreen() {
 
         {/* ══ 6. Analiza productos ══ */}
         <Animated.View entering={FadeInUp.delay(380).springify()}>
-          <EliteText variant="caption" style={s.sectionLabel}>ANALIZA PRODUCTOS</EliteText>
+          <SectionTitle>ANALIZA PRODUCTOS</SectionTitle>
           <View style={{ flexDirection: 'row', gap: Spacing.sm }}>
             <AnimatedPressable
               style={s.analyzeCard}
@@ -605,7 +606,7 @@ export default function NutritionScreen() {
         {/* ══ 7. Recetas sugeridas ══ */}
         {recipes.length > 0 && (
           <Animated.View entering={FadeInUp.delay(400).springify()}>
-            <EliteText variant="caption" style={s.sectionLabel}>RECETAS SUGERIDAS</EliteText>
+            <SectionTitle>RECETAS SUGERIDAS</SectionTitle>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: Spacing.sm }}>
               {recipes.map((r: any) => (
                 <View key={r.id} style={s.recipeCard}>
@@ -631,7 +632,7 @@ export default function NutritionScreen() {
         {/* ══ 7. Insights ══ */}
         {(insights.positive || insights.alert) && (
           <Animated.View entering={FadeInUp.delay(470).springify()}>
-            <EliteText variant="caption" style={s.sectionLabel}>INSIGHTS</EliteText>
+            <SectionTitle>INSIGHTS</SectionTitle>
             {insights.positive && (
               <View style={[s.insightCard, { borderLeftColor: SEMANTIC.success }]}>
                 <Ionicons name="checkmark-circle" size={16} color={SEMANTIC.success} />
@@ -656,7 +657,7 @@ export default function NutritionScreen() {
 // ═══ Estilos ═══
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000000' },
+  container: { flex: 1, backgroundColor: BG.screen },
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
 
   // Hero
@@ -714,12 +715,6 @@ const s = StyleSheet.create({
     fontFamily: Fonts.bold, fontSize: FontSizes.lg,
     backgroundColor: SURFACES.card, borderRadius: Radius.xs, borderWidth: 1, borderColor: SURFACES.border,
     paddingVertical: 6,
-  },
-
-  // Sección
-  sectionLabel: {
-    color: BLUE, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.sm,
-    marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
 
   // Comidas

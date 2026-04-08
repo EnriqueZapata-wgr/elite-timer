@@ -4,7 +4,6 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -15,7 +14,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG } from '@/src/constants/brand';
+import { Screen } from '@/src/components/ui/Screen';
 import { useFocusEffect } from 'expo-router';
 
 // ═══ CONSTANTES ═══
@@ -174,7 +174,7 @@ export default function JournalScreen() {
   if (selectedType) {
     const typeInfo = JOURNAL_TYPES.find(t => t.key === selectedType)!;
     return (
-      <SafeAreaView style={s.screen}>
+      <Screen>
         <PillarHeader pillar="mind" title="Journal" />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           {/* Botón volver */}
@@ -219,14 +219,14 @@ export default function JournalScreen() {
 
           <View style={{ height: Spacing.xxl * 2 }} />
         </ScrollView>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
   // ═══ SELECTOR DE TIPO ═══
 
   return (
-    <SafeAreaView style={s.screen}>
+    <Screen>
       <PillarHeader pillar="mind" title="Journal" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <EliteText variant="caption" style={s.subtitle}>Elige tu práctica de hoy</EliteText>
@@ -275,7 +275,7 @@ export default function JournalScreen() {
 
         <View style={{ height: Spacing.xxl * 2 }} />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -405,7 +405,7 @@ function MoodSelector({ value, onChange }: { value: number | null; onChange: (v:
 // ═══ ESTILOS ═══
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.black },
+  screen: { flex: 1, backgroundColor: BG.screen },
   scroll: { paddingHorizontal: Spacing.md },
   subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.md, marginTop: Spacing.xs },
 

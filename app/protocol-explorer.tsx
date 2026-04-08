@@ -26,7 +26,6 @@ function confirmAsync(title: string, message: string): Promise<boolean> {
 }
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -37,6 +36,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getPublicTemplates, assignProtocol, getUserProtocols, generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { Screen } from '@/src/components/ui/Screen';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 
@@ -146,7 +147,7 @@ export default function ProtocolExplorerScreen() {
   const activeOnes = activeProtocols.filter(p => p.status === 'active');
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <Screen>
       {/* Header */}
       <PillarHeader pillar="optimization" title="Protocolos" />
 
@@ -166,9 +167,7 @@ export default function ProtocolExplorerScreen() {
           {/* Sección 1: Protocolos activos */}
           {activeOnes.length > 0 && (
             <View style={styles.section}>
-              <EliteText variant="caption" style={styles.sectionLabel}>
-                TUS PROTOCOLOS ACTIVOS
-              </EliteText>
+              <SectionTitle>TUS PROTOCOLOS ACTIVOS</SectionTitle>
               {activeOnes.map((p, i) => (
                 <StaggerItem key={p.id} index={i}>
                   <View style={styles.activeCard}>
@@ -195,9 +194,7 @@ export default function ProtocolExplorerScreen() {
           {/* Sección 2: Explorar protocolos */}
           {templates.length > 0 ? (
             <View style={styles.section}>
-              <EliteText variant="caption" style={styles.sectionLabel}>
-                EXPLORAR PROTOCOLOS
-              </EliteText>
+              <SectionTitle>EXPLORAR PROTOCOLOS</SectionTitle>
               {templates.map((t, i) => {
                 const isActive = activeProtocols.some(
                   ap => ap.template_id === t.id && ap.status === 'active'
@@ -319,7 +316,7 @@ export default function ProtocolExplorerScreen() {
           )}
         </ScrollView>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 

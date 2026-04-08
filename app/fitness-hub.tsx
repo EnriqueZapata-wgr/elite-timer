@@ -7,7 +7,6 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -15,9 +14,12 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { Screen } from '@/src/components/ui/Screen';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { FilterPills } from '@/src/components/ui/FilterPills';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, CARD } from '@/src/constants/brand';
 import {
   getBenchmarksWithVariants,
   getLastCardioSessions,
@@ -34,53 +36,30 @@ import {
 import { getWeeklyStats } from '@/src/services/exercise-service';
 
 const LIME = CATEGORY_COLORS.fitness;
-type TabKey = 'fuerza' | 'cardio' | 'movilidad' | 'hiit';
-
-const TABS: { key: TabKey; label: string }[] = [
-  { key: 'fuerza',    label: 'Fuerza' },
-  { key: 'cardio',    label: 'Cardio' },
-  { key: 'movilidad', label: 'Movilidad' },
-  { key: 'hiit',      label: 'HIIT' },
-];
+type TabLabel = 'Fuerza' | 'Cardio' | 'Movilidad' | 'HIIT';
+const TAB_LABELS: readonly TabLabel[] = ['Fuerza', 'Cardio', 'Movilidad', 'HIIT'];
 
 export default function FitnessHubScreen() {
-  const [activeTab, setActiveTab] = useState<TabKey>('fuerza');
+  const [activeTab, setActiveTab] = useState<TabLabel>('Fuerza');
 
   return (
-    <SafeAreaView style={s.screen} edges={['top']}>
+    <Screen>
       <PillarHeader pillar="fitness" title="Fitness" />
 
       <ResumenHoy />
 
-      {/* Tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.tabsRow}
-        style={s.tabsScroll}
-      >
-        {TABS.map(tab => {
-          const active = tab.key === activeTab;
-          return (
-            <AnimatedPressable
-              key={tab.key}
-              onPress={() => { haptic.light(); setActiveTab(tab.key); }}
-              style={[s.tabPill, active && s.tabPillActive]}
-            >
-              <EliteText style={[s.tabText, active && s.tabTextActive]}>{tab.label.toUpperCase()}</EliteText>
-            </AnimatedPressable>
-          );
-        })}
-      </ScrollView>
+      <View style={s.tabsWrap}>
+        <FilterPills options={TAB_LABELS} selected={activeTab} onSelect={setActiveTab} />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {activeTab === 'fuerza'    && <StrengthTab key="strength" />}
-        {activeTab === 'cardio'    && <CardioTab    key="cardio" />}
-        {activeTab === 'movilidad' && <MobilityTab  key="mobility" />}
-        {activeTab === 'hiit'      && <HIITTab      key="hiit" />}
+        {activeTab === 'Fuerza'    && <StrengthTab key="strength" />}
+        {activeTab === 'Cardio'    && <CardioTab    key="cardio" />}
+        {activeTab === 'Movilidad' && <MobilityTab  key="mobility" />}
+        {activeTab === 'HIIT'      && <HIITTab      key="hiit" />}
         <View style={{ height: 100 }} />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -134,7 +113,7 @@ function StrengthTab() {
 
   return (
     <View>
-      <EliteText style={s.sectionTitle}>BENCHMARKS</EliteText>
+      <SectionTitle>BENCHMARKS</SectionTitle>
 
       {loading && (
         <View style={s.emptyState}>
@@ -235,7 +214,7 @@ function CardioTab() {
 
   return (
     <View>
-      <EliteText style={s.sectionTitle}>DISCIPLINAS</EliteText>
+      <SectionTitle>DISCIPLINAS</SectionTitle>
 
       {DISCIPLINES.map((d, i) => {
         const last = lastByDiscipline[d.key];
@@ -336,7 +315,7 @@ function MobilityTab() {
 
   return (
     <View>
-      <EliteText style={s.sectionTitle}>ÚLTIMA EVALUACIÓN · {dateLabel.toUpperCase()}</EliteText>
+      <SectionTitle>{`ÚLTIMA EVALUACIÓN · ${dateLabel.toUpperCase()}`}</SectionTitle>
 
       <View style={s.mobilityScoreCard}>
         <View>
@@ -413,7 +392,7 @@ function HIITTab() {
 
   return (
     <View>
-      <EliteText style={s.sectionTitle}>WORKOUTS</EliteText>
+      <SectionTitle>WORKOUTS</SectionTitle>
 
       {HIIT_PRESETS.map((preset, i) => (
         <Animated.View key={preset.name} entering={FadeInUp.delay(50 + i * 40).springify()}>
@@ -445,17 +424,15 @@ function HIITTab() {
 // ESTILOS
 // ─────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#000' },
-
   // Resumen
   summaryCard: {
     marginHorizontal: Spacing.md,
     marginTop: Spacing.sm,
     padding: Spacing.md,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 0.5,
-    borderColor: '#1a1a1a',
+    borderColor: CARD.borderColor,
   },
   summaryTitle: {
     fontSize: FontSizes.xs,
@@ -492,51 +469,13 @@ const s = StyleSheet.create({
   },
 
   // Tabs
-  tabsScroll: {
-    maxHeight: 48,
+  tabsWrap: {
     marginTop: Spacing.md,
-  },
-  tabsRow: {
-    paddingHorizontal: Spacing.md,
-    gap: 8,
-  },
-  tabPill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: Radius.pill,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-    height: 34,
-    justifyContent: 'center',
-  },
-  tabPillActive: {
-    backgroundColor: LIME,
-    borderColor: LIME,
-  },
-  tabText: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
-    letterSpacing: 1.5,
-  },
-  tabTextActive: {
-    color: '#000',
   },
 
   content: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
-  },
-
-  // Section
-  sectionTitle: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
-    letterSpacing: 2,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.sm,
   },
 
   // Benchmark card

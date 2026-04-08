@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Alert, Modal, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '@/src/components/ui/Screen';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -16,7 +16,7 @@ import { getCycleInfo, startPeriod, endPeriod, logSymptoms, getTodaySymptoms, PH
 import { CycleCalendar, CycleLineChart } from '@/src/components/cycle/CycleCalendar';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, CARD } from '@/src/constants/brand';
 
 const PINK = '#D4537E';
 
@@ -156,12 +156,12 @@ export default function CycleScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={s.screen}>
+      <Screen>
         <PillarHeader pillar="cycle" title="Ciclo" />
         <View style={{ padding: Spacing.md }}>
           <SkeletonLoader width="100%" height={140} style={{ borderRadius: Radius.card }} />
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -169,7 +169,7 @@ export default function CycleScreen() {
 
   if (!info) {
     return (
-      <SafeAreaView style={s.screen}>
+      <Screen>
         <PillarHeader pillar="cycle" title="Ciclo" />
         <EmptyState
           icon="water-outline"
@@ -179,7 +179,7 @@ export default function CycleScreen() {
           onAction={handleStartPeriod}
           color={PINK}
         />
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -188,7 +188,7 @@ export default function CycleScreen() {
   const phase: PhaseInfo = info.phaseInfo;
 
   return (
-    <SafeAreaView style={s.screen}>
+    <Screen>
       <PillarHeader pillar="cycle" title="Ciclo" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl * 2 }}>
@@ -378,7 +378,7 @@ export default function CycleScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </Screen>
   );
 }
 
@@ -428,7 +428,7 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   dateModal: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: Spacing.lg,
