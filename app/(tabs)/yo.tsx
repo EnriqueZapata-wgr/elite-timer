@@ -519,7 +519,7 @@ const s = StyleSheet.create({
   // ── 2. Overall Score Card ──
   scoreCard: {
     backgroundColor: CARD.bg,
-    borderRadius: 20,
+    borderRadius: CARD.borderRadius,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
     paddingVertical: Spacing.lg,
@@ -574,7 +574,7 @@ const s = StyleSheet.create({
   ageCard: {
     flex: 1,
     backgroundColor: CARD.bg,
-    borderRadius: 20,
+    borderRadius: CARD.borderRadius,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
     padding: Spacing.md,
@@ -622,7 +622,7 @@ const s = StyleSheet.create({
   // ── 4. Improve Evaluation ──
   improveCard: {
     backgroundColor: CARD.bg,
-    borderRadius: 20,
+    borderRadius: CARD.borderRadius,
     borderWidth: 0.5,
     borderColor: '#1a2a1a',
     padding: Spacing.md,
@@ -694,7 +694,7 @@ const s = StyleSheet.create({
   // ── 6. Health Domains ──
   domainsCard: {
     backgroundColor: CARD.bg,
-    borderRadius: 20,
+    borderRadius: CARD.borderRadius,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
     padding: Spacing.md,
@@ -758,7 +758,7 @@ const s = StyleSheet.create({
     width: '47%',
     flexGrow: 1,
     backgroundColor: CARD.bg,
-    borderRadius: 20,
+    borderRadius: CARD.borderRadius,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
     paddingVertical: 16,
@@ -792,7 +792,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     backgroundColor: '#0d1a0a',
-    borderRadius: 20,
+    borderRadius: CARD.borderRadius,
     padding: Spacing.md,
     marginTop: 12,
     borderWidth: 0.5,
