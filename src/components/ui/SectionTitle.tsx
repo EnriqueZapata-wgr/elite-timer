@@ -14,17 +14,27 @@ import { SECTION_TITLE } from '@/src/constants/brand';
 
 interface SectionTitleProps {
   children: string;
+  /** Render arbitrario a la derecha (link, boton, badge). */
   rightAction?: ReactNode;
+  /** Texto plano a la derecha (atajo cuando solo es un texto). */
+  rightText?: string;
+  /** Color del rightText (default: igual al titulo). */
+  rightColor?: string;
   style?: StyleProp<TextStyle>;
   containerStyle?: StyleProp<ViewStyle>;
 }
 
-export function SectionTitle({ children, rightAction, style, containerStyle }: SectionTitleProps) {
-  if (rightAction) {
+export function SectionTitle({ children, rightAction, rightText, rightColor, style, containerStyle }: SectionTitleProps) {
+  // Si se pasa rightText (string), lo renderiza como Text del mismo estilo
+  const right = rightAction ?? (rightText
+    ? <Text style={[styles.text, { marginBottom: 0 }, rightColor ? { color: rightColor } : null]}>{rightText}</Text>
+    : null);
+
+  if (right) {
     return (
       <View style={[styles.row, containerStyle]}>
         <Text style={[styles.text, { marginBottom: 0 }, style]}>{children}</Text>
-        {rightAction}
+        {right}
       </View>
     );
   }
