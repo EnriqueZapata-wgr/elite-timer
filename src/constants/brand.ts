@@ -192,3 +192,95 @@ export const LETTER_SPACING = {
   wide: 2,       // section titles, headers
   xwide: 3,      // solo "ATP" en logo
 } as const;
+
+// ═══════════════════════════════════════════════════════════════════
+// PREMIUM DESIGN TOKENS — colores semanticos, gradients, mensajes
+// ═══════════════════════════════════════════════════════════════════
+
+/** Colores semanticos por nivel de score (0-100) */
+export const SCORE_COLORS = {
+  optimal:  '#4ade80',   // 85+ verde brillante
+  charged:  '#a8e02a',   // 70-84 lime ATP
+  stable:   '#fbbf24',   // 55-69 amarillo
+  low:      '#f97316',   // 40-54 naranja
+  critical: '#ef4444',   // 0-39 rojo
+} as const;
+
+/** Devuelve el color asociado a un score (0-100). */
+export function getScoreColor(score: number): string {
+  if (score >= 85) return SCORE_COLORS.optimal;
+  if (score >= 70) return SCORE_COLORS.charged;
+  if (score >= 55) return SCORE_COLORS.stable;
+  if (score >= 40) return SCORE_COLORS.low;
+  return SCORE_COLORS.critical;
+}
+
+/** Devuelve la etiqueta de nivel para un score. */
+export function getScoreLabel(score: number): string {
+  if (score >= 85) return 'OPTIMO';
+  if (score >= 70) return 'CARGADO';
+  if (score >= 55) return 'ESTABLE';
+  if (score >= 40) return 'BAJO';
+  return 'CRITICO';
+}
+
+/** Devuelve un mensaje contextual segun score y hora del dia. */
+export function getScoreMessage(score: number, hour: number): string {
+  if (score >= 85) {
+    if (hour < 12) return 'Tu ATP esta al maximo. Hoy es dia de rendir.';
+    if (hour < 18) return 'Nivel de energia excepcional. Aprovecha la tarde.';
+    return 'Gran dia. Tu cuerpo agradece la consistencia.';
+  }
+  if (score >= 70) {
+    if (hour < 12) return 'Buen nivel de energia. Arranca con todo.';
+    if (hour < 18) return 'Manten el ritmo. Vas bien.';
+    return 'Dia solido. Preparate para un buen descanso.';
+  }
+  if (score >= 55) {
+    if (hour < 12) return 'Energia moderada. Entrena inteligente, no fuerte.';
+    if (hour < 18) return 'Escucha a tu cuerpo. Ajusta la intensidad.';
+    return 'Tu sistema pide equilibrio. No exijas de mas.';
+  }
+  if (score >= 40) {
+    if (hour < 12) return 'Tu ATP esta bajo. Prioriza recuperacion hoy.';
+    if (hour < 18) return 'Movilidad y descanso activo hoy.';
+    return 'Modo recuperacion. Medita y duerme temprano.';
+  }
+  if (hour < 12) return 'Estado critico. Descanso absoluto hoy.';
+  if (hour < 18) return 'Tu cuerpo necesita reset. Nada de entrenar.';
+  return 'Prioriza sueno profundo. Manana sera otro dia.';
+}
+
+/** Gradientes por pilar/categoria — start (color tinted) -> end (oscuro). */
+export const PILLAR_GRADIENTS = {
+  fitness:    { start: 'rgba(168,224,42,0.25)', end: 'rgba(10,10,10,0.95)' },
+  nutrition:  { start: 'rgba(91,155,213,0.25)', end: 'rgba(10,10,10,0.95)' },
+  mind:       { start: 'rgba(127,119,221,0.25)', end: 'rgba(10,10,10,0.95)' },
+  health:     { start: 'rgba(29,158,117,0.25)', end: 'rgba(10,10,10,0.95)' },
+  cycle:      { start: 'rgba(212,83,126,0.25)', end: 'rgba(10,10,10,0.95)' },
+  metrics:    { start: 'rgba(29,158,117,0.25)', end: 'rgba(10,10,10,0.95)' },
+  sleep:      { start: 'rgba(91,155,213,0.20)', end: 'rgba(10,10,10,0.95)' },
+  recovery:   { start: 'rgba(78,170,128,0.20)', end: 'rgba(10,10,10,0.95)' },
+  stress:     { start: 'rgba(239,159,39,0.20)', end: 'rgba(10,10,10,0.95)' },
+  activity:   { start: 'rgba(168,224,42,0.20)', end: 'rgba(10,10,10,0.95)' },
+  protocol:   { start: 'rgba(239,159,39,0.20)', end: 'rgba(10,10,10,0.95)' },
+} as const;
+
+// ═══════════════════════════════════════════════════════════════════
+// HOY BACKGROUNDS — Imagenes de fondo dinamicas por hora
+// ═══════════════════════════════════════════════════════════════════
+// requires estaticos (Metro bundler los analiza en tiempo de compilacion).
+// 3 imagenes en assets/backgrounds/ cubren los 3 momentos del dia.
+
+const BG_IMAGES = {
+  sleep:        require('../../assets/backgrounds/bg-sleep.jpg'),
+  middayMedium: require('../../assets/backgrounds/bg-midday-medium.jpg'),
+  nightLow:     require('../../assets/backgrounds/bg-night-low.jpg'),
+} as const;
+
+/** Devuelve la imagen de fondo apropiada segun la hora y el score. */
+export function getHoyBackgroundRequire(hour: number, _score: number) {
+  if (hour >= 22 || hour < 5) return BG_IMAGES.sleep;
+  if (hour < 19) return BG_IMAGES.middayMedium;
+  return BG_IMAGES.nightLow;
+}
