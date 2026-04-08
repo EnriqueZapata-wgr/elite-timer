@@ -9,19 +9,20 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Circle } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
+import { GradientCard } from '@/src/components/ui/GradientCard';
+import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { generateMasterHealthReport, type MasterHealthReport } from '@/src/services/health-score-engine';
 import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
 import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD, PILLAR_GRADIENTS, getScoreColor } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { ExplanationModal } from '@/src/components/ui/ExplanationModal';
@@ -183,14 +184,12 @@ export default function YoScreen() {
             2. OVERALL SCORE CARD — Circle + 6 mini scores
             ═══════════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
-          <View style={s.scoreCard}>
-            {/* Círculo grande */}
-            <View style={s.scoreCircleWrap}>
-              <ScoreCircle score={overallScore} color={overallColor} size={180} />
+          <GradientCard gradient={PILLAR_GRADIENTS.health} padding={20} style={s.scoreCardWrap}>
+            <View style={s.scoreRingWrap}>
+              <AnimatedScoreRing score={overallScore} size={180} strokeWidth={4} label="ATP SCORE" />
             </View>
 
-            {/* Level text */}
-            <EliteText style={[s.scoreLevel, { color: overallColor }]}>
+            <EliteText style={[s.scoreLevel, { color: getScoreColor(overallScore) }]}>
               {overallLevel.toUpperCase()}
             </EliteText>
 
@@ -206,7 +205,7 @@ export default function YoScreen() {
                   { key: 'stress' as const, abbr: 'Estrés' },
                 ]).map((item) => {
                   const val = dailyScore.components[item.key]?.score ?? 0;
-                  const c = scoreColor(val);
+                  const c = getScoreColor(val);
                   return (
                     <View key={item.key} style={s.miniScoreItem}>
                       <EliteText style={s.miniScoreLabel}>{item.abbr}</EliteText>
@@ -216,7 +215,7 @@ export default function YoScreen() {
                 })}
               </View>
             )}
-          </View>
+          </GradientCard>
         </Animated.View>
 
         {/* ═══════════════════════════════════════════
@@ -225,33 +224,37 @@ export default function YoScreen() {
         <Animated.View entering={FadeInUp.delay(200).springify()}>
           <View style={s.ageRow}>
             {/* Biological Age */}
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCard}>
-              <EliteText style={s.ageLabel}>EDAD BIOLÓGICA</EliteText>
-              <EliteText style={[s.ageBigNum, {
-                color: healthReport?.biologicalAge?.delta != null && healthReport.biologicalAge.delta < 0
-                  ? SEMANTIC.success
-                  : healthReport?.biologicalAge?.value ? SEMANTIC.warning : TEXT_COLORS.muted
-              }]}>
-                {healthReport?.biologicalAge?.value ? Math.round(healthReport.biologicalAge.value) : '--'}
-              </EliteText>
-              {healthReport?.biologicalAge?.delta != null && (
-                <EliteText style={[s.ageSub, {
-                  color: healthReport.biologicalAge.delta < 0 ? SEMANTIC.success : SEMANTIC.error
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCardBtn}>
+              <GradientCard gradient={PILLAR_GRADIENTS.health} style={s.ageGradientCard}>
+                <EliteText style={s.ageLabel}>EDAD BIOLÓGICA</EliteText>
+                <EliteText style={[s.ageBigNum, {
+                  color: healthReport?.biologicalAge?.delta != null && healthReport.biologicalAge.delta < 0
+                    ? SEMANTIC.success
+                    : healthReport?.biologicalAge?.value ? SEMANTIC.warning : TEXT_COLORS.muted
                 }]}>
-                  {healthReport.biologicalAge.delta > 0 ? '+' : ''}{healthReport.biologicalAge.delta} vs {healthReport.biologicalAge.chronologicalAge}
+                  {healthReport?.biologicalAge?.value ? Math.round(healthReport.biologicalAge.value) : '--'}
                 </EliteText>
-              )}
+                {healthReport?.biologicalAge?.delta != null && (
+                  <EliteText style={[s.ageSub, {
+                    color: healthReport.biologicalAge.delta < 0 ? SEMANTIC.success : SEMANTIC.error
+                  }]}>
+                    {healthReport.biologicalAge.delta > 0 ? '+' : ''}{healthReport.biologicalAge.delta} vs {healthReport.biologicalAge.chronologicalAge}
+                  </EliteText>
+                )}
+              </GradientCard>
             </AnimatedPressable>
 
             {/* Aging Rate */}
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCard}>
-              <EliteText style={s.ageLabel}>RITMO DE ENVEJECIMIENTO</EliteText>
-              <EliteText style={[s.ageBigNum, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
-                {healthReport?.agingRate?.value ? healthReport.agingRate.value.toFixed(2) + 'x' : '--'}
-              </EliteText>
-              <EliteText style={[s.ageSub, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
-                {healthReport?.agingRate?.label ?? ''}
-              </EliteText>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCardBtn}>
+              <GradientCard gradient={PILLAR_GRADIENTS.health} style={s.ageGradientCard}>
+                <EliteText style={s.ageLabel}>RITMO DE ENVEJECIMIENTO</EliteText>
+                <EliteText style={[s.ageBigNum, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
+                  {healthReport?.agingRate?.value ? healthReport.agingRate.value.toFixed(2) + 'x' : '--'}
+                </EliteText>
+                <EliteText style={[s.ageSub, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
+                  {healthReport?.agingRate?.label ?? ''}
+                </EliteText>
+              </GradientCard>
             </AnimatedPressable>
           </View>
         </Animated.View>
@@ -433,50 +436,6 @@ export default function YoScreen() {
   );
 }
 
-// === SUB-COMPONENTES ===
-
-/** Arco SVG circular de progreso */
-function ScoreCircle({ score, color, size = 180 }: { score: number; color: string; size?: number }) {
-  const strokeWidth = size >= 150 ? 10 : 6;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const progress = Math.min(100, Math.max(0, score));
-  const strokeDashoffset = circumference * (1 - progress / 100);
-
-  return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={{ position: 'absolute' }}>
-        {/* Fondo del arco */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke="#1a1a1a"
-          strokeWidth={strokeWidth}
-          fill="none"
-        />
-        {/* Arco de progreso */}
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={color}
-          strokeWidth={strokeWidth}
-          fill="none"
-          strokeDasharray={`${circumference}`}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          rotation="-90"
-          origin={`${size / 2}, ${size / 2}`}
-        />
-      </Svg>
-      {/* Score dentro del círculo */}
-      <EliteText style={{ fontSize: size >= 150 ? 48 : 28, fontFamily: Fonts.extraBold, color }}>{score}</EliteText>
-      <EliteText style={{ fontSize: 11, fontFamily: Fonts.semiBold, color: '#555', letterSpacing: 1, marginTop: -2 }}>/ 100</EliteText>
-    </View>
-  );
-}
-
 // === ESTILOS ===
 
 const s = StyleSheet.create({
@@ -517,17 +476,11 @@ const s = StyleSheet.create({
   },
 
   // ── 2. Overall Score Card ──
-  scoreCard: {
-    backgroundColor: CARD.bg,
-    borderRadius: CARD.borderRadius,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.md,
+  scoreCardWrap: {
     alignItems: 'center',
     marginTop: Spacing.md,
   },
-  scoreCircleWrap: {
+  scoreRingWrap: {
     marginBottom: Spacing.sm,
   },
   scoreLevel: {
@@ -571,13 +524,10 @@ const s = StyleSheet.create({
     gap: 10,
     marginTop: 12,
   },
-  ageCard: {
+  ageCardBtn: {
     flex: 1,
-    backgroundColor: CARD.bg,
-    borderRadius: CARD.borderRadius,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-    padding: Spacing.md,
+  },
+  ageGradientCard: {
     alignItems: 'center',
     gap: 4,
   },
@@ -623,8 +573,6 @@ const s = StyleSheet.create({
   improveCard: {
     backgroundColor: CARD.bg,
     borderRadius: CARD.borderRadius,
-    borderWidth: 0.5,
-    borderColor: '#1a2a1a',
     padding: Spacing.md,
     marginTop: 12,
   },
@@ -674,8 +622,6 @@ const s = StyleSheet.create({
     gap: 8,
     backgroundColor: CARD.bg,
     borderRadius: 14,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     paddingHorizontal: 14,
     paddingVertical: 10,
     marginTop: 12,
@@ -695,8 +641,6 @@ const s = StyleSheet.create({
   domainsCard: {
     backgroundColor: CARD.bg,
     borderRadius: CARD.borderRadius,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     padding: Spacing.md,
     marginTop: 12,
   },
@@ -759,8 +703,6 @@ const s = StyleSheet.create({
     flexGrow: 1,
     backgroundColor: CARD.bg,
     borderRadius: CARD.borderRadius,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     paddingVertical: 16,
     paddingHorizontal: 14,
     alignItems: 'center',
