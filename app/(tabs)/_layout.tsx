@@ -53,9 +53,9 @@ export default function TabLayout() {
           tabBarActiveTintColor: ATP_BRAND.lime,
           tabBarInactiveTintColor: Colors.textMuted,
           tabBarStyle: {
-            backgroundColor: SURFACES.base,
-            borderTopColor: SURFACES.cardLight,
-            borderTopWidth: 0.5,
+            backgroundColor: '#000',
+            borderTopWidth: 0,
+            elevation: 0,
             height: 60,
             paddingBottom: 8,
             paddingTop: 4,
