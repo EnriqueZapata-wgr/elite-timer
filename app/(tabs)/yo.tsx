@@ -21,7 +21,7 @@ import { generateMasterHealthReport, type MasterHealthReport } from '@/src/servi
 import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
 import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { ExplanationModal } from '@/src/components/ui/ExplanationModal';
@@ -518,7 +518,7 @@ const s = StyleSheet.create({
 
   // ── 2. Overall Score Card ──
   scoreCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: 20,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -573,7 +573,7 @@ const s = StyleSheet.create({
   },
   ageCard: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: 20,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -621,7 +621,7 @@ const s = StyleSheet.create({
 
   // ── 4. Improve Evaluation ──
   improveCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: 20,
     borderWidth: 0.5,
     borderColor: '#1a2a1a',
@@ -672,7 +672,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: 14,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -693,7 +693,7 @@ const s = StyleSheet.create({
 
   // ── 6. Health Domains ──
   domainsCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: 20,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -757,7 +757,7 @@ const s = StyleSheet.create({
   compCard: {
     width: '47%',
     flexGrow: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: 20,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',

@@ -480,7 +480,7 @@ const s = StyleSheet.create({
 
   // Benchmark card
   benchmarkCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -543,7 +543,7 @@ const s = StyleSheet.create({
 
   // Cardio
   disciplineCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -606,7 +606,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -646,7 +646,7 @@ const s = StyleSheet.create({
   hiitCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -705,7 +705,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderWidth: 1,
     borderColor: 'rgba(168,224,42,0.3)',
     paddingVertical: 12,

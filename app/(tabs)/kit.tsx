@@ -363,7 +363,7 @@ const s = StyleSheet.create({
   // Tool card horizontal
   toolCardH: {
     width: 120,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     borderTopWidth: 3,

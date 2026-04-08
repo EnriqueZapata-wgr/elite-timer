@@ -21,7 +21,7 @@ import { TabScreen } from '@/src/components/ui/TabScreen';
 import { FilterPills } from '@/src/components/ui/FilterPills';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, CARD } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { renderActionContent } from '@/src/components/hoy/ActionContentRenderer';
@@ -957,7 +957,7 @@ const s = StyleSheet.create({
     borderRadius: 7,
     borderWidth: 2,
     borderColor: '#333',
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -965,7 +965,7 @@ const s = StyleSheet.create({
     flex: 1,
     marginLeft: Spacing.sm,
     marginBottom: Spacing.sm,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -1081,7 +1081,7 @@ const s = StyleSheet.create({
   },
   metricCard: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
