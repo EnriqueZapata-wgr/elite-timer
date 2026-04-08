@@ -6,11 +6,10 @@
  * Usa el sistema nuevo (daily_plans) con fallback al legacy (protocol-service).
  */
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, LayoutAnimation, Platform, UIManager, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
@@ -18,6 +17,9 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { GradientCard } from '@/src/components/GradientCard';
+import { TabScreen } from '@/src/components/ui/TabScreen';
+import { FilterPills } from '@/src/components/ui/FilterPills';
+import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -106,7 +108,6 @@ function isNextAction(actions: PlanAction[], idx: number): boolean {
 
 export default function TodayScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [dayPlan, setDayPlan] = useState<DailyPlan | null>(null);
@@ -298,7 +299,7 @@ export default function TodayScreen() {
   const hasTimeline = timeline.length > 0;
 
   // === NUEVO: filtro de categorías ===
-  const [activeFilter, setActiveFilter] = useState('TODO');
+  const [activeFilter, setActiveFilter] = useState<'TODO' | 'FITNESS' | 'NUTRICION' | 'MENTAL' | 'HABITOS'>('TODO');
 
   const filteredActions = useMemo(() => {
     const actions = dayPlan?.actions || [];
@@ -586,7 +587,7 @@ export default function TodayScreen() {
   const scoreOffset = CIRCLE_CIRCUMFERENCE * (1 - dailyScorePct / 100);
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+    <TabScreen>
       <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
@@ -594,13 +595,7 @@ export default function TodayScreen() {
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <View style={s.topBar}>
             <View style={s.topBarLeft}>
-              {avatarUrl ? (
-                <Image source={{ uri: avatarUrl }} style={s.avatar} />
-              ) : (
-                <View style={s.avatarFallback}>
-                  <EliteText style={s.avatarInitial}>{userName.charAt(0)}</EliteText>
-                </View>
-              )}
+              <UserAvatar uri={avatarUrl} name={userName} />
               <View>
                 <EliteText variant="caption" style={s.brandLabel}>ATP DAILY</EliteText>
               </View>
@@ -686,20 +681,13 @@ export default function TodayScreen() {
         </Animated.View>
 
         {/* ── 4. Category filters ── */}
-        <Animated.View entering={FadeInUp.delay(160).springify()}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filtersScroll} contentContainerStyle={s.filtersContent}>
-            {FILTER_OPTIONS.map(f => (
-              <AnimatedPressable
-                key={f}
-                onPress={() => { haptic.light(); setActiveFilter(f); }}
-                style={[s.filterPill, activeFilter === f && s.filterPillActive]}
-              >
-                <EliteText variant="caption" style={[s.filterPillText, activeFilter === f && s.filterPillTextActive]}>
-                  {f}
-                </EliteText>
-              </AnimatedPressable>
-            ))}
-          </ScrollView>
+        <Animated.View entering={FadeInUp.delay(160).springify()} style={s.filtersWrap}>
+          <FilterPills
+            options={FILTER_OPTIONS}
+            selected={activeFilter}
+            onSelect={setActiveFilter}
+            withPadding={false}
+          />
         </Animated.View>
 
         {/* ── 5. Timeline ── */}
@@ -811,17 +799,13 @@ export default function TodayScreen() {
           <EliteText variant="caption" style={s.toastText}>{toast}</EliteText>
         </View>
       )}
-    </View>
+    </TabScreen>
   );
 }
 
 // === ESTILOS ===
 
 const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
   scrollContent: {
     paddingHorizontal: Spacing.md,
   },
@@ -846,28 +830,6 @@ const s = StyleSheet.create({
   },
   topBarIcon: {
     padding: Spacing.xs,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: Colors.neonGreen,
-  },
-  avatarFallback: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1.5,
-    borderColor: Colors.neonGreen,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarInitial: {
-    color: Colors.neonGreen,
-    fontFamily: Fonts.bold,
-    fontSize: FontSizes.md,
   },
   brandLabel: {
     color: Colors.neonGreen,
@@ -962,33 +924,8 @@ const s = StyleSheet.create({
   },
 
   // ── Category filters ──
-  filtersScroll: {
+  filtersWrap: {
     marginBottom: Spacing.md,
-  },
-  filtersContent: {
-    gap: Spacing.sm,
-    paddingRight: Spacing.md,
-  },
-  filterPill: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 2,
-    borderRadius: Radius.pill,
-    backgroundColor: '#0d0d0d',
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-  },
-  filterPillActive: {
-    backgroundColor: Colors.neonGreen + '15',
-    borderColor: Colors.neonGreen,
-  },
-  filterPillText: {
-    color: '#555',
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.bold,
-    letterSpacing: 1.5,
-  },
-  filterPillTextActive: {
-    color: Colors.neonGreen,
   },
 
   // ── Skeleton ──

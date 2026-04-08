@@ -7,13 +7,14 @@ import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Circle } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { TabScreen } from '@/src/components/ui/TabScreen';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { generateMasterHealthReport, type MasterHealthReport } from '@/src/services/health-score-engine';
@@ -39,7 +40,6 @@ const CHRONO_META: Record<string, { icon: string; color: string; name: string; d
 
 export default function YoScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -116,7 +116,7 @@ export default function YoScreen() {
 
   if (loading) {
     return (
-      <View style={[s.root, { paddingTop: insets.top }]}>
+      <TabScreen>
         <StatusBar style="light" />
         <View style={{ padding: 16, gap: 14 }}>
           {/* Top bar skeleton */}
@@ -137,12 +137,12 @@ export default function YoScreen() {
           <SkeletonLoader variant="card" height={80} />
           <SkeletonLoader variant="card" height={60} />
         </View>
-      </View>
+      </TabScreen>
     );
   }
 
   return (
-    <View style={[s.root, { paddingTop: insets.top }]}>
+    <TabScreen>
       <StatusBar style="light" />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -155,13 +155,10 @@ export default function YoScreen() {
         <Animated.View entering={FadeIn.delay(50).duration(400)}>
           <View style={s.topBar}>
             {/* Avatar */}
-            <View style={s.avatar}>
-              <LinearGradient colors={[ATP_BRAND.lime, ATP_BRAND.teal2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.avatarGrad}>
-                <View style={s.avatarInner}>
-                  <EliteText style={s.avatarText}>{initials}</EliteText>
-                </View>
-              </LinearGradient>
-            </View>
+            <UserAvatar
+              uri={user?.user_metadata?.avatar_url}
+              name={user?.user_metadata?.full_name || user?.email || initials}
+            />
 
             {/* Título */}
             <EliteText style={s.topTitle}>YO</EliteText>
@@ -363,7 +360,7 @@ export default function YoScreen() {
             7. BODY COMPOSITION — 4 cards in 2x2 grid
             ═══════════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(500).springify()}>
-          <EliteText style={s.sectionTitle}>COMPOSICIÓN CORPORAL</EliteText>
+          <SectionTitle style={s.sectionTitleSpacing}>COMPOSICIÓN CORPORAL</SectionTitle>
 
           <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }}>
             <View style={s.compGrid}>
@@ -432,7 +429,7 @@ export default function YoScreen() {
         explanation={selectedDomain}
         currentScore={selectedScore}
       />
-    </View>
+    </TabScreen>
   );
 }
 
@@ -483,11 +480,6 @@ function ScoreCircle({ score, color, size = 180 }: { score: number; color: strin
 // === ESTILOS ===
 
 const s = StyleSheet.create({
-  // Root & scroll
-  root: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
   scroll: {
     paddingHorizontal: Spacing.md,
   },
@@ -499,29 +491,6 @@ const s = StyleSheet.create({
     gap: 12,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.pill,
-  },
-  avatarGrad: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.pill,
-    padding: 2,
-  },
-  avatarInner: {
-    flex: 1,
-    borderRadius: Radius.pill,
-    backgroundColor: '#0a0a0a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: ATP_BRAND.lime,
-    fontFamily: Fonts.bold,
-    fontSize: 15,
   },
   topTitle: {
     fontFamily: Fonts.extraBold,
@@ -777,14 +746,8 @@ const s = StyleSheet.create({
   },
 
   // ── 7. Body Composition ──
-  sectionTitle: {
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    color: '#555',
-    letterSpacing: 1.5,
+  sectionTitleSpacing: {
     marginTop: Spacing.lg,
-    marginBottom: 10,
-    textTransform: 'uppercase',
   },
   compGrid: {
     flexDirection: 'row',

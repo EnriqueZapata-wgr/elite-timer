@@ -9,15 +9,18 @@ import { View, StyleSheet, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { TabScreen } from '@/src/components/ui/TabScreen';
+import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { UserAvatar } from '@/src/components/ui/UserAvatar';
 
 import { getRoutines } from '@/src/services/routine-service';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { CARD } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 
@@ -73,7 +76,6 @@ const PILLARS = [
 
 export default function KitScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [routines, setRoutines] = useState<Routine[]>([]);
 
@@ -99,15 +101,10 @@ export default function KitScreen() {
     } catch { return ''; }
   };
 
-  // Inicial del usuario para el avatar
-  const userInitial = (
-    user?.user_metadata?.full_name?.[0]
-    || user?.email?.[0]
-    || 'E'
-  ).toUpperCase();
+  const userName = user?.user_metadata?.full_name || user?.email || 'A';
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+    <TabScreen>
       <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false}>
 
@@ -119,9 +116,7 @@ export default function KitScreen() {
               <EliteText style={s.subtitle}>TU CAJA DE HERRAMIENTAS</EliteText>
             </View>
             <View style={s.topBarRight}>
-              <View style={s.avatar}>
-                <EliteText style={s.avatarText}>{userInitial}</EliteText>
-              </View>
+              <UserAvatar uri={user?.user_metadata?.avatar_url} name={userName} />
             </View>
           </View>
         </Animated.View>
@@ -129,10 +124,15 @@ export default function KitScreen() {
         {/* ── Mis Rutinas ── */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
           <View style={s.sectionHeader}>
-            <EliteText style={s.sectionLabel}>MIS RUTINAS</EliteText>
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/programs'); }}>
-              <EliteText style={s.seeAll}>Ver todas ›</EliteText>
-            </AnimatedPressable>
+            <SectionTitle
+              rightAction={
+                <AnimatedPressable onPress={() => { haptic.light(); router.push('/programs'); }}>
+                  <EliteText style={s.seeAll}>Ver todas ›</EliteText>
+                </AnimatedPressable>
+              }
+            >
+              MIS RUTINAS
+            </SectionTitle>
           </View>
 
           <ScrollView
@@ -219,18 +219,13 @@ export default function KitScreen() {
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
-    </View>
+    </TabScreen>
   );
 }
 
 // === ESTILOS ===
 
 const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-
   // Top bar
   topBar: {
     flexDirection: 'row',
@@ -259,35 +254,11 @@ const s = StyleSheet.create({
     gap: 12,
     marginTop: 6,
   },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#1a1a1a',
-    borderWidth: 1,
-    borderColor: '#333',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    color: Colors.neonGreen,
-  },
 
   // Secciones
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     marginBottom: Spacing.sm,
     paddingHorizontal: Spacing.md,
-  },
-  sectionLabel: {
-    color: Colors.textSecondary,
-    letterSpacing: 3,
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
   },
   seeAll: {
     color: Colors.neonGreen,
@@ -305,7 +276,7 @@ const s = StyleSheet.create({
     width: 260,
   },
   routineCardInner: {
-    backgroundColor: '#0d0d0d',
+    backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderLeftWidth: 3,
     borderLeftColor: '#a8e02a',
