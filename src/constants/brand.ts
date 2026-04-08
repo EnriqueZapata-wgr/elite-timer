@@ -111,3 +111,84 @@ export function withOpacity(hex: string, opacity: number): string {
   const alpha = Math.round(opacity * 255).toString(16).padStart(2, '0');
   return hex + alpha;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// TOKENS CANONICOS DEL DESIGN SYSTEM (unica fuente de verdad)
+// ═══════════════════════════════════════════════════════════════════
+// Estos son los tokens nuevos. Los SURFACES/TEXT_COLORS de arriba se
+// mantienen como aliases pero todo codigo nuevo debe usar BG/BORDER/TEXT.
+
+/** Backgrounds canonicos */
+export const BG = {
+  screen: '#000',          // fondo de TODA pantalla
+  card: '#0a0a0a',         // fondo de TODA card
+  cardElevated: '#111',    // card sobre card (raro, evitar)
+  input: '#0a0a0a',        // fondo de inputs
+} as const;
+
+/** Bordes canonicos */
+export const BORDER = {
+  card: '#1a1a1a',         // borde de cards — NUNCA usar como bg
+  input: '#222',           // borde de inputs
+  subtle: '#111',          // separadores internos
+} as const;
+
+/** Texto canonico */
+export const TEXT = {
+  primary: '#fff',
+  secondary: '#888',
+  tertiary: '#555',
+  muted: '#444',
+  accent: '#a8e02a',
+} as const;
+
+/** Estilo unico de Section Title */
+export const SECTION_TITLE = {
+  fontSize: 11,
+  letterSpacing: 2,
+  fontWeight: '600' as const,
+  color: '#888',
+  textTransform: 'uppercase' as const,
+  marginBottom: 12,
+} as const;
+
+/** Estilo unico de Filter/Tab Pill */
+export const PILL = {
+  height: 34,
+  paddingHorizontal: 16,
+  borderRadius: 17,
+  borderWidth: 0.5,
+  bg: '#0a0a0a',
+  borderColor: '#1a1a1a',
+  activeBg: '#a8e02a',
+  activeBorderColor: '#a8e02a',
+  textColor: '#666',
+  activeTextColor: '#000',
+  fontSize: 11,
+  fontWeight: '600' as const,
+  letterSpacing: 1,
+} as const;
+
+/** Estilo unico de Card */
+export const CARD = {
+  bg: '#0a0a0a',
+  borderColor: '#1a1a1a',
+  borderWidth: 0.5,
+  borderRadius: 16,
+  padding: 16,
+} as const;
+
+/** Spacing entre secciones */
+export const SECTION_SPACING = {
+  sm: 16,    // entre cards del mismo grupo
+  md: 24,    // entre secciones
+  lg: 32,    // entre grupos grandes
+} as const;
+
+/** Escala de letterSpacing */
+export const LETTER_SPACING = {
+  tight: 0.5,    // textos de parrafo
+  normal: 1,     // labels normales
+  wide: 2,       // section titles, headers
+  xwide: 3,      // solo "ATP" en logo
+} as const;
