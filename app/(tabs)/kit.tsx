@@ -20,15 +20,23 @@ import { getRoutines } from '@/src/services/routine-service';
 import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CARD } from '@/src/constants/brand';
+import { CARD, PILLAR_GRADIENTS } from '@/src/constants/brand';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 
 // ── Pilares con sus herramientas ──
-const PILLARS = [
+type PillarKey = 'fitness' | 'nutrition' | 'mind' | 'health' | 'cycle';
+const PILLARS: Array<{
+  title: string;
+  color: string;
+  gradientKey: PillarKey;
+  tools: Array<{ name: string; subtitle: string; icon: any; route: string }>;
+}> = [
   {
     title: 'ATP FITNESS',
     color: '#a8e02a',
+    gradientKey: 'fitness',
     tools: [
       { name: 'Fitness', subtitle: 'Centro', icon: 'fitness-outline' as const, route: '/fitness-hub' },
       { name: 'Timer', subtitle: 'Intervalos', icon: 'timer-outline' as const, route: '/timer' },
@@ -40,6 +48,7 @@ const PILLARS = [
   {
     title: 'ATP NUTRICIÓN',
     color: '#5B9BD5',
+    gradientKey: 'nutrition',
     tools: [
       { name: 'Nutrición', subtitle: 'Dashboard', icon: 'nutrition-outline' as const, route: '/nutrition' },
       { name: 'Registrar', subtitle: 'Comida', icon: 'restaurant-outline' as const, route: '/food-text' },
@@ -49,6 +58,7 @@ const PILLARS = [
   {
     title: 'ATP MENTE',
     color: '#7F77DD',
+    gradientKey: 'mind',
     tools: [
       { name: 'Meditación', subtitle: 'Mindfulness', icon: 'sparkles-outline' as const, route: '/meditation' },
       { name: 'Respiración', subtitle: 'Enfoque', icon: 'pulse-outline' as const, route: '/breathing' },
@@ -59,6 +69,7 @@ const PILLARS = [
   {
     title: 'ATP SALUD',
     color: '#1D9E75',
+    gradientKey: 'health',
     tools: [
       { name: 'Mi Salud', subtitle: 'Evaluación', icon: 'analytics-outline' as const, route: '/my-health' },
       { name: 'Protocolos', subtitle: 'Explorar', icon: 'documents-outline' as const, route: '/protocol-explorer' },
@@ -68,6 +79,7 @@ const PILLARS = [
   {
     title: 'ATP CICLO',
     color: '#D4537E',
+    gradientKey: 'cycle',
     tools: [
       { name: 'Ciclo', subtitle: 'Tracking', icon: 'flower-outline' as const, route: '/cycle' },
     ],
@@ -146,7 +158,12 @@ export default function KitScreen() {
 
               return (
                 <View key={routine.id} style={s.routineCard}>
-                  <View style={s.routineCardInner}>
+                  <GradientCard
+                    gradient={PILLAR_GRADIENTS.fitness}
+                    accentColor="#a8e02a"
+                    accentPosition="left"
+                    style={s.routineCardInner}
+                  >
                     <EliteText style={s.routineDifficulty}>
                       {isTimer ? 'TIMER' : 'RUTINA'}
                     </EliteText>
@@ -159,7 +176,7 @@ export default function KitScreen() {
                         <Ionicons name="play" size={16} color="#000" />
                       </AnimatedPressable>
                     </View>
-                  </View>
+                  </GradientCard>
                 </View>
               );
             })}
@@ -189,12 +206,19 @@ export default function KitScreen() {
                 {pillar.tools.map(tool => (
                   <AnimatedPressable
                     key={tool.name}
-                    style={[s.toolCardH, { borderTopColor: pillar.color }]}
+                    style={s.toolCardWrap}
                     onPress={() => { haptic.light(); router.push(tool.route as any); }}
                   >
-                    <Ionicons name={tool.icon as any} size={22} color={pillar.color} />
-                    <EliteText style={s.toolCardName}>{tool.name}</EliteText>
-                    <EliteText style={s.toolCardSub}>{tool.subtitle.toUpperCase()}</EliteText>
+                    <GradientCard
+                      gradient={PILLAR_GRADIENTS[pillar.gradientKey]}
+                      accentColor={pillar.color}
+                      accentPosition="top"
+                      style={s.toolCardInner}
+                    >
+                      <Ionicons name={tool.icon as any} size={22} color={pillar.color} />
+                      <EliteText style={s.toolCardName}>{tool.name}</EliteText>
+                      <EliteText style={s.toolCardSub}>{tool.subtitle.toUpperCase()}</EliteText>
+                    </GradientCard>
                   </AnimatedPressable>
                 ))}
               </ScrollView>
@@ -276,13 +300,6 @@ const s = StyleSheet.create({
     width: 260,
   },
   routineCardInner: {
-    backgroundColor: CARD.bg,
-    borderRadius: Radius.card,
-    borderLeftWidth: 3,
-    borderLeftColor: '#a8e02a',
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-    padding: Spacing.md,
     height: 120,
     justifyContent: 'space-between',
   },
@@ -360,15 +377,11 @@ const s = StyleSheet.create({
     gap: 10,
   },
 
-  // Tool card horizontal
-  toolCardH: {
+  // Tool card horizontal — wrapper externo (Pressable)
+  toolCardWrap: {
     width: 120,
-    backgroundColor: CARD.bg,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    borderTopWidth: 3,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
+  },
+  toolCardInner: {
     gap: 6,
   },
   toolCardName: {
