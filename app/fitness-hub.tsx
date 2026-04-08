@@ -17,9 +17,10 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { FilterPills } from '@/src/components/ui/FilterPills';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, CARD } from '@/src/constants/brand';
+import { CATEGORY_COLORS, CARD, PILLAR_GRADIENTS } from '@/src/constants/brand';
 import {
   getBenchmarksWithVariants,
   getLastCardioSessions,
@@ -74,24 +75,26 @@ function ResumenHoy() {
   }, []));
 
   return (
-    <Animated.View entering={FadeInUp.delay(50).springify()} style={s.summaryCard}>
-      <EliteText style={s.summaryTitle}>RESUMEN DE LA SEMANA</EliteText>
-      <View style={s.summaryRow}>
-        <View style={s.summaryStat}>
-          <EliteText style={s.summaryValue}>{stats.workouts}</EliteText>
-          <EliteText style={s.summaryLabel}>SESIONES</EliteText>
+    <Animated.View entering={FadeInUp.delay(50).springify()} style={s.summaryCardWrap}>
+      <GradientCard gradient={PILLAR_GRADIENTS.fitness}>
+        <EliteText style={s.summaryTitle}>RESUMEN DE LA SEMANA</EliteText>
+        <View style={s.summaryRow}>
+          <View style={s.summaryStat}>
+            <EliteText style={s.summaryValue}>{stats.workouts}</EliteText>
+            <EliteText style={s.summaryLabel}>SESIONES</EliteText>
+          </View>
+          <View style={s.summaryDivider} />
+          <View style={s.summaryStat}>
+            <EliteText style={s.summaryValue}>{stats.volumeKg > 0 ? `${(stats.volumeKg / 1000).toFixed(1)}t` : '0'}</EliteText>
+            <EliteText style={s.summaryLabel}>VOLUMEN</EliteText>
+          </View>
+          <View style={s.summaryDivider} />
+          <View style={s.summaryStat}>
+            <EliteText style={s.summaryValue}>{stats.prs}</EliteText>
+            <EliteText style={s.summaryLabel}>PRs</EliteText>
+          </View>
         </View>
-        <View style={s.summaryDivider} />
-        <View style={s.summaryStat}>
-          <EliteText style={s.summaryValue}>{stats.volumeKg > 0 ? `${(stats.volumeKg / 1000).toFixed(1)}t` : '0'}</EliteText>
-          <EliteText style={s.summaryLabel}>VOLUMEN</EliteText>
-        </View>
-        <View style={s.summaryDivider} />
-        <View style={s.summaryStat}>
-          <EliteText style={s.summaryValue}>{stats.prs}</EliteText>
-          <EliteText style={s.summaryLabel}>PRs</EliteText>
-        </View>
-      </View>
+      </GradientCard>
     </Animated.View>
   );
 }
@@ -425,14 +428,9 @@ function HIITTab() {
 // ─────────────────────────────────────────────────────
 const s = StyleSheet.create({
   // Resumen
-  summaryCard: {
+  summaryCardWrap: {
     marginHorizontal: Spacing.md,
     marginTop: Spacing.sm,
-    padding: Spacing.md,
-    backgroundColor: CARD.bg,
-    borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: CARD.borderColor,
   },
   summaryTitle: {
     fontSize: FontSizes.xs,
@@ -482,8 +480,6 @@ const s = StyleSheet.create({
   benchmarkCard: {
     backgroundColor: CARD.bg,
     borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     borderLeftWidth: 3,
     borderLeftColor: LIME,
     padding: Spacing.md,
@@ -545,8 +541,6 @@ const s = StyleSheet.create({
   disciplineCard: {
     backgroundColor: CARD.bg,
     borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     borderLeftWidth: 3,
     borderLeftColor: LIME,
     padding: Spacing.md,
@@ -608,8 +602,6 @@ const s = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: CARD.bg,
     borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     padding: Spacing.md,
     marginBottom: Spacing.sm,
   },
@@ -648,8 +640,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: CARD.bg,
     borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
     borderLeftWidth: 3,
     borderLeftColor: LIME,
     padding: Spacing.md,

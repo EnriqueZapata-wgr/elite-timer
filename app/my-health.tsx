@@ -592,15 +592,13 @@ const s = StyleSheet.create({
   sectionLabelSpacing: { marginTop: Spacing.lg },
   labCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
-    borderWidth: 0.5, borderColor: Colors.border,
   },
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
 
   // Scores
   scoresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   scoreCard: {
-    width: '48%', flexGrow: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card,
-    borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.md,
+    width: '48%', flexGrow: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,
   },
   missingBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
@@ -624,11 +622,11 @@ const s = StyleSheet.create({
   recCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
     backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,
-    borderWidth: 0.5, borderColor: SURFACES.border, marginBottom: Spacing.sm,
+    marginBottom: Spacing.sm,
   },
   studyCard: {
     backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.sm,
-    borderWidth: 0.5, borderColor: Colors.border, borderLeftWidth: 3, borderLeftColor: TEAL,
+    borderLeftWidth: 3, borderLeftColor: TEAL,
   },
   studySummary: {
     backgroundColor: withOpacity(CATEGORY_COLORS.metrics, 0.04), borderRadius: Radius.sm, padding: Spacing.md, borderLeftWidth: 2, borderLeftColor: TEAL,

@@ -413,7 +413,6 @@ const s = StyleSheet.create({
   typeCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: SURFACES.card, borderRadius: Radius.card,
-    borderWidth: 0.5, borderColor: SURFACES.border,
     borderLeftWidth: 3, padding: Spacing.md, marginBottom: Spacing.sm,
   },
   typeInfo: { flex: 1 },
@@ -425,7 +424,6 @@ const s = StyleSheet.create({
   recentLabel: { color: TEXT_COLORS.secondary, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs, marginBottom: Spacing.sm },
   entryCard: {
     backgroundColor: SURFACES.card, borderRadius: Radius.card,
-    borderWidth: 0.5, borderColor: SURFACES.border,
     padding: Spacing.md, marginBottom: Spacing.sm,
   },
   entryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
@@ -439,7 +437,7 @@ const s = StyleSheet.create({
   formSection: { marginBottom: Spacing.md },
   sectionTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1, marginBottom: Spacing.xs },
   input: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, borderWidth: 0.5, borderColor: SURFACES.border,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card,
     color: TEXT_COLORS.primary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
     padding: Spacing.md, marginBottom: Spacing.xs, lineHeight: 22,
   },

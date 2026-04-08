@@ -354,8 +354,6 @@ const styles = StyleSheet.create({
   activeCard: {
     backgroundColor: SURFACES.card,
     borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: SURFACES.border,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
   },

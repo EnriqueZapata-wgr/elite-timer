@@ -19,8 +19,9 @@ import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { NutritionGapsCard } from '@/src/components/nutrition/NutritionGapsCard';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG, PILLAR_GRADIENTS } from '@/src/constants/brand';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
@@ -311,7 +312,7 @@ export default function NutritionScreen() {
       >
         {/* ══ 1. Hero — Score + macros ══ */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <View style={s.heroCard}>
+          <GradientCard gradient={PILLAR_GRADIENTS.nutrition} padding={20} style={s.heroCardWrap}>
             <View style={{ alignItems: 'center', marginBottom: Spacing.sm }}>
               <EliteText style={[s.scoreNumber, { color: scoreColor }]}>{dailyScore ?? '—'}</EliteText>
               <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>SCORE DEL DÍA</EliteText>
@@ -337,7 +338,7 @@ export default function NutritionScreen() {
                 <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>Grasa</EliteText>
               </View>
             </View>
-          </View>
+          </GradientCard>
         </Animated.View>
 
         {/* ══ 2. Hidratación ══ */}
@@ -661,8 +662,8 @@ const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
 
   // Hero
-  heroCard: {
-    backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.lg, marginTop: Spacing.sm,
+  heroCardWrap: {
+    marginTop: Spacing.sm,
   },
   scoreNumber: { fontSize: 48, fontFamily: Fonts.extraBold },
   macroRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },

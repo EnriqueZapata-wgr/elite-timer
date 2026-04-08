@@ -207,8 +207,6 @@ const s = StyleSheet.create({
   chartCard: {
     backgroundColor: CARD.bg,
     borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: CARD.borderColor,
     padding: Spacing.md,
     marginBottom: Spacing.md,
   },
