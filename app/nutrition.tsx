@@ -396,45 +396,55 @@ export default function NutritionScreen() {
         </Animated.View>
 
         {/* ══ 2. Hidratación ══ */}
-        <Animated.View entering={FadeInUp.delay(120).springify()}>
-          <View style={s.card}>
+        <Animated.View entering={FadeInUp.delay(120).springify()} style={s.cardSpacing}>
+          <GradientCard gradient={{ start: 'rgba(56,189,248,0.08)', end: 'rgba(56,189,248,0.02)' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="water-outline" size={18} color={BLUE} />
-                <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>Hidratación</EliteText>
+                <Ionicons name="water-outline" size={20} color="#38bdf8" />
+                <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg }}>Hidratación</EliteText>
               </View>
               <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>
                 {(waterMl / 1000).toFixed(1)} / {(waterTarget / 1000).toFixed(1)}L
               </EliteText>
             </View>
             <View style={s.progressBar}>
-              <View style={[s.progressFill, { width: `${waterPct}%`, backgroundColor: BLUE }]} />
+              <View style={[s.progressFill, { width: `${waterPct}%`, backgroundColor: '#38bdf8' }]} />
             </View>
             <View style={{ flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm }}>
               <AnimatedPressable onPress={() => addWater(250)} style={s.waterBtn}>
-                <EliteText style={{ color: BLUE, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>+250ml</EliteText>
+                <EliteText style={{ color: '#38bdf8', fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>+250ml</EliteText>
               </AnimatedPressable>
               <AnimatedPressable onPress={() => addWater(500)} style={s.waterBtn}>
-                <EliteText style={{ color: BLUE, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>+500ml</EliteText>
+                <EliteText style={{ color: '#38bdf8', fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>+500ml</EliteText>
               </AnimatedPressable>
             </View>
-          </View>
+          </GradientCard>
         </Animated.View>
 
         {/* ══ 3. Ayuno intermitente ══ */}
-        <Animated.View entering={FadeInUp.delay(190).springify()}>
-          <View style={s.card}>
+        <Animated.View entering={FadeInUp.delay(190).springify()} style={s.cardSpacing}>
+          <GradientCard gradient={{ start: 'rgba(251,191,36,0.10)', end: 'rgba(251,191,36,0.03)' }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Ionicons name="timer-outline" size={18} color={SEMANTIC.warning} />
-                <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>Ayuno</EliteText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="timer-outline" size={22} color="#fbbf24" />
+                <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg }}>Ayuno</EliteText>
               </View>
-              {isFasting && (
-                <EliteText style={{ color: SEMANTIC.warning, fontFamily: Fonts.bold, fontSize: FontSizes.lg }}>
+              <View style={{ backgroundColor: 'rgba(251,191,36,0.15)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 }}>
+                <EliteText style={{ color: '#fbbf24', fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>
+                  {fastTargetSelection}:8
+                </EliteText>
+              </View>
+            </View>
+            {isFasting && (
+              <View style={{ alignItems: 'center', marginVertical: Spacing.sm }}>
+                <EliteText style={{ color: '#fbbf24', fontFamily: Fonts.extraBold, fontSize: 42, letterSpacing: -1 }}>
                   {String(fastingHours).padStart(2, '0')}:{String(fastingMins).padStart(2, '0')}
                 </EliteText>
-              )}
-            </View>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 2 }}>
+                  de {fastTargetSelection}h objetivo
+                </EliteText>
+              </View>
+            )}
 
             {/* Ayuno completado hoy */}
             {!isFasting && completedFast && (
@@ -584,7 +594,7 @@ export default function NutritionScreen() {
                 </Pressable>
               </View>
             )}
-          </View>
+          </GradientCard>
         </Animated.View>
 
         {/* ══ 4. Escanear comida (CTA) ══ */}
@@ -727,6 +737,9 @@ const s = StyleSheet.create({
   // Cards genéricas
   card: {
     backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.lg, marginTop: Spacing.sm,
+  },
+  cardSpacing: {
+    marginTop: Spacing.sm,
   },
 
   // Barras de progreso
