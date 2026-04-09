@@ -114,8 +114,8 @@ export default function NutritionScreen() {
     try {
       const [foodRes, waterRes, fastRes, recipeRes] = await Promise.all([
         supabase.from('food_logs').select('*').eq('user_id', user.id).eq('date', today).order('meal_time', { ascending: true }),
-        supabase.from('hydration_logs').select('amount_ml').eq('user_id', user.id).eq('date', today),
-        supabase.from('fasting_logs').select('*').eq('user_id', user.id).is('ended_at', null).order('started_at', { ascending: false }).limit(1),
+        supabase.from('hydration_logs').select('total_ml').eq('user_id', user.id).eq('date', today).maybeSingle(),
+        supabase.from('fasting_logs').select('*').eq('user_id', user.id).eq('status', 'active').order('fast_start', { ascending: false }).limit(1),
         supabase.from('recipes').select('*').limit(6),
       ]);
 
@@ -138,9 +138,8 @@ export default function NutritionScreen() {
         setDailyScore(null);
       }
 
-      // Hidratación (suma)
-      const totalWater = (waterRes.data ?? []).reduce((sum: number, r: any) => sum + (r.amount_ml || 0), 0);
-      setWaterMl(totalWater);
+      // Hidratacion (un solo log por dia con total_ml acumulado)
+      setWaterMl((waterRes.data as { total_ml?: number } | null)?.total_ml ?? 0);
 
       // Ayuno activo
       const activeFast = fastRes.data?.[0] ?? null;
@@ -201,14 +200,42 @@ export default function NutritionScreen() {
   }, [isFasting, fastingStart]);
 
   // ── Agregar agua ──
+  // El esquema de hydration_logs usa total_ml + entries[] con UNIQUE(user_id, date),
+  // asi que hacemos upsert leyendo el log de hoy primero.
   const addWater = async (ml: number) => {
+    if (!user?.id) return;
     haptic.light();
-    setWaterMl(prev => prev + ml); // optimista
+    setWaterMl(prev => prev + ml); // actualizacion optimista
+    const dateStr = new Date().toISOString().split('T')[0];
+    const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+
     try {
-      await supabase.from('hydration_logs').insert({
-        user_id: user?.id, date: new Date().toISOString().split('T')[0], amount_ml: ml, source: 'manual',
-      });
-    } catch { setWaterMl(prev => prev - ml); } // rollback
+      // 1) Leer el log existente del dia (si hay)
+      const { data: existing } = await supabase
+        .from('hydration_logs')
+        .select('id, total_ml, entries')
+        .eq('user_id', user.id)
+        .eq('date', dateStr)
+        .maybeSingle();
+
+      const prevEntries = (existing?.entries as Array<{ time: string; amount_ml: number }>) ?? [];
+      const newEntries = [...prevEntries, { time: nowTime, amount_ml: ml }];
+      const newTotal = (existing?.total_ml ?? 0) + ml;
+
+      if (existing?.id) {
+        await supabase
+          .from('hydration_logs')
+          .update({ total_ml: newTotal, entries: newEntries, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+      } else {
+        await supabase
+          .from('hydration_logs')
+          .insert({ user_id: user.id, date: dateStr, total_ml: newTotal, entries: newEntries });
+      }
+    } catch (err) {
+      if (__DEV__) console.error('addWater error:', err);
+      setWaterMl(prev => prev - ml); // rollback
+    }
   };
 
   // ── Abrir modal de ayuno ──
