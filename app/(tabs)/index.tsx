@@ -585,8 +585,8 @@ export default function TodayScreen() {
         {/* ── HERO con imagen de fondo + ATP Score animado ── */}
         <ImageBackground source={heroBg} style={s.heroBg} imageStyle={s.heroBgImage}>
           <LinearGradient
-            colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.85)', '#000']}
-            locations={[0, 0.6, 1]}
+            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.92)', '#000']}
+            locations={[0, 0.3, 0.7, 1]}
             style={s.heroGradient}
           >
             {/* Top bar */}
@@ -806,7 +806,7 @@ const s = StyleSheet.create({
     marginTop: -Spacing.sm,
   },
   heroBgImage: {
-    opacity: 0.55,
+    opacity: 0.85,
   },
   heroGradient: {
     paddingHorizontal: Spacing.md,
@@ -821,8 +821,11 @@ const s = StyleSheet.create({
   heroGreeting: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(255,255,255,0.85)',
     letterSpacing: 1,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   heroName: {
     fontSize: FontSizes.hero,
@@ -830,13 +833,19 @@ const s = StyleSheet.create({
     color: '#fff',
     letterSpacing: 1,
     marginTop: 2,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 6,
   },
   heroDate: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
-    color: 'rgba(255,255,255,0.5)',
+    color: 'rgba(255,255,255,0.7)',
     letterSpacing: 2,
     marginTop: 4,
+    textShadowColor: 'rgba(0,0,0,0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   heroScoreWrap: {
     alignItems: 'center',
