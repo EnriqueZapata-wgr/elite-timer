@@ -110,7 +110,7 @@ export async function generateMasterHealthReport(userId: string): Promise<Master
     { id: 'cardio', name: 'Cardiovascular', icon: 'heart-outline', hasData: !!(hm?.systolic_bp), lastUpdated: hm?.date ?? null, impact: 'high', actionRoute: '/health-input', actionLabel: 'Registrar PA' },
     { id: 'grip', name: 'Fuerza de agarre', icon: 'hand-left-outline', hasData: !!(hm?.grip_strength_kg), lastUpdated: hm?.date ?? null, impact: 'high', actionRoute: '/health-input', actionLabel: 'Registrar grip' },
     { id: 'vo2', name: 'VO2max', icon: 'fitness-outline', hasData: !!(hm?.vo2max_estimate), lastUpdated: hm?.date ?? null, impact: 'high', actionRoute: '/health-input', actionLabel: 'Registrar VO2max' },
-    { id: 'prs', name: 'Personal Records', icon: 'barbell-outline', hasData: prs.length > 0, lastUpdated: prs[0]?.achieved_at ?? null, impact: 'medium', actionRoute: '/log-exercise', actionLabel: 'Registrar PRs' },
+    { id: 'prs', name: 'Récords Personales', icon: 'barbell-outline', hasData: prs.length > 0, lastUpdated: prs[0]?.achieved_at ?? null, impact: 'medium', actionRoute: '/log-exercise', actionLabel: 'Registrar PRs' },
     { id: 'food', name: 'Registro de comidas', icon: 'restaurant-outline', hasData: foodCount >= 3, lastUpdated: null, impact: 'medium', actionRoute: '/nutrition', actionLabel: 'Registrar comida' },
     { id: 'wellbeing', name: 'Bienestar subjetivo', icon: 'happy-outline', hasData: !!(hm?.energy_level), lastUpdated: hm?.date ?? null, impact: 'medium', actionRoute: '/health-input', actionLabel: 'Evaluar bienestar' },
     { id: 'sleep', name: 'Datos de sueño', icon: 'moon-outline', hasData: !!(hm?.sleep_hours), lastUpdated: hm?.date ?? null, impact: 'medium', actionRoute: '/health-input', actionLabel: 'Registrar sueño' },
