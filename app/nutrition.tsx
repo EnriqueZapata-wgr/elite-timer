@@ -145,8 +145,8 @@ export default function NutritionScreen() {
       const activeFast = fastRes.data?.[0] ?? null;
       if (activeFast) {
         setIsFasting(true);
-        setFastingStart(new Date(activeFast.started_at));
-        const elapsed = (Date.now() - new Date(activeFast.started_at).getTime()) / 1000;
+        setFastingStart(new Date(activeFast.fast_start));
+        const elapsed = (Date.now() - new Date(activeFast.fast_start).getTime()) / 1000;
         setFastingHours(Math.floor(elapsed / 3600));
         setFastingMins(Math.floor((elapsed % 3600) / 60));
       } else {
@@ -159,15 +159,15 @@ export default function NutritionScreen() {
       // Ayuno completado hoy (para mostrar resumen)
       const { data: completedData } = await supabase
         .from('fasting_logs')
-        .select('started_at, ended_at')
+        .select('fast_start, fast_end')
         .eq('user_id', user.id)
-        .gte('started_at', today + 'T00:00:00')
-        .not('ended_at', 'is', null)
-        .order('ended_at', { ascending: false })
+        .eq('status', 'completed')
+        .gte('fast_start', today + 'T00:00:00')
+        .order('fast_end', { ascending: false })
         .limit(1);
       if (completedData?.[0]) {
-        const s = new Date(completedData[0].started_at);
-        const e = new Date(completedData[0].ended_at);
+        const s = new Date(completedData[0].fast_start);
+        const e = new Date(completedData[0].fast_end);
         const diffMs = e.getTime() - s.getTime();
         const h = Math.floor(diffMs / 3600000);
         const m = Math.floor((diffMs % 3600000) / 60000);
@@ -253,7 +253,9 @@ export default function NutritionScreen() {
   };
 
   // ── Iniciar ayuno (ahora o a otra hora) ──
+  // Esquema fasting_logs: fast_start, fast_end, target_hours, status, UNIQUE(user_id, date)
   const startFasting = async (useCustomTime: boolean) => {
+    if (!user?.id) return;
     let startTime: Date;
     if (useCustomTime) {
       const hh = Math.min(23, Math.max(0, parseInt(fastManualHH) || 0));
@@ -263,11 +265,19 @@ export default function NutritionScreen() {
     } else {
       startTime = new Date();
     }
+    const dateStr = startTime.toISOString().split('T')[0];
     try {
-      await supabase.from('fasting_logs').insert({
-        user_id: user?.id, started_at: startTime.toISOString(), target_hours: fastTargetSelection,
-      });
-    } catch { return; }
+      await supabase.from('fasting_logs').upsert({
+        user_id: user.id,
+        date: dateStr,
+        fast_start: startTime.toISOString(),
+        target_hours: fastTargetSelection,
+        status: 'active',
+      }, { onConflict: 'user_id,date' });
+    } catch (err) {
+      if (__DEV__) console.error('startFasting error:', err);
+      return;
+    }
     setIsFasting(true);
     setFastingStart(startTime);
     setFastingHours(0);
@@ -277,6 +287,7 @@ export default function NutritionScreen() {
 
   // ── Detener ayuno (ahora o a otra hora) ──
   const stopFasting = async (useCustomTime: boolean) => {
+    if (!user?.id) return;
     let endTime: Date;
     if (useCustomTime) {
       const hh = Math.min(23, Math.max(0, parseInt(fastManualHH) || 0));
@@ -287,18 +298,34 @@ export default function NutritionScreen() {
       endTime = new Date();
     }
     try {
-      const { data } = await supabase.from('fasting_logs').select('id, started_at').eq('user_id', user?.id).is('ended_at', null).order('started_at', { ascending: false }).limit(1);
+      const { data } = await supabase
+        .from('fasting_logs')
+        .select('id, fast_start')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .order('fast_start', { ascending: false })
+        .limit(1);
       if (data?.[0]) {
-        await supabase.from('fasting_logs').update({ ended_at: endTime.toISOString() }).eq('id', data[0].id);
-        // Calcular duración para mostrar resumen
-        const s = new Date(data[0].started_at);
+        const s = new Date(data[0].fast_start);
         const diffMs = endTime.getTime() - s.getTime();
+        const actualHours = Math.round((diffMs / 3600000) * 10) / 10;
+        await supabase
+          .from('fasting_logs')
+          .update({
+            fast_end: endTime.toISOString(),
+            actual_hours: actualHours,
+            status: 'completed',
+          })
+          .eq('id', data[0].id);
+
         const h = Math.floor(diffMs / 3600000);
         const m = Math.floor((diffMs % 3600000) / 60000);
         const fmt = (d: Date) => d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
         setCompletedFast({ duration: `${h}h ${m}m`, start: fmt(s), end: fmt(endTime) });
       }
-    } catch { /* silencioso */ }
+    } catch (err) {
+      if (__DEV__) console.error('stopFasting error:', err);
+    }
     setIsFasting(false);
     setFastingStart(null);
     setFastingHours(0);

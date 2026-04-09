@@ -38,6 +38,14 @@ export interface ComplianceReport {
   avgPct: number;
 }
 
+export interface FastingReport {
+  totalFasts: number;
+  avgHours: number;
+  longestFast: number;
+  fastsPerWeek: number;
+  daily: DailyPoint[]; // horas reales por dia
+}
+
 // === HELPERS ===
 
 function periodDays(period: ReportPeriod): number {
@@ -242,6 +250,53 @@ export async function getComplianceReport(period: ReportPeriod): Promise<Complia
       : 0;
 
     return { daily, avgPct };
+  } catch {
+    return empty;
+  }
+}
+
+// === AYUNO ===
+
+export async function getFastingReport(period: ReportPeriod): Promise<FastingReport> {
+  const empty: FastingReport = { totalFasts: 0, avgHours: 0, longestFast: 0, fastsPerWeek: 0, daily: [] };
+  try {
+    const userId = await getUserId();
+    if (!userId) return empty;
+
+    const days = periodDays(period);
+    const dateRange = buildDateRange(days);
+    const startDate = dateRange[0];
+
+    const { data } = await supabase
+      .from('fasting_logs')
+      .select('date, actual_hours, status')
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .gte('date', startDate);
+
+    const byDate = new Map<string, number>();
+    for (const row of (data ?? []) as any[]) {
+      const hours = row.actual_hours ?? 0;
+      const prev = byDate.get(row.date) ?? 0;
+      // Si hay varios ayunos en el mismo dia, nos quedamos con el mas largo
+      if (hours > prev) byDate.set(row.date, hours);
+    }
+
+    const daily: DailyPoint[] = dateRange.map(d => ({
+      date: d,
+      label: shortLabel(d),
+      value: byDate.get(d) ?? 0,
+    }));
+
+    const allHours = Array.from(byDate.values());
+    const totalFasts = allHours.length;
+    const avgHours = totalFasts > 0
+      ? Math.round((allHours.reduce((s, h) => s + h, 0) / totalFasts) * 10) / 10
+      : 0;
+    const longestFast = totalFasts > 0 ? Math.max(...allHours) : 0;
+    const fastsPerWeek = days > 0 ? Math.round((totalFasts / days) * 7 * 10) / 10 : 0;
+
+    return { totalFasts, avgHours, longestFast, fastsPerWeek, daily };
   } catch {
     return empty;
   }
