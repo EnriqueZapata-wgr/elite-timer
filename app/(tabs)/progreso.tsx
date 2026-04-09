@@ -1,5 +1,5 @@
 /**
- * Tab Progreso — Muestra la pantalla de Personal Records.
+ * Tab Progreso — Muestra la pantalla de Récords Personales.
  * Re-exporta PersonalRecordsScreen que detecta automáticamente si está en tab.
  */
 import PersonalRecordsScreen from '../personal-records';

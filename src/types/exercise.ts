@@ -1,5 +1,5 @@
 /**
- * Tipos para el sistema de ejercicios, logging de sets y Personal Records.
+ * Tipos para el sistema de ejercicios, logging de sets y Récords Personales.
  *
  * Estos tipos reflejan las tablas exercises, exercise_logs y personal_records
  * en Supabase.
