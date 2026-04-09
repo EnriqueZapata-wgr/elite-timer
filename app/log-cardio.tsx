@@ -127,7 +127,7 @@ export default function LogCardioScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Disciplina */}
-          <Animated.View entering={FadeInUp.delay(50).springify()}>
+          <Animated.View entering={FadeInUp.delay(50).springify()} style={s.sectionCard}>
             <EliteText style={s.label}>DISCIPLINA</EliteText>
             <View style={s.disciplineRow}>
               {DISCIPLINES.map(d => {
@@ -149,7 +149,7 @@ export default function LogCardioScreen() {
           </Animated.View>
 
           {/* Distancia */}
-          <Animated.View entering={FadeInUp.delay(100).springify()}>
+          <Animated.View entering={FadeInUp.delay(100).springify()} style={s.sectionCard}>
             <EliteText style={s.label}>DISTANCIA</EliteText>
             <View style={s.row}>
               <TextInput
@@ -175,7 +175,7 @@ export default function LogCardioScreen() {
           </Animated.View>
 
           {/* Duración */}
-          <Animated.View entering={FadeInUp.delay(150).springify()}>
+          <Animated.View entering={FadeInUp.delay(150).springify()} style={s.sectionCard}>
             <EliteText style={s.label}>DURACIÓN</EliteText>
             <View style={s.timeRow}>
               <View style={s.timeInputBox}>
@@ -228,7 +228,7 @@ export default function LogCardioScreen() {
           )}
 
           {/* FC promedio */}
-          <Animated.View entering={FadeInUp.delay(200).springify()}>
+          <Animated.View entering={FadeInUp.delay(200).springify()} style={s.sectionCard}>
             <EliteText style={s.label}>FC PROMEDIO (opcional)</EliteText>
             <View style={s.row}>
               <TextInput
@@ -245,7 +245,7 @@ export default function LogCardioScreen() {
           </Animated.View>
 
           {/* RPE */}
-          <Animated.View entering={FadeInUp.delay(250).springify()}>
+          <Animated.View entering={FadeInUp.delay(250).springify()} style={s.sectionCard}>
             <EliteText style={s.label}>ESFUERZO PERCIBIDO (RPE)</EliteText>
             <View style={s.rpeRow}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(v => (
@@ -264,7 +264,7 @@ export default function LogCardioScreen() {
           </Animated.View>
 
           {/* Notas */}
-          <Animated.View entering={FadeInUp.delay(300).springify()}>
+          <Animated.View entering={FadeInUp.delay(300).springify()} style={s.sectionCard}>
             <EliteText style={s.label}>NOTAS</EliteText>
             <TextInput
               style={[s.input, s.notesInput]}
@@ -325,14 +325,21 @@ const s = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
+    paddingBottom: Spacing.xl,
   },
 
+  // Cada sección de input es una card oscura
+  sectionCard: {
+    backgroundColor: CARD.bg,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginTop: Spacing.sm,
+  },
   label: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     color: Colors.textSecondary,
     letterSpacing: 2,
-    marginTop: Spacing.md,
     marginBottom: Spacing.sm,
   },
 
@@ -348,10 +355,10 @@ const s = StyleSheet.create({
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: CARD.bg,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: Radius.pill,
     borderWidth: 0.5,
-    borderColor: '#1a1a1a',
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   disciplineBtnActive: {
     backgroundColor: LIME,
@@ -371,7 +378,7 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
   },
   input: {
-    backgroundColor: CARD.bg,
+    backgroundColor: '#000',
     borderRadius: Radius.md,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -389,7 +396,7 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.sm,
-    backgroundColor: CARD.bg,
+    backgroundColor: '#000',
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
   },
@@ -424,7 +431,7 @@ const s = StyleSheet.create({
   timeInput: {
     width: 64,
     height: 56,
-    backgroundColor: CARD.bg,
+    backgroundColor: '#000',
     borderRadius: Radius.md,
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
@@ -476,7 +483,7 @@ const s = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: CARD.bg,
+    backgroundColor: '#000',
     borderWidth: 0.5,
     borderColor: '#1a1a1a',
     alignItems: 'center',
