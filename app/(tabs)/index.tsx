@@ -27,7 +27,7 @@ import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import {
   CATEGORY_COLORS, SEMANTIC, SURFACES, CARD,
-  getScoreColor, getScoreLabel, getScoreMessage, getHoyBackgroundRequire,
+  getHoyBackgroundRequire,
 } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
@@ -450,13 +450,26 @@ export default function TodayScreen() {
   const stepsGoal = 10000;
   const waterGoal = 3000; // ml
 
-  // Hero context
+  // Hero context — electrones, no ATP Score
   const hour = new Date().getHours();
-  const heroBg = getHoyBackgroundRequire(hour, dailyScorePct);
-  const scoreColor = getScoreColor(dailyScorePct);
-  const scoreLabel = getScoreLabel(dailyScorePct);
-  const scoreMessage = getScoreMessage(dailyScorePct, hour);
+  const totalElectronSlots = BOOLEAN_ELECTRONS.length;
+  const electronPct = totalElectronSlots > 0 ? Math.round((electronsCompleted / totalElectronSlots) * 100) : 0;
+  const heroBg = getHoyBackgroundRequire(hour, electronPct);
+  const electronColor = electronPct >= 90 ? '#a8e02a' : electronPct >= 70 ? '#a8e02a' : electronPct >= 50 ? '#fbbf24' : '#ef4444';
+  const electronLabel = electronPct >= 90 ? 'MÁXIMA CARGA' : electronPct >= 70 ? 'BUENA CARGA' : electronPct >= 50 ? 'CARGANDO' : 'BAJA CARGA';
   const greeting = hour < 12 ? 'Buenos dias' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
+
+  function getElectronMessage(pct: number, h: number): string {
+    if (pct >= 95) return '¡Día de carga completa! Máximo rendimiento.';
+    if (pct >= 80) return 'Excelente progreso. Casi al máximo.';
+    if (pct >= 60) return 'Buen ritmo. Sigue cargando electrones.';
+    if (pct >= 40) return 'Vas a la mitad. ¿Qué electrón sigue?';
+    if (pct >= 20) return 'El día apenas empieza. Activa tus electrones.';
+    if (h < 12) return 'Buenos días. Tu tablero de electrones te espera.';
+    if (h < 18) return 'Aún hay tiempo. Carga tus electrones pendientes.';
+    return 'Mañana es nueva oportunidad de carga.';
+  }
+  const electronMessage = getElectronMessage(electronPct, hour);
 
   // ════════════════════════════════════════════
   // RENDER
@@ -503,11 +516,16 @@ export default function TodayScreen() {
               <EliteText variant="caption" style={s.heroDate}>{formatTodayHeader()}</EliteText>
             </Animated.View>
 
-            {/* ATP Score animado */}
+            {/* Electron ring */}
             <Animated.View entering={FadeInUp.delay(120).springify()} style={s.heroScoreWrap}>
-              <AnimatedScoreRing score={dailyScorePct} size={180} strokeWidth={4} label="ATP SCORE" />
-              <Text style={[s.heroScoreLabel, { color: scoreColor }]}>{scoreLabel}</Text>
-              <Text style={s.heroScoreMessage}>{scoreMessage}</Text>
+              <AnimatedScoreRing score={electronPct} size={180} strokeWidth={4} label="ELECTRONES" />
+              <View style={s.heroElectronCount}>
+                <Text style={[s.heroElectronNum, { color: electronColor }]}>{electronsCompleted}</Text>
+                <Text style={s.heroElectronSlash}>/</Text>
+                <Text style={s.heroElectronTotal}>{totalElectronSlots}</Text>
+              </View>
+              <Text style={[s.heroScoreLabel, { color: electronColor }]}>{electronLabel}</Text>
+              <Text style={s.heroScoreMessage}>{electronMessage}</Text>
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
@@ -1037,11 +1055,31 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.lg,
   },
+  heroElectronCount: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginTop: 4,
+  },
+  heroElectronNum: {
+    fontSize: 18,
+    fontFamily: Fonts.bold,
+  },
+  heroElectronSlash: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.4)',
+    marginHorizontal: 2,
+  },
+  heroElectronTotal: {
+    fontSize: 14,
+    fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.4)',
+  },
   heroScoreLabel: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
     letterSpacing: 3,
-    marginTop: Spacing.md,
+    marginTop: Spacing.sm,
   },
   heroScoreMessage: {
     fontSize: FontSizes.sm,
