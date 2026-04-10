@@ -26,6 +26,7 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD, PILLAR_GRADIENTS, getScoreColor } from '@/src/constants/brand';
 import { getUserRankInfo } from '@/src/services/electron-service';
 import { haptic } from '@/src/utils/haptics';
+import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { ExplanationModal } from '@/src/components/ui/ExplanationModal';
 import { DOMAIN_EXPLANATIONS, type DomainExplanation } from '@/src/data/domain-explanations';
@@ -169,6 +170,7 @@ export default function YoScreen() {
 
             {/* Título */}
             <EliteText style={s.topTitle}>YO</EliteText>
+            <ElectronBadge />
 
             <View style={{ flex: 1 }} />
 

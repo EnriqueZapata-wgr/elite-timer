@@ -33,6 +33,7 @@ import {
 import { haptic } from '@/src/utils/haptics';
 import { ELECTRON_WEIGHTS as ELECTRON_W } from '@/src/constants/electrons';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
+import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { renderActionContent } from '@/src/components/hoy/ActionContentRenderer';
 import { supabase } from '@/src/lib/supabase';
@@ -529,9 +530,8 @@ export default function TodayScreen() {
               <View style={s.topBar}>
                 <View style={s.topBarLeft}>
                   <UserAvatar uri={avatarUrl} name={userName} />
-                  <View>
-                    <EliteText variant="caption" style={s.brandLabel}>ATP DAILY</EliteText>
-                  </View>
+                  <EliteText variant="caption" style={s.brandLabel}>ATP DAILY</EliteText>
+                  <ElectronBadge />
                 </View>
                 <View style={s.topBarRight}>
                   <AnimatedPressable onPress={() => { haptic.light(); }} style={s.topBarIcon}>

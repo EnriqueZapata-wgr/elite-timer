@@ -12,6 +12,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
@@ -76,7 +77,10 @@ export default function KitScreen() {
 
         {/* Header */}
         <Animated.View entering={FadeInUp.delay(50).springify()} style={s.header}>
-          <Text style={s.title}>KIT</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={s.title}>KIT</Text>
+            <ElectronBadge />
+          </View>
           <View style={s.subtitleRow}>
             <Text style={s.subtitleGreen}>TU ECOSISTEMA</Text>
           </View>
