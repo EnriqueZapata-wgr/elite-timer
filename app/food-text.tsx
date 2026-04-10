@@ -170,6 +170,10 @@ export default function FoodTextScreen() {
         const description = ingredients.map(i => `${i.food.name} (${i.grams}g)`).join(', ');
         const qualityScore = calcQualityScore(ingredients, totals.protein);
 
+        // Usamos solo las columnas que existen en la migración 027.
+        // fiber_g, quality_score, source se guardan en notes como JSON
+        // para no perder datos si esas columnas no existen en la DB.
+        const extras = JSON.stringify({ fiber_g: totals.fiber, quality_score: qualityScore, source: 'manual_text' });
         const { error } = await supabase.from('food_logs').insert({
           user_id: user.id,
           date: today,
@@ -180,9 +184,7 @@ export default function FoodTextScreen() {
           protein_g: totals.protein,
           carbs_g: totals.carbs,
           fat_g: totals.fat,
-          fiber_g: totals.fiber,
-          quality_score: qualityScore,
-          source: 'manual_text',
+          notes: extras,
         });
 
         if (error) throw error;
@@ -194,7 +196,7 @@ export default function FoodTextScreen() {
           meal_time: mealTime,
           meal_type: mealType,
           description: query.trim(),
-          source: 'manual_text',
+          notes: JSON.stringify({ source: 'manual_text' }),
         });
 
         if (error) throw error;
