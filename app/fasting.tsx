@@ -154,7 +154,7 @@ export default function FastingScreen() {
           <View>
             {/* Timer ring */}
             <Animated.View entering={FadeInUp.delay(50).springify()} style={s.timerWrap}>
-              <AnimatedScoreRing score={pct} size={200} strokeWidth={5} label="" showLabel={false} />
+              <AnimatedScoreRing score={pct} size={200} strokeWidth={5} label="" showLabel={false} showScore={false} />
               <AnimatedPressable onPress={cycleTimerView} style={s.timerCenter}>
                 {timerView === 'elapsed' && (
                   <View style={{ alignItems: 'center' }}>
@@ -229,7 +229,7 @@ export default function FastingScreen() {
           <View>
             {/* Timer vacío */}
             <Animated.View entering={FadeInUp.delay(50).springify()} style={s.timerWrap}>
-              <AnimatedScoreRing score={0} size={200} strokeWidth={5} label="" showLabel={false} />
+              <AnimatedScoreRing score={0} size={200} strokeWidth={5} label="" showLabel={false} showScore={false} />
               <View style={s.timerCenter}>
                 <EliteText style={s.timerTextIdle}>00:00:00</EliteText>
               </View>

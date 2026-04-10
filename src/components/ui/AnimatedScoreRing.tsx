@@ -18,6 +18,8 @@ interface Props {
   strokeWidth?: number;
   label?: string;
   showLabel?: boolean;
+  /** Si false, oculta el número central (para cuando se renderiza contenido custom encima). */
+  showScore?: boolean;
 }
 
 export function AnimatedScoreRing({
@@ -26,6 +28,7 @@ export function AnimatedScoreRing({
   strokeWidth = 3,
   label = 'ATP SCORE',
   showLabel = true,
+  showScore = true,
 }: Props) {
   const animatedScore = useRef(new Animated.Value(0)).current;
   const [displayScore, setDisplayScore] = useState(0);
@@ -78,12 +81,14 @@ export function AnimatedScoreRing({
           origin={`${center}, ${center}`}
         />
       </Svg>
-      <View style={styles.center}>
-        <Text style={[styles.score, { fontSize: size * 0.28, color }]}>{displayScore}</Text>
-        {showLabel && (
-          <Text style={[styles.label, { color, fontSize: Math.max(size * 0.055, 8) }]}>{label}</Text>
-        )}
-      </View>
+      {showScore && (
+        <View style={styles.center}>
+          <Text style={[styles.score, { fontSize: size * 0.28, color }]}>{displayScore}</Text>
+          {showLabel && (
+            <Text style={[styles.label, { color, fontSize: Math.max(size * 0.055, 8) }]}>{label}</Text>
+          )}
+        </View>
+      )}
     </View>
   );
 }
