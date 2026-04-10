@@ -95,8 +95,16 @@ export default function FastingScreen() {
   }, [isFasting, fastStart]);
 
   const elapsedHours = elapsedSecs / 3600;
+  const targetSecs = targetHours * 3600;
+  const remainingSecs = Math.max(0, targetSecs - elapsedSecs);
   const pct = targetHours > 0 ? Math.min(100, Math.round((elapsedHours / targetHours) * 100)) : 0;
   const zone = getCurrentZone(elapsedHours);
+  const [timerView, setTimerView] = useState<'elapsed' | 'remaining' | 'percentage'>('elapsed');
+
+  const cycleTimerView = () => {
+    haptic.light();
+    setTimerView(prev => prev === 'elapsed' ? 'remaining' : prev === 'remaining' ? 'percentage' : 'elapsed');
+  };
 
   const startFast = async () => {
     if (!user?.id) return;
@@ -147,10 +155,29 @@ export default function FastingScreen() {
             {/* Timer ring */}
             <Animated.View entering={FadeInUp.delay(50).springify()} style={s.timerWrap}>
               <AnimatedScoreRing score={pct} size={200} strokeWidth={5} label="" showLabel={false} />
-              <View style={s.timerCenter}>
-                <EliteText style={[s.timerText, { color: zone.color }]}>{fmtTimer(elapsedSecs)}</EliteText>
-                <EliteText style={s.timerSub}>de {targetHours}h objetivo</EliteText>
-              </View>
+              <AnimatedPressable onPress={cycleTimerView} style={s.timerCenter}>
+                {timerView === 'elapsed' && (
+                  <View style={{ alignItems: 'center' }}>
+                    <EliteText style={[s.timerText, { color: zone.color }]}>{fmtTimer(elapsedSecs)}</EliteText>
+                    <EliteText style={s.timerSub}>transcurrido</EliteText>
+                  </View>
+                )}
+                {timerView === 'remaining' && (
+                  <View style={{ alignItems: 'center' }}>
+                    <EliteText style={[s.timerText, { color: zone.color }]}>
+                      {remainingSecs > 0 ? `-${fmtTimer(remainingSecs)}` : '¡Objetivo!'}
+                    </EliteText>
+                    <EliteText style={s.timerSub}>{remainingSecs > 0 ? 'restante' : 'completado'}</EliteText>
+                  </View>
+                )}
+                {timerView === 'percentage' && (
+                  <View style={{ alignItems: 'center' }}>
+                    <EliteText style={[s.timerPct, { color: zone.color }]}>{pct}%</EliteText>
+                    <EliteText style={s.timerSub}>completado</EliteText>
+                  </View>
+                )}
+                <EliteText style={s.timerHint}>toca para cambiar vista</EliteText>
+              </AnimatedPressable>
             </Animated.View>
 
             {/* Zona actual */}
@@ -276,6 +303,17 @@ const s = StyleSheet.create({
     fontSize: 36,
     fontFamily: Fonts.extraBold,
     letterSpacing: -1,
+  },
+  timerPct: {
+    fontSize: 56,
+    fontFamily: Fonts.extraBold,
+    letterSpacing: -2,
+  },
+  timerHint: {
+    fontSize: 10,
+    fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.2)',
+    marginTop: 8,
   },
   timerTextIdle: {
     fontSize: 36,
