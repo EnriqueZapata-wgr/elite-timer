@@ -7,7 +7,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useMemo, useCallback } from 'react';
 import {
   View, StyleSheet, ScrollView, TextInput, Pressable,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +20,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { searchFoods, calculateNutrients } from '@/src/data/food-database';
 import type { FoodItem } from '@/src/data/food-database';
+import { analyzeFoodText as analyzeWithAI } from '@/src/services/nutrition-service';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
@@ -129,12 +130,14 @@ export default function FoodTextScreen() {
     };
   }, [ingredients]);
 
-  // --- Agregar ingrediente desde autocompletado ---
-  const addIngredient = useCallback((food: FoodItem) => {
+  const [aiLoading, setAiLoading] = useState(false);
+
+  // --- Agregar ingrediente desde autocompletado o IA ---
+  const addIngredient = useCallback((food: FoodItem, gramsOverride?: number) => {
     haptic.light();
     setIngredients(prev => [
       ...prev,
-      { food, grams: food.servingGrams, id: `${food.name}-${Date.now()}` },
+      { food, grams: gramsOverride ?? food.servingGrams ?? 100, id: `${food.name}-${Date.now()}` },
     ]);
     setQuery(''); // Limpiar búsqueda al seleccionar
   }, []);
@@ -288,13 +291,52 @@ export default function FoodTextScreen() {
             </Animated.View>
           )}
 
-          {/* ═══ Aviso de texto libre ═══ */}
-          {isFreeTextOnly && searchResults.length === 0 && (
-            <Animated.View entering={FadeInUp.duration(300)} style={s.freeTextWarning}>
-              <Ionicons name="information-circle-outline" size={18} color={SEMANTIC.warning} />
-              <EliteText style={s.freeTextWarningText}>
-                Sin datos nutricionales exactos — se guardará como texto
-              </EliteText>
+          {/* ═══ Estimar con IA cuando no hay resultados ═══ */}
+          {searchResults.length === 0 && query.trim().length > 2 && (
+            <Animated.View entering={FadeInUp.duration(300)}>
+              <AnimatedPressable
+                onPress={async () => {
+                  haptic.medium();
+                  setAiLoading(true);
+                  try {
+                    const result = await analyzeWithAI(query.trim());
+                    if (result?.ingredients?.length > 0) {
+                      for (const ing of result.ingredients) {
+                        const food: FoodItem = {
+                          name: ing.name ?? query.trim(),
+                          category: 'procesado' as any,
+                          per100g: {
+                            calories: ing.calories ?? 0,
+                            protein: ing.protein ?? 0,
+                            carbs: ing.carbs ?? 0,
+                            fat: ing.fat ?? 0,
+                            fiber: ing.fiber ?? 0,
+                          },
+                        };
+                        addIngredient(food, parseFloat(ing.portion?.replace(/[^\d.]/g, '') || '100'));
+                      }
+                    } else {
+                      Alert.alert('Sin resultado', 'No se pudo estimar. Intenta con otra descripción.');
+                    }
+                  } catch {
+                    Alert.alert('Error', 'No se pudo conectar con IA. Intenta de nuevo.');
+                  } finally {
+                    setAiLoading(false);
+                  }
+                }}
+                disabled={aiLoading}
+                style={s.aiSearchBtn}
+              >
+                {aiLoading ? (
+                  <ActivityIndicator color="#a8e02a" size="small" />
+                ) : (
+                  <Ionicons name="sparkles-outline" size={20} color="#a8e02a" />
+                )}
+                <View style={{ flex: 1 }}>
+                  <EliteText style={s.aiSearchTitle}>Estimar con IA</EliteText>
+                  <EliteText style={s.aiSearchSub}>"{query.trim()}" — calcular macros</EliteText>
+                </View>
+              </AnimatedPressable>
             </Animated.View>
           )}
 
@@ -577,6 +619,28 @@ const s = StyleSheet.create({
     color: SEMANTIC.warning,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
+  },
+
+  // --- AI search ---
+  aiSearchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(168,224,42,0.08)',
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  aiSearchTitle: {
+    color: '#a8e02a',
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.md,
+  },
+  aiSearchSub: {
+    color: 'rgba(255,255,255,0.4)',
+    fontFamily: Fonts.regular,
+    fontSize: FontSizes.xs,
+    marginTop: 2,
   },
 
   // --- Ingredientes seleccionados ---
