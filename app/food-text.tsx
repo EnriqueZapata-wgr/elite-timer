@@ -302,9 +302,9 @@ export default function FoodTextScreen() {
                     const result = await analyzeWithAI(query.trim());
                     if (result?.ingredients?.length > 0) {
                       for (const ing of result.ingredients) {
-                        const food: FoodItem = {
+                        const food = {
                           name: ing.name ?? query.trim(),
-                          category: 'procesado' as any,
+                          category: 'procesado',
                           per100g: {
                             calories: ing.calories ?? 0,
                             protein: ing.protein ?? 0,
@@ -312,7 +312,11 @@ export default function FoodTextScreen() {
                             fat: ing.fat ?? 0,
                             fiber: ing.fiber ?? 0,
                           },
-                        };
+                          servingSize: ing.portion ?? '100g',
+                          servingGrams: 100,
+                          isProcessed: false,
+                          tags: [] as string[],
+                        } as FoodItem;
                         addIngredient(food, parseFloat(ing.portion?.replace(/[^\d.]/g, '') || '100'));
                       }
                     } else {
