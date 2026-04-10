@@ -307,7 +307,7 @@ export default function TodayScreen() {
   const [activeFilter, setActiveFilter] = useState<'TODO' | 'FITNESS' | 'NUTRICION' | 'MENTAL' | 'HABITOS'>('TODO');
 
   const filteredActions = useMemo(() => {
-    const actions = dayPlan?.actions || [];
+    const actions = dayPlan?.actions ?? [];
     if (activeFilter === 'TODO') return actions;
     const filterMap: Record<string, string[]> = {
       'FITNESS': ['fitness', 'exercise'],
@@ -332,9 +332,10 @@ export default function TodayScreen() {
   }
 
   // === Datos derivados para Daily Score ===
-  const totalActions = dayPlan?.actions?.length || timeline.length || 0;
+  const dayActions = dayPlan?.actions ?? [];
+  const totalActions = dayActions.length || timeline.length || 0;
   const completedActions = dayPlan
-    ? dayPlan.actions.filter(a => a.completed).length
+    ? dayActions.filter(a => a.completed).length
     : completionStats.completed;
   const dailyScorePct = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0;
 
