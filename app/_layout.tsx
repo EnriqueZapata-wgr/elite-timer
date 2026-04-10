@@ -123,6 +123,7 @@ export default function RootLayout() {
                 <Stack.Screen name="onboarding-complete" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="journal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="food-register" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-text" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="fitness-hub" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="fitness-strength" options={{ headerShown: false, animation: 'slide_from_right' }} />
