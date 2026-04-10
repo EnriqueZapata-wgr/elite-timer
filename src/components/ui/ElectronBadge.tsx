@@ -1,38 +1,50 @@
 /**
  * ElectronBadge — Badge de electrones acumulados estilo monedas de videojuego.
- * Siempre visible en el header de las 3 tabs.
+ *
+ * SIEMPRE visible (incluso en 0). Bounce animation cuando sube.
+ * Escucha 'electrons_changed' via DeviceEventEmitter para refrescarse.
  */
-import { View, Text, StyleSheet } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Text, Animated, DeviceEventEmitter } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useElectronTotal } from '@/src/hooks/useElectronTotal';
 
 export function ElectronBadge() {
   const { total } = useElectronTotal();
-  if (total <= 0) return null;
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const prevTotal = useRef(total);
+
+  useEffect(() => {
+    if (total > prevTotal.current) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 1.4, duration: 150, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }),
+      ]).start();
+    }
+    prevTotal.current = total;
+  }, [total, scaleAnim]);
+
+  const hasElectrons = total > 0;
 
   return (
-    <View style={s.badge}>
-      <Ionicons name="flash" size={14} color="#a8e02a" />
-      <Text style={s.text}>
-        {total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total}
+    <Animated.View style={{
+      transform: [{ scale: scaleAnim }],
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: hasElectrons ? 'rgba(168,224,42,0.15)' : 'rgba(255,255,255,0.05)',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 14,
+      gap: 4,
+    }}>
+      <Ionicons name="flash" size={14} color={hasElectrons ? '#a8e02a' : '#666'} />
+      <Text style={{
+        color: hasElectrons ? '#a8e02a' : '#666',
+        fontSize: 13,
+        fontWeight: '800',
+      }}>
+        {total >= 1000 ? `${(total / 1000).toFixed(1)}k` : total.toFixed(1)}
       </Text>
-    </View>
+    </Animated.View>
   );
 }
-
-const s = StyleSheet.create({
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(168,224,42,0.15)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 14,
-    gap: 4,
-  },
-  text: {
-    color: '#a8e02a',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-});

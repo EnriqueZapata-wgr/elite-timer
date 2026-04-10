@@ -10,7 +10,7 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, ActivityIndicator,
   Linking, Alert, LayoutAnimation, Platform, UIManager,
-  ImageBackground, Text, Dimensions,
+  ImageBackground, Text, Dimensions, DeviceEventEmitter,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -342,6 +342,7 @@ export default function TodayScreen() {
       } else {
         await awardBooleanElectron(user.id, key as any);
       }
+      DeviceEventEmitter.emit('electrons_changed');
     } catch { /* silenciar */ }
   }
 

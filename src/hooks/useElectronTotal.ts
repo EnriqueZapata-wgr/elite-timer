@@ -1,10 +1,11 @@
 /**
  * useElectronTotal — Hook para obtener el total acumulado de electrones.
  *
- * Lee de electron_logs al montar. Expone refresh() para re-leer después
- * de otorgar/revocar.
+ * Lee de electron_logs al montar y cuando recibe 'electrons_changed'
+ * via DeviceEventEmitter. Expone refresh() para uso manual.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
 
 export function useElectronTotal() {
@@ -19,11 +20,15 @@ export function useElectronTotal() {
         .select('electrons')
         .eq('user_id', user.id);
       const sum = (data ?? []).reduce((acc: number, row: any) => acc + Number(row.electrons), 0);
-      setTotal(Math.floor(sum));
+      setTotal(Math.round(sum * 10) / 10);
     } catch { /* silenciar */ }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+    const sub = DeviceEventEmitter.addListener('electrons_changed', refresh);
+    return () => sub.remove();
+  }, [refresh]);
 
   return { total, refresh };
 }
