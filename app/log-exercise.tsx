@@ -3,14 +3,13 @@
  *
  * Permite seleccionar un ejercicio y agregar múltiples sets con reps, peso y RPE.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, ScrollView, StyleSheet, Pressable, TextInput,
   Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-
 
 import { EliteText } from '@/components/elite-text';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
@@ -19,6 +18,7 @@ import { EliteButton } from '@/components/elite-button';
 import { haptic } from '@/src/utils/haptics';
 import { ExercisePicker } from '@/src/components/ExercisePicker';
 import { logExerciseSets } from '@/src/services/exercise-service';
+import { supabase } from '@/src/lib/supabase';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import type { Exercise } from '@/src/types/exercise';
 
@@ -35,12 +35,23 @@ interface SetEntry {
 
 export default function LogExerciseScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ exerciseId?: string }>();
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [sets, setSets] = useState<SetEntry[]>([
     { id: '1', reps: '', weight: '', rpe: null },
   ]);
   const [saving, setSaving] = useState(false);
+
+  // Si viene con exerciseId, pre-seleccionar el ejercicio
+  useEffect(() => {
+    if (params.exerciseId && !selectedExercise) {
+      supabase.from('exercises').select('*').eq('id', params.exerciseId).maybeSingle()
+        .then(({ data }) => {
+          if (data) setSelectedExercise(data as Exercise);
+        });
+    }
+  }, [params.exerciseId]);
 
   // Agregar un set nuevo
   const addSet = useCallback(() => {
