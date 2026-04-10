@@ -23,6 +23,7 @@ import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services
 import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD, PILLAR_GRADIENTS, getScoreColor } from '@/src/constants/brand';
+import { getUserRankInfo } from '@/src/services/electron-service';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { ExplanationModal } from '@/src/components/ui/ExplanationModal';
@@ -52,6 +53,7 @@ export default function YoScreen() {
   const [showExplanation, setShowExplanation] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<DomainExplanation | null>(null);
   const [selectedScore, setSelectedScore] = useState<number | undefined>(undefined);
+  const [rankInfo, setRankInfo] = useState<{ total: number; rank: { name: string; icon: string; color: string }; electronsToNext: number; nextRank: { name: string } | null } | null>(null);
 
   const loadData = useCallback(async () => {
     try { setData(await getDashboardData()); } catch { /* silenciar */ }
@@ -84,7 +86,10 @@ export default function YoScreen() {
     } catch { setHealthLoading(false); }
   }, [user?.id]);
 
-  useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  useFocusEffect(useCallback(() => {
+    loadData();
+    if (user?.id) getUserRankInfo(user.id).then(setRankInfo).catch(() => {});
+  }, [loadData, user?.id]));
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   const userName = user?.user_metadata?.full_name || data?.profile?.full_name || user?.email?.split('@')[0] || 'Atleta';
@@ -192,6 +197,18 @@ export default function YoScreen() {
             <EliteText style={[s.scoreLevel, { color: getScoreColor(overallScore) }]}>
               {overallLevel.toUpperCase()}
             </EliteText>
+
+            {/* Rango de electrones */}
+            {rankInfo && (
+              <View style={s.rankRow}>
+                <Ionicons name={rankInfo.rank.icon as any} size={16} color={rankInfo.rank.color} />
+                <EliteText style={[s.rankName, { color: rankInfo.rank.color }]}>{rankInfo.rank.name}</EliteText>
+                <EliteText style={s.rankElectrons}>⚡ {rankInfo.total}</EliteText>
+                {rankInfo.nextRank && (
+                  <EliteText style={s.rankNext}>· {rankInfo.electronsToNext} para {rankInfo.nextRank.name}</EliteText>
+                )}
+              </View>
+            )}
 
             {/* 6 mini scores: 3x2 grid */}
             {dailyScore && (
@@ -687,6 +704,28 @@ const s = StyleSheet.create({
     fontFamily: Fonts.bold,
     width: 28,
     textAlign: 'right',
+  },
+
+  // ── Rank ──
+  rankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  rankName: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.bold,
+  },
+  rankElectrons: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.semiBold,
+    color: '#888',
+  },
+  rankNext: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.regular,
+    color: '#555',
   },
 
   // ── 7. Body Composition ──
