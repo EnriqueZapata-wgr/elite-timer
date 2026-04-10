@@ -31,6 +31,8 @@ import {
   getHoyBackgroundRequire,
 } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
+import { ELECTRON_WEIGHTS as ELECTRON_W } from '@/src/constants/electrons';
+import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { renderActionContent } from '@/src/components/hoy/ActionContentRenderer';
 import { supabase } from '@/src/lib/supabase';
@@ -315,22 +317,31 @@ export default function TodayScreen() {
     setToggling(null);
   };
 
-  /** Toggle un electrón booleano (upsert en daily_electrons) */
+  /** Toggle un electrón booleano → escribe en daily_electrons (UI) + electron_logs (acumulado) */
   async function toggleElectron(key: string) {
     haptic.medium();
-    const next = { ...electrons, [key]: !electrons[key] };
+    const wasCompleted = !!electrons[key];
+    const next = { ...electrons, [key]: !wasCompleted };
     setElectrons(next);
-    if (user?.id) {
-      const today = getLocalToday();
-      try {
-        await supabase
-          .from('daily_electrons')
-          .upsert(
-            { user_id: user.id, date: today, electrons: next },
-            { onConflict: 'user_id,date' },
-          );
-      } catch { /* silenciar */ }
-    }
+
+    if (!user?.id) return;
+    const today = getLocalToday();
+
+    // 1) daily_electrons (JSONB para reload rápido de UI)
+    try {
+      await supabase
+        .from('daily_electrons')
+        .upsert({ user_id: user.id, date: today, electrons: next }, { onConflict: 'user_id,date' });
+    } catch { /* silenciar */ }
+
+    // 2) electron_logs (para acumulado total y badge del tab bar)
+    try {
+      if (wasCompleted) {
+        await revokeBooleanElectron(user.id, key as any);
+      } else {
+        await awardBooleanElectron(user.id, key as any);
+      }
+    } catch { /* silenciar */ }
   }
 
   /** Long press → menú de acciones rápidas */
@@ -443,21 +454,44 @@ export default function TodayScreen() {
     || 'ATLETA';
   const avatarUrl = user?.user_metadata?.avatar_url || null;
 
-  // Electrones completados (conteo booleano)
-  const electronsCompleted = BOOLEAN_ELECTRONS.filter(e => electrons[e.key]).length;
-
   // Metas cuantitativas
-  const proteinGoal = 150; // gramos
+  const proteinGoal = 150;
   const stepsGoal = 10000;
-  const waterGoal = 3000; // ml
+  const waterGoal = 3000;
 
-  // Hero context — electrones, no ATP Score
+  // === Cálculo ponderado de electrones (booleanos + cuantitativos) ===
+  const QUANT_WEIGHTS: Record<string, number> = { protein: 2.0, steps: 3.0, water: 1.5 };
+  let electronEarned = 0;
+  let electronPossible = 0;
+
+  // Booleanos con peso
+  for (const el of BOOLEAN_ELECTRONS) {
+    const w = (ELECTRON_W as any)[el.key]?.weight ?? 1;
+    electronPossible += w;
+    if (electrons[el.key]) electronEarned += w;
+  }
+
+  // Cuantitativos proporcional al %
+  const quantEntries = [
+    { key: 'protein', current: quantData.protein, target: proteinGoal },
+    { key: 'steps',   current: stepsCount ?? 0,   target: stepsGoal },
+    { key: 'water',   current: quantData.water,    target: waterGoal },
+  ];
+  for (const q of quantEntries) {
+    const w = QUANT_WEIGHTS[q.key] ?? 1;
+    electronPossible += w;
+    electronEarned += w * Math.min(1, q.target > 0 ? q.current / q.target : 0);
+  }
+
+  electronEarned = Math.round(electronEarned * 10) / 10;
+  electronPossible = Math.round(electronPossible * 10) / 10;
+  const electronPct = electronPossible > 0 ? Math.round((electronEarned / electronPossible) * 100) : 0;
+
+  // Hero context
   const hour = new Date().getHours();
-  const totalElectronSlots = BOOLEAN_ELECTRONS.length;
-  const electronPct = totalElectronSlots > 0 ? Math.round((electronsCompleted / totalElectronSlots) * 100) : 0;
   const heroBg = getHoyBackgroundRequire(hour, electronPct);
-  const electronColor = electronPct >= 90 ? '#a8e02a' : electronPct >= 70 ? '#a8e02a' : electronPct >= 50 ? '#fbbf24' : '#ef4444';
-  const electronLabel = electronPct >= 90 ? 'MÁXIMA CARGA' : electronPct >= 70 ? 'BUENA CARGA' : electronPct >= 50 ? 'CARGANDO' : 'BAJA CARGA';
+  const electronColor = electronPct >= 70 ? '#a8e02a' : electronPct >= 50 ? '#fbbf24' : '#ef4444';
+  const electronLabel = electronPct >= 90 ? 'MÁXIMA CARGA' : electronPct >= 70 ? 'BUENA CARGA' : electronPct >= 50 ? 'CARGANDO' : electronPct >= 20 ? 'BAJA CARGA' : 'SIN CARGA';
   const greeting = hour < 12 ? 'Buenos dias' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
   function getElectronMessage(pct: number, h: number): string {
@@ -521,9 +555,9 @@ export default function TodayScreen() {
             <Animated.View entering={FadeInUp.delay(120).springify()} style={s.heroScoreWrap}>
               <AnimatedScoreRing score={electronPct} size={180} strokeWidth={4} label="ELECTRONES" />
               <View style={s.heroElectronCount}>
-                <Text style={[s.heroElectronNum, { color: electronColor }]}>{electronsCompleted}</Text>
-                <Text style={s.heroElectronSlash}>/</Text>
-                <Text style={s.heroElectronTotal}>{totalElectronSlots}</Text>
+                <Text style={[s.heroElectronNum, { color: electronColor }]}>{electronEarned.toFixed(1)} ⚡</Text>
+                <Text style={s.heroElectronSlash}> de </Text>
+                <Text style={s.heroElectronTotal}>{electronPossible.toFixed(1)}</Text>
               </View>
               <Text style={[s.heroScoreLabel, { color: electronColor }]}>{electronLabel}</Text>
               <Text style={s.heroScoreMessage}>{electronMessage}</Text>
@@ -538,7 +572,7 @@ export default function TodayScreen() {
           <View style={s.sectionHeader}>
             <EliteText style={s.sectionTitle}>ELECTRONES</EliteText>
             <EliteText variant="caption" style={s.sectionSubtitle}>
-              {electronsCompleted}/{BOOLEAN_ELECTRONS.length} completados
+              {electronEarned.toFixed(1)} / {electronPossible.toFixed(1)} ⚡
             </EliteText>
           </View>
 

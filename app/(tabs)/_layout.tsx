@@ -8,15 +8,14 @@
  * Las pantallas antiguas (biblioteca, progreso, perfil) siguen existiendo
  * como archivos para no romper rutas, pero están ocultas del tab bar.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useWindowDimensions, View, Text, Pressable, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { useCoachStatus } from '@/src/hooks/useCoachStatus';
-import { useAuth } from '@/src/contexts/auth-context';
+import { useElectronTotal } from '@/src/hooks/useElectronTotal';
 import { CoachPanelLayout } from '@/src/screens/coach/CoachPanelLayout';
-import { getTotalElectrons } from '@/src/services/electron-service';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, CATEGORY_COLORS } from '@/src/constants/brand';
 
@@ -25,16 +24,8 @@ const COACH_PANEL_MIN_WIDTH = 1024;
 export default function TabLayout() {
   const { width } = useWindowDimensions();
   const { isCoach } = useCoachStatus();
-  const { user } = useAuth();
+  const { total: electronTotal } = useElectronTotal();
   const [forceAthleteView, setForceAthleteView] = useState(false);
-  const [electronTotal, setElectronTotal] = useState(0);
-
-  // Cargar total de electrones para el badge
-  useEffect(() => {
-    if (user?.id) {
-      getTotalElectrons(user.id).then(setElectronTotal).catch(() => {});
-    }
-  }, [user?.id]);
 
   const showCoachPanel = width >= COACH_PANEL_MIN_WIDTH && isCoach && !forceAthleteView;
 
@@ -81,13 +72,13 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Hoy',
-            tabBarIcon: ({ color, size }) => (
-              <View>
-                <Ionicons name="flash" size={size} color={color} />
+            tabBarIcon: ({ color, focused }) => (
+              <View style={styles.tabIconWrap}>
+                <Ionicons name={focused ? 'flash' : 'flash-outline'} size={24} color={color} />
                 {electronTotal > 0 && (
                   <View style={styles.electronBadge}>
                     <Text style={styles.electronBadgeText}>
-                      {electronTotal >= 1000 ? `${(electronTotal / 1000).toFixed(1)}k` : Math.floor(electronTotal)}
+                      {electronTotal >= 1000 ? `${(electronTotal / 1000).toFixed(1)}k` : electronTotal}
                     </Text>
                   </View>
                 )}
@@ -147,6 +138,10 @@ const styles = StyleSheet.create({
     color: CATEGORY_COLORS.metrics,
     fontFamily: Fonts.semiBold,
     fontSize: 12,
+  },
+  tabIconWrap: {
+    width: 50,
+    alignItems: 'center',
   },
   electronBadge: {
     position: 'absolute',
