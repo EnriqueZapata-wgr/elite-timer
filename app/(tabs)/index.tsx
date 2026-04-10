@@ -1,12 +1,16 @@
 /**
- * HOY — Timeline diario del protocolo del usuario.
+ * HOY — Dashboard diario: Hero + Electron Board + Agenda Timeline.
  *
- * Muestra las actividades del día hora por hora con checkboxes,
- * stats de completados y barra de progreso.
- * Usa el sistema nuevo (daily_plans) con fallback al legacy (protocol-service).
+ * Sección 1: Hero con ImageBackground, ATP Score ring, saludo contextual.
+ * Sección 2: Electron Board — toggles booleanos (JSONB daily_electrons) + barras cuantitativas.
+ * Sección 3: Agenda — timeline de acciones con dots + checkbox.
  */
 import { useState, useCallback, useRef, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Linking, Alert, LayoutAnimation, Platform, UIManager, ImageBackground, Text } from 'react-native';
+import {
+  View, StyleSheet, ScrollView, Pressable, ActivityIndicator,
+  Linking, Alert, LayoutAnimation, Platform, UIManager,
+  ImageBackground, Text, Dimensions,
+} from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -16,22 +20,22 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { GradientCard } from '@/src/components/ui/GradientCard';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { FilterPills } from '@/src/components/ui/FilterPills';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import {
-  CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, CARD,
+  CATEGORY_COLORS, SEMANTIC, SURFACES, CARD,
   getScoreColor, getScoreLabel, getScoreMessage, getHoyBackgroundRequire,
-  PILLAR_GRADIENTS,
 } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { renderActionContent } from '@/src/components/hoy/ActionContentRenderer';
+import { supabase } from '@/src/lib/supabase';
 
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
+
 import {
   getTodayTimeline,
   toggleCompletion,
@@ -54,13 +58,27 @@ import { getWeeklyStats, type WeeklyStats } from '@/src/services/exercise-servic
 import { getUserChronotype } from '@/src/services/quiz-service';
 import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 
-// === HELPERS ===
+// === CONSTANTES ===
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const DAY_NAMES = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
 const MONTH_NAMES = [
   'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
   'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE',
 ];
+
+/** Electrones booleanos del tablero diario */
+const BOOLEAN_ELECTRONS = [
+  { key: 'sunlight', name: 'Luz solar', icon: 'sunny-outline' as const, color: '#fbbf24' },
+  { key: 'meditation', name: 'Meditación', icon: 'flower-outline' as const, color: '#c084fc' },
+  { key: 'supplements', name: 'Suplementos', icon: 'medical-outline' as const, color: '#a8e02a' },
+  { key: 'cold_shower', name: 'Baño frío', icon: 'snow-outline' as const, color: '#38bdf8' },
+  { key: 'grounding', name: 'Grounding', icon: 'leaf-outline' as const, color: '#34d399' },
+  { key: 'no_alcohol', name: 'Sin alcohol', icon: 'wine-outline' as const, color: '#f87171' },
+] as const;
+
+// === HELPERS ===
 
 function formatTodayHeader(): string {
   const now = new Date();
@@ -87,26 +105,26 @@ function isPast(timeStr: string): boolean {
   return nowMinutes > itemMinutes;
 }
 
-/** Color de compliance según porcentaje */
-function complianceColor(pct: number): string {
-  if (pct >= 75) return SEMANTIC.success;
-  if (pct >= 50) return SEMANTIC.warning;
-  return SEMANTIC.error;
-}
-
 /** Determina si una acción es la próxima por completar */
 function isNextAction(actions: PlanAction[], idx: number): boolean {
-  const now = new Date();
-  const nowMin = now.getHours() * 60 + now.getMinutes();
   const action = actions[idx];
   if (action.completed || action.skipped) return false;
-  const parts = action.scheduled_time?.split(':') ?? [];
-  const actionMin = parseInt(parts[0] ?? '0', 10) * 60 + parseInt(parts[1] ?? '0', 10);
-  // Es "próxima" si es la primera no completada cuya hora ya pasó o es la siguiente
   for (let i = 0; i < idx; i++) {
-    if (!actions[i].completed && !actions[i].skipped) return false; // hay una antes sin completar
+    if (!actions[i].completed && !actions[i].skipped) return false;
   }
   return true;
+}
+
+/** Color de categoría para el timeline */
+function getTimelineCatColor(category?: string): string {
+  if (!category) return '#444';
+  const c = category.toLowerCase();
+  if (c.includes('fitness') || c.includes('exercise')) return '#a8e02a';
+  if (c.includes('nutrition') || c.includes('meal') || c.includes('supplement')) return '#5B9BD5';
+  if (c.includes('mind') || c.includes('meditation') || c.includes('breathing')) return '#7F77DD';
+  if (c.includes('optimization') || c.includes('habit')) return '#EF9F27';
+  if (c.includes('rest') || c.includes('sleep')) return '#666';
+  return '#444';
 }
 
 // === COMPONENTE PRINCIPAL ===
@@ -114,6 +132,8 @@ function isNextAction(actions: PlanAction[], idx: number): boolean {
 export default function TodayScreen() {
   const router = useRouter();
   const { user } = useAuth();
+
+  // --- Estado de datos del día ---
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [dayPlan, setDayPlan] = useState<DailyPlan | null>(null);
   const [dataSource, setDataSource] = useState<'new' | 'legacy' | null>(null);
@@ -126,12 +146,34 @@ export default function TodayScreen() {
   const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
   const [wearableData, setWearableData] = useState<WearableData | null>(null);
 
+  // --- Estado de electrones ---
+  const [electrons, setElectrons] = useState<Record<string, boolean>>({});
+  const [quantData, setQuantData] = useState<{ protein: number; steps: number; water: number }>({
+    protein: 0, steps: 0, water: 0,
+  });
+
+  // --- Toast ---
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = (msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2000);
+  };
+
+  // --- Filtro de categorías ---
+  const [activeFilter, setActiveFilter] = useState<'TODO' | 'FITNESS' | 'NUTRICION' | 'MENTAL' | 'HABITOS'>('TODO');
+  const FILTER_OPTIONS = ['TODO', 'FITNESS', 'NUTRICION', 'MENTAL', 'HABITOS'] as const;
+
+  // === CARGA DE DATOS ===
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       async function load() {
-        // Si el plan cargado es de otro día, forzar recarga visual
         const today = new Date().toISOString().split('T')[0];
+
+        // Si el plan cargado es de otro día, forzar recarga visual
         if (dayPlan && dayPlan.date !== today) {
           setDayPlan(null);
           setTimeline([]);
@@ -139,13 +181,19 @@ export default function TodayScreen() {
         setLoading(true);
         try {
           // Cargar stats semanales + cronotipo en paralelo
-          const statsPromise = getWeeklyStats().catch(() => ({ workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0 }));
+          const statsPromise = getWeeklyStats().catch(() => ({
+            workouts: 0, totalSeconds: 0, volumeKg: 0, prs: 0,
+          }));
           const chronoPromise = getUserChronotype().catch(() => null);
 
           // Intentar nuevo sistema → fallback legacy
           if (user?.id) {
             const [result, stats, chrono] = await Promise.all([
-              getTodayPlan(user.id).catch(() => ({ source: null as 'new' | 'legacy' | null, plan: null, legacyItems: undefined })),
+              getTodayPlan(user.id).catch(() => ({
+                source: null as 'new' | 'legacy' | null,
+                plan: null,
+                legacyItems: undefined,
+              })),
               statsPromise,
               chronoPromise,
             ]);
@@ -155,7 +203,7 @@ export default function TodayScreen() {
               setDataSource(result.source);
               if (result.source === 'new' && result.plan) {
                 setDayPlan(result.plan);
-                setTimeline([]); // Limpiar legacy
+                setTimeline([]);
               } else if (result.source === 'legacy' && result.legacyItems) {
                 setTimeline(result.legacyItems);
                 setDayPlan(null);
@@ -164,6 +212,46 @@ export default function TodayScreen() {
                 setDayPlan(null);
               }
             }
+
+            // Cargar electrones del día
+            try {
+              const { data: electronRow } = await supabase
+                .from('daily_electrons')
+                .select('electrons')
+                .eq('user_id', user.id)
+                .eq('date', today)
+                .maybeSingle();
+              if (!cancelled && electronRow) {
+                setElectrons((electronRow.electrons as Record<string, boolean>) ?? {});
+              }
+            } catch { /* tabla puede no existir aún */ }
+
+            // Cargar datos cuantitativos (proteína, pasos, agua)
+            try {
+              const [foodRes, hydRes] = await Promise.all([
+                supabase
+                  .from('food_logs')
+                  .select('protein_g')
+                  .eq('user_id', user.id)
+                  .gte('created_at', `${today}T00:00:00`)
+                  .lte('created_at', `${today}T23:59:59`),
+                supabase
+                  .from('hydration_logs')
+                  .select('amount_ml')
+                  .eq('user_id', user.id)
+                  .gte('created_at', `${today}T00:00:00`)
+                  .lte('created_at', `${today}T23:59:59`),
+              ]);
+              if (!cancelled) {
+                const totalProtein = (foodRes.data ?? []).reduce(
+                  (sum, r) => sum + (r.protein_g ?? 0), 0,
+                );
+                const totalWater = (hydRes.data ?? []).reduce(
+                  (sum, r) => sum + (r.amount_ml ?? 0), 0,
+                );
+                setQuantData(prev => ({ ...prev, protein: totalProtein, water: totalWater }));
+              }
+            } catch { /* silenciar */ }
           } else {
             // Sin usuario autenticado — fallback legacy sin user_id
             const [items, stats] = await Promise.all([
@@ -177,13 +265,18 @@ export default function TodayScreen() {
               setDataSource(null);
             }
           }
-          // Cargar datos de wearable para readiness
+
+          // Cargar datos de wearable para readiness + steps
           try {
-            const today = new Date().toISOString().split('T')[0];
             const wAvailable = await isWearableAvailable();
             if (wAvailable && !cancelled) {
               const wData = await getWearableDataForDate(today);
-              if (wData && !cancelled) setWearableData(wData);
+              if (wData && !cancelled) {
+                setWearableData(wData);
+                if (wData.steps) {
+                  setQuantData(prev => ({ ...prev, steps: wData.steps ?? 0 }));
+                }
+              }
             }
           } catch { /* wearable no disponible */ }
         } finally {
@@ -195,18 +288,20 @@ export default function TodayScreen() {
     }, [user?.id])
   );
 
+  // === TOGGLE HANDLERS ===
+
   /** Toggle para nuevo sistema o legacy */
   const handleToggle = async (actionId: string) => {
     haptic.light();
     setToggling(actionId);
     if (dataSource === 'new' && dayPlan && user?.id) {
-      // Sistema nuevo: toggleAction en daily_plans
       try {
-        const updated = await toggleAction(user.id, new Date().toISOString().split('T')[0], actionId);
+        const updated = await toggleAction(
+          user.id, new Date().toISOString().split('T')[0], actionId,
+        );
         setDayPlan(updated);
       } catch { /* silenciar */ }
     } else {
-      // Fallback legacy
       try {
         const newState = await toggleCompletion(actionId);
         setTimeline(prev => prev.map(item =>
@@ -219,6 +314,24 @@ export default function TodayScreen() {
     setToggling(null);
   };
 
+  /** Toggle un electrón booleano (upsert en daily_electrons) */
+  async function toggleElectron(key: string) {
+    haptic.medium();
+    const next = { ...electrons, [key]: !electrons[key] };
+    setElectrons(next);
+    if (user?.id) {
+      const today = new Date().toISOString().split('T')[0];
+      try {
+        await supabase
+          .from('daily_electrons')
+          .upsert(
+            { user_id: user.id, date: today, electrons: next },
+            { onConflict: 'user_id,date' },
+          );
+      } catch { /* silenciar */ }
+    }
+  }
+
   /** Long press → menú de acciones rápidas */
   const handleLongPress = (action: PlanAction) => {
     if (dataSource !== 'new' || !dayPlan || !user?.id) return;
@@ -226,31 +339,26 @@ export default function TodayScreen() {
     const today = new Date().toISOString().split('T')[0];
     Alert.alert(action.name, undefined, [
       { text: 'Completar', onPress: () => handleToggle(action.id) },
-      { text: 'Saltar hoy', onPress: async () => {
-        try {
-          const updated = await skipAction(user.id, today, action.id);
-          setDayPlan(updated);
-          showToast('Acción saltada');
-        } catch { /* */ }
-      }},
-      { text: 'Quitar del día', style: 'destructive', onPress: async () => {
-        try {
-          const updated = await removeActionFromPlan(user.id, today, action.id);
-          setDayPlan(updated);
-          showToast('Acción eliminada');
-        } catch { /* */ }
-      }},
+      {
+        text: 'Saltar hoy', onPress: async () => {
+          try {
+            const updated = await skipAction(user.id, today, action.id);
+            setDayPlan(updated);
+            showToast('Acción saltada');
+          } catch { /* */ }
+        },
+      },
+      {
+        text: 'Quitar del día', style: 'destructive', onPress: async () => {
+          try {
+            const updated = await removeActionFromPlan(user.id, today, action.id);
+            setDayPlan(updated);
+            showToast('Acción eliminada');
+          } catch { /* */ }
+        },
+      },
       { text: 'Cancelar', style: 'cancel' },
     ]);
-  };
-
-  // Toast
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showToast = (msg: string) => {
-    setToast(msg);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 2000);
   };
 
   // Tipos que navegan a otra pantalla (no hacen toggle)
@@ -258,7 +366,6 @@ export default function TodayScreen() {
 
   const handleItemPress = (item: TimelineItem) => {
     const lt = item.link_type;
-
     if (lt === 'routine' && item.link_routine_id) {
       haptic.light();
       router.push({ pathname: '/execution' as any, params: { routineId: item.link_routine_id } });
@@ -275,7 +382,7 @@ export default function TodayScreen() {
       haptic.light();
       Linking.openURL(item.link_url).catch(() => {});
     } else if (lt === 'supplement_check') {
-      haptic.success(); // feedback de éxito al registrar
+      haptic.success();
       handleToggle(item.item_id);
       showToast('Suplementos registrados');
     } else if (lt === 'habit_check') {
@@ -300,11 +407,10 @@ export default function TodayScreen() {
 
   const isNavigable = (linkType: string | null) => NAVIGABLE_TYPES.has(linkType ?? '');
 
+  // === DATOS DERIVADOS ===
+
   const completionStats = getCompletionStats(timeline);
   const hasTimeline = timeline.length > 0;
-
-  // === NUEVO: filtro de categorías ===
-  const [activeFilter, setActiveFilter] = useState<'TODO' | 'FITNESS' | 'NUTRICION' | 'MENTAL' | 'HABITOS'>('TODO');
 
   const filteredActions = useMemo(() => {
     const actions = dayPlan?.actions ?? [];
@@ -316,22 +422,13 @@ export default function TodayScreen() {
       'HABITOS': ['habit', 'optimization', 'sleep', 'rest'],
     };
     const cats = filterMap[activeFilter] || [];
-    return actions.filter(a => cats.some(c => (a.category || '').toLowerCase().includes(c) || (a.link_type || '').includes(c)));
+    return actions.filter(a =>
+      cats.some(c =>
+        (a.category || '').toLowerCase().includes(c) || (a.link_type || '').includes(c),
+      ),
+    );
   }, [dayPlan?.actions, activeFilter]);
 
-  /** Color de categoría para el timeline mockup */
-  function getTimelineCatColor(category?: string): string {
-    if (!category) return '#444';
-    const c = category.toLowerCase();
-    if (c.includes('fitness') || c.includes('exercise')) return '#a8e02a';
-    if (c.includes('nutrition') || c.includes('meal') || c.includes('supplement')) return '#5B9BD5';
-    if (c.includes('mind') || c.includes('meditation') || c.includes('breathing')) return '#7F77DD';
-    if (c.includes('optimization') || c.includes('habit')) return '#EF9F27';
-    if (c.includes('rest') || c.includes('sleep')) return '#666';
-    return '#444';
-  }
-
-  // === Datos derivados para Daily Score ===
   const dayActions = dayPlan?.actions ?? [];
   const totalActions = dayActions.length || timeline.length || 0;
   const completedActions = dayPlan
@@ -339,238 +436,21 @@ export default function TodayScreen() {
     : completionStats.completed;
   const dailyScorePct = totalActions > 0 ? Math.round((completedActions / totalActions) * 100) : 0;
 
-  const sleepHours = wearableData?.sleep?.totalHours ?? null;
-  const stepsCount = wearableData?.steps ?? null;
-  const sleepProgress = sleepHours ? Math.min(sleepHours / 8, 1) : 0;
-  const stepsProgress = stepsCount ? Math.min(stepsCount / 10000, 1) : 0;
-  const actionsProgress = totalActions > 0 ? completedActions / totalActions : 0;
-
+  const stepsCount = wearableData?.steps ?? quantData.steps;
   const userName = user?.user_metadata?.full_name?.split(' ')[0]?.toUpperCase()
     || user?.email?.split('@')[0]?.toUpperCase()
     || 'ATLETA';
   const avatarUrl = user?.user_metadata?.avatar_url || null;
 
-  // === SUB-COMPONENTES INLINE ===
+  // Electrones completados (conteo booleano)
+  const electronsCompleted = BOOLEAN_ELECTRONS.filter(e => electrons[e.key]).length;
 
-  /** Card del timeline con línea vertical + dot */
-  const TimelineCard = ({ action, isFirst, isLast, isCurrent, onToggle, onExpand, isExpanded }: {
-    action: PlanAction;
-    isFirst: boolean;
-    isLast: boolean;
-    isCurrent: boolean;
-    onToggle: () => void;
-    onExpand: () => void;
-    isExpanded: boolean;
-  }) => {
-    const catColor = getTimelineCatColor(action.category);
-    const past = isPast(action.scheduled_time);
-    const isOverdue = past && !action.completed && !action.skipped;
-    const isTogglingThis = toggling === action.id;
+  // Metas cuantitativas
+  const proteinGoal = 150; // gramos
+  const stepsGoal = 10000;
+  const waterGoal = 3000; // ml
 
-    return (
-      <View style={s.tlRow}>
-        {/* Línea vertical + dot */}
-        <View style={s.tlLineCol}>
-          <View style={[s.tlLineSegment, isFirst && { backgroundColor: 'transparent' }]} />
-          <View style={[
-            s.tlDot,
-            action.completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
-            isCurrent && { borderColor: catColor, borderWidth: 2.5, backgroundColor: catColor + '30' },
-            action.skipped && { backgroundColor: Colors.disabled, borderColor: Colors.disabled },
-          ]}>
-            {action.completed && <Ionicons name="checkmark" size={8} color={Colors.black} />}
-          </View>
-          <View style={[s.tlLineSegment, isLast && { backgroundColor: 'transparent' }]} />
-        </View>
-
-        {/* Card */}
-        <AnimatedPressable
-          onPress={() => {
-            haptic.light();
-            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-            onExpand();
-          }}
-          onLongPress={() => handleLongPress(action)}
-          style={[
-            s.tlCard,
-            { borderLeftColor: catColor },
-            action.completed && s.tlCardCompleted,
-            action.skipped && s.tlCardSkipped,
-            isCurrent && { borderColor: catColor + '40', borderWidth: 1 },
-          ]}
-        >
-          {/* Hora + categoría */}
-          <View style={s.tlCardHeader}>
-            <EliteText variant="caption" style={[s.tlTime, action.completed && { color: Colors.neonGreen }, isOverdue && { color: SEMANTIC.error }]}>
-              {formatTime(action.scheduled_time)}
-            </EliteText>
-            <EliteText variant="caption" style={[s.tlCategoryLabel, { color: catColor }]}>
-              {getCategoryLabel(action.category)}
-            </EliteText>
-            {isOverdue && (
-              <View style={s.tlOverdueBadge}>
-                <EliteText variant="caption" style={s.tlOverdueText}>PENDIENTE</EliteText>
-              </View>
-            )}
-            {action.duration_min > 0 && !isOverdue && (
-              <EliteText variant="caption" style={s.tlDuration}>{action.duration_min} min</EliteText>
-            )}
-          </View>
-
-          {/* Título + checkbox */}
-          <View style={s.tlCardBody}>
-            <View style={s.tlCardContent}>
-              <EliteText variant="body" style={[
-                s.tlTitle,
-                action.completed && s.tlTitleCompleted,
-                action.skipped && { color: Colors.textMuted },
-              ]}>
-                {action.name}
-              </EliteText>
-
-              {action.protocol_name && action.protocol_name !== 'Manual' && (
-                <EliteText variant="caption" style={s.tlSubtitle}>{action.protocol_name}</EliteText>
-              )}
-
-              {/* Link de navegación */}
-              {action.link_type && !action.completed && (
-                <AnimatedPressable
-                  onPress={() => {
-                    haptic.light();
-                    const routes: Record<string, string> = {
-                      meditation: '/meditation',
-                      breathing: '/breathing',
-                      food_scan: '/food-scan',
-                      checkin: '/checkin',
-                      routine: '/programs',
-                    };
-                    const route = routes[action.link_type!];
-                    if (route) router.push(route as any);
-                  }}
-                  style={s.tlOpenLink}
-                >
-                  <Ionicons name="open-outline" size={11} color={catColor} />
-                  <EliteText variant="caption" style={{ color: catColor, fontSize: FontSizes.xs }}>Abrir</EliteText>
-                </AnimatedPressable>
-              )}
-
-              {/* Expandir indicador */}
-              {!isExpanded && action.instructions && (
-                <Ionicons name="chevron-down" size={11} color={Colors.textMuted} style={{ marginTop: 2 }} />
-              )}
-
-              {/* Contenido expandido */}
-              {isExpanded && action.instructions && (
-                <View style={s.tlExpanded}>
-                  <View style={s.tlExpandSep} />
-                  {renderActionContent(action)}
-                </View>
-              )}
-            </View>
-
-            {/* Checkbox */}
-            <AnimatedPressable
-              onPress={() => { haptic.light(); onToggle(); }}
-              disabled={isTogglingThis}
-              style={s.tlCheckArea}
-            >
-              <View style={[
-                s.tlCheckbox,
-                action.completed && s.tlCheckboxChecked,
-              ]}>
-                {isTogglingThis ? (
-                  <ActivityIndicator size="small" color={Colors.neonGreen} />
-                ) : action.completed ? (
-                  <Ionicons name="checkmark" size={14} color={Colors.black} />
-                ) : null}
-              </View>
-            </AnimatedPressable>
-          </View>
-        </AnimatedPressable>
-      </View>
-    );
-  };
-
-  /** Card del timeline para sistema legacy */
-  const LegacyTimelineCard = ({ item, isFirst, isLast }: {
-    item: TimelineItem; isFirst: boolean; isLast: boolean;
-  }) => {
-    const catColor = getTimelineCatColor(item.category);
-    const past = isPast(item.scheduled_time);
-    const isTogglingThis = toggling === item.item_id;
-
-    return (
-      <View style={s.tlRow}>
-        <View style={s.tlLineCol}>
-          <View style={[s.tlLineSegment, isFirst && { backgroundColor: 'transparent' }]} />
-          <View style={[
-            s.tlDot,
-            item.is_completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
-          ]}>
-            {item.is_completed && <Ionicons name="checkmark" size={8} color={Colors.black} />}
-          </View>
-          <View style={[s.tlLineSegment, isLast && { backgroundColor: 'transparent' }]} />
-        </View>
-
-        <AnimatedPressable
-          onPress={() => { haptic.light(); handleItemPress(item); }}
-          style={[
-            s.tlCard,
-            { borderLeftColor: catColor },
-            item.is_completed && s.tlCardCompleted,
-          ]}
-        >
-          <View style={s.tlCardHeader}>
-            <EliteText variant="caption" style={[s.tlTime, item.is_completed && { color: Colors.neonGreen }]}>
-              {formatTime(item.scheduled_time)}
-            </EliteText>
-            <EliteText variant="caption" style={[s.tlCategoryLabel, { color: catColor }]}>
-              {getCategoryLabel(item.category)}
-            </EliteText>
-            {item.duration_minutes != null && (
-              <EliteText variant="caption" style={s.tlDuration}>{item.duration_minutes} min</EliteText>
-            )}
-          </View>
-
-          <View style={s.tlCardBody}>
-            <View style={s.tlCardContent}>
-              <EliteText variant="body" style={[s.tlTitle, item.is_completed && s.tlTitleCompleted]}>
-                {item.title}
-              </EliteText>
-              {item.description && (
-                <EliteText variant="caption" style={s.tlSubtitle} numberOfLines={2}>{item.description}</EliteText>
-              )}
-            </View>
-
-            {isNavigable(item.link_type) && (
-              <View style={s.tlNavChevron}>
-                <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
-              </View>
-            )}
-
-            <AnimatedPressable
-              onPress={() => { haptic.light(); handleToggle(item.item_id); }}
-              disabled={isTogglingThis}
-              style={s.tlCheckArea}
-            >
-              <View style={[s.tlCheckbox, item.is_completed && s.tlCheckboxChecked]}>
-                {isTogglingThis ? (
-                  <ActivityIndicator size="small" color={Colors.neonGreen} />
-                ) : item.is_completed ? (
-                  <Ionicons name="checkmark" size={14} color={Colors.black} />
-                ) : null}
-              </View>
-            </AnimatedPressable>
-          </View>
-        </AnimatedPressable>
-      </View>
-    );
-  };
-
-  // === Filtros de categoría ===
-  const FILTER_OPTIONS = ['TODO', 'FITNESS', 'NUTRICION', 'MENTAL', 'HABITOS'] as const;
-
-  // === Premium hero context ===
+  // Hero context
   const hour = new Date().getHours();
   const heroBg = getHoyBackgroundRequire(hour, dailyScorePct);
   const scoreColor = getScoreColor(dailyScorePct);
@@ -578,16 +458,22 @@ export default function TodayScreen() {
   const scoreMessage = getScoreMessage(dailyScorePct, hour);
   const greeting = hour < 12 ? 'Buenos dias' : hour < 19 ? 'Buenas tardes' : 'Buenas noches';
 
+  // ════════════════════════════════════════════
+  // RENDER
+  // ════════════════════════════════════════════
+
   return (
     <TabScreen>
       <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
-        {/* ── HERO con imagen de fondo + ATP Score animado ── */}
+        {/* ═══════════════════════════════════════
+            SECCIÓN 1: HERO
+        ═══════════════════════════════════════ */}
         <ImageBackground source={heroBg} style={s.heroBg} imageStyle={s.heroBgImage}>
           <LinearGradient
-            colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.92)', '#000']}
-            locations={[0, 0.3, 0.7, 1]}
+            colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.85)', '#000']}
+            locations={[0, 0.25, 0.65, 1]}
             style={s.heroGradient}
           >
             {/* Top bar */}
@@ -626,8 +512,130 @@ export default function TodayScreen() {
           </LinearGradient>
         </ImageBackground>
 
-        {/* ── 4. Category filters ── */}
-        <Animated.View entering={FadeInUp.delay(160).springify()} style={s.filtersWrap}>
+        {/* ═══════════════════════════════════════
+            SECCIÓN 2: ELECTRON BOARD
+        ═══════════════════════════════════════ */}
+        <Animated.View entering={FadeInUp.delay(160).springify()}>
+          <View style={s.sectionHeader}>
+            <EliteText style={s.sectionTitle}>ELECTRONES</EliteText>
+            <EliteText variant="caption" style={s.sectionSubtitle}>
+              {electronsCompleted}/{BOOLEAN_ELECTRONS.length} completados
+            </EliteText>
+          </View>
+
+          {/* Grid booleano 2 columnas */}
+          <View style={s.electronGrid}>
+            {BOOLEAN_ELECTRONS.map((el) => {
+              const done = !!electrons[el.key];
+              return (
+                <AnimatedPressable
+                  key={el.key}
+                  onPress={() => toggleElectron(el.key)}
+                  style={[
+                    s.electronCard,
+                    done && { borderColor: el.color + '60' },
+                  ]}
+                >
+                  <View style={[s.electronIconWrap, { backgroundColor: el.color + '15' }]}>
+                    <Ionicons
+                      name={el.icon}
+                      size={22}
+                      color={done ? el.color : '#555'}
+                    />
+                  </View>
+                  <EliteText
+                    variant="caption"
+                    style={[s.electronName, done && { color: Colors.textPrimary }]}
+                  >
+                    {el.name}
+                  </EliteText>
+                  <View style={[
+                    s.electronDot,
+                    done
+                      ? { backgroundColor: el.color }
+                      : { backgroundColor: '#333' },
+                  ]} />
+                </AnimatedPressable>
+              );
+            })}
+          </View>
+
+          {/* Barras cuantitativas */}
+          <View style={s.quantBars}>
+            {/* Proteína */}
+            <View style={s.quantRow}>
+              <View style={s.quantLabelRow}>
+                <Ionicons name="fitness-outline" size={14} color="#5B9BD5" />
+                <EliteText variant="caption" style={s.quantLabel}>Proteína</EliteText>
+                <EliteText variant="caption" style={s.quantValue}>
+                  {Math.round(quantData.protein)}g / {proteinGoal}g
+                </EliteText>
+              </View>
+              <View style={s.quantTrack}>
+                <View style={[
+                  s.quantFill,
+                  {
+                    width: `${Math.min((quantData.protein / proteinGoal) * 100, 100)}%`,
+                    backgroundColor: '#5B9BD5',
+                  },
+                ]} />
+              </View>
+            </View>
+
+            {/* Pasos */}
+            <View style={s.quantRow}>
+              <View style={s.quantLabelRow}>
+                <Ionicons name="footsteps-outline" size={14} color="#34d399" />
+                <EliteText variant="caption" style={s.quantLabel}>Pasos</EliteText>
+                <EliteText variant="caption" style={s.quantValue}>
+                  {(stepsCount ?? 0).toLocaleString()} / {(stepsGoal).toLocaleString()}
+                </EliteText>
+              </View>
+              <View style={s.quantTrack}>
+                <View style={[
+                  s.quantFill,
+                  {
+                    width: `${Math.min(((stepsCount ?? 0) / stepsGoal) * 100, 100)}%`,
+                    backgroundColor: '#34d399',
+                  },
+                ]} />
+              </View>
+            </View>
+
+            {/* Agua */}
+            <View style={s.quantRow}>
+              <View style={s.quantLabelRow}>
+                <Ionicons name="water-outline" size={14} color="#38bdf8" />
+                <EliteText variant="caption" style={s.quantLabel}>Agua</EliteText>
+                <EliteText variant="caption" style={s.quantValue}>
+                  {Math.round(quantData.water)}ml / {waterGoal}ml
+                </EliteText>
+              </View>
+              <View style={s.quantTrack}>
+                <View style={[
+                  s.quantFill,
+                  {
+                    width: `${Math.min((quantData.water / waterGoal) * 100, 100)}%`,
+                    backgroundColor: '#38bdf8',
+                  },
+                ]} />
+              </View>
+            </View>
+          </View>
+        </Animated.View>
+
+        {/* ═══════════════════════════════════════
+            SECCIÓN 3: AGENDA TIMELINE
+        ═══════════════════════════════════════ */}
+        <View style={s.sectionHeader}>
+          <EliteText style={s.sectionTitle}>AGENDA</EliteText>
+          <EliteText variant="caption" style={s.sectionSubtitle}>
+            {completedActions}/{totalActions} tareas
+          </EliteText>
+        </View>
+
+        {/* Filtros de categoría */}
+        <Animated.View entering={FadeInUp.delay(200).springify()} style={s.filtersWrap}>
           <FilterPills
             options={FILTER_OPTIONS}
             selected={activeFilter}
@@ -636,7 +644,7 @@ export default function TodayScreen() {
           />
         </Animated.View>
 
-        {/* ── 5. Timeline ── */}
+        {/* Timeline */}
         {loading ? (
           <View style={s.skeletonWrap}>
             <SkeletonLoader variant="card" />
@@ -644,38 +652,266 @@ export default function TodayScreen() {
               <SkeletonLoader variant="stat-card" />
               <SkeletonLoader variant="stat-card" />
             </View>
-            {[...Array(4)].map((_, i) => <SkeletonLoader key={i} height={44} style={{ borderRadius: Radius.sm }} />)}
+            {[...Array(4)].map((_, i) => (
+              <SkeletonLoader key={i} height={44} style={{ borderRadius: Radius.sm }} />
+            ))}
           </View>
         ) : dataSource === 'new' && dayPlan && filteredActions.length > 0 ? (
-          <View style={s.timeline}>
+          <View style={s.agendaTimeline}>
             {filteredActions.map((action, idx) => {
-              const isCurrent = isNextAction(dayPlan.actions, dayPlan.actions.indexOf(action));
+              const isCurrent = isNextAction(
+                dayPlan.actions, dayPlan.actions.indexOf(action),
+              );
+              const catColor = getTimelineCatColor(action.category);
+              const past = isPast(action.scheduled_time);
+              const isOverdue = past && !action.completed && !action.skipped;
+              const isTogglingThis = toggling === action.id;
+              const isExpanded = expandedActionId === action.id;
+
               return (
                 <StaggerItem key={action.id} index={idx} delay={40}>
-                  <TimelineCard
-                    action={action}
-                    isFirst={idx === 0}
-                    isLast={idx === filteredActions.length - 1}
-                    isCurrent={isCurrent}
-                    onToggle={() => handleToggle(action.id)}
-                    onExpand={() => setExpandedActionId(expandedActionId === action.id ? null : action.id)}
-                    isExpanded={expandedActionId === action.id}
-                  />
+                  <View style={s.agendaRow}>
+                    {/* Línea vertical + dot */}
+                    <View style={s.agendaLineCol}>
+                      <View style={[
+                        s.agendaLineSeg,
+                        idx === 0 && { backgroundColor: 'transparent' },
+                      ]} />
+                      <View style={[
+                        s.agendaDot,
+                        action.completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
+                        isCurrent && { borderColor: catColor, borderWidth: 2.5, backgroundColor: catColor + '30' },
+                        action.skipped && { backgroundColor: Colors.disabled, borderColor: Colors.disabled },
+                      ]}>
+                        {action.completed && (
+                          <Ionicons name="checkmark" size={7} color={Colors.black} />
+                        )}
+                      </View>
+                      <View style={[
+                        s.agendaLineSeg,
+                        idx === filteredActions.length - 1 && { backgroundColor: 'transparent' },
+                      ]} />
+                    </View>
+
+                    {/* Contenido */}
+                    <AnimatedPressable
+                      onPress={() => {
+                        haptic.light();
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                        setExpandedActionId(isExpanded ? null : action.id);
+                      }}
+                      onLongPress={() => handleLongPress(action)}
+                      style={[
+                        s.agendaCard,
+                        { borderLeftColor: catColor },
+                        action.completed && s.agendaCardDone,
+                        action.skipped && s.agendaCardSkipped,
+                        isCurrent && { borderColor: catColor + '40', borderWidth: 1 },
+                      ]}
+                    >
+                      {/* Hora + categoría */}
+                      <View style={s.agendaCardHeader}>
+                        <EliteText variant="caption" style={[
+                          s.agendaTime,
+                          action.completed && { color: Colors.neonGreen },
+                          isOverdue && { color: SEMANTIC.error },
+                        ]}>
+                          {formatTime(action.scheduled_time)}
+                        </EliteText>
+                        <EliteText variant="caption" style={[s.agendaCatLabel, { color: catColor }]}>
+                          {getCategoryLabel(action.category)}
+                        </EliteText>
+                        {isOverdue && (
+                          <View style={s.agendaOverdueBadge}>
+                            <EliteText variant="caption" style={s.agendaOverdueText}>
+                              PENDIENTE
+                            </EliteText>
+                          </View>
+                        )}
+                        {action.duration_min > 0 && !isOverdue && (
+                          <EliteText variant="caption" style={s.agendaDuration}>
+                            {action.duration_min} min
+                          </EliteText>
+                        )}
+                      </View>
+
+                      {/* Título + checkbox */}
+                      <View style={s.agendaCardBody}>
+                        <View style={s.agendaCardContent}>
+                          <EliteText variant="body" style={[
+                            s.agendaTitle,
+                            action.completed && s.agendaTitleDone,
+                            action.skipped && { color: Colors.textMuted },
+                          ]}>
+                            {action.name}
+                          </EliteText>
+
+                          {action.protocol_name && action.protocol_name !== 'Manual' && (
+                            <EliteText variant="caption" style={s.agendaSubtitle}>
+                              {action.protocol_name}
+                            </EliteText>
+                          )}
+
+                          {/* Link de navegación */}
+                          {action.link_type && !action.completed && (
+                            <AnimatedPressable
+                              onPress={() => {
+                                haptic.light();
+                                const routes: Record<string, string> = {
+                                  meditation: '/meditation',
+                                  breathing: '/breathing',
+                                  food_scan: '/food-scan',
+                                  checkin: '/checkin',
+                                  routine: '/programs',
+                                };
+                                const route = routes[action.link_type!];
+                                if (route) router.push(route as any);
+                              }}
+                              style={s.agendaOpenLink}
+                            >
+                              <Ionicons name="open-outline" size={11} color={catColor} />
+                              <EliteText variant="caption" style={{ color: catColor, fontSize: FontSizes.xs }}>
+                                Abrir
+                              </EliteText>
+                            </AnimatedPressable>
+                          )}
+
+                          {/* Expand indicator */}
+                          {!isExpanded && action.instructions && (
+                            <Ionicons name="chevron-down" size={11} color={Colors.textMuted} style={{ marginTop: 2 }} />
+                          )}
+
+                          {/* Contenido expandido */}
+                          {isExpanded && action.instructions && (
+                            <View style={s.agendaExpanded}>
+                              <View style={s.agendaExpandSep} />
+                              {renderActionContent(action)}
+                            </View>
+                          )}
+                        </View>
+
+                        {/* Checkbox */}
+                        <AnimatedPressable
+                          onPress={() => { haptic.light(); handleToggle(action.id); }}
+                          disabled={isTogglingThis}
+                          style={s.agendaCheckArea}
+                        >
+                          <View style={[
+                            s.agendaCheckbox,
+                            action.completed && s.agendaCheckboxDone,
+                          ]}>
+                            {isTogglingThis ? (
+                              <ActivityIndicator size="small" color={Colors.neonGreen} />
+                            ) : action.completed ? (
+                              <Ionicons name="checkmark" size={14} color={Colors.black} />
+                            ) : null}
+                          </View>
+                        </AnimatedPressable>
+                      </View>
+                    </AnimatedPressable>
+                  </View>
                 </StaggerItem>
               );
             })}
           </View>
         ) : dataSource !== 'new' && hasTimeline ? (
-          <View style={s.timeline}>
-            {timeline.map((item, idx) => (
-              <StaggerItem key={item.item_id} index={idx} delay={60}>
-                <LegacyTimelineCard
-                  item={item}
-                  isFirst={idx === 0}
-                  isLast={idx === timeline.length - 1}
-                />
-              </StaggerItem>
-            ))}
+          <View style={s.agendaTimeline}>
+            {timeline.map((item, idx) => {
+              const catColor = getTimelineCatColor(item.category);
+              const isTogglingThis = toggling === item.item_id;
+
+              return (
+                <StaggerItem key={item.item_id} index={idx} delay={60}>
+                  <View style={s.agendaRow}>
+                    {/* Línea vertical + dot */}
+                    <View style={s.agendaLineCol}>
+                      <View style={[
+                        s.agendaLineSeg,
+                        idx === 0 && { backgroundColor: 'transparent' },
+                      ]} />
+                      <View style={[
+                        s.agendaDot,
+                        item.is_completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
+                      ]}>
+                        {item.is_completed && (
+                          <Ionicons name="checkmark" size={7} color={Colors.black} />
+                        )}
+                      </View>
+                      <View style={[
+                        s.agendaLineSeg,
+                        idx === timeline.length - 1 && { backgroundColor: 'transparent' },
+                      ]} />
+                    </View>
+
+                    {/* Card legacy */}
+                    <AnimatedPressable
+                      onPress={() => { haptic.light(); handleItemPress(item); }}
+                      style={[
+                        s.agendaCard,
+                        { borderLeftColor: catColor },
+                        item.is_completed && s.agendaCardDone,
+                      ]}
+                    >
+                      <View style={s.agendaCardHeader}>
+                        <EliteText variant="caption" style={[
+                          s.agendaTime,
+                          item.is_completed && { color: Colors.neonGreen },
+                        ]}>
+                          {formatTime(item.scheduled_time)}
+                        </EliteText>
+                        <EliteText variant="caption" style={[s.agendaCatLabel, { color: catColor }]}>
+                          {getCategoryLabel(item.category)}
+                        </EliteText>
+                        {item.duration_minutes != null && (
+                          <EliteText variant="caption" style={s.agendaDuration}>
+                            {item.duration_minutes} min
+                          </EliteText>
+                        )}
+                      </View>
+
+                      <View style={s.agendaCardBody}>
+                        <View style={s.agendaCardContent}>
+                          <EliteText variant="body" style={[
+                            s.agendaTitle,
+                            item.is_completed && s.agendaTitleDone,
+                          ]}>
+                            {item.title}
+                          </EliteText>
+                          {item.description && (
+                            <EliteText variant="caption" style={s.agendaSubtitle} numberOfLines={2}>
+                              {item.description}
+                            </EliteText>
+                          )}
+                        </View>
+
+                        {isNavigable(item.link_type) && (
+                          <View style={s.agendaNavChevron}>
+                            <Ionicons name="chevron-forward" size={14} color={Colors.textSecondary} />
+                          </View>
+                        )}
+
+                        <AnimatedPressable
+                          onPress={() => { haptic.light(); handleToggle(item.item_id); }}
+                          disabled={isTogglingThis}
+                          style={s.agendaCheckArea}
+                        >
+                          <View style={[
+                            s.agendaCheckbox,
+                            item.is_completed && s.agendaCheckboxDone,
+                          ]}>
+                            {isTogglingThis ? (
+                              <ActivityIndicator size="small" color={Colors.neonGreen} />
+                            ) : item.is_completed ? (
+                              <Ionicons name="checkmark" size={14} color={Colors.black} />
+                            ) : null}
+                          </View>
+                        </AnimatedPressable>
+                      </View>
+                    </AnimatedPressable>
+                  </View>
+                </StaggerItem>
+              );
+            })}
           </View>
         ) : !loading ? (
           hasChronotype ? (
@@ -699,43 +935,7 @@ export default function TodayScreen() {
           )
         ) : null}
 
-        {/* ── 6. Bottom metrics (wearable) ── */}
-        {wearableData?.recovery != null && (
-          <Animated.View entering={FadeInUp.delay(250).springify()}>
-            <View style={s.bottomMetrics}>
-              <View style={s.metricCard}>
-                <Ionicons name="fitness-outline" size={16} color={
-                  wearableData.recovery >= 80 ? SEMANTIC.success
-                    : wearableData.recovery >= 60 ? SEMANTIC.warning
-                      : SEMANTIC.error
-                } />
-                <EliteText variant="caption" style={s.metricCardLabel}>READINESS</EliteText>
-                <EliteText style={[s.metricCardValue, {
-                  color: wearableData.recovery >= 80 ? SEMANTIC.success
-                    : wearableData.recovery >= 60 ? SEMANTIC.warning
-                      : SEMANTIC.error,
-                }]}>
-                  {wearableData.recovery}
-                </EliteText>
-                <EliteText variant="caption" style={s.metricCardHint}>
-                  {wearableData.recovery >= 80 ? 'Listo' : wearableData.recovery >= 60 ? 'Moderado' : 'Recupera'}
-                </EliteText>
-              </View>
-
-              {wearableData.hrv != null && (
-                <View style={s.metricCard}>
-                  <Ionicons name="pulse-outline" size={16} color={CATEGORY_COLORS.metrics} />
-                  <EliteText variant="caption" style={s.metricCardLabel}>HRV</EliteText>
-                  <EliteText style={[s.metricCardValue, { color: CATEGORY_COLORS.metrics }]}>
-                    {Math.round(wearableData.hrv)}
-                  </EliteText>
-                  <EliteText variant="caption" style={s.metricCardHint}>ms</EliteText>
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
-
+        {/* Espaciado inferior */}
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
 
@@ -749,7 +949,9 @@ export default function TodayScreen() {
   );
 }
 
-// === ESTILOS ===
+// ═══════════════════════════════════════
+// ESTILOS
+// ═══════════════════════════════════════
 
 const s = StyleSheet.create({
   scrollContent: {
@@ -784,24 +986,7 @@ const s = StyleSheet.create({
     fontFamily: Fonts.bold,
   },
 
-  // ── Greeting ──
-  greeting: {
-    fontSize: FontSizes.hero,
-    fontFamily: Fonts.extraBold,
-    color: Colors.textPrimary,
-    marginTop: Spacing.md,
-    letterSpacing: 1,
-  },
-  dateLabel: {
-    color: Colors.textSecondary,
-    letterSpacing: 2,
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-    marginTop: 2,
-    marginBottom: Spacing.lg,
-  },
-
-  // ── HERO con imagen de fondo ──
+  // ── HERO ──
   heroBg: {
     marginHorizontal: -Spacing.md,
     marginTop: -Spacing.sm,
@@ -868,7 +1053,100 @@ const s = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // ── Category filters ──
+  // ── Sección headers ──
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.bold,
+    color: Colors.textSecondary,
+    letterSpacing: 3,
+  },
+  sectionSubtitle: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+  },
+
+  // ── ELECTRON BOARD ──
+  electronGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  electronCard: {
+    width: (SCREEN_WIDTH - Spacing.md * 2 - Spacing.sm) / 2,
+    height: 100,
+    backgroundColor: CARD.bg,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+    padding: Spacing.sm + 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+  },
+  electronIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  electronName: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+    textAlign: 'center',
+  },
+  electronDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+
+  // ── Barras cuantitativas ──
+  quantBars: {
+    marginTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  quantRow: {
+    gap: 4,
+  },
+  quantLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  quantLabel: {
+    flex: 1,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textSecondary,
+  },
+  quantValue: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+    color: Colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  quantTrack: {
+    height: 6,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  quantFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+
+  // ── Filtros ──
   filtersWrap: {
     marginBottom: Spacing.md,
   },
@@ -879,24 +1157,24 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
 
-  // ── Timeline ──
-  timeline: {
+  // ── AGENDA TIMELINE ──
+  agendaTimeline: {
     paddingBottom: Spacing.md,
   },
-  tlRow: {
+  agendaRow: {
     flexDirection: 'row',
     minHeight: 72,
   },
-  tlLineCol: {
+  agendaLineCol: {
     width: 28,
     alignItems: 'center',
   },
-  tlLineSegment: {
+  agendaLineSeg: {
     width: 1.5,
     flex: 1,
     backgroundColor: '#1a1a1a',
   },
-  tlDot: {
+  agendaDot: {
     width: 14,
     height: 14,
     borderRadius: 7,
@@ -906,7 +1184,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tlCard: {
+  agendaCard: {
     flex: 1,
     marginLeft: Spacing.sm,
     marginBottom: Spacing.sm,
@@ -915,94 +1193,94 @@ const s = StyleSheet.create({
     borderLeftWidth: 3,
     padding: Spacing.sm + 2,
   },
-  tlCardCompleted: {
+  agendaCardDone: {
     opacity: 0.5,
   },
-  tlCardSkipped: {
+  agendaCardSkipped: {
     opacity: 0.3,
   },
-  tlCardHeader: {
+  agendaCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
     marginBottom: 4,
   },
-  tlTime: {
+  agendaTime: {
     color: Colors.textSecondary,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
     fontVariant: ['tabular-nums'],
   },
-  tlCategoryLabel: {
+  agendaCatLabel: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
-  tlOverdueBadge: {
+  agendaOverdueBadge: {
     backgroundColor: SEMANTIC.error + '20',
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: Radius.xs,
   },
-  tlOverdueText: {
+  agendaOverdueText: {
     color: SEMANTIC.error,
     fontSize: 8,
     fontFamily: Fonts.bold,
     letterSpacing: 0.5,
   },
-  tlDuration: {
+  agendaDuration: {
     color: Colors.textMuted,
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
     marginLeft: 'auto',
   },
-  tlCardBody: {
+  agendaCardBody: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  tlCardContent: {
+  agendaCardContent: {
     flex: 1,
   },
-  tlTitle: {
+  agendaTitle: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
     color: Colors.textPrimary,
     lineHeight: 20,
   },
-  tlTitleCompleted: {
+  agendaTitleDone: {
     textDecorationLine: 'line-through',
     color: Colors.textSecondary,
   },
-  tlSubtitle: {
+  agendaSubtitle: {
     color: Colors.textSecondary,
     fontSize: FontSizes.sm,
     marginTop: 2,
     lineHeight: 16,
   },
-  tlOpenLink: {
+  agendaOpenLink: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     marginTop: 4,
   },
-  tlExpanded: {
+  agendaExpanded: {
     marginTop: Spacing.xs,
   },
-  tlExpandSep: {
+  agendaExpandSep: {
     height: 0.5,
     backgroundColor: '#1a1a1a',
     marginBottom: Spacing.sm,
   },
-  tlNavChevron: {
+  agendaNavChevron: {
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
-  tlCheckArea: {
+  agendaCheckArea: {
     justifyContent: 'center',
     paddingLeft: Spacing.sm,
   },
-  tlCheckbox: {
+  agendaCheckbox: {
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -1011,40 +1289,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tlCheckboxChecked: {
+  agendaCheckboxDone: {
     backgroundColor: Colors.neonGreen,
     borderColor: Colors.neonGreen,
-  },
-
-  // ── Bottom metrics ──
-  bottomMetrics: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-  metricCard: {
-    flex: 1,
-    backgroundColor: CARD.bg,
-    borderRadius: Radius.card,
-    padding: Spacing.md,
-    alignItems: 'center',
-    gap: 4,
-  },
-  metricCardLabel: {
-    color: '#555',
-    fontSize: 9,
-    fontFamily: Fonts.bold,
-    letterSpacing: 2,
-  },
-  metricCardValue: {
-    fontSize: FontSizes.xxl,
-    fontFamily: Fonts.extraBold,
-    color: Colors.textPrimary,
-  },
-  metricCardHint: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.semiBold,
   },
 
   // ── Toast ──
