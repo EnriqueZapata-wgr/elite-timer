@@ -479,12 +479,28 @@ export default function NutritionScreen() {
             )}
 
             {/* Botón principal iniciar/detener */}
-            <AnimatedPressable onPress={handleFastingPress} style={[s.fastingBtn, isFasting && { borderColor: SEMANTIC.error }]}>
-              <Ionicons name={isFasting ? 'stop-circle-outline' : 'play-circle-outline'} size={18} color={isFasting ? SEMANTIC.error : SEMANTIC.warning} />
-              <EliteText style={{ color: isFasting ? SEMANTIC.error : SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
-                {isFasting ? 'Detener ayuno' : 'Iniciar ayuno'}
-              </EliteText>
-            </AnimatedPressable>
+            {isFasting ? (
+              <View style={{ gap: 8, marginTop: Spacing.sm }}>
+                <AnimatedPressable onPress={() => stopFasting(false)} style={[s.fastingBtn, { borderColor: SEMANTIC.error }]}>
+                  <Ionicons name="stop-circle-outline" size={18} color={SEMANTIC.error} />
+                  <EliteText style={{ color: SEMANTIC.error, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
+                    Romper ayuno
+                  </EliteText>
+                </AnimatedPressable>
+                <Pressable onPress={handleFastingPress} style={{ alignItems: 'center', paddingVertical: 4 }}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs }}>
+                    ¿Rompi a otra hora?
+                  </EliteText>
+                </Pressable>
+              </View>
+            ) : (
+              <AnimatedPressable onPress={handleFastingPress} style={s.fastingBtn}>
+                <Ionicons name="play-circle-outline" size={18} color={SEMANTIC.warning} />
+                <EliteText style={{ color: SEMANTIC.warning, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
+                  Iniciar ayuno
+                </EliteText>
+              </AnimatedPressable>
+            )}
 
             {/* ── Modal: Iniciar ayuno ── */}
             {showFastStartModal && (
@@ -549,20 +565,11 @@ export default function NutritionScreen() {
               </View>
             )}
 
-            {/* ── Modal: Detener ayuno ── */}
+            {/* ── Modal: Elegir hora de cierre ── */}
             {showFastStopModal && (
               <View style={s.fastModal}>
                 <EliteText style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.md, marginBottom: Spacing.sm }}>
-                  Detener ayuno
-                </EliteText>
-
-                <AnimatedPressable onPress={() => stopFasting(false)} style={[s.fastModalBtn, { borderColor: SEMANTIC.error }]}>
-                  <Ionicons name="stop-circle-outline" size={16} color={SEMANTIC.error} />
-                  <EliteText style={{ color: SEMANTIC.error, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>Ahora mismo</EliteText>
-                </AnimatedPressable>
-
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: Spacing.sm, marginBottom: 6 }}>
-                  O elige la hora en que rompiste el ayuno:
+                  ¿A qué hora rompiste el ayuno?
                 </EliteText>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing.sm }}>
                   <TextInput
