@@ -360,7 +360,7 @@ export default function PersonalRecordsScreen() {
   return (
     <View style={styles.screen}>
       {/* ── Header ── */}
-      <ScreenHeader title="Records" />
+      <ScreenHeader title="Récords" />
 
       {/* ── Hero Card — Score Global ── */}
       <Animated.View entering={FadeInUp.delay(50).springify()}>
