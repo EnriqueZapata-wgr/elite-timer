@@ -181,10 +181,10 @@ export default function FoodTextScreen() {
           meal_time: mealTime,
           meal_type: mealType,
           description,
-          calories: totals.calories,
-          protein_g: totals.protein,
-          carbs_g: totals.carbs,
-          fat_g: totals.fat,
+          calories: Math.round(totals.calories * 10) / 10,
+          protein_g: Math.round(totals.protein * 10) / 10,
+          carbs_g: Math.round(totals.carbs * 10) / 10,
+          fat_g: Math.round(totals.fat * 10) / 10,
           notes: extras,
         });
 
