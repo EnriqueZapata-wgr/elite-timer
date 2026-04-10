@@ -37,7 +37,7 @@ export const MEDITATION_LIBRARY: MeditationTemplate[] = [
       { startSeconds: 120, text: 'Enfócate en la exhalación.', instruction: 'Siente el calor del aire al salir. Tu cuerpo se suelta.' },
       { startSeconds: 180, text: 'Si tu mente se fue, está bien.', instruction: 'Sin juzgar, regresa a la respiración. Eso es meditar.' },
       { startSeconds: 240, text: 'Último minuto.', instruction: 'Estás aquí. Estás presente. Eso es suficiente.' },
-      { startSeconds: 280, text: 'Suavemente, regresa.', instruction: 'Mueve los dedos. Abre los ojos cuando estés listo.' },
+      { startSeconds: 280, text: 'Suavemente, regresa.', instruction: 'Mueve los dedos. Abre los ojos cuando sientas que es momento.' },
     ],
   },
   {
@@ -82,7 +82,7 @@ export const MEDITATION_LIBRARY: MeditationTemplate[] = [
   {
     id: 'body-scan-10', title: 'Body scan nocturno', description: 'Relajación progresiva para dormir',
     type: 'body_scan', durationMinutes: 10, category: 'rest', accentColor: P,
-    closingMessage: 'Tu cuerpo está listo para descansar. Buenas noches.',
+    closingMessage: 'Tu cuerpo se prepara para descansar. Buenas noches.',
     phases: [
       { startSeconds: 0, text: 'Acuéstate boca arriba.', instruction: 'Brazos a los lados, palmas hacia arriba. Cierra los ojos.' },
       { startSeconds: 30, text: 'Tres respiraciones largas.', instruction: 'Con cada exhala, siente cómo tu cuerpo se hunde en la cama.' },

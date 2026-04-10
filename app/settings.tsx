@@ -117,7 +117,7 @@ export default function SettingsScreen() {
         setWearableConnected(true);
         setWearableSource(src);
         setWearableLastSync(new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }));
-        Alert.alert('Conectado', `${src} conectado correctamente.`);
+        Alert.alert('Vinculado', `${src} vinculado correctamente.`);
       } else {
         Alert.alert('Permisos', 'No se otorgaron los permisos de salud.');
       }
@@ -165,7 +165,7 @@ export default function SettingsScreen() {
     setConnecting(true);
     try {
       const result = await connectToCoach(code);
-      Alert.alert('Conectado', `Ahora estás conectado con ${result.coach_name}.`);
+      Alert.alert('Vinculado', `Ahora trabajas con ${result.coach_name}.`);
       setConnectCode('');
       loadCoachData();
     } catch (err: any) {
@@ -195,7 +195,7 @@ export default function SettingsScreen() {
   };
 
   const handleDisconnectCoach = (c: CoachConnection) => {
-    Alert.alert('Desconectar coach', `¿Dejar de estar conectado con ${c.profile_name}?`, [
+    Alert.alert('Desvincular coach', `¿Dejar de trabajar con ${c.profile_name}?`, [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Desconectar', style: 'destructive', onPress: async () => {
         await disconnectCoach(c.coach_id).catch(() => {});
