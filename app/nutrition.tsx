@@ -93,20 +93,24 @@ export default function NutritionScreen() {
   const addWater = async (ml: number) => {
     if (!user?.id) return;
     haptic.light();
-    setSummary(prev => ({ ...prev, waterMl: prev.waterMl + ml }));
+    const prevMl = summary.waterMl;
+    const newMl = Math.max(0, prevMl + ml);
+    const delta = newMl - prevMl;
+    if (delta === 0 && ml < 0) return; // ya en 0, no restar más
+    setSummary(prev => ({ ...prev, waterMl: newMl }));
     const dateStr = getLocalToday();
     const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
     try {
       const { data: existing } = await supabase.from('hydration_logs').select('id, total_ml, entries')
         .eq('user_id', user.id).eq('date', dateStr).maybeSingle();
-      const entries = [...((existing?.entries as any[]) ?? []), { time: nowTime, amount_ml: ml }];
-      const total = (existing?.total_ml ?? 0) + ml;
+      const entries = [...((existing?.entries as any[]) ?? []), { time: nowTime, amount_ml: delta }];
+      const total = Math.max(0, (existing?.total_ml ?? 0) + delta);
       if (existing?.id) {
         await supabase.from('hydration_logs').update({ total_ml: total, entries }).eq('id', existing.id);
       } else {
         await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, entries });
       }
-    } catch { setSummary(prev => ({ ...prev, waterMl: prev.waterMl - ml })); }
+    } catch { setSummary(prev => ({ ...prev, waterMl: prevMl })); }
   };
 
   const waterPct = summary.waterGoal > 0 ? Math.min(100, Math.round((summary.waterMl / summary.waterGoal) * 100)) : 0;
@@ -196,6 +200,11 @@ export default function NutritionScreen() {
               </View>
               {/* Botones rápidos */}
               <View style={s.waterBtns}>
+                {summary.waterMl > 0 && (
+                  <AnimatedPressable onPress={() => addWater(-250)} style={s.waterBtnMinus}>
+                    <EliteText style={s.waterBtnMinusText}>-250ml</EliteText>
+                  </AnimatedPressable>
+                )}
                 <AnimatedPressable onPress={() => addWater(250)} style={s.waterBtn}>
                   <EliteText style={s.waterBtnText}>+250ml</EliteText>
                 </AnimatedPressable>
@@ -369,6 +378,20 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.sm,
     marginTop: Spacing.sm,
+  },
+  waterBtnMinus: {
+    flex: 1,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.2)',
+    paddingVertical: 10,
+    borderRadius: Radius.sm,
+    alignItems: 'center',
+  },
+  waterBtnMinusText: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.bold,
+    color: '#ef4444',
   },
   waterBtn: {
     flex: 1,
