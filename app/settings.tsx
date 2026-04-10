@@ -1,3 +1,4 @@
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert, Share, Platform } from 'react-native';
 import Constants from 'expo-constants';
@@ -131,7 +132,7 @@ export default function SettingsScreen() {
   // Sincronizar datos del wearable
   const handleSyncWearable = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalToday();
       const data = await getWearableDataForDate(today);
       if (data) {
         await saveWearableToSupabase(user?.id ?? '', data);

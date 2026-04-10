@@ -4,6 +4,7 @@
  * Estados: NO AYUNANDO (selector de protocolo + historial)
  *          AYUNANDO (timer circular + zona biológica actual)
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -101,7 +102,7 @@ export default function FastingScreen() {
     if (!user?.id) return;
     haptic.success();
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
+    const dateStr = getLocalToday();
     await supabase.from('fasting_logs').upsert({
       user_id: user.id, date: dateStr,
       fast_start: now.toISOString(),

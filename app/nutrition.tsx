@@ -4,6 +4,7 @@
  * Muestra resumen del día + 5 cards de navegación a sub-pantallas:
  * Registrar comida, Ayuno, Hidratación (inline), Glucosa, Analizar.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -54,7 +55,7 @@ export default function NutritionScreen() {
 
   const loadData = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalToday();
     try {
       const [foodRes, waterRes, fastRes, glucoseRes] = await Promise.all([
         supabase.from('food_logs').select('calories, protein_g, carbs_g, fat_g').eq('user_id', user.id).eq('date', today),
@@ -93,7 +94,7 @@ export default function NutritionScreen() {
     if (!user?.id) return;
     haptic.light();
     setSummary(prev => ({ ...prev, waterMl: prev.waterMl + ml }));
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = getLocalToday();
     const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
     try {
       const { data: existing } = await supabase.from('hydration_logs').select('id, total_ml, entries')

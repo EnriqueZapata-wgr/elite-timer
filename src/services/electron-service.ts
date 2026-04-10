@@ -4,12 +4,13 @@
  * Los electrones booleanos de HOY se persisten en daily_electrons (JSONB).
  * El acumulado detallado va en electron_logs (para rangos).
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { ELECTRON_WEIGHTS, type ElectronSource, getRank, getNextRank } from '@/src/constants/electrons';
 
 /** Otorga un electrón booleano del día. Retorna true si se otorgó (no duplicado). */
 export async function awardBooleanElectron(userId: string, source: ElectronSource): Promise<boolean> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   const cfg = ELECTRON_WEIGHTS[source];
 
   // Verificar que no se haya otorgado hoy
@@ -35,7 +36,7 @@ export async function awardBooleanElectron(userId: string, source: ElectronSourc
 
 /** Revoca un electrón booleano del día (cuando se des-togglea). */
 export async function revokeBooleanElectron(userId: string, source: ElectronSource): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   await supabase
     .from('electron_logs')
     .delete()
@@ -61,7 +62,7 @@ export async function getTotalElectrons(userId: string): Promise<number> {
 /** Electrones ganados hoy. */
 export async function getTodayElectronsTotal(userId: string): Promise<number> {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalToday();
     const { data } = await supabase
       .from('electron_logs')
       .select('electrons')

@@ -7,6 +7,7 @@
  * Todos los queries están envueltos en try/catch para degradar
  * graciosamente si alguna tabla no existe.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 
 // === INTERFACES ===
@@ -47,7 +48,7 @@ const WEIGHTS = {
 
 /** Fecha de hoy en formato YYYY-MM-DD */
 function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
+  return getLocalToday();
 }
 
 /** Determina nivel textual a partir del score */

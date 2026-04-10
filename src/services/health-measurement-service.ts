@@ -1,6 +1,7 @@
 /**
  * Health Measurement Service — CRUD de mediciones de salud del usuario.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 
 export interface HealthMeasurement {
@@ -49,7 +50,7 @@ export async function getLatestMeasurement(userId: string): Promise<HealthMeasur
 
 /** Guardar o actualizar medición del día */
 export async function saveMeasurement(userId: string, data: Partial<HealthMeasurement>): Promise<HealthMeasurement> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalToday();
   const payload: Record<string, any> = { user_id: userId, date: today, updated_at: new Date().toISOString() };
   for (const field of FIELDS) {
     if ((data as any)[field] !== undefined) payload[field] = (data as any)[field];

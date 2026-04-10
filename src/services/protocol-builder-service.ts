@@ -4,6 +4,7 @@
  * Flujo: user_protocols activos → acciones ajustadas por cronotipo → daily_plan.
  * Compatible con sistema legacy (003_daily_protocols RPCs) como fallback.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 
 // === TYPES ===
@@ -62,7 +63,7 @@ export interface ComplianceStats {
 // === GENERAR PLAN DIARIO ===
 
 export async function generateDailyPlan(userId: string, date?: string, force = false): Promise<DailyPlan | null> {
-  const targetDate = date || new Date().toISOString().split('T')[0];
+  const targetDate = date || getLocalToday();
 
   // Verificar si ya existe
   if (!force) {

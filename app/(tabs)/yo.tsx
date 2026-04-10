@@ -3,6 +3,7 @@
  *
  * Scores de salud, composición corporal, cronotipo, quizzes, acciones.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -68,7 +69,7 @@ export default function YoScreen() {
     } catch { /* degradar graciosamente */ }
     // Cargar datos de wearable
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalToday();
       const available = await isWearableAvailable();
       if (available) {
         const data = await getWearableDataForDate(today);

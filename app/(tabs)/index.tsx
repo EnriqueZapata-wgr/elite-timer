@@ -5,6 +5,7 @@
  * Sección 2: Electron Board — toggles booleanos (JSONB daily_electrons) + barras cuantitativas.
  * Sección 3: Agenda — timeline de acciones con dots + checkbox.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback, useRef, useMemo } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, ActivityIndicator,
@@ -171,7 +172,7 @@ export default function TodayScreen() {
     useCallback(() => {
       let cancelled = false;
       async function load() {
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalToday();
 
         // Si el plan cargado es de otro día, forzar recarga visual
         if (dayPlan && dayPlan.date !== today) {
@@ -297,7 +298,7 @@ export default function TodayScreen() {
     if (dataSource === 'new' && dayPlan && user?.id) {
       try {
         const updated = await toggleAction(
-          user.id, new Date().toISOString().split('T')[0], actionId,
+          user.id, getLocalToday(), actionId,
         );
         setDayPlan(updated);
       } catch { /* silenciar */ }
@@ -320,7 +321,7 @@ export default function TodayScreen() {
     const next = { ...electrons, [key]: !electrons[key] };
     setElectrons(next);
     if (user?.id) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalToday();
       try {
         await supabase
           .from('daily_electrons')
@@ -336,7 +337,7 @@ export default function TodayScreen() {
   const handleLongPress = (action: PlanAction) => {
     if (dataSource !== 'new' || !dayPlan || !user?.id) return;
     haptic.medium();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalToday();
     Alert.alert(action.name, undefined, [
       { text: 'Completar', onPress: () => handleToggle(action.id) },
       {

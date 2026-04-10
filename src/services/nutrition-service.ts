@@ -1,6 +1,7 @@
 /**
  * Nutrition Service — Planes, food logs, hidratación, ayuno, scores, recetas.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
 
@@ -90,7 +91,7 @@ export async function logFood(data: {
   user_id?: string; date?: string;
 }): Promise<FoodLog> {
   const userId = data.user_id || await getUserId();
-  const date = data.date || new Date().toISOString().split('T')[0];
+  const date = data.date || getLocalToday();
   const { user_id: _, date: __, ...rest } = data;
   const { data: log, error } = await supabase.from('food_logs')
     .insert({ user_id: userId, date, ...rest }).select('*').single();
@@ -100,7 +101,7 @@ export async function logFood(data: {
 
 export async function getFoodLogs(userId?: string, date?: string): Promise<FoodLog[]> {
   const uid = userId || await getUserId();
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || getLocalToday();
   const { data } = await supabase.from('food_logs').select('*')
     .eq('user_id', uid).eq('date', d).order('created_at', { ascending: true });
   return data ?? [];
@@ -216,7 +217,7 @@ export async function reanalyzeFood(ingredients: any[], mealType?: string): Prom
 
 export async function getHydration(date?: string): Promise<HydrationLog> {
   const userId = await getUserId();
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || getLocalToday();
   const { data } = await supabase.from('hydration_logs').select('*')
     .eq('user_id', userId).eq('date', d).single();
   if (data) return data;
@@ -229,7 +230,7 @@ export async function getHydration(date?: string): Promise<HydrationLog> {
 
 export async function addWater(amount_ml: number, type = 'water'): Promise<HydrationLog> {
   const userId = await getUserId();
-  const d = new Date().toISOString().split('T')[0];
+  const d = getLocalToday();
   const log = await getHydration(d);
   const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
   const entries = [...(log.entries ?? []), { time: now, amount_ml, type }];
@@ -252,7 +253,7 @@ export async function getHydrationForUser(userId: string, date: string): Promise
 
 export async function startFast(targetHours = 16): Promise<FastingLog> {
   const userId = await getUserId();
-  const d = new Date().toISOString().split('T')[0];
+  const d = getLocalToday();
   const { data, error } = await supabase.from('fasting_logs')
     .upsert({ user_id: userId, date: d, fast_start: new Date().toISOString(), target_hours: targetHours, status: 'active' },
       { onConflict: 'user_id,date' }).select('*').single();
@@ -262,7 +263,7 @@ export async function startFast(targetHours = 16): Promise<FastingLog> {
 
 export async function endFast(broke_fast_with?: string, energy_during?: number): Promise<FastingLog> {
   const userId = await getUserId();
-  const d = new Date().toISOString().split('T')[0];
+  const d = getLocalToday();
   const { data: log } = await supabase.from('fasting_logs').select('*')
     .eq('user_id', userId).eq('date', d).eq('status', 'active').single();
   if (!log) throw new Error('No hay ayuno activo');
@@ -287,7 +288,7 @@ export async function getActiveFast(): Promise<FastingLog | null> {
 
 export async function getTodayFast(): Promise<FastingLog | null> {
   const userId = await getUserId();
-  const d = new Date().toISOString().split('T')[0];
+  const d = getLocalToday();
   const { data } = await supabase.from('fasting_logs').select('*')
     .eq('user_id', userId).eq('date', d).single();
   return data;
@@ -297,7 +298,7 @@ export async function getTodayFast(): Promise<FastingLog | null> {
 
 export async function calculateDailyScore(userId?: string, date?: string): Promise<DailyNutritionScore> {
   const uid = userId || await getUserId();
-  const d = date || new Date().toISOString().split('T')[0];
+  const d = date || getLocalToday();
 
   const [foods, hydration, fasting, plan] = await Promise.all([
     getFoodLogs(uid, d),

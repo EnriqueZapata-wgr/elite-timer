@@ -4,6 +4,7 @@
  * Permite registrar valor mg/dL, contexto (ayuno/pre/post/random/bedtime),
  * relacionar con tipo de comida, y ver historial de hoy con colores semánticos.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -55,7 +56,7 @@ export default function GlucoseLogScreen() {
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalToday();
     supabase.from('glucose_logs').select('*')
       .eq('user_id', user.id).eq('date', today)
       .order('time', { ascending: false })

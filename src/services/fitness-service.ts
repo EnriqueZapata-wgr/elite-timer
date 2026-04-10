@@ -5,6 +5,7 @@
  *   - PRs de cardio
  *   - Evaluaciones de movilidad
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { generateUUID } from '@/src/services/routine-service';
 
@@ -173,7 +174,7 @@ export async function logCardioSession(input: LogCardioInput): Promise<CardioSav
   const row = {
     id: generateUUID(),
     user_id: user.id,
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalToday(),
     discipline: input.discipline,
     duration_seconds: input.duration_seconds,
     distance_meters: input.distance_meters,

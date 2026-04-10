@@ -5,6 +5,7 @@
  * → navegar a food-scan o food-text con mealType como param.
  * Si llega con mealType param, salta directo a las opciones de registro.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -42,7 +43,7 @@ export default function FoodRegisterScreen() {
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalToday();
     supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
       .eq('user_id', user.id).eq('date', today)
       .order('meal_time', { ascending: true })

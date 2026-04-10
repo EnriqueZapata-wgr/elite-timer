@@ -2,6 +2,7 @@
  * Journal — Escritura reflexiva con 4 tipos: Gratitud, Visión, Estoico, Descarga.
  * Selector de tipo + formulario específico + mood tracking + historial.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -150,7 +151,7 @@ export default function JournalScreen() {
     try {
       await supabase.from('journal_entries').insert({
         user_id: user?.id,
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalToday(),
         journal_type: selectedType,
         content,
         structured_data: structuredData,

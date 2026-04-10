@@ -1,6 +1,7 @@
 /**
  * Cycle Service — Tracking de ciclo menstrual, fases, predicción, ajustes.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 
 // ═══ FASES ═══
@@ -114,25 +115,25 @@ export async function getCycleInfo(userId: string) {
 }
 
 export async function startPeriod(userId: string, date?: string) {
-  const startDate = date ?? new Date().toISOString().split('T')[0];
+  const startDate = date ?? getLocalToday();
   return supabase.from('cycle_periods').insert({ user_id: userId, start_date: startDate });
 }
 
 export async function endPeriod(userId: string) {
   const { data } = await supabase.from('cycle_periods').select('id').eq('user_id', userId).is('end_date', null).order('start_date', { ascending: false }).limit(1);
-  if (data?.[0]) await supabase.from('cycle_periods').update({ end_date: new Date().toISOString().split('T')[0] }).eq('id', data[0].id);
+  if (data?.[0]) await supabase.from('cycle_periods').update({ end_date: getLocalToday() }).eq('id', data[0].id);
 }
 
 export async function logSymptoms(userId: string, symptoms: Record<string, any>) {
   const info = await getCycleInfo(userId);
   return supabase.from('cycle_symptoms').upsert({
-    user_id: userId, date: new Date().toISOString().split('T')[0],
+    user_id: userId, date: getLocalToday(),
     cycle_day: info?.currentDay ?? null, phase: info?.currentPhase ?? null,
     ...symptoms,
   }, { onConflict: 'user_id,date' });
 }
 
 export async function getTodaySymptoms(userId: string) {
-  const { data } = await supabase.from('cycle_symptoms').select('*').eq('user_id', userId).eq('date', new Date().toISOString().split('T')[0]).single();
+  const { data } = await supabase.from('cycle_symptoms').select('*').eq('user_id', userId).eq('date', getLocalToday()).single();
   return data;
 }

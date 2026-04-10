@@ -3,6 +3,7 @@
  * Busca en la base de datos local, calcula macros en tiempo real,
  * y guarda directamente en food_logs vía Supabase.
  */
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useMemo, useCallback } from 'react';
 import {
   View, StyleSheet, ScrollView, TextInput, Pressable,
@@ -161,7 +162,7 @@ export default function FoodTextScreen() {
 
     setSaving(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalToday();
       const mealTime = `${timeHH.padStart(2, '0')}:${timeMM.padStart(2, '0')}:00`;
 
       haptic.success();
