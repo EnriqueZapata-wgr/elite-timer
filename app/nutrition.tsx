@@ -217,14 +217,25 @@ export default function NutritionScreen() {
             />
           </Animated.View>
 
-          {/* Analizar productos */}
+          {/* Escanear etiqueta */}
           <Animated.View entering={FadeInUp.delay(260).springify()}>
             <NavCard
-              icon="scan-outline"
+              icon="barcode-outline"
               color="#a8e02a"
-              title="Analizar productos"
-              subtitle="Etiquetas · Suplementos"
-              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'food' } } as any); }}
+              title="Escanear etiqueta"
+              subtitle="Foto de producto → aditivos y calidad"
+              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } } as any); }}
+            />
+          </Animated.View>
+
+          {/* Evaluar suplemento */}
+          <Animated.View entering={FadeInUp.delay(300).springify()}>
+            <NavCard
+              icon="medical-outline"
+              color="#fbbf24"
+              title="Evaluar suplemento"
+              subtitle="Evalúa calidad y dosis"
+              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } } as any); }}
             />
           </Animated.View>
         </View>
