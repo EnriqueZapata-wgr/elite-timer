@@ -123,6 +123,9 @@ export default function RootLayout() {
                 <Stack.Screen name="onboarding-complete" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="journal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="cycle-charts" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="cycle-history" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="cycle-settings" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-register" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="fasting" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="glucose-log" options={{ headerShown: false, animation: 'slide_from_right' }} />
