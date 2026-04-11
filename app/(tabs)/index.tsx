@@ -34,6 +34,7 @@ import { haptic } from '@/src/utils/haptics';
 import { ELECTRON_WEIGHTS as ELECTRON_W } from '@/src/constants/electrons';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
+import { EditDayModal, type AgendaAction } from '@/src/components/hoy/EditDayModal';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { renderActionContent } from '@/src/components/hoy/ActionContentRenderer';
 import { supabase } from '@/src/lib/supabase';
@@ -148,6 +149,9 @@ export default function TodayScreen() {
   const [toggling, setToggling] = useState<string | null>(null);
   const [hasChronotype, setHasChronotype] = useState(false);
   const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [activeBooleanKeys, setActiveBooleanKeys] = useState(['sunlight','meditation','supplements','cold_shower','grounding','no_alcohol']);
+  const [activeQuantKeys, setActiveQuantKeys] = useState(['protein','steps','water']);
   const [wearableData, setWearableData] = useState<WearableData | null>(null);
 
   // --- Estado de electrones ---
@@ -229,6 +233,19 @@ export default function TodayScreen() {
                 setElectrons((electronRow.electrons as Record<string, boolean>) ?? {});
               }
             } catch { /* tabla puede no existir aún */ }
+
+            // Cargar preferencias de electrones
+            try {
+              const { data: prefs } = await supabase
+                .from('user_day_preferences')
+                .select('active_boolean_electrons, active_quantitative_electrons')
+                .eq('user_id', user.id)
+                .maybeSingle();
+              if (!cancelled && prefs) {
+                if (prefs.active_boolean_electrons) setActiveBooleanKeys(prefs.active_boolean_electrons);
+                if (prefs.active_quantitative_electrons) setActiveQuantKeys(prefs.active_quantitative_electrons);
+              }
+            } catch { /* tabla puede no existir */ }
 
             // Cargar datos cuantitativos (proteína, pasos, agua)
             try {
@@ -494,19 +511,20 @@ export default function TodayScreen() {
   let electronEarned = 0;
   let electronPossible = 0;
 
+  // Solo electrones activos del usuario
+  const activeBooleans = BOOLEAN_ELECTRONS.filter(el => activeBooleanKeys.includes(el.key));
+
   // Booleanos con peso
-  for (const el of BOOLEAN_ELECTRONS) {
+  for (const el of activeBooleans) {
     const w = (ELECTRON_W as any)[el.key]?.weight ?? 1;
     electronPossible += w;
     if (electrons[el.key]) electronEarned += w;
   }
 
   // Cuantitativos proporcional al %
-  const quantEntries = [
-    { key: 'protein', current: quantData.protein, target: proteinGoal },
-    { key: 'steps',   current: stepsCount ?? 0,   target: stepsGoal },
-    { key: 'water',   current: quantData.water,    target: waterGoal },
-  ];
+  const quantEntries = activeQuantKeys.includes('protein') ? [{ key: 'protein', current: quantData.protein, target: proteinGoal }] : [];
+  if (activeQuantKeys.includes('steps')) quantEntries.push({ key: 'steps', current: stepsCount ?? 0, target: stepsGoal });
+  if (activeQuantKeys.includes('water')) quantEntries.push({ key: 'water', current: quantData.water, target: waterGoal });
   for (const q of quantEntries) {
     const w = QUANT_WEIGHTS[q.key] ?? 1;
     electronPossible += w;
@@ -607,7 +625,7 @@ export default function TodayScreen() {
 
           {/* Grid booleano 2 columnas */}
           <View style={s.electronGrid}>
-            {BOOLEAN_ELECTRONS.map((el) => {
+            {activeBooleans.map((el) => {
               const done = !!electrons[el.key];
               return (
                 <AnimatedPressable
@@ -705,6 +723,34 @@ export default function TodayScreen() {
             </View>
           </View>
         </Animated.View>
+
+        {/* Botón editar mi día */}
+        <AnimatedPressable onPress={() => { haptic.light(); setEditModalVisible(true); }} style={s.editDayBtn}>
+          <Ionicons name="create-outline" size={16} color="#666" />
+          <Text style={s.editDayBtnText}>Editar mi día</Text>
+        </AnimatedPressable>
+
+        <EditDayModal
+          visible={editModalVisible}
+          onClose={() => setEditModalVisible(false)}
+          activeBooleans={activeBooleanKeys}
+          activeQuantitatives={activeQuantKeys}
+          agendaActions={filteredActions.map(a => ({ id: a.id, name: a.name || '', time: a.scheduled_time || '', category: a.category, completed: a.completed }))}
+          onSave={async (bools, quants, _actions) => {
+            setActiveBooleanKeys(bools);
+            setActiveQuantKeys(quants);
+            if (user?.id) {
+              try {
+                await supabase.from('user_day_preferences').upsert({
+                  user_id: user.id,
+                  active_boolean_electrons: bools,
+                  active_quantitative_electrons: quants,
+                  updated_at: new Date().toISOString(),
+                }, { onConflict: 'user_id' });
+              } catch { /* tabla puede no existir */ }
+            }
+          }}
+        />
 
         {/* ═══════════════════════════════════════
             SECCIÓN 3: AGENDA TIMELINE
@@ -1153,6 +1199,22 @@ const s = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     lineHeight: 20,
+  },
+
+  // ── Edit day button ──
+  editDayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginTop: 8,
+  },
+  editDayBtnText: {
+    color: '#666',
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
   },
 
   // ── Sección headers ──
