@@ -202,13 +202,13 @@ export default function FitnessHubScreen() {
             </GradientCard>
           </AnimatedPressable>
 
-          <AnimatedPressable onPress={() => { haptic.light(); router.push('/builder'); }} style={s.areaCardWrap}>
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-routines' as any); }} style={s.areaCardWrap}>
             <GradientCard gradient={{ start: 'rgba(168,224,42,0.08)', end: 'rgba(168,224,42,0.03)' }} accentColor="#a8e02a" accentPosition="left" padding={18}>
               <View style={s.areaRow}>
                 <Ionicons name="construct-outline" size={24} color="#a8e02a" style={s.areaIcon} />
                 <View style={{ flex: 1 }}>
                   <EliteText style={s.areaTitle}>Mis rutinas</EliteText>
-                  <EliteText style={s.areaSub}>Crear y gestionar rutinas y timers</EliteText>
+                  <EliteText style={s.areaSub}>Tus rutinas y timers guardados</EliteText>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
               </View>
