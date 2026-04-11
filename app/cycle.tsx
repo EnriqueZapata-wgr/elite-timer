@@ -479,12 +479,33 @@ export default function CycleScreen() {
                 const isOv = dateStr === predictions.ovDay;
                 const isFert = predictions.fertileDays.has(dateStr) && !isOv;
 
-                // Determinar color de fondo
+                // Calcular día del ciclo para colorear fases
                 let bg = 'transparent';
-                if (isPer) bg = isFut ? withOpacity(RED, 0.3) : RED;
-                else if (predPer && isFut) bg = withOpacity(RED, 0.15);
-                else if (isOv) bg = withOpacity(YELLOW, 0.2);
-                else if (isFert) bg = withOpacity(GREEN, 0.12);
+                if (isPer) {
+                  bg = isFut ? withOpacity(RED, 0.3) : RED;
+                } else if (predPer && isFut) {
+                  bg = withOpacity(RED, 0.15);
+                } else if (isOv) {
+                  bg = isFut ? withOpacity(YELLOW, 0.15) : withOpacity(YELLOW, 0.4);
+                } else if (isFert) {
+                  bg = isFut ? withOpacity(GREEN, 0.1) : withOpacity(GREEN, 0.35);
+                } else if (lastPeriodStart) {
+                  // Colorear fases folicular y lútea
+                  const daysDiff = Math.floor((new Date(dateStr + 'T12:00:00').getTime() - new Date(lastPeriodStart + 'T12:00:00').getTime()) / 86400000);
+                  const cycleDay = daysDiff >= 0 ? (daysDiff % settings.avg_cycle_length) + 1 : -1;
+                  const ovDay = Math.round(settings.avg_cycle_length / 2);
+                  const fertStart = ovDay - 3;
+                  const fertEnd = ovDay + 1;
+                  const BLUE_PHASE = '#38bdf8';
+                  const PURPLE_PHASE = '#c084fc';
+                  if (cycleDay > settings.avg_period_length && cycleDay < fertStart) {
+                    // Folicular
+                    bg = isFut ? withOpacity(BLUE_PHASE, 0.08) : withOpacity(BLUE_PHASE, 0.25);
+                  } else if (cycleDay > fertEnd && cycleDay <= settings.avg_cycle_length) {
+                    // Lútea
+                    bg = isFut ? withOpacity(PURPLE_PHASE, 0.06) : withOpacity(PURPLE_PHASE, 0.2);
+                  }
+                }
 
                 return (
                   <Pressable
@@ -513,8 +534,10 @@ export default function CycleScreen() {
             <View style={st.legend}>
               {[
                 { c: RED, t: 'Período' },
-                { c: YELLOW, t: 'Ovulación' },
+                { c: '#38bdf8', t: 'Folicular' },
                 { c: GREEN, t: 'Fértil' },
+                { c: YELLOW, t: 'Ovulación' },
+                { c: '#c084fc', t: 'Lútea' },
               ].map(l => (
                 <View key={l.t} style={st.legendItem}>
                   <View style={[st.legendDot, { backgroundColor: l.c }]} />
