@@ -24,6 +24,11 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { generateUUID } from '@/src/services/routine-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { TRAINING_METHODS, type TrainingMethodId } from '@/src/constants/training-methods';
+import { Method35 } from '@/src/components/training/Method35';
+import { EMOMAuto } from '@/src/components/training/EMOMAuto';
+import { MyoReps } from '@/src/components/training/MyoReps';
+import { awardBooleanElectron } from '@/src/services/electron-service';
 
 // === TIPOS LOCALES ===
 
@@ -85,6 +90,7 @@ export default function LogExerciseScreen() {
     { id: generateUUID(), reps: '', weight: '', rir: '' },
   ]);
   const [saving, setSaving] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<TrainingMethodId>('standard');
 
   // --- Modal de agregar variante ---
   const [variantModalVisible, setVariantModalVisible] = useState(false);
@@ -335,6 +341,105 @@ export default function LogExerciseScreen() {
     }
   }
 
+  // === MÉTODO COMPLETADO (3-5, EMOM, Myo Reps) ===
+
+  async function handleMethodComplete(result: any) {
+    haptic.success();
+
+    if (!selectedVariant || !user) return;
+
+    const today = getLocalToday();
+    const now = new Date().toISOString();
+
+    try {
+      // Guardar sets según el método
+      let rows: any[] = [];
+
+      if (result.sets) {
+        // Method 3-5 → array de { weight, reps, feedback }
+        rows = result.sets.map((s: any, i: number) => ({
+          id: generateUUID(),
+          user_id: user.id,
+          exercise_id: selectedVariant.id,
+          set_number: i + 1,
+          reps: s.reps,
+          weight_kg: s.weight,
+          rir: null,
+          rpe: null,
+          logged_at: now,
+          date: today,
+          metadata: { method: selectedMethod, feedback: s.feedback },
+        }));
+      } else if (result.rounds) {
+        // EMOM Auto → rounds array + debt
+        rows = result.rounds.map((reps: number, i: number) => ({
+          id: generateUUID(),
+          user_id: user.id,
+          exercise_id: selectedVariant.id,
+          set_number: i + 1,
+          reps,
+          weight_kg: null,
+          rir: null,
+          rpe: null,
+          logged_at: now,
+          date: today,
+          metadata: { method: 'emom_auto', debt: result.debt, weightFeedback: result.weightFeedback },
+        }));
+      } else if (result.overloadSets) {
+        // Myo Reps → activation + overloads
+        const activation = {
+          id: generateUUID(),
+          user_id: user.id,
+          exercise_id: selectedVariant.id,
+          set_number: 1,
+          reps: result.activationReps,
+          weight_kg: null,
+          rir: null,
+          rpe: null,
+          logged_at: now,
+          date: today,
+          metadata: { method: 'myo_reps', type: 'activation' },
+        };
+        const overloads = result.overloadSets.map((reps: number, i: number) => ({
+          id: generateUUID(),
+          user_id: user.id,
+          exercise_id: selectedVariant.id,
+          set_number: i + 2,
+          reps,
+          weight_kg: null,
+          rir: null,
+          rpe: null,
+          logged_at: now,
+          date: today,
+          metadata: { method: 'myo_reps', type: 'overload', failedAt: result.failedAt },
+        }));
+        rows = [activation, ...overloads];
+      }
+
+      if (rows.length > 0) {
+        const { error } = await supabase.from('exercise_logs').insert(rows);
+        if (error) throw error;
+      }
+
+      // Award electron
+      await awardBooleanElectron(user.id, 'strength');
+      DeviceEventEmitter.emit('electrons_changed');
+      DeviceEventEmitter.emit('day_changed');
+
+      // Mostrar feedback de peso
+      const feedback = result.weightFeedback || result.sets?.[result.sets.length - 1]?.feedback;
+      if (feedback) {
+        Alert.alert('Ajuste de peso', feedback, [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+      } else {
+        router.back();
+      }
+    } catch (err) {
+      Alert.alert('Error', 'No se pudieron guardar los datos del método.');
+    }
+  }
+
   // === AGREGAR VARIANTE ===
 
   async function handleAddVariant() {
@@ -547,6 +652,40 @@ export default function LogExerciseScreen() {
               )}
             </GradientCard>
 
+            {/* Selector de método */}
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ color: '#999', fontSize: 10, fontWeight: '600', letterSpacing: 1, marginBottom: 8 }}>MÉTODO</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {Object.values(TRAINING_METHODS).map(method => (
+                    <Pressable
+                      key={method.id}
+                      onPress={() => {
+                        setSelectedMethod(method.id as TrainingMethodId);
+                        haptic.light();
+                      }}
+                    >
+                      <View style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 6,
+                        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+                        backgroundColor: selectedMethod === method.id ? `${method.color}20` : '#1a1a1a',
+                        borderWidth: 1,
+                        borderColor: selectedMethod === method.id ? method.color : '#333',
+                      }}>
+                        <Ionicons name={method.icon as any} size={14} color={selectedMethod === method.id ? method.color : '#666'} />
+                        <Text style={{ color: selectedMethod === method.id ? method.color : '#666', fontSize: 12, fontWeight: '600' }}>
+                          {method.name}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* === MÉTODO ESTÁNDAR (set logger original) === */}
+            {selectedMethod === 'standard' && (<>
+
             {/* Encabezados de columnas */}
             <View style={s.colHeaders}>
               <View style={s.colSet}><Text style={s.colLabel}>SET</Text></View>
@@ -665,6 +804,36 @@ export default function LogExerciseScreen() {
                 {saving ? 'GUARDANDO...' : 'GUARDAR'}
               </Text>
             </AnimatedPressable>
+
+            </>)}
+
+            {/* === MÉTODO 3-5 === */}
+            {selectedMethod === 'method_3_5' && (
+              <Method35
+                exerciseName={activeExercise.name_es}
+                userLevel="intermediate"
+                lastWeight={activePR?.weight_kg}
+                onComplete={(sets) => handleMethodComplete({ sets })}
+              />
+            )}
+
+            {/* === EMOM AUTO === */}
+            {selectedMethod === 'emom_auto' && (
+              <EMOMAuto
+                exerciseName={activeExercise.name_es}
+                userLevel="intermediate"
+                onComplete={handleMethodComplete}
+              />
+            )}
+
+            {/* === MYO REPS === */}
+            {selectedMethod === 'myo_reps' && (
+              <MyoReps
+                exerciseName={activeExercise.name_es}
+                onComplete={handleMethodComplete}
+              />
+            )}
+
           </Animated.View>
         )}
 
