@@ -8,6 +8,7 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   View, StyleSheet, ScrollView, TextInput, Pressable,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
+  DeviceEventEmitter,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -210,6 +211,7 @@ export default function FoodTextScreen() {
         return;
       }
 
+      DeviceEventEmitter.emit('day_changed');
       router.back();
     } catch (err: any) {
       Alert.alert('Error al guardar', err.message || 'Intenta de nuevo');

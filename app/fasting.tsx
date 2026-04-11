@@ -6,7 +6,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -121,6 +121,7 @@ export default function FastingScreen() {
     setFastStart(now);
     setTargetHours(selectedProtocol);
     setElapsedSecs(0);
+    DeviceEventEmitter.emit('day_changed');
   };
 
   const breakFast = async () => {
@@ -141,6 +142,7 @@ export default function FastingScreen() {
     setIsFasting(false);
     setFastStart(null);
     setElapsedSecs(0);
+    DeviceEventEmitter.emit('day_changed');
     Alert.alert('Ayuno completado', `Duraste ${Math.floor(actualH)}h ${Math.round((actualH % 1) * 60)}m`);
   };
 

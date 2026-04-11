@@ -129,6 +129,7 @@ export default function RootLayout() {
                 <Stack.Screen name="food-register" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="fasting" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="glucose-log" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="food-preferences" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-text" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="fitness-hub" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="fitness-strength" options={{ headerShown: false, animation: 'slide_from_right' }} />

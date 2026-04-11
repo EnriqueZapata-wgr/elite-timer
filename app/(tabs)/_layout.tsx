@@ -9,12 +9,11 @@
  * como archivos para no romper rutas, pero están ocultas del tab bar.
  */
 import { useState } from 'react';
-import { useWindowDimensions, View, Text, Pressable, StyleSheet } from 'react-native';
+import { useWindowDimensions, View, Pressable, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { useCoachStatus } from '@/src/hooks/useCoachStatus';
-import { useElectronTotal } from '@/src/hooks/useElectronTotal';
 import { CoachPanelLayout } from '@/src/screens/coach/CoachPanelLayout';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, CATEGORY_COLORS } from '@/src/constants/brand';
@@ -24,7 +23,6 @@ const COACH_PANEL_MIN_WIDTH = 1024;
 export default function TabLayout() {
   const { width } = useWindowDimensions();
   const { isCoach } = useCoachStatus();
-  const { total: electronTotal } = useElectronTotal();
   const [forceAthleteView, setForceAthleteView] = useState(false);
 
   const showCoachPanel = width >= COACH_PANEL_MIN_WIDTH && isCoach && !forceAthleteView;
@@ -73,16 +71,7 @@ export default function TabLayout() {
           options={{
             title: 'Hoy',
             tabBarIcon: ({ color, focused }) => (
-              <View style={styles.tabIconWrap}>
-                <Ionicons name={focused ? 'flash' : 'flash-outline'} size={24} color={color} />
-                {electronTotal > 0 && (
-                  <View style={styles.electronBadge}>
-                    <Text style={styles.electronBadgeText}>
-                      {electronTotal >= 1000 ? `${(electronTotal / 1000).toFixed(1)}k` : electronTotal}
-                    </Text>
-                  </View>
-                )}
-              </View>
+              <Ionicons name={focused ? 'flash' : 'flash-outline'} size={24} color={color} />
             ),
           }}
         />
@@ -138,26 +127,5 @@ const styles = StyleSheet.create({
     color: CATEGORY_COLORS.metrics,
     fontFamily: Fonts.semiBold,
     fontSize: 12,
-  },
-  tabIconWrap: {
-    width: 50,
-    alignItems: 'center',
-  },
-  electronBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -16,
-    backgroundColor: '#a8e02a',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  electronBadgeText: {
-    color: '#000',
-    fontSize: 9,
-    fontWeight: '800',
   },
 });

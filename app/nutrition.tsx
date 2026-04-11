@@ -6,7 +6,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -110,6 +110,7 @@ export default function NutritionScreen() {
       } else {
         await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, entries });
       }
+      DeviceEventEmitter.emit('day_changed');
     } catch { setSummary(prev => ({ ...prev, waterMl: prevMl })); }
   };
 
