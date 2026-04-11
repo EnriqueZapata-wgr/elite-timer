@@ -19,6 +19,11 @@ export function isToday(dateString: string): boolean {
   return dateString === getLocalToday();
 }
 
+/** Retorna la hora actual local (0-23). */
+export function getLocalHour(): number {
+  return new Date().getHours();
+}
+
 /** Retorna YYYY-MM-DD local para una fecha dada. */
 export function toLocalDateString(date: Date): string {
   const year = date.getFullYear();
