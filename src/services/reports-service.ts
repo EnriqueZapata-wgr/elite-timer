@@ -301,3 +301,89 @@ export async function getFastingReport(period: ReportPeriod): Promise<FastingRep
     return empty;
   }
 }
+
+// === ELECTRONES ===
+
+export interface ElectronReport {
+  daily: DailyPoint[];
+  avgPerDay: number;
+  total: number;
+  bestDay: number;
+}
+
+export async function getElectronReport(period: ReportPeriod): Promise<ElectronReport> {
+  const empty: ElectronReport = { daily: [], avgPerDay: 0, total: 0, bestDay: 0 };
+  try {
+    const userId = await getUserId();
+    if (!userId) return empty;
+    const days = periodDays(period);
+    const dateRange = buildDateRange(days);
+    const startDate = dateRange[0];
+
+    const { data } = await supabase.from('electron_logs').select('date, electrons')
+      .eq('user_id', userId).gte('date', startDate);
+
+    const byDate = new Map<string, number>();
+    for (const row of (data ?? []) as any[]) {
+      const prev = byDate.get(row.date) ?? 0;
+      byDate.set(row.date, prev + Number(row.electrons ?? 0));
+    }
+
+    const daily: DailyPoint[] = dateRange.map(d => ({
+      date: d, label: shortLabel(d), value: Math.round((byDate.get(d) ?? 0) * 10) / 10,
+    }));
+
+    const vals = Array.from(byDate.values());
+    const total = vals.reduce((s, v) => s + v, 0);
+    const avgPerDay = vals.length > 0 ? Math.round((total / vals.length) * 10) / 10 : 0;
+    const bestDay = vals.length > 0 ? Math.round(Math.max(...vals) * 10) / 10 : 0;
+
+    return { daily, avgPerDay, total: Math.round(total * 10) / 10, bestDay };
+  } catch { return empty; }
+}
+
+// === GLUCOSA ===
+
+export interface GlucoseReport {
+  daily: DailyPoint[];
+  avgFasting: number;
+  avgPostMeal: number;
+  readings: number;
+}
+
+export async function getGlucoseReport(period: ReportPeriod): Promise<GlucoseReport> {
+  const empty: GlucoseReport = { daily: [], avgFasting: 0, avgPostMeal: 0, readings: 0 };
+  try {
+    const userId = await getUserId();
+    if (!userId) return empty;
+    const days = periodDays(period);
+    const startDate = buildDateRange(days)[0];
+
+    const { data } = await supabase.from('glucose_logs')
+      .select('date, value_mg_dl, context')
+      .eq('user_id', userId).gte('date', startDate).order('date');
+
+    if (!data || data.length === 0) return empty;
+
+    const daily: DailyPoint[] = [];
+    const byDate = new Map<string, number[]>();
+    const fastingVals: number[] = [];
+    const postMealVals: number[] = [];
+
+    for (const row of data as any[]) {
+      const vals = byDate.get(row.date) ?? [];
+      vals.push(row.value_mg_dl);
+      byDate.set(row.date, vals);
+      if (row.context === 'fasting') fastingVals.push(row.value_mg_dl);
+      if (row.context?.startsWith('post_meal')) postMealVals.push(row.value_mg_dl);
+    }
+
+    for (const [date, vals] of byDate.entries()) {
+      daily.push({ date, label: shortLabel(date), value: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) });
+    }
+
+    const avg = (arr: number[]) => arr.length > 0 ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+    return { daily, avgFasting: avg(fastingVals), avgPostMeal: avg(postMealVals), readings: data.length };
+  } catch { return empty; }
+}
