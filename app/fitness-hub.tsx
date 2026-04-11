@@ -8,7 +8,7 @@
  *   - HIIT/Timer:/fitness-hiit
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -139,6 +139,24 @@ export default function FitnessHubScreen() {
           </GradientCard>
         </Animated.View>
 
+        {/* Botón registrar sesión */}
+        <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.md }}>
+          <AnimatedPressable onPress={() => {
+            haptic.medium();
+            Alert.alert('Registrar sesión', '¿Qué tipo de sesión?', [
+              { text: 'Fuerza', onPress: () => router.push('/log-exercise') },
+              { text: 'Cardio', onPress: () => router.push('/log-cardio' as any) },
+              { text: 'Timer/HIIT', onPress: () => router.push('/timer') },
+              { text: 'Cancelar', style: 'cancel' },
+            ]);
+          }}>
+            <View style={s.registerBtn}>
+              <Ionicons name="add-circle" size={22} color="#000" />
+              <EliteText style={s.registerBtnText}>REGISTRAR SESIÓN</EliteText>
+            </View>
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* 4 cards de navegación */}
         <View style={{ marginTop: Spacing.lg }}>
           <SectionTitle>EXPLORAR</SectionTitle>
@@ -167,6 +185,35 @@ export default function FitnessHubScreen() {
               </AnimatedPressable>
             </Animated.View>
           ))}
+        </View>
+
+        {/* Récords y Rutinas */}
+        <View style={{ marginTop: Spacing.md }}>
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/personal-records'); }} style={s.areaCardWrap}>
+            <GradientCard gradient={{ start: 'rgba(251,191,36,0.08)', end: 'rgba(251,191,36,0.03)' }} accentColor="#fbbf24" accentPosition="left" padding={18}>
+              <View style={s.areaRow}>
+                <Ionicons name="trophy-outline" size={24} color="#fbbf24" style={s.areaIcon} />
+                <View style={{ flex: 1 }}>
+                  <EliteText style={s.areaTitle}>Récords personales</EliteText>
+                  <EliteText style={s.areaSub}>Tus mejores marcas</EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </View>
+            </GradientCard>
+          </AnimatedPressable>
+
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/builder'); }} style={s.areaCardWrap}>
+            <GradientCard gradient={{ start: 'rgba(168,224,42,0.08)', end: 'rgba(168,224,42,0.03)' }} accentColor="#a8e02a" accentPosition="left" padding={18}>
+              <View style={s.areaRow}>
+                <Ionicons name="construct-outline" size={24} color="#a8e02a" style={s.areaIcon} />
+                <View style={{ flex: 1 }}>
+                  <EliteText style={s.areaTitle}>Mis rutinas</EliteText>
+                  <EliteText style={s.areaSub}>Crear y gestionar rutinas y timers</EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </View>
+            </GradientCard>
+          </AnimatedPressable>
         </View>
 
         <View style={{ height: 80 }} />
@@ -214,6 +261,22 @@ const s = StyleSheet.create({
     width: 0.5,
     height: 36,
     backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+
+  // Register button
+  registerBtn: {
+    backgroundColor: '#a8e02a',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  registerBtnText: {
+    color: '#000',
+    fontSize: 16,
+    fontFamily: Fonts.extraBold,
   },
 
   // Areas
