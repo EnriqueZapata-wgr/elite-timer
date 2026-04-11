@@ -426,9 +426,37 @@ export default function TodayScreen() {
   const completionStats = getCompletionStats(timeline);
   const hasTimeline = timeline.length > 0;
 
+  // Palabras clave de acciones que ya son electrones (no deben estar en agenda)
+  const ELECTRON_KW = [
+    'pasos', 'steps', 'proteína', 'protein', 'agua', 'water', 'hidratación',
+    'dormir', 'sleep', 'sueño', 'alcohol', 'suplementos', 'supplements',
+    'grounding', 'meditación', 'meditation', 'baño frío', 'cold', 'lentes',
+    'breathwork', 'respiración', 'luz solar', 'sunlight',
+  ];
+  const isElectronAction = (a: PlanAction) => {
+    const name = (a.name || '').toLowerCase();
+    return ELECTRON_KW.some(kw => name.includes(kw));
+  };
+
+  // Deduplicar por nombre+hora
+  function deduplicateActions(actions: PlanAction[]): PlanAction[] {
+    const seen = new Set<string>();
+    return actions.filter(a => {
+      const key = `${a.scheduled_time || ''}-${(a.name || '').toLowerCase()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
   const filteredActions = useMemo(() => {
-    const actions = dayPlan?.actions ?? [];
-    if (activeFilter === 'TODO') return actions;
+    const raw = dayPlan?.actions ?? [];
+    // 1) Quitar acciones tipo electrón (goals de todo el día)
+    const agendaOnly = raw.filter(a => !isElectronAction(a));
+    // 2) Deduplicar
+    const unique = deduplicateActions(agendaOnly);
+    // 3) Filtro por categoría
+    if (activeFilter === 'TODO') return unique;
     const filterMap: Record<string, string[]> = {
       'FITNESS': ['fitness', 'exercise'],
       'NUTRICION': ['nutrition', 'meal', 'supplement'],
@@ -436,7 +464,7 @@ export default function TodayScreen() {
       'HABITOS': ['habit', 'optimization', 'sleep', 'rest'],
     };
     const cats = filterMap[activeFilter] || [];
-    return actions.filter(a =>
+    return unique.filter(a =>
       cats.some(c =>
         (a.category || '').toLowerCase().includes(c) || (a.link_type || '').includes(c),
       ),
