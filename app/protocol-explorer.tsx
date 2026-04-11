@@ -63,6 +63,25 @@ function getCatColor(cat: string): string {
   return map[cat] || ATP_BRAND.lime;
 }
 
+// Descripciones claras de qué esperar de cada protocolo
+const PROTOCOL_HINTS: Record<string, string> = {
+  'anti-inflamatorio': 'Reduce inflamación con luz solar, ayuno y alimentación limpia.',
+  'quema de grasa': 'Activa lipólisis con ayuno intermitente y ejercicio en ayunas.',
+  'metabolismo': 'Optimiza metabolismo basal con fuerza, proteína y sueño.',
+  'principiante': 'Tu punto de partida: hidratación, sueño, movimiento.',
+  'energía': 'Maximiza energía natural con sol, ejercicio y suplementación.',
+  'hormonal': 'Equilibra hormonas con protocolos de sueño, frío y nutrición.',
+  'sleep': 'Mejora calidad de sueño con rutinas nocturnas y luz.',
+};
+
+function getProtocolHint(name: string): string | null {
+  const key = name.toLowerCase();
+  for (const [pattern, hint] of Object.entries(PROTOCOL_HINTS)) {
+    if (key.includes(pattern)) return hint;
+  }
+  return null;
+}
+
 // === PANTALLA PRINCIPAL ===
 
 export default function ProtocolExplorerScreen() {
@@ -218,6 +237,11 @@ export default function ProtocolExplorerScreen() {
                             <EliteText variant="caption" style={styles.templateDesc}>
                               {t.description}
                             </EliteText>
+                            {getProtocolHint(t.name) && (
+                              <EliteText variant="caption" style={{ color: catColor, fontSize: FontSizes.xs, marginTop: 4, fontStyle: 'italic' }}>
+                                {getProtocolHint(t.name)}
+                              </EliteText>
+                            )}
                           </View>
                         </View>
 
