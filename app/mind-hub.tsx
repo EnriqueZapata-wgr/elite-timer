@@ -80,17 +80,20 @@ export default function MindHubScreen() {
           </GradientCard>
         </StaggerItem>
 
-        {/* Journaling (próximamente) */}
+        {/* Journaling */}
         <StaggerItem index={3}>
-          <View style={[styles.heroCardPlaceholder, { opacity: 0.4 }]}>
-            <Ionicons name="journal-outline" size={28} color={PURPLE} />
-            <View style={styles.heroCardInfo}>
-              <EliteText variant="body" style={styles.heroCardTitle}>Journaling</EliteText>
-              <EliteText variant="caption" style={styles.heroCardDesc}>
-                Próximamente · Reflexión y gratitud
-              </EliteText>
+          <GradientCard color={PURPLE} onPress={() => { haptic.light(); router.push('/journal' as any); }} style={styles.heroCard}>
+            <View style={styles.heroCardBody}>
+              <Ionicons name="journal-outline" size={28} color={PURPLE} />
+              <View style={styles.heroCardInfo}>
+                <EliteText variant="body" style={styles.heroCardTitle}>Journal</EliteText>
+                <EliteText variant="caption" style={styles.heroCardDesc}>
+                  Gratitud · Visión · Estoico · Descarga
+                </EliteText>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </View>
-          </View>
+          </GradientCard>
         </StaggerItem>
       </ScrollView>
     </SafeAreaView>
