@@ -72,23 +72,48 @@ export default function FitnessStrengthScreen() {
                     {ex.muscle_groups && ex.muscle_groups.length > 0 && (
                       <EliteText style={s.benchmarkMuscles}>{ex.muscle_groups.slice(0, 3).join(' · ').toUpperCase()}</EliteText>
                     )}
+                    {/* PR con ícono trophy */}
+                    {ex.currentPR != null && (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                        <Ionicons name="trophy" size={14} color="#fbbf24" />
+                        <EliteText style={{ color: '#fbbf24', fontSize: 13, fontFamily: Fonts.bold }}>
+                          {ex.currentPR}kg
+                        </EliteText>
+                        {ex.estimated1RM != null && (
+                          <EliteText style={{ color: '#888', fontSize: 11 }}>
+                            · {ex.estimated1RM}kg 1RM
+                          </EliteText>
+                        )}
+                      </View>
+                    )}
                   </View>
-                  <View style={s.benchmarkPRBox}>
-                    <EliteText style={s.benchmarkPR}>{ex.currentPR != null ? `${ex.currentPR}kg` : '—'}</EliteText>
-                    <EliteText style={s.benchmarkPRLabel}>PR</EliteText>
-                  </View>
+                  {/* Botón registrar */}
+                  <AnimatedPressable onPress={() => {
+                    haptic.medium();
+                    router.push({ pathname: '/log-exercise', params: { exerciseId: ex.id } } as any);
+                  }}>
+                    <View style={{ backgroundColor: 'rgba(168,224,42,0.15)', borderRadius: 12, padding: 10 }}>
+                      <Ionicons name="add" size={20} color={LIME} />
+                    </View>
+                  </AnimatedPressable>
                 </View>
 
+                {/* Variantes tappables */}
                 {ex.variants.length > 0 && (
                   <View style={s.variantsRow}>
-                    {ex.variants.slice(0, 4).map(v => (
-                      <View key={v.id} style={s.variantChip}>
-                        <EliteText style={s.variantChipText}>{v.name_es}</EliteText>
-                      </View>
+                    {ex.variants.slice(0, 5).map(v => (
+                      <AnimatedPressable
+                        key={v.id}
+                        onPress={() => { haptic.light(); router.push({ pathname: '/log-exercise', params: { exerciseId: v.id } } as any); }}
+                      >
+                        <View style={s.variantChip}>
+                          <EliteText style={s.variantChipText}>{v.name_es}</EliteText>
+                        </View>
+                      </AnimatedPressable>
                     ))}
-                    {ex.variants.length > 4 && (
+                    {ex.variants.length > 5 && (
                       <View style={s.variantChip}>
-                        <EliteText style={s.variantChipText}>+{ex.variants.length - 4}</EliteText>
+                        <EliteText style={s.variantChipText}>+{ex.variants.length - 5}</EliteText>
                       </View>
                     )}
                   </View>
@@ -135,18 +160,6 @@ const s = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 1,
     marginTop: 2,
-  },
-  benchmarkPRBox: { alignItems: 'flex-end' },
-  benchmarkPR: {
-    fontSize: FontSizes.xl,
-    fontFamily: Fonts.bold,
-    color: LIME,
-  },
-  benchmarkPRLabel: {
-    fontSize: 9,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
-    letterSpacing: 1,
   },
   variantsRow: {
     flexDirection: 'row',
