@@ -543,18 +543,19 @@ export default function CycleScreen() {
               {[
                 { c: RED, t: 'Período' },
                 { c: '#38bdf8', t: 'Folicular' },
-                { c: GREEN, t: 'Fértil', info: true },
+                { c: GREEN, t: 'Fértil' },
                 { c: YELLOW, t: 'Ovulación' },
                 { c: '#c084fc', t: 'Lútea' },
               ].map(l => (
                 <View key={l.t} style={st.legendItem}>
                   <View style={[st.legendDot, { backgroundColor: l.c }]} />
                   <EliteText style={st.legendText}>{l.t}</EliteText>
-                  {(l as any).info && (
-                    <InfoButton title={CYCLE_INFO.fertileWindow.title} explanation={CYCLE_INFO.fertileWindow.text} color={GREEN} size={12} />
-                  )}
                 </View>
               ))}
+            </View>
+            {/* InfoButton de ventana fértil — separado de la leyenda */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 4 }}>
+              <InfoButton title={CYCLE_INFO.fertileWindow.title} explanation={CYCLE_INFO.fertileWindow.text} color={GREEN} size={14} />
             </View>
           </View>
         </Animated.View>
