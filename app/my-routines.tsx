@@ -5,7 +5,7 @@
  * Tap → ejecuta la rutina. Botones al final para crear nueva rutina o timer.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -15,7 +15,7 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
-import { getRoutines } from '@/src/services/routine-service';
+import { getRoutines, deleteRoutine, saveRoutine, generateUUID } from '@/src/services/routine-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import type { Routine } from '@/src/engine/types';
 
@@ -75,6 +75,65 @@ export default function MyRoutinesScreen() {
     } as any);
   }
 
+  function handleLongPress(routine: Routine) {
+    haptic.heavy();
+    Alert.alert(
+      routine.name,
+      'Elige una acción',
+      [
+        {
+          text: 'Editar',
+          onPress: () => router.push({
+            pathname: '/builder',
+            params: { routineId: routine.id },
+          } as any),
+        },
+        {
+          text: 'Duplicar',
+          onPress: async () => {
+            try {
+              const copy: Routine = {
+                ...routine,
+                id: generateUUID(),
+                name: `${routine.name} (copia)`,
+              };
+              await saveRoutine(copy);
+              haptic.success();
+              loadRoutines();
+            } catch { /* silenciar */ }
+          },
+        },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => confirmDeleteRoutine(routine),
+        },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
+  }
+
+  function confirmDeleteRoutine(routine: Routine) {
+    Alert.alert(
+      'Eliminar rutina',
+      `¿Eliminar "${routine.name}" permanentemente?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteRoutine(routine.id);
+              haptic.success();
+              loadRoutines();
+            } catch { /* silenciar */ }
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <View style={s.screen}>
       <ScreenHeader title="Mis rutinas" />
@@ -111,6 +170,7 @@ export default function MyRoutinesScreen() {
             <AnimatedPressable
               key={r.id}
               onPress={() => openRoutine(r)}
+              onLongPress={() => handleLongPress(r)}
               style={s.cardWrap}
             >
               <Animated.View entering={FadeInUp.delay(index * 60).duration(250)}>
@@ -151,6 +211,13 @@ export default function MyRoutinesScreen() {
             </AnimatedPressable>
           );
         })}
+
+        {/* Hint */}
+        {!loading && routines.length > 0 && (
+          <EliteText variant="caption" style={{ color: '#333', fontSize: 9, textAlign: 'center', marginBottom: Spacing.sm }}>
+            Mantén presionado para editar o eliminar
+          </EliteText>
+        )}
 
         {/* Botones de crear */}
         {!loading && (
