@@ -126,9 +126,7 @@ export default function ProtocolExplorerScreen() {
 
     setActivating(templateId);
     try {
-      console.log('[ProtocolExplorer] Activando protocolo:', templateId);
       await assignProtocol(user.id, templateId, null, 'self');
-      console.log('[ProtocolExplorer] Protocolo asignado, regenerando plan...');
       await generateDailyPlan(user.id, undefined, true).catch((e: any) => {
         console.warn('[ProtocolExplorer] Error generando plan (no fatal):', e?.message);
       });
