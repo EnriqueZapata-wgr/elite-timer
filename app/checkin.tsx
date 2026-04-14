@@ -81,7 +81,7 @@ export default function CheckinScreen() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await awardBooleanElectron(user.id, 'checkin' as any);
+          await awardBooleanElectron(user.id, 'checkin');
           DeviceEventEmitter.emit('electrons_changed');
           DeviceEventEmitter.emit('day_changed');
         }

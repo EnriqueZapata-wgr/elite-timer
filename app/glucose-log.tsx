@@ -6,7 +6,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, TextInput, Alert, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -21,6 +21,7 @@ import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { awardBooleanElectron } from '@/src/services/electron-service';
 
 const CONTEXTS = [
   { id: 'fasting',       name: 'Ayuno',         icon: 'moon-outline' as const },
@@ -87,6 +88,10 @@ export default function GlucoseLogScreen() {
       haptic.success();
       setValue('');
       setNotes('');
+
+      // Electrón
+      try { await awardBooleanElectron(user.id, 'glucose_log'); DeviceEventEmitter.emit('electrons_changed'); } catch { /* */ }
+
       // Refresh
       const today = now.toISOString().split('T')[0];
       const { data } = await supabase.from('glucose_logs').select('*')

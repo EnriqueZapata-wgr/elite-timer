@@ -26,7 +26,9 @@ export const ELECTRON_WEIGHTS = {
 
   // Por evento
   checkin:      { weight: 2.0, name: 'Check-in emocional', icon: 'heart-circle-outline', color: '#f472b6' },
-  lab_upload:   { weight: 10.0, name: 'Lab upload',     icon: 'document-outline',      color: '#c084fc' },
+  journal:      { weight: 1.5, name: 'Journal',            icon: 'book-outline',          color: '#c084fc' },
+  glucose_log:  { weight: 1.0, name: 'Registro glucosa',   icon: 'analytics-outline',     color: '#fb923c' },
+  lab_upload:   { weight: 10.0, name: 'Lab upload',        icon: 'document-outline',      color: '#c084fc' },
 
   // Ayuno (por sesión completada)
   fasting_12h:  { weight: 1.0, name: 'Ayuno 12h',       icon: 'timer-outline',         color: '#fbbf24' },

@@ -4,7 +4,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert, DeviceEventEmitter } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -14,6 +14,7 @@ import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
+import { awardBooleanElectron } from '@/src/services/electron-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
@@ -159,6 +160,10 @@ export default function JournalScreen() {
         mood_after: moodAfter,
       });
       haptic.success();
+      // Electrón
+      if (user?.id) {
+        try { await awardBooleanElectron(user.id, 'journal'); DeviceEventEmitter.emit('electrons_changed'); DeviceEventEmitter.emit('day_changed'); } catch { /* */ }
+      }
       Alert.alert('Guardado', 'Tu entrada se ha guardado.');
       setSelectedType(null);
       resetForm();
