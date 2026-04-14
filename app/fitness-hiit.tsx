@@ -102,7 +102,7 @@ export default function FitnessHIITScreen() {
     haptic.medium();
     const routine = buildPresetRoutine(preset.name, preset.params);
     router.push({
-      pathname: '/routine-execution',
+      pathname: '/execution',
       params: { routine: JSON.stringify(routine) },
     } as any);
   };

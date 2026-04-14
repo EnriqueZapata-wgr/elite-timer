@@ -67,10 +67,12 @@ export default function MyRoutinesScreen() {
 
   function openRoutine(routine: Routine) {
     haptic.medium();
+    // Timer mode → countdown engine, Routine mode → exercise engine
+    const screen = routine.mode === 'timer' ? '/execution' : '/routine-execution';
     router.push({
-      pathname: '/routine-execution',
+      pathname: screen,
       params: { routine: JSON.stringify(routine) },
-    });
+    } as any);
   }
 
   return (
