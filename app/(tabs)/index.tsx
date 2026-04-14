@@ -70,6 +70,43 @@ function getCatColor(category?: string): string {
   return '#444';
 }
 
+/** Formato display 24h → "8:30" (sin AM/PM, corto) */
+function fmtTime(t: string): string {
+  if (!t) return '';
+  // Ya viene en 24h: "08:30", "14:00"
+  const [h, m] = t.split(':').map(s => parseInt(s, 10));
+  return `${h}:${String(m || 0).padStart(2, '0')}`;
+}
+
+/** Parse hora de un time string a minutos del día */
+function toMinutes(t: string): number {
+  if (!t) return 0;
+  const [h, m] = t.replace(/[^0-9:]/g, '').split(':').map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+/** Segmentar agenda por franjas horarias */
+function segmentAgenda(items: CompiledDay['agendaItems']) {
+  const sorted = [...items].sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
+
+  const morning: typeof items = [];
+  const afternoon: typeof items = [];
+  const evening: typeof items = [];
+
+  for (const item of sorted) {
+    const h = Math.floor(toMinutes(item.time) / 60);
+    if (h >= 5 && h < 12) morning.push(item);
+    else if (h >= 12 && h < 18) afternoon.push(item);
+    else evening.push(item);
+  }
+
+  return [
+    { label: 'MAÑANA', icon: 'sunny-outline' as const, color: '#fbbf24', items: morning },
+    { label: 'TARDE', icon: 'partly-sunny-outline' as const, color: '#fb923c', items: afternoon },
+    { label: 'NOCHE', icon: 'moon-outline' as const, color: '#818cf8', items: evening },
+  ].filter(seg => seg.items.length > 0);
+}
+
 // ═══ COMPONENTE PRINCIPAL ═══
 
 export default function TodayScreen() {
@@ -512,102 +549,137 @@ export default function TodayScreen() {
         />
 
         {/* ═══════════════════════════════════════
-            SECCIÓN 6: AGENDA
+            SECCIÓN 6: AGENDA — segmentada mañana/tarde/noche
         ═══════════════════════════════════════ */}
-        <Animated.View entering={FadeInUp.delay(220).springify()} style={s.section}>
-          <View style={s.sectionHeader}>
-            <Text style={s.agendaTitle}>AGENDA</Text>
-          </View>
+        <Animated.View entering={FadeInUp.delay(220).springify()} style={{ marginTop: 24, paddingHorizontal: Spacing.md }}>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2, marginBottom: 16 }}>
+            AGENDA
+          </Text>
 
-          {day.agendaItems.length > 0 ? (
-            <View style={s.agendaTimeline}>
-              {day.agendaItems.map((item, idx) => {
-                const catColor = getCatColor(item.category);
-                return (
-                  <View key={item.id} style={s.agendaRow}>
-                    {/* Línea vertical + dot (tappable para marcar completado) */}
-                    <View style={s.agendaLineCol}>
-                      <View style={[
-                        s.agendaLineSeg,
-                        idx === 0 && { backgroundColor: 'transparent' },
-                      ]} />
-                      <Pressable
-                        onPress={() => toggleAgendaItem(item.id)}
-                        hitSlop={12}
-                        style={[
-                          s.agendaDot,
-                          item.completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
-                          item.isNext && { borderColor: catColor, borderWidth: 2.5, backgroundColor: catColor + '30' },
-                        ]}
-                      >
-                        {item.completed && (
-                          <Ionicons name="checkmark" size={7} color={Colors.black} />
-                        )}
-                      </Pressable>
-                      <View style={[
-                        s.agendaLineSeg,
-                        idx === day.agendaItems.length - 1 && { backgroundColor: 'transparent' },
-                      ]} />
-                    </View>
+          {(() => {
+            const segments = segmentAgenda(day.agendaItems);
+            const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
 
-                    {/* Card */}
-                    <AnimatedPressable
-                      onPress={() => {
-                        if (item.route) {
-                          haptic.light();
-                          router.push(item.route as any);
-                        }
-                      }}
-                      style={[
-                        s.agendaCard,
-                        { borderLeftColor: catColor },
-                        item.completed && s.agendaCardDone,
-                        item.isNext && { borderColor: catColor + '40', borderWidth: 1 },
-                      ]}
-                    >
-                      <View style={s.agendaCardHeader}>
-                        <Text style={[
-                          s.agendaTime,
-                          item.completed && { color: Colors.neonGreen },
-                        ]}>
-                          {item.time}
-                        </Text>
-                        {item.isSmart && (
-                          <Ionicons name="flash" size={10} color="#EF9F27" style={{ marginLeft: 2 }} />
-                        )}
-                      </View>
-                      <View style={s.agendaCardBody}>
-                        <View style={s.agendaCardContent}>
-                          <Text style={[
-                            s.agendaItemName,
-                            item.completed && s.agendaItemNameDone,
-                          ]}>
-                            {item.name}
-                          </Text>
-                          {item.subtitle && (
-                            <Text style={s.agendaSubtitle} numberOfLines={1}>
-                              {item.subtitle}
-                            </Text>
-                          )}
+            if (segments.length === 0) {
+              return (
+                <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="calendar-outline" size={28} color="#333" />
+                  <Text style={{ color: '#666', fontSize: 13, fontFamily: Fonts.regular }}>
+                    Activa un protocolo para ver tu agenda
+                  </Text>
+                </View>
+              );
+            }
+
+            return segments.map(segment => (
+              <View key={segment.label} style={{ marginBottom: 20 }}>
+                {/* Header de segmento */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <Ionicons name={segment.icon} size={14} color={segment.color} />
+                  <Text style={{ color: segment.color, fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2 }}>
+                    {segment.label}
+                  </Text>
+                  <View style={{ flex: 1, height: 0.5, backgroundColor: `${segment.color}30`, marginLeft: 8 }} />
+                </View>
+
+                {/* Items */}
+                {segment.items.map((item, idx) => {
+                  const itemMin = toMinutes(item.time);
+                  const isPast = itemMin < nowMin;
+                  const isCurrent = Math.abs(itemMin - nowMin) < 30;
+                  const isCompleted = item.completed;
+
+                  // Indicador "AHORA" entre items
+                  let showNowLine = false;
+                  if (idx > 0) {
+                    const prevMin = toMinutes(segment.items[idx - 1].time);
+                    if (prevMin < nowMin && itemMin >= nowMin) showNowLine = true;
+                  }
+
+                  return (
+                    <View key={item.id}>
+                      {/* Línea "AHORA" */}
+                      {showNowLine && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4 }}>
+                          <View style={{ width: 42 }} />
+                          <View style={{ width: 20, alignItems: 'center', marginRight: 10 }}>
+                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#a8e02a' }} />
+                          </View>
+                          <View style={{ flex: 1, height: 1, backgroundColor: '#a8e02a', opacity: 0.3 }} />
+                          <Text style={{ color: '#a8e02a', fontSize: 9, fontFamily: Fonts.bold, marginLeft: 6 }}>AHORA</Text>
                         </View>
-                        {item.route && (
-                          <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
-                        )}
+                      )}
+
+                      <View style={{
+                        flexDirection: 'row', alignItems: 'center', marginBottom: 6,
+                        opacity: isCompleted ? 0.4 : isPast && !isCurrent ? 0.6 : 1,
+                      }}>
+                        {/* Hora */}
+                        <Text style={{
+                          width: 42, fontSize: 12, fontFamily: Fonts.semiBold,
+                          color: isCurrent ? '#a8e02a' : isPast ? '#555' : '#999',
+                          fontVariant: ['tabular-nums' as const],
+                        }}>
+                          {fmtTime(item.time)}
+                        </Text>
+
+                        {/* Dot de timeline */}
+                        <View style={{ width: 20, alignItems: 'center', marginRight: 10 }}>
+                          <View style={{
+                            width: isCurrent ? 10 : 6, height: isCurrent ? 10 : 6,
+                            borderRadius: isCurrent ? 5 : 3,
+                            backgroundColor: isCompleted ? '#a8e02a' : isCurrent ? '#a8e02a' : isPast ? '#333' : '#222',
+                          }} />
+                        </View>
+
+                        {/* Card */}
+                        <View style={{
+                          flex: 1, flexDirection: 'row', alignItems: 'center',
+                          backgroundColor: isCurrent ? 'rgba(168,224,42,0.08)' : CARD.bg,
+                          borderRadius: Radius.card, padding: 12,
+                          borderLeftWidth: 3,
+                          borderLeftColor: isCompleted ? '#a8e02a' : isCurrent ? '#a8e02a' : item.isSmart ? '#fbbf24' : '#1a1a1a',
+                        }}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={{
+                              color: isCurrent ? '#a8e02a' : '#fff',
+                              fontSize: FontSizes.md, fontFamily: isCurrent ? Fonts.bold : Fonts.semiBold,
+                              textDecorationLine: isCompleted ? 'line-through' : 'none',
+                            }}>
+                              {item.isSmart ? '⚡ ' : ''}{item.name}
+                            </Text>
+                            {item.subtitle ? (
+                              <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.regular, marginTop: 2 }} numberOfLines={1}>
+                                {item.subtitle}
+                              </Text>
+                            ) : null}
+                          </View>
+
+                          {/* Checkbox */}
+                          <Pressable onPress={() => toggleAgendaItem(item.id)} hitSlop={16} style={{ marginLeft: 10 }}>
+                            {isCompleted ? (
+                              <Ionicons name="checkmark-circle" size={26} color="#a8e02a" />
+                            ) : (
+                              <View style={{
+                                width: 26, height: 26, borderRadius: 13,
+                                borderWidth: 2,
+                                borderColor: isCurrent ? 'rgba(168,224,42,0.4)' : 'rgba(255,255,255,0.1)',
+                                justifyContent: 'center', alignItems: 'center',
+                              }}>
+                                {isCurrent && (
+                                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: 'rgba(168,224,42,0.3)' }} />
+                                )}
+                              </View>
+                            )}
+                          </Pressable>
+                        </View>
                       </View>
-                    </AnimatedPressable>
-                  </View>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={s.agendaEmpty}>
-              <Ionicons name="calendar-outline" size={32} color="#333" />
-              <Text style={s.agendaEmptyText}>Tu agenda de hoy está vacía</Text>
-              <Text style={s.agendaEmptySubtext}>
-                Activa un protocolo o agrega acciones desde "Editar mi día"
-              </Text>
-            </View>
-          )}
+                    </View>
+                  );
+                })}
+              </View>
+            ));
+          })()}
         </Animated.View>
 
         {/* Espaciado inferior para tab bar */}

@@ -305,7 +305,7 @@ async function buildAgenda(userId: string, today: string, hour: number, protocol
       if (!actionTime) continue;
       items.push({
         id: a.id ?? `p-${actionTime}`,
-        time: formatTime(actionTime),
+        time: actionTime,  // 24h format — display format en UI
         name: a.name ?? '',
         subtitle: a.protocol_name || protocol?.name,
         category: a.category ?? 'custom',
