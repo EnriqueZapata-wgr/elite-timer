@@ -23,6 +23,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
+import { InfoButton } from '@/src/components/InfoButton';
+import { CYCLE_INFO } from '@/src/constants/cycle-info';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { PILLAR_GRADIENTS, SURFACES, TEXT_COLORS, CARD, withOpacity } from '@/src/constants/brand';
 
@@ -402,6 +404,12 @@ export default function CycleScreen() {
                     <EliteText style={[st.phaseName, { color: phaseInfo.color }]}>
                       Fase {phaseInfo.label}
                     </EliteText>
+                    <InfoButton
+                      title={CYCLE_INFO.phases[phaseInfo.phase]?.title ?? 'Fase del ciclo'}
+                      explanation={CYCLE_INFO.phases[phaseInfo.phase]?.text ?? ''}
+                      color={phaseInfo.color}
+                      size={16}
+                    />
                   </View>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
@@ -535,13 +543,16 @@ export default function CycleScreen() {
               {[
                 { c: RED, t: 'Período' },
                 { c: '#38bdf8', t: 'Folicular' },
-                { c: GREEN, t: 'Fértil' },
+                { c: GREEN, t: 'Fértil', info: true },
                 { c: YELLOW, t: 'Ovulación' },
                 { c: '#c084fc', t: 'Lútea' },
               ].map(l => (
                 <View key={l.t} style={st.legendItem}>
                   <View style={[st.legendDot, { backgroundColor: l.c }]} />
                   <EliteText style={st.legendText}>{l.t}</EliteText>
+                  {(l as any).info && (
+                    <InfoButton title={CYCLE_INFO.fertileWindow.title} explanation={CYCLE_INFO.fertileWindow.text} color={GREEN} size={12} />
+                  )}
                 </View>
               ))}
             </View>
@@ -601,65 +612,92 @@ export default function CycleScreen() {
 
                 {/* ── Período ── */}
                 <SectionTitle>PERÍODO</SectionTitle>
-                <View style={st.toggleRow}>
-                  <EliteText style={st.toggleLabel}>¿Día de período?</EliteText>
-                  <AnimatedPressable
-                    onPress={() => { haptic.light(); updateEditor('is_period', !editorData.is_period); }}
-                    style={[st.toggleBtn, editorData.is_period && { backgroundColor: RED, borderColor: RED }]}
-                  >
-                    <EliteText style={[st.toggleBtnT, editorData.is_period && { color: '#fff' }]}>
-                      {editorData.is_period ? 'Sí' : 'No'}
-                    </EliteText>
-                  </AnimatedPressable>
+                <EliteText style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.bold, marginBottom: 10 }}>¿Tienes periodo hoy?</EliteText>
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                  {[
+                    { value: true, label: 'Sí, tengo periodo', icon: 'water-outline' as const, color: RED },
+                    { value: false, label: 'No', icon: 'close-circle-outline' as const, color: '#666' },
+                  ].map(opt => (
+                    <AnimatedPressable key={String(opt.value)} onPress={() => { haptic.light(); updateEditor('is_period', opt.value); }} style={{ flex: 1 }}>
+                      <View style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 8,
+                        paddingVertical: 14, paddingHorizontal: 14, borderRadius: 14,
+                        backgroundColor: editorData.is_period === opt.value ? `${opt.color}20` : '#0a0a0a',
+                        borderWidth: 1.5,
+                        borderColor: editorData.is_period === opt.value ? opt.color : '#1a1a1a',
+                      }}>
+                        <Ionicons name={opt.icon} size={18} color={editorData.is_period === opt.value ? opt.color : '#666'} />
+                        <EliteText style={{ color: editorData.is_period === opt.value ? '#fff' : '#666', fontSize: 13, fontFamily: Fonts.semiBold }}>
+                          {opt.label}
+                        </EliteText>
+                      </View>
+                    </AnimatedPressable>
+                  ))}
                 </View>
                 {editorData.is_period && (
-                  <View style={st.pillRow}>
-                    {FLOW_OPTS.map(o => {
-                      const active = editorData.flow_level === o.key;
-                      return (
-                        <AnimatedPressable
-                          key={o.key}
-                          onPress={() => { haptic.light(); updateEditor('flow_level', o.key); }}
-                          style={[st.pill, active && { backgroundColor: RED, borderColor: RED }]}
-                        >
-                          <EliteText style={[st.pillT, active && { color: '#fff' }]}>
-                            {o.label}
-                          </EliteText>
-                        </AnimatedPressable>
-                      );
-                    })}
+                  <View style={{ marginBottom: 12 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <EliteText style={{ color: '#999', fontSize: 12, fontFamily: Fonts.semiBold }}>Nivel de flujo</EliteText>
+                      <InfoButton title={CYCLE_INFO.flowLevel.title} explanation={CYCLE_INFO.flowLevel.text} color={RED} size={14} />
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      {FLOW_OPTS.map(o => {
+                        const active = editorData.flow_level === o.key;
+                        const dotOpacity = o.key === 'spotting' ? 0.3 : o.key === 'light' ? 0.5 : o.key === 'medium' ? 0.75 : 1;
+                        return (
+                          <AnimatedPressable key={o.key} onPress={() => { haptic.light(); updateEditor('flow_level', o.key); }} style={{ flex: 1 }}>
+                            <View style={{
+                              alignItems: 'center', paddingVertical: 12, borderRadius: 14,
+                              backgroundColor: active ? `${RED}20` : '#0a0a0a',
+                              borderWidth: 1.5, borderColor: active ? RED : '#1a1a1a',
+                            }}>
+                              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: RED, opacity: dotOpacity, marginBottom: 4 }} />
+                              <EliteText style={{ color: active ? '#fff' : '#666', fontSize: 11, fontFamily: Fonts.semiBold }}>{o.label}</EliteText>
+                            </View>
+                          </AnimatedPressable>
+                        );
+                      })}
+                    </View>
                   </View>
                 )}
 
                 {/* ── Relaciones ── */}
                 <SectionTitle style={{ marginTop: Spacing.md }}>RELACIONES</SectionTitle>
-                <View style={st.toggleRow}>
-                  <EliteText style={st.toggleLabel}>¿Tuviste relaciones?</EliteText>
-                  <AnimatedPressable
-                    onPress={() => { haptic.light(); updateEditor('had_sex', !editorData.had_sex); }}
-                    style={[st.toggleBtn, editorData.had_sex && { backgroundColor: ROSE, borderColor: ROSE }]}
-                  >
-                    <EliteText style={[st.toggleBtnT, editorData.had_sex && { color: '#fff' }]}>
-                      {editorData.had_sex ? 'Sí' : 'No'}
-                    </EliteText>
-                  </AnimatedPressable>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  {[
+                    { value: 'none', label: 'No', icon: 'remove-circle-outline' as const },
+                    { value: 'protected', label: 'Con protección', icon: 'shield-checkmark-outline' as const },
+                    { value: 'unprotected', label: 'Sin protección', icon: 'alert-circle-outline' as const },
+                  ].map(opt => {
+                    const currentVal = !editorData.had_sex ? 'none' : editorData.sex_protected ? 'protected' : 'unprotected';
+                    const isActive = currentVal === opt.value;
+                    return (
+                      <AnimatedPressable key={opt.value} onPress={() => {
+                        haptic.light();
+                        if (opt.value === 'none') { updateEditor('had_sex', false); updateEditor('sex_protected', null); }
+                        else if (opt.value === 'protected') { updateEditor('had_sex', true); updateEditor('sex_protected', true); }
+                        else { updateEditor('had_sex', true); updateEditor('sex_protected', false); }
+                      }} style={{ flex: 1 }}>
+                        <View style={{
+                          alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, borderRadius: 14,
+                          backgroundColor: isActive ? 'rgba(192,132,252,0.15)' : '#0a0a0a',
+                          borderWidth: 1.5, borderColor: isActive ? VIOLET : '#1a1a1a',
+                        }}>
+                          <Ionicons name={opt.icon} size={18} color={isActive ? VIOLET : '#666'} />
+                          <EliteText style={{ color: isActive ? '#fff' : '#666', fontSize: 10, fontFamily: Fonts.semiBold, marginTop: 4, textAlign: 'center' }}>
+                            {opt.label}
+                          </EliteText>
+                        </View>
+                      </AnimatedPressable>
+                    );
+                  })}
                 </View>
-                {editorData.had_sex && (
-                  <View style={st.toggleRow}>
-                    <EliteText style={st.toggleLabel}>¿Con protección?</EliteText>
-                    <AnimatedPressable
-                      onPress={() => { haptic.light(); updateEditor('sex_protected', !editorData.sex_protected); }}
-                      style={[st.toggleBtn, editorData.sex_protected && { backgroundColor: GREEN, borderColor: GREEN }]}
-                    >
-                      <EliteText style={[st.toggleBtnT, editorData.sex_protected && { color: '#fff' }]}>
-                        {editorData.sex_protected ? 'Sí' : 'No'}
-                      </EliteText>
-                    </AnimatedPressable>
-                  </View>
-                )}
 
-                {/* ── Síntomas (5 círculos tappable por cada uno) ── */}
-                <SectionTitle style={{ marginTop: Spacing.md }}>SÍNTOMAS</SectionTitle>
+                {/* ── Síntomas (barras 1-5) ── */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.md }}>
+                  <SectionTitle>SÍNTOMAS</SectionTitle>
+                  <InfoButton title={CYCLE_INFO.symptoms.title} explanation={CYCLE_INFO.symptoms.text} color={ROSE} size={14} />
+                </View>
                 {SYMPTOMS.map(sym => (
                   <View key={sym.key} style={st.symRow}>
                     <View style={st.symLabelRow}>
@@ -668,14 +706,15 @@ export default function CycleScreen() {
                     </View>
                     <View style={st.symDots}>
                       {[1, 2, 3, 4, 5].map(v => {
-                        const active = (editorData as any)[sym.key] === v;
+                        const current = (editorData as any)[sym.key] ?? 0;
+                        const filled = current >= v;
                         return (
                           <Pressable
                             key={v}
-                            onPress={() => { haptic.light(); updateEditor(sym.key, v); }}
-                            style={[st.symDot, active && { backgroundColor: ROSE, borderColor: ROSE }]}
+                            onPress={() => { haptic.light(); updateEditor(sym.key, (editorData as any)[sym.key] === v ? 0 : v); }}
+                            style={[st.symDot, filled && { backgroundColor: ROSE, borderColor: ROSE }]}
                           >
-                            <EliteText style={[st.symDotT, active && { color: '#fff' }]}>
+                            <EliteText style={[st.symDotT, filled && { color: '#fff' }]}>
                               {v}
                             </EliteText>
                           </Pressable>
@@ -688,7 +727,10 @@ export default function CycleScreen() {
                 {/* ── Biométricos ── */}
                 <SectionTitle style={{ marginTop: Spacing.md }}>BIOMÉTRICOS</SectionTitle>
                 <View style={st.inputRow}>
-                  <EliteText style={st.inputLabel}>Temperatura (°C)</EliteText>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <EliteText style={st.inputLabel}>Temperatura (°C)</EliteText>
+                    <InfoButton title={CYCLE_INFO.temperature.title} explanation={CYCLE_INFO.temperature.text} color="#fb923c" size={14} />
+                  </View>
                   <TextInput
                     style={st.input}
                     placeholder="36.5"
