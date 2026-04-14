@@ -2,7 +2,7 @@
  * Cycle Settings — Configuración del tracking de ciclo.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TextInput, Alert, Switch } from 'react-native';
+import { View, ScrollView, StyleSheet, TextInput, Alert, Switch, Text, Pressable } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -17,6 +17,8 @@ import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
+import { InfoButton } from '@/src/components/InfoButton';
+import { CYCLE_INFO } from '@/src/constants/cycle-info';
 
 const ROSE = '#fb7185';
 const GRADIENT = { start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.03)' };
@@ -27,6 +29,8 @@ export default function CycleSettingsScreen() {
   const [avgPeriod, setAvgPeriod] = useState('5');
   const [mode, setMode] = useState<'full' | 'companion'>('full');
   const [saving, setSaving] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [activeCompanion, setActiveCompanion] = useState(false);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -38,6 +42,10 @@ export default function CycleSettingsScreen() {
           setMode(data.mode ?? 'full');
         }
       });
+    // Cargar estado de compañero
+    supabase.from('cycle_companions').select('status')
+      .eq('owner_id', user.id).eq('status', 'active').limit(1)
+      .then(({ data }) => setActiveCompanion((data ?? []).length > 0));
   }, [user?.id]));
 
   const handleSave = async () => {
@@ -110,6 +118,99 @@ export default function CycleSettingsScreen() {
                 <EliteText style={s.modeSub}>Trackeo el ciclo de mi pareja</EliteText>
               </View>
             </AnimatedPressable>
+          </GradientCard>
+        </Animated.View>
+
+        {/* Sección compañero */}
+        <Animated.View entering={FadeInUp.delay(150).springify()} style={{ marginTop: Spacing.md }}>
+          <GradientCard gradient={GRADIENT} padding={20}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <SectionTitle>MODO COMPAÑERO</SectionTitle>
+              <InfoButton title={CYCLE_INFO.companion.title} explanation={CYCLE_INFO.companion.text} color={ROSE} size={14} />
+            </View>
+
+            {mode === 'full' && (
+              <>
+                <AnimatedPressable onPress={async () => {
+                  if (!user?.id) return;
+                  haptic.medium();
+                  const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+                  const { error } = await supabase.from('cycle_companions').insert({
+                    owner_id: user.id,
+                    invite_code: code,
+                    status: 'pending',
+                  });
+                  if (error) { Alert.alert('Error', 'No se pudo generar el código.'); return; }
+                  Alert.alert('Código de compañero', `Comparte este código con tu pareja:\n\n${code}\n\nLo introduce en ATP Ciclo → Ajustes → "Soy compañero".`);
+                }}>
+                  <View style={{
+                    backgroundColor: 'rgba(192,132,252,0.1)', borderRadius: 14, padding: 16,
+                    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    borderWidth: 1, borderColor: 'rgba(192,132,252,0.2)',
+                  }}>
+                    <Ionicons name="people-outline" size={20} color="#c084fc" />
+                    <EliteText style={{ color: '#c084fc', fontSize: 14, fontFamily: Fonts.bold }}>Invitar compañero/a</EliteText>
+                  </View>
+                </AnimatedPressable>
+
+                {activeCompanion && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Ionicons name="checkmark-circle" size={18} color="#a8e02a" />
+                      <EliteText style={{ color: '#fff', fontSize: 13 }}>Compañero/a vinculado/a</EliteText>
+                    </View>
+                    <Pressable onPress={async () => {
+                      if (!user?.id) return;
+                      await supabase.from('cycle_companions').update({ status: 'revoked' }).eq('owner_id', user.id).eq('status', 'active');
+                      setActiveCompanion(false);
+                      haptic.medium();
+                      Alert.alert('Desvinculado', 'Compañero/a desvinculado/a.');
+                    }}>
+                      <Text style={{ color: '#ef4444', fontSize: 12, fontFamily: Fonts.semiBold }}>Desvincular</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </>
+            )}
+
+            {mode === 'companion' && (
+              <View>
+                <EliteText style={{ color: '#999', fontSize: 13, marginBottom: 12 }}>¿Tu pareja te compartió un código?</EliteText>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TextInput
+                    value={inviteCode}
+                    onChangeText={setInviteCode}
+                    placeholder="Código"
+                    placeholderTextColor="#444"
+                    autoCapitalize="characters"
+                    maxLength={6}
+                    style={{
+                      flex: 1, backgroundColor: '#000', color: '#fff', padding: 14,
+                      borderRadius: 12, fontSize: 18, fontFamily: Fonts.bold,
+                      letterSpacing: 4, textAlign: 'center', borderWidth: 0.5, borderColor: '#333',
+                    }}
+                  />
+                  <Pressable onPress={async () => {
+                    if (!user?.id || inviteCode.length < 4) return;
+                    haptic.medium();
+                    const { data, error } = await supabase.from('cycle_companions')
+                      .update({ companion_id: user.id, status: 'active', updated_at: new Date().toISOString() })
+                      .eq('invite_code', inviteCode.toUpperCase())
+                      .eq('status', 'pending')
+                      .select()
+                      .maybeSingle();
+                    if (error || !data) { Alert.alert('Error', 'Código inválido o ya usado.'); return; }
+                    haptic.success();
+                    Alert.alert('Vinculado', 'Ahora puedes ver el resumen del ciclo de tu pareja.');
+                    setInviteCode('');
+                  }} style={{
+                    backgroundColor: '#c084fc', borderRadius: 12, paddingHorizontal: 20, justifyContent: 'center',
+                  }}>
+                    <Text style={{ color: '#000', fontFamily: Fonts.bold }}>Vincular</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </GradientCard>
         </Animated.View>
 
