@@ -19,9 +19,10 @@ import { PILLAR_GRADIENTS } from '@/src/constants/brand';
 import {
   getNutritionReport, getHydrationReport, getExerciseReport,
   getComplianceReport, getFastingReport, getElectronReport, getGlucoseReport,
+  getMindReport, getCycleReport,
   type ReportPeriod, type NutritionReport, type HydrationReport,
   type ExerciseReport, type ComplianceReport, type FastingReport,
-  type ElectronReport, type GlucoseReport,
+  type ElectronReport, type GlucoseReport, type MindReport, type CycleReport,
 } from '@/src/services/reports-service';
 
 const LIME = '#a8e02a';
@@ -46,6 +47,8 @@ export default function ReportsScreen() {
   const [exercise, setExercise] = useState<ExerciseReport>({ sessionsPerWeek: 0, totalVolumeKg: 0, prsThisPeriod: 0, cardioSessions: 0 });
   const [glucose, setGlucose] = useState<GlucoseReport>({ daily: [], avgFasting: 0, avgPostMeal: 0, readings: 0 });
   const [compliance, setCompliance] = useState<ComplianceReport>({ daily: [], avgPct: 0 });
+  const [mind, setMind] = useState<MindReport>({ breathingSessions: 0, meditationSessions: 0, totalMinutes: 0, journalEntries: 0, checkins: 0 });
+  const [cycle, setCycle] = useState<CycleReport>({ periodDays: 0, avgEnergy: 0, avgMood: 0, logsCount: 0 });
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(useCallback(() => {
@@ -58,9 +61,12 @@ export default function ReportsScreen() {
       getExerciseReport(period),
       getGlucoseReport(period),
       getComplianceReport(period),
-    ]).then(([el, nu, hy, fa, ex, gl, co]) => {
+      getMindReport(period),
+      getCycleReport(period),
+    ]).then(([el, nu, hy, fa, ex, gl, co, mi, cy]) => {
       setElectrons(el); setNutrition(nu); setHydration(hy);
       setFasting(fa); setExercise(ex); setGlucose(gl); setCompliance(co);
+      setMind(mi); setCycle(cy);
     }).finally(() => setLoading(false));
   }, [period]));
 
@@ -157,6 +163,36 @@ export default function ReportsScreen() {
             {compliance.daily.length > 0 && <SimpleBarChart data={compliance.daily} color={LIME} />}
           </GradientCard>
         </Animated.View>
+
+        {/* MENTE */}
+        {(mind.breathingSessions + mind.meditationSessions + mind.journalEntries) > 0 && (
+          <Animated.View entering={FadeInUp.delay(250).springify()} style={s.cardWrap}>
+            <GradientCard gradient={{ start: 'rgba(192,132,252,0.08)', end: 'rgba(192,132,252,0.02)' }}>
+              <SectionHeader icon="flower-outline" color="#c084fc" title="MENTE" />
+              <View style={s.statsRow}>
+                <Stat value={`${mind.breathingSessions}`} label="respiraciones" />
+                <Stat value={`${mind.meditationSessions}`} label="meditaciones" />
+                <Stat value={`${mind.totalMinutes}`} label="min totales" />
+                <Stat value={`${mind.journalEntries}`} label="journal" />
+              </View>
+            </GradientCard>
+          </Animated.View>
+        )}
+
+        {/* CICLO */}
+        {cycle.logsCount > 0 && (
+          <Animated.View entering={FadeInUp.delay(270).springify()} style={s.cardWrap}>
+            <GradientCard gradient={{ start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.02)' }}>
+              <SectionHeader icon="calendar-outline" color="#fb7185" title="CICLO" />
+              <View style={s.statsRow}>
+                <Stat value={`${cycle.periodDays}`} label="días periodo" />
+                {cycle.avgEnergy > 0 && <Stat value={`${cycle.avgEnergy}`} label="energía prom" />}
+                {cycle.avgMood > 0 && <Stat value={`${cycle.avgMood}`} label="humor prom" />}
+                <Stat value={`${cycle.logsCount}`} label="registros" />
+              </View>
+            </GradientCard>
+          </Animated.View>
+        )}
 
         <View style={{ height: 80 }} />
       </ScrollView>

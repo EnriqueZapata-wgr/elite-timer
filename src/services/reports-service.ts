@@ -387,3 +387,75 @@ export async function getGlucoseReport(period: ReportPeriod): Promise<GlucoseRep
     return { daily, avgFasting: avg(fastingVals), avgPostMeal: avg(postMealVals), readings: data.length };
   } catch { return empty; }
 }
+
+// ═══ MENTE ═══
+
+export interface MindReport {
+  breathingSessions: number;
+  meditationSessions: number;
+  totalMinutes: number;
+  journalEntries: number;
+  checkins: number;
+}
+
+export async function getMindReport(period: ReportPeriod): Promise<MindReport> {
+  const empty: MindReport = { breathingSessions: 0, meditationSessions: 0, totalMinutes: 0, journalEntries: 0, checkins: 0 };
+  try {
+    const userId = await getUserId();
+    if (!userId) return empty;
+    const days = periodDays(period);
+    const startDate = buildDateRange(days)[0];
+
+    const [mindRes, journalRes, checkinRes] = await Promise.all([
+      supabase.from('mind_sessions').select('type, duration_seconds').eq('user_id', userId).gte('date', startDate),
+      supabase.from('journal_entries').select('id').eq('user_id', userId).gte('date', startDate),
+      supabase.from('emotional_checkins').select('id').eq('user_id', userId).gte('created_at', new Date(Date.now() - days * 86400000).toISOString()),
+    ]);
+
+    const sessions = mindRes.data ?? [];
+    const breathing = sessions.filter((s: any) => s.type === 'breathing');
+    const meditation = sessions.filter((s: any) => s.type === 'meditation');
+    const totalSecs = sessions.reduce((sum: number, s: any) => sum + (s.duration_seconds ?? 0), 0);
+
+    return {
+      breathingSessions: breathing.length,
+      meditationSessions: meditation.length,
+      totalMinutes: Math.round(totalSecs / 60),
+      journalEntries: journalRes.data?.length ?? 0,
+      checkins: checkinRes.data?.length ?? 0,
+    };
+  } catch { return empty; }
+}
+
+// ═══ CICLO ═══
+
+export interface CycleReport {
+  periodDays: number;
+  avgEnergy: number;
+  avgMood: number;
+  logsCount: number;
+}
+
+export async function getCycleReport(period: ReportPeriod): Promise<CycleReport> {
+  const empty: CycleReport = { periodDays: 0, avgEnergy: 0, avgMood: 0, logsCount: 0 };
+  try {
+    const userId = await getUserId();
+    if (!userId) return empty;
+    const days = periodDays(period);
+    const startDate = buildDateRange(days)[0];
+
+    const { data } = await supabase.from('cycle_daily_logs')
+      .select('is_period, energy, mood')
+      .eq('user_id', userId).gte('date', startDate);
+
+    if (!data || data.length === 0) return empty;
+
+    const pDays = data.filter((d: any) => d.is_period).length;
+    const energyVals = data.map((d: any) => d.energy).filter((v: any) => v != null && v > 0);
+    const moodVals = data.map((d: any) => d.mood).filter((v: any) => v != null && v > 0);
+    const avgE = energyVals.length > 0 ? energyVals.reduce((a: number, b: number) => a + b, 0) / energyVals.length : 0;
+    const avgM = moodVals.length > 0 ? moodVals.reduce((a: number, b: number) => a + b, 0) / moodVals.length : 0;
+
+    return { periodDays: pDays, avgEnergy: Math.round(avgE * 10) / 10, avgMood: Math.round(avgM * 10) / 10, logsCount: data.length };
+  } catch { return empty; }
+}
