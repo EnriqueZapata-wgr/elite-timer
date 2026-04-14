@@ -22,6 +22,8 @@ import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { awardBooleanElectron } from '@/src/services/electron-service';
+import { getFastingTier } from '@/src/constants/electrons';
 
 const AMBER = '#fbbf24';
 const AMBER_GRADIENT = { start: 'rgba(251,191,36,0.12)', end: 'rgba(251,191,36,0.03)' };
@@ -151,6 +153,13 @@ export default function FastingScreen() {
         status: 'completed',
       }).eq('id', data[0].id);
     }
+    // Otorgar electrón según duración
+    const fastingSource = getFastingTier(actualH);
+    if (fastingSource) {
+      try { await awardBooleanElectron(user.id, fastingSource); } catch { /* */ }
+      DeviceEventEmitter.emit('electrons_changed');
+    }
+
     setIsFasting(false);
     setFastStart(null);
     setElapsedSecs(0);
