@@ -183,6 +183,48 @@ export default function TodayScreen() {
     setTimeout(() => loadDay(), 300);
   }
 
+  // --- Toggle agenda item ---
+  async function toggleAgendaItem(itemId: string) {
+    if (!day || !user?.id) return;
+    haptic.light();
+
+    // Optimistic update
+    setDay(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        agendaItems: prev.agendaItems.map(item =>
+          item.id === itemId ? { ...item, completed: !item.completed } : item
+        ),
+      };
+    });
+
+    // Persist en daily_plans
+    try {
+      const today = getLocalToday();
+      const { data: plan } = await supabase
+        .from('daily_plans')
+        .select('actions')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle();
+
+      if (plan?.actions) {
+        const updatedActions = (plan.actions as any[]).map((a: any) =>
+          (a.id === itemId || `p-${a.scheduled_time}` === itemId)
+            ? { ...a, completed: !a.completed }
+            : a
+        );
+        await supabase.from('daily_plans')
+          .update({ actions: updatedActions })
+          .eq('user_id', user.id)
+          .eq('date', today);
+      }
+    } catch (e) {
+      console.warn('Error toggling agenda item:', e);
+    }
+  }
+
   // --- EditDayModal save ---
   async function handleEditSave(bools: string[], quants: string[]) {
     if (!user?.id) return;
@@ -483,21 +525,25 @@ export default function TodayScreen() {
                 const catColor = getCatColor(item.category);
                 return (
                   <View key={item.id} style={s.agendaRow}>
-                    {/* Línea vertical + dot */}
+                    {/* Línea vertical + dot (tappable para marcar completado) */}
                     <View style={s.agendaLineCol}>
                       <View style={[
                         s.agendaLineSeg,
                         idx === 0 && { backgroundColor: 'transparent' },
                       ]} />
-                      <View style={[
-                        s.agendaDot,
-                        item.completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
-                        item.isNext && { borderColor: catColor, borderWidth: 2.5, backgroundColor: catColor + '30' },
-                      ]}>
+                      <Pressable
+                        onPress={() => toggleAgendaItem(item.id)}
+                        hitSlop={12}
+                        style={[
+                          s.agendaDot,
+                          item.completed && { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
+                          item.isNext && { borderColor: catColor, borderWidth: 2.5, backgroundColor: catColor + '30' },
+                        ]}
+                      >
                         {item.completed && (
                           <Ionicons name="checkmark" size={7} color={Colors.black} />
                         )}
-                      </View>
+                      </Pressable>
                       <View style={[
                         s.agendaLineSeg,
                         idx === day.agendaItems.length - 1 && { backgroundColor: 'transparent' },
