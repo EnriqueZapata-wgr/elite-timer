@@ -5,7 +5,7 @@
  * Permite editar ingredientes, cantidades, unidades y macros.
  */
 import { useState, useMemo } from 'react';
-import { View, ScrollView, TextInput, Pressable, Text, Alert } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, Text, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { UNIT_CYCLE, type FoodUnit } from '@/src/constants/food-units';
@@ -99,8 +99,19 @@ export function parseAIToReview(aiResult: any): ReviewState {
 
 // === COMPONENTE ===
 
+const UNIT_OPTIONS: { value: FoodUnit; label: string }[] = [
+  { value: 'g', label: 'g (gramos)' },
+  { value: 'ml', label: 'ml (mililitros)' },
+  { value: 'pzas', label: 'pzas (piezas)' },
+  { value: 'cdas', label: 'cdas (cucharadas)' },
+  { value: 'tazas', label: 'tazas' },
+  { value: 'rebanadas', label: 'rebanadas' },
+  { value: 'latas', label: 'latas' },
+];
+
 export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
   const [review, setReview] = useState<ReviewState>(initialState);
+  const [unitPickerIndex, setUnitPickerIndex] = useState<number | null>(null);
 
   const validation: ValidationResult = useMemo(
     () => validateFoodEstimate({
@@ -138,24 +149,25 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
     }));
   }
 
-  function cycleUnit(index: number) {
+  function changeUnit(index: number, newUnit: FoodUnit) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setReview(prev => {
       const items = [...prev.items];
       const item = items[index];
-      const nextUnit = UNIT_CYCLE[item.unit] || 'g';
       const argos = findArgosFood(item.name);
 
       let newQty = item.quantity;
       if (argos) {
-        if (item.unit === 'g' && nextUnit === argos.naturalUnit) {
-          newQty = Math.round((item.quantity / argos.gramsPerUnit) * 10) / 10;
-        } else if (item.unit === argos.naturalUnit && nextUnit === 'g') {
-          newQty = Math.round(item.quantity * argos.gramsPerUnit);
-        }
+        // Convertir old → gramos → new
+        let grams = item.quantity;
+        if (item.unit === argos.naturalUnit) grams = item.quantity * argos.gramsPerUnit;
+        else if (item.unit !== 'g' && item.unit !== 'ml') grams = item.quantity;
+
+        if (newUnit === 'g' || newUnit === 'ml') newQty = Math.round(grams);
+        else if (newUnit === argos.naturalUnit) newQty = Math.round((grams / argos.gramsPerUnit) * 10) / 10;
       }
 
-      items[index] = { ...item, unit: nextUnit, quantity: newQty };
+      items[index] = { ...item, unit: newUnit, quantity: newQty };
       return { ...prev, items };
     });
   }
@@ -234,28 +246,31 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
               </Pressable>
             </View>
 
-            {/* Fila 2: Cantidad + Unidad + Macros mini */}
+            {/* Fila 2: Cantidad + Unidad desplegable + Macros mini */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <TextInput
                 value={String(item.quantity)}
                 onChangeText={v => updateItem(index, 'quantity', parseFloat(v) || 0)}
                 keyboardType="decimal-pad"
+                selectTextOnFocus
                 style={{
                   backgroundColor: '#1a1a1a', color: '#a8e02a',
-                  fontSize: 20, fontFamily: Fonts.extraBold,
-                  width: 80, textAlign: 'center',
-                  paddingVertical: 10, borderRadius: 10,
+                  fontSize: 22, fontFamily: Fonts.extraBold,
+                  width: 80, height: 50, textAlign: 'center',
+                  borderRadius: 12, paddingHorizontal: 8,
                 }}
               />
-              <Pressable onPress={() => cycleUnit(index)}>
+              <Pressable onPress={() => setUnitPickerIndex(index)}>
                 <View style={{
                   backgroundColor: 'rgba(168,224,42,0.12)',
-                  paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
+                  paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12,
                   borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)',
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
                 }}>
                   <Text style={{ color: '#a8e02a', fontSize: 14, fontFamily: Fonts.bold }}>
                     {item.unit}
                   </Text>
+                  <Ionicons name="chevron-down" size={14} color="#a8e02a" />
                 </View>
               </Pressable>
               <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', gap: 6 }}>
@@ -349,6 +364,48 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
           <Text style={{ color: '#000', fontSize: 16, fontFamily: Fonts.extraBold, letterSpacing: 1 }}>GUARDAR</Text>
         </Pressable>
       </View>
+
+      {/* Modal selector de unidad */}
+      <Modal
+        visible={unitPickerIndex !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setUnitPickerIndex(null)}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}
+          onPress={() => setUnitPickerIndex(null)}
+        >
+          <Pressable style={{ backgroundColor: '#1a1a1a', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 40 }} onPress={() => {}}>
+            <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold, textAlign: 'center', marginBottom: 16 }}>
+              Seleccionar unidad
+            </Text>
+            {UNIT_OPTIONS.map(opt => {
+              const isActive = unitPickerIndex !== null && review.items[unitPickerIndex]?.unit === opt.value;
+              return (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => {
+                    if (unitPickerIndex !== null) changeUnit(unitPickerIndex, opt.value);
+                    setUnitPickerIndex(null);
+                  }}
+                  style={{
+                    paddingVertical: 14, paddingHorizontal: 24,
+                    backgroundColor: isActive ? 'rgba(168,224,42,0.15)' : 'transparent',
+                  }}
+                >
+                  <Text style={{
+                    color: isActive ? '#a8e02a' : '#fff',
+                    fontSize: 16, fontFamily: isActive ? Fonts.bold : Fonts.regular,
+                  }}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }

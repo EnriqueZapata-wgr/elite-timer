@@ -748,13 +748,14 @@ const s = StyleSheet.create({
   },
   gramsInput: {
     width: 80,
-    height: 44,
+    height: 50,
     color: '#a8e02a',
     fontFamily: Fonts.bold,
-    fontSize: 20,
+    fontSize: 22,
     textAlign: 'center',
     backgroundColor: '#1a1a1a',
-    borderRadius: 10,
+    borderRadius: 12,
+    paddingHorizontal: 8,
   },
   gramsUnitBadge: {
     backgroundColor: 'rgba(168,224,42,0.12)',
