@@ -6,11 +6,10 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
@@ -59,9 +58,6 @@ export default function FastingScreen() {
   const [selectedProtocol, setSelectedProtocol] = useState(16);
   const [elapsedSecs, setElapsedSecs] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const [customPickerDate, setCustomPickerDate] = useState(new Date());
 
   // Cargar estado actual + historial
   useFocusEffect(useCallback(() => {
@@ -114,7 +110,9 @@ export default function FastingScreen() {
   const handleStartFast = () => {
     Alert.alert('Iniciar ayuno', '¿Cuándo empezó?', [
       { text: 'Ahora mismo', onPress: () => startFastAt(new Date()) },
-      { text: 'Antes (elegir hora)', onPress: () => { setCustomPickerDate(new Date()); setShowStartPicker(true); } },
+      { text: 'Hace 1 hora', onPress: () => startFastAt(new Date(Date.now() - 1 * 3600000)) },
+      { text: 'Hace 2 horas', onPress: () => startFastAt(new Date(Date.now() - 2 * 3600000)) },
+      { text: 'Hace 4 horas', onPress: () => startFastAt(new Date(Date.now() - 4 * 3600000)) },
       { text: 'Cancelar', style: 'cancel' },
     ]);
   };
@@ -140,7 +138,9 @@ export default function FastingScreen() {
   const handleBreakFast = () => {
     Alert.alert('Romper ayuno', '¿Cuándo terminó?', [
       { text: 'Ahora mismo', onPress: () => breakFastAt(new Date()) },
-      { text: 'Elegir hora', onPress: () => { setCustomPickerDate(new Date()); setShowEndPicker(true); } },
+      { text: 'Hace 30 min', onPress: () => breakFastAt(new Date(Date.now() - 30 * 60000)) },
+      { text: 'Hace 1 hora', onPress: () => breakFastAt(new Date(Date.now() - 1 * 3600000)) },
+      { text: 'Hace 2 horas', onPress: () => breakFastAt(new Date(Date.now() - 2 * 3600000)) },
       { text: 'Cancelar', style: 'cancel' },
     ]);
   };
@@ -310,34 +310,6 @@ export default function FastingScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* DateTimePicker para inicio retroactivo */}
-      {showStartPicker && (
-        <DateTimePicker
-          value={customPickerDate}
-          mode="datetime"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          maximumDate={new Date()}
-          onChange={(_event, date) => {
-            setShowStartPicker(false);
-            if (date) startFastAt(date);
-          }}
-        />
-      )}
-
-      {/* DateTimePicker para fin retroactivo */}
-      {showEndPicker && (
-        <DateTimePicker
-          value={customPickerDate}
-          mode="datetime"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          maximumDate={new Date()}
-          minimumDate={fastStart ?? undefined}
-          onChange={(_event, date) => {
-            setShowEndPicker(false);
-            if (date) breakFastAt(date);
-          }}
-        />
-      )}
     </Screen>
   );
 }
