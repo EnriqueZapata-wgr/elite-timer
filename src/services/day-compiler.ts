@@ -271,24 +271,52 @@ function buildSuggestion(quants: QuantElectronState[], activeFast: any, hour: nu
 async function buildAgenda(userId: string, today: string, hour: number, protocol: CompiledDay['protocol'], activeFast: any): Promise<AgendaItem[]> {
   const items: AgendaItem[] = [];
 
-  // Protocol actions
+  // Protocol actions — desde daily_plans o fallback a protocol_items
   try {
     const { data } = await supabase.from('daily_plans').select('actions').eq('user_id', userId).eq('date', today).maybeSingle();
     const actions = (data?.actions as any[]) ?? [];
-    for (const a of actions) {
-      if (isElectronAction(a)) continue;
-      if (!a.scheduled_time) continue;
-      items.push({
-        id: a.id ?? `p-${a.scheduled_time}`,
-        time: formatTime(a.scheduled_time),
-        name: a.name ?? '',
-        subtitle: protocol?.name,
-        category: a.category ?? 'custom',
-        completed: a.completed ?? false,
-        isNext: false, isSmart: false,
-      });
+    if (actions.length > 0) {
+      for (const a of actions) {
+        if (isElectronAction(a)) continue;
+        if (!a.scheduled_time) continue;
+        items.push({
+          id: a.id ?? `p-${a.scheduled_time}`,
+          time: formatTime(a.scheduled_time),
+          name: a.name ?? '',
+          subtitle: protocol?.name,
+          category: a.category ?? 'custom',
+          completed: a.completed ?? false,
+          isNext: false, isSmart: false,
+        });
+      }
+    } else if (protocol) {
+      // Fallback: si no hay plan para hoy, intentar cargar del protocolo activo
+      const { data: protData } = await supabase
+        .from('user_protocols').select('protocol_id')
+        .eq('user_id', userId).eq('status', 'active')
+        .order('created_at', { ascending: false }).limit(1);
+      const protocolId = protData?.[0]?.protocol_id;
+      if (protocolId) {
+        const { data: protItems } = await supabase
+          .from('protocol_items').select('*')
+          .eq('protocol_id', protocolId)
+          .order('time');
+        for (const pi of (protItems ?? [])) {
+          if (isElectronAction(pi)) continue;
+          if (!pi.time) continue;
+          items.push({
+            id: pi.id ?? `pi-${pi.time}`,
+            time: formatTime(pi.time),
+            name: pi.name ?? pi.title ?? '',
+            subtitle: protocol.name,
+            category: pi.category ?? 'custom',
+            completed: false,
+            isNext: false, isSmart: false,
+          });
+        }
+      }
     }
-  } catch { /* daily_plans may not exist */ }
+  } catch { /* daily_plans / protocol_items may not exist */ }
 
   // Smart fasting break
   if (activeFast) {
@@ -341,8 +369,12 @@ async function buildAgenda(userId: string, today: string, hour: number, protocol
 }
 
 function isElectronAction(a: any): boolean {
+  // Solo filtrar acciones que son goals de todo el día SIN hora.
+  // Si tiene scheduled_time, SIEMPRE va en agenda aunque mencione una keyword.
+  if (a.scheduled_time) return false;
   const name = (a.name ?? '').toLowerCase();
-  return ELECTRON_KW.some(kw => name.includes(kw));
+  const PURE_GOAL_KW = ['pasos', 'steps', 'proteína', 'protein', 'agua', 'water', 'hidratación', 'dormir', 'sleep', 'sueño'];
+  return PURE_GOAL_KW.some(kw => name.includes(kw));
 }
 
 function parseMinutes(time: string): number {
