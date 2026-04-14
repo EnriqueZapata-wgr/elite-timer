@@ -46,7 +46,7 @@ const CATEGORIES = [
 
 export default function BuilderScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ routineId?: string; clone?: string }>();
+  const params = useLocalSearchParams<{ routineId?: string; clone?: string; mode?: string }>();
 
   // Estado de la rutina
   const [routine, setRoutine] = useState<Routine>({
@@ -54,7 +54,7 @@ export default function BuilderScreen() {
     name: '',
     description: '',
     category: 'workout',
-    mode: 'timer',
+    mode: (params.mode === 'routine' ? 'routine' : 'timer') as Routine['mode'],
     blocks: [],
   });
   const [loaded, setLoaded] = useState(false);
