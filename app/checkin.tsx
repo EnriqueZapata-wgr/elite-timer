@@ -3,7 +3,7 @@
  * 3 pasos: cuadrante → emociones (con descripciones) → contexto.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,6 +15,8 @@ import {
 } from '@/src/data/emotions-library';
 import { saveCheckin, getTodayCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { toggleCompletion } from '@/src/services/protocol-service';
+import { awardBooleanElectron } from '@/src/services/electron-service';
+import { supabase } from '@/src/lib/supabase';
 import { vibrateMedium } from '@/src/utils/haptics';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -74,6 +76,17 @@ export default function CheckinScreen() {
       if (params.protocolItemId) {
         try { await toggleCompletion(params.protocolItemId); } catch { /* */ }
       }
+
+      // Electrón por check-in emocional
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await awardBooleanElectron(user.id, 'checkin' as any);
+          DeviceEventEmitter.emit('electrons_changed');
+          DeviceEventEmitter.emit('day_changed');
+        }
+      } catch { /* silenciar */ }
+
       vibrateMedium();
       setStep(4);
     } catch { /* */ }

@@ -4,17 +4,21 @@
  * Ciclos de inhala/retén/exhala con visualización.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Alert, ScrollView, Animated as RNAnimated } from 'react-native';
+import { View, StyleSheet, Pressable, Alert, ScrollView, Animated as RNAnimated, DeviceEventEmitter, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
-import AnimatedRN, { FadeIn } from 'react-native-reanimated';
+import AnimatedRN, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { toggleCompletion } from '@/src/services/protocol-service';
+import { awardBooleanElectron } from '@/src/services/electron-service';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
+import { supabase } from '@/src/lib/supabase';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
@@ -22,6 +26,31 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 
 const PURPLE = CATEGORY_COLORS.mind;
+const BLUE = '#60a5fa';
+
+const BREATH_ICONS: Record<string, string> = {
+  'box-4': 'square-outline',
+  '478-relaxation': 'moon-outline',
+  'coherent-5': 'pulse-outline',
+  'wim-hof': 'snow-outline',
+  'energizing-3': 'flash-outline',
+  'calming-2-1': 'leaf-outline',
+};
+
+function getBreathIcon(id: string): string {
+  return BREATH_ICONS[id] || 'cloud-outline';
+}
+
+function formatRelativeDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  const diffH = Math.floor((Date.now() - d.getTime()) / 3600000);
+  if (diffH < 1) return 'Hace poco';
+  if (diffH < 24) return `Hace ${diffH}h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD === 1) return 'Ayer';
+  if (diffD < 7) return `Hace ${diffD} días`;
+  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+}
 
 // === COMPONENTE PRINCIPAL ===
 
@@ -81,6 +110,18 @@ function SelectorScreen({ onSelect, onBack }: {
   onSelect: (t: BreathingTemplate) => void;
   onBack: () => void;
 }) {
+  const [recentSessions, setRecentSessions] = useState<any[]>([]);
+
+  useFocusEffect(useCallback(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from('mind_sessions').select('*')
+        .eq('user_id', user.id).eq('type', 'breathing')
+        .order('created_at', { ascending: false }).limit(5)
+        .then(({ data }) => setRecentSessions(data ?? []));
+    });
+  }, []));
+
   return (
     <SafeAreaView style={styles.screen}>
       <PillarHeader pillar="mind" title="Respiración" />
@@ -89,20 +130,70 @@ function SelectorScreen({ onSelect, onBack }: {
           {BREATHING_LIBRARY.length} ejercicios de respiración
         </EliteText>
 
-        {BREATHING_LIBRARY.map(t => (
-          <GradientCard key={t.id} color={PURPLE} onPress={() => onSelect(t)} style={styles.selectorCard}>
-            <View style={styles.selectorCardBody}>
-              <View style={styles.selectorCardInfo}>
-                <EliteText variant="body" style={styles.selectorCardTitle}>{t.title}</EliteText>
-                <EliteText variant="caption" style={styles.selectorCardDesc}>{t.description}</EliteText>
-                <EliteText variant="caption" style={styles.selectorCardMeta}>
-                  {t.durationMinutes} min · {t.cycles} ciclos · {t.phases.map(p => p.seconds + 's').join('-')}
-                </EliteText>
+        {BREATHING_LIBRARY.map((t, idx) => (
+          <AnimatedRN.View key={t.id} entering={FadeInUp.delay(50 + idx * 40).springify()}>
+            <AnimatedPressable onPress={() => onSelect(t)}>
+              <View style={{
+                backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 10,
+                flexDirection: 'row', alignItems: 'center',
+                borderWidth: 1, borderColor: `${PURPLE}15`,
+              }}>
+                <View style={{ width: 4, height: 48, backgroundColor: PURPLE, borderRadius: 2, marginRight: 14 }} />
+                <View style={{
+                  width: 44, height: 44, borderRadius: 22,
+                  backgroundColor: `${PURPLE}15`,
+                  justifyContent: 'center', alignItems: 'center', marginRight: 14,
+                }}>
+                  <Ionicons name={getBreathIcon(t.id) as any} size={22} color={PURPLE} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold }}>{t.title}</Text>
+                  <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>{t.description}</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                    <View style={{ backgroundColor: `${PURPLE}15`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: PURPLE, fontSize: 10, fontFamily: Fonts.semiBold }}>{t.durationMinutes} min</Text>
+                    </View>
+                    <View style={{ backgroundColor: 'rgba(168,224,42,0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: '#a8e02a', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.phases.map(p => p.seconds + 's').join('-')}</Text>
+                    </View>
+                  </View>
+                </View>
+                <Ionicons name="play-circle-outline" size={28} color={PURPLE} />
               </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-            </View>
-          </GradientCard>
+            </AnimatedPressable>
+          </AnimatedRN.View>
         ))}
+
+        {/* Historial reciente */}
+        {recentSessions.length > 0 && (
+          <View style={{ marginTop: 24 }}>
+            <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 12 }}>
+              HISTORIAL RECIENTE
+            </Text>
+            {recentSessions.map(session => (
+              <View key={session.id} style={{
+                flexDirection: 'row', alignItems: 'center', gap: 12,
+                paddingVertical: 10,
+                borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.05)',
+              }}>
+                <Ionicons name="checkmark-circle" size={18} color="#a8e02a" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#fff', fontSize: 13, fontFamily: Fonts.semiBold }}>
+                    {session.template_name || 'Respiración'}
+                  </Text>
+                  <Text style={{ color: '#666', fontSize: 11, fontFamily: Fonts.regular }}>
+                    {Math.round((session.duration_seconds || 0) / 60)} min · {session.rounds_completed || 0} rondas
+                  </Text>
+                </View>
+                <Text style={{ color: '#666', fontSize: 11, fontFamily: Fonts.regular }}>
+                  {formatRelativeDate(session.created_at)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -313,10 +404,33 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     try { initAudio(); playBeep(0.5); } catch { /* */ }
     vibrateMedium();
     setTimeout(() => { try { playBeep(0.5); } catch { /* */ } vibrateMedium(); }, 1500);
-    setTimeout(() => { try { playBeep(0.5); } catch { /* */ } vibrateMedium(); }, 3000);
+
+    // Protocolo
     if (protocolItemId) {
       try { await toggleCompletion(protocolItemId); } catch { /* silenciar */ }
     }
+
+    // Guardar sesión + electrón
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // Guardar en mind_sessions
+        await supabase.from('mind_sessions').insert({
+          user_id: user.id,
+          type: 'breathing',
+          template_id: template.id,
+          template_name: template.title,
+          duration_seconds: totalElapsed,
+          rounds_completed: currentCycle + 1,
+          date: getLocalToday(),
+        }).then(() => {});
+
+        // Electrón breathwork
+        await awardBooleanElectron(user.id, 'breathwork');
+        DeviceEventEmitter.emit('electrons_changed');
+        DeviceEventEmitter.emit('day_changed');
+      }
+    } catch { /* silenciar */ }
   };
 
   const handleEnd = () => {
@@ -341,16 +455,35 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     return (
       <SafeAreaView style={styles.screen}>
         <View style={styles.completedContainer}>
-          <Ionicons name="checkmark-circle" size={64} color={PURPLE} />
-          <EliteText style={styles.completedTitle}>Sesión completada</EliteText>
+          <View style={{
+            width: 80, height: 80, borderRadius: 40,
+            backgroundColor: 'rgba(168,224,42,0.15)',
+            justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+          }}>
+            <Ionicons name="checkmark" size={40} color="#a8e02a" />
+          </View>
+          <EliteText style={styles.completedTitle}>¡Sesión completada!</EliteText>
           <EliteText variant="caption" style={styles.completedSub}>
-            {template.title} · {m > 0 ? `${m}m ${s}s` : `${s}s`}
+            {template.title} · {m > 0 ? `${m}m ${s}s` : `${s}s`} · {currentCycle + 1} rondas
           </EliteText>
           <EliteText variant="body" style={styles.completedMessage}>
             {template.closingMessage}
           </EliteText>
-          <Pressable onPress={onComplete} style={styles.doneBtn}>
-            <EliteText variant="body" style={styles.doneBtnText}>Volver</EliteText>
+
+          {/* Electrón ganado */}
+          <View style={{
+            backgroundColor: 'rgba(168,224,42,0.1)', borderRadius: 16,
+            padding: 16, marginVertical: 16, width: '80%', alignItems: 'center',
+          }}>
+            <Text style={{ color: '#a8e02a', fontSize: 18, fontFamily: Fonts.extraBold }}>+1.0 electrón</Text>
+            <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 4 }}>Breathwork completado</Text>
+          </View>
+
+          <Pressable onPress={onComplete} style={{
+            backgroundColor: '#a8e02a', borderRadius: 16,
+            paddingVertical: 16, paddingHorizontal: 40,
+          }}>
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: Fonts.extraBold }}>CONTINUAR</Text>
           </Pressable>
         </View>
       </SafeAreaView>

@@ -1,10 +1,12 @@
 /**
  * Mind Hub — Punto de entrada para Meditación, Respiración y Journaling.
  */
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '@/src/lib/supabase';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
@@ -20,6 +22,24 @@ const PURPLE = CATEGORY_COLORS.mind;
 
 export default function MindHubScreen() {
   const router = useRouter();
+  const [weekStats, setWeekStats] = useState({ breathing: 0, meditation: 0, checkin: 0 });
+
+  useFocusEffect(useCallback(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+      supabase.from('mind_sessions').select('type')
+        .eq('user_id', user.id).gte('date', weekAgo)
+        .then(({ data }) => {
+          const sessions = data ?? [];
+          setWeekStats({
+            breathing: sessions.filter(s => s.type === 'breathing').length,
+            meditation: sessions.filter(s => s.type === 'meditation').length,
+            checkin: sessions.filter(s => s.type === 'checkin').length,
+          });
+        });
+    });
+  }, []));
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -30,6 +50,24 @@ export default function MindHubScreen() {
           <EliteText variant="caption" style={styles.subtitle}>
             Meditación, respiración y más
           </EliteText>
+
+          {/* Stats semanales */}
+          {(weekStats.breathing + weekStats.meditation + weekStats.checkin) > 0 && (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: Spacing.md, backgroundColor: '#0a0a0a', borderRadius: 16, paddingVertical: 14 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: '#60a5fa', fontSize: 20, fontFamily: Fonts.extraBold }}>{weekStats.breathing}</Text>
+                <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.regular }}>Respiraciones</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: PURPLE, fontSize: 20, fontFamily: Fonts.extraBold }}>{weekStats.meditation}</Text>
+                <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.regular }}>Meditaciones</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: '#f472b6', fontSize: 20, fontFamily: Fonts.extraBold }}>{weekStats.checkin}</Text>
+                <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.regular }}>Check-ins</Text>
+              </View>
+            </View>
+          )}
         </Animated.View>
 
         {/* Meditación */}
