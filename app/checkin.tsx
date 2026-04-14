@@ -13,7 +13,7 @@ import {
   QUADRANTS, EMOTIONS, CONTEXT_WHERE, CONTEXT_WHO, CONTEXT_DOING,
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
-import { saveCheckin, getTodayCheckins, type CheckinRecord } from '@/src/services/checkin-service';
+import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { supabase } from '@/src/lib/supabase';
@@ -40,8 +40,12 @@ export default function CheckinScreen() {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
   const [recent, setRecent] = useState<CheckinRecord[]>([]);
+  const [pastCheckins, setPastCheckins] = useState<CheckinRecord[]>([]);
 
-  useEffect(() => { getTodayCheckins().then(setRecent).catch(() => {}); }, []);
+  useEffect(() => {
+    getTodayCheckins().then(setRecent).catch(() => {});
+    getRecentCheckins(14).then(setPastCheckins).catch(() => {});
+  }, []);
 
   const qd = quadrant ? QUADRANTS[quadrant] : null;
   const qColor = qd?.color ?? TEXT_COLORS.secondary;
@@ -171,6 +175,39 @@ export default function CheckinScreen() {
                 <View key={c.id} style={[styles.recentCircle, { backgroundColor: QUADRANTS[c.quadrant].color }]} />
               ))}
             </View>
+          )}
+
+          {/* Historial reciente */}
+          {pastCheckins.length > 0 && (
+            <ScrollView style={{ maxHeight: 200, marginTop: Spacing.md }} showsVerticalScrollIndicator={false}>
+              <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs, marginBottom: Spacing.xs }}>
+                CHECK-INS RECIENTES
+              </EliteText>
+              {pastCheckins.slice(0, 10).map(ci => {
+                const qInfo = QUADRANTS[ci.quadrant];
+                const emotionLabels = ci.emotions
+                  .map(id => EMOTIONS.find(e => e.id === id)?.label)
+                  .filter(Boolean)
+                  .join(', ');
+                return (
+                  <View key={ci.id} style={{
+                    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+                    padding: Spacing.sm, marginBottom: 6,
+                    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+                    borderLeftWidth: 3, borderLeftColor: qInfo.color,
+                  }}>
+                    <View style={{ flex: 1 }}>
+                      <EliteText variant="caption" style={{ color: qInfo.color, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>
+                        {emotionLabels || qInfo.label}
+                      </EliteText>
+                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: 2 }}>
+                        {new Date(ci.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </EliteText>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
           )}
         </Animated.View>
       )}
