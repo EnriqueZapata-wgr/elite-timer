@@ -507,16 +507,14 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             styles.breathCircle,
             { transform: [{ scale: scaleAnim }] },
           ]}>
-            <View style={styles.breathCircleInner}>
-              <EliteText style={styles.actionText}>
-                {status === 'idle' ? 'Listo' : currentPhase?.label ?? ''}
+            <EliteText style={styles.actionText}>
+              {status === 'idle' ? 'Listo' : currentPhase?.label ?? ''}
+            </EliteText>
+            {status !== 'idle' && (
+              <EliteText style={styles.phaseCountdown}>
+                {currentPhase ? currentPhase.seconds - secondsInPhase : 0}
               </EliteText>
-              {status !== 'idle' && (
-                <EliteText style={styles.phaseCountdown}>
-                  {currentPhase ? currentPhase.seconds - secondsInPhase : 0}
-                </EliteText>
-              )}
-            </View>
+            )}
           </RNAnimated.View>
         </View>
 
@@ -616,7 +614,6 @@ const styles = StyleSheet.create({
     shadowColor: PURPLE, shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.3, shadowRadius: 25, elevation: 8,
   },
-  breathCircleInner: { alignItems: 'center' },
   actionText: {
     fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: TEXT_COLORS.primary, letterSpacing: 2,
   },
