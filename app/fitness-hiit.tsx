@@ -18,9 +18,42 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CARD } from '@/src/constants/brand';
+import type { Routine, Block } from '@/src/engine/types';
 
 const ORANGE = '#fb923c';
 const ORANGE_GRADIENT = { start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,0.02)' };
+
+let _presetId = 0;
+function presetId(): string { return `hiit-${Date.now()}-${++_presetId}`; }
+
+/** Construye una rutina timer inline a partir de los parámetros del preset */
+function buildPresetRoutine(name: string, p: Record<string, string>): Routine {
+  const blocks: Block[] = [];
+  const work = parseInt(p.work ?? '0', 10);
+  const rest = parseInt(p.rest ?? '0', 10);
+  const rounds = parseInt(p.rounds ?? '1', 10);
+  const duration = parseInt(p.duration ?? '0', 10);
+
+  if (work > 0 && rounds > 0) {
+    // Interval-based: Tabata, 30/30, etc.
+    const children: Block[] = [];
+    children.push({ id: presetId(), type: 'work', name: 'Trabajo', duration: work });
+    if (rest > 0) children.push({ id: presetId(), type: 'rest', name: 'Descanso', duration: rest });
+    blocks.push({ id: presetId(), type: 'group', name: name, rounds, children });
+  } else if (duration > 0) {
+    // Duration-based: EMOM, AMRAP
+    blocks.push({ id: presetId(), type: 'work', name: name, duration });
+  }
+
+  return {
+    id: presetId(),
+    name,
+    description: '',
+    category: 'hiit',
+    mode: 'timer',
+    blocks,
+  };
+}
 
 interface HIITPreset {
   name: string;
@@ -40,7 +73,7 @@ const HIIT_PRESETS: HIITPreset[] = [
     name: 'EMOM 10 min',
     description: 'Every Minute On the Minute — 1 ejercicio cada minuto',
     metaText: '10 min',
-    params: { mode: 'emom', duration: '600' },
+    params: { mode: 'emom', work: '60', rest: '0', rounds: '10' },
   },
   {
     name: 'AMRAP 15 min',
@@ -61,7 +94,11 @@ export default function FitnessHIITScreen() {
 
   const startPreset = (preset: HIITPreset) => {
     haptic.medium();
-    router.push({ pathname: '/timer', params: preset.params } as any);
+    const routine = buildPresetRoutine(preset.name, preset.params);
+    router.push({
+      pathname: '/routine-execution',
+      params: { routine: JSON.stringify(routine) },
+    } as any);
   };
 
   return (
