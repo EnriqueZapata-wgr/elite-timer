@@ -5,7 +5,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, ScrollView, StyleSheet, Pressable, FlatList,
-  ActivityIndicator, RefreshControl, Dimensions,
+  ActivityIndicator, RefreshControl, Dimensions, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,8 @@ import {
 } from '@/src/services/exercise-service';
 import Svg, { Path, Circle as SvgCircle, Line } from 'react-native-svg';
 import { haptic } from '@/src/utils/haptics';
+import { supabase } from '@/src/lib/supabase';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { Colors, Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
 import { BLOCK_COLORS, SEMANTIC, CATEGORY_COLORS, SURFACES, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import {
@@ -265,6 +267,36 @@ function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color
       </View>
     </View>
   );
+}
+
+// === HELPERS: DELETE + RECALCULATE PR ===
+
+async function recalculatePR(userId: string, exerciseId: string) {
+  // Buscar el mejor log histórico para cada rep_range
+  const { data: logs } = await supabase
+    .from('exercise_logs')
+    .select('weight_kg, reps, estimated_1rm, rep_range')
+    .eq('user_id', userId)
+    .eq('exercise_id', exerciseId)
+    .order('estimated_1rm', { ascending: false })
+    .limit(1);
+
+  if (logs && logs.length > 0) {
+    const best = logs[0];
+    await supabase.from('personal_records').upsert({
+      user_id: userId,
+      exercise_id: exerciseId,
+      estimated_1rm: best.estimated_1rm,
+      weight_kg: best.weight_kg,
+      rep_range: best.rep_range ?? best.reps ?? 1,
+    }, { onConflict: 'user_id,exercise_id,rep_range' });
+  } else {
+    await supabase
+      .from('personal_records')
+      .delete()
+      .eq('user_id', userId)
+      .eq('exercise_id', exerciseId);
+  }
 }
 
 // === PANTALLA PRINCIPAL ===
@@ -507,6 +539,36 @@ export default function PersonalRecordsScreen() {
                       onPress={() => { haptic.light(); setSelectedExerciseId(
                         selectedExerciseId === entry.exerciseId ? null : entry.exerciseId
                       ); }}
+                      onLongPress={() => {
+                        haptic.heavy();
+                        const bestPR = entry.records.reduce((best, pr) =>
+                          pr.estimated_1rm > (best?.estimated_1rm ?? 0) ? pr : best
+                        );
+                        Alert.alert(
+                          'Eliminar récord',
+                          `¿Eliminar PRs de ${entry.exerciseName}?\n${bestPR.weight_kg}kg × ${bestPR.rep_range} rep${bestPR.rep_range > 1 ? 's' : ''} = ${Math.round(bestPR.estimated_1rm)}kg 1RM`,
+                          [
+                            { text: 'Cancelar', style: 'cancel' },
+                            {
+                              text: 'Eliminar',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  const { data: { user } } = await supabase.auth.getUser();
+                                  if (!user) return;
+                                  // Eliminar todos los PRs de este ejercicio
+                                  await supabase.from('personal_records').delete()
+                                    .eq('user_id', user.id).eq('exercise_id', entry.exerciseId);
+                                  // Recalcular desde historial
+                                  await recalculatePR(user.id, entry.exerciseId);
+                                  haptic.success();
+                                  loadRecords();
+                                } catch { /* silenciar */ }
+                              },
+                            },
+                          ]
+                        );
+                      }}
                     >
                       <LinearGradient colors={mgGrad} style={styles.exerciseCard}>
                         {/* Header */}
@@ -626,6 +688,9 @@ export default function PersonalRecordsScreen() {
                           </View>
                         )}
                       </LinearGradient>
+                      <EliteText variant="caption" style={{ color: '#333', fontSize: 9, textAlign: 'center', marginTop: 2, marginBottom: 4 }}>
+                        Mantén presionado para eliminar
+                      </EliteText>
                     </Pressable>
                   );
                 })}
