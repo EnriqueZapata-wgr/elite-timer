@@ -82,14 +82,17 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
   const loadDay = useCallback(async () => {
     if (!user?.id) return;
     try {
       const compiled = await compileDay(user.id);
-      setDay(compiled);
-    } catch { /* silenciar */ }
+      if (compiled) setDay(compiled);
+    } catch (e) {
+      console.warn('Error compiling day:', e);
+    }
     setLoading(false);
   }, [user?.id]);
 
@@ -97,7 +100,9 @@ export default function TodayScreen() {
     setLoading(true);
     loadDay();
     const interval = setInterval(loadDay, REFRESH_INTERVAL);
-    const sub = DeviceEventEmitter.addListener('day_changed', loadDay);
+    const sub = DeviceEventEmitter.addListener('day_changed', () => {
+      if (!isTogglingRef.current) loadDay();
+    });
     return () => {
       clearInterval(interval);
       sub.remove();
@@ -140,6 +145,7 @@ export default function TodayScreen() {
     });
 
     // Dual write: daily_electrons + electron_logs
+    isTogglingRef.current = true;
     try {
       // 1) daily_electrons (JSONB para UI rápida)
       const newStates: Record<string, boolean> = {};
@@ -157,10 +163,24 @@ export default function TodayScreen() {
         await awardBooleanElectron(user.id, source as any);
       }
       DeviceEventEmitter.emit('electrons_changed');
-    } catch { /* silenciar */ }
+    } catch (e) {
+      console.warn('Error toggling electron:', e);
+      // Revertir optimistic update en caso de error
+      setDay(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          booleanElectrons: prev.booleanElectrons.map(el =>
+            el.source === source ? { ...el, completed: wasCompleted } : el
+          ),
+        };
+      });
+    } finally {
+      isTogglingRef.current = false;
+    }
 
-    // Recompilar para sincronizar nextElectron y suggestion
-    loadDay();
+    // Recompilar para sincronizar nextElectron y suggestion (sin race condition)
+    setTimeout(() => loadDay(), 300);
   }
 
   // --- EditDayModal save ---
