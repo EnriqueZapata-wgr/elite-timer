@@ -45,9 +45,10 @@ const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Desayuno', emoji: '\u{1F305}' },
+  { key: 'snack_am', label: 'Snack AM', emoji: '\u{2615}' },
   { key: 'lunch', label: 'Comida', emoji: '\u{2600}\u{FE0F}' },
+  { key: 'snack_pm', label: 'Snack PM', emoji: '\u{1F34E}' },
   { key: 'dinner', label: 'Cena', emoji: '\u{1F319}' },
-  { key: 'snack', label: 'Snack', emoji: '\u{1F34E}' },
   { key: 'pre_workout', label: 'Pre', emoji: '\u{1F4AA}' },
   { key: 'post_workout', label: 'Post', emoji: '\u{1F3CB}\u{FE0F}' },
 ];
@@ -137,8 +138,9 @@ function autoMealType(): string {
   const h = new Date().getHours();
   if (h >= 5 && h < 11) return 'breakfast';
   if (h >= 11 && h < 15) return 'lunch';
-  if (h >= 15 && h < 18) return 'snack';
-  return 'dinner';
+  if (h >= 15 && h < 17) return 'snack_pm';
+  if (h >= 17 && h < 21) return 'dinner';
+  return 'snack_pm';
 }
 
 function scoreToColor(s: number): string {
@@ -282,7 +284,7 @@ function LoadingDots({ color }: { color: string }) {
 
 export default function FoodScanScreen() {
   const router = useRouter();
-  const { mode: mp } = useLocalSearchParams<{ mode?: string }>();
+  const { mode: mp, mealType: mealParam } = useLocalSearchParams<{ mode?: string; mealType?: string }>();
   const mode: ScanMode = (mp as ScanMode) || 'food';
   const cfg = MODE_CFG[mode];
 
@@ -290,7 +292,7 @@ export default function FoodScanScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
 
-  const [mealType, setMealType] = useState(autoMealType());
+  const [mealType, setMealType] = useState(mealParam || autoMealType());
   const [description, setDescription] = useState('');
   const [hungerKey, setHungerKey] = useState<string | null>(null);
   const [productName, setProductName] = useState('');

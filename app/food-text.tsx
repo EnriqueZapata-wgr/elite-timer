@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
   DeviceEventEmitter,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,9 +47,10 @@ const CATEGORY_ICONS: Record<FoodItem['category'], keyof typeof Ionicons.glyphMa
 /** Tipos de comida con detección automática por hora */
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Desayuno' },
+  { key: 'snack_am', label: 'Snack AM' },
   { key: 'lunch', label: 'Almuerzo' },
+  { key: 'snack_pm', label: 'Snack PM' },
   { key: 'dinner', label: 'Cena' },
-  { key: 'snack', label: 'Snack' },
 ] as const;
 
 /** Ingrediente seleccionado con cantidad editable */
@@ -66,8 +67,9 @@ function autoMealType(): string {
   const h = new Date().getHours();
   if (h >= 5 && h < 11) return 'breakfast';
   if (h >= 11 && h < 15) return 'lunch';
-  if (h >= 15 && h < 18) return 'snack';
-  return 'dinner';
+  if (h >= 15 && h < 17) return 'snack_pm';
+  if (h >= 17 && h < 21) return 'dinner';
+  return 'snack_pm';
 }
 
 /** Hora actual formateada */
@@ -96,11 +98,12 @@ function calcQualityScore(ingredients: SelectedIngredient[], totalProtein: numbe
 export default function FoodTextScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const params = useLocalSearchParams<{ mealType?: string }>();
 
   // --- Estado de búsqueda ---
   const [query, setQuery] = useState('');
   const [ingredients, setIngredients] = useState<SelectedIngredient[]>([]);
-  const [mealType, setMealType] = useState(autoMealType);
+  const [mealType, setMealType] = useState(params.mealType || autoMealType);
   const [timeHH, setTimeHH] = useState(currentTime().hh);
   const [timeMM, setTimeMM] = useState(currentTime().mm);
   const [saving, setSaving] = useState(false);
