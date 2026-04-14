@@ -6,7 +6,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter, Pressable, Text } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -59,6 +59,11 @@ export default function FastingScreen() {
   const [elapsedSecs, setElapsedSecs] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
 
+  // Pickers JS-only para retroactivo
+  const [startDate, setStartDate] = useState(new Date());
+  const [showEndForm, setShowEndForm] = useState(false);
+  const [endDate, setEndDate] = useState(new Date());
+
   // Cargar estado actual + historial
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -106,16 +111,8 @@ export default function FastingScreen() {
     setTimerView(prev => prev === 'elapsed' ? 'remaining' : prev === 'remaining' ? 'percentage' : 'elapsed');
   };
 
-  // Iniciar ayuno — opción de retroactivo
-  const handleStartFast = () => {
-    Alert.alert('Iniciar ayuno', '¿Cuándo empezó?', [
-      { text: 'Ahora mismo', onPress: () => startFastAt(new Date()) },
-      { text: 'Hace 1 hora', onPress: () => startFastAt(new Date(Date.now() - 1 * 3600000)) },
-      { text: 'Hace 2 horas', onPress: () => startFastAt(new Date(Date.now() - 2 * 3600000)) },
-      { text: 'Hace 4 horas', onPress: () => startFastAt(new Date(Date.now() - 4 * 3600000)) },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
-  };
+  // Iniciar ayuno con fecha/hora seleccionada
+  const handleStartFast = () => startFastAt(startDate);
 
   const startFastAt = async (startDate: Date) => {
     if (!user?.id) return;
@@ -134,15 +131,10 @@ export default function FastingScreen() {
     DeviceEventEmitter.emit('day_changed');
   };
 
-  // Romper ayuno — opción de retroactivo
+  // Romper ayuno — mostrar formulario con fecha/hora
   const handleBreakFast = () => {
-    Alert.alert('Romper ayuno', '¿Cuándo terminó?', [
-      { text: 'Ahora mismo', onPress: () => breakFastAt(new Date()) },
-      { text: 'Hace 30 min', onPress: () => breakFastAt(new Date(Date.now() - 30 * 60000)) },
-      { text: 'Hace 1 hora', onPress: () => breakFastAt(new Date(Date.now() - 1 * 3600000)) },
-      { text: 'Hace 2 horas', onPress: () => breakFastAt(new Date(Date.now() - 2 * 3600000)) },
-      { text: 'Cancelar', style: 'cancel' },
-    ]);
+    setEndDate(new Date());
+    setShowEndForm(true);
   };
 
   const breakFastAt = async (endDate: Date) => {
@@ -162,6 +154,7 @@ export default function FastingScreen() {
     setIsFasting(false);
     setFastStart(null);
     setElapsedSecs(0);
+    setShowEndForm(false);
     DeviceEventEmitter.emit('day_changed');
     // Recargar historial
     supabase.from('fasting_logs').select('*')
@@ -245,11 +238,114 @@ export default function FastingScreen() {
               })}
             </Animated.View>
 
-            {/* Botón romper */}
-            <AnimatedPressable onPress={handleBreakFast} style={s.breakBtn}>
-              <Ionicons name="stop-circle-outline" size={20} color="#ef4444" />
-              <EliteText style={s.breakBtnText}>Romper ayuno</EliteText>
-            </AnimatedPressable>
+            {/* Botón romper / formulario de fin */}
+            {!showEndForm ? (
+              <AnimatedPressable onPress={handleBreakFast} style={s.breakBtn}>
+                <Ionicons name="stop-circle-outline" size={20} color="#ef4444" />
+                <EliteText style={s.breakBtnText}>Romper ayuno</EliteText>
+              </AnimatedPressable>
+            ) : (
+              <Animated.View entering={FadeInUp.duration(300)} style={{ marginTop: Spacing.md }}>
+                <Text style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.bold, marginBottom: 12 }}>
+                  ¿Cuándo terminó tu ayuno?
+                </Text>
+
+                {/* Presets rápidos de fin */}
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  {[
+                    { label: 'Ahora', offset: 0 },
+                    { label: 'Hace 30m', offset: 0.5 },
+                    { label: 'Hace 1h', offset: 1 },
+                    { label: 'Hace 2h', offset: 2 },
+                  ].map(p => {
+                    const presetDate = new Date(Date.now() - p.offset * 3600000);
+                    const isActive = Math.abs(endDate.getTime() - presetDate.getTime()) < 60000;
+                    return (
+                      <Pressable key={p.label} onPress={() => { haptic.light(); setEndDate(presetDate); }}
+                        style={{
+                          flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
+                          backgroundColor: isActive ? 'rgba(239,68,68,0.15)' : '#0a0a0a',
+                          borderWidth: 1, borderColor: isActive ? '#ef4444' : '#1a1a1a',
+                        }}>
+                        <Text style={{ color: isActive ? '#ef4444' : '#999', fontSize: 11, fontFamily: Fonts.semiBold }}>
+                          {p.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {/* Fecha + hora ajustables */}
+                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                  <View style={{
+                    flex: 1, backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
+                    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                    borderWidth: 1, borderColor: '#1a1a1a',
+                  }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Ionicons name="calendar-outline" size={18} color="#ef4444" />
+                      <Text style={{ color: '#fff', fontSize: 14, fontFamily: Fonts.bold }}>
+                        {endDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      </Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      <Pressable onPress={() => { haptic.light(); const prev = new Date(endDate.getTime() - 86400000); if (fastStart && prev >= fastStart) setEndDate(prev); }}
+                        style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name="chevron-back" size={14} color="#999" />
+                      </Pressable>
+                      <Pressable onPress={() => { haptic.light(); const next = new Date(endDate.getTime() + 86400000); if (next <= new Date()) setEndDate(next); }}
+                        style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                        <Ionicons name="chevron-forward" size={14} color="#999" />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  <View style={{
+                    backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
+                    flexDirection: 'row', alignItems: 'center', gap: 6,
+                    borderWidth: 1, borderColor: '#1a1a1a',
+                  }}>
+                    <Ionicons name="time-outline" size={18} color="#ef4444" />
+                    <Pressable onPress={() => { haptic.light(); const prev = new Date(endDate.getTime() - 3600000); if (fastStart && prev >= fastStart) setEndDate(prev); }}
+                      style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="remove" size={12} color="#999" />
+                    </Pressable>
+                    <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold, fontVariant: ['tabular-nums'], minWidth: 46, textAlign: 'center' }}>
+                      {endDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </Text>
+                    <Pressable onPress={() => { haptic.light(); const next = new Date(endDate.getTime() + 3600000); if (next <= new Date()) setEndDate(next); }}
+                      style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="add" size={12} color="#999" />
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* Resumen de duración */}
+                <View style={{
+                  backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 12, padding: 14, marginBottom: 16,
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                }}>
+                  <Ionicons name="timer-outline" size={16} color={AMBER} />
+                  <Text style={{ color: AMBER, fontSize: 13, fontFamily: Fonts.semiBold }}>
+                    Duración: {fastStart ? ((endDate.getTime() - fastStart.getTime()) / 3600000).toFixed(1) : '0'}h
+                  </Text>
+                </View>
+
+                {/* Botones confirmar/cancelar */}
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <Pressable onPress={() => setShowEndForm(false)} style={{
+                    flex: 1, backgroundColor: '#1a1a1a', borderRadius: 16, padding: 14, alignItems: 'center',
+                  }}>
+                    <Text style={{ color: '#999', fontSize: 14, fontFamily: Fonts.semiBold }}>Cancelar</Text>
+                  </Pressable>
+                  <Pressable onPress={() => breakFastAt(endDate)} style={{
+                    flex: 1, backgroundColor: '#ef4444', borderRadius: 16, padding: 14, alignItems: 'center',
+                  }}>
+                    <Text style={{ color: '#fff', fontSize: 14, fontFamily: Fonts.extraBold }}>Confirmar</Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            )}
           </View>
         ) : (
           /* ═══ ESTADO: NO AYUNANDO ═══ */
@@ -278,8 +374,84 @@ export default function FastingScreen() {
               </View>
             </Animated.View>
 
-            {/* Botón iniciar */}
+            {/* ¿Cuándo empezó? — selector fecha/hora JS */}
             <Animated.View entering={FadeInUp.delay(150).springify()}>
+              <Text style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.bold, marginBottom: 12 }}>
+                ¿Cuándo empezó tu ayuno?
+              </Text>
+
+              {/* Presets rápidos */}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                {[
+                  { label: 'Ahora', offset: 0 },
+                  { label: 'Hace 1h', offset: 1 },
+                  { label: 'Hace 2h', offset: 2 },
+                  { label: 'Hace 4h', offset: 4 },
+                  { label: 'Ayer noche', offset: 12 },
+                ].map(p => {
+                  const presetDate = new Date(Date.now() - p.offset * 3600000);
+                  const isActive = Math.abs(startDate.getTime() - presetDate.getTime()) < 60000;
+                  return (
+                    <Pressable key={p.label} onPress={() => { haptic.light(); setStartDate(presetDate); }}
+                      style={{
+                        flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
+                        backgroundColor: isActive ? 'rgba(251,191,36,0.15)' : '#0a0a0a',
+                        borderWidth: 1, borderColor: isActive ? AMBER : '#1a1a1a',
+                      }}>
+                      <Text style={{ color: isActive ? AMBER : '#999', fontSize: 11, fontFamily: Fonts.semiBold }}>
+                        {p.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Fecha + hora ajustables */}
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                <View style={{
+                  flex: 1, backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
+                  flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+                  borderWidth: 1, borderColor: '#1a1a1a',
+                }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="calendar-outline" size={18} color={AMBER} />
+                    <Text style={{ color: '#fff', fontSize: 14, fontFamily: Fonts.bold }}>
+                      {startDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    <Pressable onPress={() => { haptic.light(); setStartDate(new Date(startDate.getTime() - 86400000)); }}
+                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="chevron-back" size={14} color="#999" />
+                    </Pressable>
+                    <Pressable onPress={() => { haptic.light(); const next = new Date(startDate.getTime() + 86400000); if (next <= new Date()) setStartDate(next); }}
+                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                      <Ionicons name="chevron-forward" size={14} color="#999" />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={{
+                  backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
+                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                  borderWidth: 1, borderColor: '#1a1a1a',
+                }}>
+                  <Ionicons name="time-outline" size={18} color={AMBER} />
+                  <Pressable onPress={() => { haptic.light(); setStartDate(new Date(startDate.getTime() - 3600000)); }}
+                    style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                    <Ionicons name="remove" size={12} color="#999" />
+                  </Pressable>
+                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold, fontVariant: ['tabular-nums'], minWidth: 46, textAlign: 'center' }}>
+                    {startDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </Text>
+                  <Pressable onPress={() => { haptic.light(); const next = new Date(startDate.getTime() + 3600000); if (next <= new Date()) setStartDate(next); }}
+                    style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                    <Ionicons name="add" size={12} color="#999" />
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Botón iniciar */}
               <AnimatedPressable onPress={handleStartFast} style={s.startBtn}>
                 <Ionicons name="play-circle" size={24} color="#000" />
                 <EliteText style={s.startBtnText}>INICIAR AYUNO</EliteText>
