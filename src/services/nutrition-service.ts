@@ -145,18 +145,28 @@ Plan nutricional activo:
 - Priorizar: ${(plan.foods_to_prioritize ?? []).join(', ') || 'nada'}
 - Alergias: ${(plan.allergies ?? []).join(', ') || 'ninguna'}` : '';
 
-  return `Eres el analista nutricional de ATP. Evalúas CALIDAD nutricional, no conteo exacto de calorías. Datos APROXIMADOS.
+  return `Eres el analista nutricional de ATP. Evalúas CALIDAD nutricional con datos APROXIMADOS.
 ${description ? 'El usuario describe: ' + description : ''}
 ${extra || ''}${planCtx}
 
-FILOSOFÍA: ¿Tiene proteína suficiente (>25g ideal)? ¿Verduras/fibra? ¿Grasas saludables o industriales? ¿Comida REAL o procesada? ¿Azúcar/harina refinada?
+REGLAS DE ESTIMACIÓN (MUY IMPORTANTE):
+- 1 huevo = 78 kcal, 6g prot, 5g grasa, 0.5g carbos. NO dupliques.
+- Pechuga de pollo 200g = 330 kcal, 50g prot.
+- 30g queso = ~7g prot, ~100 kcal.
+- 1 cdas aceite = 120 kcal, 14g grasa.
+- 1 tortilla maíz = 60 kcal, 2g prot, 12g carbos.
+- Las calorías DEBEN cuadrar: (proteína×4) + (carbos×4) + (grasa×9) ≈ calorías totales (±10%).
+- Si no estás seguro de un ingrediente, usa valores conservadores (NO sobreestimar proteína).
+- Incluye "grams" (peso en gramos del ingrediente) en cada ingrediente para unidades naturales.
 
-SCORE: 90-100=ejemplar, 75-89=muy bien, 60-74=aceptable, 40-59=mejorable, 0-39=ultra-procesado/cochinada.
+FILOSOFÍA: ¿Proteína suficiente (>25g ideal)? ¿Verduras/fibra? ¿Grasas saludables o industriales? ¿Comida REAL o procesada?
+
+SCORE: 90-100=ejemplar, 75-89=muy bien, 60-74=aceptable, 40-59=mejorable, 0-39=ultra-procesado.
 
 Responde SOLO JSON válido (sin backticks):
-{"food_identified":"Descripción del platillo","ingredients":[{"name":"Huevos revueltos","portion":"~150g (3 huevos)","calories":210,"protein":18,"carbs":2,"fat":15},{"name":"Aguacate","portion":"~1/2 pieza","calories":120,"protein":1,"carbs":6,"fat":11}],"totals":{"calories":330,"protein":19,"carbs":8,"fat":26,"fiber":4},"score":82,"score_label":"Buena","feedback":"Evaluación en español coloquial, 2-3 oraciones enfocadas en calidad.","good_points":["Proteína completa","Grasas saludables"],"improve_points":["Agregar más verduras de color"],"tags":["alta_proteina","grasas_saludables"],"red_flags":[],"suggestions":"Una sugerencia concreta"}
+{"food_identified":"Descripción del platillo","ingredients":[{"name":"Huevos revueltos","portion":"3 huevos","grams":180,"calories":234,"protein":18,"carbs":1.5,"fat":15},{"name":"Aguacate","portion":"1/2 pieza","grams":75,"calories":120,"protein":1,"carbs":6,"fat":11}],"totals":{"calories":354,"protein":19,"carbs":7.5,"fat":26,"fiber":4},"score":82,"score_label":"Buena","feedback":"Evaluación en español coloquial, 2-3 oraciones.","good_points":["Proteína completa","Grasas saludables"],"improve_points":["Agregar verduras"],"tags":["alta_proteina"],"red_flags":[],"suggestions":"Una sugerencia concreta"}
 
-Porciones en LENGUAJE NATURAL: "1/2 pieza", "~1 taza", "3 huevos", "~150g".`;
+Porciones en LENGUAJE NATURAL: "3 huevos", "1/2 pieza", "~1 taza", "~150g".`;
 }
 
 function parseFoodResult(text: string): any {
