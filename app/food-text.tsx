@@ -23,6 +23,7 @@ import { searchFoods, calculateNutrients } from '@/src/data/food-database';
 import type { FoodItem } from '@/src/data/food-database';
 import { analyzeFoodText as analyzeWithAI } from '@/src/services/nutrition-service';
 import { FoodReviewEditor, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
+import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
@@ -215,6 +216,19 @@ export default function FoodTextScreen() {
       });
 
       if (error) throw error;
+
+      // Actualizar frecuentes (background, no bloquear UI)
+      if (user?.id && hasMacros) {
+        updateFrequentFood(user.id, mealType, {
+          description: desc,
+          calories: reviewed.totals.calories,
+          protein_g: reviewed.totals.protein_g,
+          carbs_g: reviewed.totals.carbs_g,
+          fat_g: reviewed.totals.fat_g,
+          items: reviewed.items,
+        });
+      }
+
       DeviceEventEmitter.emit('day_changed');
       router.back();
     } catch (err: any) {

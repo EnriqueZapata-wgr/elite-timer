@@ -32,6 +32,8 @@ import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
 import { FoodReviewEditor, parseAIToReview, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
+import { updateFrequentFood } from '@/src/services/frequent-foods-service';
+import { useAuth } from '@/src/contexts/auth-context';
 
 // === CONSTANTES ===
 
@@ -285,6 +287,7 @@ function LoadingDots({ color }: { color: string }) {
 
 export default function FoodScanScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const { mode: mp, mealType: mealParam } = useLocalSearchParams<{ mode?: string; mealType?: string }>();
   const mode: ScanMode = (mp as ScanMode) || 'food';
   const cfg = MODE_CFG[mode];
@@ -455,6 +458,18 @@ export default function FoodScanScreen() {
         carbs_g: reviewed.totals.carbs_g,
         fat_g: reviewed.totals.fat_g,
       });
+      // Actualizar frecuentes (background)
+      if (user?.id) {
+        updateFrequentFood(user.id, mealType, {
+          description: reviewed.description,
+          calories: reviewed.totals.calories,
+          protein_g: reviewed.totals.protein_g,
+          carbs_g: reviewed.totals.carbs_g,
+          fat_g: reviewed.totals.fat_g,
+          items: reviewed.items,
+        });
+      }
+
       haptic.success();
       setSaved(true);
     } catch (err: any) {

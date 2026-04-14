@@ -7,7 +7,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter, Text } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -37,6 +37,7 @@ export default function FoodRegisterScreen() {
   const params = useLocalSearchParams<{ mealType?: string }>();
   const { user } = useAuth();
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
+  const [frequents, setFrequents] = useState<any[]>([]);
 
   // Si llega con mealType, ir directo a opciones de ese tipo
   const directMealType = params.mealType ? MEAL_TYPES.find(m => m.id === params.mealType) : null;
@@ -48,7 +49,52 @@ export default function FoodRegisterScreen() {
       .eq('user_id', user.id).eq('date', today)
       .order('meal_time', { ascending: true })
       .then(({ data }) => setTodayLogs(data ?? []));
-  }, [user?.id]));
+
+    // Cargar frecuentes para el tipo de comida actual
+    if (directMealType) {
+      supabase.from('user_frequent_foods').select('*')
+        .eq('user_id', user.id).eq('meal_type', directMealType.id)
+        .order('times_used', { ascending: false }).limit(10)
+        .then(({ data, error }) => { if (!error) setFrequents(data ?? []); });
+    }
+  }, [user?.id, directMealType?.id]));
+
+  // Agregar frecuente rápido
+  async function addFrequentQuick(food: any) {
+    if (!user?.id) return;
+    haptic.medium();
+    const today = getLocalToday();
+    const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    try {
+      await supabase.from('food_logs').insert({
+        user_id: user.id,
+        date: today,
+        meal_time: now,
+        meal_type: food.meal_type,
+        description: food.food_name,
+        calories: food.calories,
+        protein_g: food.protein_g,
+        carbs_g: food.carbs_g,
+        fat_g: food.fat_g,
+        notes: JSON.stringify({ source: 'frequent', items: food.items }),
+      });
+      // Actualizar times_used
+      await supabase.from('user_frequent_foods')
+        .update({ times_used: (food.times_used || 0) + 1, last_used_at: new Date().toISOString() })
+        .eq('id', food.id);
+
+      DeviceEventEmitter.emit('day_changed');
+      haptic.success();
+      Alert.alert('Registrado', `${food.food_name} agregado`);
+      // Refrescar logs
+      supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
+        .eq('user_id', user.id).eq('date', today)
+        .order('meal_time', { ascending: true })
+        .then(({ data }) => setTodayLogs(data ?? []));
+    } catch {
+      Alert.alert('Error', 'No se pudo registrar');
+    }
+  }
 
   const goToScan = (mealType: string) => {
     haptic.medium();
@@ -82,6 +128,28 @@ export default function FoodRegisterScreen() {
               <EliteText style={s.actionBtnGhostText}>Registrar manual</EliteText>
             </AnimatedPressable>
           </Animated.View>
+
+          {/* Frecuentes */}
+          {frequents.length > 0 && (
+            <View style={{ marginTop: Spacing.lg }}>
+              <SectionTitle>FRECUENTES</SectionTitle>
+              {frequents.map((food: any, idx: number) => (
+                <Animated.View key={food.id} entering={FadeInUp.delay(150 + idx * 40).springify()}>
+                  <AnimatedPressable onPress={() => addFrequentQuick(food)} style={s.frequentCard}>
+                    <View style={{ flex: 1 }}>
+                      <EliteText style={s.frequentName} numberOfLines={1}>{food.food_name}</EliteText>
+                      <Text style={s.frequentMeta}>
+                        {food.calories ? `${Math.round(food.calories)} kcal` : ''}
+                        {food.protein_g ? ` · ${Math.round(food.protein_g)}g prot` : ''}
+                        {food.times_used > 1 ? ` · ${food.times_used}x` : ''}
+                      </Text>
+                    </View>
+                    <Ionicons name="add-circle-outline" size={22} color="#a8e02a" />
+                  </AnimatedPressable>
+                </Animated.View>
+              ))}
+            </View>
+          )}
 
           {/* Registros de hoy para este tipo */}
           {logsForType.length > 0 && (
@@ -264,5 +332,27 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
     color: 'rgba(255,255,255,0.5)',
+  },
+
+  // Frequent foods
+  frequentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0a0a0a',
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    marginBottom: Spacing.xs,
+    gap: Spacing.sm,
+  },
+  frequentName: {
+    fontSize: FontSizes.md,
+    fontFamily: Fonts.semiBold,
+    color: '#fff',
+  },
+  frequentMeta: {
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.regular,
+    color: '#666',
+    marginTop: 2,
   },
 });
