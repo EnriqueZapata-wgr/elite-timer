@@ -22,6 +22,7 @@ import { supabase } from '@/src/lib/supabase';
 import { searchFoods, calculateNutrients } from '@/src/data/food-database';
 import type { FoodItem } from '@/src/data/food-database';
 import { analyzeFoodText as analyzeWithAI } from '@/src/services/nutrition-service';
+import { FoodReviewEditor, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
@@ -135,6 +136,7 @@ export default function FoodTextScreen() {
   }, [ingredients]);
 
   const [aiLoading, setAiLoading] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   // --- Agregar ingrediente desde autocompletado o IA ---
   const addIngredient = useCallback((food: FoodItem, gramsOverride?: number) => {
@@ -160,60 +162,59 @@ export default function FoodTextScreen() {
     setIngredients(prev => prev.filter(i => i.id !== id));
   }, []);
 
-  // --- Guardar en Supabase ---
-  const handleSave = useCallback(async () => {
+  // --- Guardar: si hay ingredientes, mostrar editor de revisión ---
+  const handleSave = useCallback(() => {
     if (!user) {
       Alert.alert('Error', 'Debes iniciar sesión para guardar');
       return;
     }
+    if (ingredients.length === 0 && !query.trim()) {
+      Alert.alert('Sin datos', 'Escribe algo o selecciona ingredientes');
+      return;
+    }
 
+    // Si hay ingredientes, mostrar editor de revisión antes de guardar
+    if (ingredients.length > 0) {
+      setShowReview(true);
+      return;
+    }
+
+    // Texto libre sin ingredientes → guardar directo
+    persistSave({
+      description: query.trim(),
+      items: [],
+      totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+    });
+  }, [user, ingredients, query]);
+
+  // Guardar en Supabase (después de revisión o directo)
+  const persistSave = useCallback(async (reviewed: ReviewState) => {
+    setShowReview(false);
     setSaving(true);
     try {
       const today = getLocalToday();
       const mealTime = `${timeHH.padStart(2, '0')}:${timeMM.padStart(2, '0')}:00`;
 
       haptic.success();
-      if (ingredients.length > 0) {
-        // Caso 1: Con ingredientes seleccionados → macros calculados
-        const description = ingredients.map(i => `${i.food.name} (${i.grams}g)`).join(', ');
-        const qualityScore = calcQualityScore(ingredients, totals.protein);
+      const desc = reviewed.description || ingredients.map(i => `${i.food.name} (${i.grams}g)`).join(', ') || query.trim();
+      const hasMacros = reviewed.totals.calories > 0 || reviewed.totals.protein_g > 0;
+      const qualityScore = ingredients.length > 0 ? calcQualityScore(ingredients, reviewed.totals.protein_g) : 0;
+      const extras = JSON.stringify({ fiber_g: totals.fiber, quality_score: qualityScore, source: 'manual_text', was_edited: true });
 
-        // Usamos solo las columnas que existen en la migración 027.
-        // fiber_g, quality_score, source se guardan en notes como JSON
-        // para no perder datos si esas columnas no existen en la DB.
-        const extras = JSON.stringify({ fiber_g: totals.fiber, quality_score: qualityScore, source: 'manual_text' });
-        const { error } = await supabase.from('food_logs').insert({
-          user_id: user.id,
-          date: today,
-          meal_time: mealTime,
-          meal_type: mealType,
-          description,
-          calories: Math.round(totals.calories * 10) / 10,
-          protein_g: Math.round(totals.protein * 10) / 10,
-          carbs_g: Math.round(totals.carbs * 10) / 10,
-          fat_g: Math.round(totals.fat * 10) / 10,
-          notes: extras,
-        });
+      const { error } = await supabase.from('food_logs').insert({
+        user_id: user!.id,
+        date: today,
+        meal_time: mealTime,
+        meal_type: mealType,
+        description: desc,
+        calories: hasMacros ? Math.round(reviewed.totals.calories * 10) / 10 : null,
+        protein_g: hasMacros ? Math.round(reviewed.totals.protein_g * 10) / 10 : null,
+        carbs_g: hasMacros ? Math.round(reviewed.totals.carbs_g * 10) / 10 : null,
+        fat_g: hasMacros ? Math.round(reviewed.totals.fat_g * 10) / 10 : null,
+        notes: extras,
+      });
 
-        if (error) throw error;
-      } else if (query.trim()) {
-        // Caso 2: Texto libre sin autocompletado → solo descripción
-        const { error } = await supabase.from('food_logs').insert({
-          user_id: user.id,
-          date: today,
-          meal_time: mealTime,
-          meal_type: mealType,
-          description: query.trim(),
-          notes: JSON.stringify({ source: 'manual_text' }),
-        });
-
-        if (error) throw error;
-      } else {
-        Alert.alert('Sin datos', 'Escribe algo o selecciona ingredientes');
-        setSaving(false);
-        return;
-      }
-
+      if (error) throw error;
       DeviceEventEmitter.emit('day_changed');
       router.back();
     } catch (err: any) {
@@ -225,6 +226,40 @@ export default function FoodTextScreen() {
 
   // --- Verificar si el usuario escribió texto libre sin seleccionar resultados ---
   const isFreeTextOnly = query.trim().length > 0 && ingredients.length === 0;
+
+  // Si está en modo revisión, mostrar el editor
+  if (showReview && ingredients.length > 0) {
+    const reviewInit: ReviewState = {
+      description: ingredients.map(i => `${i.food.name}`).join(', '),
+      items: ingredients.map(i => {
+        const n = calculateNutrients(i.food, i.grams);
+        return {
+          name: i.food.name,
+          quantity: i.grams,
+          unit: 'g' as const,
+          calories: n.calories,
+          protein_g: n.protein,
+          carbs_g: n.carbs,
+          fat_g: n.fat,
+        };
+      }),
+      totals: {
+        calories: totals.calories,
+        protein_g: totals.protein,
+        carbs_g: totals.carbs,
+        fat_g: totals.fat,
+      },
+    };
+    return (
+      <SafeAreaView style={s.container} edges={['top']}>
+        <FoodReviewEditor
+          initialState={reviewInit}
+          onSave={persistSave}
+          onCancel={() => setShowReview(false)}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.container} edges={['top']}>

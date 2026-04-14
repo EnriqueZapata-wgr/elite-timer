@@ -31,6 +31,7 @@ import { analyzeFoodText, reanalyzeFood } from '@/src/services/nutrition-service
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
+import { FoodReviewEditor, parseAIToReview, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 
 // === CONSTANTES ===
 
@@ -302,6 +303,7 @@ export default function FoodScanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showReview, setShowReview] = useState(false);
 
   // Nuevos estados para modo food editable
   const [textInput, setTextInput] = useState('');
@@ -418,8 +420,15 @@ export default function FoodScanScreen() {
 
   // === GUARDAR ===
 
-  const handleSaveFood = async () => {
-    if (!result || saving) return;
+  // Paso 1: abrir editor de revisión
+  const handleSaveFood = () => {
+    if (!result) return;
+    setShowReview(true);
+  };
+
+  // Paso 2: guardar después de revisión
+  const handleConfirmSave = async (reviewed: ReviewState) => {
+    setShowReview(false);
     setSaving(true);
     try {
       let photoUrl: string | undefined;
@@ -428,24 +437,23 @@ export default function FoodScanScreen() {
       }
       const hungerVal = hungerKey ? HUNGER_OPTIONS.find(h => h.key === hungerKey)?.value : undefined;
       const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-      const totals = editedTotals || result.totals;
       await logFood({
         meal_type: mealType,
-        description: result.food_identified || description || textInput || 'Sin descripción',
+        description: reviewed.description || result.food_identified || description || textInput || 'Sin descripción',
         photo_url: photoUrl,
         meal_time: now,
         hunger_level: hungerVal,
         ai_analysis: {
           ...result,
-          ingredients: ingredients,
-          totals: totals,
+          ingredients: reviewed.items,
+          totals: reviewed.totals,
           input_type: inputType,
-          was_edited: wasEdited,
+          was_edited: true,
         },
-        calories: totals?.calories,
-        protein_g: totals?.protein,
-        carbs_g: totals?.carbs,
-        fat_g: totals?.fat,
+        calories: reviewed.totals.calories,
+        protein_g: reviewed.totals.protein_g,
+        carbs_g: reviewed.totals.carbs_g,
+        fat_g: reviewed.totals.fat_g,
       });
       haptic.success();
       setSaved(true);
@@ -559,6 +567,23 @@ export default function FoodScanScreen() {
     setInputType('text');
     setStep('preview');
   };
+
+  // ═══════════════════════════════════════════
+  // REVIEW EDITOR (antes de guardar)
+  // ═══════════════════════════════════════════
+
+  if (showReview && result) {
+    const reviewInit = parseAIToReview(result);
+    return (
+      <SafeAreaView style={st.screen}>
+        <FoodReviewEditor
+          initialState={reviewInit}
+          onSave={handleConfirmSave}
+          onCancel={() => setShowReview(false)}
+        />
+      </SafeAreaView>
+    );
+  }
 
   // ═══════════════════════════════════════════
   // CAPTURE
