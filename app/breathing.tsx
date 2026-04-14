@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import AnimatedRN, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
-import { GradientCard } from '@/src/components/GradientCard';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';

@@ -31,7 +31,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { EmptyState } from '@/src/components/ui/EmptyState';
-import { GradientCard } from '@/src/components/GradientCard';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getPublicTemplates, assignProtocol, getUserProtocols, generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';

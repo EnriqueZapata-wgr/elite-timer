@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '@/src/lib/supabase';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
-import { GradientCard } from '@/src/components/GradientCard';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { MEDITATION_LIBRARY } from '@/src/data/meditation-library';

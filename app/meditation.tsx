@@ -13,7 +13,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
-import { GradientCard } from '@/src/components/GradientCard';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useTimer } from '@/hooks/use-timer';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';

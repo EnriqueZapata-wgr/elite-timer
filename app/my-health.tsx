@@ -12,7 +12,7 @@ try { ImagePicker = require('expo-image-picker'); } catch { /* */ }
 let DocumentPicker: any = null;
 try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
-import { GradientCard } from '@/src/components/GradientCard';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult } from '@/src/services/lab-service';
 import { calculateAndSaveScore, getLatestScore, ensureClientProfile } from '@/src/services/health-score-service';

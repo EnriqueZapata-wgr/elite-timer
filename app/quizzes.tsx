@@ -14,7 +14,7 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
-import { GradientCard } from '@/src/components/GradientCard';
+import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getAvailableQuizzes, getLastQuizResponse, type QuizData } from '@/src/services/quiz-engine-service';
 import { haptic } from '@/src/utils/haptics';
