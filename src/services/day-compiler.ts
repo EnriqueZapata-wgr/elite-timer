@@ -7,6 +7,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
+import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 
 // ═══ TIPOS ═══
 
@@ -272,100 +273,73 @@ function buildSuggestion(quants: QuantElectronState[], activeFast: any, hour: nu
 async function buildAgenda(userId: string, today: string, hour: number, protocol: CompiledDay['protocol'], activeFast: any): Promise<AgendaItem[]> {
   const items: AgendaItem[] = [];
 
-  // Protocol actions — desde daily_plans o fallback a protocol_items
+  // === PROTOCOLO → cargar plan del día (o generarlo si no existe) ===
   try {
-    const { data } = await supabase.from('daily_plans').select('actions').eq('user_id', userId).eq('date', today).maybeSingle();
-    const actions = (data?.actions as any[]) ?? [];
-    if (actions.length > 0) {
-      for (const a of actions) {
-        if (isElectronAction(a)) continue;
-        if (!a.scheduled_time) continue;
-        items.push({
-          id: a.id ?? `p-${a.scheduled_time}`,
-          time: formatTime(a.scheduled_time),
-          name: a.name ?? '',
-          subtitle: protocol?.name,
-          category: a.category ?? 'custom',
-          completed: a.completed ?? false,
-          isNext: false, isSmart: false,
-        });
-      }
+    let planActions: any[] = [];
+
+    // Paso 1: ¿ya hay un plan generado para hoy en daily_plans?
+    const { data } = await supabase
+      .from('daily_plans').select('actions')
+      .eq('user_id', userId).eq('date', today).maybeSingle();
+
+    if (data?.actions && Array.isArray(data.actions) && data.actions.length > 0) {
+      planActions = data.actions;
     } else if (protocol) {
-      // Fallback: si no hay plan para hoy, intentar cargar del protocolo activo
-      const { data: protData } = await supabase
-        .from('user_protocols').select('protocol_id, template_id')
-        .eq('user_id', userId).eq('status', 'active')
-        .order('created_at', { ascending: false }).limit(1);
-      const protocolId = protData?.[0]?.protocol_id;
-      const templateId = protData?.[0]?.template_id;
-      if (protocolId) {
-        const { data: protItems } = await supabase
-          .from('protocol_items').select('*')
-          .eq('protocol_id', protocolId)
-          .order('time');
-        for (const pi of (protItems ?? [])) {
-          if (isElectronAction(pi)) continue;
-          if (!pi.time) continue;
-          items.push({
-            id: pi.id ?? `pi-${pi.time}`,
-            time: formatTime(pi.time),
-            name: pi.name ?? pi.title ?? '',
-            subtitle: protocol.name,
-            category: pi.category ?? 'custom',
-            completed: false,
-            isNext: false, isSmart: false,
-          });
+      // Paso 2: no hay plan → generar desde protocolos activos via generateDailyPlan
+      // Esto lee user_protocols → protocol_templates.default_actions → compila timeline → guarda en daily_plans
+      try {
+        const generated = await generateDailyPlan(userId, today);
+        if (generated?.actions && Array.isArray(generated.actions)) {
+          planActions = generated.actions;
         }
-      }
-      // Fallback 3: protocol_templates.default_actions
-      if (items.length === 0 && templateId) {
-        try {
-          const { data: tmpl } = await supabase
-            .from('protocol_templates')
-            .select('default_actions')
-            .eq('id', templateId)
-            .single();
-          if (tmpl?.default_actions && Array.isArray(tmpl.default_actions)) {
-            for (const action of tmpl.default_actions) {
-              if (isElectronAction(action)) continue;
-              const t = action.scheduled_time ?? action.time;
-              if (!t) continue;
-              items.push({
-                id: `tmpl-${t}-${action.name ?? ''}`,
-                time: formatTime(t),
-                name: action.name ?? action.title ?? '',
-                subtitle: protocol?.name,
-                category: action.category ?? 'custom',
-                completed: false,
-                isNext: false, isSmart: false,
-              });
-            }
-          }
-        } catch { /* protocol_templates may not have default_actions */ }
+      } catch (e) {
+        console.warn('buildAgenda: generateDailyPlan error (no fatal)', e);
       }
     }
-  } catch { /* daily_plans / protocol_items may not exist */ }
 
-  // Smart fasting break
+    // Paso 3: convertir acciones del plan a agenda items
+    for (const a of planActions) {
+      if (isElectronAction(a)) continue;
+      // PlanAction usa scheduled_time; fallback a default_time y time por compatibilidad
+      const actionTime = a.scheduled_time || a.default_time || a.time;
+      if (!actionTime) continue;
+      items.push({
+        id: a.id ?? `p-${actionTime}`,
+        time: formatTime(actionTime),
+        name: a.name ?? '',
+        subtitle: a.protocol_name || protocol?.name,
+        category: a.category ?? 'custom',
+        completed: a.completed ?? false,
+        isNext: false, isSmart: false,
+      });
+    }
+  } catch (e) {
+    console.warn('buildAgenda: daily_plans error', e);
+  }
+
+  // === SMART: romper ayuno ===
   if (activeFast) {
     const start = new Date(activeFast.fast_start);
     const target = activeFast.target_hours ?? 16;
     const breakTime = new Date(start.getTime() + target * 3600000);
     const bToday = breakTime.toISOString().split('T')[0];
-    if (bToday === today || bToday <= today) {
-      items.push({
-        id: 'smart-fast-break',
-        time: `${breakTime.getHours()}:${String(breakTime.getMinutes()).padStart(2, '0')}`,
-        name: 'Romper ayuno',
-        subtitle: `Ayuno ${target}h`,
-        category: 'nutrition',
-        completed: false, isNext: false, isSmart: true,
-        route: '/fasting',
-      });
+    if (bToday <= today) {
+      const hasBreak = items.some(i => (i.name || '').toLowerCase().includes('romper ayuno'));
+      if (!hasBreak) {
+        items.push({
+          id: 'smart-fast-break',
+          time: `${breakTime.getHours()}:${String(breakTime.getMinutes()).padStart(2, '0')}`,
+          name: 'Romper ayuno',
+          subtitle: `Ayuno ${target}h`,
+          category: 'nutrition',
+          completed: false, isNext: false, isSmart: true,
+          route: '/fasting',
+        });
+      }
     }
   }
 
-  // Custom actions from preferences
+  // === CUSTOM actions from user preferences ===
   try {
     const { data: prefs } = await supabase.from('user_day_preferences').select('custom_agenda_actions').eq('user_id', userId).maybeSingle();
     const customs = (prefs?.custom_agenda_actions as any[]) ?? [];
@@ -376,14 +350,12 @@ async function buildAgenda(userId: string, today: string, hour: number, protocol
     }
   } catch { /* skip */ }
 
-  // Deduplicate
+  // === DEDUPLICATE + SORT + MARK NEXT ===
   const seen = new Set<string>();
   const deduped = items.filter(i => { const k = `${i.time}-${i.name}`.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
 
-  // Sort by time
   deduped.sort((a, b) => parseMinutes(a.time) - parseMinutes(b.time));
 
-  // Mark isNext
   const nowMin = hour * 60 + new Date().getMinutes();
   let foundNext = false;
   for (const i of deduped) {
