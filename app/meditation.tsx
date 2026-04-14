@@ -5,7 +5,7 @@
  * Si no → muestra la biblioteca para elegir.
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Alert, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,9 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/GradientCard';
 import { useTimer } from '@/hooks/use-timer';
 import { toggleCompletion } from '@/src/services/protocol-service';
+import { awardBooleanElectron } from '@/src/services/electron-service';
+import { supabase } from '@/src/lib/supabase';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import {
@@ -191,6 +194,23 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
     if (protocolItemId) {
       try { await toggleCompletion(protocolItemId); } catch { /* silenciar */ }
     }
+    // Guardar sesión + electrón
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('mind_sessions').insert({
+          user_id: user.id,
+          type: 'meditation',
+          template_id: meditation.id,
+          template_name: meditation.title,
+          duration_seconds: elapsed,
+          date: getLocalToday(),
+        });
+        await awardBooleanElectron(user.id, 'meditation');
+        DeviceEventEmitter.emit('electrons_changed');
+        DeviceEventEmitter.emit('day_changed');
+      }
+    } catch { /* silenciar */ }
   };
 
   const handleEnd = () => {
