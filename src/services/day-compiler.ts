@@ -141,7 +141,8 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const userName = userRes.data.user?.user_metadata?.full_name?.split(' ')[0]?.toUpperCase() ?? 'ATLETA';
 
   const activeBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
-  const activeQuantKeys: string[] = prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS;
+  const activeQuantKeys: string[] = (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)
+    .filter((k: string) => k !== 'steps' && k !== 'sleep'); // Sin fuente hasta wearables
 
   // Protocol
   let protocol: CompiledDay['protocol'] = null;
@@ -292,10 +293,11 @@ async function buildAgenda(userId: string, today: string, hour: number, protocol
     } else if (protocol) {
       // Fallback: si no hay plan para hoy, intentar cargar del protocolo activo
       const { data: protData } = await supabase
-        .from('user_protocols').select('protocol_id')
+        .from('user_protocols').select('protocol_id, template_id')
         .eq('user_id', userId).eq('status', 'active')
         .order('created_at', { ascending: false }).limit(1);
       const protocolId = protData?.[0]?.protocol_id;
+      const templateId = protData?.[0]?.template_id;
       if (protocolId) {
         const { data: protItems } = await supabase
           .from('protocol_items').select('*')
@@ -314,6 +316,32 @@ async function buildAgenda(userId: string, today: string, hour: number, protocol
             isNext: false, isSmart: false,
           });
         }
+      }
+      // Fallback 3: protocol_templates.default_actions
+      if (items.length === 0 && templateId) {
+        try {
+          const { data: tmpl } = await supabase
+            .from('protocol_templates')
+            .select('default_actions')
+            .eq('id', templateId)
+            .single();
+          if (tmpl?.default_actions && Array.isArray(tmpl.default_actions)) {
+            for (const action of tmpl.default_actions) {
+              if (isElectronAction(action)) continue;
+              const t = action.scheduled_time ?? action.time;
+              if (!t) continue;
+              items.push({
+                id: `tmpl-${t}-${action.name ?? ''}`,
+                time: formatTime(t),
+                name: action.name ?? action.title ?? '',
+                subtitle: protocol?.name,
+                category: action.category ?? 'custom',
+                completed: false,
+                isNext: false, isSmart: false,
+              });
+            }
+          }
+        } catch { /* protocol_templates may not have default_actions */ }
       }
     }
   } catch { /* daily_plans / protocol_items may not exist */ }
