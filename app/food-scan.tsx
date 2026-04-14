@@ -1081,7 +1081,7 @@ export default function FoodScanScreen() {
               <MacroPill label="Grasa" value={`${displayTotals?.fat ?? result.estimated_fat ?? '—'}`} unit="g" color={SEMANTIC.warning} delay={800} />
             </View>
             <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm, textAlign: 'center', marginTop: 4 }}>
-              Estimados aproximados
+              Estimados por ARGOS
             </EliteText>
 
             {/* Puntos buenos */}

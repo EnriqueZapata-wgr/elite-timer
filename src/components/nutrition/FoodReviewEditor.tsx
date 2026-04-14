@@ -351,7 +351,7 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
         }}>
           <Ionicons name="alert-circle-outline" size={18} color="#fbbf24" />
           <Text style={{ color: '#999', fontSize: 12, flex: 1 }}>
-            Los macros son estimados por IA. Ajusta si notas errores.
+            Macros estimados por ARGOS. Ajusta si notas errores.
           </Text>
         </View>
       </View>

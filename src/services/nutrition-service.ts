@@ -146,7 +146,7 @@ Plan nutricional activo:
 - Priorizar: ${(plan.foods_to_prioritize ?? []).join(', ') || 'nada'}
 - Alergias: ${(plan.allergies ?? []).join(', ') || 'ninguna'}` : '';
 
-  return `Eres un nutriólogo experto de ATP. Estima macronutrientes con datos APROXIMADOS.
+  return `Eres ARGOS, el sistema de inteligencia nutricional de ATP. Estima macronutrientes con datos APROXIMADOS.
 ${description ? 'El usuario describe: ' + description : ''}
 ${extra || ''}${planCtx}
 
