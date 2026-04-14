@@ -141,8 +141,22 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setReview(prev => {
       const items = [...prev.items];
-      const current = items[index].unit;
-      items[index] = { ...items[index], unit: UNIT_CYCLE[current] || 'g' };
+      const item = items[index];
+      const nextUnit = UNIT_CYCLE[item.unit] || 'g';
+      const equiv = findEquivalence(item.name);
+
+      let newQty = item.quantity;
+      if (equiv) {
+        if (item.unit === 'g' && nextUnit === equiv.naturalUnit) {
+          // g → unidad natural
+          newQty = Math.round((item.quantity / equiv.gramsPerUnit) * 10) / 10;
+        } else if (item.unit === equiv.naturalUnit && nextUnit === 'g') {
+          // unidad natural → g
+          newQty = Math.round(item.quantity * equiv.gramsPerUnit);
+        }
+      }
+
+      items[index] = { ...item, unit: nextUnit, quantity: newQty };
       return { ...prev, items };
     });
   }
@@ -204,38 +218,54 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
 
         {review.items.map((item, index) => (
           <View key={index} style={{
-            flexDirection: 'row', alignItems: 'center', gap: 8,
-            backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, marginBottom: 8,
+            backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, marginBottom: 10,
+            borderWidth: 1, borderColor: '#1a1a1a',
           }}>
-            <TextInput
-              value={item.name}
-              onChangeText={v => updateItem(index, 'name', v)}
-              placeholder="Ingrediente"
-              placeholderTextColor="#444"
-              style={{ color: '#fff', fontSize: 14, fontFamily: Fonts.regular, flex: 1 }}
-            />
-            <TextInput
-              value={String(item.quantity)}
-              onChangeText={v => updateItem(index, 'quantity', parseFloat(v) || 0)}
-              keyboardType="decimal-pad"
-              style={{
-                color: '#a8e02a', fontSize: 14, fontFamily: Fonts.bold,
-                width: 50, textAlign: 'right',
-              }}
-            />
-            <Pressable onPress={() => cycleUnit(index)}>
-              <View style={{
-                backgroundColor: 'rgba(168,224,42,0.1)', paddingHorizontal: 8,
-                paddingVertical: 4, borderRadius: 8,
-              }}>
-                <Text style={{ color: '#a8e02a', fontSize: 12, fontFamily: Fonts.semiBold }}>
-                  {item.unit}
-                </Text>
+            {/* Fila 1: Nombre + eliminar */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <TextInput
+                value={item.name}
+                onChangeText={v => updateItem(index, 'name', v)}
+                placeholder="Ingrediente"
+                placeholderTextColor="#444"
+                style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.bold, flex: 1 }}
+              />
+              <Pressable onPress={() => removeItem(index)} hitSlop={12}>
+                <Ionicons name="close-circle" size={22} color="#ef4444" />
+              </Pressable>
+            </View>
+
+            {/* Fila 2: Cantidad + Unidad + Macros mini */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TextInput
+                value={String(item.quantity)}
+                onChangeText={v => updateItem(index, 'quantity', parseFloat(v) || 0)}
+                keyboardType="decimal-pad"
+                style={{
+                  backgroundColor: '#1a1a1a', color: '#a8e02a',
+                  fontSize: 20, fontFamily: Fonts.extraBold,
+                  width: 80, textAlign: 'center',
+                  paddingVertical: 10, borderRadius: 10,
+                }}
+              />
+              <Pressable onPress={() => cycleUnit(index)}>
+                <View style={{
+                  backgroundColor: 'rgba(168,224,42,0.12)',
+                  paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
+                  borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)',
+                }}>
+                  <Text style={{ color: '#a8e02a', fontSize: 14, fontFamily: Fonts.bold }}>
+                    {item.unit}
+                  </Text>
+                </View>
+              </Pressable>
+              <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', gap: 6 }}>
+                <Text style={{ color: '#999', fontSize: 11 }}>{Math.round(item.calories || 0)}kcal</Text>
+                <Text style={{ color: '#60a5fa', fontSize: 11 }}>P{Math.round(item.protein_g || 0)}</Text>
+                <Text style={{ color: '#fbbf24', fontSize: 11 }}>C{Math.round(item.carbs_g || 0)}</Text>
+                <Text style={{ color: '#fb923c', fontSize: 11 }}>G{Math.round(item.fat_g || 0)}</Text>
               </View>
-            </Pressable>
-            <Pressable onPress={() => removeItem(index)} hitSlop={8}>
-              <Ionicons name="close-circle-outline" size={20} color="#ef4444" />
-            </Pressable>
+            </View>
           </View>
         ))}
 
