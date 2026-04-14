@@ -4,6 +4,7 @@
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
+import { generateAIReferencePrompt } from '@/src/constants/argos-food-library';
 
 // === AUTH ===
 async function getUserId(): Promise<string> {
@@ -154,23 +155,7 @@ REGLAS CRÍTICAS — Los macros son una FRACCIÓN del peso, NUNCA iguales al pes
 - Calorías = (proteína×4) + (carbos×4) + (grasa×9). VERIFICA antes de responder.
 - Si el total de macros supera el peso del alimento, HAY UN ERROR.
 
-TABLA DE REFERENCIA POR 100g:
-  Carne molida: 26g prot, 20g grasa, 0g carbs = 290 kcal
-  Pechuga pollo: 31g prot, 3.6g grasa, 0g carbs = 165 kcal
-  Salmón: 20g prot, 13g grasa, 0g carbs = 208 kcal
-  Sardinas lata (90g): 21g prot, 9g grasa = 170 kcal
-  Arroz cocido: 2.5g prot, 0.3g grasa, 28g carbs = 130 kcal
-  Frijoles cocidos: 9g prot, 0.5g grasa, 23g carbs = 130 kcal
-  Aguacate: 2g prot, 15g grasa, 9g carbs = 160 kcal
-  Leche entera (240ml): 8g prot, 8g grasa, 12g carbs = 150 kcal
-  Queso manchego (30g): 7g prot, 8g grasa, 0g carbs = 100 kcal
-  1 huevo (60g): 6g prot, 5g grasa, 0.5g carbs = 78 kcal
-  1 tortilla maíz (30g): 1.5g prot, 0.7g grasa, 13g carbs = 65 kcal
-  Aceite oliva (1 cdas 14ml): 0g prot, 14g grasa = 120 kcal
-  Plátano (120g): 1.3g prot, 0.4g grasa, 27g carbs = 105 kcal
-  Avena (40g seca): 5g prot, 2.7g grasa, 27g carbs = 150 kcal
-  Almendras (30g): 6g prot, 15g grasa, 2g carbs = 170 kcal
-  Pan integral (30g): 3g prot, 1g grasa, 12g carbs = 70 kcal
+${generateAIReferencePrompt(40)}
 
 EJEMPLO: "500g de carne molida" → prot=500×0.26=130g, grasa=500×0.20=100g, carbs=0g, cal=(130×4)+(100×9)=1420 kcal.
 

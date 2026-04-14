@@ -5,6 +5,7 @@
  * - validateFoodEstimate: solo detecta (para UI warnings)
  * - validateAndFixFoodEstimate: detecta Y corrige (para pipeline pre-save)
  */
+import { findFood, calculateMacros } from '@/src/constants/argos-food-library';
 
 interface AutoFix {
   field: string;
@@ -109,24 +110,45 @@ export function validateAndFixFoodEstimate(food: {
     wasFixed = true;
   }
 
-  // REGLA 5: Corregir items individuales con el mismo bug
+  // REGLA 5: Corregir items usando ARGOS como referencia
   if (fixed.items) {
     for (const item of fixed.items) {
       const grams = item.grams || item.quantity_g || 100;
       const prot = item.protein ?? item.protein_g ?? 0;
-      if (prot > grams * 0.4) {
-        const corrected = Math.round(grams * 0.25);
-        warnings.push(`${item.name}: prot ${Math.round(prot)}g → ${corrected}g`);
-        item.protein = corrected;
-        item.protein_g = corrected;
-        wasFixed = true;
-      }
       const fat = item.fat ?? item.fat_g ?? 0;
-      if (fat > grams * 0.5) {
-        const corrected = Math.round(grams * 0.20);
-        item.fat = corrected;
-        item.fat_g = corrected;
-        wasFixed = true;
+      const name = item.name || '';
+
+      // Intentar buscar en ARGOS para referencia exacta
+      const argosRef = findFood(name);
+      if (argosRef) {
+        const ref = calculateMacros(argosRef, grams);
+        // Si la proteína difiere más del 50% de la referencia, usar referencia
+        if (prot > 0 && ref.protein > 0 && Math.abs(prot - ref.protein) / ref.protein > 0.5) {
+          warnings.push(`${name}: prot ${Math.round(prot)}g → ${ref.protein}g (ref ARGOS)`);
+          item.protein = ref.protein;
+          item.protein_g = ref.protein;
+          wasFixed = true;
+        }
+        if (fat > 0 && ref.fat > 0 && Math.abs(fat - ref.fat) / ref.fat > 0.5) {
+          item.fat = ref.fat;
+          item.fat_g = ref.fat;
+          wasFixed = true;
+        }
+      } else {
+        // Sin referencia: validación genérica por peso
+        if (prot > grams * 0.4) {
+          const corrected = Math.round(grams * 0.25);
+          warnings.push(`${name}: prot ${Math.round(prot)}g → ${corrected}g`);
+          item.protein = corrected;
+          item.protein_g = corrected;
+          wasFixed = true;
+        }
+        if (fat > grams * 0.5) {
+          const corrected = Math.round(grams * 0.20);
+          item.fat = corrected;
+          item.fat_g = corrected;
+          wasFixed = true;
+        }
       }
     }
   }

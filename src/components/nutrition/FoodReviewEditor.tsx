@@ -8,7 +8,8 @@ import { useState, useMemo } from 'react';
 import { View, ScrollView, TextInput, Pressable, Text, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { findEquivalence, UNIT_CYCLE, type FoodUnit } from '@/src/constants/food-units';
+import { UNIT_CYCLE, type FoodUnit } from '@/src/constants/food-units';
+import { findFood as findArgosFood } from '@/src/constants/argos-food-library';
 import { validateFoodEstimate, validateAndFixFoodEstimate, type ValidationResult } from '@/src/utils/food-validation';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 
@@ -50,13 +51,13 @@ export function parseAIToReview(aiResult: any): ReviewState {
   const rawItems = aiResult?.ingredients || aiResult?.items || [];
   const items: ReviewItem[] = rawItems.map((item: any) => {
     const name = item.name || item.food || '';
-    const equiv = findEquivalence(name);
-    if (equiv && item.grams) {
-      const naturalQty = Math.round((item.grams / equiv.gramsPerUnit) * 10) / 10;
+    const argos = findArgosFood(name);
+    if (argos && item.grams) {
+      const naturalQty = Math.round((item.grams / argos.gramsPerUnit) * 10) / 10;
       return {
         name,
-        quantity: naturalQty || equiv.defaultQuantity,
-        unit: equiv.naturalUnit,
+        quantity: naturalQty || argos.defaultQuantity,
+        unit: argos.naturalUnit,
         calories: item.calories,
         protein_g: item.protein_g ?? item.protein,
         carbs_g: item.carbs_g ?? item.carbs,
@@ -143,16 +144,14 @@ export function FoodReviewEditor({ initialState, onSave, onCancel }: Props) {
       const items = [...prev.items];
       const item = items[index];
       const nextUnit = UNIT_CYCLE[item.unit] || 'g';
-      const equiv = findEquivalence(item.name);
+      const argos = findArgosFood(item.name);
 
       let newQty = item.quantity;
-      if (equiv) {
-        if (item.unit === 'g' && nextUnit === equiv.naturalUnit) {
-          // g → unidad natural
-          newQty = Math.round((item.quantity / equiv.gramsPerUnit) * 10) / 10;
-        } else if (item.unit === equiv.naturalUnit && nextUnit === 'g') {
-          // unidad natural → g
-          newQty = Math.round(item.quantity * equiv.gramsPerUnit);
+      if (argos) {
+        if (item.unit === 'g' && nextUnit === argos.naturalUnit) {
+          newQty = Math.round((item.quantity / argos.gramsPerUnit) * 10) / 10;
+        } else if (item.unit === argos.naturalUnit && nextUnit === 'g') {
+          newQty = Math.round(item.quantity * argos.gramsPerUnit);
         }
       }
 
