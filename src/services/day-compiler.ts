@@ -77,7 +77,7 @@ export interface AgendaItem {
 // ═══ DEFAULTS ═══
 
 const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower', 'grounding', 'no_alcohol'];
-const DEFAULT_QUANTS = ['protein', 'steps', 'water'];
+const DEFAULT_QUANTS = ['protein', 'water'];
 
 const QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
   protein: { target: 150, unit: 'g' },
