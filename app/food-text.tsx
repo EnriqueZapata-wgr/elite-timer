@@ -425,7 +425,7 @@ export default function FoodTextScreen() {
                     </View>
 
                     <View style={s.ingredientBody}>
-                      {/* Input de cantidad */}
+                      {/* Input de cantidad — más grande y visible */}
                       <View style={s.gramsInputRow}>
                         <TextInput
                           style={s.gramsInput}
@@ -434,7 +434,9 @@ export default function FoodTextScreen() {
                           keyboardType="decimal-pad"
                           selectTextOnFocus
                         />
-                        <EliteText style={s.gramsLabel}>g</EliteText>
+                        <View style={s.gramsUnitBadge}>
+                          <EliteText style={s.gramsLabel}>g</EliteText>
+                        </View>
                       </View>
 
                       {/* Mini macros del ingrediente */}
@@ -710,12 +712,12 @@ const s = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   ingredientCard: {
-    backgroundColor: SURFACES.card,
-    borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: SURFACES.border,
-    padding: Spacing.sm + 4,
-    marginBottom: Spacing.sm,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+    padding: 14,
+    marginBottom: 10,
   },
   ingredientHeader: {
     flexDirection: 'row',
@@ -729,38 +731,43 @@ const s = StyleSheet.create({
     flex: 1,
   },
   ingredientName: {
-    color: TEXT_COLORS.primary,
-    fontFamily: Fonts.semiBold,
-    fontSize: FontSizes.md,
+    color: '#fff',
+    fontFamily: Fonts.bold,
+    fontSize: 15,
   },
   ingredientBody: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: Spacing.sm,
+    marginTop: 10,
   },
   gramsInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: SURFACES.card,
-    borderRadius: Radius.sm,
-    borderWidth: 1,
-    borderColor: SURFACES.disabled,
-    paddingHorizontal: Spacing.sm,
+    gap: 6,
   },
   gramsInput: {
-    width: 60,
-    height: 36,
-    color: TEXT_COLORS.primary,
-    fontFamily: Fonts.semiBold,
-    fontSize: FontSizes.md,
+    width: 80,
+    height: 44,
+    color: '#a8e02a',
+    fontFamily: Fonts.bold,
+    fontSize: 20,
     textAlign: 'center',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+  },
+  gramsUnitBadge: {
+    backgroundColor: 'rgba(168,224,42,0.12)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(168,224,42,0.25)',
   },
   gramsLabel: {
-    color: TEXT_COLORS.secondary,
-    fontFamily: Fonts.regular,
-    fontSize: FontSizes.sm,
-    marginLeft: 2,
+    color: '#a8e02a',
+    fontFamily: Fonts.bold,
+    fontSize: 14,
   },
   ingredientMacros: {
     flexDirection: 'row',
