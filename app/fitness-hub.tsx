@@ -187,8 +187,10 @@ export default function FitnessHubScreen() {
           ))}
         </View>
 
-        {/* Récords y Rutinas */}
+        {/* Herramientas */}
         <View style={{ marginTop: Spacing.md }}>
+          <SectionTitle>HERRAMIENTAS</SectionTitle>
+
           <AnimatedPressable onPress={() => { haptic.light(); router.push('/personal-records'); }} style={s.areaCardWrap}>
             <GradientCard gradient={{ start: 'rgba(251,191,36,0.08)', end: 'rgba(251,191,36,0.03)' }} accentColor="#fbbf24" accentPosition="left" padding={18}>
               <View style={s.areaRow}>
@@ -205,10 +207,23 @@ export default function FitnessHubScreen() {
           <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-routines' as any); }} style={s.areaCardWrap}>
             <GradientCard gradient={{ start: 'rgba(168,224,42,0.08)', end: 'rgba(168,224,42,0.03)' }} accentColor="#a8e02a" accentPosition="left" padding={18}>
               <View style={s.areaRow}>
-                <Ionicons name="construct-outline" size={24} color="#a8e02a" style={s.areaIcon} />
+                <Ionicons name="list-outline" size={24} color="#a8e02a" style={s.areaIcon} />
                 <View style={{ flex: 1 }}>
                   <EliteText style={s.areaTitle}>Mis rutinas</EliteText>
-                  <EliteText style={s.areaSub}>Tus rutinas y timers guardados</EliteText>
+                  <EliteText style={s.areaSub}>Rutinas y timers guardados</EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#666" />
+              </View>
+            </GradientCard>
+          </AnimatedPressable>
+
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/builder' as any); }} style={s.areaCardWrap}>
+            <GradientCard gradient={{ start: 'rgba(96,165,250,0.08)', end: 'rgba(96,165,250,0.03)' }} accentColor="#60a5fa" accentPosition="left" padding={18}>
+              <View style={s.areaRow}>
+                <Ionicons name="construct-outline" size={24} color="#60a5fa" style={s.areaIcon} />
+                <View style={{ flex: 1 }}>
+                  <EliteText style={s.areaTitle}>Constructor</EliteText>
+                  <EliteText style={s.areaSub}>Crear rutina o timer nuevo</EliteText>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#666" />
               </View>
