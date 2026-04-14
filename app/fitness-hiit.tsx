@@ -26,6 +26,12 @@ const ORANGE_GRADIENT = { start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,
 let _presetId = 0;
 function presetId(): string { return `hiit-${Date.now()}-${++_presetId}`; }
 
+/** Defaults para campos obligatorios de Block */
+const BD: Omit<Block, 'id' | 'type' | 'label' | 'duration_seconds' | 'rounds' | 'children'> = {
+  parent_block_id: null, sort_order: 0, rest_between_seconds: 0,
+  color: null, sound_start: 'bell', sound_end: 'bell', notes: '',
+};
+
 /** Construye una rutina timer inline a partir de los parámetros del preset */
 function buildPresetRoutine(name: string, p: Record<string, string>): Routine {
   const blocks: Block[] = [];
@@ -37,12 +43,12 @@ function buildPresetRoutine(name: string, p: Record<string, string>): Routine {
   if (work > 0 && rounds > 0) {
     // Interval-based: Tabata, 30/30, etc.
     const children: Block[] = [];
-    children.push({ id: presetId(), type: 'work', name: 'Trabajo', duration: work });
-    if (rest > 0) children.push({ id: presetId(), type: 'rest', name: 'Descanso', duration: rest });
-    blocks.push({ id: presetId(), type: 'group', name: name, rounds, children });
+    children.push({ ...BD, id: presetId(), type: 'work', label: 'Trabajo', duration_seconds: work, rounds: 1 });
+    if (rest > 0) children.push({ ...BD, id: presetId(), type: 'rest', label: 'Descanso', duration_seconds: rest, rounds: 1 });
+    blocks.push({ ...BD, id: presetId(), type: 'group', label: name, duration_seconds: null, rounds, children });
   } else if (duration > 0) {
     // Duration-based: EMOM, AMRAP
-    blocks.push({ id: presetId(), type: 'work', name: name, duration });
+    blocks.push({ ...BD, id: presetId(), type: 'work', label: name, duration_seconds: duration, rounds: 1 });
   }
 
   return {
