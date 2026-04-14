@@ -6,10 +6,11 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter, Platform } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
@@ -58,6 +59,9 @@ export default function FastingScreen() {
   const [selectedProtocol, setSelectedProtocol] = useState(16);
   const [elapsedSecs, setElapsedSecs] = useState(0);
   const [history, setHistory] = useState<any[]>([]);
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [customPickerDate, setCustomPickerDate] = useState(new Date());
 
   // Cargar estado actual + historial
   useFocusEffect(useCallback(() => {
@@ -106,35 +110,51 @@ export default function FastingScreen() {
     setTimerView(prev => prev === 'elapsed' ? 'remaining' : prev === 'remaining' ? 'percentage' : 'elapsed');
   };
 
-  const startFast = async () => {
+  // Iniciar ayuno — opción de retroactivo
+  const handleStartFast = () => {
+    Alert.alert('Iniciar ayuno', '¿Cuándo empezó?', [
+      { text: 'Ahora mismo', onPress: () => startFastAt(new Date()) },
+      { text: 'Antes (elegir hora)', onPress: () => { setCustomPickerDate(new Date()); setShowStartPicker(true); } },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
+  const startFastAt = async (startDate: Date) => {
     if (!user?.id) return;
     haptic.success();
-    const now = new Date();
-    const dateStr = getLocalToday();
+    const dateStr = startDate.toISOString().split('T')[0];
     await supabase.from('fasting_logs').upsert({
       user_id: user.id, date: dateStr,
-      fast_start: now.toISOString(),
+      fast_start: startDate.toISOString(),
       target_hours: selectedProtocol,
       status: 'active',
     }, { onConflict: 'user_id,date' });
     setIsFasting(true);
-    setFastStart(now);
+    setFastStart(startDate);
     setTargetHours(selectedProtocol);
-    setElapsedSecs(0);
+    setElapsedSecs(Math.floor((Date.now() - startDate.getTime()) / 1000));
     DeviceEventEmitter.emit('day_changed');
   };
 
-  const breakFast = async () => {
+  // Romper ayuno — opción de retroactivo
+  const handleBreakFast = () => {
+    Alert.alert('Romper ayuno', '¿Cuándo terminó?', [
+      { text: 'Ahora mismo', onPress: () => breakFastAt(new Date()) },
+      { text: 'Elegir hora', onPress: () => { setCustomPickerDate(new Date()); setShowEndPicker(true); } },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
+  const breakFastAt = async (endDate: Date) => {
     if (!user?.id) return;
     haptic.medium();
-    const now = new Date();
-    const actualH = fastStart ? Math.round(((now.getTime() - fastStart.getTime()) / 3600000) * 10) / 10 : 0;
+    const actualH = fastStart ? Math.round(((endDate.getTime() - fastStart.getTime()) / 3600000) * 10) / 10 : 0;
     const { data } = await supabase.from('fasting_logs').select('id')
       .eq('user_id', user.id).eq('status', 'active')
       .order('fast_start', { ascending: false }).limit(1);
     if (data?.[0]) {
       await supabase.from('fasting_logs').update({
-        fast_end: now.toISOString(),
+        fast_end: endDate.toISOString(),
         actual_hours: actualH,
         status: 'completed',
       }).eq('id', data[0].id);
@@ -143,6 +163,11 @@ export default function FastingScreen() {
     setFastStart(null);
     setElapsedSecs(0);
     DeviceEventEmitter.emit('day_changed');
+    // Recargar historial
+    supabase.from('fasting_logs').select('*')
+      .eq('user_id', user.id).eq('status', 'completed')
+      .order('fast_start', { ascending: false }).limit(10)
+      .then(({ data: h }) => setHistory(h ?? []));
     Alert.alert('Ayuno completado', `Duraste ${Math.floor(actualH)}h ${Math.round((actualH % 1) * 60)}m`);
   };
 
@@ -221,7 +246,7 @@ export default function FastingScreen() {
             </Animated.View>
 
             {/* Botón romper */}
-            <AnimatedPressable onPress={breakFast} style={s.breakBtn}>
+            <AnimatedPressable onPress={handleBreakFast} style={s.breakBtn}>
               <Ionicons name="stop-circle-outline" size={20} color="#ef4444" />
               <EliteText style={s.breakBtnText}>Romper ayuno</EliteText>
             </AnimatedPressable>
@@ -255,7 +280,7 @@ export default function FastingScreen() {
 
             {/* Botón iniciar */}
             <Animated.View entering={FadeInUp.delay(150).springify()}>
-              <AnimatedPressable onPress={startFast} style={s.startBtn}>
+              <AnimatedPressable onPress={handleStartFast} style={s.startBtn}>
                 <Ionicons name="play-circle" size={24} color="#000" />
                 <EliteText style={s.startBtnText}>INICIAR AYUNO</EliteText>
               </AnimatedPressable>
@@ -284,6 +309,35 @@ export default function FastingScreen() {
 
         <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* DateTimePicker para inicio retroactivo */}
+      {showStartPicker && (
+        <DateTimePicker
+          value={customPickerDate}
+          mode="datetime"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          maximumDate={new Date()}
+          onChange={(_event, date) => {
+            setShowStartPicker(false);
+            if (date) startFastAt(date);
+          }}
+        />
+      )}
+
+      {/* DateTimePicker para fin retroactivo */}
+      {showEndPicker && (
+        <DateTimePicker
+          value={customPickerDate}
+          mode="datetime"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          maximumDate={new Date()}
+          minimumDate={fastStart ?? undefined}
+          onChange={(_event, date) => {
+            setShowEndPicker(false);
+            if (date) breakFastAt(date);
+          }}
+        />
+      )}
     </Screen>
   );
 }
