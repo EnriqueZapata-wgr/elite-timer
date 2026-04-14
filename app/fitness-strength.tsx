@@ -43,6 +43,20 @@ export default function FitnessStrengthScreen() {
       <PillarHeader pillar="fitness" title="Fuerza" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        {/* Explicación de benchmarks */}
+        <View style={s.explainerCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <Ionicons name="star" size={16} color="#fbbf24" />
+            <EliteText style={{ color: '#fbbf24', fontSize: 13, fontFamily: Fonts.bold }}>¿QUÉ SON LOS BENCHMARKS?</EliteText>
+          </View>
+          <EliteText style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>
+            Los benchmarks son los ejercicios estándar que miden tu fuerza real. Tu PR en estos es tu récord oficial.
+          </EliteText>
+          <EliteText style={{ color: '#888', fontSize: 12, lineHeight: 18, marginTop: 4 }}>
+            Cada uno tiene variantes (máquina, mancuernas, etc.) con su propio récord.
+          </EliteText>
+        </View>
+
         <SectionTitle>BENCHMARKS</SectionTitle>
 
         {loading && (
@@ -68,7 +82,12 @@ export default function FitnessStrengthScreen() {
               <GradientCard gradient={PILLAR_GRADIENTS.fitness} accentColor={LIME} accentPosition="left">
                 <View style={s.benchmarkHeader}>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={s.benchmarkName}>{ex.name_es}</EliteText>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <EliteText style={s.benchmarkName}>{ex.name_es}</EliteText>
+                      <View style={s.benchmarkBadge}>
+                        <EliteText style={s.benchmarkBadgeText}>BENCHMARK</EliteText>
+                      </View>
+                    </View>
                     {ex.muscle_groups && ex.muscle_groups.length > 0 && (
                       <EliteText style={s.benchmarkMuscles}>{ex.muscle_groups.slice(0, 3).join(' · ').toUpperCase()}</EliteText>
                     )}
@@ -141,6 +160,28 @@ export default function FitnessStrengthScreen() {
 
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+
+  explainerCard: {
+    backgroundColor: 'rgba(251,191,36,0.08)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(251,191,36,0.15)',
+  },
+
+  benchmarkBadge: {
+    backgroundColor: '#fbbf24',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  benchmarkBadgeText: {
+    color: '#000',
+    fontSize: 9,
+    fontFamily: Fonts.extraBold,
+    letterSpacing: 0.5,
+  },
 
   benchmarkWrap: { marginBottom: Spacing.sm },
   benchmarkHeader: {
