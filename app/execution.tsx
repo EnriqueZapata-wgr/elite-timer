@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useRef } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { useRoutineEngine } from '@/hooks/use-routine-engine';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
+import { supabase } from '@/src/lib/supabase';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius, BlockColors } from '@/constants/theme';
 import { SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, BLOCK_COLORS, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
@@ -110,6 +112,24 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
   const stepColor = getStepColor(currentStep);
   const isCountdown = remainingSeconds <= 3 && remainingSeconds > 0 && engineState === 'running';
+
+  // Guardar sesión de timer al completar
+  const savedRef = useRef(false);
+  useEffect(() => {
+    if (engineState !== 'completed' || !stats || !routine || savedRef.current) return;
+    savedRef.current = true;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from('mind_sessions').insert({
+        user_id: user.id,
+        type: 'breathing', // Reusar tipo genérico para timers
+        template_name: routine.name || 'Timer',
+        duration_seconds: stats.actualDurationSeconds,
+        date: getLocalToday(),
+        notes: `${stats.stepsCompleted} steps, ${stats.workSeconds}s trabajo`,
+      });
+    });
+  }, [engineState]);
 
   // === PANTALLA COMPLETADA ===
 
