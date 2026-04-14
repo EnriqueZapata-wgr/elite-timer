@@ -9,7 +9,7 @@ import { View, ScrollView, TextInput, Pressable, Text, Alert } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { findEquivalence, UNIT_CYCLE, type FoodUnit } from '@/src/constants/food-units';
-import { validateFoodEstimate, type ValidationResult } from '@/src/utils/food-validation';
+import { validateFoodEstimate, validateAndFixFoodEstimate, type ValidationResult } from '@/src/utils/food-validation';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 
 // === TIPOS ===
@@ -74,14 +74,24 @@ export function parseAIToReview(aiResult: any): ReviewState {
     };
   });
 
+  const rawTotals = {
+    calories: aiResult?.estimated_calories ?? aiResult?.totals?.calories ?? items.reduce((s: number, i: ReviewItem) => s + (i.calories || 0), 0),
+    protein_g: aiResult?.estimated_protein ?? aiResult?.totals?.protein ?? items.reduce((s: number, i: ReviewItem) => s + (i.protein_g || 0), 0),
+    carbs_g: aiResult?.estimated_carbs ?? aiResult?.totals?.carbs ?? items.reduce((s: number, i: ReviewItem) => s + (i.carbs_g || 0), 0),
+    fat_g: aiResult?.estimated_fat ?? aiResult?.totals?.fat ?? items.reduce((s: number, i: ReviewItem) => s + (i.fat_g || 0), 0),
+  };
+
+  // Aplicar guardarraíles DUROS — corrige macros absurdos antes de mostrar
+  const { fixed } = validateAndFixFoodEstimate({ ...rawTotals, items: rawItems });
+
   return {
     description: aiResult?.food_identified || aiResult?.description || '',
     items,
     totals: {
-      calories: aiResult?.estimated_calories ?? aiResult?.totals?.calories ?? items.reduce((s: number, i: ReviewItem) => s + (i.calories || 0), 0),
-      protein_g: aiResult?.estimated_protein ?? aiResult?.totals?.protein ?? items.reduce((s: number, i: ReviewItem) => s + (i.protein_g || 0), 0),
-      carbs_g: aiResult?.estimated_carbs ?? aiResult?.totals?.carbs ?? items.reduce((s: number, i: ReviewItem) => s + (i.carbs_g || 0), 0),
-      fat_g: aiResult?.estimated_fat ?? aiResult?.totals?.fat ?? items.reduce((s: number, i: ReviewItem) => s + (i.fat_g || 0), 0),
+      calories: fixed.calories,
+      protein_g: fixed.protein_g,
+      carbs_g: fixed.carbs_g,
+      fat_g: fixed.fat_g,
     },
   };
 }

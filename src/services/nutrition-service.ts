@@ -145,28 +145,41 @@ Plan nutricional activo:
 - Priorizar: ${(plan.foods_to_prioritize ?? []).join(', ') || 'nada'}
 - Alergias: ${(plan.allergies ?? []).join(', ') || 'ninguna'}` : '';
 
-  return `Eres el analista nutricional de ATP. Evalúas CALIDAD nutricional con datos APROXIMADOS.
+  return `Eres un nutriólogo experto de ATP. Estima macronutrientes con datos APROXIMADOS.
 ${description ? 'El usuario describe: ' + description : ''}
 ${extra || ''}${planCtx}
 
-REGLAS DE ESTIMACIÓN (MUY IMPORTANTE):
-- 1 huevo = 78 kcal, 6g prot, 5g grasa, 0.5g carbos. NO dupliques.
-- Pechuga de pollo 200g = 330 kcal, 50g prot.
-- 30g queso = ~7g prot, ~100 kcal.
-- 1 cdas aceite = 120 kcal, 14g grasa.
-- 1 tortilla maíz = 60 kcal, 2g prot, 12g carbos.
-- Las calorías DEBEN cuadrar: (proteína×4) + (carbos×4) + (grasa×9) ≈ calorías totales (±10%).
-- Si no estás seguro de un ingrediente, usa valores conservadores (NO sobreestimar proteína).
-- Incluye "grams" (peso en gramos del ingrediente) en cada ingrediente para unidades naturales.
+REGLAS CRÍTICAS — Los macros son una FRACCIÓN del peso, NUNCA iguales al peso:
+- proteína + carbos + grasa SIEMPRE menores que el peso total del alimento.
+- Calorías = (proteína×4) + (carbos×4) + (grasa×9). VERIFICA antes de responder.
+- Si el total de macros supera el peso del alimento, HAY UN ERROR.
 
-FILOSOFÍA: ¿Proteína suficiente (>25g ideal)? ¿Verduras/fibra? ¿Grasas saludables o industriales? ¿Comida REAL o procesada?
+TABLA DE REFERENCIA POR 100g:
+  Carne molida: 26g prot, 20g grasa, 0g carbs = 290 kcal
+  Pechuga pollo: 31g prot, 3.6g grasa, 0g carbs = 165 kcal
+  Salmón: 20g prot, 13g grasa, 0g carbs = 208 kcal
+  Sardinas lata (90g): 21g prot, 9g grasa = 170 kcal
+  Arroz cocido: 2.5g prot, 0.3g grasa, 28g carbs = 130 kcal
+  Frijoles cocidos: 9g prot, 0.5g grasa, 23g carbs = 130 kcal
+  Aguacate: 2g prot, 15g grasa, 9g carbs = 160 kcal
+  Leche entera (240ml): 8g prot, 8g grasa, 12g carbs = 150 kcal
+  Queso manchego (30g): 7g prot, 8g grasa, 0g carbs = 100 kcal
+  1 huevo (60g): 6g prot, 5g grasa, 0.5g carbs = 78 kcal
+  1 tortilla maíz (30g): 1.5g prot, 0.7g grasa, 13g carbs = 65 kcal
+  Aceite oliva (1 cdas 14ml): 0g prot, 14g grasa = 120 kcal
+  Plátano (120g): 1.3g prot, 0.4g grasa, 27g carbs = 105 kcal
+  Avena (40g seca): 5g prot, 2.7g grasa, 27g carbs = 150 kcal
+  Almendras (30g): 6g prot, 15g grasa, 2g carbs = 170 kcal
+  Pan integral (30g): 3g prot, 1g grasa, 12g carbs = 70 kcal
+
+EJEMPLO: "500g de carne molida" → prot=500×0.26=130g, grasa=500×0.20=100g, carbs=0g, cal=(130×4)+(100×9)=1420 kcal.
+
+FILOSOFÍA: ¿Proteína suficiente (>25g ideal)? ¿Verduras/fibra? ¿Grasas saludables? ¿Comida REAL o procesada?
 
 SCORE: 90-100=ejemplar, 75-89=muy bien, 60-74=aceptable, 40-59=mejorable, 0-39=ultra-procesado.
 
 Responde SOLO JSON válido (sin backticks):
-{"food_identified":"Descripción del platillo","ingredients":[{"name":"Huevos revueltos","portion":"3 huevos","grams":180,"calories":234,"protein":18,"carbs":1.5,"fat":15},{"name":"Aguacate","portion":"1/2 pieza","grams":75,"calories":120,"protein":1,"carbs":6,"fat":11}],"totals":{"calories":354,"protein":19,"carbs":7.5,"fat":26,"fiber":4},"score":82,"score_label":"Buena","feedback":"Evaluación en español coloquial, 2-3 oraciones.","good_points":["Proteína completa","Grasas saludables"],"improve_points":["Agregar verduras"],"tags":["alta_proteina"],"red_flags":[],"suggestions":"Una sugerencia concreta"}
-
-Porciones en LENGUAJE NATURAL: "3 huevos", "1/2 pieza", "~1 taza", "~150g".`;
+{"food_identified":"Nombre","ingredients":[{"name":"Ingrediente","portion":"cantidad natural","grams":180,"calories":234,"protein":18,"carbs":1.5,"fat":15}],"totals":{"calories":354,"protein":19,"carbs":7.5,"fat":26,"fiber":4},"score":82,"score_label":"Buena","feedback":"2-3 oraciones en español.","good_points":["..."],"improve_points":["..."],"tags":[],"red_flags":[],"suggestions":"Sugerencia concreta"}`;
 }
 
 function parseFoodResult(text: string): any {
