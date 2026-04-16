@@ -264,26 +264,27 @@ export async function chatWithArgos(
   messages: ArgosMessage[],
   options?: { model?: string },
 ): Promise<string> {
-  const context = await loadUserContext(userId);
-  const contextPrompt = buildContextPrompt(context);
-  const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
-  const model = options?.model || MODEL_CHAT;
-
-  console.log('ARGOS CALLING:', { model, messagesCount: messages.length, systemLength: systemPrompt.length });
-
+  // 1. Cargar contexto
+  let contextPrompt = '';
   try {
+    const context = await loadUserContext(userId);
+    contextPrompt = buildContextPrompt(context);
+  } catch (e: any) {
+    return `[DEBUG] Error cargando contexto: ${e?.message}`;
+  }
+
+  // 2. Llamar a Claude
+  try {
+    const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
     const data = await callAnthropic(
       messages.map(m => ({ role: m.role, content: m.content })),
       1024,
-      model,
+      'claude-sonnet-4-20250514',
       systemPrompt,
     );
-
-    console.log('ARGOS RESPONSE OK:', { hasContent: !!data?.content, type: data?.type, stopReason: data?.stop_reason });
-    return data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
+    return data?.content?.[0]?.text || '[DEBUG] Respuesta vacía de Claude';
   } catch (e: any) {
-    console.error('ARGOS FULL ERROR:', JSON.stringify(e, Object.getOwnPropertyNames(e)));
-    throw e;
+    return `[DEBUG] Error llamando a Claude: ${e?.message}`;
   }
 }
 
