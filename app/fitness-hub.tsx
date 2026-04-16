@@ -157,6 +157,29 @@ export default function FitnessHubScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* ARGOS rutina inteligente */}
+        <Animated.View entering={FadeInUp.delay(100).springify()} style={{ marginTop: Spacing.lg }}>
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/argos-routine'); }}>
+            <View style={{
+              backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 18, marginBottom: 4,
+              borderWidth: 1, borderColor: 'rgba(168,224,42,0.12)',
+              flexDirection: 'row', alignItems: 'center', gap: 14,
+            }}>
+              <View style={{
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: 'rgba(168,224,42,0.12)', justifyContent: 'center', alignItems: 'center',
+              }}>
+                <Ionicons name="eye-outline" size={22} color="#a8e02a" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <EliteText style={{ color: '#a8e02a', fontSize: 14, fontWeight: '700' }}>ARGOS genera tu rutina</EliteText>
+                <EliteText style={{ color: '#999', fontSize: 12 }}>IA que conoce tu nivel, PRs y objetivos</EliteText>
+              </View>
+              <Ionicons name="sparkles-outline" size={18} color="#a8e02a" />
+            </View>
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* 4 cards de navegación */}
         <View style={{ marginTop: Spacing.lg }}>
           <SectionTitle>EXPLORAR</SectionTitle>

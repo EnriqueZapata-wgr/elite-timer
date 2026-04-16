@@ -154,6 +154,29 @@ export default function NutritionScreen() {
           </GradientCard>
         </Animated.View>
 
+        {/* ARGOS recetas + lista de super */}
+        <Animated.View entering={FadeInUp.delay(90).springify()} style={{ marginTop: Spacing.lg }}>
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/argos-recipes'); }}>
+            <View style={{
+              backgroundColor: 'rgba(56,189,248,0.06)', borderRadius: 16, padding: 18, marginBottom: 4,
+              borderWidth: 1, borderColor: 'rgba(56,189,248,0.12)',
+              flexDirection: 'row', alignItems: 'center', gap: 14,
+            }}>
+              <View style={{
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: 'rgba(56,189,248,0.12)', justifyContent: 'center', alignItems: 'center',
+              }}>
+                <Ionicons name="eye-outline" size={22} color="#38bdf8" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <EliteText style={{ color: '#38bdf8', fontSize: 14, fontWeight: '700' }}>Recetas + Lista de super</EliteText>
+                <EliteText style={{ color: '#999', fontSize: 12 }}>ARGOS cocina según tus objetivos</EliteText>
+              </View>
+              <Ionicons name="sparkles-outline" size={18} color="#38bdf8" />
+            </View>
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* ═══ CARDS DE NAVEGACIÓN ═══ */}
         <View style={{ marginTop: Spacing.lg }}>
 
