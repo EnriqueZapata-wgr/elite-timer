@@ -361,3 +361,232 @@ export async function loadConversation(conversationId: string): Promise<ArgosMes
     .single();
   return (data?.messages as ArgosMessage[]) || [];
 }
+
+// === GENERAR RUTINA ===
+
+export interface GeneratedExercise {
+  name: string;
+  sets: number;
+  reps: string;
+  rest_seconds: number;
+  notes?: string;
+  method?: string;
+}
+
+export interface GeneratedRoutine {
+  name: string;
+  description: string;
+  estimatedMinutes: number;
+  warmup: GeneratedExercise[];
+  main: GeneratedExercise[];
+  cooldown: GeneratedExercise[];
+}
+
+export async function generateRoutine(
+  userId: string,
+  request: {
+    goal: string;
+    duration: number;
+    equipment: string[];
+    focus?: string;
+    level?: string;
+  },
+): Promise<GeneratedRoutine | null> {
+  const context = await loadUserContext(userId);
+
+  // Cargar PRs del usuario para personalizar
+  let prInfo = '';
+  try {
+    const { data: prs } = await supabase
+      .from('personal_records')
+      .select('exercise_id, estimated_1rm, weight_kg, exercises(name, name_es)')
+      .eq('user_id', userId)
+      .limit(10);
+    if (prs && prs.length > 0) {
+      prInfo = '\n\nRÉCORDS DEL USUARIO:\n' + prs.map((pr: any) =>
+        `${pr.exercises?.name_es || pr.exercises?.name}: ${pr.estimated_1rm}kg 1RM (último: ${pr.weight_kg}kg)`
+      ).join('\n');
+    }
+  } catch (_) { /* opcional */ }
+
+  const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una rutina de ejercicios.
+
+METODOLOGÍA ATP (Enrique Zapata):
+- Regla 80/20: 80% específico al objetivo, 20% complementario
+- Splits por patrón de movimiento: Push/Pull/Legs (hombres), Legs/Upper/Glutes (mujeres)
+- Doble progresión: primero peso, después reps
+- Calentamiento siempre: movilidad articular + activación
+- Enfriamiento: estiramientos + respiración
+
+MÉTODOS DISPONIBLES:
+- standard: Series × Reps clásico
+- 3-5: Método 3-5 (reps objetivo por nivel, ajuste automático de peso)
+- emom: EMOM autoajustable
+- myo_reps: Myo Reps (20-rep activación + 5-rep overloads)
+
+${prInfo}
+${request.level ? `Nivel del usuario: ${request.level}` : ''}
+${context.gender ? `Género: ${context.gender}` : ''}
+
+Responde SOLO en JSON válido (sin markdown, sin backticks):
+{
+  "name": "Nombre de la rutina",
+  "description": "Descripción corta",
+  "estimatedMinutes": NUMBER,
+  "warmup": [{"name": "ejercicio", "sets": N, "reps": "X", "rest_seconds": N, "notes": "opcional"}],
+  "main": [{"name": "ejercicio", "sets": N, "reps": "X-Y", "rest_seconds": N, "method": "standard|3-5|myo_reps", "notes": "opcional"}],
+  "cooldown": [{"name": "ejercicio", "sets": N, "reps": "30 seg", "rest_seconds": N}]
+}`;
+
+  try {
+    const data = await callAnthropic(
+      [{
+        role: 'user',
+        content: `Genera una rutina de ${request.duration} minutos.
+Objetivo: ${request.goal}
+Equipamiento: ${request.equipment.join(', ')}
+${request.focus ? `Enfoque: ${request.focus}` : ''}
+${request.level ? `Nivel: ${request.level}` : ''}`,
+      }],
+      1500,
+      MODEL_CHAT,
+      systemPrompt,
+    );
+    const text = data?.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean) as GeneratedRoutine;
+  } catch (e) {
+    console.error('ARGOS generateRoutine error:', e);
+    return null;
+  }
+}
+
+// === GENERAR RECETA ===
+
+export interface GeneratedRecipe {
+  name: string;
+  description: string;
+  servings: number;
+  prepMinutes: number;
+  cookMinutes: number;
+  calories: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  ingredients: { name: string; quantity: string; notes?: string }[];
+  steps: string[];
+  tips?: string;
+}
+
+export async function generateRecipe(
+  userId: string,
+  request: {
+    type: string;
+    goal: string;
+    maxMinutes?: number;
+    ingredients?: string[];
+    restrictions?: string[];
+  },
+): Promise<GeneratedRecipe | null> {
+  const context = await loadUserContext(userId);
+
+  const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una receta saludable.
+
+FILOSOFÍA NUTRICIONAL ATP:
+- Priorizar proteína (meta: ${context.gender === 'female' ? '1.6-2.0' : '2.0-2.5'}g/kg de peso)
+- Grasas saludables como fuente principal de energía
+- Carbohidratos de fuentes naturales (no procesados)
+- Anti-inflamatorio: evitar aceites de semilla, azúcar refinada, harinas procesadas
+- Ingredientes accesibles en México/LATAM
+
+${context.recentNutrition ? `Hoy lleva: ${context.recentNutrition.todayCalories} kcal, ${context.recentNutrition.todayProtein}g proteína en ${context.recentNutrition.mealsToday} comidas.` : ''}
+
+Responde SOLO en JSON válido (sin markdown, sin backticks):
+{
+  "name": "Nombre de la receta",
+  "description": "Descripción corta",
+  "servings": N,
+  "prepMinutes": N,
+  "cookMinutes": N,
+  "calories": N,
+  "protein_g": N,
+  "carbs_g": N,
+  "fat_g": N,
+  "ingredients": [{"name": "ingrediente", "quantity": "200g", "notes": "opcional"}],
+  "steps": ["paso 1", "paso 2"],
+  "tips": "Consejo opcional"
+}`;
+
+  try {
+    const data = await callAnthropic(
+      [{
+        role: 'user',
+        content: `Genera una receta de ${request.type}.
+Objetivo: ${request.goal}
+${request.maxMinutes ? `Máximo ${request.maxMinutes} minutos de preparación` : ''}
+${request.ingredients?.length ? `Ingredientes disponibles: ${request.ingredients.join(', ')}` : ''}
+${request.restrictions?.length ? `Restricciones: ${request.restrictions.join(', ')}` : ''}`,
+      }],
+      1500,
+      MODEL_CHAT,
+      systemPrompt,
+    );
+    const text = data?.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean) as GeneratedRecipe;
+  } catch (e) {
+    console.error('ARGOS generateRecipe error:', e);
+    return null;
+  }
+}
+
+// === GENERAR LISTA DE SUPER ===
+
+export interface ShoppingList {
+  sections: { name: string; items: { name: string; quantity: string }[] }[];
+}
+
+export async function generateShoppingList(
+  userId: string,
+  days: number = 7,
+  preferences?: { diet?: string; budget?: string },
+): Promise<ShoppingList | null> {
+  const context = await loadUserContext(userId);
+
+  const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una lista de super optimizada para ${days} días.
+
+CRITERIOS:
+- Priorizar proteína animal de calidad
+- Grasas saludables (aguacate, aceite de oliva, nueces)
+- Verduras variadas y de temporada en México
+- Frutas de bajo índice glucémico
+- Sin ultra-procesados
+- Organizado por sección del supermercado
+
+${context.gender ? `Género: ${context.gender}` : ''}
+${preferences?.diet ? `Dieta: ${preferences.diet}` : ''}
+${preferences?.budget ? `Presupuesto: ${preferences.budget}` : ''}
+
+Responde SOLO en JSON (sin markdown, sin backticks):
+{
+  "sections": [
+    {"name": "Proteínas", "items": [{"name": "Pechuga de pollo", "quantity": "1 kg"}]},
+    {"name": "Verduras", "items": [{"name": "Espinacas", "quantity": "2 bolsas"}]}
+  ]
+}`;
+
+  try {
+    const data = await callAnthropic(
+      [{ role: 'user', content: `Genera lista de super para ${days} días.` }],
+      1500,
+      MODEL_CHAT,
+      systemPrompt,
+    );
+    const text = data?.content?.[0]?.text || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean) as ShoppingList;
+  } catch (e) {
+    console.error('ARGOS shoppingList error:', e);
+    return null;
+  }
+}
