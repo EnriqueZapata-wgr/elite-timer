@@ -269,14 +269,22 @@ export async function chatWithArgos(
   const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
-  const data = await callAnthropic(
-    messages.map(m => ({ role: m.role, content: m.content })),
-    1024,
-    model,
-    systemPrompt,
-  );
+  console.log('ARGOS CALLING:', { model, messagesCount: messages.length, systemLength: systemPrompt.length });
 
-  return data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
+  try {
+    const data = await callAnthropic(
+      messages.map(m => ({ role: m.role, content: m.content })),
+      1024,
+      model,
+      systemPrompt,
+    );
+
+    console.log('ARGOS RESPONSE OK:', { hasContent: !!data?.content, type: data?.type, stopReason: data?.stop_reason });
+    return data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
+  } catch (e: any) {
+    console.error('ARGOS FULL ERROR:', JSON.stringify(e, Object.getOwnPropertyNames(e)));
+    throw e;
+  }
 }
 
 // === INSIGHT DIARIO ===
