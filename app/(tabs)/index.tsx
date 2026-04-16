@@ -32,6 +32,7 @@ import { getHoyBackgroundRequire } from '@/src/constants/brand';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
+import { generateDailyInsight } from '@/src/services/argos-service';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
 
@@ -119,6 +120,7 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [dailyInsight, setDailyInsight] = useState<string>('');
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -145,6 +147,35 @@ export default function TodayScreen() {
       sub.remove();
     };
   }, [loadDay]);
+
+  // --- Insight diario ARGOS ---
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const today = getLocalToday();
+      // Cache en Supabase
+      try {
+        const { data: cached } = await supabase
+          .from('argos_daily_insights')
+          .select('insight')
+          .eq('user_id', user.id)
+          .eq('date', today)
+          .maybeSingle();
+        if (cached?.insight) { setDailyInsight(cached.insight); return; }
+      } catch (_) { /* sin cache */ }
+      // Generar nuevo
+      try {
+        const insight = await generateDailyInsight(user.id);
+        if (insight) {
+          setDailyInsight(insight);
+          await supabase.from('argos_daily_insights').upsert(
+            { user_id: user.id, date: today, insight },
+            { onConflict: 'user_id,date' },
+          );
+        }
+      } catch (_) { /* silencioso */ }
+    })();
+  }, [user?.id]);
 
   // --- Toggle electrón booleano ---
   async function toggleBoolean(source: string) {
@@ -365,6 +396,37 @@ export default function TodayScreen() {
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
+
+        {/* ═══════════════════════════════════════
+            INSIGHT ARGOS
+        ═══════════════════════════════════════ */}
+        {dailyInsight ? (
+          <Pressable onPress={() => router.push('/argos-chat')} style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+            <View style={{
+              backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 16,
+              borderWidth: 1, borderColor: 'rgba(168,224,42,0.12)',
+              flexDirection: 'row', gap: 12, alignItems: 'flex-start',
+            }}>
+              <View style={{
+                width: 28, height: 28, borderRadius: 14,
+                backgroundColor: 'rgba(168,224,42,0.15)',
+                justifyContent: 'center', alignItems: 'center',
+                marginTop: 2,
+              }}>
+                <Ionicons name="eye" size={14} color="#a8e02a" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#a8e02a', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, marginBottom: 4 }}>
+                  INSIGHT ARGOS
+                </Text>
+                <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>
+                  {dailyInsight}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#666" style={{ marginTop: 4 }} />
+            </View>
+          </Pressable>
+        ) : null}
 
         {/* ═══════════════════════════════════════
             SECCIÓN 2: PRÓXIMO ELECTRÓN
@@ -685,6 +747,26 @@ export default function TodayScreen() {
         {/* Espaciado inferior para tab bar */}
         <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* ARGOS FAB */}
+      <Pressable
+        onPress={() => { haptic.medium(); router.push('/argos-chat'); }}
+        style={{
+          position: 'absolute',
+          bottom: 90, right: 20,
+          width: 56, height: 56, borderRadius: 28,
+          backgroundColor: '#a8e02a',
+          justifyContent: 'center', alignItems: 'center',
+          shadowColor: '#a8e02a',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 12,
+          elevation: 8,
+          zIndex: 100,
+        }}
+      >
+        <Ionicons name="eye-outline" size={26} color="#000" />
+      </Pressable>
     </View>
   );
 }
