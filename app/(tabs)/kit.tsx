@@ -87,6 +87,32 @@ export default function KitScreen() {
           <Text style={s.subtitleMain}>Explora tus pilares</Text>
         </Animated.View>
 
+        {/* ARGOS card */}
+        <Animated.View entering={FadeInUp.delay(80).springify()} style={s.cardWrap}>
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/argos-chat'); }}>
+            <LinearGradient
+              colors={['rgba(168,224,42,0.12)', 'rgba(168,224,42,0.03)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[s.card, { borderColor: 'rgba(168,224,42,0.15)' }]}
+            >
+              <View style={[s.accent, { backgroundColor: '#a8e02a' }]} />
+              <View style={s.cardInner}>
+                <View style={s.cardLeft}>
+                  <View style={[s.iconCircle, { backgroundColor: 'rgba(168,224,42,0.15)' }]}>
+                    <Ionicons name="eye-outline" size={28} color="#a8e02a" />
+                  </View>
+                  <View>
+                    <Text style={s.cardTitle}>ARGOS</Text>
+                    <Text style={s.cardSub}>Tu IA de salud funcional</Text>
+                  </View>
+                </View>
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#a8e02a" />
+              </View>
+            </LinearGradient>
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* 6 pillar cards */}
         {PILLARS.map((pillar, idx) => (
           <Animated.View key={pillar.id} entering={FadeInUp.delay(100 + idx * 50).springify()} style={s.cardWrap}>
