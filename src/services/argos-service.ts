@@ -9,7 +9,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 
 // === MODELOS ===
 const MODEL_CHAT = 'claude-sonnet-4-20250514';
-const MODEL_ESTIMATE = 'claude-haiku-4-5-20251001';
+const MODEL_ESTIMATE = 'claude-sonnet-4-20250514'; // Mismo modelo que nutrition-service
 
 // === SYSTEM PROMPT BASE ===
 const ARGOS_SYSTEM_PROMPT = `Eres ARGOS, el sistema de inteligencia en salud funcional de ATP.

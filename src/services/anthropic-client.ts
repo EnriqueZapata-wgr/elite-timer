@@ -16,6 +16,9 @@ export async function callAnthropic(
   const { data, error } = await supabase.functions.invoke('anthropic-proxy', { body });
 
   if (error) throw new Error(error.message || 'Error calling AI proxy');
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) {
+    const msg = typeof data.error === 'string' ? data.error : data.error?.message || JSON.stringify(data.error);
+    throw new Error(msg);
+  }
   return data;
 }
