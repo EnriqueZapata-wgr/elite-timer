@@ -10,7 +10,13 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders })
   }
   try {
-    const { messages, max_tokens, model } = await req.json()
+    const { messages, max_tokens, model, system } = await req.json()
+    const body: Record<string, unknown> = {
+      model: model || "claude-sonnet-4-20250514",
+      max_tokens: max_tokens || 4000,
+      messages,
+    }
+    if (system) body.system = system
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -18,11 +24,7 @@ serve(async (req) => {
         "x-api-key": Deno.env.get("ANTHROPIC_API_KEY"),
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({
-        model: model || "claude-sonnet-4-20250514",
-        max_tokens: max_tokens || 4000,
-        messages,
-      }),
+      body: JSON.stringify(body),
     })
     const data = await response.json()
     return new Response(JSON.stringify(data), {
