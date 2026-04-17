@@ -7,6 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import Markdown from 'react-native-markdown-display';
 import { supabase } from '../src/lib/supabase';
 import {
   chatWithArgos, saveConversation, loadConversations,
@@ -249,12 +250,24 @@ export default function ArgosChat() {
               borderWidth: msg.role === 'assistant' ? 1 : 0,
               borderColor: '#1a1a1a',
             }}>
-              <Text style={{
-                color: msg.role === 'user' ? '#000' : '#e2e2e2',
-                fontSize: 14, lineHeight: 21,
-              }}>
-                {msg.content}
-              </Text>
+              {msg.role === 'assistant' ? (
+                <Markdown style={{
+                  body: { color: '#e2e2e2', fontSize: 14, lineHeight: 21 },
+                  heading2: { color: '#a8e02a', fontSize: 16, fontWeight: '800', marginTop: 12, marginBottom: 6 },
+                  heading3: { color: '#a8e02a', fontSize: 14, fontWeight: '700', marginTop: 10, marginBottom: 4 },
+                  strong: { color: '#fff', fontWeight: '700' },
+                  bullet_list: { marginLeft: 8 },
+                  list_item: { color: '#e2e2e2', marginBottom: 4 },
+                  hr: { backgroundColor: '#333', height: 0.5, marginVertical: 12 },
+                  em: { color: '#ccc', fontStyle: 'italic' },
+                }}>
+                  {msg.content}
+                </Markdown>
+              ) : (
+                <Text style={{ color: '#000', fontSize: 14, lineHeight: 21 }}>
+                  {msg.content}
+                </Text>
+              )}
             </View>
           </View>
         ))}
