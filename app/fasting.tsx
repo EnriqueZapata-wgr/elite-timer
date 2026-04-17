@@ -56,6 +56,7 @@ export default function FastingScreen() {
 
   const [isFasting, setIsFasting] = useState(false);
   const [fastStart, setFastStart] = useState<Date | null>(null);
+  const [activeFastId, setActiveFastId] = useState<string | null>(null);
   const [targetHours, setTargetHours] = useState(16);
   const [selectedProtocol, setSelectedProtocol] = useState(16);
   const [elapsedSecs, setElapsedSecs] = useState(0);
@@ -66,10 +67,9 @@ export default function FastingScreen() {
   const [showEndForm, setShowEndForm] = useState(false);
   const [endDate, setEndDate] = useState(new Date());
 
-  // Cargar estado actual + historial
-  useFocusEffect(useCallback(() => {
+  // Recargar estado + historial
+  const reloadFasting = useCallback(() => {
     if (!user?.id) return;
-    // Ayuno activo
     supabase.from('fasting_logs').select('*')
       .eq('user_id', user.id).eq('status', 'active')
       .order('fast_start', { ascending: false }).limit(1)
@@ -77,20 +77,25 @@ export default function FastingScreen() {
         const active = data?.[0];
         if (active) {
           setIsFasting(true);
+          setActiveFastId(active.id);
           setFastStart(new Date(active.fast_start));
           setTargetHours(active.target_hours ?? 16);
           setElapsedSecs(Math.floor((Date.now() - new Date(active.fast_start).getTime()) / 1000));
         } else {
           setIsFasting(false);
+          setActiveFastId(null);
           setFastStart(null);
         }
       });
-    // Historial
     supabase.from('fasting_logs').select('*')
       .eq('user_id', user.id).eq('status', 'completed')
       .order('fast_start', { ascending: false }).limit(10)
       .then(({ data }) => setHistory(data ?? []));
-  }, [user?.id]));
+  }, [user?.id]);
+
+  useFocusEffect(useCallback(() => {
+    reloadFasting();
+  }, [reloadFasting]));
 
   // Timer en vivo
   useEffect(() => {
@@ -249,10 +254,31 @@ export default function FastingScreen() {
 
             {/* Botón romper / formulario de fin */}
             {!showEndForm ? (
-              <AnimatedPressable onPress={handleBreakFast} style={s.breakBtn}>
-                <Ionicons name="stop-circle-outline" size={20} color="#ef4444" />
-                <EliteText style={s.breakBtnText}>Romper ayuno</EliteText>
-              </AnimatedPressable>
+              <View>
+                <AnimatedPressable onPress={handleBreakFast} style={s.breakBtn}>
+                  <Ionicons name="stop-circle-outline" size={20} color="#ef4444" />
+                  <EliteText style={s.breakBtnText}>Romper ayuno</EliteText>
+                </AnimatedPressable>
+                <Pressable
+                  onPress={() => {
+                    Alert.alert('Cancelar ayuno', '¿Eliminar este ayuno sin registrarlo?', [
+                      { text: 'No', style: 'cancel' },
+                      {
+                        text: 'Sí, eliminar', style: 'destructive',
+                        onPress: async () => {
+                          if (activeFastId) await supabase.from('fasting_logs').delete().eq('id', activeFastId);
+                          setIsFasting(false); setActiveFastId(null); setFastStart(null);
+                          reloadFasting();
+                          haptic.success();
+                        },
+                      },
+                    ]);
+                  }}
+                  style={{ alignItems: 'center', marginTop: 12 }}
+                >
+                  <Text style={{ color: '#666', fontSize: 12 }}>Cancelar y eliminar</Text>
+                </Pressable>
+              </View>
             ) : (
               <Animated.View entering={FadeInUp.duration(300)} style={{ marginTop: Spacing.md }}>
                 <Text style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.bold, marginBottom: 12 }}>
@@ -476,11 +502,29 @@ export default function FastingScreen() {
                   const dateStr = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
                   const hrs = h.actual_hours ?? 0;
                   return (
-                    <View key={h.id ?? i} style={s.historyRow}>
-                      <EliteText style={s.historyDate}>{dateStr}</EliteText>
-                      <EliteText style={s.historyHours}>{Math.floor(hrs)}h {Math.round((hrs % 1) * 60)}m</EliteText>
-                      <Ionicons name="checkmark-circle" size={14} color="#a8e02a" />
-                    </View>
+                    <Pressable
+                      key={h.id ?? i}
+                      onLongPress={() => {
+                        haptic.heavy();
+                        Alert.alert('Eliminar ayuno', `¿Eliminar registro de ${Math.floor(hrs)}h ${Math.round((hrs % 1) * 60)}m?`, [
+                          { text: 'Cancelar', style: 'cancel' },
+                          {
+                            text: 'Eliminar', style: 'destructive',
+                            onPress: async () => {
+                              await supabase.from('fasting_logs').delete().eq('id', h.id);
+                              reloadFasting();
+                              haptic.success();
+                            },
+                          },
+                        ]);
+                      }}
+                    >
+                      <View style={s.historyRow}>
+                        <EliteText style={s.historyDate}>{dateStr}</EliteText>
+                        <EliteText style={s.historyHours}>{Math.floor(hrs)}h {Math.round((hrs % 1) * 60)}m</EliteText>
+                        <Ionicons name="checkmark-circle" size={14} color="#a8e02a" />
+                      </View>
+                    </Pressable>
                   );
                 })}
               </Animated.View>

@@ -139,7 +139,12 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
 
   const prefs = prefsRes.data;
   const boolStates = (dailyERes.data?.electrons as Record<string, boolean>) ?? {};
-  const userName = userRes.data.user?.user_metadata?.full_name?.split(' ')[0]?.toUpperCase() ?? 'ATLETA';
+  // Nombre: user_metadata → profiles.full_name → fallback
+  let userName = userRes.data.user?.user_metadata?.full_name?.split(' ')[0]?.toUpperCase() || '';
+  if (!userName) {
+    const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle();
+    userName = prof?.full_name?.split(' ')[0]?.toUpperCase() || 'ATLETA';
+  }
 
   const activeBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
   const activeQuantKeys: string[] = (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)
