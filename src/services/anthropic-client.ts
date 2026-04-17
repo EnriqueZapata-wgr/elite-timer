@@ -1,8 +1,12 @@
 /**
  * Anthropic Client — Llama a Claude via Supabase Edge Function proxy.
- * Usa supabase.functions.invoke que maneja auth automáticamente.
+ * Usa fetch directo al endpoint de Edge Functions (más confiable que supabase.functions.invoke).
  */
-import { supabase } from '@/src/lib/supabase';
+import Constants from 'expo-constants';
+
+const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL!;
+const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const PROXY_URL = `${SUPABASE_URL}/functions/v1/anthropic-proxy`;
 
 export async function callAnthropic(
   messages: any[],
@@ -13,9 +17,21 @@ export async function callAnthropic(
   const body: Record<string, unknown> = { messages, max_tokens: maxTokens, model };
   if (system) body.system = system;
 
-  const { data, error } = await supabase.functions.invoke('anthropic-proxy', { body });
+  const response = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
 
-  if (error) throw new Error(error.message || 'Error calling AI proxy');
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`Proxy error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
   if (data?.error) {
     const msg = typeof data.error === 'string' ? data.error : data.error?.message || JSON.stringify(data.error);
     throw new Error(msg);
