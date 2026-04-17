@@ -264,28 +264,19 @@ export async function chatWithArgos(
   messages: ArgosMessage[],
   options?: { model?: string },
 ): Promise<string> {
-  // 1. Cargar contexto
-  let contextPrompt = '';
-  try {
-    const context = await loadUserContext(userId);
-    contextPrompt = buildContextPrompt(context);
-  } catch (e: any) {
-    return `[DEBUG] Error cargando contexto: ${e?.message}`;
-  }
+  const context = await loadUserContext(userId);
+  const contextPrompt = buildContextPrompt(context);
+  const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
+  const model = options?.model || MODEL_CHAT;
 
-  // 2. Llamar a Claude
-  try {
-    const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
-    const data = await callAnthropic(
-      messages.map(m => ({ role: m.role, content: m.content })),
-      1024,
-      'claude-sonnet-4-20250514',
-      systemPrompt,
-    );
-    return data?.content?.[0]?.text || '[DEBUG] Respuesta vacía de Claude';
-  } catch (e: any) {
-    return `[DEBUG] Error llamando a Claude: ${e?.message}`;
-  }
+  const data = await callAnthropic(
+    messages.map(m => ({ role: m.role, content: m.content })),
+    1024,
+    model,
+    systemPrompt,
+  );
+
+  return data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
 }
 
 // === INSIGHT DIARIO ===
