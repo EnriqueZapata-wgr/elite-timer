@@ -260,6 +260,7 @@ export default function ArgosChat() {
                   list_item: { color: '#e2e2e2', marginBottom: 4 },
                   hr: { backgroundColor: '#333', height: 0.5, marginVertical: 12 },
                   em: { color: '#ccc', fontStyle: 'italic' },
+                  paragraph: { color: '#e2e2e2', fontSize: 14, lineHeight: 21, marginBottom: 8 },
                 }}>
                   {msg.content}
                 </Markdown>

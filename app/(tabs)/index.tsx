@@ -33,6 +33,8 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight } from '@/src/services/argos-service';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
 
@@ -121,6 +123,7 @@ export default function TodayScreen() {
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [dailyInsight, setDailyInsight] = useState<string>('');
+  const [showTour, setShowTour] = useState(false);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -147,6 +150,13 @@ export default function TodayScreen() {
       sub.remove();
     };
   }, [loadDay]);
+
+  // --- Tour de onboarding ---
+  useEffect(() => {
+    AsyncStorage.getItem('@atp/tour_completed').then(v => {
+      if (v !== 'true') setShowTour(true);
+    });
+  }, []);
 
   // --- Insight diario ARGOS ---
   useEffect(() => {
@@ -747,6 +757,9 @@ export default function TodayScreen() {
         {/* Espaciado inferior para tab bar */}
         <View style={{ height: 120 }} />
       </ScrollView>
+
+      {/* Tour de onboarding */}
+      {showTour && <AppTour onComplete={() => setShowTour(false)} />}
 
       {/* ARGOS FAB */}
       <Pressable

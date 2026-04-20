@@ -143,7 +143,10 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   let userName = userRes.data.user?.user_metadata?.full_name?.split(' ')[0]?.toUpperCase() || '';
   if (!userName) {
     const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle();
-    userName = prof?.full_name?.split(' ')[0]?.toUpperCase() || 'ATLETA';
+    userName = prof?.full_name?.split(' ')[0]?.toUpperCase() || '';
+  }
+  if (!userName) {
+    userName = userRes.data.user?.email?.split('@')[0]?.toUpperCase() || '';
   }
 
   const activeBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
