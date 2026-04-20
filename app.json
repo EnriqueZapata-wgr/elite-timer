@@ -47,7 +47,14 @@
       "expo-font",
       "expo-audio",
       "expo-secure-store",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "ATP necesita acceso al micrófono para que puedas hablar con ARGOS",
+          "speechRecognitionPermission": "ATP necesita reconocimiento de voz para transcribir lo que dices"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

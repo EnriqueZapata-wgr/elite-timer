@@ -32,7 +32,9 @@ import { getHoyBackgroundRequire } from '@/src/constants/brand';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
-import { generateDailyInsight } from '@/src/services/argos-service';
+import { generateDailyInsight, chatWithArgos } from '@/src/services/argos-service';
+import { speakArgos } from '@/src/services/argos-voice';
+import { VoiceButton } from '@/src/components/VoiceButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
@@ -124,6 +126,8 @@ export default function TodayScreen() {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [dailyInsight, setDailyInsight] = useState<string>('');
   const [showTour, setShowTour] = useState(false);
+  const [voiceLoading, setVoiceLoading] = useState(false);
+  const [voiceResponse, setVoiceResponse] = useState('');
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -315,6 +319,23 @@ export default function TodayScreen() {
       }, { onConflict: 'user_id' });
     } catch { /* tabla puede no existir */ }
     loadDay();
+  }
+
+  // --- Quick voice desde HOY (sin abrir chat) ---
+  async function handleQuickVoice(transcript: string) {
+    if (!user?.id) return;
+    setVoiceLoading(true);
+    setVoiceResponse('');
+    try {
+      const response = await chatWithArgos(user.id, [{ role: 'user', content: transcript }]);
+      setVoiceResponse(response);
+      await speakArgos(response);
+      setTimeout(() => setVoiceResponse(''), 10000);
+    } catch (e) {
+      console.error('Quick voice error:', e);
+    } finally {
+      setVoiceLoading(false);
+    }
   }
 
   // --- Derivados ---
@@ -761,25 +782,56 @@ export default function TodayScreen() {
       {/* Tour de onboarding */}
       {showTour && <AppTour onComplete={() => setShowTour(false)} />}
 
-      {/* ARGOS FAB */}
-      <Pressable
-        onPress={() => { haptic.medium(); router.push('/argos-chat'); }}
-        style={{
-          position: 'absolute',
-          bottom: 90, right: 20,
-          width: 56, height: 56, borderRadius: 28,
-          backgroundColor: '#a8e02a',
-          justifyContent: 'center', alignItems: 'center',
-          shadowColor: '#a8e02a',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 12,
-          elevation: 8,
-          zIndex: 100,
-        }}
-      >
-        <Ionicons name="eye-outline" size={26} color="#000" />
-      </Pressable>
+      {/* ARGOS dual FAB: mic + chat */}
+      <View style={{ position: 'absolute', bottom: 90, right: 20, zIndex: 100, alignItems: 'flex-end' }}>
+        {/* Response bubble (temporal) */}
+        {voiceResponse ? (
+          <Pressable
+            onPress={() => setVoiceResponse('')}
+            style={{
+              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 14,
+              marginBottom: 8, maxWidth: 280,
+              borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <Ionicons name="eye" size={12} color="#a8e02a" />
+              <Text style={{ color: '#a8e02a', fontSize: 9, fontWeight: '700' }}>ARGOS</Text>
+            </View>
+            <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 19 }} numberOfLines={6}>
+              {voiceResponse}
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {voiceLoading ? (
+          <View style={{
+            backgroundColor: '#0a0a0a', borderRadius: 12, padding: 10,
+            marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8,
+            borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
+          }}>
+            <ActivityIndicator size="small" color="#a8e02a" />
+            <Text style={{ color: '#a8e02a', fontSize: 12 }}>ARGOS piensa...</Text>
+          </View>
+        ) : null}
+
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+          {/* Mic button */}
+          <VoiceButton onTranscript={handleQuickVoice} variant="fab" />
+          {/* Chat button */}
+          <Pressable
+            onPress={() => { haptic.medium(); router.push('/argos-chat'); }}
+            style={{
+              width: 48, height: 48, borderRadius: 24,
+              backgroundColor: 'rgba(168,224,42,0.15)',
+              justifyContent: 'center', alignItems: 'center',
+              borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
+            }}
+          >
+            <Ionicons name="chatbubble-outline" size={22} color="#a8e02a" />
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }

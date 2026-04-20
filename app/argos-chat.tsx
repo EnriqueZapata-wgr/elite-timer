@@ -13,6 +13,8 @@ import {
   chatWithArgos, saveConversation, loadConversations,
   loadConversation, type ArgosMessage,
 } from '../src/services/argos-service';
+import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
+import { VoiceButton } from '../src/components/VoiceButton';
 
 // Sugerencias rápidas
 const QUICK_SUGGESTIONS = [
@@ -34,6 +36,7 @@ export default function ArgosChat() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [pastConversations, setPastConversations] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -42,8 +45,10 @@ export default function ArgosChat() {
     })();
   }, []);
 
+  // Detener TTS al salir de la pantalla
   useFocusEffect(useCallback(() => {
     if (userId) loadPastConversations();
+    return () => { stopSpeaking(); };
   }, [userId]));
 
   async function loadPastConversations() {
@@ -55,6 +60,9 @@ export default function ArgosChat() {
   async function sendMessage(text?: string) {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
+
+    // Detener si ARGOS estaba hablando
+    if (getIsSpeaking()) await stopSpeaking();
 
     setInput('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -75,6 +83,11 @@ export default function ArgosChat() {
         { role: 'assistant', content: response },
       ];
       setMessages(updatedMessages);
+
+      // ARGOS habla la respuesta si auto-speak está activo
+      if (autoSpeak) {
+        speakArgos(response);
+      }
 
       // Guardar conversación
       const id = await saveConversation(userId, updatedMessages, conversationId);
@@ -99,9 +112,14 @@ export default function ArgosChat() {
   }
 
   function startNewConversation() {
+    stopSpeaking();
     setMessages([]);
     setConversationId(null);
     setShowHistory(false);
+  }
+
+  function handleVoiceTranscript(text: string) {
+    sendMessage(text);
   }
 
   return (
@@ -117,7 +135,7 @@ export default function ArgosChat() {
         borderBottomWidth: 0.5, borderBottomColor: '#1a1a1a',
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable onPress={() => { stopSpeaking(); router.back(); }} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </Pressable>
           <View style={{
@@ -136,6 +154,21 @@ export default function ArgosChat() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 12 }}>
+          {/* Toggle auto-speak */}
+          <Pressable
+            onPress={() => {
+              setAutoSpeak(!autoSpeak);
+              if (getIsSpeaking()) stopSpeaking();
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+            hitSlop={12}
+          >
+            <Ionicons
+              name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'}
+              size={22}
+              color={autoSpeak ? '#a8e02a' : '#666'}
+            />
+          </Pressable>
           <Pressable onPress={() => setShowHistory(!showHistory)} hitSlop={12}>
             <Ionicons name="time-outline" size={22} color="#999" />
           </Pressable>
@@ -240,16 +273,23 @@ export default function ArgosChat() {
                 <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700' }}>ARGOS</Text>
               </View>
             )}
-            <View style={{
-              maxWidth: '85%',
-              backgroundColor: msg.role === 'user' ? '#a8e02a' : '#0a0a0a',
-              borderRadius: 18,
-              borderBottomRightRadius: msg.role === 'user' ? 4 : 18,
-              borderBottomLeftRadius: msg.role === 'assistant' ? 4 : 18,
-              padding: 14,
-              borderWidth: msg.role === 'assistant' ? 1 : 0,
-              borderColor: '#1a1a1a',
-            }}>
+            {/* Tap en burbuja de ARGOS = leer en voz alta */}
+            <Pressable
+              onPress={msg.role === 'assistant' ? () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                if (getIsSpeaking()) { stopSpeaking(); } else { speakArgos(msg.content); }
+              } : undefined}
+              style={{
+                maxWidth: '85%',
+                backgroundColor: msg.role === 'user' ? '#a8e02a' : '#0a0a0a',
+                borderRadius: 18,
+                borderBottomRightRadius: msg.role === 'user' ? 4 : 18,
+                borderBottomLeftRadius: msg.role === 'assistant' ? 4 : 18,
+                padding: 14,
+                borderWidth: msg.role === 'assistant' ? 1 : 0,
+                borderColor: '#1a1a1a',
+              }}
+            >
               {msg.role === 'assistant' ? (
                 <Markdown style={{
                   body: { color: '#e2e2e2', fontSize: 14, lineHeight: 21 },
@@ -269,7 +309,7 @@ export default function ArgosChat() {
                   {msg.content}
                 </Text>
               )}
-            </View>
+            </Pressable>
           </View>
         ))}
 
@@ -289,12 +329,15 @@ export default function ArgosChat() {
 
       {/* Área de input */}
       <View style={{
-        flexDirection: 'row', alignItems: 'flex-end', gap: 10,
+        flexDirection: 'row', alignItems: 'flex-end', gap: 8,
         paddingHorizontal: 16, paddingVertical: 12,
         paddingBottom: insets.bottom + 12,
         borderTopWidth: 0.5, borderTopColor: '#1a1a1a',
         backgroundColor: '#000',
       }}>
+        {/* Mic button */}
+        <VoiceButton onTranscript={handleVoiceTranscript} variant="inline" />
+
         <TextInput
           value={input}
           onChangeText={setInput}
