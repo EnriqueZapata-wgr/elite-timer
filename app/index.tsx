@@ -28,10 +28,16 @@ export default function IndexRedirect() {
             setOnboardingDone(true);
           } else {
             setOnboardingDone(false);
-            // Redirigir al paso correcto
-            if (step === 'chronotype') setOnboardingRoute('/quiz-take?quiz_id=lifestyle_assessment&from=onboarding');
-            else if (step === 'basics') setOnboardingRoute('/quiz/chronotype?from=onboarding');
-            else setOnboardingRoute('/onboarding-basics');
+            // Redirigir al paso correcto (onboarding v2 — 7 bloques)
+            switch (step) {
+              case 'context':    setOnboardingRoute('/onboarding/summary'); break;
+              case 'nutrition':  setOnboardingRoute('/onboarding/context'); break;
+              case 'health':     setOnboardingRoute('/onboarding/nutrition'); break;
+              case 'chronotype': setOnboardingRoute('/onboarding/health'); break;
+              case 'goal':       setOnboardingRoute('/onboarding/chronotype'); break;
+              case 'basics':     setOnboardingRoute('/onboarding/goal'); break;
+              default:           setOnboardingRoute('/onboarding-basics'); break;
+            }
           }
           setCheckingOnboarding(false);
         }, () => { setOnboardingDone(true); setCheckingOnboarding(false); });

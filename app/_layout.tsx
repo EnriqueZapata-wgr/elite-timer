@@ -121,6 +121,12 @@ export default function RootLayout() {
                 <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="onboarding-basics" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding-complete" options={{ headerShown: false, animation: 'fade' }} />
+                <Stack.Screen name="onboarding/goal" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/chronotype" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/health" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/nutrition" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/context" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/summary" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="journal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle-charts" options={{ headerShown: false, animation: 'slide_from_right' }} />

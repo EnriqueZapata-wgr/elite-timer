@@ -70,7 +70,7 @@ export default function OnboardingBasicsScreen() {
       await supabase.from('profiles').update({ onboarding_step: 'basics' }).eq('id', user.id);
 
       haptic.success();
-      router.replace('/quiz/chronotype?from=onboarding' as any);
+      router.replace('/onboarding/goal' as any);
     } catch (err) {
       Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
     } finally {
@@ -83,9 +83,9 @@ export default function OnboardingBasicsScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         {/* Header con progress */}
         <View style={[styles.header, { paddingTop: 16 }]}>
-          <EliteText style={styles.stepText}>PASO 1 DE 3</EliteText>
+          <EliteText style={styles.stepText}>PASO 1 DE 7</EliteText>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: '33%' }]} />
+            <View style={[styles.progressFill, { width: '14%' }]} />
           </View>
         </View>
 
