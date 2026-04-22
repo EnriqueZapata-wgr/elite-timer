@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay } from '@/src/services/day-compiler';
@@ -384,7 +385,8 @@ export default function TodayScreen() {
         {/* ═══════════════════════════════════════
             SECCIÓN 1: HERO
         ═══════════════════════════════════════ */}
-        <ImageBackground source={heroBg} style={s.heroBg} imageStyle={s.heroBgImage}>
+        <ImageBackground source={heroBg} style={s.heroBg} imageStyle={s.heroBgImage} resizeMode="cover">
+          <BlurView intensity={15} tint="dark" style={StyleSheet.absoluteFill} />
           <LinearGradient
             colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.85)', '#000']}
             locations={[0, 0.25, 0.65, 1]}
@@ -543,6 +545,9 @@ export default function TodayScreen() {
                     <Text style={[s.electronName, el.completed && { color: Colors.textPrimary }]}>
                       {el.name}
                     </Text>
+                    {el.description ? (
+                      <Text style={s.electronDesc} numberOfLines={2}>{el.description}</Text>
+                    ) : null}
                     <View style={[
                       s.electronDot,
                       el.completed ? { backgroundColor: el.color } : { backgroundColor: '#333' },
@@ -715,7 +720,7 @@ export default function TodayScreen() {
 
                       <View style={{
                         flexDirection: 'row', alignItems: 'center', marginBottom: 6,
-                        opacity: isCompleted ? 0.4 : isPast && !isCurrent ? 0.6 : 1,
+                        opacity: isCompleted ? 0.5 : isPast && !isCurrent ? 0.75 : 1,
                       }}>
                         {/* Hora */}
                         <Text style={{
@@ -745,7 +750,7 @@ export default function TodayScreen() {
                         }}>
                           <View style={{ flex: 1 }}>
                             <Text style={{
-                              color: isCurrent ? '#a8e02a' : '#fff',
+                              color: isCompleted ? '#666' : isCurrent ? '#a8e02a' : isPast ? '#999' : '#fff',
                               fontSize: FontSizes.md, fontFamily: isCurrent ? Fonts.bold : Fonts.semiBold,
                               textDecorationLine: isCompleted ? 'line-through' : 'none',
                             }}>
@@ -1090,7 +1095,7 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
   },
   electronCard: {
-    height: 100,
+    minHeight: 110,
     backgroundColor: CARD.bg,
     borderRadius: Radius.card,
     borderWidth: 1,
@@ -1112,6 +1117,15 @@ const s = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     color: Colors.textMuted,
     textAlign: 'center',
+  },
+  electronDesc: {
+    fontSize: 9,
+    fontFamily: Fonts.regular,
+    color: '#555',
+    textAlign: 'center',
+    lineHeight: 12,
+    marginTop: 1,
+    paddingHorizontal: 2,
   },
   electronDot: {
     width: 8,
