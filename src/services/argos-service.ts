@@ -69,6 +69,11 @@ interface UserContext {
     targetHours: number;
   };
   rank?: string;
+  bravermanProfile?: {
+    dominant: string;
+    primaryDeficiency: string;
+    deficiencyLevel: string;
+  };
 }
 
 async function loadUserContext(userId: string): Promise<UserContext> {
@@ -218,6 +223,25 @@ async function loadUserContext(userId: string): Promise<UserContext> {
     else context.rank = 'Partícula';
   } catch (_) { /* opcional */ }
 
+  try {
+    // Braverman (perfil de neurotransmisores)
+    const { data: braverman } = await supabase
+      .from('braverman_results')
+      .select('dominant_type, primary_deficiency, deficiency_level')
+      .eq('user_id', userId)
+      .eq('is_complete', true)
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (braverman?.dominant_type) {
+      context.bravermanProfile = {
+        dominant: braverman.dominant_type,
+        primaryDeficiency: braverman.primary_deficiency,
+        deficiencyLevel: braverman.deficiency_level,
+      };
+    }
+  } catch (_) { /* opcional */ }
+
   return context;
 }
 
@@ -247,6 +271,10 @@ function buildContextPrompt(ctx: UserContext): string {
   if (ctx.currentFastingStatus?.isFasting) {
     const f = ctx.currentFastingStatus;
     parts.push(`Ayuno activo: ${f.hoursElapsed}h de ${f.targetHours}h objetivo`);
+  }
+  if (ctx.bravermanProfile) {
+    const b = ctx.bravermanProfile;
+    parts.push(`Perfil Braverman: Naturaleza dominante ${b.dominant}, deficiencia principal ${b.primaryDeficiency} (${b.deficiencyLevel})`);
   }
   if (parts.length === 0) return '';
   return `\n\n## DATOS ACTUALES DEL USUARIO\n${parts.join('\n')}`;

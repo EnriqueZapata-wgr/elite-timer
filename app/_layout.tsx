@@ -118,6 +118,7 @@ export default function RootLayout() {
                 <Stack.Screen name="health-input" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz-take" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quizzes" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="braverman" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="onboarding-basics" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding-complete" options={{ headerShown: false, animation: 'fade' }} />

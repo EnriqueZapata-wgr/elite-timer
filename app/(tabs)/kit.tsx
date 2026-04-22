@@ -113,6 +113,32 @@ export default function KitScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* Braverman card */}
+        <Animated.View entering={FadeInUp.delay(90).springify()} style={s.cardWrap}>
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/braverman' as any); }}>
+            <LinearGradient
+              colors={['rgba(192,132,252,0.12)', 'rgba(192,132,252,0.03)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[s.card, { borderColor: 'rgba(192,132,252,0.15)' }]}
+            >
+              <View style={[s.accent, { backgroundColor: '#c084fc' }]} />
+              <View style={s.cardInner}>
+                <View style={s.cardLeft}>
+                  <View style={[s.iconCircle, { backgroundColor: 'rgba(192,132,252,0.15)' }]}>
+                    <Text style={{ fontSize: 22 }}>🧬</Text>
+                  </View>
+                  <View>
+                    <Text style={s.cardTitle}>BRAVERMAN</Text>
+                    <Text style={s.cardSub}>Test de neurotransmisores</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.2)" />
+              </View>
+            </LinearGradient>
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* 6 pillar cards */}
         {PILLARS.map((pillar, idx) => (
           <Animated.View key={pillar.id} entering={FadeInUp.delay(100 + idx * 50).springify()} style={s.cardWrap}>
