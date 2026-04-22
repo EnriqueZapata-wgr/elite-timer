@@ -56,7 +56,7 @@ export const SEMANTIC = {
   success: '#A8E02A',    // Éxito, óptimo
   acceptable: '#EFD54F', // Aceptable, en rango
   warning: '#EF9F27',    // Advertencia, riesgo
-  error: '#E24B4A',      // Error, crítico, fuera de rango
+  error: '#fb7185',      // Error/crítico — rose-400, legible en fondo oscuro
   info: '#5B9BD5',       // Información
   noData: '#444444',     // Sin datos
 } as const;

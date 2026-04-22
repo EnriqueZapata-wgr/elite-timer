@@ -52,7 +52,7 @@ const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
 function scoreColor(pct: number): string {
   if (pct >= 70) return '#a8e02a';
   if (pct >= 50) return '#fbbf24';
-  return '#ef4444';
+  return '#fb7185';
 }
 
 /** Etiqueta del score según porcentaje */
