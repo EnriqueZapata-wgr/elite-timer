@@ -7,7 +7,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter, Text } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter, Text, Pressable } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -96,6 +96,30 @@ export default function FoodRegisterScreen() {
     }
   }
 
+  async function handleDeleteLog(logId: string, desc: string) {
+    haptic.heavy();
+    Alert.alert(
+      'Eliminar registro',
+      `¿Eliminar "${desc}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.from('food_logs').delete().eq('id', logId);
+            DeviceEventEmitter.emit('day_changed');
+            haptic.success();
+            const today = getLocalToday();
+            const { data } = await supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
+              .eq('user_id', user!.id).eq('date', today).order('meal_time', { ascending: true });
+            setTodayLogs(data ?? []);
+          },
+        },
+      ]
+    );
+  }
+
   const goToScan = (mealType: string) => {
     haptic.medium();
     router.push({ pathname: '/food-scan', params: { mode: 'food', mealType } } as any);
@@ -156,16 +180,22 @@ export default function FoodRegisterScreen() {
             <View style={{ marginTop: Spacing.lg }}>
               <SectionTitle>REGISTROS DE HOY</SectionTitle>
               {logsForType.map((log: any) => (
-                <View key={log.id} style={s.logRow}>
-                  <Ionicons name="checkmark-circle" size={16} color="#a8e02a" />
-                  <View style={{ flex: 1 }}>
-                    <EliteText style={s.logDesc} numberOfLines={1}>{log.description}</EliteText>
+                <Pressable
+                  key={log.id}
+                  onLongPress={() => handleDeleteLog(log.id, log.description || 'este alimento')}
+                >
+                  <View style={s.logRow}>
+                    <Ionicons name="checkmark-circle" size={16} color="#a8e02a" />
+                    <View style={{ flex: 1 }}>
+                      <EliteText style={s.logDesc} numberOfLines={1}>{log.description}</EliteText>
+                    </View>
+                    <EliteText style={s.logKcal}>
+                      {log.calories ? `${log.calories} kcal` : ''}
+                      {log.protein_g ? ` · ${log.protein_g}g prot` : ''}
+                    </EliteText>
                   </View>
-                  <EliteText style={s.logKcal}>
-                    {log.calories ? `${log.calories} kcal` : ''}
-                    {log.protein_g ? ` · ${log.protein_g}g prot` : ''}
-                  </EliteText>
-                </View>
+                  <Text style={{ color: '#333', fontSize: 8, textAlign: 'right' }}>Mantén presionado para eliminar</Text>
+                </Pressable>
               ))}
             </View>
           )}
