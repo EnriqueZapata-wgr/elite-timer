@@ -85,6 +85,11 @@ export default function LogExerciseScreen() {
   const [prs, setPrs] = useState<Record<string, PRRow>>({});
   const [loading, setLoading] = useState(true);
 
+  // --- Búsqueda de ejercicios ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ExerciseRow[]>([]);
+  const [searching, setSearching] = useState(false);
+
   // --- Estado del logger ---
   const [sets, setSets] = useState<SetEntry[]>([
     { id: generateUUID(), reps: '', weight: '', rir: '' },
@@ -136,6 +141,57 @@ export default function LogExerciseScreen() {
       }
     }
     setLoading(false);
+  }
+
+  async function searchExercises(query: string) {
+    setSearchQuery(query);
+    if (query.trim().length < 2) { setSearchResults([]); return; }
+    setSearching(true);
+    const { data } = await supabase
+      .from('exercises')
+      .select('*')
+      .or(`name.ilike.%${query}%,name_es.ilike.%${query}%`)
+      .order('name_es')
+      .limit(20);
+    setSearchResults((data as ExerciseRow[]) || []);
+    setSearching(false);
+  }
+
+  function selectSearchResult(ex: ExerciseRow) {
+    haptic.medium();
+    if (ex.is_benchmark) {
+      setSelectedBenchmark(ex);
+      loadVariants(ex.id);
+      setStep('variant');
+    } else {
+      // Es variante o standalone — ir directo a log
+      setSelectedVariant(ex);
+      setSets([{ id: generateUUID(), reps: '', weight: '', rir: '' }]);
+      setStep('log');
+    }
+    setSearchQuery('');
+    setSearchResults([]);
+  }
+
+  async function handleCreateCustomExercise() {
+    if (!searchQuery.trim()) return;
+    const name = searchQuery.trim();
+    const { data, error } = await supabase.from('exercises').insert({
+      id: generateUUID(),
+      name,
+      name_es: name,
+      is_benchmark: false,
+      parent_exercise_id: null,
+      muscle_groups: [],
+      equipment_list: [],
+      instructions: null,
+    }).select().single();
+    if (error) {
+      Alert.alert('Error', 'No se pudo crear el ejercicio.');
+      return;
+    }
+    haptic.success();
+    selectSearchResult(data as ExerciseRow);
   }
 
   async function autoNavigate(exerciseId: string) {
@@ -505,6 +561,42 @@ export default function LogExerciseScreen() {
             <EliteText variant="label" style={s.stepLabel}>
               SELECCIONA UN EJERCICIO
             </EliteText>
+
+            {/* Buscador */}
+            <View style={{ marginBottom: Spacing.md }}>
+              <TextInput
+                style={[s.input, { textAlign: 'left', paddingHorizontal: Spacing.md }]}
+                value={searchQuery}
+                onChangeText={searchExercises}
+                placeholder="Buscar ejercicio..."
+                placeholderTextColor="#555"
+                returnKeyType="search"
+              />
+              {searchResults.length > 0 && (
+                <View style={{ marginTop: Spacing.xs }}>
+                  {searchResults.map(ex => (
+                    <AnimatedPressable key={ex.id} onPress={() => selectSearchResult(ex)} style={s.benchmarkCard}>
+                      <View style={s.benchmarkRow}>
+                        <View style={s.benchmarkInfo}>
+                          <EliteText variant="subtitle" style={s.benchmarkName}>{ex.name_es}</EliteText>
+                          <EliteText variant="caption" style={s.muscleText}>
+                            {(ex.muscle_groups || []).join(' / ')}
+                            {ex.is_benchmark ? '' : ' · Variante'}
+                          </EliteText>
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color="#555" />
+                      </View>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+              )}
+              {searchQuery.trim().length >= 2 && searchResults.length === 0 && !searching && (
+                <Pressable onPress={handleCreateCustomExercise} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: Spacing.md, marginTop: Spacing.xs }}>
+                  <Ionicons name="add-circle-outline" size={20} color="#a8e02a" />
+                  <Text style={{ color: '#a8e02a', fontSize: 14 }}>Crear "{searchQuery.trim()}"</Text>
+                </Pressable>
+              )}
+            </View>
 
             {loading ? (
               <EliteText variant="body" style={s.loadingText}>Cargando...</EliteText>
