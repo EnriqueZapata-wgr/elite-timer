@@ -281,6 +281,15 @@ function buildSuggestion(quants: QuantElectronState[], activeFast: any, hour: nu
 async function buildAgenda(userId: string, today: string, hour: number, protocol: CompiledDay['protocol'], activeFast: any): Promise<AgendaItem[]> {
   const items: AgendaItem[] = [];
 
+  // Cargar wake_time del cronotipo del usuario
+  let wakeTime = '07:00';
+  try {
+    const { data: chrono } = await supabase
+      .from('user_chronotype').select('schedule')
+      .eq('user_id', userId).maybeSingle();
+    if (chrono?.schedule?.wake_time) wakeTime = chrono.schedule.wake_time;
+  } catch { /* default 07:00 */ }
+
   // === PROTOCOLO → cargar plan del día (o generarlo si no existe) ===
   try {
     let planActions: any[] = [];
@@ -309,11 +318,18 @@ async function buildAgenda(userId: string, today: string, hour: number, protocol
     for (const a of planActions) {
       if (isElectronAction(a)) continue;
       // PlanAction usa scheduled_time; fallback a default_time y time por compatibilidad
-      const actionTime = a.scheduled_time || a.default_time || a.time;
+      let actionTime = a.scheduled_time || a.default_time || a.time;
       if (!actionTime) continue;
+
+      // Ajustar horas de acciones de tipo "luz solar" al wake_time del usuario
+      const nameLow = (a.name ?? '').toLowerCase();
+      if (nameLow.includes('luz solar') || nameLow.includes('sunlight')) {
+        actionTime = wakeTime;
+      }
+
       items.push({
         id: a.id ?? `p-${actionTime}`,
-        time: actionTime,  // 24h format — display format en UI
+        time: actionTime,
         name: a.name ?? '',
         subtitle: a.protocol_name || protocol?.name,
         category: a.category ?? 'custom',
