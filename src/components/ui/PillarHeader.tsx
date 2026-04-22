@@ -21,15 +21,17 @@ const PILLAR_COLORS: Record<string, string> = {
 interface Props {
   pillar: keyof typeof PILLAR_COLORS;
   title: string;
+  rightContent?: React.ReactNode;
 }
 
-export function PillarHeader({ pillar, title }: Props) {
+export function PillarHeader({ pillar, title, rightContent }: Props) {
   const color = PILLAR_COLORS[pillar] || CATEGORY_COLORS.fitness;
   return (
     <View style={s.header}>
       <BackButton color={color} />
       <EliteText style={[s.atp, { color }]}>ATP</EliteText>
       <EliteText style={s.title}>{title.toUpperCase()}</EliteText>
+      {rightContent ? <View style={{ marginLeft: 'auto' }}>{rightContent}</View> : null}
     </View>
   );
 }

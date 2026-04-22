@@ -15,6 +15,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { HelpButton } from '@/src/components/HelpButton';
 import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -106,7 +107,19 @@ export default function FitnessHubScreen() {
 
   return (
     <Screen>
-      <PillarHeader pillar="fitness" title="Fitness" />
+      <PillarHeader pillar="fitness" title="Fitness" rightContent={
+        <HelpButton
+          title="¿Cómo usar Fitness?"
+          color="#a8e02a"
+          tips={[
+            'Toca un benchmark para ver tus variantes y PRs',
+            'ARGOS puede generar una rutina personalizada para ti',
+            'En "Mis rutinas", mantén presionado para editar, duplicar o eliminar',
+            'El builder te permite crear rutinas y timers libres',
+            'Busca cualquier ejercicio en el buscador del paso 1',
+          ]}
+        />
+      } />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         {/* Hero — Resumen semanal */}
