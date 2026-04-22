@@ -146,12 +146,16 @@ export default function TodayScreen() {
     setLoading(true);
     loadDay();
     const interval = setInterval(loadDay, REFRESH_INTERVAL);
-    const sub = DeviceEventEmitter.addListener('day_changed', () => {
+    const sub1 = DeviceEventEmitter.addListener('day_changed', () => {
+      if (!isTogglingRef.current) loadDay();
+    });
+    const sub2 = DeviceEventEmitter.addListener('electrons_changed', () => {
       if (!isTogglingRef.current) loadDay();
     });
     return () => {
       clearInterval(interval);
-      sub.remove();
+      sub1.remove();
+      sub2.remove();
     };
   }, [loadDay]);
 
@@ -162,20 +166,26 @@ export default function TodayScreen() {
     });
   }, []);
 
-  // --- Insight diario ARGOS ---
+  // --- Insight diario ARGOS (refresca cada 6h) ---
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
       const today = getLocalToday();
-      // Cache en Supabase
+      // Cache en Supabase — válido por 6 horas
       try {
         const { data: cached } = await supabase
           .from('argos_daily_insights')
-          .select('insight')
+          .select('insight, created_at')
           .eq('user_id', user.id)
           .eq('date', today)
           .maybeSingle();
-        if (cached?.insight) { setDailyInsight(cached.insight); return; }
+        if (cached?.insight) {
+          setDailyInsight(cached.insight);
+          const cacheAge = cached.created_at
+            ? (Date.now() - new Date(cached.created_at).getTime()) / (1000 * 60 * 60)
+            : Infinity;
+          if (cacheAge < 6) return; // Cache fresco, no regenerar
+        }
       } catch (_) { /* sin cache */ }
       // Generar nuevo
       try {
@@ -183,7 +193,7 @@ export default function TodayScreen() {
         if (insight) {
           setDailyInsight(insight);
           await supabase.from('argos_daily_insights').upsert(
-            { user_id: user.id, date: today, insight },
+            { user_id: user.id, date: today, insight, created_at: new Date().toISOString() },
             { onConflict: 'user_id,date' },
           );
         }
