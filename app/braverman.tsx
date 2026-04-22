@@ -13,6 +13,7 @@ import { supabase } from '../src/lib/supabase';
 import {
   BRAVERMAN_QUESTIONS,
   NEUROTRANSMITTER_META,
+  NEUROTRANSMITTER_PROFILES,
   CATEGORY_LABELS,
   SUPPLEMENT_RECOMMENDATIONS,
   getDeficiencyLevel,
@@ -467,31 +468,110 @@ export default function BravermanTest() {
             );
           })}
 
-          {/* Supplements */}
-          {defLevel !== 'none' && (
-            <View style={{ marginTop: 24 }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>
-                SUPLEMENTOS RECOMENDADOS — {defMeta.name.toUpperCase()}
+          {/* PERFIL DETALLADO */}
+          <View style={{ marginTop: 24 }}>
+            <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>
+              TU PERFIL DETALLADO
+            </Text>
+
+            {/* Naturaleza dominante — descripción completa */}
+            <View style={{
+              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 20, marginBottom: 12,
+              borderLeftWidth: 3, borderLeftColor: domMeta.color,
+            }}>
+              <Text style={{ color: domMeta.color, fontSize: 14, fontWeight: '700', marginBottom: 8 }}>
+                {domMeta.emoji} Naturaleza {domMeta.name}
               </Text>
-              <Text style={{ color: '#666', fontSize: 11, marginBottom: 12 }}>
-                Basado en nivel de deficit: {DEFICIENCY_LABELS[defLevel]}
-              </Text>
-              {SUPPLEMENT_RECOMMENDATIONS[primaryDef].supplements.map((supp, i) => (
-                <View key={i} style={{
-                  flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                  backgroundColor: '#0a0a0a', borderRadius: 10, padding: 12, marginBottom: 4,
-                }}>
-                  <Text style={{ color: '#ccc', fontSize: 13, flex: 1 }}>{supp.name}</Text>
-                  <Text style={{ color: '#a8e02a', fontSize: 13, fontWeight: '700' }}>
-                    {supp[defLevel as 'minor' | 'moderate' | 'major'] || supp.minor}
-                  </Text>
-                </View>
-              ))}
-              <Text style={{ color: '#444', fontSize: 9, marginTop: 8, textAlign: 'center' }}>
-                Consulta a un profesional de salud antes de iniciar suplementacion.
+              <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 21 }}>
+                {NEUROTRANSMITTER_PROFILES[dominantType].fullDescription}
               </Text>
             </View>
-          )}
+
+            {/* Deficiencia principal — síntomas + por qué importa */}
+            {defLevel !== 'none' && (
+              <View style={{
+                backgroundColor: '#0a0a0a', borderRadius: 16, padding: 20, marginBottom: 12,
+                borderLeftWidth: 3, borderLeftColor: DEFICIENCY_COLORS[defLevel],
+              }}>
+                <Text style={{ color: DEFICIENCY_COLORS[defLevel], fontSize: 14, fontWeight: '700', marginBottom: 8 }}>
+                  Deficiencia de {defMeta.name}
+                </Text>
+                <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 21, marginBottom: 12 }}>
+                  {NEUROTRANSMITTER_PROFILES[primaryDef].deficiencyDetail}
+                </Text>
+                <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 8 }}>
+                  PROBLEMAS ASOCIADOS:
+                </Text>
+                <Text style={{ color: '#999', fontSize: 12, lineHeight: 20 }}>
+                  {NEUROTRANSMITTER_PROFILES[primaryDef].associatedProblems}
+                </Text>
+              </View>
+            )}
+
+            {/* Balance general */}
+            <View style={{
+              backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 20,
+              borderWidth: 1, borderColor: 'rgba(168,224,42,0.1)',
+            }}>
+              <Text style={{ color: '#a8e02a', fontSize: 14, fontWeight: '700', marginBottom: 8 }}>
+                ¿Qué significa para tu salud?
+              </Text>
+              <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 21 }}>
+                Tu cerebro tiene naturaleza {domMeta.name.toLowerCase()} ({domMeta.controls.toLowerCase()}).
+                {defLevel !== 'none' ? ` Tu deficiencia principal en ${defMeta.name.toLowerCase()} puede estar causando: ${defMeta.deficientSymptoms.toLowerCase()}.` : ''}
+                {'\n\n'}ARGOS usará este perfil para personalizar tus recomendaciones de suplementos, nutrición, ejercicio y protocolos.
+              </Text>
+            </View>
+          </View>
+
+          {/* PLAN DE SUPLEMENTOS INTEGRADO */}
+          <View style={{ marginTop: 24 }}>
+            <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>
+              PLAN DE SUPLEMENTOS PERSONALIZADO
+            </Text>
+            <Text style={{ color: '#666', fontSize: 11, marginBottom: 16 }}>
+              Basado en TODAS tus deficiencias, no solo la principal
+            </Text>
+
+            {neuros.map(nt => {
+              const score = scores.deficiency[nt];
+              const level = getDeficiencyLevel(score);
+              if (level === 'none') return null;
+
+              const meta = NEUROTRANSMITTER_META[nt];
+              const supps = SUPPLEMENT_RECOMMENDATIONS[nt];
+
+              return (
+                <View key={nt} style={{ marginBottom: 16 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <Text style={{ fontSize: 16 }}>{meta.emoji}</Text>
+                    <Text style={{ color: meta.color, fontSize: 13, fontWeight: '700' }}>
+                      {meta.name} — {DEFICIENCY_LABELS[level]}
+                    </Text>
+                  </View>
+                  {supps.supplements.slice(0, 4).map((supp, i) => (
+                    <View key={i} style={{
+                      flexDirection: 'row', justifyContent: 'space-between',
+                      backgroundColor: '#0a0a0a', borderRadius: 8, padding: 10, marginBottom: 3,
+                    }}>
+                      <Text style={{ color: '#ccc', fontSize: 12, flex: 1 }}>{supp.name}</Text>
+                      <Text style={{ color: '#a8e02a', fontSize: 12, fontWeight: '600' }}>
+                        {supp[level as 'minor' | 'moderate' | 'major'] || supp.minor}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            })}
+
+            <View style={{
+              backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 12, padding: 14, marginTop: 8,
+            }}>
+              <Text style={{ color: '#fbbf24', fontSize: 11 }}>
+                ⚠️ Los suplementos se pueden superponer entre deficiencias. Consulta a un profesional de salud para un plan personalizado que evite duplicidades y considere interacciones.
+              </Text>
+            </View>
+          </View>
 
           {/* Actions */}
           <View style={{ gap: 10, marginTop: 24 }}>
