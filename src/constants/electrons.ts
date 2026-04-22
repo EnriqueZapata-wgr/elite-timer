@@ -34,6 +34,9 @@ export const ELECTRON_WEIGHTS = {
   fasting_12h:  { weight: 1.0, name: 'Ayuno 12h',       icon: 'timer-outline',         color: '#fbbf24' },
   fasting_16h:  { weight: 2.0, name: 'Ayuno 16h',       icon: 'timer-outline',         color: '#fb923c' },
   fasting_24h:  { weight: 3.0, name: 'Ayuno 24h',       icon: 'flame-outline',         color: '#ef4444' },
+
+  // Evaluaciones funcionales (por evento)
+  functional_quiz: { weight: 5.0, name: 'Evaluación funcional', icon: 'clipboard-outline', color: '#c084fc' },
 } as const;
 
 export type ElectronSource = keyof typeof ELECTRON_WEIGHTS;
