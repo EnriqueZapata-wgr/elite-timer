@@ -4,12 +4,13 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert, DeviceEventEmitter } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert, DeviceEventEmitter, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { HelpButton } from '@/src/components/HelpButton';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
@@ -19,6 +20,8 @@ import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
 import { useFocusEffect } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ═══ CONSTANTES ═══
 
@@ -80,6 +83,46 @@ export default function JournalScreen() {
   // Mood
   const [moodBefore, setMoodBefore] = useState<number | null>(null);
   const [moodAfter, setMoodAfter] = useState<number | null>(null);
+
+  // Recordatorio
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderTime] = useState('21:00');
+
+  // Cargar preferencia de recordatorio
+  useEffect(() => {
+    AsyncStorage.getItem('@atp/journal_reminder').then(v => {
+      if (v === 'true') setReminderEnabled(true);
+    });
+  }, []);
+
+  async function toggleReminder(enabled: boolean) {
+    setReminderEnabled(enabled);
+    await AsyncStorage.setItem('@atp/journal_reminder', enabled ? 'true' : 'false');
+    if (enabled) {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso necesario', 'Necesitamos permiso de notificaciones para el recordatorio.');
+        setReminderEnabled(false);
+        return;
+      }
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'ATP — Descarga mental',
+          body: '¿Cómo estuvo tu día? Tómate 5 minutos para escribir.',
+          sound: true,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: parseInt(reminderTime.split(':')[0]),
+          minute: parseInt(reminderTime.split(':')[1]),
+        },
+      });
+      haptic.success();
+    } else {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    }
+  }
 
   // Cargar entradas y sexo al enfocar la pantalla
   useFocusEffect(useCallback(() => {
@@ -239,7 +282,18 @@ export default function JournalScreen() {
 
   return (
     <Screen>
-      <PillarHeader pillar="mind" title="Journal" />
+      <PillarHeader pillar="mind" title="Journal" rightContent={
+        <HelpButton
+          title="Tu diario ATP"
+          color="#c084fc"
+          tips={[
+            'Elige entre 4 tipos: Gratitud, Visión, Estoico o Descarga',
+            'Escribe libremente — no hay longitud mínima',
+            'Tus entradas anteriores aparecen abajo',
+            'Activa el recordatorio diario para no olvidar tu descarga mental',
+          ]}
+        />
+      } />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <EliteText variant="caption" style={s.subtitle}>Elige tu práctica de hoy</EliteText>
 
@@ -257,6 +311,29 @@ export default function JournalScreen() {
             </AnimatedPressable>
           </StaggerItem>
         ))}
+
+        {/* Recordatorio diario */}
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,
+          marginTop: Spacing.md,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="notifications-outline" size={18} color={PURPLE} />
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm }}>Recordatorio diario</EliteText>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            {reminderEnabled && (
+              <EliteText variant="caption" style={{ color: PURPLE, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{reminderTime}</EliteText>
+            )}
+            <Switch
+              value={reminderEnabled}
+              onValueChange={toggleReminder}
+              trackColor={{ true: PURPLE, false: '#333' }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
 
         {/* Entradas recientes */}
         {entries.length > 0 && (
