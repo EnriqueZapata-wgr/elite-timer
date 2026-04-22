@@ -65,18 +65,24 @@ export interface ComplianceStats {
 export async function generateDailyPlan(userId: string, date?: string, force = false): Promise<DailyPlan | null> {
   const targetDate = date || getLocalToday();
 
-  // Verificar si ya existe
+  // Verificar si ya existe (si force=true, borrar el existente para regenerar limpio)
   if (!force) {
     const { data: existing } = await supabase
       .from('daily_plans').select('*')
       .eq('user_id', userId).eq('date', targetDate).single();
     if (existing) return existing as DailyPlan;
+  } else {
+    // Limpiar plan viejo antes de regenerar
+    await supabase.from('daily_plans').delete()
+      .eq('user_id', userId).eq('date', targetDate);
   }
 
-  // Obtener protocolos activos
+  // Obtener SOLO el protocolo activo más reciente (evitar empalme de protocolos)
   const { data: activeProtocols } = await supabase
     .from('user_protocols').select('*, template:protocol_templates(*)')
-    .eq('user_id', userId).eq('status', 'active');
+    .eq('user_id', userId).eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1);
 
   if (!activeProtocols?.length) return null;
 
