@@ -91,9 +91,15 @@ export default function JournalScreen() {
   }, [user?.id]));
 
   async function loadEntries() {
-    const { data } = await supabase.from('journal_entries').select('*')
-      .eq('user_id', user?.id).order('created_at', { ascending: false }).limit(10);
-    setEntries(data ?? []);
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase.from('journal_entries').select('*')
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
+      if (error) console.warn('Journal load error:', error.message);
+      setEntries(data ?? []);
+    } catch (e) {
+      console.warn('Journal loadEntries catch:', e);
+    }
   }
 
   // Resetear todo el formulario
