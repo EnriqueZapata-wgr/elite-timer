@@ -112,10 +112,12 @@ export default function YoScreen() {
   // Helper: color por score
   const scoreColor = (v: number) => v >= 70 ? '#a8e02a' : v >= 40 ? '#EF9F27' : '#E24B4A';
 
-  // Dominios ordenados por score (mayor primero)
-  const sortedDomains = healthReport?.functionalHealth?.domains
+  // Dominios separados: activos (tienen datos) vs pendientes (score=0, sin datos)
+  const allDomains = healthReport?.functionalHealth?.domains
     ? [...healthReport.functionalHealth.domains].sort((a, b) => b.score - a.score)
     : [];
+  const sortedDomains = allDomains.filter(d => d.score > 0);
+  const pendingDomains = allDomains.filter(d => d.score === 0);
 
   // Overall score: preferir dailyScore, fallback a healthReport
   const overallScore = dailyScore?.overall ?? healthReport?.functionalHealth?.value ?? 0;
@@ -375,6 +377,27 @@ export default function YoScreen() {
                   </View>
                 </AnimatedPressable>
               ))}
+
+              {/* Dominios pendientes — sin datos */}
+              {pendingDomains.length > 0 && (
+                <View style={{ marginTop: 12, opacity: 0.5 }}>
+                  <EliteText style={{ fontSize: 9, fontFamily: Fonts.bold, color: '#555', letterSpacing: 1.5, marginBottom: 8 }}>
+                    DESBLOQUEA CON MÁS DATOS
+                  </EliteText>
+                  {pendingDomains.map((d) => (
+                    <View key={d.domain} style={s.domainRow}>
+                      <View style={s.domainIconWrap}>
+                        <Ionicons name="lock-closed-outline" size={13} color="#444" />
+                      </View>
+                      <EliteText style={s.domainLabel}>{d.label}</EliteText>
+                      <View style={s.domainBarBg}>
+                        <View style={[s.domainBarFill, { width: '0%', backgroundColor: '#333' }]} />
+                      </View>
+                      <EliteText style={[s.domainPct, { color: '#444' }]}>--</EliteText>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           </Animated.View>
         )}
