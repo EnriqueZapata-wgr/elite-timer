@@ -91,6 +91,11 @@ export default function ArgosRoutineScreen() {
       ...routine.cooldown.map((ex, i) => ({ ...ex, phase: 'cooldown', order: routine.warmup.length + routine.main.length + i })),
     ];
 
+    if (allExercises.length === 0) {
+      Alert.alert('Error', 'La rutina generada no tiene ejercicios.');
+      return;
+    }
+
     const blocks: Block[] = allExercises.map((ex, i) => ({
       id: generateUUID(),
       parent_block_id: null,
@@ -98,8 +103,8 @@ export default function ArgosRoutineScreen() {
       type: 'work' as const,
       label: ex.name,
       duration_seconds: null,
-      rounds: ex.sets,
-      rest_between_seconds: ex.rest_seconds,
+      rounds: Number(ex.sets) || 3,
+      rest_between_seconds: Number(ex.rest_seconds) || 90,
       color: null,
       sound_start: 'bell',
       sound_end: 'bell',
@@ -109,7 +114,8 @@ export default function ArgosRoutineScreen() {
         ex.notes || '',
         `Fase: ${ex.phase}`,
       ].filter(Boolean).join(' · '),
-      suggested_rest_seconds: ex.rest_seconds,
+      suggested_rest_seconds: Number(ex.rest_seconds) || 90,
+      children: [],
     }));
 
     const routineObj: Routine = {
