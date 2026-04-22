@@ -74,6 +74,11 @@ interface UserContext {
     primaryDeficiency: string;
     deficiencyLevel: string;
   };
+  functionalQuizzes?: {
+    quiz: string;
+    scores: Record<string, number>;
+    issues: string[];
+  }[];
 }
 
 async function loadUserContext(userId: string): Promise<UserContext> {
@@ -242,6 +247,23 @@ async function loadUserContext(userId: string): Promise<UserContext> {
     }
   } catch (_) { /* opcional */ }
 
+  try {
+    // Resultados de quizzes funcionales
+    const { data: quizResults } = await supabase
+      .from('functional_quiz_results')
+      .select('quiz_id, domain_scores, active_insights')
+      .eq('user_id', userId)
+      .eq('is_complete', true)
+      .order('completed_at', { ascending: false });
+    if (quizResults && quizResults.length > 0) {
+      context.functionalQuizzes = quizResults.map(r => ({
+        quiz: r.quiz_id,
+        scores: r.domain_scores as Record<string, number>,
+        issues: (r.active_insights as any[])?.map((i: any) => i.title) || [],
+      }));
+    }
+  } catch (_) { /* opcional */ }
+
   return context;
 }
 
@@ -275,6 +297,13 @@ function buildContextPrompt(ctx: UserContext): string {
   if (ctx.bravermanProfile) {
     const b = ctx.bravermanProfile;
     parts.push(`Perfil Braverman: Naturaleza dominante ${b.dominant}, deficiencia principal ${b.primaryDeficiency} (${b.deficiencyLevel})`);
+  }
+  if (ctx.functionalQuizzes?.length) {
+    const quizSummary = ctx.functionalQuizzes.map(q => {
+      const issues = q.issues.length > 0 ? q.issues.join(', ') : 'sin alertas';
+      return `${q.quiz}: ${issues}`;
+    }).join(' | ');
+    parts.push(`Evaluaciones funcionales: ${quizSummary}`);
   }
   if (parts.length === 0) return '';
   return `\n\n## DATOS ACTUALES DEL USUARIO\n${parts.join('\n')}`;
