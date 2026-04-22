@@ -134,6 +134,30 @@ export const DEFICIENCY_COLORS = {
   major: '#ef4444',
 } as const;
 
+// Perfiles detallados por neurotransmisor (para resultados expandidos)
+export const NEUROTRANSMITTER_PROFILES = {
+  dopamine: {
+    fullDescription: 'Tienes una naturaleza dopaminérgica. Eres parte del 17% de la población que comparte esta naturaleza. Eres racional, con mucha energía, orientación a logros y voluntad fuerte. Te concentras intensamente en las tareas que te importan. Profesionales como médicos, científicos, ingenieros y arquitectos suelen tener dominancia de dopamina.',
+    deficiencyDetail: 'La dopamina controla la energía del cerebro. Los primeros signos de deficiencia son: pérdida de energía, fatiga, lentitud mental y dificultad para concentrarse.',
+    associatedProblems: 'Fatiga crónica, antojos de azúcar y carbohidratos, problemas de atención, ADD, dificultad para levantarse por la mañana, pérdida de motivación, metabolismo lento.',
+  },
+  acetylcholine: {
+    fullDescription: 'Tienes una naturaleza colinérgica. Eres creativo/a, intuitivo/a y con una memoria excepcional. Procesas información rápidamente y disfrutas aprender cosas nuevas. Eres empático/a y te conectas profundamente con las personas. Artistas, comunicadores y líderes visionarios suelen tener dominancia de acetilcolina.',
+    deficiencyDetail: 'La acetilcolina controla la velocidad de tu cerebro. Cuando baja, tu memoria se vuelve irregular, tu creatividad disminuye y tu capacidad de aprendizaje se ve afectada.',
+    associatedProblems: 'Olvidos frecuentes, pérdida de creatividad, insomnio, pérdida de tono muscular, sequedad de boca, dislexia, problemas de lectura.',
+  },
+  gaba: {
+    fullDescription: 'Tienes una naturaleza GABAérgica. Eres parte del 50% de la población que comparte esta naturaleza. Eres una persona estable, organizada, leal y confiable. Te gusta mantener el orden y la rutina. Eres el pilar estable de tu entorno social. Profesionales como administradores, contadores y personal médico suelen tener dominancia de GABA.',
+    deficiencyDetail: 'El GABA es el principal neurotransmisor inhibidor del cerebro. Sin suficiente GABA, tu cerebro produce energía en ráfagas descontroladas, lo que causa ansiedad, nerviosismo e inestabilidad emocional.',
+    associatedProblems: 'Ansiedad, nerviosismo, insomnio, tensión muscular, palpitaciones, temblores, dolor de espalda, antojos de carbohidratos, cambios de humor, trastorno obsesivo compulsivo.',
+  },
+  serotonin: {
+    fullDescription: 'Tienes una naturaleza serotoninérgica. Eres espontáneo/a, aventurero/a, artístico/a y vives el momento. Disfrutas explorar nuevas experiencias y no te dejas intimidar por los desafíos. Tu naturaleza serotoninérgica es ideal para profesiones que requieren coordinación motora, flexibilidad y manejo de crisis.',
+    deficiencyDetail: 'La serotonina mantiene el equilibrio general del cerebro. Cuando baja, tus ondas cerebrales se desincronizan, afectando tu sueño, humor y capacidad de controlar impulsos.',
+    associatedProblems: 'Depresión, antojos de carbohidratos, insomnio, irritabilidad, codependencia, impulsividad, falta de placer, perfeccionismo, aislamiento social.',
+  },
+} as const;
+
 export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
   {
     "id": "1.1.1.1",
@@ -343,7 +367,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "dopamine",
     "category": "personality",
-    "text": "Soy un individuo muy dominante"
+    "text": "Soy una persona muy dominante"
   },
   {
     "id": "1.1.4.2",
@@ -665,7 +689,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "acetylcholine",
     "category": "character",
-    "text": "Soy un idealista pero no un perfeccionista"
+    "text": "Soy idealista pero no perfeccionista"
   },
   {
     "id": "1.2.3.9",
@@ -679,7 +703,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "acetylcholine",
     "category": "personality",
-    "text": "Soy un romántico eterno"
+    "text": "Soy una persona romántica"
   },
   {
     "id": "1.2.4.2",
@@ -742,7 +766,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "acetylcholine",
     "category": "personality",
-    "text": "Soy un optimista"
+    "text": "Soy optimista"
   },
   {
     "id": "1.2.4.11",
@@ -1183,7 +1207,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "gaba",
     "category": "personality",
-    "text": "Soy un pilar estable en la vida de las personas"
+    "text": "Soy un pilar estable en la vida de quienes me rodean"
   },
   {
     "id": "1.4.1.1",
@@ -1204,7 +1228,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "serotonin",
     "category": "memory",
-    "text": "Soy un pensador impuslivo"
+    "text": "Pienso de forma impulsiva"
   },
   {
     "id": "1.4.1.4",
@@ -1337,7 +1361,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "serotonin",
     "category": "character",
-    "text": "Soy un optimista"
+    "text": "Soy optimista"
   },
   {
     "id": "1.4.3.5",
@@ -1414,7 +1438,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "serotonin",
     "category": "personality",
-    "text": "Soy un excelente negociador"
+    "text": "Soy excelente negociando"
   },
   {
     "id": "1.4.4.6",
