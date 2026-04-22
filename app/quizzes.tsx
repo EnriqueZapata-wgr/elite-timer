@@ -17,9 +17,11 @@ import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getAvailableQuizzes, getLastQuizResponse, type QuizData } from '@/src/services/quiz-engine-service';
+import { ALL_FUNCTIONAL_QUIZZES } from '@/src/constants/functional-quizzes';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { supabase } from '@/src/lib/supabase';
 
 const TEAL = CATEGORY_COLORS.metrics;
 
@@ -41,6 +43,7 @@ export default function QuizzesScreen() {
   const { user } = useAuth();
   const [quizzes, setQuizzes] = useState<QuizData[]>([]);
   const [completedMap, setCompletedMap] = useState<Record<string, string>>({});
+  const [functionalCompletedMap, setFunctionalCompletedMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -63,6 +66,27 @@ export default function QuizzesScreen() {
           }
         }
         setCompletedMap(completed);
+      }
+
+      // Verificar quizzes funcionales completados
+      if (user?.id) {
+        try {
+          const { data: fqResults } = await supabase
+            .from('functional_quiz_results')
+            .select('quiz_id, completed_at')
+            .eq('user_id', user.id)
+            .eq('is_complete', true)
+            .order('completed_at', { ascending: false });
+          if (fqResults) {
+            const fqCompleted: Record<string, string> = {};
+            for (const r of fqResults) {
+              if (!fqCompleted[r.quiz_id] && r.completed_at) {
+                fqCompleted[r.quiz_id] = r.completed_at;
+              }
+            }
+            setFunctionalCompletedMap(fqCompleted);
+          }
+        } catch { /* silenciar */ }
       }
     } catch {
       // silenciar errores
@@ -204,8 +228,65 @@ export default function QuizzesScreen() {
           </View>
         )}
 
+        {/* ── Quizzes Funcionales ── */}
+        {ALL_FUNCTIONAL_QUIZZES.length > 0 && (
+          <View style={styles.listSection}>
+            <EliteText variant="caption" style={styles.sectionLabel}>
+              EVALUACIONES FUNCIONALES
+            </EliteText>
+
+            {ALL_FUNCTIONAL_QUIZZES.map((fq, idx) => {
+              const isCompleted = !!functionalCompletedMap[fq.id];
+
+              return (
+                <StaggerItem key={fq.id} index={idx + (otherQuizzes.length || 0)}>
+                  <GradientCard
+                    color={fq.color}
+                    onPress={() => {
+                      haptic.light();
+                      router.push({ pathname: '/functional-quiz' as any, params: { quiz_id: fq.id } });
+                    }}
+                    style={styles.quizCard}
+                  >
+                    <View style={styles.quizCardContent}>
+                      <View style={[styles.quizIconWrap, { backgroundColor: withOpacity(fq.color, 0.15) }]}>
+                        <EliteText style={{ fontSize: 22 }}>{fq.emoji}</EliteText>
+                      </View>
+                      <View style={styles.quizInfo}>
+                        <EliteText style={styles.quizName}>{fq.name}</EliteText>
+                        <EliteText variant="caption" style={[styles.metaText, { marginBottom: 2 }]} numberOfLines={1}>
+                          {fq.subtitle}
+                        </EliteText>
+                        <View style={styles.quizMeta}>
+                          <EliteText variant="caption" style={styles.metaText}>
+                            {fq.questions.length} preguntas
+                          </EliteText>
+                          <EliteText variant="caption" style={styles.metaDot}> · </EliteText>
+                          <EliteText variant="caption" style={styles.metaText}>
+                            ~{fq.estimatedMinutes} min
+                          </EliteText>
+                        </View>
+                      </View>
+                      {isCompleted ? (
+                        <View style={styles.completedBadgeSmall}>
+                          <Ionicons name="checkmark-circle" size={18} color={fq.color} />
+                          <EliteText variant="caption" style={[styles.completedDateSmall, { color: fq.color }]}>
+                            {formatDate(functionalCompletedMap[fq.id])}
+                          </EliteText>
+                        </View>
+                      ) : (
+                        <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />
+                      )}
+                    </View>
+                  </GradientCard>
+                </StaggerItem>
+              );
+            })}
+          </View>
+        )}
+
         {/* ── Estado vacío ── */}
-        {!loading && quizzes.length === 0 && (
+        {!loading && quizzes.length === 0 && ALL_FUNCTIONAL_QUIZZES.length === 0 && (
           <Animated.View entering={FadeInUp.delay(200).springify()} style={styles.emptyState}>
             <Ionicons name="clipboard-outline" size={48} color={TEAL} />
             <EliteText variant="body" style={styles.emptyTitle}>Sin evaluaciones disponibles</EliteText>
