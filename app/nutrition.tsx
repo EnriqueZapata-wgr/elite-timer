@@ -14,6 +14,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { HelpButton } from '@/src/components/HelpButton';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
@@ -118,7 +119,19 @@ export default function NutritionScreen() {
 
   return (
     <Screen>
-      <PillarHeader pillar="nutrition" title="Nutrición" />
+      <PillarHeader pillar="nutrition" title="Nutrición" rightContent={
+        <HelpButton
+          title="¿Cómo registrar tu comida?"
+          color="#5B9BD5"
+          tips={[
+            'Escribe lo que comiste o toma una foto y ARGOS estima los macros',
+            'Puedes editar los macros antes de guardar',
+            'Toca la unidad (g) para cambiar a piezas, cucharadas o tazas',
+            'Mantén presionado un registro para eliminarlo',
+            'Guarda comidas frecuentes en "Mis recetas" para reusar',
+          ]}
+        />
+      } />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -188,6 +201,17 @@ export default function NutritionScreen() {
               title="Registrar comida"
               subtitle="Desayuno · Comida · Cena"
               onPress={() => { haptic.light(); router.push('/food-register' as any); }}
+            />
+          </Animated.View>
+
+          {/* Mis recetas */}
+          <Animated.View entering={FadeInUp.delay(120).springify()}>
+            <NavCard
+              icon="bookmark-outline"
+              color="#fbbf24"
+              title="Mis recetas"
+              subtitle="Guarda comidas frecuentes para reusar"
+              onPress={() => { haptic.light(); router.push('/my-recipes' as any); }}
             />
           </Animated.View>
 
