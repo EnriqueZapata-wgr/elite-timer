@@ -633,13 +633,13 @@ export default function TodayScreen() {
           </Animated.View>
         )}
 
-        {/* Botón editar mi día */}
+        {/* Botón configurar protocolo */}
         <AnimatedPressable
-          onPress={() => { haptic.light(); setEditModalVisible(true); }}
+          onPress={() => { haptic.light(); router.push('/protocol-config' as any); }}
           style={s.editDayBtn}
         >
-          <Ionicons name="create-outline" size={16} color="#666" />
-          <Text style={s.editDayBtnText}>Editar mi día</Text>
+          <Ionicons name="options-outline" size={16} color="#666" />
+          <Text style={s.editDayBtnText}>Configurar mi protocolo</Text>
         </AnimatedPressable>
 
         <EditDayModal

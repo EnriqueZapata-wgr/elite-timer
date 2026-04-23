@@ -139,6 +139,32 @@ export default function KitScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* Configurar protocolo */}
+        <Animated.View entering={FadeInUp.delay(92).springify()} style={s.cardWrap}>
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/protocol-config' as any); }}>
+            <LinearGradient
+              colors={['rgba(168,224,42,0.10)', 'rgba(168,224,42,0.02)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[s.card, { borderColor: 'rgba(168,224,42,0.12)' }]}
+            >
+              <View style={[s.accent, { backgroundColor: '#a8e02a' }]} />
+              <View style={s.cardInner}>
+                <View style={s.cardLeft}>
+                  <View style={[s.iconCircle, { backgroundColor: 'rgba(168,224,42,0.12)' }]}>
+                    <Ionicons name="options-outline" size={28} color="#a8e02a" />
+                  </View>
+                  <View>
+                    <Text style={s.cardTitle}>CONFIGURAR</Text>
+                    <Text style={s.cardSub}>Electrones · Metas · Protocolo</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.2)" />
+              </View>
+            </LinearGradient>
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* Suplementos card */}
         <Animated.View entering={FadeInUp.delay(95).springify()} style={s.cardWrap}>
           <AnimatedPressable onPress={() => { haptic.medium(); router.push('/supplements' as any); }}>
