@@ -1,696 +1,585 @@
 /**
- * Fasting — Pantalla completa de ayuno estilo ZERO.
+ * Ayuno — Rediseño estilo ZERO.
  *
- * Estados: NO AYUNANDO (selector de protocolo + historial)
- *          AYUNANDO (timer circular + zona biológica actual)
+ * 3 estados: IDLE (selector + preview), ACTIVE (ring timer + zonas), HISTORY.
+ * Columnas DB: fast_start, target_hours, actual_hours, status, date.
  */
-import { getLocalToday } from '@/src/utils/date-helpers';
-import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter, Pressable, Text } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, ScrollView, Pressable, Alert, Dimensions, DeviceEventEmitter } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import Svg, { Circle } from 'react-native-svg';
+import { supabase } from '../src/lib/supabase';
+import { getLocalToday } from '../src/utils/date-helpers';
+import { awardBooleanElectron } from '../src/services/electron-service';
+import { getFastingTier } from '../src/constants/electrons';
 
-import { EliteText } from '@/components/elite-text';
-import { Screen } from '@/src/components/ui/Screen';
-import { PillarHeader } from '@/src/components/ui/PillarHeader';
-import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { GradientCard } from '@/src/components/ui/GradientCard';
-import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
-import { SectionTitle } from '@/src/components/ui/SectionTitle';
-import { haptic } from '@/src/utils/haptics';
-import { supabase } from '@/src/lib/supabase';
-import { useAuth } from '@/src/contexts/auth-context';
-import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { awardBooleanElectron } from '@/src/services/electron-service';
-import { getFastingTier } from '@/src/constants/electrons';
+const { width } = Dimensions.get('window');
+const RING_SIZE = width * 0.65;
+const STROKE_WIDTH = 12;
+const RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-const AMBER = '#fbbf24';
-const AMBER_GRADIENT = { start: 'rgba(251,191,36,0.12)', end: 'rgba(251,191,36,0.03)' };
-
-const FASTING_ZONES = [
-  { name: 'Digestión',           minH: 0,  maxH: 4,  color: '#999',    icon: 'restaurant-outline' as const, desc: 'Tu cuerpo procesa los alimentos' },
-  { name: 'Post-absorción',      minH: 4,  maxH: 8,  color: '#38bdf8', icon: 'water-outline' as const,      desc: 'Transición a usar reservas' },
-  { name: 'Quema de grasa',      minH: 8,  maxH: 12, color: '#a8e02a', icon: 'flame-outline' as const,      desc: 'Tu cuerpo empieza a usar grasa' },
-  { name: 'Cetosis',             minH: 12, maxH: 16, color: '#fbbf24', icon: 'flash-outline' as const,      desc: 'Producción de cetonas activa' },
-  { name: 'Autofagia',           minH: 16, maxH: 24, color: '#c084fc', icon: 'refresh-outline' as const,    desc: 'Reciclaje celular activado' },
-  { name: 'Autofagia profunda',  minH: 24, maxH: 999, color: '#f472b6', icon: 'sparkles-outline' as const,  desc: 'Regeneración celular profunda' },
+// Protocolos de ayuno
+const FASTING_PROTOCOLS = [
+  { id: '12:12', hours: 12, label: '12:12', description: 'Principiante — 12h ayuno, 12h alimentación', color: '#22c55e' },
+  { id: '14:10', hours: 14, label: '14:10', description: 'Intermedio — 14h ayuno, 10h alimentación', color: '#38bdf8' },
+  { id: '16:8', hours: 16, label: '16:8', description: 'Popular — 16h ayuno, 8h alimentación', color: '#a8e02a' },
+  { id: '18:6', hours: 18, label: '18:6', description: 'Avanzado — 18h ayuno, 6h alimentación', color: '#f59e0b' },
+  { id: '20:4', hours: 20, label: '20:4', description: 'Warrior — 20h ayuno, 4h alimentación', color: '#f97316' },
+  { id: '24:0', hours: 24, label: 'OMAD', description: 'Una comida al día — 24h de ayuno', color: '#ef4444' },
+  { id: '36:0', hours: 36, label: '36h', description: 'Ayuno extendido — 36 horas', color: '#c084fc' },
+  { id: '72:0', hours: 72, label: '72h', description: 'Ayuno prolongado — 72 horas', color: '#ec4899' },
 ];
 
-const PROTOCOL_OPTIONS = [12, 14, 16, 18, 23, 36];
+// Zonas biológicas del ayuno
+const FASTING_ZONES = [
+  { hours: 0, label: 'Fase alimentada', description: 'Digestión y absorción de nutrientes', color: '#22c55e', icon: 'restaurant-outline' as const },
+  { hours: 4, label: 'Postabsorción', description: 'Glucosa en sangre baja, empieza a usar reservas', color: '#38bdf8', icon: 'trending-down-outline' as const },
+  { hours: 8, label: 'Glucogenólisis', description: 'Tu hígado libera glucógeno almacenado', color: '#60a5fa', icon: 'flash-outline' as const },
+  { hours: 12, label: 'Cetosis temprana', description: 'Empiezas a quemar grasa como combustible', color: '#a8e02a', icon: 'flame-outline' as const },
+  { hours: 16, label: 'Autofagia', description: 'Tus células reciclan componentes dañados', color: '#f59e0b', icon: 'refresh-outline' as const },
+  { hours: 24, label: 'Autofagia profunda', description: 'Reparación celular intensa + hormona de crecimiento', color: '#f97316', icon: 'shield-outline' as const },
+  { hours: 36, label: 'Reparación inmune', description: 'Sistema inmune se regenera', color: '#c084fc', icon: 'medkit-outline' as const },
+  { hours: 48, label: 'Reset metabólico', description: 'Sensibilidad a insulina se restaura profundamente', color: '#ec4899', icon: 'nuclear-outline' as const },
+];
 
 function getCurrentZone(hours: number) {
-  return FASTING_ZONES.find(z => hours >= z.minH && hours < z.maxH) ?? FASTING_ZONES[0];
+  let zone = FASTING_ZONES[0];
+  for (const z of FASTING_ZONES) {
+    if (hours >= z.hours) zone = z;
+  }
+  return zone;
 }
 
-function fmtTimer(totalSecs: number) {
-  const h = Math.floor(totalSecs / 3600);
-  const m = Math.floor((totalSecs % 3600) / 60);
-  const sec = totalSecs % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+function getNextZone(hours: number) {
+  for (const z of FASTING_ZONES) {
+    if (z.hours > hours) return z;
+  }
+  return null;
+}
+
+function formatDuration(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = Math.floor(totalMinutes % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 export default function FastingScreen() {
-  const router = useRouter();
-  const { user } = useAuth();
-
-  const [isFasting, setIsFasting] = useState(false);
-  const [fastStart, setFastStart] = useState<Date | null>(null);
-  const [activeFastId, setActiveFastId] = useState<string | null>(null);
-  const [targetHours, setTargetHours] = useState(16);
-  const [selectedProtocol, setSelectedProtocol] = useState(16);
-  const [elapsedSecs, setElapsedSecs] = useState(0);
+  const insets = useSafeAreaInsets();
+  const [userId, setUserId] = useState('');
+  const [activeFast, setActiveFast] = useState<any>(null);
+  const [selectedProtocol, setSelectedProtocol] = useState(FASTING_PROTOCOLS[2]); // 16:8
   const [history, setHistory] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showProtocols, setShowProtocols] = useState(false);
+  const [elapsed, setElapsed] = useState(0); // minutos
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Pickers JS-only para retroactivo
-  const [startDate, setStartDate] = useState(new Date());
-  const [showEndForm, setShowEndForm] = useState(false);
-  const [endDate, setEndDate] = useState(new Date());
-
-  // Recargar estado + historial
-  const reloadFasting = useCallback(() => {
-    if (!user?.id) return;
-    supabase.from('fasting_logs').select('*')
-      .eq('user_id', user.id).eq('status', 'active')
-      .order('fast_start', { ascending: false }).limit(1)
-      .then(({ data }) => {
-        const active = data?.[0];
-        if (active) {
-          setIsFasting(true);
-          setActiveFastId(active.id);
-          setFastStart(new Date(active.fast_start));
-          setTargetHours(active.target_hours ?? 16);
-          setElapsedSecs(Math.floor((Date.now() - new Date(active.fast_start).getTime()) / 1000));
-        } else {
-          setIsFasting(false);
-          setActiveFastId(null);
-          setFastStart(null);
-        }
-      });
-    supabase.from('fasting_logs').select('*')
-      .eq('user_id', user.id).eq('status', 'completed')
-      .order('fast_start', { ascending: false }).limit(10)
-      .then(({ data }) => setHistory(data ?? []));
-  }, [user?.id]);
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    })();
+  }, []);
 
   useFocusEffect(useCallback(() => {
-    reloadFasting();
-  }, [reloadFasting]));
+    if (userId) {
+      loadActiveFast();
+      loadHistory();
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [userId]));
 
-  // Timer en vivo
+  // Timer tick cada 30 segundos
   useEffect(() => {
-    if (!isFasting || !fastStart) return;
-    const id = setInterval(() => {
-      setElapsedSecs(Math.floor((Date.now() - fastStart.getTime()) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [isFasting, fastStart]);
+    if (activeFast) {
+      updateElapsed();
+      timerRef.current = setInterval(updateElapsed, 30000);
+      return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    }
+  }, [activeFast]);
 
-  const elapsedHours = elapsedSecs / 3600;
-  const targetSecs = targetHours * 3600;
-  const remainingSecs = Math.max(0, targetSecs - elapsedSecs);
-  const pct = targetHours > 0 ? Math.min(100, Math.round((elapsedHours / targetHours) * 100)) : 0;
-  const zone = getCurrentZone(elapsedHours);
-  const [timerView, setTimerView] = useState<'elapsed' | 'remaining' | 'percentage'>('elapsed');
+  function updateElapsed() {
+    if (!activeFast?.fast_start) return;
+    const start = new Date(activeFast.fast_start);
+    setElapsed((Date.now() - start.getTime()) / (1000 * 60));
+  }
 
-  const cycleTimerView = () => {
-    haptic.light();
-    setTimerView(prev => prev === 'elapsed' ? 'remaining' : prev === 'remaining' ? 'percentage' : 'elapsed');
-  };
+  async function loadActiveFast() {
+    const { data } = await supabase
+      .from('fasting_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .order('fast_start', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-  // Iniciar ayuno con fecha/hora seleccionada
-  const handleStartFast = () => startFastAt(startDate);
+    setActiveFast(data);
+    if (data?.target_hours) {
+      const protocol = FASTING_PROTOCOLS.find(p => p.hours === data.target_hours) || FASTING_PROTOCOLS[2];
+      setSelectedProtocol(protocol);
+    }
+  }
 
-  const startFastAt = async (startDate: Date) => {
-    if (!user?.id) return;
-    haptic.success();
-    const dateStr = startDate.toISOString().split('T')[0];
-    await supabase.from('fasting_logs').upsert({
-      user_id: user.id, date: dateStr,
-      fast_start: startDate.toISOString(),
-      target_hours: selectedProtocol,
+  async function loadHistory() {
+    const { data } = await supabase
+      .from('fasting_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .order('fast_start', { ascending: false })
+      .limit(20);
+    setHistory(data || []);
+  }
+
+  async function startFast() {
+    if (!userId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    const now = new Date();
+    const dateStr = getLocalToday();
+    const { data, error } = await supabase.from('fasting_logs').insert({
+      user_id: userId,
+      fast_start: now.toISOString(),
+      target_hours: selectedProtocol.hours,
       status: 'active',
-    }, { onConflict: 'user_id,date' });
-    setIsFasting(true);
-    setFastStart(startDate);
-    setTargetHours(selectedProtocol);
-    setElapsedSecs(Math.floor((Date.now() - startDate.getTime()) / 1000));
-    DeviceEventEmitter.emit('day_changed');
-  };
+      date: dateStr,
+    }).select().single();
 
-  // Romper ayuno — mostrar formulario con fecha/hora
-  const handleBreakFast = () => {
-    setEndDate(new Date());
-    setShowEndForm(true);
-  };
-
-  const breakFastAt = async (endDate: Date) => {
-    if (!user?.id) return;
-    haptic.medium();
-    const actualH = fastStart ? Math.round(((endDate.getTime() - fastStart.getTime()) / 3600000) * 10) / 10 : 0;
-    const { data } = await supabase.from('fasting_logs').select('id')
-      .eq('user_id', user.id).eq('status', 'active')
-      .order('fast_start', { ascending: false }).limit(1);
-    if (data?.[0]) {
-      await supabase.from('fasting_logs').update({
-        fast_end: endDate.toISOString(),
-        actual_hours: actualH,
-        status: 'completed',
-      }).eq('id', data[0].id);
+    if (!error && data) {
+      setActiveFast(data);
+      DeviceEventEmitter.emit('day_changed');
     }
-    // Otorgar electrón según duración
-    const fastingSource = getFastingTier(actualH);
-    if (fastingSource) {
-      try { await awardBooleanElectron(user.id, fastingSource); } catch { /* */ }
-      DeviceEventEmitter.emit('electrons_changed');
-    }
+  }
 
-    setIsFasting(false);
-    setFastStart(null);
-    setElapsedSecs(0);
-    setShowEndForm(false);
+  async function breakFast() {
+    if (!activeFast) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    const actualHours = elapsed / 60;
+
+    await supabase.from('fasting_logs').update({
+      actual_hours: Math.round(actualHours * 10) / 10,
+      status: 'completed',
+    }).eq('id', activeFast.id);
+
+    // Electrón por tier de ayuno
+    try {
+      const tier = getFastingTier(actualHours);
+      if (tier) {
+        await awardBooleanElectron(userId, tier);
+        DeviceEventEmitter.emit('electrons_changed');
+      }
+    } catch { /* opcional */ }
+
+    setActiveFast(null);
+    setElapsed(0);
+    loadHistory();
     DeviceEventEmitter.emit('day_changed');
-    // Recargar historial
-    supabase.from('fasting_logs').select('*')
-      .eq('user_id', user.id).eq('status', 'completed')
-      .order('fast_start', { ascending: false }).limit(10)
-      .then(({ data: h }) => setHistory(h ?? []));
-    Alert.alert('Ayuno completado', `Duraste ${Math.floor(actualH)}h ${Math.round((actualH % 1) * 60)}m`);
-  };
+  }
 
+  async function cancelFast() {
+    if (!activeFast) return;
+    Alert.alert('Cancelar ayuno', '¿Eliminar este ayuno sin registrarlo?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Sí, cancelar',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.from('fasting_logs').delete().eq('id', activeFast.id);
+          setActiveFast(null);
+          setElapsed(0);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        },
+      },
+    ]);
+  }
+
+  async function deleteFast(id: string) {
+    Alert.alert('Eliminar registro', '¿Eliminar este ayuno del historial?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.from('fasting_logs').delete().eq('id', id);
+          loadHistory();
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        },
+      },
+    ]);
+  }
+
+  // === CÁLCULOS ===
+  const elapsedHours = elapsed / 60;
+  const targetMinutes = selectedProtocol.hours * 60;
+  const progress = Math.min(elapsed / targetMinutes, 1);
+  const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  const currentZone = getCurrentZone(elapsedHours);
+  const nextZone = getNextZone(elapsedHours);
+  const timeToNext = nextZone ? (nextZone.hours * 60 - elapsed) : 0;
+  const remainingMinutes = Math.max(targetMinutes - elapsed, 0);
+
+  // === RENDER ===
   return (
-    <Screen>
-      <PillarHeader pillar="nutrition" title="Ayuno" />
+    <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable onPress={() => router.back()} hitSlop={12}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </Pressable>
+            <View>
+              <Text style={{ color: '#5B9BD5', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>AYUNO</Text>
+            </View>
+          </View>
+          <Pressable onPress={() => setShowHistory(!showHistory)} hitSlop={12}>
+            <Ionicons name={showHistory ? 'timer-outline' : 'time-outline'} size={24} color="#999" />
+          </Pressable>
+        </View>
+      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {isFasting ? (
-          /* ═══ ESTADO: AYUNANDO ═══ */
-          <View>
-            {/* Timer ring */}
-            <Animated.View entering={FadeInUp.delay(50).springify()} style={s.timerWrap}>
-              <AnimatedScoreRing score={pct} size={200} strokeWidth={5} label="" showLabel={false} showScore={false} />
-              <AnimatedPressable onPress={cycleTimerView} style={s.timerCenter}>
-                {timerView === 'elapsed' && (
-                  <View style={{ alignItems: 'center' }}>
-                    <EliteText style={[s.timerText, { color: zone.color }]}>{fmtTimer(elapsedSecs)}</EliteText>
-                    <EliteText style={s.timerSub}>transcurrido</EliteText>
-                  </View>
-                )}
-                {timerView === 'remaining' && (
-                  <View style={{ alignItems: 'center' }}>
-                    <EliteText style={[s.timerText, { color: zone.color }]}>
-                      {remainingSecs > 0 ? `-${fmtTimer(remainingSecs)}` : '¡Objetivo!'}
-                    </EliteText>
-                    <EliteText style={s.timerSub}>{remainingSecs > 0 ? 'restante' : 'completado'}</EliteText>
-                  </View>
-                )}
-                {timerView === 'percentage' && (
-                  <View style={{ alignItems: 'center' }}>
-                    <EliteText style={[s.timerPct, { color: zone.color }]}>{pct}%</EliteText>
-                    <EliteText style={s.timerSub}>completado</EliteText>
-                  </View>
-                )}
-                <EliteText style={s.timerHint}>toca para cambiar vista</EliteText>
-              </AnimatedPressable>
-            </Animated.View>
+      {/* ════════════════════════════════════════════════════════════════
+          HISTORIAL
+      ════════════════════════════════════════════════════════════════ */}
+      {showHistory ? (
+        <View style={{ paddingHorizontal: 20 }}>
+          <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 16 }}>
+            HISTORIAL ({history.length})
+          </Text>
 
-            {/* Zona actual */}
-            <Animated.View entering={FadeInUp.delay(100).springify()}>
-              <GradientCard gradient={{ start: `${zone.color}15`, end: `${zone.color}05` }} padding={16} style={s.zoneCard}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <Ionicons name={zone.icon} size={22} color={zone.color} />
+          {history.length === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+              <Ionicons name="hourglass-outline" size={40} color="#333" />
+              <Text style={{ color: '#666', fontSize: 14, marginTop: 12 }}>Aún no tienes ayunos completados</Text>
+            </View>
+          ) : (
+            history.map(fast => {
+              const date = new Date(fast.fast_start);
+              const hours = fast.actual_hours || 0;
+              const zone = getCurrentZone(hours);
+              return (
+                <Pressable
+                  key={fast.id}
+                  onLongPress={() => deleteFast(fast.id)}
+                  style={{
+                    backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 8,
+                    borderLeftWidth: 3, borderLeftColor: zone.color,
+                    flexDirection: 'row', alignItems: 'center', gap: 14,
+                  }}
+                >
+                  <View style={{
+                    width: 44, height: 44, borderRadius: 22,
+                    backgroundColor: `${zone.color}15`,
+                    justifyContent: 'center', alignItems: 'center',
+                  }}>
+                    <Text style={{ color: zone.color, fontSize: 16, fontWeight: '900' }}>
+                      {Math.round(hours)}h
+                    </Text>
+                  </View>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={[s.zoneName, { color: zone.color }]}>{zone.name}</EliteText>
-                    <EliteText style={s.zoneDesc}>{zone.desc}</EliteText>
+                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
+                      Ayuno de {Math.round(hours * 10) / 10} horas
+                    </Text>
+                    <Text style={{ color: '#666', fontSize: 11, marginTop: 2 }}>
+                      {date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {' · '}{zone.label}
+                    </Text>
                   </View>
-                </View>
-              </GradientCard>
-            </Animated.View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ color: zone.color, fontSize: 11, fontWeight: '600' }}>
+                      {fast.target_hours}h objetivo
+                    </Text>
+                    <Text style={{ color: hours >= fast.target_hours ? '#22c55e' : '#f59e0b', fontSize: 10, marginTop: 2 }}>
+                      {hours >= fast.target_hours ? '✓ Completado' : 'Parcial'}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            })
+          )}
+          <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 8 }}>
+            Mantén presionado para eliminar
+          </Text>
+        </View>
 
-            {/* Lista de zonas */}
-            <Animated.View entering={FadeInUp.delay(150).springify()} style={{ marginTop: Spacing.md }}>
-              {FASTING_ZONES.map((z, i) => {
-                const reached = elapsedHours >= z.minH;
-                const current = elapsedHours >= z.minH && elapsedHours < z.maxH;
+      ) : activeFast ? (
+        /* ════════════════════════════════════════════════════════════════
+           AYUNANDO — Timer activo
+        ════════════════════════════════════════════════════════════════ */
+        <View style={{ alignItems: 'center', paddingHorizontal: 20 }}>
+          {/* Ring timer */}
+          <View style={{ width: RING_SIZE, height: RING_SIZE, justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}>
+            <Svg width={RING_SIZE} height={RING_SIZE}>
+              <Circle
+                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
+                stroke="#1a1a1a" strokeWidth={STROKE_WIDTH} fill="transparent"
+              />
+              <Circle
+                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
+                stroke={currentZone.color} strokeWidth={STROKE_WIDTH} fill="transparent"
+                strokeDasharray={`${CIRCUMFERENCE}`}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                rotation={-90}
+                origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+              />
+            </Svg>
+
+            {/* Center content */}
+            <View style={{ position: 'absolute', alignItems: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 42, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
+                {formatDuration(elapsed)}
+              </Text>
+              <Text style={{ color: '#999', fontSize: 13, marginTop: 4 }}>
+                de {selectedProtocol.hours}h objetivo
+              </Text>
+              {remainingMinutes > 0 ? (
+                <Text style={{ color: currentZone.color, fontSize: 12, fontWeight: '600', marginTop: 8 }}>
+                  Faltan {formatDuration(remainingMinutes)}
+                </Text>
+              ) : (
+                <Text style={{ color: '#22c55e', fontSize: 14, fontWeight: '800', marginTop: 8 }}>
+                  ¡OBJETIVO ALCANZADO!
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* Zona actual */}
+          <View style={{
+            backgroundColor: `${currentZone.color}10`, borderRadius: 16, padding: 16,
+            width: '100%', marginBottom: 12,
+            borderWidth: 1, borderColor: `${currentZone.color}25`,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name={currentZone.icon} size={20} color={currentZone.color} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: currentZone.color, fontSize: 14, fontWeight: '700' }}>
+                  {currentZone.label}
+                </Text>
+                <Text style={{ color: '#999', fontSize: 12, marginTop: 2 }}>
+                  {currentZone.description}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Siguiente zona */}
+          {nextZone && (
+            <View style={{
+              backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14, width: '100%', marginBottom: 20,
+              flexDirection: 'row', alignItems: 'center', gap: 10,
+            }}>
+              <Ionicons name="arrow-forward-outline" size={16} color="#666" />
+              <Text style={{ color: '#666', fontSize: 12, flex: 1 }}>
+                Siguiente: <Text style={{ color: nextZone.color, fontWeight: '600' }}>{nextZone.label}</Text> en {formatDuration(timeToNext)}
+              </Text>
+            </View>
+          )}
+
+          {/* Hora de inicio */}
+          <Text style={{ color: '#666', fontSize: 12, marginBottom: 20 }}>
+            Iniciaste a las {formatTime(new Date(activeFast.fast_start))}
+          </Text>
+
+          {/* Botones */}
+          <Pressable
+            onPress={() => {
+              Alert.alert(
+                'Romper ayuno',
+                `Has ayunado ${formatDuration(elapsed)}. ¿Registrar y terminar?`,
+                [
+                  { text: 'Seguir ayunando', style: 'cancel' },
+                  { text: 'Romper ayuno', onPress: breakFast },
+                ]
+              );
+            }}
+            style={{
+              backgroundColor: '#a8e02a', borderRadius: 18, paddingVertical: 18,
+              width: '100%', alignItems: 'center', marginBottom: 12,
+            }}
+          >
+            <Text style={{ color: '#000', fontSize: 18, fontWeight: '800' }}>ROMPER AYUNO</Text>
+          </Pressable>
+
+          <Pressable onPress={cancelFast}>
+            <Text style={{ color: '#666', fontSize: 13 }}>Cancelar y eliminar</Text>
+          </Pressable>
+        </View>
+
+      ) : (
+        /* ════════════════════════════════════════════════════════════════
+           IDLE — Iniciar ayuno
+        ════════════════════════════════════════════════════════════════ */
+        <View style={{ paddingHorizontal: 20 }}>
+          {/* Selector de protocolo */}
+          <Pressable onPress={() => setShowProtocols(!showProtocols)}>
+            <LinearGradient
+              colors={[`${selectedProtocol.color}12`, `${selectedProtocol.color}04`]}
+              style={{
+                borderRadius: 18, padding: 20, marginBottom: 20,
+                borderWidth: 1, borderColor: `${selectedProtocol.color}25`,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View>
+                  <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>PROTOCOLO</Text>
+                  <Text style={{ color: selectedProtocol.color, fontSize: 32, fontWeight: '900', marginTop: 4 }}>
+                    {selectedProtocol.label}
+                  </Text>
+                  <Text style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
+                    {selectedProtocol.description}
+                  </Text>
+                </View>
+                <Ionicons name={showProtocols ? 'chevron-up' : 'chevron-down'} size={22} color="#666" />
+              </View>
+            </LinearGradient>
+          </Pressable>
+
+          {/* Lista de protocolos expandible */}
+          {showProtocols && (
+            <View style={{ marginBottom: 20, gap: 6 }}>
+              {FASTING_PROTOCOLS.map(p => (
+                <Pressable
+                  key={p.id}
+                  onPress={() => {
+                    setSelectedProtocol(p);
+                    setShowProtocols(false);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 12,
+                    backgroundColor: selectedProtocol.id === p.id ? `${p.color}10` : '#0a0a0a',
+                    borderRadius: 14, padding: 14,
+                    borderWidth: 1,
+                    borderColor: selectedProtocol.id === p.id ? `${p.color}30` : '#1a1a1a',
+                  }}
+                >
+                  <View style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: `${p.color}15`,
+                    justifyContent: 'center', alignItems: 'center',
+                  }}>
+                    <Text style={{ color: p.color, fontSize: 12, fontWeight: '900' }}>{p.hours}h</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{p.label}</Text>
+                    <Text style={{ color: '#666', fontSize: 11 }}>{p.description}</Text>
+                  </View>
+                  {selectedProtocol.id === p.id && (
+                    <Ionicons name="checkmark-circle" size={20} color={p.color} />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Ring preview */}
+          <View style={{ alignItems: 'center', marginBottom: 24 }}>
+            <View style={{ width: RING_SIZE * 0.8, height: RING_SIZE * 0.8, justifyContent: 'center', alignItems: 'center' }}>
+              <Svg width={RING_SIZE * 0.8} height={RING_SIZE * 0.8}>
+                <Circle
+                  cx={RING_SIZE * 0.4} cy={RING_SIZE * 0.4} r={RADIUS * 0.8}
+                  stroke="#1a1a1a" strokeWidth={STROKE_WIDTH - 2} fill="transparent"
+                  strokeDasharray="4 8"
+                />
+              </Svg>
+              <View style={{ position: 'absolute', alignItems: 'center' }}>
+                <Text style={{ color: '#333', fontSize: 36, fontWeight: '900' }}>0:00</Text>
+                <Text style={{ color: '#444', fontSize: 12 }}>de {selectedProtocol.hours}h</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Zonas biológicas preview */}
+          <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>
+            ZONAS QUE ALCANZARÁS
+          </Text>
+          {FASTING_ZONES.filter(z => z.hours <= selectedProtocol.hours && z.hours > 0).map(zone => (
+            <View key={zone.hours} style={{
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+              paddingVertical: 8, paddingHorizontal: 4, opacity: 0.7,
+            }}>
+              <View style={{
+                width: 28, height: 28, borderRadius: 14,
+                backgroundColor: `${zone.color}15`,
+                justifyContent: 'center', alignItems: 'center',
+              }}>
+                <Ionicons name={zone.icon} size={14} color={zone.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#ccc', fontSize: 13, fontWeight: '600' }}>{zone.label}</Text>
+                <Text style={{ color: '#666', fontSize: 11 }}>{zone.description}</Text>
+              </View>
+              <Text style={{ color: zone.color, fontSize: 12, fontWeight: '700' }}>{zone.hours}h</Text>
+            </View>
+          ))}
+
+          {/* BOTÓN INICIAR */}
+          <Pressable
+            onPress={startFast}
+            style={{
+              backgroundColor: selectedProtocol.color, borderRadius: 20, paddingVertical: 20,
+              alignItems: 'center', marginTop: 24,
+              shadowColor: selectedProtocol.color,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3, shadowRadius: 12,
+            }}
+          >
+            <Text style={{ color: '#000', fontSize: 20, fontWeight: '900', letterSpacing: 1 }}>
+              INICIAR AYUNO
+            </Text>
+          </Pressable>
+
+          {/* Historial rápido */}
+          {history.length > 0 && (
+            <View style={{ marginTop: 24 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
+                  RECIENTES
+                </Text>
+                <Pressable onPress={() => setShowHistory(true)}>
+                  <Text style={{ color: '#a8e02a', fontSize: 11, fontWeight: '600' }}>Ver todo</Text>
+                </Pressable>
+              </View>
+              {history.slice(0, 3).map(fast => {
+                const hours = fast.actual_hours || 0;
+                const zone = getCurrentZone(hours);
                 return (
-                  <View key={i} style={s.zoneRow}>
-                    <Ionicons
-                      name={reached ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={16}
-                      color={current ? z.color : reached ? '#a8e02a' : 'rgba(255,255,255,0.15)'}
-                    />
-                    <EliteText style={[
-                      s.zoneRowText,
-                      reached && { color: '#fff' },
-                      current && { color: z.color, fontFamily: Fonts.bold },
-                    ]}>
-                      {z.name} ({z.minH}–{z.maxH === 999 ? '∞' : z.maxH}h)
-                    </EliteText>
-                    {current && <EliteText style={[s.zoneRowHere, { color: z.color }]}>AQUÍ</EliteText>}
+                  <View key={fast.id} style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 10,
+                    backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, marginBottom: 6,
+                  }}>
+                    <View style={{
+                      width: 32, height: 32, borderRadius: 16,
+                      backgroundColor: `${zone.color}15`,
+                      justifyContent: 'center', alignItems: 'center',
+                    }}>
+                      <Text style={{ color: zone.color, fontSize: 12, fontWeight: '900' }}>{Math.round(hours)}h</Text>
+                    </View>
+                    <Text style={{ color: '#ccc', fontSize: 13, flex: 1 }}>{zone.label}</Text>
+                    <Text style={{ color: '#666', fontSize: 11 }}>
+                      {new Date(fast.fast_start).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                    </Text>
                   </View>
                 );
               })}
-            </Animated.View>
-
-            {/* Botón romper / formulario de fin */}
-            {!showEndForm ? (
-              <View>
-                <AnimatedPressable onPress={handleBreakFast} style={s.breakBtn}>
-                  <Ionicons name="stop-circle-outline" size={20} color="#ef4444" />
-                  <EliteText style={s.breakBtnText}>Romper ayuno</EliteText>
-                </AnimatedPressable>
-                <Pressable
-                  onPress={() => {
-                    Alert.alert('Cancelar ayuno', '¿Eliminar este ayuno sin registrarlo?', [
-                      { text: 'No', style: 'cancel' },
-                      {
-                        text: 'Sí, eliminar', style: 'destructive',
-                        onPress: async () => {
-                          if (activeFastId) await supabase.from('fasting_logs').delete().eq('id', activeFastId);
-                          setIsFasting(false); setActiveFastId(null); setFastStart(null);
-                          reloadFasting();
-                          haptic.success();
-                        },
-                      },
-                    ]);
-                  }}
-                  style={{ alignItems: 'center', marginTop: 12 }}
-                >
-                  <Text style={{ color: '#666', fontSize: 12 }}>Cancelar y eliminar</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <Animated.View entering={FadeInUp.duration(300)} style={{ marginTop: Spacing.md }}>
-                <Text style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.bold, marginBottom: 12 }}>
-                  ¿Cuándo terminó tu ayuno?
-                </Text>
-
-                {/* Presets rápidos de fin */}
-                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                  {[
-                    { label: 'Ahora', offset: 0 },
-                    { label: 'Hace 30m', offset: 0.5 },
-                    { label: 'Hace 1h', offset: 1 },
-                    { label: 'Hace 2h', offset: 2 },
-                  ].map(p => {
-                    const presetDate = new Date(Date.now() - p.offset * 3600000);
-                    const isActive = Math.abs(endDate.getTime() - presetDate.getTime()) < 60000;
-                    return (
-                      <Pressable key={p.label} onPress={() => { haptic.light(); setEndDate(presetDate); }}
-                        style={{
-                          flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
-                          backgroundColor: isActive ? 'rgba(239,68,68,0.15)' : '#0a0a0a',
-                          borderWidth: 1, borderColor: isActive ? '#ef4444' : '#1a1a1a',
-                        }}>
-                        <Text style={{ color: isActive ? '#ef4444' : '#999', fontSize: 11, fontFamily: Fonts.semiBold }}>
-                          {p.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-
-                {/* Fecha + hora ajustables */}
-                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-                  <View style={{
-                    flex: 1, backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
-                    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                    borderWidth: 1, borderColor: '#1a1a1a',
-                  }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Ionicons name="calendar-outline" size={18} color="#ef4444" />
-                      <Text style={{ color: '#fff', fontSize: 14, fontFamily: Fonts.bold }}>
-                        {endDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}
-                      </Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 4 }}>
-                      <Pressable onPress={() => { haptic.light(); const prev = new Date(endDate.getTime() - 86400000); if (fastStart && prev >= fastStart) setEndDate(prev); }}
-                        style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
-                        <Ionicons name="chevron-back" size={14} color="#999" />
-                      </Pressable>
-                      <Pressable onPress={() => { haptic.light(); const next = new Date(endDate.getTime() + 86400000); if (next <= new Date()) setEndDate(next); }}
-                        style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
-                        <Ionicons name="chevron-forward" size={14} color="#999" />
-                      </Pressable>
-                    </View>
-                  </View>
-
-                  <View style={{
-                    backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
-                    flexDirection: 'row', alignItems: 'center', gap: 6,
-                    borderWidth: 1, borderColor: '#1a1a1a',
-                  }}>
-                    <Ionicons name="time-outline" size={18} color="#ef4444" />
-                    <Pressable onPress={() => { haptic.light(); const prev = new Date(endDate.getTime() - 3600000); if (fastStart && prev >= fastStart) setEndDate(prev); }}
-                      style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="remove" size={12} color="#999" />
-                    </Pressable>
-                    <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold, fontVariant: ['tabular-nums'], minWidth: 46, textAlign: 'center' }}>
-                      {endDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                    </Text>
-                    <Pressable onPress={() => { haptic.light(); const next = new Date(endDate.getTime() + 3600000); if (next <= new Date()) setEndDate(next); }}
-                      style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="add" size={12} color="#999" />
-                    </Pressable>
-                  </View>
-                </View>
-
-                {/* Resumen de duración */}
-                <View style={{
-                  backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 12, padding: 14, marginBottom: 16,
-                  flexDirection: 'row', alignItems: 'center', gap: 8,
-                }}>
-                  <Ionicons name="timer-outline" size={16} color={AMBER} />
-                  <Text style={{ color: AMBER, fontSize: 13, fontFamily: Fonts.semiBold }}>
-                    Duración: {fastStart ? ((endDate.getTime() - fastStart.getTime()) / 3600000).toFixed(1) : '0'}h
-                  </Text>
-                </View>
-
-                {/* Botones confirmar/cancelar */}
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <Pressable onPress={() => setShowEndForm(false)} style={{
-                    flex: 1, backgroundColor: '#1a1a1a', borderRadius: 16, padding: 14, alignItems: 'center',
-                  }}>
-                    <Text style={{ color: '#999', fontSize: 14, fontFamily: Fonts.semiBold }}>Cancelar</Text>
-                  </Pressable>
-                  <Pressable onPress={() => breakFastAt(endDate)} style={{
-                    flex: 1, backgroundColor: '#ef4444', borderRadius: 16, padding: 14, alignItems: 'center',
-                  }}>
-                    <Text style={{ color: '#fff', fontSize: 14, fontFamily: Fonts.extraBold }}>Confirmar</Text>
-                  </Pressable>
-                </View>
-              </Animated.View>
-            )}
-          </View>
-        ) : (
-          /* ═══ ESTADO: NO AYUNANDO ═══ */
-          <View>
-            {/* Timer vacío */}
-            <Animated.View entering={FadeInUp.delay(50).springify()} style={s.timerWrap}>
-              <AnimatedScoreRing score={0} size={200} strokeWidth={5} label="" showLabel={false} showScore={false} />
-              <View style={s.timerCenter}>
-                <EliteText style={s.timerTextIdle}>00:00:00</EliteText>
-              </View>
-            </Animated.View>
-
-            {/* Protocolo selector */}
-            <Animated.View entering={FadeInUp.delay(100).springify()}>
-              <SectionTitle>ELIGE TU PROTOCOLO</SectionTitle>
-              <View style={s.protocolRow}>
-                {PROTOCOL_OPTIONS.map(h => (
-                  <AnimatedPressable
-                    key={h}
-                    onPress={() => { haptic.light(); setSelectedProtocol(h); }}
-                    style={[s.protocolPill, selectedProtocol === h && s.protocolPillActive]}
-                  >
-                    <EliteText style={[s.protocolText, selectedProtocol === h && s.protocolTextActive]}>{h}h</EliteText>
-                  </AnimatedPressable>
-                ))}
-              </View>
-            </Animated.View>
-
-            {/* ¿Cuándo empezó? — selector fecha/hora JS */}
-            <Animated.View entering={FadeInUp.delay(150).springify()}>
-              <Text style={{ color: '#fff', fontSize: 15, fontFamily: Fonts.bold, marginBottom: 12 }}>
-                ¿Cuándo empezó tu ayuno?
-              </Text>
-
-              {/* Presets rápidos */}
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                {[
-                  { label: 'Ahora', offset: 0 },
-                  { label: 'Hace 1h', offset: 1 },
-                  { label: 'Hace 2h', offset: 2 },
-                  { label: 'Hace 4h', offset: 4 },
-                  { label: 'Ayer noche', offset: 12 },
-                ].map(p => {
-                  const presetDate = new Date(Date.now() - p.offset * 3600000);
-                  const isActive = Math.abs(startDate.getTime() - presetDate.getTime()) < 60000;
-                  return (
-                    <Pressable key={p.label} onPress={() => { haptic.light(); setStartDate(presetDate); }}
-                      style={{
-                        flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
-                        backgroundColor: isActive ? 'rgba(251,191,36,0.15)' : '#0a0a0a',
-                        borderWidth: 1, borderColor: isActive ? AMBER : '#1a1a1a',
-                      }}>
-                      <Text style={{ color: isActive ? AMBER : '#999', fontSize: 11, fontFamily: Fonts.semiBold }}>
-                        {p.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              {/* Fecha + hora ajustables */}
-              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-                <View style={{
-                  flex: 1, backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
-                  flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-                  borderWidth: 1, borderColor: '#1a1a1a',
-                }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Ionicons name="calendar-outline" size={18} color={AMBER} />
-                    <Text style={{ color: '#fff', fontSize: 14, fontFamily: Fonts.bold }}>
-                      {startDate.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}
-                    </Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', gap: 4 }}>
-                    <Pressable onPress={() => { haptic.light(); setStartDate(new Date(startDate.getTime() - 86400000)); }}
-                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="chevron-back" size={14} color="#999" />
-                    </Pressable>
-                    <Pressable onPress={() => { haptic.light(); const next = new Date(startDate.getTime() + 86400000); if (next <= new Date()) setStartDate(next); }}
-                      style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
-                      <Ionicons name="chevron-forward" size={14} color="#999" />
-                    </Pressable>
-                  </View>
-                </View>
-
-                <View style={{
-                  backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
-                  flexDirection: 'row', alignItems: 'center', gap: 6,
-                  borderWidth: 1, borderColor: '#1a1a1a',
-                }}>
-                  <Ionicons name="time-outline" size={18} color={AMBER} />
-                  <Pressable onPress={() => { haptic.light(); setStartDate(new Date(startDate.getTime() - 3600000)); }}
-                    style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
-                    <Ionicons name="remove" size={12} color="#999" />
-                  </Pressable>
-                  <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold, fontVariant: ['tabular-nums'], minWidth: 46, textAlign: 'center' }}>
-                    {startDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                  </Text>
-                  <Pressable onPress={() => { haptic.light(); const next = new Date(startDate.getTime() + 3600000); if (next <= new Date()) setStartDate(next); }}
-                    style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
-                    <Ionicons name="add" size={12} color="#999" />
-                  </Pressable>
-                </View>
-              </View>
-
-              {/* Botón iniciar */}
-              <AnimatedPressable onPress={handleStartFast} style={s.startBtn}>
-                <Ionicons name="play-circle" size={24} color="#000" />
-                <EliteText style={s.startBtnText}>INICIAR AYUNO</EliteText>
-              </AnimatedPressable>
-            </Animated.View>
-
-            {/* Historial */}
-            {history.length > 0 && (
-              <Animated.View entering={FadeInUp.delay(200).springify()} style={{ marginTop: Spacing.lg }}>
-                <SectionTitle>HISTORIAL</SectionTitle>
-                {history.slice(0, 7).map((h: any, i: number) => {
-                  const d = new Date(h.fast_start);
-                  const dateStr = d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
-                  const hrs = h.actual_hours ?? 0;
-                  return (
-                    <Pressable
-                      key={h.id ?? i}
-                      onLongPress={() => {
-                        haptic.heavy();
-                        Alert.alert('Eliminar ayuno', `¿Eliminar registro de ${Math.floor(hrs)}h ${Math.round((hrs % 1) * 60)}m?`, [
-                          { text: 'Cancelar', style: 'cancel' },
-                          {
-                            text: 'Eliminar', style: 'destructive',
-                            onPress: async () => {
-                              await supabase.from('fasting_logs').delete().eq('id', h.id);
-                              reloadFasting();
-                              haptic.success();
-                            },
-                          },
-                        ]);
-                      }}
-                    >
-                      <View style={s.historyRow}>
-                        <EliteText style={s.historyDate}>{dateStr}</EliteText>
-                        <EliteText style={s.historyHours}>{Math.floor(hrs)}h {Math.round((hrs % 1) * 60)}m</EliteText>
-                        <Ionicons name="checkmark-circle" size={14} color="#a8e02a" />
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </Animated.View>
-            )}
-          </View>
-        )}
-
-        <View style={{ height: 80 }} />
-      </ScrollView>
-
-    </Screen>
+            </View>
+          )}
+        </View>
+      )}
+    </ScrollView>
   );
 }
-
-const s = StyleSheet.create({
-  content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
-
-  // Timer
-  timerWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: Spacing.lg,
-  },
-  timerCenter: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  timerText: {
-    fontSize: 36,
-    fontFamily: Fonts.extraBold,
-    letterSpacing: -1,
-  },
-  timerPct: {
-    fontSize: 56,
-    fontFamily: Fonts.extraBold,
-    letterSpacing: -2,
-  },
-  timerHint: {
-    fontSize: 10,
-    fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.2)',
-    marginTop: 8,
-  },
-  timerTextIdle: {
-    fontSize: 36,
-    fontFamily: Fonts.extraBold,
-    color: 'rgba(255,255,255,0.2)',
-    letterSpacing: -1,
-  },
-  timerSub: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.4)',
-    marginTop: 4,
-  },
-
-  // Zone
-  zoneCard: { marginTop: Spacing.md },
-  zoneName: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.bold,
-  },
-  zoneDesc: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.5)',
-    marginTop: 2,
-  },
-  zoneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  zoneRowText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.3)',
-    flex: 1,
-  },
-  zoneRowHere: {
-    fontSize: 9,
-    fontFamily: Fonts.bold,
-    letterSpacing: 2,
-  },
-
-  // Buttons
-  breakBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: 16,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(239,68,68,0.3)',
-    marginTop: Spacing.lg,
-  },
-  breakBtnText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.bold,
-    color: '#ef4444',
-  },
-  startBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: AMBER,
-    paddingVertical: 18,
-    borderRadius: Radius.md,
-    marginTop: Spacing.md,
-  },
-  startBtnText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.bold,
-    color: '#000',
-    letterSpacing: 2,
-  },
-
-  // Protocol pills
-  protocolRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  protocolPill: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: Radius.pill,
-    backgroundColor: '#0a0a0a',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.1)',
-  },
-  protocolPillActive: {
-    backgroundColor: AMBER,
-    borderColor: AMBER,
-  },
-  protocolText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.bold,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  protocolTextActive: {
-    color: '#000',
-  },
-
-  // History
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  historyDate: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.5)',
-    width: 60,
-  },
-  historyHours: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    color: '#fff',
-    flex: 1,
-  },
-});
