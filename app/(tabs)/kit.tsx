@@ -28,9 +28,9 @@ const PILLARS = [
   {
     id: 'nutrition',
     title: 'ATP NUTRICIÓN',
-    subtitle: 'Comidas · Ayuno · Hidratación',
-    icon: 'restaurant-outline' as const,
-    color: '#38bdf8',
+    subtitle: 'Alimentación · Suplementos · Ayuno',
+    icon: 'nutrition-outline' as const,
+    color: '#5B9BD5',
     route: '/nutrition',
   },
   {
@@ -38,31 +38,31 @@ const PILLARS = [
     title: 'ATP MENTE',
     subtitle: 'Journal · Respiración · Meditación',
     icon: 'flower-outline' as const,
-    color: '#c084fc',
+    color: '#7F77DD',
     route: '/mind-hub',
   },
   {
     id: 'health',
     title: 'ATP SALUD',
-    subtitle: 'Labs · Métricas · Diagnósticos',
+    subtitle: 'Protocolos · Glucosa · Cetonas · Labs',
     icon: 'heart-outline' as const,
-    color: '#f472b6',
-    route: '/my-health',
+    color: '#1D9E75',
+    route: '/health-hub',
   },
   {
     id: 'cycle',
     title: 'ATP CICLO',
-    subtitle: 'Calendario · Síntomas · Reportes',
+    subtitle: 'Calendario · Síntomas · Compañero',
     icon: 'calendar-outline' as const,
-    color: '#fb7185',
+    color: '#D4537E',
     route: '/cycle',
   },
   {
     id: 'tests',
     title: 'ATP TESTS',
-    subtitle: 'Evaluaciones · Quizzes · Score',
+    subtitle: 'Braverman · Evaluaciones funcionales',
     icon: 'clipboard-outline' as const,
-    color: '#fbbf24',
+    color: '#c084fc',
     route: '/quizzes',
   },
 ];
@@ -108,84 +108,6 @@ export default function KitScreen() {
                   </View>
                 </View>
                 <Ionicons name="chatbubble-ellipses-outline" size={22} color="#a8e02a" />
-              </View>
-            </LinearGradient>
-          </AnimatedPressable>
-        </Animated.View>
-
-        {/* Braverman card */}
-        <Animated.View entering={FadeInUp.delay(90).springify()} style={s.cardWrap}>
-          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/braverman' as any); }}>
-            <LinearGradient
-              colors={['rgba(192,132,252,0.12)', 'rgba(192,132,252,0.03)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[s.card, { borderColor: 'rgba(192,132,252,0.15)' }]}
-            >
-              <View style={[s.accent, { backgroundColor: '#c084fc' }]} />
-              <View style={s.cardInner}>
-                <View style={s.cardLeft}>
-                  <View style={[s.iconCircle, { backgroundColor: 'rgba(192,132,252,0.15)' }]}>
-                    <Text style={{ fontSize: 22 }}>🧬</Text>
-                  </View>
-                  <View>
-                    <Text style={s.cardTitle}>BRAVERMAN</Text>
-                    <Text style={s.cardSub}>Test de neurotransmisores</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.2)" />
-              </View>
-            </LinearGradient>
-          </AnimatedPressable>
-        </Animated.View>
-
-        {/* Configurar protocolo */}
-        <Animated.View entering={FadeInUp.delay(92).springify()} style={s.cardWrap}>
-          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/protocol-config' as any); }}>
-            <LinearGradient
-              colors={['rgba(168,224,42,0.10)', 'rgba(168,224,42,0.02)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[s.card, { borderColor: 'rgba(168,224,42,0.12)' }]}
-            >
-              <View style={[s.accent, { backgroundColor: '#a8e02a' }]} />
-              <View style={s.cardInner}>
-                <View style={s.cardLeft}>
-                  <View style={[s.iconCircle, { backgroundColor: 'rgba(168,224,42,0.12)' }]}>
-                    <Ionicons name="options-outline" size={28} color="#a8e02a" />
-                  </View>
-                  <View>
-                    <Text style={s.cardTitle}>CONFIGURAR</Text>
-                    <Text style={s.cardSub}>Electrones · Metas · Protocolo</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.2)" />
-              </View>
-            </LinearGradient>
-          </AnimatedPressable>
-        </Animated.View>
-
-        {/* Suplementos card */}
-        <Animated.View entering={FadeInUp.delay(95).springify()} style={s.cardWrap}>
-          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/supplements' as any); }}>
-            <LinearGradient
-              colors={['rgba(29,158,117,0.12)', 'rgba(29,158,117,0.03)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[s.card, { borderColor: 'rgba(29,158,117,0.15)' }]}
-            >
-              <View style={[s.accent, { backgroundColor: '#1D9E75' }]} />
-              <View style={s.cardInner}>
-                <View style={s.cardLeft}>
-                  <View style={[s.iconCircle, { backgroundColor: 'rgba(29,158,117,0.15)' }]}>
-                    <Ionicons name="flask-outline" size={28} color="#1D9E75" />
-                  </View>
-                  <View>
-                    <Text style={s.cardTitle}>SUPLEMENTOS</Text>
-                    <Text style={s.cardSub}>Tu plan diario personalizado</Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.2)" />
               </View>
             </LinearGradient>
           </AnimatedPressable>

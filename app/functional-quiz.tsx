@@ -4,7 +4,7 @@
  * Misma UI que Braverman: swipe cards, CIERTO/FALSO, progreso, resultados.
  */
 import { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated, Dimensions, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
+import { View, Text, Pressable, Animated, Dimensions, Alert, ScrollView, DeviceEventEmitter, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -520,6 +520,15 @@ export default function FunctionalQuizScreen() {
           </View>
         </View>
       </ScrollView>
+    );
+  }
+
+  // Guard: si estamos en quiz pero currentQ es undefined momentáneamente (transición de animación)
+  if (screen === 'quiz') {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator color="#a8e02a" />
+      </View>
     );
   }
 
