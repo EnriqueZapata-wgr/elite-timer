@@ -1,8 +1,5 @@
 /**
- * Nutrición Hub — 7 botones claros de navegación.
- *
- * Alimentación, Suplementos, Ayuno, Hidratación,
- * Recetas ARGOS, Mis recetas, Revisar etiquetas.
+ * Explorar — Biblioteca, Métodos ATP, Planes (PRONTO), Follow Me (PRONTO).
  */
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -19,68 +16,22 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
 const ITEMS = [
-  {
-    name: 'Alimentación',
-    subtitle: 'Registra comidas con ARGOS, macros, alimentos frecuentes',
-    icon: 'restaurant-outline' as const,
-    color: '#5B9BD5',
-    route: '/food-register',
-  },
-  {
-    name: 'Suplementos',
-    subtitle: 'Tu plan diario personalizado con tracking',
-    icon: 'flask-outline' as const,
-    color: '#1D9E75',
-    route: '/supplements',
-  },
-  {
-    name: 'Ayuno',
-    subtitle: 'Protocolos, timer, zonas biológicas, historial',
-    icon: 'timer-outline' as const,
-    color: '#f59e0b',
-    route: '/fasting',
-  },
-  {
-    name: 'Hidratación',
-    subtitle: 'Registro de agua con meta diaria',
-    icon: 'water-outline' as const,
-    color: '#38bdf8',
-    route: '/hydration',
-  },
-  {
-    name: 'Recetas ARGOS',
-    subtitle: 'Genera recetas + lista de super con IA',
-    icon: 'eye-outline' as const,
-    color: '#a8e02a',
-    route: '/argos-recipes',
-  },
-  {
-    name: 'Mis recetas',
-    subtitle: 'Guarda y reutiliza tus comidas frecuentes',
-    icon: 'bookmark-outline' as const,
-    color: '#fbbf24',
-    route: '/my-recipes',
-  },
-  {
-    name: 'Revisar etiquetas',
-    subtitle: 'Escanea y analiza etiquetas nutricionales',
-    icon: 'scan-outline' as const,
-    color: '#c084fc',
-    route: '',
-    comingSoon: true,
-  },
+  { name: 'Biblioteca de ejercicios', subtitle: 'GYM · Calistenia · Kettlebell · Biomecánica', icon: 'book-outline' as const, color: '#38bdf8', route: '/exercise-library' },
+  { name: 'Métodos ATP', subtitle: '3-5 · EMOM Auto · Myo Reps', icon: 'flash-outline' as const, color: '#a8e02a', route: '/training-methods' },
+  { name: 'Planes de entrenamiento', subtitle: '5K · 10K · 21K · Maratón · Ultra', icon: 'map-outline' as const, color: '#f59e0b', route: '', comingSoon: true },
+  { name: 'Rutinas Follow Me', subtitle: 'Cardio · Core · Animal Motion · KB Flows', icon: 'play-circle-outline' as const, color: '#fb7185', route: '', comingSoon: true },
 ];
 
-export default function NutritionScreen() {
+export default function FitnessExploreScreen() {
   const router = useRouter();
 
   return (
     <Screen>
-      <PillarHeader pillar="nutrition" title="Nutrición" />
+      <PillarHeader pillar="fitness" title="Explorar" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         {ITEMS.map((item, idx) => (
-          <Animated.View key={item.name} entering={FadeInUp.delay(50 + idx * 40).springify()}>
+          <Animated.View key={item.name} entering={FadeInUp.delay(50 + idx * 50).springify()}>
             <AnimatedPressable
               disabled={item.comingSoon}
               onPress={() => {
@@ -95,9 +46,7 @@ export default function NutritionScreen() {
                     <Ionicons name={item.icon} size={22} color={item.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={[s.name, item.comingSoon && { color: TEXT_COLORS.muted }]}>
-                      {item.name}
-                    </EliteText>
+                    <EliteText style={[s.name, item.comingSoon && { color: TEXT_COLORS.muted }]}>{item.name}</EliteText>
                     <EliteText style={s.sub}>{item.subtitle}</EliteText>
                   </View>
                   {item.comingSoon ? (
