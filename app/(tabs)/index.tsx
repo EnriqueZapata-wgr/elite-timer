@@ -11,7 +11,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, Text,
+  View, StyleSheet, ScrollView, Pressable, Text, Modal,
   Dimensions, DeviceEventEmitter, ImageBackground,
   LayoutAnimation, Platform, UIManager, ActivityIndicator,
 } from 'react-native';
@@ -129,6 +129,7 @@ export default function TodayScreen() {
   const [showTour, setShowTour] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceResponse, setVoiceResponse] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -399,9 +400,17 @@ export default function TodayScreen() {
                   <Text style={s.brandLabel}>ATP DAILY</Text>
                   <ElectronBadge />
                 </View>
-                <AnimatedPressable onPress={() => { haptic.light(); }} style={s.topBarIcon}>
-                  <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
-                </AnimatedPressable>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <AnimatedPressable onPress={() => { haptic.light(); router.push('/protocol-config' as any); }} style={s.topBarIcon}>
+                    <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
+                  </AnimatedPressable>
+                  <AnimatedPressable onPress={() => { haptic.light(); setShowNotifications(true); }} style={s.topBarIcon}>
+                    <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
+                    {dailyInsight ? (
+                      <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#a8e02a' }} />
+                    ) : null}
+                  </AnimatedPressable>
+                </View>
               </View>
             </Animated.View>
 
@@ -412,13 +421,16 @@ export default function TodayScreen() {
               <Text style={s.heroDate}>{day.date}</Text>
             </Animated.View>
 
-            {/* Protocol pill */}
+            {/* Protocol pill — tappable */}
             {day.protocol && (
-              <Animated.View entering={FadeInUp.delay(100).springify()} style={s.protocolPill}>
-                <Ionicons name="flask-outline" size={12} color="#a8e02a" />
-                <Text style={s.protocolPillText}>
-                  {day.protocol.name} · Día {day.protocol.dayNumber}/{day.protocol.totalDays}
-                </Text>
+              <Animated.View entering={FadeInUp.delay(100).springify()}>
+                <Pressable onPress={() => router.push('/protocol-config' as any)} style={s.protocolPill}>
+                  <Ionicons name="flask-outline" size={12} color="#a8e02a" />
+                  <Text style={s.protocolPillText}>
+                    {day.protocol.name} · Día {day.protocol.dayNumber}/{day.protocol.totalDays}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={12} color="rgba(168,224,42,0.5)" />
+                </Pressable>
               </Animated.View>
             )}
 
@@ -440,36 +452,7 @@ export default function TodayScreen() {
           </LinearGradient>
         </ImageBackground>
 
-        {/* ═══════════════════════════════════════
-            INSIGHT ARGOS
-        ═══════════════════════════════════════ */}
-        {dailyInsight ? (
-          <Pressable onPress={() => router.push('/argos-chat')} style={{ paddingHorizontal: 20, marginBottom: 16 }}>
-            <View style={{
-              backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 16,
-              borderWidth: 1, borderColor: 'rgba(168,224,42,0.12)',
-              flexDirection: 'row', gap: 12, alignItems: 'flex-start',
-            }}>
-              <View style={{
-                width: 28, height: 28, borderRadius: 14,
-                backgroundColor: 'rgba(168,224,42,0.15)',
-                justifyContent: 'center', alignItems: 'center',
-                marginTop: 2,
-              }}>
-                <Ionicons name="eye" size={14} color="#a8e02a" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: '#a8e02a', fontSize: 9, fontWeight: '700', letterSpacing: 1.5, marginBottom: 4 }}>
-                  INSIGHT ARGOS
-                </Text>
-                <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>
-                  {dailyInsight}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color="#666" style={{ marginTop: 4 }} />
-            </View>
-          </Pressable>
-        ) : null}
+        {/* Insight ARGOS movido a notificaciones (campana) */}
 
         {/* ═══════════════════════════════════════
             SECCIÓN 2: PRÓXIMO ELECTRÓN
@@ -796,6 +779,36 @@ export default function TodayScreen() {
 
       {/* Tour de onboarding */}
       {showTour && <AppTour onComplete={() => setShowTour(false)} />}
+
+      {/* Notification modal (insight ARGOS) */}
+      <Modal visible={showNotifications} transparent animationType="slide" onRequestClose={() => setShowNotifications(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' }} onPress={() => setShowNotifications(false)}>
+          <Pressable style={{ backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }} onPress={() => {}}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 16 }}>Notificaciones</Text>
+
+            {dailyInsight ? (
+              <Pressable onPress={() => { setShowNotifications(false); router.push('/argos-chat'); }}>
+                <View style={{
+                  backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 16,
+                  borderWidth: 1, borderColor: 'rgba(168,224,42,0.12)',
+                  flexDirection: 'row', gap: 12,
+                }}>
+                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(168,224,42,0.15)', justifyContent: 'center', alignItems: 'center' }}>
+                    <Ionicons name="eye" size={14} color="#a8e02a" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#a8e02a', fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }}>INSIGHT ARGOS</Text>
+                    <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20, marginTop: 4 }}>{dailyInsight}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            ) : (
+              <Text style={{ color: '#666', fontSize: 13, textAlign: 'center', paddingVertical: 20 }}>Sin notificaciones nuevas</Text>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* ARGOS dual FAB: mic + chat */}
       <View style={{ position: 'absolute', bottom: 90, right: 20, zIndex: 100, alignItems: 'flex-end' }}>

@@ -102,16 +102,26 @@ export default function ProtocolConfig() {
       setEnabledElectrons(prefs.active_boolean_electrons);
     }
 
-    // Cronotipo (wake/sleep)
-    const { data: chrono } = await supabase
-      .from('user_chronotype')
-      .select('schedule')
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (chrono?.schedule) {
-      if (chrono.schedule.wake_time) setWakeTime(chrono.schedule.wake_time);
-      if (chrono.schedule.sleep_time) setSleepTime(chrono.schedule.sleep_time);
+    // Goals guardados
+    const goals = prefs?.goals as any;
+    if (goals) {
+      if (goals.protein_goal_g) setProteinGoal(goals.protein_goal_g);
+      if (goals.water_goal_ml) setWaterGoal(goals.water_goal_ml);
+      if (goals.fasting_hours != null) setFastingHours(goals.fasting_hours);
+      if (goals.training_days_week) setTrainingDays(goals.training_days_week);
+      if (goals.wake_time) setWakeTime(goals.wake_time);
+      if (goals.sleep_time) setSleepTime(goals.sleep_time);
+    } else {
+      // Fallback: cronotipo
+      const { data: chrono } = await supabase
+        .from('user_chronotype')
+        .select('schedule')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (chrono?.schedule) {
+        if (chrono.schedule.wake_time) setWakeTime(chrono.schedule.wake_time);
+        if (chrono.schedule.sleep_time) setSleepTime(chrono.schedule.sleep_time);
+      }
     }
   }
 
@@ -129,6 +139,14 @@ export default function ProtocolConfig() {
     await supabase.from('user_day_preferences').upsert({
       user_id: userId,
       active_boolean_electrons: enabledElectrons,
+      goals: {
+        protein_goal_g: proteinGoal,
+        water_goal_ml: waterGoal,
+        fasting_hours: fastingHours,
+        training_days_week: trainingDays,
+        wake_time: wakeTime,
+        sleep_time: sleepTime,
+      },
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
 
@@ -177,8 +195,13 @@ export default function ProtocolConfig() {
           await supabase.from('user_protocols')
             .update({ status: 'inactive' })
             .eq('id', activeProtocol.id);
+          // Limpiar plan del día
+          const today = new Date().toISOString().split('T')[0];
+          await supabase.from('daily_plans').delete().eq('user_id', userId).eq('date', today);
           setActiveProtocol(null);
           DeviceEventEmitter.emit('day_changed');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          Alert.alert('Listo', 'Protocolo desactivado. Tu agenda se actualizará.');
         },
       },
     ]);
@@ -369,22 +392,38 @@ export default function ProtocolConfig() {
       {/* ══════════════════════════════════════════════════════════════
           SECCIÓN 4 — HORARIOS
       ══════════════════════════════════════════════════════════════ */}
-      <Section label="HORARIOS" subtitle="Basados en tu cronotipo — afectan tu agenda">
+      <Section label="HORARIOS" subtitle="Toca para ajustar — afectan tu agenda">
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1, backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, alignItems: 'center' }}>
-            <Ionicons name="sunny-outline" size={20} color="#fbbf24" />
-            <Text style={{ color: '#999', fontSize: 10, marginTop: 6 }}>Despertar</Text>
-            <Text style={{ color: '#fbbf24', fontSize: 22, fontWeight: '800', marginTop: 4 }}>{wakeTime}</Text>
-          </View>
-          <View style={{ flex: 1, backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, alignItems: 'center' }}>
-            <Ionicons name="moon-outline" size={20} color="#818cf8" />
-            <Text style={{ color: '#999', fontSize: 10, marginTop: 6 }}>Dormir</Text>
-            <Text style={{ color: '#818cf8', fontSize: 22, fontWeight: '800', marginTop: 4 }}>{sleepTime}</Text>
-          </View>
+          <Pressable onPress={() => {
+            const [h, m] = wakeTime.split(':').map(Number);
+            const total = (h * 60 + m + 30) % (24 * 60);
+            setWakeTime(`${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`);
+            setHasChanges(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }} style={{ flex: 1 }}>
+            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, alignItems: 'center' }}>
+              <Ionicons name="sunny-outline" size={20} color="#fbbf24" />
+              <Text style={{ color: '#999', fontSize: 10, marginTop: 6 }}>Despertar</Text>
+              <Text style={{ color: '#fbbf24', fontSize: 22, fontWeight: '800', marginTop: 4 }}>{wakeTime}</Text>
+              <Text style={{ color: '#444', fontSize: 9, marginTop: 4 }}>Toca +30 min</Text>
+            </View>
+          </Pressable>
+
+          <Pressable onPress={() => {
+            const [h, m] = sleepTime.split(':').map(Number);
+            const total = (h * 60 + m + 30) % (24 * 60);
+            setSleepTime(`${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`);
+            setHasChanges(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }} style={{ flex: 1 }}>
+            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, alignItems: 'center' }}>
+              <Ionicons name="moon-outline" size={20} color="#818cf8" />
+              <Text style={{ color: '#999', fontSize: 10, marginTop: 6 }}>Dormir</Text>
+              <Text style={{ color: '#818cf8', fontSize: 22, fontWeight: '800', marginTop: 4 }}>{sleepTime}</Text>
+              <Text style={{ color: '#444', fontSize: 9, marginTop: 4 }}>Toca +30 min</Text>
+            </View>
+          </Pressable>
         </View>
-        <Text style={{ color: '#444', fontSize: 10, textAlign: 'center', marginTop: 8 }}>
-          Estos horarios se toman de tu cronotipo. Repite el quiz para cambiarlos.
-        </Text>
       </Section>
 
       {/* ══════════════════════════════════════════════════════════════

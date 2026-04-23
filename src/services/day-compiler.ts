@@ -80,7 +80,7 @@ export interface AgendaItem {
 const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower', 'grounding', 'no_alcohol'];
 const DEFAULT_QUANTS = ['protein', 'water'];
 
-const QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
+const DEFAULT_QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
   protein: { target: 150, unit: 'g' },
   steps:   { target: 10000, unit: 'pasos' },
   water:   { target: 3000, unit: 'ml' },
@@ -152,6 +152,15 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const activeBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
   const activeQuantKeys: string[] = (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)
     .filter((k: string) => k !== 'steps' && k !== 'sleep'); // Sin fuente hasta wearables
+
+  // Metas personalizadas del usuario (si guardó en protocol-config)
+  const userGoals = (prefs?.goals as any) || {};
+  const QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
+    protein: { target: userGoals.protein_goal_g || DEFAULT_QUANT_CONFIG.protein.target, unit: 'g' },
+    steps:   { target: DEFAULT_QUANT_CONFIG.steps.target, unit: 'pasos' },
+    water:   { target: userGoals.water_goal_ml || DEFAULT_QUANT_CONFIG.water.target, unit: 'ml' },
+    sleep:   { target: DEFAULT_QUANT_CONFIG.sleep.target, unit: 'h' },
+  };
 
   // Protocol
   let protocol: CompiledDay['protocol'] = null;
