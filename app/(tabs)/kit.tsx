@@ -139,6 +139,32 @@ export default function KitScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* Suplementos card */}
+        <Animated.View entering={FadeInUp.delay(95).springify()} style={s.cardWrap}>
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/supplements' as any); }}>
+            <LinearGradient
+              colors={['rgba(29,158,117,0.12)', 'rgba(29,158,117,0.03)', 'transparent']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[s.card, { borderColor: 'rgba(29,158,117,0.15)' }]}
+            >
+              <View style={[s.accent, { backgroundColor: '#1D9E75' }]} />
+              <View style={s.cardInner}>
+                <View style={s.cardLeft}>
+                  <View style={[s.iconCircle, { backgroundColor: 'rgba(29,158,117,0.15)' }]}>
+                    <Ionicons name="flask-outline" size={28} color="#1D9E75" />
+                  </View>
+                  <View>
+                    <Text style={s.cardTitle}>SUPLEMENTOS</Text>
+                    <Text style={s.cardSub}>Tu plan diario personalizado</Text>
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.2)" />
+              </View>
+            </LinearGradient>
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* 6 pillar cards */}
         {PILLARS.map((pillar, idx) => (
           <Animated.View key={pillar.id} entering={FadeInUp.delay(100 + idx * 50).springify()} style={s.cardWrap}>
