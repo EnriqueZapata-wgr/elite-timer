@@ -17,6 +17,7 @@ import { useCoachStatus } from '@/src/hooks/useCoachStatus';
 import { CoachPanelLayout } from '@/src/screens/coach/CoachPanelLayout';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, CATEGORY_COLORS } from '@/src/constants/brand';
+import { FeedbackButton } from '@/src/components/FeedbackButton';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
 
@@ -108,6 +109,8 @@ export default function TabLayout() {
           options={{ href: null }}
         />
       </Tabs>
+
+      <FeedbackButton />
     </View>
   );
 }

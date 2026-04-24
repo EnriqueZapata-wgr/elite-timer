@@ -465,6 +465,26 @@ export default function YoScreen() {
           </Animated.View>
         )}
 
+        {/* Admin: Feedback Dashboard */}
+        {user?.id === '90a55e74-0e3d-477a-9ac5-2b339f7c40af' && (
+          <Animated.View entering={FadeInUp.delay(600).springify()} style={{ paddingHorizontal: Spacing.md }}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/feedback-dashboard' as any); }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10,
+                padding: 14, backgroundColor: '#0a0a0a', borderRadius: 14, marginTop: Spacing.md,
+                borderWidth: 1, borderColor: 'rgba(239,68,68,0.15)',
+              }}>
+                <Ionicons name="bug-outline" size={20} color="#ef4444" />
+                <EliteText style={{ color: '#ef4444', fontSize: 14, fontFamily: Fonts.semiBold }}>
+                  Feedback Dashboard (Admin)
+                </EliteText>
+                <View style={{ flex: 1 }} />
+                <Ionicons name="chevron-forward" size={16} color="#666" />
+              </View>
+            </AnimatedPressable>
+          </Animated.View>
+        )}
+
         <View style={{ height: Spacing.xxl * 2 }} />
       </ScrollView>
 
