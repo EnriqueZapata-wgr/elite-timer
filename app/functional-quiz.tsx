@@ -1,19 +1,17 @@
 /**
  * Motor de Quiz Funcional — Pantalla reutilizable para los 5 quizzes.
  * Recibe quiz_id por params y carga el quiz correspondiente.
- * Misma UI que Braverman: swipe cards, CIERTO/FALSO, progreso, resultados.
+ * CIERTO/FALSO, progreso, resultados.
  */
-import { useState, useEffect, useRef } from 'react';
-import { View, Text, Pressable, Animated, Dimensions, Alert, ScrollView, DeviceEventEmitter, ActivityIndicator } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, Pressable, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
-import { getQuizById, type FunctionalQuiz, type FunctionalQuestion } from '../src/constants/functional-quizzes';
+import { getQuizById } from '../src/constants/functional-quizzes';
 import { awardBooleanElectron } from '../src/services/electron-service';
-
-const { width } = Dimensions.get('window');
 
 type Screen = 'intro' | 'quiz' | 'results';
 
@@ -27,9 +25,7 @@ export default function FunctionalQuizScreen() {
   const [responses, setResponses] = useState<Record<string, boolean>>({});
   const [resultId, setResultId] = useState<string | null>(null);
   const [userId, setUserId] = useState('');
-  const [showRootCause, setShowRootCause] = useState(false);
-  const [lastRootCause, setLastRootCause] = useState('');
-  const slideAnim = useRef(new Animated.Value(0)).current;
+  const [showDetail, setShowDetail] = useState(false);
 
   const questions = quiz?.questions ?? [];
   const currentQ = questions[currentIndex];
@@ -96,26 +92,14 @@ export default function FunctionalQuizScreen() {
     const newResponses = { ...responses, [currentQ.id]: value };
     setResponses(newResponses);
 
-    // Mostrar rootCause si respondió CIERTO
-    if (value) {
-      setLastRootCause(currentQ.rootCause);
-      setShowRootCause(true);
-      setTimeout(() => setShowRootCause(false), 1500);
+    // Transición inmediata — sin animación
+    if (currentIndex + 1 < questions.length) {
+      setCurrentIndex(currentIndex + 1);
+      if ((currentIndex + 1) % 10 === 0) saveProgress(newResponses, currentIndex + 1);
+    } else {
+      // SOLO cuando es la última pregunta
+      calculateResults(newResponses);
     }
-
-    Animated.timing(slideAnim, {
-      toValue: value ? width : -width,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(() => {
-      slideAnim.setValue(0);
-      if (currentIndex + 1 < questions.length) {
-        setCurrentIndex(currentIndex + 1);
-        if ((currentIndex + 1) % 10 === 0) saveProgress(newResponses, currentIndex + 1);
-      } else {
-        calculateResults(newResponses);
-      }
-    });
   }
 
   async function saveProgress(resp: Record<string, boolean>, qIndex: number) {
@@ -137,7 +121,6 @@ export default function FunctionalQuizScreen() {
 
   async function calculateResults(resp: Record<string, boolean>) {
     if (!quiz) return;
-    // Calcular scores por dominio con weight
     const domainScores: Record<string, number> = {};
     for (const q of quiz.questions) {
       if (resp[q.id] === true) {
@@ -145,7 +128,6 @@ export default function FunctionalQuizScreen() {
       }
     }
 
-    // Filtrar insights que superan threshold
     const activeInsights = quiz.resultInsights.filter(
       insight => (domainScores[insight.domain] || 0) >= insight.threshold
     );
@@ -169,7 +151,6 @@ export default function FunctionalQuizScreen() {
       });
     }
 
-    // Electrones por completar
     try {
       await awardBooleanElectron(userId, 'functional_quiz' as any);
       DeviceEventEmitter.emit('electrons_changed');
@@ -179,7 +160,6 @@ export default function FunctionalQuizScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
-  // Encontrar el dominio de la pregunta actual para color
   function getDomainColor(domainId: string): string {
     return quiz!.domains.find(d => d.id === domainId)?.color || quiz!.color;
   }
@@ -221,9 +201,7 @@ export default function FunctionalQuizScreen() {
                 backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14,
                 borderLeftWidth: 3, borderLeftColor: domain.color,
               }}>
-                <View style={{
-                  width: 8, height: 8, borderRadius: 4, backgroundColor: domain.color,
-                }} />
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: domain.color }} />
                 <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600', flex: 1 }}>
                   {domain.name}
                 </Text>
@@ -270,8 +248,7 @@ export default function FunctionalQuizScreen() {
   if (screen === 'quiz' && currentQ) {
     const domainColor = getDomainColor(currentQ.domain);
     const domainName = getDomainName(currentQ.domain);
-    const progress = (currentIndex / questions.length) * 100;
-    const progressTotal = (answeredTotal / questions.length) * 100;
+    const progress = ((currentIndex + 1) / questions.length) * 100;
 
     return (
       <View style={{ flex: 1, backgroundColor: '#000' }}>
@@ -292,13 +269,10 @@ export default function FunctionalQuizScreen() {
             </Text>
           </View>
 
-          {/* Barras de progreso */}
-          <View style={{ marginTop: 12, gap: 4 }}>
+          {/* Barra de progreso */}
+          <View style={{ marginTop: 12 }}>
             <View style={{ height: 3, backgroundColor: '#1a1a1a', borderRadius: 2 }}>
               <View style={{ height: 3, backgroundColor: domainColor, borderRadius: 2, width: `${progress}%` }} />
-            </View>
-            <View style={{ height: 2, backgroundColor: '#0a0a0a', borderRadius: 1 }}>
-              <View style={{ height: 2, backgroundColor: '#a8e02a', borderRadius: 1, width: `${progressTotal}%` }} />
             </View>
           </View>
 
@@ -315,10 +289,9 @@ export default function FunctionalQuizScreen() {
           </View>
         </View>
 
-        {/* Question card */}
+        {/* Question card — render directo, sin animación */}
         <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 20 }}>
-          <Animated.View style={{
-            transform: [{ translateX: slideAnim }],
+          <View style={{
             backgroundColor: '#0a0a0a', borderRadius: 24, padding: 32,
             minHeight: 200, justifyContent: 'center',
             borderWidth: 1, borderColor: `${domainColor}20`,
@@ -326,20 +299,7 @@ export default function FunctionalQuizScreen() {
             <Text style={{ color: '#fff', fontSize: 20, fontWeight: '600', textAlign: 'center', lineHeight: 30 }}>
               {currentQ.text}
             </Text>
-          </Animated.View>
-
-          {/* RootCause flash */}
-          {showRootCause && (
-            <View style={{
-              position: 'absolute', bottom: -80, left: 0, right: 0,
-              backgroundColor: 'rgba(168,224,42,0.08)', borderRadius: 12, padding: 12,
-              borderWidth: 1, borderColor: 'rgba(168,224,42,0.15)',
-              marginHorizontal: 20,
-            }}>
-              <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>POR QUÉ IMPORTA</Text>
-              <Text style={{ color: '#ccc', fontSize: 12, marginTop: 4 }}>{lastRootCause}</Text>
-            </View>
-          )}
+          </View>
         </View>
 
         {/* Answer buttons */}
@@ -377,7 +337,6 @@ export default function FunctionalQuizScreen() {
 
   // ═══ RESULTS ═══
   if (screen === 'results') {
-    // Calcular scores por dominio
     const domainScores: Record<string, number> = {};
     for (const q of quiz.questions) {
       if (responses[q.id] === true) {
@@ -385,24 +344,9 @@ export default function FunctionalQuizScreen() {
       }
     }
 
-    // Max posible por dominio (sumar todos los weights)
-    const maxByDomain: Record<string, number> = {};
-    for (const q of quiz.questions) {
-      maxByDomain[q.domain] = (maxByDomain[q.domain] || 0) + q.weight;
-    }
-
-    // Insights activos
     const activeInsights = quiz.resultInsights.filter(
       insight => (domainScores[insight.domain] || 0) >= insight.threshold
     );
-
-    // Dominio con mayor score relativo
-    const topDomain = quiz.domains.reduce((top, d) => {
-      const score = domainScores[d.id] || 0;
-      const max = maxByDomain[d.id] || 1;
-      const pct = score / max;
-      return pct > (top.pct || 0) ? { domain: d, pct, score } : top;
-    }, { domain: quiz.domains[0], pct: 0, score: 0 });
 
     return (
       <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -414,96 +358,57 @@ export default function FunctionalQuizScreen() {
             {quiz.name}
           </Text>
 
-          {/* Resumen principal */}
-          {activeInsights.length > 0 ? (
-            <View style={{
-              backgroundColor: `${topDomain.domain.color}10`, borderRadius: 20, padding: 24, marginTop: 24,
-              borderWidth: 1, borderColor: `${topDomain.domain.color}30`, alignItems: 'center',
+          {/* Resultado principal */}
+          <View style={{
+            backgroundColor: activeInsights.length > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(34,197,94,0.08)',
+            borderRadius: 20, padding: 24, alignItems: 'center', marginTop: 24,
+            borderWidth: 1,
+            borderColor: activeInsights.length > 0 ? 'rgba(239,68,68,0.2)' : 'rgba(34,197,94,0.2)',
+          }}>
+            <Ionicons
+              name={activeInsights.length > 0 ? 'warning-outline' : 'checkmark-circle-outline'}
+              size={48}
+              color={activeInsights.length > 0 ? '#fb7185' : '#22c55e'}
+            />
+            <Text style={{
+              color: activeInsights.length > 0 ? '#fb7185' : '#22c55e',
+              fontSize: 22, fontWeight: '800', marginTop: 12,
             }}>
-              <Text style={{ fontSize: 48 }}>{quiz.emoji}</Text>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 12 }}>
-                AREA DE MAYOR ATENCION
-              </Text>
-              <Text style={{ color: topDomain.domain.color, fontSize: 22, fontWeight: '800', marginTop: 4, textAlign: 'center' }}>
-                {topDomain.domain.name}
-              </Text>
-              <Text style={{ color: '#ccc', fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
-                {activeInsights.length} {activeInsights.length === 1 ? 'area requiere' : 'areas requieren'} atención
-              </Text>
-            </View>
-          ) : (
-            <View style={{
-              backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: 20, padding: 24, marginTop: 24,
-              borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)', alignItems: 'center',
-            }}>
-              <Text style={{ fontSize: 48 }}>✅</Text>
-              <Text style={{ color: '#22c55e', fontSize: 22, fontWeight: '800', marginTop: 12 }}>
-                Todo en orden
-              </Text>
-              <Text style={{ color: '#ccc', fontSize: 13, textAlign: 'center', marginTop: 8, lineHeight: 20 }}>
-                No se detectaron alertas significativas en esta evaluación
-              </Text>
-            </View>
-          )}
+              {activeInsights.length > 0
+                ? `${activeInsights.length} área${activeInsights.length > 1 ? 's' : ''} de atención`
+                : 'Todo en orden'}
+            </Text>
+            <Text style={{ color: '#999', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
+              {activeInsights.length > 0
+                ? 'ARGOS detectó patrones que vale la pena atender'
+                : 'No se detectaron alertas significativas en esta evaluación'}
+            </Text>
+          </View>
 
-          {/* Barras por dominio */}
-          <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 24, marginBottom: 12 }}>
-            PUNTAJE POR DOMINIO
-          </Text>
-          {quiz.domains.map(domain => {
-            const score = domainScores[domain.id] || 0;
-            const max = maxByDomain[domain.id] || 1;
-            const pct = (score / max) * 100;
-            const hasAlert = quiz.resultInsights.some(
-              i => i.domain === domain.id && score >= i.threshold
-            );
-            return (
-              <View key={domain.id} style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: domain.color }} />
-                    <Text style={{ color: '#ccc', fontSize: 13, fontWeight: '600' }}>{domain.name}</Text>
-                    {hasAlert && <Ionicons name="warning" size={12} color="#f59e0b" />}
-                  </View>
-                  <Text style={{ color: domain.color, fontSize: 13, fontWeight: '700' }}>
-                    {score}/{max}
-                  </Text>
-                </View>
-                <View style={{ height: 8, backgroundColor: '#1a1a1a', borderRadius: 4 }}>
-                  <View style={{ height: 8, backgroundColor: domain.color, borderRadius: 4, width: `${pct}%` }} />
-                </View>
-              </View>
-            );
-          })}
-
-          {/* Insights activos */}
+          {/* Insights activos — QUÉ DETECTAMOS */}
           {activeInsights.length > 0 && (
             <View style={{ marginTop: 24 }}>
               <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>
-                HALLAZGOS Y RECOMENDACIONES
+                QUÉ DETECTAMOS
               </Text>
               {activeInsights.map((insight, i) => {
-                const domColor = quiz.domains.find(d => d.id === insight.domain)?.color || quiz.color;
+                const domColor = getDomainColor(insight.domain);
                 return (
                   <View key={i} style={{
-                    backgroundColor: `${domColor}08`, borderRadius: 16, padding: 16, marginBottom: 10,
-                    borderWidth: 1, borderColor: `${domColor}15`,
+                    backgroundColor: '#0a0a0a', borderRadius: 16, padding: 18, marginBottom: 10,
+                    borderLeftWidth: 3, borderLeftColor: domColor,
                   }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <Ionicons name="alert-circle" size={16} color={domColor} />
-                      <Text style={{ color: domColor, fontSize: 14, fontWeight: '700', flex: 1 }}>
-                        {insight.title}
-                      </Text>
-                    </View>
-                    <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20, marginBottom: 10 }}>
+                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 6 }}>
+                      {insight.title}
+                    </Text>
+                    <Text style={{ color: '#999', fontSize: 13, lineHeight: 20, marginBottom: 10 }}>
                       {insight.description}
                     </Text>
                     <View style={{
                       backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 10, padding: 12,
-                      borderWidth: 1, borderColor: 'rgba(168,224,42,0.1)',
                     }}>
                       <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 }}>
-                        PROTOCOLO SUGERIDO
+                        RECOMENDACIÓN
                       </Text>
                       <Text style={{ color: '#ccc', fontSize: 12, lineHeight: 18 }}>
                         {insight.recommendation}
@@ -514,6 +419,44 @@ export default function FunctionalQuizScreen() {
               })}
             </View>
           )}
+
+          {/* Detalle por dominio — colapsable */}
+          <Pressable onPress={() => setShowDetail(!showDetail)} style={{ marginTop: 24 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={{ color: '#666', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
+                DETALLE POR DOMINIO
+              </Text>
+              <Ionicons name={showDetail ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
+            </View>
+          </Pressable>
+
+          {showDetail && quiz.domains.map(domain => {
+            const score = domainScores[domain.id] || 0;
+            const maxScore = quiz.questions.filter(q => q.domain === domain.id).reduce((s, q) => s + q.weight, 0);
+            const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
+            const isAlert = pct > 40;
+
+            return (
+              <View key={domain.id} style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: domain.color }} />
+                    <Text style={{ color: '#ccc', fontSize: 13, fontWeight: '600' }}>{domain.name}</Text>
+                  </View>
+                  <Text style={{ color: isAlert ? '#fb7185' : '#22c55e', fontSize: 12, fontWeight: '600' }}>
+                    {isAlert ? 'Atención' : 'OK'}
+                  </Text>
+                </View>
+                <View style={{ height: 6, backgroundColor: '#1a1a1a', borderRadius: 3 }}>
+                  <View style={{
+                    height: 6, borderRadius: 3,
+                    backgroundColor: isAlert ? '#fb7185' : '#22c55e',
+                    width: `${Math.min(pct, 100)}%`,
+                  }} />
+                </View>
+              </View>
+            );
+          })}
 
           {/* Descargo */}
           <Text style={{ color: '#444', fontSize: 9, marginTop: 16, textAlign: 'center', lineHeight: 14 }}>
@@ -530,7 +473,7 @@ export default function FunctionalQuizScreen() {
             </Pressable>
             <Pressable onPress={() => {
               setResponses({}); setCurrentIndex(0);
-              setResultId(null); setScreen('intro');
+              setResultId(null); setShowDetail(false); setScreen('intro');
             }} style={{
               backgroundColor: '#0a0a0a', borderRadius: 16, padding: 14, alignItems: 'center',
               borderWidth: 1, borderColor: '#1a1a1a',
@@ -543,11 +486,11 @@ export default function FunctionalQuizScreen() {
     );
   }
 
-  // Guard: si estamos en quiz pero currentQ es undefined momentáneamente (transición de animación)
+  // Guard: quiz screen pero currentQ undefined momentáneamente
   if (screen === 'quiz') {
     return (
       <View style={{ flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator color="#a8e02a" />
+        <Text style={{ color: '#999', fontSize: 14 }}>Cargando pregunta...</Text>
       </View>
     );
   }
