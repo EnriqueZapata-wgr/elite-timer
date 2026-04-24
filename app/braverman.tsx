@@ -51,8 +51,26 @@ export default function BravermanTest() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setUserId(user.id);
-    // Retomar test en progreso
-    const { data } = await supabase
+
+    // Primero: verificar si ya tiene test completado → mostrar resultados
+    const { data: completed } = await supabase
+      .from('braverman_results')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_complete', true)
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (completed) {
+      setResponses(completed.responses || {});
+      setResultId(completed.id);
+      setScreen('results');
+      return;
+    }
+
+    // Segundo: verificar test en progreso (incompleto)
+    const { data: inProgress } = await supabase
       .from('braverman_results')
       .select('*')
       .eq('user_id', user.id)
@@ -60,11 +78,12 @@ export default function BravermanTest() {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (data) {
-      setResultId(data.id);
-      setCurrentPart(data.current_part || 1);
-      setCurrentIndex(data.current_question || 0);
-      setResponses(data.responses || {});
+
+    if (inProgress) {
+      setResultId(inProgress.id);
+      setCurrentPart(inProgress.current_part || 1);
+      setCurrentIndex(inProgress.current_question || 0);
+      setResponses(inProgress.responses || {});
     }
   }
 

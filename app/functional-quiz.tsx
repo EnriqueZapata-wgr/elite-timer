@@ -53,8 +53,27 @@ export default function FunctionalQuizScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     setUserId(user.id);
-    // Retomar quiz en progreso
-    const { data } = await supabase
+
+    // Primero: verificar si ya completó este quiz → mostrar resultados
+    const { data: completed } = await supabase
+      .from('functional_quiz_results')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('quiz_id', quiz!.id)
+      .eq('is_complete', true)
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (completed) {
+      setResponses(completed.responses || {});
+      setResultId(completed.id);
+      setScreen('results');
+      return;
+    }
+
+    // Segundo: verificar quiz en progreso (incompleto)
+    const { data: inProgress } = await supabase
       .from('functional_quiz_results')
       .select('*')
       .eq('user_id', user.id)
@@ -63,10 +82,11 @@ export default function FunctionalQuizScreen() {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (data) {
-      setResultId(data.id);
-      setCurrentIndex(data.current_question || 0);
-      setResponses(data.responses || {});
+
+    if (inProgress) {
+      setResultId(inProgress.id);
+      setCurrentIndex(inProgress.current_question || 0);
+      setResponses(inProgress.responses || {});
     }
   }
 
