@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
+import { captureScreen } from 'react-native-view-shot';
 import { supabase } from '../lib/supabase';
 import { usePathname } from 'expo-router';
 
@@ -54,14 +55,23 @@ export function FeedbackButton() {
     })();
   }, []);
 
-  function open() {
+  async function open() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setVisible(true);
+
+    // Auto-captura ANTES de abrir el modal
+    let capturedUri: string | null = null;
+    try {
+      capturedUri = await captureScreen({ format: 'jpg', quality: 0.6 });
+    } catch (e) {
+      console.warn('Screenshot auto-capture failed:', e);
+    }
+
     setSeverity('yellow');
     setCategory('bug');
     setDescription('');
     setExpected('');
-    setScreenshotUri(null);
+    setScreenshotUri(capturedUri);
+    setVisible(true);
   }
 
   async function pickScreenshot() {
@@ -270,7 +280,7 @@ export function FeedbackButton() {
                   color={screenshotUri ? '#a8e02a' : '#666'}
                 />
                 <Text style={{ color: screenshotUri ? '#a8e02a' : '#999', fontSize: 13 }}>
-                  {screenshotUri ? 'Screenshot adjunto' : 'Adjuntar screenshot (opcional)'}
+                  {screenshotUri ? 'Screenshot capturado (toca para cambiar)' : 'Adjuntar screenshot (opcional)'}
                 </Text>
               </Pressable>
 
