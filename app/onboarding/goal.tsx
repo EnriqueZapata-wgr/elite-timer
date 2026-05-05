@@ -119,11 +119,11 @@ export default function OnboardingGoalScreen() {
   // === INSIGHT PHASE ===
   if (phase === 'insight') {
     const goalLabels: Record<string, string> = {
-      energy: 'Mas energia',
+      energy: 'Más energía',
       fat_loss: 'Perder grasa',
-      stress: 'Reducir estres',
+      stress: 'Reducir estrés',
       longevity: 'Longevidad',
-      muscle: 'Ganar musculo',
+      muscle: 'Ganar músculo',
     };
     const goalLabel = goalLabels[answers.goal as string] || 'Tu objetivo';
 
@@ -131,7 +131,7 @@ export default function OnboardingGoalScreen() {
       <InsightCard
         icon="flash-outline"
         title={`Objetivo: ${goalLabel}`}
-        description="ATP no es una dieta ni un plan generico. Es un sistema que se adapta a tu biologia. Vamos a conocer tu reloj interno."
+        description="ATP no es una dieta ni un plan genérico. Es un sistema que se adapta a tu biología. Vamos a conocer tu reloj interno."
         onContinue={handleContinue}
       />
     );
