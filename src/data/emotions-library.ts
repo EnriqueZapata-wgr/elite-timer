@@ -189,7 +189,7 @@ export const EMOTIONS: Emotion[] = [
   { id: 'burned_out', label: 'Con burnout', description: 'Diste demasiado por demasiado tiempo. Tu sistema se apagó.', quadrant: 'low_unpleasant', energy: 1, intensity: 8 },
   { id: 'bored', label: 'Sin interés', description: 'Nada te llama la atención. Todo se siente repetitivo.', quadrant: 'low_unpleasant', energy: 3, intensity: 3 },
   { id: 'apathetic', label: 'Con apatía', description: 'No te importa. Ni lo bueno ni lo malo.', quadrant: 'low_unpleasant', energy: 1, intensity: 5 },
-  { id: 'unmotivated', label: 'Sin motivación', description: 'Sabes lo que deberías hacer pero no encuentras el por qué.', quadrant: 'low_unpleasant', energy: 2, intensity: 4 },
+  { id: 'unmotivated', label: 'Sin motivación', description: 'Sabes lo que deberías hacer pero no encuentras el porqué.', quadrant: 'low_unpleasant', energy: 2, intensity: 4 },
   { id: 'indifferent', label: 'Indiferente', description: 'Todo te da igual. Nada mueve la aguja.', quadrant: 'low_unpleasant', energy: 2, intensity: 3 },
   { id: 'numb', label: 'Sin sentir', description: 'No sientes nada. Ni bueno ni malo. Solo vacío.', quadrant: 'low_unpleasant', energy: 1, intensity: 7 },
   { id: 'disconnected', label: 'En desconexión', description: 'Estás aquí pero no estás presente. Como en piloto automático.', quadrant: 'low_unpleasant', energy: 2, intensity: 5 },

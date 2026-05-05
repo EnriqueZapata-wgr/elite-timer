@@ -507,7 +507,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "dopamine",
     "category": "personality",
-    "text": "Cuando me critican suelo reacciones agresivamente. Me pongo a la defensiva en compañía de otros"
+    "text": "Cuando me critican suelo reaccionar agresivamente. Me pongo a la defensiva en compañía de otros"
   },
   {
     "id": "1.2.1.1",
@@ -1200,7 +1200,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "gaba",
     "category": "personality",
-    "text": "Suelo crear lasos fuertes con otras personas"
+    "text": "Suelo crear lazos fuertes con otras personas"
   },
   {
     "id": "1.3.4.19",
@@ -1221,7 +1221,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "serotonin",
     "category": "memory",
-    "text": "Soy muy perseptivo"
+    "text": "Soy muy perceptivo"
   },
   {
     "id": "1.4.1.3",
@@ -1291,7 +1291,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "serotonin",
     "category": "physical",
-    "text": "Soy \"hacendozo\" en casa"
+    "text": "Soy \"hacendoso\" en casa"
   },
   {
     "id": "1.4.2.6",
@@ -1382,7 +1382,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "serotonin",
     "category": "character",
-    "text": "No tengo un set de valores y moral particular por el cuál vivo"
+    "text": "No tengo un set de valores y moral particular por el cual vivo"
   },
   {
     "id": "1.4.3.8",
@@ -1417,7 +1417,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "dominance",
     "neurotransmitter": "serotonin",
     "category": "personality",
-    "text": "Disfurto de entretener a las personas en público"
+    "text": "Disfruto de entretener a las personas en público"
   },
   {
     "id": "1.4.4.3",
@@ -1557,7 +1557,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "deficiency",
     "neurotransmitter": "dopamine",
     "category": "memory",
-    "text": "Me cuenta poner atención y concentrarme"
+    "text": "Me cuesta poner atención y concentrarme"
   },
   {
     "id": "2.1.1.2",
@@ -1606,7 +1606,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "deficiency",
     "neurotransmitter": "dopamine",
     "category": "physical",
-    "text": "Tengo bajo líbido"
+    "text": "Tengo bajo libido"
   },
   {
     "id": "2.1.2.3",
@@ -1809,7 +1809,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "deficiency",
     "neurotransmitter": "acetylcholine",
     "category": "physical",
-    "text": "Siento que mi cuerpo se cae a pedasos"
+    "text": "Siento que mi cuerpo se cae a pedazos"
   },
   {
     "id": "2.2.2.7",
@@ -1886,7 +1886,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "deficiency",
     "neurotransmitter": "acetylcholine",
     "category": "personality",
-    "text": "Rara vez siento compación por algo"
+    "text": "Rara vez siento compasión por algo"
   },
   {
     "id": "2.2.4.8",
@@ -1900,7 +1900,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "deficiency",
     "neurotransmitter": "gaba",
     "category": "memory",
-    "text": "Me resulta difícil consentrarme por que me encuentro nervioso o inquieto"
+    "text": "Me resulta difícil concentrarme porque me encuentro nervioso o inquieto"
   },
   {
     "id": "2.3.1.2",
@@ -1935,7 +1935,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "deficiency",
     "neurotransmitter": "gaba",
     "category": "memory",
-    "text": "Mi habilidad de consentración va y viene"
+    "text": "Mi habilidad de concentración va y viene"
   },
   {
     "id": "2.3.1.7",
@@ -2131,7 +2131,7 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "deficiency",
     "neurotransmitter": "gaba",
     "category": "personality",
-    "text": "Tiendo a sentirme demaciado emocionado respecto a cosas simples"
+    "text": "Tiendo a sentirme demasiado emocionado respecto a cosas simples"
   },
   {
     "id": "2.3.4.7",
@@ -2173,21 +2173,21 @@ export const BRAVERMAN_QUESTIONS: BravermanQuestion[] = [
     "part": "deficiency",
     "neurotransmitter": "gaba",
     "category": "personality",
-    "text": "Regularmente tengo menos interes en el sexo de otras personas"
+    "text": "Regularmente tengo menos interés en el sexo de otras personas"
   },
   {
     "id": "2.4.1.1",
     "part": "deficiency",
     "neurotransmitter": "serotonin",
     "category": "memory",
-    "text": "No soy muy perseptivo"
+    "text": "No soy muy perceptivo"
   },
   {
     "id": "2.4.1.2",
     "part": "deficiency",
     "neurotransmitter": "serotonin",
     "category": "memory",
-    "text": "Me cuesta recordad cosas que he visto en el pasado"
+    "text": "Me cuesta recordar cosas que he visto en el pasado"
   },
   {
     "id": "2.4.1.3",
