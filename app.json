@@ -54,6 +54,12 @@
           "microphonePermission": "ATP necesita acceso al micrófono para que puedas hablar con ARGOS",
           "speechRecognitionPermission": "ATP necesita reconocimiento de voz para transcribir lo que dices"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ATP SOL necesita tu ubicación para mostrar el índice UV de tu zona y calcular tu ventana de vitamina D."
+        }
       ]
     ],
     "experiments": {
