@@ -130,6 +130,7 @@ export default function TodayScreen() {
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceResponse, setVoiceResponse] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -166,6 +167,28 @@ export default function TodayScreen() {
     AsyncStorage.getItem('@atp/tour_completed').then(v => {
       if (v !== 'true') setShowTour(true);
     });
+  }, []);
+
+  // --- UV mini-card (ATP SOL) ---
+  useEffect(() => {
+    (async () => {
+      try {
+        const { getCurrentLocation, fetchUVData, getUVLevel } = await import('@/src/services/uv-service');
+        const loc = await getCurrentLocation();
+        if (!loc) return;
+        const data = await fetchUVData(loc.latitude, loc.longitude);
+        if (!data) return;
+        const lvl = getUVLevel(data.currentUV);
+        setUvMini({
+          current: data.currentUV,
+          level: lvl.level,
+          color: lvl.color,
+          emoji: lvl.emoji,
+          advice: lvl.advice,
+          vitaminD: data.vitaminDWindow ? `Vitamina D: ${data.vitaminDWindow.start}-${data.vitaminDWindow.end}` : undefined,
+        });
+      } catch (e) { /* opcional */ }
+    })();
   }, []);
 
   // --- Insight diario ARGOS (refresca cada 6h) ---
@@ -489,6 +512,33 @@ export default function TodayScreen() {
             </View>
           )}
         </Animated.View>
+
+        {/* UV mini-card (ATP SOL) */}
+        {uvMini && (
+          <AnimatedPressable
+            onPress={() => { haptic.medium(); router.push('/solar' as any); }}
+            style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }}
+          >
+            <View style={{
+              backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
+              borderWidth: 1, borderColor: '#1a1a1a',
+              flexDirection: 'row', alignItems: 'center', gap: 12,
+            }}>
+              <View style={{
+                width: 36, height: 36, borderRadius: 18,
+                backgroundColor: `${uvMini.color}15`,
+                justifyContent: 'center', alignItems: 'center',
+              }}>
+                <Text style={{ fontSize: 16 }}>{uvMini.emoji}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>UV {uvMini.current} · {uvMini.level}</Text>
+                <Text style={{ color: '#666', fontSize: 11 }}>{uvMini.vitaminD || uvMini.advice}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color="#444" />
+            </View>
+          </AnimatedPressable>
+        )}
 
         {/* ═══════════════════════════════════════
             SECCIÓN 3: ELECTRONES BOOLEANOS

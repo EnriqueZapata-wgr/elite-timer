@@ -264,6 +264,25 @@ async function loadUserContext(userId: string): Promise<UserContext> {
     }
   } catch (_) { /* opcional */ }
 
+  // UV actual (ATP SOL)
+  try {
+    const { getCurrentLocation, fetchUVData } = await import('./uv-service');
+    const loc = await getCurrentLocation();
+    if (loc) {
+      const uv = await fetchUVData(loc.latitude, loc.longitude);
+      if (uv) {
+        (context as any).uvData = {
+          current: uv.currentUV,
+          max: uv.maxUV,
+          maxTime: uv.maxUVTime,
+          vitaminDWindow: uv.vitaminDWindow,
+          dangerousFrom: uv.dangerousFrom,
+          dangerousUntil: uv.dangerousUntil,
+        };
+      }
+    }
+  } catch (e) { /* UV opcional */ }
+
   return context;
 }
 
@@ -304,6 +323,12 @@ function buildContextPrompt(ctx: UserContext): string {
       return `${q.quiz}: ${issues}`;
     }).join(' | ');
     parts.push(`Evaluaciones funcionales: ${quizSummary}`);
+  }
+  if ((ctx as any).uvData) {
+    const uv = (ctx as any).uvData;
+    parts.push(`UV actual: ${uv.current} (máx hoy: ${uv.max} a las ${uv.maxTime})`);
+    if (uv.vitaminDWindow) parts.push(`Ventana vitamina D: ${uv.vitaminDWindow.start}-${uv.vitaminDWindow.end}`);
+    if (uv.dangerousFrom) parts.push(`Protección necesaria: ${uv.dangerousFrom}-${uv.dangerousUntil}`);
   }
   if (parts.length === 0) return '';
   return `\n\n## DATOS ACTUALES DEL USUARIO\n${parts.join('\n')}`;

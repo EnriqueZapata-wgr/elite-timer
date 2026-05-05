@@ -37,6 +37,10 @@ export const ELECTRON_WEIGHTS = {
 
   // Evaluaciones funcionales (por evento)
   functional_quiz: { weight: 5.0, name: 'Evaluación funcional', icon: 'clipboard-outline', color: '#c084fc' },
+
+  // ATP SOL — exposición solar consciente
+  vitamin_d:       { weight: 1.5, name: 'Vitamina D',         icon: 'sunny',          color: '#fbbf24' },
+  sun_awareness:   { weight: 1.0, name: 'Consciencia solar',  icon: 'eye-outline',    color: '#fbbf24' },
 } as const;
 
 export type ElectronSource = keyof typeof ELECTRON_WEIGHTS;

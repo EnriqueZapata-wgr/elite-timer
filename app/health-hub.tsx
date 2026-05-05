@@ -33,6 +33,13 @@ const HEALTH_ITEMS = [
     route: '/glucose-log',
   },
   {
+    name: 'ATP SOL',
+    subtitle: 'Exposición solar y vitamina D',
+    icon: 'sunny' as const,
+    color: '#fbbf24',
+    route: '/solar',
+  },
+  {
     name: 'Cetonas en sangre',
     subtitle: 'Monitoreo de cetosis',
     icon: 'water-outline' as const,
