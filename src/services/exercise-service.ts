@@ -8,6 +8,7 @@
 import { supabase } from '@/src/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { generateUUID } from '@/src/services/routine-service';
+import { parseLocalDate } from '@/src/utils/date-helpers';
 
 /** Obtiene usuario con refresh automático si la sesión expiró */
 async function getAuthenticatedUser(): Promise<User> {
@@ -632,7 +633,7 @@ export async function getExerciseProgression(exerciseId: string): Promise<Progre
     }
 
     return Array.from(byDate.entries()).map(([date, rows]) => {
-      const d = new Date(date);
+      const d = parseLocalDate(date);
       let maxWeight = 0;
       let estimated1RM = 0;
       const maxByRepRange: Record<number, number> = {};
@@ -707,7 +708,7 @@ export async function getExerciseSessionHistory(exerciseId: string): Promise<Exe
       if (date === todayKey) dateLabel = 'Hoy';
       else if (date === yesterdayKey) dateLabel = 'Ayer';
       else {
-        const d = new Date(date);
+        const d = parseLocalDate(date);
         const monthShort = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         dateLabel = `${d.getDate()} ${monthShort[d.getMonth()]} ${d.getFullYear()}`;
       }

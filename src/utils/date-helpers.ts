@@ -31,3 +31,26 @@ export function toLocalDateString(date: Date): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/**
+ * Parsear fecha-string como LOCAL (no UTC).
+ * "2026-05-04" -> Date en mediodía local (evita desfase de timezone).
+ * Si el string ya incluye hora (T...), se respeta tal cual.
+ */
+export function parseLocalDate(dateStr: string): Date {
+  if (dateStr.includes('T')) return new Date(dateStr);
+  return new Date(dateStr + 'T12:00:00');
+}
+
+/** Nombre del día de la semana en español para una fecha YYYY-MM-DD. */
+export function getLocalDayName(dateStr: string): string {
+  return parseLocalDate(dateStr).toLocaleDateString('es-MX', { weekday: 'long' });
+}
+
+/** Formatea una fecha YYYY-MM-DD a español, respetando timezone local. */
+export function formatLocalDate(dateStr: string, options?: Intl.DateTimeFormatOptions): string {
+  return parseLocalDate(dateStr).toLocaleDateString(
+    'es-MX',
+    options || { weekday: 'long', day: 'numeric', month: 'long' },
+  );
+}

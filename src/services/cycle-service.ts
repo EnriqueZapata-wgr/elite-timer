@@ -1,7 +1,7 @@
 /**
  * Cycle Service — Tracking de ciclo menstrual, fases, predicción, ajustes.
  */
-import { getLocalToday } from '@/src/utils/date-helpers';
+import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 
 // ═══ FASES ═══
@@ -67,7 +67,7 @@ export const PHASES: Record<string, PhaseInfo> = {
 // ═══ CÁLCULOS ═══
 
 export function getCycleDay(lastPeriodStart: string): number {
-  return Math.floor((Date.now() - new Date(lastPeriodStart).getTime()) / 86400000) + 1;
+  return Math.floor((Date.now() - parseLocalDate(lastPeriodStart).getTime()) / 86400000) + 1;
 }
 
 export function getPhase(day: number, cycleLen = 28, periodLen = 5): string {
@@ -81,11 +81,11 @@ export function predictNext(periods: { start_date: string }[]): { date: Date; da
   if (!periods.length) return { date: new Date(), daysUntil: 0, confidence: 'sin datos' };
   const lengths: number[] = [];
   for (let i = 1; i < Math.min(periods.length, 6); i++) {
-    const d = Math.floor((new Date(periods[i - 1].start_date).getTime() - new Date(periods[i].start_date).getTime()) / 86400000);
+    const d = Math.floor((parseLocalDate(periods[i - 1].start_date).getTime() - parseLocalDate(periods[i].start_date).getTime()) / 86400000);
     if (d > 20 && d < 45) lengths.push(d);
   }
   const avg = lengths.length > 0 ? Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length) : 28;
-  const next = new Date(periods[0].start_date);
+  const next = parseLocalDate(periods[0].start_date);
   next.setDate(next.getDate() + avg);
   const daysUntil = Math.max(0, Math.ceil((next.getTime() - Date.now()) / 86400000));
   const confidence = lengths.length >= 3 ? 'alta' : lengths.length >= 2 ? 'media' : 'baja';

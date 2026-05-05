@@ -18,6 +18,7 @@ import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, deleteLa
 import { calculateAndSaveScore, getLatestScore, ensureClientProfile } from '@/src/services/health-score-service';
 import type { HealthScore } from '@/src/data/functional-health-engine';
 import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-service';
+import { parseLocalDate } from '@/src/utils/date-helpers';
 import { getStudyType } from '@/src/data/study-types';
 import { getLatestMeasurement, type HealthMeasurement } from '@/src/services/health-measurement-service';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -509,7 +510,7 @@ export default function MyHealthScreen() {
                     <View style={{ flex: 1 }}>
                       <EliteText variant="body" style={{ color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{study.study_name}</EliteText>
                       <EliteText variant="caption" style={{ color: Colors.textSecondary, fontSize: FontSizes.sm }}>
-                        {new Date(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {parseLocalDate(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </EliteText>
                     </View>
                     <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={16} color={Colors.textSecondary} />

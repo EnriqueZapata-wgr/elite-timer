@@ -47,6 +47,7 @@ import {
   getStudies, createStudy, deleteStudy, updateStudy, interpretStudy, markAsReviewed,
   addFileToStudy, type ClinicalStudy,
 } from '@/src/services/clinical-study-service';
+import { parseLocalDate } from '@/src/utils/date-helpers';
 import { STUDY_TYPES, STUDY_CATEGORIES, getStudyType } from '@/src/data/study-types';
 import {
   getActivePlan, createPlan, updatePlan, getFoodLogsRange, getHydrationForUser,
@@ -1509,7 +1510,7 @@ function RecentStudies({ clientId }: { clientId: string }) {
             <EliteText style={{ fontSize: 16 }}>{st.emoji}</EliteText>
             <View style={{ flex: 1 }}>
               <EliteText variant="caption" style={{ color: TEXT_COLORS.primary, fontSize: 12 }}>
-                {s.study_name} — {new Date(s.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {s.study_name} — {parseLocalDate(s.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
               </EliteText>
               {findings.length > 0 && (
                 <View style={{ flexDirection: 'row', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
@@ -3434,7 +3435,7 @@ function StudiesTab({ clientId }: { clientId: string }) {
                 <View style={{ flex: 1 }}>
                   <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: 14 }}>{study.study_name}</EliteText>
                   <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11 }}>
-                    {new Date(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {parseLocalDate(study.study_date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                     {study.ordering_physician ? ` · Dr. ${study.ordering_physician}` : ''}
                   </EliteText>
                 </View>

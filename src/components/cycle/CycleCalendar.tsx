@@ -13,6 +13,7 @@ import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS } from '@/src/constants/brand';
+import { parseLocalDate } from '@/src/utils/date-helpers';
 
 // ═══ TIPOS ═══
 
@@ -71,7 +72,7 @@ function getDayPhase(
   periodLen: number,
 ): string | null {
   const sorted = periods
-    .map((p) => new Date(p.start_date))
+    .map((p) => parseLocalDate(p.start_date))
     .sort((a, b) => b.getTime() - a.getTime());
 
   for (const start of sorted) {
@@ -129,13 +130,13 @@ export function CycleCalendar({
   /** Verifica si un día es parte de un período de sangrado */
   const isPeriodDay = (d: number) => {
     const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     return periods.some((p) => {
       if (date < p.start_date) return false;
       if (p.end_date) return date <= p.end_date; // período cerrado
       // Período abierto: solo marcar hasta hoy o periodLength días, lo que sea menor
-      const startMs = new Date(p.start_date).getTime();
-      const dateMs = new Date(date).getTime();
+      const startMs = parseLocalDate(p.start_date).getTime();
+      const dateMs = parseLocalDate(date).getTime();
       const daysSinceStart = Math.floor((dateMs - startMs) / 86400000);
       return date <= todayStr && daysSinceStart < periodLength;
     });

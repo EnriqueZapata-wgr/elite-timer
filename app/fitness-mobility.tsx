@@ -21,6 +21,7 @@ import {
   getLastMobilityAssessment,
   type MobilityAssessment,
 } from '@/src/services/fitness-service';
+import { parseLocalDate } from '@/src/utils/date-helpers';
 
 const PURPLE = '#c084fc';
 const PURPLE_GRADIENT = { start: 'rgba(192,132,252,0.10)', end: 'rgba(192,132,252,0.02)' };
@@ -69,7 +70,7 @@ export default function FitnessMobilityScreen() {
     );
   }
 
-  const dateLabel = new Date(last.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
+  const dateLabel = parseLocalDate(last.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'long' });
 
   const rows: { label: string; value: string }[] = [
     { label: 'Sentadilla profunda', value: last.deep_squat != null ? `${last.deep_squat}/10` : '—' },
