@@ -191,7 +191,7 @@ export async function logCardioSession(input: LogCardioInput): Promise<CardioSav
     .select()
     .single();
 
-  if (error || !data) throw new Error(error?.message ?? 'Error al guardar sesion');
+  if (error || !data) throw new Error(error?.message ?? 'Error al guardar sesión');
 
   const session = data as CardioSession;
   const newPRs = await checkCardioRecords(session);

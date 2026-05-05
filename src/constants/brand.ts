@@ -217,38 +217,38 @@ export function getScoreColor(score: number): string {
 
 /** Devuelve la etiqueta de nivel para un score. */
 export function getScoreLabel(score: number): string {
-  if (score >= 85) return 'OPTIMO';
+  if (score >= 85) return 'ÓPTIMO';
   if (score >= 70) return 'CARGADO';
   if (score >= 55) return 'ESTABLE';
   if (score >= 40) return 'BAJO';
-  return 'CRITICO';
+  return 'CRÍTICO';
 }
 
-/** Devuelve un mensaje contextual segun score y hora del dia. */
+/** Devuelve un mensaje contextual según score y hora del día. */
 export function getScoreMessage(score: number, hour: number): string {
   if (score >= 85) {
-    if (hour < 12) return 'Tu ATP esta al maximo. Hoy es dia de rendir.';
-    if (hour < 18) return 'Nivel de energia excepcional. Aprovecha la tarde.';
-    return 'Gran dia. Tu cuerpo agradece la consistencia.';
+    if (hour < 12) return 'Tu ATP está al máximo. Hoy es día de rendir.';
+    if (hour < 18) return 'Nivel de energía excepcional. Aprovecha la tarde.';
+    return 'Gran día. Tu cuerpo agradece la consistencia.';
   }
   if (score >= 70) {
-    if (hour < 12) return 'Buen nivel de energia. Arranca con todo.';
-    if (hour < 18) return 'Manten el ritmo. Vas bien.';
-    return 'Dia solido. Preparate para un buen descanso.';
+    if (hour < 12) return 'Buen nivel de energía. Arranca con todo.';
+    if (hour < 18) return 'Mantén el ritmo. Vas bien.';
+    return 'Día sólido. Prepárate para un buen descanso.';
   }
   if (score >= 55) {
-    if (hour < 12) return 'Energia moderada. Entrena inteligente, no fuerte.';
+    if (hour < 12) return 'Energía moderada. Entrena inteligente, no fuerte.';
     if (hour < 18) return 'Escucha a tu cuerpo. Ajusta la intensidad.';
-    return 'Tu sistema pide equilibrio. No exijas de mas.';
+    return 'Tu sistema pide equilibrio. No exijas de más.';
   }
   if (score >= 40) {
-    if (hour < 12) return 'Tu ATP esta bajo. Prioriza recuperacion hoy.';
+    if (hour < 12) return 'Tu ATP está bajo. Prioriza recuperación hoy.';
     if (hour < 18) return 'Movilidad y descanso activo hoy.';
-    return 'Modo recuperacion. Medita y duerme temprano.';
+    return 'Modo recuperación. Medita y duerme temprano.';
   }
-  if (hour < 12) return 'Estado critico. Descanso absoluto hoy.';
+  if (hour < 12) return 'Estado crítico. Descanso absoluto hoy.';
   if (hour < 18) return 'Tu cuerpo necesita reset. Nada de entrenar.';
-  return 'Prioriza sueno profundo. Manana sera otro dia.';
+  return 'Prioriza sueño profundo. Mañana será otro día.';
 }
 
 /** Gradientes por pilar/categoria — start (color tinted) -> end (oscuro). */

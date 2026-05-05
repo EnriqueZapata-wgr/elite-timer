@@ -186,12 +186,12 @@ export default function BravermanTest() {
           }}>
             <Text style={{ fontSize: 48 }}>🧬</Text>
           </View>
-          <Text style={{ color: '#c084fc', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>ATP EVALUACION</Text>
+          <Text style={{ color: '#c084fc', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>ATP EVALUACIÓN</Text>
           <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>
             Test de Braverman
           </Text>
           <Text style={{ color: '#999', fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>
-            Evaluacion clinica de neurotransmisores del Dr. Eric R. Braverman. Descubre tu naturaleza bioquimica dominante y detecta posibles deficiencias.
+            Evaluación clínica de neurotransmisores del Dr. Eric R. Braverman. Descubre tu naturaleza bioquímica dominante y detecta posibles deficiencias.
           </Text>
 
           <View style={{ marginTop: 24, width: '100%', gap: 8 }}>
@@ -218,13 +218,13 @@ export default function BravermanTest() {
             marginTop: 24, width: '100%',
             borderWidth: 1, borderColor: 'rgba(192,132,252,0.12)',
           }}>
-            <Text style={{ color: '#c084fc', fontSize: 12, fontWeight: '700', marginBottom: 8 }}>COMO FUNCIONA</Text>
+            <Text style={{ color: '#c084fc', fontSize: 12, fontWeight: '700', marginBottom: 8 }}>CÓMO FUNCIONA</Text>
             <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>
               313 preguntas de Cierto/Falso divididas en 2 partes:{'\n'}
               {'\n'}• Parte 1: Tu naturaleza dominante (199 preguntas){'\n'}
               • Parte 2: Tus deficiencias actuales (114 preguntas){'\n'}
-              {'\n'}Puedes pausar y retomar en cualquier momento. Tu progreso se guarda automaticamente.{'\n'}
-              {'\n'}Responde segun como te sientes LA MAYOR PARTE DEL TIEMPO, no hoy en particular.
+              {'\n'}Puedes pausar y retomar en cualquier momento. Tu progreso se guarda automáticamente.{'\n'}
+              {'\n'}Responde según cómo te sientes LA MAYOR PARTE DEL TIEMPO, no hoy en particular.
             </Text>
           </View>
 
@@ -255,11 +255,11 @@ export default function BravermanTest() {
         <Text style={{ fontSize: 48, marginBottom: 24 }}>🧬</Text>
         <Text style={{ color: '#c084fc', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>PARTE 1 COMPLETADA</Text>
         <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>
-          Tu naturaleza dominante esta mapeada
+          Tu naturaleza dominante está mapeada
         </Text>
         <Text style={{ color: '#999', fontSize: 14, textAlign: 'center', marginTop: 12, lineHeight: 22 }}>
           Ahora viene la Parte 2: identificar tus deficiencias actuales.{'\n'}
-          Responde segun como te sientes AHORA MISMO, no como eres normalmente.
+          Responde según cómo te sientes AHORA MISMO, no cómo eres normalmente.
         </Text>
         <Text style={{ color: '#666', fontSize: 12, marginTop: 16 }}>114 preguntas restantes · ~5-8 minutos</Text>
         <Pressable

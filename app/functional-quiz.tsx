@@ -194,7 +194,7 @@ export default function FunctionalQuizScreen() {
           }}>
             <Text style={{ fontSize: 48 }}>{quiz.emoji}</Text>
           </View>
-          <Text style={{ color: quiz.color, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>ATP EVALUACION</Text>
+          <Text style={{ color: quiz.color, fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>ATP EVALUACIÓN</Text>
           <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', textAlign: 'center', marginTop: 8 }}>
             {quiz.name}
           </Text>
@@ -224,12 +224,12 @@ export default function FunctionalQuizScreen() {
             marginTop: 24, width: '100%',
             borderWidth: 1, borderColor: `${quiz.color}15`,
           }}>
-            <Text style={{ color: quiz.color, fontSize: 12, fontWeight: '700', marginBottom: 8 }}>COMO FUNCIONA</Text>
+            <Text style={{ color: quiz.color, fontSize: 12, fontWeight: '700', marginBottom: 8 }}>CÓMO FUNCIONA</Text>
             <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>
               {quiz.questions.length} preguntas de Cierto/Falso.{'\n'}
               {'\n'}Cada respuesta detecta una CAUSA RAÍZ específica, no solo un síntoma.{'\n'}
               {'\n'}Puedes pausar y retomar en cualquier momento. Tu progreso se guarda automáticamente.{'\n'}
-              {'\n'}Responde según como te sientes LA MAYOR PARTE DEL TIEMPO, no hoy en particular.
+              {'\n'}Responde según cómo te sientes LA MAYOR PARTE DEL TIEMPO, no hoy en particular.
             </Text>
           </View>
 
@@ -245,7 +245,7 @@ export default function FunctionalQuizScreen() {
             }}
           >
             <Text style={{ color: '#000', fontSize: 18, fontWeight: '800' }}>
-              {answeredTotal > 0 ? 'CONTINUAR EVALUACION' : 'INICIAR EVALUACION'}
+              {answeredTotal > 0 ? 'CONTINUAR EVALUACIÓN' : 'INICIAR EVALUACIÓN'}
             </Text>
           </Pressable>
         </View>

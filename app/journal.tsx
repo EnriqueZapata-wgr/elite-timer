@@ -48,7 +48,7 @@ const STOIC_QUOTES = [
   '"La felicidad de tu vida depende de la calidad de tus pensamientos." — Marco Aurelio',
   '"Lo que nos perturba no son las cosas, sino nuestra opinión sobre ellas." — Epicteto',
   '"Sufres más en la imaginación que en la realidad." — Séneca',
-  '"Primero dí lo que serías; luego haz lo que tengas que hacer." — Epicteto',
+  '"Primero di lo que serías; luego haz lo que tengas que hacer." — Epicteto',
   '"El mejor momento para plantar un árbol fue hace 20 años. El segundo mejor es ahora." — Marco Aurelio',
 ];
 

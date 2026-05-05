@@ -37,7 +37,7 @@ interface ChartParam {
 const DEFAULT_PARAMS: ChartParam[] = [
   { key: 'energy',      label: 'Energía',     color: '#fbbf24', enabled: true },
   { key: 'mood',         label: 'Ánimo',       color: '#a8e02a', enabled: true },
-  { key: 'libido',       label: 'Líbido',      color: '#f472b6', enabled: false },
+  { key: 'libido',       label: 'Libido',      color: '#f472b6', enabled: false },
   { key: 'cramps',       label: 'Cólicos',     color: '#ef4444', enabled: false },
   { key: 'bloating',     label: 'Hinchazón',   color: '#c084fc', enabled: false },
   { key: 'appetite',     label: 'Apetito',     color: '#38bdf8', enabled: false },

@@ -34,48 +34,48 @@ interface ProfileData {
 }
 
 const CHRONO_META: Record<string, { emoji: string; label: string }> = {
-  lion:    { emoji: '\uD83E\uDD81', label: 'Leon' },
+  lion:    { emoji: '\uD83E\uDD81', label: 'Le\u00F3n' },
   bear:    { emoji: '\uD83D\uDC3B', label: 'Oso' },
   wolf:    { emoji: '\uD83D\uDC3A', label: 'Lobo' },
-  dolphin: { emoji: '\uD83D\uDC2C', label: 'Delfin' },
+  dolphin: { emoji: '\uD83D\uDC2C', label: 'Delf\u00EDn' },
 };
 
 const GOAL_LABELS: Record<string, string> = {
-  energy: 'Mas energia y rendimiento',
+  energy: 'M\u00E1s energ\u00EDa y rendimiento',
   fat_loss: 'Perder grasa',
-  stress: 'Reducir estres',
+  stress: 'Reducir estr\u00E9s',
   longevity: 'Longevidad',
-  muscle: 'Ganar musculo',
+  muscle: 'Ganar m\u00FAsculo',
 };
 
 const ISSUE_LABELS: Record<string, string> = {
   insulin_resistance: 'Posible resistencia a insulina',
   adrenal_fatigue: 'Fatiga adrenal',
   gut_dysbiosis: 'Disbiosis intestinal',
-  chronic_inflammation: 'Inflamacion cronica',
-  high_stress: 'Estres elevado',
-  sleep_disruption: 'Sueno interrumpido',
+  chronic_inflammation: 'Inflamación crónica',
+  high_stress: 'Estrés elevado',
+  sleep_disruption: 'Sueño interrumpido',
   hormonal_imbalance: 'Desbalance hormonal',
 };
 
 const PROTOCOL_LABELS: Record<string, string> = {
-  protocolo_metabolico_basico: 'Protocolo Metabolico Basico',
-  protocolo_energia_vitalidad: 'Protocolo Energia y Vitalidad',
+  protocolo_metabolico_basico: 'Protocolo Metabólico Básico',
+  protocolo_energia_vitalidad: 'Protocolo Energía y Vitalidad',
   protocolo_digestivo: 'Protocolo Digestivo',
   protocolo_antiinflamatorio: 'Protocolo Antiinflamatorio',
-  protocolo_antiestres: 'Protocolo Antiestres',
-  protocolo_sueno_profundo: 'Protocolo Sueno Profundo',
-  protocolo_optimizacion_hormonal: 'Protocolo Optimizacion Hormonal',
+  protocolo_antiestres: 'Protocolo Antiestrés',
+  protocolo_sueno_profundo: 'Protocolo Sueño Profundo',
+  protocolo_optimizacion_hormonal: 'Protocolo Optimización Hormonal',
 };
 
 // === MENSAJES DE BUILDING ===
 
 const BUILD_MESSAGES = [
-  'Analizando tu perfil biologico...',
+  'Analizando tu perfil biológico...',
   'Seleccionando protocolos...',
   'Ajustando a tu cronotipo...',
   'Creando tu timeline personalizado...',
-  'Listo!',
+  '¡Listo!',
 ];
 
 // SVG progreso
@@ -163,7 +163,7 @@ export default function OnboardingSummaryScreen() {
   }
 
   function formatFitnessLevel(timeMin?: number, equipment?: string[]): string {
-    const time = timeMin ? `${timeMin} min/dia` : 'No definido';
+    const time = timeMin ? `${timeMin} min/día` : 'No definido';
     const equip = (equipment as string[])?.length
       ? (equipment as string[]).length + ' tipos de equipo'
       : 'Sin equipo';
@@ -406,7 +406,7 @@ export default function OnboardingSummaryScreen() {
         {/* Detected Issues */}
         {p && p.detectedIssues.length > 0 && (
           <Animated.View entering={FadeInUp.delay(350).springify()}>
-            <EliteText style={styles.sectionTitle}>SENALES DETECTADAS</EliteText>
+            <EliteText style={styles.sectionTitle}>SEÑALES DETECTADAS</EliteText>
             <View style={styles.card}>
               {p.detectedIssues.map((issue, idx) => (
                 <View
@@ -467,7 +467,7 @@ export default function OnboardingSummaryScreen() {
               <View style={styles.noIssuesRow}>
                 <Ionicons name="checkmark-circle" size={22} color="#a8e02a" />
                 <EliteText style={styles.noIssuesText}>
-                  Tus indicadores lucen bien. ARGOS optimizara tu plan para mantener tu rendimiento.
+                  Tus indicadores lucen bien. ARGOS optimizará tu plan para mantener tu rendimiento.
                 </EliteText>
               </View>
             </View>
@@ -481,7 +481,7 @@ export default function OnboardingSummaryScreen() {
             <EliteText style={styles.ctaBtnText}>ACTIVAR MI PLAN PERSONALIZADO</EliteText>
           </AnimatedPressable>
           <EliteText style={styles.trialNote}>
-            7 dias de prueba gratuita. Cancela cuando quieras.
+            7 días de prueba gratuita. Cancela cuando quieras.
           </EliteText>
         </Animated.View>
 

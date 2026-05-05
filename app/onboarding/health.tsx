@@ -29,7 +29,7 @@ const QUESTIONS: OnboardingQuestion[] = [
     text: '¿Te despiertas entre 1 y 3 AM frecuentemente?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'Si, casi siempre' },
+      { id: 'a', text: 'Sí, casi siempre' },
       { id: 'b', text: 'A veces (2-3 veces/semana)' },
       { id: 'c', text: 'Rara vez' },
       { id: 'd', text: 'No, duermo de corrido' },
@@ -37,29 +37,29 @@ const QUESTIONS: OnboardingQuestion[] = [
   },
   {
     id: 'h2',
-    text: '¿Necesitas cafe o estimulantes para funcionar en la manana?',
+    text: '¿Necesitas café o estimulantes para funcionar en la mañana?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'No funciono sin cafe' },
+      { id: 'a', text: 'No funciono sin café' },
       { id: 'b', text: 'Necesito 1-2 tazas para arrancar' },
       { id: 'c', text: 'Lo tomo por gusto, no por necesidad' },
-      { id: 'd', text: 'No tomo cafe ni estimulantes' },
+      { id: 'd', text: 'No tomo café ni estimulantes' },
     ],
   },
   {
     id: 'h3',
-    text: 'Despues de comer, ¿te da sueno o necesitas acostarte?',
+    text: 'Después de comer, ¿te da sueño o necesitas acostarte?',
     type: 'single_select',
     options: [
       { id: 'a', text: 'Siempre, es muy notorio' },
       { id: 'b', text: 'Frecuentemente' },
       { id: 'c', text: 'Solo con comidas pesadas' },
-      { id: 'd', text: 'Nunca, mantengo energia' },
+      { id: 'd', text: 'Nunca, mantengo energía' },
     ],
   },
   {
     id: 'h4',
-    text: '¿Tienes antojos intensos de azucar, pan o carbohidratos?',
+    text: '¿Tienes antojos intensos de azúcar, pan o carbohidratos?',
     type: 'single_select',
     options: [
       { id: 'a', text: 'Diariamente, me cuesta resistirlos' },
@@ -70,10 +70,10 @@ const QUESTIONS: OnboardingQuestion[] = [
   },
   {
     id: 'h5',
-    text: '¿Tu abdomen se inflama durante el dia, especialmente despues de comer?',
+    text: '¿Tu abdomen se inflama durante el día, especialmente después de comer?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'Si, diariamente' },
+      { id: 'a', text: 'Sí, diariamente' },
       { id: 'b', text: 'Frecuentemente' },
       { id: 'c', text: 'Ocasionalmente con ciertos alimentos' },
       { id: 'd', text: 'Nunca' },
@@ -84,7 +84,7 @@ const QUESTIONS: OnboardingQuestion[] = [
     text: '¿Sientes que tu mente no para, sobre todo antes de dormir?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'Si, no puedo "apagar" mi cerebro' },
+      { id: 'a', text: 'Sí, no puedo "apagar" mi cerebro' },
       { id: 'b', text: 'Frecuentemente me cuesta relajarme' },
       { id: 'c', text: 'A veces, pero logro dormir' },
       { id: 'd', text: 'Duermo tranquilo/a' },
@@ -92,45 +92,45 @@ const QUESTIONS: OnboardingQuestion[] = [
   },
   {
     id: 'h7',
-    text: '¿Cuantos dias a la semana haces ejercicio estructurado?',
+    text: '¿Cuántos días a la semana haces ejercicio estructurado?',
     type: 'single_select',
     options: [
       { id: 'a', text: '0 — no hago ejercicio' },
-      { id: 'b', text: '1-2 dias' },
-      { id: 'c', text: '3-4 dias' },
-      { id: 'd', text: '5+ dias' },
+      { id: 'b', text: '1-2 días' },
+      { id: 'c', text: '3-4 días' },
+      { id: 'd', text: '5+ días' },
     ],
   },
   {
     id: 'h8',
-    text: '¿Tienes dolor cronico en articulaciones, espalda o cuello?',
+    text: '¿Tienes dolor crónico en articulaciones, espalda o cuello?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'Si, diariamente me limita' },
+      { id: 'a', text: 'Sí, diariamente me limita' },
       { id: 'b', text: 'Frecuentemente' },
-      { id: 'c', text: 'Solo despues de esfuerzo fisico' },
+      { id: 'c', text: 'Solo después de esfuerzo físico' },
       { id: 'd', text: 'No' },
     ],
   },
   {
     id: 'h9',
-    text: '¿Como esta tu piel? (acne, resequedad, manchas, rosacea)',
+    text: '¿Cómo está tu piel? (acné, resequedad, manchas, rosácea)',
     type: 'single_select',
     options: [
       { id: 'a', text: 'Varios problemas frecuentes' },
-      { id: 'b', text: 'Algun problema ocasional' },
+      { id: 'b', text: 'Algún problema ocasional' },
       { id: 'c', text: 'Generalmente bien' },
       { id: 'd', text: 'Piel sana, sin problemas' },
     ],
   },
   {
     id: 'h10',
-    text: '¿Con que frecuencia te enfermas (gripa, infecciones)?',
+    text: '¿Con qué frecuencia te enfermas (gripa, infecciones)?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'Mas de 4 veces al ano' },
-      { id: 'b', text: '2-4 veces al ano' },
-      { id: 'c', text: '1-2 veces al ano' },
+      { id: 'a', text: 'Más de 4 veces al año' },
+      { id: 'b', text: '2-4 veces al año' },
+      { id: 'c', text: '1-2 veces al año' },
       { id: 'd', text: 'Casi nunca' },
     ],
   },
@@ -178,9 +178,9 @@ export default function OnboardingHealthScreen() {
       // Generar texto de insight basado en issues detectados
       if (issues.length > 0) {
         const topIssues = issues.slice(0, 3).map(i => i.label.toLowerCase()).join(', ');
-        setInsightText(`ARGOS detecto senales de: ${topIssues}. Tus protocolos se ajustaran para abordar estas causas raiz de forma integrativa.`);
+        setInsightText(`ARGOS detectó señales de: ${topIssues}. Tus protocolos se ajustarán para abordar estas causas raíz de forma integrativa.`);
       } else {
-        setInsightText('Tus indicadores de salud funcional lucen bien. ARGOS optimizara tu plan para mantener y potenciar tu rendimiento.');
+        setInsightText('Tus indicadores de salud funcional lucen bien. ARGOS optimizará tu plan para mantener y potenciar tu rendimiento.');
       }
     } catch (e) {
       console.warn('Error saving health data:', e);
@@ -200,7 +200,7 @@ export default function OnboardingHealthScreen() {
       <InsightCard
         icon="pulse-outline"
         color="#ef4444"
-        title="Analisis funcional"
+        title="Análisis funcional"
         description={insightText}
         onContinue={handleContinue}
       />
@@ -218,7 +218,7 @@ export default function OnboardingHealthScreen() {
         <Animated.View entering={FadeInUp.duration(300)}>
           <EliteText style={styles.title}>Salud funcional</EliteText>
           <EliteText style={styles.subtitle}>
-            Preguntas que un medico funcional haria en tu primera consulta.
+            Preguntas que un médico funcional haría en tu primera consulta.
           </EliteText>
         </Animated.View>
 
@@ -237,7 +237,7 @@ export default function OnboardingHealthScreen() {
               style={styles.nextBtn}
             >
               <EliteText style={styles.nextBtnText}>
-                {currentQ < QUESTIONS.length - 1 ? 'Siguiente' : 'Ver analisis'}
+                {currentQ < QUESTIONS.length - 1 ? 'Siguiente' : 'Ver análisis'}
               </EliteText>
               <Ionicons name="arrow-forward" size={16} color="#000" />
             </AnimatedPressable>

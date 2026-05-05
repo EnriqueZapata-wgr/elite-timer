@@ -2651,7 +2651,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     if (plan?.protein_target && last14Scores.length >= 5) {
       const lowProtDays = last14Scores.filter(s => s.total_protein != null && s.total_protein < (plan.protein_target ?? 80) * 0.7);
       if (lowProtDays.length >= 5) {
-        patterns.push({ text: `Proteina baja en ${lowProtDays.length} de ${last14Scores.length} dias (< 70% del objetivo)`, type: 'error' });
+        patterns.push({ text: `Proteína baja en ${lowProtDays.length} de ${last14Scores.length} días (< 70% del objetivo)`, type: 'error' });
       }
     }
 
@@ -2662,13 +2662,13 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     });
     const missedMeals = last7Scores.filter(s => (s.meals_logged ?? 0) < (plan?.meals_per_day ?? 3) * 0.5);
     if (missedMeals.length >= 3) {
-      patterns.push({ text: `Comidas insuficientes en ${missedMeals.length} de los ultimos 7 dias`, type: 'warning' });
+      patterns.push({ text: `Comidas insuficientes en ${missedMeals.length} de los últimos 7 días`, type: 'warning' });
     }
 
     // Hidratación baja
     const lowWaterDays = last14Scores.filter(s => s.hydration_score != null && s.hydration_score < 50);
     if (lowWaterDays.length >= 3) {
-      patterns.push({ text: `Hidratacion baja en ${lowWaterDays.length} dias`, type: 'warning' });
+      patterns.push({ text: `Hidratación baja en ${lowWaterDays.length} días`, type: 'warning' });
     }
 
     // Red flags recurrentes
@@ -2678,14 +2678,14 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
     });
     Object.entries(flagCounts).forEach(([flag, count]) => {
       if (count >= 3) {
-        patterns.push({ text: `"${flag}" detectado ${count} veces en 14 dias`, type: 'error' });
+        patterns.push({ text: `"${flag}" detectado ${count} veces en 14 días`, type: 'error' });
       }
     });
 
     // Highlights positivos
     const goodDays = last14Scores.filter(s => (s.overall_score ?? 0) >= 75);
     if (goodDays.length >= 5) {
-      patterns.push({ text: `${goodDays.length} dias con score >= 75 — buena adherencia`, type: 'success' });
+      patterns.push({ text: `${goodDays.length} días con score >= 75 — buena adherencia`, type: 'success' });
     }
 
     return patterns;
@@ -3147,7 +3147,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
       )}
 
       {/* ═══ Row 5: Vista semanal (7-day grid) ═══ */}
-      <EliteText variant="caption" style={sectionLabelStyle}>ULTIMA SEMANA</EliteText>
+      <EliteText variant="caption" style={sectionLabelStyle}>ÚLTIMA SEMANA</EliteText>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.sm }}>
         {last7Days.map(day => {
           const ds = scores.find(s => s.date === day.date);

@@ -392,7 +392,7 @@ export default function LogExerciseScreen() {
 
       // Alerta de nuevo récord (se muestra antes del alert de guardado)
       setTimeout(() => {
-        Alert.alert('🏆 ¡NUEVO RECORD!', `1RM estimado: ${best1RM.toFixed(1)} kg`);
+        Alert.alert('🏆 ¡NUEVO RÉCORD!', `1RM estimado: ${best1RM.toFixed(1)} kg`);
       }, 500);
     }
   }

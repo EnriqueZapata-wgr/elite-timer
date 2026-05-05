@@ -140,9 +140,9 @@ export function detectIssues(flags: FunctionalFlags): { key: FunctionalIssue; la
     insulin_resistance: 'Posible resistencia a insulina',
     adrenal_fatigue: 'Fatiga adrenal',
     gut_dysbiosis: 'Disbiosis intestinal',
-    chronic_inflammation: 'Inflamacion cronica',
-    high_stress: 'Estres elevado',
-    sleep_disruption: 'Sueno interrumpido',
+    chronic_inflammation: 'Inflamación crónica',
+    high_stress: 'Estrés elevado',
+    sleep_disruption: 'Sueño interrumpido',
     hormonal_imbalance: 'Desbalance hormonal',
   };
 

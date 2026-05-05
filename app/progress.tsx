@@ -302,7 +302,7 @@ export default function ProgressScreen() {
             <View style={styles.emptyState}>
               <Ionicons name="trophy-outline" size={32} color={Colors.textSecondary} />
               <EliteText variant="caption" style={{ color: Colors.textSecondary, marginTop: Spacing.sm }}>
-                Aún no tienes records. ¡A entrenar!
+                Aún no tienes récords. ¡A entrenar!
               </EliteText>
             </View>
           ) : (

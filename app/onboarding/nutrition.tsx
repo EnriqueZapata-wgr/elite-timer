@@ -24,18 +24,18 @@ import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 const QUESTIONS: OnboardingQuestion[] = [
   {
     id: 'n1',
-    text: '¿Cuantas comidas/snacks haces al dia?',
+    text: '¿Cuántas comidas/snacks haces al día?',
     type: 'single_select',
     options: [
       { id: 'a', text: '1-2 comidas' },
       { id: 'b', text: '3 comidas' },
       { id: 'c', text: '3 comidas + snacks' },
-      { id: 'd', text: 'Picoteo todo el dia' },
+      { id: 'd', text: 'Picoteo todo el día' },
     ],
   },
   {
     id: 'n2',
-    text: '¿Que tipo de proteina comes mas?',
+    text: '¿Qué tipo de proteína comes más?',
     subtitle: 'Selecciona todas las que apliquen',
     type: 'multi_select',
     options: [
@@ -44,7 +44,7 @@ const QUESTIONS: OnboardingQuestion[] = [
       { id: 'fish', text: 'Pescado/mariscos' },
       { id: 'egg', text: 'Huevo' },
       { id: 'plant', text: 'Legumbres/tofu' },
-      { id: 'low', text: 'Poca proteina' },
+      { id: 'low', text: 'Poca proteína' },
     ],
   },
   {
@@ -54,10 +54,10 @@ const QUESTIONS: OnboardingQuestion[] = [
     type: 'multi_select',
     options: [
       { id: 'gluten', text: 'Gluten/trigo' },
-      { id: 'dairy', text: 'Lacteos' },
+      { id: 'dairy', text: 'Lácteos' },
       { id: 'seafood', text: 'Mariscos' },
       { id: 'none', text: 'Nada en particular' },
-      { id: 'unknown', text: 'No se, no he identificado' },
+      { id: 'unknown', text: 'No sé, no he identificado' },
     ],
   },
   {
@@ -65,7 +65,7 @@ const QUESTIONS: OnboardingQuestion[] = [
     text: '¿Practicas o has practicado ayuno intermitente?',
     type: 'single_select',
     options: [
-      { id: 'regular', text: 'Si, regularmente' },
+      { id: 'regular', text: 'Sí, regularmente' },
       { id: 'tried', text: 'Lo he probado' },
       { id: 'interested', text: 'Me interesa' },
       { id: 'not_interested', text: 'No me interesa' },
@@ -73,13 +73,13 @@ const QUESTIONS: OnboardingQuestion[] = [
   },
   {
     id: 'n5',
-    text: '¿Como describirias tu relacion con la comida?',
+    text: '¿Cómo describirías tu relación con la comida?',
     type: 'single_select',
     options: [
       { id: 'healthy', text: 'Saludable y consciente' },
       { id: 'ok', text: 'Como bien pero no me fijo' },
       { id: 'struggle', text: 'Lucho con antojos o comer emocional' },
-      { id: 'restrictive', text: 'Restricciones que me causan estres' },
+      { id: 'restrictive', text: 'Restricciones que me causan estrés' },
     ],
   },
 ];
@@ -148,8 +148,8 @@ export default function OnboardingNutritionScreen() {
       <InsightCard
         icon="nutrition-outline"
         color="#5B9BD5"
-        title="Nutricion mapeada"
-        description="Con esto, ARGOS ya sabe que recetas generarte, que alimentos evitar, y como estructurar tu ventana de alimentacion."
+        title="Nutrición mapeada"
+        description="Con esto, ARGOS ya sabe qué recetas generarte, qué alimentos evitar, y cómo estructurar tu ventana de alimentación."
         onContinue={handleContinue}
       />
     );
@@ -164,9 +164,9 @@ export default function OnboardingNutritionScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInUp.duration(300)}>
-          <EliteText style={styles.title}>Nutricion</EliteText>
+          <EliteText style={styles.title}>Nutrición</EliteText>
           <EliteText style={styles.subtitle}>
-            Conocer tus habitos alimenticios nos permite personalizar tu plan.
+            Conocer tus hábitos alimenticios nos permite personalizar tu plan.
           </EliteText>
         </Animated.View>
 

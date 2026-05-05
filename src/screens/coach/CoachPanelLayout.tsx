@@ -71,7 +71,7 @@ export function CoachPanelLayout({ onSwitchToAthlete }: Props) {
     }
 
     const sessionStr = item.sessions_this_month > 0
-      ? `${item.sessions_this_month} sesion${item.sessions_this_month !== 1 ? 'es' : ''}`
+      ? `${item.sessions_this_month} ${item.sessions_this_month !== 1 ? 'sesiones' : 'sesión'}`
       : 'Sin sesiones';
 
     if (!item.last_workout) return sessionStr;

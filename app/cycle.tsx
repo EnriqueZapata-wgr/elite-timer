@@ -56,7 +56,7 @@ const SYMPTOMS = [
   { key: 'energy', label: 'Energía', icon: 'flash-outline' },
   { key: 'mood', label: 'Ánimo', icon: 'happy-outline' },
   { key: 'appetite', label: 'Apetito', icon: 'restaurant-outline' },
-  { key: 'libido', label: 'Líbido', icon: 'heart-outline' },
+  { key: 'libido', label: 'Libido', icon: 'heart-outline' },
   { key: 'cramps', label: 'Cólicos', icon: 'medical-outline' },
   { key: 'bloating', label: 'Hinchazón', icon: 'water-outline' },
 ] as const;

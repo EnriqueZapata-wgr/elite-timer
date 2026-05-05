@@ -41,10 +41,10 @@ const SCHEDULES: Record<Chronotype, ChronoSchedule> = {
 };
 
 const CHRONO_META: Record<Chronotype, { emoji: string; name: string }> = {
-  lion:    { emoji: '\uD83E\uDD81', name: 'Leon' },
+  lion:    { emoji: '\uD83E\uDD81', name: 'Le\u00F3n' },
   bear:    { emoji: '\uD83D\uDC3B', name: 'Oso' },
   wolf:    { emoji: '\uD83D\uDC3A', name: 'Lobo' },
-  dolphin: { emoji: '\uD83D\uDC2C', name: 'Delfin' },
+  dolphin: { emoji: '\uD83D\uDC2C', name: 'Delf\u00EDn' },
 };
 
 // === SCORING ===
@@ -126,66 +126,66 @@ function computeChronotype(answers: Record<string, Answer>): Chronotype {
 const QUESTIONS: OnboardingQuestion[] = [
   {
     id: 'q1',
-    text: 'Sin alarma, ¿a que hora despertarias?',
+    text: 'Sin alarma, ¿a qué hora despertarías?',
     type: 'single_select',
     options: [
       { id: 'a', text: 'Antes de las 6' },
       { id: 'b', text: '6 a 7' },
       { id: 'c', text: '7 a 8:30' },
-      { id: 'd', text: 'Despues de las 8:30' },
+      { id: 'd', text: 'Después de las 8:30' },
     ],
   },
   {
     id: 'q2',
-    text: '¿Cuando es tu pico de energia mental?',
+    text: '¿Cuándo es tu pico de energía mental?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'Manana temprano (6-9)' },
-      { id: 'b', text: 'Media manana (9-1)' },
+      { id: 'a', text: 'Mañana temprano (6-9)' },
+      { id: 'b', text: 'Media mañana (9-1)' },
       { id: 'c', text: 'Tarde (2-6)' },
       { id: 'd', text: 'Noche (7-11)' },
     ],
   },
   {
     id: 'q3',
-    text: '¿Cuando preferirias entrenar?',
+    text: '¿Cuándo preferirías entrenar?',
     type: 'single_select',
     options: [
       { id: 'a', text: 'Amanecer (5-7)' },
-      { id: 'b', text: 'Manana (7-10)' },
+      { id: 'b', text: 'Mañana (7-10)' },
       { id: 'c', text: 'Tarde (4-7)' },
       { id: 'd', text: 'Me da igual' },
     ],
   },
   {
     id: 'q4',
-    text: '¿Como es tu sueno?',
+    text: '¿Cómo es tu sueño?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'Me duermo facil, despierto antes de alarma' },
+      { id: 'a', text: 'Me duermo fácil, despierto antes de alarma' },
       { id: 'b', text: 'Duermo bien, necesito alarma' },
       { id: 'c', text: 'Me cuesta dormirme y despertar' },
-      { id: 'd', text: 'Sueno ligero, despierto facil' },
+      { id: 'd', text: 'Sueño ligero, despierto fácil' },
     ],
   },
   {
     id: 'q5',
-    text: '¿Cuando te da hambre por primera vez?',
+    text: '¿Cuándo te da hambre por primera vez?',
     type: 'single_select',
     options: [
       { id: 'a', text: 'Al despertar' },
-      { id: 'b', text: '1-2 horas despues' },
-      { id: 'c', text: 'Hasta media manana' },
+      { id: 'b', text: '1-2 horas después' },
+      { id: 'c', text: 'Hasta media mañana' },
       { id: 'd', text: 'Impredecible' },
     ],
   },
   {
     id: 'q6',
-    text: 'Fin de semana libre, ¿que haces?',
+    text: 'Fin de semana libre, ¿qué haces?',
     type: 'single_select',
     options: [
       { id: 'a', text: 'Madrugo igual' },
-      { id: 'b', text: 'Dia balanceado' },
+      { id: 'b', text: 'Día balanceado' },
       { id: 'c', text: 'Duermo hasta tarde' },
       { id: 'd', text: 'Despierto temprano aunque no quiera' },
     ],
@@ -278,7 +278,7 @@ export default function OnboardingChronotypeScreen() {
         icon="moon-outline"
         color="#7c3aed"
         title={`${meta.emoji} Eres ${meta.name}`}
-        description={`ARGOS ajustara tu agenda: entrenamiento a las ${schedule.peak_physical}, pico mental ${schedule.peak_focus_start}-${schedule.peak_focus_end}.`}
+        description={`ARGOS ajustará tu agenda: entrenamiento a las ${schedule.peak_physical}, pico mental ${schedule.peak_focus_start}-${schedule.peak_focus_end}.`}
         onContinue={handleContinue}
       />
     );
@@ -295,7 +295,7 @@ export default function OnboardingChronotypeScreen() {
         <Animated.View entering={FadeInUp.duration(300)}>
           <EliteText style={styles.title}>Tu cronotipo</EliteText>
           <EliteText style={styles.subtitle}>
-            Descubre tu reloj biologico para optimizar entrenamiento, alimentacion y descanso.
+            Descubre tu reloj biológico para optimizar entrenamiento, alimentación y descanso.
           </EliteText>
         </Animated.View>
 

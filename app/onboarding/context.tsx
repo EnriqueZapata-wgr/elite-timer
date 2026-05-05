@@ -27,14 +27,14 @@ const timeLabelMap: Record<string, string> = {
   a: '15-30 min',
   b: '30-60 min',
   c: '1-2 horas',
-  d: 'mas de 2 horas',
+  d: 'más de 2 horas',
 };
 
 const equipmentLabelMap: Record<string, string> = {
   gym: 'gym completo',
   dumbbells: 'mancuernas',
   bodyweight: 'peso corporal',
-  bands: 'bandas elasticas',
+  bands: 'bandas elásticas',
   park: 'parque/barras',
 };
 
@@ -43,10 +43,10 @@ const equipmentLabelMap: Record<string, string> = {
 const QUESTIONS: OnboardingQuestion[] = [
   {
     id: 'c1',
-    text: '¿Cuantas horas al dia pasas sentado/a?',
+    text: '¿Cuántas horas al día pasas sentado/a?',
     type: 'single_select',
     options: [
-      { id: 'a', text: 'Mas de 10h' },
+      { id: 'a', text: 'Más de 10h' },
       { id: 'b', text: '6-10h' },
       { id: 'c', text: '3-6h' },
       { id: 'd', text: 'Menos de 3h' },
@@ -61,19 +61,19 @@ const QUESTIONS: OnboardingQuestion[] = [
       { id: 'gym', text: 'Gym completo' },
       { id: 'dumbbells', text: 'Mancuernas en casa' },
       { id: 'bodyweight', text: 'Solo mi cuerpo' },
-      { id: 'bands', text: 'Bandas elasticas' },
+      { id: 'bands', text: 'Bandas elásticas' },
       { id: 'park', text: 'Parque/barras' },
     ],
   },
   {
     id: 'c3',
-    text: '¿Cuanto tiempo puedes dedicar a tu salud diariamente?',
+    text: '¿Cuánto tiempo puedes dedicar a tu salud diariamente?',
     type: 'single_select',
     options: [
       { id: 'a', text: '15-30 min' },
       { id: 'b', text: '30-60 min' },
       { id: 'c', text: '1-2 horas' },
-      { id: 'd', text: 'Mas de 2 horas' },
+      { id: 'd', text: 'Más de 2 horas' },
     ],
   },
 ];
@@ -135,7 +135,7 @@ export default function OnboardingContextScreen() {
         : 'lo que tengas disponible';
 
       setInsightText(
-        `Perfecto. ARGOS adaptara la intensidad y duracion de tus rutinas a tu realidad: ${timeLabel} con ${equipText}.`
+        `Perfecto. ARGOS adaptará la intensidad y duración de tus rutinas a tu realidad: ${timeLabel} con ${equipText}.`
       );
     } catch (e) {
       console.warn('Error saving context data:', e);
