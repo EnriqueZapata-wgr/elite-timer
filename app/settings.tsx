@@ -16,7 +16,7 @@ import { useSettings, type VoiceLanguage, type SoundStyle } from '@/src/contexts
 import { useAuth } from '@/src/contexts/auth-context';
 import { speak } from '@/src/utils/speech';
 import { playBeep, initAudio, setSoundStyle } from '@/src/utils/sounds';
-import { vibrateMedium } from '@/src/utils/haptics';
+import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import {
   generateCoachCode,
   connectToCoach,
@@ -245,7 +245,7 @@ export default function SettingsScreen() {
           <SectionLabel>MI PROTOCOLO</SectionLabel>
 
           {/* Cronotipo pill */}
-          <Pressable onPress={() => router.push('/quiz/chronotype' as any)} style={styles.settingRow}>
+          <Pressable onPress={() => { haptic.medium(); router.push('/quiz/chronotype' as any); }} style={styles.settingRow}>
             <View style={styles.settingRowLeft}>
               <Ionicons name="sunny-outline" size={20} color={CATEGORY_COLORS.optimization} />
               <View>
@@ -257,7 +257,7 @@ export default function SettingsScreen() {
           </Pressable>
 
           {/* Protocolos activos */}
-          <Pressable onPress={() => router.push('/protocol-explorer' as any)} style={styles.settingRow}>
+          <Pressable onPress={() => { haptic.medium(); router.push('/protocol-explorer' as any); }} style={styles.settingRow}>
             <View style={styles.settingRowLeft}>
               <Ionicons name="flask-outline" size={20} color={CATEGORY_COLORS.metrics} />
               <View>
@@ -421,7 +421,7 @@ export default function SettingsScreen() {
             label="Voz del timer"
             description="Anuncia ejercicios y rondas"
             value={settings.voiceEnabled}
-            onValueChange={v => updateSetting('voiceEnabled', v)}
+            onValueChange={v => { haptic.light(); updateSetting('voiceEnabled', v); }}
           />
 
           {settings.voiceEnabled && (
@@ -444,7 +444,7 @@ export default function SettingsScreen() {
             label="Cuenta regresiva hablada"
             description='"3, 2, 1" al final de cada paso'
             value={settings.countdownSpoken}
-            onValueChange={v => updateSetting('countdownSpoken', v)}
+            onValueChange={v => { haptic.light(); updateSetting('countdownSpoken', v); }}
           />
 
           <Divider />
@@ -458,7 +458,7 @@ export default function SettingsScreen() {
             label="Sonidos de transición"
             description="Beep al cambiar de paso"
             value={settings.soundsEnabled}
-            onValueChange={v => updateSetting('soundsEnabled', v)}
+            onValueChange={v => { haptic.light(); updateSetting('soundsEnabled', v); }}
           />
 
           {settings.soundsEnabled && (
@@ -503,7 +503,7 @@ export default function SettingsScreen() {
             label="Vibración"
             description="Al cambiar de paso y cuenta regresiva"
             value={settings.vibrationEnabled}
-            onValueChange={v => updateSetting('vibrationEnabled', v)}
+            onValueChange={v => { haptic.light(); updateSetting('vibrationEnabled', v); }}
           />
 
           <Divider />
@@ -517,7 +517,7 @@ export default function SettingsScreen() {
             label="Mantener pantalla encendida"
             description="Mientras el timer corre"
             value={settings.keepAwake}
-            onValueChange={v => updateSetting('keepAwake', v)}
+            onValueChange={v => { haptic.light(); updateSetting('keepAwake', v); }}
           />
 
           <Divider />
@@ -588,6 +588,7 @@ export default function SettingsScreen() {
           <SectionLabel color={Colors.error}>CUENTA</SectionLabel>
           <Pressable
             onPress={() => {
+              haptic.heavy();
               if (typeof window !== 'undefined' && window.confirm) {
                 if (!window.confirm('¿Seguro que quieres cerrar sesión?')) return;
                 signOut().then(() => router.replace('/login'));
@@ -605,6 +606,7 @@ export default function SettingsScreen() {
           </Pressable>
           <Pressable
             onPress={() => {
+              haptic.heavy();
               Alert.alert(
                 'Eliminar cuenta',
                 '¿Estás seguro? Esta acción es irreversible. Se borrarán todos tus datos.',

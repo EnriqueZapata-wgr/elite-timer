@@ -17,6 +17,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
 import { EliteText } from '@/components/elite-text';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
@@ -178,6 +179,7 @@ export default function BuilderScreen() {
   // --- Guardar ---
 
   const handleSave = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (!routine.name.trim()) {
       Alert.alert('Nombre requerido', 'Escribe un nombre para la rutina.');
       return;

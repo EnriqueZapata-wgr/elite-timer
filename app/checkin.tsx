@@ -17,7 +17,7 @@ import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } 
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { supabase } from '@/src/lib/supabase';
-import { vibrateMedium } from '@/src/utils/haptics';
+import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
@@ -58,6 +58,7 @@ export default function CheckinScreen() {
   };
 
   const toggleEmotion = (id: string) => {
+    haptic.light();
     setSelectedEmotions(prev => {
       if (prev.includes(id)) return prev.filter(e => e !== id);
       if (prev.length >= 2) return [prev[1], id];
@@ -67,6 +68,7 @@ export default function CheckinScreen() {
 
   const handleSave = async () => {
     if (!quadrant || selectedEmotions.length === 0) return;
+    haptic.heavy();
     setSaving(true);
     try {
       await saveCheckin({
@@ -109,7 +111,7 @@ export default function CheckinScreen() {
           <EliteText variant="caption" style={styles.doneSub}>
             {selectedEmotions.map(id => EMOTIONS.find(e => e.id === id)?.label).join(' · ')}
           </EliteText>
-          <Pressable onPress={() => router.back()} style={[styles.doneBtn, { borderColor: qColor + '40' }]}>
+          <Pressable onPress={() => { haptic.medium(); router.back(); }} style={[styles.doneBtn, { borderColor: qColor + '40' }]}>
             <EliteText variant="body" style={[styles.doneBtnText, { color: qColor }]}>Volver</EliteText>
           </Pressable>
         </Animated.View>
@@ -285,7 +287,7 @@ export default function CheckinScreen() {
             )}
 
             {selectedEmotions.length > 0 && !tooltip && (
-              <Pressable onPress={() => setStep(3)} style={[styles.nextBtn, { backgroundColor: qColor }]}>
+              <Pressable onPress={() => { haptic.medium(); setStep(3); }} style={[styles.nextBtn, { backgroundColor: qColor }]}>
                 <EliteText style={styles.nextBtnText}>Siguiente</EliteText>
               </Pressable>
             )}
@@ -311,9 +313,9 @@ export default function CheckinScreen() {
               })}
             </View>
 
-            <ContextSection label="¿Dónde estás?" items={CONTEXT_WHERE} selected={ctxWhere} onSelect={v => setCtxWhere(ctxWhere === v ? null : v)} color={qColor} />
-            <ContextSection label="¿Con quién?" items={CONTEXT_WHO} selected={ctxWho} onSelect={v => setCtxWho(ctxWho === v ? null : v)} color={qColor} />
-            <ContextSection label="¿Qué estás haciendo?" items={CONTEXT_DOING} selected={ctxDoing} onSelect={v => setCtxDoing(ctxDoing === v ? null : v)} color={qColor} />
+            <ContextSection label="¿Dónde estás?" items={CONTEXT_WHERE} selected={ctxWhere} onSelect={v => { haptic.light(); setCtxWhere(ctxWhere === v ? null : v); }} color={qColor} />
+            <ContextSection label="¿Con quién?" items={CONTEXT_WHO} selected={ctxWho} onSelect={v => { haptic.light(); setCtxWho(ctxWho === v ? null : v); }} color={qColor} />
+            <ContextSection label="¿Qué estás haciendo?" items={CONTEXT_DOING} selected={ctxDoing} onSelect={v => { haptic.light(); setCtxDoing(ctxDoing === v ? null : v); }} color={qColor} />
 
             <TextInput
               style={styles.noteInput}

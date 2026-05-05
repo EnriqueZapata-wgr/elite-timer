@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useKeepAwake } from 'expo-keep-awake';
+import * as Haptics from 'expo-haptics';
 
 import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
@@ -332,7 +333,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
           </Pressable>
 
           <Pressable
-            onPress={engineState === 'running' ? pause : play}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); engineState === 'running' ? pause() : play(); }}
             style={({ pressed }) => [styles.controlPrimary, pressed && styles.controlPressed, {
               shadowColor: Colors.neonGreen,
               shadowOffset: { width: 0, height: 4 },
@@ -348,7 +349,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
           </Pressable>
 
           <Pressable
-            onPress={skip}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); skip(); }}
             style={({ pressed }) => [styles.controlSecondary, pressed && styles.controlPressed]}
             disabled={engineState === 'idle'}
           >

@@ -18,6 +18,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getShareInfo, cloneFromShare, type ShareInfo } from '@/src/services/share-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
+import { haptic } from '@/src/utils/haptics';
 
 export default function SharedRoutineScreen() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export default function SharedRoutineScreen() {
   }, [code]);
 
   const handleClone = async () => {
+    haptic.heavy();
     if (!code) return;
     setCloning(true);
     try {
@@ -59,6 +61,7 @@ export default function SharedRoutineScreen() {
   };
 
   const handleGoToLibrary = () => {
+    haptic.medium();
     router.replace('/(tabs)/biblioteca' as any);
   };
 

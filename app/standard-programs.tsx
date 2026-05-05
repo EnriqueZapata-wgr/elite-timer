@@ -17,6 +17,7 @@ import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
 import { saveRoutine, generateUUID as generateId } from '@/src/services/routine-service';
 import { Colors, Spacing, Radius } from '@/constants/theme';
 import type { Routine as EngineRoutine } from '@/src/engine/types';
+import { haptic } from '@/src/utils/haptics';
 
 export default function StandardProgramsScreen() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function StandardProgramsScreen() {
 
   /** Ejecutar un programa estándar directamente */
   const handlePlay = (routineId: string) => {
+    haptic.medium();
     const routine = STANDARD_ROUTINES[routineId];
     if (!routine) return;
     const engineRoutine = convertLegacyRoutine(routine);
@@ -41,6 +43,7 @@ export default function StandardProgramsScreen() {
 
   /** Clonar un programa estándar y abrir en el builder */
   const handleClone = async (routineId: string) => {
+    haptic.heavy();
     const routine = STANDARD_ROUTINES[routineId];
     if (!routine) return;
     const engineRoutine = convertLegacyRoutine(routine);

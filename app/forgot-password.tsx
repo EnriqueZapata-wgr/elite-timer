@@ -13,6 +13,7 @@ import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Colors, Spacing } from '@/constants/theme';
+import { haptic } from '@/src/utils/haptics';
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function ForgotPasswordScreen() {
 
   const handleReset = async () => {
     if (!email.trim()) {
+      haptic.error();
       setError('Ingresa tu email');
       return;
     }
@@ -35,8 +37,10 @@ export default function ForgotPasswordScreen() {
     setLoading(false);
 
     if (result.error) {
+      haptic.error();
       setError(result.error);
     } else {
+      haptic.success();
       setSent(true);
     }
   };

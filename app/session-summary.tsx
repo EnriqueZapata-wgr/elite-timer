@@ -9,6 +9,7 @@ import { BlockBadge } from '@/components/block-badge';
 import { Colors, Spacing } from '@/constants/theme';
 import { convertLegacyRoutine } from '@/src/engine/convertLegacy';
 import type { Session } from '@/types/models';
+import { haptic } from '@/src/utils/haptics';
 
 /**
  * Pantalla Resumen de Sesión — Post-entrenamiento.
@@ -33,7 +34,7 @@ export default function SessionSummaryScreen() {
         <StatusBar style="light" />
         <ScreenHeader title="Resumen" />
         <EliteText variant="title">SIN DATOS</EliteText>
-        <EliteButton label="VOLVER" onPress={() => router.replace('/(tabs)')} />
+        <EliteButton label="VOLVER" onPress={() => { haptic.medium(); router.replace('/(tabs)'); }} />
       </View>
     );
   }
@@ -126,12 +127,13 @@ export default function SessionSummaryScreen() {
       <View style={styles.footer}>
         <EliteButton
           label="VOLVER AL INICIO"
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => { haptic.success(); router.replace('/(tabs)'); }}
         />
         <EliteButton
           label="REPETIR"
           variant="outline"
           onPress={() => {
+            haptic.medium();
             const engineRoutine = convertLegacyRoutine(session!.routineSnapshot);
             router.replace({
               pathname: '/execution',

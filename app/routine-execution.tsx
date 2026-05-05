@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useKeepAwake } from 'expo-keep-awake';
+import * as Haptics from 'expo-haptics';
 
 import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
@@ -91,11 +92,13 @@ function RoutineContent({ routine }: { routine: Routine }) {
   }, [rm.currentExercise?.exerciseId]);
 
   const handleCompleteSet = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await rm.completeSet(reps, weight, rpe, rir);
     setRir(null);
   }, [rm, reps, weight, rpe, rir]);
 
   const handleStartWorking = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setReps(10);
     setRpe(null);
     lastWeightLoaded.current = null;
