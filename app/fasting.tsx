@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../src/lib/supabase';
 import { getLocalToday } from '../src/utils/date-helpers';
 import { awardBooleanElectron } from '../src/services/electron-service';
@@ -83,6 +84,18 @@ export default function FastingScreen() {
   const [elapsed, setElapsed] = useState(0); // minutos
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Custom start/end time pickers
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [customStartTime, setCustomStartTime] = useState(new Date());
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [customEndTime, setCustomEndTime] = useState(new Date());
+
+  // Registro de ayuno pasado
+  const [showPastFast, setShowPastFast] = useState(false);
+  const [pastStart, setPastStart] = useState(new Date(Date.now() - 16 * 60 * 60 * 1000));
+  const [pastEnd, setPastEnd] = useState(new Date());
+  const [pastPickerMode, setPastPickerMode] = useState<'start' | 'end'>('start');
+
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -145,11 +158,11 @@ export default function FastingScreen() {
     if (!userId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    const now = new Date();
+    const startTime = showStartPicker ? customStartTime : new Date();
     const dateStr = getLocalToday();
     const { data, error } = await supabase.from('fasting_logs').insert({
       user_id: userId,
-      fast_start: now.toISOString(),
+      fast_start: startTime.toISOString(),
       target_hours: selectedProtocol.hours,
       status: 'active',
       date: dateStr,
@@ -157,18 +170,26 @@ export default function FastingScreen() {
 
     if (!error && data) {
       setActiveFast(data);
+      setShowStartPicker(false);
       DeviceEventEmitter.emit('day_changed');
     }
   }
 
-  async function breakFast() {
+  async function breakFastWithTime(endTime: Date) {
     if (!activeFast) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    const actualHours = elapsed / 60;
+    const start = new Date(activeFast.fast_start);
+    const actualHours = (endTime.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+    if (actualHours <= 0) {
+      Alert.alert('Error', 'La hora de fin debe ser después del inicio.');
+      return;
+    }
 
     await supabase.from('fasting_logs').update({
       actual_hours: Math.round(actualHours * 10) / 10,
+      fast_end: endTime.toISOString(),
       status: 'completed',
     }).eq('id', activeFast.id);
 
@@ -181,10 +202,63 @@ export default function FastingScreen() {
       }
     } catch { /* opcional */ }
 
+    const zone = getCurrentZone(actualHours);
+    const durationMinutes = actualHours * 60;
+    Alert.alert(
+      '¡Ayuno completado!',
+      `Duraste ${formatDuration(durationMinutes)} · Alcanzaste: ${zone.label}`,
+    );
+
     setActiveFast(null);
     setElapsed(0);
+    setShowEndPicker(false);
     loadHistory();
     DeviceEventEmitter.emit('day_changed');
+  }
+
+  function handleBreakFast() {
+    Alert.alert(
+      'Romper ayuno',
+      `Has ayunado ${formatDuration(elapsed)}`,
+      [
+        { text: 'Seguir ayunando', style: 'cancel' },
+        { text: 'Terminé ahora', onPress: () => breakFastWithTime(new Date()) },
+        { text: 'Elegir hora', onPress: () => { setCustomEndTime(new Date()); setShowEndPicker(true); } },
+      ],
+    );
+  }
+
+  async function savePastFast() {
+    const hours = (pastEnd.getTime() - pastStart.getTime()) / (1000 * 60 * 60);
+    if (hours <= 0) {
+      Alert.alert('Error', 'El fin debe ser después del inicio.');
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    await supabase.from('fasting_logs').insert({
+      user_id: userId,
+      fast_start: pastStart.toISOString(),
+      fast_end: pastEnd.toISOString(),
+      actual_hours: Math.round(hours * 10) / 10,
+      target_hours: selectedProtocol.hours,
+      status: 'completed',
+      date: pastStart.toISOString().split('T')[0],
+    });
+
+    // Electrón por tier
+    try {
+      const tier = getFastingTier(hours);
+      if (tier) {
+        await awardBooleanElectron(userId, tier);
+        DeviceEventEmitter.emit('electrons_changed');
+      }
+    } catch { /* opcional */ }
+
+    setShowPastFast(false);
+    loadHistory();
+    DeviceEventEmitter.emit('day_changed');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
   async function cancelFast() {
@@ -312,6 +386,95 @@ export default function FastingScreen() {
           <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 8 }}>
             Mantén presionado para eliminar
           </Text>
+
+          {/* Registrar ayuno pasado */}
+          <Pressable
+            onPress={() => { setPastStart(new Date(Date.now() - 16 * 60 * 60 * 1000)); setPastEnd(new Date()); setPastPickerMode('start'); setShowPastFast(true); }}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, marginTop: 12 }}
+          >
+            <Ionicons name="add-circle-outline" size={18} color="#a8e02a" />
+            <Text style={{ color: '#a8e02a', fontSize: 13, fontWeight: '600' }}>Registrar ayuno pasado</Text>
+          </Pressable>
+
+          {showPastFast && (
+            <View style={{
+              backgroundColor: '#0a0a0a', borderRadius: 20, padding: 20, marginTop: 16,
+              borderWidth: 1, borderColor: 'rgba(168,224,42,0.15)',
+            }}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 16 }}>
+                Registrar ayuno pasado
+              </Text>
+
+              {/* Toggle start/end */}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <Pressable
+                  onPress={() => setPastPickerMode('start')}
+                  style={{
+                    flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
+                    backgroundColor: pastPickerMode === 'start' ? 'rgba(168,224,42,0.15)' : '#111',
+                    borderWidth: 1, borderColor: pastPickerMode === 'start' ? '#a8e02a' : '#1a1a1a',
+                  }}
+                >
+                  <Text style={{ color: pastPickerMode === 'start' ? '#a8e02a' : '#666', fontSize: 11, fontWeight: '700' }}>INICIO</Text>
+                  <Text style={{ color: pastPickerMode === 'start' ? '#fff' : '#999', fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                    {pastStart.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} {formatTime(pastStart)}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setPastPickerMode('end')}
+                  style={{
+                    flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
+                    backgroundColor: pastPickerMode === 'end' ? 'rgba(168,224,42,0.15)' : '#111',
+                    borderWidth: 1, borderColor: pastPickerMode === 'end' ? '#a8e02a' : '#1a1a1a',
+                  }}
+                >
+                  <Text style={{ color: pastPickerMode === 'end' ? '#a8e02a' : '#666', fontSize: 11, fontWeight: '700' }}>FIN</Text>
+                  <Text style={{ color: pastPickerMode === 'end' ? '#fff' : '#999', fontSize: 14, fontWeight: '600', marginTop: 4 }}>
+                    {pastEnd.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} {formatTime(pastEnd)}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <DateTimePicker
+                value={pastPickerMode === 'start' ? pastStart : pastEnd}
+                mode="datetime"
+                display="spinner"
+                onChange={(_, date) => {
+                  if (date) {
+                    if (pastPickerMode === 'start') setPastStart(date);
+                    else setPastEnd(date);
+                  }
+                }}
+                maximumDate={new Date()}
+                themeVariant="dark"
+                textColor="#fff"
+                style={{ height: 150 }}
+              />
+
+              {/* Duración calculada */}
+              <View style={{ alignItems: 'center', marginVertical: 12 }}>
+                <Text style={{ color: '#999', fontSize: 11 }}>Duración:</Text>
+                <Text style={{ color: '#a8e02a', fontSize: 22, fontWeight: '800' }}>
+                  {formatDuration((pastEnd.getTime() - pastStart.getTime()) / (1000 * 60))}
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <Pressable
+                  onPress={() => setShowPastFast(false)}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: '#111', borderWidth: 1, borderColor: '#1a1a1a' }}
+                >
+                  <Text style={{ color: '#999', fontSize: 14 }}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={savePastFast}
+                  style={{ flex: 1, backgroundColor: '#a8e02a', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>GUARDAR</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
         </View>
 
       ) : activeFast ? (
@@ -389,6 +552,43 @@ export default function FastingScreen() {
             </View>
           )}
 
+          {/* Checklist de zonas */}
+          <View style={{ width: '100%', marginBottom: 16 }}>
+            <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
+              PROGRESO POR ZONAS
+            </Text>
+            {FASTING_ZONES.filter(z => z.hours > 0 && z.hours <= selectedProtocol.hours).map(zone => {
+              const reached = elapsedHours >= zone.hours;
+              const isCurrent = zone === currentZone;
+              return (
+                <View key={zone.hours} style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 10,
+                  paddingVertical: 6, paddingHorizontal: 4,
+                  opacity: reached ? 1 : 0.4,
+                }}>
+                  <View style={{
+                    width: 24, height: 24, borderRadius: 12,
+                    backgroundColor: reached ? `${zone.color}20` : '#1a1a1a',
+                    justifyContent: 'center', alignItems: 'center',
+                    borderWidth: isCurrent ? 2 : 0, borderColor: zone.color,
+                  }}>
+                    {reached ? (
+                      <Ionicons name="checkmark" size={14} color={zone.color} />
+                    ) : (
+                      <Text style={{ color: '#444', fontSize: 9, fontWeight: '700' }}>{zone.hours}h</Text>
+                    )}
+                  </View>
+                  <Text style={{ color: reached ? '#fff' : '#555', fontSize: 12, fontWeight: isCurrent ? '700' : '500', flex: 1 }}>
+                    {zone.label}
+                  </Text>
+                  {isCurrent && (
+                    <Text style={{ color: zone.color, fontSize: 9, fontWeight: '800' }}>AQUÍ</Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+
           {/* Hora de inicio */}
           <Text style={{ color: '#666', fontSize: 12, marginBottom: 20 }}>
             Iniciaste a las {formatTime(new Date(activeFast.fast_start))}
@@ -396,16 +596,7 @@ export default function FastingScreen() {
 
           {/* Botones */}
           <Pressable
-            onPress={() => {
-              Alert.alert(
-                'Romper ayuno',
-                `Has ayunado ${formatDuration(elapsed)}. ¿Registrar y terminar?`,
-                [
-                  { text: 'Seguir ayunando', style: 'cancel' },
-                  { text: 'Romper ayuno', onPress: breakFast },
-                ]
-              );
-            }}
+            onPress={handleBreakFast}
             style={{
               backgroundColor: '#a8e02a', borderRadius: 18, paddingVertical: 18,
               width: '100%', alignItems: 'center', marginBottom: 12,
@@ -413,6 +604,43 @@ export default function FastingScreen() {
           >
             <Text style={{ color: '#000', fontSize: 18, fontWeight: '800' }}>ROMPER AYUNO</Text>
           </Pressable>
+
+          {/* Picker de hora de fin */}
+          {showEndPicker && (
+            <View style={{
+              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 12, width: '100%',
+              borderWidth: 1, borderColor: 'rgba(168,224,42,0.15)',
+            }}>
+              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
+                ¿CUÁNDO TERMINASTE?
+              </Text>
+              <DateTimePicker
+                value={customEndTime}
+                mode="datetime"
+                display="spinner"
+                onChange={(_, date) => { if (date) setCustomEndTime(date); }}
+                minimumDate={new Date(activeFast.fast_start)}
+                maximumDate={new Date()}
+                themeVariant="dark"
+                textColor="#fff"
+                style={{ height: 150 }}
+              />
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
+                <Pressable
+                  onPress={() => setShowEndPicker(false)}
+                  style={{ flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: '#111', borderWidth: 1, borderColor: '#1a1a1a' }}
+                >
+                  <Text style={{ color: '#999', fontSize: 14 }}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => breakFastWithTime(customEndTime)}
+                  style={{ flex: 1, backgroundColor: '#a8e02a', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>CONFIRMAR</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           <Pressable onPress={cancelFast}>
             <Text style={{ color: '#666', fontSize: 13 }}>Cancelar y eliminar</Text>
@@ -542,6 +770,40 @@ export default function FastingScreen() {
               INICIAR AYUNO
             </Text>
           </Pressable>
+
+          {/* ¿Empezaste antes? */}
+          <Pressable
+            onPress={() => { setCustomStartTime(new Date()); setShowStartPicker(!showStartPicker); }}
+            style={{ alignItems: 'center', marginTop: 12 }}
+          >
+            <Text style={{ color: '#666', fontSize: 13 }}>
+              {showStartPicker ? 'Usar hora actual' : '¿Empezaste antes? Elige la hora'}
+            </Text>
+          </Pressable>
+
+          {showStartPicker && (
+            <View style={{
+              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginTop: 12, width: '100%',
+              borderWidth: 1, borderColor: `${selectedProtocol.color}15`,
+            }}>
+              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
+                ¿CUÁNDO EMPEZASTE?
+              </Text>
+              <DateTimePicker
+                value={customStartTime}
+                mode="datetime"
+                display="spinner"
+                onChange={(_, date) => { if (date) setCustomStartTime(date); }}
+                maximumDate={new Date()}
+                themeVariant="dark"
+                textColor="#fff"
+                style={{ height: 150 }}
+              />
+              <Text style={{ color: selectedProtocol.color, fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>
+                Hace {formatDuration((Date.now() - customStartTime.getTime()) / (1000 * 60))}
+              </Text>
+            </View>
+          )}
 
           {/* Historial rápido */}
           {history.length > 0 && (

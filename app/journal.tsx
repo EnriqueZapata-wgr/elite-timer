@@ -145,6 +145,22 @@ export default function JournalScreen() {
     }
   }
 
+  function deleteEntry(id: string) {
+    Alert.alert('Eliminar entrada', '¿Eliminar esta entrada del diario?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          await supabase.from('journal_entries').delete().eq('id', id);
+          haptic.success();
+          loadEntries();
+          DeviceEventEmitter.emit('day_changed');
+        },
+      },
+    ]);
+  }
+
   // Resetear todo el formulario
   function resetForm() {
     setGratPersonal(['', '', '']); setGratProfessional(['', '', '']); setGratSelf(['', '', '']);
@@ -347,18 +363,23 @@ export default function JournalScreen() {
               const preview = entry.content?.slice(0, 80) || '';
               return (
                 <StaggerItem key={entry.id ?? idx} index={idx}>
-                  <View style={s.entryCard}>
-                    <View style={s.entryHeader}>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>{dateStr}</EliteText>
-                      <View style={[s.typeBadge, { backgroundColor: withOpacity(typeColor, 0.12) }]}>
-                        <EliteText variant="caption" style={{ color: typeColor, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{typeLabel}</EliteText>
+                  <Pressable onLongPress={() => deleteEntry(entry.id)}>
+                    <View style={s.entryCard}>
+                      <View style={s.entryHeader}>
+                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>{dateStr}</EliteText>
+                        <View style={[s.typeBadge, { backgroundColor: withOpacity(typeColor, 0.12) }]}>
+                          <EliteText variant="caption" style={{ color: typeColor, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{typeLabel}</EliteText>
+                        </View>
                       </View>
+                      <EliteText variant="caption" numberOfLines={2} style={s.entryPreview}>{preview}</EliteText>
                     </View>
-                    <EliteText variant="caption" numberOfLines={2} style={s.entryPreview}>{preview}</EliteText>
-                  </View>
+                  </Pressable>
                 </StaggerItem>
               );
             })}
+            <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 8 }}>
+              Mantén presionado para eliminar
+            </EliteText>
           </View>
         )}
 

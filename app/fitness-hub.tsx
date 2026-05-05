@@ -45,9 +45,11 @@ const SECTIONS = [
 export default function FitnessHubScreen() {
   const router = useRouter();
   const [stats, setStats] = useState({ sessions: 0, volume: 0, prs: 0 });
+  const [dynamicSubs, setDynamicSubs] = useState<Record<string, string>>({});
 
   useFocusEffect(useCallback(() => {
     loadWeekStats();
+    loadDynamicSubtitles();
   }, []));
 
   async function loadWeekStats() {
@@ -73,6 +75,21 @@ export default function FitnessHubScreen() {
         .gte('date', weekAgo);
 
       setStats({ sessions: uniqueDays, volume: Math.round(totalVolume), prs: prs?.length || 0 });
+    } catch { /* opcional */ }
+  }
+
+  async function loadDynamicSubtitles() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: prs } = await supabase.from('personal_records').select('id').eq('user_id', user.id);
+      const { data: routines } = await supabase.from('routines').select('id').eq('user_id', user.id);
+
+      setDynamicSubs({
+        'Mi Fitness': `${prs?.length || 0} récords personales registrados`,
+        'Entrenar': `${routines?.length || 0} rutinas creadas`,
+      });
     } catch { /* opcional */ }
   }
 
@@ -120,6 +137,9 @@ export default function FitnessHubScreen() {
                     <Ionicons name="chevron-forward" size={20} color={TEXT_COLORS.muted} />
                   </View>
                   <EliteText style={s.sectionSub}>{section.subtitle}</EliteText>
+                  {dynamicSubs[section.name] && (
+                    <EliteText style={s.sectionDynamic}>{dynamicSubs[section.name]}</EliteText>
+                  )}
                 </View>
               </AnimatedPressable>
             </Animated.View>
@@ -164,5 +184,8 @@ const s = StyleSheet.create({
   },
   sectionSub: {
     color: '#999', fontSize: 13, lineHeight: 20,
+  },
+  sectionDynamic: {
+    color: '#a8e02a', fontSize: 11, fontFamily: Fonts.semiBold, marginTop: 6,
   },
 });

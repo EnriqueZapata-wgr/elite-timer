@@ -17,6 +17,7 @@ import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { ALL_FUNCTIONAL_QUIZZES } from '@/src/constants/functional-quizzes';
+import { getAvailableQuizzes, type QuizData } from '@/src/services/quiz-engine-service';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
@@ -28,9 +29,12 @@ export default function QuizzesScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const [functionalCompletedMap, setFunctionalCompletedMap] = useState<Record<string, string>>({});
+  const [dbQuizzes, setDbQuizzes] = useState<QuizData[]>([]);
+  const [dbCompletedMap, setDbCompletedMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadCompletionStatus();
+    loadDbQuizzes();
   }, []);
 
   const loadCompletionStatus = async () => {
@@ -52,6 +56,27 @@ export default function QuizzesScreen() {
         setFunctionalCompletedMap(completed);
       }
     } catch { /* silenciar */ }
+  };
+
+  const loadDbQuizzes = async () => {
+    try {
+      const quizzes = await getAvailableQuizzes();
+      setDbQuizzes(quizzes);
+      if (!user?.id || quizzes.length === 0) return;
+      const { data } = await supabase
+        .from('quiz_responses')
+        .select('quiz_id, completed_at')
+        .eq('user_id', user.id)
+        .eq('is_complete', true)
+        .order('completed_at', { ascending: false });
+      if (data) {
+        const completed: Record<string, string> = {};
+        for (const r of data) {
+          if (!completed[r.quiz_id] && r.completed_at) completed[r.quiz_id] = r.completed_at;
+        }
+        setDbCompletedMap(completed);
+      }
+    } catch { /* DB quizzes son opcionales */ }
   };
 
   const formatDate = (dateStr: string): string => {
@@ -146,6 +171,55 @@ export default function QuizzesScreen() {
             );
           })}
         </View>
+
+        {/* ── Quizzes Diagnósticos (DB) ── */}
+        {dbQuizzes.length > 0 && (
+          <View style={s.listSection}>
+            <EliteText variant="caption" style={s.sectionLabel}>
+              EVALUACIONES DIAGNÓSTICAS
+            </EliteText>
+
+            {dbQuizzes.map((q, idx) => {
+              const isCompleted = !!dbCompletedMap[q.quiz_id];
+              return (
+                <StaggerItem key={q.quiz_id} index={idx}>
+                  <GradientCard
+                    color="#1D9E75"
+                    onPress={() => {
+                      haptic.light();
+                      router.push({ pathname: '/quiz-take' as any, params: { quiz_id: q.quiz_id } });
+                    }}
+                    style={s.quizCard}
+                  >
+                    <View style={s.quizCardContent}>
+                      <View style={[s.quizIconWrap, { backgroundColor: withOpacity('#1D9E75', 0.15) }]}>
+                        <Ionicons name="clipboard-outline" size={22} color="#1D9E75" />
+                      </View>
+                      <View style={s.quizInfo}>
+                        <EliteText style={s.quizName}>{q.name}</EliteText>
+                        <View style={s.quizMeta}>
+                          <EliteText variant="caption" style={s.metaText}>
+                            ~{q.estimated_time_min || 10} min
+                          </EliteText>
+                        </View>
+                      </View>
+                      {isCompleted ? (
+                        <View style={s.completedBadge}>
+                          <Ionicons name="checkmark-circle" size={18} color="#1D9E75" />
+                          <EliteText variant="caption" style={[s.completedDate, { color: '#1D9E75' }]}>
+                            {formatDate(dbCompletedMap[q.quiz_id])}
+                          </EliteText>
+                        </View>
+                      ) : (
+                        <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />
+                      )}
+                    </View>
+                  </GradientCard>
+                </StaggerItem>
+              );
+            })}
+          </View>
+        )}
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>

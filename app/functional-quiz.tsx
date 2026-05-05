@@ -26,6 +26,8 @@ export default function FunctionalQuizScreen() {
   const [resultId, setResultId] = useState<string | null>(null);
   const [userId, setUserId] = useState('');
   const [showDetail, setShowDetail] = useState(false);
+  const [showRootCause, setShowRootCause] = useState(false);
+  const [lastRootCause, setLastRootCause] = useState('');
 
   const questions = quiz?.questions ?? [];
   const currentQ = questions[currentIndex];
@@ -91,6 +93,13 @@ export default function FunctionalQuizScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newResponses = { ...responses, [currentQ.id]: value };
     setResponses(newResponses);
+
+    // Flash "POR QUE IMPORTA" cuando contesta CIERTO
+    if (value && currentQ.rootCause) {
+      setLastRootCause(currentQ.rootCause);
+      setShowRootCause(true);
+      setTimeout(() => setShowRootCause(false), 1800);
+    }
 
     // Transición inmediata — sin animación
     if (currentIndex + 1 < questions.length) {
@@ -300,6 +309,21 @@ export default function FunctionalQuizScreen() {
               {currentQ.text}
             </Text>
           </View>
+
+          {/* Flash: POR QUE IMPORTA */}
+          {showRootCause && (
+            <View style={{
+              backgroundColor: 'rgba(34,197,94,0.12)', borderRadius: 14, padding: 14,
+              marginTop: 12, borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)',
+            }}>
+              <Text style={{ color: '#22c55e', fontSize: 10, fontWeight: '800', letterSpacing: 1, marginBottom: 4 }}>
+                POR QUÉ IMPORTA
+              </Text>
+              <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 18 }}>
+                {lastRootCause}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Answer buttons */}
@@ -443,9 +467,14 @@ export default function FunctionalQuizScreen() {
                     <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: domain.color }} />
                     <Text style={{ color: '#ccc', fontSize: 13, fontWeight: '600' }}>{domain.name}</Text>
                   </View>
-                  <Text style={{ color: isAlert ? '#fb7185' : '#22c55e', fontSize: 12, fontWeight: '600' }}>
-                    {isAlert ? 'Atención' : 'OK'}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text style={{ color: '#666', fontSize: 11, fontVariant: ['tabular-nums'] }}>
+                      {score}/{maxScore}
+                    </Text>
+                    <Text style={{ color: isAlert ? '#fb7185' : '#22c55e', fontSize: 12, fontWeight: '600' }}>
+                      {isAlert ? 'Atención' : 'OK'}
+                    </Text>
+                  </View>
                 </View>
                 <View style={{ height: 6, backgroundColor: '#1a1a1a', borderRadius: 3 }}>
                   <View style={{
