@@ -45,24 +45,21 @@ const HEALTH_ITEMS = [
     subtitle: 'Sube y consulta tus estudios',
     icon: 'document-text-outline' as const,
     color: '#60a5fa',
-    route: '/labs',
-    comingSoon: true,
+    route: '/my-health',
   },
   {
     name: 'Biomarcadores',
     subtitle: 'Métricas de salud integral',
     icon: 'pulse-outline' as const,
     color: '#22c55e',
-    route: '/health-metrics',
-    comingSoon: true,
+    route: '/my-health',
   },
   {
     name: 'Dominios de salud',
     subtitle: '10 áreas que definen tu ATP Score',
     icon: 'grid-outline' as const,
     color: '#1D9E75',
-    route: '/health-domains',
-    comingSoon: true,
+    route: '/my-health',
   },
 ];
 
