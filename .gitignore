@@ -42,3 +42,10 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Adicionales — security hardening
+.env.production
+.env.staging
+supabase/.env
+supabase/functions/.env
+*.p8
