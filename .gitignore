@@ -49,3 +49,7 @@ app-example
 supabase/.env
 supabase/functions/.env
 *.p8
+
+# Sentry
+sentry.properties
+**/sentry.properties

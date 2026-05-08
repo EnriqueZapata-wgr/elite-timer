@@ -4,6 +4,8 @@
  * Patrón plano: todas las rutas registradas en un solo Stack.
  * La redirección auth/app se maneja en index.tsx con <Redirect>.
  */
+import * as Sentry from '@sentry/react-native';
+import Constants from 'expo-constants';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
@@ -12,8 +14,8 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
+import { PostHogProvider } from 'posthog-react-native';
 import 'react-native-reanimated';
-
 import {
   Poppins_400Regular,
   Poppins_600SemiBold,
@@ -25,6 +27,14 @@ import { AuthProvider } from '@/src/contexts/auth-context';
 import { ProgramsProvider } from '@/src/contexts/programs-context';
 import { SessionsProvider } from '@/src/contexts/sessions-context';
 import { SettingsProvider } from '@/src/contexts/settings-context';
+
+Sentry.init({
+  dsn: Constants.expoConfig?.extra?.sentryDsn,
+  enableAutoSessionTracking: true,
+  sessionTrackingIntervalMillis: 30000,
+  tracesSampleRate: 0.2,
+  enabled: !__DEV__,
+});
 
 // Mantenemos la splash screen visible mientras cargan las fuentes.
 SplashScreen.preventAutoHideAsync();
@@ -38,7 +48,7 @@ const EliteTheme = {
   },
 };
 
-export default function RootLayout() {
+function RootLayout() {
   // Cargamos solo los 4 pesos que usa la app — no los 18 disponibles
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -75,10 +85,18 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={EliteTheme}>
-      <AuthProvider>
-        <SettingsProvider>
-          <ProgramsProvider>
-            <SessionsProvider>
+      <PostHogProvider
+        apiKey={Constants.expoConfig?.extra?.posthogKey}
+        options={{
+          host: 'https://us.i.posthog.com',
+          captureAppLifecycleEvents: true,
+          enableSessionReplay: false,
+        }}
+      >
+        <AuthProvider>
+          <SettingsProvider>
+            <ProgramsProvider>
+              <SessionsProvider>
               <Stack screenOptions={{
                 headerShown: false,
                 animation: 'ios_from_right',
@@ -147,10 +165,13 @@ export default function RootLayout() {
                 <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />
               </Stack>
               <StatusBar style="light" />
-            </SessionsProvider>
-          </ProgramsProvider>
-        </SettingsProvider>
-      </AuthProvider>
+              </SessionsProvider>
+            </ProgramsProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </PostHogProvider>
     </ThemeProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

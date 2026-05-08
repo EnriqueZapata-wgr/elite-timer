@@ -4,6 +4,7 @@
  * Provee user, session, loading y métodos de auth (signIn, signUp, signOut, resetPassword).
  * Escucha cambios de sesión en tiempo real y restaura sesión al montar.
  */
+import * as Sentry from '@sentry/react-native';
 import {
   createContext,
   useContext,
@@ -64,6 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
+      if (s?.user) {
+        Sentry.setUser({ id: s.user.id, email: s.user.email });
+      }
       setLoading(false);
     });
 
@@ -72,6 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (_event, s) => {
         setSession(s);
         setUser(s?.user ?? null);
+        if (s?.user) {
+          Sentry.setUser({ id: s.user.id, email: s.user.email });
+        } else {
+          Sentry.setUser(null);
+        }
       }
     );
 
