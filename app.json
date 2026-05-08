@@ -61,7 +61,14 @@
           "locationAlwaysAndWhenInUsePermission": "ATP SOL necesita tu ubicación para mostrar el índice UV de tu zona y calcular tu ventana de vitamina D."
         }
       ],
-      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "atp-v5",
+          "project": "atp-mobile",
+          "url": "https://sentry.io/"
+        }
+      ],
       "expo-localization"
     ],
     "experiments": {
