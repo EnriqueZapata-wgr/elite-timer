@@ -227,6 +227,13 @@ export async function assignProtocol(userId: string, templateId: string, assigne
     .from('protocol_templates').select('name').eq('id', templateId).single();
   if (!template) throw new Error('Template no encontrado');
 
+  // Desactivar cualquier protocolo activo previo (garantiza un solo activo por usuario)
+  await supabase
+    .from('user_protocols')
+    .update({ status: 'inactive' })
+    .eq('user_id', userId)
+    .eq('status', 'active');
+
   const { data, error } = await supabase
     .from('user_protocols').insert({
       user_id: userId, template_id: templateId, assigned_by: assignedBy,

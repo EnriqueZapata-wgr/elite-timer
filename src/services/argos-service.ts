@@ -122,12 +122,13 @@ async function loadUserContext(userId: string): Promise<UserContext> {
   } catch (_) { /* opcional */ }
 
   try {
-    // Protocolo activo
+    // Protocolo activo (más reciente — defensa ante múltiples activos)
     const { data: protocol } = await supabase
       .from('user_protocols')
-      .select('name')
+      .select('name, updated_at')
       .eq('user_id', userId)
       .eq('status', 'active')
+      .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (protocol) context.activeProtocol = protocol.name;
