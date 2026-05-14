@@ -550,6 +550,9 @@ export default function TodayScreen() {
               {day.electronProgress.earned.toFixed(1)} / {day.electronProgress.possible.toFixed(1)} ⚡
             </Text>
           </View>
+          <Text style={{ color: '#666', fontSize: 10, fontStyle: 'italic', marginTop: -4, marginBottom: 8, paddingHorizontal: Spacing.sm }}>
+            Mantén presionado para ver detalles
+          </Text>
 
           <View style={s.electronGrid}>
             {day.booleanElectrons.map((el) => {
