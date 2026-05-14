@@ -10,8 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
-
-const ADMIN_UID = '90a55e74-0e3d-477a-9ac5-2b339f7c40af';
+import { isAdmin as checkIsAdmin } from '../src/constants/admin-config';
 
 const STATUS_OPTIONS = [
   { id: 'new', label: 'Nuevo', color: '#60a5fa' },
@@ -43,7 +42,7 @@ export default function FeedbackDashboard() {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setIsAdmin(user?.id === ADMIN_UID);
+      setIsAdmin(checkIsAdmin(user?.id));
     })();
   }, []);
 

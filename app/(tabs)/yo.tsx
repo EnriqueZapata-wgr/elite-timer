@@ -28,6 +28,7 @@ import { getUserRankInfo } from '@/src/services/electron-service';
 import { haptic } from '@/src/utils/haptics';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
+import { isAdmin } from '@/src/constants/admin-config';
 import { ExplanationModal } from '@/src/components/ui/ExplanationModal';
 import { DOMAIN_EXPLANATIONS, type DomainExplanation } from '@/src/data/domain-explanations';
 
@@ -466,7 +467,7 @@ export default function YoScreen() {
         )}
 
         {/* Admin: Feedback Dashboard */}
-        {user?.id === '90a55e74-0e3d-477a-9ac5-2b339f7c40af' && (
+        {isAdmin(user?.id) && (
           <Animated.View entering={FadeInUp.delay(600).springify()} style={{ paddingHorizontal: Spacing.md }}>
             <AnimatedPressable onPress={() => { haptic.light(); router.push('/feedback-dashboard' as any); }}>
               <View style={{
