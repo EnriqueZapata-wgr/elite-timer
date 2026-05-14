@@ -5,7 +5,7 @@
  *  - El sol es necesario (vitamina D)
  *  - Exposición controlada es buena
  *  - Protección física primero (sombra, ropa, sombrero, lentes)
- *  - Bloqueadores químicos = disruptores endocrinos. Solo último recurso mineral.
+ *  - Filosofía: exposición solar inteligente como primera opción. Si se usa protector, preferir mineral.
  *  - ARGOS integra UV con el resto de la salud.
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -217,10 +217,10 @@ export default function Solar() {
               ))}
               {uvData.currentUV > 7 && (
                 <View style={{ backgroundColor: 'rgba(251,191,36,0.06)', borderRadius: 12, padding: 14, marginTop: 8, borderWidth: 1, borderColor: 'rgba(251,191,36,0.1)' }}>
-                  <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700', marginBottom: 4 }}>ÚLTIMO RECURSO: Protector mineral</Text>
+                  <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700', marginBottom: 4 }}>Si optas por protector solar</Text>
                   <Text style={{ color: '#999', fontSize: 11, lineHeight: 18 }}>
-                    Si debes exponerte, usa óxido de zinc o dióxido de titanio.{'\n'}
-                    Evita: oxybenzone, octinoxate, avobenzone, homosalate — disruptores endocrinos.
+                    Si decides usar protector, ATP sugiere ingredientes minerales (óxido de zinc, dióxido de titanio).{'\n'}
+                    Algunos estudios cuestionan ciertos ingredientes químicos comunes; consulta con tu dermatólogo lo que mejor te convenga.
                   </Text>
                 </View>
               )}
