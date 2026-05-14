@@ -176,7 +176,7 @@ export default function QuizzesScreen() {
         {dbQuizzes.length > 0 && (
           <View style={s.listSection}>
             <EliteText variant="caption" style={s.sectionLabel}>
-              EVALUACIONES DIAGNÓSTICAS
+              EVALUACIONES FUNCIONALES
             </EliteText>
 
             {dbQuizzes.map((q, idx) => {
