@@ -44,6 +44,32 @@ Tus recomendaciones son educativas y basadas en ciencia publicada. NO sustituyen
 
 // === CONTEXTO DEL USUARIO ===
 
+interface PersonalRecord {
+  exercise: string;
+  estimated1rm: number;
+  weight: number;
+  reps: number;
+}
+
+async function fetchUserPRs(userId: string): Promise<PersonalRecord[]> {
+  try {
+    const { data } = await supabase
+      .from('personal_records')
+      .select('exercise_id, estimated_1rm, weight_kg, reps, exercises(name, name_es)')
+      .eq('user_id', userId)
+      .order('estimated_1rm', { ascending: false })
+      .limit(10);
+    return (data || []).map((pr: any) => ({
+      exercise: pr.exercises?.name_es || pr.exercises?.name || 'unknown',
+      estimated1rm: pr.estimated_1rm,
+      weight: pr.weight_kg,
+      reps: pr.reps,
+    }));
+  } catch {
+    return [];
+  }
+}
+
 interface UserContext {
   name: string;
   age?: number;
@@ -58,6 +84,7 @@ interface UserContext {
     avgCalories3d: number;
   };
   recentExercise?: { sessionsThisWeek: number };
+  personalRecords?: PersonalRecord[];
   recentGlucose?: {
     lastValue: number;
     lastContext: string;
@@ -176,6 +203,12 @@ async function loadUserContext(userId: string): Promise<UserContext> {
       .gte('date', weekAgo);
     const uniqueDays = new Set((exercises || []).map(e => e.date)).size;
     context.recentExercise = { sessionsThisWeek: uniqueDays };
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Récords personales (top por 1RM estimado)
+    const prs = await fetchUserPRs(userId);
+    if (prs.length > 0) context.personalRecords = prs;
   } catch (_) { /* opcional */ }
 
   try {
@@ -305,6 +338,12 @@ function buildContextPrompt(ctx: UserContext): string {
   }
   if (ctx.recentExercise) {
     parts.push(`Ejercicio: ${ctx.recentExercise.sessionsThisWeek} sesiones esta semana`);
+  }
+  if (ctx.personalRecords?.length) {
+    const prSummary = ctx.personalRecords.slice(0, 5).map(pr =>
+      `${pr.exercise}: ${pr.estimated1rm}kg 1RM`
+    ).join(', ');
+    parts.push(`Récords (top 5): ${prSummary}`);
   }
   if (ctx.recentGlucose) {
     const g = ctx.recentGlucose;
@@ -478,19 +517,13 @@ export async function generateRoutine(
   const context = await loadUserContext(userId);
 
   // Cargar PRs del usuario para personalizar
+  const prs = await fetchUserPRs(userId);
   let prInfo = '';
-  try {
-    const { data: prs } = await supabase
-      .from('personal_records')
-      .select('exercise_id, estimated_1rm, weight_kg, exercises(name, name_es)')
-      .eq('user_id', userId)
-      .limit(10);
-    if (prs && prs.length > 0) {
-      prInfo = '\n\nRÉCORDS DEL USUARIO:\n' + prs.map((pr: any) =>
-        `${pr.exercises?.name_es || pr.exercises?.name}: ${pr.estimated_1rm}kg 1RM (último: ${pr.weight_kg}kg)`
-      ).join('\n');
-    }
-  } catch (_) { /* opcional */ }
+  if (prs.length > 0) {
+    prInfo = '\n\nRÉCORDS DEL USUARIO:\n' + prs.map(pr =>
+      `${pr.exercise}: ${pr.estimated1rm}kg 1RM (último: ${pr.weight}kg)`
+    ).join('\n');
+  }
 
   const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una rutina de ejercicios.
 
