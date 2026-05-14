@@ -4,7 +4,7 @@
  * el módulo nativo no está disponible (OTA sin native build).
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, Pressable, Animated, Alert } from 'react-native';
+import { View, Text, Pressable, Animated, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
@@ -81,7 +81,39 @@ export function VoiceButton({ onTranscript, variant = 'fab' }: VoiceButtonProps)
     };
   }, []);
 
+  // Safety timeout: max 30s listening — previene mic stuck en web/edge cases
+  useEffect(() => {
+    if (!isListening) return;
+    const safetyTimeout = setTimeout(() => {
+      console.warn('VoiceButton: max listening timeout reached, force stop');
+      try {
+        if (SpeechModule) SpeechModule.stop();
+      } catch {}
+      setIsListening(false);
+      setPartialText('');
+    }, 30000);
+    return () => clearTimeout(safetyTimeout);
+  }, [isListening]);
+
+  // Cleanup al unmount: detener STT si quedó activo (closure de isListening sería stale, así que stop() unconditional)
+  useEffect(() => {
+    return () => {
+      if (SpeechModule) {
+        try { SpeechModule.stop(); } catch {}
+      }
+    };
+  }, []);
+
   async function startListening() {
+    if (Platform.OS === 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      Alert.alert(
+        'Voz no disponible en web',
+        'El reconocimiento de voz funciona mejor en la app móvil. Usa el texto en web.',
+      );
+      return;
+    }
+
     if (!sttAvailable || !SpeechModule) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(
