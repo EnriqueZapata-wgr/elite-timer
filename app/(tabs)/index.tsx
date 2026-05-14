@@ -761,7 +761,7 @@ export default function TodayScreen() {
                         {/* Hora */}
                         <Text style={{
                           width: 42, fontSize: 12, fontFamily: Fonts.semiBold,
-                          color: isCurrent ? '#a8e02a' : isPast ? '#555' : '#999',
+                          color: isCurrent ? '#a8e02a' : isPast ? '#888' : '#999',
                           fontVariant: ['tabular-nums' as const],
                         }}>
                           {fmtTime(item.time)}
