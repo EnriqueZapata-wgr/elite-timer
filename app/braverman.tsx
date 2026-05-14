@@ -22,6 +22,7 @@ import {
   type BravermanQuestion,
   type Neurotransmitter,
 } from '../src/constants/braverman-questions';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 const { width } = Dimensions.get('window');
 
@@ -610,6 +611,7 @@ export default function BravermanTest() {
             </Pressable>
           </View>
         </View>
+        <MedicalDisclaimer feature="braverman" />
       </ScrollView>
     );
   }

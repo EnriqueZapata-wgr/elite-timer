@@ -23,6 +23,7 @@ import { getStudyType } from '@/src/data/study-types';
 import { getLatestMeasurement, type HealthMeasurement } from '@/src/services/health-measurement-service';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -550,6 +551,7 @@ export default function MyHealthScreen() {
             })}
           </Animated.View>
         )}
+        <MedicalDisclaimer feature="health" />
       </ScrollView>
     </Screen>
   );

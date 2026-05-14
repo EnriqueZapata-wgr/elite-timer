@@ -17,6 +17,7 @@ import { supabase } from '../src/lib/supabase';
 import { getLocalToday } from '../src/utils/date-helpers';
 import { awardBooleanElectron } from '../src/services/electron-service';
 import { getFastingTier } from '../src/constants/electrons';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 const { width } = Dimensions.get('window');
 const RING_SIZE = width * 0.65;
@@ -842,6 +843,7 @@ export default function FastingScreen() {
           )}
         </View>
       )}
+      <MedicalDisclaimer feature="fasting" />
     </ScrollView>
   );
 }

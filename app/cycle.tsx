@@ -27,6 +27,7 @@ import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { PILLAR_GRADIENTS, SURFACES, TEXT_COLORS, CARD, withOpacity } from '@/src/constants/brand';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 // ═══ CONSTANTES ═══
 
@@ -589,6 +590,7 @@ export default function CycleScreen() {
             ))}
           </View>
         </Animated.View>
+        <MedicalDisclaimer feature="cycle" />
       </ScrollView>
 
       {/* ═══ DayEditorModal ═══ */}

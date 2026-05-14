@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../src/lib/supabase';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import {
   fetchUVData,
   getCurrentLocation,
@@ -325,6 +326,7 @@ export default function Solar() {
           </Pressable>
         </View>
       )}
+      <MedicalDisclaimer feature="solar" />
     </ScrollView>
   );
 }

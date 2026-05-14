@@ -10,6 +10,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useAuth } from '@/src/contexts/auth-context';
 import {
   getLatestMeasurement, saveMeasurement, countCompleteSections,
@@ -288,6 +289,7 @@ export default function HealthInputScreen() {
         </AnimatedPressable>
 
         <View style={{ height: Spacing.xxl * 2 }} />
+        <MedicalDisclaimer feature="health" />
       </ScrollView>
     </SafeAreaView>
   );

@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
 import { getLocalToday } from '../src/utils/date-helpers';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 const TIMING_OPTIONS = [
   { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -393,6 +394,7 @@ export default function SupplementsScreen() {
           </View>
         </View>
       )}
+      <MedicalDisclaimer feature="supplements" />
     </ScrollView>
   );
 }

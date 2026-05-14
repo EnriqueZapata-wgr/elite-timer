@@ -17,6 +17,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -189,6 +190,7 @@ export default function GlucoseLogScreen() {
         )}
 
         <View style={{ height: 80 }} />
+        <MedicalDisclaimer feature="glucose" />
       </ScrollView>
     </Screen>
   );
