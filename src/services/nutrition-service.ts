@@ -71,6 +71,14 @@ export async function getActivePlan(userId?: string): Promise<NutritionPlan | nu
 
 export async function createPlan(planData: Partial<NutritionPlan> & { user_id: string }): Promise<NutritionPlan> {
   const user = await getUserId();
+
+  // Pausar planes activos previos (garantiza un solo activo por usuario)
+  await supabase
+    .from('nutrition_plans')
+    .update({ status: 'paused', updated_at: new Date().toISOString() })
+    .eq('user_id', planData.user_id)
+    .eq('status', 'active');
+
   const { data, error } = await supabase.from('nutrition_plans')
     .insert({ ...planData, created_by: user }).select('*').single();
   if (error) throw error;

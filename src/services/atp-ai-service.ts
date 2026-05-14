@@ -41,7 +41,7 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supabase.from('consultations').select('consultation_number, consultation_date, status, chief_complaint, assessment, plan, changes_summary, body_snapshot, conditions_snapshot').eq('client_id', clientId).eq('status', 'completed').order('consultation_date', { ascending: false }).limit(5),
     supabase.from('client_daily_habits').select('start_time, end_time, title, category').eq('user_id', clientId).eq('is_current', true).order('start_time'),
     supabase.from('clinical_studies').select('study_name, study_type, study_date, original_interpretation, findings, coach_notes').eq('user_id', clientId).order('study_date', { ascending: false }).limit(10),
-    supabase.from('nutrition_plans').select('*').eq('user_id', clientId).eq('status', 'active').limit(1).single(),
+    supabase.from('nutrition_plans').select('*').eq('user_id', clientId).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single(),
     supabase.from('food_logs').select('date, meal_type, description, ai_analysis').eq('user_id', clientId).order('date', { ascending: false }).limit(21),
   ]);
 
