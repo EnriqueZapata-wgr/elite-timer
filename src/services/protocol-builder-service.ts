@@ -230,7 +230,7 @@ export async function assignProtocol(userId: string, templateId: string, assigne
   // Desactivar cualquier protocolo activo previo (garantiza un solo activo por usuario)
   await supabase
     .from('user_protocols')
-    .update({ status: 'inactive' })
+    .update({ status: 'abandoned' })
     .eq('user_id', userId)
     .eq('status', 'active');
 

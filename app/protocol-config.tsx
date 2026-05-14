@@ -161,7 +161,7 @@ export default function ProtocolConfig() {
 
     if (activeProtocol) {
       await supabase.from('user_protocols')
-        .update({ status: 'inactive' })
+        .update({ status: 'abandoned' })
         .eq('id', activeProtocol.id);
     }
 
@@ -193,7 +193,7 @@ export default function ProtocolConfig() {
         text: 'Desactivar', style: 'destructive',
         onPress: async () => {
           await supabase.from('user_protocols')
-            .update({ status: 'inactive' })
+            .update({ status: 'abandoned' })
             .eq('id', activeProtocol.id);
           // Limpiar plan del día
           const today = new Date().toISOString().split('T')[0];
