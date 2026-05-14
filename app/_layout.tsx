@@ -14,7 +14,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
-import { PostHogProvider, usePostHog } from 'posthog-react-native';
+import { PostHogProvider } from 'posthog-react-native';
 import 'react-native-reanimated';
 import {
   Poppins_400Regular,
@@ -33,35 +33,8 @@ Sentry.init({
   enableAutoSessionTracking: true,
   sessionTrackingIntervalMillis: 30000,
   tracesSampleRate: 0.2,
-  enabled: true,  // diagnostic: forzar envío en todos los builds
+  enabled: !__DEV__,
 });
-
-// Diagnóstico forzado: dispara 1 evento a Sentry y 1 a PostHog 3s
-// después de que las fuentes cargan. Vive DENTRO de <PostHogProvider>
-// para que usePostHog() encuentre su Context.
-function DiagnosticBoot({ fontsLoaded }: { fontsLoaded: boolean }) {
-  const posthog = usePostHog();
-  useEffect(() => {
-    if (!fontsLoaded) return;
-    const t = setTimeout(() => {
-      try {
-        Sentry.captureMessage('[DIAGNOSTIC] ATP boot — sentry alive', 'info');
-      } catch (e) {
-        console.error('[DIAGNOSTIC] Sentry capture failed:', e);
-      }
-      try {
-        posthog?.capture('diagnostic_boot', {
-          source: 'app_layout_diagnostic',
-          timestamp: new Date().toISOString(),
-        });
-      } catch (e) {
-        console.error('[DIAGNOSTIC] PostHog capture failed:', e);
-      }
-    }, 3000);
-    return () => clearTimeout(t);
-  }, [fontsLoaded, posthog]);
-  return null;
-}
 
 // Mantenemos la splash screen visible mientras cargan las fuentes.
 SplashScreen.preventAutoHideAsync();
@@ -120,7 +93,6 @@ function RootLayout() {
           enableSessionReplay: false,
         }}
       >
-        <DiagnosticBoot fontsLoaded={fontsLoaded} />
         <AuthProvider>
           <SettingsProvider>
             <ProgramsProvider>
