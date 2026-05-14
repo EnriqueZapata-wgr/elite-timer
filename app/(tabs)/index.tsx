@@ -927,7 +927,7 @@ const s = StyleSheet.create({
     backgroundColor: '#000',
   },
   scrollContent: {
-    paddingBottom: 0,
+    paddingBottom: 120,
   },
   loadingWrap: {
     flex: 1,
