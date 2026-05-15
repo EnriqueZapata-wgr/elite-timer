@@ -55,6 +55,13 @@ export default function ArgosChat() {
     if (!userId) return;
     const convs = await loadConversations(userId, 10);
     setPastConversations(convs);
+
+    // Auto-cargar la conversación más reciente si no hay una activa
+    if (convs[0] && messages.length === 0 && !conversationId) {
+      const msgs = await loadConversation(convs[0].id);
+      setMessages(msgs);
+      setConversationId(convs[0].id);
+    }
   }
 
   async function sendMessage(text?: string) {
