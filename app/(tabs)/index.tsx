@@ -33,7 +33,7 @@ import { getHoyBackgroundRequire } from '@/src/constants/brand';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
-import { generateDailyInsight, chatWithArgos } from '@/src/services/argos-service';
+import { generateDailyInsight, chatWithArgos, saveConversation } from '@/src/services/argos-service';
 import { speakArgos } from '@/src/services/argos-voice';
 import { VoiceButton } from '@/src/components/VoiceButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -129,6 +129,8 @@ export default function TodayScreen() {
   const [showTour, setShowTour] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceResponse, setVoiceResponse] = useState('');
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceConversationId, setVoiceConversationId] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const isTogglingRef = useRef(false);
@@ -361,11 +363,22 @@ export default function TodayScreen() {
     if (!user?.id) return;
     setVoiceLoading(true);
     setVoiceResponse('');
+    setVoiceTranscript(transcript);
     try {
-      const response = await chatWithArgos(user.id, [{ role: 'user', content: transcript }]);
+      const messages = [{ role: 'user' as const, content: transcript }];
+      const response = await chatWithArgos(user.id, messages);
       setVoiceResponse(response);
+
+      // Guardar conversación para que pueda expandirse al chat después
+      const allMessages = [...messages, { role: 'assistant' as const, content: response }];
+      const id = await saveConversation(user.id, allMessages);
+      setVoiceConversationId(id);
+
       await speakArgos(response);
-      setTimeout(() => setVoiceResponse(''), 10000);
+      setTimeout(() => {
+        setVoiceResponse('');
+        setVoiceConversationId(null);
+      }, 15000);
     } catch (e) {
       console.error('Quick voice error:', e);
     } finally {
@@ -868,7 +881,16 @@ export default function TodayScreen() {
         {/* Response bubble (temporal) */}
         {voiceResponse ? (
           <Pressable
-            onPress={() => setVoiceResponse('')}
+            onPress={() => {
+              haptic.medium();
+              if (voiceConversationId) {
+                router.push({ pathname: '/argos-chat', params: { conversationId: voiceConversationId } });
+              } else {
+                router.push('/argos-chat');
+              }
+              setVoiceResponse('');
+              setVoiceConversationId(null);
+            }}
             style={{
               backgroundColor: '#0a0a0a', borderRadius: 16, padding: 14,
               marginBottom: 8, maxWidth: 280,
@@ -878,10 +900,21 @@ export default function TodayScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
               <Ionicons name="eye" size={12} color="#a8e02a" />
               <Text style={{ color: '#a8e02a', fontSize: 9, fontWeight: '700' }}>ARGOS</Text>
+              <Text style={{ color: '#666', fontSize: 9, marginLeft: 'auto' }}>
+                tap para abrir
+              </Text>
             </View>
             <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 19 }} numberOfLines={6}>
               {voiceResponse}
             </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+              <Pressable onPress={(e) => { e.stopPropagation(); setVoiceResponse(''); setVoiceConversationId(null); }}>
+                <Text style={{ color: '#666', fontSize: 10 }}>Cerrar</Text>
+              </Pressable>
+              <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700' }}>
+                Ver completo →
+              </Text>
+            </View>
           </Pressable>
         ) : null}
 
