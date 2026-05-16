@@ -231,34 +231,7 @@ export async function reanalyzeFood(ingredients: any[], mealType?: string): Prom
 }
 
 // === HYDRATION ===
-
-export async function getHydration(date?: string): Promise<HydrationLog> {
-  const userId = await getUserId();
-  const d = date || getLocalToday();
-  const { data } = await supabase.from('hydration_logs').select('*')
-    .eq('user_id', userId).eq('date', d).single();
-  if (data) return data;
-  // Crear si no existe
-  const { data: created, error } = await supabase.from('hydration_logs')
-    .insert({ user_id: userId, date: d }).select('*').single();
-  if (error) throw error;
-  return created;
-}
-
-export async function addWater(amount_ml: number, type = 'water'): Promise<HydrationLog> {
-  const userId = await getUserId();
-  const d = getLocalToday();
-  const log = await getHydration(d);
-  const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-  const entries = [...(log.entries ?? []), { time: now, amount_ml, type }];
-  const total_ml = entries.reduce((sum: number, e: any) => sum + (e.amount_ml || 0), 0);
-
-  const { data, error } = await supabase.from('hydration_logs')
-    .update({ entries, total_ml, updated_at: new Date().toISOString() })
-    .eq('id', log.id).select('*').single();
-  if (error) throw error;
-  return data;
-}
+// Nota: getHydration() y addWater() viven ahora en hydration-service.ts (single source of truth).
 
 export async function getHydrationForUser(userId: string, date: string): Promise<HydrationLog | null> {
   const { data } = await supabase.from('hydration_logs').select('*')
