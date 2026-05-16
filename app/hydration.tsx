@@ -2,8 +2,9 @@
  * Hidratación — Registro de agua con meta diaria, botones rápidos y barra de progreso.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, DeviceEventEmitter } from 'react-native';
+import { View, ScrollView, StyleSheet, DeviceEventEmitter, Pressable } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
@@ -11,6 +12,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { WaterGoalEditor } from '@/src/components/hydration/WaterGoalEditor';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
@@ -25,6 +27,7 @@ export default function HydrationScreen() {
   const { user } = useAuth();
   const [waterMl, setWaterMl] = useState(0);
   const [waterGoal, setWaterGoal] = useState(2500);
+  const [showEditor, setShowEditor] = useState(false);
 
   useFocusEffect(useCallback(() => {
     loadData();
@@ -66,7 +69,8 @@ export default function HydrationScreen() {
       if (existing?.id) {
         await supabase.from('hydration_logs').update({ total_ml: total, entries }).eq('id', existing.id);
       } else {
-        await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, target_ml: waterGoal, entries });
+        const goalMl = await getUserWaterGoal(user.id);
+        await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, target_ml: goalMl, entries });
       }
       DeviceEventEmitter.emit('day_changed');
     } catch { setWaterMl(waterMl); }
@@ -84,7 +88,10 @@ export default function HydrationScreen() {
             {/* Progreso circular visual */}
             <View style={s.center}>
               <EliteText style={s.bigValue}>{(waterMl / 1000).toFixed(1)}L</EliteText>
-              <EliteText style={s.goalText}>de {(waterGoal / 1000).toFixed(1)}L</EliteText>
+              <Pressable onPress={() => { haptic.light(); setShowEditor(true); }} style={s.goalRow}>
+                <EliteText style={s.goalText}>de {(waterGoal / 1000).toFixed(1)}L</EliteText>
+                <Ionicons name="pencil" size={12} color={TEXT_COLORS.secondary} style={{ marginLeft: 4 }} />
+              </Pressable>
             </View>
 
             {/* Barra */}
@@ -111,6 +118,15 @@ export default function HydrationScreen() {
         </Animated.View>
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
+
+      {user?.id && (
+        <WaterGoalEditor
+          userId={user.id}
+          visible={showEditor}
+          onClose={() => setShowEditor(false)}
+          onSaved={(ml) => setWaterGoal(ml)}
+        />
+      )}
     </Screen>
   );
 }
@@ -119,7 +135,8 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
   center: { alignItems: 'center', marginBottom: Spacing.lg },
   bigValue: { fontSize: 48, fontFamily: Fonts.extraBold, color: WATER_COLOR },
-  goalText: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, marginTop: 4 },
+  goalText: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary },
+  goalRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
   bar: { height: 8, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden' },
   barFill: { height: 8, borderRadius: 4, backgroundColor: WATER_COLOR },
   pctText: { fontSize: FontSizes.xs, color: TEXT_COLORS.secondary, textAlign: 'center', marginTop: Spacing.xs },

@@ -6,7 +6,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, DeviceEventEmitter } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, DeviceEventEmitter, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -17,6 +17,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { HelpButton } from '@/src/components/HelpButton';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { WaterGoalEditor } from '@/src/components/hydration/WaterGoalEditor';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -53,6 +54,7 @@ export default function NutritionScreen() {
   const [summary, setSummary] = useState<DaySummary>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -109,7 +111,8 @@ export default function NutritionScreen() {
       if (existing?.id) {
         await supabase.from('hydration_logs').update({ total_ml: total, entries }).eq('id', existing.id);
       } else {
-        await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, entries });
+        const goalMl = await getUserWaterGoal(user.id);
+        await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, target_ml: goalMl, entries });
       }
       DeviceEventEmitter.emit('day_changed');
     } catch { setSummary(prev => ({ ...prev, waterMl: prevMl })); }
@@ -224,9 +227,12 @@ export default function NutritionScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <EliteText style={s.navTitle}>Hidratación</EliteText>
-                  <EliteText style={s.navSub}>
-                    {(summary.waterMl / 1000).toFixed(1)}L / {(summary.waterGoal / 1000).toFixed(1)}L
-                  </EliteText>
+                  <Pressable onPress={() => { haptic.light(); setShowEditor(true); }} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <EliteText style={s.navSub}>
+                      {(summary.waterMl / 1000).toFixed(1)}L / {(summary.waterGoal / 1000).toFixed(1)}L
+                    </EliteText>
+                    <Ionicons name="pencil" size={11} color="#888" style={{ marginLeft: 6 }} />
+                  </Pressable>
                 </View>
               </View>
               <View style={s.waterBar}>
@@ -267,6 +273,15 @@ export default function NutritionScreen() {
 
         <View style={{ height: 80 }} />
       </ScrollView>
+
+      {user?.id && (
+        <WaterGoalEditor
+          userId={user.id}
+          visible={showEditor}
+          onClose={() => setShowEditor(false)}
+          onSaved={(ml) => setSummary(prev => ({ ...prev, waterGoal: ml }))}
+        />
+      )}
     </Screen>
   );
 }

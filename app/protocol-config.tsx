@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
+import { setUserWaterGoal } from '../src/services/hydration-service';
 
 const ALL_ELECTRONS = [
   { source: 'cold_shower', name: 'Baño frío', icon: 'snow-outline' as const, weight: 3.0, description: 'Proteínas de choque térmico + dopamina' },
@@ -141,7 +142,6 @@ export default function ProtocolConfig() {
       active_boolean_electrons: enabledElectrons,
       goals: {
         protein_goal_g: proteinGoal,
-        water_goal_ml: waterGoal,
         fasting_hours: fastingHours,
         training_days_week: trainingDays,
         wake_time: wakeTime,
@@ -149,6 +149,9 @@ export default function ProtocolConfig() {
       },
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
+
+    // Meta de agua vía helper (single source of truth) — re-merge sobre los goals
+    await setUserWaterGoal(userId, waterGoal);
 
     setHasChanges(false);
     DeviceEventEmitter.emit('day_changed');
