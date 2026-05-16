@@ -5,6 +5,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
 import { generateAIReferencePrompt } from '@/src/constants/argos-food-library';
+import { getUserWaterGoal } from './hydration-service';
 
 // === AUTH ===
 async function getUserId(): Promise<string> {
@@ -332,7 +333,7 @@ export async function calculateDailyScore(userId?: string, date?: string): Promi
   const totalFat = foods.reduce((s, f) => s + (f.ai_analysis?.estimated_fat ?? f.fat_g ?? 0), 0);
 
   const waterMl = hydration?.total_ml ?? 0;
-  const waterTarget = hydration?.target_ml ?? plan?.water_target ? (plan?.water_target ?? 2.5) * 1000 : 2500;
+  const waterTarget = await getUserWaterGoal(uid);
   const hydrationScore = Math.min(100, Math.round((waterMl / waterTarget) * 100));
 
   const fastingHours = fasting?.actual_hours ?? 0;

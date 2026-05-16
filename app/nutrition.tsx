@@ -20,6 +20,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
+import { getUserWaterGoal } from '@/src/services/hydration-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS, PILLAR_GRADIENTS } from '@/src/constants/brand';
 
@@ -57,11 +58,12 @@ export default function NutritionScreen() {
     if (!user?.id) { setLoading(false); return; }
     const today = getLocalToday();
     try {
-      const [foodRes, waterRes, fastRes, glucoseRes] = await Promise.all([
+      const [foodRes, waterRes, fastRes, glucoseRes, waterGoalMl] = await Promise.all([
         supabase.from('food_logs').select('calories, protein_g, carbs_g, fat_g').eq('user_id', user.id).eq('date', today),
-        supabase.from('hydration_logs').select('total_ml, target_ml').eq('user_id', user.id).eq('date', today).maybeSingle(),
+        supabase.from('hydration_logs').select('total_ml').eq('user_id', user.id).eq('date', today).maybeSingle(),
         supabase.from('fasting_logs').select('fast_start, target_hours').eq('user_id', user.id).eq('status', 'active').limit(1),
         supabase.from('glucose_logs').select('value_mg_dl, context').eq('user_id', user.id).eq('date', today).order('time', { ascending: false }).limit(1),
+        getUserWaterGoal(user.id),
       ]);
 
       const foods = foodRes.data ?? [];
@@ -75,7 +77,7 @@ export default function NutritionScreen() {
         fat: foods.reduce((s: number, f: any) => s + (f.fat_g || 0), 0),
         mealCount: foods.length,
         waterMl: (waterRes.data as any)?.total_ml ?? 0,
-        waterGoal: (waterRes.data as any)?.target_ml ?? 2500,
+        waterGoal: waterGoalMl,
         isFasting: !!activeFast,
         fastHours: Math.floor(fastElapsed),
         lastGlucose: glucoseRes.data?.[0]?.value_mg_dl ?? null,

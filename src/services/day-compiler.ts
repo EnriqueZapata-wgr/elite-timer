@@ -8,6 +8,7 @@ import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
+import { getUserWaterGoal } from '@/src/services/hydration-service';
 
 // ═══ TIPOS ═══
 
@@ -155,10 +156,11 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
 
   // Metas personalizadas del usuario (si guardó en protocol-config)
   const userGoals = (prefs?.goals as any) || {};
+  const waterGoalMl = await getUserWaterGoal(userId);
   const QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
     protein: { target: userGoals.protein_goal_g || DEFAULT_QUANT_CONFIG.protein.target, unit: 'g' },
     steps:   { target: DEFAULT_QUANT_CONFIG.steps.target, unit: 'pasos' },
-    water:   { target: userGoals.water_goal_ml || DEFAULT_QUANT_CONFIG.water.target, unit: 'ml' },
+    water:   { target: waterGoalMl, unit: 'ml' },
     sleep:   { target: DEFAULT_QUANT_CONFIG.sleep.target, unit: 'h' },
   };
 

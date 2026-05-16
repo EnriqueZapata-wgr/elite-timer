@@ -15,6 +15,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { getUserWaterGoal } from '@/src/services/hydration-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, PILLAR_GRADIENTS } from '@/src/constants/brand';
 
@@ -32,15 +33,18 @@ export default function HydrationScreen() {
   async function loadData() {
     if (!user?.id) return;
     const today = getLocalToday();
-    const { data } = await supabase
-      .from('hydration_logs')
-      .select('total_ml, target_ml')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .maybeSingle();
-    if (data) {
-      setWaterMl((data as any).total_ml ?? 0);
-      setWaterGoal((data as any).target_ml ?? 2500);
+    const [logRes, goalMl] = await Promise.all([
+      supabase
+        .from('hydration_logs')
+        .select('total_ml')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle(),
+      getUserWaterGoal(user.id),
+    ]);
+    setWaterGoal(goalMl);
+    if (logRes.data) {
+      setWaterMl((logRes.data as any).total_ml ?? 0);
     }
   }
 
