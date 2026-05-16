@@ -270,10 +270,11 @@ export const PILLAR_GRADIENTS = {
 // HOY BACKGROUNDS — Imagenes de fondo dinamicas por hora
 // ═══════════════════════════════════════════════════════════════════
 // requires estaticos (Metro bundler los analiza en tiempo de compilacion).
-// 3 imagenes en assets/backgrounds/ cubren los 3 momentos del dia.
+// 4 imagenes en assets/backgrounds/ cubren los 4 momentos del dia.
 
 const BG_IMAGES = {
   sleep:        require('../../assets/backgrounds/bg-sleep.jpg'),
+  morning:      require('../../assets/backgrounds/bg-morning.jpg'),
   middayMedium: require('../../assets/backgrounds/bg-midday-medium.jpg'),
   nightLow:     require('../../assets/backgrounds/bg-night-low.jpg'),
 } as const;
@@ -281,6 +282,7 @@ const BG_IMAGES = {
 /** Devuelve la imagen de fondo apropiada segun la hora y el score. */
 export function getHoyBackgroundRequire(hour: number, _score: number) {
   if (hour >= 22 || hour < 5) return BG_IMAGES.sleep;
+  if (hour < 12) return BG_IMAGES.morning;
   if (hour < 19) return BG_IMAGES.middayMedium;
   return BG_IMAGES.nightLow;
 }
