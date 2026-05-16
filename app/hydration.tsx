@@ -2,7 +2,7 @@
  * Hidratación — Registro de agua con meta diaria, botones rápidos y barra de progreso.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, DeviceEventEmitter, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -17,7 +17,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { getUserWaterGoal } from '@/src/services/hydration-service';
+import { getUserWaterGoal, addWater as addWaterEntry } from '@/src/services/hydration-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, PILLAR_GRADIENTS } from '@/src/constants/brand';
 
@@ -54,26 +54,13 @@ export default function HydrationScreen() {
   async function addWater(ml: number) {
     if (!user?.id) return;
     haptic.light();
-    const newMl = Math.max(0, waterMl + ml);
-    const delta = newMl - waterMl;
-    if (delta === 0 && ml < 0) return;
-    setWaterMl(newMl);
-
-    const dateStr = getLocalToday();
-    const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-    try {
-      const { data: existing } = await supabase.from('hydration_logs').select('id, total_ml, entries')
-        .eq('user_id', user.id).eq('date', dateStr).maybeSingle();
-      const entries = [...((existing?.entries as any[]) ?? []), { time: nowTime, amount_ml: delta }];
-      const total = Math.max(0, (existing?.total_ml ?? 0) + delta);
-      if (existing?.id) {
-        await supabase.from('hydration_logs').update({ total_ml: total, entries }).eq('id', existing.id);
-      } else {
-        const goalMl = await getUserWaterGoal(user.id);
-        await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, target_ml: goalMl, entries });
-      }
-      DeviceEventEmitter.emit('day_changed');
-    } catch { setWaterMl(waterMl); }
+    const prevMl = waterMl;
+    const optimistic = Math.max(0, waterMl + ml);
+    if (optimistic === prevMl) return;
+    setWaterMl(optimistic);
+    const result = await addWaterEntry(user.id, ml);
+    if (result === null) setWaterMl(prevMl);
+    else setWaterMl(result);
   }
 
   const pct = waterGoal > 0 ? Math.min(100, Math.round((waterMl / waterGoal) * 100)) : 0;

@@ -2,7 +2,9 @@
  * Hydration Service — single source of truth para meta de agua del usuario.
  * Lectura/escritura siempre vía estos helpers.
  */
+import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
+import { getLocalToday } from '@/src/utils/date-helpers';
 
 const DEFAULT_WATER_GOAL_ML = 2500;
 
@@ -59,6 +61,56 @@ export async function setUserWaterGoal(userId: string, waterMl: number): Promise
     return false;
   }
   return true;
+}
+
+/**
+ * Registra una entrada de agua (delta en ml) en hydration_logs del día actual.
+ * INSERT-or-UPDATE atómico. Emite 'day_changed' al final. Devuelve el nuevo total_ml
+ * en caso de éxito o null si falló.
+ */
+export async function addWater(userId: string, deltaMl: number): Promise<number | null> {
+  try {
+    const date = getLocalToday();
+    const nowTime = new Date().toLocaleTimeString('en-US', {
+      hour12: false, hour: '2-digit', minute: '2-digit',
+    });
+
+    const { data: existing } = await supabase
+      .from('hydration_logs')
+      .select('id, total_ml, entries')
+      .eq('user_id', userId)
+      .eq('date', date)
+      .maybeSingle();
+
+    const prevTotal = (existing?.total_ml as number) ?? 0;
+    const newTotal = Math.max(0, prevTotal + deltaMl);
+    const actualDelta = newTotal - prevTotal;
+    if (actualDelta === 0) return prevTotal;
+
+    const entries = [
+      ...(((existing?.entries as any[]) ?? [])),
+      { time: nowTime, amount_ml: actualDelta },
+    ];
+
+    if (existing?.id) {
+      const { error } = await supabase
+        .from('hydration_logs')
+        .update({ total_ml: newTotal, entries })
+        .eq('id', existing.id);
+      if (error) return null;
+    } else {
+      const goalMl = await getUserWaterGoal(userId);
+      const { error } = await supabase
+        .from('hydration_logs')
+        .insert({ user_id: userId, date, total_ml: newTotal, target_ml: goalMl, entries });
+      if (error) return null;
+    }
+
+    DeviceEventEmitter.emit('day_changed');
+    return newTotal;
+  } catch {
+    return null;
+  }
 }
 
 export const HYDRATION_DEFAULTS = {

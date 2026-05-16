@@ -34,6 +34,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, chatWithArgos, saveConversation } from '@/src/services/argos-service';
+import { addWater } from '@/src/services/hydration-service';
 import { speakArgos } from '@/src/services/argos-voice';
 import { VoiceButton } from '@/src/components/VoiceButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -633,6 +634,7 @@ export default function TodayScreen() {
             <View style={s.quantGrid}>
               {day.quantitativeElectrons.map((q) => {
                 const progress = q.target > 0 ? Math.min(q.current / q.target, 1) : 0;
+                const isWater = q.source === 'water';
                 return (
                   <AnimatedPressable
                     key={q.source}
@@ -652,6 +654,19 @@ export default function TodayScreen() {
                         { width: `${progress * 100}%`, backgroundColor: q.color },
                       ]} />
                     </View>
+                    {isWater && user?.id && (
+                      <View style={s.waterQuickRow}>
+                        <Pressable onPress={async () => { haptic.light(); await addWater(user.id, 250); }} style={s.waterQuickBtn}>
+                          <Text style={s.waterQuickText}>+250 ml</Text>
+                        </Pressable>
+                        <Pressable onPress={async () => { haptic.light(); await addWater(user.id, 500); }} style={s.waterQuickBtn}>
+                          <Text style={s.waterQuickText}>+500 ml</Text>
+                        </Pressable>
+                        <Pressable onPress={async () => { haptic.light(); await addWater(user.id, -250); }} style={s.waterQuickBtn}>
+                          <Text style={s.waterQuickText}>-250 ml</Text>
+                        </Pressable>
+                      </View>
+                    )}
                   </AnimatedPressable>
                 );
               })}
@@ -1298,6 +1313,22 @@ const s = StyleSheet.create({
   quantFill: {
     height: '100%',
     borderRadius: 3,
+  },
+  waterQuickRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+  },
+  waterQuickBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(56,189,248,0.15)',
+    borderRadius: 8,
+  },
+  waterQuickText: {
+    color: '#38bdf8',
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   // ── Sugerencia ──
