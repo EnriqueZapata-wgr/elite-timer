@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, ScrollView, Pressable,
   KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -28,6 +28,7 @@ const QUICK_SUGGESTIONS = [
 
 export default function ArgosChat() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ conversationId?: string }>();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ArgosMessage[]>([]);
   const [input, setInput] = useState('');
@@ -41,9 +42,16 @@ export default function ArgosChat() {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserId(user.id);
+      if (user) {
+        setUserId(user.id);
+        if (params.conversationId) {
+          const msgs = await loadConversation(params.conversationId);
+          setMessages(msgs);
+          setConversationId(params.conversationId);
+        }
+      }
     })();
-  }, []);
+  }, [params.conversationId]);
 
   // Detener TTS al salir de la pantalla
   useFocusEffect(useCallback(() => {
