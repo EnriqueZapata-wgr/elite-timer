@@ -13,8 +13,16 @@ export async function callAnthropic(
   maxTokens = 4000,
   model = 'claude-sonnet-4-20250514',
   system?: string,
+  metadata?: { userId?: string; tier?: string; requestType?: string },
 ): Promise<any> {
-  const body: Record<string, unknown> = { messages, max_tokens: maxTokens, model };
+  const body: Record<string, unknown> = {
+    messages,
+    max_tokens: maxTokens,
+    model,
+    ...(metadata?.userId && { userId: metadata.userId }),
+    ...(metadata?.tier && { tier: metadata.tier }),
+    ...(metadata?.requestType && { requestType: metadata.requestType }),
+  };
   if (system) body.system = system;
 
   const response = await fetch(PROXY_URL, {

@@ -11,6 +11,20 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 const MODEL_CHAT = 'claude-sonnet-4-20250514';
 const MODEL_ESTIMATE = 'claude-sonnet-4-20250514'; // Mismo modelo que nutrition-service
 
+// === METADATA (para logging en argos_logs vía Edge Function) ===
+// Tier es placeholder hasta CC_PROMPT_006 (RevenueCat). Hoy lee user_metadata.tier o 'free'.
+async function getCurrentMetadata(
+  requestType: string,
+): Promise<{ userId?: string; tier?: string; requestType: string }> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const tier = (user as any)?.user_metadata?.tier || 'free';
+    return { userId: user?.id, tier, requestType };
+  } catch {
+    return { requestType };
+  }
+}
+
 // === SYSTEM PROMPT BASE ===
 const ARGOS_SYSTEM_PROMPT = `Eres ARGOS, el sistema de inteligencia en salud funcional de ATP.
 
@@ -391,11 +405,13 @@ export async function chatWithArgos(
   const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
+  const meta = await getCurrentMetadata('chat');
   const data = await callAnthropic(
     messages.map(m => ({ role: m.role, content: m.content })),
     1024,
     model,
     systemPrompt,
+    meta,
   );
 
   return data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
@@ -415,11 +431,13 @@ export async function generateDailyInsight(userId: string): Promise<string> {
 No uses emojis. No saludes. Ve directo al insight.${contextPrompt}`;
 
   try {
+    const meta = await getCurrentMetadata('insight');
     const data = await callAnthropic(
       [{ role: 'user', content: 'Dame el insight más relevante para hoy.' }],
       200,
       MODEL_ESTIMATE,
       insightSystem,
+      meta,
     );
     return data?.content?.[0]?.text || '';
   } catch (e) {
@@ -555,6 +573,7 @@ Responde SOLO en JSON válido (sin markdown, sin backticks):
 }`;
 
   try {
+    const meta = await getCurrentMetadata('routine');
     const data = await callAnthropic(
       [{
         role: 'user',
@@ -567,6 +586,7 @@ ${request.level ? `Nivel: ${request.level}` : ''}`,
       1500,
       MODEL_CHAT,
       systemPrompt,
+      meta,
     );
     const text = data?.content?.[0]?.text || '';
     const clean = text.replace(/```json|```/g, '').trim();
@@ -634,6 +654,7 @@ Responde SOLO en JSON válido (sin markdown, sin backticks):
 }`;
 
   try {
+    const meta = await getCurrentMetadata('recipe');
     const data = await callAnthropic(
       [{
         role: 'user',
@@ -646,6 +667,7 @@ ${request.restrictions?.length ? `Restricciones: ${request.restrictions.join(', 
       1500,
       MODEL_CHAT,
       systemPrompt,
+      meta,
     );
     const text = data?.content?.[0]?.text || '';
     const clean = text.replace(/```json|```/g, '').trim();
@@ -692,11 +714,13 @@ Responde SOLO en JSON (sin markdown, sin backticks):
 }`;
 
   try {
+    const meta = await getCurrentMetadata('shopping_list');
     const data = await callAnthropic(
       [{ role: 'user', content: `Genera lista de super para ${days} días.` }],
       1500,
       MODEL_CHAT,
       systemPrompt,
+      meta,
     );
     const text = data?.content?.[0]?.text || '';
     const clean = text.replace(/```json|```/g, '').trim();
