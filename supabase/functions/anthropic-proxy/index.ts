@@ -33,6 +33,8 @@ async function logArgosCall(supabase: any, params: {
   success: boolean,
   error_message?: string,
   fallback_used?: boolean,
+  target_user_id?: string | null,
+  target_profile_id?: string | null,
 }) {
   try {
     const cost = computeCost(
@@ -57,6 +59,8 @@ async function logArgosCall(supabase: any, params: {
       error_message: params.error_message,
       fallback_used: params.fallback_used || false,
       estimated_cost_usd: cost,
+      target_user_id: params.target_user_id ?? null,
+      target_profile_id: params.target_profile_id ?? null,
     });
   } catch (e) {
     console.error("argos_logs insert failed:", e);
@@ -75,7 +79,7 @@ serve(async (req) => {
   let body: any = {};
   try {
     body = await req.json();
-    const { messages, max_tokens, model, system, userId, tier, requestType } = body;
+    const { messages, max_tokens, model, system, userId, tier, requestType, targetUserId, targetProfileId } = body;
     const finalModel = model || "claude-sonnet-4-20250514";
     const requestBody: Record<string, unknown> = {
       model: finalModel,
@@ -111,6 +115,8 @@ serve(async (req) => {
       latency_ms: latencyMs,
       success: response.ok,
       error_message: response.ok ? undefined : JSON.stringify(data?.error),
+      target_user_id: targetUserId ?? null,
+      target_profile_id: targetProfileId ?? null,
     });
 
     return new Response(JSON.stringify(data), {
@@ -127,6 +133,8 @@ serve(async (req) => {
       latency_ms: latencyMs,
       success: false,
       error_message: error.message,
+      target_user_id: body.targetUserId ?? null,
+      target_profile_id: body.targetProfileId ?? null,
     });
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,

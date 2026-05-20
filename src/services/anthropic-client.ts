@@ -13,7 +13,13 @@ export async function callAnthropic(
   maxTokens = 4000,
   model = 'claude-sonnet-4-20250514',
   system?: string,
-  metadata?: { userId?: string; tier?: string; requestType?: string },
+  metadata?: {
+    userId?: string;
+    tier?: string;
+    requestType?: string;
+    targetUserId?: string | null;
+    targetProfileId?: string | null;
+  },
 ): Promise<any> {
   const body: Record<string, unknown> = {
     messages,
@@ -22,6 +28,8 @@ export async function callAnthropic(
     ...(metadata?.userId && { userId: metadata.userId }),
     ...(metadata?.tier && { tier: metadata.tier }),
     ...(metadata?.requestType && { requestType: metadata.requestType }),
+    ...(metadata?.targetUserId && { targetUserId: metadata.targetUserId }),
+    ...(metadata?.targetProfileId && { targetProfileId: metadata.targetProfileId }),
   };
   if (system) body.system = system;
 

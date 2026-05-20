@@ -4,6 +4,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
 import { getStudyType } from '@/src/data/study-types';
+import { getArgosCallMetadata } from './argos-service';
 
 // === TYPES ===
 
@@ -252,10 +253,22 @@ Responde en español.`,
   });
 
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    const authUid = user?.id;
+    const candidateTarget = (study as any).user_id;
+    const targetUserId = (candidateTarget && candidateTarget !== authUid) ? candidateTarget : null;
+    const meta = await getArgosCallMetadata({
+      callerUserId: authUid,
+      targetUserId,
+      requestType: 'clinical_interpretation',
+    });
+
     const aiResponse = await callAnthropic(
       [{ role: 'user', content }],
       3000,
       'claude-sonnet-4-20250514',
+      undefined,
+      meta,
     );
 
     const responseText = aiResponse?.content?.[0]?.text ?? '';

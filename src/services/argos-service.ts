@@ -13,16 +13,45 @@ const MODEL_ESTIMATE = 'claude-sonnet-4-20250514'; // Mismo modelo que nutrition
 
 // === METADATA (para logging en argos_logs vía Edge Function) ===
 // Tier es placeholder hasta CC_PROMPT_006 (RevenueCat). Hoy lee user_metadata.tier o 'free'.
-async function getCurrentMetadata(
-  requestType: string,
-): Promise<{ userId?: string; tier?: string; requestType: string }> {
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    const tier = (user as any)?.user_metadata?.tier || 'free';
-    return { userId: user?.id, tier, requestType };
-  } catch {
-    return { requestType };
+//
+// Semántica de target:
+//   - userId           = caller (paga la llamada). Si no se pasa, se resuelve via auth.uid.
+//   - targetUserId     = cliente ATP cuando el caller es coach. NULL en self-use.
+//   - targetProfileId  = shadow profile (sin cuenta ATP) cuando aplica. NULL en self-use.
+//   Quien llama es responsable del "self-use collapse" (no pasar target == auth.uid).
+export interface ArgosCallMetadata {
+  userId?: string;
+  tier?: string;
+  requestType: string;
+  targetUserId?: string | null;
+  targetProfileId?: string | null;
+}
+
+export async function getArgosCallMetadata(opts?: {
+  callerUserId?: string;
+  targetUserId?: string | null;
+  targetProfileId?: string | null;
+  requestType?: string;
+  tier?: string;
+}): Promise<ArgosCallMetadata> {
+  let userId = opts?.callerUserId;
+  let tier = opts?.tier;
+  if (!userId || !tier) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      userId = userId ?? user?.id;
+      tier = tier ?? ((user as any)?.user_metadata?.tier || 'free');
+    } catch {
+      // sin sesión — userId/tier quedan undefined; el log caerá como NULL/unknown
+    }
   }
+  return {
+    userId,
+    tier,
+    requestType: opts?.requestType ?? 'chat',
+    targetUserId: opts?.targetUserId ?? null,
+    targetProfileId: opts?.targetProfileId ?? null,
+  };
 }
 
 // === SYSTEM PROMPT BASE ===
@@ -405,7 +434,7 @@ export async function chatWithArgos(
   const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
-  const meta = await getCurrentMetadata('chat');
+  const meta = await getArgosCallMetadata({ requestType: 'chat' });
   const data = await callAnthropic(
     messages.map(m => ({ role: m.role, content: m.content })),
     1024,
@@ -431,7 +460,7 @@ export async function generateDailyInsight(userId: string): Promise<string> {
 No uses emojis. No saludes. Ve directo al insight.${contextPrompt}`;
 
   try {
-    const meta = await getCurrentMetadata('insight');
+    const meta = await getArgosCallMetadata({ requestType: 'insight' });
     const data = await callAnthropic(
       [{ role: 'user', content: 'Dame el insight más relevante para hoy.' }],
       200,
@@ -573,7 +602,7 @@ Responde SOLO en JSON válido (sin markdown, sin backticks):
 }`;
 
   try {
-    const meta = await getCurrentMetadata('routine');
+    const meta = await getArgosCallMetadata({ requestType: 'routine' });
     const data = await callAnthropic(
       [{
         role: 'user',
@@ -654,7 +683,7 @@ Responde SOLO en JSON válido (sin markdown, sin backticks):
 }`;
 
   try {
-    const meta = await getCurrentMetadata('recipe');
+    const meta = await getArgosCallMetadata({ requestType: 'recipe' });
     const data = await callAnthropic(
       [{
         role: 'user',
@@ -714,7 +743,7 @@ Responde SOLO en JSON (sin markdown, sin backticks):
 }`;
 
   try {
-    const meta = await getCurrentMetadata('shopping_list');
+    const meta = await getArgosCallMetadata({ requestType: 'shopping_list' });
     const data = await callAnthropic(
       [{ role: 'user', content: `Genera lista de super para ${days} días.` }],
       1500,

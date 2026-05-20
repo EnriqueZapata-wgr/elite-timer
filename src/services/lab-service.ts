@@ -3,6 +3,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from '@/src/services/anthropic-client';
+import { getArgosCallMetadata } from '@/src/services/argos-service';
 
 async function getAuth() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -121,12 +122,25 @@ Responde SOLO JSON válido (sin backticks):
 {"lab_name":"...","lab_date":"YYYY-MM-DD o null","values":{"glucose":{"value":95,"unit":"mg/dL"},...},"other_values":[{"name":"nombre original","value":123,"unit":"mg/dL"}]}
 Solo valores encontrados. No mapeados→other_values.`;
 
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const authUid = authUser?.id;
+    const candidateTarget = upload.user_id;
+    const targetUserId = (candidateTarget && candidateTarget !== authUid) ? candidateTarget : null;
+    const meta = await getArgosCallMetadata({
+      callerUserId: authUid,
+      targetUserId,
+      requestType: 'lab_interpretation',
+    });
+
     const result = await callAnthropic(
       [{ role: 'user', content: [
         { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
         { type: 'text', text: prompt },
       ]}],
       8000,
+      undefined,
+      undefined,
+      meta,
     );
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';

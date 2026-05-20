@@ -6,6 +6,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from '@/src/services/anthropic-client';
+import { getArgosCallMetadata } from '@/src/services/argos-service';
 
 interface ClientFullData {
   profile: any;
@@ -299,9 +300,21 @@ export async function askAtpAI(clientId: string, customQuestion?: string): Promi
   const data = await gatherClientData(clientId);
   const prompt = buildPrompt(data, customQuestion);
 
+  const { data: { user } } = await supabase.auth.getUser();
+  const authUid = user?.id;
+  const targetUserId = (clientId && clientId !== authUid) ? clientId : null;
+  const meta = await getArgosCallMetadata({
+    callerUserId: authUid,
+    targetUserId,
+    requestType: 'daily_summary',
+  });
+
   const result = await callAnthropic(
     [{ role: 'user', content: prompt }],
     4000,
+    undefined,
+    undefined,
+    meta,
   );
 
   return result.content?.map((c: any) => c.text || '').join('\n') || 'No se pudo generar el análisis.';
