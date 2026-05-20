@@ -1,4 +1,9 @@
 -- ARGOS Logs — observabilidad de llamadas a LLM
+--
+-- NOTA: las vistas argos_user_metrics y argos_global_metrics usan
+-- security_invoker = true para que respeten RLS del usuario que
+-- consulta (en lugar de los permisos del creador de la vista).
+-- Sin esto, las vistas bypasean RLS y exponen datos cross-user.
 CREATE TABLE IF NOT EXISTS argos_logs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES auth.users(id) ON DELETE SET NULL,
@@ -39,7 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_argos_logs_success_date ON argos_logs(success, cr
 CREATE INDEX IF NOT EXISTS idx_argos_logs_created ON argos_logs(created_at DESC);
 
 -- Vista agregada por usuario (últimos 30 días)
-CREATE OR REPLACE VIEW argos_user_metrics AS
+CREATE OR REPLACE VIEW argos_user_metrics
+WITH (security_invoker = true) AS
 SELECT
   user_id,
   tier,
@@ -57,7 +63,8 @@ WHERE created_at > now() - interval '30 days'
 GROUP BY user_id, tier;
 
 -- Vista agregada global (admin dashboard)
-CREATE OR REPLACE VIEW argos_global_metrics AS
+CREATE OR REPLACE VIEW argos_global_metrics
+WITH (security_invoker = true) AS
 SELECT
   date_trunc('day', created_at) as day,
   tier,
