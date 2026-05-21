@@ -9,16 +9,15 @@ const corsHeaders = {
 // Resilience config (espejo de src/constants/llm-config.ts)
 const TIMEOUT_MS = 8000;
 const HARD_CAP_DAILY = 50;
-const FALLBACK_MODEL = "gemini-2.5-flash"; // 🟡 confirmar string Flash vigente en mayo 2026
+const FALLBACK_MODEL = "gemini-2.5-flash"; // Gemini 2.5 Flash — string confirmado mayo 2026
 const PRIMARY_MODEL_DEFAULT = "claude-sonnet-4-6";
 
 // Pricing en USD por 1M tokens (mayo 2026 — actualizar si cambia)
-// 🟡 Gemini Flash pricing: referencia aprox ~$0.10/M input, ~$0.40/M output — confirmar
+// Gemini 2.5 Flash pricing confirmado mayo 2026: $0.30/M in, $2.50/M out
 const PRICING: Record<string, { input: number; output: number; cache_read: number; cache_write: number }> = {
   "claude-sonnet-4-6": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 },
   "claude-sonnet-4-20250514": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 },
-  "gemini-2.5-flash": { input: 0.10, output: 0.40, cache_read: 0, cache_write: 0 },
-  "gpt-4o-mini": { input: 0.15, output: 0.60, cache_read: 0, cache_write: 0 },
+  "gemini-2.5-flash": { input: 0.30, output: 2.50, cache_read: 0, cache_write: 0 },
 };
 
 function computeCost(model: string, inTok: number, outTok: number, cacheRead = 0, cacheWrite = 0): number {
