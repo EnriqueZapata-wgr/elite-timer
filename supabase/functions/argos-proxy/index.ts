@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 // Resilience config (espejo de src/constants/llm-config.ts)
-const TIMEOUT_MS = 8000;
+const ANTHROPIC_TIMEOUT_MS = 25000;
+const GEMINI_TIMEOUT_MS = 15000;
 const HARD_CAP_DAILY = 50;
 const FALLBACK_MODEL = "gemini-2.5-flash"; // Gemini 2.5 Flash — string confirmado mayo 2026
 const PRIMARY_MODEL_DEFAULT = "claude-sonnet-4-6";
@@ -107,7 +108,7 @@ async function callAnthropicProvider(args: {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -174,7 +175,7 @@ async function callGeminiProvider(args: {
   };
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch(

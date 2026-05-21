@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, Pressable,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  Keyboard, Platform, ActivityIndicator,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -38,6 +38,16 @@ export default function ArgosChat() {
   const [pastConversations, setPastConversations] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvt, (e) =>
+      setKeyboardHeight(e.endCoordinates?.height ?? 0));
+    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    return () => { showSub.remove(); hideSub.remove(); };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -138,11 +148,7 @@ export default function ArgosChat() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#000' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
-    >
+    <View style={{ flex: 1, backgroundColor: '#000' }}>
       {/* Header */}
       <View style={{
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -346,7 +352,7 @@ export default function ArgosChat() {
       <View style={{
         flexDirection: 'row', alignItems: 'flex-end', gap: 8,
         paddingHorizontal: 16, paddingVertical: 12,
-        paddingBottom: insets.bottom + 12,
+        paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : insets.bottom + 12,
         borderTopWidth: 0.5, borderTopColor: '#1a1a1a',
         backgroundColor: '#000',
       }}>
@@ -378,6 +384,6 @@ export default function ArgosChat() {
           <Ionicons name="arrow-up" size={22} color={input.trim() && !loading ? '#000' : '#444'} />
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
