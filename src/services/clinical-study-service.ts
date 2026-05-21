@@ -5,6 +5,7 @@ import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
 import { getStudyType } from '@/src/data/study-types';
 import { getArgosCallMetadata } from './argos-service';
+import { ATP_LLM } from '@/src/constants/llm-config';
 
 // === TYPES ===
 
@@ -266,7 +267,7 @@ Responde en español.`,
     const aiResponse = await callAnthropic(
       [{ role: 'user', content }],
       3000,
-      'claude-sonnet-4-20250514',
+      ATP_LLM.PRIMARY_MODEL,
       undefined,
       meta,
     );

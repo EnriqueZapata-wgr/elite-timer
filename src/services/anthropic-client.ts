@@ -3,15 +3,16 @@
  * Usa fetch directo al endpoint de Edge Functions (más confiable que supabase.functions.invoke).
  */
 import Constants from 'expo-constants';
+import { ATP_LLM } from '@/src/constants/llm-config';
 
 const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
-const PROXY_URL = `${SUPABASE_URL}/functions/v1/anthropic-proxy`;
+const PROXY_URL = `${SUPABASE_URL}/functions/v1/argos-proxy`;
 
 export async function callAnthropic(
   messages: any[],
-  maxTokens = 4000,
-  model = 'claude-sonnet-4-20250514',
+  maxTokens: number = ATP_LLM.MAX_TOKENS_DEFAULT,
+  model: string = ATP_LLM.PRIMARY_MODEL,
   system?: string,
   metadata?: {
     userId?: string;
@@ -33,14 +34,26 @@ export async function callAnthropic(
   };
   if (system) body.system = system;
 
-  const response = await fetch(PROXY_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ATP_LLM.TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err?.name === 'AbortError') throw new Error('ARGOS_TIMEOUT');
+    throw err;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');

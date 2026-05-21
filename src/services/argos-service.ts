@@ -6,10 +6,11 @@
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { ATP_LLM } from '@/src/constants/llm-config';
 
 // === MODELOS ===
-const MODEL_CHAT = 'claude-sonnet-4-20250514';
-const MODEL_ESTIMATE = 'claude-sonnet-4-20250514'; // Mismo modelo que nutrition-service
+const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
+const MODEL_ESTIMATE = ATP_LLM.PRIMARY_MODEL;
 
 // === METADATA (para logging en argos_logs vía Edge Function) ===
 // Tier es placeholder hasta CC_PROMPT_006 (RevenueCat). Hoy lee user_metadata.tier o 'free'.
@@ -445,14 +446,25 @@ export async function chatWithArgos(
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat' });
-  const data = await callAnthropic(
-    messages.map(m => ({ role: m.role, content: m.content })),
-    1024,
-    model,
-    systemPrompt,
-    meta,
-  );
+  let data;
+  try {
+    data = await callAnthropic(
+      messages.map(m => ({ role: m.role, content: m.content })),
+      1024,
+      model,
+      systemPrompt,
+      meta,
+    );
+  } catch (e: any) {
+    if (e?.message === 'ARGOS_TIMEOUT') {
+      return 'ARGOS está tardando más de lo normal, intenta de nuevo en un momento.';
+    }
+    console.warn('ARGOS chat error:', e);
+    return 'Lo siento, no pude procesar tu consulta.';
+  }
 
+  // Si el Edge Function aplicó circuit breaker o cayó en respuesta degradada,
+  // devuelve content válido pero con flags _rate_limited / _degraded — pasamos el texto tal cual.
   return data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
 }
 

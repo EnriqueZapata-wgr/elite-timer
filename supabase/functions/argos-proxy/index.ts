@@ -1,0 +1,408 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+// Resilience config (espejo de src/constants/llm-config.ts)
+const TIMEOUT_MS = 8000;
+const HARD_CAP_DAILY = 50;
+const FALLBACK_MODEL = "gemini-2.5-flash"; // 🟡 confirmar string Flash vigente en mayo 2026
+const PRIMARY_MODEL_DEFAULT = "claude-sonnet-4-6";
+
+// Pricing en USD por 1M tokens (mayo 2026 — actualizar si cambia)
+// 🟡 Gemini Flash pricing: referencia aprox ~$0.10/M input, ~$0.40/M output — confirmar
+const PRICING: Record<string, { input: number; output: number; cache_read: number; cache_write: number }> = {
+  "claude-sonnet-4-6": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 },
+  "claude-sonnet-4-20250514": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 },
+  "gemini-2.5-flash": { input: 0.10, output: 0.40, cache_read: 0, cache_write: 0 },
+  "gpt-4o-mini": { input: 0.15, output: 0.60, cache_read: 0, cache_write: 0 },
+};
+
+function computeCost(model: string, inTok: number, outTok: number, cacheRead = 0, cacheWrite = 0): number {
+  const p = PRICING[model];
+  if (!p) return 0;
+  return (inTok * p.input + outTok * p.output + cacheRead * p.cache_read + cacheWrite * p.cache_write) / 1_000_000;
+}
+
+async function logArgosCall(supabase: any, params: {
+  user_id?: string,
+  tier?: string,
+  provider: string,
+  model: string,
+  request_type?: string,
+  input_tokens?: number,
+  output_tokens?: number,
+  cache_read_tokens?: number,
+  cache_write_tokens?: number,
+  latency_ms: number,
+  success: boolean,
+  error_message?: string,
+  fallback_used?: boolean,
+  target_user_id?: string | null,
+  target_profile_id?: string | null,
+}) {
+  try {
+    const cost = computeCost(
+      params.model,
+      params.input_tokens || 0,
+      params.output_tokens || 0,
+      params.cache_read_tokens || 0,
+      params.cache_write_tokens || 0,
+    );
+    await supabase.from("argos_logs").insert({
+      user_id: params.user_id || null,
+      tier: params.tier || "unknown",
+      provider: params.provider,
+      model: params.model,
+      request_type: params.request_type || "chat",
+      input_tokens: params.input_tokens || 0,
+      output_tokens: params.output_tokens || 0,
+      cache_read_tokens: params.cache_read_tokens || 0,
+      cache_write_tokens: params.cache_write_tokens || 0,
+      latency_ms: params.latency_ms,
+      success: params.success,
+      error_message: params.error_message,
+      fallback_used: params.fallback_used || false,
+      estimated_cost_usd: cost,
+      target_user_id: params.target_user_id ?? null,
+      target_profile_id: params.target_profile_id ?? null,
+    });
+  } catch (e) {
+    console.error("argos_logs insert failed:", e);
+  }
+}
+
+// ─── PROVIDERS ──────────────────────────────────────────────────
+
+// 🟡 Anthropic prompt caching ya es GA en mayo 2026 — sin header beta requerido.
+// Si Anthropic vuelve a exigir beta, agregar: "anthropic-beta": "prompt-caching-2024-07-31".
+async function callAnthropicProvider(args: {
+  model: string;
+  messages: any[];
+  system?: string;
+  max_tokens: number;
+}): Promise<{
+  ok: boolean;
+  data: any;
+  status: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+}> {
+  const requestBody: Record<string, unknown> = {
+    model: args.model,
+    max_tokens: args.max_tokens,
+    messages: args.messages,
+  };
+  if (args.system) {
+    // Prompt caching: system como array con cache_control ephemeral
+    requestBody.system = [{
+      type: "text",
+      text: args.system,
+      cache_control: { type: "ephemeral" },
+    }];
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const data = await response.json();
+  return {
+    ok: response.ok,
+    data,
+    status: response.status,
+    input_tokens: data?.usage?.input_tokens || 0,
+    output_tokens: data?.usage?.output_tokens || 0,
+    cache_read_tokens: data?.usage?.cache_read_input_tokens || 0,
+    cache_write_tokens: data?.usage?.cache_creation_input_tokens || 0,
+  };
+}
+
+// Adapta messages estilo Anthropic (con content como string o array de blocks) a OpenAI plain text.
+function flattenContentForOpenAI(content: any): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((b: any) => b?.type === "text" || typeof b?.text === "string")
+      .map((b: any) => b.text || "")
+      .join("\n");
+  }
+  return String(content || "");
+}
+
+async function callGeminiProvider(args: {
+  model: string;
+  messages: any[];
+  system?: string;
+  max_tokens: number;
+}): Promise<{
+  ok: boolean;
+  data: any;
+  status: number;
+  text: string;
+  input_tokens: number;
+  output_tokens: number;
+}> {
+  const openaiMessages: any[] = [];
+  if (args.system) openaiMessages.push({ role: "system", content: args.system });
+  for (const m of args.messages) {
+    openaiMessages.push({ role: m.role, content: flattenContentForOpenAI(m.content) });
+  }
+
+  const requestBody = {
+    model: args.model,
+    messages: openaiMessages,
+    max_tokens: args.max_tokens,
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${Deno.env.get("GEMINI_API_KEY")!}`,
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      },
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  const data = await response.json();
+  const text = data?.choices?.[0]?.message?.content || "";
+  return {
+    ok: response.ok,
+    data,
+    status: response.status,
+    text,
+    input_tokens: data?.usage?.prompt_tokens || 0,
+    output_tokens: data?.usage?.completion_tokens || 0,
+  };
+}
+
+// ─── CIRCUIT BREAKER ────────────────────────────────────────────
+
+async function checkAndIncrementUsage(supabase: any, userId: string | undefined): Promise<{
+  blocked: boolean;
+  count: number;
+}> {
+  if (!userId) return { blocked: false, count: 0 };
+  try {
+    const { data, error } = await supabase.rpc("increment_argos_usage", { p_user_id: userId });
+    if (error) {
+      console.error("increment_argos_usage error:", error);
+      return { blocked: false, count: 0 }; // fail-open: no bloquear si la función falla
+    }
+    const count = typeof data === "number" ? data : 0;
+    return { blocked: count > HARD_CAP_DAILY, count };
+  } catch (e) {
+    console.error("increment_argos_usage exception:", e);
+    return { blocked: false, count: 0 };
+  }
+}
+
+// ─── MAIN HANDLER ──────────────────────────────────────────────
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  const startTime = Date.now();
+  let body: any = {};
+
+  try {
+    body = await req.json();
+    const { messages, max_tokens, model, system, userId, tier, requestType, targetUserId, targetProfileId } = body;
+    const finalModel = model || PRIMARY_MODEL_DEFAULT;
+    const finalMaxTokens = max_tokens || 4000;
+
+    // Circuit breaker (server-side)
+    const usage = await checkAndIncrementUsage(supabase, userId);
+    if (usage.blocked) {
+      const latencyMs = Date.now() - startTime;
+      await logArgosCall(supabase, {
+        user_id: userId,
+        tier,
+        provider: "anthropic",
+        model: finalModel,
+        request_type: requestType,
+        latency_ms: latencyMs,
+        success: false,
+        error_message: "rate_limited",
+        fallback_used: false,
+        target_user_id: targetUserId ?? null,
+        target_profile_id: targetProfileId ?? null,
+      });
+      return new Response(JSON.stringify({
+        content: [{
+          type: "text",
+          text: `Alcanzaste el límite diario de consultas a ARGOS (${HARD_CAP_DAILY}). Se renueva mañana.`,
+        }],
+        model: finalModel,
+        _rate_limited: true,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // 1) Anthropic primero
+    let anthropicErr: string | null = null;
+    try {
+      const ant = await callAnthropicProvider({
+        model: finalModel,
+        messages,
+        system,
+        max_tokens: finalMaxTokens,
+      });
+      const latencyMs = Date.now() - startTime;
+
+      if (ant.ok) {
+        await logArgosCall(supabase, {
+          user_id: userId,
+          tier,
+          provider: "anthropic",
+          model: finalModel,
+          request_type: requestType,
+          input_tokens: ant.input_tokens,
+          output_tokens: ant.output_tokens,
+          cache_read_tokens: ant.cache_read_tokens,
+          cache_write_tokens: ant.cache_write_tokens,
+          latency_ms: latencyMs,
+          success: true,
+          fallback_used: false,
+          target_user_id: targetUserId ?? null,
+          target_profile_id: targetProfileId ?? null,
+        });
+        return new Response(JSON.stringify(ant.data), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      anthropicErr = JSON.stringify(ant.data?.error) || `status ${ant.status}`;
+    } catch (e: any) {
+      anthropicErr = e?.name === "AbortError" ? "anthropic_timeout" : (e?.message || String(e));
+    }
+
+    // 2) Fallback a Gemini
+    try {
+      const gem = await callGeminiProvider({
+        model: FALLBACK_MODEL,
+        messages,
+        system,
+        max_tokens: finalMaxTokens,
+      });
+      const latencyMs = Date.now() - startTime;
+
+      if (gem.ok && gem.text) {
+        await logArgosCall(supabase, {
+          user_id: userId,
+          tier,
+          provider: "google",
+          model: FALLBACK_MODEL,
+          request_type: requestType,
+          input_tokens: gem.input_tokens,
+          output_tokens: gem.output_tokens,
+          latency_ms: latencyMs,
+          success: true,
+          error_message: `anthropic_failed:${anthropicErr}`,
+          fallback_used: true,
+          target_user_id: targetUserId ?? null,
+          target_profile_id: targetProfileId ?? null,
+        });
+        return new Response(JSON.stringify({
+          content: [{ type: "text", text: gem.text }],
+          model: FALLBACK_MODEL,
+          _fallback: true,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // Gemini respondió pero sin texto / no-ok → degradado
+      const latencyMsDeg = Date.now() - startTime;
+      await logArgosCall(supabase, {
+        user_id: userId,
+        tier,
+        provider: "google",
+        model: FALLBACK_MODEL,
+        request_type: requestType,
+        latency_ms: latencyMsDeg,
+        success: false,
+        error_message: `both_failed | anthropic:${anthropicErr} | gemini_status:${gem.status}`,
+        fallback_used: true,
+        target_user_id: targetUserId ?? null,
+        target_profile_id: targetProfileId ?? null,
+      });
+    } catch (e: any) {
+      const latencyMs = Date.now() - startTime;
+      const gemErr = e?.name === "AbortError" ? "gemini_timeout" : (e?.message || String(e));
+      await logArgosCall(supabase, {
+        user_id: userId,
+        tier,
+        provider: "google",
+        model: FALLBACK_MODEL,
+        request_type: requestType,
+        latency_ms: latencyMs,
+        success: false,
+        error_message: `both_failed | anthropic:${anthropicErr} | gemini:${gemErr}`,
+        fallback_used: true,
+        target_user_id: targetUserId ?? null,
+        target_profile_id: targetProfileId ?? null,
+      });
+    }
+
+    // 3) Respuesta degradada (status 200 — el cliente lee _degraded)
+    return new Response(JSON.stringify({
+      content: [{
+        type: "text",
+        text: "ARGOS no está disponible en este momento. Intenta de nuevo en un par de minutos.",
+      }],
+      model: finalModel,
+      _degraded: true,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  } catch (error: any) {
+    const latencyMs = Date.now() - startTime;
+    await logArgosCall(supabase, {
+      user_id: body.userId,
+      tier: body.tier,
+      provider: "anthropic",
+      model: body.model || "unknown",
+      request_type: body.requestType,
+      latency_ms: latencyMs,
+      success: false,
+      error_message: error?.message || String(error),
+      target_user_id: body.targetUserId ?? null,
+      target_profile_id: body.targetProfileId ?? null,
+    });
+    return new Response(JSON.stringify({ error: error?.message || String(error) }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
