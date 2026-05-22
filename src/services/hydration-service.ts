@@ -4,7 +4,7 @@
  */
 import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
-import { getLocalToday } from '@/src/utils/date-helpers';
+import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 
 const DEFAULT_WATER_GOAL_ML = 2500;
 
@@ -116,3 +116,39 @@ export async function addWater(userId: string, deltaMl: number): Promise<number 
 export const HYDRATION_DEFAULTS = {
   waterGoalMl: DEFAULT_WATER_GOAL_ML,
 };
+
+/**
+ * Estadísticas resumidas de hidratación: promedio últimos 7 días y
+ * progreso de HOY contra la meta del usuario. Para contexto a ARGOS.
+ */
+export async function getHydrationStats(userId: string): Promise<{
+  last7dAvgMl: number;
+  todayProgressPct: number;
+} | null> {
+  try {
+    const todayStr = getLocalToday();
+    const since = parseLocalDate(todayStr);
+    since.setDate(since.getDate() - 6); // incluye hoy = 7 días
+    const sinceStr = toLocalDateString(since);
+
+    const { data, error } = await supabase
+      .from('hydration_logs')
+      .select('date, total_ml')
+      .eq('user_id', userId)
+      .gte('date', sinceStr);
+    if (error) return null;
+
+    const rows = data ?? [];
+    const last7dAvgMl = rows.length > 0
+      ? Math.round(rows.reduce((s: number, r: any) => s + (Number(r.total_ml) || 0), 0) / rows.length)
+      : 0;
+
+    const todayTotal = Number(rows.find((r: any) => r.date === todayStr)?.total_ml || 0);
+    const goal = await getUserWaterGoal(userId);
+    const todayProgressPct = goal > 0 ? Math.round((todayTotal / goal) * 100) : 0;
+
+    return { last7dAvgMl, todayProgressPct };
+  } catch {
+    return null;
+  }
+}

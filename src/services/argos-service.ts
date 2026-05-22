@@ -7,6 +7,7 @@ import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { ATP_LLM } from '@/src/constants/llm-config';
+import { getHydrationStats } from './hydration-service';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -160,6 +161,49 @@ interface UserContext {
     scores: Record<string, number>;
     issues: string[];
   }[];
+  recentMindSessions?: {
+    meditationDaysLast7: number;
+    breathworkDaysLast7: number;
+    avgMinutes: number;
+  };
+  recentJournal?: {
+    entriesLast7: number;
+    lastEntryDate: string | null;
+    dominantTag: string | null;
+  };
+  recentMood?: {
+    avgPleasantness: number;
+    trend: 'up' | 'down' | 'stable';
+    lastCheckInAt: string | null;
+    checkInsLast7: number;
+  };
+  cycleInfo?: {
+    cycleDay: number;
+    currentPhase: string;
+    nextPeriodEstimate: string;
+  };
+  recentBodyMeasurements?: {
+    lastWeightKg: number | null;
+    lastBodyFatPct: number | null;
+    weightTrend30d: 'up' | 'down' | 'stable' | 'no_data';
+    lastMeasuredAt: string;
+  };
+  recentLabs?: {
+    keyMarkers: { name: string; value: number; unit: string }[];
+    lastUpdated: string;
+  };
+  todaySupplements?: {
+    taken: string[];
+    pending: string[];
+  };
+  hydrationStats?: {
+    last7dAvgMl: number;
+    todayProgressPct: number;
+  };
+  currentHealthScore?: {
+    score: number;
+    calculatedAt: string;
+  };
 }
 
 async function loadUserContext(userId: string): Promise<UserContext> {
@@ -375,6 +419,216 @@ async function loadUserContext(userId: string): Promise<UserContext> {
     }
   } catch (e) { /* UV opcional */ }
 
+  // Rango 7 días para fuentes recientes (computado una vez)
+  const sevenDaysAgoCursor = parseLocalDate(today);
+  sevenDaysAgoCursor.setDate(sevenDaysAgoCursor.getDate() - 6);
+  const sevenDaysAgo = toLocalDateString(sevenDaysAgoCursor);
+
+  try {
+    // Sesiones mente (últimos 7 días)
+    const { data: mind } = await supabase
+      .from('mind_sessions')
+      .select('type, duration_seconds, date')
+      .eq('user_id', userId)
+      .gte('date', sevenDaysAgo);
+    if (mind && mind.length > 0) {
+      const meditationDays = new Set(mind.filter((m: any) => m.type === 'meditation').map((m: any) => m.date)).size;
+      const breathworkDays = new Set(mind.filter((m: any) => m.type === 'breathing').map((m: any) => m.date)).size;
+      const avgSec = mind.reduce((s: number, m: any) => s + (m.duration_seconds || 0), 0) / mind.length;
+      context.recentMindSessions = {
+        meditationDaysLast7: meditationDays,
+        breathworkDaysLast7: breathworkDays,
+        avgMinutes: Math.round(avgSec / 60),
+      };
+    }
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Journal (últimos 7 días)
+    const { data: journal } = await supabase
+      .from('journal_entries')
+      .select('date, tags')
+      .eq('user_id', userId)
+      .gte('date', sevenDaysAgo)
+      .order('date', { ascending: false });
+    if (journal && journal.length > 0) {
+      const tagCounts: Record<string, number> = {};
+      for (const j of journal as any[]) {
+        for (const t of (j.tags || [])) tagCounts[t] = (tagCounts[t] || 0) + 1;
+      }
+      const dominantTag = Object.entries(tagCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      context.recentJournal = {
+        entriesLast7: journal.length,
+        lastEntryDate: (journal[0] as any).date,
+        dominantTag,
+      };
+    }
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Mood check-ins (últimos 7 días, usa created_at — no hay col `date`)
+    const sinceISO = parseLocalDate(sevenDaysAgo).toISOString();
+    const { data: checkins } = await supabase
+      .from('emotional_checkins')
+      .select('pleasantness, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', sinceISO)
+      .order('created_at', { ascending: false });
+    if (checkins && checkins.length > 0) {
+      const values = (checkins as any[]).map(c => c.pleasantness).filter((v: any) => typeof v === 'number');
+      const avg = values.length > 0 ? values.reduce((s: number, v: number) => s + v, 0) / values.length : 0;
+      // trend: comparar primera mitad cronológica (más antigua) vs segunda (más reciente)
+      let trend: 'up' | 'down' | 'stable' = 'stable';
+      if (values.length >= 4) {
+        const half = Math.floor(values.length / 2);
+        const recent = values.slice(0, half).reduce((s, v) => s + v, 0) / half;
+        const older = values.slice(-half).reduce((s, v) => s + v, 0) / half;
+        if (recent - older >= 1) trend = 'up';
+        else if (older - recent >= 1) trend = 'down';
+      }
+      context.recentMood = {
+        avgPleasantness: Math.round(avg * 10) / 10,
+        trend,
+        lastCheckInAt: (checkins[0] as any).created_at,
+        checkInsLast7: checkins.length,
+      };
+    }
+  } catch (_) { /* opcional */ }
+
+  // Ciclo menstrual — solo si gender indica femenino
+  const isFemale = context.gender === 'female';
+  if (isFemale) {
+    try {
+      const [periodsRes, settingsRes] = await Promise.all([
+        supabase.from('cycle_periods').select('start_date').eq('user_id', userId)
+          .order('start_date', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('cycle_settings').select('avg_cycle_length').eq('user_id', userId).maybeSingle(),
+      ]);
+      const lastStart = (periodsRes.data as any)?.start_date;
+      const avgLen = (settingsRes.data as any)?.avg_cycle_length || 28;
+      if (lastStart) {
+        const lastStartDate = parseLocalDate(lastStart);
+        const todayDate = parseLocalDate(today);
+        const cycleDay = Math.floor((todayDate.getTime() - lastStartDate.getTime()) / 86400000) + 1;
+        let phase = 'menstrual';
+        if (cycleDay > 5 && cycleDay <= 13) phase = 'follicular';
+        else if (cycleDay > 13 && cycleDay <= 16) phase = 'ovulation';
+        else if (cycleDay > 16 && cycleDay <= avgLen) phase = 'luteal';
+        const nextStart = new Date(lastStartDate);
+        nextStart.setDate(nextStart.getDate() + avgLen);
+        context.cycleInfo = {
+          cycleDay,
+          currentPhase: phase,
+          nextPeriodEstimate: toLocalDateString(nextStart),
+        };
+      }
+    } catch (_) { /* opcional */ }
+  }
+
+  try {
+    // Medidas corporales (última + trend 30d)
+    const { data: measurements } = await supabase
+      .from('body_measurements')
+      .select('measured_at, weight_kg, body_fat_pct')
+      .eq('user_id', userId)
+      .order('measured_at', { ascending: false })
+      .limit(10);
+    if (measurements && measurements.length > 0) {
+      const last = measurements[0] as any;
+      let trend: 'up' | 'down' | 'stable' | 'no_data' = 'no_data';
+      if (measurements.length >= 2 && last.weight_kg) {
+        const oldest = measurements[measurements.length - 1] as any;
+        if (oldest.weight_kg) {
+          const delta = last.weight_kg - oldest.weight_kg;
+          if (delta >= 1) trend = 'up';
+          else if (delta <= -1) trend = 'down';
+          else trend = 'stable';
+        }
+      }
+      context.recentBodyMeasurements = {
+        lastWeightKg: last.weight_kg ?? null,
+        lastBodyFatPct: last.body_fat_pct ?? null,
+        weightTrend30d: trend,
+        lastMeasuredAt: last.measured_at,
+      };
+    }
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Labs — último set
+    const { data: labs } = await supabase
+      .from('lab_results')
+      .select('lab_date, vitamin_d, hba1c, ferritin, tsh, cholesterol_total, hdl, ldl, triglycerides, testosterone, estradiol, cortisol')
+      .eq('user_id', userId)
+      .order('lab_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (labs) {
+      const l = labs as any;
+      const candidates: { name: string; value: any; unit: string }[] = [
+        { name: 'Vitamina D', value: l.vitamin_d, unit: 'ng/mL' },
+        { name: 'HbA1c', value: l.hba1c, unit: '%' },
+        { name: 'Ferritina', value: l.ferritin, unit: 'ng/mL' },
+        { name: 'TSH', value: l.tsh, unit: 'mUI/L' },
+        { name: 'Colesterol total', value: l.cholesterol_total, unit: 'mg/dL' },
+        { name: 'HDL', value: l.hdl, unit: 'mg/dL' },
+        { name: 'LDL', value: l.ldl, unit: 'mg/dL' },
+        { name: 'Triglicéridos', value: l.triglycerides, unit: 'mg/dL' },
+        { name: 'Testosterona', value: l.testosterone, unit: 'ng/dL' },
+        { name: 'Estradiol', value: l.estradiol, unit: 'pg/mL' },
+        { name: 'Cortisol', value: l.cortisol, unit: 'µg/dL' },
+      ];
+      const keyMarkers = candidates
+        .filter(c => typeof c.value === 'number')
+        .map(c => ({ name: c.name, value: c.value as number, unit: c.unit }));
+      if (keyMarkers.length > 0 && l.lab_date) {
+        context.recentLabs = { keyMarkers, lastUpdated: l.lab_date };
+      }
+    }
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Suplementos: activos + tomados hoy
+    const [suppRes, logRes] = await Promise.all([
+      supabase.from('user_supplements').select('id, name').eq('user_id', userId).eq('is_active', true),
+      supabase.from('supplement_logs').select('supplement_id, taken').eq('user_id', userId).eq('date', today),
+    ]);
+    const active = (suppRes.data as any[]) || [];
+    if (active.length > 0) {
+      const takenIds = new Set(((logRes.data as any[]) || []).filter(l => l.taken).map(l => l.supplement_id));
+      const taken: string[] = [];
+      const pending: string[] = [];
+      for (const s of active) {
+        if (takenIds.has(s.id)) taken.push(s.name);
+        else pending.push(s.name);
+      }
+      context.todaySupplements = { taken, pending };
+    }
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Hidratación (reusar helper de hydration-service)
+    const hydro = await getHydrationStats(userId);
+    if (hydro) context.hydrationStats = hydro;
+  } catch (_) { /* opcional */ }
+
+  try {
+    // Health score más reciente
+    const { data: hs } = await supabase
+      .from('health_scores')
+      .select('functional_health_score, calculated_at')
+      .eq('user_id', userId)
+      .order('calculated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (hs && typeof (hs as any).functional_health_score === 'number') {
+      context.currentHealthScore = {
+        score: Math.round((hs as any).functional_health_score),
+        calculatedAt: (hs as any).calculated_at,
+      };
+    }
+  } catch (_) { /* opcional */ }
+
   return context;
 }
 
@@ -427,6 +681,47 @@ function buildContextPrompt(ctx: UserContext): string {
     parts.push(`UV actual: ${uv.current} (máx hoy: ${uv.max} a las ${uv.maxTime})`);
     if (uv.vitaminDWindow) parts.push(`Ventana vitamina D: ${uv.vitaminDWindow.start}-${uv.vitaminDWindow.end}`);
     if (uv.dangerousFrom) parts.push(`Protección necesaria: ${uv.dangerousFrom}-${uv.dangerousUntil}`);
+  }
+  if (ctx.recentMindSessions) {
+    const m = ctx.recentMindSessions;
+    parts.push(`Mente 7d: ${m.meditationDaysLast7}d meditación, ${m.breathworkDaysLast7}d respiración, ${m.avgMinutes} min/sesión`);
+  }
+  if (ctx.recentJournal) {
+    const j = ctx.recentJournal;
+    const tag = j.dominantTag ? `, tema dominante: ${j.dominantTag}` : '';
+    parts.push(`Journal 7d: ${j.entriesLast7} entradas (última ${j.lastEntryDate})${tag}`);
+  }
+  if (ctx.recentMood) {
+    const m = ctx.recentMood;
+    parts.push(`Mood 7d: ${m.checkInsLast7} check-ins, promedio agrado ${m.avgPleasantness}/10, tendencia ${m.trend}`);
+  }
+  if (ctx.cycleInfo) {
+    const c = ctx.cycleInfo;
+    parts.push(`Ciclo: día ${c.cycleDay} (fase ${c.currentPhase}), próximo periodo ~${c.nextPeriodEstimate}`);
+  }
+  if (ctx.recentBodyMeasurements) {
+    const b = ctx.recentBodyMeasurements;
+    const w = b.lastWeightKg !== null ? `${b.lastWeightKg}kg` : 's/d';
+    const bf = b.lastBodyFatPct !== null ? `, ${b.lastBodyFatPct}% grasa` : '';
+    parts.push(`Última medición (${b.lastMeasuredAt}): ${w}${bf}, tendencia peso ${b.weightTrend30d}`);
+  }
+  if (ctx.recentLabs) {
+    const markers = ctx.recentLabs.keyMarkers.map(m => `${m.name} ${m.value}${m.unit}`).join(', ');
+    parts.push(`Labs (${ctx.recentLabs.lastUpdated}): ${markers}`);
+  }
+  if (ctx.todaySupplements) {
+    const s = ctx.todaySupplements;
+    const t = s.taken.length > 0 ? s.taken.join(', ') : 'ninguno';
+    const p = s.pending.length > 0 ? s.pending.join(', ') : 'ninguno';
+    parts.push(`Suplementos hoy: tomados [${t}], pendientes [${p}]`);
+  }
+  if (ctx.hydrationStats) {
+    const h = ctx.hydrationStats;
+    parts.push(`Hidratación: ${h.todayProgressPct}% meta hoy, promedio 7d ${h.last7dAvgMl}ml/día`);
+  }
+  if (ctx.currentHealthScore) {
+    const hs = ctx.currentHealthScore;
+    parts.push(`Health Score: ${hs.score} (${hs.calculatedAt.slice(0,10)})`);
   }
   if (parts.length === 0) return '';
   return `\n\n## DATOS ACTUALES DEL USUARIO\n${parts.join('\n')}`;
