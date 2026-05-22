@@ -8,7 +8,7 @@ import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
-import { getUserWaterGoal } from '@/src/services/hydration-service';
+import { getUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
 
 // ═══ TIPOS ═══
 
@@ -84,7 +84,7 @@ const DEFAULT_QUANTS = ['protein', 'water'];
 const DEFAULT_QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
   protein: { target: 150, unit: 'g' },
   steps:   { target: 10000, unit: 'pasos' },
-  water:   { target: 3000, unit: 'ml' },
+  water:   { target: HYDRATION_DEFAULTS.waterGoalMl, unit: 'ml' },
   sleep:   { target: 8, unit: 'h' },
 };
 
