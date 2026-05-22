@@ -136,6 +136,7 @@ export default function TodayScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const [streak, setStreak] = useState<number | null>(null);
+  const [glucoseSaving, setGlucoseSaving] = useState(false);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -365,6 +366,32 @@ export default function TodayScreen() {
     loadDay();
   }
 
+  // --- Quick log: glucosa (1 tap desde HOY) ---
+  async function quickLogGlucose(value: number) {
+    if (!user?.id || glucoseSaving) return;
+    haptic.medium();
+    setGlucoseSaving(true);
+    try {
+      const now = new Date();
+      const { error } = await supabase.from('glucose_logs').insert({
+        user_id: user.id,
+        date: getLocalToday(),
+        time: now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        value_mg_dl: value,
+        context: 'random',
+      });
+      if (error) throw error;
+      try { await awardBooleanElectron(user.id, 'glucose_log'); } catch { /* idempotent */ }
+      DeviceEventEmitter.emit('electrons_changed');
+      DeviceEventEmitter.emit('day_changed');
+      haptic.success();
+    } catch (e) {
+      console.warn('Quick glucose error:', e);
+    } finally {
+      setGlucoseSaving(false);
+    }
+  }
+
   // --- Quick voice desde HOY (sin abrir chat) ---
   async function handleQuickVoice(transcript: string) {
     if (!user?.id) return;
@@ -538,6 +565,30 @@ export default function TodayScreen() {
               <Text style={s.missionCompleteSubtext}>Todos los electrones del día completados.</Text>
             </View>
           )}
+        </Animated.View>
+
+        {/* ═══════════════════════════════════════
+            QUICK LOG — Glucosa (1 tap)
+        ═══════════════════════════════════════ */}
+        <Animated.View entering={FadeInUp.delay(150).springify()} style={s.section}>
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>GLUCOSA</Text>
+            <Pressable onPress={() => { haptic.light(); router.push('/glucose-log' as any); }}>
+              <Text style={s.quickLogMore}>otro →</Text>
+            </Pressable>
+          </View>
+          <View style={s.quickRow}>
+            {[80, 90, 100, 110, 120].map(v => (
+              <Pressable
+                key={v}
+                onPress={() => quickLogGlucose(v)}
+                disabled={glucoseSaving}
+                style={[s.glucoseBtn, glucoseSaving && { opacity: 0.5 }]}
+              >
+                <Text style={s.glucoseBtnText}>{v}</Text>
+              </Pressable>
+            ))}
+          </View>
         </Animated.View>
 
         {/* UV mini-card (ATP SOL) */}
@@ -1345,6 +1396,33 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     marginTop: 10,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  quickLogMore: {
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+    color: '#666',
+  },
+  glucoseBtn: {
+    flex: 1,
+    minWidth: 56,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(251,146,60,0.10)',
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: 'rgba(251,146,60,0.25)',
+    alignItems: 'center',
+  },
+  glucoseBtnText: {
+    color: '#fb923c',
+    fontSize: 14,
+    fontFamily: Fonts.bold,
+    fontVariant: ['tabular-nums'],
   },
   waterQuickBtn: {
     paddingHorizontal: 12,
