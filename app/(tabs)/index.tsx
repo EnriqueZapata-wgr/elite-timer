@@ -11,7 +11,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, Text, Modal,
+  View, StyleSheet, ScrollView, Pressable, Text, Modal, TextInput,
   Dimensions, DeviceEventEmitter, ImageBackground,
   LayoutAnimation, Platform, UIManager, ActivityIndicator,
 } from 'react-native';
@@ -140,6 +140,9 @@ export default function TodayScreen() {
   const [moodSaving, setMoodSaving] = useState(false);
   const [supplements, setSupplements] = useState<{ id: string; name: string; dosage: string; timing: string }[]>([]);
   const [suppTaken, setSuppTaken] = useState<Record<string, boolean>>({});
+  const [hasJournalToday, setHasJournalToday] = useState<boolean>(true);
+  const [journalDraft, setJournalDraft] = useState('');
+  const [journalSaving, setJournalSaving] = useState(false);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -157,14 +160,16 @@ export default function TodayScreen() {
     } catch { /* silencioso */ }
     try {
       const today = getLocalToday();
-      const [suppsRes, logsRes] = await Promise.all([
+      const [suppsRes, logsRes, journalRes] = await Promise.all([
         supabase.from('user_supplements').select('id, name, dosage, timing').eq('user_id', user.id).eq('is_active', true).order('timing'),
         supabase.from('supplement_logs').select('supplement_id, taken').eq('user_id', user.id).eq('date', today),
+        supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('date', today),
       ]);
       setSupplements(suppsRes.data ?? []);
       const taken: Record<string, boolean> = {};
       (logsRes.data ?? []).forEach((l: any) => { taken[l.supplement_id] = !!l.taken; });
       setSuppTaken(taken);
+      setHasJournalToday((journalRes.count ?? 0) > 0);
     } catch { /* silencioso */ }
     setLoading(false);
   }, [user?.id]);
@@ -378,6 +383,35 @@ export default function TodayScreen() {
       }, { onConflict: 'user_id' });
     } catch { /* tabla puede no existir */ }
     loadDay();
+  }
+
+  // --- Quick log: journal nocturno (≥21h, sin entrada hoy) ---
+  async function saveQuickJournal() {
+    if (!user?.id || journalSaving) return;
+    const content = journalDraft.trim();
+    if (content.length < 3) return;
+    setJournalSaving(true);
+    haptic.medium();
+    try {
+      const { error } = await supabase.from('journal_entries').insert({
+        user_id: user.id,
+        date: getLocalToday(),
+        prompt: '¿Cómo estuvo tu día?',
+        content,
+        journal_type: 'free',
+      });
+      if (error) throw error;
+      try { await awardBooleanElectron(user.id, 'journal'); } catch { /* idempotent */ }
+      setHasJournalToday(true);
+      setJournalDraft('');
+      DeviceEventEmitter.emit('electrons_changed');
+      DeviceEventEmitter.emit('day_changed');
+      haptic.success();
+    } catch (e) {
+      console.warn('Quick journal error:', e);
+    } finally {
+      setJournalSaving(false);
+    }
   }
 
   // --- Quick log: suplemento (toggle por item) ---
@@ -725,6 +759,45 @@ export default function TodayScreen() {
             ))}
           </View>
         </Animated.View>
+
+        {/* ═══════════════════════════════════════
+            QUICK PROMPT — Journal nocturno (≥21h, sin entrada hoy)
+        ═══════════════════════════════════════ */}
+        {hour >= 21 && !hasJournalToday && (
+          <Animated.View entering={FadeInUp.delay(152).springify()} style={s.section}>
+            <View style={s.journalCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <Ionicons name="book-outline" size={16} color="#c084fc" />
+                <Text style={s.journalTitle}>¿Cómo estuvo tu día?</Text>
+              </View>
+              <TextInput
+                value={journalDraft}
+                onChangeText={setJournalDraft}
+                placeholder="Una línea, un pensamiento..."
+                placeholderTextColor="rgba(255,255,255,0.25)"
+                multiline
+                editable={!journalSaving}
+                style={s.journalInput}
+                maxLength={500}
+              />
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                <Pressable onPress={() => { haptic.light(); router.push('/journal' as any); }}>
+                  <Text style={s.quickLogMore}>journal completo →</Text>
+                </Pressable>
+                <Pressable
+                  onPress={saveQuickJournal}
+                  disabled={journalSaving || journalDraft.trim().length < 3}
+                  style={[
+                    s.journalSaveBtn,
+                    (journalSaving || journalDraft.trim().length < 3) && { opacity: 0.4 },
+                  ]}
+                >
+                  <Text style={s.journalSaveText}>{journalSaving ? 'GUARDANDO…' : 'GUARDAR'}</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Animated.View>
+        )}
 
         {/* ═══════════════════════════════════════
             QUICK CHECK — Suplementos de hoy
@@ -1649,6 +1722,43 @@ const s = StyleSheet.create({
     color: '#666',
     fontSize: 11,
     fontFamily: Fonts.regular,
+  },
+  journalCard: {
+    backgroundColor: 'rgba(192,132,252,0.06)',
+    borderRadius: Radius.md,
+    borderWidth: 0.5,
+    borderColor: 'rgba(192,132,252,0.2)',
+    padding: Spacing.md,
+  },
+  journalTitle: {
+    color: '#c084fc',
+    fontSize: 13,
+    fontFamily: Fonts.bold,
+    letterSpacing: 0.5,
+  },
+  journalInput: {
+    color: '#fff',
+    fontFamily: Fonts.regular,
+    fontSize: 14,
+    minHeight: 48,
+    maxHeight: 100,
+    textAlignVertical: 'top',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  journalSaveBtn: {
+    backgroundColor: '#c084fc',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  journalSaveText: {
+    color: '#000',
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    letterSpacing: 1,
   },
   waterQuickBtn: {
     paddingHorizontal: 12,
