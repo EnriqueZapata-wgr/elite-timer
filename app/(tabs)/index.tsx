@@ -138,6 +138,8 @@ export default function TodayScreen() {
   const [streak, setStreak] = useState<number | null>(null);
   const [glucoseSaving, setGlucoseSaving] = useState(false);
   const [moodSaving, setMoodSaving] = useState(false);
+  const [supplements, setSupplements] = useState<{ id: string; name: string; dosage: string; timing: string }[]>([]);
+  const [suppTaken, setSuppTaken] = useState<Record<string, boolean>>({});
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -152,6 +154,17 @@ export default function TodayScreen() {
     try {
       const s = await getCurrentStreak(user.id);
       setStreak(s);
+    } catch { /* silencioso */ }
+    try {
+      const today = getLocalToday();
+      const [suppsRes, logsRes] = await Promise.all([
+        supabase.from('user_supplements').select('id, name, dosage, timing').eq('user_id', user.id).eq('is_active', true).order('timing'),
+        supabase.from('supplement_logs').select('supplement_id, taken').eq('user_id', user.id).eq('date', today),
+      ]);
+      setSupplements(suppsRes.data ?? []);
+      const taken: Record<string, boolean> = {};
+      (logsRes.data ?? []).forEach((l: any) => { taken[l.supplement_id] = !!l.taken; });
+      setSuppTaken(taken);
     } catch { /* silencioso */ }
     setLoading(false);
   }, [user?.id]);
@@ -365,6 +378,62 @@ export default function TodayScreen() {
       }, { onConflict: 'user_id' });
     } catch { /* tabla puede no existir */ }
     loadDay();
+  }
+
+  // --- Quick log: suplemento (toggle por item) ---
+  // Mantiene el boolean electron 'supplements' en sync: cualquier suplemento
+  // tomado hoy lo activa; al destomar el último, se revoca.
+  async function toggleSupplement(supplementId: string) {
+    if (!user?.id) return;
+    haptic.light();
+    const today = getLocalToday();
+    const wasTaken = !!suppTaken[supplementId];
+
+    // Optimistic
+    setSuppTaken(prev => ({ ...prev, [supplementId]: !wasTaken }));
+
+    try {
+      if (wasTaken) {
+        await supabase.from('supplement_logs')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('supplement_id', supplementId)
+          .eq('date', today);
+      } else {
+        await supabase.from('supplement_logs').upsert({
+          user_id: user.id, supplement_id: supplementId, date: today, taken: true,
+        }, { onConflict: 'user_id,supplement_id,date' });
+      }
+
+      // Sync boolean electron 'supplements' con estado agregado
+      const projected = { ...suppTaken, [supplementId]: !wasTaken };
+      const anyTaken = Object.values(projected).some(Boolean);
+      const currentStates: Record<string, boolean> = {};
+      if (day) {
+        for (const e of day.booleanElectrons) currentStates[e.source] = e.completed;
+      }
+      const wasCompleted = currentStates['supplements'] === true;
+      if (anyTaken && !wasCompleted) {
+        currentStates['supplements'] = true;
+        await supabase.from('daily_electrons').upsert(
+          { user_id: user.id, date: today, electrons: currentStates },
+          { onConflict: 'user_id,date' },
+        );
+        await awardBooleanElectron(user.id, 'supplements');
+      } else if (!anyTaken && wasCompleted) {
+        currentStates['supplements'] = false;
+        await supabase.from('daily_electrons').upsert(
+          { user_id: user.id, date: today, electrons: currentStates },
+          { onConflict: 'user_id,date' },
+        );
+        await revokeBooleanElectron(user.id, 'supplements');
+      }
+      DeviceEventEmitter.emit('electrons_changed');
+      DeviceEventEmitter.emit('day_changed');
+    } catch (e) {
+      console.warn('Toggle supplement error:', e);
+      setSuppTaken(prev => ({ ...prev, [supplementId]: wasTaken })); // rollback
+    }
   }
 
   // --- Quick log: mood (1 tap desde HOY) ---
@@ -656,6 +725,40 @@ export default function TodayScreen() {
             ))}
           </View>
         </Animated.View>
+
+        {/* ═══════════════════════════════════════
+            QUICK CHECK — Suplementos de hoy
+        ═══════════════════════════════════════ */}
+        {supplements.length > 0 && (
+          <Animated.View entering={FadeInUp.delay(155).springify()} style={s.section}>
+            <View style={s.sectionHeader}>
+              <Text style={s.sectionTitle}>SUPLEMENTOS DE HOY</Text>
+              <Pressable onPress={() => { haptic.light(); router.push('/supplements' as any); }}>
+                <Text style={s.quickLogMore}>gestionar →</Text>
+              </Pressable>
+            </View>
+            <View style={{ gap: 6 }}>
+              {supplements.map(supp => {
+                const taken = !!suppTaken[supp.id];
+                return (
+                  <Pressable
+                    key={supp.id}
+                    onPress={() => toggleSupplement(supp.id)}
+                    style={[s.suppRow, taken && s.suppRowDone]}
+                  >
+                    {taken ? (
+                      <Ionicons name="checkmark-circle" size={22} color="#a8e02a" />
+                    ) : (
+                      <View style={s.suppDot} />
+                    )}
+                    <Text style={[s.suppName, taken && s.suppNameDone]} numberOfLines={1}>{supp.name}</Text>
+                    <Text style={s.suppDosage}>{supp.dosage}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Animated.View>
+        )}
 
         {/* UV mini-card (ATP SOL) */}
         {uvMini && (
@@ -1509,6 +1612,43 @@ const s = StyleSheet.create({
     color: '#f472b6',
     fontSize: 10,
     fontFamily: Fonts.semiBold,
+  },
+  suppRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: CARD.bg,
+    borderRadius: Radius.card,
+    borderWidth: 0.5,
+    borderColor: '#1a1a1a',
+  },
+  suppRowDone: {
+    backgroundColor: 'rgba(168,224,42,0.08)',
+    borderColor: 'rgba(168,224,42,0.25)',
+  },
+  suppDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: '#333',
+  },
+  suppName: {
+    flex: 1,
+    color: Colors.textPrimary,
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.semiBold,
+  },
+  suppNameDone: {
+    color: '#a8e02a',
+    textDecorationLine: 'line-through',
+  },
+  suppDosage: {
+    color: '#666',
+    fontSize: 11,
+    fontFamily: Fonts.regular,
   },
   waterQuickBtn: {
     paddingHorizontal: 12,
