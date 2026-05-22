@@ -8,6 +8,7 @@ import { callAnthropic } from './anthropic-client';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { getHydrationStats } from './hydration-service';
+import { getCycleInfo } from './cycle-service';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -495,31 +496,17 @@ async function loadUserContext(userId: string): Promise<UserContext> {
     }
   } catch (_) { /* opcional */ }
 
-  // Ciclo menstrual — solo si gender indica femenino
+  // Ciclo menstrual — solo si gender indica femenino. Usa cycle-service
+  // (única fuente de derivación de fase, fórmula proporcional al cycleLen).
   const isFemale = context.gender === 'female';
   if (isFemale) {
     try {
-      const [periodsRes, settingsRes] = await Promise.all([
-        supabase.from('cycle_periods').select('start_date').eq('user_id', userId)
-          .order('start_date', { ascending: false }).limit(1).maybeSingle(),
-        supabase.from('cycle_settings').select('avg_cycle_length').eq('user_id', userId).maybeSingle(),
-      ]);
-      const lastStart = (periodsRes.data as any)?.start_date;
-      const avgLen = (settingsRes.data as any)?.avg_cycle_length || 28;
-      if (lastStart) {
-        const lastStartDate = parseLocalDate(lastStart);
-        const todayDate = parseLocalDate(today);
-        const cycleDay = Math.floor((todayDate.getTime() - lastStartDate.getTime()) / 86400000) + 1;
-        let phase = 'menstrual';
-        if (cycleDay > 5 && cycleDay <= 13) phase = 'follicular';
-        else if (cycleDay > 13 && cycleDay <= 16) phase = 'ovulation';
-        else if (cycleDay > 16 && cycleDay <= avgLen) phase = 'luteal';
-        const nextStart = new Date(lastStartDate);
-        nextStart.setDate(nextStart.getDate() + avgLen);
+      const info = await getCycleInfo(userId);
+      if (info) {
         context.cycleInfo = {
-          cycleDay,
-          currentPhase: phase,
-          nextPeriodEstimate: toLocalDateString(nextStart),
+          cycleDay: info.currentDay,
+          currentPhase: info.currentPhase,
+          nextPeriodEstimate: toLocalDateString(info.prediction.date),
         };
       }
     } catch (_) { /* opcional */ }
