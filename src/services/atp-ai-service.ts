@@ -27,6 +27,7 @@ interface ClientFullData {
   complianceStats: any;
   healthMeasurement: any;
   personalRecords: any[];
+  chronotype: { schedule: { wake_time?: string; sleep_time?: string } | null } | null;
 }
 
 // Recopilar TODOS los datos del cliente en paralelo
@@ -70,7 +71,10 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     }
   } catch { /* tablas 029 aún no ejecutadas */ }
 
-  const { data: profileBasic } = await supabase.from('profiles').select('full_name, email').eq('id', clientId).single();
+  const [{ data: profileBasic }, { data: chronoRow }] = await Promise.all([
+    supabase.from('profiles').select('full_name, email').eq('id', clientId).single(),
+    supabase.from('user_chronotype').select('schedule').eq('user_id', clientId).maybeSingle(),
+  ]);
 
   return {
     profile: { ...profileRes.data, ...profileBasic },
@@ -90,11 +94,14 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     complianceStats,
     healthMeasurement: hmRes.data?.[0] || null,
     personalRecords: prRes.data || [],
+    chronotype: chronoRow ? { schedule: (chronoRow as any).schedule ?? null } : null,
   };
 }
 
 function buildPrompt(data: ClientFullData, customQuestion?: string): string {
-  const { profile, conditions, latestMeasurements, latestLabs, medications, supplements, familyHistory, recentCheckins } = data;
+  const { profile, conditions, latestMeasurements, latestLabs, medications, supplements, familyHistory, recentCheckins, chronotype } = data;
+  const sleepTime = chronotype?.schedule?.sleep_time || '—';
+  const wakeTime = chronotype?.schedule?.wake_time || '—';
 
   let p = `Eres ATP AI, asistente de análisis clínico y rendimiento humano para coaches de salud y nutriólogos. Analiza el expediente y genera un reporte estructurado.
 
@@ -112,7 +119,7 @@ Estrés: ${profile?.stress_level || '—'}/10
 Actividad: ${profile?.activity_level || '—'} | Ejercicio: ${profile?.exercise_type || '—'} ${profile?.exercise_frequency || '—'}d/sem
 Dieta: ${profile?.diet_type || '—'} | Comidas: ${profile?.meals_per_day || '—'}/día | Ayuno: ${profile?.fasting_protocol || 'No'}
 Agua: ${profile?.water_liters_day || '—'}L | Cafeína: ${profile?.caffeine_cups_day || '—'} tazas | Alcohol: ${profile?.alcohol_frequency || '—'}
-Sueño: ${profile?.sleep_time_usual || '—'}-${profile?.wake_time_usual || '—'} (${profile?.sleep_hours_avg || '—'}h) Calidad: ${profile?.sleep_quality || '—'}/10
+Sueño (cronotipo): ${sleepTime}-${wakeTime}
 `;
 
   // Contexto de peso
