@@ -36,6 +36,7 @@ import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, chatWithArgos, saveConversation } from '@/src/services/argos-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getCurrentStreak } from '@/src/services/adherence-service';
+import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
 import { speakArgos } from '@/src/services/argos-voice';
 import { VoiceButton } from '@/src/components/VoiceButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -143,6 +144,8 @@ export default function TodayScreen() {
   const [hasJournalToday, setHasJournalToday] = useState<boolean>(true);
   const [journalDraft, setJournalDraft] = useState('');
   const [journalSaving, setJournalSaving] = useState(false);
+  const [dailyReview, setDailyReview] = useState<DailyReview | null>(null);
+  const [dailyReviewDismissed, setDailyReviewDismissed] = useState(false);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -197,6 +200,33 @@ export default function TodayScreen() {
       if (v !== 'true') setShowTour(true);
     });
   }, []);
+
+  // --- Daily Review: render solo de noche (≥20h); dismiss persiste por día ---
+  useEffect(() => {
+    if (!user?.id || !day) return;
+    const hourNow = new Date().getHours();
+    if (hourNow < 20) { setDailyReview(null); return; }
+    const today = getLocalToday();
+    const key = `@atp/daily_review_dismissed:${today}`;
+    AsyncStorage.getItem(key).then(v => {
+      if (v === 'true') {
+        setDailyReviewDismissed(true);
+        return;
+      }
+      setDailyReviewDismissed(false);
+      buildDailyReview(user.id, day, streak ?? 0)
+        .then(r => setDailyReview(r))
+        .catch(() => { /* silencioso */ });
+    });
+  }, [user?.id, day, streak]);
+
+  function dismissDailyReview() {
+    const key = `@atp/daily_review_dismissed:${getLocalToday()}`;
+    AsyncStorage.setItem(key, 'true').catch(() => {});
+    setDailyReviewDismissed(true);
+    haptic.light();
+  }
+
 
   // --- UV mini-card (ATP SOL) ---
   useEffect(() => {
@@ -702,6 +732,67 @@ export default function TodayScreen() {
             </View>
           )}
         </Animated.View>
+
+        {/* ═══════════════════════════════════════
+            DAILY REVIEW — Cierre del día (≥20h, reglas)
+        ═══════════════════════════════════════ */}
+        {dailyReview && !dailyReviewDismissed && (
+          <Animated.View entering={FadeInUp.delay(142).springify()} style={s.section}>
+            <View style={s.reviewCard}>
+              <View style={s.reviewHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="moon-outline" size={14} color="#818cf8" />
+                  <Text style={s.reviewLabel}>CIERRE DEL DÍA</Text>
+                </View>
+                <Pressable onPress={dismissDailyReview} hitSlop={10}>
+                  <Ionicons name="close" size={16} color="#666" />
+                </Pressable>
+              </View>
+
+              {/* Resumen numérico */}
+              <View style={s.reviewSummaryRow}>
+                <View style={s.reviewStat}>
+                  <Text style={s.reviewStatValue}>{dailyReview.scorePct}%</Text>
+                  <Text style={s.reviewStatLabel}>ATP Score</Text>
+                </View>
+                <View style={s.reviewStat}>
+                  <Text style={s.reviewStatValue}>{dailyReview.boolCompleted}/{dailyReview.boolTotal}</Text>
+                  <Text style={s.reviewStatLabel}>Electrones</Text>
+                </View>
+                <View style={s.reviewStat}>
+                  <Text style={s.reviewStatValue}>🔥 {dailyReview.streak}</Text>
+                  <Text style={s.reviewStatLabel}>Racha</Text>
+                </View>
+              </View>
+
+              {/* Highlights */}
+              {dailyReview.highlights.length > 0 && (
+                <View style={{ marginTop: 10, gap: 4 }}>
+                  {dailyReview.highlights.map((h, i) => (
+                    <View key={i} style={{ flexDirection: 'row', gap: 6 }}>
+                      <Ionicons name="checkmark-circle" size={14} color="#a8e02a" style={{ marginTop: 2 }} />
+                      <Text style={s.reviewItem}>{h}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* Red flag */}
+              {dailyReview.redFlag && (
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#fb7185" style={{ marginTop: 2 }} />
+                  <Text style={[s.reviewItem, { color: '#fb7185' }]}>{dailyReview.redFlag}</Text>
+                </View>
+              )}
+
+              {/* Foco mañana */}
+              <View style={s.reviewFocus}>
+                <Text style={s.reviewFocusLabel}>MAÑANA</Text>
+                <Text style={s.reviewFocusText}>{dailyReview.focus}</Text>
+              </View>
+            </View>
+          </Animated.View>
+        )}
 
         {/* ═══════════════════════════════════════
             QUICK LOG — Mood (1 tap)
@@ -1759,6 +1850,77 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontFamily: Fonts.bold,
     letterSpacing: 1,
+  },
+
+  // ── Daily Review ──
+  reviewCard: {
+    backgroundColor: 'rgba(129,140,248,0.06)',
+    borderRadius: Radius.md,
+    borderWidth: 0.5,
+    borderColor: 'rgba(129,140,248,0.2)',
+    padding: Spacing.md,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  reviewLabel: {
+    color: '#818cf8',
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    letterSpacing: 2,
+  },
+  reviewSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  reviewStat: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  reviewStatValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: Fonts.bold,
+    fontVariant: ['tabular-nums'],
+  },
+  reviewStatLabel: {
+    color: '#666',
+    fontSize: 9,
+    fontFamily: Fonts.semiBold,
+    letterSpacing: 1.5,
+    marginTop: 2,
+  },
+  reviewItem: {
+    flex: 1,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    lineHeight: 17,
+  },
+  reviewFocus: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.06)',
+  },
+  reviewFocusLabel: {
+    color: '#818cf8',
+    fontSize: 9,
+    fontFamily: Fonts.bold,
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  reviewFocusText: {
+    color: Colors.textPrimary,
+    fontSize: 13,
+    fontFamily: Fonts.semiBold,
+    lineHeight: 18,
   },
   waterQuickBtn: {
     paddingHorizontal: 12,
