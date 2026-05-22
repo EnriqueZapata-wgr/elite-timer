@@ -9,6 +9,7 @@ import { getLocalToday, getLocalHour, toLocalDateString } from '@/src/utils/date
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { getUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
+import { getCycleInfo } from '@/src/services/cycle-service';
 
 // ═══ TIPOS ═══
 
@@ -76,6 +77,16 @@ export interface AgendaItem {
   route?: string;
 }
 
+/**
+ * Señales cross-pillar resumidas, derivadas de mood/glucosa/ciclo.
+ * Cualquier campo puede ser null si no hay data — los consumidores deben gateaer.
+ */
+interface CrossPillar {
+  mood: { pleasantness: number; quadrant: string; isLow: boolean } | null;
+  lastGlucose: { value: number; context: string | null; isHigh: boolean } | null;
+  cyclePhase: { phase: string; cycleDay: number } | null;
+}
+
 // ═══ DEFAULTS ═══
 
 const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower', 'grounding', 'no_alcohol'];
@@ -128,7 +139,7 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const hour = getLocalHour();
 
   // Parallelizar queries
-  const [prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes] = await Promise.all([
+  const [prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
     supabase.auth.getUser(),
@@ -136,7 +147,11 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
     supabase.from('food_logs').select('protein_g').eq('user_id', userId).eq('date', today),
     supabase.from('hydration_logs').select('total_ml').eq('user_id', userId).eq('date', today).maybeSingle(),
     supabase.from('fasting_logs').select('fast_start, target_hours').eq('user_id', userId).eq('status', 'active').limit(1),
+    supabase.from('emotional_checkins').select('pleasantness, quadrant, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('glucose_logs').select('value_mg_dl, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ]);
+
+  const crossPillar = await deriveCrossPillar(userId, moodRes.data, glucoseRes.data);
 
   const prefs = prefsRes.data;
   const boolStates = (dailyERes.data?.electrons as Record<string, boolean>) ?? {};
@@ -223,10 +238,10 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const nextElectron = pickNextElectron(booleanElectrons, quantitativeElectrons, hour);
 
   // Suggestion
-  const suggestion = buildSuggestion(quantitativeElectrons, fastRes.data?.[0], hour);
+  const suggestion = buildSuggestion(quantitativeElectrons, fastRes.data?.[0], hour, crossPillar);
 
   // Agenda
-  const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.data?.[0]);
+  const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.data?.[0], crossPillar);
 
   // Greeting
   const greeting = hour < 12 ? 'Buenos días,' : hour < 18 ? 'Buenas tardes,' : 'Buenas noches,';
@@ -271,25 +286,133 @@ function pickNextElectron(bools: BoolElectronState[], quants: QuantElectronState
   return null;
 }
 
-function buildSuggestion(quants: QuantElectronState[], activeFast: any, hour: number): Suggestion | null {
-  const protein = quants.find(q => q.source === 'protein');
-  if (protein && protein.current < protein.target * 0.5 && hour > 12) {
-    return { text: `Te faltan ${Math.round(protein.target - protein.current)}g de proteína.`, action: 'Registrar comida', route: '/food-register' };
+/**
+ * Devuelve UNA sugerencia. Orden de prioridad (de más a menos urgente):
+ *   1. Glucosa elevada reciente  → caminata post-comida (señal de salud)
+ *   2. Mood bajo reciente         → respiración/meditación regenerativa
+ *   3. Ayuno completado           → recordatorio de romper ayuno
+ *   4. Fase lútea/menstrual       → ajuste energético (solo si no hay urgencias)
+ *   5. Proteína <50% tras mediodía → meta cuantitativa
+ *   6. Agua <30% tras 10am         → meta cuantitativa
+ */
+function buildSuggestion(
+  quants: QuantElectronState[],
+  activeFast: any,
+  hour: number,
+  cross: CrossPillar,
+): Suggestion | null {
+  // 1. Glucosa elevada (señal de salud — pesa más que metas)
+  if (cross.lastGlucose?.isHigh) {
+    return {
+      text: `Glucosa elevada (${cross.lastGlucose.value} mg/dL). Caminar 10 min ayuda a metabolizarla.`,
+      action: 'Ver salud',
+      route: '/my-health',
+    };
   }
-  const water = quants.find(q => q.source === 'water');
-  if (water && water.current < water.target * 0.3 && hour > 10) {
-    return { text: `Llevas ${water.displayCurrent} de agua. Hidratación afecta energía.`, action: 'Ir a Nutrición', route: '/nutrition' };
+
+  // 2. Mood bajo (regenerativo, no exigir)
+  if (cross.mood?.isLow) {
+    return {
+      text: 'Notamos un check-in con energía baja. Una respiración guiada puede ayudar.',
+      action: 'Respiración 5 min',
+      route: '/mind-hub',
+    };
   }
+
+  // 3. Ayuno completado
   if (activeFast) {
     const elapsed = (Date.now() - new Date(activeFast.fast_start).getTime()) / 3600000;
     if (elapsed >= (activeFast.target_hours ?? 16)) {
       return { text: `¡Ayuno completado! Ya puedes romper el ayuno.`, action: 'Ir a Ayuno', route: '/fasting' };
     }
   }
+
+  // 4. Fase lútea/menstrual — recordatorio de ajuste energético
+  if (cross.cyclePhase?.phase === 'luteal' || cross.cyclePhase?.phase === 'menstrual') {
+    const phaseLabel = cross.cyclePhase.phase === 'luteal' ? 'lútea' : 'menstrual';
+    return {
+      text: `Estás en fase ${phaseLabel} (día ${cross.cyclePhase.cycleDay}). Reduce intensidad del ejercicio y prioriza descanso.`,
+      action: 'Ver ciclo',
+      route: '/cycle',
+    };
+  }
+
+  // 5. Proteína baja
+  const protein = quants.find(q => q.source === 'protein');
+  if (protein && protein.current < protein.target * 0.5 && hour > 12) {
+    return { text: `Te faltan ${Math.round(protein.target - protein.current)}g de proteína.`, action: 'Registrar comida', route: '/food-register' };
+  }
+  // 6. Agua baja
+  const water = quants.find(q => q.source === 'water');
+  if (water && water.current < water.target * 0.3 && hour > 10) {
+    return { text: `Llevas ${water.displayCurrent} de agua. Hidratación afecta energía.`, action: 'Ir a Nutrición', route: '/nutrition' };
+  }
+
   return null;
 }
 
-async function buildAgenda(userId: string, today: string, hour: number, protocol: CompiledDay['protocol'], activeFast: any): Promise<AgendaItem[]> {
+/**
+ * Carga señales cross-pillar resumidas. Cualquier campo puede ser null
+ * si no hay data o el usuario no trackea la fuente. Todo silencioso —
+ * no rompe HOY si falla.
+ *
+ * Criterios de "señal":
+ *  - mood bajo: pleasantness <= 4 (escala 1-10) o quadrant 'low_unpleasant',
+ *    y el check-in es de las últimas 24h (si no, ya no es señal accionable).
+ *  - glucosa alta: depende del contexto del registro:
+ *      'fasting' o 'pre_meal' → > 110 mg/dL
+ *      'post_meal' (2h)       → > 160 mg/dL
+ *      'random' / sin contexto → > 140 mg/dL
+ *    Solo si el registro es de las últimas 6h.
+ */
+async function deriveCrossPillar(
+  userId: string,
+  moodRow: any,
+  glucoseRow: any,
+): Promise<CrossPillar> {
+  const cross: CrossPillar = { mood: null, lastGlucose: null, cyclePhase: null };
+
+  // Mood: válido si es de las últimas 24h
+  if (moodRow?.created_at) {
+    const ageHours = (Date.now() - new Date(moodRow.created_at).getTime()) / 3600000;
+    if (ageHours <= 24) {
+      const pleasantness = Number(moodRow.pleasantness) || 0;
+      const quadrant = String(moodRow.quadrant || '');
+      const isLow = pleasantness > 0 && pleasantness <= 4 || quadrant === 'low_unpleasant';
+      cross.mood = { pleasantness, quadrant, isLow };
+    }
+  }
+
+  // Glucosa: válida si es de las últimas 6h
+  if (glucoseRow?.value_mg_dl != null && glucoseRow?.created_at) {
+    const ageHours = (Date.now() - new Date(glucoseRow.created_at).getTime()) / 3600000;
+    if (ageHours <= 6) {
+      const value = Number(glucoseRow.value_mg_dl);
+      const ctx = (glucoseRow.context as string | null) ?? null;
+      let threshold = 140; // random / sin contexto
+      if (ctx === 'fasting' || ctx === 'pre_meal') threshold = 110;
+      else if (ctx === 'post_meal') threshold = 160;
+      cross.lastGlucose = { value, context: ctx, isHigh: value > threshold };
+    }
+  }
+
+  // Ciclo: usa cycle-service (devuelve null si el usuario no trackea)
+  try {
+    const info = await getCycleInfo(userId);
+    if (info) cross.cyclePhase = { phase: info.currentPhase, cycleDay: info.currentDay };
+  } catch { /* opcional */ }
+
+  return cross;
+}
+
+async function buildAgenda(
+  userId: string,
+  today: string,
+  hour: number,
+  protocol: CompiledDay['protocol'],
+  activeFast: any,
+  cross: CrossPillar,
+): Promise<AgendaItem[]> {
   const items: AgendaItem[] = [];
 
   // Cargar wake_time del cronotipo del usuario
@@ -400,7 +523,41 @@ async function buildAgenda(userId: string, today: string, hour: number, protocol
     }
   }
 
+  // === ENRIQUECER subtitles con señales cross-pillar ===
+  // No agrega ni quita items — solo anota items de ejercicio cuando hay
+  // señal relevante (fase del ciclo lútea/menstrual o mood reciente bajo).
+  for (const i of deduped) {
+    const note = crossPillarNoteForItem(i, cross);
+    if (note) {
+      i.subtitle = i.subtitle ? `${i.subtitle} · ${note}` : note;
+    }
+  }
+
   return deduped;
+}
+
+const INTENSE_EXERCISE_KW = [
+  'strength', 'fuerza', 'hiit', 'cardio intenso', 'sprint', 'powerlifting',
+  'crossfit', 'pesas', 'pesado',
+];
+
+function crossPillarNoteForItem(item: AgendaItem, cross: CrossPillar): string | null {
+  const nameLow = (item.name || '').toLowerCase();
+  const isIntense = INTENSE_EXERCISE_KW.some(kw => nameLow.includes(kw));
+  if (!isIntense) return null;
+
+  // Mood bajo → escuchar al cuerpo
+  if (cross.mood?.isLow) {
+    return 'Mood bajo hoy — escucha al cuerpo, ajusta intensidad';
+  }
+  // Fase lútea/menstrual → moderar
+  if (cross.cyclePhase?.phase === 'luteal') {
+    return 'Fase lútea — reduce volumen ~25%';
+  }
+  if (cross.cyclePhase?.phase === 'menstrual') {
+    return 'Fase menstrual — intensidad suave (~40% menos)';
+  }
+  return null;
 }
 
 function isElectronAction(a: any): boolean {
