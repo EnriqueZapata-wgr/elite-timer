@@ -139,7 +139,7 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const hour = getLocalHour();
 
   // Parallelizar queries
-  const [prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes] = await Promise.all([
+  const [prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
     supabase.auth.getUser(),
@@ -149,9 +149,11 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
     supabase.from('fasting_logs').select('fast_start, target_hours').eq('user_id', userId).eq('status', 'active').limit(1),
     supabase.from('emotional_checkins').select('pleasantness, quadrant, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('glucose_logs').select('value_mg_dl, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
   ]);
 
-  const crossPillar = await deriveCrossPillar(userId, moodRes.data, glucoseRes.data);
+  const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;
+  const crossPillar = await deriveCrossPillar(userId, moodRes.data, glucoseRes.data, biologicalSex);
 
   const prefs = prefsRes.data;
   const boolStates = (dailyERes.data?.electrons as Record<string, boolean>) ?? {};
@@ -369,6 +371,7 @@ async function deriveCrossPillar(
   userId: string,
   moodRow: any,
   glucoseRow: any,
+  biologicalSex: string | null,
 ): Promise<CrossPillar> {
   const cross: CrossPillar = { mood: null, lastGlucose: null, cyclePhase: null };
 
@@ -396,11 +399,14 @@ async function deriveCrossPillar(
     }
   }
 
-  // Ciclo: usa cycle-service (devuelve null si el usuario no trackea)
-  try {
-    const info = await getCycleInfo(userId);
-    if (info) cross.cyclePhase = { phase: info.currentPhase, cycleDay: info.currentDay };
-  } catch { /* opcional */ }
+  // Ciclo: gate por sexo biológico — solo derivar para usuarias femeninas.
+  // Para male/null/undefined no se consulta ni anota nada de ciclo.
+  if (biologicalSex === 'female') {
+    try {
+      const info = await getCycleInfo(userId);
+      if (info) cross.cyclePhase = { phase: info.currentPhase, cycleDay: info.currentDay };
+    } catch { /* opcional */ }
+  }
 
   return cross;
 }
