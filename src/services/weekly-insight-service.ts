@@ -60,22 +60,61 @@ function addDays(date: Date, n: number): Date {
   return d;
 }
 
+/**
+ * `week_start` de la semana que está siendo REFLEXIONADA en este momento.
+ *
+ * - Domingo: la semana que acaba (su lunes — 6 días atrás). `getWeekStart(now)`.
+ * - Lunes en la ventana de display (`hour < 12`): la semana ANTERIOR. Sin
+ *   esto, `getWeekStart(lunes 9am)` devolvería el mismo lunes → la semana
+ *   nueva en curso, no la que se acaba de cerrar.
+ * - Resto: la semana actual (caller que llama fuera de ventana — el flujo
+ *   normal nunca debería hacerlo, pero queda sano).
+ */
+function getReflectionWeekStart(now: Date): Date {
+  if (now.getDay() === 1) {
+    // Lunes — siempre reflexionamos la semana que cerró ayer (domingo).
+    return getWeekStart(addDays(now, -1));
+  }
+  return getWeekStart(now);
+}
+
 // ═══ MÉTRICAS POR PILAR (REGLAS) ═══
 
 /**
- * Carga días con al menos 1 electrón booleano de fitness en el rango
- * [start, end]. Si el usuario hace 5/7 días → 71%.
+ * Días con ejercicio real registrado en el rango [start, end] / 7.
+ *
+ * Fuente: `exercise_logs` (sets reales de la timer/workout screen). NO
+ * usamos `electron_logs.source='strength'` porque ese es un toggle
+ * boolean self-reportado que puede activarse sin haber entrenado. Y NO
+ * sumamos `breathwork` aquí — eso pertenece al pilar Mente
+ * (vía `mind_sessions.type='breathing'`) y contarlo en ambos pilares
+ * inflaría adherencia falsamente.
+ *
+ * exercise_logs tiene una columna `date` añadida en la migración 045;
+ * si está null, caemos a `logged_at::date` (`date(logged_at) =`).
  */
 async function pillarFitnessPct(userId: string, startStr: string, endStr: string): Promise<number> {
   try {
+    // Rango ISO en logged_at — usamos [start 00:00 local, end+1 00:00 local]
+    // para no perder sets cuando exercise_logs.date está null y solo hay
+    // logged_at timestamptz.
+    const startISO = parseLocalDate(startStr).toISOString();
+    const endNext = parseLocalDate(endStr);
+    endNext.setDate(endNext.getDate() + 1);
+    const endISO = endNext.toISOString();
+
     const { data } = await supabase
-      .from('electron_logs')
-      .select('date')
+      .from('exercise_logs')
+      .select('date, logged_at')
       .eq('user_id', userId)
-      .in('source', ['strength', 'breathwork'])
-      .gte('date', startStr)
-      .lte('date', endStr);
-    const unique = new Set((data ?? []).map((r: any) => r.date));
+      .gte('logged_at', startISO)
+      .lt('logged_at', endISO);
+
+    const unique = new Set<string>();
+    for (const r of (data ?? []) as any[]) {
+      const d = r.date || (r.logged_at ? toLocalDateString(new Date(r.logged_at)) : null);
+      if (d) unique.add(d);
+    }
     return Math.round((unique.size / 7) * 100);
   } catch { return 0; }
 }
@@ -236,7 +275,7 @@ FORMATO DE RESPUESTA (JSON estricto, sin markdown, sin backticks):
 export async function getWeeklyInsight(userId: string): Promise<WeeklyInsightData | null> {
   try {
     const now = new Date();
-    const weekStart = getWeekStart(now);
+    const weekStart = getReflectionWeekStart(now);
     const weekEnd = addDays(weekStart, 6);
     const weekStartStr = toLocalDateString(weekStart);
     const weekEndStr = toLocalDateString(weekEnd);
@@ -334,7 +373,17 @@ export async function getWeeklyInsight(userId: string): Promise<WeeklyInsightDat
   }
 }
 
-/** True si HOY es domingo (día de semana 0) y `hour >= 19`. */
+/**
+ * True si estamos dentro de la ventana de display del Weekly Insight:
+ *   - Domingo `hour >= 17` (cierre temprano de la tarde), o
+ *   - Lunes `hour < 12` (mañana siguiente, antes de meterse de lleno
+ *     en la nueva semana).
+ *
+ * En ambos casos, el insight mostrado corresponde a la semana que acaba
+ * de cerrar — ver `getReflectionWeekStart`.
+ */
 export function isWeeklyInsightTime(now: Date = new Date()): boolean {
-  return now.getDay() === 0 && now.getHours() >= 19;
+  const d = now.getDay();
+  const h = now.getHours();
+  return (d === 0 && h >= 17) || (d === 1 && h < 12);
 }
