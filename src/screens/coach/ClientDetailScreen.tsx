@@ -193,7 +193,7 @@ export function ClientDetailScreen({ clientId, clientName, clientEmail, connecte
             <StatCard label="Sesiones" value={String(stats.sessions_this_month)} sub="este mes" color={TEAL} />
             <StatCard label="Condiciones" value={stats.conditions_present > 0 || stats.conditions_observation > 0 ? `${stats.conditions_present}🔴 ${stats.conditions_observation}🟡` : '0'} sub="activas" color={SEMANTIC.error} />
             <StatCard label="Consultas" value={String(stats.total_consultations)} sub="totales" color={SEMANTIC.info} />
-            <StatCard label="Racha" value={String(stats.streak_days)} sub="días" color={Colors.neonGreen} />
+            <StatCard label="Racha entreno" value={String(stats.exercise_streak_days)} sub="días" color={Colors.neonGreen} />
           </View>
         )}
 

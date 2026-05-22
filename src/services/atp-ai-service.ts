@@ -7,6 +7,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
+import { getCurrentStreak, getComplianceStats } from '@/src/services/adherence-service';
 
 interface ClientFullData {
   profile: any;
@@ -60,15 +61,12 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
       .eq('user_id', clientId).eq('status', 'active');
     activeProtocols = protRes.data || [];
 
-    const twoWeeksAgo = new Date(); twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-    const planRes = await supabase.from('daily_plans').select('date, compliance_pct, total_actions, completed_actions, actions')
-      .eq('user_id', clientId).gte('date', twoWeeksAgo.toISOString().split('T')[0]).order('date');
-    if (planRes.data?.length) {
-      const plans = planRes.data;
-      const avg = Math.round(plans.reduce((s: number, p: any) => s + (p.compliance_pct || 0), 0) / plans.length);
-      let streak = 0;
-      for (const p of [...plans].reverse()) { if (p.compliance_pct >= 75) streak++; else break; }
-      complianceStats = { avgCompliance: avg, streak, days: plans.length };
+    const [stats, streak] = await Promise.all([
+      getComplianceStats(clientId, 14),
+      getCurrentStreak(clientId),
+    ]);
+    if (stats.daysCount > 0) {
+      complianceStats = { avgCompliance: stats.avgCompliance, streak, days: stats.daysCount };
     }
   } catch { /* tablas 029 aún no ejecutadas */ }
 

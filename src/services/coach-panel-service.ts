@@ -32,7 +32,7 @@ export interface ClientStats {
   sessions_this_month: number;
   volume_kg: number;
   total_prs: number;
-  streak_days: number;
+  exercise_streak_days: number;
   conditions_present: number;
   conditions_observation: number;
   total_consultations: number;
@@ -182,7 +182,8 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
     .select('id', { count: 'exact', head: true })
     .eq('user_id', clientId);
 
-  // Racha (días consecutivos con sesión)
+  // Racha de ENTRENO (días consecutivos con sesión de ejercicio).
+  // NOTA: distinto a adherence-service (que opera sobre daily_plans.compliance_pct).
   const { data: recentLogs } = await supabase
     .from('exercise_logs')
     .select('logged_at')
@@ -190,7 +191,7 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
     .order('logged_at', { ascending: false })
     .limit(200);
 
-  let streak = 0;
+  let exerciseStreak = 0;
   if (recentLogs && recentLogs.length > 0) {
     const dates = [...new Set(
       recentLogs.map(l => new Date(l.logged_at).toISOString().split('T')[0])
@@ -200,12 +201,12 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
     if (dates[0] === today || dates[0] === yesterday) {
-      streak = 1;
+      exerciseStreak = 1;
       for (let i = 1; i < dates.length; i++) {
         const prev = new Date(dates[i - 1]);
         const curr = new Date(dates[i]);
         const diff = (prev.getTime() - curr.getTime()) / 86400000;
-        if (diff <= 1.5) streak++;
+        if (diff <= 1.5) exerciseStreak++;
         else break;
       }
     }
@@ -249,7 +250,7 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
     sessions_this_month: sessionDates.size,
     volume_kg: Math.round(volumeKg),
     total_prs: totalPrs ?? 0,
-    streak_days: streak,
+    exercise_streak_days: exerciseStreak,
     conditions_present: condPresent,
     conditions_observation: condObs,
     total_consultations: totalConsults ?? 0,

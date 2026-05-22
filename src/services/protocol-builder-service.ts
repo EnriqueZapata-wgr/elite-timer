@@ -6,6 +6,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
+import { computeStreak, computeAvgCompliance } from '@/src/services/adherence-service';
 
 // === TYPES ===
 
@@ -308,19 +309,12 @@ export async function getComplianceStats(userId: string, days = 7): Promise<Comp
     .map(a => ({ ...a, pct: a.total > 0 ? Math.round((a.completed / a.total) * 100) : 0 }))
     .sort((a, b) => b.pct - a.pct);
 
-  // Racha
-  let streak = 0;
-  for (const plan of [...plans].reverse()) {
-    if (plan.compliance_pct >= 75) streak++;
-    else break;
-  }
-
   return {
     daily: plans.map(p => ({ date: p.date, compliance: p.compliance_pct, completed: p.completed_actions, total: p.total_actions })),
     mostCompleted: sorted[0] ? { name: sorted[0].name, pct: sorted[0].pct } : null,
     leastCompleted: sorted.length > 1 ? { name: sorted[sorted.length - 1].name, pct: sorted[sorted.length - 1].pct } : null,
-    streak,
-    avgCompliance: Math.round(plans.reduce((s, p) => s + p.compliance_pct, 0) / plans.length),
+    streak: computeStreak(plans),
+    avgCompliance: computeAvgCompliance(plans),
   };
 }
 
