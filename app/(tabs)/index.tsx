@@ -35,6 +35,7 @@ import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, chatWithArgos, saveConversation } from '@/src/services/argos-service';
 import { addWater } from '@/src/services/hydration-service';
+import { getCurrentStreak } from '@/src/services/adherence-service';
 import { speakArgos } from '@/src/services/argos-voice';
 import { VoiceButton } from '@/src/components/VoiceButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -134,6 +135,7 @@ export default function TodayScreen() {
   const [voiceConversationId, setVoiceConversationId] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
+  const [streak, setStreak] = useState<number | null>(null);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -145,6 +147,10 @@ export default function TodayScreen() {
     } catch (e) {
       console.warn('Error compiling day:', e);
     }
+    try {
+      const s = await getCurrentStreak(user.id);
+      setStreak(s);
+    } catch { /* silencioso */ }
     setLoading(false);
   }, [user?.id]);
 
@@ -436,6 +442,13 @@ export default function TodayScreen() {
                 <View style={s.topBarLeft}>
                   <Text style={s.brandLabel}>ATP DAILY</Text>
                   <ElectronBadge />
+                  {streak !== null && (
+                    <View style={s.streakPill}>
+                      <Text style={s.streakPillText}>
+                        {streak > 0 ? `🔥 ${streak} ${streak === 1 ? 'día' : 'días'}` : '🔥 Empieza tu racha'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <AnimatedPressable onPress={() => { haptic.light(); router.push('/protocol-config' as any); }} style={s.topBarIcon}>
@@ -1010,6 +1023,20 @@ const s = StyleSheet.create({
     letterSpacing: 3,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
+  },
+  streakPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Radius.pill,
+    backgroundColor: 'rgba(251,146,60,0.12)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(251,146,60,0.25)',
+  },
+  streakPillText: {
+    color: '#fb923c',
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    letterSpacing: 0.5,
   },
 
   // ── HERO ──
