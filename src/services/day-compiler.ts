@@ -5,7 +5,7 @@
  * nutrición, ayuno, etc.) y devuelve un objeto unificado listo para renderizar.
  */
 import { supabase } from '@/src/lib/supabase';
-import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
+import { getLocalToday, getLocalHour, toLocalDateString } from '@/src/utils/date-helpers';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { getUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
@@ -357,7 +357,7 @@ async function buildAgenda(userId: string, today: string, hour: number, protocol
     const start = new Date(activeFast.fast_start);
     const target = activeFast.target_hours ?? 16;
     const breakTime = new Date(start.getTime() + target * 3600000);
-    const bToday = breakTime.toISOString().split('T')[0];
+    const bToday = toLocalDateString(breakTime);
     if (bToday <= today) {
       const hasBreak = items.some(i => (i.name || '').toLowerCase().includes('romper ayuno'));
       if (!hasBreak) {

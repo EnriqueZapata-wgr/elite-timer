@@ -8,7 +8,7 @@
 import { supabase } from '@/src/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { generateUUID } from '@/src/services/routine-service';
-import { parseLocalDate } from '@/src/utils/date-helpers';
+import { parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 
 /** Obtiene usuario con refresh automático si la sesión expiró */
 async function getAuthenticatedUser(): Promise<User> {
@@ -626,7 +626,7 @@ export async function getExerciseProgression(exerciseId: string): Promise<Progre
     // Agrupar por fecha
     const byDate = new Map<string, typeof data>();
     for (const row of data) {
-      const dateKey = new Date(row.logged_at).toISOString().split('T')[0];
+      const dateKey = toLocalDateString(new Date(row.logged_at));
       const existing = byDate.get(dateKey) ?? [];
       existing.push(row);
       byDate.set(dateKey, existing);
@@ -691,7 +691,7 @@ export async function getExerciseSessionHistory(exerciseId: string): Promise<Exe
     // Agrupar por fecha
     const byDate = new Map<string, typeof data>();
     for (const row of data) {
-      const dateKey = new Date(row.logged_at).toISOString().split('T')[0];
+      const dateKey = toLocalDateString(new Date(row.logged_at));
       const existing = byDate.get(dateKey) ?? [];
       existing.push(row);
       byDate.set(dateKey, existing);
@@ -786,7 +786,7 @@ export async function getTopExercises(limit = 5): Promise<TopExercise[]> {
       // Agrupar por fecha para calcular 1RM por día
       const byDate = new Map<string, number>();
       for (const r of rows) {
-        const dk = new Date(r.logged_at).toISOString().split('T')[0];
+        const dk = toLocalDateString(new Date(r.logged_at));
         const e1rm = calcEpley(r.weight_kg, r.reps);
         const current = byDate.get(dk) ?? 0;
         if (e1rm > current) byDate.set(dk, e1rm);

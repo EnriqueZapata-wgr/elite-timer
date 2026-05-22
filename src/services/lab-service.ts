@@ -4,6 +4,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
+import { getLocalToday } from '@/src/utils/date-helpers';
 
 async function getAuth() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -156,7 +157,7 @@ Solo valores encontrados. No mapeados→other_values.`;
     // Create lab_result
     const labData: Record<string, any> = {
       user_id: upload.user_id,
-      lab_date: parsed.lab_date || new Date().toISOString().split('T')[0],
+      lab_date: parsed.lab_date || getLocalToday(),
       lab_name: parsed.lab_name || null,
       upload_id: uploadId,
       status: 'draft',

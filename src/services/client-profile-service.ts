@@ -4,6 +4,7 @@
 import { supabase } from '@/src/lib/supabase';
 import type { FlagStatus } from '@/src/data/condition-catalog';
 import { NEXT_STATUS } from '@/src/data/condition-catalog';
+import { getLocalToday } from '@/src/utils/date-helpers';
 
 // === AUTH ===
 async function getAuth() {
@@ -144,7 +145,7 @@ export async function toggleMedication(medId: string, currentlyActive: boolean) 
     .from('medications')
     .update({
       is_active: !currentlyActive,
-      ...(currentlyActive ? { ended_date: new Date().toISOString().split('T')[0] } : { ended_date: null }),
+      ...(currentlyActive ? { ended_date: getLocalToday() } : { ended_date: null }),
     })
     .eq('id', medId);
   if (error) throw error;

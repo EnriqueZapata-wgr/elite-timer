@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 
 // === AUTH ===
 
@@ -126,7 +127,7 @@ export async function getClientList(): Promise<ClientSummary[]> {
 
   const statsByClient = new Map<string, { sessions: Set<string>; lastWorkout: string | null; lastConsult: string | null }>();
   for (const log of (logs ?? [])) {
-    const dateStr = new Date(log.logged_at).toISOString().split('T')[0];
+    const dateStr = toLocalDateString(new Date(log.logged_at));
     if (!statsByClient.has(log.user_id)) {
       statsByClient.set(log.user_id, { sessions: new Set(), lastWorkout: null, lastConsult: null });
     }
@@ -172,7 +173,7 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
   const sessionDates = new Set<string>();
   let volumeKg = 0;
   for (const log of (logs ?? [])) {
-    sessionDates.add(new Date(log.logged_at).toISOString().split('T')[0]);
+    sessionDates.add(toLocalDateString(new Date(log.logged_at)));
     volumeKg += (log.weight_kg ?? 0) * (log.reps ?? 0);
   }
 
@@ -194,11 +195,13 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
   let exerciseStreak = 0;
   if (recentLogs && recentLogs.length > 0) {
     const dates = [...new Set(
-      recentLogs.map(l => new Date(l.logged_at).toISOString().split('T')[0])
+      recentLogs.map(l => toLocalDateString(new Date(l.logged_at)))
     )].sort().reverse();
 
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    const today = getLocalToday();
+    const yesterdayCursor = parseLocalDate(today);
+    yesterdayCursor.setDate(yesterdayCursor.getDate() - 1);
+    const yesterday = toLocalDateString(yesterdayCursor);
 
     if (dates[0] === today || dates[0] === yesterday) {
       exerciseStreak = 1;
@@ -233,7 +236,7 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
       .from('protocol_completions')
       .select('id')
       .eq('user_id', clientId)
-      .gte('completion_date', startOfMonth.toISOString().split('T')[0]);
+      .gte('completion_date', toLocalDateString(startOfMonth));
     const { count: totalItems } = await supabase
       .from('protocol_items')
       .select('id', { count: 'exact', head: true })
@@ -324,7 +327,7 @@ export async function getClientHistory(clientId: string, limit = 20): Promise<Cl
 
   const byDate = new Map<string, { exercises: Set<string>; sets: number; volume: number }>();
   for (const log of data) {
-    const date = new Date(log.logged_at).toISOString().split('T')[0];
+    const date = toLocalDateString(new Date(log.logged_at));
     if (!byDate.has(date)) byDate.set(date, { exercises: new Set(), sets: 0, volume: 0 });
     const entry = byDate.get(date)!;
     entry.exercises.add(log.exercise_id);

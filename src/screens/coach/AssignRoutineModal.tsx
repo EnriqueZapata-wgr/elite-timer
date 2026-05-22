@@ -9,6 +9,7 @@ import { EliteButton } from '@/components/elite-button';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { getCoachRoutines, assignRoutineToClient, type ClientRoutine } from '@/src/services/coach-panel-service';
+import { getLocalToday } from '@/src/utils/date-helpers';
 
 const TEAL = CATEGORY_COLORS.metrics;
 const DAY_LABELS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
@@ -48,7 +49,7 @@ export function AssignRoutineModal({ visible, onClose, clientId, clientName, onA
         selectedRoutine.id,
         scheduleType,
         scheduleType === 'weekly_cycle' ? selectedDay : undefined,
-        scheduleType === 'specific_date' ? new Date().toISOString().split('T')[0] : undefined,
+        scheduleType === 'specific_date' ? getLocalToday() : undefined,
       );
       onAssigned();
       onClose();

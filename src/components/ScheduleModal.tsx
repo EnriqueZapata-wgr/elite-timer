@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
+import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { EliteButton } from '@/components/elite-button';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import {
@@ -118,10 +119,10 @@ export function ScheduleModal({ visible, onClose, routineId, routineName }: Sche
 
   // Generar próximos 14 días
   const next14Days = Array.from({ length: 14 }, (_, i) => {
-    const d = new Date();
+    const d = parseLocalDate(getLocalToday());
     d.setDate(d.getDate() + i);
     return {
-      date: d.toISOString().split('T')[0],
+      date: toLocalDateString(d),
       dayNum: d.getDate(),
       dayLabel: DAY_LABELS[d.getDay()],
       monthLabel: MONTH_NAMES[d.getMonth()],

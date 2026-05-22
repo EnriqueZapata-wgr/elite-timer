@@ -4,7 +4,7 @@
  * Flujo: user_protocols activos → acciones ajustadas por cronotipo → daily_plan.
  * Compatible con sistema legacy (003_daily_protocols RPCs) como fallback.
  */
-import { getLocalToday } from '@/src/utils/date-helpers';
+import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { computeStreak, computeAvgCompliance } from '@/src/services/adherence-service';
 
@@ -284,12 +284,12 @@ export async function getTodayPlan(userId: string): Promise<{ source: 'new' | 'l
 // === COMPLIANCE STATS ===
 
 export async function getComplianceStats(userId: string, days = 7): Promise<ComplianceStats | null> {
-  const startDate = new Date();
+  const startDate = parseLocalDate(getLocalToday());
   startDate.setDate(startDate.getDate() - days);
 
   const { data: plans } = await supabase
     .from('daily_plans').select('date, compliance_pct, total_actions, completed_actions, actions')
-    .eq('user_id', userId).gte('date', startDate.toISOString().split('T')[0])
+    .eq('user_id', userId).gte('date', toLocalDateString(startDate))
     .order('date');
 
   if (!plans?.length) return null;

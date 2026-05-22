@@ -5,6 +5,7 @@
  * acotada al periodo solicitado (semana / mes / 3 meses / todo).
  */
 import { supabase } from '@/src/lib/supabase';
+import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 
 export type ReportPeriod = 'week' | 'month' | '3month' | 'all';
 
@@ -57,22 +58,18 @@ function periodDays(period: ReportPeriod): number {
   }
 }
 
-function isoDate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
-
 function shortLabel(date: string): string {
-  const d = new Date(date + 'T00:00:00');
+  const d = parseLocalDate(date);
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
 function buildDateRange(days: number): string[] {
   const result: string[] = [];
-  const today = new Date();
+  const today = parseLocalDate(getLocalToday());
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
-    result.push(isoDate(d));
+    result.push(toLocalDateString(d));
   }
   return result;
 }

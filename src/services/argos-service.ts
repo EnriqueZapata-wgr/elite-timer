@@ -5,7 +5,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
-import { getLocalToday } from '@/src/utils/date-helpers';
+import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { ATP_LLM } from '@/src/constants/llm-config';
 
 // === MODELOS ===
@@ -228,7 +228,9 @@ async function loadUserContext(userId: string): Promise<UserContext> {
 
   try {
     // Nutrición reciente (últimos 3 días)
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const threeDaysAgoCursor = parseLocalDate(getLocalToday());
+    threeDaysAgoCursor.setDate(threeDaysAgoCursor.getDate() - 3);
+    const threeDaysAgo = toLocalDateString(threeDaysAgoCursor);
     const { data: foods } = await supabase
       .from('food_logs')
       .select('calories, protein_g, date')
@@ -249,7 +251,9 @@ async function loadUserContext(userId: string): Promise<UserContext> {
 
   try {
     // Ejercicio reciente (última semana)
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const weekAgoCursor = parseLocalDate(getLocalToday());
+    weekAgoCursor.setDate(weekAgoCursor.getDate() - 7);
+    const weekAgo = toLocalDateString(weekAgoCursor);
     const { data: exercises } = await supabase
       .from('exercise_logs')
       .select('date')

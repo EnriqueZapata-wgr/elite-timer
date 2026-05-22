@@ -6,6 +6,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import { toLocalDateString } from '@/src/utils/date-helpers';
 
 // === AUTH HELPER ===
 
@@ -132,7 +133,7 @@ export async function getRecentSessions(limit = 3): Promise<{
   const byDate = new Map<string, Set<string>>();
   const countByDate = new Map<string, number>();
   for (const log of data) {
-    const date = new Date(log.logged_at).toISOString().split('T')[0];
+    const date = toLocalDateString(new Date(log.logged_at));
     if (!byDate.has(date)) byDate.set(date, new Set());
     byDate.get(date)!.add(log.exercise_id);
     countByDate.set(date, (countByDate.get(date) ?? 0) + 1);

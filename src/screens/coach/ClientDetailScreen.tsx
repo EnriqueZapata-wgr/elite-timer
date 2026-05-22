@@ -47,7 +47,7 @@ import {
   getStudies, createStudy, deleteStudy, updateStudy, interpretStudy, markAsReviewed,
   addFileToStudy, type ClinicalStudy,
 } from '@/src/services/clinical-study-service';
-import { parseLocalDate } from '@/src/utils/date-helpers';
+import { parseLocalDate, getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
 import { STUDY_TYPES, STUDY_CATEGORIES, getStudyType } from '@/src/data/study-types';
 import {
   getActivePlan, createPlan, updatePlan, getFoodLogsRange, getHydrationForUser,
@@ -2635,8 +2635,9 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
 
   // Últimos 7 días para grid semanal
   const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(); d.setDate(d.getDate() - (6 - i));
-    const dateStr = d.toISOString().split('T')[0];
+    const d = parseLocalDate(getLocalToday());
+    d.setDate(d.getDate() - (6 - i));
+    const dateStr = toLocalDateString(d);
     const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     return { date: dateStr, label: dayNames[d.getDay()] };
   });
@@ -3195,10 +3196,10 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
   );
 }
 
-function today() { return new Date().toISOString().split('T')[0]; }
-function yesterday() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().split('T')[0]; }
-function sevenDaysAgo() { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().split('T')[0]; }
-function fourteenDaysAgo() { const d = new Date(); d.setDate(d.getDate() - 14); return d.toISOString().split('T')[0]; }
+function today() { return getLocalToday(); }
+function yesterday() { const d = parseLocalDate(getLocalToday()); d.setDate(d.getDate() - 1); return toLocalDateString(d); }
+function sevenDaysAgo() { const d = parseLocalDate(getLocalToday()); d.setDate(d.getDate() - 7); return toLocalDateString(d); }
+function fourteenDaysAgo() { const d = parseLocalDate(getLocalToday()); d.setDate(d.getDate() - 14); return toLocalDateString(d); }
 
 // TAB: ESTUDIOS CLÍNICOS
 // ══════════════════════════
@@ -3280,7 +3281,7 @@ function StudiesTab({ clientId }: { clientId: string }) {
   // Create form
   const [newType, setNewType] = useState('ultrasound');
   const [newName, setNewName] = useState('');
-  const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newDate, setNewDate] = useState(getLocalToday());
   const [newPhysician, setNewPhysician] = useState('');
   const [newLab, setNewLab] = useState('');
   const [creating, setCreating] = useState(false);
