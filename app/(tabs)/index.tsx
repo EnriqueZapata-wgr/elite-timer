@@ -37,6 +37,7 @@ import { generateDailyInsight, chatWithArgos, saveConversation } from '@/src/ser
 import { addWater } from '@/src/services/hydration-service';
 import { getCurrentStreak } from '@/src/services/adherence-service';
 import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
+import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { speakArgos } from '@/src/services/argos-voice';
 import { VoiceButton } from '@/src/components/VoiceButton';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -146,6 +147,8 @@ export default function TodayScreen() {
   const [journalSaving, setJournalSaving] = useState(false);
   const [dailyReview, setDailyReview] = useState<DailyReview | null>(null);
   const [dailyReviewDismissed, setDailyReviewDismissed] = useState(false);
+  const [weeklyInsight, setWeeklyInsight] = useState<WeeklyInsightData | null>(null);
+  const [weeklyInsightDismissed, setWeeklyInsightDismissed] = useState(false);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -224,6 +227,30 @@ export default function TodayScreen() {
     const key = `@atp/daily_review_dismissed:${getLocalToday()}`;
     AsyncStorage.setItem(key, 'true').catch(() => {});
     setDailyReviewDismissed(true);
+    haptic.light();
+  }
+
+  // --- Weekly Insight: domingo ≥19h. 1 llamada/semana cacheada. ---
+  useEffect(() => {
+    if (!user?.id) return;
+    if (!isWeeklyInsightTime()) { setWeeklyInsight(null); return; }
+    // Dismiss por week_start (no por día). Persistimos al obtener el insight,
+    // porque la key real depende de week_start.
+    (async () => {
+      const insight = await getWeeklyInsight(user.id);
+      if (!insight) return;
+      const key = `@atp/weekly_insight_dismissed:${insight.weekStart}`;
+      const dismissed = await AsyncStorage.getItem(key);
+      setWeeklyInsightDismissed(dismissed === 'true');
+      setWeeklyInsight(insight);
+    })();
+  }, [user?.id]);
+
+  function dismissWeeklyInsight() {
+    if (!weeklyInsight) return;
+    const key = `@atp/weekly_insight_dismissed:${weeklyInsight.weekStart}`;
+    AsyncStorage.setItem(key, 'true').catch(() => {});
+    setWeeklyInsightDismissed(true);
     haptic.light();
   }
 
@@ -732,6 +759,59 @@ export default function TodayScreen() {
             </View>
           )}
         </Animated.View>
+
+        {/* ═══════════════════════════════════════
+            WEEKLY INSIGHT — Domingo ≥19h (cacheado por semana)
+        ═══════════════════════════════════════ */}
+        {weeklyInsight && !weeklyInsightDismissed && (
+          <Animated.View entering={FadeInUp.delay(140).springify()} style={s.section}>
+            <View style={s.weeklyCard}>
+              <View style={s.weeklyHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="eye" size={14} color="#a8e02a" />
+                  <Text style={s.weeklyLabel}>LECTURA DE LA SEMANA</Text>
+                </View>
+                <Pressable onPress={dismissWeeklyInsight} hitSlop={10}>
+                  <Ionicons name="close" size={16} color="#666" />
+                </Pressable>
+              </View>
+
+              {/* Adherencia por pilar */}
+              <View style={{ marginTop: 10, gap: 6 }}>
+                {weeklyInsight.adherence.map(p => {
+                  const arrow = p.delta > 4 ? '↑' : p.delta < -4 ? '↓' : '·';
+                  const arrowColor = p.delta > 4 ? '#a8e02a' : p.delta < -4 ? '#fb7185' : '#666';
+                  return (
+                    <View key={p.key} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={s.weeklyPillarLabel}>{p.label}</Text>
+                      <View style={s.weeklyPillarTrack}>
+                        <View style={[s.weeklyPillarFill, { width: `${p.pct}%` }]} />
+                      </View>
+                      <Text style={s.weeklyPillarPct}>{p.pct}%</Text>
+                      <Text style={[s.weeklyPillarDelta, { color: arrowColor }]}>{arrow}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Texto ARGOS o degradación */}
+              {weeklyInsight.argosFailed ? (
+                <Text style={s.weeklyFallback}>
+                  No pudimos generar el insight reflexivo esta semana — los números arriba ya cuentan tu historia.
+                </Text>
+              ) : (
+                <>
+                  {weeklyInsight.argosText ? (
+                    <Text style={s.weeklyText}>{weeklyInsight.argosText}</Text>
+                  ) : null}
+                  {weeklyInsight.question ? (
+                    <Text style={s.weeklyQuestion}>{weeklyInsight.question}</Text>
+                  ) : null}
+                </>
+              )}
+            </View>
+          </Animated.View>
+        )}
 
         {/* ═══════════════════════════════════════
             DAILY REVIEW — Cierre del día (≥20h, reglas)
@@ -1921,6 +2001,81 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontFamily: Fonts.semiBold,
     lineHeight: 18,
+  },
+
+  // ── Weekly Insight ──
+  weeklyCard: {
+    backgroundColor: 'rgba(168,224,42,0.05)',
+    borderRadius: Radius.md,
+    borderWidth: 0.5,
+    borderColor: 'rgba(168,224,42,0.2)',
+    padding: Spacing.md,
+  },
+  weeklyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weeklyLabel: {
+    color: '#a8e02a',
+    fontSize: 10,
+    fontFamily: Fonts.bold,
+    letterSpacing: 2,
+  },
+  weeklyPillarLabel: {
+    width: 80,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+  },
+  weeklyPillarTrack: {
+    flex: 1,
+    height: 5,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  weeklyPillarFill: {
+    height: '100%',
+    backgroundColor: '#a8e02a',
+    borderRadius: 3,
+  },
+  weeklyPillarPct: {
+    width: 40,
+    textAlign: 'right',
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    fontVariant: ['tabular-nums'],
+  },
+  weeklyPillarDelta: {
+    width: 14,
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: Fonts.bold,
+  },
+  weeklyText: {
+    marginTop: 12,
+    color: Colors.textPrimary,
+    fontSize: 13,
+    fontFamily: Fonts.regular,
+    lineHeight: 19,
+  },
+  weeklyQuestion: {
+    marginTop: 8,
+    color: '#a8e02a',
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+    fontStyle: 'italic',
+    lineHeight: 17,
+  },
+  weeklyFallback: {
+    marginTop: 12,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontFamily: Fonts.regular,
+    lineHeight: 17,
+    fontStyle: 'italic',
   },
   waterQuickBtn: {
     paddingHorizontal: 12,
