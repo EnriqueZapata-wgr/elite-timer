@@ -16,6 +16,16 @@ import {
 import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
 import { VoiceButton } from '../src/components/VoiceButton';
 
+// Rule override de react-native-markdown-display: hace el texto seleccionable
+// (la lib no expone selectable como prop directa).
+const MARKDOWN_RULES = {
+  text: (node: any, _children: any, _parent: any, styles: any, inheritedStyles: any = {}) => (
+    <Text key={node.key} selectable style={[inheritedStyles, styles.text]}>
+      {node.content}
+    </Text>
+  ),
+};
+
 // Sugerencias rápidas
 const QUICK_SUGGESTIONS = [
   { label: '¿Qué debería comer?', icon: 'restaurant-outline' as const },
@@ -37,7 +47,7 @@ export default function ArgosChat() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [pastConversations, setPastConversations] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [autoSpeak, setAutoSpeak] = useState(true);
+  const [autoSpeak, setAutoSpeak] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
@@ -294,12 +304,8 @@ export default function ArgosChat() {
                 <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700' }}>ARGOS</Text>
               </View>
             )}
-            {/* Tap en burbuja de ARGOS = leer en voz alta */}
-            <Pressable
-              onPress={msg.role === 'assistant' ? () => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                if (getIsSpeaking()) { stopSpeaking(); } else { speakArgos(msg.content); }
-              } : undefined}
+            {/* Burbuja del mensaje — selectable, sin tap-to-speak (TTS solo desde el toggle del header) */}
+            <View
               style={{
                 maxWidth: '85%',
                 backgroundColor: msg.role === 'user' ? '#a8e02a' : '#0a0a0a',
@@ -312,25 +318,28 @@ export default function ArgosChat() {
               }}
             >
               {msg.role === 'assistant' ? (
-                <Markdown style={{
-                  body: { color: '#e2e2e2', fontSize: 14, lineHeight: 21 },
-                  heading2: { color: '#a8e02a', fontSize: 16, fontWeight: '800', marginTop: 12, marginBottom: 6 },
-                  heading3: { color: '#a8e02a', fontSize: 14, fontWeight: '700', marginTop: 10, marginBottom: 4 },
-                  strong: { color: '#fff', fontWeight: '700' },
-                  bullet_list: { marginLeft: 8 },
-                  list_item: { color: '#e2e2e2', marginBottom: 4 },
-                  hr: { backgroundColor: '#333', height: 0.5, marginVertical: 12 },
-                  em: { color: '#ccc', fontStyle: 'italic' },
-                  paragraph: { color: '#e2e2e2', fontSize: 14, lineHeight: 21, marginBottom: 8 },
-                }}>
+                <Markdown
+                  style={{
+                    body: { color: '#e2e2e2', fontSize: 14, lineHeight: 21 },
+                    heading2: { color: '#a8e02a', fontSize: 16, fontWeight: '800', marginTop: 12, marginBottom: 6 },
+                    heading3: { color: '#a8e02a', fontSize: 14, fontWeight: '700', marginTop: 10, marginBottom: 4 },
+                    strong: { color: '#fff', fontWeight: '700' },
+                    bullet_list: { marginLeft: 8 },
+                    list_item: { color: '#e2e2e2', marginBottom: 4 },
+                    hr: { backgroundColor: '#333', height: 0.5, marginVertical: 12 },
+                    em: { color: '#ccc', fontStyle: 'italic' },
+                    paragraph: { color: '#e2e2e2', fontSize: 14, lineHeight: 21, marginBottom: 8 },
+                  }}
+                  rules={MARKDOWN_RULES}
+                >
                   {msg.content}
                 </Markdown>
               ) : (
-                <Text style={{ color: '#000', fontSize: 14, lineHeight: 21 }}>
+                <Text selectable style={{ color: '#000', fontSize: 14, lineHeight: 21 }}>
                   {msg.content}
                 </Text>
               )}
-            </Pressable>
+            </View>
           </View>
         ))}
 
