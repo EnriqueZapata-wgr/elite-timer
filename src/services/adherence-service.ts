@@ -13,6 +13,7 @@
  * conceptos distintos.
  */
 import { supabase } from '@/src/lib/supabase';
+import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 
 export const ADHERENCE_THRESHOLD = 75;
 const DEFAULT_STREAK_WINDOW_DAYS = 90;
@@ -23,37 +24,70 @@ export interface PlanRow {
 }
 
 async function fetchPlans(userId: string, days: number): Promise<PlanRow[]> {
-  const since = new Date();
-  since.setDate(since.getDate() - days);
+  const cursor = parseLocalDate(getLocalToday());
+  cursor.setDate(cursor.getDate() - days);
+  const sinceStr = toLocalDateString(cursor);
   const { data } = await supabase
     .from('daily_plans')
     .select('date, compliance_pct')
     .eq('user_id', userId)
-    .gte('date', since.toISOString().split('T')[0])
+    .gte('date', sinceStr)
     .order('date');
   return (data ?? []) as PlanRow[];
 }
 
 /**
- * Cálculo puro de la racha actual con 1 día de gracia.
- * `plans` debe venir ordenado ASC por fecha (el más reciente al final).
- * Itera de más reciente a más antiguo: día OK suma; primer FALLO se perdona
- * (no suma, no rompe); segundo FALLO rompe.
+ * Racha actual contando días de CALENDARIO (no solo días con row en daily_plans).
+ * Un día sin plan o con compliance <75 cuenta como FALLO; el primero se perdona.
+ *
+ * Reglas:
+ *  - Itera día por día desde HOY hacia atrás.
+ *  - Día OK (compliance_pct >= 75) suma.
+ *  - HOY en progreso: si hoy no cumple aún, NO suma, NO rompe, NO consume gracia.
+ *  - Día no-OK (no es hoy): primer fallo perdona (graceUsed=true, no suma, no rompe);
+ *    segundo fallo rompe.
+ *  - Fin de historia: parar al pasar antes del plan más antiguo del usuario
+ *    presente en `plans`. Llegar al borde NO es un fallo.
+ *
+ * `plans` puede venir en cualquier orden — se indexa por fecha internamente.
+ * Si el rango real del usuario excede la ventana consultada, la racha se techa
+ * al tamaño de la ventana (ej. 90d).
  */
 export function computeStreak(plans: PlanRow[]): number {
   if (plans.length === 0) return 0;
+
+  const byDate = new Map<string, number>();
+  let earliestPlanDate = plans[0].date;
+  for (const p of plans) {
+    byDate.set(p.date, p.compliance_pct ?? 0);
+    if (p.date < earliestPlanDate) earliestPlanDate = p.date;
+  }
+
+  const today = getLocalToday();
+  const cursor = parseLocalDate(today);
   let streak = 0;
   let graceUsed = false;
-  for (let i = plans.length - 1; i >= 0; i--) {
-    const ok = (plans[i].compliance_pct ?? 0) >= ADHERENCE_THRESHOLD;
+
+  while (true) {
+    const cursorStr = toLocalDateString(cursor);
+    const compliance = byDate.get(cursorStr);
+    const ok = compliance !== undefined && compliance >= ADHERENCE_THRESHOLD;
+    const isToday = cursorStr === today;
+
     if (ok) {
       streak++;
+    } else if (isToday) {
+      // Hoy en progreso: no suma, no rompe, no consume gracia.
     } else if (!graceUsed) {
       graceUsed = true;
     } else {
       break;
     }
+
+    cursor.setDate(cursor.getDate() - 1);
+    if (toLocalDateString(cursor) < earliestPlanDate) break;
   }
+
   return streak;
 }
 
