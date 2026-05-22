@@ -137,6 +137,7 @@ export default function TodayScreen() {
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const [streak, setStreak] = useState<number | null>(null);
   const [glucoseSaving, setGlucoseSaving] = useState(false);
+  const [moodSaving, setMoodSaving] = useState(false);
   const isTogglingRef = useRef(false);
 
   // --- Carga de datos ---
@@ -366,6 +367,38 @@ export default function TodayScreen() {
     loadDay();
   }
 
+  // --- Quick log: mood (1 tap desde HOY) ---
+  // Mapeo a cuadrante RULER + pleasantness 1-10. Emociones genéricas para registro rápido;
+  // el usuario puede entrar a /checkin para selección detallada.
+  async function quickLogMood(opt: {
+    quadrant: 'high_pleasant' | 'low_pleasant' | 'low_unpleasant' | 'high_unpleasant';
+    pleasantness: number;
+    energy_level: number;
+    emotions: string[];
+  }) {
+    if (!user?.id || moodSaving) return;
+    haptic.medium();
+    setMoodSaving(true);
+    try {
+      const { error } = await supabase.from('emotional_checkins').insert({
+        user_id: user.id,
+        quadrant: opt.quadrant,
+        emotions: opt.emotions,
+        energy_level: opt.energy_level,
+        pleasantness: opt.pleasantness,
+      });
+      if (error) throw error;
+      try { await awardBooleanElectron(user.id, 'checkin'); } catch { /* idempotent */ }
+      DeviceEventEmitter.emit('electrons_changed');
+      DeviceEventEmitter.emit('day_changed');
+      haptic.success();
+    } catch (e) {
+      console.warn('Quick mood error:', e);
+    } finally {
+      setMoodSaving(false);
+    }
+  }
+
   // --- Quick log: glucosa (1 tap desde HOY) ---
   async function quickLogGlucose(value: number) {
     if (!user?.id || glucoseSaving) return;
@@ -565,6 +598,39 @@ export default function TodayScreen() {
               <Text style={s.missionCompleteSubtext}>Todos los electrones del día completados.</Text>
             </View>
           )}
+        </Animated.View>
+
+        {/* ═══════════════════════════════════════
+            QUICK LOG — Mood (1 tap)
+        ═══════════════════════════════════════ */}
+        <Animated.View entering={FadeInUp.delay(145).springify()} style={s.section}>
+          <View style={s.sectionHeader}>
+            <Text style={s.sectionTitle}>MOOD</Text>
+            <Pressable onPress={() => { haptic.light(); router.push('/checkin' as any); }}>
+              <Text style={s.quickLogMore}>detalle →</Text>
+            </Pressable>
+          </View>
+          <View style={s.quickRow}>
+            {([
+              { e: '😄', label: 'Genial',  quadrant: 'high_pleasant'  as const, pleasantness: 9, energy_level: 8, emotions: ['happy'] },
+              { e: '🙂', label: 'Bien',    quadrant: 'low_pleasant'   as const, pleasantness: 7, energy_level: 5, emotions: ['calm'] },
+              { e: '😐', label: 'Normal',  quadrant: 'low_pleasant'   as const, pleasantness: 5, energy_level: 5, emotions: ['neutral'] },
+              { e: '😞', label: 'Bajo',    quadrant: 'low_unpleasant' as const, pleasantness: 3, energy_level: 3, emotions: ['sad'] },
+            ]).map(m => (
+              <Pressable
+                key={m.label}
+                onPress={() => quickLogMood({
+                  quadrant: m.quadrant, pleasantness: m.pleasantness,
+                  energy_level: m.energy_level, emotions: m.emotions,
+                })}
+                disabled={moodSaving}
+                style={[s.moodBtn, moodSaving && { opacity: 0.5 }]}
+              >
+                <Text style={s.moodEmoji}>{m.e}</Text>
+                <Text style={s.moodLabel}>{m.label}</Text>
+              </Pressable>
+            ))}
+          </View>
         </Animated.View>
 
         {/* ═══════════════════════════════════════
@@ -1423,6 +1489,26 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontFamily: Fonts.bold,
     fontVariant: ['tabular-nums'],
+  },
+  moodBtn: {
+    flex: 1,
+    minWidth: 60,
+    paddingHorizontal: 6,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(244,114,182,0.10)',
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: 'rgba(244,114,182,0.25)',
+    alignItems: 'center',
+    gap: 2,
+  },
+  moodEmoji: {
+    fontSize: 22,
+  },
+  moodLabel: {
+    color: '#f472b6',
+    fontSize: 10,
+    fontFamily: Fonts.semiBold,
   },
   waterQuickBtn: {
     paddingHorizontal: 12,
