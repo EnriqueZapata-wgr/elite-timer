@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics';
 import Markdown from 'react-native-markdown-display';
 import { supabase } from '../src/lib/supabase';
 import {
-  chatWithArgos, saveConversation, loadConversations,
+  chatWithArgosEx, saveConversation, loadConversations,
   loadConversation, type ArgosMessage,
 } from '../src/services/argos-service';
 import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
@@ -102,47 +102,78 @@ export default function ArgosChat() {
     setInput('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const newMessages: ArgosMessage[] = [
-      ...messages,
-      { role: 'user', content: messageText },
-    ];
+    const userTurn: ArgosMessage = { role: 'user', content: messageText };
+    const newMessages: ArgosMessage[] = [...messages, userTurn];
     setMessages(newMessages);
     setLoading(true);
 
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
-    let updatedMessages: ArgosMessage[] | null = null;
-    try {
-      const response = await chatWithArgos(userId, newMessages);
-      updatedMessages = [
-        ...newMessages,
-        { role: 'assistant', content: response },
-      ];
-      setMessages(updatedMessages);
+    // ARG-1/ARG-8: filtrar turnos degradados ANTES de mandarlos al LLM —
+    // un turno marcado como degraded (rate-limited, ambos providers caídos,
+    // error de cliente) no debe volver a entrar al contexto del modelo.
+    const cleanForLLM = newMessages.filter(m => !m.degraded);
 
-      // ARGOS habla la respuesta si auto-speak está activo
-      if (autoSpeak) {
-        speakArgos(response);
+    let finalMessages: ArgosMessage[] | null = null;
+    let wasDegraded = false;
+    try {
+      const result = await chatWithArgosEx(userId, cleanForLLM);
+      wasDegraded = result.degraded;
+
+      const assistantTurn: ArgosMessage = wasDegraded
+        ? { role: 'assistant', content: result.text, degraded: true }
+        : { role: 'assistant', content: result.text };
+
+      if (wasDegraded) {
+        // ARG-2: una respuesta degradada NO debe ensuciar contexto futuro.
+        // Marcamos AMBOS turnos (pregunta + respuesta) como degraded → quedan
+        // visibles en la UI pero el filtro de cleanForLLM y de cleanForSave
+        // los excluye en próximos turnos y al persistir.
+        const baseMessages = newMessages.slice(0, -1);
+        finalMessages = [
+          ...baseMessages,
+          { ...userTurn, degraded: true },
+          assistantTurn,
+        ];
+        setMessages(finalMessages);
+        // No invocar speakArgos en respuestas degradadas — son mensajes de error.
+      } else {
+        finalMessages = [...newMessages, assistantTurn];
+        setMessages(finalMessages);
+        if (autoSpeak) {
+          speakArgos(result.text);
+        }
       }
     } catch (e) {
       console.error('ARGOS chat error:', e);
-      setMessages([
-        ...newMessages,
-        { role: 'assistant', content: 'Lo siento, tuve un problema al procesar tu consulta. Intenta de nuevo.' },
-      ]);
+      // Excepción real (no devolución degradada): marcar también como degraded
+      // para no persistir/reenviar este turno fallido.
+      const baseMessages = newMessages.slice(0, -1);
+      const errored: ArgosMessage[] = [
+        ...baseMessages,
+        { ...userTurn, degraded: true },
+        { role: 'assistant', content: 'Lo siento, tuve un problema al procesar tu consulta. Intenta de nuevo.', degraded: true },
+      ];
+      setMessages(errored);
+      finalMessages = errored;
     } finally {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
     }
 
-    // Guardar conversación FUERA del try del envío:
-    // si saveConversation falla, NO debe borrar la respuesta ya mostrada.
-    if (updatedMessages) {
-      try {
-        const id = await saveConversation(userId, updatedMessages, conversationId);
-        if (id) setConversationId(id);
-      } catch (e) {
-        console.warn('ARGOS saveConversation error:', e);
+    // ARG-2: persistir SOLO los turnos no degradados. Si todo el turno fue
+    // degradado, finalMessages.filter(!degraded) puede no haber cambiado
+    // respecto a `messages` (state previo) — saveConversation funciona igual.
+    if (finalMessages) {
+      const cleanForSave = finalMessages.filter(m => !m.degraded);
+      // Solo guardar si hay al menos un par válido (no guardar conversación vacía).
+      if (cleanForSave.length > 0 && !wasDegraded) {
+        try {
+          const id = await saveConversation(userId, cleanForSave, conversationId);
+          if (id) setConversationId(id);
+        } catch (e) {
+          console.warn('ARGOS saveConversation error:', e);
+        }
       }
     }
   }

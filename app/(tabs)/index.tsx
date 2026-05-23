@@ -33,7 +33,7 @@ import { getHoyBackgroundRequire } from '@/src/constants/brand';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
-import { generateDailyInsight, chatWithArgos, saveConversation } from '@/src/services/argos-service';
+import { generateDailyInsight, chatWithArgosEx, saveConversation } from '@/src/services/argos-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getCurrentStreak } from '@/src/services/adherence-service';
 import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
@@ -651,15 +651,18 @@ export default function TodayScreen() {
     setVoiceTranscript(transcript);
     try {
       const messages = [{ role: 'user' as const, content: transcript }];
-      const response = await chatWithArgos(user.id, messages);
-      setVoiceResponse(response);
+      const result = await chatWithArgosEx(user.id, messages);
+      setVoiceResponse(result.text);
 
-      // Guardar conversación para que pueda expandirse al chat después
-      const allMessages = [...messages, { role: 'assistant' as const, content: response }];
-      const id = await saveConversation(user.id, allMessages);
-      setVoiceConversationId(id);
+      // ARG-2: si la respuesta fue degradada (rate-limited / providers caídos),
+      // NO persistir ni hablar — solo mostrar el texto en la UI para feedback.
+      if (!result.degraded) {
+        const allMessages = [...messages, { role: 'assistant' as const, content: result.text }];
+        const id = await saveConversation(user.id, allMessages);
+        setVoiceConversationId(id);
 
-      await speakArgos(response);
+        await speakArgos(result.text);
+      }
       // HOY-9: guardar el id del timeout y cancelarlo si se reemplaza o el
       // componente se desmonta → evita setState sobre componente desmontado.
       if (voiceClearTimeoutRef.current) clearTimeout(voiceClearTimeoutRef.current);
