@@ -836,7 +836,16 @@ export async function loadConversation(conversationId: string): Promise<ArgosMes
     .select('messages')
     .eq('id', conversationId)
     .single();
-  return (data?.messages as ArgosMessage[]) || [];
+  // ARG-7: validar shape en runtime — conversaciones viejas con JSONB malformado
+  // no deben crashear el chat al abrirlas.
+  const raw = data?.messages;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((m: any): m is ArgosMessage =>
+    m != null &&
+    typeof m === 'object' &&
+    (m.role === 'user' || m.role === 'assistant') &&
+    typeof m.content === 'string'
+  );
 }
 
 // === GENERAR RUTINA ===

@@ -8,6 +8,22 @@ import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getCurrentStreak, getComplianceStats } from '@/src/services/adherence-service';
+import { warn as logWarn, error as logError } from '@/src/lib/logger';
+
+// Helper para Promise.allSettled: si la query falla, registra el motivo y
+// devuelve un placeholder `{ data: null }` para que la query degrade en vez de
+// tumbar todo el contexto del coach (ARG-6).
+function settledData<T = any>(label: string, res: PromiseSettledResult<{ data: T | null; error: any }>): { data: T | null } {
+  if (res.status === 'rejected') {
+    logWarn(`gatherClientData ${label} rejected:`, res.reason);
+    return { data: null };
+  }
+  if (res.value?.error) {
+    logWarn(`gatherClientData ${label} error:`, res.value.error.message);
+    return { data: res.value.data ?? null };
+  }
+  return { data: res.value.data };
+}
 
 interface ClientFullData {
   profile: any;
@@ -32,7 +48,9 @@ interface ClientFullData {
 
 // Recopilar TODOS los datos del cliente en paralelo
 async function gatherClientData(clientId: string): Promise<ClientFullData> {
-  const [profileRes, conditionsRes, measurementsRes, labsRes, medsRes, suppsRes, familyRes, checkinsRes, consultsRes, habitsRes, studiesRes, nutritionPlanRes, foodLogsRes] = await Promise.all([
+  // ARG-6: Promise.allSettled — si una query falla (red, RLS, tabla faltante),
+  // las demás siguen y el contexto del coach se degrada en vez de romperse.
+  const settled = await Promise.allSettled([
     supabase.from('client_profiles').select('*').eq('user_id', clientId).single(),
     supabase.from('condition_flags').select('*').eq('user_id', clientId),
     supabase.from('body_measurements').select('*').eq('user_id', clientId).order('measured_at', { ascending: false }).limit(1),
@@ -47,12 +65,29 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supabase.from('nutrition_plans').select('*').eq('user_id', clientId).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single(),
     supabase.from('food_logs').select('date, meal_type, description, ai_analysis').eq('user_id', clientId).order('date', { ascending: false }).limit(21),
   ]);
+  const [profileRes, conditionsRes, measurementsRes, labsRes, medsRes, suppsRes, familyRes, checkinsRes, consultsRes, habitsRes, studiesRes, nutritionPlanRes, foodLogsRes] = [
+    settledData('client_profiles', settled[0] as any),
+    settledData('condition_flags', settled[1] as any),
+    settledData('body_measurements', settled[2] as any),
+    settledData('lab_results', settled[3] as any),
+    settledData('medications', settled[4] as any),
+    settledData('supplement_protocols', settled[5] as any),
+    settledData('family_history', settled[6] as any),
+    settledData('emotional_checkins', settled[7] as any),
+    settledData('consultations', settled[8] as any),
+    settledData('client_daily_habits', settled[9] as any),
+    settledData('clinical_studies', settled[10] as any),
+    settledData('nutrition_plans', settled[11] as any),
+    settledData('food_logs', settled[12] as any),
+  ];
 
   // Health measurements y personal records
-  const [hmRes, prRes] = await Promise.all([
+  const settled2 = await Promise.allSettled([
     supabase.from('health_measurements').select('*').eq('user_id', clientId).order('date', { ascending: false }).limit(1),
     supabase.from('personal_records').select('exercise_name, weight_kg, reps, achieved_at').eq('user_id', clientId).order('achieved_at', { ascending: false }).limit(15),
   ]);
+  const hmRes = settledData('health_measurements', settled2[0] as any);
+  const prRes = settledData('personal_records', settled2[1] as any);
 
   // Protocolos y compliance (tablas nuevas — pueden no existir aún)
   let activeProtocols: any[] = [];
@@ -71,10 +106,12 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     }
   } catch { /* tablas 029 aún no ejecutadas */ }
 
-  const [{ data: profileBasic }, { data: chronoRow }] = await Promise.all([
+  const settled3 = await Promise.allSettled([
     supabase.from('profiles').select('full_name, email').eq('id', clientId).single(),
     supabase.from('user_chronotype').select('schedule').eq('user_id', clientId).maybeSingle(),
   ]);
+  const { data: profileBasic } = settledData('profiles', settled3[0] as any);
+  const { data: chronoRow } = settledData('user_chronotype', settled3[1] as any);
 
   return {
     profile: { ...profileRes.data, ...profileBasic },
@@ -302,27 +339,33 @@ Sé directo y concreto. Sin disclaimers genéricos.`;
 
 /** Llamar a Claude via Edge Function proxy */
 export async function askAtpAI(clientId: string, customQuestion?: string): Promise<string> {
-  const data = await gatherClientData(clientId);
-  const prompt = buildPrompt(data, customQuestion);
+  try {
+    const data = await gatherClientData(clientId);
+    const prompt = buildPrompt(data, customQuestion);
 
-  const { data: { user } } = await supabase.auth.getUser();
-  const authUid = user?.id;
-  const targetUserId = (clientId && clientId !== authUid) ? clientId : null;
-  const meta = await getArgosCallMetadata({
-    callerUserId: authUid,
-    targetUserId,
-    requestType: 'daily_summary',
-  });
+    const { data: { user } } = await supabase.auth.getUser();
+    const authUid = user?.id;
+    const targetUserId = (clientId && clientId !== authUid) ? clientId : null;
+    const meta = await getArgosCallMetadata({
+      callerUserId: authUid,
+      targetUserId,
+      requestType: 'daily_summary',
+    });
 
-  const result = await callAnthropic(
-    [{ role: 'user', content: prompt }],
-    4000,
-    undefined,
-    undefined,
-    meta,
-  );
+    const result = await callAnthropic(
+      [{ role: 'user', content: prompt }],
+      4000,
+      undefined,
+      undefined,
+      meta,
+    );
 
-  return result.content?.map((c: any) => c.text || '').join('\n') || 'No se pudo generar el análisis.';
+    return result.content?.map((c: any) => c.text || '').join('\n') || 'No se pudo generar el análisis.';
+  } catch (e: any) {
+    // ARG-5: degradar si callAnthropic (o cualquier query) falla — nunca tumbar la UI del coach.
+    logError('askAtpAI error:', e?.message ?? String(e));
+    return 'No se pudo generar el análisis ahora mismo. Revisa tu conexión e inténtalo de nuevo en unos minutos.';
+  }
 }
 
 // === AI REPORTS CRUD ===

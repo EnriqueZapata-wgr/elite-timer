@@ -111,9 +111,10 @@ export default function ArgosChat() {
 
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
+    let updatedMessages: ArgosMessage[] | null = null;
     try {
       const response = await chatWithArgos(userId, newMessages);
-      const updatedMessages: ArgosMessage[] = [
+      updatedMessages = [
         ...newMessages,
         { role: 'assistant', content: response },
       ];
@@ -123,10 +124,6 @@ export default function ArgosChat() {
       if (autoSpeak) {
         speakArgos(response);
       }
-
-      // Guardar conversación
-      const id = await saveConversation(userId, updatedMessages, conversationId);
-      if (id) setConversationId(id);
     } catch (e) {
       console.error('ARGOS chat error:', e);
       setMessages([
@@ -136,6 +133,17 @@ export default function ArgosChat() {
     } finally {
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
+    }
+
+    // Guardar conversación FUERA del try del envío:
+    // si saveConversation falla, NO debe borrar la respuesta ya mostrada.
+    if (updatedMessages) {
+      try {
+        const id = await saveConversation(userId, updatedMessages, conversationId);
+        if (id) setConversationId(id);
+      } catch (e) {
+        console.warn('ARGOS saveConversation error:', e);
+      }
     }
   }
 
