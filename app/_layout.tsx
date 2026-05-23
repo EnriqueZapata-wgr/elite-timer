@@ -27,6 +27,7 @@ import { AuthProvider } from '@/src/contexts/auth-context';
 import { ProgramsProvider } from '@/src/contexts/programs-context';
 import { SessionsProvider } from '@/src/contexts/sessions-context';
 import { SettingsProvider } from '@/src/contexts/settings-context';
+import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -84,6 +85,7 @@ function RootLayout() {
   }
 
   return (
+    <ErrorBoundary>
     <ThemeProvider value={EliteTheme}>
       <PostHogProvider
         apiKey={Constants.expoConfig?.extra?.posthogKey}
@@ -171,6 +173,7 @@ function RootLayout() {
         </AuthProvider>
       </PostHogProvider>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
