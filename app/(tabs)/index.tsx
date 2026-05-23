@@ -149,7 +149,19 @@ export default function TodayScreen() {
   const [dailyReviewDismissed, setDailyReviewDismissed] = useState(false);
   const [weeklyInsight, setWeeklyInsight] = useState<WeeklyInsightData | null>(null);
   const [weeklyInsightDismissed, setWeeklyInsightDismissed] = useState(false);
-  const isTogglingRef = useRef(false);
+  // HOY-5: contador (no flag booleano). Un toggle solapado con otro mantiene
+  // el contador > 0 hasta que todos terminen — recién entonces los listeners
+  // disparan loadDay.
+  const isTogglingRef = useRef(0);
+  // HOY-5: id del setTimeout que dispara la recompilación post-toggle.
+  // Cancelar el previo antes de programar uno nuevo evita doble loadDay.
+  const recompileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // HOY-9: id del setTimeout que limpia el voice response. Cancelable +
+  // cleanup en unmount → evita setState sobre componente desmontado.
+  const voiceClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // HOY-6: ref que espeja `suppTaken` para evitar leer estado stale del
+  // closure cuando el usuario toggle dos suplementos rápido.
+  const suppTakenRef = useRef<Record<string, boolean>>({});
 
   // --- Carga de datos ---
   const loadDay = useCallback(async () => {
@@ -174,6 +186,8 @@ export default function TodayScreen() {
       setSupplements(suppsRes.data ?? []);
       const taken: Record<string, boolean> = {};
       (logsRes.data ?? []).forEach((l: any) => { taken[l.supplement_id] = !!l.taken; });
+      // HOY-6: mantener el ref en sync con el estado canónico (DB).
+      suppTakenRef.current = taken;
       setSuppTaken(taken);
       setHasJournalToday((journalRes.count ?? 0) > 0);
     } catch { /* silencioso */ }
@@ -184,16 +198,22 @@ export default function TodayScreen() {
     setLoading(true);
     loadDay();
     const interval = setInterval(loadDay, REFRESH_INTERVAL);
+    // HOY-5: el contador > 0 indica que algún toggle está en vuelo — los
+    // listeners NO disparan loadDay hasta que todos terminen.
     const sub1 = DeviceEventEmitter.addListener('day_changed', () => {
-      if (!isTogglingRef.current) loadDay();
+      if (isTogglingRef.current === 0) loadDay();
     });
     const sub2 = DeviceEventEmitter.addListener('electrons_changed', () => {
-      if (!isTogglingRef.current) loadDay();
+      if (isTogglingRef.current === 0) loadDay();
     });
     return () => {
       clearInterval(interval);
       sub1.remove();
       sub2.remove();
+      // HOY-5/HOY-9: limpiar timeouts pendientes al desmontar para no
+      // hacer setState sobre componente desmontado.
+      if (recompileTimeoutRef.current) clearTimeout(recompileTimeoutRef.current);
+      if (voiceClearTimeoutRef.current) clearTimeout(voiceClearTimeoutRef.current);
     };
   }, [loadDay]);
 
@@ -204,24 +224,44 @@ export default function TodayScreen() {
     });
   }, []);
 
+  // HOY-8: refs para leer el `day`/`streak` más recientes sin que el efecto
+  // se re-dispare con cada mutación.
+  const dayRef = useRef<CompiledDay | null>(null);
+  const streakRef = useRef<number | null>(null);
+  useEffect(() => { dayRef.current = day; }, [day]);
+  useEffect(() => { streakRef.current = streak; }, [streak]);
+
   // --- Daily Review: render solo de noche (≥20h); dismiss persiste por día ---
+  // HOY-8: depende solo de `user?.id` y de si `day` ya cargó (booleano), NO de
+  // las mutaciones de `day`. Las 3 queries internas solo corren en la
+  // transición null→loaded, no en cada toggle. Cancelación descarta
+  // resultados stale si el usuario navega o el efecto se re-dispara.
+  const hasDay = !!day;
   useEffect(() => {
-    if (!user?.id || !day) return;
+    if (!user?.id || !hasDay) return;
     const hourNow = new Date().getHours();
     if (hourNow < 20) { setDailyReview(null); return; }
     const today = getLocalToday();
     const key = `@atp/daily_review_dismissed:${today}`;
-    AsyncStorage.getItem(key).then(v => {
-      if (v === 'true') {
-        setDailyReviewDismissed(true);
-        return;
-      }
-      setDailyReviewDismissed(false);
-      buildDailyReview(user.id, day, streak ?? 0)
-        .then(r => setDailyReview(r))
-        .catch(() => { /* silencioso */ });
-    });
-  }, [user?.id, day, streak]);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const v = await AsyncStorage.getItem(key);
+        if (cancelled) return;
+        if (v === 'true') {
+          setDailyReviewDismissed(true);
+          return;
+        }
+        setDailyReviewDismissed(false);
+        const currentDay = dayRef.current;
+        if (!currentDay) return;
+        const r = await buildDailyReview(user.id, currentDay, streakRef.current ?? 0);
+        if (!cancelled) setDailyReview(r);
+      } catch { /* silencioso */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, hasDay]);
 
   function dismissDailyReview() {
     const key = `@atp/daily_review_dismissed:${getLocalToday()}`;
@@ -348,7 +388,9 @@ export default function TodayScreen() {
     });
 
     // Dual write: daily_electrons + electron_logs
-    isTogglingRef.current = true;
+    // HOY-5: contador, no flag. Permite toggles solapados sin que un toggle
+    // que termina antes destape el guard mientras otro sigue en vuelo.
+    isTogglingRef.current += 1;
     try {
       // 1) daily_electrons (JSONB para UI rápida)
       const newStates: Record<string, boolean> = {};
@@ -379,11 +421,17 @@ export default function TodayScreen() {
         };
       });
     } finally {
-      isTogglingRef.current = false;
+      isTogglingRef.current = Math.max(0, isTogglingRef.current - 1);
     }
 
-    // Recompilar para sincronizar nextElectron y suggestion (sin race condition)
-    setTimeout(() => loadDay(), 300);
+    // Recompilar para sincronizar nextElectron y suggestion (sin race condition).
+    // HOY-5: cancelar la recompilación previa antes de programar una nueva
+    // → toggles rápidos repetidos disparan UNA sola recompilación al final.
+    if (recompileTimeoutRef.current) clearTimeout(recompileTimeoutRef.current);
+    recompileTimeoutRef.current = setTimeout(() => {
+      recompileTimeoutRef.current = null;
+      loadDay();
+    }, 300);
   }
 
   // --- Toggle agenda item ---
@@ -412,10 +460,12 @@ export default function TodayScreen() {
         .eq('date', today)
         .maybeSingle();
 
-      if (plan?.actions) {
-        const updatedActions = (plan.actions as any[]).map((a: any) =>
-          (a.id === itemId || `p-${a.scheduled_time}` === itemId)
-            ? { ...a, completed: !a.completed }
+      // HOY-7: `plan.actions` es JSONB → puede venir null, objeto, string, etc.
+      // Validar shape en runtime antes de `.map` para no crashear.
+      if (plan?.actions && Array.isArray(plan.actions)) {
+        const updatedActions = plan.actions.map((a: any) =>
+          (a?.id === itemId || `p-${a?.scheduled_time}` === itemId)
+            ? { ...a, completed: !a?.completed }
             : a
         );
         await supabase.from('daily_plans')
@@ -478,10 +528,16 @@ export default function TodayScreen() {
     if (!user?.id) return;
     haptic.light();
     const today = getLocalToday();
-    const wasTaken = !!suppTaken[supplementId];
+    // HOY-6: leer desde el ref (estado más reciente), no del closure que
+    // captura `suppTaken` en el momento de definir la función.
+    const wasTaken = !!suppTakenRef.current[supplementId];
+    const nextSuppTaken = { ...suppTakenRef.current, [supplementId]: !wasTaken };
+    // Actualizar el ref ANTES del setState — así un toggle solapado lee el
+    // valor recién proyectado y no el anterior.
+    suppTakenRef.current = nextSuppTaken;
 
     // Optimistic
-    setSuppTaken(prev => ({ ...prev, [supplementId]: !wasTaken }));
+    setSuppTaken(nextSuppTaken);
 
     try {
       if (wasTaken) {
@@ -496,9 +552,9 @@ export default function TodayScreen() {
         }, { onConflict: 'user_id,supplement_id,date' });
       }
 
-      // Sync boolean electron 'supplements' con estado agregado
-      const projected = { ...suppTaken, [supplementId]: !wasTaken };
-      const anyTaken = Object.values(projected).some(Boolean);
+      // Sync boolean electron 'supplements' con estado agregado.
+      // HOY-6: usar la proyección fresca, no la del closure.
+      const anyTaken = Object.values(nextSuppTaken).some(Boolean);
       const currentStates: Record<string, boolean> = {};
       if (day) {
         for (const e of day.booleanElectrons) currentStates[e.source] = e.completed;
@@ -523,7 +579,9 @@ export default function TodayScreen() {
       DeviceEventEmitter.emit('day_changed');
     } catch (e) {
       console.warn('Toggle supplement error:', e);
-      setSuppTaken(prev => ({ ...prev, [supplementId]: wasTaken })); // rollback
+      // HOY-6: rollback en ref + estado, juntos.
+      suppTakenRef.current = { ...suppTakenRef.current, [supplementId]: wasTaken };
+      setSuppTaken(prev => ({ ...prev, [supplementId]: wasTaken }));
     }
   }
 
@@ -602,7 +660,11 @@ export default function TodayScreen() {
       setVoiceConversationId(id);
 
       await speakArgos(response);
-      setTimeout(() => {
+      // HOY-9: guardar el id del timeout y cancelarlo si se reemplaza o el
+      // componente se desmonta → evita setState sobre componente desmontado.
+      if (voiceClearTimeoutRef.current) clearTimeout(voiceClearTimeoutRef.current);
+      voiceClearTimeoutRef.current = setTimeout(() => {
+        voiceClearTimeoutRef.current = null;
         setVoiceResponse('');
         setVoiceConversationId(null);
       }, 15000);
@@ -633,10 +695,20 @@ export default function TodayScreen() {
   }
 
   if (!day) {
+    // HOY-10: agregar botón Reintentar para que la pantalla no quede muerta
+    // cuando la primera carga falla (típicamente fallo de red).
     return (
       <View style={s.loadingWrap}>
         <StatusBar style="light" />
         <Text style={s.loadingText}>No se pudo cargar tu día.</Text>
+        <Pressable
+          onPress={() => { haptic.medium(); setLoading(true); loadDay(); }}
+          style={s.retryBtn}
+          hitSlop={8}
+        >
+          <Ionicons name="refresh-outline" size={18} color="#000" />
+          <Text style={s.retryBtnText}>Reintentar</Text>
+        </Pressable>
       </View>
     );
   }
@@ -1465,6 +1537,20 @@ const s = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#a8e02a',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  retryBtnText: {
+    color: '#000',
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.md,
   },
 
   // ── Top bar ──
