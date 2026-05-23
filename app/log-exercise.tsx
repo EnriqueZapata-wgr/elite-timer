@@ -283,6 +283,10 @@ export default function LogExerciseScreen() {
 
   function updateSet(index: number, field: keyof SetEntry, value: string) {
     setSets(prev => {
+      // REG-1: si el set fue eliminado entre el render y este callback,
+      // el index queda fuera de rango. Devolver prev sin mutar evita
+      // dejar `undefined` en el array (que crashearía el siguiente .map).
+      if (index < 0 || index >= prev.length) return prev;
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
       return next;

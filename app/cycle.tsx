@@ -327,13 +327,17 @@ export default function CycleScreen() {
   const recalcPeriods = async () => {
     if (!userId) return;
     try {
-      const { data } = await supabase
+      const { data, error: selectError } = await supabase
         .from('cycle_daily_logs')
         .select('date')
         .eq('user_id', userId)
         .eq('is_period', true)
         .order('date', { ascending: true });
 
+      if (selectError) {
+        Alert.alert('Error', 'No se pudo recalcular el historial del ciclo.');
+        return;
+      }
       if (!data?.length) return;
 
       // Agrupar consecutivos
@@ -345,17 +349,33 @@ export default function CycleScreen() {
       }
       groups.push({ s: cs, e: ce });
 
-      // Reinsertar períodos
-      await supabase.from('cycle_periods').delete().eq('user_id', userId);
-      for (let i = 0; i < groups.length; i++) {
-        const g = groups[i];
-        await supabase.from('cycle_periods').insert({
-          user_id: userId,
-          start_date: g.s,
-          end_date: g.e,
-          period_length: diffDays(g.s, g.e) + 1,
-          cycle_length: i > 0 ? diffDays(groups[i - 1].s, g.s) : null,
-        });
+      // REG-2: armar filas y hacer UN solo insert batch. Antes hacíamos N
+      // inserts secuenciales: si uno fallaba a la mitad, el historial
+      // quedaba parcialmente reescrito (corrupto). Si el insert batch
+      // falla, NO hacemos el delete (ver orden abajo).
+      const rows = groups.map((g, i) => ({
+        user_id: userId,
+        start_date: g.s,
+        end_date: g.e,
+        period_length: diffDays(g.s, g.e) + 1,
+        cycle_length: i > 0 ? diffDays(groups[i - 1].s, g.s) : null,
+      }));
+
+      const { error: deleteError } = await supabase
+        .from('cycle_periods').delete().eq('user_id', userId);
+      if (deleteError) {
+        Alert.alert('Error', 'No se pudo limpiar el historial previo del ciclo.');
+        return;
+      }
+
+      const { error: insertError } = await supabase
+        .from('cycle_periods').insert(rows);
+      if (insertError) {
+        Alert.alert(
+          'Error',
+          'Se eliminó el historial previo pero no se pudieron guardar los nuevos períodos. Vuelve a tocar un día con período para reintentar.',
+        );
+        return;
       }
     } catch { /* silencioso */ }
   };
