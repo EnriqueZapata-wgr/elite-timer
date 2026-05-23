@@ -14,7 +14,8 @@ import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { supabase } from '../src/lib/supabase';
-import { getLocalToday } from '../src/utils/date-helpers';
+import { getLocalToday, toLocalDateString } from '../src/utils/date-helpers';
+import { warn as logWarn } from '../src/lib/logger';
 import { awardBooleanElectron } from '../src/services/electron-service';
 import { getFastingTier } from '../src/constants/electrons';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
@@ -74,6 +75,17 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
+/**
+ * Devuelve un Date válido o null. Evita `Invalid Date` propagándose a
+ * `toLocaleTimeString`/`toLocaleDateString` (RangeError) o a props
+ * numéricas de SVG (NaN → crash de react-native-svg).
+ */
+function safeDate(value: unknown): Date | null {
+  if (value == null) return null;
+  const d = value instanceof Date ? value : new Date(value as any);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 export default function FastingScreen() {
   const insets = useSafeAreaInsets();
   const [userId, setUserId] = useState('');
@@ -122,13 +134,13 @@ export default function FastingScreen() {
   }, [activeFast]);
 
   function updateElapsed() {
-    if (!activeFast?.fast_start) return;
-    const start = new Date(activeFast.fast_start);
+    const start = safeDate(activeFast?.fast_start);
+    if (!start) return;
     setElapsed((Date.now() - start.getTime()) / (1000 * 60));
   }
 
   async function loadActiveFast() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('fasting_logs')
       .select('*')
       .eq('user_id', userId)
@@ -136,6 +148,28 @@ export default function FastingScreen() {
       .order('fast_start', { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    if (error) {
+      logWarn('loadActiveFast error:', error.message);
+      setActiveFast(null);
+      return;
+    }
+
+    // AY-6: detectar y cerrar ayunos corruptos (fast_start inválido o >72h).
+    if (data) {
+      const start = safeDate(data.fast_start);
+      const hoursElapsed = start ? (Date.now() - start.getTime()) / (1000 * 60 * 60) : Infinity;
+      const isCorrupt = !start || !isFinite(hoursElapsed) || hoursElapsed > 72;
+      if (isCorrupt) {
+        const { error: cancelError } = await supabase
+          .from('fasting_logs')
+          .update({ status: 'cancelled' })
+          .eq('id', data.id);
+        if (cancelError) logWarn('Auto-cancel corrupt fast failed:', cancelError.message);
+        setActiveFast(null);
+        return;
+      }
+    }
 
     setActiveFast(data);
     if (data?.target_hours) {
@@ -145,19 +179,43 @@ export default function FastingScreen() {
   }
 
   async function loadHistory() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('fasting_logs')
       .select('*')
       .eq('user_id', userId)
       .eq('status', 'completed')
       .order('fast_start', { ascending: false })
       .limit(20);
+    if (error) {
+      logWarn('loadHistory error:', error.message);
+      setHistory([]);
+      return;
+    }
     setHistory(data || []);
   }
 
   async function startFast() {
     if (!userId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    // AY-8: bloquear si ya hay un ayuno activo (evita huérfanos duplicados).
+    const { data: existing, error: existingError } = await supabase
+      .from('fasting_logs')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .limit(1);
+    if (existingError) {
+      Alert.alert('Error', 'No se pudo verificar tu estado de ayuno. Intenta de nuevo.');
+      logWarn('startFast pre-check error:', existingError.message);
+      return;
+    }
+    if (existing && existing.length > 0) {
+      Alert.alert('Ayuno activo', 'Ya tienes un ayuno en curso. Termínalo o cancélalo antes de iniciar uno nuevo.');
+      // Recargar para que la UI muestre el ayuno activo en vez del IDLE.
+      loadActiveFast();
+      return;
+    }
 
     const startTime = showStartPicker ? customStartTime : new Date();
     const dateStr = getLocalToday();
@@ -169,30 +227,49 @@ export default function FastingScreen() {
       date: dateStr,
     }).select().single();
 
-    if (!error && data) {
-      setActiveFast(data);
-      setShowStartPicker(false);
-      DeviceEventEmitter.emit('day_changed');
+    if (error || !data) {
+      Alert.alert('Error', 'No se pudo iniciar el ayuno. Intenta de nuevo.');
+      logWarn('startFast insert error:', error?.message);
+      return;
     }
+    setActiveFast(data);
+    setShowStartPicker(false);
+    DeviceEventEmitter.emit('day_changed');
   }
 
   async function breakFastWithTime(endTime: Date) {
     if (!activeFast) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    const start = new Date(activeFast.fast_start);
+    const start = safeDate(activeFast.fast_start);
+    if (!start) {
+      Alert.alert('Ayuno inválido', 'Este ayuno tiene una hora de inicio corrupta. Vamos a cancelarlo.');
+      await supabase.from('fasting_logs').update({ status: 'cancelled' }).eq('id', activeFast.id);
+      setActiveFast(null);
+      setElapsed(0);
+      setShowEndPicker(false);
+      return;
+    }
     const actualHours = (endTime.getTime() - start.getTime()) / (1000 * 60 * 60);
 
-    if (actualHours <= 0) {
+    // AY-4: validar contra NaN/Infinity además de <=0.
+    if (!isFinite(actualHours) || actualHours <= 0) {
       Alert.alert('Error', 'La hora de fin debe ser después del inicio.');
       return;
     }
 
-    await supabase.from('fasting_logs').update({
+    // AY-5: verificar que el update tuvo éxito antes de limpiar el estado local.
+    const { error: updateError } = await supabase.from('fasting_logs').update({
       actual_hours: Math.round(actualHours * 10) / 10,
       fast_end: endTime.toISOString(),
       status: 'completed',
     }).eq('id', activeFast.id);
+
+    if (updateError) {
+      Alert.alert('Error', 'No se pudo registrar el cierre del ayuno. Inténtalo de nuevo.');
+      logWarn('breakFastWithTime update error:', updateError.message);
+      return; // CRITICAL: no limpiar estado — el ayuno sigue activo para reintentar.
+    }
 
     // Electrón por tier de ayuno
     try {
@@ -231,21 +308,29 @@ export default function FastingScreen() {
 
   async function savePastFast() {
     const hours = (pastEnd.getTime() - pastStart.getTime()) / (1000 * 60 * 60);
-    if (hours <= 0) {
+    // AY-4: validar contra NaN además de <=0.
+    if (!isFinite(hours) || hours <= 0) {
       Alert.alert('Error', 'El fin debe ser después del inicio.');
       return;
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    await supabase.from('fasting_logs').insert({
+    // AY-9: fecha local (regla #3) en vez de UTC.
+    const { error } = await supabase.from('fasting_logs').insert({
       user_id: userId,
       fast_start: pastStart.toISOString(),
       fast_end: pastEnd.toISOString(),
       actual_hours: Math.round(hours * 10) / 10,
       target_hours: selectedProtocol.hours,
       status: 'completed',
-      date: pastStart.toISOString().split('T')[0],
+      date: toLocalDateString(pastStart),
     });
+
+    if (error) {
+      Alert.alert('Error', 'No se pudo guardar el ayuno. Intenta de nuevo.');
+      logWarn('savePastFast insert error:', error.message);
+      return;
+    }
 
     // Electrón por tier
     try {
@@ -270,7 +355,12 @@ export default function FastingScreen() {
         text: 'Sí, cancelar',
         style: 'destructive',
         onPress: async () => {
-          await supabase.from('fasting_logs').delete().eq('id', activeFast.id);
+          const { error } = await supabase.from('fasting_logs').delete().eq('id', activeFast.id);
+          if (error) {
+            Alert.alert('Error', 'No se pudo cancelar el ayuno. Intenta de nuevo.');
+            logWarn('cancelFast delete error:', error.message);
+            return;
+          }
           setActiveFast(null);
           setElapsed(0);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -286,7 +376,12 @@ export default function FastingScreen() {
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
-          await supabase.from('fasting_logs').delete().eq('id', id);
+          const { error } = await supabase.from('fasting_logs').delete().eq('id', id);
+          if (error) {
+            Alert.alert('Error', 'No se pudo eliminar el registro. Intenta de nuevo.');
+            logWarn('deleteFast error:', error.message);
+            return;
+          }
           loadHistory();
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
@@ -295,14 +390,18 @@ export default function FastingScreen() {
   }
 
   // === CÁLCULOS ===
-  const elapsedHours = elapsed / 60;
+  // AY-1: blindar contra NaN/Infinity. Si elapsed o targetMinutes son
+  // inválidos, `progress` cae a 0 (en vez de propagarse a SVG y crashear).
+  const safeElapsed = isFinite(elapsed) ? elapsed : 0;
+  const elapsedHours = safeElapsed / 60;
   const targetMinutes = selectedProtocol.hours * 60;
-  const progress = Math.min(elapsed / targetMinutes, 1);
+  const rawProgress = targetMinutes > 0 ? safeElapsed / targetMinutes : 0;
+  const progress = isFinite(rawProgress) ? Math.max(0, Math.min(rawProgress, 1)) : 0;
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
   const currentZone = getCurrentZone(elapsedHours);
   const nextZone = getNextZone(elapsedHours);
-  const timeToNext = nextZone ? (nextZone.hours * 60 - elapsed) : 0;
-  const remainingMinutes = Math.max(targetMinutes - elapsed, 0);
+  const timeToNext = nextZone ? (nextZone.hours * 60 - safeElapsed) : 0;
+  const remainingMinutes = Math.max(targetMinutes - safeElapsed, 0);
 
   // === RENDER ===
   return (
@@ -341,7 +440,8 @@ export default function FastingScreen() {
             </View>
           ) : (
             history.map(fast => {
-              const date = new Date(fast.fast_start);
+              // AY-2: fallback a null si fast_start es inválido para evitar RangeError en toLocaleDateString.
+              const date = safeDate(fast.fast_start);
               const hours = fast.actual_hours || 0;
               const zone = getCurrentZone(hours);
               return (
@@ -368,7 +468,7 @@ export default function FastingScreen() {
                       Ayuno de {Math.round(hours * 10) / 10} horas
                     </Text>
                     <Text style={{ color: '#666', fontSize: 11, marginTop: 2 }}>
-                      {date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {date ? date.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '--'}
                       {' · '}{zone.label}
                     </Text>
                   </View>
@@ -592,7 +692,10 @@ export default function FastingScreen() {
 
           {/* Hora de inicio */}
           <Text style={{ color: '#666', fontSize: 12, marginBottom: 20 }}>
-            Iniciaste a las {formatTime(new Date(activeFast.fast_start))}
+            {(() => {
+              const start = safeDate(activeFast.fast_start);
+              return start ? `Iniciaste a las ${formatTime(start)}` : 'Iniciaste a las --:--';
+            })()}
           </Text>
 
           {/* Botones */}
@@ -620,7 +723,8 @@ export default function FastingScreen() {
                 mode="datetime"
                 display="spinner"
                 onChange={(_, date) => { if (date) setCustomEndTime(date); }}
-                minimumDate={new Date(activeFast.fast_start)}
+                // AY-3: undefined si fast_start es inválido — evita que el picker se congele.
+                minimumDate={safeDate(activeFast.fast_start) ?? undefined}
                 maximumDate={new Date()}
                 themeVariant="dark"
                 textColor="#fff"
@@ -834,7 +938,10 @@ export default function FastingScreen() {
                     </View>
                     <Text style={{ color: '#ccc', fontSize: 13, flex: 1 }}>{zone.label}</Text>
                     <Text style={{ color: '#666', fontSize: 11 }}>
-                      {new Date(fast.fast_start).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                      {(() => {
+                        const d = safeDate(fast.fast_start);
+                        return d ? d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '--';
+                      })()}
                     </Text>
                   </View>
                 );
