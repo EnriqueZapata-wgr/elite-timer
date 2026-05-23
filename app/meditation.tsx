@@ -18,6 +18,7 @@ import { useTimer } from '@/hooks/use-timer';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { supabase } from '@/src/lib/supabase';
+import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
@@ -198,7 +199,7 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase.from('mind_sessions').insert({
+        const { error: insertError } = await supabase.from('mind_sessions').insert({
           user_id: user.id,
           type: 'meditation',
           template_id: meditation.id,
@@ -206,11 +207,25 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
           duration_seconds: elapsed,
           date: getLocalToday(),
         });
-        await awardBooleanElectron(user.id, 'meditation');
-        DeviceEventEmitter.emit('electrons_changed');
-        DeviceEventEmitter.emit('day_changed');
+        if (insertError) {
+          logError('Meditation insert error:', insertError.message);
+          Alert.alert(
+            'Sesión no guardada',
+            'Completaste la meditación, pero no pudimos registrarla. Revisa tu conexión.'
+          );
+        } else {
+          await awardBooleanElectron(user.id, 'meditation');
+          DeviceEventEmitter.emit('electrons_changed');
+          DeviceEventEmitter.emit('day_changed');
+        }
       }
-    } catch { /* silenciar */ }
+    } catch (e: any) {
+      logError('Meditation handleComplete catch:', e?.message ?? String(e));
+      Alert.alert(
+        'Sesión no guardada',
+        'Completaste la meditación, pero no pudimos registrarla. Revisa tu conexión.'
+      );
+    }
   };
 
   const handleEnd = () => {

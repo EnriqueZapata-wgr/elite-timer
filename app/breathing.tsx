@@ -18,6 +18,7 @@ import { awardBooleanElectron } from '@/src/services/electron-service';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import { supabase } from '@/src/lib/supabase';
+import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -415,7 +416,7 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         // Guardar en mind_sessions
-        await supabase.from('mind_sessions').insert({
+        const { error: insertError } = await supabase.from('mind_sessions').insert({
           user_id: user.id,
           type: 'breathing',
           template_id: template.id,
@@ -423,14 +424,27 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
           duration_seconds: totalElapsed,
           rounds_completed: currentCycle + 1,
           date: getLocalToday(),
-        }).then(() => {});
-
-        // Electrón breathwork
-        await awardBooleanElectron(user.id, 'breathwork');
-        DeviceEventEmitter.emit('electrons_changed');
-        DeviceEventEmitter.emit('day_changed');
+        });
+        if (insertError) {
+          logError('Breathing insert error:', insertError.message);
+          Alert.alert(
+            'Sesión no guardada',
+            'Completaste la respiración, pero no pudimos registrarla. Revisa tu conexión.'
+          );
+        } else {
+          // Electrón breathwork
+          await awardBooleanElectron(user.id, 'breathwork');
+          DeviceEventEmitter.emit('electrons_changed');
+          DeviceEventEmitter.emit('day_changed');
+        }
       }
-    } catch { /* silenciar */ }
+    } catch (e: any) {
+      logError('Breathing handleComplete catch:', e?.message ?? String(e));
+      Alert.alert(
+        'Sesión no guardada',
+        'Completaste la respiración, pero no pudimos registrarla. Revisa tu conexión.'
+      );
+    }
   };
 
   const handleEnd = () => {

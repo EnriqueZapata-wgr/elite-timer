@@ -14,6 +14,7 @@ import { HelpButton } from '@/src/components/HelpButton';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn, error as logError } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -152,7 +153,12 @@ export default function JournalScreen() {
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
-          await supabase.from('journal_entries').delete().eq('id', id);
+          const { error } = await supabase.from('journal_entries').delete().eq('id', id);
+          if (error) {
+            logError('Journal deleteEntry error:', error.message);
+            Alert.alert('No se pudo eliminar', 'Revisa tu conexión e inténtalo de nuevo.');
+            return;
+          }
           haptic.success();
           loadEntries();
           DeviceEventEmitter.emit('day_changed');
@@ -215,7 +221,7 @@ export default function JournalScreen() {
     }
 
     try {
-      await supabase.from('journal_entries').insert({
+      const { error: insertError } = await supabase.from('journal_entries').insert({
         user_id: user?.id,
         date: getLocalToday(),
         journal_type: selectedType,
@@ -224,6 +230,15 @@ export default function JournalScreen() {
         mood_before: moodBefore,
         mood_after: moodAfter,
       });
+      if (insertError) {
+        logError('Journal insert error:', insertError.message);
+        Alert.alert(
+          'No se pudo guardar',
+          'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.'
+        );
+        setSaving(false);
+        return;
+      }
       haptic.success();
       // Electrón
       if (user?.id) {
@@ -233,8 +248,12 @@ export default function JournalScreen() {
       setSelectedType(null);
       resetForm();
       loadEntries();
-    } catch {
-      Alert.alert('Error', 'No se pudo guardar.');
+    } catch (e: any) {
+      logError('Journal handleSave catch:', e?.message ?? String(e));
+      Alert.alert(
+        'No se pudo guardar',
+        'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.'
+      );
     }
     setSaving(false);
   }
