@@ -21,6 +21,7 @@ import { EliteText } from '@/components/elite-text';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { InfoButton } from '@/src/components/InfoButton';
@@ -45,6 +46,14 @@ const MONTHS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
+
+// REG-8: rangos fisiológicos para biométricos del ciclo. Un valor con typo
+// (p.ej. 365 °C en vez de 36.5) corrompe la predicción del ciclo —
+// preferimos rechazar con aviso a que el usuario lo corrija.
+const TEMP_MIN_C = 34;
+const TEMP_MAX_C = 42;
+const HRV_MIN_MS = 0;
+const HRV_MAX_MS = 300;
 
 const FLOW_OPTS = [
   { key: 'spotting', label: 'Manchado' },
@@ -289,10 +298,36 @@ export default function CycleScreen() {
 
   const saveEditor = async () => {
     if (!userId) return;
+    const d = editorData;
+
+    // REG-8: validar rangos antes de tocar la DB. Si la temperatura o el HRV
+    // están fuera de rango fisiológico, abortar el save y pedirle al usuario
+    // que corrija — un dato falso ensucia la predicción del ciclo más que
+    // un dato faltante.
+    if (d.temperature_c != null) {
+      if (!Number.isFinite(d.temperature_c) || d.temperature_c < TEMP_MIN_C || d.temperature_c > TEMP_MAX_C) {
+        logWarn('cycle: temperatura fuera de rango', { value: d.temperature_c, min: TEMP_MIN_C, max: TEMP_MAX_C });
+        Alert.alert(
+          'Temperatura fuera de rango',
+          `Revisa el valor (rango esperado: ${TEMP_MIN_C}–${TEMP_MAX_C} °C).`,
+        );
+        return;
+      }
+    }
+    if (d.hrv_ms != null) {
+      if (!Number.isFinite(d.hrv_ms) || d.hrv_ms < HRV_MIN_MS || d.hrv_ms > HRV_MAX_MS) {
+        logWarn('cycle: HRV fuera de rango', { value: d.hrv_ms, min: HRV_MIN_MS, max: HRV_MAX_MS });
+        Alert.alert(
+          'HRV fuera de rango',
+          `Revisa el valor (rango esperado: ${HRV_MIN_MS}–${HRV_MAX_MS} ms).`,
+        );
+        return;
+      }
+    }
+
     haptic.medium();
     setSaving(true);
     try {
-      const d = editorData;
       const { error } = await supabase.from('cycle_daily_logs').upsert({
         user_id: userId,
         date: editorDate,

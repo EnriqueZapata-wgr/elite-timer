@@ -17,6 +17,7 @@ import {
   type HealthMeasurement,
 } from '@/src/services/health-measurement-service';
 import { calculateAndSaveScore } from '@/src/services/health-score-service';
+import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
@@ -106,6 +107,29 @@ const SECTIONS: SectionDef[] = [
   },
 ];
 
+// REG-9: tabla de rangos por campo derivada de los `min`/`max` ya declarados
+// arriba. NO inventar rangos nuevos — usar la fuente única.
+const FIELD_RANGES: Partial<Record<keyof HealthMeasurement, { min?: number; max?: number }>> =
+  SECTIONS.flatMap(s => s.fields).reduce((acc, f) => {
+    acc[f.key] = { min: f.min, max: f.max };
+    return acc;
+  }, {} as Partial<Record<keyof HealthMeasurement, { min?: number; max?: number }>>);
+
+function clampToFieldRange(key: keyof HealthMeasurement, value: number): number {
+  const range = FIELD_RANGES[key];
+  if (!range) return value;
+  let next = value;
+  if (range.min != null && next < range.min) {
+    logWarn('health-input: clamped to min', { field: key, value, min: range.min });
+    next = range.min;
+  }
+  if (range.max != null && next > range.max) {
+    logWarn('health-input: clamped to max', { field: key, value, max: range.max });
+    next = range.max;
+  }
+  return next;
+}
+
 // === COMPONENTE ===
 
 export default function HealthInputScreen() {
@@ -136,15 +160,34 @@ export default function HealthInputScreen() {
   };
 
   const updateField = (key: keyof HealthMeasurement, value: string) => {
-    const num = value === '' ? null : parseFloat(value);
-    setData(prev => ({ ...prev, [key]: num }));
+    if (value === '') {
+      setData(prev => ({ ...prev, [key]: null }));
+      return;
+    }
+    const parsed = parseFloat(value);
+    // REG-9: no permitir NaN en el estado. Si el input no es numérico, se
+    // mantiene como null (el usuario ve el campo vacío hasta que escriba algo
+    // parseable). El clamp al rango del campo se aplica en handleSave para
+    // no pelear con el usuario mientras teclea.
+    setData(prev => ({ ...prev, [key]: Number.isFinite(parsed) ? parsed : null }));
   };
 
   const handleSave = async () => {
     haptic.medium();
     setSaving(true);
     try {
-      await saveMeasurement(userId, data);
+      // REG-9: clamp final al rango declarado de cada campo antes de persistir.
+      const clamped: Partial<HealthMeasurement> = { ...data };
+      for (const key of Object.keys(FIELD_RANGES) as (keyof HealthMeasurement)[]) {
+        const v = (clamped as any)[key];
+        if (typeof v !== 'number') continue;
+        if (!Number.isFinite(v)) { (clamped as any)[key] = null; continue; }
+        (clamped as any)[key] = clampToFieldRange(key, v);
+      }
+      await saveMeasurement(userId, clamped);
+      // Si el clamp cambió algo, reflejarlo en el estado para que el usuario
+      // vea el valor final guardado al volver al formulario.
+      setData(clamped);
       // Recalcular scores
       try { await calculateAndSaveScore(userId); } catch { /* */ }
       haptic.success();
