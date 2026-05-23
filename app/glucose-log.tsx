@@ -76,9 +76,14 @@ export default function GlucoseLogScreen() {
     setSaving(true);
     try {
       const now = new Date();
+      // REG-7: fecha local (regla técnica #3). `now.toISOString().split('T')[0]`
+      // devuelve la fecha en UTC — en zonas horarias negativas un registro
+      // de la noche se persiste como el día siguiente. La hora SÍ se deriva
+      // de la hora local del dispositivo.
+      const today = getLocalToday();
       const { error } = await supabase.from('glucose_logs').insert({
         user_id: user.id,
-        date: now.toISOString().split('T')[0],
+        date: today,
         time: now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
         value_mg_dl: numValue,
         context,
@@ -93,8 +98,7 @@ export default function GlucoseLogScreen() {
       // Electrón
       try { await awardBooleanElectron(user.id, 'glucose_log'); DeviceEventEmitter.emit('electrons_changed'); } catch { /* */ }
 
-      // Refresh
-      const today = now.toISOString().split('T')[0];
+      // Refresh (misma fecha local).
       const { data } = await supabase.from('glucose_logs').select('*')
         .eq('user_id', user.id).eq('date', today)
         .order('time', { ascending: false });
