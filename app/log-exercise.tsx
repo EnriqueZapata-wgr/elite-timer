@@ -20,6 +20,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { generateUUID } from '@/src/services/routine-service';
@@ -84,11 +85,13 @@ export default function LogExerciseScreen() {
   const [selectedVariant, setSelectedVariant] = useState<ExerciseRow | null>(null);
   const [prs, setPrs] = useState<Record<string, PRRow>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // --- Búsqueda de ejercicios ---
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<ExerciseRow[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   // --- Estado del logger ---
   const [sets, setSets] = useState<SetEntry[]>([
@@ -116,20 +119,30 @@ export default function LogExerciseScreen() {
 
   async function loadBenchmarks() {
     setLoading(true);
-    const { data } = await supabase
+    setLoadError(null);
+    const { data, error } = await supabase
       .from('exercises')
       .select('*')
       .eq('is_benchmark', true)
       .order('name_es');
-    if (data) setBenchmarks(data as ExerciseRow[]);
+    if (error) {
+      logWarn('loadBenchmarks error:', error.message);
+      setLoadError('No se pudieron cargar los ejercicios. Revisa tu conexión e inténtalo de nuevo.');
+      setBenchmarks([]);
+      setLoading(false);
+      return;
+    }
+    setBenchmarks((data as ExerciseRow[]) ?? []);
 
     // Cargar PRs del usuario
     if (user) {
-      const { data: prData } = await supabase
+      const { data: prData, error: prError } = await supabase
         .from('personal_records')
         .select('*')
         .eq('user_id', user.id);
-      if (prData) {
+      if (prError) {
+        logWarn('loadBenchmarks PR query error:', prError.message);
+      } else if (prData) {
         const map: Record<string, PRRow> = {};
         for (const pr of prData as PRRow[]) {
           // Guardar el PR con mayor 1RM estimado por ejercicio
@@ -145,15 +158,22 @@ export default function LogExerciseScreen() {
 
   async function searchExercises(query: string) {
     setSearchQuery(query);
-    if (query.trim().length < 2) { setSearchResults([]); return; }
+    if (query.trim().length < 2) { setSearchResults([]); setSearchError(null); return; }
     setSearching(true);
-    const { data } = await supabase
+    setSearchError(null);
+    const { data, error } = await supabase
       .from('exercises')
       .select('*')
       .or(`name.ilike.%${query}%,name_es.ilike.%${query}%`)
       .order('name_es')
       .limit(20);
-    setSearchResults((data as ExerciseRow[]) || []);
+    if (error) {
+      logWarn('searchExercises error:', error.message);
+      setSearchResults([]);
+      setSearchError('No se pudo buscar — revisa tu conexión.');
+    } else {
+      setSearchResults((data as ExerciseRow[]) || []);
+    }
     setSearching(false);
   }
 
@@ -195,11 +215,16 @@ export default function LogExerciseScreen() {
   }
 
   async function autoNavigate(exerciseId: string) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('exercises')
       .select('*')
       .eq('id', exerciseId)
       .maybeSingle();
+    if (error) {
+      logWarn('autoNavigate error:', error.message);
+      Alert.alert('No se pudo cargar el ejercicio', 'Revisa tu conexión e inténtalo de nuevo.');
+      return;
+    }
     if (!data) return;
     const ex = data as ExerciseRow;
 
@@ -211,11 +236,12 @@ export default function LogExerciseScreen() {
       haptic.medium();
     } else if (ex.parent_exercise_id) {
       // Es variante -> buscar su benchmark padre y ir a log
-      const { data: parent } = await supabase
+      const { data: parent, error: parentError } = await supabase
         .from('exercises')
         .select('*')
         .eq('id', ex.parent_exercise_id)
         .maybeSingle();
+      if (parentError) logWarn('autoNavigate parent lookup error:', parentError.message);
       if (parent) setSelectedBenchmark(parent as ExerciseRow);
       setSelectedVariant(ex);
       setStep('log');
@@ -224,11 +250,17 @@ export default function LogExerciseScreen() {
   }
 
   async function loadVariants(benchmarkId: string) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('exercises')
       .select('*')
       .eq('parent_exercise_id', benchmarkId)
       .order('name_es');
+    if (error) {
+      logWarn('loadVariants error:', error.message);
+      Alert.alert('No se pudieron cargar las variantes', 'Revisa tu conexión e inténtalo de nuevo.');
+      setVariants([]);
+      return;
+    }
     setVariants((data as ExerciseRow[]) || []);
   }
 
@@ -594,7 +626,12 @@ export default function LogExerciseScreen() {
                   ))}
                 </View>
               )}
-              {searchQuery.trim().length >= 2 && searchResults.length === 0 && !searching && (
+              {searchError && (
+                <EliteText variant="caption" style={[s.emptyText, { marginTop: Spacing.sm }]}>
+                  {searchError}
+                </EliteText>
+              )}
+              {!searchError && searchQuery.trim().length >= 2 && searchResults.length === 0 && !searching && (
                 <Pressable onPress={handleCreateCustomExercise} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: Spacing.md, marginTop: Spacing.xs }}>
                   <Ionicons name="add-circle-outline" size={20} color="#a8e02a" />
                   <Text style={{ color: '#a8e02a', fontSize: 14 }}>Crear "{searchQuery.trim()}"</Text>
@@ -604,6 +641,15 @@ export default function LogExerciseScreen() {
 
             {loading ? (
               <EliteText variant="body" style={s.loadingText}>Cargando...</EliteText>
+            ) : loadError ? (
+              <View style={{ alignItems: 'center', marginTop: Spacing.xl, gap: Spacing.sm }}>
+                <EliteText variant="body" style={s.emptyText}>
+                  {loadError}
+                </EliteText>
+                <Pressable onPress={loadBenchmarks} style={{ paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}>
+                  <Text style={{ color: '#a8e02a', fontFamily: Fonts.semiBold }}>Reintentar</Text>
+                </Pressable>
+              </View>
             ) : benchmarks.length === 0 ? (
               <EliteText variant="body" style={s.emptyText}>
                 No hay ejercicios benchmark configurados.
