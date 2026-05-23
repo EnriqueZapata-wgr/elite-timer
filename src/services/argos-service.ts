@@ -733,6 +733,20 @@ export interface ArgosChatResult {
 }
 
 /**
+ * ARG-1/ARG-8: instrucción negativa para usuarios que no menstrúan. Se inyecta
+ * antes del contexto cuando `gender !== 'female'` (cubre 'male' y también
+ * null/sin dato — un usuario sin biological_sq no debe recibir contenido de
+ * ciclo asumido). El guard del system prompt es la defensa principal contra
+ * contaminaciones que ya estén en conversaciones viejas (la spec descarta
+ * limpiar la DB).
+ */
+// CONTENIDO ARGOS — wording borrador, validar con Enrique/Mariana antes de Founders M1
+function buildCycleGuard(gender?: string): string {
+  if (gender === 'female') return '';
+  return `\n\n## REGLA DE GÉNERO (NO NEGOCIABLE)\nIMPORTANTE: el usuario de esta conversación no menstrúa. NUNCA le atribuyas, asumas ni menciones como algo que le aplique: ciclo menstrual, fase folicular, fase lútea, ovulación, menstruación, periodo o embarazo. No uses estos conceptos para explicar su energía, ánimo, sueño, rendimiento ni ningún otro aspecto. Si el usuario pregunta explícitamente sobre estos temas, puedes responder de forma general y educativa, sin asumir que le aplican a él.`;
+}
+
+/**
  * Variante extendida de chatWithArgos. Retorna también si la respuesta vino
  * degradada (rate-limited, ambos providers caídos, o error de cliente).
  * El caller usa ese flag para NO persistir ni reenviar el turno en
@@ -745,7 +759,8 @@ export async function chatWithArgosEx(
 ): Promise<ArgosChatResult> {
   const context = await loadUserContext(userId);
   const contextPrompt = buildContextPrompt(context);
-  const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
+  const cycleGuard = buildCycleGuard(context.gender);
+  const systemPrompt = ARGOS_SYSTEM_PROMPT + cycleGuard + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat' });
@@ -798,13 +813,17 @@ export async function chatWithArgos(
 export async function generateDailyInsight(userId: string): Promise<string> {
   const context = await loadUserContext(userId);
   const contextPrompt = buildContextPrompt(context);
+  // ARG-1/ARG-8: mismo guard que chatWithArgos — el insight diario también
+  // es texto libre y puede atribuir "fase lútea / cambios hormonales" a
+  // usuarios que no menstrúan si no se restringe.
+  const cycleGuard = buildCycleGuard(context.gender);
 
   const insightSystem = `Eres ARGOS, IA de salud funcional de ATP. Genera UN insight breve (máximo 2 oraciones) basado en los datos del usuario. Debe ser:
 - Específico (usa los datos reales, no genérico)
 - Accionable (qué puede hacer HOY)
 - Integrativo (conecta 2+ pilares si es posible)
 - Empoderador (no alarmista)
-No uses emojis. No saludes. Ve directo al insight.${contextPrompt}`;
+No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${contextPrompt}`;
 
   try {
     const meta = await getArgosCallMetadata({ requestType: 'insight' });
