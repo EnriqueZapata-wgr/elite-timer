@@ -719,13 +719,30 @@ function buildContextPrompt(ctx: UserContext): string {
 export interface ArgosMessage {
   role: 'user' | 'assistant';
   content: string;
+  // ARG-2/ARG-3: turno marcado como degradado (rate-limited, ambos providers
+  // cayeron, o error de cliente). Se muestra al usuario, pero NO se persiste
+  // en `argos_conversations` ni se reenvía al LLM en turnos futuros — esos
+  // textos contaminan el contexto (auto-refuerzan errores como atribuirle
+  // "fase lútea" a un usuario hombre).
+  degraded?: boolean;
 }
 
-export async function chatWithArgos(
+export interface ArgosChatResult {
+  text: string;
+  degraded: boolean;
+}
+
+/**
+ * Variante extendida de chatWithArgos. Retorna también si la respuesta vino
+ * degradada (rate-limited, ambos providers caídos, o error de cliente).
+ * El caller usa ese flag para NO persistir ni reenviar el turno en
+ * conversaciones futuras (ver ARG-1/ARG-2).
+ */
+export async function chatWithArgosEx(
   userId: string,
   messages: ArgosMessage[],
   options?: { model?: string },
-): Promise<string> {
+): Promise<ArgosChatResult> {
   const context = await loadUserContext(userId);
   const contextPrompt = buildContextPrompt(context);
   const systemPrompt = ARGOS_SYSTEM_PROMPT + contextPrompt;
@@ -743,15 +760,37 @@ export async function chatWithArgos(
     );
   } catch (e: any) {
     if (e?.message === 'ARGOS_TIMEOUT') {
-      return 'ARGOS está tardando más de lo normal, intenta de nuevo en un momento.';
+      return {
+        text: 'ARGOS está tardando más de lo normal, intenta de nuevo en un momento.',
+        degraded: true,
+      };
     }
     console.warn('ARGOS chat error:', e);
-    return 'Lo siento, no pude procesar tu consulta.';
+    return {
+      text: 'Lo siento, no pude procesar tu consulta.',
+      degraded: true,
+    };
   }
 
-  // Si el Edge Function aplicó circuit breaker o cayó en respuesta degradada,
-  // devuelve content válido pero con flags _rate_limited / _degraded — pasamos el texto tal cual.
-  return data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
+  // ARG-3: el Edge Function marca con `_rate_limited` (circuit breaker diario)
+  // o `_degraded` (ambos providers fallaron). `_fallback: true` significa que
+  // Gemini respondió como fallback — eso NO es degradado, es éxito.
+  const degraded = !!(data?._degraded || data?._rate_limited);
+  const text = data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
+  return { text, degraded: degraded || !data?.content?.[0]?.text };
+}
+
+/**
+ * Wrapper de compatibilidad: retorna solo el texto. Los callers que no
+ * necesitan distinguir respuestas degradadas siguen usando este.
+ */
+export async function chatWithArgos(
+  userId: string,
+  messages: ArgosMessage[],
+  options?: { model?: string },
+): Promise<string> {
+  const result = await chatWithArgosEx(userId, messages, options);
+  return result.text;
 }
 
 // === INSIGHT DIARIO ===
