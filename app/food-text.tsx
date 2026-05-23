@@ -19,6 +19,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { searchFoods, calculateNutrients } from '@/src/data/food-database';
 import type { FoodItem } from '@/src/data/food-database';
 import { analyzeFoodText as analyzeWithAI } from '@/src/services/nutrition-service';
@@ -83,6 +84,38 @@ function currentTime(): { hh: string; mm: string } {
   };
 }
 
+// REG-4: límites duros para gramos por ingrediente.
+const MIN_GRAMS = 0;
+const MAX_GRAMS = 5000;
+
+/** Convierte un valor a número finito; si no, usa fallback (REG-3). */
+function safeNum(value: any, fallback = 0): number {
+  const n = typeof value === 'number' ? value : parseFloat(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+/** Limpia los gramos al rango [MIN_GRAMS, MAX_GRAMS] (REG-4). */
+function clampGrams(value: number): number {
+  if (!Number.isFinite(value)) return 100;
+  return Math.max(MIN_GRAMS, Math.min(value, MAX_GRAMS));
+}
+
+/**
+ * REG-3: parsea la porción que devuelve la IA. Si no es un número finito
+ * (ej. "al gusto", "1 puño"), cae a 100g y registra un warning para que
+ * el usuario pueda editar después — pero NUNCA persistimos NaN.
+ */
+function parseAIPortion(portion: unknown): number {
+  if (typeof portion !== 'string' || portion.trim().length === 0) return 100;
+  const cleaned = portion.replace(/[^\d.]/g, '');
+  const parsed = parseFloat(cleaned);
+  if (!Number.isFinite(parsed)) {
+    logWarn('food-text: porción de IA no numérica, default 100g', { portion });
+    return 100;
+  }
+  return clampGrams(parsed);
+}
+
 /** Calcula quality_score simple basado en ingredientes */
 function calcQualityScore(ingredients: SelectedIngredient[], totalProtein: number): number {
   if (ingredients.length === 0) return 0;
@@ -142,19 +175,27 @@ export default function FoodTextScreen() {
   // --- Agregar ingrediente desde autocompletado o IA ---
   const addIngredient = useCallback((food: FoodItem, gramsOverride?: number) => {
     haptic.light();
+    // REG-3/REG-4: gramos siempre finitos y dentro de rango.
+    const grams = clampGrams(gramsOverride ?? food.servingGrams ?? 100);
     setIngredients(prev => [
       ...prev,
-      { food, grams: gramsOverride ?? food.servingGrams ?? 100, id: `${food.name}-${Date.now()}` },
+      { food, grams, id: `${food.name}-${Date.now()}` },
     ]);
     setQuery(''); // Limpiar búsqueda al seleccionar
   }, []);
 
   // --- Actualizar cantidad de un ingrediente ---
   const updateGrams = useCallback((id: string, text: string) => {
-    const grams = parseInt(text, 10);
-    if (isNaN(grams) && text !== '') return;
+    const parsed = parseInt(text, 10);
+    if (isNaN(parsed) && text !== '') return;
+    // REG-4: clamp 0–5000g. Si el usuario teclea un valor mayor, lo topamos
+    // (no rechazamos toda la entrada) y registramos un warning.
+    const next = isNaN(parsed) ? 0 : clampGrams(parsed);
+    if (!isNaN(parsed) && parsed > MAX_GRAMS) {
+      logWarn('food-text: gramos topados a MAX_GRAMS', { input: parsed, clamped: MAX_GRAMS });
+    }
     setIngredients(prev =>
-      prev.map(i => i.id === id ? { ...i, grams: isNaN(grams) ? 0 : grams } : i)
+      prev.map(i => i.id === id ? { ...i, grams: next } : i)
     );
   }, []);
 
@@ -356,22 +397,25 @@ export default function FoodTextScreen() {
                     const result = await analyzeWithAI(query.trim());
                     if (result?.ingredients?.length > 0) {
                       for (const ing of result.ingredients) {
+                        // REG-3: blindar TODOS los campos numéricos que vienen de la IA.
+                        // Si la IA devuelve NaN/null/string, caemos a 0 (macros) o 100 (porción)
+                        // y logueamos. Nunca persistimos NaN.
                         const food = {
                           name: ing.name ?? query.trim(),
                           category: 'procesado',
                           per100g: {
-                            calories: ing.calories ?? 0,
-                            protein: ing.protein ?? 0,
-                            carbs: ing.carbs ?? 0,
-                            fat: ing.fat ?? 0,
-                            fiber: ing.fiber ?? 0,
+                            calories: safeNum(ing.calories, 0),
+                            protein: safeNum(ing.protein, 0),
+                            carbs: safeNum(ing.carbs, 0),
+                            fat: safeNum(ing.fat, 0),
+                            fiber: safeNum(ing.fiber, 0),
                           },
                           servingSize: ing.portion ?? '100g',
                           servingGrams: 100,
                           isProcessed: false,
                           tags: [] as string[],
                         } as FoodItem;
-                        addIngredient(food, parseFloat(ing.portion?.replace(/[^\d.]/g, '') || '100'));
+                        addIngredient(food, parseAIPortion(ing.portion));
                       }
                     } else {
                       Alert.alert('Sin resultado', 'No se pudo estimar. Intenta con otra descripción.');
