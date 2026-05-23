@@ -13,12 +13,45 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../src/lib/supabase';
 import { getLocalToday, toLocalDateString } from '../src/utils/date-helpers';
 import { warn as logWarn } from '../src/lib/logger';
 import { awardBooleanElectron } from '../src/services/electron-service';
 import { getFastingTier } from '../src/constants/electrons';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+
+// Decisión de producto: el ayuno máximo en ATP es 120 horas. Protocolos
+// funcionales no proponen ayunos más largos; ayunos mayores requieren
+// supervisión médica.
+const MAX_FAST_HOURS = 120;
+// Margen para detectar ayunos olvidados/corruptos (> límite + 24h).
+const FAST_CORRUPT_THRESHOLD_HOURS = MAX_FAST_HOURS + 24;
+
+// CONTENIDO MÉDICO — pendiente validación de Mariana antes de Founders M1
+const FAST_MILESTONES: { hours: number; title: string; message: string }[] = [
+  {
+    hours: 24,
+    title: '24 horas de ayuno',
+    message: 'Tu cuerpo agotó el glucógeno y entró en cetosis — ya estás quemando grasa. Mantén la hidratación.',
+  },
+  {
+    hours: 48,
+    title: '48 horas de ayuno',
+    message: 'La autofagia (reciclaje celular) se intensifica. Asegura electrolitos: sodio, potasio, magnesio.',
+  },
+  {
+    hours: 72,
+    title: '72 horas — ayuno prolongado',
+    message: 'Los beneficios son profundos, pero a partir de aquí escucha tu cuerpo de cerca. Si sientes mareo, debilidad extrema o palpitaciones, rompe el ayuno.',
+  },
+  {
+    hours: 96,
+    title: '96 horas — ayuno extendido',
+    message: 'Cómo rompes el ayuno (refeeding) es tan importante como el ayuno: hazlo gradual. Considera el acompañamiento de un profesional.',
+  },
+  // Hito 120h se maneja vía cierre automático (ver autoCloseAtLimit).
+];
 
 const { width } = Dimensions.get('window');
 const RING_SIZE = width * 0.65;
@@ -124,6 +157,29 @@ export default function FastingScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [userId]));
 
+  // Hitos mostrados para el ayuno activo (persistido por fast.id).
+  const shownMilestonesRef = useRef<Set<number>>(new Set());
+  const autoCloseTriggeredRef = useRef(false);
+  const milestoneStorageKey = (fastId: string) => `@atp/fast_milestones_${fastId}`;
+
+  // Reset y carga de hitos al cambiar de ayuno activo.
+  useEffect(() => {
+    autoCloseTriggeredRef.current = false;
+    if (!activeFast?.id) {
+      shownMilestonesRef.current = new Set();
+      return;
+    }
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(milestoneStorageKey(activeFast.id));
+        const arr: number[] = raw ? JSON.parse(raw) : [];
+        shownMilestonesRef.current = new Set(Array.isArray(arr) ? arr : []);
+      } catch {
+        shownMilestonesRef.current = new Set();
+      }
+    })();
+  }, [activeFast?.id]);
+
   // Timer tick cada 30 segundos
   useEffect(() => {
     if (activeFast) {
@@ -136,7 +192,68 @@ export default function FastingScreen() {
   function updateElapsed() {
     const start = safeDate(activeFast?.fast_start);
     if (!start) return;
-    setElapsed((Date.now() - start.getTime()) / (1000 * 60));
+    const elapsedMs = Date.now() - start.getTime();
+    const elapsedMin = elapsedMs / (1000 * 60);
+    setElapsed(elapsedMin);
+    const hours = elapsedMin / 60;
+
+    // Auto-cierre en vivo al alcanzar 120h.
+    if (hours >= MAX_FAST_HOURS && !autoCloseTriggeredRef.current) {
+      autoCloseTriggeredRef.current = true;
+      autoCloseAtLimit(start);
+      return;
+    }
+
+    // Avisos progresivos (24/48/72/96).
+    for (const m of FAST_MILESTONES) {
+      if (hours >= m.hours && !shownMilestonesRef.current.has(m.hours)) {
+        shownMilestonesRef.current.add(m.hours);
+        if (activeFast?.id) {
+          AsyncStorage.setItem(
+            milestoneStorageKey(activeFast.id),
+            JSON.stringify(Array.from(shownMilestonesRef.current)),
+          ).catch(() => {});
+        }
+        Alert.alert(m.title, m.message);
+      }
+    }
+  }
+
+  async function autoCloseAtLimit(start: Date) {
+    if (!activeFast) return;
+    const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
+    const { error } = await supabase
+      .from('fasting_logs')
+      .update({
+        status: 'completed',
+        actual_hours: MAX_FAST_HOURS,
+        fast_end: fastEnd.toISOString(),
+      })
+      .eq('id', activeFast.id);
+    if (error) {
+      logWarn('Live auto-close at limit failed:', error.message);
+      // No limpiar estado: dejar al usuario reintentar manualmente.
+      autoCloseTriggeredRef.current = false;
+      return;
+    }
+    try {
+      const tier = getFastingTier(MAX_FAST_HOURS);
+      if (tier) {
+        await awardBooleanElectron(userId, tier);
+        DeviceEventEmitter.emit('electrons_changed');
+      }
+    } catch { /* opcional */ }
+    if (activeFast.id) {
+      AsyncStorage.removeItem(milestoneStorageKey(activeFast.id)).catch(() => {});
+    }
+    setActiveFast(null);
+    setElapsed(0);
+    DeviceEventEmitter.emit('day_changed');
+    loadHistory();
+    Alert.alert(
+      'Alcanzaste 120 horas',
+      'Alcanzaste 120 horas, el límite de los protocolos de ATP. Tu ayuno se cierra aquí. Rompe de forma gradual y cuidadosa — ayunos más largos requieren supervisión médica.'
+    );
   }
 
   async function loadActiveFast() {
@@ -155,18 +272,73 @@ export default function FastingScreen() {
       return;
     }
 
-    // AY-6: detectar y cerrar ayunos corruptos (fast_start inválido o >72h).
+    // Reemplaza AY-6: alineado al límite duro de 120h.
+    // - fast_start inválido/nulo → ayuno corrupto → cancelar.
+    // - 120h ≤ duración ≤ 144h → ayuno alcanzó el límite → cerrar como
+    //   COMPLETADO a 120h exactas + aviso.
+    // - duración > 144h → ayuno olvidado/corrupto → cancelar (NO inflar logros).
     if (data) {
       const start = safeDate(data.fast_start);
-      const hoursElapsed = start ? (Date.now() - start.getTime()) / (1000 * 60 * 60) : Infinity;
-      const isCorrupt = !start || !isFinite(hoursElapsed) || hoursElapsed > 72;
-      if (isCorrupt) {
+      if (!start) {
         const { error: cancelError } = await supabase
           .from('fasting_logs')
           .update({ status: 'cancelled' })
           .eq('id', data.id);
-        if (cancelError) logWarn('Auto-cancel corrupt fast failed:', cancelError.message);
+        if (cancelError) logWarn('Auto-cancel invalid-start fast failed:', cancelError.message);
         setActiveFast(null);
+        return;
+      }
+      const hoursElapsed = (Date.now() - start.getTime()) / (1000 * 60 * 60);
+      if (!isFinite(hoursElapsed)) {
+        const { error: cancelError } = await supabase
+          .from('fasting_logs')
+          .update({ status: 'cancelled' })
+          .eq('id', data.id);
+        if (cancelError) logWarn('Auto-cancel non-finite fast failed:', cancelError.message);
+        setActiveFast(null);
+        return;
+      }
+      if (hoursElapsed > FAST_CORRUPT_THRESHOLD_HOURS) {
+        // > 144h: olvidado, no es un ayuno real.
+        const { error: cancelError } = await supabase
+          .from('fasting_logs')
+          .update({ status: 'cancelled' })
+          .eq('id', data.id);
+        if (cancelError) logWarn('Auto-cancel forgotten fast failed:', cancelError.message);
+        setActiveFast(null);
+        Alert.alert('Ayuno limpiado', 'Encontramos un ayuno sin cerrar y lo limpiamos.');
+        return;
+      }
+      if (hoursElapsed >= MAX_FAST_HOURS) {
+        // 120h ≤ duración ≤ 144h: cerrar como completado a 120h exactas.
+        const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
+        const { error: closeError } = await supabase
+          .from('fasting_logs')
+          .update({
+            status: 'completed',
+            actual_hours: MAX_FAST_HOURS,
+            fast_end: fastEnd.toISOString(),
+          })
+          .eq('id', data.id);
+        if (closeError) {
+          logWarn('Auto-close at limit failed:', closeError.message);
+        } else {
+          // Electrón por tier de ayuno
+          try {
+            const tier = getFastingTier(MAX_FAST_HOURS);
+            if (tier) {
+              await awardBooleanElectron(userId, tier);
+              DeviceEventEmitter.emit('electrons_changed');
+            }
+          } catch { /* opcional */ }
+          DeviceEventEmitter.emit('day_changed');
+          Alert.alert(
+            'Límite de 120h alcanzado',
+            'Tu ayuno alcanzó el límite de 120h y se cerró automáticamente.'
+          );
+        }
+        setActiveFast(null);
+        loadHistory();
         return;
       }
     }
@@ -287,6 +459,9 @@ export default function FastingScreen() {
       `Duraste ${formatDuration(durationMinutes)} · Alcanzaste: ${zone.label}`,
     );
 
+    if (activeFast?.id) {
+      AsyncStorage.removeItem(milestoneStorageKey(activeFast.id)).catch(() => {});
+    }
     setActiveFast(null);
     setElapsed(0);
     setShowEndPicker(false);
@@ -355,11 +530,15 @@ export default function FastingScreen() {
         text: 'Sí, cancelar',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase.from('fasting_logs').delete().eq('id', activeFast.id);
+          const cancelledId = activeFast.id;
+          const { error } = await supabase.from('fasting_logs').delete().eq('id', cancelledId);
           if (error) {
             Alert.alert('Error', 'No se pudo cancelar el ayuno. Intenta de nuevo.');
             logWarn('cancelFast delete error:', error.message);
             return;
+          }
+          if (cancelledId) {
+            AsyncStorage.removeItem(milestoneStorageKey(cancelledId)).catch(() => {});
           }
           setActiveFast(null);
           setElapsed(0);
@@ -781,10 +960,10 @@ export default function FastingScreen() {
             </LinearGradient>
           </Pressable>
 
-          {/* Lista de protocolos expandible */}
+          {/* Lista de protocolos expandible (capada a MAX_FAST_HOURS) */}
           {showProtocols && (
             <View style={{ marginBottom: 20, gap: 6 }}>
-              {FASTING_PROTOCOLS.map(p => (
+              {FASTING_PROTOCOLS.filter(p => p.hours <= MAX_FAST_HOURS).map(p => (
                 <Pressable
                   key={p.id}
                   onPress={() => {
