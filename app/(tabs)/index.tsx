@@ -778,7 +778,7 @@ export default function TodayScreen() {
 
               {/* Adherencia por pilar */}
               <View style={{ marginTop: 10, gap: 6 }}>
-                {weeklyInsight.adherence.map(p => {
+                {(weeklyInsight.adherence ?? []).map(p => {
                   const arrow = p.delta > 4 ? '↑' : p.delta < -4 ? '↓' : '·';
                   const arrowColor = p.delta > 4 ? '#a8e02a' : p.delta < -4 ? '#fb7185' : '#666';
                   return (

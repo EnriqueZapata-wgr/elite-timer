@@ -156,7 +156,10 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const crossPillar = await deriveCrossPillar(userId, moodRes.data, glucoseRes.data, biologicalSex);
 
   const prefs = prefsRes.data;
-  const boolStates = (dailyERes.data?.electrons as Record<string, boolean>) ?? {};
+  // HOY-1: la columna JSONB `electrons` puede venir explícitamente como `null`
+  // (usuarios nuevos sin upsert). `?? {}` solo cubre undefined; usar `|| {}`
+  // para que también cubra el caso null y evitar crash en boolStates[k].
+  const boolStates = (dailyERes.data?.electrons as Record<string, boolean> | null) || {};
   // Nombre: user_metadata → profiles.full_name → fallback
   let userName = userRes.data.user?.user_metadata?.full_name?.split(' ')[0]?.toUpperCase() || '';
   if (!userName) {
@@ -185,9 +188,15 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   let protocol: CompiledDay['protocol'] = null;
   const prot = protRes.data?.[0];
   if (prot) {
-    const startDate = new Date(prot.started_at ?? prot.created_at);
-    const dayNum = Math.max(1, Math.ceil((Date.now() - startDate.getTime()) / 86400000) + 1);
+    // HOY-2: validar la fecha de arranque. Si está corrupta, usar hoy como
+    // fallback para que `dayNum` no sea NaN (→ ring crashea con NaN en SVG)
+    // ni exceda el total del protocolo.
+    const startRaw = prot.started_at ?? prot.created_at;
+    const parsed = startRaw ? new Date(startRaw) : null;
+    const startDate = parsed && !isNaN(parsed.getTime()) ? parsed : new Date();
     const totalDays = (prot.template?.duration_weeks ?? 12) * 7;
+    const rawDayNum = Math.ceil((Date.now() - startDate.getTime()) / 86400000) + 1;
+    const dayNum = Math.min(totalDays, Math.max(1, isFinite(rawDayNum) ? rawDayNum : 1));
     protocol = { name: prot.name ?? prot.template?.name ?? 'Protocolo', dayNumber: dayNum, totalDays };
   }
 

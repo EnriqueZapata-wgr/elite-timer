@@ -262,6 +262,18 @@ FORMATO DE RESPUESTA (JSON estricto, sin markdown, sin backticks):
   "question": "tu pregunta abierta de 1 oración"
 }`;
 
+/**
+ * Validación de forma en runtime para insight_data cacheado. Cubre el
+ * caso de filas viejas con shape distinto (pre-refactor o data corrupta).
+ * Lo mínimo que la UI necesita: `adherence` debe ser un array (HOY se
+ * mapea con `.adherence.map`).
+ */
+function isValidWeeklyInsight(v: unknown): v is WeeklyInsightData {
+  if (!v || typeof v !== 'object') return false;
+  const obj = v as any;
+  return Array.isArray(obj.adherence);
+}
+
 // ═══ API PÚBLICA ═══
 
 /**
@@ -287,7 +299,10 @@ export async function getWeeklyInsight(userId: string): Promise<WeeklyInsightDat
       .eq('user_id', userId)
       .eq('week_start', weekStartStr)
       .maybeSingle();
-    if (cached?.insight_data) {
+    // HOY-3: validar la forma del caché en runtime antes de devolverlo.
+    // Si una fila vieja tiene shape distinto (ej. sin `adherence` array),
+    // recomputar en vez de devolverlo y crashear en `.adherence.map`.
+    if (cached?.insight_data && isValidWeeklyInsight(cached.insight_data)) {
       return cached.insight_data as WeeklyInsightData;
     }
 
