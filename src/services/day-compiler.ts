@@ -10,6 +10,15 @@ import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { getUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
 import { getCycleInfo } from '@/src/services/cycle-service';
+import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
+import { warn as logWarn } from '@/src/lib/logger';
+
+/**
+ * Electrones cuya `completed` se deriva de actividad real (no del blob).
+ * Tap en HOY sobre uno NO los prende — lleva a la pantalla de actividad.
+ * El compilador los enciende solos cuando hay un registro real ese día.
+ */
+const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements'] as const;
 
 // ═══ TIPOS ═══
 
@@ -138,8 +147,12 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const today = getLocalToday();
   const hour = getLocalHour();
 
-  // Parallelizar queries
-  const [prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes] = await Promise.all([
+  // Parallelizar queries (incluye verificación de actividad real para los
+  // 4 electrones verificados — ver VERIFIED_ELECTRON_KEYS).
+  const [
+    prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
+    meditationCountRes, breathingCountRes, exerciseCountRes, supplementCountRes,
+  ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
     supabase.auth.getUser(),
@@ -150,7 +163,24 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
     supabase.from('emotional_checkins').select('pleasantness, quadrant, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('glucose_logs').select('value_mg_dl, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
+    // Conteo de actividad real del día para los 4 electrones verificados:
+    supabase.from('mind_sessions').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today).eq('type', 'meditation'),
+    supabase.from('mind_sessions').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today).eq('type', 'breathing'),
+    supabase.from('exercise_logs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today),
+    supabase.from('supplement_logs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today).eq('taken', true),
   ]);
+
+  // Para los 4 verificados: derivar `completed` de actividad real, NO del blob.
+  const verifiedCompleted: Record<string, boolean> = {
+    meditation: (meditationCountRes.count ?? 0) >= 1,
+    breathwork: (breathingCountRes.count ?? 0) >= 1,
+    strength: (exerciseCountRes.count ?? 0) >= 1,
+    supplements: (supplementCountRes.count ?? 0) >= 1,
+  };
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;
   const crossPillar = await deriveCrossPillar(userId, moodRes.data, glucoseRes.data, biologicalSex);
@@ -211,17 +241,28 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
     .filter(k => (ELECTRON_WEIGHTS as any)[k])
     .map(k => {
       const cfg = (ELECTRON_WEIGHTS as any)[k];
+      // Para los 4 verificados, `completed` viene de actividad real (no del blob).
+      // El blob para estos keys queda vestigial — se ignora aquí.
+      const completed = k in verifiedCompleted ? verifiedCompleted[k] : boolStates[k] === true;
       return {
         source: k,
         name: cfg.name,
         icon: cfg.icon,
         color: cfg.color,
         weight: cfg.weight,
-        completed: boolStates[k] === true,
+        completed,
         description: ELECTRON_DESCRIPTIONS[k] ?? '',
         pillarRoute: ELECTRON_ROUTES[k] ?? '/kit',
       };
     });
+
+  // Reconciliar electron_logs para los verificados: si hay drift entre lo
+  // derivado y el ledger (raro), corregirlo idempotentemente. Esto mantiene
+  // honestos tanto el score del día como el rank acumulado.
+  // Fire-and-forget: no bloquea el compile si la reconciliación falla.
+  reconcileVerifiedLedger(userId, today, verifiedCompleted).catch(e => {
+    logWarn('[compileDay] reconcileVerifiedLedger failed', e);
+  });
 
   // Quantitative electrons
   const proteinTotal = (foodRes.data ?? []).reduce((s: number, r: any) => s + (Number(r.protein_g) || 0), 0);
@@ -273,6 +314,39 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
 }
 
 // ═══ HELPERS ═══
+
+/**
+ * Para los electrones verificados, alinea `electron_logs` con la actividad
+ * real del día. Solo escribe cuando hay desajuste (raro): si el usuario
+ * completó la actividad pero no hay log → award; si el log existe pero la
+ * actividad fue borrada → revoke. Ambos helpers son idempotentes.
+ */
+async function reconcileVerifiedLedger(
+  userId: string,
+  date: string,
+  desired: Record<string, boolean>,
+): Promise<void> {
+  const keys = Object.keys(desired);
+  if (keys.length === 0) return;
+  const { data, error } = await supabase
+    .from('electron_logs')
+    .select('source')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .in('source', keys);
+  if (error) {
+    logWarn('[compileDay] reconcile select failed', error);
+    return;
+  }
+  const awarded = new Set((data ?? []).map((r: any) => r.source as string));
+  for (const [src, completed] of Object.entries(desired)) {
+    if (completed && !awarded.has(src)) {
+      await awardBooleanElectron(userId, src as ElectronSource);
+    } else if (!completed && awarded.has(src)) {
+      await revokeBooleanElectron(userId, src as ElectronSource);
+    }
+  }
+}
 
 function fmtQuant(key: string, v: number): string {
   if (key === 'protein') return `${Math.round(v)}g`;
