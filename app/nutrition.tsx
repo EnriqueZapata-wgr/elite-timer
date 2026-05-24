@@ -70,7 +70,10 @@ export default function NutritionScreen() {
 
       const foods = foodRes.data ?? [];
       const activeFast = fastRes.data?.[0];
-      const fastElapsed = activeFast ? (Date.now() - new Date(activeFast.fast_start).getTime()) / 3600000 : 0;
+      // ÍTEM 4: guard NaN. Si fast_start viene nulo/corrupto, fastElapsed
+      // sería NaN → fastHours: NaN → render "NaN h".
+      const fastStartMs = activeFast?.fast_start ? new Date(activeFast.fast_start).getTime() : NaN;
+      const fastElapsed = Number.isFinite(fastStartMs) ? (Date.now() - fastStartMs) / 3600000 : 0;
 
       setSummary({
         calories: foods.reduce((s: number, f: any) => s + (f.calories || 0), 0),

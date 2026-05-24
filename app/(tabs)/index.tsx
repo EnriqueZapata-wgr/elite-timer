@@ -417,9 +417,14 @@ export default function TodayScreen() {
       for (const e of day.booleanElectrons) {
         newStates[e.source] = e.source === source ? !wasCompleted : e.completed;
       }
-      await supabase
+      const { error: deErr } = await supabase
         .from('daily_electrons')
         .upsert({ user_id: user.id, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
+      if (deErr) {
+        // ÍTEM 4: visibilidad sobre fallos del upsert que antes silenciaba
+        // la falta de destructuring. Throw para activar el revert del catch.
+        throw deErr;
+      }
 
       // 2) electron_logs (acumulado)
       if (wasCompleted) {
@@ -429,7 +434,7 @@ export default function TodayScreen() {
       }
       DeviceEventEmitter.emit('electrons_changed');
     } catch (e) {
-      console.warn('Error toggling electron:', e);
+      logWarn('[HOY] Error toggling electron:', e);
       // Revertir optimistic update en caso de error
       setDay(prev => {
         if (!prev) return prev;

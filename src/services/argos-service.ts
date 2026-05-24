@@ -231,8 +231,12 @@ async function loadUserContext(userId: string): Promise<UserContext> {
     if (cp) {
       context.gender = cp.biological_sex || undefined;
       if (cp.date_of_birth) {
-        const birth = new Date(cp.date_of_birth);
-        context.age = Math.floor((Date.now() - birth.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+        const birthMs = new Date(cp.date_of_birth).getTime();
+        // ÍTEM 4: si date_of_birth viene corrupto, NaN no debe llegar al
+        // contexto que se manda a Claude.
+        if (Number.isFinite(birthMs)) {
+          context.age = Math.floor((Date.now() - birthMs) / (365.25 * 24 * 60 * 60 * 1000));
+        }
       }
     }
   } catch (_) { /* opcional */ }
@@ -341,12 +345,15 @@ async function loadUserContext(userId: string): Promise<UserContext> {
       .limit(1)
       .maybeSingle();
     if (fast?.fast_start) {
-      const hoursElapsed = (Date.now() - new Date(fast.fast_start).getTime()) / (1000 * 60 * 60);
-      context.currentFastingStatus = {
-        isFasting: true,
-        hoursElapsed: Math.round(hoursElapsed * 10) / 10,
-        targetHours: fast.target_hours,
-      };
+      const startMs = new Date(fast.fast_start).getTime();
+      if (Number.isFinite(startMs)) {
+        const hoursElapsed = (Date.now() - startMs) / (1000 * 60 * 60);
+        context.currentFastingStatus = {
+          isFasting: true,
+          hoursElapsed: Math.round(hoursElapsed * 10) / 10,
+          targetHours: fast.target_hours,
+        };
+      }
     }
   } catch (_) { /* opcional */ }
 
