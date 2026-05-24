@@ -230,7 +230,7 @@ export default function CycleScreen() {
           avg_period_length: settingsRes.data.avg_period_length ?? 5,
         });
       }
-    } catch { /* silencioso */ }
+    } catch (e) { logWarn('[cycle] loadData failed', e); }
     setLoading(false);
   }, [userId, today]);
 
@@ -412,7 +412,7 @@ export default function CycleScreen() {
         );
         return;
       }
-    } catch { /* silencioso */ }
+    } catch (e) { logWarn('[cycle] rebuildPeriods threw', e); }
   };
 
   /** Formato: "6 de Abril" */

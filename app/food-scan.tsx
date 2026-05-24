@@ -23,6 +23,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
+import { warn as logWarn } from '@/src/lib/logger';
 import {
   analyzeFoodPhoto, analyzeLabelPhoto, analyzeSupplementPhoto,
   logFood, uploadFoodPhoto,
@@ -541,7 +542,11 @@ export default function FoodScanScreen() {
       setEditedTotals(newResult.totals || null);
       setWasEdited(false);
       haptic.success();
-    } catch { /* silencioso */ }
+    } catch (e) {
+      logWarn('[food-scan] recalculate failed', e);
+      haptic.error();
+      Alert.alert('No se pudo recalcular', 'Inténtalo de nuevo en un momento.');
+    }
     setRecalculating(false);
   };
 

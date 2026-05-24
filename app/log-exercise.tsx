@@ -346,18 +346,25 @@ export default function LogExerciseScreen() {
       const now = new Date().toISOString();
 
       // Insertar exercise_logs
-      const rows = validSets.map((s, i) => ({
-        id: generateUUID(),
-        user_id: user.id,
-        exercise_id: selectedVariant.id,
-        set_number: i + 1,
-        reps: parseInt(s.reps, 10),
-        weight_kg: s.weight ? parseFloat(s.weight) : null,
-        rir: s.rir ? parseInt(s.rir, 10) : null,
-        rpe: null,
-        logged_at: now,
-        date: today,
-      }));
+      const rows = validSets.map((s, i) => {
+        // REG-10: peso parseado debe ser finito y razonable; NaN no debe
+        // llegar a la DB (columna numérica). Si el input no es válido,
+        // guardamos null (set sin peso registrado).
+        const wParsed = s.weight ? parseFloat(s.weight) : NaN;
+        const weight_kg = Number.isFinite(wParsed) && wParsed >= 0 && wParsed <= 1000 ? wParsed : null;
+        return {
+          id: generateUUID(),
+          user_id: user.id,
+          exercise_id: selectedVariant.id,
+          set_number: i + 1,
+          reps: parseInt(s.reps, 10),
+          weight_kg,
+          rir: s.rir ? parseInt(s.rir, 10) : null,
+          rpe: null,
+          logged_at: now,
+          date: today,
+        };
+      });
 
       const { error } = await supabase.from('exercise_logs').insert(rows);
       if (error) throw error;

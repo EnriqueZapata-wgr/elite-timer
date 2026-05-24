@@ -242,7 +242,7 @@ export default function JournalScreen() {
       haptic.success();
       // Electrón
       if (user?.id) {
-        try { await awardBooleanElectron(user.id, 'journal'); DeviceEventEmitter.emit('electrons_changed'); DeviceEventEmitter.emit('day_changed'); } catch { /* */ }
+        try { await awardBooleanElectron(user.id, 'journal'); DeviceEventEmitter.emit('electrons_changed'); DeviceEventEmitter.emit('day_changed'); } catch (e) { logWarn('[journal] award electron failed', e); }
       }
       Alert.alert('Guardado', 'Tu entrada se ha guardado.');
       setSelectedType(null);

@@ -18,6 +18,7 @@ import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { supabase } from '@/src/lib/supabase';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
+import { warn as logWarn } from '@/src/lib/logger';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
@@ -80,7 +81,7 @@ export default function CheckinScreen() {
         note: note.trim() || undefined,
       });
       if (params.protocolItemId) {
-        try { await toggleCompletion(params.protocolItemId); } catch { /* */ }
+        try { await toggleCompletion(params.protocolItemId); } catch (e) { logWarn('[checkin] toggleCompletion failed', e); }
       }
 
       // Electrón por check-in emocional
@@ -91,11 +92,11 @@ export default function CheckinScreen() {
           DeviceEventEmitter.emit('electrons_changed');
           DeviceEventEmitter.emit('day_changed');
         }
-      } catch { /* silenciar */ }
+      } catch (e) { logWarn('[checkin] award electron failed', e); }
 
       vibrateMedium();
       setStep(4);
-    } catch { /* */ }
+    } catch (e) { logWarn('[checkin] save flow threw', e); }
     setSaving(false);
   };
 

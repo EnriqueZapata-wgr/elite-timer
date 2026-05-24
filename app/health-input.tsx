@@ -155,7 +155,7 @@ export default function HealthInputScreen() {
         setData(m);
         setLastDate(m.date);
       }
-    } catch { /* */ }
+    } catch (e) { logWarn('[health-input] loadData failed', e); }
     setLoading(false);
   };
 
@@ -189,7 +189,7 @@ export default function HealthInputScreen() {
       // vea el valor final guardado al volver al formulario.
       setData(clamped);
       // Recalcular scores
-      try { await calculateAndSaveScore(userId); } catch { /* */ }
+      try { await calculateAndSaveScore(userId); } catch (e) { logWarn('[health-input] calculateAndSaveScore failed', e); }
       haptic.success();
       Alert.alert('Guardado', 'Tus datos se han guardado y tus scores actualizados.', [
         { text: 'Ver scores', onPress: () => router.push('/my-health' as any) },

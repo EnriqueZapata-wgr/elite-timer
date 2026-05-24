@@ -19,6 +19,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { haptic } from '@/src/utils/haptics';
+import { warn as logWarn } from '@/src/lib/logger';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -96,7 +97,7 @@ export default function GlucoseLogScreen() {
       setNotes('');
 
       // Electrón
-      try { await awardBooleanElectron(user.id, 'glucose_log'); DeviceEventEmitter.emit('electrons_changed'); } catch { /* */ }
+      try { await awardBooleanElectron(user.id, 'glucose_log'); DeviceEventEmitter.emit('electrons_changed'); } catch (e) { logWarn('[glucose-log] award electron failed', e); }
 
       // Refresh (misma fecha local).
       const { data } = await supabase.from('glucose_logs').select('*')
