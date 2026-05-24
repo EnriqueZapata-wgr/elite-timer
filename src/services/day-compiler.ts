@@ -194,7 +194,13 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
     const startRaw = prot.started_at ?? prot.created_at;
     const parsed = startRaw ? new Date(startRaw) : null;
     const startDate = parsed && !isNaN(parsed.getTime()) ? parsed : new Date();
-    const totalDays = (prot.template?.duration_weeks ?? 12) * 7;
+    // HOY-11: guard de finitud + cap sobre totalDays. Si duration_weeks
+    // viene corrupto (string, NaN, negativo, absurdo), fallback a 12 sem.
+    // Cap superior 365 días para que ni totalDays ni dayNumber crezcan
+    // sin tope si la fecha base viene del futuro o el template inflado.
+    const rawWeeks = Number(prot.template?.duration_weeks);
+    const safeWeeks = Number.isFinite(rawWeeks) && rawWeeks > 0 ? rawWeeks : 12;
+    const totalDays = Math.min(safeWeeks * 7, 365);
     const rawDayNum = Math.ceil((Date.now() - startDate.getTime()) / 86400000) + 1;
     const dayNum = Math.min(totalDays, Math.max(1, isFinite(rawDayNum) ? rawDayNum : 1));
     protocol = { name: prot.name ?? prot.template?.name ?? 'Protocolo', dayNumber: dayNum, totalDays };
@@ -601,6 +607,7 @@ function formatTime(t: string): string {
 
 function formatDisplayDate(dateStr: string): string {
   const d = new Date(dateStr + 'T12:00:00');
+  if (isNaN(d.getTime())) return '--';
   const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
   const months = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;

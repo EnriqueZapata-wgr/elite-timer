@@ -13,8 +13,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Text, Modal, TextInput,
   Dimensions, DeviceEventEmitter, ImageBackground,
-  LayoutAnimation, Platform, UIManager, ActivityIndicator,
+  LayoutAnimation, Platform, UIManager, ActivityIndicator, Alert,
 } from 'react-native';
+import { warn as logWarn } from '@/src/lib/logger';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -93,6 +94,25 @@ function toMinutes(t: string): number {
   if (!t) return 0;
   const [h, m] = t.replace(/[^0-9:]/g, '').split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
+}
+
+/**
+ * HOY-11: registrar delta de agua con visibilidad de error.
+ * addWater() ya cae a null en error interno; aquí surfaceamos para no
+ * dejar al usuario tocando un botón muerto sin feedback.
+ */
+async function handleWaterDelta(userId: string, deltaMl: number): Promise<void> {
+  haptic.light();
+  try {
+    const result = await addWater(userId, deltaMl);
+    if (result === null) {
+      logWarn('[HOY] addWater returned null', { userId, deltaMl });
+      Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
+    }
+  } catch (e) {
+    logWarn('[HOY] addWater threw', e);
+    Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
+  }
 }
 
 /** Segmentar agenda por franjas horarias */
@@ -1208,13 +1228,13 @@ export default function TodayScreen() {
                     </View>
                     {isWater && user?.id && (
                       <View style={s.waterQuickRow}>
-                        <Pressable onPress={async () => { haptic.light(); await addWater(user.id, 250); }} style={s.waterQuickBtn}>
+                        <Pressable onPress={() => handleWaterDelta(user.id, 250)} style={s.waterQuickBtn}>
                           <Text style={s.waterQuickText}>+250 ml</Text>
                         </Pressable>
-                        <Pressable onPress={async () => { haptic.light(); await addWater(user.id, 500); }} style={s.waterQuickBtn}>
+                        <Pressable onPress={() => handleWaterDelta(user.id, 500)} style={s.waterQuickBtn}>
                           <Text style={s.waterQuickText}>+500 ml</Text>
                         </Pressable>
-                        <Pressable onPress={async () => { haptic.light(); await addWater(user.id, -250); }} style={s.waterQuickBtn}>
+                        <Pressable onPress={() => handleWaterDelta(user.id, -250)} style={s.waterQuickBtn}>
                           <Text style={s.waterQuickText}>-250 ml</Text>
                         </Pressable>
                       </View>
