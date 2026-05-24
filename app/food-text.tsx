@@ -239,9 +239,16 @@ export default function FoodTextScreen() {
 
       haptic.success();
       const desc = reviewed.description || ingredients.map(i => `${i.food.name} (${i.grams}g)`).join(', ') || query.trim();
-      const hasMacros = reviewed.totals.calories > 0 || reviewed.totals.protein_g > 0;
-      const qualityScore = ingredients.length > 0 ? calcQualityScore(ingredients, reviewed.totals.protein_g) : 0;
-      const extras = JSON.stringify({ fiber_g: totals.fiber, quality_score: qualityScore, source: 'manual_text', was_edited: true });
+      // REG-cabos: barrera final antes de la DB. Aunque reviewed.totals viene
+      // ya saneado por Batch 3, blindamos cada total con safeNum por si algún
+      // path nuevo de edición deja un NaN colgado.
+      const safeCalories = safeNum(reviewed.totals.calories, 0);
+      const safeProtein = safeNum(reviewed.totals.protein_g, 0);
+      const safeCarbs = safeNum(reviewed.totals.carbs_g, 0);
+      const safeFat = safeNum(reviewed.totals.fat_g, 0);
+      const hasMacros = safeCalories > 0 || safeProtein > 0;
+      const qualityScore = ingredients.length > 0 ? calcQualityScore(ingredients, safeProtein) : 0;
+      const extras = JSON.stringify({ fiber_g: safeNum(totals.fiber, 0), quality_score: qualityScore, source: 'manual_text', was_edited: true });
 
       const { error } = await supabase.from('food_logs').insert({
         user_id: user!.id,
@@ -249,10 +256,10 @@ export default function FoodTextScreen() {
         meal_time: mealTime,
         meal_type: mealType,
         description: desc,
-        calories: hasMacros ? Math.round(reviewed.totals.calories * 10) / 10 : null,
-        protein_g: hasMacros ? Math.round(reviewed.totals.protein_g * 10) / 10 : null,
-        carbs_g: hasMacros ? Math.round(reviewed.totals.carbs_g * 10) / 10 : null,
-        fat_g: hasMacros ? Math.round(reviewed.totals.fat_g * 10) / 10 : null,
+        calories: hasMacros ? Math.round(safeCalories * 10) / 10 : null,
+        protein_g: hasMacros ? Math.round(safeProtein * 10) / 10 : null,
+        carbs_g: hasMacros ? Math.round(safeCarbs * 10) / 10 : null,
+        fat_g: hasMacros ? Math.round(safeFat * 10) / 10 : null,
         notes: extras,
       });
 
@@ -262,10 +269,10 @@ export default function FoodTextScreen() {
       if (user?.id && hasMacros) {
         updateFrequentFood(user.id, mealType, {
           description: desc,
-          calories: reviewed.totals.calories,
-          protein_g: reviewed.totals.protein_g,
-          carbs_g: reviewed.totals.carbs_g,
-          fat_g: reviewed.totals.fat_g,
+          calories: safeCalories,
+          protein_g: safeProtein,
+          carbs_g: safeCarbs,
+          fat_g: safeFat,
           items: reviewed.items,
         });
       }

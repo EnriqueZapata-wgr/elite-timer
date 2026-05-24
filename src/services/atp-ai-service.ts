@@ -396,12 +396,13 @@ export async function saveAiReport(clientId: string, report: string, question?: 
 
 /** Obtener historial de reportes IA de un cliente */
 export async function getAiReports(clientId: string, limit = 20): Promise<AiReport[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('ai_reports')
     .select('*')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
     .limit(limit);
+  if (error) logWarn('[atp-ai-service] getAiReports failed', error);
   return (data ?? []) as AiReport[];
 }
 

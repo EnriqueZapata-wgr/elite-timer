@@ -403,12 +403,16 @@ export default function LogExerciseScreen() {
     if (best1RM <= 0) return;
 
     // Comparar con PR existente
-    const { data: existing } = await supabase
+    const { data: existing, error: selectErr } = await supabase
       .from('personal_records')
       .select('*')
       .eq('user_id', user.id)
       .eq('exercise_id', exerciseId)
       .maybeSingle();
+    if (selectErr) {
+      logWarn('[log-exercise] checkForPR select failed', selectErr);
+      return; // best-effort: no rompe el guardado del log
+    }
 
     if (!existing || best1RM > (existing as PRRow).estimated_1rm) {
       // Upsert nuevo PR
@@ -424,7 +428,7 @@ export default function LogExerciseScreen() {
       const w = parseFloat(bestSet.weight);
       const r = parseInt(bestSet.reps, 10);
 
-      await supabase.from('personal_records').upsert({
+      const { error: upsertErr } = await supabase.from('personal_records').upsert({
         user_id: user.id,
         exercise_id: exerciseId,
         weight_kg: w,
@@ -432,6 +436,10 @@ export default function LogExerciseScreen() {
         estimated_1rm: Math.round(best1RM * 10) / 10,
         achieved_at: new Date().toISOString(),
       }, { onConflict: 'user_id,exercise_id' });
+      if (upsertErr) {
+        logWarn('[log-exercise] checkForPR upsert failed', upsertErr);
+        return; // best-effort: no romper guardado ni mostrar PR si no se persistió
+      }
 
       // Alerta de nuevo récord (se muestra antes del alert de guardado)
       setTimeout(() => {
