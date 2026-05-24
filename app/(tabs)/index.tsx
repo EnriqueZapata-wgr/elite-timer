@@ -167,6 +167,8 @@ export default function TodayScreen() {
   const [journalSaving, setJournalSaving] = useState(false);
   const [dailyReview, setDailyReview] = useState<DailyReview | null>(null);
   const [dailyReviewDismissed, setDailyReviewDismissed] = useState(false);
+  // Gate de género para electrones (period_log) — null hasta que carga.
+  const [userSex, setUserSex] = useState<string | null>(null);
   const [weeklyInsight, setWeeklyInsight] = useState<WeeklyInsightData | null>(null);
   const [weeklyInsightDismissed, setWeeklyInsightDismissed] = useState(false);
   // HOY-5: contador (no flag booleano). Un toggle solapado con otro mantiene
@@ -243,6 +245,17 @@ export default function TodayScreen() {
       if (v !== 'true') setShowTour(true);
     });
   }, []);
+
+  // Sexo biológico para gate de electrones (period_log).
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from('client_profiles')
+      .select('biological_sex')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => { setUserSex((data as any)?.biological_sex ?? null); });
+  }, [user?.id]);
 
   // HOY-8: refs para leer el `day`/`streak` más recientes sin que el efecto
   // se re-dispare con cada mutación.
@@ -1312,6 +1325,7 @@ export default function TodayScreen() {
             id: a.id, name: a.name, time: a.time,
             category: a.category, completed: a.completed,
           }))}
+          userSex={userSex}
           onSave={async (bools, quants, _actions) => {
             await handleEditSave(bools, quants);
           }}

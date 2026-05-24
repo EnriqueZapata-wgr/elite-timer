@@ -17,8 +17,10 @@ import { warn as logWarn } from '@/src/lib/logger';
  * Electrones cuya `completed` se deriva de actividad real (no del blob).
  * Tap en HOY sobre uno NO los prende — lleva a la pantalla de actividad.
  * El compilador los enciende solos cuando hay un registro real ese día.
+ *
+ * `period_log` solo se ofrece a usuarias con `biological_sex === 'female'`.
  */
-export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements'] as const;
+export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements', 'period_log'] as const;
 export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 
 /** Ruta de la pantalla de actividad para cada electrón verificado. */
@@ -27,7 +29,11 @@ export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, string> = {
   breathwork: '/breathing',
   strength: '/log-exercise',
   supplements: '/supplements',
+  period_log: '/cycle',
 };
+
+/** Electrones que solo se ofrecen a un subconjunto de usuarios. */
+export const FEMALE_ONLY_ELECTRONS = new Set<string>(['period_log']);
 
 // ═══ TIPOS ═══
 
@@ -157,10 +163,10 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const hour = getLocalHour();
 
   // Parallelizar queries (incluye verificación de actividad real para los
-  // 4 electrones verificados — ver VERIFIED_ELECTRON_KEYS).
+  // electrones verificados — ver VERIFIED_ELECTRON_KEYS).
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
-    meditationCountRes, breathingCountRes, exerciseCountRes, supplementCountRes,
+    meditationCountRes, breathingCountRes, exerciseCountRes, supplementCountRes, cycleLogCountRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -172,7 +178,7 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
     supabase.from('emotional_checkins').select('pleasantness, quadrant, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('glucose_logs').select('value_mg_dl, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
-    // Conteo de actividad real del día para los 4 electrones verificados:
+    // Conteo de actividad real del día para los electrones verificados:
     supabase.from('mind_sessions').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today).eq('type', 'meditation'),
     supabase.from('mind_sessions').select('id', { count: 'exact', head: true })
@@ -181,14 +187,17 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
       .eq('user_id', userId).eq('date', today),
     supabase.from('supplement_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today).eq('taken', true),
+    supabase.from('cycle_daily_logs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today),
   ]);
 
-  // Para los 4 verificados: derivar `completed` de actividad real, NO del blob.
+  // Para los verificados: derivar `completed` de actividad real, NO del blob.
   const verifiedCompleted: Record<string, boolean> = {
     meditation: (meditationCountRes.count ?? 0) >= 1,
     breathwork: (breathingCountRes.count ?? 0) >= 1,
     strength: (exerciseCountRes.count ?? 0) >= 1,
     supplements: (supplementCountRes.count ?? 0) >= 1,
+    period_log: (cycleLogCountRes.count ?? 0) >= 1,
   };
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;
@@ -248,6 +257,8 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   // Boolean electrons
   const booleanElectrons: BoolElectronState[] = activeBoolKeys
     .filter(k => (ELECTRON_WEIGHTS as any)[k])
+    // Gate de género: period_log solo para usuarias que menstrúan.
+    .filter(k => !FEMALE_ONLY_ELECTRONS.has(k) || biologicalSex === 'female')
     .map(k => {
       const cfg = (ELECTRON_WEIGHTS as any)[k];
       // Para los 4 verificados, `completed` viene de actividad real (no del blob).

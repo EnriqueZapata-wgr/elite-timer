@@ -17,6 +17,8 @@ export const ELECTRON_WEIGHTS = {
   grounding:    { weight: 1.5, name: 'Grounding',       icon: 'leaf-outline',          color: '#34d399' },
   supplements:  { weight: 1.0, name: 'Suplementos',     icon: 'medical-outline',       color: '#a8e02a' },
   breathwork:   { weight: 1.0, name: 'Breathwork',      icon: 'cloud-outline',         color: '#60a5fa' },
+  red_glasses:  { weight: 1.0, name: 'Lentes rojos',    icon: 'glasses-outline',       color: '#f87171' },
+  period_log:   { weight: 1.0, name: 'Registrar ciclo', icon: 'calendar-outline',      color: '#fb7185' },
 
   // Cuantitativos diarios (proporcional al %)
   protein:      { weight: 2.0, name: 'Proteína',        icon: 'restaurant-outline',    color: '#a6c8ff' },
@@ -39,7 +41,6 @@ export const ELECTRON_WEIGHTS = {
   functional_quiz: { weight: 5.0, name: 'Evaluación funcional', icon: 'clipboard-outline', color: '#c084fc' },
 
   // ATP SOL — exposición solar consciente
-  vitamin_d:       { weight: 1.5, name: 'Vitamina D',         icon: 'sunny',          color: '#fbbf24' },
   sun_awareness:   { weight: 1.0, name: 'Consciencia solar',  icon: 'eye-outline',    color: '#fbbf24' },
 } as const;
 

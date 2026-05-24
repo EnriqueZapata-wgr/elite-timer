@@ -57,9 +57,11 @@ interface Props {
   activeQuantitatives: string[];
   agendaActions: AgendaAction[];
   onSave: (booleans: string[], quantitatives: string[], actions: AgendaAction[]) => void;
+  /** Sexo biológico del usuario — `period_log` solo se muestra a 'female'. */
+  userSex?: string | null;
 }
 
-export function EditDayModal({ visible, onClose, activeBooleans, activeQuantitatives, agendaActions, onSave }: Props) {
+export function EditDayModal({ visible, onClose, activeBooleans, activeQuantitatives, agendaActions, onSave, userSex }: Props) {
   const [booleans, setBooleans] = useState(activeBooleans);
   const [quantitatives, setQuantitatives] = useState(activeQuantitatives);
   const [actions, setActions] = useState(agendaActions);
@@ -111,7 +113,10 @@ export function EditDayModal({ visible, onClose, activeBooleans, activeQuantitat
             <Text style={s.sectionLabel}>HÁBITOS</Text>
             <Text style={s.sectionHint}>Elige qué hábitos trackear hoy</Text>
             <View style={s.chipGrid}>
-              {ALL_BOOLEAN_OPTIONS.map(el => {
+              {ALL_BOOLEAN_OPTIONS
+                // Gate de género: period_log solo para usuarias que menstrúan.
+                .filter(el => el.key !== 'period_log' || userSex === 'female')
+                .map(el => {
                 const active = booleans.includes(el.key);
                 return (
                   <AnimatedPressable key={el.key} onPress={() => toggleBoolean(el.key)}>
