@@ -18,7 +18,16 @@ import { warn as logWarn } from '@/src/lib/logger';
  * Tap en HOY sobre uno NO los prende — lleva a la pantalla de actividad.
  * El compilador los enciende solos cuando hay un registro real ese día.
  */
-const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements'] as const;
+export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements'] as const;
+export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
+
+/** Ruta de la pantalla de actividad para cada electrón verificado. */
+export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, string> = {
+  meditation: '/meditation',
+  breathwork: '/breathing',
+  strength: '/log-exercise',
+  supplements: '/supplements',
+};
 
 // ═══ TIPOS ═══
 

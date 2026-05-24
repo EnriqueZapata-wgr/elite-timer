@@ -24,7 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/contexts/auth-context';
-import { compileDay, type CompiledDay } from '@/src/services/day-compiler';
+import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, type VerifiedElectronKey } from '@/src/services/day-compiler';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
@@ -373,8 +373,28 @@ export default function TodayScreen() {
   }, [user?.id]);
 
   // --- Toggle electrón booleano ---
+  /**
+   * Handler unificado para tap en un electrón booleano de la grid o del
+   * próximo-electrón card. Para los verificados (meditation, breathwork,
+   * strength, supplements): NO togglea — lleva a la pantalla de actividad.
+   * El compilador los prende solos en el siguiente recompile si hay sesión real.
+   */
+  function onElectronTap(source: string) {
+    if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) {
+      haptic.light();
+      router.push(VERIFIED_ELECTRON_ROUTES[source as VerifiedElectronKey] as any);
+      return;
+    }
+    toggleBoolean(source);
+  }
+
   async function toggleBoolean(source: string) {
     if (!user?.id || !day) return;
+    // Guard defensivo: si un verificado se cuela aquí, no falsearlo en DB.
+    if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) {
+      logWarn('[HOY] toggleBoolean called on verified electron — ignoring', source);
+      return;
+    }
     haptic.medium();
     const today = getLocalToday();
 
@@ -830,7 +850,7 @@ export default function TodayScreen() {
         <Animated.View entering={FadeInUp.delay(140).springify()} style={s.section}>
           {day.nextElectron ? (
             <AnimatedPressable
-              onPress={() => toggleBoolean(day.nextElectron!.source)}
+              onPress={() => onElectronTap(day.nextElectron!.source)}
               style={s.nextElectronCard}
             >
               <View style={s.nextElectronHeader}>
@@ -1151,7 +1171,7 @@ export default function TodayScreen() {
               return (
                 <View key={el.source} style={{ width: (SCREEN_WIDTH - Spacing.md * 2 - Spacing.sm) / 2 }}>
                   <AnimatedPressable
-                    onPress={() => toggleBoolean(el.source)}
+                    onPress={() => onElectronTap(el.source)}
                     onLongPress={() => {
                       haptic.light();
                       LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
