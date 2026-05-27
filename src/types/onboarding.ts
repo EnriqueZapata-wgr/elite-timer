@@ -11,6 +11,7 @@ export type OnboardingStep =
   | 'health'
   | 'nutrition'
   | 'context'
+  | 'edad_atp'
   | 'completed';
 
 // === Questions ===

@@ -13,7 +13,7 @@ interface Props {
   children: React.ReactNode;
 }
 
-export function OnboardingShell({ step, totalSteps = 7, children }: Props) {
+export function OnboardingShell({ step, totalSteps = 8, children }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>

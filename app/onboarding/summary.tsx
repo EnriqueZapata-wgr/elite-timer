@@ -339,7 +339,7 @@ export default function OnboardingSummaryScreen() {
   // === LOADING ===
   if (loading) {
     return (
-      <OnboardingShell step={7}>
+      <OnboardingShell step={8}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#a8e02a" />
           <EliteText style={styles.loadingText}>Preparando tu resumen...</EliteText>
@@ -353,7 +353,7 @@ export default function OnboardingSummaryScreen() {
   const severityColors = { high: '#ef4444', medium: '#fbbf24', low: '#666' };
 
   return (
-    <OnboardingShell step={7}>
+    <OnboardingShell step={8}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}

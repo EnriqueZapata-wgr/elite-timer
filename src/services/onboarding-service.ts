@@ -11,7 +11,8 @@ import type { OnboardingStep, BlockAnswers, FunctionalFlags, FunctionalIssue } f
 export function getOnboardingRoute(step: OnboardingStep): string {
   switch (step) {
     case 'completed': return '/(tabs)';
-    case 'context':   return '/onboarding/summary';
+    case 'edad_atp':  return '/onboarding/summary';
+    case 'context':   return '/onboarding/edad-atp';
     case 'nutrition': return '/onboarding/context';
     case 'health':    return '/onboarding/nutrition';
     case 'chronotype': return '/onboarding/health';
