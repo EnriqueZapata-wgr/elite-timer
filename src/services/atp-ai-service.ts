@@ -170,6 +170,11 @@ Sueño (cronotipo): ${sleepTime}-${wakeTime}
     }
   }
 
+  if (profile?.edad_atp_estimated_years && profile?.edad_atp_culpables) {
+    const culpLabels = (profile.edad_atp_culpables as any[]).map((c: any) => c.label).join(', ');
+    p += `\n## EDAD ATP ESTIMADA\nEdad ATP estimada: ${profile.edad_atp_estimated_years} años (confianza ${profile.edad_atp_confidence || 'media'}). Factores que más le suman años: ${culpLabels}.\n`;
+  }
+
   if (profile?.grip_strength_kg || profile?.vo2_max || profile?.blood_pressure_sys) {
     p += `\n## BIOMARCADORES\n`;
     if (profile.grip_strength_kg) p += `Agarre: ${profile.grip_strength_kg}kg | `;
