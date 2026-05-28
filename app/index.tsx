@@ -28,7 +28,7 @@ export default function IndexRedirect() {
             setOnboardingDone(true);
           } else {
             setOnboardingDone(false);
-            // Redirigir al paso correcto (onboarding v2 — 7 bloques)
+            // Redirigir al paso correcto (onboarding v2 — 8 bloques)
             switch (step) {
               case 'edad_atp':   setOnboardingRoute('/onboarding/summary'); break;
               case 'context':    setOnboardingRoute('/onboarding/edad-atp'); break;
