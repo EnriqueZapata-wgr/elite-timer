@@ -28,6 +28,93 @@ export async function completeStep(userId: string, step: OnboardingStep): Promis
   return getOnboardingRoute(step);
 }
 
+/** Dada la pantalla actual, devuelve la ruta del paso anterior (para back nav). */
+export function getPreviousOnboardingRoute(block: OnboardingStep): string | null {
+  switch (block) {
+    case 'goal':       return '/onboarding-basics';
+    case 'chronotype': return '/onboarding/goal';
+    case 'health':     return '/onboarding/chronotype';
+    case 'nutrition':  return '/onboarding/health';
+    case 'context':    return '/onboarding/nutrition';
+    case 'edad_atp':   return '/onboarding/context';
+    default:           return null;
+  }
+}
+
+// === PROGRESO INTRA-CUESTIONARIO (resume mid-questionnaire) ===
+// El progreso vive en client_profiles.onboarding_answers._progress como
+// marcador único (el usuario solo está en un bloque a la vez). Esto permite
+// que al cerrar la app a mitad de un cuestionario, al reabrir se restaure
+// la posición exacta en vez de perder las respuestas. (Bug F01.17)
+
+export interface BlockProgress {
+  answers: BlockAnswers;
+  currentQ: number;
+  [extra: string]: any;
+}
+
+/** Guarda el progreso intra-cuestionario del bloque actual. Fire-and-forget. */
+export async function saveBlockProgress(
+  userId: string,
+  blockKey: string,
+  data: Record<string, any>,
+): Promise<void> {
+  const { data: row } = await supabase
+    .from('client_profiles')
+    .select('onboarding_answers')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const oa = (row?.onboarding_answers as Record<string, any>) ?? {};
+  oa._progress = { block: blockKey, ...data };
+  await supabase.from('client_profiles').update({ onboarding_answers: oa }).eq('user_id', userId);
+}
+
+/**
+ * Carga el progreso restaurable de un bloque:
+ * 1) Si hay _progress de ESTE bloque → resume mid-questionnaire.
+ * 2) Si no, pero el bloque ya se completó antes → prefill de respuestas finales
+ *    en Q0 (caso: el usuario regresó con "atrás" a revisar/cambiar).
+ * 3) Si no hay nada → null (entrada fresca, comportamiento original).
+ */
+export async function loadBlockProgress(
+  userId: string,
+  blockKey: string,
+): Promise<BlockProgress | null> {
+  const { data } = await supabase
+    .from('client_profiles')
+    .select('onboarding_answers')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const oa = (data?.onboarding_answers as Record<string, any>) ?? {};
+
+  const prog = oa._progress;
+  if (prog && prog.block === blockKey && prog.answers) {
+    const { block, ...rest } = prog;
+    return { currentQ: 0, ...rest } as BlockProgress;
+  }
+
+  const finalAnswers = oa[blockKey];
+  if (finalAnswers && typeof finalAnswers === 'object') {
+    return { answers: finalAnswers as BlockAnswers, currentQ: 0 };
+  }
+
+  return null;
+}
+
+/** Limpia el marcador de progreso (al completar un bloque). Fire-and-forget. */
+export async function clearBlockProgress(userId: string): Promise<void> {
+  const { data: row } = await supabase
+    .from('client_profiles')
+    .select('onboarding_answers')
+    .eq('user_id', userId)
+    .maybeSingle();
+  const oa = (row?.onboarding_answers as Record<string, any>) ?? {};
+  if (oa._progress) {
+    delete oa._progress;
+    await supabase.from('client_profiles').update({ onboarding_answers: oa }).eq('user_id', userId);
+  }
+}
+
 // === PERSISTENCIA ===
 
 /** Guarda respuestas de un bloque en client_profiles.onboarding_answers */

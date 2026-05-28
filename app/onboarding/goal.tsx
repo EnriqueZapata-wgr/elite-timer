@@ -2,7 +2,7 @@
  * Onboarding Block 1 — Tu objetivo.
  * 3 preguntas: objetivo principal, intentos previos, motivacion.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,11 @@ import { OnboardingShell } from '@/src/components/onboarding/OnboardingShell';
 import { QuizQuestion } from '@/src/components/onboarding/QuizQuestion';
 import { InsightCard } from '@/src/components/onboarding/InsightCard';
 import { useAuth } from '@/src/contexts/auth-context';
-import { saveGoalData, saveBlockAnswers, completeStep } from '@/src/services/onboarding-service';
+import {
+  saveGoalData, saveBlockAnswers, completeStep,
+  saveBlockProgress, loadBlockProgress, clearBlockProgress,
+  getPreviousOnboardingRoute,
+} from '@/src/services/onboarding-service';
 import { haptic } from '@/src/utils/haptics';
 import type { OnboardingQuestion, Answer } from '@/src/types/onboarding';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
@@ -74,14 +78,38 @@ export default function OnboardingGoalScreen() {
   const hasAnswer = currentAnswer !== undefined &&
     (Array.isArray(currentAnswer) ? currentAnswer.length > 0 : true);
 
+  // Restaurar progreso al reabrir (resume mid-questionnaire — bug F01.17)
+  useEffect(() => {
+    if (!user?.id) return;
+    loadBlockProgress(user.id, 'goal').then(prog => {
+      if (prog) {
+        setAnswers(prog.answers as Record<string, Answer>);
+        setCurrentQ(Math.min(prog.currentQ, QUESTIONS.length - 1));
+      }
+    });
+  }, [user?.id]);
+
   function handleAnswer(answer: Answer) {
     setAnswers(prev => ({ ...prev, [question.id]: answer }));
+  }
+
+  function handleBack() {
+    haptic.light();
+    if (currentQ > 0) {
+      setCurrentQ(prev => prev - 1);
+      setAnimKey(prev => prev + 1);
+    } else {
+      const prev = getPreviousOnboardingRoute('goal');
+      if (prev) router.replace(prev as any);
+    }
   }
 
   async function handleNext() {
     haptic.light();
     if (currentQ < QUESTIONS.length - 1) {
-      setCurrentQ(prev => prev + 1);
+      const nextQ = currentQ + 1;
+      if (user?.id) saveBlockProgress(user.id, 'goal', { answers, currentQ: nextQ });
+      setCurrentQ(nextQ);
       setAnimKey(prev => prev + 1);
     } else {
       // Guardar y mostrar insight
@@ -112,6 +140,7 @@ export default function OnboardingGoalScreen() {
 
   async function handleContinue() {
     if (!user?.id) return;
+    clearBlockProgress(user.id);
     const nextRoute = await completeStep(user.id, 'goal');
     router.replace(nextRoute as any);
   }
@@ -139,7 +168,7 @@ export default function OnboardingGoalScreen() {
 
   // === QUESTIONS PHASE ===
   return (
-    <OnboardingShell step={2}>
+    <OnboardingShell step={2} onBack={handleBack}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"

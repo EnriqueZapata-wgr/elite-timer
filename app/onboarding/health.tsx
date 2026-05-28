@@ -2,7 +2,7 @@
  * Onboarding Block 3 — Salud funcional (10 preguntas de causa raiz).
  * Detecta: resistencia insulina, fatiga adrenal, disbiosis, inflamacion, estres.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import {
   saveBlockAnswers, saveHealthData, completeStep,
   calculateFunctionalFlags, detectIssues,
+  saveBlockProgress, loadBlockProgress, clearBlockProgress,
+  getPreviousOnboardingRoute,
 } from '@/src/services/onboarding-service';
 import { haptic } from '@/src/utils/haptics';
 import type { OnboardingQuestion, Answer } from '@/src/types/onboarding';
@@ -150,14 +152,38 @@ export default function OnboardingHealthScreen() {
   const currentAnswer = answers[question.id];
   const hasAnswer = currentAnswer !== undefined;
 
+  // Restaurar progreso al reabrir (resume mid-questionnaire — bug F01.17)
+  useEffect(() => {
+    if (!user?.id) return;
+    loadBlockProgress(user.id, 'health').then(prog => {
+      if (prog) {
+        setAnswers(prog.answers as Record<string, Answer>);
+        setCurrentQ(Math.min(prog.currentQ, QUESTIONS.length - 1));
+      }
+    });
+  }, [user?.id]);
+
   function handleAnswer(answer: Answer) {
     setAnswers(prev => ({ ...prev, [question.id]: answer }));
+  }
+
+  function handleBack() {
+    haptic.light();
+    if (currentQ > 0) {
+      setCurrentQ(prev => prev - 1);
+      setAnimKey(prev => prev + 1);
+    } else {
+      const prev = getPreviousOnboardingRoute('health');
+      if (prev) router.replace(prev as any);
+    }
   }
 
   async function handleNext() {
     haptic.light();
     if (currentQ < QUESTIONS.length - 1) {
-      setCurrentQ(prev => prev + 1);
+      const nextQ = currentQ + 1;
+      if (user?.id) saveBlockProgress(user.id, 'health', { answers, currentQ: nextQ });
+      setCurrentQ(nextQ);
       setAnimKey(prev => prev + 1);
     } else {
       await saveData();
@@ -190,6 +216,7 @@ export default function OnboardingHealthScreen() {
 
   async function handleContinue() {
     if (!user?.id) return;
+    clearBlockProgress(user.id);
     const nextRoute = await completeStep(user.id, 'health');
     router.replace(nextRoute as any);
   }
@@ -209,7 +236,7 @@ export default function OnboardingHealthScreen() {
 
   // === QUESTIONS ===
   return (
-    <OnboardingShell step={4}>
+    <OnboardingShell step={4} onBack={handleBack}>
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"

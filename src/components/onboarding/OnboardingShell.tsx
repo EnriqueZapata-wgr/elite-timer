@@ -1,23 +1,41 @@
 /**
  * OnboardingShell — Wrapper compartido para todas las pantallas de onboarding.
- * Progress bar segmentada + step label + SafeAreaView.
+ * Progress bar segmentada + step label + back button opcional + SafeAreaView.
  */
 import { View, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { haptic } from '@/src/utils/haptics';
 import { Fonts, Spacing } from '@/constants/theme';
 
 interface Props {
   step: number;
   totalSteps?: number;
+  /** Si se provee, muestra un botón "atrás" en el header. */
+  onBack?: () => void;
   children: React.ReactNode;
 }
 
-export function OnboardingShell({ step, totalSteps = 8, children }: Props) {
+export function OnboardingShell({ step, totalSteps = 8, onBack, children }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <EliteText style={styles.stepText}>PASO {step} DE {totalSteps}</EliteText>
+        <View style={styles.topRow}>
+          {onBack ? (
+            <AnimatedPressable
+              onPress={() => { haptic.light(); onBack(); }}
+              hitSlop={12}
+              style={styles.backBtn}
+            >
+              <Ionicons name="chevron-back" size={22} color="#888" />
+            </AnimatedPressable>
+          ) : (
+            <View style={styles.backBtn} />
+          )}
+          <EliteText style={styles.stepText}>PASO {step} DE {totalSteps}</EliteText>
+        </View>
         <View style={styles.progressBar}>
           {Array.from({ length: totalSteps }).map((_, i) => (
             <View
@@ -39,6 +57,18 @@ export function OnboardingShell({ step, totalSteps = 8, children }: Props) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   header: { paddingHorizontal: Spacing.md, paddingTop: 16 },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  backBtn: {
+    width: 28,
+    height: 28,
+    marginLeft: -6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   stepText: {
     fontSize: 10,
     fontFamily: Fonts.semiBold,

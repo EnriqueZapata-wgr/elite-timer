@@ -31,6 +31,10 @@ import {
   type EdadAtpResult,
   type CompositionInput,
 } from '@/src/services/edad-atp-service';
+import {
+  saveBlockProgress, loadBlockProgress, clearBlockProgress,
+  getPreviousOnboardingRoute,
+} from '@/src/services/onboarding-service';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
 
@@ -162,11 +166,38 @@ export default function EdadAtpOnboardingScreen() {
       });
   }, [user?.id]);
 
+  // Restaurar progreso al reabrir mid-cuestionario (resume — bug F01.17)
+  useEffect(() => {
+    if (!user?.id) return;
+    loadBlockProgress(user.id, 'edad_atp').then(prog => {
+      if (prog && prog.answers) {
+        setAnswers(prog.answers as Partial<Record<FactorKey, string>>);
+        setCurrentQ(Math.min(prog.currentQ ?? 0, QUESTIONS.length - 1));
+        if (typeof prog.cintura === 'string') setCintura(prog.cintura);
+        if (typeof prog.estatura === 'string') setEstatura(prog.estatura);
+        setPhase('questions');
+      }
+    });
+  }, [user?.id]);
+
   // === HANDLERS ===
+
+  const persistProgress = useCallback((
+    nextAnswers: Partial<Record<FactorKey, string>>,
+    nextQ: number,
+  ) => {
+    if (!user?.id) return;
+    saveBlockProgress(user.id, 'edad_atp', {
+      answers: nextAnswers, currentQ: nextQ, cintura, estatura,
+    });
+  }, [user?.id, cintura, estatura]);
 
   const handleOptionSelect = useCallback((factor: FactorKey, key: string) => {
     haptic.light();
-    setAnswers(prev => ({ ...prev, [factor]: key }));
+    const updated = { ...answers, [factor]: key };
+    setAnswers(updated);
+    const nextQ = currentQ < QUESTIONS.length - 1 ? currentQ + 1 : currentQ;
+    persistProgress(updated, nextQ);
     // Auto-advance after short delay for visual feedback
     setTimeout(() => {
       if (currentQ < QUESTIONS.length - 1) {
@@ -176,7 +207,7 @@ export default function EdadAtpOnboardingScreen() {
         setPhase('composicion');
       }
     }, 250);
-  }, [currentQ]);
+  }, [currentQ, answers, persistProgress]);
 
   const handleComposicionNumeric = useCallback(() => {
     const c = parseFloat(cintura);
@@ -189,7 +220,10 @@ export default function EdadAtpOnboardingScreen() {
     else classification = 'alta';
 
     haptic.light();
-    setAnswers(prev => ({ ...prev, composicion: classification }));
+    const updated = { ...answers, composicion: classification };
+    setAnswers(updated);
+    const nextQ = currentQ < QUESTIONS.length - 1 ? currentQ + 1 : currentQ;
+    persistProgress(updated, nextQ);
     setTimeout(() => {
       if (currentQ < QUESTIONS.length - 1) {
         setCurrentQ(prev => prev + 1);
@@ -198,13 +232,15 @@ export default function EdadAtpOnboardingScreen() {
         setPhase('composicion');
       }
     }, 250);
-  }, [cintura, estatura, currentQ]);
+  }, [cintura, estatura, currentQ, answers, persistProgress]);
 
   const handleBack = useCallback(() => {
+    haptic.light();
     if (currentQ > 0) {
-      haptic.light();
       setCurrentQ(prev => prev - 1);
       setAnimKey(prev => prev + 1);
+    } else {
+      setPhase('intro');
     }
   }, [currentQ]);
 
@@ -280,7 +316,8 @@ export default function EdadAtpOnboardingScreen() {
         });
       }
 
-      // Mark onboarding step
+      // Mark onboarding step + limpiar progreso
+      clearBlockProgress(user.id);
       await supabase.from('profiles').update({
         onboarding_step: 'edad_atp',
       }).eq('id', user.id);
@@ -328,6 +365,19 @@ export default function EdadAtpOnboardingScreen() {
   function renderIntro() {
     return (
       <SafeAreaView style={s.container}>
+        <View style={s.introBackRow}>
+          <AnimatedPressable
+            onPress={() => {
+              haptic.light();
+              const prev = getPreviousOnboardingRoute('edad_atp');
+              if (prev) router.replace(prev as any);
+            }}
+            hitSlop={12}
+            style={s.backBtn}
+          >
+            <Ionicons name="chevron-back" size={24} color="#888" />
+          </AnimatedPressable>
+        </View>
         <View style={s.centered}>
           <Animated.View entering={FadeInUp.delay(100).duration(600)}>
             <View style={s.introIconCircle}>
@@ -384,11 +434,9 @@ export default function EdadAtpOnboardingScreen() {
       <SafeAreaView style={s.container}>
         {/* Progress bar */}
         <View style={s.progressHeader}>
-          {currentQ > 0 && (
-            <AnimatedPressable onPress={handleBack} style={s.backBtn}>
-              <Ionicons name="chevron-back" size={24} color="#888" />
-            </AnimatedPressable>
-          )}
+          <AnimatedPressable onPress={handleBack} hitSlop={12} style={s.backBtn}>
+            <Ionicons name="chevron-back" size={24} color="#888" />
+          </AnimatedPressable>
           <View style={s.progressBarWrap}>
             {QUESTIONS.map((_, i) => (
               <View
@@ -721,6 +769,10 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
+  },
+  introBackRow: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: 12,
   },
 
   // Intro
