@@ -178,7 +178,7 @@ function renderMeditation(a: ActionData) {
         <EliteText style={s.label}>Opciones para hoy:</EliteText>
         <GuideRow icon="body-outline" color="#7F77DD" text="Body scan: recorre tu cuerpo de pies a cabeza" />
         <GuideRow icon="eye-outline" color="#7F77DD" text="Breath awareness: solo observa tu respiración" />
-        <GuideRow icon="headset-outline" color="#7F77DD" text="Guiada: usa Meditación en Kit" />
+        <GuideRow icon="headset-outline" color="#7F77DD" text="Guiada: usa Meditación en Mi ATP" />
       </View>
     </View>
   );

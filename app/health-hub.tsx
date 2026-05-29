@@ -1,5 +1,5 @@
 /**
- * Mi Salud — contenedor clínico (PRD §3).
+ * Historia Clínica — frente clínico top-level (Mi ATP → Historia Clínica).
  *
  * Protocolos, Glucosa, Cetonas, Labs, Biomarcadores, Dominios de salud,
  * Tests y evaluaciones (Braverman + quizzes funcionales).
@@ -84,7 +84,7 @@ export default function HealthHubScreen() {
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-        <PillarHeader pillar="health" title="Mi Salud" />
+        <PillarHeader pillar="health" title="Historia Clínica" />
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>

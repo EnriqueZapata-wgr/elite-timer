@@ -1,7 +1,8 @@
 /**
- * Hábitos Hub — Pilar HÁBITOS (PRD §3). Absorbe Mente (meditación,
- * respiración, journal, check-in) + rutina diaria (ciclo, ayuno,
- * hidratación, ATP SOL). Rutas internas sin cambios.
+ * Hábitos diarios — sub-sección del frente HÁBITOS (Mi ATP → Hábitos →
+ * Hábitos diarios). Mente (meditación, respiración, journal, check-in) +
+ * rutina diaria (ciclo, ayuno, hidratación, ATP SOL). Ruta /mind-hub
+ * sin cambios.
  */
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Text } from 'react-native';
@@ -52,7 +53,7 @@ export default function MindHubScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <PillarHeader pillar="mind" title="Hábitos" />
+      <PillarHeader pillar="mind" title="Hábitos diarios" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInUp.delay(50).springify()}>

@@ -130,6 +130,7 @@ function RootLayout() {
                 <Stack.Screen name="checkin" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="my-health" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="mind-hub" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="habits-portal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz/chronotype" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-scan" options={{ animation: 'slide_from_bottom' }} />

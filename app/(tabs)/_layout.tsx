@@ -1,6 +1,6 @@
 /**
  * Tab Layout — Navegación principal con 3 tabs:
- * HOY | Yo | Kit
+ * HOY | Yo | Mi ATP
  *
  * Si el usuario es coach Y la pantalla es ancha (>1024px),
  * muestra el CoachPanelLayout en vez de las tabs normales.
@@ -88,7 +88,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="kit"
           options={{
-            title: 'Kit',
+            title: 'Mi ATP',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="grid-outline" size={size} color={color} />
             ),

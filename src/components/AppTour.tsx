@@ -36,8 +36,8 @@ const TOUR_STEPS = [
     color: '#a8e02a',
   },
   {
-    title: '6 Pilares',
-    description: 'Fitness, Nutrición, Mente, Salud, Ciclo y Tests. Cada uno es un mundo completo. Explóralos en Kit.',
+    title: 'Mi ATP',
+    description: 'Tu historia clínica y tus hábitos diarios (nutrición, fitness, suplementación y más), todo en un lugar. Explóralos en Mi ATP.',
     icon: 'grid-outline' as const,
     color: '#c084fc',
   },
@@ -49,7 +49,7 @@ const TOUR_STEPS = [
   },
   {
     title: '¡Listo para empezar!',
-    description: 'Activa un protocolo desde Kit y empieza a cargar electrones. Tu salud es un juego que vale la pena jugar.',
+    description: 'Activa un protocolo desde Mi ATP y empieza a cargar electrones. Tu salud es un juego que vale la pena jugar.',
     icon: 'rocket-outline' as const,
     color: '#a8e02a',
   },

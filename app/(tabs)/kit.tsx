@@ -1,12 +1,13 @@
 /**
- * Kit — 4 pilares ATP + Mi Salud como portal de navegacion.
+ * Mi ATP — portal de navegación con 2 frentes top-level.
  *
- * Reorg conceptual 6→4 (PRD §3): HÁBITOS (absorbe Mente y Ciclo),
- * ALIMENTACIÓN, FITNESS, SUPLEMENTACIÓN (pilar propio) + Mi Salud
- * (contenedor clínico; Tests se accede desde ahí). Las rutas NO cambian.
+ * Arquitectura (Session 2 addendum):
+ *   Mi ATP
+ *   ├── HISTORIA CLÍNICA → /health-hub (expediente vivo)
+ *   └── HÁBITOS          → /habits-portal (sub-portal con 4 sub-cards)
  *
- * Cada card es un gradiente sutil del color del pilar con icono,
- * titulo, subtitulo y chevron. Tap → navega al hub de cada pilar.
+ * La ruta sigue siendo /kit (no se renombra el archivo para no romper
+ * historial/links); solo el label visible es "Mi ATP".
  */
 import { View, Text, StyleSheet, ScrollView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -20,46 +21,22 @@ import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
-const PILLARS = [
+const FRONTS = [
   {
-    id: 'habits',
-    title: 'ATP HÁBITOS',
-    subtitle: 'Sueño · Meditación · Ayuno · Ciclo · Journal',
-    icon: 'leaf-outline' as const,
-    color: '#7F77DD',
-    route: '/mind-hub',
-  },
-  {
-    id: 'nutrition',
-    title: 'ATP ALIMENTACIÓN',
-    subtitle: 'Comida · Recetas · Food scan',
-    icon: 'nutrition-outline' as const,
-    color: '#5B9BD5',
-    route: '/nutrition',
-  },
-  {
-    id: 'fitness',
-    title: 'ATP FITNESS',
-    subtitle: 'Fuerza · Cardio · Movilidad · HIIT',
-    icon: 'barbell-outline' as const,
-    color: '#a8e02a',
-    route: '/fitness-hub',
-  },
-  {
-    id: 'supplements',
-    title: 'ATP SUPLEMENTACIÓN',
-    subtitle: 'Tu plan diario · Tracking · Sugerencias',
-    icon: 'flask-outline' as const,
-    color: '#EF9F27',
-    route: '/supplements',
-  },
-  {
-    id: 'health',
-    title: 'MI SALUD',
-    subtitle: 'Historia clínica · Labs · Biomarcadores · Tests',
+    id: 'historia',
+    title: 'HISTORIA CLÍNICA',
+    subtitle: 'Tu expediente vivo: labs, tests, biomarcadores',
     icon: 'pulse-outline' as const,
     color: '#1D9E75',
     route: '/health-hub',
+  },
+  {
+    id: 'habitos',
+    title: 'HÁBITOS',
+    subtitle: 'Tu práctica diaria: nutrición, fitness y más',
+    icon: 'repeat-outline' as const,
+    color: '#7F77DD',
+    route: '/habits-portal',
   },
 ];
 
@@ -74,13 +51,13 @@ export default function KitScreen() {
         {/* Header */}
         <Animated.View entering={FadeInUp.delay(50).springify()} style={s.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={s.title}>KIT</Text>
+            <Text style={s.title}>Mi ATP</Text>
             <ElectronBadge />
           </View>
           <View style={s.subtitleRow}>
             <Text style={s.subtitleGreen}>TU ECOSISTEMA</Text>
           </View>
-          <Text style={s.subtitleMain}>Explora tus pilares</Text>
+          <Text style={s.subtitleMain}>Tus dos frentes</Text>
         </Animated.View>
 
         {/* ARGOS card */}
@@ -109,30 +86,30 @@ export default function KitScreen() {
           </AnimatedPressable>
         </Animated.View>
 
-        {/* Pillar cards */}
-        {PILLARS.map((pillar, idx) => (
-          <Animated.View key={pillar.id} entering={FadeInUp.delay(100 + idx * 50).springify()} style={s.cardWrap}>
-            <AnimatedPressable onPress={() => { haptic.medium(); router.push(pillar.route as any); }}>
+        {/* Frentes top-level */}
+        {FRONTS.map((front, idx) => (
+          <Animated.View key={front.id} entering={FadeInUp.delay(100 + idx * 50).springify()} style={s.cardWrap}>
+            <AnimatedPressable onPress={() => { haptic.medium(); router.push(front.route as any); }}>
               <LinearGradient
-                colors={[`${pillar.color}14`, `${pillar.color}05`, 'transparent']}
+                colors={[`${front.color}14`, `${front.color}05`, 'transparent']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={s.card}
               >
                 {/* Barra de acento */}
-                <View style={[s.accent, { backgroundColor: pillar.color }]} />
+                <View style={[s.accent, { backgroundColor: front.color }]} />
 
                 <View style={s.cardInner}>
                   <View style={s.cardLeft}>
                     {/* Icono en circulo */}
-                    <View style={[s.iconCircle, { backgroundColor: `${pillar.color}15` }]}>
-                      <Ionicons name={pillar.icon} size={28} color={pillar.color} />
+                    <View style={[s.iconCircle, { backgroundColor: `${front.color}15` }]}>
+                      <Ionicons name={front.icon} size={28} color={front.color} />
                     </View>
 
                     {/* Texto */}
                     <View>
-                      <Text style={s.cardTitle}>{pillar.title}</Text>
-                      <Text style={s.cardSub}>{pillar.subtitle}</Text>
+                      <Text style={s.cardTitle}>{front.title}</Text>
+                      <Text style={s.cardSub}>{front.subtitle}</Text>
                     </View>
                   </View>
 
