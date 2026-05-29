@@ -3,7 +3,7 @@
  * Usado desde protocol-config, hydration.tsx, nutrition.tsx.
  */
 import { useState, useEffect } from 'react';
-import { View, Text, Modal, Pressable, TextInput, StyleSheet } from 'react-native';
+import { View, Text, Modal, Pressable, TextInput, StyleSheet, DeviceEventEmitter } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { getUserWaterGoal, setUserWaterGoal } from '@/src/services/hydration-service';
 
@@ -31,6 +31,8 @@ export function WaterGoalEditor({ userId, visible, onClose, onSaved }: Props) {
     setSaving(true);
     try {
       await setUserWaterGoal(userId, ml);
+      // Sync HOY: la meta de agua afecta compileDay (crash test F36.4).
+      DeviceEventEmitter.emit('day_changed');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onSaved?.(ml);
       onClose();
