@@ -1,5 +1,9 @@
 /**
- * Kit — 6 pilares ATP como portal de navegacion.
+ * Kit — 4 pilares ATP + Mi Salud como portal de navegacion.
+ *
+ * Reorg conceptual 6→4 (PRD §3): HÁBITOS (absorbe Mente y Ciclo),
+ * ALIMENTACIÓN, FITNESS, SUPLEMENTACIÓN (pilar propio) + Mi Salud
+ * (contenedor clínico; Tests se accede desde ahí). Las rutas NO cambian.
  *
  * Cada card es un gradiente sutil del color del pilar con icono,
  * titulo, subtitulo y chevron. Tap → navega al hub de cada pilar.
@@ -18,6 +22,22 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 const PILLARS = [
   {
+    id: 'habits',
+    title: 'ATP HÁBITOS',
+    subtitle: 'Sueño · Meditación · Ayuno · Ciclo · Journal',
+    icon: 'leaf-outline' as const,
+    color: '#7F77DD',
+    route: '/mind-hub',
+  },
+  {
+    id: 'nutrition',
+    title: 'ATP ALIMENTACIÓN',
+    subtitle: 'Comida · Recetas · Food scan',
+    icon: 'nutrition-outline' as const,
+    color: '#5B9BD5',
+    route: '/nutrition',
+  },
+  {
     id: 'fitness',
     title: 'ATP FITNESS',
     subtitle: 'Fuerza · Cardio · Movilidad · HIIT',
@@ -26,44 +46,20 @@ const PILLARS = [
     route: '/fitness-hub',
   },
   {
-    id: 'nutrition',
-    title: 'ATP NUTRICIÓN',
-    subtitle: 'Alimentación · Suplementos · Ayuno',
-    icon: 'nutrition-outline' as const,
-    color: '#5B9BD5',
-    route: '/nutrition',
-  },
-  {
-    id: 'mind',
-    title: 'ATP MENTE',
-    subtitle: 'Journal · Respiración · Meditación',
-    icon: 'flower-outline' as const,
-    color: '#7F77DD',
-    route: '/mind-hub',
+    id: 'supplements',
+    title: 'ATP SUPLEMENTACIÓN',
+    subtitle: 'Tu plan diario · Tracking · Sugerencias',
+    icon: 'flask-outline' as const,
+    color: '#EF9F27',
+    route: '/supplements',
   },
   {
     id: 'health',
-    title: 'ATP SALUD',
-    subtitle: 'Protocolos · Glucosa · Cetonas · Labs',
-    icon: 'heart-outline' as const,
+    title: 'MI SALUD',
+    subtitle: 'Historia clínica · Labs · Biomarcadores · Tests',
+    icon: 'pulse-outline' as const,
     color: '#1D9E75',
     route: '/health-hub',
-  },
-  {
-    id: 'cycle',
-    title: 'ATP CICLO',
-    subtitle: 'Calendario · Síntomas · Compañero',
-    icon: 'calendar-outline' as const,
-    color: '#D4537E',
-    route: '/cycle',
-  },
-  {
-    id: 'tests',
-    title: 'ATP TESTS',
-    subtitle: 'Braverman · Evaluaciones funcionales',
-    icon: 'clipboard-outline' as const,
-    color: '#c084fc',
-    route: '/quizzes',
   },
 ];
 
@@ -113,7 +109,7 @@ export default function KitScreen() {
           </AnimatedPressable>
         </Animated.View>
 
-        {/* 6 pillar cards */}
+        {/* Pillar cards */}
         {PILLARS.map((pillar, idx) => (
           <Animated.View key={pillar.id} entering={FadeInUp.delay(100 + idx * 50).springify()} style={s.cardWrap}>
             <AnimatedPressable onPress={() => { haptic.medium(); router.push(pillar.route as any); }}>

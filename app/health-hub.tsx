@@ -1,7 +1,8 @@
 /**
- * Health Hub — ATP SALUD
+ * Mi Salud — contenedor clínico (PRD §3).
  *
- * Protocolos, Glucosa, Cetonas, Labs, Biomarcadores, Dominios de salud.
+ * Protocolos, Glucosa, Cetonas, Labs, Biomarcadores, Dominios de salud,
+ * Tests y evaluaciones (Braverman + quizzes funcionales).
  */
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -68,6 +69,13 @@ const HEALTH_ITEMS = [
     color: '#1D9E75',
     route: '/my-health',
   },
+  {
+    name: 'Tests y evaluaciones',
+    subtitle: 'Braverman · Evaluaciones funcionales',
+    icon: 'clipboard-outline' as const,
+    color: '#c084fc',
+    route: '/quizzes',
+  },
 ];
 
 export default function HealthHubScreen() {
@@ -76,7 +84,7 @@ export default function HealthHubScreen() {
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-        <PillarHeader pillar="health" title="SALUD" />
+        <PillarHeader pillar="health" title="Mi Salud" />
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>

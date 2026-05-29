@@ -1,5 +1,7 @@
 /**
- * Mind Hub — Punto de entrada para Meditación, Respiración y Journaling.
+ * Hábitos Hub — Pilar HÁBITOS (PRD §3). Absorbe Mente (meditación,
+ * respiración, journal, check-in) + rutina diaria (ciclo, ayuno,
+ * hidratación, ATP SOL). Rutas internas sin cambios.
  */
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, Text } from 'react-native';
@@ -19,6 +21,13 @@ import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES } from '@/src/constants/brand';
 
 const PURPLE = CATEGORY_COLORS.mind;
+
+const DAILY_HABITS = [
+  { title: 'Ciclo', desc: 'Calendario · Síntomas · Compañero', icon: 'calendar-outline' as const, color: '#D4537E', route: '/cycle' },
+  { title: 'Ayuno', desc: 'Protocolos de ayuno intermitente', icon: 'timer-outline' as const, color: '#fbbf24', route: '/fasting' },
+  { title: 'Hidratación', desc: 'Meta diaria de agua', icon: 'water-outline' as const, color: '#38bdf8', route: '/hydration' },
+  { title: 'ATP SOL', desc: 'Exposición solar y vitamina D', icon: 'sunny-outline' as const, color: '#fbbf24', route: '/solar' },
+];
 
 export default function MindHubScreen() {
   const router = useRouter();
@@ -43,12 +52,12 @@ export default function MindHubScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <PillarHeader pillar="mind" title="Mente" />
+      <PillarHeader pillar="mind" title="Hábitos" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={styles.subtitle}>
-            Meditación, respiración y más
+            Mente, descanso y rutina diaria
           </EliteText>
 
           {/* Stats semanales */}
@@ -133,6 +142,24 @@ export default function MindHubScreen() {
             </View>
           </GradientCard>
         </StaggerItem>
+
+        {/* ── Rutina diaria (PRD §3: ciclo, ayuno, hidratación, sol bajo Hábitos) ── */}
+        <EliteText variant="caption" style={styles.sectionLabel}>RUTINA DIARIA</EliteText>
+
+        {DAILY_HABITS.map((h, idx) => (
+          <StaggerItem index={4 + idx} key={h.route}>
+            <GradientCard color={h.color} onPress={() => { haptic.light(); router.push(h.route as any); }} style={styles.heroCard}>
+              <View style={styles.heroCardBody}>
+                <Ionicons name={h.icon} size={28} color={h.color} />
+                <View style={styles.heroCardInfo}>
+                  <EliteText variant="body" style={[styles.heroCardTitle, { color: h.color }]}>{h.title}</EliteText>
+                  <EliteText variant="caption" style={styles.heroCardDesc}>{h.desc}</EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+              </View>
+            </GradientCard>
+          </StaggerItem>
+        ))}
       </ScrollView>
     </SafeAreaView>
   );
@@ -150,6 +177,10 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.display, fontFamily: Fonts.extraBold, color: PURPLE, letterSpacing: 4, marginBottom: Spacing.xs,
   },
   subtitle: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
+  sectionLabel: {
+    color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold,
+    letterSpacing: 2, marginTop: Spacing.lg, marginBottom: Spacing.sm,
+  },
   heroCard: { marginBottom: Spacing.sm },
   heroCardBody: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.lg, gap: Spacing.md,
