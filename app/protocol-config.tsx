@@ -395,37 +395,30 @@ export default function ProtocolConfig() {
       {/* ══════════════════════════════════════════════════════════════
           SECCIÓN 4 — HORARIOS
       ══════════════════════════════════════════════════════════════ */}
-      <Section label="HORARIOS" subtitle="Toca para ajustar — afectan tu agenda">
+      <Section label="HORARIOS" subtitle="Ajusta en pasos de 15 min — afectan tu agenda">
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Pressable onPress={() => {
-            const [h, m] = wakeTime.split(':').map(Number);
-            const total = (h * 60 + m + 30) % (24 * 60);
-            setWakeTime(`${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`);
-            setHasChanges(true);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }} style={{ flex: 1 }}>
-            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, alignItems: 'center' }}>
-              <Ionicons name="sunny-outline" size={20} color="#fbbf24" />
-              <Text style={{ color: '#999', fontSize: 10, marginTop: 6 }}>Despertar</Text>
-              <Text style={{ color: '#fbbf24', fontSize: 22, fontWeight: '800', marginTop: 4 }}>{wakeTime}</Text>
-              <Text style={{ color: '#444', fontSize: 9, marginTop: 4 }}>Toca +30 min</Text>
-            </View>
-          </Pressable>
-
-          <Pressable onPress={() => {
-            const [h, m] = sleepTime.split(':').map(Number);
-            const total = (h * 60 + m + 30) % (24 * 60);
-            setSleepTime(`${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`);
-            setHasChanges(true);
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }} style={{ flex: 1 }}>
-            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, alignItems: 'center' }}>
-              <Ionicons name="moon-outline" size={20} color="#818cf8" />
-              <Text style={{ color: '#999', fontSize: 10, marginTop: 6 }}>Dormir</Text>
-              <Text style={{ color: '#818cf8', fontSize: 22, fontWeight: '800', marginTop: 4 }}>{sleepTime}</Text>
-              <Text style={{ color: '#444', fontSize: 9, marginTop: 4 }}>Toca +30 min</Text>
-            </View>
-          </Pressable>
+          <TimeStepperCard
+            icon="sunny-outline"
+            color="#fbbf24"
+            label="Despertar"
+            value={wakeTime}
+            onShift={(delta) => {
+              setWakeTime(shiftTime(wakeTime, delta));
+              setHasChanges(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          />
+          <TimeStepperCard
+            icon="moon-outline"
+            color="#818cf8"
+            label="Dormir"
+            value={sleepTime}
+            onShift={(delta) => {
+              setSleepTime(shiftTime(sleepTime, delta));
+              setHasChanges(true);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          />
         </View>
       </Section>
 
@@ -480,6 +473,37 @@ function Section({ label, subtitle, children }: { label: string; subtitle?: stri
       </Text>
       {subtitle && <Text style={{ color: '#666', fontSize: 11, marginBottom: 12 }}>{subtitle}</Text>}
       {children}
+    </View>
+  );
+}
+
+/** Desplaza un "HH:MM" por deltaMin (positivo o negativo), envolviendo en 24h. */
+function shiftTime(time: string, deltaMin: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const dayMin = 24 * 60;
+  const total = (((h * 60 + m + deltaMin) % dayMin) + dayMin) % dayMin;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/** Card de horario con stepper +/- 15 min (24h). */
+function TimeStepperCard({ icon, color, label, value, onShift }: {
+  icon: string; color: string; label: string; value: string;
+  onShift: (deltaMin: number) => void;
+}) {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, alignItems: 'center' }}>
+      <Ionicons name={icon as any} size={20} color={color} />
+      <Text style={{ color: '#999', fontSize: 10, marginTop: 6 }}>{label}</Text>
+      <Text style={{ color, fontSize: 22, fontWeight: '800', marginTop: 4 }}>{value}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 8 }}>
+        <Pressable onPress={() => onShift(-15)} hitSlop={8}>
+          <Ionicons name="remove-circle-outline" size={26} color="#666" />
+        </Pressable>
+        <Text style={{ color: '#444', fontSize: 9 }}>15 min</Text>
+        <Pressable onPress={() => onShift(15)} hitSlop={8}>
+          <Ionicons name="add-circle-outline" size={26} color={color} />
+        </Pressable>
+      </View>
     </View>
   );
 }
