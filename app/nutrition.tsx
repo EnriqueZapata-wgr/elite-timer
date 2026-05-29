@@ -5,8 +5,9 @@
  * y cards de navegación a sub-pantallas.
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, DeviceEventEmitter, Pressable } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -22,6 +23,7 @@ import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getUserWaterGoal } from '@/src/services/hydration-service';
+import { useMacroMode } from '@/src/hooks/useMacroMode';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS, PILLAR_GRADIENTS } from '@/src/constants/brand';
 
@@ -48,13 +50,30 @@ const EMPTY: DaySummary = {
   lastGlucose: null, glucoseContext: null,
 };
 
+const MACRO_BANNER_KEY = '@atp/macro_banner_seen';
+
 export default function NutritionScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { macroMode } = useMacroMode();
   const [summary, setSummary] = useState<DaySummary>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
+  const [showMacroBanner, setShowMacroBanner] = useState(false);
+
+  // Banner una sola vez cuando macros OFF (PRD §6.6 — borrador, validar Mariana)
+  useEffect(() => {
+    if (macroMode) { setShowMacroBanner(false); return; }
+    AsyncStorage.getItem(MACRO_BANNER_KEY).then(seen => {
+      if (!seen) setShowMacroBanner(true);
+    });
+  }, [macroMode]);
+
+  const dismissMacroBanner = useCallback(() => {
+    setShowMacroBanner(false);
+    AsyncStorage.setItem(MACRO_BANNER_KEY, '1');
+  }, []);
 
   const loadData = useCallback(async () => {
     if (!user?.id) { setLoading(false); return; }
@@ -148,30 +167,53 @@ export default function NutritionScreen() {
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <GradientCard gradient={PILLAR_GRADIENTS.nutrition} padding={20}>
             <EliteText style={s.heroTitle}>RESUMEN DEL DÍA</EliteText>
-            <View style={s.macroRow}>
-              <View style={s.macroItem}>
-                <EliteText style={s.macroValue}>{summary.calories}</EliteText>
-                <EliteText style={s.macroLabel}>kcal</EliteText>
+            {macroMode ? (
+              <View style={s.macroRow}>
+                <View style={s.macroItem}>
+                  <EliteText style={s.macroValue}>{summary.calories}</EliteText>
+                  <EliteText style={s.macroLabel}>kcal</EliteText>
+                </View>
+                <View style={s.macroDivider} />
+                <View style={s.macroItem}>
+                  <EliteText style={[s.macroValue, { color: BLUE }]}>{summary.protein}g</EliteText>
+                  <EliteText style={s.macroLabel}>Proteína</EliteText>
+                </View>
+                <View style={s.macroDivider} />
+                <View style={s.macroItem}>
+                  <EliteText style={s.macroValue}>{summary.carbs}g</EliteText>
+                  <EliteText style={s.macroLabel}>Carbs</EliteText>
+                </View>
+                <View style={s.macroDivider} />
+                <View style={s.macroItem}>
+                  <EliteText style={s.macroValue}>{summary.fat}g</EliteText>
+                  <EliteText style={s.macroLabel}>Grasa</EliteText>
+                </View>
               </View>
-              <View style={s.macroDivider} />
-              <View style={s.macroItem}>
-                <EliteText style={[s.macroValue, { color: BLUE }]}>{summary.protein}g</EliteText>
-                <EliteText style={s.macroLabel}>Proteína</EliteText>
+            ) : (
+              /* Macros OFF: solo proteína visible (decisión Mariana) */
+              <View style={s.macroRow}>
+                <View style={s.macroItem}>
+                  <EliteText style={[s.macroValue, { color: BLUE }]}>{summary.protein}g</EliteText>
+                  <EliteText style={s.macroLabel}>Proteína</EliteText>
+                </View>
               </View>
-              <View style={s.macroDivider} />
-              <View style={s.macroItem}>
-                <EliteText style={s.macroValue}>{summary.carbs}g</EliteText>
-                <EliteText style={s.macroLabel}>Carbs</EliteText>
-              </View>
-              <View style={s.macroDivider} />
-              <View style={s.macroItem}>
-                <EliteText style={s.macroValue}>{summary.fat}g</EliteText>
-                <EliteText style={s.macroLabel}>Grasa</EliteText>
-              </View>
-            </View>
+            )}
             <EliteText style={s.heroSub}>{summary.mealCount} comidas registradas hoy</EliteText>
           </GradientCard>
         </Animated.View>
+
+        {/* Banner educativo una sola vez (macros OFF) */}
+        {showMacroBanner && (
+          <Animated.View entering={FadeInUp.delay(60).springify()} style={s.macroBanner}>
+            <Ionicons name="bulb-outline" size={20} color={BLUE} />
+            <EliteText style={s.macroBannerText}>
+              Aquí no contamos calorías. Te enseñamos a elegir mejor.
+            </EliteText>
+            <Pressable onPress={dismissMacroBanner} hitSlop={8}>
+              <Ionicons name="close" size={18} color="#888" />
+            </Pressable>
+          </Animated.View>
+        )}
 
         {/* ARGOS recetas */}
         <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.lg }}>
@@ -332,6 +374,13 @@ const s = StyleSheet.create({
   macroLabel: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
   macroDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.08)' },
   heroSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: Spacing.md },
+
+  macroBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: 'rgba(91,155,213,0.08)', borderWidth: 1, borderColor: 'rgba(91,155,213,0.2)',
+    borderRadius: 14, padding: 14, marginTop: Spacing.md,
+  },
+  macroBannerText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#cbd5e1', lineHeight: 18 },
 
   navCard: { marginBottom: Spacing.sm },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },

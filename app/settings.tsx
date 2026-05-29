@@ -13,6 +13,7 @@ import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { EliteToggle } from '@/components/elite-toggle';
 import { useSettings, type VoiceLanguage, type SoundStyle } from '@/src/contexts/settings-context';
+import { useMacroMode } from '@/src/hooks/useMacroMode';
 import { useAuth } from '@/src/contexts/auth-context';
 import { speak } from '@/src/utils/speech';
 import { playBeep, initAudio, setSoundStyle } from '@/src/utils/sounds';
@@ -61,6 +62,7 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { settings, updateSetting } = useSettings();
   const { user, signOut } = useAuth();
+  const { macroMode, setMacroMode } = useMacroMode();
 
   // Estado coach
   const [coachCode, setCoachCode] = useState<string | null>(null);
@@ -298,6 +300,20 @@ export default function SettingsScreen() {
             </View>
             <EliteText variant="caption" style={{ color: Colors.neonGreen }}>Métrico</EliteText>
           </View>
+
+          <Divider />
+        </Animated.View>
+
+        {/* ══════ NUTRICIÓN ══════ */}
+        <Animated.View entering={FadeInUp.delay(230).springify()}>
+          <SectionLabel>NUTRICIÓN</SectionLabel>
+
+          <EliteToggle
+            label="Modo Macro"
+            description="Muestra calorías, carbohidratos y grasa además del score"
+            value={macroMode}
+            onValueChange={v => { haptic.light(); setMacroMode(v); }}
+          />
 
           <Divider />
         </Animated.View>
