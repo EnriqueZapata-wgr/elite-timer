@@ -102,7 +102,11 @@ export default function BravermanTest() {
       slideAnim.setValue(0);
       if (currentIndex + 1 < questions.length) {
         setCurrentIndex(currentIndex + 1);
-        if ((currentIndex + 1) % 20 === 0) saveProgress(newResponses, currentPart, currentIndex + 1);
+        // F40.10: persistir CADA respuesta. Antes era cada 20 preguntas y
+        // si Paty respondía 15 y cerraba la app, perdía las 15 al regresar
+        // (vuelta al último múltiplo de 20). Fire-and-forget — la
+        // animación corre en paralelo.
+        saveProgress(newResponses, currentPart, currentIndex + 1);
       } else if (currentPart === 1) {
         saveProgress(newResponses, 2, 0);
         setCurrentPart(2);
@@ -114,15 +118,40 @@ export default function BravermanTest() {
     });
   }
 
+  // F40.10: guard contra inserts duplicados. Como saveProgress se llama por
+  // cada respuesta, si las primeras 2 respuestas se disparan antes de que el
+  // INSERT inicial retorne con el resultId, ambos saves verían `resultId`
+  // null y harían 2 inserts → 2 filas in_progress. El ref bloquea el segundo
+  // hasta que el primero asigne el id (después de eso, todos son updates).
+  const insertInFlightRef = useRef<Promise<void> | null>(null);
+
   async function saveProgress(resp: Record<string, boolean>, part: number, qIndex: number) {
     if (!userId) return;
     const payload = { user_id: userId, responses: resp, current_part: part, current_question: qIndex, updated_at: new Date().toISOString() };
     if (resultId) {
-      await supabase.from('braverman_results').update(payload).eq('id', resultId);
-    } else {
-      const { data } = await supabase.from('braverman_results').insert(payload).select('id').single();
-      if (data) setResultId(data.id);
+      // Fire-and-forget — no bloqueamos el caller con el await de Supabase.
+      supabase.from('braverman_results').update(payload).eq('id', resultId)
+        .then(({ error }) => { if (error) console.warn('Braverman save error:', error.message); });
+      return;
     }
+    // Sin resultId aún. Si ya hay un insert in-flight, esperamos a que el
+    // resultId quede asignado y luego re-llamamos (ahora caerá en la rama
+    // de update).
+    if (insertInFlightRef.current) {
+      await insertInFlightRef.current;
+      return saveProgress(resp, part, qIndex);
+    }
+    insertInFlightRef.current = (async () => {
+      try {
+        const { data } = await supabase.from('braverman_results').insert(payload).select('id').single();
+        if (data) setResultId(data.id);
+      } catch (e: any) {
+        console.warn('Braverman insert error:', e?.message);
+      } finally {
+        insertInFlightRef.current = null;
+      }
+    })();
+    await insertInFlightRef.current;
   }
 
   async function calculateResults(resp: Record<string, boolean>) {
