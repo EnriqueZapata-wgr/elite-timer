@@ -254,7 +254,9 @@ export async function saveRoutine(routine: Routine): Promise<void> {
   // Auth con refresh automático
   const user = await getAuthenticatedUser();
 
-  // Validar que la rutina tenga contenido
+  // F08.15: validar contenido ANTES de cualquier mutación. Antes el throw
+  // ocurría después del upsert/delete y dejaba routines huérfanas en DB
+  // (rutinas con 0 ejercicios que Paty veía en my-routines).
   const rows = flattenTreeToDbRows(routine.blocks, routine.id);
   if (rows.length === 0) {
     throw new Error('La rutina no tiene bloques. Agrega al menos un bloque antes de guardar.');
@@ -296,9 +298,12 @@ export async function saveRoutine(routine: Routine): Promise<void> {
     .insert(rows);
 
   if (insertError) {
-    // Rollback: restaurar blocks anteriores si existían
+    // Rollback: restaurar blocks anteriores si existían. Si no existían (fue
+    // un insert nuevo), borrar también la routine para no dejar huérfana.
     if (existingBlocks && existingBlocks.length > 0) {
       try { await supabase.from('blocks').insert(existingBlocks); } catch {}
+    } else {
+      try { await supabase.from('routines').delete().eq('id', routine.id).eq('creator_id', user.id); } catch {}
     }
     throw new Error(`Error al guardar bloques: ${insertError.message}`);
   }

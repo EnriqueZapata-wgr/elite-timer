@@ -67,6 +67,13 @@ export default function MyRoutinesScreen() {
 
   function openRoutine(routine: Routine) {
     haptic.medium();
+    // F08.15: rutinas con 0 ejercicios (huérfanas de saves anteriores rotos)
+    // no se pueden ejecutar. Redirigir al builder para editar/eliminar en
+    // lugar de abrir una pantalla vacía.
+    if (countLeafBlocks(routine.blocks) === 0) {
+      router.push({ pathname: '/builder', params: { routineId: routine.id } } as any);
+      return;
+    }
     // Timer mode → countdown engine, Routine mode → exercise engine
     const screen = routine.mode === 'timer' ? '/execution' : '/routine-execution';
     router.push({
@@ -193,9 +200,17 @@ export default function MyRoutinesScreen() {
                             {meta.label}
                           </EliteText>
                         </View>
-                        <EliteText style={s.metaText}>
-                          {blockCount} {blockCount === 1 ? 'bloque' : 'bloques'}
-                        </EliteText>
+                        {blockCount === 0 ? (
+                          <View style={[s.modeBadge, { backgroundColor: 'rgba(239,68,68,0.18)' }]}>
+                            <EliteText style={[s.modeBadgeText, { color: '#ef4444' }]}>
+                              0 ejercicios · toca para editar
+                            </EliteText>
+                          </View>
+                        ) : (
+                          <EliteText style={s.metaText}>
+                            {blockCount} {blockCount === 1 ? 'bloque' : 'bloques'}
+                          </EliteText>
+                        )}
                         {r.description ? (
                           <EliteText style={s.metaText} numberOfLines={1}>
                             · {r.description}
@@ -204,7 +219,11 @@ export default function MyRoutinesScreen() {
                       </View>
                     </View>
 
-                    <Ionicons name="play-circle" size={28} color={meta.color} />
+                    <Ionicons
+                      name={blockCount === 0 ? 'create-outline' : 'play-circle'}
+                      size={28}
+                      color={blockCount === 0 ? '#ef4444' : meta.color}
+                    />
                   </View>
                 </GradientCard>
               </Animated.View>

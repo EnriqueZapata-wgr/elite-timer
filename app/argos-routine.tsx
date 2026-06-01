@@ -83,16 +83,23 @@ export default function ArgosRoutineScreen() {
   async function handleSave() {
     if (!routine) return;
 
+    // F08.15: defensive coding. Si Sonnet retorna alguno de los arrays
+    // como null/undefined (ocurre cuando el JSON viene mal-formado pero
+    // pasa el parse), el spread .map crashearía. Forzamos a [] vacío.
+    const warmup = Array.isArray(routine.warmup) ? routine.warmup : [];
+    const main = Array.isArray(routine.main) ? routine.main : [];
+    const cooldown = Array.isArray(routine.cooldown) ? routine.cooldown : [];
+
     // Convertir GeneratedRoutine a Routine del engine (Block tree)
     const routineId = generateUUID();
     const allExercises = [
-      ...routine.warmup.map((ex, i) => ({ ...ex, phase: 'warmup', order: i })),
-      ...routine.main.map((ex, i) => ({ ...ex, phase: 'main', order: routine.warmup.length + i })),
-      ...routine.cooldown.map((ex, i) => ({ ...ex, phase: 'cooldown', order: routine.warmup.length + routine.main.length + i })),
+      ...warmup.map((ex, i) => ({ ...ex, phase: 'warmup', order: i })),
+      ...main.map((ex, i) => ({ ...ex, phase: 'main', order: warmup.length + i })),
+      ...cooldown.map((ex, i) => ({ ...ex, phase: 'cooldown', order: warmup.length + main.length + i })),
     ];
 
     if (allExercises.length === 0) {
-      Alert.alert('Error', 'La rutina generada no tiene ejercicios.');
+      Alert.alert('Error', 'La rutina generada no tiene ejercicios. Intenta de nuevo o ajusta los parámetros.');
       return;
     }
 
