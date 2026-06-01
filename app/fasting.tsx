@@ -431,16 +431,32 @@ export default function FastingScreen() {
     }
 
     // AY-5: verificar que el update tuvo éxito antes de limpiar el estado local.
-    const { error: updateError } = await supabase.from('fasting_logs').update({
-      actual_hours: Math.round(actualHours * 10) / 10,
-      fast_end: endTime.toISOString(),
-      status: 'completed',
-    }).eq('id', activeFast.id);
+    // F16.13: añadimos `.select('id')` — sin él, RLS / row-not-found / network
+    // 200-but-0-rows pasan como `error: null` y el estado local se limpia
+    // dejando la fila en 'active' en DB (siguiente focus la rescata → Paty
+    // "atrapada 90h").
+    const { data: updatedRows, error: updateError } = await supabase
+      .from('fasting_logs')
+      .update({
+        actual_hours: Math.round(actualHours * 10) / 10,
+        fast_end: endTime.toISOString(),
+        status: 'completed',
+      })
+      .eq('id', activeFast.id)
+      .select('id');
 
     if (updateError) {
       Alert.alert('Error', 'No se pudo registrar el cierre del ayuno. Inténtalo de nuevo.');
       logWarn('breakFastWithTime update error:', updateError.message);
       return; // CRITICAL: no limpiar estado — el ayuno sigue activo para reintentar.
+    }
+    if (!updatedRows || updatedRows.length === 0) {
+      Alert.alert(
+        'No se pudo cerrar el ayuno',
+        'El registro no se actualizó. Revisa tu conexión e intenta de nuevo. Si persiste, cierra y abre la app.',
+      );
+      logWarn('breakFastWithTime: 0 rows affected', activeFast.id);
+      return; // CRITICAL: no limpiar estado, no premiar electrón.
     }
 
     // Electrón por tier de ayuno
@@ -469,6 +485,10 @@ export default function FastingScreen() {
     DeviceEventEmitter.emit('day_changed');
   }
 
+  // F16.13: Alert con 2 botones. El 3-button Alert tenía comportamiento
+  // inconsistente entre Android versions / RN-Web (el middle onPress podía
+  // no disparar). "Elegir hora" se expone como Pressable secundario debajo
+  // del botón principal.
   function handleBreakFast() {
     Alert.alert(
       'Romper ayuno',
@@ -476,7 +496,6 @@ export default function FastingScreen() {
       [
         { text: 'Seguir ayunando', style: 'cancel' },
         { text: 'Terminé ahora', onPress: () => breakFastWithTime(new Date()) },
-        { text: 'Elegir hora', onPress: () => { setCustomEndTime(new Date()); setShowEndPicker(true); } },
       ],
     );
   }
@@ -882,11 +901,24 @@ export default function FastingScreen() {
             onPress={handleBreakFast}
             style={{
               backgroundColor: '#a8e02a', borderRadius: 18, paddingVertical: 18,
-              width: '100%', alignItems: 'center', marginBottom: 12,
+              width: '100%', alignItems: 'center', marginBottom: 8,
             }}
           >
             <Text style={{ color: '#000', fontSize: 18, fontWeight: '800' }}>ROMPER AYUNO</Text>
           </Pressable>
+
+          {/* F16.13: link secundario al picker custom (antes era opción del Alert 3-button). */}
+          {!showEndPicker && (
+            <Pressable
+              onPress={() => { setCustomEndTime(new Date()); setShowEndPicker(true); }}
+              hitSlop={8}
+              style={{ alignItems: 'center', marginBottom: 12 }}
+            >
+              <Text style={{ color: '#a8e02a', fontSize: 13, fontWeight: '600' }}>
+                Elegir otra hora de fin
+              </Text>
+            </Pressable>
+          )}
 
           {/* Picker de hora de fin */}
           {showEndPicker && (
