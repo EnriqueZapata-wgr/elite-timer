@@ -232,6 +232,16 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
     sleep:   { target: DEFAULT_QUANT_CONFIG.sleep.target, unit: 'h' },
   };
 
+  // F03.7: wake_time de `user_day_preferences.goals.wake_time` cuando el
+  // usuario lo edita en protocol-config (escribe ahí). Fallback a
+  // `user_chronotype.schedule.wake_time` (escrito en onboarding). Antes,
+  // `buildAgenda` solo leía del cronotipo → cambios en config no afectaban
+  // la agenda.
+  const wakeFromPrefs: string | undefined =
+    typeof userGoals.wake_time === 'string' && /^\d{1,2}:\d{2}$/.test(userGoals.wake_time)
+      ? userGoals.wake_time
+      : undefined;
+
   // Protocol
   let protocol: CompiledDay['protocol'] = null;
   const prot = protRes.data?.[0];
@@ -319,7 +329,7 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   const suggestion = buildSuggestion(quantitativeElectrons, fastRes.data?.[0], hour, crossPillar);
 
   // Agenda
-  const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.data?.[0], crossPillar);
+  const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.data?.[0], crossPillar, wakeFromPrefs);
 
   // Greeting
   const greeting = hour < 12 ? 'Buenos días,' : hour < 18 ? 'Buenas tardes,' : 'Buenas noches,';
@@ -527,17 +537,27 @@ async function buildAgenda(
   protocol: CompiledDay['protocol'],
   activeFast: any,
   cross: CrossPillar,
+  /** F03.7: wake_time editado desde protocol-config (vive en user_day_preferences.goals). */
+  wakeFromPrefs?: string,
 ): Promise<AgendaItem[]> {
   const items: AgendaItem[] = [];
 
-  // Cargar wake_time del cronotipo del usuario
+  // F03.7: prioridad de wake_time:
+  //   1. user_day_preferences.goals.wake_time (lo que el usuario edita en
+  //      protocol-config — fuente más reciente).
+  //   2. user_chronotype.schedule.wake_time (set en onboarding).
+  //   3. fallback '07:00'.
   let wakeTime = '07:00';
-  try {
-    const { data: chrono } = await supabase
-      .from('user_chronotype').select('schedule')
-      .eq('user_id', userId).maybeSingle();
-    if (chrono?.schedule?.wake_time) wakeTime = chrono.schedule.wake_time;
-  } catch { /* default 07:00 */ }
+  if (wakeFromPrefs) {
+    wakeTime = wakeFromPrefs;
+  } else {
+    try {
+      const { data: chrono } = await supabase
+        .from('user_chronotype').select('schedule')
+        .eq('user_id', userId).maybeSingle();
+      if (chrono?.schedule?.wake_time) wakeTime = chrono.schedule.wake_time;
+    } catch { /* default 07:00 */ }
+  }
 
   // === PROTOCOLO → cargar plan del día (o generarlo si no existe) ===
   try {

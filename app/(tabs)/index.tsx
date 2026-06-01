@@ -16,7 +16,7 @@ import {
   LayoutAnimation, Platform, UIManager, ActivityIndicator, Alert,
 } from 'react-native';
 import { warn as logWarn } from '@/src/lib/logger';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -238,6 +238,15 @@ export default function TodayScreen() {
       if (voiceClearTimeoutRef.current) clearTimeout(voiceClearTimeoutRef.current);
     };
   }, [loadDay]);
+
+  // F36.7/F49/F03.7: defense-in-depth. Si el `day_changed` event no llega
+  // (RN-Web inconsistente, listener silenciado por isTogglingRef, navegación
+  // que dispara el emit mientras HOY está desmontado), refrescamos al
+  // recuperar focus. Cubre los 3 casos de Paty: cambio de meta agua,
+  // toggle de electrón en config, edición de wake_time.
+  useFocusEffect(useCallback(() => {
+    if (isTogglingRef.current === 0) loadDay();
+  }, [loadDay]));
 
   // --- Tour de onboarding ---
   useEffect(() => {

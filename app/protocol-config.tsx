@@ -137,7 +137,25 @@ export default function ProtocolConfig() {
   async function savePreferences() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
-    await supabase.from('user_day_preferences').upsert({
+    // F03.7: detectar si wake_time cambió respecto al previo en DB. Si sí,
+    // borrar daily_plans del día para que se regenere con el nuevo horario
+    // (mismo patrón que changeProtocol/deactivateProtocol). Las otras
+    // ediciones (proteína, agua, electrones) NO regeneran daily_plans para
+    // no destruir toggles del usuario.
+    let wakeChanged = false;
+    try {
+      const { data: prev } = await supabase
+        .from('user_day_preferences')
+        .select('goals')
+        .eq('user_id', userId)
+        .maybeSingle();
+      const prevWake = (prev?.goals as any)?.wake_time;
+      if (typeof prevWake === 'string' && prevWake !== wakeTime) {
+        wakeChanged = true;
+      }
+    } catch { /* opcional */ }
+
+    const { error: upsertError } = await supabase.from('user_day_preferences').upsert({
       user_id: userId,
       active_boolean_electrons: enabledElectrons,
       goals: {
@@ -149,9 +167,28 @@ export default function ProtocolConfig() {
       },
       updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
+    if (upsertError) {
+      Alert.alert('Error', 'No se pudo guardar tu configuración. Intenta de nuevo.');
+      return;
+    }
 
-    // Meta de agua vía helper (single source of truth) — re-merge sobre los goals
-    await setUserWaterGoal(userId, waterGoal);
+    // F36.7: try/catch alrededor de setUserWaterGoal — antes, un throw
+    // (waterGoal fuera de rango) bloqueaba el resto del save y el emit no
+    // disparaba, dejando a HOY desactualizado en silencio.
+    try {
+      await setUserWaterGoal(userId, waterGoal);
+    } catch (e: any) {
+      Alert.alert('Meta de agua inválida', String(e?.message ?? 'No se pudo guardar la meta de agua.'));
+      // Continúa con el resto: las otras prefs ya quedaron guardadas.
+    }
+
+    // F03.7: regenerar agenda del día si cambió el wake_time.
+    if (wakeChanged) {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        await supabase.from('daily_plans').delete().eq('user_id', userId).eq('date', today);
+      } catch { /* opcional */ }
+    }
 
     setHasChanges(false);
     DeviceEventEmitter.emit('day_changed');
