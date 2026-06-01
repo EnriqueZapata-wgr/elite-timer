@@ -988,6 +988,21 @@ function buildCycleGuard(gender?: string): string {
 }
 
 /**
+ * F06.7/F36.4: mismo patrón que `buildCycleGuard`. Si la conversación tiene
+ * historial mencionando un protocolo viejo, Sonnet tiende a seguir ese hilo
+ * aun cuando el contexto fresco del system prompt indique un protocolo
+ * distinto. Esta instrucción ata las recomendaciones al protocolo ACTIVO
+ * actual y descarta el histórico explícitamente. No hay cache que invalidar
+ * en el servicio (loadUserContext / gatherClientData siempre leen fresco
+ * de Supabase) — el bug es 100% contaminación de contexto conversacional.
+ */
+// CONTENIDO ARGOS — wording borrador, validar con Enrique/Mariana antes de Founders M1
+function buildProtocolGuard(activeProtocol?: string): string {
+  if (!activeProtocol) return '';
+  return `\n\n## REGLA DE PROTOCOLO (NO NEGOCIABLE)\nEl protocolo activo del usuario es: "${activeProtocol}". Tus recomendaciones deben alinearse a ESTE protocolo, no a protocolos mencionados en mensajes anteriores de esta conversación. Si el usuario en turnos pasados habló de otro protocolo, ese ya cambió. Cuando pregunte qué hacer hoy o cómo ajustar su día, responde según el protocolo activo actual, no según lo que aparezca en el historial.`;
+}
+
+/**
  * Variante extendida de chatWithArgos. Retorna también si la respuesta vino
  * degradada (rate-limited, ambos providers caídos, o error de cliente).
  * El caller usa ese flag para NO persistir ni reenviar el turno en
@@ -1001,7 +1016,8 @@ export async function chatWithArgosEx(
   const context = await loadUserContext(userId);
   const contextPrompt = buildContextPrompt(context);
   const cycleGuard = buildCycleGuard(context.gender);
-  const systemPrompt = ARGOS_SYSTEM_PROMPT + cycleGuard + contextPrompt;
+  const protocolGuard = buildProtocolGuard(context.activeProtocol);
+  const systemPrompt = ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat' });
@@ -1058,13 +1074,17 @@ export async function generateDailyInsight(userId: string): Promise<string> {
   // es texto libre y puede atribuir "fase lútea / cambios hormonales" a
   // usuarios que no menstrúan si no se restringe.
   const cycleGuard = buildCycleGuard(context.gender);
+  // F06.7/F36.4: mismo patrón. El insight diario no tiene historial
+  // conversacional propio, pero la persistencia del prompt en cache puede
+  // arrastrar trazas del protocolo viejo — el guard fija el actual.
+  const protocolGuard = buildProtocolGuard(context.activeProtocol);
 
   const insightSystem = `Eres ARGOS, IA de salud funcional de ATP. Genera UN insight breve (máximo 2 oraciones) basado en los datos del usuario. Debe ser:
 - Específico (usa los datos reales, no genérico)
 - Accionable (qué puede hacer HOY)
 - Integrativo (conecta 2+ pilares si es posible)
 - Empoderador (no alarmista)
-No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${contextPrompt}`;
+No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${protocolGuard}${contextPrompt}`;
 
   try {
     const meta = await getArgosCallMetadata({ requestType: 'insight' });

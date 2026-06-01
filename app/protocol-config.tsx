@@ -222,6 +222,10 @@ export default function ProtocolConfig() {
       const today = new Date().toISOString().split('T')[0];
       await supabase.from('daily_plans').delete().eq('user_id', userId).eq('date', today);
       DeviceEventEmitter.emit('day_changed');
+      // F06.7/F36.4: señal específica de cambio de protocolo. ARGOS no
+      // necesita escucharla (cada llamada lee fresco), pero otros listeners
+      // sí pueden reaccionar (limpiar contexto AI, etc.).
+      DeviceEventEmitter.emit('protocol_changed');
     }
   }
 
@@ -240,6 +244,8 @@ export default function ProtocolConfig() {
           await supabase.from('daily_plans').delete().eq('user_id', userId).eq('date', today);
           setActiveProtocol(null);
           DeviceEventEmitter.emit('day_changed');
+          // F06.7/F36.4: señal específica (mismo patrón que changeProtocol).
+          DeviceEventEmitter.emit('protocol_changed');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           Alert.alert('Listo', 'Protocolo desactivado. Tu agenda se actualizará.');
         },
