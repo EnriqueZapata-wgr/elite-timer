@@ -10,6 +10,7 @@ import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -129,6 +130,7 @@ export default function MyRecipesScreen() {
         {/* Lista de recetas */}
         {recipes.map((recipe, idx) => (
           <Animated.View key={recipe.id} entering={FadeInUp.delay(idx * 50).springify()}>
+            <SwipeToDeleteRow onConfirmDelete={() => deleteRecipe(recipe)}>
             <AnimatedPressable onPress={() => useRecipe(recipe)} onLongPress={() => deleteRecipe(recipe)}>
               <View style={s.recipeCard}>
                 <View style={s.recipeHeader}>
@@ -162,6 +164,7 @@ export default function MyRecipesScreen() {
                 </View>
               </View>
             </AnimatedPressable>
+            </SwipeToDeleteRow>
           </Animated.View>
         ))}
 
@@ -178,8 +181,8 @@ export default function MyRecipesScreen() {
 
         {/* Hint */}
         {recipes.length > 0 && (
-          <EliteText variant="caption" style={{ color: '#333', fontSize: 9, textAlign: 'center', marginTop: 4 }}>
-            Mantén presionado para eliminar
+          <EliteText variant="caption" style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 4 }}>
+            Desliza ← (o mantén presionado) para eliminar
           </EliteText>
         )}
 

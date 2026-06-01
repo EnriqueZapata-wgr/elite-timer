@@ -11,6 +11,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
 import { getLocalToday } from '../src/utils/date-helpers';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 
 const TIMING_OPTIONS = [
   { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -258,43 +259,47 @@ export default function SupplementsScreen() {
           {group.items.map(supp => {
             const taken = todayLogs[supp.id] || false;
             return (
-              <Pressable
+              <SwipeToDeleteRow
                 key={supp.id}
-                onPress={() => toggleSupplement(supp.id)}
-                onLongPress={() => removeSupplement(supp.id, supp.name)}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 12,
-                  backgroundColor: taken ? 'rgba(29,158,117,0.08)' : '#0a0a0a',
-                  borderRadius: 14, padding: 14, marginBottom: 6,
-                  borderWidth: 1,
-                  borderColor: taken ? 'rgba(29,158,117,0.2)' : '#1a1a1a',
-                }}
+                onConfirmDelete={() => removeSupplement(supp.id, supp.name)}
               >
-                {taken ? (
-                  <Ionicons name="checkmark-circle" size={26} color="#1D9E75" />
-                ) : (
-                  <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#333' }} />
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={{
-                    color: taken ? '#1D9E75' : '#fff', fontSize: 14, fontWeight: '600',
-                    textDecorationLine: taken ? 'line-through' : 'none',
-                  }}>
-                    {supp.name}
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
-                    <Text style={{ color: '#666', fontSize: 11 }}>{supp.dosage}</Text>
-                    {supp.reason && <Text style={{ color: '#444', fontSize: 11 }}>· {supp.reason}</Text>}
-                  </View>
-                </View>
-                {supp.source !== 'manual' && (
-                  <View style={{ backgroundColor: 'rgba(168,224,42,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                    <Text style={{ color: '#a8e02a', fontSize: 8, fontWeight: '700' }}>
-                      {supp.source.includes('braverman') ? 'BRAVERMAN' : 'QUIZ'}
+                <Pressable
+                  onPress={() => toggleSupplement(supp.id)}
+                  onLongPress={() => removeSupplement(supp.id, supp.name)}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 12,
+                    backgroundColor: taken ? 'rgba(29,158,117,0.08)' : '#0a0a0a',
+                    borderRadius: 14, padding: 14, marginBottom: 6,
+                    borderWidth: 1,
+                    borderColor: taken ? 'rgba(29,158,117,0.2)' : '#1a1a1a',
+                  }}
+                >
+                  {taken ? (
+                    <Ionicons name="checkmark-circle" size={26} color="#1D9E75" />
+                  ) : (
+                    <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#333' }} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={{
+                      color: taken ? '#1D9E75' : '#fff', fontSize: 14, fontWeight: '600',
+                      textDecorationLine: taken ? 'line-through' : 'none',
+                    }}>
+                      {supp.name}
                     </Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+                      <Text style={{ color: '#666', fontSize: 11 }}>{supp.dosage}</Text>
+                      {supp.reason && <Text style={{ color: '#444', fontSize: 11 }}>· {supp.reason}</Text>}
+                    </View>
                   </View>
-                )}
-              </Pressable>
+                  {supp.source !== 'manual' && (
+                    <View style={{ backgroundColor: 'rgba(168,224,42,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                      <Text style={{ color: '#a8e02a', fontSize: 8, fontWeight: '700' }}>
+                        {supp.source.includes('braverman') ? 'BRAVERMAN' : 'QUIZ'}
+                      </Text>
+                    </View>
+                  )}
+                </Pressable>
+              </SwipeToDeleteRow>
             );
           })}
         </View>
@@ -302,7 +307,7 @@ export default function SupplementsScreen() {
 
       {supplements.length > 0 && (
         <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 4 }}>
-          Toca para marcar · Mantén presionado para eliminar
+          Toca para marcar · Desliza ← (o mantén presionado) para eliminar
         </Text>
       )}
 

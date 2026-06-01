@@ -18,6 +18,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -180,23 +181,29 @@ export default function FoodRegisterScreen() {
             <View style={{ marginTop: Spacing.lg }}>
               <SectionTitle>REGISTROS DE HOY</SectionTitle>
               {logsForType.map((log: any) => (
-                <Pressable
+                <SwipeToDeleteRow
                   key={log.id}
-                  onLongPress={() => handleDeleteLog(log.id, log.description || 'este alimento')}
+                  onConfirmDelete={() => handleDeleteLog(log.id, log.description || 'este alimento')}
                 >
-                  <View style={s.logRow}>
-                    <Ionicons name="checkmark-circle" size={16} color="#a8e02a" />
-                    <View style={{ flex: 1 }}>
-                      <EliteText style={s.logDesc} numberOfLines={1}>{log.description}</EliteText>
+                  <Pressable
+                    onLongPress={() => handleDeleteLog(log.id, log.description || 'este alimento')}
+                  >
+                    <View style={s.logRow}>
+                      <Ionicons name="checkmark-circle" size={16} color="#a8e02a" />
+                      <View style={{ flex: 1 }}>
+                        <EliteText style={s.logDesc} numberOfLines={1}>{log.description}</EliteText>
+                      </View>
+                      <EliteText style={s.logKcal}>
+                        {log.calories ? `${log.calories} kcal` : ''}
+                        {log.protein_g ? ` · ${log.protein_g}g prot` : ''}
+                      </EliteText>
                     </View>
-                    <EliteText style={s.logKcal}>
-                      {log.calories ? `${log.calories} kcal` : ''}
-                      {log.protein_g ? ` · ${log.protein_g}g prot` : ''}
-                    </EliteText>
-                  </View>
-                  <Text style={{ color: '#333', fontSize: 8, textAlign: 'right' }}>Mantén presionado para eliminar</Text>
-                </Pressable>
+                  </Pressable>
+                </SwipeToDeleteRow>
               ))}
+              <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 6 }}>
+                Desliza ← para eliminar
+              </Text>
             </View>
           )}
 

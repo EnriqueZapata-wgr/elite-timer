@@ -12,6 +12,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { HelpButton } from '@/src/components/HelpButton';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
+import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn, error as logError } from '@/src/lib/logger';
@@ -382,22 +383,24 @@ export default function JournalScreen() {
               const preview = entry.content?.slice(0, 80) || '';
               return (
                 <StaggerItem key={entry.id ?? idx} index={idx}>
-                  <Pressable onLongPress={() => deleteEntry(entry.id)}>
-                    <View style={s.entryCard}>
-                      <View style={s.entryHeader}>
-                        <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>{dateStr}</EliteText>
-                        <View style={[s.typeBadge, { backgroundColor: withOpacity(typeColor, 0.12) }]}>
-                          <EliteText variant="caption" style={{ color: typeColor, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{typeLabel}</EliteText>
+                  <SwipeToDeleteRow onConfirmDelete={() => deleteEntry(entry.id)}>
+                    <Pressable onLongPress={() => deleteEntry(entry.id)}>
+                      <View style={s.entryCard}>
+                        <View style={s.entryHeader}>
+                          <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>{dateStr}</EliteText>
+                          <View style={[s.typeBadge, { backgroundColor: withOpacity(typeColor, 0.12) }]}>
+                            <EliteText variant="caption" style={{ color: typeColor, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>{typeLabel}</EliteText>
+                          </View>
                         </View>
+                        <EliteText variant="caption" numberOfLines={2} style={s.entryPreview}>{preview}</EliteText>
                       </View>
-                      <EliteText variant="caption" numberOfLines={2} style={s.entryPreview}>{preview}</EliteText>
-                    </View>
-                  </Pressable>
+                    </Pressable>
+                  </SwipeToDeleteRow>
                 </StaggerItem>
               );
             })}
             <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 8 }}>
-              Mantén presionado para eliminar
+              Desliza ← (o mantén presionado) para eliminar
             </EliteText>
           </View>
         )}

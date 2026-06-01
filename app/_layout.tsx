@@ -15,6 +15,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider } from 'posthog-react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import {
   Poppins_400Regular,
@@ -86,6 +87,9 @@ function RootLayout() {
 
   return (
     <ErrorBoundary>
+    {/* F12/F14/F15/F19/F31: GestureHandlerRootView habilita Swipeable de
+        react-native-gesture-handler. Requerido en la raíz. */}
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={EliteTheme}>
       <PostHogProvider
         apiKey={Constants.expoConfig?.extra?.posthogKey}
@@ -175,6 +179,7 @@ function RootLayout() {
         </AuthProvider>
       </PostHogProvider>
     </ThemeProvider>
+    </GestureHandlerRootView>
     </ErrorBoundary>
   );
 }
