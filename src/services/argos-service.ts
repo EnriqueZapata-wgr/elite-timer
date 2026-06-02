@@ -11,6 +11,7 @@ import { getHydrationStats } from './hydration-service';
 import { getCycleInfo } from './cycle-service';
 import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTag, type CoachGateResult } from '@/src/lib/coach-engine';
 import { error as logError } from '@/src/lib/logger';
+import { persistTurnAudit } from './coach-audit-service';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1387,6 +1388,13 @@ export async function chatWithArgosEx(
     } catch (err) {
       logError('[ARGOS] evidence-tag check failed:', err);
     }
+  }
+
+  // Persistencia de auditoría — fire-and-forget. La respuesta sale ANTES de los
+  // INSERT; si la persistencia falla, log + continúa (no bloquea el chat).
+  // Solo cuando hubo gate y respuesta real (no fallback degradado).
+  if (gateResult && rawText) {
+    void persistTurnAudit(userId, null, gateResult, finalText);
   }
 
   return { text: finalText, degraded: degraded || !rawText };
