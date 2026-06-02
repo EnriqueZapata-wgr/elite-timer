@@ -153,6 +153,7 @@ function RootLayout() {
                 <Stack.Screen name="onboarding/nutrition" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding/context" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding/edad-atp" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/voice-config" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding/summary" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="journal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />

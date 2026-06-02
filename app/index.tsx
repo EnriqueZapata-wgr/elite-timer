@@ -28,9 +28,10 @@ export default function IndexRedirect() {
             setOnboardingDone(true);
           } else {
             setOnboardingDone(false);
-            // Redirigir al paso correcto (onboarding v2 — 8 bloques)
+            // Redirigir al paso correcto (onboarding v2 — 9 bloques)
             switch (step) {
-              case 'edad_atp':   setOnboardingRoute('/onboarding/summary'); break;
+              case 'voice_config': setOnboardingRoute('/onboarding/summary'); break;
+              case 'edad_atp':   setOnboardingRoute('/onboarding/voice-config'); break;
               case 'context':    setOnboardingRoute('/onboarding/edad-atp'); break;
               case 'nutrition':  setOnboardingRoute('/onboarding/context'); break;
               case 'health':     setOnboardingRoute('/onboarding/nutrition'); break;
