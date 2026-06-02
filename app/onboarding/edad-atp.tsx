@@ -323,10 +323,10 @@ export default function EdadAtpOnboardingScreen() {
       }).eq('id', user.id);
 
       haptic.success();
-      router.replace('/onboarding/summary' as any);
+      router.replace('/onboarding/voice-config' as any);
     } catch (e) {
       console.warn('Error persisting edad ATP:', e);
-      router.replace('/onboarding/summary' as any);
+      router.replace('/onboarding/voice-config' as any);
     } finally {
       setSaving(false);
     }

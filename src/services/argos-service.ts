@@ -9,6 +9,7 @@ import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/da
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { getHydrationStats } from './hydration-service';
 import { getCycleInfo } from './cycle-service';
+import { VoiceModulator } from '@/src/lib/coach-engine';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1315,7 +1316,11 @@ export async function chatWithArgosEx(
   const contextPrompt = buildContextPrompt(context);
   const cycleGuard = buildCycleGuard(context.gender);
   const protocolGuard = buildProtocolGuard(context.activeProtocol);
-  const systemPrompt = ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + contextPrompt;
+  // Voice config dinámico (Step COACH 4/N). Si el usuario no tiene config aún,
+  // buildVoiceInjection devuelve '' y ARGOS opera con la capa transicional.
+  const voiceConfig = await VoiceModulator.getVoiceConfig(userId);
+  const voiceInjection = VoiceModulator.buildVoiceInjection(voiceConfig);
+  const systemPrompt = ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat' });
@@ -1376,13 +1381,17 @@ export async function generateDailyInsight(userId: string): Promise<string> {
   // conversacional propio, pero la persistencia del prompt en cache puede
   // arrastrar trazas del protocolo viejo — el guard fija el actual.
   const protocolGuard = buildProtocolGuard(context.activeProtocol);
+  // Voice config dinámico (Step COACH 4/N): el insight diario también respeta
+  // idioma/tono/vocabulario del cliente. '' si no tiene config aún.
+  const voiceConfig = await VoiceModulator.getVoiceConfig(userId);
+  const voiceInjection = VoiceModulator.buildVoiceInjection(voiceConfig);
 
   const insightSystem = `Eres ARGOS, IA de salud funcional de ATP. Genera UN insight breve (máximo 2 oraciones) basado en los datos del usuario. Debe ser:
 - Específico (usa los datos reales, no genérico)
 - Accionable (qué puede hacer HOY)
 - Integrativo (conecta 2+ pilares si es posible)
 - Empoderador (no alarmista)
-No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${protocolGuard}${contextPrompt}`;
+No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${protocolGuard}${voiceInjection}${contextPrompt}`;
 
   try {
     const meta = await getArgosCallMetadata({ requestType: 'insight' });

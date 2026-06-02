@@ -83,9 +83,9 @@ export default function OnboardingBasicsScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         {/* Header con progress */}
         <View style={[styles.header, { paddingTop: 16 }]}>
-          <EliteText style={styles.stepText}>PASO 1 DE 8</EliteText>
+          <EliteText style={styles.stepText}>PASO 1 DE 9</EliteText>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: '12.5%' }]} />
+            <View style={[styles.progressFill, { width: '11.11%' }]} />
           </View>
         </View>
 

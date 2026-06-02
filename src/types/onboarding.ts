@@ -12,6 +12,7 @@ export type OnboardingStep =
   | 'nutrition'
   | 'context'
   | 'edad_atp'
+  | 'voice_config'
   | 'completed';
 
 // === Questions ===
