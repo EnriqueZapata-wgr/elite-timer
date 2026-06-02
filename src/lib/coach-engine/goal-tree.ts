@@ -38,8 +38,12 @@ Reglas:
 - Máximo 4 niveles de profundidad.
 - Cada nodo asocia 1 principio del catálogo: fisiologia, biomecanica, mecanismos_biologicos, identidad, proposito, filosofia, estandar, contexto.`;
 
-/** Extrae el bloque JSON de la respuesta del LLM (tolera fences markdown). */
-function extractJson(text: string): string {
+/**
+ * Extrae el bloque JSON de la respuesta del LLM (tolera fences markdown).
+ * Devuelve el substring JSON (string) — el caller hace JSON.parse. Throw si no hay JSON.
+ * Exportada para test pure-logic.
+ */
+export function extractJson(text: string): string {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const candidate = (fenced ? fenced[1] : text).trim();
   const first = candidate.indexOf('{');
@@ -195,19 +199,20 @@ export async function traverseTree(blueprintId: string): Promise<GoalTreeNode> {
   return root;
 }
 
-/** Mapea un progreso 0-100 a semáforo (pure). >=80 verde, >=50 amarillo, <50 rojo. */
+/** Mapea un progreso normalizado 0-1 a semáforo (pure). >=0.8 verde, >=0.5 amarillo, <0.5 rojo. */
 export function progressToTrafficLight(progress: number): TrafficLight {
-  if (progress >= 80) return 'verde';
-  if (progress >= 50) return 'amarillo';
+  if (progress >= 0.8) return 'verde';
+  if (progress >= 0.5) return 'amarillo';
   return 'rojo';
 }
 
 /**
  * Agrega el progreso de un nodo hacia la raíz (Bloque 4). Para nodos hoja, usa
  * el promedio de mediciones de los últimos 7 días; para nodos internos, agrega
- * recursivamente el progreso de sus hijos. Mapea a semáforo.
- * NOTA: trata measurement.value como porcentaje 0-100 (no hay target por nodo
- * en el schema — ver flag COWORK_REPORT).
+ * recursivamente el progreso de sus hijos. El progreso es un ratio normalizado
+ * 0-1 (mapeado a semáforo por progressToTrafficLight).
+ * NOTA: trata measurement.value como porcentaje 0-100 y lo normaliza a 0-1
+ * (no hay target por nodo en el schema — ver flag COWORK_REPORT).
  */
 export async function aggregateUpward(
   nodeId: string,
@@ -236,16 +241,18 @@ export async function aggregateUpward(
       throw new Error(`goal-tree: aggregateUpward measurements failed — ${mErr.message}`);
     }
     const values = (measurements ?? []).map((m: any) => Number(m.value)).filter((v) => !Number.isNaN(v));
-    progress = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+    // value es porcentaje 0-100 → se normaliza a ratio 0-1 para progressToTrafficLight.
+    progress = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length / 100 : 0;
   }
 
   return { nodeId, progress, status: progressToTrafficLight(progress) };
 }
 
-// TEST: progressToTrafficLight(85) === 'verde'
-// TEST: progressToTrafficLight(60) === 'amarillo'
-// TEST: progressToTrafficLight(30) === 'rojo'
-// TEST: extractJson('```json\n{"name":"x","children":[]}\n```') parsea a { name: 'x', children: [] }
+// TEST: progressToTrafficLight(0.9) === 'verde'
+// TEST: progressToTrafficLight(0.6) === 'amarillo'
+// TEST: progressToTrafficLight(0.3) === 'rojo'
+// TEST: JSON.parse(extractJson('```json\n{"a":1}\n```')) → { a: 1 }
+// TEST: extractJson('texto sin JSON') → throw
 // INTEGRATION TEST (LLM, fuera de scope unit): decomposeGoal({ userId, goalText: 'correr un maratón en 6 meses' })
 //   → blueprint + nodos persistidos; falla limpio si el LLM no devuelve JSON.
 // INTEGRATION TEST: traverseTree(blueprintId) reconstruye jerarquía con root level 0
