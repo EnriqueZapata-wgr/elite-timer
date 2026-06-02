@@ -9,7 +9,7 @@ import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/da
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { getHydrationStats } from './hydration-service';
 import { getCycleInfo } from './cycle-service';
-import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, type CoachGateResult } from '@/src/lib/coach-engine';
+import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTag, type CoachGateResult } from '@/src/lib/coach-engine';
 import { error as logError } from '@/src/lib/logger';
 
 // === MODELOS ===
@@ -1369,8 +1369,41 @@ export async function chatWithArgosEx(
   // o `_degraded` (ambos providers fallaron). `_fallback: true` significa que
   // Gemini respondió como fallback — eso NO es degradado, es éxito.
   const degraded = !!(data?._degraded || data?._rate_limited);
-  const text = data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
-  return { text, degraded: degraded || !data?.content?.[0]?.text };
+  const rawText = data?.content?.[0]?.text;
+  const text = rawText || 'Lo siento, no pude procesar tu consulta.';
+
+  // Post-LLM enforcement (Step COACH 7/N): si la respuesta es una recomendación
+  // clínico-colindante SIN nivel de evidencia explícito, anótala (no la modifica).
+  // Solo sobre respuestas reales (no sobre el fallback degradado).
+  let finalText = text;
+  if (rawText) {
+    try {
+      const evidenceCheck = await EvidenceTag.enforceEvidenceTag(rawText);
+      if (!evidenceCheck.valid && containsClinicalRecommendation(rawText)) {
+        finalText =
+          rawText +
+          '\n\n⚠️ _Esta recomendación no tiene nivel de evidencia explícito. Confírmala con tu profesional de salud antes de actuar._';
+      }
+    } catch (err) {
+      logError('[ARGOS] evidence-tag check failed:', err);
+    }
+  }
+
+  return { text: finalText, degraded: degraded || !rawText };
+}
+
+/**
+ * Heurística v1 (Step COACH 7/N): ¿el texto contiene una recomendación
+ * clínico-colindante? Refinar con Mariana — keywords amplias, falsos positivos
+ * esperables (ver flag COWORK_REPORT).
+ */
+function containsClinicalRecommendation(text: string): boolean {
+  const lower = text.toLowerCase();
+  const CLINICAL_KEYWORDS = [
+    'suplementa', 'suplemento', 'toma ', 'dosis', 'mg ', 'glucosa', 'hormona',
+    'medicamento', 'fármaco', 'farmaco', 'protocolo', 'evita comer', 'ayuno', 'ayunar',
+  ];
+  return CLINICAL_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 /**
