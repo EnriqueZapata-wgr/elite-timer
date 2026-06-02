@@ -12,3 +12,5 @@ export * as RedFlagsDetector from './red-flags-detector';
 export * as VoiceModulator from './voice-modulator';
 export * as InsightRouter from './insight-router';
 export * as AuditExplainer from './audit-explainer';
+export { runCoachEngineGate, buildCoachGateInjection } from './gate-orchestrator';
+export type { CoachGateResult } from './gate-orchestrator';

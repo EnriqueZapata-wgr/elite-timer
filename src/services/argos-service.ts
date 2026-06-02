@@ -9,7 +9,9 @@ import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/da
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { getHydrationStats } from './hydration-service';
 import { getCycleInfo } from './cycle-service';
-import { VoiceModulator } from '@/src/lib/coach-engine';
+import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTag, type CoachGateResult } from '@/src/lib/coach-engine';
+import { error as logError } from '@/src/lib/logger';
+import { persistTurnAudit } from './coach-audit-service';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1312,6 +1314,21 @@ export async function chatWithArgosEx(
   messages: ArgosMessage[],
   options?: { model?: string },
 ): Promise<ArgosChatResult> {
+  // Coach-engine gate (Step COACH 7/N): corre ANTES del LLM. Defensa graceful —
+  // si el gate revienta, el chat continúa con un system prompt sin gate.
+  const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+  let gateResult: CoachGateResult | null = null;
+  try {
+    gateResult = await runCoachEngineGate({
+      userId,
+      userMessage: lastUserMessage,
+      conversationId: null, // chatWithArgosEx no recibe conversationId (ver flag COWORK_REPORT)
+      // signal: TODO — el caller podrá pasar señales (HRV/glucosa) en futuras versiones
+    });
+  } catch (err) {
+    logError('[ARGOS] coach-engine gate failed, continuing without:', err);
+  }
+
   const context = await loadUserContext(userId);
   const contextPrompt = buildContextPrompt(context);
   const cycleGuard = buildCycleGuard(context.gender);
@@ -1320,7 +1337,9 @@ export async function chatWithArgosEx(
   // buildVoiceInjection devuelve '' y ARGOS opera con la capa transicional.
   const voiceConfig = await VoiceModulator.getVoiceConfig(userId);
   const voiceInjection = VoiceModulator.buildVoiceInjection(voiceConfig);
-  const systemPrompt = ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection + contextPrompt;
+  const coachGateInjection = gateResult ? buildCoachGateInjection(gateResult) : '';
+  const systemPrompt =
+    ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection + coachGateInjection + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat' });
@@ -1351,8 +1370,48 @@ export async function chatWithArgosEx(
   // o `_degraded` (ambos providers fallaron). `_fallback: true` significa que
   // Gemini respondió como fallback — eso NO es degradado, es éxito.
   const degraded = !!(data?._degraded || data?._rate_limited);
-  const text = data?.content?.[0]?.text || 'Lo siento, no pude procesar tu consulta.';
-  return { text, degraded: degraded || !data?.content?.[0]?.text };
+  const rawText = data?.content?.[0]?.text;
+  const text = rawText || 'Lo siento, no pude procesar tu consulta.';
+
+  // Post-LLM enforcement (Step COACH 7/N): si la respuesta es una recomendación
+  // clínico-colindante SIN nivel de evidencia explícito, anótala (no la modifica).
+  // Solo sobre respuestas reales (no sobre el fallback degradado).
+  let finalText = text;
+  if (rawText) {
+    try {
+      const evidenceCheck = await EvidenceTag.enforceEvidenceTag(rawText);
+      if (!evidenceCheck.valid && containsClinicalRecommendation(rawText)) {
+        finalText =
+          rawText +
+          '\n\n⚠️ _Esta recomendación no tiene nivel de evidencia explícito. Confírmala con tu profesional de salud antes de actuar._';
+      }
+    } catch (err) {
+      logError('[ARGOS] evidence-tag check failed:', err);
+    }
+  }
+
+  // Persistencia de auditoría — fire-and-forget. La respuesta sale ANTES de los
+  // INSERT; si la persistencia falla, log + continúa (no bloquea el chat).
+  // Solo cuando hubo gate y respuesta real (no fallback degradado).
+  if (gateResult && rawText) {
+    void persistTurnAudit(userId, null, gateResult, finalText);
+  }
+
+  return { text: finalText, degraded: degraded || !rawText };
+}
+
+/**
+ * Heurística v1 (Step COACH 7/N): ¿el texto contiene una recomendación
+ * clínico-colindante? Refinar con Mariana — keywords amplias, falsos positivos
+ * esperables (ver flag COWORK_REPORT).
+ */
+function containsClinicalRecommendation(text: string): boolean {
+  const lower = text.toLowerCase();
+  const CLINICAL_KEYWORDS = [
+    'suplementa', 'suplemento', 'toma ', 'dosis', 'mg ', 'glucosa', 'hormona',
+    'medicamento', 'fármaco', 'farmaco', 'protocolo', 'evita comer', 'ayuno', 'ayunar',
+  ];
+  return CLINICAL_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 /**
