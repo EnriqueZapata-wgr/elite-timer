@@ -82,24 +82,34 @@ export function describePrinciple(principle: Principle): string {
 /**
  * Persiste qué principio invocó el coach en una intervención (auditabilidad).
  * Bloque 2 + obligación "audita tu propia decisión".
- * NOTA: la tabla principle_invocations usa (conversation_id, context_text);
- * el `rationale` del spec se persiste como context_text (ver flag COWORK_REPORT).
+ * Tras migración 069 persiste `intervention_log_id` (si el caller lo pasa) y
+ * `rationale` en su columna propia. Mantiene `context_text`/`conversation_id`
+ * como fallback retrocompatible para filas/flujos legacy.
  */
 export async function invokePrinciple(params: {
   userId: string;
-  conversationId?: string | null;
   principle: Principle;
   rationale: string;
-}): Promise<void> {
-  const { error } = await supabase.from('principle_invocations').insert({
-    user_id: params.userId,
-    conversation_id: params.conversationId ?? null,
-    principle: params.principle,
-    context_text: params.rationale,
-  });
+  interventionLogId?: string; // nuevo (069), opcional
+  conversationId?: string; // legacy, fallback
+}): Promise<{ id: string }> {
+  const { data, error } = await supabase
+    .from('principle_invocations')
+    .insert({
+      user_id: params.userId,
+      principle: params.principle,
+      rationale: params.rationale,
+      intervention_log_id: params.interventionLogId ?? null,
+      conversation_id: params.conversationId ?? null,
+      // Fallback retrocompat: si rationale viene vacío, conserva context_text.
+      context_text: params.rationale || null,
+    })
+    .select('id')
+    .single();
   if (error) {
     throw new Error(`principles-map: invokePrinciple failed — ${error.message}`);
   }
+  return data as { id: string };
 }
 
 // TEST: PRINCIPLES_CATALOG.length >= 9 (8 principios + contexto) → es 8 (3 bio + 4 mental + 1 modulador)
@@ -107,4 +117,4 @@ export async function invokePrinciple(params: {
 //   (3 biológicos + 4 mentales + 1 contexto). Ver flag COWORK_REPORT.
 // TEST: describePrinciple('identidad') incluye 'quién cree' y 'permite'
 // TEST: describePrinciple('estandar') incluye 'espera de sí mismo'
-// INTEGRATION TEST: invokePrinciple({ userId, principle: 'fisiologia', rationale: '...' }) inserta en principle_invocations
+// INTEGRATION TEST: invokePrinciple({ userId, principle: 'fisiologia', rationale: '...', interventionLogId }) inserta con FK + rationale

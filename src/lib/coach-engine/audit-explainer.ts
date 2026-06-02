@@ -35,12 +35,12 @@ function safeDescribePrinciple(principle: Principle | null): string {
 
 /**
  * Reconstruye la explicación auditada de una intervención (§7.2.9).
- * Lee intervention_logs por id y compone un AuditExplanation con la pregunta
- * rectora, el semáforo, el nivel de cascada, el principio (+rationale del
- * catálogo) y el freno dominante.
- * NOTA: el schema no tiene columnas signal_description/principle rationale ni
- * FK a principle_invocations; rationale se deriva del catálogo de principios y
- * signalSnapshot queda indefinido (ver flag COWORK_REPORT).
+ * Tras migración 069 hace JOINS reales:
+ *   1. intervention_logs por id (q1/q2/cascada/recomendación).
+ *   2. principle_invocations WHERE intervention_log_id (principio + rationale real).
+ *   3. frenos_log WHERE intervention_log_id (freno dominante real).
+ * Para filas legacy (pre-069, sin FK) cae a los campos inline de intervention_logs
+ * (principle_invoked, brake_detected, audit_explanation) y al catálogo de principios.
  */
 export async function explainIntervention(interventionLogId: string): Promise<AuditExplanation> {
   const { data, error } = await supabase
@@ -53,13 +53,47 @@ export async function explainIntervention(interventionLogId: string): Promise<Au
     throw new Error(`audit-explainer: explainIntervention failed — ${error.message}`);
   }
 
+  // Join real: principio invocado para esta intervención (069).
+  const { data: principleRow, error: pErr } = await supabase
+    .from('principle_invocations')
+    .select('principle, rationale, context_text')
+    .eq('intervention_log_id', interventionLogId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (pErr) {
+    throw new Error(`audit-explainer: explainIntervention principle join failed — ${pErr.message}`);
+  }
+
+  // Join real: freno registrado para esta intervención (069).
+  const { data: brakeRow, error: bErr } = await supabase
+    .from('frenos_log')
+    .select('brake_type')
+    .eq('intervention_log_id', interventionLogId)
+    .order('detected_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (bErr) {
+    throw new Error(`audit-explainer: explainIntervention brake join failed — ${bErr.message}`);
+  }
+
   const q1 = (data.question_1_result as Q1Result | null) ?? null;
   const q2 = (data.question_2_result as TrafficLight | null) ?? null;
   const cascadeLevel = (data.cascade_level as CascadeLevel | null) ?? null;
-  const principleInvoked = (data.principle_invoked as Principle | null) ?? null;
-  const dominantBrake = (data.brake_detected as BrakeType | null) ?? null;
   const recommendation = data.intervention_text ?? '';
-  const principleRationale = data.audit_explanation || safeDescribePrinciple(principleInvoked);
+
+  // Principio: join real primero, fallback al campo inline de intervention_logs.
+  const principleInvoked =
+    (principleRow?.principle as Principle | null) ?? (data.principle_invoked as Principle | null) ?? null;
+  // Rationale: real (069) → audit_explanation inline → context_text legacy → catálogo.
+  const principleRationale =
+    principleRow?.rationale ||
+    data.audit_explanation ||
+    principleRow?.context_text ||
+    safeDescribePrinciple(principleInvoked);
+  // Freno: join real primero, fallback al campo inline.
+  const dominantBrake =
+    (brakeRow?.brake_type as BrakeType | null) ?? (data.brake_detected as BrakeType | null) ?? null;
 
   const summary =
     `Tu pregunta entró como ${q1 ?? 'sin clasificar'} / señal ${q2 ?? 'sin señal'}. ` +

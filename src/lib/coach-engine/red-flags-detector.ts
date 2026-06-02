@@ -67,10 +67,9 @@ export function detectRedFlags(userInput: string): DetectedRedFlag[] {
 
 /**
  * Persiste una bandera roja con acumulación de flag_index (Bloque 11).
- * Si ya existe un flag activo de la misma categoría + evidencia similar (ILIKE),
- * incrementa flag_index y refresca updated_at; si no, inserta uno nuevo.
- * NOTA: el spec menciona signal_description/last_recurrence_at; el schema usa
- * evidence_text/updated_at (ver flag COWORK_REPORT).
+ * Tras migración 069, el match de recurrencia usa `signal_description` (ILIKE) y
+ * cada recurrencia refresca `last_recurrence_at`. En el insert se escribe tanto
+ * `signal_description` como `evidence_text` (retrocompat: mismo valor por ahora).
  */
 export async function persistRedFlag(
   userId: string,
@@ -81,7 +80,7 @@ export async function persistRedFlag(
     .select('id, flag_index, lifecycle_phase')
     .eq('category', flag.category)
     .eq('lifecycle_phase', 'active')
-    .ilike('evidence_text', `%${flag.evidenceText}%`)
+    .ilike('signal_description', `%${flag.evidenceText}%`)
     .limit(1)
     .maybeSingle();
 
@@ -91,9 +90,10 @@ export async function persistRedFlag(
 
   if (existing) {
     const nextIndex = (existing.flag_index ?? 1) + 1;
+    const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('red_flag_events')
-      .update({ flag_index: nextIndex, updated_at: new Date().toISOString() })
+      .update({ flag_index: nextIndex, updated_at: now, last_recurrence_at: now })
       .eq('id', existing.id)
       .select('id, flag_index, lifecycle_phase')
       .single();
@@ -109,6 +109,8 @@ export async function persistRedFlag(
       user_id: userId,
       category: flag.category,
       severity: flag.severity,
+      // Retrocompat: signal_description (069) + evidence_text (068) con el mismo valor.
+      signal_description: flag.evidenceText,
       evidence_text: flag.evidenceText,
       flag_index: 1,
       lifecycle_phase: 'active',
@@ -149,14 +151,23 @@ export function nextLifecyclePhase(
   return currentPhase;
 }
 
+/** Flag activo con metadatos de ciclo de vida (para que el caller calcule recurrencia). */
+export interface ActiveRedFlag extends DetectedRedFlag {
+  id: string;
+  flagIndex: number;
+  lastRecurrenceAt: string | null;
+}
+
 /**
  * Devuelve los flags activos del usuario, ordenados por índice acumulado desc.
  * Bloque 11: cada interacción incluye la mención visible de las banderas activas.
+ * Tras 069 incluye `last_recurrence_at` para que el caller calcule
+ * daysSinceLastRecurrence sin una query extra.
  */
-export async function getActiveFlags(userId: string): Promise<DetectedRedFlag[]> {
+export async function getActiveFlags(userId: string): Promise<ActiveRedFlag[]> {
   const { data, error } = await supabase
     .from('red_flag_events')
-    .select('category, severity, evidence_text')
+    .select('id, category, severity, evidence_text, signal_description, flag_index, last_recurrence_at')
     .eq('user_id', userId)
     .eq('lifecycle_phase', 'active')
     .order('flag_index', { ascending: false });
@@ -165,9 +176,13 @@ export async function getActiveFlags(userId: string): Promise<DetectedRedFlag[]>
     throw new Error(`red-flags-detector: getActiveFlags failed — ${error.message}`);
   }
   return (data ?? []).map((row: any) => ({
+    id: row.id,
     category: row.category,
     severity: row.severity,
-    evidenceText: row.evidence_text ?? '',
+    // signal_description (069) es la fuente preferida; evidence_text (068) es fallback.
+    evidenceText: row.signal_description ?? row.evidence_text ?? '',
+    flagIndex: row.flag_index ?? 1,
+    lastRecurrenceAt: row.last_recurrence_at ?? null,
   }));
 }
 

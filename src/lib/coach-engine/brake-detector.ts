@@ -87,27 +87,33 @@ export function selectDominantBrake(brakes: DetectedBrake[]): DetectedBrake | nu
 /**
  * Persiste el freno (normalmente el dominante) en frenos_log.
  * Bloque 5: documentar el freno detectado para auditabilidad.
- * NOTA: frenos_log no tiene columna intervention_log_id; el parámetro se
- * acepta para forward-compat pero NO se persiste (ver flag COWORK_REPORT).
+ * Tras migración 069 persiste `intervention_log_id` cuando el caller lo pasa,
+ * habilitando el join real en audit-explainer.
  */
-export async function logBrake(
-  userId: string,
-  brake: DetectedBrake,
-  _interventionLogId?: string,
-): Promise<void> {
-  const { error } = await supabase.from('frenos_log').insert({
-    user_id: userId,
-    brake_type: brake.type,
-    is_dominant: true,
-    evidence_text: brake.keywordMatched,
-  });
+export async function logBrake(params: {
+  userId: string;
+  brake: DetectedBrake;
+  interventionLogId?: string;
+}): Promise<{ id: string }> {
+  const { data, error } = await supabase
+    .from('frenos_log')
+    .insert({
+      user_id: params.userId,
+      brake_type: params.brake.type,
+      is_dominant: true,
+      evidence_text: params.brake.keywordMatched,
+      intervention_log_id: params.interventionLogId ?? null,
+    })
+    .select('id')
+    .single();
   if (error) {
     throw new Error(`brake-detector: logBrake failed — ${error.message}`);
   }
+  return data as { id: string };
 }
 
 // TEST: detectBrakes('no sé cómo empezar') incluye un freno tipo 'no_saber'
 // TEST: detectBrakes('estoy agotado y cansado', { energyLow: true }) → 'energia_biologica' dominante (conf ~0.9)
 // TEST: selectDominantBrake([]) === null
 // TEST: selectDominantBrake(detectBrakes('tengo flojera y no sé qué hago')) → tie-break a 'no_saber' (prioridad)
-// INTEGRATION TEST: logBrake(userId, brake) inserta en frenos_log
+// INTEGRATION TEST: logBrake({ userId, brake, interventionLogId }) inserta en frenos_log con FK
