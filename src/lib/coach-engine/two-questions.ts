@@ -43,13 +43,24 @@ export async function evaluateQ1_DoesUserKnow(userId: string): Promise<{
 
 /**
  * Pregunta 2 — ¿La señal afecta la decisión de hoy? (Bloque 7 P2)
- * Clasifica con semáforo: >= red → rojo (cancela/deriva), >= yellow → amarillo
- * (ajusta, no cancela), else verde (sigue el plan). El caller pasa thresholds
- * en el sentido correcto (para señales "menos es peor" como HRV, invierte fuera).
+ * Clasifica con semáforo. Infiere la dirección por el orden de los thresholds:
+ * - "más es peor" (red >= yellow, ej. glucosa): >= red → rojo, >= yellow → amarillo.
+ * - "menos es peor" (red < yellow, ej. HRV): <= red → rojo, <= yellow → amarillo.
+ * El caller pasa thresholds en el sentido correcto y la dirección se deduce sola.
  */
 export function evaluateQ2_TrafficLight(signal: Q2Signal): TrafficLight {
-  if (signal.value >= signal.thresholds.red) return 'rojo';
-  if (signal.value >= signal.thresholds.yellow) return 'amarillo';
+  const { value, thresholds } = signal;
+  const higherIsWorse = thresholds.red >= thresholds.yellow;
+
+  if (higherIsWorse) {
+    if (value >= thresholds.red) return 'rojo';
+    if (value >= thresholds.yellow) return 'amarillo';
+    return 'verde';
+  }
+
+  // "menos es peor" (ej. HRV): valores bajos escalan a amarillo/rojo.
+  if (value <= thresholds.red) return 'rojo';
+  if (value <= thresholds.yellow) return 'amarillo';
   return 'verde';
 }
 
@@ -71,3 +82,4 @@ export async function answerTwoQuestions(
 // TEST: evaluateQ2_TrafficLight({ type: 'glucosa', value: 180, thresholds: { yellow: 140, red: 200 } }) === 'amarillo'
 // TEST: evaluateQ2_TrafficLight({ type: 'glucosa', value: 220, thresholds: { yellow: 140, red: 200 } }) === 'rojo'
 // TEST: evaluateQ2_TrafficLight({ type: 'glucosa', value: 100, thresholds: { yellow: 140, red: 200 } }) === 'verde'
+// TEST: evaluateQ2_TrafficLight({ type: 'hrv', value: 30, thresholds: { yellow: 50, red: 35 } }) === 'rojo' ("menos es peor")
