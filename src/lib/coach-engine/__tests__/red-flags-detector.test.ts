@@ -20,6 +20,12 @@ describe('red-flags-detector — detectRedFlags (heurística)', () => {
   it('cansancio normal → sin banderas', () => {
     expect(detectRedFlags('estoy bien, sólo cansancio normal')).toHaveLength(0);
   });
+
+  it('detecta dolor de pecho con variantes naturales', () => {
+    expect(detectRedFlags('me duele el pecho desde ayer').length).toBeGreaterThan(0);
+    expect(detectRedFlags('siento dolor en el pecho').length).toBeGreaterThan(0);
+    expect(detectRedFlags('tengo dolor torácico').length).toBeGreaterThan(0);
+  });
 });
 
 describe('red-flags-detector — nextLifecyclePhase (pure)', () => {

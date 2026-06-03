@@ -14,52 +14,87 @@ export interface DetectedRedFlag {
   evidenceText: string;
 }
 
-/** Tabla heurística categoría → keywords + severidad base (Bloque 11). Refinable post-Mariana. */
-const RED_FLAG_RULES: { category: RedFlagCategory; severity: RedFlagSeverity; keywords: string[] }[] = [
+/**
+ * Patrones heurísticos categoría → regex flexibles + severidad base (Bloque 11).
+ * Los patrones aceptan variantes naturales ("me duele el pecho", "siento dolor en
+ * el pecho", "dolor torácico"), no solo keywords literales. Refinable post-Mariana.
+ * NOTA: las categorías usan el enum real del schema (sistemica_aguda, etc.).
+ */
+const RED_FLAG_PATTERNS: { category: RedFlagCategory; severity: RedFlagSeverity; patterns: RegExp[] }[] = [
   {
     category: 'sistemica_aguda',
     severity: 'emergencia',
-    keywords: [
-      'fiebre', 'infección', 'infeccion', 'dolor de pecho', 'dolor torácico', 'dolor toracico',
-      'mareo persistente', 'pérdida de conciencia', 'perdida de conciencia',
-      'asimetría facial', 'asimetria facial', 'dolor abdominal agudo',
+    patterns: [
+      /\b(dolor|duele|me\s+duele|siento\s+dolor).{0,15}\b(pecho|tor[aá]cico|t[oó]rax)\b/i,
+      /\bdolor\s+tor[aá]cico\b/i,
+      /\bfiebre\b/i,
+      /\binfecci[oó]n\b/i,
+      /\bp[eé]rdida\s+de\s+conciencia\b/i,
+      /\basimetr[ií]a\s+facial\b/i,
+      /\bdolor\s+abdominal\s+(agudo|fuerte|intenso)\b/i,
+      /\bmareo\s+(persistente|fuerte|s[uú]bito)\b/i,
+      /\bdebilidad\s+(s[uú]bita|generalizada)\b/i,
     ],
   },
   {
     category: 'dolor_alarma',
     severity: 'alta',
-    keywords: ['dolor articular agudo', 'dolor óseo', 'dolor oseo', 'dolor que despierta', 'dolor radicular'],
+    patterns: [
+      /\bdolor\s+(articular|[oó]seo|radicular)\b/i,
+      /\bdolor\s+que\s+(no\s+me\s+deja\s+dormir|me\s+despierta|despierta\s+de\s+noche)\b/i,
+    ],
   },
   {
     category: 'cronico_degenerativa',
     severity: 'media',
-    keywords: ['síntoma recurrente', 'sintoma recurrente', 'no mejora desde hace semanas', 'pérdida funcional', 'perdida funcional'],
+    patterns: [
+      /\bs[ií]ntoma\s+recurrente\b/i,
+      /\bno\s+(mejora|cede)\s+desde\s+hace\s+(semanas|meses)\b/i,
+      /\bp[eé]rdida\s+funcional\s+progresiva\b/i,
+    ],
   },
   {
     category: 'marcador_fisiologico_clinico',
     severity: 'alta',
-    keywords: ['hrv bajo', 'fc reposo elevada', 'amenorrea', 'pérdida de peso no planeada', 'perdida de peso no planeada', 'fatiga sistémica', 'fatiga sistemica'],
+    patterns: [
+      /\bHRV\s+(baj[oa]|cr[oó]nicamente)\b/i,
+      /\bFC\s+(en\s+)?reposo\s+elevada\b/i,
+      /\bamenorrea\b/i,
+      /\bp[eé]rdida\s+de\s+peso\s+(no\s+planeada|sin\s+raz[oó]n|inexplicable)\b/i,
+      /\bfatiga\s+(sist[eé]mica|cr[oó]nica)\b/i,
+    ],
   },
   {
     category: 'salud_mental',
     severity: 'media',
-    keywords: ['apatía persistente', 'apatia persistente', 'no quiero levantarme', 'sin sentido', 'sobreentrenamiento'],
+    patterns: [
+      /\bapat[ií]a\s+persistente\b/i,
+      /\bno\s+quiero\s+(levantarme|hacer\s+nada)\b/i,
+      /\bsin\s+sentido\b/i,
+      /\bsobreentrenamiento\b/i,
+    ],
   },
 ];
 
 /**
  * Detecta banderas rojas en el input del cliente (Bloque 11).
- * Heurística por categoría + keywords; una DetectedRedFlag por categoría con match.
- * evidenceText = primera keyword disparada.
+ * Heurística por categoría + regex flexibles; una DetectedRedFlag por categoría
+ * con match. evidenceText = fragmento que disparó el patrón (máx 200 chars).
  */
 export function detectRedFlags(userInput: string): DetectedRedFlag[] {
-  const haystack = userInput.toLowerCase();
   const detected: DetectedRedFlag[] = [];
 
-  for (const rule of RED_FLAG_RULES) {
-    const match = rule.keywords.find((kw) => haystack.includes(kw));
-    if (match) {
-      detected.push({ category: rule.category, severity: rule.severity, evidenceText: match });
+  for (const rule of RED_FLAG_PATTERNS) {
+    for (const pattern of rule.patterns) {
+      const match = userInput.match(pattern);
+      if (match) {
+        detected.push({
+          category: rule.category,
+          severity: rule.severity,
+          evidenceText: match[0].slice(0, 200),
+        });
+        break; // un match por categoría es suficiente
+      }
     }
   }
   return detected;
