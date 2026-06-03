@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, SlideInRight } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -37,6 +37,11 @@ const TOTAL = VOICE_CONFIG_QUESTIONS.length;
 export default function VoiceConfigOnboardingScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // Step COACH 7.2/N: backfill para founders pre-COACH-4/N (sin fila en
+  // coach_voice_config). En este modo NO se regresa el onboarding_step
+  // (ya está 'completed') y al terminar se vuelve a HOY, no al summary.
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  const isBackfill = mode === 'backfill';
 
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -69,14 +74,20 @@ export default function VoiceConfigOnboardingScreen() {
       const config = computeVoiceConfigFromAnswers(finalAnswers);
       await saveVoiceConfig(user.id, config);
       await clearBlockProgress(user.id);
-      await completeStep(user.id, 'voice_config');
+      // En backfill NO llamamos completeStep: el founder ya tiene
+      // onboarding_step='completed' y completeStep('voice_config') lo regresaría
+      // (UPDATE onboarding_step='voice_config') → quedaría atrapado en el summary.
+      if (!isBackfill) {
+        await completeStep(user.id, 'voice_config');
+      }
       haptic.success();
     } catch (e) {
       console.warn('Error saving voice config:', e);
     } finally {
-      router.replace('/onboarding/summary' as any);
+      // Backfill → directo a HOY; onboarding normal → siguiente paso (summary).
+      router.replace((isBackfill ? '/(tabs)' : '/onboarding/summary') as any);
     }
-  }, [user?.id, router]);
+  }, [user?.id, router, isBackfill]);
 
   const handleOptionSelect = useCallback((optionId: string) => {
     const q = VOICE_CONFIG_QUESTIONS[currentQ];
@@ -138,6 +149,11 @@ export default function VoiceConfigOnboardingScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View key={animKey} entering={SlideInRight.duration(250).springify()}>
+          {isBackfill && currentQ === 0 && (
+            <EliteText style={s.backfillBanner}>
+              Tu coach necesita conocerte mejor — 16 preguntas rápidas (3-5 min).
+            </EliteText>
+          )}
           <EliteText style={s.questionText}>{q.text}</EliteText>
 
           {q.helperText && (
@@ -212,6 +228,13 @@ const s = StyleSheet.create({
   questionScroll: {
     paddingHorizontal: Spacing.md,
     paddingTop: 24,
+  },
+  backfillBanner: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.semiBold,
+    color: ATP_BRAND.lime,
+    lineHeight: 18,
+    marginBottom: Spacing.md,
   },
   questionText: {
     fontSize: 22,
