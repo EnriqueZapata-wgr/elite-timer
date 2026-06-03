@@ -1312,17 +1312,18 @@ function buildProtocolGuard(activeProtocol?: string): string {
 export async function chatWithArgosEx(
   userId: string,
   messages: ArgosMessage[],
-  options?: { model?: string },
+  options?: { model?: string; conversationId?: string | null },
 ): Promise<ArgosChatResult> {
   // Coach-engine gate (Step COACH 7/N): corre ANTES del LLM. Defensa graceful —
   // si el gate revienta, el chat continúa con un system prompt sin gate.
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+  const conversationId = options?.conversationId ?? null;
   let gateResult: CoachGateResult | null = null;
   try {
     gateResult = await runCoachEngineGate({
       userId,
       userMessage: lastUserMessage,
-      conversationId: null, // chatWithArgosEx no recibe conversationId (ver flag COWORK_REPORT)
+      conversationId,
       // signal: TODO — el caller podrá pasar señales (HRV/glucosa) en futuras versiones
     });
   } catch (err) {
@@ -1394,7 +1395,7 @@ export async function chatWithArgosEx(
   // INSERT; si la persistencia falla, log + continúa (no bloquea el chat).
   // Solo cuando hubo gate y respuesta real (no fallback degradado).
   if (gateResult && rawText) {
-    void persistTurnAudit(userId, null, gateResult, finalText);
+    void persistTurnAudit(userId, conversationId, gateResult, finalText);
   }
 
   return { text: finalText, degraded: degraded || !rawText };
