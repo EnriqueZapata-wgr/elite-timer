@@ -10,6 +10,7 @@ import { evaluateQ1_DoesUserKnow, evaluateQ2_TrafficLight, type Q1Result, type Q
 import { selectCascadeLevel } from './cascade';
 import { detectBrakes, selectDominantBrake, type DetectedBrake } from './brake-detector';
 import { detectRedFlags, type DetectedRedFlag } from './red-flags-detector';
+import { warn as logWarn } from '@/src/lib/logger';
 
 export interface CoachGateResult {
   q1: Q1Result;
@@ -71,11 +72,23 @@ export async function runCoachEngineGate(params: {
   signal?: Q2Signal;
 }): Promise<CoachGateResult> {
   // Q1 — ¿el cliente sabe? Si no hay voice_config, evaluateQ1 lanza → default no_sabe.
+  // Instrumentamos el fallback para que la causa de un no_sabe sea diagnosticable
+  // (bug 7.1 #2): distinguir "config ausente" de "valores por debajo del umbral".
   let q1: Q1Result = 'no_sabe';
   try {
     const r = await evaluateQ1_DoesUserKnow(params.userId);
     q1 = r.result;
-  } catch {
+    if (r.result === 'no_sabe') {
+      logWarn(
+        `[coach-gate] q1=no_sabe con voice_config presente (experience=${r.experienceLevel}, ` +
+          `self_assessment=${r.selfAssessmentCapacity}); el umbral exige ambos >= 7.`,
+      );
+    }
+  } catch (err) {
+    // Causa típica: el usuario (founder temprano) no tiene fila en coach_voice_config
+    // porque completó el onboarding antes de que existiera el paso de voz (COACH 4/N).
+    // El default conservador 'no_sabe' es correcto; lo dejamos visible para diagnóstico.
+    logWarn('[coach-gate] q1=no_sabe — voice_config ausente para el usuario; default conservador.', err);
     q1 = 'no_sabe';
   }
 
