@@ -19,31 +19,54 @@ export default function IndexRedirect() {
   const [onboardingRoute, setOnboardingRoute] = useState<string | null>(null);
 
   useEffect(() => {
-    if (session?.user?.id && !loading) {
-      setCheckingOnboarding(true);
-      supabase.from('profiles').select('onboarding_step').eq('id', session.user.id).single()
-        .then(({ data }) => {
-          const step = data?.onboarding_step;
-          if (step === 'completed') {
-            setOnboardingDone(true);
-          } else {
+    if (!session?.user?.id || loading) return;
+    const userId = session.user.id;
+    setCheckingOnboarding(true);
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('onboarding_step')
+          .eq('id', userId)
+          .single();
+        const step = data?.onboarding_step;
+        if (step === 'completed') {
+          // Backfill (Step COACH 7.2/N): founders que terminaron onboarding ANTES
+          // del paso de voz (COACH 4/N) no tienen fila en coach_voice_config.
+          // Si falta, redirigir al paso de voz en modo backfill (vuelve a HOY, no al summary).
+          const { data: voiceConfig } = await supabase
+            .from('coach_voice_config')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+          if (!voiceConfig) {
             setOnboardingDone(false);
-            // Redirigir al paso correcto (onboarding v2 — 9 bloques)
-            switch (step) {
-              case 'voice_config': setOnboardingRoute('/onboarding/summary'); break;
-              case 'edad_atp':   setOnboardingRoute('/onboarding/voice-config'); break;
-              case 'context':    setOnboardingRoute('/onboarding/edad-atp'); break;
-              case 'nutrition':  setOnboardingRoute('/onboarding/context'); break;
-              case 'health':     setOnboardingRoute('/onboarding/nutrition'); break;
-              case 'chronotype': setOnboardingRoute('/onboarding/health'); break;
-              case 'goal':       setOnboardingRoute('/onboarding/chronotype'); break;
-              case 'basics':     setOnboardingRoute('/onboarding/goal'); break;
-              default:           setOnboardingRoute('/onboarding-basics'); break;
-            }
+            setOnboardingRoute('/onboarding/voice-config?mode=backfill');
+          } else {
+            setOnboardingDone(true);
           }
-          setCheckingOnboarding(false);
-        }, () => { setOnboardingDone(true); setCheckingOnboarding(false); });
-    }
+        } else {
+          setOnboardingDone(false);
+          // Redirigir al paso correcto (onboarding v2 — 9 bloques)
+          switch (step) {
+            case 'voice_config': setOnboardingRoute('/onboarding/summary'); break;
+            case 'edad_atp':   setOnboardingRoute('/onboarding/voice-config'); break;
+            case 'context':    setOnboardingRoute('/onboarding/edad-atp'); break;
+            case 'nutrition':  setOnboardingRoute('/onboarding/context'); break;
+            case 'health':     setOnboardingRoute('/onboarding/nutrition'); break;
+            case 'chronotype': setOnboardingRoute('/onboarding/health'); break;
+            case 'goal':       setOnboardingRoute('/onboarding/chronotype'); break;
+            case 'basics':     setOnboardingRoute('/onboarding/goal'); break;
+            default:           setOnboardingRoute('/onboarding-basics'); break;
+          }
+        }
+      } catch {
+        // Error de query → degradar a tabs (mismo comportamiento previo).
+        setOnboardingDone(true);
+      } finally {
+        setCheckingOnboarding(false);
+      }
+    })();
   }, [session?.user?.id, loading]);
 
   if (loading || checkingOnboarding) {
