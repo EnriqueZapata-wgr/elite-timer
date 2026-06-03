@@ -599,6 +599,22 @@ export default function SettingsScreen() {
           <Divider />
         </Animated.View>
 
+        {/* ── DEV Tools ── (visible para founders/team; condicionar a no-prod cuando exista el flag) */}
+        <Animated.View entering={FadeInUp.delay(1025).springify()}>
+          <SectionLabel color={Colors.textSecondary}>DEV</SectionLabel>
+          <Pressable onPress={() => { haptic.medium(); router.push('/dev' as any); }} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="construct-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>DEV Tools</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Herramientas internas de validación</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
+          <Divider />
+        </Animated.View>
+
         {/* ── Cuenta ── */}
         <Animated.View entering={FadeInUp.delay(1050).springify()}>
           <SectionLabel color={Colors.error}>CUENTA</SectionLabel>

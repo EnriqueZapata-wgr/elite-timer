@@ -6,8 +6,8 @@
 import { supabase } from '@/src/lib/supabase';
 import type { EvidenceLevel } from './types';
 
-/** Patrón canónico de etiqueta de evidencia: "[Nivel N]" (N = 1..5). */
-const EVIDENCE_TAG_REGEX = /\[Nivel\s+([1-5])\]/i;
+/** Etiqueta de evidencia: "[Nivel N]" o "Nivel N" sin corchetes (N = 1..5). */
+const EVIDENCE_TAG_REGEX = /\[?Nivel\s+([1-5])\]?/i;
 
 /** Entrada del catálogo curado de evidencia (tabla evidence_catalog, sin RLS de owner). */
 export interface EvidenceCatalogEntry {

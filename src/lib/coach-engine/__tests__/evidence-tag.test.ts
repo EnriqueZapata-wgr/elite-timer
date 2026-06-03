@@ -37,4 +37,12 @@ describe('evidence-tag (pure)', () => {
   it('enforceEvidenceTag valida cuando hay tag', async () => {
     await expect(enforceEvidenceTag('[Nivel 1] sólida')).resolves.toEqual({ valid: true });
   });
+
+  it('detecta Nivel N sin corchetes (tabla markdown)', () => {
+    expect(hasEvidenceTag('| Intervención | Nivel 3 |')).toBe(true);
+  });
+
+  it('extractEvidenceLevel sin corchetes', () => {
+    expect(extractEvidenceLevel('Nivel 2 — evidencia moderada')).toBe(2);
+  });
 });

@@ -14,6 +14,9 @@ vi.mock('@/src/lib/supabase', () => ({
   },
 }));
 
+// El gate importa logger (→ @sentry/react-native). Mock para entorno node.
+vi.mock('@/src/lib/logger', () => ({ warn: vi.fn(), error: vi.fn(), log: vi.fn() }));
+
 import { runCoachEngineGate, buildCoachGateInjection, type CoachGateResult } from '../gate-orchestrator';
 
 describe('gate-orchestrator — runCoachEngineGate (supabase mock null config)', () => {

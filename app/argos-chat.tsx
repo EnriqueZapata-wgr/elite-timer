@@ -117,7 +117,7 @@ export default function ArgosChat() {
     let finalMessages: ArgosMessage[] | null = null;
     let wasDegraded = false;
     try {
-      const result = await chatWithArgosEx(userId, cleanForLLM);
+      const result = await chatWithArgosEx(userId, cleanForLLM, { conversationId });
       wasDegraded = result.degraded;
 
       const assistantTurn: ArgosMessage = wasDegraded
