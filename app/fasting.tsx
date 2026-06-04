@@ -12,7 +12,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../src/lib/supabase';
 import { getLocalToday, toLocalDateString } from '../src/utils/date-helpers';
@@ -20,6 +19,24 @@ import { warn as logWarn } from '../src/lib/logger';
 import { awardBooleanElectron } from '../src/services/electron-service';
 import { getFastingTier } from '../src/constants/electrons';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
+
+// Presets rápidos para los wheel pickers (reemplazan mode="datetime").
+const START_PRESETS = [
+  { label: 'Hace 12h', getDate: () => new Date(Date.now() - 12 * 60 * 60 * 1000) },
+  { label: 'Hace 16h', getDate: () => new Date(Date.now() - 16 * 60 * 60 * 1000) },
+  { label: 'Hace 24h', getDate: () => new Date(Date.now() - 24 * 60 * 60 * 1000) },
+];
+const PAST_END_PRESETS = [
+  { label: 'Ahora', getDate: () => new Date() },
+  { label: 'Hace 1h', getDate: () => new Date(Date.now() - 60 * 60 * 1000) },
+];
+const BREAK_END_PRESETS = [
+  { label: 'Ahora', getDate: () => new Date() },
+  { label: 'Hace 30m', getDate: () => new Date(Date.now() - 30 * 60 * 1000) },
+  { label: 'Hace 1h', getDate: () => new Date(Date.now() - 60 * 60 * 1000) },
+  { label: 'Hace 2h', getDate: () => new Date(Date.now() - 2 * 60 * 60 * 1000) },
+];
 
 // Decisión de producto: el ayuno máximo en ATP es 120 horas. Protocolos
 // funcionales no proponen ayunos más largos; ayunos mayores requieren
@@ -130,9 +147,12 @@ export default function FastingScreen() {
   const [elapsed, setElapsed] = useState(0); // minutos
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Custom start/end time pickers
-  const [showStartPicker, setShowStartPicker] = useState(false);
+  // Custom start time (IDLE): customStartSet = usar hora custom al iniciar;
+  // startWheelOpen = modal del wheel picker abierto.
+  const [customStartSet, setCustomStartSet] = useState(false);
+  const [startWheelOpen, setStartWheelOpen] = useState(false);
   const [customStartTime, setCustomStartTime] = useState(new Date());
+  // Break-fast end picker: showEndPicker = modal del wheel abierto.
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [customEndTime, setCustomEndTime] = useState(new Date());
 
@@ -141,6 +161,7 @@ export default function FastingScreen() {
   const [pastStart, setPastStart] = useState(new Date(Date.now() - 16 * 60 * 60 * 1000));
   const [pastEnd, setPastEnd] = useState(new Date());
   const [pastPickerMode, setPastPickerMode] = useState<'start' | 'end'>('start');
+  const [pastWheelOpen, setPastWheelOpen] = useState(false); // modal del wheel para ayuno pasado
 
   useEffect(() => {
     (async () => {
@@ -389,7 +410,7 @@ export default function FastingScreen() {
       return;
     }
 
-    const startTime = showStartPicker ? customStartTime : new Date();
+    const startTime = customStartSet ? customStartTime : new Date();
     const dateStr = getLocalToday();
     const { data, error } = await supabase.from('fasting_logs').insert({
       user_id: userId,
@@ -405,7 +426,7 @@ export default function FastingScreen() {
       return;
     }
     setActiveFast(data);
-    setShowStartPicker(false);
+    setCustomStartSet(false);
     DeviceEventEmitter.emit('day_changed');
   }
 
@@ -707,7 +728,7 @@ export default function FastingScreen() {
               {/* Toggle start/end */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 <Pressable
-                  onPress={() => setPastPickerMode('start')}
+                  onPress={() => { setPastPickerMode('start'); setPastWheelOpen(true); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
                     backgroundColor: pastPickerMode === 'start' ? 'rgba(168,224,42,0.15)' : '#111',
@@ -720,7 +741,7 @@ export default function FastingScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => setPastPickerMode('end')}
+                  onPress={() => { setPastPickerMode('end'); setPastWheelOpen(true); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
                     backgroundColor: pastPickerMode === 'end' ? 'rgba(168,224,42,0.15)' : '#111',
@@ -734,20 +755,22 @@ export default function FastingScreen() {
                 </Pressable>
               </View>
 
-              <DateTimePicker
-                value={pastPickerMode === 'start' ? pastStart : pastEnd}
-                mode="datetime"
-                display="spinner"
-                onChange={(_, date) => {
-                  if (date) {
-                    if (pastPickerMode === 'start') setPastStart(date);
-                    else setPastEnd(date);
-                  }
+              <Text style={{ color: '#555', fontSize: 11, textAlign: 'center', marginBottom: 4 }}>
+                Toca INICIO o FIN para ajustar la fecha y hora.
+              </Text>
+
+              <TimeWheelPicker
+                visible={pastWheelOpen}
+                initialValue={pastPickerMode === 'start' ? pastStart : pastEnd}
+                maxDate={new Date()}
+                title={pastPickerMode === 'start' ? 'Inicio del ayuno' : 'Fin del ayuno'}
+                presets={pastPickerMode === 'start' ? START_PRESETS : PAST_END_PRESETS}
+                onConfirm={(date) => {
+                  if (pastPickerMode === 'start') setPastStart(date);
+                  else setPastEnd(date);
+                  setPastWheelOpen(false);
                 }}
-                maximumDate={new Date()}
-                themeVariant="dark"
-                textColor="#fff"
-                style={{ height: 150 }}
+                onCancel={() => setPastWheelOpen(false)}
               />
 
               {/* Duración calculada */}
@@ -920,43 +943,18 @@ export default function FastingScreen() {
             </Pressable>
           )}
 
-          {/* Picker de hora de fin */}
-          {showEndPicker && (
-            <View style={{
-              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 12, width: '100%',
-              borderWidth: 1, borderColor: 'rgba(168,224,42,0.15)',
-            }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
-                ¿CUÁNDO TERMINASTE?
-              </Text>
-              <DateTimePicker
-                value={customEndTime}
-                mode="datetime"
-                display="spinner"
-                onChange={(_, date) => { if (date) setCustomEndTime(date); }}
-                // AY-3: undefined si fast_start es inválido — evita que el picker se congele.
-                minimumDate={safeDate(activeFast.fast_start) ?? undefined}
-                maximumDate={new Date()}
-                themeVariant="dark"
-                textColor="#fff"
-                style={{ height: 150 }}
-              />
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                <Pressable
-                  onPress={() => setShowEndPicker(false)}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: '#111', borderWidth: 1, borderColor: '#1a1a1a' }}
-                >
-                  <Text style={{ color: '#999', fontSize: 14 }}>Cancelar</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => breakFastWithTime(customEndTime)}
-                  style={{ flex: 1, backgroundColor: '#a8e02a', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}
-                >
-                  <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>CONFIRMAR</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
+          {/* Picker de hora de fin (wheel modal — reemplaza mode="datetime") */}
+          <TimeWheelPicker
+            visible={showEndPicker}
+            initialValue={customEndTime}
+            // AY-3: undefined si fast_start es inválido — evita que el picker se congele.
+            minDate={safeDate(activeFast.fast_start) ?? undefined}
+            maxDate={new Date()}
+            title="¿Cuándo terminaste?"
+            presets={BREAK_END_PRESETS}
+            onConfirm={(date) => { setShowEndPicker(false); breakFastWithTime(date); }}
+            onCancel={() => setShowEndPicker(false)}
+          />
 
           <Pressable onPress={cancelFast}>
             <Text style={{ color: '#666', fontSize: 13 }}>Cancelar y eliminar</Text>
@@ -1087,39 +1085,33 @@ export default function FastingScreen() {
             </Text>
           </Pressable>
 
-          {/* ¿Empezaste antes? */}
+          {/* ¿Empezaste antes? (wheel modal — reemplaza mode="datetime") */}
           <Pressable
-            onPress={() => { setCustomStartTime(new Date()); setShowStartPicker(!showStartPicker); }}
+            onPress={() => { setCustomStartTime(customStartSet ? customStartTime : new Date()); setStartWheelOpen(true); }}
             style={{ alignItems: 'center', marginTop: 12 }}
           >
-            <Text style={{ color: '#666', fontSize: 13 }}>
-              {showStartPicker ? 'Usar hora actual' : '¿Empezaste antes? Elige la hora'}
+            <Text style={{ color: customStartSet ? selectedProtocol.color : '#666', fontSize: 13, fontWeight: customStartSet ? '600' : '400' }}>
+              {customStartSet
+                ? `Empezaste hace ${formatDuration((Date.now() - customStartTime.getTime()) / (1000 * 60))} · cambiar`
+                : '¿Empezaste antes? Elige la hora'}
             </Text>
           </Pressable>
 
-          {showStartPicker && (
-            <View style={{
-              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginTop: 12, width: '100%',
-              borderWidth: 1, borderColor: `${selectedProtocol.color}15`,
-            }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
-                ¿CUÁNDO EMPEZASTE?
-              </Text>
-              <DateTimePicker
-                value={customStartTime}
-                mode="datetime"
-                display="spinner"
-                onChange={(_, date) => { if (date) setCustomStartTime(date); }}
-                maximumDate={new Date()}
-                themeVariant="dark"
-                textColor="#fff"
-                style={{ height: 150 }}
-              />
-              <Text style={{ color: selectedProtocol.color, fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>
-                Hace {formatDuration((Date.now() - customStartTime.getTime()) / (1000 * 60))}
-              </Text>
-            </View>
+          {customStartSet && (
+            <Pressable onPress={() => setCustomStartSet(false)} style={{ alignItems: 'center', marginTop: 6 }}>
+              <Text style={{ color: '#666', fontSize: 12 }}>Usar hora actual</Text>
+            </Pressable>
           )}
+
+          <TimeWheelPicker
+            visible={startWheelOpen}
+            initialValue={customStartTime}
+            maxDate={new Date()}
+            title="¿Cuándo empezaste?"
+            presets={START_PRESETS}
+            onConfirm={(date) => { setCustomStartTime(date); setCustomStartSet(true); setStartWheelOpen(false); }}
+            onCancel={() => setStartWheelOpen(false)}
+          />
 
           {/* Historial rápido */}
           {history.length > 0 && (
