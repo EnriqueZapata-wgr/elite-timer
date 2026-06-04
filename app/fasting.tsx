@@ -14,10 +14,10 @@ import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../src/lib/supabase';
-import { getLocalToday, toLocalDateString } from '../src/utils/date-helpers';
 import { warn as logWarn } from '../src/lib/logger';
 import { awardBooleanElectron } from '../src/services/electron-service';
 import { getFastingTier } from '../src/constants/electrons';
+import * as fastingService from '../src/services/fasting-service';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 
@@ -243,16 +243,9 @@ export default function FastingScreen() {
   async function autoCloseAtLimit(start: Date) {
     if (!activeFast) return;
     const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
-    const { error } = await supabase
-      .from('fasting_logs')
-      .update({
-        status: 'completed',
-        actual_hours: MAX_FAST_HOURS,
-        fast_end: fastEnd.toISOString(),
-      })
-      .eq('id', activeFast.id);
-    if (error) {
-      logWarn('Live auto-close at limit failed:', error.message);
+    const result = await fastingService.autoCloseAtLimit({ fastId: activeFast.id, hours: MAX_FAST_HOURS, fastEnd });
+    if (!result.ok) {
+      logWarn('Live auto-close at limit failed:', result.message);
       // No limpiar estado: dejar al usuario reintentar manualmente.
       autoCloseTriggeredRef.current = false;
       return;
@@ -278,20 +271,7 @@ export default function FastingScreen() {
   }
 
   async function loadActiveFast() {
-    const { data, error } = await supabase
-      .from('fasting_logs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .order('fast_start', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      logWarn('loadActiveFast error:', error.message);
-      setActiveFast(null);
-      return;
-    }
+    const data = await fastingService.getActiveFast(userId);
 
     // Reemplaza AY-6: alineado al límite duro de 120h.
     // - fast_start inválido/nulo → ayuno corrupto → cancelar.
@@ -301,31 +281,22 @@ export default function FastingScreen() {
     if (data) {
       const start = safeDate(data.fast_start);
       if (!start) {
-        const { error: cancelError } = await supabase
-          .from('fasting_logs')
-          .update({ status: 'cancelled' })
-          .eq('id', data.id);
-        if (cancelError) logWarn('Auto-cancel invalid-start fast failed:', cancelError.message);
+        const r = await fastingService.cancelActiveFast(data.id);
+        if (!r.ok) logWarn('Auto-cancel invalid-start fast failed:', r.message);
         setActiveFast(null);
         return;
       }
       const hoursElapsed = (Date.now() - start.getTime()) / (1000 * 60 * 60);
       if (!isFinite(hoursElapsed)) {
-        const { error: cancelError } = await supabase
-          .from('fasting_logs')
-          .update({ status: 'cancelled' })
-          .eq('id', data.id);
-        if (cancelError) logWarn('Auto-cancel non-finite fast failed:', cancelError.message);
+        const r = await fastingService.cancelActiveFast(data.id);
+        if (!r.ok) logWarn('Auto-cancel non-finite fast failed:', r.message);
         setActiveFast(null);
         return;
       }
       if (hoursElapsed > FAST_CORRUPT_THRESHOLD_HOURS) {
         // > 144h: olvidado, no es un ayuno real.
-        const { error: cancelError } = await supabase
-          .from('fasting_logs')
-          .update({ status: 'cancelled' })
-          .eq('id', data.id);
-        if (cancelError) logWarn('Auto-cancel forgotten fast failed:', cancelError.message);
+        const r = await fastingService.cancelActiveFast(data.id);
+        if (!r.ok) logWarn('Auto-cancel forgotten fast failed:', r.message);
         setActiveFast(null);
         Alert.alert('Ayuno limpiado', 'Encontramos un ayuno sin cerrar y lo limpiamos.');
         return;
@@ -333,16 +304,9 @@ export default function FastingScreen() {
       if (hoursElapsed >= MAX_FAST_HOURS) {
         // 120h ≤ duración ≤ 144h: cerrar como completado a 120h exactas.
         const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
-        const { error: closeError } = await supabase
-          .from('fasting_logs')
-          .update({
-            status: 'completed',
-            actual_hours: MAX_FAST_HOURS,
-            fast_end: fastEnd.toISOString(),
-          })
-          .eq('id', data.id);
-        if (closeError) {
-          logWarn('Auto-close at limit failed:', closeError.message);
+        const closeResult = await fastingService.autoCloseAtLimit({ fastId: data.id, hours: MAX_FAST_HOURS, fastEnd });
+        if (!closeResult.ok) {
+          logWarn('Auto-close at limit failed:', closeResult.message);
         } else {
           // Electrón por tier de ayuno
           try {
@@ -372,19 +336,8 @@ export default function FastingScreen() {
   }
 
   async function loadHistory() {
-    const { data, error } = await supabase
-      .from('fasting_logs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'completed')
-      .order('fast_start', { ascending: false })
-      .limit(20);
-    if (error) {
-      logWarn('loadHistory error:', error.message);
-      setHistory([]);
-      return;
-    }
-    setHistory(data || []);
+    const data = await fastingService.loadHistory(userId);
+    setHistory(data);
   }
 
   async function startFast() {
@@ -392,18 +345,8 @@ export default function FastingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     // AY-8: bloquear si ya hay un ayuno activo (evita huérfanos duplicados).
-    const { data: existing, error: existingError } = await supabase
-      .from('fasting_logs')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .limit(1);
-    if (existingError) {
-      Alert.alert('Error', 'No se pudo verificar tu estado de ayuno. Intenta de nuevo.');
-      logWarn('startFast pre-check error:', existingError.message);
-      return;
-    }
-    if (existing && existing.length > 0) {
+    const existing = await fastingService.getActiveFast(userId);
+    if (existing) {
       Alert.alert('Ayuno activo', 'Ya tienes un ayuno en curso. Termínalo o cancélalo antes de iniciar uno nuevo.');
       // Recargar para que la UI muestre el ayuno activo en vez del IDLE.
       loadActiveFast();
@@ -411,21 +354,16 @@ export default function FastingScreen() {
     }
 
     const startTime = customStartSet ? customStartTime : new Date();
-    const dateStr = getLocalToday();
-    const { data, error } = await supabase.from('fasting_logs').insert({
-      user_id: userId,
-      fast_start: startTime.toISOString(),
-      target_hours: selectedProtocol.hours,
-      status: 'active',
-      date: dateStr,
-    }).select().single();
-
-    if (error || !data) {
+    const result = await fastingService.startFast({
+      userId,
+      targetHours: selectedProtocol.hours,
+      startTime,
+    });
+    if (!result.ok) {
       Alert.alert('Error', 'No se pudo iniciar el ayuno. Intenta de nuevo.');
-      logWarn('startFast insert error:', error?.message);
       return;
     }
-    setActiveFast(data);
+    setActiveFast(result.data);
     setCustomStartSet(false);
     DeviceEventEmitter.emit('day_changed');
   }
@@ -437,7 +375,7 @@ export default function FastingScreen() {
     const start = safeDate(activeFast.fast_start);
     if (!start) {
       Alert.alert('Ayuno inválido', 'Este ayuno tiene una hora de inicio corrupta. Vamos a cancelarlo.');
-      await supabase.from('fasting_logs').update({ status: 'cancelled' }).eq('id', activeFast.id);
+      await fastingService.cancelActiveFast(activeFast.id);
       setActiveFast(null);
       setElapsed(0);
       setShowEndPicker(false);
@@ -451,32 +389,21 @@ export default function FastingScreen() {
       return;
     }
 
-    // AY-5: verificar que el update tuvo éxito antes de limpiar el estado local.
-    // F16.13: añadimos `.select('id')` — sin él, RLS / row-not-found / network
-    // 200-but-0-rows pasan como `error: null` y el estado local se limpia
-    // dejando la fila en 'active' en DB (siguiente focus la rescata → Paty
-    // "atrapada 90h").
-    const { data: updatedRows, error: updateError } = await supabase
-      .from('fasting_logs')
-      .update({
-        actual_hours: Math.round(actualHours * 10) / 10,
-        fast_end: endTime.toISOString(),
-        status: 'completed',
-      })
-      .eq('id', activeFast.id)
-      .select('id');
-
-    if (updateError) {
-      Alert.alert('Error', 'No se pudo registrar el cierre del ayuno. Inténtalo de nuevo.');
-      logWarn('breakFastWithTime update error:', updateError.message);
-      return; // CRITICAL: no limpiar estado — el ayuno sigue activo para reintentar.
-    }
-    if (!updatedRows || updatedRows.length === 0) {
+    // AY-5 / F16.13: el servicio verifica filas (.select()). Un UPDATE que
+    // devuelve 0 filas (RLS / row-not-found / 200-but-0-rows) → ok:false →
+    // NO limpiamos estado local (evita el bug "Paty atrapada 90h").
+    const result = await fastingService.breakFast({
+      fastId: activeFast.id,
+      endTime,
+      actualHours,
+    });
+    if (!result.ok) {
       Alert.alert(
         'No se pudo cerrar el ayuno',
-        'El registro no se actualizó. Revisa tu conexión e intenta de nuevo. Si persiste, cierra y abre la app.',
+        result.reason === 'no_rows'
+          ? 'El registro no se actualizó. Revisa tu conexión e intenta de nuevo. Si persiste, cierra y abre la app.'
+          : 'No se pudo registrar el cierre del ayuno. Inténtalo de nuevo.',
       );
-      logWarn('breakFastWithTime: 0 rows affected', activeFast.id);
       return; // CRITICAL: no limpiar estado, no premiar electrón.
     }
 
@@ -530,20 +457,17 @@ export default function FastingScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    // AY-9: fecha local (regla #3) en vez de UTC.
-    const { error } = await supabase.from('fasting_logs').insert({
-      user_id: userId,
-      fast_start: pastStart.toISOString(),
-      fast_end: pastEnd.toISOString(),
-      actual_hours: Math.round(hours * 10) / 10,
-      target_hours: selectedProtocol.hours,
-      status: 'completed',
-      date: toLocalDateString(pastStart),
+    // AY-9: fecha local (regla #3) — el servicio usa toLocalDateString(start).
+    const result = await fastingService.savePastFast({
+      userId,
+      start: pastStart,
+      end: pastEnd,
+      targetHours: selectedProtocol.hours,
+      actualHours: hours,
     });
 
-    if (error) {
+    if (!result.ok) {
       Alert.alert('Error', 'No se pudo guardar el ayuno. Intenta de nuevo.');
-      logWarn('savePastFast insert error:', error.message);
       return;
     }
 
@@ -571,17 +495,21 @@ export default function FastingScreen() {
         style: 'destructive',
         onPress: async () => {
           const cancelledId = activeFast.id;
-          const { error } = await supabase.from('fasting_logs').delete().eq('id', cancelledId);
-          if (error) {
-            Alert.alert('Error', 'No se pudo cancelar el ayuno. Intenta de nuevo.');
-            logWarn('cancelFast delete error:', error.message);
-            return;
+          const result = await fastingService.cancelActiveFast(cancelledId);
+          if (!result.ok) {
+            Alert.alert(
+              'No se pudo cancelar',
+              result.reason === 'no_rows' ? 'La fila no se encontró. Cierra y abre la app.' : 'No se pudo cancelar el ayuno. Intenta de nuevo.',
+            );
+            return; // NO limpiar estado si falló.
           }
           if (cancelledId) {
             AsyncStorage.removeItem(milestoneStorageKey(cancelledId)).catch(() => {});
           }
           setActiveFast(null);
           setElapsed(0);
+          DeviceEventEmitter.emit('day_changed');
+          DeviceEventEmitter.emit('electrons_changed');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
       },
@@ -595,13 +523,16 @@ export default function FastingScreen() {
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase.from('fasting_logs').delete().eq('id', id);
-          if (error) {
-            Alert.alert('Error', 'No se pudo eliminar el registro. Intenta de nuevo.');
-            logWarn('deleteFast error:', error.message);
+          const result = await fastingService.deleteFast(id);
+          if (!result.ok) {
+            Alert.alert(
+              'No se pudo eliminar',
+              result.reason === 'no_rows' ? 'El registro no se encontró.' : 'No se pudo eliminar el registro. Intenta de nuevo.',
+            );
             return;
           }
           loadHistory();
+          DeviceEventEmitter.emit('day_changed');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
       },
