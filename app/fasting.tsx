@@ -38,6 +38,17 @@ const BREAK_END_PRESETS = [
   { label: 'Hace 2h', getDate: () => new Date(Date.now() - 2 * 60 * 60 * 1000) },
 ];
 
+/** Mapea el reason de un MutationResult fallido a copy en español para el usuario. */
+function fastErrorCopy(reason: fastingService.MutationReason): string {
+  switch (reason) {
+    case 'no_rows': return 'La fila no se encontró. Cierra y abre la app.';
+    case 'constraint': return 'Hay un registro en conflicto. Revisa tu historial de ayunos.';
+    case 'rls': return 'No tienes permiso para esta operación. Vuelve a iniciar sesión.';
+    case 'network': return 'Problema de conexión. Revisa tu internet e intenta de nuevo.';
+    default: return 'Ocurrió un error. Intenta de nuevo.';
+  }
+}
+
 // Decisión de producto: el ayuno máximo en ATP es 120 horas. Protocolos
 // funcionales no proponen ayunos más largos; ayunos mayores requieren
 // supervisión médica.
@@ -398,12 +409,7 @@ export default function FastingScreen() {
       actualHours,
     });
     if (!result.ok) {
-      Alert.alert(
-        'No se pudo cerrar el ayuno',
-        result.reason === 'no_rows'
-          ? 'El registro no se actualizó. Revisa tu conexión e intenta de nuevo. Si persiste, cierra y abre la app.'
-          : 'No se pudo registrar el cierre del ayuno. Inténtalo de nuevo.',
-      );
+      Alert.alert('No se pudo cerrar el ayuno', fastErrorCopy(result.reason));
       return; // CRITICAL: no limpiar estado, no premiar electrón.
     }
 
@@ -497,10 +503,7 @@ export default function FastingScreen() {
           const cancelledId = activeFast.id;
           const result = await fastingService.cancelActiveFast(cancelledId);
           if (!result.ok) {
-            Alert.alert(
-              'No se pudo cancelar',
-              result.reason === 'no_rows' ? 'La fila no se encontró. Cierra y abre la app.' : 'No se pudo cancelar el ayuno. Intenta de nuevo.',
-            );
+            Alert.alert('No se pudo cancelar', fastErrorCopy(result.reason));
             return; // NO limpiar estado si falló.
           }
           if (cancelledId) {
@@ -525,10 +528,7 @@ export default function FastingScreen() {
         onPress: async () => {
           const result = await fastingService.deleteFast(id);
           if (!result.ok) {
-            Alert.alert(
-              'No se pudo eliminar',
-              result.reason === 'no_rows' ? 'El registro no se encontró.' : 'No se pudo eliminar el registro. Intenta de nuevo.',
-            );
+            Alert.alert('No se pudo eliminar', fastErrorCopy(result.reason));
             return;
           }
           loadHistory();
