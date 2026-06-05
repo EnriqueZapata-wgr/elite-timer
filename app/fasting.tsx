@@ -293,21 +293,34 @@ export default function FastingScreen() {
       const start = safeDate(data.fast_start);
       if (!start) {
         const r = await fastingService.cancelActiveFast(data.id);
-        if (!r.ok) logWarn('Auto-cancel invalid-start fast failed:', r.message);
+        if (!r.ok) {
+          // No se pudo limpiar en DB → mantener el estado para reintentar (no perder la fila).
+          logWarn('Auto-cancel invalid-start fast failed:', r.message);
+          setActiveFast(data);
+          return;
+        }
         setActiveFast(null);
         return;
       }
       const hoursElapsed = (Date.now() - start.getTime()) / (1000 * 60 * 60);
       if (!isFinite(hoursElapsed)) {
         const r = await fastingService.cancelActiveFast(data.id);
-        if (!r.ok) logWarn('Auto-cancel non-finite fast failed:', r.message);
+        if (!r.ok) {
+          logWarn('Auto-cancel non-finite fast failed:', r.message);
+          setActiveFast(data);
+          return;
+        }
         setActiveFast(null);
         return;
       }
       if (hoursElapsed > FAST_CORRUPT_THRESHOLD_HOURS) {
         // > 144h: olvidado, no es un ayuno real.
         const r = await fastingService.cancelActiveFast(data.id);
-        if (!r.ok) logWarn('Auto-cancel forgotten fast failed:', r.message);
+        if (!r.ok) {
+          logWarn('Auto-cancel forgotten fast failed:', r.message);
+          setActiveFast(data);
+          return;
+        }
         setActiveFast(null);
         Alert.alert('Ayuno limpiado', 'Encontramos un ayuno sin cerrar y lo limpiamos.');
         return;
@@ -317,22 +330,24 @@ export default function FastingScreen() {
         const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
         const closeResult = await fastingService.autoCloseAtLimit({ fastId: data.id, hours: MAX_FAST_HOURS, fastEnd });
         if (!closeResult.ok) {
+          // Cierre falló → mantener el ayuno activo visible para reintentar (no perderlo).
           logWarn('Auto-close at limit failed:', closeResult.message);
-        } else {
-          // Electrón por tier de ayuno
-          try {
-            const tier = getFastingTier(MAX_FAST_HOURS);
-            if (tier) {
-              await awardBooleanElectron(userId, tier);
-              DeviceEventEmitter.emit('electrons_changed');
-            }
-          } catch { /* opcional */ }
-          DeviceEventEmitter.emit('day_changed');
-          Alert.alert(
-            'Límite de 120h alcanzado',
-            'Tu ayuno alcanzó el límite de 120h y se cerró automáticamente.'
-          );
+          setActiveFast(data);
+          return;
         }
+        // Electrón por tier de ayuno
+        try {
+          const tier = getFastingTier(MAX_FAST_HOURS);
+          if (tier) {
+            await awardBooleanElectron(userId, tier);
+            DeviceEventEmitter.emit('electrons_changed');
+          }
+        } catch { /* opcional */ }
+        DeviceEventEmitter.emit('day_changed');
+        Alert.alert(
+          'Límite de 120h alcanzado',
+          'Tu ayuno alcanzó el límite de 120h y se cerró automáticamente.'
+        );
         setActiveFast(null);
         loadHistory();
         return;
