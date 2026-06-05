@@ -454,6 +454,21 @@ export default function FastingScreen() {
     );
   }
 
+  // Efectos secundarios de un savePastFast exitoso (electrón + refresh + cleanup).
+  async function finalizePastFastSuccess(hours: number) {
+    try {
+      const tier = getFastingTier(hours);
+      if (tier) {
+        await awardBooleanElectron(userId, tier);
+        DeviceEventEmitter.emit('electrons_changed');
+      }
+    } catch { /* opcional */ }
+    setShowPastFast(false);
+    loadHistory();
+    DeviceEventEmitter.emit('day_changed');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
   async function savePastFast() {
     const hours = (pastEnd.getTime() - pastStart.getTime()) / (1000 * 60 * 60);
     // AY-4: validar contra NaN además de <=0.
@@ -464,32 +479,50 @@ export default function FastingScreen() {
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     // AY-9: fecha local (regla #3) — el servicio usa toLocalDateString(start).
-    const result = await fastingService.savePastFast({
+    const doSave = () => fastingService.savePastFast({
       userId,
       start: pastStart,
       end: pastEnd,
       targetHours: selectedProtocol.hours,
       actualHours: hours,
     });
+    const result = await doSave();
 
-    if (!result.ok) {
-      Alert.alert('Error', 'No se pudo guardar el ayuno. Intenta de nuevo.');
+    // UNIQUE violation (23505): un registro en conflicto. Ofrecer reemplazar.
+    // Post-070 el viejo UNIQUE(user_id,date) ya no existe; el partial unique es
+    // sobre status='active' y savePastFast inserta 'completed', así que este path
+    // es defensivo (rara vez se dispara). Ver flag COWORK_REPORT.
+    if (!result.ok && result.reason === 'constraint') {
+      Alert.alert(
+        'Ya hay un registro',
+        'Ya tienes un ayuno que se solapa con ese rango. ¿Reemplazarlo?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Reemplazar',
+            onPress: async () => {
+              // Primero cancela el ayuno activo (si lo hay), luego reintenta.
+              const active = await fastingService.getActiveFast(userId);
+              if (active) await fastingService.cancelActiveFast(active.id);
+              const retry = await doSave();
+              if (!retry.ok) {
+                Alert.alert('Error', fastErrorCopy(retry.reason));
+                return;
+              }
+              await finalizePastFastSuccess(hours);
+            },
+          },
+        ],
+      );
       return;
     }
 
-    // Electrón por tier
-    try {
-      const tier = getFastingTier(hours);
-      if (tier) {
-        await awardBooleanElectron(userId, tier);
-        DeviceEventEmitter.emit('electrons_changed');
-      }
-    } catch { /* opcional */ }
+    if (!result.ok) {
+      Alert.alert('Error', fastErrorCopy(result.reason));
+      return;
+    }
 
-    setShowPastFast(false);
-    loadHistory();
-    DeviceEventEmitter.emit('day_changed');
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await finalizePastFastSuccess(hours);
   }
 
   async function cancelFast() {
