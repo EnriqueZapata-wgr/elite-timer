@@ -245,49 +245,9 @@ export async function getHydrationForUser(userId: string, date: string): Promise
 }
 
 // === FASTING ===
-
-export async function startFast(targetHours = 16): Promise<FastingLog> {
-  const userId = await getUserId();
-  const d = getLocalToday();
-  const { data, error } = await supabase.from('fasting_logs')
-    .upsert({ user_id: userId, date: d, fast_start: new Date().toISOString(), target_hours: targetHours, status: 'active' },
-      { onConflict: 'user_id,date' }).select('*').single();
-  if (error) throw error;
-  return data;
-}
-
-export async function endFast(broke_fast_with?: string, energy_during?: number): Promise<FastingLog> {
-  const userId = await getUserId();
-  const d = getLocalToday();
-  const { data: log } = await supabase.from('fasting_logs').select('*')
-    .eq('user_id', userId).eq('date', d).eq('status', 'active').single();
-  if (!log) throw new Error('No hay ayuno activo');
-
-  const actual_hours = log.fast_start
-    ? Math.round(((Date.now() - new Date(log.fast_start).getTime()) / 3600000) * 10) / 10
-    : 0;
-
-  const { data, error } = await supabase.from('fasting_logs')
-    .update({ fast_end: new Date().toISOString(), actual_hours, broke_fast_with, energy_during, status: 'completed' })
-    .eq('id', log.id).select('*').single();
-  if (error) throw error;
-  return data;
-}
-
-export async function getActiveFast(): Promise<FastingLog | null> {
-  const userId = await getUserId();
-  const { data } = await supabase.from('fasting_logs').select('*')
-    .eq('user_id', userId).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single();
-  return data;
-}
-
-export async function getTodayFast(): Promise<FastingLog | null> {
-  const userId = await getUserId();
-  const d = getLocalToday();
-  const { data } = await supabase.from('fasting_logs').select('*')
-    .eq('user_id', userId).eq('date', d).single();
-  return data;
-}
+// Step AYUNO REWRITE: startFast/endFast/getActiveFast/getTodayFast se eliminaron
+// (sin consumers). Toda la lógica de ayuno vive ahora en
+// `src/services/fasting-service.ts`. getFastingLogsRange se re-exporta abajo.
 
 // === DAILY SCORE ===
 
@@ -447,11 +407,9 @@ export async function getDailyScoresRange(userId: string, startDate: string, end
   return data ?? [];
 }
 
-export async function getFastingLogsRange(userId: string, startDate: string, endDate: string): Promise<FastingLog[]> {
-  const { data } = await supabase.from('fasting_logs').select('*')
-    .eq('user_id', userId).gte('date', startDate).lte('date', endDate).order('date');
-  return data ?? [];
-}
+// Step AYUNO REWRITE: implementación movida a fasting-service. Re-export para
+// no romper el import existente en src/screens/coach/ClientDetailScreen.tsx.
+export { getFastingLogsRange } from './fasting-service';
 
 export async function updateFoodLog(logId: string, updates: Partial<FoodLog>): Promise<void> {
   const { error } = await supabase.from('food_logs').update(updates).eq('id', logId);

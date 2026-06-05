@@ -12,14 +12,43 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../src/lib/supabase';
-import { getLocalToday, toLocalDateString } from '../src/utils/date-helpers';
 import { warn as logWarn } from '../src/lib/logger';
 import { awardBooleanElectron } from '../src/services/electron-service';
 import { getFastingTier } from '../src/constants/electrons';
+import * as fastingService from '../src/services/fasting-service';
+import { useAnalytics, ATP_EVENTS } from '../src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
+
+// Presets rápidos para los wheel pickers (reemplazan mode="datetime").
+const START_PRESETS = [
+  { label: 'Hace 12h', getDate: () => new Date(Date.now() - 12 * 60 * 60 * 1000) },
+  { label: 'Hace 16h', getDate: () => new Date(Date.now() - 16 * 60 * 60 * 1000) },
+  { label: 'Hace 24h', getDate: () => new Date(Date.now() - 24 * 60 * 60 * 1000) },
+];
+const PAST_END_PRESETS = [
+  { label: 'Ahora', getDate: () => new Date() },
+  { label: 'Hace 1h', getDate: () => new Date(Date.now() - 60 * 60 * 1000) },
+];
+const BREAK_END_PRESETS = [
+  { label: 'Ahora', getDate: () => new Date() },
+  { label: 'Hace 30m', getDate: () => new Date(Date.now() - 30 * 60 * 1000) },
+  { label: 'Hace 1h', getDate: () => new Date(Date.now() - 60 * 60 * 1000) },
+  { label: 'Hace 2h', getDate: () => new Date(Date.now() - 2 * 60 * 60 * 1000) },
+];
+
+/** Mapea el reason de un MutationResult fallido a copy en español para el usuario. */
+function fastErrorCopy(reason: fastingService.MutationReason): string {
+  switch (reason) {
+    case 'no_rows': return 'La fila no se encontró. Cierra y abre la app.';
+    case 'constraint': return 'Hay un registro en conflicto. Revisa tu historial de ayunos.';
+    case 'rls': return 'No tienes permiso para esta operación. Vuelve a iniciar sesión.';
+    case 'network': return 'Problema de conexión. Revisa tu internet e intenta de nuevo.';
+    default: return 'Ocurrió un error. Intenta de nuevo.';
+  }
+}
 
 // Decisión de producto: el ayuno máximo en ATP es 120 horas. Protocolos
 // funcionales no proponen ayunos más largos; ayunos mayores requieren
@@ -121,6 +150,7 @@ function safeDate(value: unknown): Date | null {
 
 export default function FastingScreen() {
   const insets = useSafeAreaInsets();
+  const analytics = useAnalytics();
   const [userId, setUserId] = useState('');
   const [activeFast, setActiveFast] = useState<any>(null);
   const [selectedProtocol, setSelectedProtocol] = useState(FASTING_PROTOCOLS[2]); // 16:8
@@ -130,9 +160,12 @@ export default function FastingScreen() {
   const [elapsed, setElapsed] = useState(0); // minutos
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Custom start/end time pickers
-  const [showStartPicker, setShowStartPicker] = useState(false);
+  // Custom start time (IDLE): customStartSet = usar hora custom al iniciar;
+  // startWheelOpen = modal del wheel picker abierto.
+  const [customStartSet, setCustomStartSet] = useState(false);
+  const [startWheelOpen, setStartWheelOpen] = useState(false);
   const [customStartTime, setCustomStartTime] = useState(new Date());
+  // Break-fast end picker: showEndPicker = modal del wheel abierto.
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [customEndTime, setCustomEndTime] = useState(new Date());
 
@@ -141,6 +174,7 @@ export default function FastingScreen() {
   const [pastStart, setPastStart] = useState(new Date(Date.now() - 16 * 60 * 60 * 1000));
   const [pastEnd, setPastEnd] = useState(new Date());
   const [pastPickerMode, setPastPickerMode] = useState<'start' | 'end'>('start');
+  const [pastWheelOpen, setPastWheelOpen] = useState(false); // modal del wheel para ayuno pasado
 
   useEffect(() => {
     (async () => {
@@ -222,16 +256,9 @@ export default function FastingScreen() {
   async function autoCloseAtLimit(start: Date) {
     if (!activeFast) return;
     const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
-    const { error } = await supabase
-      .from('fasting_logs')
-      .update({
-        status: 'completed',
-        actual_hours: MAX_FAST_HOURS,
-        fast_end: fastEnd.toISOString(),
-      })
-      .eq('id', activeFast.id);
-    if (error) {
-      logWarn('Live auto-close at limit failed:', error.message);
+    const result = await fastingService.autoCloseAtLimit({ fastId: activeFast.id, hours: MAX_FAST_HOURS, fastEnd });
+    if (!result.ok) {
+      logWarn('Live auto-close at limit failed:', result.message);
       // No limpiar estado: dejar al usuario reintentar manualmente.
       autoCloseTriggeredRef.current = false;
       return;
@@ -257,20 +284,7 @@ export default function FastingScreen() {
   }
 
   async function loadActiveFast() {
-    const { data, error } = await supabase
-      .from('fasting_logs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .order('fast_start', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      logWarn('loadActiveFast error:', error.message);
-      setActiveFast(null);
-      return;
-    }
+    const data = await fastingService.getActiveFast(userId);
 
     // Reemplaza AY-6: alineado al límite duro de 120h.
     // - fast_start inválido/nulo → ayuno corrupto → cancelar.
@@ -280,31 +294,35 @@ export default function FastingScreen() {
     if (data) {
       const start = safeDate(data.fast_start);
       if (!start) {
-        const { error: cancelError } = await supabase
-          .from('fasting_logs')
-          .update({ status: 'cancelled' })
-          .eq('id', data.id);
-        if (cancelError) logWarn('Auto-cancel invalid-start fast failed:', cancelError.message);
+        const r = await fastingService.cancelActiveFast(data.id);
+        if (!r.ok) {
+          // No se pudo limpiar en DB → mantener el estado para reintentar (no perder la fila).
+          logWarn('Auto-cancel invalid-start fast failed:', r.message);
+          setActiveFast(data);
+          return;
+        }
         setActiveFast(null);
         return;
       }
       const hoursElapsed = (Date.now() - start.getTime()) / (1000 * 60 * 60);
       if (!isFinite(hoursElapsed)) {
-        const { error: cancelError } = await supabase
-          .from('fasting_logs')
-          .update({ status: 'cancelled' })
-          .eq('id', data.id);
-        if (cancelError) logWarn('Auto-cancel non-finite fast failed:', cancelError.message);
+        const r = await fastingService.cancelActiveFast(data.id);
+        if (!r.ok) {
+          logWarn('Auto-cancel non-finite fast failed:', r.message);
+          setActiveFast(data);
+          return;
+        }
         setActiveFast(null);
         return;
       }
       if (hoursElapsed > FAST_CORRUPT_THRESHOLD_HOURS) {
         // > 144h: olvidado, no es un ayuno real.
-        const { error: cancelError } = await supabase
-          .from('fasting_logs')
-          .update({ status: 'cancelled' })
-          .eq('id', data.id);
-        if (cancelError) logWarn('Auto-cancel forgotten fast failed:', cancelError.message);
+        const r = await fastingService.cancelActiveFast(data.id);
+        if (!r.ok) {
+          logWarn('Auto-cancel forgotten fast failed:', r.message);
+          setActiveFast(data);
+          return;
+        }
         setActiveFast(null);
         Alert.alert('Ayuno limpiado', 'Encontramos un ayuno sin cerrar y lo limpiamos.');
         return;
@@ -312,31 +330,26 @@ export default function FastingScreen() {
       if (hoursElapsed >= MAX_FAST_HOURS) {
         // 120h ≤ duración ≤ 144h: cerrar como completado a 120h exactas.
         const fastEnd = new Date(start.getTime() + MAX_FAST_HOURS * 60 * 60 * 1000);
-        const { error: closeError } = await supabase
-          .from('fasting_logs')
-          .update({
-            status: 'completed',
-            actual_hours: MAX_FAST_HOURS,
-            fast_end: fastEnd.toISOString(),
-          })
-          .eq('id', data.id);
-        if (closeError) {
-          logWarn('Auto-close at limit failed:', closeError.message);
-        } else {
-          // Electrón por tier de ayuno
-          try {
-            const tier = getFastingTier(MAX_FAST_HOURS);
-            if (tier) {
-              await awardBooleanElectron(userId, tier);
-              DeviceEventEmitter.emit('electrons_changed');
-            }
-          } catch { /* opcional */ }
-          DeviceEventEmitter.emit('day_changed');
-          Alert.alert(
-            'Límite de 120h alcanzado',
-            'Tu ayuno alcanzó el límite de 120h y se cerró automáticamente.'
-          );
+        const closeResult = await fastingService.autoCloseAtLimit({ fastId: data.id, hours: MAX_FAST_HOURS, fastEnd });
+        if (!closeResult.ok) {
+          // Cierre falló → mantener el ayuno activo visible para reintentar (no perderlo).
+          logWarn('Auto-close at limit failed:', closeResult.message);
+          setActiveFast(data);
+          return;
         }
+        // Electrón por tier de ayuno
+        try {
+          const tier = getFastingTier(MAX_FAST_HOURS);
+          if (tier) {
+            await awardBooleanElectron(userId, tier);
+            DeviceEventEmitter.emit('electrons_changed');
+          }
+        } catch { /* opcional */ }
+        DeviceEventEmitter.emit('day_changed');
+        Alert.alert(
+          'Límite de 120h alcanzado',
+          'Tu ayuno alcanzó el límite de 120h y se cerró automáticamente.'
+        );
         setActiveFast(null);
         loadHistory();
         return;
@@ -351,19 +364,8 @@ export default function FastingScreen() {
   }
 
   async function loadHistory() {
-    const { data, error } = await supabase
-      .from('fasting_logs')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('status', 'completed')
-      .order('fast_start', { ascending: false })
-      .limit(20);
-    if (error) {
-      logWarn('loadHistory error:', error.message);
-      setHistory([]);
-      return;
-    }
-    setHistory(data || []);
+    const data = await fastingService.loadHistory(userId);
+    setHistory(data);
   }
 
   async function startFast() {
@@ -371,41 +373,29 @@ export default function FastingScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     // AY-8: bloquear si ya hay un ayuno activo (evita huérfanos duplicados).
-    const { data: existing, error: existingError } = await supabase
-      .from('fasting_logs')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .limit(1);
-    if (existingError) {
-      Alert.alert('Error', 'No se pudo verificar tu estado de ayuno. Intenta de nuevo.');
-      logWarn('startFast pre-check error:', existingError.message);
-      return;
-    }
-    if (existing && existing.length > 0) {
+    const existing = await fastingService.getActiveFast(userId);
+    if (existing) {
       Alert.alert('Ayuno activo', 'Ya tienes un ayuno en curso. Termínalo o cancélalo antes de iniciar uno nuevo.');
       // Recargar para que la UI muestre el ayuno activo en vez del IDLE.
       loadActiveFast();
       return;
     }
 
-    const startTime = showStartPicker ? customStartTime : new Date();
-    const dateStr = getLocalToday();
-    const { data, error } = await supabase.from('fasting_logs').insert({
-      user_id: userId,
-      fast_start: startTime.toISOString(),
-      target_hours: selectedProtocol.hours,
-      status: 'active',
-      date: dateStr,
-    }).select().single();
-
-    if (error || !data) {
+    const startTime = customStartSet ? customStartTime : new Date();
+    analytics.track(ATP_EVENTS.FAST_START_ATTEMPTED, { targetHours: selectedProtocol.hours, customStart: customStartSet });
+    const result = await fastingService.startFast({
+      userId,
+      targetHours: selectedProtocol.hours,
+      startTime,
+    });
+    if (!result.ok) {
+      analytics.track(ATP_EVENTS.FAST_START_FAILED, { reason: result.reason });
       Alert.alert('Error', 'No se pudo iniciar el ayuno. Intenta de nuevo.');
-      logWarn('startFast insert error:', error?.message);
       return;
     }
-    setActiveFast(data);
-    setShowStartPicker(false);
+    analytics.track(ATP_EVENTS.FAST_START_SUCCEEDED, { targetHours: selectedProtocol.hours });
+    setActiveFast(result.data);
+    setCustomStartSet(false);
     DeviceEventEmitter.emit('day_changed');
   }
 
@@ -416,7 +406,7 @@ export default function FastingScreen() {
     const start = safeDate(activeFast.fast_start);
     if (!start) {
       Alert.alert('Ayuno inválido', 'Este ayuno tiene una hora de inicio corrupta. Vamos a cancelarlo.');
-      await supabase.from('fasting_logs').update({ status: 'cancelled' }).eq('id', activeFast.id);
+      await fastingService.cancelActiveFast(activeFast.id);
       setActiveFast(null);
       setElapsed(0);
       setShowEndPicker(false);
@@ -430,34 +420,21 @@ export default function FastingScreen() {
       return;
     }
 
-    // AY-5: verificar que el update tuvo éxito antes de limpiar el estado local.
-    // F16.13: añadimos `.select('id')` — sin él, RLS / row-not-found / network
-    // 200-but-0-rows pasan como `error: null` y el estado local se limpia
-    // dejando la fila en 'active' en DB (siguiente focus la rescata → Paty
-    // "atrapada 90h").
-    const { data: updatedRows, error: updateError } = await supabase
-      .from('fasting_logs')
-      .update({
-        actual_hours: Math.round(actualHours * 10) / 10,
-        fast_end: endTime.toISOString(),
-        status: 'completed',
-      })
-      .eq('id', activeFast.id)
-      .select('id');
-
-    if (updateError) {
-      Alert.alert('Error', 'No se pudo registrar el cierre del ayuno. Inténtalo de nuevo.');
-      logWarn('breakFastWithTime update error:', updateError.message);
-      return; // CRITICAL: no limpiar estado — el ayuno sigue activo para reintentar.
-    }
-    if (!updatedRows || updatedRows.length === 0) {
-      Alert.alert(
-        'No se pudo cerrar el ayuno',
-        'El registro no se actualizó. Revisa tu conexión e intenta de nuevo. Si persiste, cierra y abre la app.',
-      );
-      logWarn('breakFastWithTime: 0 rows affected', activeFast.id);
+    // AY-5 / F16.13: el servicio verifica filas (.select()). Un UPDATE que
+    // devuelve 0 filas (RLS / row-not-found / 200-but-0-rows) → ok:false →
+    // NO limpiamos estado local (evita el bug "Paty atrapada 90h").
+    analytics.track(ATP_EVENTS.FAST_BREAK_ATTEMPTED, { fastId: activeFast.id });
+    const result = await fastingService.breakFast({
+      fastId: activeFast.id,
+      endTime,
+      actualHours,
+    });
+    if (!result.ok) {
+      analytics.track(ATP_EVENTS.FAST_BREAK_FAILED, { reason: result.reason });
+      Alert.alert('No se pudo cerrar el ayuno', fastErrorCopy(result.reason));
       return; // CRITICAL: no limpiar estado, no premiar electrón.
     }
+    analytics.track(ATP_EVENTS.FAST_BREAK_SUCCEEDED, { durationHours: Math.round(actualHours * 10) / 10 });
 
     // Electrón por tier de ayuno
     try {
@@ -500,6 +477,21 @@ export default function FastingScreen() {
     );
   }
 
+  // Efectos secundarios de un savePastFast exitoso (electrón + refresh + cleanup).
+  async function finalizePastFastSuccess(hours: number) {
+    try {
+      const tier = getFastingTier(hours);
+      if (tier) {
+        await awardBooleanElectron(userId, tier);
+        DeviceEventEmitter.emit('electrons_changed');
+      }
+    } catch { /* opcional */ }
+    setShowPastFast(false);
+    loadHistory();
+    DeviceEventEmitter.emit('day_changed');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
   async function savePastFast() {
     const hours = (pastEnd.getTime() - pastStart.getTime()) / (1000 * 60 * 60);
     // AY-4: validar contra NaN además de <=0.
@@ -509,36 +501,51 @@ export default function FastingScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    // AY-9: fecha local (regla #3) en vez de UTC.
-    const { error } = await supabase.from('fasting_logs').insert({
-      user_id: userId,
-      fast_start: pastStart.toISOString(),
-      fast_end: pastEnd.toISOString(),
-      actual_hours: Math.round(hours * 10) / 10,
-      target_hours: selectedProtocol.hours,
-      status: 'completed',
-      date: toLocalDateString(pastStart),
+    // AY-9: fecha local (regla #3) — el servicio usa toLocalDateString(start).
+    const doSave = () => fastingService.savePastFast({
+      userId,
+      start: pastStart,
+      end: pastEnd,
+      targetHours: selectedProtocol.hours,
+      actualHours: hours,
     });
+    const result = await doSave();
 
-    if (error) {
-      Alert.alert('Error', 'No se pudo guardar el ayuno. Intenta de nuevo.');
-      logWarn('savePastFast insert error:', error.message);
+    // UNIQUE violation (23505): un registro en conflicto. Ofrecer reemplazar.
+    // Post-070 el viejo UNIQUE(user_id,date) ya no existe; el partial unique es
+    // sobre status='active' y savePastFast inserta 'completed', así que este path
+    // es defensivo (rara vez se dispara). Ver flag COWORK_REPORT.
+    if (!result.ok && result.reason === 'constraint') {
+      Alert.alert(
+        'Ya hay un registro',
+        'Ya tienes un ayuno que se solapa con ese rango. ¿Reemplazarlo?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Reemplazar',
+            onPress: async () => {
+              // Primero cancela el ayuno activo (si lo hay), luego reintenta.
+              const active = await fastingService.getActiveFast(userId);
+              if (active) await fastingService.cancelActiveFast(active.id);
+              const retry = await doSave();
+              if (!retry.ok) {
+                Alert.alert('Error', fastErrorCopy(retry.reason));
+                return;
+              }
+              await finalizePastFastSuccess(hours);
+            },
+          },
+        ],
+      );
       return;
     }
 
-    // Electrón por tier
-    try {
-      const tier = getFastingTier(hours);
-      if (tier) {
-        await awardBooleanElectron(userId, tier);
-        DeviceEventEmitter.emit('electrons_changed');
-      }
-    } catch { /* opcional */ }
+    if (!result.ok) {
+      Alert.alert('Error', fastErrorCopy(result.reason));
+      return;
+    }
 
-    setShowPastFast(false);
-    loadHistory();
-    DeviceEventEmitter.emit('day_changed');
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await finalizePastFastSuccess(hours);
   }
 
   async function cancelFast() {
@@ -550,17 +557,21 @@ export default function FastingScreen() {
         style: 'destructive',
         onPress: async () => {
           const cancelledId = activeFast.id;
-          const { error } = await supabase.from('fasting_logs').delete().eq('id', cancelledId);
-          if (error) {
-            Alert.alert('Error', 'No se pudo cancelar el ayuno. Intenta de nuevo.');
-            logWarn('cancelFast delete error:', error.message);
-            return;
+          analytics.track(ATP_EVENTS.FAST_CANCEL_ATTEMPTED, { fastId: cancelledId });
+          const result = await fastingService.cancelActiveFast(cancelledId);
+          if (!result.ok) {
+            analytics.track(ATP_EVENTS.FAST_CANCEL_FAILED, { reason: result.reason });
+            Alert.alert('No se pudo cancelar', fastErrorCopy(result.reason));
+            return; // NO limpiar estado si falló.
           }
+          analytics.track(ATP_EVENTS.FAST_CANCEL_SUCCEEDED, { fastId: cancelledId });
           if (cancelledId) {
             AsyncStorage.removeItem(milestoneStorageKey(cancelledId)).catch(() => {});
           }
           setActiveFast(null);
           setElapsed(0);
+          DeviceEventEmitter.emit('day_changed');
+          DeviceEventEmitter.emit('electrons_changed');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
       },
@@ -574,13 +585,16 @@ export default function FastingScreen() {
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
-          const { error } = await supabase.from('fasting_logs').delete().eq('id', id);
-          if (error) {
-            Alert.alert('Error', 'No se pudo eliminar el registro. Intenta de nuevo.');
-            logWarn('deleteFast error:', error.message);
+          analytics.track(ATP_EVENTS.FAST_DELETE_ATTEMPTED, { fastId: id });
+          const result = await fastingService.deleteFast(id);
+          if (!result.ok) {
+            analytics.track(ATP_EVENTS.FAST_DELETE_FAILED, { reason: result.reason });
+            Alert.alert('No se pudo eliminar', fastErrorCopy(result.reason));
             return;
           }
+          analytics.track(ATP_EVENTS.FAST_DELETE_SUCCEEDED, { fastId: id });
           loadHistory();
+          DeviceEventEmitter.emit('day_changed');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },
       },
@@ -707,7 +721,7 @@ export default function FastingScreen() {
               {/* Toggle start/end */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 <Pressable
-                  onPress={() => setPastPickerMode('start')}
+                  onPress={() => { setPastPickerMode('start'); setPastWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'past_start' }); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
                     backgroundColor: pastPickerMode === 'start' ? 'rgba(168,224,42,0.15)' : '#111',
@@ -720,7 +734,7 @@ export default function FastingScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => setPastPickerMode('end')}
+                  onPress={() => { setPastPickerMode('end'); setPastWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'past_end' }); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
                     backgroundColor: pastPickerMode === 'end' ? 'rgba(168,224,42,0.15)' : '#111',
@@ -734,20 +748,23 @@ export default function FastingScreen() {
                 </Pressable>
               </View>
 
-              <DateTimePicker
-                value={pastPickerMode === 'start' ? pastStart : pastEnd}
-                mode="datetime"
-                display="spinner"
-                onChange={(_, date) => {
-                  if (date) {
-                    if (pastPickerMode === 'start') setPastStart(date);
-                    else setPastEnd(date);
-                  }
+              <Text style={{ color: '#555', fontSize: 11, textAlign: 'center', marginBottom: 4 }}>
+                Toca INICIO o FIN para ajustar la fecha y hora.
+              </Text>
+
+              <TimeWheelPicker
+                visible={pastWheelOpen}
+                initialValue={pastPickerMode === 'start' ? pastStart : pastEnd}
+                maxDate={new Date()}
+                title={pastPickerMode === 'start' ? 'Inicio del ayuno' : 'Fin del ayuno'}
+                presets={pastPickerMode === 'start' ? START_PRESETS : PAST_END_PRESETS}
+                onConfirm={(date) => {
+                  if (pastPickerMode === 'start') setPastStart(date);
+                  else setPastEnd(date);
+                  setPastWheelOpen(false);
+                  analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: pastPickerMode === 'start' ? 'past_start' : 'past_end', applied: true });
                 }}
-                maximumDate={new Date()}
-                themeVariant="dark"
-                textColor="#fff"
-                style={{ height: 150 }}
+                onCancel={() => { setPastWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: pastPickerMode === 'start' ? 'past_start' : 'past_end', applied: false }); }}
               />
 
               {/* Duración calculada */}
@@ -910,7 +927,7 @@ export default function FastingScreen() {
           {/* F16.13: link secundario al picker custom (antes era opción del Alert 3-button). */}
           {!showEndPicker && (
             <Pressable
-              onPress={() => { setCustomEndTime(new Date()); setShowEndPicker(true); }}
+              onPress={() => { setCustomEndTime(new Date()); setShowEndPicker(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'break_end' }); }}
               hitSlop={8}
               style={{ alignItems: 'center', marginBottom: 12 }}
             >
@@ -920,43 +937,18 @@ export default function FastingScreen() {
             </Pressable>
           )}
 
-          {/* Picker de hora de fin */}
-          {showEndPicker && (
-            <View style={{
-              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 12, width: '100%',
-              borderWidth: 1, borderColor: 'rgba(168,224,42,0.15)',
-            }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
-                ¿CUÁNDO TERMINASTE?
-              </Text>
-              <DateTimePicker
-                value={customEndTime}
-                mode="datetime"
-                display="spinner"
-                onChange={(_, date) => { if (date) setCustomEndTime(date); }}
-                // AY-3: undefined si fast_start es inválido — evita que el picker se congele.
-                minimumDate={safeDate(activeFast.fast_start) ?? undefined}
-                maximumDate={new Date()}
-                themeVariant="dark"
-                textColor="#fff"
-                style={{ height: 150 }}
-              />
-              <View style={{ flexDirection: 'row', gap: 10, marginTop: 12 }}>
-                <Pressable
-                  onPress={() => setShowEndPicker(false)}
-                  style={{ flex: 1, paddingVertical: 12, borderRadius: 14, alignItems: 'center', backgroundColor: '#111', borderWidth: 1, borderColor: '#1a1a1a' }}
-                >
-                  <Text style={{ color: '#999', fontSize: 14 }}>Cancelar</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => breakFastWithTime(customEndTime)}
-                  style={{ flex: 1, backgroundColor: '#a8e02a', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}
-                >
-                  <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>CONFIRMAR</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
+          {/* Picker de hora de fin (wheel modal — reemplaza mode="datetime") */}
+          <TimeWheelPicker
+            visible={showEndPicker}
+            initialValue={customEndTime}
+            // AY-3: undefined si fast_start es inválido — evita que el picker se congele.
+            minDate={safeDate(activeFast.fast_start) ?? undefined}
+            maxDate={new Date()}
+            title="¿Cuándo terminaste?"
+            presets={BREAK_END_PRESETS}
+            onConfirm={(date) => { setShowEndPicker(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'break_end', applied: true }); breakFastWithTime(date); }}
+            onCancel={() => { setShowEndPicker(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'break_end', applied: false }); }}
+          />
 
           <Pressable onPress={cancelFast}>
             <Text style={{ color: '#666', fontSize: 13 }}>Cancelar y eliminar</Text>
@@ -1087,39 +1079,33 @@ export default function FastingScreen() {
             </Text>
           </Pressable>
 
-          {/* ¿Empezaste antes? */}
+          {/* ¿Empezaste antes? (wheel modal — reemplaza mode="datetime") */}
           <Pressable
-            onPress={() => { setCustomStartTime(new Date()); setShowStartPicker(!showStartPicker); }}
+            onPress={() => { setCustomStartTime(customStartSet ? customStartTime : new Date()); setStartWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'start' }); }}
             style={{ alignItems: 'center', marginTop: 12 }}
           >
-            <Text style={{ color: '#666', fontSize: 13 }}>
-              {showStartPicker ? 'Usar hora actual' : '¿Empezaste antes? Elige la hora'}
+            <Text style={{ color: customStartSet ? selectedProtocol.color : '#666', fontSize: 13, fontWeight: customStartSet ? '600' : '400' }}>
+              {customStartSet
+                ? `Empezaste hace ${formatDuration((Date.now() - customStartTime.getTime()) / (1000 * 60))} · cambiar`
+                : '¿Empezaste antes? Elige la hora'}
             </Text>
           </Pressable>
 
-          {showStartPicker && (
-            <View style={{
-              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginTop: 12, width: '100%',
-              borderWidth: 1, borderColor: `${selectedProtocol.color}15`,
-            }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 8 }}>
-                ¿CUÁNDO EMPEZASTE?
-              </Text>
-              <DateTimePicker
-                value={customStartTime}
-                mode="datetime"
-                display="spinner"
-                onChange={(_, date) => { if (date) setCustomStartTime(date); }}
-                maximumDate={new Date()}
-                themeVariant="dark"
-                textColor="#fff"
-                style={{ height: 150 }}
-              />
-              <Text style={{ color: selectedProtocol.color, fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>
-                Hace {formatDuration((Date.now() - customStartTime.getTime()) / (1000 * 60))}
-              </Text>
-            </View>
+          {customStartSet && (
+            <Pressable onPress={() => setCustomStartSet(false)} style={{ alignItems: 'center', marginTop: 6 }}>
+              <Text style={{ color: '#666', fontSize: 12 }}>Usar hora actual</Text>
+            </Pressable>
           )}
+
+          <TimeWheelPicker
+            visible={startWheelOpen}
+            initialValue={customStartTime}
+            maxDate={new Date()}
+            title="¿Cuándo empezaste?"
+            presets={START_PRESETS}
+            onConfirm={(date) => { setCustomStartTime(date); setCustomStartSet(true); setStartWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'start', applied: true }); }}
+            onCancel={() => { setStartWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'start', applied: false }); }}
+          />
 
           {/* Historial rápido */}
           {history.length > 0 && (
