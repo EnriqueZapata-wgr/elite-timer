@@ -18,6 +18,7 @@ import { warn as logWarn } from '../src/lib/logger';
 import { awardBooleanElectron } from '../src/services/electron-service';
 import { getFastingTier } from '../src/constants/electrons';
 import * as fastingService from '../src/services/fasting-service';
+import { useAnalytics, ATP_EVENTS } from '../src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 
@@ -149,6 +150,7 @@ function safeDate(value: unknown): Date | null {
 
 export default function FastingScreen() {
   const insets = useSafeAreaInsets();
+  const analytics = useAnalytics();
   const [userId, setUserId] = useState('');
   const [activeFast, setActiveFast] = useState<any>(null);
   const [selectedProtocol, setSelectedProtocol] = useState(FASTING_PROTOCOLS[2]); // 16:8
@@ -380,15 +382,18 @@ export default function FastingScreen() {
     }
 
     const startTime = customStartSet ? customStartTime : new Date();
+    analytics.track(ATP_EVENTS.FAST_START_ATTEMPTED, { targetHours: selectedProtocol.hours, customStart: customStartSet });
     const result = await fastingService.startFast({
       userId,
       targetHours: selectedProtocol.hours,
       startTime,
     });
     if (!result.ok) {
+      analytics.track(ATP_EVENTS.FAST_START_FAILED, { reason: result.reason });
       Alert.alert('Error', 'No se pudo iniciar el ayuno. Intenta de nuevo.');
       return;
     }
+    analytics.track(ATP_EVENTS.FAST_START_SUCCEEDED, { targetHours: selectedProtocol.hours });
     setActiveFast(result.data);
     setCustomStartSet(false);
     DeviceEventEmitter.emit('day_changed');
@@ -418,15 +423,18 @@ export default function FastingScreen() {
     // AY-5 / F16.13: el servicio verifica filas (.select()). Un UPDATE que
     // devuelve 0 filas (RLS / row-not-found / 200-but-0-rows) → ok:false →
     // NO limpiamos estado local (evita el bug "Paty atrapada 90h").
+    analytics.track(ATP_EVENTS.FAST_BREAK_ATTEMPTED, { fastId: activeFast.id });
     const result = await fastingService.breakFast({
       fastId: activeFast.id,
       endTime,
       actualHours,
     });
     if (!result.ok) {
+      analytics.track(ATP_EVENTS.FAST_BREAK_FAILED, { reason: result.reason });
       Alert.alert('No se pudo cerrar el ayuno', fastErrorCopy(result.reason));
       return; // CRITICAL: no limpiar estado, no premiar electrón.
     }
+    analytics.track(ATP_EVENTS.FAST_BREAK_SUCCEEDED, { durationHours: Math.round(actualHours * 10) / 10 });
 
     // Electrón por tier de ayuno
     try {
@@ -549,11 +557,14 @@ export default function FastingScreen() {
         style: 'destructive',
         onPress: async () => {
           const cancelledId = activeFast.id;
+          analytics.track(ATP_EVENTS.FAST_CANCEL_ATTEMPTED, { fastId: cancelledId });
           const result = await fastingService.cancelActiveFast(cancelledId);
           if (!result.ok) {
+            analytics.track(ATP_EVENTS.FAST_CANCEL_FAILED, { reason: result.reason });
             Alert.alert('No se pudo cancelar', fastErrorCopy(result.reason));
             return; // NO limpiar estado si falló.
           }
+          analytics.track(ATP_EVENTS.FAST_CANCEL_SUCCEEDED, { fastId: cancelledId });
           if (cancelledId) {
             AsyncStorage.removeItem(milestoneStorageKey(cancelledId)).catch(() => {});
           }
@@ -574,11 +585,14 @@ export default function FastingScreen() {
         text: 'Eliminar',
         style: 'destructive',
         onPress: async () => {
+          analytics.track(ATP_EVENTS.FAST_DELETE_ATTEMPTED, { fastId: id });
           const result = await fastingService.deleteFast(id);
           if (!result.ok) {
+            analytics.track(ATP_EVENTS.FAST_DELETE_FAILED, { reason: result.reason });
             Alert.alert('No se pudo eliminar', fastErrorCopy(result.reason));
             return;
           }
+          analytics.track(ATP_EVENTS.FAST_DELETE_SUCCEEDED, { fastId: id });
           loadHistory();
           DeviceEventEmitter.emit('day_changed');
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -707,7 +721,7 @@ export default function FastingScreen() {
               {/* Toggle start/end */}
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 <Pressable
-                  onPress={() => { setPastPickerMode('start'); setPastWheelOpen(true); }}
+                  onPress={() => { setPastPickerMode('start'); setPastWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'past_start' }); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
                     backgroundColor: pastPickerMode === 'start' ? 'rgba(168,224,42,0.15)' : '#111',
@@ -720,7 +734,7 @@ export default function FastingScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={() => { setPastPickerMode('end'); setPastWheelOpen(true); }}
+                  onPress={() => { setPastPickerMode('end'); setPastWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'past_end' }); }}
                   style={{
                     flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center',
                     backgroundColor: pastPickerMode === 'end' ? 'rgba(168,224,42,0.15)' : '#111',
@@ -748,8 +762,9 @@ export default function FastingScreen() {
                   if (pastPickerMode === 'start') setPastStart(date);
                   else setPastEnd(date);
                   setPastWheelOpen(false);
+                  analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: pastPickerMode === 'start' ? 'past_start' : 'past_end', applied: true });
                 }}
-                onCancel={() => setPastWheelOpen(false)}
+                onCancel={() => { setPastWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: pastPickerMode === 'start' ? 'past_start' : 'past_end', applied: false }); }}
               />
 
               {/* Duración calculada */}
@@ -912,7 +927,7 @@ export default function FastingScreen() {
           {/* F16.13: link secundario al picker custom (antes era opción del Alert 3-button). */}
           {!showEndPicker && (
             <Pressable
-              onPress={() => { setCustomEndTime(new Date()); setShowEndPicker(true); }}
+              onPress={() => { setCustomEndTime(new Date()); setShowEndPicker(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'break_end' }); }}
               hitSlop={8}
               style={{ alignItems: 'center', marginBottom: 12 }}
             >
@@ -931,8 +946,8 @@ export default function FastingScreen() {
             maxDate={new Date()}
             title="¿Cuándo terminaste?"
             presets={BREAK_END_PRESETS}
-            onConfirm={(date) => { setShowEndPicker(false); breakFastWithTime(date); }}
-            onCancel={() => setShowEndPicker(false)}
+            onConfirm={(date) => { setShowEndPicker(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'break_end', applied: true }); breakFastWithTime(date); }}
+            onCancel={() => { setShowEndPicker(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'break_end', applied: false }); }}
           />
 
           <Pressable onPress={cancelFast}>
@@ -1066,7 +1081,7 @@ export default function FastingScreen() {
 
           {/* ¿Empezaste antes? (wheel modal — reemplaza mode="datetime") */}
           <Pressable
-            onPress={() => { setCustomStartTime(customStartSet ? customStartTime : new Date()); setStartWheelOpen(true); }}
+            onPress={() => { setCustomStartTime(customStartSet ? customStartTime : new Date()); setStartWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'start' }); }}
             style={{ alignItems: 'center', marginTop: 12 }}
           >
             <Text style={{ color: customStartSet ? selectedProtocol.color : '#666', fontSize: 13, fontWeight: customStartSet ? '600' : '400' }}>
@@ -1088,8 +1103,8 @@ export default function FastingScreen() {
             maxDate={new Date()}
             title="¿Cuándo empezaste?"
             presets={START_PRESETS}
-            onConfirm={(date) => { setCustomStartTime(date); setCustomStartSet(true); setStartWheelOpen(false); }}
-            onCancel={() => setStartWheelOpen(false)}
+            onConfirm={(date) => { setCustomStartTime(date); setCustomStartSet(true); setStartWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'start', applied: true }); }}
+            onCancel={() => { setStartWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'start', applied: false }); }}
           />
 
           {/* Historial rápido */}
