@@ -176,6 +176,12 @@ export default function FastingScreen() {
   const [pastPickerMode, setPastPickerMode] = useState<'start' | 'end'>('start');
   const [pastWheelOpen, setPastWheelOpen] = useState(false); // modal del wheel para ayuno pasado
 
+  // Editar ayuno pasado del historial (flujo de 2 pasos: start → end).
+  const [editingFast, setEditingFast] = useState<fastingService.FastingLog | null>(null);
+  const [editMode, setEditMode] = useState<'start' | 'end' | null>(null);
+  // Editar SOLO la hora de inicio del ayuno activo (1 paso).
+  const [activeStartEditOpen, setActiveStartEditOpen] = useState(false);
+
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -601,6 +607,70 @@ export default function FastingScreen() {
     ]);
   }
 
+  // === EDITAR AYUNO (start/end de un ayuno existente) ===
+  function openEditFast(fast: fastingService.FastingLog) {
+    if (!fast.fast_start) {
+      Alert.alert('No editable', 'Este ayuno no tiene hora de inicio válida.');
+      return;
+    }
+    analytics.track(ATP_EVENTS.FAST_EDIT_ATTEMPTED, { fastId: fast.id });
+    setEditingFast(fast);
+    setEditMode('start');
+  }
+
+  function closeEdit() {
+    setEditingFast(null);
+    setEditMode(null);
+  }
+
+  // Confirma el nuevo inicio → pasa a editar el fin (sin persistir todavía).
+  function handleEditStartConfirm(newStart: Date) {
+    if (!editingFast) return;
+    setEditingFast({ ...editingFast, fast_start: newStart.toISOString() });
+    setEditMode('end');
+  }
+
+  // Confirma el nuevo fin → persiste start+end vía updateFast.
+  async function handleEditEndConfirm(newEnd: Date) {
+    if (!editingFast || !editingFast.fast_start) { closeEdit(); return; }
+    const result = await fastingService.updateFast({
+      fastId: editingFast.id,
+      fastStart: new Date(editingFast.fast_start),
+      fastEnd: newEnd,
+    });
+    if (!result.ok) {
+      analytics.track(ATP_EVENTS.FAST_EDIT_FAILED, { reason: result.reason });
+      Alert.alert('No se pudo guardar', fastErrorCopy(result.reason));
+      closeEdit();
+      return;
+    }
+    analytics.track(ATP_EVENTS.FAST_EDIT_SUCCEEDED, { fastId: editingFast.id });
+    await loadHistory();
+    DeviceEventEmitter.emit('day_changed');
+    DeviceEventEmitter.emit('electrons_changed');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    closeEdit();
+  }
+
+  // Edita SOLO la hora de inicio del ayuno activo (no toca el fin: sigue activo).
+  async function handleActiveStartEditConfirm(newStart: Date) {
+    if (!activeFast) { setActiveStartEditOpen(false); return; }
+    analytics.track(ATP_EVENTS.FAST_EDIT_ATTEMPTED, { fastId: activeFast.id, which: 'active_start' });
+    const result = await fastingService.updateFast({ fastId: activeFast.id, fastStart: newStart });
+    if (!result.ok) {
+      analytics.track(ATP_EVENTS.FAST_EDIT_FAILED, { reason: result.reason });
+      Alert.alert('No se pudo guardar', fastErrorCopy(result.reason));
+      setActiveStartEditOpen(false);
+      return;
+    }
+    analytics.track(ATP_EVENTS.FAST_EDIT_SUCCEEDED, { fastId: activeFast.id, which: 'active_start' });
+    setActiveFast(result.data);
+    updateElapsed();
+    DeviceEventEmitter.emit('day_changed');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setActiveStartEditOpen(false);
+  }
+
   // === CÁLCULOS ===
   // AY-1: blindar contra NaN/Infinity. Si elapsed o targetMinutes son
   // inválidos, `progress` cae a 0 (en vez de propagarse a SVG y crashear).
@@ -659,6 +729,7 @@ export default function FastingScreen() {
               return (
                 <Pressable
                   key={fast.id}
+                  onPress={() => openEditFast(fast)}
                   onLongPress={() => deleteFast(fast.id)}
                   style={{
                     backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 8,
@@ -697,7 +768,7 @@ export default function FastingScreen() {
             })
           )}
           <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 8 }}>
-            Mantén presionado para eliminar
+            Toca para editar · mantén presionado para eliminar
           </Text>
 
           {/* Registrar ayuno pasado */}
@@ -905,13 +976,20 @@ export default function FastingScreen() {
             })}
           </View>
 
-          {/* Hora de inicio */}
-          <Text style={{ color: '#666', fontSize: 12, marginBottom: 20 }}>
-            {(() => {
-              const start = safeDate(activeFast.fast_start);
-              return start ? `Iniciaste a las ${formatTime(start)}` : 'Iniciaste a las --:--';
-            })()}
-          </Text>
+          {/* Hora de inicio (tap para editar) */}
+          <Pressable
+            onPress={() => setActiveStartEditOpen(true)}
+            hitSlop={8}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}
+          >
+            <Text style={{ color: '#666', fontSize: 12 }}>
+              {(() => {
+                const start = safeDate(activeFast.fast_start);
+                return start ? `Iniciaste a las ${formatTime(start)}` : 'Iniciaste a las --:--';
+              })()}
+            </Text>
+            <Ionicons name="pencil-outline" size={13} color="#a8e02a" />
+          </Pressable>
 
           {/* Botones */}
           <Pressable
@@ -1147,6 +1225,46 @@ export default function FastingScreen() {
           )}
         </View>
       )}
+      {/* ── Editar ayuno pasado: paso 1 (INICIO) ── */}
+      {editingFast && editMode === 'start' && (
+        <TimeWheelPicker
+          visible
+          initialValue={editingFast.fast_start ? new Date(editingFast.fast_start) : new Date()}
+          title="Edita la hora de INICIO"
+          maxDate={editingFast.fast_end ? new Date(editingFast.fast_end) : new Date()}
+          presets={START_PRESETS}
+          onConfirm={handleEditStartConfirm}
+          onCancel={closeEdit}
+        />
+      )}
+
+      {/* ── Editar ayuno pasado: paso 2 (FIN) ── */}
+      {editingFast && editMode === 'end' && (
+        <TimeWheelPicker
+          visible
+          initialValue={editingFast.fast_end ? new Date(editingFast.fast_end) : new Date()}
+          title="Edita la hora de FIN"
+          minDate={editingFast.fast_start ? new Date(editingFast.fast_start) : undefined}
+          maxDate={new Date()}
+          presets={PAST_END_PRESETS}
+          onConfirm={handleEditEndConfirm}
+          onCancel={closeEdit}
+        />
+      )}
+
+      {/* ── Editar SOLO inicio del ayuno activo ── */}
+      {activeFast && (
+        <TimeWheelPicker
+          visible={activeStartEditOpen}
+          initialValue={safeDate(activeFast.fast_start) ?? new Date()}
+          title="Edita la hora de INICIO"
+          maxDate={new Date()}
+          presets={START_PRESETS}
+          onConfirm={handleActiveStartEditConfirm}
+          onCancel={() => setActiveStartEditOpen(false)}
+        />
+      )}
+
       <MedicalDisclaimer feature="fasting" />
     </ScrollView>
   );

@@ -29,6 +29,9 @@ export const ATP_EVENTS = {
   FAST_DELETE_FAILED: 'fast_delete_failed',
   FAST_PICKER_OPENED: 'fast_picker_opened',
   FAST_PICKER_DISMISSED: 'fast_picker_dismissed',
+  FAST_EDIT_ATTEMPTED: 'fast_edit_attempted',
+  FAST_EDIT_SUCCEEDED: 'fast_edit_succeeded',
+  FAST_EDIT_FAILED: 'fast_edit_failed',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];
