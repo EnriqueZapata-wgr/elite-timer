@@ -43,10 +43,6 @@ export function TimeWheelPicker({
   // Estado interno de la wheel (no se commitea hasta Aceptar)
   const [draftDate, setDraftDate] = React.useState(initialValue);
 
-  useEffect(() => {
-    if (visible) setDraftDate(initialValue);
-  }, [visible, initialValue]);
-
   // Generación de opciones para cada wheel
   const dayOptions = useMemo(() => {
     const today = new Date();
@@ -84,6 +80,24 @@ export function TimeWheelPicker({
   const dayRef = useRef<FlatList>(null);
   const hourRef = useRef<FlatList>(null);
   const minuteRef = useRef<FlatList>(null);
+
+  // Al abrir el modal: reset del draft + scroll programático de cada wheel a su
+  // índice inicial. initialScrollIndex de FlatList es flakey con getItemLayout +
+  // padding → centramos manualmente (bug 2: "Hoy" salía al final del wheel).
+  useEffect(() => {
+    if (!visible) return;
+    setDraftDate(initialValue);
+    requestAnimationFrame(() => {
+      const newDay = new Date(initialValue);
+      newDay.setHours(0, 0, 0, 0);
+      const dIdx = dayOptions.findIndex(o => o.value.getTime() === newDay.getTime());
+      try {
+        if (dIdx >= 0) dayRef.current?.scrollToIndex({ index: dIdx, animated: false });
+        hourRef.current?.scrollToIndex({ index: initialValue.getHours(), animated: false });
+        minuteRef.current?.scrollToIndex({ index: Math.round(initialValue.getMinutes() / 5), animated: false });
+      } catch { /* onScrollToIndexFailed en cada Wheel maneja el reintento */ }
+    });
+  }, [visible, initialValue, dayOptions]);
 
   // Aplica preset llenando las 3 wheels al instante
   const applyPreset = (getDate: () => Date) => {
@@ -207,26 +221,53 @@ interface WheelProps {
 }
 
 const Wheel = React.forwardRef<FlatList, WheelProps>(({ data, initialIndex, onIndexChange, flexWeight }, ref) => {
+  const internalRef = useRef<FlatList>(null);
+  // Expone la ref interna a los padres (que hacen scroll programático).
+  React.useImperativeHandle(ref, () => internalRef.current as FlatList, []);
+
+  // Scroll programático al mount + cuando cambia initialIndex. initialScrollIndex
+  // de FlatList es notoriamente flakey con getItemLayout + padding → usamos esto.
+  useEffect(() => {
+    if (initialIndex < 0) return;
+    const t = setTimeout(() => {
+      try {
+        internalRef.current?.scrollToIndex({ index: initialIndex, animated: false });
+      } catch { /* data no lista — onScrollToIndexFailed maneja el reintento */ }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [initialIndex]);
+
   return (
     <View style={[wheelStyles.container, { flex: flexWeight }]}>
       <FlatList
-        ref={ref}
+        ref={internalRef}
         data={data}
         keyExtractor={(item, idx) => `${item}-${idx}`}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
         getItemLayout={(_, idx) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * idx, index: idx })}
-        initialScrollIndex={Math.max(0, initialIndex)}
         contentContainerStyle={{ paddingVertical: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2) }}
+        onScrollToIndexFailed={(info) => {
+          // Fallback: scroll por offset calculado (flag #1 del buzón).
+          internalRef.current?.scrollToOffset({ offset: info.index * ITEM_HEIGHT, animated: false });
+        }}
         onMomentumScrollEnd={(e) => {
           const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
           onIndexChange(idx);
         }}
-        renderItem={({ item }) => (
-          <View style={wheelStyles.item}>
+        renderItem={({ item, index }) => (
+          <Pressable
+            onPress={() => {
+              // tap-to-select: centra el item tappeado y lo commitea (bug 3).
+              try { internalRef.current?.scrollToIndex({ index, animated: true }); } catch { /* noop */ }
+              onIndexChange(index);
+              Haptics.selectionAsync();
+            }}
+            style={wheelStyles.item}
+          >
             <Text style={wheelStyles.itemText}>{item}</Text>
-          </View>
+          </Pressable>
         )}
       />
     </View>
