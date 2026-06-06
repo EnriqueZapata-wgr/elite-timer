@@ -256,6 +256,12 @@ const Wheel = React.forwardRef<FlatList, WheelProps>(({ data, initialIndex, onIn
           const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
           onIndexChange(idx);
         }}
+        onScrollEndDrag={(e) => {
+          // Fallback (bug 3): si el drag termina sin momentum, onMomentumScrollEnd
+          // no dispara. Commiteamos el item donde cayó el scroll.
+          const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+          onIndexChange(idx);
+        }}
         renderItem={({ item, index }) => (
           <Pressable
             onPress={() => {
