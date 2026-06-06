@@ -177,10 +177,9 @@ export function TimeWheelPicker({
               onIndexChange={handleMinuteChange}
               flexWeight={1}
             />
+            {/* Indicador central — hijo del wheelsRow para que su top sea relativo a éste */}
+            <View pointerEvents="none" style={styles.centerIndicator} />
           </View>
-
-          {/* Indicador central */}
-          <View pointerEvents="none" style={styles.centerIndicator} />
 
           {/* Botones */}
           <View style={styles.btnRow}>
@@ -245,8 +244,10 @@ const styles = StyleSheet.create({
   wheelsRow: { flexDirection: 'row', height: WHEEL_HEIGHT, alignItems: 'center', position: 'relative' },
   separator: { color: '#fff', fontSize: 22, fontWeight: '700', paddingHorizontal: 4 },
   centerIndicator: {
-    position: 'absolute', left: 16, right: 16,
-    top: WHEEL_HEIGHT / 2 + 60, // 60 = title + presets approximate height
+    // Hijo de wheelsRow (position:relative). El item central ocupa la franja
+    // [(WHEEL_HEIGHT - ITEM_HEIGHT)/2, (WHEEL_HEIGHT + ITEM_HEIGHT)/2].
+    position: 'absolute', left: 0, right: 0,
+    top: (WHEEL_HEIGHT - ITEM_HEIGHT) / 2,
     height: ITEM_HEIGHT, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#a8e02a',
   },
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
