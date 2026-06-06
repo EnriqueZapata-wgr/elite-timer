@@ -218,6 +218,41 @@ export async function deleteFast(fastId: string): Promise<MutationResult<{ id: s
   return { ok: true, data: data[0] as { id: string } };
 }
 
+/**
+ * Edita un ayuno existente (corregir hora de inicio/fin). Si se pasan ambos
+ * start y end, recalcula actual_hours. Verifica filas como el resto.
+ */
+export async function updateFast(params: {
+  fastId: string;
+  fastStart?: Date;
+  fastEnd?: Date | null;
+}): Promise<MutationResult> {
+  const updates: Record<string, any> = {};
+  if (params.fastStart) updates.fast_start = params.fastStart.toISOString();
+  if (params.fastEnd !== undefined) {
+    updates.fast_end = params.fastEnd ? params.fastEnd.toISOString() : null;
+    if (params.fastStart && params.fastEnd) {
+      // Recalcular actual_hours (redondeado a 1 decimal, como el resto del servicio).
+      updates.actual_hours =
+        Math.round(((params.fastEnd.getTime() - params.fastStart.getTime()) / 3_600_000) * 10) / 10;
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('fasting_logs')
+    .update(updates)
+    .eq('id', params.fastId)
+    .select();
+  if (error) {
+    const c = classifyError('updateFast', error);
+    return { ok: false, ...c };
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, reason: 'no_rows', message: 'Row not found or RLS blocked' };
+  }
+  return { ok: true, data: data[0] as FastingLog };
+}
+
 export async function autoCloseAtLimit(params: {
   fastId: string;
   hours: number;
