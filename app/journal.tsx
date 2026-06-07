@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { HelpButton } from '@/src/components/HelpButton';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
@@ -86,16 +87,36 @@ export default function JournalScreen() {
   const [moodBefore, setMoodBefore] = useState<number | null>(null);
   const [moodAfter, setMoodAfter] = useState<number | null>(null);
 
-  // Recordatorio
+  // Recordatorio (F31.8: hora editable + persistida)
   const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [reminderTime] = useState('21:00');
+  const [reminderTime, setReminderTime] = useState('21:00');
+  const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
 
-  // Cargar preferencia de recordatorio
+  // Cargar preferencia de recordatorio + hora guardada
   useEffect(() => {
     AsyncStorage.getItem('@atp/journal_reminder').then(v => {
       if (v === 'true') setReminderEnabled(true);
     });
+    AsyncStorage.getItem('@atp/journal_reminder_time').then(v => {
+      if (v) setReminderTime(v);
+    });
   }, []);
+
+  async function scheduleReminder(timeStr: string) {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'ATP — Descarga mental',
+        body: '¿Cómo estuvo tu día? Tómate 5 minutos para escribir.',
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DAILY,
+        hour: parseInt(timeStr.split(':')[0]),
+        minute: parseInt(timeStr.split(':')[1]),
+      },
+    });
+  }
 
   async function toggleReminder(enabled: boolean) {
     setReminderEnabled(enabled);
@@ -107,23 +128,20 @@ export default function JournalScreen() {
         setReminderEnabled(false);
         return;
       }
-      await Notifications.cancelAllScheduledNotificationsAsync();
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: 'ATP — Descarga mental',
-          body: '¿Cómo estuvo tu día? Tómate 5 minutos para escribir.',
-          sound: true,
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: parseInt(reminderTime.split(':')[0]),
-          minute: parseInt(reminderTime.split(':')[1]),
-        },
-      });
+      await scheduleReminder(reminderTime);
       haptic.success();
     } else {
       await Notifications.cancelAllScheduledNotificationsAsync();
     }
+  }
+
+  async function handleReminderTimeConfirm(date: Date) {
+    const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    setReminderTime(timeStr);
+    setReminderPickerOpen(false);
+    await AsyncStorage.setItem('@atp/journal_reminder_time', timeStr);
+    if (reminderEnabled) await scheduleReminder(timeStr);
+    haptic.success();
   }
 
   // Cargar entradas y sexo al enfocar la pantalla
@@ -359,9 +377,10 @@ export default function JournalScreen() {
             <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm }}>Recordatorio diario</EliteText>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {reminderEnabled && (
+            <Pressable onPress={() => setReminderPickerOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <EliteText variant="caption" style={{ color: PURPLE, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{reminderTime}</EliteText>
-            )}
+              <Ionicons name="pencil-outline" size={12} color={PURPLE} />
+            </Pressable>
             <Switch
               value={reminderEnabled}
               onValueChange={toggleReminder}
@@ -370,6 +389,14 @@ export default function JournalScreen() {
             />
           </View>
         </View>
+
+        <TimeWheelPicker
+          visible={reminderPickerOpen}
+          initialValue={(() => { const d = new Date(); d.setHours(parseInt(reminderTime.split(':')[0]), parseInt(reminderTime.split(':')[1]), 0, 0); return d; })()}
+          title="Hora del recordatorio"
+          onConfirm={handleReminderTimeConfirm}
+          onCancel={() => setReminderPickerOpen(false)}
+        />
 
         {/* Entradas recientes */}
         {entries.length > 0 && (
