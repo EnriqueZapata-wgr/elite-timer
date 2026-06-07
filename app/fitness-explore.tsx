@@ -1,7 +1,7 @@
 /**
  * Explorar — Biblioteca, Métodos ATP, Planes (PRONTO), Follow Me (PRONTO).
  */
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -33,9 +33,8 @@ export default function FitnessExploreScreen() {
         {ITEMS.map((item, idx) => (
           <Animated.View key={item.name} entering={FadeInUp.delay(50 + idx * 50).springify()}>
             <AnimatedPressable
-              disabled={item.comingSoon}
               onPress={() => {
-                if (item.comingSoon) return;
+                if (item.comingSoon) { Alert.alert('', 'Pronto disponible'); return; }
                 haptic.medium();
                 router.push(item.route as any);
               }}
@@ -49,13 +48,7 @@ export default function FitnessExploreScreen() {
                     <EliteText style={[s.name, item.comingSoon && { color: TEXT_COLORS.muted }]}>{item.name}</EliteText>
                     <EliteText style={s.sub}>{item.subtitle}</EliteText>
                   </View>
-                  {item.comingSoon ? (
-                    <View style={[s.badge, { backgroundColor: withOpacity(item.color, 0.15) }]}>
-                      <EliteText style={[s.badgeText, { color: item.color }]}>PRONTO</EliteText>
-                    </View>
-                  ) : (
-                    <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.muted} />
-                  )}
+                  <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.muted} />
                 </View>
               </GradientCard>
             </AnimatedPressable>

@@ -1,4 +1,4 @@
-import { View, StyleSheet, type ViewStyle } from 'react-native';
+import { StyleSheet, Alert, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -24,12 +24,13 @@ export function DashboardCard({
   disabled = false,
   style,
 }: DashboardCardProps) {
+  // F11.8/F20.10: el badge "PRONTO" era ilegible/ambiguo. Ahora la card se ve
+  // disabled (opacidad reducida) y al tocar muestra un aviso "Pronto disponible".
   return (
     <AnimatedPressable
-      onPress={onPress}
-      disabled={disabled}
+      onPress={disabled ? () => Alert.alert('', 'Pronto disponible') : onPress}
       scaleDown={0.95}
-      style={[styles.card, style]}
+      style={[styles.card, disabled && styles.disabledCard, style]}
     >
       <Ionicons
         name={icon}
@@ -47,11 +48,6 @@ export function DashboardCard({
       <EliteText variant="caption" numberOfLines={2}>
         {description}
       </EliteText>
-      {disabled && (
-        <View style={styles.badge}>
-          <EliteText variant="caption" style={styles.badgeText}>PRONTO</EliteText>
-        </View>
-      )}
     </AnimatedPressable>
   );
 }
@@ -65,17 +61,8 @@ const styles = StyleSheet.create({
     borderColor: '#2A2A2A',
     minHeight: 150,
   },
+  disabledCard: { opacity: 0.4 },
   icon: { marginBottom: Spacing.sm },
   title: { fontSize: 16, marginBottom: Spacing.xs },
   disabledText: { color: Colors.textSecondary },
-  badge: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    backgroundColor: '#2A2A2A',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  badgeText: { fontSize: 10, color: Colors.textSecondary },
 });

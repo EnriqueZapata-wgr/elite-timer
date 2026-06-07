@@ -632,6 +632,7 @@ const s = StyleSheet.create({
     borderLeftWidth: 3, borderLeftColor: TEAL,
   },
   studySummary: {
-    backgroundColor: withOpacity(CATEGORY_COLORS.metrics, 0.04), borderRadius: Radius.sm, padding: Spacing.md, borderLeftWidth: 2, borderLeftColor: TEAL,
+    // F41.10: 0.04 era casi invisible sobre el bg dark. Subido para legibilidad.
+    backgroundColor: withOpacity(CATEGORY_COLORS.metrics, 0.12), borderRadius: Radius.sm, padding: Spacing.md, borderLeftWidth: 2, borderLeftColor: TEAL,
   },
 });

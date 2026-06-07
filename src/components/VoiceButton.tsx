@@ -118,7 +118,7 @@ export function VoiceButton({ onTranscript, variant = 'fab' }: VoiceButtonProps)
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(
         'Voz no disponible',
-        'El reconocimiento de voz requiere un native build. Usa el texto por ahora.',
+        'La función de voz estará disponible pronto. Por ahora escribe tu mensaje.',
       );
       return;
     }

@@ -2935,7 +2935,7 @@ function NutritionCoachTab({ clientId }: { clientId: string }) {
                   <Pressable onPress={() => handleRecalcWithAI(food.id)} disabled={recalculating}
                     style={{ backgroundColor: CATEGORY_COLORS.nutrition + '15', paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderRadius: Radius.sm }}>
                     <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: 10, fontFamily: Fonts.bold }}>
-                      {recalculating ? 'Analizando...' : 'Recalcular con IA'}
+                      {recalculating ? 'Analizando...' : 'Analizar con ARGOS'}
                     </EliteText>
                   </Pressable>
                   <Pressable onPress={() => handleSaveEdit(food.id)}

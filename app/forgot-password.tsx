@@ -30,6 +30,13 @@ export default function ForgotPasswordScreen() {
       setError('Ingresa tu email');
       return;
     }
+    // F45.6: validar formato de email antes de enviar el enlace.
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_RE.test(email.trim())) {
+      haptic.error();
+      setError('Ingresa un email válido');
+      return;
+    }
 
     setError(null);
     setLoading(true);
