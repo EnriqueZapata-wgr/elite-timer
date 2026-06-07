@@ -18,6 +18,7 @@ import { EliteText } from '@/components/elite-text';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { InfoButton } from '@/src/components/InfoButton';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -848,7 +849,10 @@ export default function LogExerciseScreen() {
               <View style={s.colSet}><Text style={s.colLabel}>SET</Text></View>
               <View style={s.colWeight}><Text style={s.colLabel}>KG</Text></View>
               <View style={s.colReps}><Text style={s.colLabel}>REPS</Text></View>
-              <View style={s.colRir}><Text style={s.colLabel}>RIR</Text></View>
+              <View style={[s.colRir, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }]}>
+                <Text style={s.colLabel}>RIR</Text>
+                <InfoButton title="RIR" explanation="Reps in Reserve — repeticiones que podrías hacer antes del fallo. RIR 2 = podrías hacer 2 más." color="#888" size={11} />
+              </View>
               <View style={s.col1rm}><Text style={s.colLabel}>1RM</Text></View>
               <View style={{ width: 28 }} />
             </View>
