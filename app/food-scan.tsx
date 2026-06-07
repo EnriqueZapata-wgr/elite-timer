@@ -1304,7 +1304,7 @@ export default function FoodScanScreen() {
                 style={[st.outlineBtn, { borderColor: BLUE + '50' }]}>
                 <Ionicons name={recalculating ? 'hourglass-outline' : 'refresh'} size={18} color={BLUE} />
                 <EliteText style={{ color: BLUE, fontFamily: Fonts.semiBold, fontSize: FontSizes.lg }}>
-                  {recalculating ? 'Recalculando...' : 'Recalcular con IA'}
+                  {recalculating ? 'Analizando...' : 'Analizar con ARGOS'}
                 </EliteText>
               </AnimatedPressable>
             )}
