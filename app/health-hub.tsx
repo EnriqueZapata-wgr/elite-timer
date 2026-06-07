@@ -4,7 +4,7 @@
  * Protocolos, Glucosa, Cetonas, Labs, Biomarcadores, Dominios de salud,
  * Tests y evaluaciones (Braverman + quizzes funcionales).
  */
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -95,9 +95,8 @@ export default function HealthHubScreen() {
         {HEALTH_ITEMS.map((item, idx) => (
           <Animated.View key={item.name} entering={FadeInUp.delay(100 + idx * 50).springify()}>
             <AnimatedPressable
-              disabled={item.comingSoon}
               onPress={() => {
-                if (item.comingSoon) return;
+                if (item.comingSoon) { Alert.alert('', 'Pronto disponible'); return; }
                 haptic.medium();
                 router.push(item.route as any);
               }}
@@ -116,13 +115,7 @@ export default function HealthHubScreen() {
                     </EliteText>
                     <EliteText variant="caption" style={s.cardSub}>{item.subtitle}</EliteText>
                   </View>
-                  {item.comingSoon ? (
-                    <View style={[s.badge, { backgroundColor: withOpacity(item.color, 0.15) }]}>
-                      <EliteText style={[s.badgeText, { color: item.color }]}>PRONTO</EliteText>
-                    </View>
-                  ) : (
-                    <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />
-                  )}
+                  <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />
                 </View>
               </GradientCard>
             </AnimatedPressable>
