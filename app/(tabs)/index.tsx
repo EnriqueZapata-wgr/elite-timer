@@ -1344,7 +1344,7 @@ export default function TodayScreen() {
             SECCIÓN 6: AGENDA — segmentada mañana/tarde/noche
         ═══════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(220).springify()} style={{ marginTop: 24, paddingHorizontal: Spacing.md }}>
-          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2, marginBottom: 16 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 2, marginBottom: 16 }}>
             AGENDA
           </Text>
 
@@ -1356,7 +1356,7 @@ export default function TodayScreen() {
               return (
                 <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
                   <Ionicons name="calendar-outline" size={28} color="#333" />
-                  <Text style={{ color: '#666', fontSize: 13, fontFamily: Fonts.regular }}>
+                  <Text style={{ color: '#999', fontSize: 13, fontFamily: Fonts.regular }}>
                     Activa un protocolo para ver tu agenda
                   </Text>
                 </View>
@@ -2343,7 +2343,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   agendaTime: {
-    color: Colors.textSecondary,
+    color: '#aaa', // F01.11-12: subir contraste sobre bg dark
     fontSize: FontSizes.xs,
     fontFamily: Fonts.semiBold,
     fontVariant: ['tabular-nums'],
@@ -2366,7 +2366,7 @@ const s = StyleSheet.create({
     color: Colors.textSecondary,
   },
   agendaSubtitle: {
-    color: Colors.textSecondary,
+    color: '#aaa', // F01.11-12: subir contraste sobre bg dark
     fontSize: FontSizes.sm,
     marginTop: 2,
   },
@@ -2383,7 +2383,7 @@ const s = StyleSheet.create({
   agendaEmptySubtext: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
-    color: Colors.textMuted,
+    color: '#888', // F01.11-12: subir contraste (antes textMuted #555)
     textAlign: 'center',
     paddingHorizontal: Spacing.lg,
   },
