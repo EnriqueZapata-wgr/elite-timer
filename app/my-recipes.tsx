@@ -126,6 +126,11 @@ export default function MyRecipesScreen() {
         <EliteText variant="caption" style={s.subtitle}>
           Guarda tus comidas frecuentes para registrar con un toque
         </EliteText>
+        {recipes.length > 0 && (
+          <EliteText variant="caption" style={{ color: '#666', fontSize: 11, marginBottom: 8 }}>
+            Desliza ← o mantén presionado para eliminar
+          </EliteText>
+        )}
 
         {/* Lista de recetas */}
         {recipes.map((recipe, idx) => (

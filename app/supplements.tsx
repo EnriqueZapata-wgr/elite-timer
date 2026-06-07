@@ -247,6 +247,11 @@ export default function SupplementsScreen() {
       )}
 
       {/* Suplementos agrupados por timing */}
+      {grouped.length > 0 && (
+        <Text style={{ color: '#666', fontSize: 11, paddingHorizontal: 20, marginBottom: 8 }}>
+          Desliza ← o mantén presionado para eliminar
+        </Text>
+      )}
       {grouped.map(group => (
         <View key={group.id} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>

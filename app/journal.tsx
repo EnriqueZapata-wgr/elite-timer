@@ -526,7 +526,8 @@ function MoodSelector({ value, onChange }: { value: number | null; onChange: (v:
         return (
           <Pressable key={v} onPress={() => { haptic.light(); onChange(v); }}
             style={[s.moodDot, isActive && { backgroundColor: color, borderColor: color }]}>
-            {isActive && <EliteText style={{ color: Colors.black, fontSize: 9, fontFamily: Fonts.bold }}>{v}</EliteText>}
+            {/* F31: mostrar el número siempre (antes solo activo → círculos casi invisibles). */}
+            <EliteText style={{ color: isActive ? Colors.black : '#888', fontSize: 9, fontFamily: Fonts.bold }}>{v}</EliteText>
           </Pressable>
         );
       })}
@@ -577,7 +578,7 @@ const s = StyleSheet.create({
   // Mood
   label: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs, marginTop: Spacing.md },
   moodRow: { flexDirection: 'row', gap: 6, marginBottom: Spacing.md },
-  moodDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: SURFACES.border, alignItems: 'center', justifyContent: 'center' },
+  moodDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: '#555', alignItems: 'center', justifyContent: 'center' },
 
   // Work dump
   taskRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
