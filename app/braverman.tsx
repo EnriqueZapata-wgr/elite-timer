@@ -309,7 +309,7 @@ export default function BravermanTest() {
   if (screen === 'quiz' && currentQ) {
     const neuroMeta = NEUROTRANSMITTER_META[currentQ.neurotransmitter];
     const categoryLabel = CATEGORY_LABELS[currentQ.category];
-    const partLabel = currentPart === 1 ? 'PARTE 1 — DOMINANCIA' : 'PARTE 2 — DEFICIENCIAS';
+    const partLabel = currentPart === 1 ? 'PARTE 1 — DOMINANCIAS' : 'PARTE 2 — DEFICIENCIAS';
     const partQuestions = currentPart === 1 ? PART1.length : PART2.length;
     const progressPart = (currentIndex / partQuestions) * 100;
     const progressTotal = (answeredTotal / totalQuestions) * 100;
@@ -445,7 +445,7 @@ export default function BravermanTest() {
 
           {/* Dominance bars */}
           <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginTop: 24, marginBottom: 12 }}>
-            DOMINANCIA
+            DOMINANCIAS
           </Text>
           {neuros.map(nt => {
             const meta = NEUROTRANSMITTER_META[nt];
