@@ -73,10 +73,135 @@ export const RITMO_BASE_MONTHS = 12;
 export const RITMO_AGE_EXPONENT = 0.75;
 
 // ============================================================
-// PENDIENTE (requiere docs maestros ausentes — ver COWORK_REPORT):
-//   - SF_DOMAIN_WEIGHTS: pesos de los 10 dominios (suman 1.0)
-//   - SF_PARAMETER_RANGES: rangos de 9 bandas por parámetro
-//   - BODY_COMP_ADJUSTMENT_RULES: reglas de ajuste por sexo (catálogo §3)
-//   - SUB_EDAD_*_WEIGHTS: pesos de componentes por sub-edad (§4.x)
-//   - RT norms Deary-Liewald (cognitivo) — aproximadas en su servicio
+// SF — Salud Funcional (scoring 9 bandas)
+// Scores por banda (orden: critico_-5, riesgo_-4, aceptable_-3, optimo_1,
+// optimo_2, aceptable_3, riesgo_4, critico_5, fuera).
+// ============================================================
+export const SCORE_9_BANDS = [0, 25, 50, 80, 100, 80, 50, 25, 0] as const;
+
+/**
+ * Pesos de los 10 dominios SF (suman 1.0).
+ * ⚠️ PLACEHOLDER: los pesos REALES del Excel (sección 6.x) NO están en los docs
+ * maestros (ARQUITECTURA_v2 / ALGORITMO_VERIFICADO_v1). Con pesos iguales, los
+ * scores del paciente HOMBRES V7 dan SF=0.6315 (no el verificado 0.6083).
+ * → Pendiente: pesos de dominio reales para reproducir 0.6083 (ver COWORK_REPORT).
+ */
+export const SF_DOMAIN_WEIGHTS: Record<string, number> = {
+  cardiovascular: 0.1,
+  composicion_corporal: 0.1,
+  habitos: 0.1,
+  inflamacion: 0.1,
+  inmunidad: 0.1,
+  metabolismo: 0.1,
+  renal_micronutrientes: 0.1,
+  sistema_hormonal: 0.1,
+  sueno: 0.1,
+  vitalidad: 0.1,
+};
+
+// ============================================================
+// Pesos de componentes por sub-edad (doc maestro ARQUITECTURA_v2 §4).
+// ============================================================
+export const SUB_EDAD_METABOLICA_WEIGHTS = {
+  homa_ir: 0.20,
+  hba1c: 0.25,
+  trigs_hdl: 0.20,
+  cgm_tir: 0.20,
+  cintura: 0.15,
+} as const;
+
+export const SUB_EDAD_CORPORAL_WEIGHTS = {
+  ffmi: 0.30,
+  pct_grasa: 0.25,
+  pct_musculo: 0.25,
+  grasa_visceral: 0.20,
+} as const;
+
+export const SUB_EDAD_FITNESS_WEIGHTS = {
+  vo2max: 0.35,
+  grip: 0.25,
+  push_ups: 0.15,
+  resting_hr: 0.15,
+  recovery_hr: 0.10,
+} as const;
+
+// ============================================================
+// Ajustes composición corporal por sexo (catálogo §3 — ALGORITMO_VERIFICADO_v1).
+// "Las fórmulas del catálogo mandan" (no los hardcoded H45:H49 del Excel).
+// Cada factor: lista de reglas evaluadas en orden; primera que matchea gana.
+// `match(value)` → impacto en años.
+// ============================================================
+export type BodyCompRule = { match: (v: number) => boolean; impact: number };
+
+export const BODY_COMP_RULES_MALE: Record<keyof import('@/src/types/edad-atp-v2').EdadCorporalAdjustments, BodyCompRule[]> = {
+  grasa_visceral: [
+    { match: (v) => v < 5, impact: -1 },
+    { match: (v) => v <= 10, impact: 0 },
+    { match: (v) => v > 10, impact: 3 },
+  ],
+  ffmi: [
+    { match: (v) => v < 17.5, impact: 2 },
+    { match: (v) => v <= 21, impact: 0 },
+    { match: (v) => v > 21, impact: -2 },
+  ],
+  fuerza_agarre: [
+    { match: (v) => v < 40, impact: 2 },
+    { match: (v) => v <= 50, impact: 0 },
+    { match: (v) => v > 50, impact: -2 },
+  ],
+  pct_grasa: [
+    { match: (v) => v > 25, impact: 2 },
+    { match: (v) => v >= 10 && v <= 18, impact: -1 },
+    { match: (v) => v <= 20, impact: 0 },
+    { match: () => true, impact: 0 }, // 20–25%: sin regla → 0
+  ],
+  pct_musculo: [
+    { match: (v) => v < 25, impact: 3 },
+    { match: (v) => v < 30, impact: 2 },
+    { match: (v) => v < 33, impact: 1 },
+    { match: (v) => v > 45, impact: -3 },
+    { match: (v) => v > 42, impact: -2 },
+    { match: (v) => v > 38, impact: -1 },
+    { match: () => true, impact: 0 }, // 33–38%: 0
+  ],
+};
+
+export const BODY_COMP_RULES_FEMALE: Record<keyof import('@/src/types/edad-atp-v2').EdadCorporalAdjustments, BodyCompRule[]> = {
+  grasa_visceral: [
+    { match: (v) => v < 4, impact: -1 },
+    { match: (v) => v <= 7, impact: 0 },
+    { match: (v) => v > 7, impact: 3 },
+  ],
+  ffmi: [
+    { match: (v) => v < 15.5, impact: 2 },
+    { match: (v) => v <= 18, impact: 0 },
+    { match: (v) => v > 18, impact: -2 },
+  ],
+  fuerza_agarre: [
+    { match: (v) => v < 27, impact: 2 },
+    { match: (v) => v <= 35, impact: 0 },
+    { match: (v) => v > 35, impact: -2 },
+  ],
+  pct_grasa: [
+    { match: (v) => v > 32, impact: 2 },
+    { match: (v) => v >= 16 && v <= 25, impact: -1 },
+    { match: (v) => v <= 28, impact: 0 },
+    { match: () => true, impact: 0 }, // 28–32%: 0
+  ],
+  pct_musculo: [
+    { match: (v) => v < 20, impact: 3 },
+    { match: (v) => v < 25, impact: 2 },
+    { match: (v) => v < 28, impact: 1 },
+    { match: (v) => v > 38, impact: -2 },
+    { match: (v) => v > 33, impact: -1 },
+    { match: () => true, impact: 0 }, // 29–33%: 0
+  ],
+};
+
+// ============================================================
+// PENDIENTE (no están en los docs maestros — ver COWORK_REPORT):
+//   - SF_DOMAIN_WEIGHTS reales (arriba es placeholder igual) → bloquea SF=0.6083 exacto.
+//   - SF_PARAMETER_RANGES: rangos de 9 bandas por parámetro (los 140 inputs, sprint 5).
+//   - Tablas norma score→edad de las sub-edades (solo hay pesos + "lookup públicos").
+//   - RT norms Deary-Liewald (cognitivo) — aproximadas en su servicio.
 // ============================================================
