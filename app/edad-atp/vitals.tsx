@@ -11,6 +11,7 @@ import { EliteText } from '@/components/elite-text';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveBiomarkers, type BiomarkerEntry } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -24,6 +25,7 @@ const FIELDS: { key: string; label: string; unit: string; helper?: string }[] = 
 
 export default function VitalsCapture() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [v, setV] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
@@ -40,6 +42,7 @@ export default function VitalsCapture() {
     const result = await saveBiomarkers(user.id, entries);
     setSaving(false);
     if (!result.ok) { Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.'); return; }
+    analytics.track(ATP_EVENTS.EDAD_ATP_VITALS_SAVED, { count: entries.length });
     haptic.success();
     Alert.alert('', 'Datos guardados ✓', [{ text: 'OK', onPress: () => router.back() }]);
   }

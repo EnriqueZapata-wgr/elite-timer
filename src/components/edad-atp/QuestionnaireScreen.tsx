@@ -11,6 +11,7 @@ import { EliteText } from '@/components/elite-text';
 import { QuestionnaireQuestion, type QuestionOption } from './QuestionnaireQuestion';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveQuestionnaireResponses, type QuestionnaireResponse } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 
@@ -25,6 +26,7 @@ interface Props {
 
 export function QuestionnaireScreen({ domain, title, questions, pillar = 'metrics' }: Props) {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -38,6 +40,7 @@ export function QuestionnaireScreen({ domain, title, questions, pillar = 'metric
     const result = await saveQuestionnaireResponses(user.id, domain, responses);
     setSaving(false);
     if (!result.ok) { Alert.alert('Error', 'No se pudieron guardar. Intenta de nuevo.'); return; }
+    analytics.track(ATP_EVENTS.EDAD_ATP_QUESTIONNAIRE_COMPLETED, { domain });
     haptic.success();
     Alert.alert('', 'Respuestas guardadas ✓', [{ text: 'OK', onPress: () => router.back() }]);
   }

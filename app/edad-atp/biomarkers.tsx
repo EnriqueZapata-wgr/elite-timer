@@ -12,6 +12,7 @@ import { EliteText } from '@/components/elite-text';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveBiomarkers, type BiomarkerEntry } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -67,6 +68,7 @@ const SECTIONS: Section[] = [
 
 export default function BiomarkersCapture() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [values, setValues] = useState<Record<string, string>>({});
   const [open, setOpen] = useState<Record<string, boolean>>({ phenoage: true });
   const [saving, setSaving] = useState(false);
@@ -96,6 +98,7 @@ export default function BiomarkersCapture() {
       Alert.alert('Error', 'No se pudieron guardar los datos. Intenta de nuevo.');
       return;
     }
+    analytics.track(ATP_EVENTS.EDAD_ATP_BIOMARKERS_SAVED, { count: entries.length });
     haptic.success();
     Alert.alert('', 'Datos guardados ✓', [{ text: 'OK', onPress: () => router.back() }]);
   }

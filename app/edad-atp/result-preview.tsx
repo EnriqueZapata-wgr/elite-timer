@@ -17,6 +17,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { computeEdadAtpV2, type EdadAtpV2Inputs } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import type { EdadAtpV2Result, DomainKey } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -92,6 +93,7 @@ async function assembleInputs(userId: string): Promise<EdadAtpV2Inputs> {
 
 export default function ResultPreview() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
   const [ce, setCe] = useState(0);
 
@@ -102,6 +104,7 @@ export default function ResultPreview() {
       const r = await computeEdadAtpV2(user.id, inputs);
       setResult(r);
       setCe((await computeCE(user.id)).ce_integral);
+      analytics.track(ATP_EVENTS.EDAD_ATP_RESULT_PREVIEWED, { edad_integral: Math.round(r.edad_integral) });
     })();
   }, [user?.id]));
 

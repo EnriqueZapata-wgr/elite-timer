@@ -2,7 +2,7 @@
  * Edad ATP — Hub de captura de datos (Sprint 2, MVP manual).
  * Muestra la CE actual + 5 cards navegables a las pantallas de captura.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeCE, type CEResult } from '@/src/services/edad-atp/ce-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -34,10 +35,20 @@ const CARDS: Card[] = [
 
 export default function EdadAtpHub() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [ce, setCe] = useState<CEResult | null>(null);
+  const prevCeRef = useRef<number | null>(null);
 
   useFocusEffect(useCallback(() => {
-    if (user?.id) computeCE(user.id).then(setCe);
+    analytics.track(ATP_EVENTS.EDAD_ATP_CAPTURE_SCREEN_VIEWED, { screen: 'hub' });
+    if (user?.id) computeCE(user.id).then((r) => {
+      setCe(r);
+      const prev = prevCeRef.current;
+      if (prev != null && prev < CALC_THRESHOLD && r.ce_integral >= CALC_THRESHOLD) {
+        analytics.track(ATP_EVENTS.EDAD_ATP_CE_THRESHOLD_CROSSED, { ce: Math.round(r.ce_integral) });
+      }
+      prevCeRef.current = r.ce_integral;
+    });
   }, [user?.id]));
 
   const ceValue = ce?.ce_integral ?? 0;

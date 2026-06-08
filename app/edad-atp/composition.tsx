@@ -11,6 +11,7 @@ import { EliteText } from '@/components/elite-text';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveBodyComposition } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -21,6 +22,7 @@ const num = (s: string): number | undefined => {
 
 export default function CompositionCapture() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [v, setV] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
@@ -56,6 +58,7 @@ export default function CompositionCapture() {
       Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
       return;
     }
+    analytics.track(ATP_EVENTS.EDAD_ATP_COMPOSITION_SAVED, {});
     haptic.success();
     Alert.alert('', 'Datos guardados ✓', [{ text: 'OK', onPress: () => router.back() }]);
   }
