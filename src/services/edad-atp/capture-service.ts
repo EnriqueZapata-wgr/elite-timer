@@ -97,7 +97,14 @@ export type BodyCompositionInput = {
   ffmi?: number;
 };
 
-/** Inserta una fila de composición corporal (source 'manual'). */
+/**
+ * @deprecated Sprint 2.5 — la composición ahora se escribe a health_measurements
+ * (tabla canónica) vía saveHealthMeasurement. Esta función ya NO se usa por las
+ * pantallas; se conserva solo por compatibilidad. loadUserData sigue LEYENDO de
+ * edad_atp_body_composition como fallback para datos generados en Sprint 2.
+ * TODO: deprecate edad_atp_body_composition table en sprint futuro (sin migración
+ * destructiva — los datos existentes se mantienen leíbles).
+ */
 export async function saveBodyComposition(userId: string, comp: BodyCompositionInput): Promise<SaveResult> {
   const { error } = await supabase.from('edad_atp_body_composition').insert({
     user_id: userId,
