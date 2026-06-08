@@ -32,6 +32,14 @@ export const ATP_EVENTS = {
   FAST_EDIT_ATTEMPTED: 'fast_edit_attempted',
   FAST_EDIT_SUCCEEDED: 'fast_edit_succeeded',
   FAST_EDIT_FAILED: 'fast_edit_failed',
+  // Edad ATP v2 — captura (Sprint 2)
+  EDAD_ATP_CAPTURE_SCREEN_VIEWED: 'edad_atp_capture_screen_viewed',
+  EDAD_ATP_BIOMARKERS_SAVED: 'edad_atp_biomarkers_saved',
+  EDAD_ATP_COMPOSITION_SAVED: 'edad_atp_composition_saved',
+  EDAD_ATP_VITALS_SAVED: 'edad_atp_vitals_saved',
+  EDAD_ATP_QUESTIONNAIRE_COMPLETED: 'edad_atp_questionnaire_completed',
+  EDAD_ATP_RESULT_PREVIEWED: 'edad_atp_result_previewed',
+  EDAD_ATP_CE_THRESHOLD_CROSSED: 'edad_atp_ce_threshold_crossed',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];

@@ -612,6 +612,16 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
           </Pressable>
+          <Pressable onPress={() => { haptic.medium(); router.push('/edad-atp' as any); }} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="analytics-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Edad ATP (preview)</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Captura de datos del modelo v2</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
           <Divider />
         </Animated.View>
 
