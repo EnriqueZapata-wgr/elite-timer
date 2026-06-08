@@ -126,11 +126,75 @@ function rowsToMap(rows: { key: string; value: number | null }[] | null): Record
 }
 
 /**
- * Orquestador con persistencia. Carga inputs de las tablas edad_atp_* y guarda
- * el resultado en edad_atp_calculations. (Integración — la matemática se prueba
+ * Mapea UnifiedUserData (plano, de loadUserData) → EdadAtpV2Inputs (anidado).
+ * Rellena con defaults neutrales lo que falte: PhenoAge → PHENOAGE_DEFAULTS,
+ * composición/cardio → valores típicos. domain_scores = placeholder neutral
+ * hasta Sprint 5. PURO (testeable sin DB).
+ */
+export function buildInputsFromUnified(data: UnifiedUserData): EdadAtpV2Inputs {
+  const age = data.chronological_age;
+  const n = (v: number | undefined, fallback: number) => (v != null ? v : fallback);
+  return {
+    chronological_age: age,
+    sex: data.sex,
+    phenoage_biomarkers: {
+      albumin_g_dl: n(data.albumin_g_dl, PHENOAGE_DEFAULTS.albumin),
+      creatinine_mg_dl: n(data.creatinine_mg_dl, PHENOAGE_DEFAULTS.creatinine),
+      glucose_mg_dl: n(data.glucose_mg_dl, PHENOAGE_DEFAULTS.glucose),
+      crp_mg_dl: n(data.pcr_mg_dl, PHENOAGE_DEFAULTS.crp),
+      lymphocyte_pct: n(data.lymphocyte_pct, PHENOAGE_DEFAULTS.lymphocyte_pct),
+      mcv_fl: n(data.mcv_fl, PHENOAGE_DEFAULTS.mcv),
+      rdw_cv_pct: n(data.rdw_cv_pct, PHENOAGE_DEFAULTS.rdw_cv),
+      alp_u_l: n(data.alp_u_l, PHENOAGE_DEFAULTS.alp),
+      wbc_per_ul: n(data.wbc_per_ul, PHENOAGE_DEFAULTS.wbc),
+      chronological_age: age,
+    },
+    domain_scores: data.sf_scores_by_domain ?? {},
+    body_composition: {
+      weight_kg: n(data.weight_kg, 80),
+      height_cm: n(data.height_cm, 175),
+      body_fat_pct: n(data.body_fat_pct, 22),
+      skeletal_muscle_pct: n(data.skeletal_muscle_pct, 36),
+      visceral_fat: n(data.visceral_fat, 8),
+      grip_strength_kg: data.grip_strength_kg,
+    },
+    metabolic: {
+      glucose_mg_dl: data.glucose_mg_dl,
+      insulin_uU_ml: data.insulin_uU_ml,
+      hba1c_pct: data.hba1c_pct,
+      hdl_mg_dl: data.hdl_mg_dl,
+      triglycerides_mg_dl: data.triglycerides_mg_dl,
+    },
+    cardiovascular: {
+      total_cholesterol_mg_dl: n(data.total_cholesterol_mg_dl, 180),
+      hdl_mg_dl: n(data.hdl_mg_dl, 50),
+      systolic_bp_mmHg: n(data.systolic_bp_mmHg, 120),
+      on_htn_treatment: false,
+      has_diabetes: false,
+      smoker: false,
+      race: 'other',
+    },
+    fitness: {
+      vo2max_ml_kg_min: data.vo2max_ml_kg_min,
+      grip_strength_kg: data.grip_strength_kg,
+      resting_hr_bpm: data.resting_hr_bpm,
+    },
+    reaction_time:
+      data.reaction_time_simple_ms != null && data.reaction_time_choice_ms != null
+        ? { rt_simple_ms: data.reaction_time_simple_ms, rt_choice_ms: data.reaction_time_choice_ms }
+        : undefined,
+  };
+}
+
+/**
+ * Orquestador con persistencia. Lee TODAS las fuentes vía loadUserData (lab_results,
+ * health_measurements, lab_uploads, edad_atp_*), arma los inputs y guarda el
+ * resultado en edad_atp_calculations. (Integración — la matemática se prueba
  * vía computeEdadAtpV2FromInputs.)
  */
-export async function computeEdadAtpV2(userId: string, inputs: EdadAtpV2Inputs): Promise<EdadAtpV2Result> {
+export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result> {
+  const data = await loadUserData(userId);
+  const inputs = buildInputsFromUnified(data);
   const result = computeEdadAtpV2FromInputs(inputs);
   try {
     await supabase.from('edad_atp_calculations').insert({
