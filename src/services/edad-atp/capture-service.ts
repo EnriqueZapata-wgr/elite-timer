@@ -4,8 +4,31 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
+import { getLocalToday } from '@/src/utils/date-helpers';
 
 export type SaveResult = { ok: boolean; error?: string };
+
+/**
+ * Inserta una nueva fila en lab_results (la tabla canónica de labs) con lab_date
+ * = hoy y status 'draft'. `values` mapea columna→valor (ya en nombres de columna
+ * de lab_results: glucose, creatinine, pcr, cholesterol_total, t3_free, etc.).
+ * Así los datos de Edad ATP alimentan el mismo expediente médico que el pilar Salud.
+ */
+export async function saveLabResults(userId: string, values: Record<string, number>): Promise<SaveResult> {
+  if (Object.keys(values).length === 0) return { ok: true };
+  const { error } = await supabase.from('lab_results').insert({
+    user_id: userId,
+    lab_date: getLocalToday(),
+    status: 'draft',
+    lab_name: 'Edad ATP (captura manual)',
+    ...values,
+  });
+  if (error) {
+    logWarn('[edad-atp capture] saveLabResults failed:', error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
 
 export type BiomarkerEntry = { key: string; value: number; unit: string };
 
