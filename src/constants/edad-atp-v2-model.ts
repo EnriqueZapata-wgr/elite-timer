@@ -80,23 +80,20 @@ export const RITMO_AGE_EXPONENT = 0.75;
 export const SCORE_9_BANDS = [0, 25, 50, 80, 100, 80, 50, 25, 0] as const;
 
 /**
- * Pesos de los 10 dominios SF (suman 1.0).
- * ⚠️ PLACEHOLDER: los pesos REALES del Excel (sección 6.x) NO están en los docs
- * maestros (ARQUITECTURA_v2 / ALGORITMO_VERIFICADO_v1). Con pesos iguales, los
- * scores del paciente HOMBRES V7 dan SF=0.6315 (no el verificado 0.6083).
- * → Pendiente: pesos de dominio reales para reproducir 0.6083 (ver COWORK_REPORT).
+ * Pesos de los 10 dominios SF (suman 1.0). Valores REALES aprobados por Enrique
+ * (2026-06-08) — reproducen el SF verificado del paciente HOMBRES V7 = 0.6083.
  */
 export const SF_DOMAIN_WEIGHTS: Record<string, number> = {
-  cardiovascular: 0.1,
-  composicion_corporal: 0.1,
-  habitos: 0.1,
-  inflamacion: 0.1,
-  inmunidad: 0.1,
-  metabolismo: 0.1,
-  renal_micronutrientes: 0.1,
-  sistema_hormonal: 0.1,
-  sueno: 0.1,
-  vitalidad: 0.1,
+  metabolismo: 0.15,
+  habitos: 0.12,
+  cardiovascular: 0.12,
+  sistema_hormonal: 0.12,
+  sueno: 0.10,
+  vitalidad: 0.10,
+  inflamacion: 0.08,
+  composicion_corporal: 0.08,
+  renal_micronutrientes: 0.07,
+  inmunidad: 0.06,
 };
 
 // ============================================================

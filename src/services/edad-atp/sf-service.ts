@@ -3,11 +3,7 @@
  * EDAD ATP Sprint 1/N.
  *
  * SF global = Σ(score_dominio × peso_dominio) / 100  → 0-1.
- *
- * ⚠️ Los PESOS de dominio reales del Excel NO están en los docs maestros; aquí
- * se usa un placeholder de pesos iguales (ver SF_DOMAIN_WEIGHTS). Con eso, el
- * paciente HOMBRES V7 da SF=0.6315 en vez del verificado 0.6083. El mecanismo
- * de cálculo es correcto; solo faltan los pesos reales (ver COWORK_REPORT).
+ * Con los pesos reales (SF_DOMAIN_WEIGHTS), el paciente HOMBRES V7 da SF=0.6083.
  */
 import type { DomainKey } from '@/src/types/edad-atp-v2';
 import { SCORE_9_BANDS, SF_DOMAIN_WEIGHTS } from '@/src/constants/edad-atp-v2-model';

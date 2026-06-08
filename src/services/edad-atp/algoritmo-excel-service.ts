@@ -7,9 +7,10 @@
  * ritmo 14.66, G35 61.10, G36 59.10, G37 54.55.
  *
  * NOTA: el orquestador público toma `domain_scores` (no los ~140 inputs crudos),
- * porque los rangos de 9 bandas por parámetro + los pesos de dominio reales viven
- * en el Excel maestro y aún no están en los docs (sprint 5). Con el placeholder de
- * pesos iguales, el SF del paciente da 0.6315 (no 0.6083) → ver COWORK_REPORT.
+ * porque los rangos de 9 bandas por parámetro viven en el Excel maestro y se
+ * completan en sprint 5. Los pesos de dominio reales YA están integrados
+ * (SF_DOMAIN_WEIGHTS), así que con los domain_scores del paciente el SF da 0.6083
+ * y el orquestador reproduce G37=54.55.
  */
 import type { BodyComposition, DomainKey, PhenoAgeBiomarkers, Sex } from '@/src/types/edad-atp-v2';
 import {

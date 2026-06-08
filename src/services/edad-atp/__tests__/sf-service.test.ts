@@ -46,17 +46,15 @@ describe('SF — computeSFGlobal', () => {
     expect(computeSFGlobal(scores).sf).toBeLessThan(0.1);
   });
 
-  it('datos faltantes → CE proporcional', () => {
+  it('datos faltantes → CE proporcional al peso presente', () => {
     const partial: Partial<Record<DomainKey, number>> = { metabolismo: 80, cardiovascular: 60 };
     const { ce_percent } = computeSFGlobal(partial);
-    expect(ce_percent).toBeCloseTo(20, 1); // 2 de 10 dominios
+    // CE es por PESO presente: metabolismo 0.15 + cardiovascular 0.12 = 0.27 → 27%.
+    expect(ce_percent).toBeCloseTo(27, 1);
   });
 
-  it('paciente HOMBRES V7 — SF con pesos iguales (placeholder) = 0.6315', () => {
-    // ⚠️ El valor VERIFICADO del Excel es 0.6083, que requiere los PESOS DE
-    // DOMINIO reales (no uniformes) ausentes de los docs. Con pesos iguales el
-    // mecanismo da 0.6315. Ver flag en COWORK_REPORT.
+  it('paciente HOMBRES V7 — SF con pesos reales = 0.6083 (verificado)', () => {
     const { sf } = computeSFGlobal(PATIENT_HOMBRES_V7_SF_SCORES);
-    expect(sf).toBeCloseTo(0.6315, 3);
+    expect(sf).toBeCloseTo(0.6083, 3);
   });
 });

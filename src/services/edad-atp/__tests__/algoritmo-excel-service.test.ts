@@ -55,8 +55,10 @@ describe('Algoritmo Excel — orquestador público (PhenoAge + ajuste exactos; S
     });
     expect(r.phenoage).toBeCloseTo(40.90, 1);
     expect(r.ce_excel).toBeCloseTo(1.0, 2); // 10/10 dominios presentes
-    // ⚠️ sf_score = 0.6315 (pesos placeholder), no 0.6083 → algoritmo_excel ≈ 53.2,
-    // no 54.55, hasta tener los pesos de dominio reales. Ver COWORK_REPORT.
-    expect(r.sf_score).toBeCloseTo(0.6315, 2);
+    // Con pesos de dominio reales, el SF y el blend completo se reproducen exacto.
+    expect(r.sf_score).toBeCloseTo(0.6083, 3);
+    expect(r.ritmo_envejecimiento).toBeCloseTo(14.66, 1);
+    expect(r.edad_biologica_con_ajuste).toBeCloseTo(59.10, 1);
+    expect(r.algoritmo_excel).toBeCloseTo(54.55, 1);
   });
 });
