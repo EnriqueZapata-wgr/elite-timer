@@ -13,7 +13,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeCEFromData, unifiedToCEData, type CEResult } from '@/src/services/edad-atp/ce-service';
-import { loadUserData, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { loadUserData, countFields, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
@@ -48,6 +48,12 @@ export default function EdadAtpHub() {
       // Una sola lectura unificada alimenta CE + indicadores por card.
       const d = await loadUserData(user.id);
       setData(d);
+      if (d.data_sources_used.length > 0) {
+        analytics.track(ATP_EVENTS.EDAD_ATP_DATA_PREPOPULATED, {
+          sources_used: d.data_sources_used,
+          fields_count: countFields(d),
+        });
+      }
       const r = computeCEFromData(unifiedToCEData(d));
       setCe(r);
       const prev = prevCeRef.current;

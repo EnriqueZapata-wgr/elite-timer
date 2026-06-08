@@ -14,7 +14,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
-import { computeEdadAtpV2, loadUserData, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { computeEdadAtpV2, loadUserData, countFields, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
@@ -59,6 +59,12 @@ export default function ResultPreview() {
         edad_integral: Math.round(r.edad_integral),
         sources_used: data.data_sources_used.length,
       });
+      if (data.data_sources_used.length > 0) {
+        analytics.track(ATP_EVENTS.EDAD_ATP_DATA_PREPOPULATED, {
+          sources_used: data.data_sources_used,
+          fields_count: countFields(data),
+        });
+      }
     })();
   }, [user?.id]));
 

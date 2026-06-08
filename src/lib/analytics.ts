@@ -40,6 +40,8 @@ export const ATP_EVENTS = {
   EDAD_ATP_QUESTIONNAIRE_COMPLETED: 'edad_atp_questionnaire_completed',
   EDAD_ATP_RESULT_PREVIEWED: 'edad_atp_result_previewed',
   EDAD_ATP_CE_THRESHOLD_CROSSED: 'edad_atp_ce_threshold_crossed',
+  // Edad ATP v2.5 — integración con datos existentes
+  EDAD_ATP_DATA_PREPOPULATED: 'edad_atp_data_prepopulated',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];

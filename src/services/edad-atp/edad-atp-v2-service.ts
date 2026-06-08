@@ -292,6 +292,13 @@ function firstNum(...vals: Array<number | null | undefined>): number | undefined
   return undefined;
 }
 
+/** Cuenta los campos de datos efectivamente presentes en UnifiedUserData. */
+export function countFields(data: UnifiedUserData): number {
+  const meta = new Set(['chronological_age', 'sex', 'data_sources_used', 'sf_scores_by_domain']);
+  const numeric = Object.entries(data).filter(([k, v]) => !meta.has(k) && v != null).length;
+  return numeric + Object.keys(data.sf_scores_by_domain ?? {}).length;
+}
+
 /** Edad cronológica a partir de date_of_birth (YYYY-MM-DD). null si inválida. */
 function ageFromDob(dob: string | null | undefined): number | null {
   if (!dob) return null;
