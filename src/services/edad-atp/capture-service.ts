@@ -4,8 +4,31 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
+import { getLocalToday } from '@/src/utils/date-helpers';
 
 export type SaveResult = { ok: boolean; error?: string };
+
+/**
+ * Inserta una nueva fila en lab_results (la tabla canónica de labs) con lab_date
+ * = hoy y status 'draft'. `values` mapea columna→valor (ya en nombres de columna
+ * de lab_results: glucose, creatinine, pcr, cholesterol_total, t3_free, etc.).
+ * Así los datos de Edad ATP alimentan el mismo expediente médico que el pilar Salud.
+ */
+export async function saveLabResults(userId: string, values: Record<string, number>): Promise<SaveResult> {
+  if (Object.keys(values).length === 0) return { ok: true };
+  const { error } = await supabase.from('lab_results').insert({
+    user_id: userId,
+    lab_date: getLocalToday(),
+    status: 'draft',
+    lab_name: 'Edad ATP (captura manual)',
+    ...values,
+  });
+  if (error) {
+    logWarn('[edad-atp capture] saveLabResults failed:', error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
 
 export type BiomarkerEntry = { key: string; value: number; unit: string };
 
@@ -28,6 +51,42 @@ export async function saveBiomarkers(userId: string, entries: BiomarkerEntry[]):
   return { ok: true };
 }
 
+/** Lee la medición de salud más reciente del usuario (para pre-poblar). */
+export async function getLatestHealthMeasurement(userId: string): Promise<Record<string, any> | null> {
+  const { data, error } = await supabase
+    .from('health_measurements')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(1);
+  if (error) { logWarn('[edad-atp capture] getLatestHealthMeasurement failed:', error); return null; }
+  return (data ?? [])[0] ?? null;
+}
+
+export type HealthMeasurementInput = {
+  weight_kg?: number; height_cm?: number; body_fat_pct?: number;
+  muscle_mass_kg?: number; visceral_fat?: number; grip_strength_kg?: number;
+  systolic_bp?: number; diastolic_bp?: number; resting_hr?: number; vo2max_estimate?: number;
+};
+
+/**
+ * Upsert de la medición de salud de HOY en health_measurements (tabla canónica de
+ * composición/vitals). UNIQUE(user_id, date) → re-guardar el mismo día actualiza la
+ * fila; columnas no incluidas conservan su valor. Edad ATP comparte expediente con Salud.
+ */
+export async function saveHealthMeasurement(userId: string, fields: HealthMeasurementInput): Promise<SaveResult> {
+  const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v != null));
+  if (Object.keys(clean).length === 0) return { ok: true };
+  const { error } = await supabase
+    .from('health_measurements')
+    .upsert({ user_id: userId, date: getLocalToday(), source: 'edad_atp', ...clean }, { onConflict: 'user_id,date' });
+  if (error) {
+    logWarn('[edad-atp capture] saveHealthMeasurement failed:', error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
 export type BodyCompositionInput = {
   weight_kg?: number;
   height_cm?: number;
@@ -38,7 +97,14 @@ export type BodyCompositionInput = {
   ffmi?: number;
 };
 
-/** Inserta una fila de composición corporal (source 'manual'). */
+/**
+ * @deprecated Sprint 2.5 — la composición ahora se escribe a health_measurements
+ * (tabla canónica) vía saveHealthMeasurement. Esta función ya NO se usa por las
+ * pantallas; se conserva solo por compatibilidad. loadUserData sigue LEYENDO de
+ * edad_atp_body_composition como fallback para datos generados en Sprint 2.
+ * TODO: deprecate edad_atp_body_composition table en sprint futuro (sin migración
+ * destructiva — los datos existentes se mantienen leíbles).
+ */
 export async function saveBodyComposition(userId: string, comp: BodyCompositionInput): Promise<SaveResult> {
   const { error } = await supabase.from('edad_atp_body_composition').insert({
     user_id: userId,

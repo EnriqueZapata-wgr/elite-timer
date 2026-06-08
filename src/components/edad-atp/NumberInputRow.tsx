@@ -15,13 +15,20 @@ interface Props {
   helper?: string;
   placeholder?: string;
   readOnly?: boolean;
+  /** Etiqueta verde "ya tienes este dato" (ej. "Labs · hace 12d"). */
+  badge?: string;
 }
 
-export function NumberInputRow({ label, unit, value, onChangeText, helper, placeholder, readOnly }: Props) {
+export function NumberInputRow({ label, unit, value, onChangeText, helper, placeholder, readOnly, badge }: Props) {
   return (
     <View style={styles.row}>
       <View style={styles.labelCol}>
         <EliteText variant="body" style={styles.label}>{label}{unit ? ` (${unit})` : ''}</EliteText>
+        {badge ? (
+          <View style={styles.badge}>
+            <EliteText variant="caption" style={styles.badgeText}>✓ {badge}</EliteText>
+          </View>
+        ) : null}
         {helper ? <EliteText variant="caption" style={styles.helper}>{helper}</EliteText> : null}
       </View>
       <TextInput
@@ -42,6 +49,8 @@ const styles = StyleSheet.create({
   labelCol: { flex: 1 },
   label: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   helper: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 1 },
+  badge: { alignSelf: 'flex-start', backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 1, marginTop: 2 },
+  badgeText: { color: Colors.neonGreen, fontSize: FontSizes.xs },
   input: {
     width: 96, textAlign: 'right',
     backgroundColor: Colors.surface, borderRadius: Radius.sm,

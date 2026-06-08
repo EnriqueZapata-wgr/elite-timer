@@ -12,7 +12,8 @@ import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { computeCE, type CEResult } from '@/src/services/edad-atp/ce-service';
+import { computeCEFromData, unifiedToCEData, type CEResult } from '@/src/services/edad-atp/ce-service';
+import { loadUserData, countFields, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
@@ -37,24 +38,64 @@ export default function EdadAtpHub() {
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [ce, setCe] = useState<CEResult | null>(null);
+  const [data, setData] = useState<UnifiedUserData | null>(null);
   const prevCeRef = useRef<number | null>(null);
 
   useFocusEffect(useCallback(() => {
     analytics.track(ATP_EVENTS.EDAD_ATP_CAPTURE_SCREEN_VIEWED, { screen: 'hub' });
-    if (user?.id) computeCE(user.id).then((r) => {
+    if (!user?.id) return;
+    (async () => {
+      // Una sola lectura unificada alimenta CE + indicadores por card.
+      const d = await loadUserData(user.id);
+      setData(d);
+      if (d.data_sources_used.length > 0) {
+        analytics.track(ATP_EVENTS.EDAD_ATP_DATA_PREPOPULATED, {
+          sources_used: d.data_sources_used,
+          fields_count: countFields(d),
+        });
+      }
+      const r = computeCEFromData(unifiedToCEData(d));
       setCe(r);
       const prev = prevCeRef.current;
       if (prev != null && prev < CALC_THRESHOLD && r.ce_integral >= CALC_THRESHOLD) {
         analytics.track(ATP_EVENTS.EDAD_ATP_CE_THRESHOLD_CROSSED, { ce: Math.round(r.ce_integral) });
       }
       prevCeRef.current = r.ce_integral;
-    });
+    })();
   }, [user?.id]));
 
   const ceValue = ce?.ce_integral ?? 0;
-  const cardPct = (c: Card): number | null => {
-    if (c.key === 'vitals') return null; // las vitals cuentan dentro de biomarcadores
-    return ce ? Math.round(ce.breakdown[c.key]) : null;
+
+  // Indicador "ya tienes datos" por card (derivado de la lectura unificada).
+  const cardStatus = (c: Card): { text: string; done: boolean } | null => {
+    if (!data) return null;
+    const used = new Set(data.data_sources_used);
+    switch (c.key) {
+      case 'biomarkers': {
+        const phenoNew = ['albumin_g_dl', 'alp_u_l', 'lymphocyte_pct', 'mcv_fl', 'rdw_cv_pct'] as const;
+        const n = phenoNew.filter((k) => data[k] != null).length;
+        const hasLabs = used.has('lab_results') || used.has('lab_uploads');
+        return { text: `PhenoAge ${n}/5${hasLabs ? ' · Labs ✓' : ''}`, done: n === 5 };
+      }
+      case 'composition': {
+        const ok = data.weight_kg != null && data.height_cm != null && data.body_fat_pct != null;
+        return { text: ok ? 'Registrada ✓' : 'Pendiente', done: ok };
+      }
+      case 'vitals': {
+        const ok = data.systolic_bp_mmHg != null;
+        return { text: ok ? 'PAS ✓' : 'Pendiente PAS', done: ok };
+      }
+      case 'questionnaires': {
+        const n = Object.keys(data.sf_scores_by_domain ?? {}).length;
+        return { text: `${n}/10 dominios`, done: n >= 6 };
+      }
+      case 'cognitive': {
+        const ok = data.reaction_time_simple_ms != null && data.reaction_time_choice_ms != null;
+        return { text: ok ? 'Registrado ✓' : 'Pendiente', done: ok };
+      }
+      default:
+        return null;
+    }
   };
 
   return (
@@ -73,7 +114,7 @@ export default function EdadAtpHub() {
         </View>
 
         {CARDS.map((c) => {
-          const pct = cardPct(c);
+          const status = cardStatus(c);
           return (
             <Pressable
               key={c.key}
@@ -87,8 +128,8 @@ export default function EdadAtpHub() {
                 <EliteText variant="body" style={styles.cardTitle}>{c.title}</EliteText>
                 <EliteText variant="caption" style={styles.cardDesc}>{c.desc}</EliteText>
               </View>
-              {pct != null && (
-                <EliteText variant="caption" style={[styles.cardPct, pct >= 100 && { color: Colors.neonGreen }]}>{pct}%</EliteText>
+              {status != null && (
+                <EliteText variant="caption" style={[styles.cardPct, status.done && { color: Colors.neonGreen }]}>{status.text}</EliteText>
               )}
               <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
             </Pressable>
@@ -128,7 +169,7 @@ const styles = StyleSheet.create({
   cardIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(168,224,42,0.12)', justifyContent: 'center', alignItems: 'center' },
   cardTitle: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
   cardDesc: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 2 },
-  cardPct: { color: Colors.textSecondary, fontFamily: Fonts.bold },
+  cardPct: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, maxWidth: 96, textAlign: 'right' },
   calcBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md },
   calcBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
   needMore: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.md, paddingHorizontal: Spacing.md },
