@@ -51,6 +51,42 @@ export async function saveBiomarkers(userId: string, entries: BiomarkerEntry[]):
   return { ok: true };
 }
 
+/** Lee la medición de salud más reciente del usuario (para pre-poblar). */
+export async function getLatestHealthMeasurement(userId: string): Promise<Record<string, any> | null> {
+  const { data, error } = await supabase
+    .from('health_measurements')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(1);
+  if (error) { logWarn('[edad-atp capture] getLatestHealthMeasurement failed:', error); return null; }
+  return (data ?? [])[0] ?? null;
+}
+
+export type HealthMeasurementInput = {
+  weight_kg?: number; height_cm?: number; body_fat_pct?: number;
+  muscle_mass_kg?: number; visceral_fat?: number; grip_strength_kg?: number;
+  systolic_bp?: number; diastolic_bp?: number; resting_hr?: number; vo2max_estimate?: number;
+};
+
+/**
+ * Upsert de la medición de salud de HOY en health_measurements (tabla canónica de
+ * composición/vitals). UNIQUE(user_id, date) → re-guardar el mismo día actualiza la
+ * fila; columnas no incluidas conservan su valor. Edad ATP comparte expediente con Salud.
+ */
+export async function saveHealthMeasurement(userId: string, fields: HealthMeasurementInput): Promise<SaveResult> {
+  const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v != null));
+  if (Object.keys(clean).length === 0) return { ok: true };
+  const { error } = await supabase
+    .from('health_measurements')
+    .upsert({ user_id: userId, date: getLocalToday(), source: 'edad_atp', ...clean }, { onConflict: 'user_id,date' });
+  if (error) {
+    logWarn('[edad-atp capture] saveHealthMeasurement failed:', error);
+    return { ok: false, error: error.message };
+  }
+  return { ok: true };
+}
+
 export type BodyCompositionInput = {
   weight_kg?: number;
   height_cm?: number;
