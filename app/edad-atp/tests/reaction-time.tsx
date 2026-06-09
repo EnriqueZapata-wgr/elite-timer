@@ -1,7 +1,7 @@
 /**
  * Test funcional — Reaction Time (Deary-Liewald): simple RT + choice RT.
  * Mide ms de respuesta y guarda promedios en edad_atp_functional_tests.
- * TODO: subir trials a 30/40 (research) tras validar UX; hoy 10/10 para MVP usable.
+ * 30 simple + 30 choice; promedio descarta el 10% más lento (filtro de outliers).
  */
 import { useState, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Alert } from 'react-native';
@@ -15,8 +15,8 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveFunctionalTests } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
-const SIMPLE_TRIALS = 10;
-const CHOICE_TRIALS = 10;
+const SIMPLE_TRIALS = 30;
+const CHOICE_TRIALS = 30;
 type Phase = 'intro' | 'simple' | 'choice' | 'saving';
 
 export default function ReactionTimeTest() {
@@ -74,7 +74,14 @@ export default function ReactionTimeTest() {
   async function finish() {
     setPhase('saving');
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    const avg = (a: number[]) => (a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length) : 0);
+    // Promedio con filtro de outliers: descarta el 10% más lento (lapsos de atención).
+    const avg = (a: number[]) => {
+      if (!a.length) return 0;
+      const sorted = [...a].sort((x, y) => x - y);
+      const keep = Math.max(1, Math.ceil(sorted.length * 0.9));
+      const kept = sorted.slice(0, keep);
+      return Math.round(kept.reduce((s, x) => s + x, 0) / kept.length);
+    };
     const simple = avg(simpleTimes.current);
     const choice = avg(choiceTimes.current);
     if (user?.id) {
