@@ -40,8 +40,8 @@ describe('Edad ATP v2 — orquestador E2E (paciente HOMBRES V7)', () => {
     });
     expect(result.algoritmo_excel).toBeCloseTo(54.55, 1);
     expect(result.sub_edades.cognitiva.age_years).toBeCloseTo(33.3, 1);
-    expect(result.modificador_cognitivo).toBeCloseTo(-1.67, 1);
-    expect(result.edad_integral).toBeCloseTo(52.88, 1);
+    expect(result.modificador_cognitivo).toBeCloseTo(-1.5, 1); // clamp ±1.5
+    expect(result.edad_integral).toBeCloseTo(53.05, 1);
   });
 
   it('sin cognitivo → Edad Integral = Algoritmo Excel', () => {

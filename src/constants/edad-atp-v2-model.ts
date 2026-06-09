@@ -62,7 +62,9 @@ export const BLEND_WEIGHT_PHENOAGE = 0.25;
 //   modificador = clamp((EdadCognitiva − EdadCron) × 0.10, ±3)
 // ============================================================
 export const COGNITIVE_MODIFIER_WEIGHT = 0.10;
-export const COGNITIVE_MODIFIER_CAP = 3;
+// TODO Sprint 5: validar magnitud del clamp con datos reales (era ±3, reducido a ±1.5
+// para que un único test cognitivo no contamine la Integral).
+export const COGNITIVE_MODIFIER_CAP = 1.5;
 
 // ============================================================
 // Ritmo de envejecimiento

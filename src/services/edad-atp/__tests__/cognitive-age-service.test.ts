@@ -15,15 +15,15 @@ describe('Edad Cognitiva — tiempo de reacción', () => {
 });
 
 describe('Modificador Cognitivo', () => {
-  it('capeado a +3 si delta es +50', () => {
+  it('capeado a +1.5 si delta es +50', () => {
     const result = computeCognitiveModifier({ edad_cognitiva: 100, chronological_age: 50 });
-    expect(result.modificador).toBe(3);
+    expect(result.modificador).toBe(1.5);
     expect(result.capped).toBe(true);
   });
 
-  it('capeado a -3 si delta es -50', () => {
+  it('capeado a -1.5 si delta es -50', () => {
     const result = computeCognitiveModifier({ edad_cognitiva: 0, chronological_age: 50 });
-    expect(result.modificador).toBe(-3);
+    expect(result.modificador).toBe(-1.5);
     expect(result.capped).toBe(true);
   });
 
