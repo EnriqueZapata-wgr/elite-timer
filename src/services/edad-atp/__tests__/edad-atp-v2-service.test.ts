@@ -32,16 +32,16 @@ const BASE_INPUTS: EdadAtpV2Inputs = {
 };
 
 describe('Edad ATP v2 — orquestador E2E (paciente HOMBRES V7)', () => {
-  it('con Edad Cognitiva 58 → Edad Integral 55.35', () => {
-    // RT 301/459 → edad cognitiva 58 (verificado contra las normas del cognitive-service).
+  it('con cognitivo (curva Der & Deary 2006) → Edad Integral ajustada', () => {
+    // RT 301/459 → edad cognitiva ~33.3 con la curva recalibrada (antes daba 58).
     const result = computeEdadAtpV2FromInputs({
       ...BASE_INPUTS,
       reaction_time: { rt_simple_ms: 301, rt_choice_ms: 459 },
     });
     expect(result.algoritmo_excel).toBeCloseTo(54.55, 1);
-    expect(result.sub_edades.cognitiva.age_years).toBeCloseTo(58, 1);
-    expect(result.modificador_cognitivo).toBeCloseTo(0.8, 1);
-    expect(result.edad_integral).toBeCloseTo(55.35, 1);
+    expect(result.sub_edades.cognitiva.age_years).toBeCloseTo(33.3, 1);
+    expect(result.modificador_cognitivo).toBeCloseTo(-1.67, 1);
+    expect(result.edad_integral).toBeCloseTo(52.88, 1);
   });
 
   it('sin cognitivo → Edad Integral = Algoritmo Excel', () => {
