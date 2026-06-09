@@ -164,6 +164,7 @@ export function buildInputsFromUnified(data: UnifiedUserData): EdadAtpV2Inputs {
       hba1c_pct: data.hba1c_pct,
       hdl_mg_dl: data.hdl_mg_dl,
       triglycerides_mg_dl: data.triglycerides_mg_dl,
+      waist_cm: data.waist_cm,
     },
     cardiovascular: {
       total_cholesterol_mg_dl: n(data.total_cholesterol_mg_dl, 180),
@@ -264,6 +265,7 @@ export interface UnifiedUserData {
   skeletal_muscle_pct?: number;
   visceral_fat?: number;
   grip_strength_kg?: number;
+  waist_cm?: number;
   // Vitals
   systolic_bp_mmHg?: number;
   diastolic_bp_mmHg?: number;
@@ -404,6 +406,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     skeletal_muscle_pct,
     visceral_fat: firstNum(hm?.visceral_fat, compRow?.visceral_fat),
     grip_strength_kg: firstNum(hm?.grip_strength_kg, compRow?.grip_strength_kg),
+    waist_cm: firstNum(hm?.waist_cm),
     systolic_bp_mmHg: firstNum(bio.systolic_bp, hm?.systolic_bp),
     diastolic_bp_mmHg: firstNum(bio.diastolic_bp, hm?.diastolic_bp),
     resting_hr_bpm: firstNum(bio.resting_hr, hm?.resting_hr),
