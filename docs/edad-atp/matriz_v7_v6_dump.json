@@ -1,0 +1,4841 @@
+{
+  "hombres": {
+    "cardiovascular": {
+      "domain_name_es": "Cardiovascular",
+      "params_count": 23,
+      "params": [
+        {
+          "name": "Apolipoproteinas B",
+          "key": "apolipoproteinas_b",
+          "unit": "mg/dl",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            30,
+            0,
+            40,
+            50,
+            99,
+            110,
+            125,
+            150
+          ]
+        },
+        {
+          "name": "Bilirrubina",
+          "key": "bilirrubina",
+          "unit": "mg/dl",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.3,
+            1,
+            1.2,
+            1.5,
+            1.6
+          ]
+        },
+        {
+          "name": "Colesterol HDL",
+          "key": "colesterol_hdl",
+          "unit": "mg/dl",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            30,
+            40,
+            50,
+            60,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Colesterol LDL",
+          "key": "colesterol_ldl",
+          "unit": "mg/dl",
+          "weight": 0.01,
+          "source": "Laboratorio",
+          "band_limits": [
+            30,
+            50,
+            60,
+            80,
+            120,
+            150,
+            160,
+            180
+          ]
+        },
+        {
+          "name": "Colesterol total",
+          "key": "colesterol_total",
+          "unit": "mg/dl",
+          "weight": 0.01,
+          "source": "Laboratorio",
+          "band_limits": [
+            115,
+            130,
+            150,
+            180,
+            220,
+            250,
+            280,
+            350
+          ]
+        },
+        {
+          "name": "Frecuencia cardiaca en reposo (sueño)",
+          "key": "frecuencia_cardiaca_en_reposo_sueno",
+          "unit": "ppm",
+          "weight": 0.04,
+          "source": "Wearable",
+          "band_limits": [
+            null,
+            null,
+            null,
+            35,
+            55,
+            64,
+            70,
+            75
+          ]
+        },
+        {
+          "name": "Gama Glutamil transferasa",
+          "key": "gama_glutamil_transferasa",
+          "unit": "U/l",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            8,
+            10,
+            25,
+            35,
+            50,
+            55
+          ]
+        },
+        {
+          "name": "Indice Aterogenico",
+          "key": "indice_aterogenico",
+          "unit": "Ratio",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0.1,
+            0.2,
+            2.5,
+            3.5,
+            4.5,
+            6
+          ]
+        },
+        {
+          "name": "indice de lipoproteinas (LDL/HDL)",
+          "key": "indice_de_lipoproteinas_ldlhdl",
+          "unit": "Ratio",
+          "weight": 0.04,
+          "source": "Calculo",
+          "band_limits": [
+            0,
+            0,
+            0,
+            0.1,
+            2,
+            2.5,
+            3.5,
+            4
+          ]
+        },
+        {
+          "name": "Presion sistolica",
+          "key": "presion_sistolica",
+          "unit": "mm/mg",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            75,
+            80,
+            90,
+            100,
+            115,
+            120,
+            129,
+            140
+          ]
+        },
+        {
+          "name": "Presion diastolica",
+          "key": "presion_diastolica",
+          "unit": "mm/mg",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            45,
+            50,
+            60,
+            65,
+            75,
+            80,
+            85,
+            90
+          ]
+        },
+        {
+          "name": "Relacion Neutrofilos / Linfocitos (NLR)",
+          "key": "relacion_neutrofilos_linfocitos_nlr",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.5,
+            2,
+            2.2,
+            2.5
+          ]
+        },
+        {
+          "name": "Relacion Trigliceridos / HDL",
+          "key": "relacion_trigliceridos_hdl",
+          "unit": "Ratio",
+          "weight": 0.06,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.8,
+            2,
+            2.5,
+            2.8
+          ]
+        },
+        {
+          "name": "Respiracion BOLT",
+          "key": "respiracion_bolt",
+          "unit": "Seg",
+          "weight": 0.04,
+          "source": "Tests",
+          "band_limits": [
+            12,
+            15,
+            20,
+            25,
+            60,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "sdLDL",
+          "key": "sdldl",
+          "unit": "mg/dl",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0,
+            5,
+            20,
+            30,
+            40,
+            50
+          ]
+        },
+        {
+          "name": "Transaminasa Glutamico Oxalacetica (AST)",
+          "key": "transaminasa_glutamico_oxalacetica_ast",
+          "unit": "U/l",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            10,
+            15,
+            25,
+            35,
+            45,
+            50
+          ]
+        },
+        {
+          "name": "Transaminasa Glutamico Piruvica (ALT)",
+          "key": "transaminasa_glutamico_piruvica_alt",
+          "unit": "U/l",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            10,
+            15,
+            25,
+            35,
+            45,
+            50
+          ]
+        },
+        {
+          "name": "Trigliceridos",
+          "key": "trigliceridos",
+          "unit": "mg/dl",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            30,
+            70,
+            100,
+            150,
+            175
+          ]
+        },
+        {
+          "name": "VLDL",
+          "key": "vldl",
+          "unit": "mg/dl",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            1,
+            2,
+            5,
+            15,
+            20,
+            30,
+            35
+          ]
+        },
+        {
+          "name": "VO2 estimado",
+          "key": "vo2_estimado",
+          "unit": "ml/kg/min",
+          "weight": 0.09,
+          "source": "Tests",
+          "band_limits": [
+            30,
+            36,
+            42,
+            50,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Hemoglobina",
+          "key": "hemoglobina",
+          "unit": "g/dl",
+          "weight": 0.03,
+          "source": "Tests",
+          "band_limits": [
+            9,
+            11,
+            12,
+            14,
+            15,
+            15.5,
+            16,
+            17
+          ]
+        },
+        {
+          "name": "Hematocrito",
+          "key": "hematocrito",
+          "unit": "%",
+          "weight": 0.02,
+          "source": "Tests",
+          "band_limits": [
+            0.33,
+            0.34,
+            0.36,
+            0.38,
+            0.44,
+            0.49,
+            0.52,
+            0.54
+          ]
+        },
+        {
+          "name": "RDW - CV",
+          "key": "rdw_cv",
+          "unit": "%",
+          "weight": 0.04,
+          "source": "Tests",
+          "band_limits": [
+            0.03,
+            0.04,
+            0.05,
+            0.06,
+            0.125,
+            0.135,
+            0.145,
+            0.155
+          ]
+        }
+      ]
+    },
+    "composicion_corporal": {
+      "domain_name_es": "Composición corporal",
+      "params_count": 10,
+      "params": [
+        {
+          "name": "% grasa corporal",
+          "key": "grasa_corporal",
+          "unit": "%",
+          "weight": 0.18,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0.03,
+            0.07,
+            0.08,
+            0.1,
+            0.14,
+            0.185,
+            0.24,
+            0.35
+          ]
+        },
+        {
+          "name": "% musculo esqueletico",
+          "key": "musculo_esqueletico",
+          "unit": "%",
+          "weight": 0.19,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0.2,
+            0.3,
+            0.35,
+            0.4,
+            0.6,
+            0.7,
+            0.75,
+            0.8
+          ]
+        },
+        {
+          "name": "Edad corporal",
+          "key": "edad_corporal",
+          "unit": "años",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -15,
+            -1,
+            0,
+            5,
+            10
+          ]
+        },
+        {
+          "name": "Fuerza de agarre",
+          "key": "fuerza_de_agarre",
+          "unit": "Kg",
+          "weight": 0.13,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            35,
+            40,
+            45,
+            50,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Grasa visceral",
+          "key": "grasa_visceral",
+          "unit": "Unidad",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0,
+            0,
+            0,
+            1,
+            2,
+            9,
+            12,
+            15
+          ]
+        },
+        {
+          "name": "Pull-ups",
+          "key": "pullups",
+          "unit": "cantidad",
+          "weight": 0.03,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            3,
+            6,
+            10,
+            15,
+            50,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Push-ups",
+          "key": "pushups",
+          "unit": "cantidad",
+          "weight": 0.03,
+          "source": "Tests",
+          "band_limits": [
+            15,
+            20,
+            30,
+            40,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Sentadilla libre",
+          "key": "sentadilla_libre",
+          "unit": "Unidad",
+          "weight": 0.03,
+          "source": "Tests",
+          "band_limits": [
+            8,
+            10,
+            20,
+            30,
+            80,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Test de equilibrio en un pie",
+          "key": "test_de_equilibrio_en_un_pie",
+          "unit": "Seg",
+          "weight": 0.05,
+          "source": "Tests",
+          "band_limits": [
+            7,
+            10,
+            20,
+            30,
+            60,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "VO2 Max",
+          "key": "vo2_max",
+          "unit": "ml/kg/min",
+          "weight": 0.18,
+          "source": "Tests",
+          "band_limits": [
+            30,
+            36,
+            42,
+            50,
+            100,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "habitos": {
+      "domain_name_es": "Habitos",
+      "params_count": 12,
+      "params": [
+        {
+          "name": "Amalgamas de mercurio",
+          "key": "amalgamas_de_mercurio",
+          "unit": "cantidad",
+          "weight": 0.04,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -1,
+            0,
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "name": "Ayuno intermitente",
+          "key": "ayuno_intermitente",
+          "unit": "hr/dia",
+          "weight": 0.12,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            12,
+            13,
+            14,
+            16,
+            20,
+            23,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Consistencia en ejercicio semanal",
+          "key": "consistencia_en_ejercicio_semanal",
+          "unit": "veces/semana",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            12,
+            18,
+            20
+          ]
+        },
+        {
+          "name": "Consumo de alcohol mensual",
+          "key": "consumo_de_alcohol_mensual",
+          "unit": "copas/mes",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            4,
+            6,
+            10,
+            16
+          ]
+        },
+        {
+          "name": "Salud de encias",
+          "key": "salud_de_encias",
+          "unit": "evento",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -1,
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "Uso de farmacos cronicos",
+          "key": "uso_de_farmacos_cronicos",
+          "unit": "cantidad",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -1,
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "Ejercicio semanal",
+          "key": "ejercicio_semanal",
+          "unit": "hr/semana",
+          "weight": 0.2,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            2,
+            4,
+            7,
+            10,
+            25,
+            28,
+            30,
+            32
+          ]
+        },
+        {
+          "name": "Uso de pantallas hr/dia",
+          "key": "uso_de_pantallas_hrdia",
+          "unit": "hr/dia",
+          "weight": 0.06,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            4,
+            6,
+            8,
+            10
+          ]
+        },
+        {
+          "name": "Pasos al día",
+          "key": "pasos_al_dia",
+          "unit": "Pasos/dia",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5000,
+            5500,
+            6500,
+            7800,
+            15000,
+            25000,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Tabaquismo",
+          "key": "tabaquismo",
+          "unit": "Cigarros/día",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -1,
+            0,
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "name": "Respiracion consciente",
+          "key": "respiracion_consciente",
+          "unit": "min/dia",
+          "weight": 0.04,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            2,
+            5,
+            8,
+            10,
+            90,
+            180,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Minutos de luz natural",
+          "key": "minutos_de_luz_natural",
+          "unit": "min/dia",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            2,
+            5,
+            10,
+            25,
+            90,
+            180,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "inflamacion": {
+      "domain_name_es": "Inflamación",
+      "params_count": 11,
+      "params": [
+        {
+          "name": "Acido urico",
+          "key": "acido_urico",
+          "unit": "mg/dl",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            3,
+            4,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "name": "Factor reumatoide",
+          "key": "factor_reumatoide",
+          "unit": "UI/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0,
+            1,
+            10,
+            15,
+            20,
+            25
+          ]
+        },
+        {
+          "name": "Ferritina",
+          "key": "ferritina",
+          "unit": "ng/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            10,
+            20,
+            50,
+            150,
+            200,
+            300,
+            400
+          ]
+        },
+        {
+          "name": "GGT",
+          "key": "ggt",
+          "unit": "U/l",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            8,
+            10,
+            25,
+            35,
+            50,
+            55
+          ]
+        },
+        {
+          "name": "Homocisteina",
+          "key": "homocisteina",
+          "unit": "mcmol/ml",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            1,
+            2,
+            4,
+            5,
+            9,
+            12,
+            14,
+            17
+          ]
+        },
+        {
+          "name": "Proteina C reactiva cuantitativa (PCR)",
+          "key": "proteina_c_reactiva_cuantitativa_pcr",
+          "unit": "mg/dl",
+          "weight": 0.2,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            0.2,
+            0.4,
+            0.6,
+            0.7
+          ]
+        },
+        {
+          "name": "Tiempo de recuperacion post-ejercicio",
+          "key": "tiempo_de_recuperacion_postejercicio",
+          "unit": "min",
+          "weight": 0.05,
+          "source": "Tests",
+          "band_limits": [
+            null,
+            null,
+            null,
+            1,
+            24,
+            36,
+            48,
+            50
+          ]
+        },
+        {
+          "name": "Transaminasa G Oxalacetica AST (TGO)",
+          "key": "transaminasa_g_oxalacetica_ast_tgo",
+          "unit": "U/l",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            1,
+            25,
+            35,
+            45,
+            46
+          ]
+        },
+        {
+          "name": "Vitamina D",
+          "key": "vitamina_d",
+          "unit": "ng/ml",
+          "weight": 0.13,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            80,
+            90,
+            100,
+            105
+          ]
+        },
+        {
+          "name": "Relacion Neutrofilos / Linfocitos (NLR)",
+          "key": "relacion_neutrofilos_linfocitos_nlr",
+          "unit": "Ratio",
+          "weight": 0.11,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.5,
+            2,
+            2.2,
+            2.5
+          ]
+        },
+        {
+          "name": "LDH",
+          "key": "ldh",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Calculo",
+          "band_limits": [
+            109,
+            120,
+            135,
+            167,
+            187,
+            205,
+            220,
+            246
+          ]
+        }
+      ]
+    },
+    "inmunidad": {
+      "domain_name_es": "Inmunidad",
+      "params_count": 12,
+      "params": [
+        {
+          "name": "Antiestreptolisinas",
+          "key": "antiestreptolisinas",
+          "unit": "UI/ml",
+          "weight": 0.11,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            100,
+            200,
+            400,
+            500
+          ]
+        },
+        {
+          "name": "Bilirrubina",
+          "key": "bilirrubina",
+          "unit": "mg/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.3,
+            1,
+            1.2,
+            1.5,
+            1.6
+          ]
+        },
+        {
+          "name": "IgA",
+          "key": "iga",
+          "unit": "mg/dl",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            79,
+            80,
+            100,
+            120,
+            250,
+            300,
+            400,
+            401
+          ]
+        },
+        {
+          "name": "IgE",
+          "key": "ige",
+          "unit": "UI/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            10,
+            40,
+            60,
+            100,
+            101
+          ]
+        },
+        {
+          "name": "IgG",
+          "key": "igg",
+          "unit": "mg/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            599,
+            600,
+            700,
+            800,
+            1200,
+            1300,
+            1400,
+            1401
+          ]
+        },
+        {
+          "name": "IgM",
+          "key": "igm",
+          "unit": "mg/dl",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            39,
+            40,
+            60,
+            80,
+            150,
+            180,
+            220,
+            221
+          ]
+        },
+        {
+          "name": "indice de bilirrubina",
+          "key": "indice_de_bilirrubina",
+          "unit": "Ratio",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.05,
+            0.3,
+            0.5,
+            0.8,
+            0.9
+          ]
+        },
+        {
+          "name": "Leucocitos totales",
+          "key": "leucocitos_totales",
+          "unit": "/mcl",
+          "weight": 0.11,
+          "source": "Laboratorio",
+          "band_limits": [
+            3000,
+            4000,
+            4500,
+            5000,
+            8000,
+            9000,
+            10000,
+            12000
+          ]
+        },
+        {
+          "name": "Proteina C reactiva cuantitativa (PCR)",
+          "key": "proteina_c_reactiva_cuantitativa_pcr",
+          "unit": "mg/dl",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            0.2,
+            0.4,
+            0.6,
+            0.7
+          ]
+        },
+        {
+          "name": "Vitamina D",
+          "key": "vitamina_d",
+          "unit": "ng/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            80,
+            90,
+            100,
+            110
+          ]
+        },
+        {
+          "name": "Relacion Neutrofilos / Linfocitos (NLR)",
+          "key": "relacion_neutrofilos_linfocitos_nlr",
+          "unit": "Ratio",
+          "weight": 0.11,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.5,
+            2,
+            2.2,
+            2.5
+          ]
+        },
+        {
+          "name": "LDH",
+          "key": "ldh",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Calculo",
+          "band_limits": [
+            5,
+            10,
+            15,
+            20,
+            200,
+            300,
+            400,
+            500
+          ]
+        }
+      ]
+    },
+    "metabolismo": {
+      "domain_name_es": "Metabolismo",
+      "params_count": 16,
+      "params": [
+        {
+          "name": "Coeficiente de variabilidad CV",
+          "key": "coeficiente_de_variabilidad_cv",
+          "unit": "score",
+          "weight": 0.05,
+          "source": "Glucometro",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.01,
+            0.18,
+            0.22,
+            0.28,
+            0.29
+          ]
+        },
+        {
+          "name": "Flexibilidad metabolica subjetiva (puntuacion de test ayuno)",
+          "key": "flexibilidad_metabolica_subjetiva_puntuacion_de_test_ayuno",
+          "unit": "score",
+          "weight": 0.06,
+          "source": "Tests",
+          "band_limits": [
+            40,
+            60,
+            80,
+            90,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Glucosa en ayuno",
+          "key": "glucosa_en_ayuno",
+          "unit": "mg/dl",
+          "weight": 0.09,
+          "source": "Laboratorio",
+          "band_limits": [
+            25,
+            35,
+            45,
+            70,
+            85,
+            90,
+            99,
+            110
+          ]
+        },
+        {
+          "name": "Glucosa Media (CGM)",
+          "key": "glucosa_media_cgm",
+          "unit": "mg/dl",
+          "weight": 0.08,
+          "source": "Glucometro",
+          "band_limits": [
+            25,
+            35,
+            45,
+            70,
+            95,
+            105,
+            115,
+            120
+          ]
+        },
+        {
+          "name": "HbA1c %",
+          "key": "hba1c",
+          "unit": "%",
+          "weight": 0.14,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.01,
+            0.025,
+            0.035,
+            0.049,
+            0.052,
+            0.056,
+            0.058,
+            0.06
+          ]
+        },
+        {
+          "name": "HOMA-IR",
+          "key": "homair",
+          "unit": "Ratio",
+          "weight": 0.11,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1,
+            1.5,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "Indice Aterogenico",
+          "key": "indice_aterogenico",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            2.5,
+            3.5,
+            4.5,
+            6
+          ]
+        },
+        {
+          "name": "Insulina",
+          "key": "insulina",
+          "unit": "mgUI/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            2,
+            6,
+            8,
+            10,
+            15
+          ]
+        },
+        {
+          "name": "Moda VS Media (CGM)",
+          "key": "moda_vs_media_cgm",
+          "unit": "Ratio",
+          "weight": 0.01,
+          "source": "Glucometro",
+          "band_limits": [
+            -16,
+            -15,
+            -10,
+            -5,
+            5,
+            10,
+            15,
+            16
+          ]
+        },
+        {
+          "name": "Numero de ingestas al dia",
+          "key": "numero_de_ingestas_al_dia",
+          "unit": "cantidad",
+          "weight": 0.04,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "name": "Relacion Trigliceridos / HDL",
+          "key": "relacion_trigliceridos_hdl",
+          "unit": "Ratio",
+          "weight": 0.07,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.8,
+            2,
+            2.5,
+            2.8
+          ]
+        },
+        {
+          "name": "Tiempo en rango saludable [65-150] (CGM)",
+          "key": "tiempo_en_rango_saludable_65150_cgm",
+          "unit": "%",
+          "weight": 0.08,
+          "source": "Glucometro",
+          "band_limits": [
+            0.69,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Trigliceridos",
+          "key": "trigliceridos",
+          "unit": "mg/dl",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            30,
+            70,
+            100,
+            150,
+            175
+          ]
+        },
+        {
+          "name": "Variabilidad glucemica (CGM) (SD)",
+          "key": "variabilidad_glucemica_cgm_sd",
+          "unit": "score",
+          "weight": 0.03,
+          "source": "Glucometro",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            15,
+            20,
+            25,
+            26
+          ]
+        },
+        {
+          "name": "GGT",
+          "key": "ggt",
+          "unit": "U/l",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            8,
+            10,
+            25,
+            35,
+            50,
+            55
+          ]
+        },
+        {
+          "name": "Transaminasa Glutamico Piruvica (ALT)",
+          "key": "transaminasa_glutamico_piruvica_alt",
+          "unit": "U/l",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            10,
+            15,
+            25,
+            35,
+            45,
+            50
+          ]
+        }
+      ]
+    },
+    "renal_y_micronutrientes": {
+      "domain_name_es": "Renal y Micronutrientes",
+      "params_count": 20,
+      "params": [
+        {
+          "name": "Acido Urico",
+          "key": "acido_urico",
+          "unit": "mg/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            3,
+            3.5,
+            5.5,
+            6.5,
+            7.5,
+            8
+          ]
+        },
+        {
+          "name": "Capacidad de fijacion de hierro",
+          "key": "capacidad_de_fijacion_de_hierro",
+          "unit": "mcg/dl",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            150,
+            200,
+            220,
+            250,
+            400,
+            450,
+            500,
+            550
+          ]
+        },
+        {
+          "name": "Cloro",
+          "key": "cloro",
+          "unit": "mE1/L",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            93,
+            95,
+            98,
+            100,
+            106,
+            108,
+            110,
+            115
+          ]
+        },
+        {
+          "name": "Creatinina Serica",
+          "key": "creatinina_serica",
+          "unit": "mg/dl",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0.7,
+            0.8,
+            1.1,
+            1.2,
+            1.3,
+            1.4
+          ]
+        },
+        {
+          "name": "Ferritina",
+          "key": "ferritina",
+          "unit": "ng/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            10,
+            20,
+            50,
+            150,
+            200,
+            300,
+            400
+          ]
+        },
+        {
+          "name": "Folato (acido folico)",
+          "key": "folato_acido_folico",
+          "unit": "ng/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            5.5,
+            6,
+            8,
+            10,
+            18,
+            20,
+            24,
+            25
+          ]
+        },
+        {
+          "name": "Hierro Libre",
+          "key": "hierro_libre",
+          "unit": "mcg/dl",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0,
+            10,
+            100,
+            200,
+            300,
+            350
+          ]
+        },
+        {
+          "name": "Hierro serico",
+          "key": "hierro_serico",
+          "unit": "mcg/dl",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            50,
+            60,
+            70,
+            80,
+            140,
+            160,
+            180,
+            190
+          ]
+        },
+        {
+          "name": "Magnesio",
+          "key": "magnesio",
+          "unit": "mg/dl",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            1.6,
+            1.8,
+            2,
+            2.2,
+            2.6,
+            2.8,
+            3.2,
+            3.3
+          ]
+        },
+        {
+          "name": "Nitrogeno ureico (BUN)",
+          "key": "nitrogeno_ureico_bun",
+          "unit": "mg/dl",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            5,
+            10,
+            18,
+            20,
+            25,
+            30
+          ]
+        },
+        {
+          "name": "Potasio",
+          "key": "potasio",
+          "unit": "mE1/L",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            3.3,
+            3.5,
+            3.8,
+            4,
+            4.5,
+            5,
+            5.5,
+            6
+          ]
+        },
+        {
+          "name": "Relacion BUN/Creatinina",
+          "key": "relacion_buncreatinina",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            10,
+            16,
+            20,
+            25,
+            27
+          ]
+        },
+        {
+          "name": "Saturacion de hierro",
+          "key": "saturacion_de_hierro",
+          "unit": "%",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            15,
+            18,
+            20,
+            25,
+            40,
+            42,
+            45,
+            50
+          ]
+        },
+        {
+          "name": "Sodio",
+          "key": "sodio",
+          "unit": "mE1/L",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            125,
+            130,
+            135,
+            138,
+            142,
+            145,
+            150,
+            160
+          ]
+        },
+        {
+          "name": "Transferrina",
+          "key": "transferrina",
+          "unit": "mg/dl",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            180,
+            200,
+            220,
+            250,
+            350,
+            380,
+            400,
+            450
+          ]
+        },
+        {
+          "name": "Urea",
+          "key": "urea",
+          "unit": "mg/dl",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            15,
+            30,
+            40,
+            50,
+            55
+          ]
+        },
+        {
+          "name": "Vitamina B12",
+          "key": "vitamina_b12",
+          "unit": "pg/ml",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            350,
+            400,
+            500,
+            600,
+            900,
+            1000,
+            1200,
+            1500
+          ]
+        },
+        {
+          "name": "Vitamina D",
+          "key": "vitamina_d",
+          "unit": "ng/ml",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            90,
+            100,
+            105,
+            110
+          ]
+        },
+        {
+          "name": "% de agua corporal",
+          "key": "de_agua_corporal",
+          "unit": "%",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.45,
+            0.49,
+            0.55,
+            0.6,
+            0.69,
+            0.72,
+            0.74,
+            0.75
+          ]
+        },
+        {
+          "name": "Calcio*Fosforo",
+          "key": "calciofosforo",
+          "unit": "mg2/dl2",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            21,
+            25,
+            30,
+            45,
+            50,
+            null,
+            65
+          ]
+        }
+      ]
+    },
+    "sistema_hormonal": {
+      "domain_name_es": "Sistema hormonal",
+      "params_count": 10,
+      "params": [
+        {
+          "name": "Anticuerpos Anti-Tiroglobulina",
+          "key": "anticuerpos_antitiroglobulina",
+          "unit": "UI/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            5,
+            10,
+            15,
+            20
+          ]
+        },
+        {
+          "name": "Anticuerpos Anti-TPO",
+          "key": "anticuerpos_antitpo",
+          "unit": "UI/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            10,
+            20,
+            30,
+            35
+          ]
+        },
+        {
+          "name": "Cortisol matutino",
+          "key": "cortisol_matutino",
+          "unit": "mcg/dl",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            6,
+            8,
+            10,
+            15,
+            17,
+            18,
+            20
+          ]
+        },
+        {
+          "name": "FSH",
+          "key": "fsh",
+          "unit": "mUI/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            0,
+            0,
+            2,
+            6,
+            8,
+            10,
+            11
+          ]
+        },
+        {
+          "name": "LH",
+          "key": "lh",
+          "unit": "mUI/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.9,
+            1,
+            2,
+            3,
+            6,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Prolactina",
+          "key": "prolactina",
+          "unit": "ng/ml",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            3,
+            10,
+            15,
+            18,
+            20
+          ]
+        },
+        {
+          "name": "T3 libre",
+          "key": "t3_libre",
+          "unit": "ng/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            2.2,
+            2.5,
+            2.8,
+            3.2,
+            4.2,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Testosterona libre (pg/ml)",
+          "key": "testosterona_libre_pgml",
+          "unit": "pg/ml",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            22,
+            25,
+            30,
+            45,
+            60,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Testosterona total",
+          "key": "testosterona_total",
+          "unit": "ng/ml",
+          "weight": 0.12,
+          "source": "Laboratorio",
+          "band_limits": [
+            3,
+            4.5,
+            6,
+            7,
+            12,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "TSH",
+          "key": "tsh",
+          "unit": "mcU/ml",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.9,
+            2,
+            2.5,
+            3,
+            3.5
+          ]
+        }
+      ]
+    },
+    "sueno": {
+      "domain_name_es": "Sueño",
+      "params_count": 10,
+      "params": [
+        {
+          "name": "Consistencia de horario",
+          "key": "consistencia_de_horario",
+          "unit": "min",
+          "weight": 0.2,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            45,
+            75,
+            null,
+            90
+          ]
+        },
+        {
+          "name": "Cortisol matutino",
+          "key": "cortisol_matutino",
+          "unit": "mcg/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            4,
+            5,
+            6,
+            10,
+            15,
+            18,
+            20,
+            25
+          ]
+        },
+        {
+          "name": "Duracion promedio",
+          "key": "duracion_promedio",
+          "unit": "hrs",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            6,
+            6,
+            7,
+            7.5,
+            8.5,
+            9,
+            9.5,
+            10
+          ]
+        },
+        {
+          "name": "Edad corporal",
+          "key": "edad_corporal",
+          "unit": "diferencia de años",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0,
+            0,
+            0,
+            -10,
+            -1,
+            0,
+            5,
+            10
+          ]
+        },
+        {
+          "name": "Eficiencia del sueno",
+          "key": "eficiencia_del_sueno",
+          "unit": "score",
+          "weight": 0.08,
+          "source": "Wearable",
+          "band_limits": [
+            75,
+            75,
+            80,
+            85,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Energia al despertar",
+          "key": "energia_al_despertar",
+          "unit": "score",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            6,
+            6,
+            7,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Exposicion solar matutina",
+          "key": "exposicion_solar_matutina",
+          "unit": "min",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            5,
+            15,
+            20,
+            45,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Sueno DEEP%",
+          "key": "sueno_deep",
+          "unit": "%",
+          "weight": 0.1,
+          "source": "Wearable",
+          "band_limits": [
+            12,
+            12,
+            15,
+            20,
+            25,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Sueno REM%",
+          "key": "sueno_rem",
+          "unit": "%",
+          "weight": 0.1,
+          "source": "Wearable",
+          "band_limits": [
+            15,
+            15,
+            18,
+            22,
+            27,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Testosterona total",
+          "key": "testosterona_total",
+          "unit": "ng/dl",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            3,
+            4,
+            5,
+            7,
+            13,
+            15,
+            20,
+            25
+          ]
+        }
+      ]
+    },
+    "vitalidad": {
+      "domain_name_es": "Vitalidad",
+      "params_count": 14,
+      "params": [
+        {
+          "name": "Claridad mental",
+          "key": "claridad_mental",
+          "unit": "score",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            6,
+            8,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Cortisol matutino",
+          "key": "cortisol_matutino",
+          "unit": "mcg/dl",
+          "weight": 0.09,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            6,
+            8,
+            10,
+            15,
+            17,
+            18,
+            20
+          ]
+        },
+        {
+          "name": "CPK",
+          "key": "cpk",
+          "unit": "U/L",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            0,
+            25,
+            50,
+            200,
+            300,
+            500,
+            550
+          ]
+        },
+        {
+          "name": "Edad corporal",
+          "key": "edad_corporal",
+          "unit": "diferencia de años",
+          "weight": 0.06,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -10,
+            -1,
+            0,
+            5,
+            10
+          ]
+        },
+        {
+          "name": "Energia diaria",
+          "key": "energia_diaria",
+          "unit": "score",
+          "weight": 0.12,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            6,
+            8,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Fuerza de agarre",
+          "key": "fuerza_de_agarre",
+          "unit": "kg",
+          "weight": 0.12,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Motivacion y entusiasmo",
+          "key": "motivacion_y_entusiasmo",
+          "unit": "score",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            6,
+            8,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Musculo esqueletico %",
+          "key": "musculo_esqueletico",
+          "unit": "%",
+          "weight": 0.09,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0.25,
+            0.3,
+            0.35,
+            0.4,
+            0.65,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Resiliencia emocional / estres",
+          "key": "resiliencia_emocional_estres",
+          "unit": "score",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            6,
+            8,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Señales de fatiga cronica",
+          "key": "senales_de_fatiga_cronica",
+          "unit": "score",
+          "weight": 0.03,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            2,
+            4,
+            6,
+            7
+          ]
+        },
+        {
+          "name": "Testosterona libre",
+          "key": "testosterona_libre",
+          "unit": "pg/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            22,
+            25,
+            30,
+            45,
+            60,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Vitamina B12",
+          "key": "vitamina_b12",
+          "unit": "pg/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            350,
+            400,
+            500,
+            600,
+            900,
+            1000,
+            1200,
+            1500
+          ]
+        },
+        {
+          "name": "Vitamina D",
+          "key": "vitamina_d",
+          "unit": "ng/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            80,
+            90,
+            100,
+            110
+          ]
+        },
+        {
+          "name": "Magnesio",
+          "key": "magnesio",
+          "unit": "mg/dl",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            1.6,
+            1.8,
+            2,
+            2.2,
+            2.6,
+            2.8,
+            3.2,
+            3.3
+          ]
+        }
+      ]
+    }
+  },
+  "mujeres": {
+    "cardiovascular": {
+      "domain_name_es": "Cardiovascular",
+      "params_count": 23,
+      "params": [
+        {
+          "name": "Apolipoproteinas B",
+          "key": "apolipoproteinas_b",
+          "unit": "mg/dl",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            30,
+            0,
+            40,
+            50,
+            99,
+            110,
+            125,
+            150
+          ]
+        },
+        {
+          "name": "Bilirrubina",
+          "key": "bilirrubina",
+          "unit": "mg/dl",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.19,
+            0.2,
+            0.4,
+            0.6,
+            1.1,
+            1.9,
+            2.9,
+            3
+          ]
+        },
+        {
+          "name": "Colesterol HDL",
+          "key": "colesterol_hdl",
+          "unit": "mg/dl",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            30,
+            35,
+            45,
+            50,
+            70,
+            90,
+            100,
+            110
+          ]
+        },
+        {
+          "name": "Colesterol LDL",
+          "key": "colesterol_ldl",
+          "unit": "mg/dl",
+          "weight": 0.01,
+          "source": "Laboratorio",
+          "band_limits": [
+            30,
+            50,
+            60,
+            80,
+            120,
+            150,
+            160,
+            180
+          ]
+        },
+        {
+          "name": "Colesterol total",
+          "key": "colesterol_total",
+          "unit": "mg/dl",
+          "weight": 0.01,
+          "source": "Laboratorio",
+          "band_limits": [
+            115,
+            130,
+            150,
+            180,
+            220,
+            250,
+            280,
+            350
+          ]
+        },
+        {
+          "name": "Frecuencia cardiaca en reposo (sueño)",
+          "key": "frecuencia_cardiaca_en_reposo_sueno",
+          "unit": "ppm",
+          "weight": 0.04,
+          "source": "Wearable",
+          "band_limits": [
+            null,
+            null,
+            null,
+            35,
+            55,
+            64,
+            70,
+            75
+          ]
+        },
+        {
+          "name": "Gama Glutamil transferasa",
+          "key": "gama_glutamil_transferasa",
+          "unit": "U/l",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            8,
+            10,
+            25,
+            35,
+            50,
+            55
+          ]
+        },
+        {
+          "name": "Indice Aterogenico",
+          "key": "indice_aterogenico",
+          "unit": "Ratio",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0.1,
+            0.2,
+            2.5,
+            3.5,
+            4.5,
+            6
+          ]
+        },
+        {
+          "name": "indice de lipoproteinas (LDL/HDL)",
+          "key": "indice_de_lipoproteinas_ldlhdl",
+          "unit": "Ratio",
+          "weight": 0.04,
+          "source": "Calculo",
+          "band_limits": [
+            0,
+            0,
+            0,
+            0.1,
+            2,
+            2.5,
+            3.5,
+            4
+          ]
+        },
+        {
+          "name": "Presion sistolica",
+          "key": "presion_sistolica",
+          "unit": "mm/mg",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            75,
+            80,
+            90,
+            100,
+            115,
+            120,
+            129,
+            140
+          ]
+        },
+        {
+          "name": "Presion diastolica",
+          "key": "presion_diastolica",
+          "unit": "mm/mg",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            45,
+            50,
+            60,
+            65,
+            75,
+            80,
+            85,
+            90
+          ]
+        },
+        {
+          "name": "Relacion Neutrofilos / Linfocitos (NLR)",
+          "key": "relacion_neutrofilos_linfocitos_nlr",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.5,
+            2,
+            2.2,
+            2.5
+          ]
+        },
+        {
+          "name": "Relacion Trigliceridos / HDL",
+          "key": "relacion_trigliceridos_hdl",
+          "unit": "Ratio",
+          "weight": 0.06,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.8,
+            2,
+            2.5,
+            2.8
+          ]
+        },
+        {
+          "name": "Respiracion BOLT",
+          "key": "respiracion_bolt",
+          "unit": "Seg",
+          "weight": 0.04,
+          "source": "Tests",
+          "band_limits": [
+            12,
+            15,
+            20,
+            25,
+            60,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "sdLDL",
+          "key": "sdldl",
+          "unit": "mg/dl",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0,
+            5,
+            20,
+            30,
+            40,
+            50
+          ]
+        },
+        {
+          "name": "Transaminasa Glutamico Oxalacetica (AST)",
+          "key": "transaminasa_glutamico_oxalacetica_ast",
+          "unit": "U/l",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            10,
+            15,
+            25,
+            35,
+            45,
+            50
+          ]
+        },
+        {
+          "name": "Transaminasa Glutamico Piruvica (ALT)",
+          "key": "transaminasa_glutamico_piruvica_alt",
+          "unit": "U/l",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            5,
+            10,
+            15,
+            25,
+            35,
+            45,
+            50
+          ]
+        },
+        {
+          "name": "Trigliceridos",
+          "key": "trigliceridos",
+          "unit": "mg/dl",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            30,
+            70,
+            100,
+            150,
+            175
+          ]
+        },
+        {
+          "name": "VLDL",
+          "key": "vldl",
+          "unit": "mg/dl",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            1,
+            2,
+            5,
+            15,
+            20,
+            30,
+            35
+          ]
+        },
+        {
+          "name": "VO2 estimado",
+          "key": "vo2_estimado",
+          "unit": "ml/kg/min",
+          "weight": 0.09,
+          "source": "Tests",
+          "band_limits": [
+            30,
+            36,
+            42,
+            50,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Hemoglobina",
+          "key": "hemoglobina",
+          "unit": "g/dl",
+          "weight": 0.03,
+          "source": "Tests",
+          "band_limits": [
+            10.5,
+            10.6,
+            12,
+            13,
+            14.8,
+            15.5,
+            16.4,
+            16.4
+          ]
+        },
+        {
+          "name": "Hematocrito",
+          "key": "hematocrito",
+          "unit": "%",
+          "weight": 0.02,
+          "source": "Tests",
+          "band_limits": [
+            0.32,
+            0.321,
+            0.36,
+            0.38,
+            0.43,
+            0.45,
+            0.48,
+            0.481
+          ]
+        },
+        {
+          "name": "RDW - CV",
+          "key": "rdw_cv",
+          "unit": "%",
+          "weight": 0.04,
+          "source": "Tests",
+          "band_limits": [
+            0.03,
+            0.04,
+            0.05,
+            0.06,
+            0.125,
+            0.135,
+            0.145,
+            0.155
+          ]
+        }
+      ]
+    },
+    "composicion_corporal": {
+      "domain_name_es": "Composición corporal",
+      "params_count": 10,
+      "params": [
+        {
+          "name": "% grasa corporal",
+          "key": "grasa_corporal",
+          "unit": "%",
+          "weight": 0.18,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0.03,
+            0.07,
+            0.08,
+            0.1,
+            0.14,
+            0.18,
+            0.24,
+            0.35
+          ]
+        },
+        {
+          "name": "% musculo esqueletico",
+          "key": "musculo_esqueletico",
+          "unit": "%",
+          "weight": 0.19,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0.2,
+            0.3,
+            0.35,
+            0.4,
+            0.6,
+            0.7,
+            0.75,
+            0.8
+          ]
+        },
+        {
+          "name": "Edad corporal",
+          "key": "edad_corporal",
+          "unit": "años",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -15,
+            -1,
+            0,
+            5,
+            10
+          ]
+        },
+        {
+          "name": "Fuerza de agarre",
+          "key": "fuerza_de_agarre",
+          "unit": "Kg",
+          "weight": 0.13,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            35,
+            40,
+            45,
+            50,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Grasa visceral",
+          "key": "grasa_visceral",
+          "unit": "Unidad",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0,
+            0,
+            0,
+            1,
+            2,
+            9,
+            12,
+            15
+          ]
+        },
+        {
+          "name": "Pull-ups",
+          "key": "pullups",
+          "unit": "cantidad",
+          "weight": 0.03,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            3,
+            6,
+            10,
+            15,
+            50,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Push-ups",
+          "key": "pushups",
+          "unit": "cantidad",
+          "weight": 0.03,
+          "source": "Tests",
+          "band_limits": [
+            15,
+            20,
+            30,
+            40,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Sentadilla libre",
+          "key": "sentadilla_libre",
+          "unit": "Unidad",
+          "weight": 0.03,
+          "source": "Tests",
+          "band_limits": [
+            8,
+            10,
+            20,
+            30,
+            80,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Test de equilibrio en un pie",
+          "key": "test_de_equilibrio_en_un_pie",
+          "unit": "Seg",
+          "weight": 0.05,
+          "source": "Tests",
+          "band_limits": [
+            7,
+            10,
+            20,
+            30,
+            60,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "VO2 Max",
+          "key": "vo2_max",
+          "unit": "ml/kg/min",
+          "weight": 0.18,
+          "source": "Tests",
+          "band_limits": [
+            30,
+            36,
+            42,
+            50,
+            100,
+            null,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "habitos": {
+      "domain_name_es": "Habitos",
+      "params_count": 12,
+      "params": [
+        {
+          "name": "Amalgamas de mercurio",
+          "key": "amalgamas_de_mercurio",
+          "unit": "cantidad",
+          "weight": 0.04,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -1,
+            0,
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "name": "Ayuno intermitente",
+          "key": "ayuno_intermitente",
+          "unit": "hr/dia",
+          "weight": 0.12,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            12,
+            13,
+            14,
+            16,
+            20,
+            23,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Consistencia en ejercicio semanal",
+          "key": "consistencia_en_ejercicio_semanal",
+          "unit": "veces/semana",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            1,
+            2,
+            3,
+            5,
+            8,
+            12,
+            18,
+            20
+          ]
+        },
+        {
+          "name": "Consumo de alcohol mensual",
+          "key": "consumo_de_alcohol_mensual",
+          "unit": "copas/mes",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            4,
+            6,
+            10,
+            16
+          ]
+        },
+        {
+          "name": "Salud de encias",
+          "key": "salud_de_encias",
+          "unit": "evento",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -1,
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "Uso de farmacos cronicos",
+          "key": "uso_de_farmacos_cronicos",
+          "unit": "cantidad",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -1,
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "Ejercicio semanal",
+          "key": "ejercicio_semanal",
+          "unit": "hr/semana",
+          "weight": 0.2,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            2,
+            4,
+            7,
+            10,
+            25,
+            28,
+            30,
+            32
+          ]
+        },
+        {
+          "name": "Uso de pantallas hr/dia",
+          "key": "uso_de_pantallas_hrdia",
+          "unit": "hr/dia",
+          "weight": 0.06,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            4,
+            6,
+            8,
+            10
+          ]
+        },
+        {
+          "name": "Pasos al día",
+          "key": "pasos_al_dia",
+          "unit": "Pasos/dia",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5000,
+            5500,
+            6500,
+            7800,
+            15000,
+            25000,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Tabaquismo",
+          "key": "tabaquismo",
+          "unit": "Cigarros/día",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -1,
+            0,
+            0,
+            1,
+            2
+          ]
+        },
+        {
+          "name": "Respiracion consciente",
+          "key": "respiracion_consciente",
+          "unit": "min/dia",
+          "weight": 0.04,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            2,
+            5,
+            8,
+            10,
+            90,
+            180,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Minutos de luz natural",
+          "key": "minutos_de_luz_natural",
+          "unit": "min/dia",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            2,
+            5,
+            10,
+            25,
+            90,
+            180,
+            null,
+            null
+          ]
+        }
+      ]
+    },
+    "inflamacion": {
+      "domain_name_es": "Inflamación",
+      "params_count": 11,
+      "params": [
+        {
+          "name": "Acido urico",
+          "key": "acido_urico",
+          "unit": "mg/dl",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            2,
+            2.5,
+            3.1,
+            3.6,
+            5,
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "name": "Factor reumatoide",
+          "key": "factor_reumatoide",
+          "unit": "UI/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0,
+            1,
+            10,
+            15,
+            20,
+            25
+          ]
+        },
+        {
+          "name": "Ferritina",
+          "key": "ferritina",
+          "unit": "ng/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            12,
+            12.1,
+            20,
+            30,
+            90,
+            150,
+            200,
+            210
+          ]
+        },
+        {
+          "name": "GGT",
+          "key": "ggt",
+          "unit": "U/l",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            5.1,
+            10,
+            15,
+            30,
+            40,
+            59,
+            60
+          ]
+        },
+        {
+          "name": "Homocisteina",
+          "key": "homocisteina",
+          "unit": "mcmol/ml",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            1,
+            2,
+            4,
+            5,
+            9,
+            12,
+            14,
+            17
+          ]
+        },
+        {
+          "name": "Proteina C reactiva cuantitativa (PCR)",
+          "key": "proteina_c_reactiva_cuantitativa_pcr",
+          "unit": "mg/dl",
+          "weight": 0.2,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            0.2,
+            0.4,
+            0.6,
+            0.7
+          ]
+        },
+        {
+          "name": "Tiempo de recuperacion post-ejercicio",
+          "key": "tiempo_de_recuperacion_postejercicio",
+          "unit": "min",
+          "weight": 0.05,
+          "source": "Tests",
+          "band_limits": [
+            null,
+            null,
+            null,
+            1,
+            24,
+            36,
+            48,
+            50
+          ]
+        },
+        {
+          "name": "Transaminasa G Oxalacetica AST (TGO)",
+          "key": "transaminasa_g_oxalacetica_ast_tgo",
+          "unit": "U/l",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            5.1,
+            9,
+            15,
+            24,
+            35,
+            59,
+            60
+          ]
+        },
+        {
+          "name": "Vitamina D",
+          "key": "vitamina_d",
+          "unit": "ng/ml",
+          "weight": 0.13,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            80,
+            90,
+            100,
+            105
+          ]
+        },
+        {
+          "name": "Relacion Neutrofilos / Linfocitos (NLR)",
+          "key": "relacion_neutrofilos_linfocitos_nlr",
+          "unit": "Ratio",
+          "weight": 0.11,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.5,
+            2,
+            2.2,
+            2.5
+          ]
+        },
+        {
+          "name": "LDH",
+          "key": "ldh",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.5,
+            2,
+            2.2,
+            2.5
+          ]
+        }
+      ]
+    },
+    "inmunidad": {
+      "domain_name_es": "Inmunidad",
+      "params_count": 12,
+      "params": [
+        {
+          "name": "Antiestreptolisinas",
+          "key": "antiestreptolisinas",
+          "unit": "UI/ml",
+          "weight": 0.11,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            100,
+            200,
+            400,
+            500
+          ]
+        },
+        {
+          "name": "Bilirrubina",
+          "key": "bilirrubina",
+          "unit": "mg/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.3,
+            1,
+            1.2,
+            1.5,
+            1.6
+          ]
+        },
+        {
+          "name": "IgA",
+          "key": "iga",
+          "unit": "mg/dl",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            79,
+            80,
+            100,
+            120,
+            250,
+            300,
+            400,
+            401
+          ]
+        },
+        {
+          "name": "IgE",
+          "key": "ige",
+          "unit": "UI/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            10,
+            40,
+            60,
+            100,
+            101
+          ]
+        },
+        {
+          "name": "IgG",
+          "key": "igg",
+          "unit": "mg/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            599,
+            600,
+            700,
+            800,
+            1200,
+            1300,
+            1400,
+            1401
+          ]
+        },
+        {
+          "name": "IgM",
+          "key": "igm",
+          "unit": "mg/dl",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            39,
+            40,
+            60,
+            80,
+            150,
+            180,
+            220,
+            221
+          ]
+        },
+        {
+          "name": "indice de bilirrubina",
+          "key": "indice_de_bilirrubina",
+          "unit": "Ratio",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.05,
+            0.3,
+            0.5,
+            0.8,
+            0.9
+          ]
+        },
+        {
+          "name": "Leucocitos totales",
+          "key": "leucocitos_totales",
+          "unit": "/mcl",
+          "weight": 0.11,
+          "source": "Laboratorio",
+          "band_limits": [
+            2800,
+            3500,
+            4000,
+            4500,
+            6000,
+            7000,
+            8000,
+            10000
+          ]
+        },
+        {
+          "name": "Proteina C reactiva cuantitativa (PCR)",
+          "key": "proteina_c_reactiva_cuantitativa_pcr",
+          "unit": "mg/dl",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            0.2,
+            0.4,
+            0.6,
+            0.7
+          ]
+        },
+        {
+          "name": "Vitamina D",
+          "key": "vitamina_d",
+          "unit": "ng/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            80,
+            90,
+            100,
+            110
+          ]
+        },
+        {
+          "name": "Relacion Neutrofilos / Linfocitos (NLR)",
+          "key": "relacion_neutrofilos_linfocitos_nlr",
+          "unit": "Ratio",
+          "weight": 0.11,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.5,
+            2,
+            2.2,
+            2.5
+          ]
+        },
+        {
+          "name": "LDH",
+          "key": "ldh",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Calculo",
+          "band_limits": [
+            5,
+            10,
+            15,
+            20,
+            200,
+            300,
+            400,
+            500
+          ]
+        }
+      ]
+    },
+    "metabolismo": {
+      "domain_name_es": "Metabolismo",
+      "params_count": 15,
+      "params": [
+        {
+          "name": "Flexibilidad metabolica subjetiva (puntuacion de test ayuno)",
+          "key": "flexibilidad_metabolica_subjetiva_puntuacion_de_test_ayuno",
+          "unit": "score",
+          "weight": 0.06,
+          "source": "Tests",
+          "band_limits": [
+            40,
+            60,
+            80,
+            90,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Glucosa en ayuno",
+          "key": "glucosa_en_ayuno",
+          "unit": "mg/dl",
+          "weight": 0.09,
+          "source": "Laboratorio",
+          "band_limits": [
+            25,
+            35,
+            45,
+            70,
+            85,
+            90,
+            99,
+            110
+          ]
+        },
+        {
+          "name": "Glucosa Media (CGM)",
+          "key": "glucosa_media_cgm",
+          "unit": "mg/dl",
+          "weight": 0.08,
+          "source": "Glucometro",
+          "band_limits": [
+            25,
+            35,
+            45,
+            70,
+            95,
+            105,
+            115,
+            120
+          ]
+        },
+        {
+          "name": "HbA1c %",
+          "key": "hba1c",
+          "unit": "%",
+          "weight": 0.14,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.01,
+            0.025,
+            0.035,
+            0.049,
+            0.052,
+            0.056,
+            0.058,
+            0.06
+          ]
+        },
+        {
+          "name": "HOMA-IR",
+          "key": "homair",
+          "unit": "Ratio",
+          "weight": 0.11,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1,
+            1.5,
+            2,
+            3
+          ]
+        },
+        {
+          "name": "Indice Aterogenico",
+          "key": "indice_aterogenico",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            2.5,
+            3.5,
+            4.5,
+            6
+          ]
+        },
+        {
+          "name": "Insulina",
+          "key": "insulina",
+          "unit": "mgUI/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            2,
+            6,
+            8,
+            10,
+            15
+          ]
+        },
+        {
+          "name": "Moda VS Media (CGM)",
+          "key": "moda_vs_media_cgm",
+          "unit": "Ratio",
+          "weight": 0.01,
+          "source": "Glucometro",
+          "band_limits": [
+            -16,
+            -15,
+            -10,
+            -5,
+            5,
+            10,
+            15,
+            16
+          ]
+        },
+        {
+          "name": "Numero de ingestas al dia",
+          "key": "numero_de_ingestas_al_dia",
+          "unit": "cantidad",
+          "weight": 0.04,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "name": "Relacion Trigliceridos / HDL",
+          "key": "relacion_trigliceridos_hdl",
+          "unit": "Ratio",
+          "weight": 0.07,
+          "source": "Calculo",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0.1,
+            1.8,
+            2,
+            2.5,
+            2.8
+          ]
+        },
+        {
+          "name": "Tiempo en rango saludable [65-150] (CGM)",
+          "key": "tiempo_en_rango_saludable_65150_cgm",
+          "unit": "%",
+          "weight": 0.08,
+          "source": "Glucometro",
+          "band_limits": [
+            0.69,
+            0.7,
+            0.8,
+            0.9,
+            1,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Trigliceridos",
+          "key": "trigliceridos",
+          "unit": "mg/dl",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            30,
+            70,
+            100,
+            150,
+            175
+          ]
+        },
+        {
+          "name": "Variabilidad glucemica (CGM) (SD)",
+          "key": "variabilidad_glucemica_cgm_sd",
+          "unit": "score",
+          "weight": 0.03,
+          "source": "Glucometro",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            15,
+            20,
+            25,
+            26
+          ]
+        },
+        {
+          "name": "GGT",
+          "key": "ggt",
+          "unit": "U/l",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            5.1,
+            10,
+            15,
+            30,
+            40,
+            59,
+            60
+          ]
+        },
+        {
+          "name": "Transaminasa Glutamico Piruvica (ALT)",
+          "key": "transaminasa_glutamico_piruvica_alt",
+          "unit": "U/l",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            5.1,
+            10,
+            15,
+            24,
+            35,
+            49,
+            50
+          ]
+        }
+      ]
+    },
+    "renal_y_micronutrientes": {
+      "domain_name_es": "Renal y Micronutrientes",
+      "params_count": 20,
+      "params": [
+        {
+          "name": "acido urico",
+          "key": "acido_urico",
+          "unit": "mg/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            2,
+            2.5,
+            3.1,
+            3.6,
+            5,
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "name": "Capacidad de fijacion de hierro",
+          "key": "capacidad_de_fijacion_de_hierro",
+          "unit": "mcg/dl",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            150,
+            200,
+            220,
+            250,
+            400,
+            450,
+            500,
+            550
+          ]
+        },
+        {
+          "name": "Cloro",
+          "key": "cloro",
+          "unit": "mE1/L",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            93,
+            95,
+            98,
+            100,
+            106,
+            108,
+            110,
+            115
+          ]
+        },
+        {
+          "name": "Creatinina Serica",
+          "key": "creatinina_serica",
+          "unit": "mg/dl",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0.7,
+            0.8,
+            1.1,
+            1.2,
+            1.3,
+            1.4
+          ]
+        },
+        {
+          "name": "Ferritina",
+          "key": "ferritina",
+          "unit": "ng/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            10,
+            20,
+            50,
+            150,
+            200,
+            300,
+            400
+          ]
+        },
+        {
+          "name": "Folato (acido folico)",
+          "key": "folato_acido_folico",
+          "unit": "ng/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            5.5,
+            6,
+            8,
+            10,
+            18,
+            20,
+            24,
+            25
+          ]
+        },
+        {
+          "name": "Hierro Libre",
+          "key": "hierro_libre",
+          "unit": "mcg/dl",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            0,
+            0.1,
+            1,
+            2,
+            3,
+            3.5
+          ]
+        },
+        {
+          "name": "Hierro serico",
+          "key": "hierro_serico",
+          "unit": "mcg/dl",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            50,
+            60,
+            70,
+            80,
+            140,
+            160,
+            180,
+            190
+          ]
+        },
+        {
+          "name": "Magnesio",
+          "key": "magnesio",
+          "unit": "mg/dl",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            1.6,
+            1.8,
+            2,
+            2.2,
+            2.6,
+            2.8,
+            3.2,
+            3.3
+          ]
+        },
+        {
+          "name": "Nitrogeno ureico (BUN)",
+          "key": "nitrogeno_ureico_bun",
+          "unit": "mg/dl",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            5,
+            10,
+            18,
+            20,
+            25,
+            30
+          ]
+        },
+        {
+          "name": "Potasio",
+          "key": "potasio",
+          "unit": "mE1/L",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            3.3,
+            3.5,
+            3.8,
+            4,
+            4.5,
+            5,
+            5.5,
+            6
+          ]
+        },
+        {
+          "name": "Relacion BUN/Creatinina",
+          "key": "relacion_buncreatinina",
+          "unit": "Ratio",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            10,
+            16,
+            20,
+            25,
+            27
+          ]
+        },
+        {
+          "name": "Saturacion de hierro",
+          "key": "saturacion_de_hierro",
+          "unit": "%",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            15,
+            18,
+            20,
+            25,
+            40,
+            42,
+            45,
+            50
+          ]
+        },
+        {
+          "name": "Sodio",
+          "key": "sodio",
+          "unit": "mE1/L",
+          "weight": 0.04,
+          "source": "Laboratorio",
+          "band_limits": [
+            125,
+            130,
+            135,
+            138,
+            142,
+            145,
+            150,
+            160
+          ]
+        },
+        {
+          "name": "Transferrina",
+          "key": "transferrina",
+          "unit": "mg/dl",
+          "weight": 0.03,
+          "source": "Laboratorio",
+          "band_limits": [
+            180,
+            200,
+            220,
+            250,
+            350,
+            380,
+            400,
+            450
+          ]
+        },
+        {
+          "name": "Urea",
+          "key": "urea",
+          "unit": "mg/dl",
+          "weight": 0.02,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            15,
+            30,
+            40,
+            50,
+            55
+          ]
+        },
+        {
+          "name": "Vitamina B12",
+          "key": "vitamina_b12",
+          "unit": "pg/ml",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            350,
+            400,
+            450,
+            500,
+            900,
+            1000,
+            1200,
+            1500
+          ]
+        },
+        {
+          "name": "Vitamina D",
+          "key": "vitamina_d",
+          "unit": "ng/ml",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            90,
+            100,
+            105,
+            110
+          ]
+        },
+        {
+          "name": "% de agua corporal",
+          "key": "de_agua_corporal",
+          "unit": "%",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.45,
+            0.49,
+            0.55,
+            0.6,
+            0.69,
+            0.72,
+            0.74,
+            0.75
+          ]
+        },
+        {
+          "name": "Calcio*Fosforo",
+          "key": "calciofosforo",
+          "unit": "mg2/dl2",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            21,
+            25,
+            30,
+            45,
+            50,
+            null,
+            65
+          ]
+        }
+      ]
+    },
+    "sistema_hormonal": {
+      "domain_name_es": "Sistema hormonal",
+      "params_count": 11,
+      "params": [
+        {
+          "name": "Anticuerpos Anti-Tiroglobulina",
+          "key": "anticuerpos_antitiroglobulina",
+          "unit": "UI/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            5,
+            10,
+            15,
+            20
+          ]
+        },
+        {
+          "name": "Anticuerpos Anti-TPO",
+          "key": "anticuerpos_antitpo",
+          "unit": "UI/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            10,
+            20,
+            30,
+            35
+          ]
+        },
+        {
+          "name": "Cortisol matutino",
+          "key": "cortisol_matutino",
+          "unit": "mcg/dl",
+          "weight": 0.12,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            6,
+            8,
+            10,
+            15,
+            17,
+            18,
+            20
+          ]
+        },
+        {
+          "name": "FSH",
+          "key": "fsh",
+          "unit": "mUI/ml",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            1,
+            1.1,
+            1.9,
+            3.1,
+            7.2,
+            8.4,
+            9.2,
+            9.3
+          ]
+        },
+        {
+          "name": "LH",
+          "key": "lh",
+          "unit": "mUI/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.5,
+            0.6,
+            2.2,
+            4.5,
+            12.4,
+            14.7,
+            16.3,
+            16.4
+          ]
+        },
+        {
+          "name": "Prolactina",
+          "key": "prolactina",
+          "unit": "ng/ml",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            3,
+            3.1,
+            5,
+            10,
+            20,
+            25,
+            40,
+            41
+          ]
+        },
+        {
+          "name": "T3 libre",
+          "key": "t3_libre",
+          "unit": "ng/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            2.2,
+            2.5,
+            2.8,
+            3.2,
+            4.2,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Estradiol",
+          "key": "estradiol",
+          "unit": "pg/ml",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            30,
+            31,
+            72,
+            128,
+            345,
+            408,
+            450,
+            451
+          ]
+        },
+        {
+          "name": "Testosterona total",
+          "key": "testosterona_total",
+          "unit": "ng/ml",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.1,
+            0.11,
+            0.15,
+            0.2,
+            0.55,
+            0.7,
+            0.9,
+            0.91
+          ]
+        },
+        {
+          "name": "TSH",
+          "key": "tsh",
+          "unit": "mcU/ml",
+          "weight": 0.15,
+          "source": "Laboratorio",
+          "band_limits": [
+            0.1,
+            0.2,
+            0.3,
+            0.5,
+            2,
+            2.5,
+            3,
+            3.5
+          ]
+        },
+        {
+          "name": "Progesterona",
+          "key": "progesterona",
+          "unit": "ng/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            1.9,
+            2,
+            4.3,
+            7.8,
+            19.2,
+            22.7,
+            25,
+            25.1
+          ]
+        }
+      ]
+    },
+    "sueno": {
+      "domain_name_es": "Sueño",
+      "params_count": 10,
+      "params": [
+        {
+          "name": "Consistencia de horario",
+          "key": "consistencia_de_horario",
+          "unit": "min",
+          "weight": 0.2,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            45,
+            75,
+            null,
+            90
+          ]
+        },
+        {
+          "name": "Cortisol matutino",
+          "key": "cortisol_matutino",
+          "unit": "mcg/dl",
+          "weight": 0.1,
+          "source": "Laboratorio",
+          "band_limits": [
+            4,
+            5,
+            6,
+            10,
+            15,
+            18,
+            20,
+            25
+          ]
+        },
+        {
+          "name": "Duracion promedio",
+          "key": "duracion_promedio",
+          "unit": "hrs",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            6,
+            6,
+            7,
+            7.5,
+            8.5,
+            9,
+            9.5,
+            10
+          ]
+        },
+        {
+          "name": "Edad corporal",
+          "key": "edad_corporal",
+          "unit": "diferencia de años",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0,
+            0,
+            0,
+            -10,
+            -1,
+            0,
+            5,
+            10
+          ]
+        },
+        {
+          "name": "Eficiencia del sueno",
+          "key": "eficiencia_del_sueno",
+          "unit": "score",
+          "weight": 0.08,
+          "source": "Wearable",
+          "band_limits": [
+            75,
+            75,
+            80,
+            85,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Energia al despertar",
+          "key": "energia_al_despertar",
+          "unit": "score",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            6,
+            6,
+            7,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Exposicion solar matutina",
+          "key": "exposicion_solar_matutina",
+          "unit": "min",
+          "weight": 0.1,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            5,
+            15,
+            20,
+            45,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Sueno DEEP%",
+          "key": "sueno_deep",
+          "unit": "%",
+          "weight": 0.1,
+          "source": "Wearable",
+          "band_limits": [
+            12,
+            12,
+            15,
+            20,
+            25,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Sueno REM%",
+          "key": "sueno_rem",
+          "unit": "%",
+          "weight": 0.1,
+          "source": "Wearable",
+          "band_limits": [
+            15,
+            15,
+            18,
+            22,
+            27,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Testosterona total",
+          "key": "testosterona_total",
+          "unit": "ng/dl",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            3,
+            4,
+            5,
+            7,
+            13,
+            15,
+            20,
+            25
+          ]
+        }
+      ]
+    },
+    "vitalidad": {
+      "domain_name_es": "Vitalidad",
+      "params_count": 14,
+      "params": [
+        {
+          "name": "Claridad mental",
+          "key": "claridad_mental",
+          "unit": "score",
+          "weight": 0.08,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            6,
+            8,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Cortisol matutino",
+          "key": "cortisol_matutino",
+          "unit": "mcg/dl",
+          "weight": 0.09,
+          "source": "Laboratorio",
+          "band_limits": [
+            5,
+            6,
+            8,
+            10,
+            15,
+            17,
+            18,
+            20
+          ]
+        },
+        {
+          "name": "CPK",
+          "key": "cpk",
+          "unit": "U/L",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            0,
+            0,
+            25,
+            50,
+            200,
+            300,
+            500,
+            550
+          ]
+        },
+        {
+          "name": "Edad corporal",
+          "key": "edad_corporal",
+          "unit": "diferencia de años",
+          "weight": 0.06,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            -10,
+            -1,
+            0,
+            5,
+            10
+          ]
+        },
+        {
+          "name": "Energia diaria",
+          "key": "energia_diaria",
+          "unit": "score",
+          "weight": 0.12,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            6,
+            8,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Fuerza de agarre",
+          "key": "fuerza_de_agarre",
+          "unit": "kg",
+          "weight": 0.12,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            100,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Motivacion y entusiasmo",
+          "key": "motivacion_y_entusiasmo",
+          "unit": "score",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            6,
+            8,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Musculo esqueletico %",
+          "key": "musculo_esqueletico",
+          "unit": "%",
+          "weight": 0.09,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            0.25,
+            0.3,
+            0.35,
+            0.4,
+            0.65,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Resiliencia emocional / estres",
+          "key": "resiliencia_emocional_estres",
+          "unit": "score",
+          "weight": 0.05,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            5,
+            6,
+            8,
+            9,
+            10,
+            null,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Señales de fatiga cronica",
+          "key": "senales_de_fatiga_cronica",
+          "unit": "score",
+          "weight": 0.03,
+          "source": "Forms/Entrevista",
+          "band_limits": [
+            null,
+            null,
+            null,
+            0,
+            2,
+            4,
+            6,
+            7
+          ]
+        },
+        {
+          "name": "Testosterona libre",
+          "key": "testosterona_libre",
+          "unit": "pg/ml",
+          "weight": 0.07,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            22,
+            25,
+            30,
+            45,
+            60,
+            null,
+            null
+          ]
+        },
+        {
+          "name": "Vitamina B12",
+          "key": "vitamina_b12",
+          "unit": "pg/ml",
+          "weight": 0.06,
+          "source": "Laboratorio",
+          "band_limits": [
+            350,
+            400,
+            500,
+            600,
+            900,
+            1000,
+            1200,
+            1500
+          ]
+        },
+        {
+          "name": "Vitamina D",
+          "key": "vitamina_d",
+          "unit": "ng/ml",
+          "weight": 0.08,
+          "source": "Laboratorio",
+          "band_limits": [
+            20,
+            30,
+            40,
+            50,
+            80,
+            90,
+            100,
+            110
+          ]
+        },
+        {
+          "name": "Magnesio",
+          "key": "magnesio",
+          "unit": "mg/dl",
+          "weight": 0.05,
+          "source": "Laboratorio",
+          "band_limits": [
+            1.6,
+            1.8,
+            2,
+            2.2,
+            2.6,
+            2.8,
+            3.2,
+            3.3
+          ]
+        }
+      ]
+    }
+  },
+  "scoring_9bands": [
+    0,
+    25,
+    50,
+    80,
+    100,
+    80,
+    50,
+    25,
+    0
+  ],
+  "band_names": [
+    "critico_-5",
+    "riesgo_-4",
+    "aceptable_-3",
+    "optimo_1",
+    "optimo_2",
+    "aceptable_3",
+    "riesgo_4",
+    "critico_5",
+    "fuera_de_rango"
+  ],
+  "logic": "value <= band_limits[i] → score[i]; if value > last limit → score[8]"
+}
