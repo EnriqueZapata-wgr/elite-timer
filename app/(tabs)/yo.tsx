@@ -20,6 +20,9 @@ import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { generateMasterHealthReport, type MasterHealthReport } from '@/src/services/health-score-engine';
+import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { computeCE } from '@/src/services/edad-atp/ce-service';
+import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
 import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -51,6 +54,8 @@ export default function YoScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [healthReport, setHealthReport] = useState<MasterHealthReport | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
+  const [edadResult, setEdadResult] = useState<EdadAtpV2Result | null>(null);
+  const [edadCE, setEdadCE] = useState(0);
   const [dailyScore, setDailyScore] = useState<DailyHealthScore | null>(null);
   const [wearableData, setWearableData] = useState<WearableData | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -87,6 +92,15 @@ export default function YoScreen() {
         setHealthLoading(false);
       }
     } catch { setHealthLoading(false); }
+    // Cargar Edad ATP v2 (número estrella) — solo calcula si hay evaluación suficiente.
+    try {
+      if (user?.id) {
+        const ce = await computeCE(user.id);
+        setEdadCE(ce.ce_integral);
+        if (ce.ce_integral >= 30) setEdadResult(await computeEdadAtpV2(user.id));
+        else setEdadResult(null);
+      }
+    } catch { /* degradar graciosamente */ }
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => {
