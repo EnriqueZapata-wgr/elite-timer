@@ -354,7 +354,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     const [pRes, labRes, upRes, hmRes, bioRes, compRes, qRes, ftRes] = await Promise.all([
       supabase.from('client_profiles').select('date_of_birth, biological_sex, height_cm').eq('user_id', userId).limit(1),
       supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
-      supabase.from('lab_uploads').select('extracted_data').eq('user_id', userId).eq('status', 'extracted').order('uploaded_at', { ascending: false }).limit(1),
+      supabase.from('lab_uploads').select('extracted_data').eq('user_id', userId).not('extracted_data', 'is', null).order('uploaded_at', { ascending: false }).limit(1),
       supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1),
       supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_body_composition').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
@@ -377,12 +377,14 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
   const bio: Record<string, number> = {};
   for (const r of bioRows) if (r.value != null && bio[r.biomarker_key] === undefined) bio[r.biomarker_key] = r.value;
 
-  // extracted_data.values[key].value (keys = columnas de lab_results, mismo parser).
+  // extracted_data: soporta 2 shapes del parser:
+  //   A (nested): { values: { albumin: { value: 4.48 } } }
+  //   B (flat):   { albumin: 4.48 }
   const ext: Record<string, number> = {};
-  const ev = upload?.extracted_data?.values;
+  const ev = upload?.extracted_data?.values ?? upload?.extracted_data;
   if (ev && typeof ev === 'object') {
     for (const [k, v] of Object.entries(ev)) {
-      const val = (v as any)?.value;
+      const val = typeof v === 'number' ? v : (v as any)?.value;
       if (typeof val === 'number' && Number.isFinite(val)) ext[k] = val;
     }
   }

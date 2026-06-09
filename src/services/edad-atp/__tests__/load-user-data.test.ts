@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({ tables: {} as Record<string, any[]> }));
 vi.mock('@/src/lib/supabase', () => {
   const makeQuery = (rows: any[]) => {
     const q: any = {
-      select: () => q, eq: () => q, order: () => q, limit: () => q, like: () => q, insert: () => q,
+      select: () => q, eq: () => q, order: () => q, limit: () => q, like: () => q, not: () => q, insert: () => q,
       then: (resolve: any) => resolve({ data: rows, error: null }),
     };
     return q;
@@ -105,6 +105,14 @@ describe('loadUserData — lectura unificada de fuentes existentes', () => {
     expect(d.lymphocyte_pct).toBe(43);
     expect(d.mcv_fl).toBe(88.6);
     expect(d.rdw_cv_pct).toBe(12.9); // desde la key 'rdw'
+  });
+
+  it('extracted_data shape FLAT { albumin: 4.48 } también se lee', async () => {
+    state.tables.lab_uploads = [{ extracted_data: { albumin: 4.48, glucose: 88 } }];
+    const d = await loadUserData('u1');
+    expect(d.albumin_g_dl).toBe(4.48);
+    expect(d.glucose_mg_dl).toBe(88);
+    expect(d.data_sources_used).toContain('lab_uploads');
   });
 
   it('los 5 PhenoAge nuevos se leen desde columnas de lab_results (mig 017)', async () => {
