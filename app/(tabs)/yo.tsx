@@ -17,6 +17,7 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
+import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstellation';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { generateMasterHealthReport, type MasterHealthReport } from '@/src/services/health-score-engine';
@@ -206,17 +207,18 @@ export default function YoScreen() {
         </Animated.View>
 
         {/* ═══════════════════════════════════════════
-            2. OVERALL SCORE CARD — Circle + 6 mini scores
+            2. EDAD ATP — Constellation (número estrella) o CTA
             ═══════════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
           <GradientCard gradient={PILLAR_GRADIENTS.health} padding={20} style={s.scoreCardWrap}>
-            <View style={s.scoreRingWrap}>
-              <AnimatedScoreRing score={overallScore} size={180} strokeWidth={4} label="ATP SCORE" />
-            </View>
-
-            <EliteText style={[s.scoreLevel, { color: getScoreColor(overallScore) }]}>
-              {overallLevel.toUpperCase()}
-            </EliteText>
+            {edadResult ? (
+              <SubEdadConstellation result={edadResult} onPressCenter={() => router.push('/edad-atp/result-preview' as any)} />
+            ) : (
+              <AnimatedPressable onPress={() => { haptic.medium(); router.push('/edad-atp' as any); }} style={s.edadCta}>
+                <EliteText style={s.edadCtaTitle}>Calcula tu Edad ATP</EliteText>
+                <EliteText style={s.edadCtaSub}>Evaluación {Math.round(edadCE)}% · toca para completar →</EliteText>
+              </AnimatedPressable>
+            )}
 
             {/* Rango de electrones */}
             {rankInfo && (
@@ -560,6 +562,21 @@ const s = StyleSheet.create({
   },
   scoreRingWrap: {
     marginBottom: Spacing.sm,
+  },
+  edadCta: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    gap: 6,
+  },
+  edadCtaTitle: {
+    fontFamily: Fonts.extraBold,
+    fontSize: FontSizes.xl,
+    color: '#fff',
+  },
+  edadCtaSub: {
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.sm,
+    color: ATP_BRAND.lime,
   },
   scoreLevel: {
     fontFamily: Fonts.bold,
