@@ -154,8 +154,8 @@ export const MATRIZ_HOMBRES: MatrizSexo = {
   { key: "transaminasa_glutamico_piruvica_alt", name: "Transaminasa Glutamico Piruvica (ALT)", unit: "U/l", weight: 0.04, source: "Laboratorio", bandLimits: [0, 5, 10, 15, 25, 35, 45, 50] },
     ],
   },
-  renal_y_micronutrientes: {
-    domain_key: "renal_y_micronutrientes",
+  renal_micronutrientes: {
+    domain_key: "renal_micronutrientes",
     domain_name_es: "Renal y Micronutrientes",
     params: [
   { key: "acido_urico", name: "Acido Urico", unit: "mg/dl", weight: 0.1, source: "Laboratorio", bandLimits: [null, null, 3, 3.5, 5.5, 6.5, 7.5, 8] },
@@ -354,8 +354,8 @@ export const MATRIZ_MUJERES: MatrizSexo = {
   { key: "transaminasa_glutamico_piruvica_alt", name: "Transaminasa Glutamico Piruvica (ALT)", unit: "U/l", weight: 0.04, source: "Laboratorio", bandLimits: [5, 5.1, 10, 15, 24, 35, 49, 50] },
     ],
   },
-  renal_y_micronutrientes: {
-    domain_key: "renal_y_micronutrientes",
+  renal_micronutrientes: {
+    domain_key: "renal_micronutrientes",
     domain_name_es: "Renal y Micronutrientes",
     params: [
   { key: "acido_urico", name: "acido urico", unit: "mg/dl", weight: 0.1, source: "Laboratorio", bandLimits: [2, 2.5, 3.1, 3.6, 5, 6, 7, 8] },
