@@ -58,6 +58,7 @@ export default function ResultScreen() {
   const [cinematic, setCinematic] = useState(false);
   const [prevIntegral, setPrevIntegral] = useState<number | null>(null);
   const [confetti, setConfetti] = useState(0);
+  const [error, setError] = useState(false);
   const shareRef = useRef<View>(null);
 
   async function handleShare() {
@@ -72,6 +73,8 @@ export default function ResultScreen() {
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
     (async () => {
+      try {
+      setError(false);
       const r = await computeEdadAtpV2(user.id);
       const data = await loadUserData(user.id);
       const seen = await AsyncStorage.getItem(CINEMATIC_FLAG);
@@ -96,6 +99,9 @@ export default function ResultScreen() {
       if (data.data_sources_used.length > 0) {
         analytics.track(ATP_EVENTS.EDAD_ATP_DATA_PREPOPULATED, { sources_used: data.data_sources_used, fields_count: countFields(data) });
       }
+      } catch {
+        setError(true);
+      }
     })();
   }, [user?.id]));
 
@@ -103,7 +109,9 @@ export default function ResultScreen() {
     <Screen>
       <PillarHeader pillar="metrics" title="Tu Edad ATP" />
       <ScrollView contentContainerStyle={styles.content}>
-        {!result ? (
+        {error ? (
+          <EliteText variant="caption" style={styles.calc}>No se pudo calcular tu Edad ATP. Revisa tu conexión y vuelve a intentar.</EliteText>
+        ) : !result ? (
           <EliteText variant="caption" style={styles.calc}>Calculando…</EliteText>
         ) : (
           <>
