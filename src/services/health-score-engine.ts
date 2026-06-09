@@ -203,7 +203,10 @@ export async function generateMasterHealthReport(userId: string): Promise<Master
   const fhLevel = functionalValue >= 85 ? 'Élite' : functionalValue >= 70 ? 'Óptimo' : functionalValue >= 55 ? 'Bueno' : functionalValue >= 40 ? 'Aceptable' : functionalValue >= 25 ? 'En riesgo' : 'Crítico';
   const fhColor = functionalValue >= 70 ? '#a8e02a' : functionalValue >= 40 ? '#EF9F27' : '#E24B4A';
 
-  // ── Edad biológica ──
+  // ── Edad biológica (DEPRECATED) ──
+  // @deprecated Modelo viejo de edad biológica/ritmo. Reemplazado por Edad ATP v2
+  // (src/services/edad-atp/*). El tab YO ya NO consume estos campos; se conservan en
+  // el reporte solo por compatibilidad con otros consumers. No usar en UI nueva.
   const bioAge = hs?.biologicalAge && hs.biologicalAge > 0 ? hs.biologicalAge : null;
   const agingRateVal = hs?.agingRate && hs.agingRate > 0 ? hs.agingRate : null;
   const arLabel = !agingRateVal ? 'Sin datos' : agingRateVal < 0.95 ? 'Lento' : agingRateVal < 1.05 ? 'Normal' : agingRateVal < 1.15 ? 'Acelerado' : 'Muy acelerado';

@@ -272,46 +272,8 @@ export default function YoScreen() {
           </AnimatedPressable>
         </Animated.View>
 
-        {/* ═══════════════════════════════════════════
-            3. AGE CARDS — Biological Age + Aging Rate
-            ═══════════════════════════════════════════ */}
-        <Animated.View entering={FadeInUp.delay(200).springify()}>
-          <View style={s.ageRow}>
-            {/* Biological Age */}
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCardBtn}>
-              <GradientCard gradient={PILLAR_GRADIENTS.health} style={s.ageGradientCard}>
-                <EliteText style={s.ageLabel}>EDAD BIOLÓGICA</EliteText>
-                <EliteText style={[s.ageBigNum, {
-                  color: healthReport?.biologicalAge?.delta != null && healthReport.biologicalAge.delta < 0
-                    ? SEMANTIC.success
-                    : healthReport?.biologicalAge?.value ? SEMANTIC.warning : TEXT_COLORS.muted
-                }]}>
-                  {healthReport?.biologicalAge?.value ? Math.round(healthReport.biologicalAge.value) : '--'}
-                </EliteText>
-                {healthReport?.biologicalAge?.delta != null && (
-                  <EliteText style={[s.ageSub, {
-                    color: healthReport.biologicalAge.delta < 0 ? SEMANTIC.success : SEMANTIC.error
-                  }]}>
-                    {healthReport.biologicalAge.delta > 0 ? '+' : ''}{healthReport.biologicalAge.delta} vs {healthReport.biologicalAge.chronologicalAge}
-                  </EliteText>
-                )}
-              </GradientCard>
-            </AnimatedPressable>
-
-            {/* Aging Rate */}
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCardBtn}>
-              <GradientCard gradient={PILLAR_GRADIENTS.health} style={s.ageGradientCard}>
-                <EliteText style={s.ageLabel}>RITMO DE ENVEJECIMIENTO</EliteText>
-                <EliteText style={[s.ageBigNum, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
-                  {healthReport?.agingRate?.value ? healthReport.agingRate.value.toFixed(2) + 'x' : '--'}
-                </EliteText>
-                <EliteText style={[s.ageSub, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
-                  {healthReport?.agingRate?.label ?? ''}
-                </EliteText>
-              </GradientCard>
-            </AnimatedPressable>
-          </View>
-        </Animated.View>
+        {/* Edad Biológica / Ritmo del modelo viejo (health-score-engine) ELIMINADO:
+            la Edad ATP v2 (constellation arriba) es ahora el gold standard. */}
 
         {/* Botón de Reportes — acceso al hub de gráficas */}
         <Animated.View entering={FadeInUp.delay(220).springify()}>
