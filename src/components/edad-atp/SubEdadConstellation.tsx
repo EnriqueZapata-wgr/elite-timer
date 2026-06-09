@@ -10,32 +10,11 @@ import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Fonts, FontSizes } from '@/constants/theme';
-
-const DIMS = [
-  { key: 'metabolica', icon: '🩸', label: 'Metabólica' },
-  { key: 'corporal', icon: '💪', label: 'Corporal' },
-  { key: 'cardiovascular', icon: '❤️', label: 'Cardio' },
-  { key: 'fitness', icon: '🏃', label: 'Fitness' },
-  { key: 'cognitiva', icon: '🧠', label: 'Cognitiva' },
-] as const;
+import { EDAD_DIMS as DIMS, statusColor, statusGlyph, EDAD_TIMING } from './tokens';
 
 const SIZE = 300;
 const RADIUS = 118;
 const MINI = 62;
-
-/** Color por estado vs edad cronológica: verde mejor, ámbar neutro, rojo peor. */
-function statusColor(sub: number, chrono: number): string {
-  const d = sub - chrono;
-  if (d <= -1) return Colors.neonGreen;
-  if (d >= 2) return '#E24B4A';
-  return '#EF9F27';
-}
-function statusGlyph(sub: number, chrono: number): string {
-  const d = sub - chrono;
-  if (d <= -1) return '▲';
-  if (d >= 2) return '▼';
-  return '◐';
-}
 
 export function SubEdadConstellation({ result, onPressCenter }: { result: EdadAtpV2Result; onPressCenter?: () => void }) {
   const chrono = result.chronological_age;
@@ -44,13 +23,13 @@ export function SubEdadConstellation({ result, onPressCenter }: { result: EdadAt
   return (
     <View style={styles.wrap}>
       {DIMS.map((d, i) => {
-        const sub = subs[d.key]?.age_years ?? chrono;
+        const sub = (subs as any)[d.key]?.age_years ?? chrono;
         const angle = (-90 + i * 72) * (Math.PI / 180);
         const left = SIZE / 2 + RADIUS * Math.cos(angle) - MINI / 2;
         const top = SIZE / 2 + RADIUS * Math.sin(angle) - MINI / 2;
         const color = statusColor(sub, chrono);
         return (
-          <Animated.View key={d.key} entering={FadeIn.delay(250 + i * 80).duration(350)} style={[styles.mini, { left, top, borderColor: color }]}>
+          <Animated.View key={d.key} entering={FadeIn.delay(EDAD_TIMING.constellationBaseDelay + i * EDAD_TIMING.staggerMs).duration(350)} style={[styles.mini, { left, top, borderColor: color }]}>
             <Pressable
               onPress={() => { haptic.light(); router.push(`/edad-atp/sub-edad/${d.key}` as any); }}
               style={styles.miniInner}
