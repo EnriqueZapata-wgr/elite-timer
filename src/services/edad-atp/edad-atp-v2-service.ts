@@ -421,15 +421,16 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     // Los 5 PhenoAge "nuevos" también viven en lab_uploads.extracted_data y en
     // lab_results (columnas añadidas por la migración 017) — no solo en captura manual.
     // rdw: lab_results usa columna `rdw` y el JSONB key `rdw` (sin _cv).
-    albumin_g_dl: firstNum(bio.albumin, ext.albumin, lab?.albumin),
-    creatinine_mg_dl: firstNum(bio.creatinine, ext.creatinine, lab?.creatinine),
-    glucose_mg_dl: firstNum(bio.glucose, ext.glucose, lab?.glucose),
-    pcr_mg_dl: firstNum(bio.crp, ext.pcr, lab?.pcr),
-    lymphocyte_pct: firstNum(bio.lymphocyte_pct, ext.lymphocyte_pct, lab?.lymphocyte_pct),
-    mcv_fl: firstNum(bio.mcv, ext.mcv, lab?.mcv),
+    // Fallbacks por sinónimo (es/en) en keys del extracted_data del parser AI.
+    albumin_g_dl: firstNum(bio.albumin, ext.albumin, ext.albumina, ext.serum_albumin, lab?.albumin),
+    creatinine_mg_dl: firstNum(bio.creatinine, ext.creatinine, ext.creatinina, lab?.creatinine),
+    glucose_mg_dl: firstNum(bio.glucose, ext.glucose, ext.glucosa, lab?.glucose),
+    pcr_mg_dl: firstNum(bio.crp, ext.pcr, ext.crp, ext.proteina_c_reactiva, lab?.pcr),
+    lymphocyte_pct: firstNum(bio.lymphocyte_pct, ext.lymphocyte_pct, ext.linfocitos_pct, ext.lymphocytes_pct, lab?.lymphocyte_pct),
+    mcv_fl: firstNum(bio.mcv, ext.mcv, ext.vcm, lab?.mcv),
     rdw_cv_pct: firstNum(bio.rdw_cv, ext.rdw_cv, ext.rdw, lab?.rdw),
-    alp_u_l: firstNum(bio.alp, ext.alp, lab?.alp),
-    wbc_per_ul: firstNum(bio.wbc, ext.wbc, lab?.wbc),
+    alp_u_l: firstNum(bio.alp, ext.alp, ext.fosfatasa_alcalina, lab?.alp),
+    wbc_per_ul: firstNum(bio.wbc, ext.wbc, ext.leucocitos, lab?.wbc),
     weight_kg,
     height_cm: firstNum(hm?.height_cm, compRow?.height_cm, profile?.height_cm),
     body_fat_pct: firstNum(hm?.body_fat_pct, compRow?.body_fat_pct),
