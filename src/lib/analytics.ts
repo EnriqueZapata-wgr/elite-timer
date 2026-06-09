@@ -42,6 +42,7 @@ export const ATP_EVENTS = {
   EDAD_ATP_CE_THRESHOLD_CROSSED: 'edad_atp_ce_threshold_crossed',
   // Edad ATP v2.5 — integración con datos existentes
   EDAD_ATP_DATA_PREPOPULATED: 'edad_atp_data_prepopulated',
+  EDAD_ATP_SHARED: 'edad_atp_shared',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];

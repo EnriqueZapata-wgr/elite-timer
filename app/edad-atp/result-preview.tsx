@@ -7,10 +7,12 @@
  * romper los links existentes (hub, tab YO, constellation). Ver COWORK_REPORT.
  * domain_scores siguen placeholder neutral hasta Sprint 5.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -21,6 +23,7 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstellation';
 import { CalculationCinematic } from '@/src/components/edad-atp/CalculationCinematic';
 import { RecalculateDiff } from '@/src/components/edad-atp/RecalculateDiff';
+import { EdadAtpShareCard } from '@/src/components/edad-atp/EdadAtpShareCard';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -53,6 +56,16 @@ export default function ResultScreen() {
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [cinematic, setCinematic] = useState(false);
   const [prevIntegral, setPrevIntegral] = useState<number | null>(null);
+  const shareRef = useRef<View>(null);
+
+  async function handleShare() {
+    if (!result) return;
+    try {
+      const uri = await captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' });
+      analytics.track(ATP_EVENTS.EDAD_ATP_SHARED, { edad_integral: Math.round(result.edad_integral) });
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'image/png' });
+    } catch { /* compartir cancelado / no disponible */ }
+  }
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -101,6 +114,10 @@ export default function ResultScreen() {
               </Pressable>
             ))}
 
+            <Pressable onPress={handleShare} style={styles.shareBtn}>
+              <EliteText variant="body" style={styles.shareBtnText}>Compartir mi Edad ATP</EliteText>
+            </Pressable>
+
             <EliteText variant="caption" style={styles.note}>
               Toca una sub-edad para el desglose, o una fuente pendiente para completarla.
               domain_scores usan placeholder neutral (Sprint 5).
@@ -111,6 +128,15 @@ export default function ResultScreen() {
           <EliteText variant="body" style={styles.backText}>Volver</EliteText>
         </Pressable>
       </ScrollView>
+
+      {/* Tarjeta off-screen para captura de imagen al compartir. */}
+      {result ? (
+        <View style={styles.offscreen} pointerEvents="none">
+          <View ref={shareRef} collapsable={false}>
+            <EdadAtpShareCard result={result} format="story" />
+          </View>
+        </View>
+      ) : null}
 
       <CalculationCinematic visible={cinematic} result={result} onDone={() => setCinematic(false)} />
     </Screen>
@@ -126,6 +152,9 @@ const styles = StyleSheet.create({
   sourceLabel: { color: Colors.textPrimary },
   sourceDetail: { color: Colors.textSecondary },
   note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.sm },
+  shareBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md },
+  shareBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
   backBtn: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   backText: { color: Colors.textPrimary },
+  offscreen: { position: 'absolute', left: -10000, top: 0 },
 });
