@@ -16,7 +16,7 @@ import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { saveBiomarkers, getManualBiomarkers, type BiomarkerEntry } from '@/src/services/edad-atp/capture-service';
+import { saveBiomarkers, getManualBiomarkers, getLatestExtractedData, type BiomarkerEntry } from '@/src/services/edad-atp/capture-service';
 import { getLabHistory } from '@/src/services/lab-service';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -80,15 +80,32 @@ export default function BiomarkersCapture() {
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
     (async () => {
-      const [manual, labs] = await Promise.all([getManualBiomarkers(user.id), getLabHistory(user.id, 1)]);
+      const [manual, labs, ext] = await Promise.all([
+        getManualBiomarkers(user.id), getLabHistory(user.id, 1), getLatestExtractedData(user.id),
+      ]);
       const labRow: any = labs[0] ?? null;
+      // Sinónimos es/en para leer del PDF parseado igual que loadUserData.
+      const extSyn: Record<string, string[]> = {
+        albumin: ['albumina', 'serum_albumin'], creatinine: ['creatinina'], crp: ['pcr', 'proteina_c_reactiva'],
+        lymphocyte_pct: ['linfocitos_pct', 'lymphocytes_pct'], mcv: ['vcm'], rdw_cv: ['rdw'],
+        alp: ['fosfatasa_alcalina'], wbc: ['leucocitos'], total_cholesterol: ['cholesterol_total'], glucose: ['glucosa'],
+      };
+      const fromExt = (f: Bio): number | undefined => {
+        const col = f.labCol ?? f.key;
+        if (ext[col] != null) return ext[col];
+        for (const s of extSyn[f.key] ?? []) if (ext[s] != null) return ext[s];
+        return undefined;
+      };
       const cur: Record<string, Current> = {};
       for (const f of ALL_BIO) {
         const col = f.labCol ?? f.key;
+        const e = fromExt(f);
         if (manual[f.key] != null) {
           cur[f.key] = { value: manual[f.key].value, source: `Manual · hace ${daysAgo(manual[f.key].measured_at)}d` };
         } else if (labRow && labRow[col] != null) {
           cur[f.key] = { value: labRow[col], source: labRow.lab_date ? `Labs · hace ${daysAgo(labRow.lab_date)}d` : 'Labs' };
+        } else if (e != null) {
+          cur[f.key] = { value: e, source: 'PDF parseado' };
         }
       }
       setCurrent(cur);
