@@ -88,6 +88,42 @@ describe('loadUserData — lectura unificada de fuentes existentes', () => {
     expect(d.data_sources_used).not.toContain('lab_results');
   });
 
+  it('los 5 PhenoAge nuevos se leen desde lab_uploads.extracted_data (key rdw)', async () => {
+    state.tables.lab_uploads = [{ extracted_data: { values: {
+      albumin: { value: 4.48, unit: 'g/dL' },
+      alp: { value: 57, unit: 'U/L' },
+      lymphocyte_pct: { value: 43, unit: '%' },
+      mcv: { value: 88.6, unit: 'fL' },
+      rdw: { value: 12.9, unit: '%' },
+    } } }];
+    const d = await loadUserData('u1');
+    expect(d.albumin_g_dl).toBe(4.48);
+    expect(d.alp_u_l).toBe(57);
+    expect(d.lymphocyte_pct).toBe(43);
+    expect(d.mcv_fl).toBe(88.6);
+    expect(d.rdw_cv_pct).toBe(12.9); // desde la key 'rdw'
+  });
+
+  it('los 5 PhenoAge nuevos se leen desde columnas de lab_results (mig 017)', async () => {
+    state.tables.lab_results = [{
+      albumin: 4.6, alp: 60, lymphocyte_pct: 38, mcv: 89, rdw: 13.1, lab_date: '2026-01-01',
+    }];
+    const d = await loadUserData('u1');
+    expect(d.albumin_g_dl).toBe(4.6);
+    expect(d.alp_u_l).toBe(60);
+    expect(d.lymphocyte_pct).toBe(38);
+    expect(d.mcv_fl).toBe(89);
+    expect(d.rdw_cv_pct).toBe(13.1);
+  });
+
+  it('jerarquía PhenoAge: edad_atp_biomarkers > extracted_data > lab_results', async () => {
+    state.tables.lab_results = [{ albumin: 4.6, lab_date: '2026-01-01' }];
+    state.tables.lab_uploads = [{ extracted_data: { values: { albumin: { value: 4.5 } } } }];
+    state.tables.edad_atp_biomarkers = [{ biomarker_key: 'albumin', value: 4.4, measured_at: '2026-03-01' }];
+    const d = await loadUserData('u1');
+    expect(d.albumin_g_dl).toBe(4.4); // manual gana
+  });
+
   it('sin datos → defaults (edad 40, sexo male) y data_sources vacío', async () => {
     const d = await loadUserData('u1');
     expect(d.chronological_age).toBe(40);

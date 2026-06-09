@@ -386,14 +386,17 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     chronological_age: ageFromDob(profile?.date_of_birth) ?? DEFAULT_AGE,
     // Sex type no soporta 'intersex' → mapea a 'male' (default del orquestador).
     sex: profile?.biological_sex === 'female' ? 'female' : 'male',
-    albumin_g_dl: firstNum(bio.albumin),
+    // Los 5 PhenoAge "nuevos" también viven en lab_uploads.extracted_data y en
+    // lab_results (columnas añadidas por la migración 017) — no solo en captura manual.
+    // rdw: lab_results usa columna `rdw` y el JSONB key `rdw` (sin _cv).
+    albumin_g_dl: firstNum(bio.albumin, ext.albumin, lab?.albumin),
     creatinine_mg_dl: firstNum(bio.creatinine, ext.creatinine, lab?.creatinine),
     glucose_mg_dl: firstNum(bio.glucose, ext.glucose, lab?.glucose),
     pcr_mg_dl: firstNum(bio.crp, ext.pcr, lab?.pcr),
-    lymphocyte_pct: firstNum(bio.lymphocyte_pct),
-    mcv_fl: firstNum(bio.mcv),
-    rdw_cv_pct: firstNum(bio.rdw_cv),
-    alp_u_l: firstNum(bio.alp),
+    lymphocyte_pct: firstNum(bio.lymphocyte_pct, ext.lymphocyte_pct, lab?.lymphocyte_pct),
+    mcv_fl: firstNum(bio.mcv, ext.mcv, lab?.mcv),
+    rdw_cv_pct: firstNum(bio.rdw_cv, ext.rdw_cv, ext.rdw, lab?.rdw),
+    alp_u_l: firstNum(bio.alp, ext.alp, lab?.alp),
     wbc_per_ul: firstNum(bio.wbc, ext.wbc, lab?.wbc),
     weight_kg,
     height_cm: firstNum(hm?.height_cm, compRow?.height_cm, profile?.height_cm),
