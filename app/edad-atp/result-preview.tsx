@@ -13,6 +13,7 @@ import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import ConfettiCannon from 'react-native-confetti-cannon';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -56,6 +57,7 @@ export default function ResultScreen() {
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [cinematic, setCinematic] = useState(false);
   const [prevIntegral, setPrevIntegral] = useState<number | null>(null);
+  const [confetti, setConfetti] = useState(0);
   const shareRef = useRef<View>(null);
 
   async function handleShare() {
@@ -77,6 +79,12 @@ export default function ResultScreen() {
       const prev = prevStr != null ? parseFloat(prevStr) : null;
       if (prev != null && Math.abs(prev - r.edad_integral) >= 0.05) setPrevIntegral(prev);
       AsyncStorage.setItem(LAST_INTEGRAL, String(r.edad_integral));
+      // Confetti: edad < cronológica, o mejora al recalcular ≥ 1 año (X3 si ≥ 5).
+      const improvement = prev != null ? prev - r.edad_integral : 0;
+      const younger = r.edad_integral < r.chronological_age;
+      if (improvement >= 5) setConfetti(250);
+      else if (younger || improvement >= 1) setConfetti(120);
+      else setConfetti(0);
       setResult(r);
       setSources(buildSources(data));
       setCe((await computeCE(user.id)).ce_integral);
@@ -139,6 +147,10 @@ export default function ResultScreen() {
       ) : null}
 
       <CalculationCinematic visible={cinematic} result={result} onDone={() => setCinematic(false)} />
+
+      {confetti > 0 && !cinematic ? (
+        <ConfettiCannon count={confetti} origin={{ x: 180, y: 0 }} autoStart fadeOut explosionSpeed={350} fallSpeed={2800} />
+      ) : null}
     </Screen>
   );
 }
