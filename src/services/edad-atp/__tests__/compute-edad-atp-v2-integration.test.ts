@@ -40,6 +40,14 @@ describe('buildInputsFromUnified — mapea UnifiedUserData → EdadAtpV2Inputs',
     expect(inputs.reaction_time).toBeUndefined();
   });
 
+  it('deriva has_diabetes desde HbA1c ≥ 6.5 o glucosa ≥ 126', () => {
+    const base: UnifiedUserData = { chronological_age: 50, sex: 'male', data_sources_used: [] };
+    expect(buildInputsFromUnified(base).cardiovascular.has_diabetes).toBe(false);
+    expect(buildInputsFromUnified({ ...base, hba1c_pct: 6.7 }).cardiovascular.has_diabetes).toBe(true);
+    expect(buildInputsFromUnified({ ...base, glucose_mg_dl: 130 }).cardiovascular.has_diabetes).toBe(true);
+    expect(buildInputsFromUnified({ ...base, hba1c_pct: 5.4, glucose_mg_dl: 90 }).cardiovascular.has_diabetes).toBe(false);
+  });
+
   it('arma reaction_time solo si ambos RT están presentes', () => {
     const base: UnifiedUserData = { chronological_age: 40, sex: 'male', data_sources_used: [] };
     expect(buildInputsFromUnified({ ...base, reaction_time_simple_ms: 280 }).reaction_time).toBeUndefined();

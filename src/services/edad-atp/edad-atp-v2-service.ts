@@ -170,8 +170,12 @@ export function buildInputsFromUnified(data: UnifiedUserData): EdadAtpV2Inputs {
       total_cholesterol_mg_dl: n(data.total_cholesterol_mg_dl, 180),
       hdl_mg_dl: n(data.hdl_mg_dl, 50),
       systolic_bp_mmHg: n(data.systolic_bp_mmHg, 120),
+      // Proxy clínico de diabetes desde labs (ADA: HbA1c ≥ 6.5% o glucosa ayuno ≥ 126).
+      has_diabetes:
+        (data.hba1c_pct != null && data.hba1c_pct >= 6.5) ||
+        (data.glucose_mg_dl != null && data.glucose_mg_dl >= 126),
+      // TODO Sprint 5: leer tratamiento HTN y tabaquismo desde cuestionarios/perfil.
       on_htn_treatment: false,
-      has_diabetes: false,
       smoker: false,
       race: 'other',
     },
