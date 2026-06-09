@@ -4,6 +4,7 @@
  * Animación stagger se añade en un commit posterior. Tap en una sub-edad → drill-down.
  */
 import { View, StyleSheet, Pressable } from 'react-native';
+import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
@@ -49,23 +50,26 @@ export function SubEdadConstellation({ result, onPressCenter }: { result: EdadAt
         const top = SIZE / 2 + RADIUS * Math.sin(angle) - MINI / 2;
         const color = statusColor(sub, chrono);
         return (
-          <Pressable
-            key={d.key}
-            onPress={() => { haptic.light(); router.push(`/edad-atp/sub-edad/${d.key}` as any); }}
-            style={[styles.mini, { left, top, borderColor: color }]}
-          >
-            <EliteText style={styles.miniIcon}>{d.icon}</EliteText>
-            <EliteText style={[styles.miniAge, { color }]}>{Math.round(sub)}</EliteText>
-            <EliteText style={[styles.miniGlyph, { color }]}>{statusGlyph(sub, chrono)}</EliteText>
-          </Pressable>
+          <Animated.View key={d.key} entering={FadeIn.delay(250 + i * 80).duration(350)} style={[styles.mini, { left, top, borderColor: color }]}>
+            <Pressable
+              onPress={() => { haptic.light(); router.push(`/edad-atp/sub-edad/${d.key}` as any); }}
+              style={styles.miniInner}
+            >
+              <EliteText style={styles.miniIcon}>{d.icon}</EliteText>
+              <EliteText style={[styles.miniAge, { color }]}>{Math.round(sub)}</EliteText>
+              <EliteText style={[styles.miniGlyph, { color }]}>{statusGlyph(sub, chrono)}</EliteText>
+            </Pressable>
+          </Animated.View>
         );
       })}
 
-      <Pressable onPress={() => { haptic.medium(); onPressCenter?.(); }} style={styles.center}>
-        <EliteText style={styles.centerLabel}>EDAD ATP</EliteText>
-        <EliteText style={styles.centerValue}>{result.edad_integral.toFixed(1)}</EliteText>
-        <EliteText style={styles.centerSub}>cronológica {chrono}</EliteText>
-      </Pressable>
+      <Animated.View entering={ZoomIn.duration(400)} style={styles.center}>
+        <Pressable onPress={() => { haptic.medium(); onPressCenter?.(); }} style={styles.centerInner}>
+          <EliteText style={styles.centerLabel}>EDAD ATP</EliteText>
+          <EliteText style={styles.centerValue}>{result.edad_integral.toFixed(1)}</EliteText>
+          <EliteText style={styles.centerSub}>cronológica {chrono}</EliteText>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -75,15 +79,16 @@ const styles = StyleSheet.create({
   center: {
     position: 'absolute', left: SIZE / 2 - 72, top: SIZE / 2 - 72, width: 144, height: 144,
     borderRadius: 72, backgroundColor: '#0d1a0a', borderWidth: 2, borderColor: Colors.neonGreen,
-    alignItems: 'center', justifyContent: 'center', gap: 2,
   },
+  centerInner: { flex: 1, borderRadius: 72, alignItems: 'center', justifyContent: 'center', gap: 2 },
   centerLabel: { color: Colors.textSecondary, fontSize: 10, letterSpacing: 2, fontFamily: Fonts.bold },
   centerValue: { color: Colors.neonGreen, fontSize: 44, fontFamily: Fonts.extraBold, lineHeight: 48 },
   centerSub: { color: Colors.textSecondary, fontSize: FontSizes.xs },
   mini: {
     position: 'absolute', width: MINI, height: MINI, borderRadius: MINI / 2,
-    backgroundColor: Colors.surface, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.surface, borderWidth: 1.5,
   },
+  miniInner: { flex: 1, borderRadius: MINI / 2, alignItems: 'center', justifyContent: 'center' },
   miniIcon: { fontSize: 15 },
   miniAge: { fontSize: FontSizes.md, fontFamily: Fonts.bold, lineHeight: 20 },
   miniGlyph: { fontSize: 9, lineHeight: 11 },
