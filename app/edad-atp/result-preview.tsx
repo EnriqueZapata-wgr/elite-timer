@@ -80,7 +80,10 @@ export default function ResultScreen() {
       const seen = await AsyncStorage.getItem(CINEMATIC_FLAG);
       const prevStr = await AsyncStorage.getItem(LAST_INTEGRAL);
       const prev = prevStr != null ? parseFloat(prevStr) : null;
-      if (prev != null && Math.abs(prev - r.edad_integral) >= 0.05) setPrevIntegral(prev);
+      if (prev != null && Math.abs(prev - r.edad_integral) >= 0.05) {
+        setPrevIntegral(prev);
+        analytics.track(ATP_EVENTS.EDAD_ATP_RECALCULATED, { from: Math.round(prev * 10) / 10, to: Math.round(r.edad_integral * 10) / 10 });
+      }
       AsyncStorage.setItem(LAST_INTEGRAL, String(r.edad_integral));
       // Confetti: edad < cronológica, o mejora al recalcular ≥ 1 año (X3 si ≥ 5).
       const improvement = prev != null ? prev - r.edad_integral : 0;
@@ -91,7 +94,7 @@ export default function ResultScreen() {
       setResult(r);
       setSources(buildSources(data));
       setCe((await computeCE(user.id)).ce_integral);
-      if (!seen) { setCinematic(true); AsyncStorage.setItem(CINEMATIC_FLAG, '1'); }
+      if (!seen) { setCinematic(true); AsyncStorage.setItem(CINEMATIC_FLAG, '1'); analytics.track(ATP_EVENTS.EDAD_ATP_CINEMATIC_PLAYED, {}); }
       analytics.track(ATP_EVENTS.EDAD_ATP_RESULT_PREVIEWED, {
         edad_integral: Math.round(r.edad_integral),
         sources_used: data.data_sources_used.length,

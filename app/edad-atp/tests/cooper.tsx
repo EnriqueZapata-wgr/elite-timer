@@ -14,6 +14,7 @@ import { EliteText } from '@/components/elite-text';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveHealthMeasurement } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -32,6 +33,7 @@ function haversine(a: Location.LocationObjectCoords, b: Location.LocationObjectC
 export default function CooperTest() {
   useKeepAwake();
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [phase, setPhase] = useState<'intro' | 'running' | 'done'>('intro');
   const [remaining, setRemaining] = useState(DURATION);
   const [distanceM, setDistanceM] = useState(0);
@@ -86,6 +88,7 @@ export default function CooperTest() {
     const r = await saveHealthMeasurement(user.id, { vo2max_estimate: vo2 });
     setSaving(false);
     if (!r.ok) { Alert.alert('Error', 'No se pudo guardar.'); return; }
+    analytics.track(ATP_EVENTS.EDAD_ATP_FUNCTIONAL_TEST_COMPLETED, { test: 'cooper', vo2max: vo2, distance_m: Math.round(d) });
     haptic.success();
     Alert.alert('Cooper completado', `${Math.round(d)} m · VO2max ${vo2} ml/kg/min`, [{ text: 'OK', onPress: () => router.back() }]);
   }

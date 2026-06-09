@@ -11,6 +11,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import type { EdadAtpV2Result, SubEdadResult } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -37,13 +38,15 @@ function humanize(key: string): string {
 export default function SubEdadDrillDown() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
   const meta = META[key as string] ?? META.metabolica;
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
+    analytics.track(ATP_EVENTS.EDAD_ATP_SUBEDAD_VIEWED, { key: String(key) });
     computeEdadAtpV2(user.id).then(setResult).catch(() => {});
-  }, [user?.id]));
+  }, [user?.id, key]));
 
   const sub: SubEdadResult | null = result ? (result.sub_edades as any)[key as string] ?? null : null;
   const chrono = result?.chronological_age ?? 0;

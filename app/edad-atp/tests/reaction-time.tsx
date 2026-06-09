@@ -11,6 +11,7 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveFunctionalTests } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -20,6 +21,7 @@ type Phase = 'intro' | 'simple' | 'choice' | 'saving';
 
 export default function ReactionTimeTest() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [phase, setPhase] = useState<Phase>('intro');
   const [trial, setTrial] = useState(0);
   const [armed, setArmed] = useState(false); // estímulo visible (simple)
@@ -81,6 +83,7 @@ export default function ReactionTimeTest() {
         { test_key: 'reaction_time_choice', value_primary: choice },
       ]);
     }
+    analytics.track(ATP_EVENTS.EDAD_ATP_FUNCTIONAL_TEST_COMPLETED, { test: 'reaction_time', simple, choice });
     haptic.success();
     Alert.alert('Test completado', `RT simple ${simple}ms · RT choice ${choice}ms`, [{ text: 'OK', onPress: () => router.back() }]);
   }

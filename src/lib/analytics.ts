@@ -43,6 +43,11 @@ export const ATP_EVENTS = {
   // Edad ATP v2.5 — integración con datos existentes
   EDAD_ATP_DATA_PREPOPULATED: 'edad_atp_data_prepopulated',
   EDAD_ATP_SHARED: 'edad_atp_shared',
+  // MEGA COMPLETION — flujo completo
+  EDAD_ATP_CINEMATIC_PLAYED: 'edad_atp_cinematic_played',
+  EDAD_ATP_RECALCULATED: 'edad_atp_recalculated',
+  EDAD_ATP_SUBEDAD_VIEWED: 'edad_atp_subedad_viewed',
+  EDAD_ATP_FUNCTIONAL_TEST_COMPLETED: 'edad_atp_functional_test_completed',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];

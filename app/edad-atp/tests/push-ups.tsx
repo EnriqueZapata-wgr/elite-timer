@@ -10,11 +10,13 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveFunctionalTests } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 export default function PushUpsTest() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [running, setRunning] = useState(false);
   const [count, setCount] = useState(0);
   const [secs, setSecs] = useState(0);
@@ -38,6 +40,7 @@ export default function PushUpsTest() {
     const r = await saveFunctionalTests(user.id, [{ test_key: 'push_ups_max', value_primary: count, value_secondary: secs }]);
     setSaving(false);
     if (!r.ok) { Alert.alert('Error', 'No se pudo guardar.'); return; }
+    analytics.track(ATP_EVENTS.EDAD_ATP_FUNCTIONAL_TEST_COMPLETED, { test: 'push_ups', count, seconds: secs });
     haptic.success();
     Alert.alert('Test completado', `${count} lagartijas en ${secs}s`, [{ text: 'OK', onPress: () => router.back() }]);
   }
