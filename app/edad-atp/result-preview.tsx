@@ -20,10 +20,12 @@ import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstellation';
 import { CalculationCinematic } from '@/src/components/edad-atp/CalculationCinematic';
+import { RecalculateDiff } from '@/src/components/edad-atp/RecalculateDiff';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const CINEMATIC_FLAG = 'edad_atp_cinematic_seen';
+const LAST_INTEGRAL = 'edad_atp_last_integral';
 
 type SourceRow = { label: string; detail: string; done: boolean; route: string };
 
@@ -50,6 +52,7 @@ export default function ResultScreen() {
   const [ce, setCe] = useState(0);
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [cinematic, setCinematic] = useState(false);
+  const [prevIntegral, setPrevIntegral] = useState<number | null>(null);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -57,6 +60,10 @@ export default function ResultScreen() {
       const r = await computeEdadAtpV2(user.id);
       const data = await loadUserData(user.id);
       const seen = await AsyncStorage.getItem(CINEMATIC_FLAG);
+      const prevStr = await AsyncStorage.getItem(LAST_INTEGRAL);
+      const prev = prevStr != null ? parseFloat(prevStr) : null;
+      if (prev != null && Math.abs(prev - r.edad_integral) >= 0.05) setPrevIntegral(prev);
+      AsyncStorage.setItem(LAST_INTEGRAL, String(r.edad_integral));
       setResult(r);
       setSources(buildSources(data));
       setCe((await computeCE(user.id)).ce_integral);
@@ -81,6 +88,8 @@ export default function ResultScreen() {
           <>
             <SubEdadConstellation result={result} onPressCenter={() => setCinematic(true)} />
             <EliteText variant="caption" style={styles.gold}>Gold standard ATP · CE {Math.round(ce)}%</EliteText>
+
+            {prevIntegral != null ? <RecalculateDiff from={prevIntegral} to={result.edad_integral} /> : null}
 
             <EliteText variant="caption" style={styles.sourcesTitle}>📊 Fuentes que alimentaron el cálculo</EliteText>
             {sources.map((s) => (
