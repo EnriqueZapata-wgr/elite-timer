@@ -161,6 +161,21 @@ export async function saveQuestionnaireResponses(
   return { ok: true };
 }
 
+/** Lee los tests funcionales más recientes por test_key. */
+export async function getLatestFunctionalTests(userId: string): Promise<Record<string, { value: number; measured_at: string }>> {
+  const { data, error } = await supabase
+    .from('edad_atp_functional_tests')
+    .select('test_key, value_primary, measured_at')
+    .eq('user_id', userId)
+    .order('measured_at', { ascending: false });
+  if (error) { logWarn('[edad-atp capture] getLatestFunctionalTests failed:', error); return {}; }
+  const out: Record<string, { value: number; measured_at: string }> = {};
+  for (const r of (data ?? []) as any[]) {
+    if (out[r.test_key] === undefined && r.value_primary != null) out[r.test_key] = { value: r.value_primary, measured_at: r.measured_at };
+  }
+  return out;
+}
+
 export type FunctionalTestEntry = { test_key: string; value_primary: number; value_secondary?: number };
 
 /** Inserta resultados de tests funcionales (una fila por test). */
