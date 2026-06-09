@@ -58,6 +58,15 @@ export type EdadAtpV2Inputs = {
   reaction_time?: { rt_simple_ms: number; rt_choice_ms: number };
 };
 
+/**
+ * Cap inferior realista de las sub-edades display: un atleta no debe salir "18 años".
+ * Floor = max(18, edad_cronológica × 0.6). Solo sube valores irrealmente bajos.
+ * TODO Sprint 5: Mariana valida curvas finales score→edad por dimensión.
+ */
+function clampSubEdad(age: number, chronological_age: number): number {
+  return Math.max(age, 18, chronological_age * 0.6);
+}
+
 export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Result {
   const { chronological_age, sex } = inputs;
 
@@ -89,6 +98,11 @@ export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Re
     ...inputs.cardiovascular, race: inputs.cardiovascular.race ?? 'other', chronological_age, sex,
   });
   const fitness = computeEdadFitness({ ...inputs.fitness, sex, chronological_age });
+
+  // Cap inferior realista para Metabólica/Corporal/Fitness (no "18 años" de atleta).
+  metabolica.age_years = clampSubEdad(metabolica.age_years, chronological_age);
+  corporal.age_years = clampSubEdad(corporal.age_years, chronological_age);
+  fitness.age_years = clampSubEdad(fitness.age_years, chronological_age);
   const cognitiva: SubEdadResult = {
     age_years: edadCognitiva,
     ce_percent: hasCognitive ? 100 : 0,
