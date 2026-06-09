@@ -73,7 +73,10 @@ describe('loadUserData — lectura unificada de fuentes existentes', () => {
   it('data_sources_used + sexo/edad desde client_profiles', async () => {
     state.tables.client_profiles = [{ date_of_birth: '1980-05-15', biological_sex: 'female', height_cm: 165 }];
     state.tables.edad_atp_biomarkers = [{ biomarker_key: 'albumin', value: 4.6, measured_at: '2026-03-01' }];
-    state.tables.edad_atp_questionnaire_responses = [{ domain: 'metabolismo' }, { domain: 'sueno' }];
+    state.tables.edad_atp_questionnaire_responses = [
+      { domain: 'metabolismo', parameter_key: 'metabolic_flexibility', value_text: 'excelente' }, // → 100
+      { domain: 'sueno', parameter_key: 'sleep_hours', value_text: '5-6' }, // → 33
+    ];
     state.tables.edad_atp_functional_tests = [{ test_key: 'reaction_time_simple', value_primary: 280 }];
     const d = await loadUserData('u1');
     expect(d.sex).toBe('female');
@@ -81,7 +84,7 @@ describe('loadUserData — lectura unificada de fuentes existentes', () => {
     expect(d.albumin_g_dl).toBe(4.6);
     expect(d.height_cm).toBe(165); // de client_profiles (fallback)
     expect(d.reaction_time_simple_ms).toBe(280);
-    expect(d.sf_scores_by_domain?.metabolismo).toBe(50);
+    expect(d.sf_scores_by_domain?.metabolismo).toBe(100); // 'excelente' = más sano
     expect(d.data_sources_used).toContain('edad_atp_biomarkers');
     expect(d.data_sources_used).toContain('edad_atp_questionnaire_responses');
     expect(d.data_sources_used).toContain('edad_atp_functional_tests');

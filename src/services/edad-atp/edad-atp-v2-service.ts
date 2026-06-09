@@ -22,6 +22,7 @@ import { computeEdadMetabolica } from './sub-edad-metabolica-service';
 import { computeEdadCorporal } from './sub-edad-corporal-service';
 import { computeEdadCardiovascular, type Race } from './sub-edad-cardiovascular-service';
 import { computeEdadFitness } from './sub-edad-fitness-service';
+import { scoreQuestionnaireResponses } from './questionnaire-scoring';
 
 export type EdadAtpV2Inputs = {
   chronological_age: number;
@@ -350,7 +351,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
       supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1),
       supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_body_composition').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
-      supabase.from('edad_atp_questionnaire_responses').select('domain').eq('user_id', userId),
+      supabase.from('edad_atp_questionnaire_responses').select('domain, parameter_key, value_text').eq('user_id', userId),
       supabase.from('edad_atp_functional_tests').select('test_key, value_primary').eq('user_id', userId),
     ]);
     profile = (pRes.data ?? [])[0] ?? null;
@@ -384,8 +385,8 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
   for (const r of ftRows) if (r.value_primary != null && ft[r.test_key] === undefined) ft[r.test_key] = r.value_primary;
 
   // SF placeholder: dominios contestados → 50 neutral (scores reales = Sprint 5).
-  const sf_scores_by_domain: Partial<Record<DomainKey, number>> = {};
-  for (const r of qRows) sf_scores_by_domain[r.domain as DomainKey] = 50;
+  // Score real por dominio desde las respuestas (no placeholder 50).
+  const sf_scores_by_domain = scoreQuestionnaireResponses(qRows as any);
 
   // Composición: % músculo puede venir como kg en health_measurements → convertir.
   const weight_kg = firstNum(hm?.weight_kg, compRow?.weight_kg);
