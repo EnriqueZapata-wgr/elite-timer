@@ -182,6 +182,7 @@ export function buildInputsFromUnified(data: UnifiedUserData): EdadAtpV2Inputs {
     fitness: {
       vo2max_ml_kg_min: data.vo2max_ml_kg_min,
       grip_strength_kg: data.grip_strength_kg,
+      push_ups_max: data.push_ups_max,
       resting_hr_bpm: data.resting_hr_bpm,
     },
     reaction_time:
@@ -275,6 +276,7 @@ export interface UnifiedUserData {
   diastolic_bp_mmHg?: number;
   resting_hr_bpm?: number;
   vo2max_ml_kg_min?: number;
+  push_ups_max?: number;
   // Metabólico
   insulin_uU_ml?: number;
   hba1c_pct?: number;
@@ -415,6 +417,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     diastolic_bp_mmHg: firstNum(bio.diastolic_bp, hm?.diastolic_bp),
     resting_hr_bpm: firstNum(bio.resting_hr, hm?.resting_hr),
     vo2max_ml_kg_min: firstNum(bio.vo2max_estimated, hm?.vo2max_estimate),
+    push_ups_max: firstNum(ft.push_ups_max),
     insulin_uU_ml: firstNum(bio.insulin, ext.insulin, lab?.insulin),
     hba1c_pct: firstNum(bio.hba1c, ext.hba1c, lab?.hba1c),
     hdl_mg_dl: firstNum(bio.hdl, ext.hdl, lab?.hdl),
