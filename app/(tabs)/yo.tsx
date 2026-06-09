@@ -258,6 +258,21 @@ export default function YoScreen() {
         </Animated.View>
 
         {/* ═══════════════════════════════════════════
+            2b. ATP SCORE — métrica secundaria (desempeño semanal)
+            ═══════════════════════════════════════════ */}
+        <Animated.View entering={FadeInUp.delay(150).springify()}>
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/reports' as any); }} style={s.atpScoreCard}>
+            <View style={[s.atpScoreDot, { backgroundColor: getScoreColor(overallScore) }]} />
+            <View style={{ flex: 1 }}>
+              <EliteText style={s.atpScoreLabel}>ATP SCORE · Tu desempeño semanal</EliteText>
+              <EliteText style={s.atpScoreSub}>{overallLevel ? overallLevel.toUpperCase() : 'Hábitos y recuperación'}</EliteText>
+            </View>
+            <EliteText style={[s.atpScoreValue, { color: getScoreColor(overallScore) }]}>{overallScore}</EliteText>
+            <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.muted} />
+          </AnimatedPressable>
+        </Animated.View>
+
+        {/* ═══════════════════════════════════════════
             3. AGE CARDS — Biological Age + Aging Rate
             ═══════════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(200).springify()}>
@@ -612,6 +627,22 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xl,
     fontFamily: Fonts.bold,
   },
+
+  // ── 2b. ATP Score secondary card ──
+  atpScoreCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: CARD.bg,
+    borderRadius: CARD.borderRadius,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 12,
+  },
+  atpScoreDot: { width: 8, height: 8, borderRadius: 4 },
+  atpScoreLabel: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#fff' },
+  atpScoreSub: { fontSize: FontSizes.xs, color: '#555', marginTop: 1 },
+  atpScoreValue: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
 
   // ── 3. Age Cards ──
   ageRow: {
