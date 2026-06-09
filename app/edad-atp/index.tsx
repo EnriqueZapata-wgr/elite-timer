@@ -20,7 +20,7 @@ import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
 
 type Card = {
-  key: keyof CEResult['breakdown'] | 'vitals';
+  key: keyof CEResult['breakdown'] | 'vitals' | 'tests';
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   desc: string;
@@ -33,6 +33,7 @@ const CARDS: Card[] = [
   { key: 'vitals', icon: 'heart-outline', title: 'Mediciones puntuales', desc: 'Presión arterial, FC reposo, VO2max', route: '/edad-atp/vitals' },
   { key: 'questionnaires', icon: 'list-outline', title: 'Cuestionarios', desc: '10 dominios de salud funcional', route: '/edad-atp/questionnaires' },
   { key: 'cognitive', icon: 'flash-outline', title: 'Test cognitivo', desc: 'Tiempo de reacción (preview)', route: '/edad-atp/cognitive' },
+  { key: 'tests', icon: 'fitness-outline', title: 'Tests funcionales', desc: 'Reaction time, Cooper, push-ups, balance', route: '/edad-atp/tests' },
 ];
 
 export default function EdadAtpHub() {
