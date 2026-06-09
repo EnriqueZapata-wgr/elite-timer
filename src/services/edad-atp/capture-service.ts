@@ -51,6 +51,21 @@ export async function saveBiomarkers(userId: string, entries: BiomarkerEntry[]):
   return { ok: true };
 }
 
+/** Lee los biomarcadores manuales (edad_atp_biomarkers) más recientes por key. */
+export async function getManualBiomarkers(userId: string): Promise<Record<string, { value: number; measured_at: string }>> {
+  const { data, error } = await supabase
+    .from('edad_atp_biomarkers')
+    .select('biomarker_key, value, measured_at')
+    .eq('user_id', userId)
+    .order('measured_at', { ascending: false });
+  if (error) { logWarn('[edad-atp capture] getManualBiomarkers failed:', error); return {}; }
+  const out: Record<string, { value: number; measured_at: string }> = {};
+  for (const r of (data ?? []) as any[]) {
+    if (out[r.biomarker_key] === undefined && r.value != null) out[r.biomarker_key] = { value: r.value, measured_at: r.measured_at };
+  }
+  return out;
+}
+
 /** Lee la medición de salud más reciente del usuario (para pre-poblar). */
 export async function getLatestHealthMeasurement(userId: string): Promise<Record<string, any> | null> {
   const { data, error } = await supabase
