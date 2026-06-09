@@ -151,6 +151,8 @@ export async function saveQuestionnaireResponses(
     measured_at: new Date().toISOString(),
   }));
   if (rows.length === 0) return { ok: true };
+  // Idempotente por dominio: borra respuestas previas antes de reinsertar (permite editar).
+  await supabase.from('edad_atp_questionnaire_responses').delete().eq('user_id', userId).eq('domain', domain);
   const { error } = await supabase.from('edad_atp_questionnaire_responses').insert(rows);
   if (error) {
     logWarn('[edad-atp capture] saveQuestionnaireResponses failed:', error);

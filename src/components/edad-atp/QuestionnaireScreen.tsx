@@ -2,15 +2,16 @@
  * QuestionnaireScreen — cuerpo reutilizable de un cuestionario de dominio.
  * Recibe el dominio + preguntas; maneja estado, guardado y navegación.
  */
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
 import { QuestionnaireQuestion, type QuestionOption } from './QuestionnaireQuestion';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { supabase } from '@/src/lib/supabase';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveQuestionnaireResponses, type QuestionnaireResponse } from '@/src/services/edad-atp/capture-service';
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
@@ -29,6 +30,22 @@ export function QuestionnaireScreen({ domain, title, questions, pillar = 'metric
   const analytics = useAnalytics();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+
+  // Pre-cargar respuestas previas para permitir revisar/editar.
+  useFocusEffect(useCallback(() => {
+    if (!user?.id) return;
+    supabase
+      .from('edad_atp_questionnaire_responses')
+      .select('parameter_key, value_text')
+      .eq('user_id', user.id)
+      .eq('domain', domain)
+      .then(({ data }) => {
+        if (!data?.length) return;
+        const prev: Record<string, string> = {};
+        for (const r of data as any[]) if (r.value_text != null) prev[r.parameter_key] = r.value_text;
+        setAnswers(prev);
+      });
+  }, [user?.id, domain]));
 
   async function handleSave() {
     if (!user?.id) return;

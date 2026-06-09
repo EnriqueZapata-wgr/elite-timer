@@ -41,14 +41,26 @@ export default function QuestionnairesHub() {
     <Screen>
       <PillarHeader pillar="metrics" title="Cuestionarios" />
       <ScrollView contentContainerStyle={styles.content}>
-        {DOMAINS.map((d) => (
-          <Pressable key={d.domain} onPress={() => { haptic.medium(); router.push(d.route as any); }} style={styles.row}>
-            <EliteText style={styles.emoji}>{d.icon}</EliteText>
-            <EliteText variant="body" style={styles.title}>{d.title}</EliteText>
-            {done.has(d.domain) && <Ionicons name="checkmark-circle" size={18} color={Colors.neonGreen} />}
-            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-          </Pressable>
-        ))}
+        {DOMAINS.map((d) => {
+          const isDone = done.has(d.domain);
+          return (
+            <Pressable
+              key={d.domain}
+              onPress={() => { haptic.medium(); router.push(d.route as any); }}
+              style={[styles.row, isDone && styles.rowDone]}
+            >
+              <EliteText style={styles.emoji}>{d.icon}</EliteText>
+              <View style={{ flex: 1 }}>
+                <EliteText variant="body" style={styles.title}>{d.title}</EliteText>
+                <EliteText variant="caption" style={[styles.status, isDone && { color: Colors.neonGreen }]}>
+                  {isDone ? '✓ Completado · Toca para revisar' : 'Toca para contestar'}
+                </EliteText>
+              </View>
+              {isDone && <Ionicons name="checkmark-circle" size={18} color={Colors.neonGreen} />}
+              <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+            </Pressable>
+          );
+        })}
         <EliteText variant="caption" style={styles.note}>
           "Composición corporal" abre la captura de báscula. El resto son cuestionarios cortos.
         </EliteText>
@@ -64,7 +76,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md,
     borderWidth: 1, borderColor: '#1a1a1a',
   },
+  rowDone: { borderColor: 'rgba(168,224,42,0.35)' },
   emoji: { fontSize: 22 },
-  title: { flex: 1, color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  title: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  status: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 1 },
   note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
 });
