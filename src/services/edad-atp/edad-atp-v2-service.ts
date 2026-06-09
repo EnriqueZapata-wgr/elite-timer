@@ -61,11 +61,11 @@ export type EdadAtpV2Inputs = {
 
 /**
  * Cap inferior realista de las sub-edades display: un atleta no debe salir "18 años".
- * Floor = max(18, edad_cronológica × 0.6). Solo sube valores irrealmente bajos.
+ * Floor = max(18, edad_cronológica × 0.75). Solo sube valores irrealmente bajos.
  * TODO Sprint 5: Mariana valida curvas finales score→edad por dimensión.
  */
 function clampSubEdad(age: number, chronological_age: number): number {
-  return Math.max(age, 18, chronological_age * 0.6);
+  return Math.max(age, 18, chronological_age * 0.75);
 }
 
 export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Result {
