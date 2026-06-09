@@ -65,7 +65,14 @@ export type EdadAtpV2Inputs = {
  * TODO Sprint 5: Mariana valida curvas finales score→edad por dimensión.
  */
 function clampSubEdad(age: number, chronological_age: number): number {
-  return Math.max(age, 18, chronological_age * 0.75);
+  const floor = Math.max(18, chronological_age * 0.75);
+  if (age >= floor) return age;
+  // Soft floor: los valores irrealmente bajos se comprimen de forma monótona a
+  // [floor×0.9, floor) en vez de saturarse todos exactamente en el cap. Así un atleta
+  // ve sub-edades distintas (~24-26) y no "todas en 21/26".
+  // TODO Sprint 5: Mariana calibra las curvas score→edad por sub-edad con datos reales.
+  const soft = floor * 0.9 + (age / floor) * (floor * 0.1);
+  return Math.max(18, soft);
 }
 
 export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Result {
