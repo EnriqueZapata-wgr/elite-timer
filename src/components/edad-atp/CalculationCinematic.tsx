@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Modal, View, StyleSheet } from 'react-native';
 import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
-import { haptic } from '@/src/utils/haptics';
+import { playPhaseTick, playReveal } from './edad-sound';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
 
@@ -42,10 +42,10 @@ export function CalculationCinematic({
       const t = setTimeout(() => {
         setPhase(i);
         if (i === revealIdx) {
-          haptic.success();
+          playReveal();
           runCountUp(result.edad_integral);
         } else {
-          haptic.light();
+          playPhaseTick();
         }
       }, acc);
       timers.current.push(t);

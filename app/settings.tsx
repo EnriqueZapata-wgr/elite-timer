@@ -1,6 +1,7 @@
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert, Share, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert, Share, Platform, Switch } from 'react-native';
+import { loadSoundPref, setSoundEnabled as persistSoundPref } from '@/src/components/edad-atp/edad-sound';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -65,6 +66,8 @@ export default function SettingsScreen() {
   const { macroMode, setMacroMode } = useMacroMode();
 
   // Estado coach
+  const [edadSound, setEdadSound] = useState(true);
+  useEffect(() => { loadSoundPref().then(setEdadSound); }, []);
   const [coachCode, setCoachCode] = useState<string | null>(null);
   const [coaches, setCoaches] = useState<CoachConnection[]>([]);
   const [clients, setClients] = useState<CoachConnection[]>([]);
@@ -622,6 +625,20 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
           </Pressable>
+          <View style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="musical-notes-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Sonidos Edad ATP</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Efectos de la cinemática (respeta silencio)</EliteText>
+              </View>
+            </View>
+            <Switch
+              value={edadSound}
+              onValueChange={(v) => { haptic.light(); setEdadSound(v); persistSoundPref(v); }}
+              trackColor={{ true: Colors.neonGreen, false: '#333' }}
+            />
+          </View>
           <Divider />
         </Animated.View>
 
