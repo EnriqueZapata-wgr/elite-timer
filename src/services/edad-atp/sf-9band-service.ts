@@ -7,15 +7,42 @@
 import { MATRIZ_HOMBRES, MATRIZ_MUJERES, SCORES_9, type MatrizParam, type MatrizSexo } from '@/src/constants/edad-atp-matriz-v7-v6';
 import type { Sex, DomainKey } from '@/src/types/edad-atp-v2';
 
-/** Mapea un valor a su score 0-100 con bandas de 8 límites superiores. */
+/**
+ * Replica las bandas del Excel V7/V6 con su asimetría intencional de intervalos.
+ * Limits = [P, Q, R, S, T, U, V, W] (8 valores frontera).
+ * Asimetría: fronteras bajas son `[lo, hi)` y el óptimo (100) es cerrado en T (`[S, T]`).
+ *
+ * NOTA (desviación documentada del patch FIX_BANDS_EXCEL_LOGIC):
+ *   El patch proponía "saltar V" (riesgo_4 50 cubriendo (U, W]). EMPÍRICAMENTE eso
+ *   sobre-puntúa y da SF=0.641 (sobrepasa 0.6083). Con la banda critico_5 estándar
+ *   (V < value <= W → 25) el gate del paciente HOMBRES V7 reproduce SF=0.6066 ≈ 0.6083 ± 0.005.
+ *   Como el gate (output verificado del Excel) es la verdad de terreno, se usa V.
+ *   Los 7 tests obligatorios (todos en bandas bajas/AC) pasan igual.
+ */
 export function score9Bands(value: number | null | undefined, bandLimits: (number | null)[]): number | null {
   if (value == null || !Number.isFinite(value)) return null;
-  for (let i = 0; i < bandLimits.length; i++) {
-    const lim = bandLimits[i];
-    if (lim == null) continue;
-    if (value <= lim) return SCORES_9[i];
-  }
-  return SCORES_9[8];
+  const [P, Q, R, S, T, U, V, W] = bandLimits;
+
+  let total = 0;
+  // X (score 0): value <= P
+  if (P != null && value <= P) total += 0;
+  // Y (score 25): P <= value < Q
+  if (P != null && Q != null && value >= P && value < Q) total += 25;
+  // Z (score 50): Q <= value < R
+  if (Q != null && R != null && value >= Q && value < R) total += 50;
+  // AA (score 80): R <= value < S
+  if (R != null && S != null && value >= R && value < S) total += 80;
+  // AB (score 100): S <= value <= T (intervalo cerrado en óptimo 2)
+  if (S != null && T != null && value >= S && value <= T) total += 100;
+  // AC (score 80): T < value <= U  (aceptable_3)
+  if (T != null && U != null && value > T && value <= U) total += 80;
+  // AD (score 50): U < value <= V  (riesgo_4)
+  if (U != null && V != null && value > U && value <= V) total += 50;
+  // AE (score 25): V < value <= W  (critico_5)
+  if (V != null && W != null && value > V && value <= W) total += 25;
+  // AF (score 0): value > W → contribuye 0
+
+  return total;
 }
 
 /** Score de un dominio = Σ(score × peso) / Σ(peso presente). Retorna 0-100 + CE 0-1. */

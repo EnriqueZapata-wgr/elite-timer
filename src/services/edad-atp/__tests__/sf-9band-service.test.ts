@@ -31,36 +31,40 @@ describe('sf-9band — lógica de bandas (ejemplos del buzón)', () => {
   });
 });
 
-// ====== GATE DE VALIDACIÓN DEL SPRINT (flag #1) ======
-// ESTADO: NO reproduce todavía. computeSFGlobalReal da SF ≈ 0.5782 vs 0.6083 esperado.
-//   - FIX aplicado: la matriz traía el dominio como `renal_y_micronutrientes` pero la clave
-//     canónica (DomainKey + SF_DOMAIN_WEIGHTS) es `renal_micronutrientes`. Normalizado →
-//     subió SF de 0.5597 a 0.5782 y el dominio renal ya puntúa 82.4 (esperado 82.42 ✓).
-//   - GAP restante (~0.030) concentrado en 4 dominios Forms/hormonal: habitos (52.5),
-//     sueno (50.0), sistema_hormonal (57.5), vitalidad (50.3). Sus params presentes se
-//     puntúan FIEL a las bandas de la matriz (no es bug de lógica): la divergencia está en
-//     los DATOS extraídos (bandas de la matriz vs valores/unidades del fixture). Ej:
-//     testosterona_total=3.32 ng/ml → banda 25; lh=0.62 → 0; duracion_promedio=6h → 0.
-//   - Por flag #1 esto BLOQUEA el sprint hasta reconciliar los datos. Ver COWORK_REPORT.
-// Se reactiva (it → it) cuando el fixture/matriz reconcilien y dé 0.6083.
-describe('sf-9band — paciente HOMBRES V7 reproduce SF=0.6083 [GATE — flag #1]', () => {
-  it.skip('computeSFGlobalReal con los 92 valores del Excel → SF ≈ 0.6083 ± 0.005', () => {
+// 7 tests obligatorios (FIX_BANDS_EXCEL_LOGIC.md) — lógica asimétrica del Excel.
+describe('score9Bands replica Excel V7 EXACTO', () => {
+  it('LDL=149, bands [30,50,60,80,120,150,160,180] → 80 (aceptable_3, T<v<=U)', () => {
+    expect(score9Bands(149, [30, 50, 60, 80, 120, 150, 160, 180])).toBe(80);
+  });
+  it('ApoB=105, bands [30,0,40,50,99,110,125,150] → 80 (aceptable_3)', () => {
+    expect(score9Bands(105, [30, 0, 40, 50, 99, 110, 125, 150])).toBe(80);
+  });
+  it('Col total=189, bands [115,130,150,180,220,250,280,350] → 100 (óptimo_2)', () => {
+    expect(score9Bands(189, [115, 130, 150, 180, 220, 250, 280, 350])).toBe(100);
+  });
+  it('Duración=6, bands [6,6,7,7.5,8.5,9,9.5,10] → 50 (Q<=v<R con P=Q)', () => {
+    expect(score9Bands(6, [6, 6, 7, 7.5, 8.5, 9, 9.5, 10])).toBe(50);
+  });
+  it('Testosterona total=3.32, bands [3,4.5,6,7,12,null,null,null] → 25 (riesgo_-4)', () => {
+    expect(score9Bands(3.32, [3, 4.5, 6, 7, 12, null, null, null])).toBe(25);
+  });
+  it('LH=0.62, bands [0.9,1,1.5,2,8,9,10,null] → 0 (crítico_-5)', () => {
+    expect(score9Bands(0.62, [0.9, 1, 1.5, 2, 8, 9, 10, null])).toBe(0);
+  });
+  it('Energía despertar=4, bands [6,6,7,9,10,null,null,null] → 0 (value < P)', () => {
+    expect(score9Bands(4, [6, 6, 7, 9, 10, null, null, null])).toBe(0);
+  });
+});
+
+// ====== GATE DE VALIDACIÓN DEL SPRINT (reactivado tras FIX_BANDS_EXCEL_LOGIC) ======
+describe('sf-9band — paciente HOMBRES V7 reproduce SF=0.6083 [GATE]', () => {
+  it('computeSFGlobalReal con los 92 valores del Excel → SF ≈ 0.6083 ± 0.005', () => {
     const result = computeSFGlobalReal(
       fixture.param_values,
       'male',
       SF_DOMAIN_WEIGHTS as Record<DomainKey, number>,
     );
     expect(result.sf).toBeCloseTo(0.6083, 2); // toBeCloseTo(_, 2) ⇒ |diff| < 0.005
-  });
-
-  // Estado actual documentado (verifica que el fix renal funcionó y fija la línea base).
-  it('estado actual: SF = 0.578 (renal corregido; gap pendiente de reconciliación de datos)', () => {
-    const result = computeSFGlobalReal(
-      fixture.param_values,
-      'male',
-      SF_DOMAIN_WEIGHTS as Record<DomainKey, number>,
-    );
-    expect(result.sf).toBeCloseTo(0.578, 2);
-    expect(result.domain_scores.renal_micronutrientes).toBeCloseTo(82.42, 0); // fix renal OK
+    expect(result.domain_scores.renal_micronutrientes).toBeCloseTo(82.42, 0);
   });
 });
