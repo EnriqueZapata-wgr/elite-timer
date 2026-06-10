@@ -48,3 +48,47 @@ describe('resolveParamValues — mapeo de fuentes → claves de matriz', () => {
     expect(Object.keys(resolveParamValues('male', EMPTY)).length).toBe(0);
   });
 });
+
+describe('composición corporal desde health_measurements (paciente Enrique)', () => {
+  // Datos reales capturados vía /edad-atp/composition → health_measurements.
+  const HM_ENRIQUE = {
+    weight_kg: 79,
+    height_cm: 178,
+    body_fat_pct: 11,
+    muscle_mass_kg: 55,
+    visceral_fat: 3,
+    grip_strength_kg: 77.8,
+  };
+
+  it('resuelve los 4 params de composición con datos en DB + conversión a fracción', () => {
+    const out = resolveParamValues('male', { ...EMPTY, hm: HM_ENRIQUE });
+    expect(out.grasa_corporal).toBeCloseTo(0.11, 5); // body_fat_pct 11% → 0.11
+    expect(out.musculo_esqueletico).toBeCloseTo(55 / 79, 5); // 0.696 = kg/peso (fracción)
+    expect(out.fuerza_de_agarre).toBe(77.8);
+    expect(out.grasa_visceral).toBe(3);
+  });
+
+  it('skeletal_muscle_pct directo (si existiera la columna) gana sobre el derivado kg/peso', () => {
+    const out = resolveParamValues('male', {
+      ...EMPTY,
+      hm: { ...HM_ENRIQUE, skeletal_muscle_pct: 42 },
+    });
+    expect(out.musculo_esqueletico).toBeCloseTo(0.42, 5); // 42% → 0.42, no 55/79
+  });
+
+  it('musculo_esqueletico ausente si no hay ni pct ni kg/peso (no inventa)', () => {
+    const out = resolveParamValues('male', { ...EMPTY, hm: { body_fat_pct: 11 } });
+    expect(out.grasa_corporal).toBeCloseTo(0.11, 5);
+    expect(out.musculo_esqueletico).toBeUndefined();
+  });
+
+  it('edad_corporal y pullups siguen resolviendo desde questionnaire (flag #2)', () => {
+    const out = resolveParamValues('male', {
+      ...EMPTY,
+      hm: HM_ENRIQUE,
+      quest: { edad_corporal: -5, pullups: 30 },
+    });
+    expect(out.edad_corporal).toBe(-5);
+    expect(out.pullups).toBe(30);
+  });
+});
