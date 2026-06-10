@@ -17,9 +17,13 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
+import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstellation';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
 import { generateMasterHealthReport, type MasterHealthReport } from '@/src/services/health-score-engine';
+import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { computeCE } from '@/src/services/edad-atp/ce-service';
+import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
 import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -51,6 +55,8 @@ export default function YoScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [healthReport, setHealthReport] = useState<MasterHealthReport | null>(null);
   const [healthLoading, setHealthLoading] = useState(true);
+  const [edadResult, setEdadResult] = useState<EdadAtpV2Result | null>(null);
+  const [edadCE, setEdadCE] = useState(0);
   const [dailyScore, setDailyScore] = useState<DailyHealthScore | null>(null);
   const [wearableData, setWearableData] = useState<WearableData | null>(null);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -87,6 +93,15 @@ export default function YoScreen() {
         setHealthLoading(false);
       }
     } catch { setHealthLoading(false); }
+    // Cargar Edad ATP v2 (número estrella) — solo calcula si hay evaluación suficiente.
+    try {
+      if (user?.id) {
+        const ce = await computeCE(user.id);
+        setEdadCE(ce.ce_integral);
+        if (ce.ce_integral >= 30) setEdadResult(await computeEdadAtpV2(user.id));
+        else setEdadResult(null);
+      }
+    } catch { /* degradar graciosamente */ }
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => {
@@ -192,17 +207,18 @@ export default function YoScreen() {
         </Animated.View>
 
         {/* ═══════════════════════════════════════════
-            2. OVERALL SCORE CARD — Circle + 6 mini scores
+            2. EDAD ATP — Constellation (número estrella) o CTA
             ═══════════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
           <GradientCard gradient={PILLAR_GRADIENTS.health} padding={20} style={s.scoreCardWrap}>
-            <View style={s.scoreRingWrap}>
-              <AnimatedScoreRing score={overallScore} size={180} strokeWidth={4} label="ATP SCORE" />
-            </View>
-
-            <EliteText style={[s.scoreLevel, { color: getScoreColor(overallScore) }]}>
-              {overallLevel.toUpperCase()}
-            </EliteText>
+            {edadResult ? (
+              <SubEdadConstellation result={edadResult} onPressCenter={() => router.push('/edad-atp/result-preview' as any)} />
+            ) : (
+              <AnimatedPressable onPress={() => { haptic.medium(); router.push('/edad-atp' as any); }} style={s.edadCta}>
+                <EliteText style={s.edadCtaTitle}>Calcula tu Edad ATP</EliteText>
+                <EliteText style={s.edadCtaSub}>Evaluación {Math.round(edadCE)}% · toca para completar →</EliteText>
+              </AnimatedPressable>
+            )}
 
             {/* Rango de electrones */}
             {rankInfo && (
@@ -242,45 +258,22 @@ export default function YoScreen() {
         </Animated.View>
 
         {/* ═══════════════════════════════════════════
-            3. AGE CARDS — Biological Age + Aging Rate
+            2b. ATP SCORE — métrica secundaria (desempeño semanal)
             ═══════════════════════════════════════════ */}
-        <Animated.View entering={FadeInUp.delay(200).springify()}>
-          <View style={s.ageRow}>
-            {/* Biological Age */}
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCardBtn}>
-              <GradientCard gradient={PILLAR_GRADIENTS.health} style={s.ageGradientCard}>
-                <EliteText style={s.ageLabel}>EDAD BIOLÓGICA</EliteText>
-                <EliteText style={[s.ageBigNum, {
-                  color: healthReport?.biologicalAge?.delta != null && healthReport.biologicalAge.delta < 0
-                    ? SEMANTIC.success
-                    : healthReport?.biologicalAge?.value ? SEMANTIC.warning : TEXT_COLORS.muted
-                }]}>
-                  {healthReport?.biologicalAge?.value ? Math.round(healthReport.biologicalAge.value) : '--'}
-                </EliteText>
-                {healthReport?.biologicalAge?.delta != null && (
-                  <EliteText style={[s.ageSub, {
-                    color: healthReport.biologicalAge.delta < 0 ? SEMANTIC.success : SEMANTIC.error
-                  }]}>
-                    {healthReport.biologicalAge.delta > 0 ? '+' : ''}{healthReport.biologicalAge.delta} vs {healthReport.biologicalAge.chronologicalAge}
-                  </EliteText>
-                )}
-              </GradientCard>
-            </AnimatedPressable>
-
-            {/* Aging Rate */}
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }} style={s.ageCardBtn}>
-              <GradientCard gradient={PILLAR_GRADIENTS.health} style={s.ageGradientCard}>
-                <EliteText style={s.ageLabel}>RITMO DE ENVEJECIMIENTO</EliteText>
-                <EliteText style={[s.ageBigNum, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
-                  {healthReport?.agingRate?.value ? healthReport.agingRate.value.toFixed(2) + 'x' : '--'}
-                </EliteText>
-                <EliteText style={[s.ageSub, { color: healthReport?.agingRate?.color ?? TEXT_COLORS.muted }]}>
-                  {healthReport?.agingRate?.label ?? ''}
-                </EliteText>
-              </GradientCard>
-            </AnimatedPressable>
-          </View>
+        <Animated.View entering={FadeInUp.delay(150).springify()}>
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/reports' as any); }} style={s.atpScoreCard}>
+            <View style={[s.atpScoreDot, { backgroundColor: getScoreColor(overallScore) }]} />
+            <View style={{ flex: 1 }}>
+              <EliteText style={s.atpScoreLabel}>ATP SCORE · Tu desempeño semanal</EliteText>
+              <EliteText style={s.atpScoreSub}>{overallLevel ? overallLevel.toUpperCase() : 'Hábitos y recuperación'}</EliteText>
+            </View>
+            <EliteText style={[s.atpScoreValue, { color: getScoreColor(overallScore) }]}>{overallScore}</EliteText>
+            <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.muted} />
+          </AnimatedPressable>
         </Animated.View>
+
+        {/* Edad Biológica / Ritmo del modelo viejo (health-score-engine) ELIMINADO:
+            la Edad ATP v2 (constellation arriba) es ahora el gold standard. */}
 
         {/* Botón de Reportes — acceso al hub de gráficas */}
         <Animated.View entering={FadeInUp.delay(220).springify()}>
@@ -547,6 +540,21 @@ const s = StyleSheet.create({
   scoreRingWrap: {
     marginBottom: Spacing.sm,
   },
+  edadCta: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xl,
+    gap: 6,
+  },
+  edadCtaTitle: {
+    fontFamily: Fonts.extraBold,
+    fontSize: FontSizes.xl,
+    color: '#fff',
+  },
+  edadCtaSub: {
+    fontFamily: Fonts.semiBold,
+    fontSize: FontSizes.sm,
+    color: ATP_BRAND.lime,
+  },
   scoreLevel: {
     fontFamily: Fonts.bold,
     fontSize: 13,
@@ -581,6 +589,22 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xl,
     fontFamily: Fonts.bold,
   },
+
+  // ── 2b. ATP Score secondary card ──
+  atpScoreCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: CARD.bg,
+    borderRadius: CARD.borderRadius,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 12,
+  },
+  atpScoreDot: { width: 8, height: 8, borderRadius: 4 },
+  atpScoreLabel: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#fff' },
+  atpScoreSub: { fontSize: FontSizes.xs, color: '#555', marginTop: 1 },
+  atpScoreValue: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
 
   // ── 3. Age Cards ──
   ageRow: {

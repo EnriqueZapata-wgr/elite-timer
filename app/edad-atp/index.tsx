@@ -13,13 +13,14 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeCEFromData, unifiedToCEData, type CEResult } from '@/src/services/edad-atp/ce-service';
-import { loadUserData, countFields, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { loadUserData, countFields, computeEdadAtpV2, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
+import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
 
 type Card = {
-  key: keyof CEResult['breakdown'] | 'vitals';
+  key: keyof CEResult['breakdown'] | 'vitals' | 'tests';
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   desc: string;
@@ -32,6 +33,7 @@ const CARDS: Card[] = [
   { key: 'vitals', icon: 'heart-outline', title: 'Mediciones puntuales', desc: 'Presión arterial, FC reposo, VO2max', route: '/edad-atp/vitals' },
   { key: 'questionnaires', icon: 'list-outline', title: 'Cuestionarios', desc: '10 dominios de salud funcional', route: '/edad-atp/questionnaires' },
   { key: 'cognitive', icon: 'flash-outline', title: 'Test cognitivo', desc: 'Tiempo de reacción (preview)', route: '/edad-atp/cognitive' },
+  { key: 'tests', icon: 'fitness-outline', title: 'Tests funcionales', desc: 'Reaction time, Cooper, push-ups, balance', route: '/edad-atp/tests' },
 ];
 
 export default function EdadAtpHub() {
@@ -39,6 +41,7 @@ export default function EdadAtpHub() {
   const analytics = useAnalytics();
   const [ce, setCe] = useState<CEResult | null>(null);
   const [data, setData] = useState<UnifiedUserData | null>(null);
+  const [edadResult, setEdadResult] = useState<EdadAtpV2Result | null>(null);
   const prevCeRef = useRef<number | null>(null);
 
   useFocusEffect(useCallback(() => {
@@ -61,6 +64,9 @@ export default function EdadAtpHub() {
         analytics.track(ATP_EVENTS.EDAD_ATP_CE_THRESHOLD_CROSSED, { ce: Math.round(r.ce_integral) });
       }
       prevCeRef.current = r.ce_integral;
+      // Estado "result": si hay evaluación suficiente, precalcula la Integral para el hero.
+      if (r.ce_integral >= CALC_THRESHOLD) setEdadResult(await computeEdadAtpV2(user.id));
+      else setEdadResult(null);
     })();
   }, [user?.id]));
 
@@ -113,6 +119,15 @@ export default function EdadAtpHub() {
           </View>
         </View>
 
+        {/* Estado "result": Integral ya calculada → hero con CTA a ver/recalcular. */}
+        {edadResult && (
+          <Pressable onPress={() => { haptic.success(); router.push('/edad-atp/result-preview' as any); }} style={styles.heroCard}>
+            <EliteText variant="caption" style={styles.heroLabel}>TU EDAD ATP</EliteText>
+            <EliteText style={styles.heroValue}>{edadResult.edad_integral.toFixed(1)}</EliteText>
+            <EliteText variant="caption" style={styles.heroSub}>cronológica {edadResult.chronological_age} · toca para ver el detalle</EliteText>
+          </Pressable>
+        )}
+
         {CARDS.map((c) => {
           const status = cardStatus(c);
           return (
@@ -141,7 +156,7 @@ export default function EdadAtpHub() {
             onPress={() => { haptic.success(); router.push('/edad-atp/result-preview' as any); }}
             style={styles.calcBtn}
           >
-            <EliteText variant="body" style={styles.calcBtnText}>Calcular mi Edad</EliteText>
+            <EliteText variant="body" style={styles.calcBtnText}>{edadResult ? 'Recalcular mi Edad' : 'Calcular mi Edad'}</EliteText>
           </Pressable>
         ) : (
           <EliteText variant="caption" style={styles.needMore}>
@@ -161,6 +176,10 @@ const styles = StyleSheet.create({
   ceValue: { color: Colors.neonGreen, fontSize: 40, fontFamily: Fonts.extraBold },
   ceBarTrack: { width: '100%', height: 6, backgroundColor: '#1a1a1a', borderRadius: 3, overflow: 'hidden' },
   ceBarFill: { height: 6, backgroundColor: Colors.neonGreen, borderRadius: 3 },
+  heroCard: { backgroundColor: '#0d1a0a', borderRadius: Radius.card, padding: Spacing.lg, alignItems: 'center', gap: 2, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)' },
+  heroLabel: { color: Colors.textSecondary, letterSpacing: 2, fontFamily: Fonts.bold },
+  heroValue: { color: Colors.neonGreen, fontSize: 48, fontFamily: Fonts.extraBold },
+  heroSub: { color: Colors.textSecondary },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md,

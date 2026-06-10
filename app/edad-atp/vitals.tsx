@@ -38,8 +38,10 @@ export default function VitalsCapture() {
   const [prefilled, setPrefilled] = useState<Record<string, boolean>>({});
   const [snapshot, setSnapshot] = useState<Record<string, string>>({});
   const [badge, setBadge] = useState<string | null>(null);
+  const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
+  const hasData = Object.keys(prefilled).length > 0;
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -85,16 +87,34 @@ export default function VitalsCapture() {
       <PillarHeader pillar="health" title="Mediciones" />
       <ScrollView contentContainerStyle={styles.content}>
         {badge ? (
-          <EliteText variant="caption" style={styles.intro}>Última medición {badge}. Actualiza si tomaste nuevas lecturas.</EliteText>
+          <EliteText variant="caption" style={styles.intro}>Última medición {badge}. {hasData && !editMode ? 'Toca "Actualizar" si tomaste nuevas lecturas.' : 'Actualiza si tomaste nuevas lecturas.'}</EliteText>
         ) : null}
-        <View style={styles.card}>
-          {FIELDS.map((f) => (
-            <NumberInputRow key={f.key} label={f.label} unit={f.unit} helper={f.helper} badge={prefilled[f.key] ? badge ?? 'Salud' : undefined} value={v[f.key] ?? ''} onChangeText={(x) => set(f.key, x)} />
-          ))}
-        </View>
-        <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
-          <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
-        </Pressable>
+
+        {hasData && !editMode ? (
+          <View style={styles.card}>
+            {FIELDS.filter((f) => prefilled[f.key]).map((f) => (
+              <View key={f.key} style={styles.sumRow}>
+                <EliteText variant="body" style={styles.sumLabel}>{f.label}</EliteText>
+                <EliteText variant="body" style={styles.sumValue}>{v[f.key]} {f.unit}</EliteText>
+              </View>
+            ))}
+            <Pressable onPress={() => { haptic.light(); setEditMode(true); }} style={styles.updateBtn}>
+              <EliteText variant="body" style={styles.updateBtnText}>Actualizar mediciones</EliteText>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.card}>
+            {FIELDS.map((f) => (
+              <NumberInputRow key={f.key} label={f.label} unit={f.unit} helper={f.helper} badge={prefilled[f.key] ? badge ?? 'Salud' : undefined} value={v[f.key] ?? ''} onChangeText={(x) => set(f.key, x)} />
+            ))}
+          </View>
+        )}
+
+        {(!hasData || editMode) && (
+          <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
+            <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
+          </Pressable>
+        )}
       </ScrollView>
     </Screen>
   );
@@ -104,6 +124,11 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   intro: { color: Colors.textSecondary, fontSize: FontSizes.xs },
   card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
+  sumRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
+  sumLabel: { color: Colors.textSecondary },
+  sumValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  updateBtn: { marginTop: Spacing.sm, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)', borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
+  updateBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
   saveBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
   saveBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
 });
