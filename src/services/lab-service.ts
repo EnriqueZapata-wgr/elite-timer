@@ -175,6 +175,19 @@ Solo valores encontrados. No mapeados→other_values.`;
       labData.other_values = otherValues;
     }
 
+    // No insertar una fila vacía: si la IA no extrajo biomarcadores, abortar y marcar failed
+    // (evita rows de lab_results con TODOS los campos NULL que ensucian loadUserData).
+    const extractedCount = Object.values(values).filter((v: any) => v?.value != null).length;
+    if (extractedCount === 0) {
+      await supabase.from('lab_uploads').update({
+        status: 'failed',
+        extracted_data: parsed,
+        ai_raw_response: rawText,
+        error_message: 'No biomarkers extracted',
+      }).eq('id', uploadId);
+      return { error: 'No biomarkers extracted', extractedCount: 0, otherValues };
+    }
+
     const { data: labResult, error: labError } = await supabase
       .from('lab_results')
       .insert(labData)
@@ -191,7 +204,6 @@ Solo valores encontrados. No mapeados→other_values.`;
       lab_result_id: labResult.id,
     }).eq('id', uploadId);
 
-    const extractedCount = Object.values(values).filter((v: any) => v?.value != null).length;
     return { labResultId: labResult.id, extractedCount, otherValues };
 
   } catch (err: any) {

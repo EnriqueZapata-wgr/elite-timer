@@ -23,6 +23,9 @@ import { computeEdadCorporal } from './sub-edad-corporal-service';
 import { computeEdadCardiovascular, type Race } from './sub-edad-cardiovascular-service';
 import { computeEdadFitness } from './sub-edad-fitness-service';
 import { scoreQuestionnaireResponses } from './questionnaire-scoring';
+import { computeSFGlobalReal } from './sf-9band-service';
+import { loadAllParamValues } from './load-all-params';
+import { SF_DOMAIN_WEIGHTS } from '@/src/constants/edad-atp-v2-model';
 
 export type EdadAtpV2Inputs = {
   chronological_age: number;
@@ -223,6 +226,12 @@ export function buildInputsFromUnified(data: UnifiedUserData): EdadAtpV2Inputs {
 export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result> {
   const data = await loadUserData(userId);
   const inputs = buildInputsFromUnified(data);
+  // MATRIZ REAL: scoring SF de los 138 params (reemplaza el placeholder 50 por dominio).
+  const paramValues = await loadAllParamValues(userId, data.sex);
+  const sf = computeSFGlobalReal(paramValues, data.sex, SF_DOMAIN_WEIGHTS as any);
+  if (Object.keys(sf.domain_scores).length > 0) {
+    inputs.domain_scores = sf.domain_scores as typeof inputs.domain_scores;
+  }
   const result = computeEdadAtpV2FromInputs(inputs);
   try {
     await supabase.from('edad_atp_calculations').insert({
@@ -359,7 +368,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
       supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_body_composition').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
       supabase.from('edad_atp_questionnaire_responses').select('domain, parameter_key, value_text').eq('user_id', userId),
-      supabase.from('edad_atp_functional_tests').select('test_key, value_primary').eq('user_id', userId),
+      supabase.from('edad_atp_functional_tests').select('test_key, value_primary, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
     ]);
     profile = (pRes.data ?? [])[0] ?? null;
     lab = (labRes.data ?? [])[0] ?? null;
