@@ -15,6 +15,7 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import type { EdadAtpV2Result, SubEdadResult } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from '@/src/components/edad-atp/tokens';
 
 const META: Record<string, { icon: string; label: string; color: string; action: string; route: string }> = {
   metabolica: { icon: '🩸', label: 'Edad Metabólica', color: '#E24B4A', action: 'Protocolo metabólico ATP: ayuno + entreno de alta intensidad.', route: '/edad-atp/biomarkers' },
@@ -52,6 +53,8 @@ export default function SubEdadDrillDown() {
   const chrono = result?.chronological_age ?? 0;
   const delta = sub ? Math.round((sub.age_years - chrono) * 10) / 10 : 0;
   const deltaColor = delta <= -1 ? Colors.neonGreen : delta >= 2 ? '#E24B4A' : '#EF9F27';
+  // CE bajo = mayoría de params sin contestar → número no representativo, mostrar Pendiente.
+  const pending = sub != null && sub.ce_percent < SUB_EDAD_CE_PENDING_THRESHOLD;
 
   return (
     <Screen>
@@ -61,13 +64,23 @@ export default function SubEdadDrillDown() {
           <EliteText variant="caption" style={styles.calc}>Calculando…</EliteText>
         ) : (
           <>
-            <View style={[styles.ring, { borderColor: meta.color }]}>
+            <View style={[styles.ring, { borderColor: pending ? EDAD_PENDING_COLOR : meta.color }]}>
               <EliteText style={styles.ringIcon}>{meta.icon}</EliteText>
-              <EliteText style={[styles.ringAge, { color: meta.color }]}>{sub.age_years.toFixed(1)}</EliteText>
+              {pending ? (
+                <EliteText style={[styles.ringPending, { color: EDAD_PENDING_COLOR }]}>⚠️ Pendiente</EliteText>
+              ) : (
+                <EliteText style={[styles.ringAge, { color: meta.color }]}>{sub.age_years.toFixed(1)}</EliteText>
+              )}
             </View>
-            <EliteText variant="caption" style={[styles.delta, { color: deltaColor }]}>
-              cronológica {chrono} · {delta > 0 ? '+' : ''}{delta} años · CE {Math.round(sub.ce_percent)}%
-            </EliteText>
+            {pending ? (
+              <EliteText variant="caption" style={styles.pendingMsg}>
+                Esta sub-edad necesita más datos. CE actual: {Math.round(sub.ce_percent)}%. Completa los cuestionarios pendientes.
+              </EliteText>
+            ) : (
+              <EliteText variant="caption" style={[styles.delta, { color: deltaColor }]}>
+                cronológica {chrono} · {delta > 0 ? '+' : ''}{delta} años · CE {Math.round(sub.ce_percent)}%
+              </EliteText>
+            )}
 
             <EliteText variant="body" style={styles.sectionTitle}>Componentes</EliteText>
             {Object.entries(sub.components).map(([k, c]) => {
@@ -106,7 +119,9 @@ const styles = StyleSheet.create({
   ring: { alignSelf: 'center', width: 150, height: 150, borderRadius: 75, borderWidth: 3, alignItems: 'center', justifyContent: 'center', gap: 2, marginTop: Spacing.md },
   ringIcon: { fontSize: 26 },
   ringAge: { fontSize: 40, fontFamily: Fonts.extraBold, lineHeight: 44 },
+  ringPending: { fontSize: FontSizes.md, fontFamily: Fonts.bold, lineHeight: 24 },
   delta: { textAlign: 'center', marginBottom: Spacing.sm },
+  pendingMsg: { color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm, paddingHorizontal: Spacing.md, lineHeight: 18 },
   sectionTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold, marginTop: Spacing.sm },
   compRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   compLabel: { color: Colors.textPrimary, flex: 1 },

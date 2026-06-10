@@ -10,7 +10,7 @@ import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Fonts, FontSizes } from '@/constants/theme';
-import { EDAD_DIMS as DIMS, statusColor, statusGlyph, EDAD_TIMING } from './tokens';
+import { EDAD_DIMS as DIMS, statusColor, statusGlyph, EDAD_TIMING, SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from './tokens';
 
 const SIZE = 300;
 const RADIUS = 118;
@@ -23,11 +23,14 @@ export function SubEdadConstellation({ result, onPressCenter }: { result: EdadAt
   return (
     <View style={styles.wrap}>
       {DIMS.map((d, i) => {
-        const sub = (subs as any)[d.key]?.age_years ?? chrono;
+        const subResult = (subs as any)[d.key];
+        const sub = subResult?.age_years ?? chrono;
+        // CE bajo = mayoría de params sin contestar → "Pendiente", no un número rojo.
+        const pending = (subResult?.ce_percent ?? 0) < SUB_EDAD_CE_PENDING_THRESHOLD;
         const angle = (-90 + i * 72) * (Math.PI / 180);
         const left = SIZE / 2 + RADIUS * Math.cos(angle) - MINI / 2;
         const top = SIZE / 2 + RADIUS * Math.sin(angle) - MINI / 2;
-        const color = statusColor(sub, chrono);
+        const color = pending ? EDAD_PENDING_COLOR : statusColor(sub, chrono);
         return (
           <Animated.View key={d.key} entering={FadeIn.delay(EDAD_TIMING.constellationBaseDelay + i * EDAD_TIMING.staggerMs).duration(350)} style={[styles.mini, { left, top, borderColor: color }]}>
             <Pressable
@@ -35,8 +38,17 @@ export function SubEdadConstellation({ result, onPressCenter }: { result: EdadAt
               style={styles.miniInner}
             >
               <EliteText style={styles.miniIcon}>{d.icon}</EliteText>
-              <EliteText style={[styles.miniAge, { color }]}>{Math.round(sub)}</EliteText>
-              <EliteText style={[styles.miniGlyph, { color }]}>{statusGlyph(sub, chrono)}</EliteText>
+              {pending ? (
+                <>
+                  <EliteText style={[styles.miniPending, { color }]}>Pendiente</EliteText>
+                  <EliteText style={styles.miniGlyph}>⚠️</EliteText>
+                </>
+              ) : (
+                <>
+                  <EliteText style={[styles.miniAge, { color }]}>{Math.round(sub)}</EliteText>
+                  <EliteText style={[styles.miniGlyph, { color }]}>{statusGlyph(sub, chrono)}</EliteText>
+                </>
+              )}
             </Pressable>
           </Animated.View>
         );
@@ -70,5 +82,6 @@ const styles = StyleSheet.create({
   miniInner: { flex: 1, borderRadius: MINI / 2, alignItems: 'center', justifyContent: 'center' },
   miniIcon: { fontSize: 15 },
   miniAge: { fontSize: FontSizes.md, fontFamily: Fonts.bold, lineHeight: 20 },
+  miniPending: { fontSize: 9, fontFamily: Fonts.semiBold, lineHeight: 12 },
   miniGlyph: { fontSize: 9, lineHeight: 11 },
 });
