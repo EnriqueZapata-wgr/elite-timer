@@ -66,6 +66,31 @@ export async function getManualBiomarkers(userId: string): Promise<Record<string
   return out;
 }
 
+/**
+ * Lee el extracted_data más reciente (lab_uploads) y lo aplana a key→valor.
+ * Soporta shape nested { values: { k: { value } } } y flat { k: value }.
+ */
+export async function getLatestExtractedData(userId: string): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('lab_uploads')
+    .select('extracted_data')
+    .eq('user_id', userId)
+    .not('extracted_data', 'is', null)
+    .order('uploaded_at', { ascending: false })
+    .limit(1);
+  if (error) { logWarn('[edad-atp capture] getLatestExtractedData failed:', error); return {}; }
+  const raw = (data ?? [])[0]?.extracted_data;
+  const ev = raw?.values ?? raw;
+  const out: Record<string, number> = {};
+  if (ev && typeof ev === 'object') {
+    for (const [k, v] of Object.entries(ev)) {
+      const val = typeof v === 'number' ? v : (v as any)?.value;
+      if (typeof val === 'number' && Number.isFinite(val)) out[k] = val;
+    }
+  }
+  return out;
+}
+
 /** Lee la medición de salud más reciente del usuario (para pre-poblar). */
 export async function getLatestHealthMeasurement(userId: string): Promise<Record<string, any> | null> {
   const { data, error } = await supabase

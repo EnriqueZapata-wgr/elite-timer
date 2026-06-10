@@ -22,6 +22,7 @@ import { computeEdadMetabolica } from './sub-edad-metabolica-service';
 import { computeEdadCorporal } from './sub-edad-corporal-service';
 import { computeEdadCardiovascular, type Race } from './sub-edad-cardiovascular-service';
 import { computeEdadFitness } from './sub-edad-fitness-service';
+import { scoreQuestionnaireResponses } from './questionnaire-scoring';
 
 export type EdadAtpV2Inputs = {
   chronological_age: number;
@@ -60,11 +61,18 @@ export type EdadAtpV2Inputs = {
 
 /**
  * Cap inferior realista de las sub-edades display: un atleta no debe salir "18 años".
- * Floor = max(18, edad_cronológica × 0.6). Solo sube valores irrealmente bajos.
+ * Floor = max(18, edad_cronológica × 0.75). Solo sube valores irrealmente bajos.
  * TODO Sprint 5: Mariana valida curvas finales score→edad por dimensión.
  */
 function clampSubEdad(age: number, chronological_age: number): number {
-  return Math.max(age, 18, chronological_age * 0.6);
+  const floor = Math.max(18, chronological_age * 0.75);
+  if (age >= floor) return age;
+  // Soft floor: los valores irrealmente bajos se comprimen de forma monótona a
+  // [floor×0.9, floor) en vez de saturarse todos exactamente en el cap. Así un atleta
+  // ve sub-edades distintas (~24-26) y no "todas en 21/26".
+  // TODO Sprint 5: Mariana calibra las curvas score→edad por sub-edad con datos reales.
+  const soft = floor * 0.9 + (age / floor) * (floor * 0.1);
+  return Math.max(18, soft);
 }
 
 export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Result {
@@ -346,11 +354,11 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     const [pRes, labRes, upRes, hmRes, bioRes, compRes, qRes, ftRes] = await Promise.all([
       supabase.from('client_profiles').select('date_of_birth, biological_sex, height_cm').eq('user_id', userId).limit(1),
       supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
-      supabase.from('lab_uploads').select('extracted_data').eq('user_id', userId).eq('status', 'extracted').order('uploaded_at', { ascending: false }).limit(1),
+      supabase.from('lab_uploads').select('extracted_data').eq('user_id', userId).not('extracted_data', 'is', null).order('uploaded_at', { ascending: false }).limit(1),
       supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1),
       supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_body_composition').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
-      supabase.from('edad_atp_questionnaire_responses').select('domain').eq('user_id', userId),
+      supabase.from('edad_atp_questionnaire_responses').select('domain, parameter_key, value_text').eq('user_id', userId),
       supabase.from('edad_atp_functional_tests').select('test_key, value_primary').eq('user_id', userId),
     ]);
     profile = (pRes.data ?? [])[0] ?? null;
@@ -369,12 +377,14 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
   const bio: Record<string, number> = {};
   for (const r of bioRows) if (r.value != null && bio[r.biomarker_key] === undefined) bio[r.biomarker_key] = r.value;
 
-  // extracted_data.values[key].value (keys = columnas de lab_results, mismo parser).
+  // extracted_data: soporta 2 shapes del parser:
+  //   A (nested): { values: { albumin: { value: 4.48 } } }
+  //   B (flat):   { albumin: 4.48 }
   const ext: Record<string, number> = {};
-  const ev = upload?.extracted_data?.values;
+  const ev = upload?.extracted_data?.values ?? upload?.extracted_data;
   if (ev && typeof ev === 'object') {
     for (const [k, v] of Object.entries(ev)) {
-      const val = (v as any)?.value;
+      const val = typeof v === 'number' ? v : (v as any)?.value;
       if (typeof val === 'number' && Number.isFinite(val)) ext[k] = val;
     }
   }
@@ -384,8 +394,8 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
   for (const r of ftRows) if (r.value_primary != null && ft[r.test_key] === undefined) ft[r.test_key] = r.value_primary;
 
   // SF placeholder: dominios contestados → 50 neutral (scores reales = Sprint 5).
-  const sf_scores_by_domain: Partial<Record<DomainKey, number>> = {};
-  for (const r of qRows) sf_scores_by_domain[r.domain as DomainKey] = 50;
+  // Score real por dominio desde las respuestas (no placeholder 50).
+  const sf_scores_by_domain = scoreQuestionnaireResponses(qRows as any);
 
   // Composición: % músculo puede venir como kg en health_measurements → convertir.
   const weight_kg = firstNum(hm?.weight_kg, compRow?.weight_kg);
@@ -411,15 +421,16 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     // Los 5 PhenoAge "nuevos" también viven en lab_uploads.extracted_data y en
     // lab_results (columnas añadidas por la migración 017) — no solo en captura manual.
     // rdw: lab_results usa columna `rdw` y el JSONB key `rdw` (sin _cv).
-    albumin_g_dl: firstNum(bio.albumin, ext.albumin, lab?.albumin),
-    creatinine_mg_dl: firstNum(bio.creatinine, ext.creatinine, lab?.creatinine),
-    glucose_mg_dl: firstNum(bio.glucose, ext.glucose, lab?.glucose),
-    pcr_mg_dl: firstNum(bio.crp, ext.pcr, lab?.pcr),
-    lymphocyte_pct: firstNum(bio.lymphocyte_pct, ext.lymphocyte_pct, lab?.lymphocyte_pct),
-    mcv_fl: firstNum(bio.mcv, ext.mcv, lab?.mcv),
+    // Fallbacks por sinónimo (es/en) en keys del extracted_data del parser AI.
+    albumin_g_dl: firstNum(bio.albumin, ext.albumin, ext.albumina, ext.serum_albumin, lab?.albumin),
+    creatinine_mg_dl: firstNum(bio.creatinine, ext.creatinine, ext.creatinina, lab?.creatinine),
+    glucose_mg_dl: firstNum(bio.glucose, ext.glucose, ext.glucosa, lab?.glucose),
+    pcr_mg_dl: firstNum(bio.crp, ext.pcr, ext.crp, ext.proteina_c_reactiva, lab?.pcr),
+    lymphocyte_pct: firstNum(bio.lymphocyte_pct, ext.lymphocyte_pct, ext.linfocitos_pct, ext.lymphocytes_pct, lab?.lymphocyte_pct),
+    mcv_fl: firstNum(bio.mcv, ext.mcv, ext.vcm, lab?.mcv),
     rdw_cv_pct: firstNum(bio.rdw_cv, ext.rdw_cv, ext.rdw, lab?.rdw),
-    alp_u_l: firstNum(bio.alp, ext.alp, lab?.alp),
-    wbc_per_ul: firstNum(bio.wbc, ext.wbc, lab?.wbc),
+    alp_u_l: firstNum(bio.alp, ext.alp, ext.fosfatasa_alcalina, lab?.alp),
+    wbc_per_ul: firstNum(bio.wbc, ext.wbc, ext.leucocitos, lab?.wbc),
     weight_kg,
     height_cm: firstNum(hm?.height_cm, compRow?.height_cm, profile?.height_cm),
     body_fat_pct: firstNum(hm?.body_fat_pct, compRow?.body_fat_pct),

@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { computeReactionTimeAge, computeCognitiveModifier } from '../cognitive-age-service';
 
 describe('Edad Cognitiva — tiempo de reacción', () => {
-  it('paciente 50 años con RT mediocre → edad cognitiva ~58-62', () => {
+  it('RT mediocre → edad cognitiva media (curva Der & Deary 2006)', () => {
     const result = computeReactionTimeAge({ rt_simple_ms: 305, rt_choice_ms: 465, sex: 'male' });
-    expect(result).toBeGreaterThanOrEqual(58);
-    expect(result).toBeLessThanOrEqual(62);
+    expect(result).toBeGreaterThanOrEqual(32);
+    expect(result).toBeLessThanOrEqual(38);
   });
 
   it('RT excelente → edad cognitiva joven', () => {
@@ -15,15 +15,15 @@ describe('Edad Cognitiva — tiempo de reacción', () => {
 });
 
 describe('Modificador Cognitivo', () => {
-  it('capeado a +3 si delta es +50', () => {
+  it('capeado a +1.5 si delta es +50', () => {
     const result = computeCognitiveModifier({ edad_cognitiva: 100, chronological_age: 50 });
-    expect(result.modificador).toBe(3);
+    expect(result.modificador).toBe(1.5);
     expect(result.capped).toBe(true);
   });
 
-  it('capeado a -3 si delta es -50', () => {
+  it('capeado a -1.5 si delta es -50', () => {
     const result = computeCognitiveModifier({ edad_cognitiva: 0, chronological_age: 50 });
-    expect(result.modificador).toBe(-3);
+    expect(result.modificador).toBe(-1.5);
     expect(result.capped).toBe(true);
   });
 

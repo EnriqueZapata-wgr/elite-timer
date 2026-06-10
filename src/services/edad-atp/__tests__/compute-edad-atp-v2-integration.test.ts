@@ -5,7 +5,7 @@ const state = vi.hoisted(() => ({ tables: {} as Record<string, any[]> }));
 vi.mock('@/src/lib/supabase', () => {
   const makeQuery = (rows: any[]) => {
     const q: any = {
-      select: () => q, eq: () => q, order: () => q, limit: () => q, like: () => q, insert: () => q,
+      select: () => q, eq: () => q, order: () => q, limit: () => q, like: () => q, not: () => q, insert: () => q,
       then: (resolve: any) => resolve({ data: rows, error: null }),
     };
     return q;

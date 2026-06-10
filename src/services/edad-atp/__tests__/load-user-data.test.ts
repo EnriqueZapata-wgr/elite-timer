@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({ tables: {} as Record<string, any[]> }));
 vi.mock('@/src/lib/supabase', () => {
   const makeQuery = (rows: any[]) => {
     const q: any = {
-      select: () => q, eq: () => q, order: () => q, limit: () => q, like: () => q, insert: () => q,
+      select: () => q, eq: () => q, order: () => q, limit: () => q, like: () => q, not: () => q, insert: () => q,
       then: (resolve: any) => resolve({ data: rows, error: null }),
     };
     return q;
@@ -73,7 +73,10 @@ describe('loadUserData — lectura unificada de fuentes existentes', () => {
   it('data_sources_used + sexo/edad desde client_profiles', async () => {
     state.tables.client_profiles = [{ date_of_birth: '1980-05-15', biological_sex: 'female', height_cm: 165 }];
     state.tables.edad_atp_biomarkers = [{ biomarker_key: 'albumin', value: 4.6, measured_at: '2026-03-01' }];
-    state.tables.edad_atp_questionnaire_responses = [{ domain: 'metabolismo' }, { domain: 'sueno' }];
+    state.tables.edad_atp_questionnaire_responses = [
+      { domain: 'metabolismo', parameter_key: 'metabolic_flexibility', value_text: 'excelente' }, // → 100
+      { domain: 'sueno', parameter_key: 'sleep_hours', value_text: '5-6' }, // → 33
+    ];
     state.tables.edad_atp_functional_tests = [{ test_key: 'reaction_time_simple', value_primary: 280 }];
     const d = await loadUserData('u1');
     expect(d.sex).toBe('female');
@@ -81,7 +84,7 @@ describe('loadUserData — lectura unificada de fuentes existentes', () => {
     expect(d.albumin_g_dl).toBe(4.6);
     expect(d.height_cm).toBe(165); // de client_profiles (fallback)
     expect(d.reaction_time_simple_ms).toBe(280);
-    expect(d.sf_scores_by_domain?.metabolismo).toBe(50);
+    expect(d.sf_scores_by_domain?.metabolismo).toBe(100); // 'excelente' = más sano
     expect(d.data_sources_used).toContain('edad_atp_biomarkers');
     expect(d.data_sources_used).toContain('edad_atp_questionnaire_responses');
     expect(d.data_sources_used).toContain('edad_atp_functional_tests');
@@ -102,6 +105,14 @@ describe('loadUserData — lectura unificada de fuentes existentes', () => {
     expect(d.lymphocyte_pct).toBe(43);
     expect(d.mcv_fl).toBe(88.6);
     expect(d.rdw_cv_pct).toBe(12.9); // desde la key 'rdw'
+  });
+
+  it('extracted_data shape FLAT { albumin: 4.48 } también se lee', async () => {
+    state.tables.lab_uploads = [{ extracted_data: { albumin: 4.48, glucose: 88 } }];
+    const d = await loadUserData('u1');
+    expect(d.albumin_g_dl).toBe(4.48);
+    expect(d.glucose_mg_dl).toBe(88);
+    expect(d.data_sources_used).toContain('lab_uploads');
   });
 
   it('los 5 PhenoAge nuevos se leen desde columnas de lab_results (mig 017)', async () => {

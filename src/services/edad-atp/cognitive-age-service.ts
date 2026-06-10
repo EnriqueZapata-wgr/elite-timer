@@ -10,16 +10,17 @@
 import type { Sex } from '@/src/types/edad-atp-v2';
 import { COGNITIVE_MODIFIER_WEIGHT, COGNITIVE_MODIFIER_CAP } from '@/src/constants/edad-atp-v2-model';
 
-// Normas RT simple (ms) por edad — aproximadas (Deary-Liewald).
-const RT_SIMPLE_NORMS_MALE: Record<number, number> = { 20: 250, 30: 260, 40: 270, 50: 285, 60: 305, 70: 330 };
-const RT_CHOICE_NORMS_MALE: Record<number, number> = { 20: 380, 30: 390, 40: 410, 50: 435, 60: 465, 70: 500 };
+// Normas RT (ms) por edad — recalibradas según Der & Deary 2006 (curva menos agresiva
+// que la aproximación previa, que clavaba 60-75 años a adultos sanos).
+const RT_SIMPLE_NORMS_MALE: Record<number, number> = { 20: 250, 30: 270, 40: 290, 50: 320, 60: 360, 70: 410, 80: 470 };
+const RT_CHOICE_NORMS_MALE: Record<number, number> = { 20: 440, 30: 470, 40: 500, 50: 540, 60: 600, 70: 680, 80: 780 };
 // Mujeres: ligera elevación (~7 ms) sobre las normas masculinas.
 const FEMALE_OFFSET_MS = 7;
 
 const RT_SIMPLE_WEIGHT = 0.4;
 const RT_CHOICE_WEIGHT = 0.6;
 const RT_AGE_MIN = 20;
-const RT_AGE_MAX = 75;
+const RT_AGE_MAX = 80;
 
 function normsForSex(base: Record<number, number>, sex: Sex): Record<number, number> {
   if (sex === 'male') return base;
