@@ -329,7 +329,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
       supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_body_composition').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
       supabase.from('edad_atp_questionnaire_responses').select('domain').eq('user_id', userId),
-      supabase.from('edad_atp_functional_tests').select('test_key, value_primary').eq('user_id', userId),
+      supabase.from('edad_atp_functional_tests').select('test_key, value_primary, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
     ]);
     profile = (pRes.data ?? [])[0] ?? null;
     lab = (labRes.data ?? [])[0] ?? null;
