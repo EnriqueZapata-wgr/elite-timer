@@ -60,6 +60,9 @@ export type EdadAtpV2Inputs = {
     recovery_hr_drop_bpm?: number;
   };
   reaction_time?: { rt_simple_ms: number; rt_choice_ms: number };
+  // Dict plano de los 138 params de la matriz (loadAllParamValues) — alimenta las
+  // sub-edades display basadas en SF de dominio (cardio/metabólica/corporal/fitness).
+  paramValues?: Record<string, number>;
 };
 
 /**
@@ -106,7 +109,7 @@ export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Re
   const metabolica = computeEdadMetabolica({ ...inputs.metabolic, sex, chronological_age });
   const corporal = computeEdadCorporal({ body_composition: inputs.body_composition, sex, chronological_age });
   const cardiovascular = computeEdadCardiovascular({
-    ...inputs.cardiovascular, race: inputs.cardiovascular.race ?? 'other', chronological_age, sex,
+    paramValues: inputs.paramValues ?? {}, sex, chronological_age,
   });
   const fitness = computeEdadFitness({ ...inputs.fitness, sex, chronological_age });
 
@@ -232,6 +235,7 @@ export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result>
   if (Object.keys(sf.domain_scores).length > 0) {
     inputs.domain_scores = sf.domain_scores as typeof inputs.domain_scores;
   }
+  inputs.paramValues = paramValues; // alimenta las sub-edades display desde SF de dominio
   const result = computeEdadAtpV2FromInputs(inputs);
   try {
     await supabase.from('edad_atp_calculations').insert({
