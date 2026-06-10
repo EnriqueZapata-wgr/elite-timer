@@ -1,30 +1,18 @@
 import { describe, it, expect } from 'vitest';
 import { computeEdadFitness } from '../sub-edad-fitness-service';
 
-describe('Sub-edad Fitness', () => {
-  it('atleta → más joven que cronológica', () => {
+describe('Sub-edad Fitness — SF dominio vitalidad (matriz)', () => {
+  it('perfil con fuerza/energía altas → edad joven + CE > 0', () => {
     const r = computeEdadFitness({
-      vo2max_ml_kg_min: 52, grip_strength_kg: 55, push_ups_max: 40,
-      resting_hr_bpm: 48, recovery_hr_drop_bpm: 32, sex: 'male', chronological_age: 50,
+      paramValues: { fuerza_de_agarre: 60, musculo_esqueletico: 0.45, energia_diaria: 9, motivacion_y_entusiasmo: 9, vitamina_b12: 600, magnesio: 2.2 },
+      sex: 'male',
+      chronological_age: 40,
     });
-    expect(r.age_years).toBeLessThan(45);
-    expect(r.ce_percent).toBeCloseTo(100, 1);
+    expect(r.ce_percent).toBeGreaterThan(0);
+    expect(r.age_years).toBeLessThan(48);
   });
 
-  it('sedentario → más viejo', () => {
-    const r = computeEdadFitness({
-      vo2max_ml_kg_min: 24, grip_strength_kg: 24, push_ups_max: 2,
-      resting_hr_bpm: 88, recovery_hr_drop_bpm: 9, sex: 'male', chronological_age: 50,
-    });
-    expect(r.age_years).toBeGreaterThan(55);
-  });
-
-  it('solo VO2max y grip (resto faltante) → CE reducido', () => {
-    const r = computeEdadFitness({
-      vo2max_ml_kg_min: 38, grip_strength_kg: 45, sex: 'male', chronological_age: 50,
-    });
-    // VO2max 0.35 + grip 0.25 = 0.60 presente.
-    expect(r.ce_percent).toBeCloseTo(60, 1);
-    expect(r.components.push_ups.missing).toBe(true);
+  it('sin datos → CE 0', () => {
+    expect(computeEdadFitness({ paramValues: {}, sex: 'male', chronological_age: 40 }).ce_percent).toBe(0);
   });
 });

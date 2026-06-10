@@ -65,22 +65,6 @@ export type EdadAtpV2Inputs = {
   paramValues?: Record<string, number>;
 };
 
-/**
- * Cap inferior realista de las sub-edades display: un atleta no debe salir "18 años".
- * Floor = max(18, edad_cronológica × 0.75). Solo sube valores irrealmente bajos.
- * TODO Sprint 5: Mariana valida curvas finales score→edad por dimensión.
- */
-function clampSubEdad(age: number, chronological_age: number): number {
-  const floor = Math.max(18, chronological_age * 0.75);
-  if (age >= floor) return age;
-  // Soft floor: los valores irrealmente bajos se comprimen de forma monótona a
-  // [floor×0.9, floor) en vez de saturarse todos exactamente en el cap. Así un atleta
-  // ve sub-edades distintas (~24-26) y no "todas en 21/26".
-  // TODO Sprint 5: Mariana calibra las curvas score→edad por sub-edad con datos reales.
-  const soft = floor * 0.9 + (age / floor) * (floor * 0.1);
-  return Math.max(18, soft);
-}
-
 export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Result {
   const { chronological_age, sex } = inputs;
 
@@ -105,18 +89,12 @@ export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Re
   // 5. Edad Integral.
   const edad_integral = excel.algoritmo_excel + modificador;
 
-  // 6. Sub-edades display.
-  const metabolica = computeEdadMetabolica({ ...inputs.metabolic, sex, chronological_age });
-  const corporal = computeEdadCorporal({ body_composition: inputs.body_composition, sex, chronological_age });
-  const cardiovascular = computeEdadCardiovascular({
-    paramValues: inputs.paramValues ?? {}, sex, chronological_age,
-  });
-  const fitness = computeEdadFitness({ ...inputs.fitness, sex, chronological_age });
-
-  // Cap inferior realista para Metabólica/Corporal/Fitness (no "18 años" de atleta).
-  metabolica.age_years = clampSubEdad(metabolica.age_years, chronological_age);
-  corporal.age_years = clampSubEdad(corporal.age_years, chronological_age);
-  fitness.age_years = clampSubEdad(fitness.age_years, chronological_age);
+  // 6. Sub-edades display — todas desde SF de dominio de la matriz (curva sfToAge).
+  const pv = inputs.paramValues ?? {};
+  const metabolica = computeEdadMetabolica({ paramValues: pv, sex, chronological_age });
+  const corporal = computeEdadCorporal({ paramValues: pv, sex, chronological_age });
+  const cardiovascular = computeEdadCardiovascular({ paramValues: pv, sex, chronological_age });
+  const fitness = computeEdadFitness({ paramValues: pv, sex, chronological_age });
   const cognitiva: SubEdadResult = {
     age_years: edadCognitiva,
     ce_percent: hasCognitive ? 100 : 0,
