@@ -20,7 +20,7 @@ export type ParamSource =
   | { source: 'questionnaire'; param_key: string }
   | { source: 'functional_test'; test_key: string }
   | { source: 'computed'; deps: string[]; formula: (v: Record<string, number>) => number | undefined }
-  | { source: 'wearable_or_manual'; columns: string[] }
+  | { source: 'wearable_or_manual'; columns: string[]; deps?: string[]; convert?: (v: number | undefined, ctx: Record<string, number>) => number | undefined }
   | { source: 'pending_capture' };
 
 const pctToDecimal = (v: number) => (v > 1 ? v / 100 : v); // 5.9 → 0.059 ; 47.3 → 0.473
@@ -102,6 +102,43 @@ export const COMPUTED_PARAMS: Record<string, { deps: string[]; formula: (v: Reco
   },
 };
 
+/**
+ * Params de Composición Corporal que viven en health_measurements (capturados vía
+ * /edad-atp/composition), aunque su `matrizSource` diga "Forms/Entrevista". Sin este
+ * mapeo caían al branch `questionnaire` y nunca se resolvían (CE 0% en Corporal).
+ *
+ * Unidades (validado contra la matriz V7/V6, dominio composicion_corporal):
+ *   - grasa_corporal: bandLimits 0.03–0.35 → la matriz espera FRACCIÓN decimal.
+ *     DB guarda % (body_fat_pct = 11) → convertir a 0.11.
+ *   - musculo_esqueletico: bandLimits 0.2–0.8 → también fracción decimal.
+ *     health_measurements NO tiene skeletal_muscle_pct (solo muscle_mass_kg);
+ *     derivamos kg/peso = fracción directa (55/79 = 0.696 → banda aceptable_3, score 80).
+ *     La columna skeletal_muscle_pct queda declarada por si se agrega a futuro.
+ */
+export const COMPOSITION_HEALTH_MEASUREMENTS_MAP: Record<string, {
+  columns: string[];
+  deps?: string[];
+  convert?: (v: number | undefined, ctx: Record<string, number>) => number | undefined;
+}> = {
+  grasa_corporal: {
+    columns: ['body_fat_pct'],
+    convert: (v) => (v != null ? pctToDecimal(v) : undefined), // DB 11 → matriz 0.11
+  },
+  musculo_esqueletico: {
+    columns: ['skeletal_muscle_pct'], // no existe hoy en health_measurements (forward-compat)
+    deps: ['muscle_mass_kg', 'weight_kg'],
+    convert: (v, ctx) => {
+      if (v != null && Number.isFinite(v)) return pctToDecimal(v);
+      if (ctx.muscle_mass_kg && ctx.weight_kg) return ctx.muscle_mass_kg / ctx.weight_kg;
+      return undefined;
+    },
+  },
+  fuerza_de_agarre: { columns: ['grip_strength_kg'] },
+  grasa_visceral: { columns: ['visceral_fat'] },
+  // edad_corporal y pullups NO tienen columna en health_measurements → siguen como
+  // questionnaire (flag #2 del handoff). TODO: flujo de captura dedicado.
+};
+
 /** Columnas de health_measurements para params Wearable. clave matriz → columna. */
 export const WEARABLE_COLUMN_MAP: Record<string, string[]> = {
   frecuencia_cardiaca_en_reposo_sueno: ['resting_hr'],
@@ -115,6 +152,11 @@ export const WEARABLE_COLUMN_MAP: Record<string, string[]> = {
 export function resolveParamSource(key: string, matrizSource: string | null): ParamSource {
   if (COMPUTED_PARAMS[key]) return { source: 'computed', ...COMPUTED_PARAMS[key] };
   if (LAB_COLUMN_MAP[key]) return { source: 'lab', ...LAB_COLUMN_MAP[key] };
+  // ANTES del switch sobre matrizSource: composición vive en health_measurements
+  // aunque la matriz la marque "Forms/Entrevista".
+  if (COMPOSITION_HEALTH_MEASUREMENTS_MAP[key]) {
+    return { source: 'wearable_or_manual', ...COMPOSITION_HEALTH_MEASUREMENTS_MAP[key] };
+  }
   if (WEARABLE_COLUMN_MAP[key]) return { source: 'wearable_or_manual', columns: WEARABLE_COLUMN_MAP[key] };
   switch (matrizSource) {
     case 'Forms/Entrevista': return { source: 'questionnaire', param_key: key };

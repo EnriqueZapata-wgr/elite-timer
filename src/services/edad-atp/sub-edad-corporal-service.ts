@@ -1,34 +1,23 @@
 /**
- * Sub-edad Corporal (display). EDAD ATP Sprint 1/N.
- * Pesos §4.2. Reusa los impactos del catálogo (body-composition-service) y los
- * mapea a score 0-100 (impacto 0 = neutral = 50; mejor = mayor score).
- * // TODO Mariana Sprint 5: validate cutoffs.
+ * Sub-edad Corporal DISPLAY — desde SF del dominio `composicion_corporal` de la matriz V7/V6.
+ * Reemplaza las curvas inventadas por scoring 9-band real. Mapeo SF→edad piecewise.
+ * TODO Mariana Sprint 5: validar curva con datos clínicos.
  */
-import type { BodyComposition, Sex, SubEdadResult } from '@/src/types/edad-atp-v2';
-import { SUB_EDAD_CORPORAL_WEIGHTS } from '@/src/constants/edad-atp-v2-model';
-import { computeBodyCompositionAdjustments, computeFFMI } from './body-composition-service';
-import { buildSubEdadResult, type ComponentInput } from './sub-edad-common';
-
-/** Impacto en años (−3..+3) → score 0-100 (0 → 50 neutral; cada año desplaza 15 pts). */
-function impactToScore(impactYears: number): number {
-  return Math.max(0, Math.min(100, 50 - impactYears * 15));
-}
+import type { Sex, SubEdadResult } from '@/src/types/edad-atp-v2';
+import { scoreDomain, getMatriz } from './sf-9band-service';
+import { sfToAge } from './sub-edad-cardiovascular-service';
 
 export function computeEdadCorporal(params: {
-  body_composition: BodyComposition;
+  paramValues: Record<string, number | null | undefined>;
   sex: Sex;
   chronological_age: number;
 }): SubEdadResult {
-  const { adjustments } = computeBodyCompositionAdjustments(params.body_composition, params.sex);
-  const w = SUB_EDAD_CORPORAL_WEIGHTS;
-  const ffmi = computeFFMI(params.body_composition);
-
-  const components: Record<string, ComponentInput> = {
-    ffmi: { value: ffmi, score_0_100: impactToScore(adjustments.ffmi), weight: w.ffmi },
-    pct_grasa: { value: params.body_composition.body_fat_pct, score_0_100: impactToScore(adjustments.pct_grasa), weight: w.pct_grasa },
-    pct_musculo: { value: params.body_composition.skeletal_muscle_pct, score_0_100: impactToScore(adjustments.pct_musculo), weight: w.pct_musculo },
-    grasa_visceral: { value: params.body_composition.visceral_fat, score_0_100: impactToScore(adjustments.grasa_visceral), weight: w.grasa_visceral },
-  };
-
-  return buildSubEdadResult(components, params.chronological_age);
+  const dom = getMatriz(params.sex).composicion_corporal;
+  if (!dom) return { age_years: params.chronological_age, ce_percent: 0, components: {} };
+  const { score, ce, details } = scoreDomain(params.paramValues, dom.params);
+  const components: Record<string, { value: number; score_0_100: number; weight: number; missing: boolean; band?: string | null }> = {};
+  for (const d of details) {
+    components[d.key] = { value: d.value ?? 0, score_0_100: d.score ?? 0, weight: d.weight, missing: d.score === null, band: d.band };
+  }
+  return { age_years: sfToAge(score, params.chronological_age), ce_percent: ce * 100, components };
 }

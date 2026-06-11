@@ -16,6 +16,16 @@ export const EDAD_DIMS: { key: DimKey; icon: string; label: string; color: strin
 
 export const EDAD_STATUS = { good: Colors.neonGreen, neutral: '#EF9F27', bad: '#E24B4A' };
 
+/**
+ * CE mínimo (%) para mostrar el número de una sub-edad. Por debajo, la mayoría de
+ * sus params no están contestados y el número (calculado con lo poco presente)
+ * asusta sin causa real → se muestra "Pendiente". Default 50 (flag #3 del handoff).
+ */
+export const SUB_EDAD_CE_PENDING_THRESHOLD = 50;
+
+/** Color del estado pendiente (gris, con ⚠️ ámbar como indicador). */
+export const EDAD_PENDING_COLOR = '#8E8E93';
+
 /** Color por estado de una sub-edad vs cronológica. */
 export function statusColor(sub: number, chrono: number): string {
   const d = sub - chrono;

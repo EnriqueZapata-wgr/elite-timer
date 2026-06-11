@@ -57,7 +57,17 @@ export function resolveParamValues(
         case 'questionnaire': val = src.quest[s.param_key]; break;
         case 'functional_test': val = src.ft[s.test_key]; break;
         case 'wearable_or_manual': {
-          for (const c of s.columns) if (src.hm[c] != null) { val = src.hm[c]; break; }
+          let raw: number | undefined;
+          for (const c of s.columns) if (src.hm[c] != null) { raw = src.hm[c]; break; }
+          if (s.convert) {
+            const ctx: Record<string, number> = {};
+            for (const d of s.deps ?? []) {
+              if (typeof src.hm[d] === 'number' && Number.isFinite(src.hm[d])) ctx[d] = src.hm[d];
+            }
+            val = s.convert(raw, ctx);
+          } else {
+            val = raw;
+          }
           if (val == null) val = src.bio[p.key];
           break;
         }
