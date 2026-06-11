@@ -18,12 +18,14 @@ import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from '@/src/components/edad-atp/tokens';
 import { MATRIZ_HOMBRES, MATRIZ_MUJERES } from '@/src/constants/edad-atp-matriz-v7-v6';
 
+// Motor v2: 5 áreas (labs/composicion/fitness/cognicion/riesgos). El drill-down de cada
+// área muestra los params que la alimentan (sub.components).
 const META: Record<string, { icon: string; label: string; color: string; action: string; route: string }> = {
-  metabolica: { icon: '🩸', label: 'Edad Metabólica', color: '#E24B4A', action: 'Protocolo metabólico ATP: ayuno + entreno de alta intensidad.', route: '/edad-atp/biomarkers' },
-  corporal: { icon: '💪', label: 'Edad Corporal', color: '#a8e02a', action: 'Trabaja composición: fuerza progresiva + proteína suficiente.', route: '/edad-atp/composition' },
-  cardiovascular: { icon: '❤️', label: 'Edad Cardiovascular', color: '#E24B4A', action: 'Cuida presión y lípidos; suma cardio zona 2.', route: '/edad-atp/vitals' },
-  fitness: { icon: '🏃', label: 'Edad Fitness', color: '#EF9F27', action: 'Protocolo cardio ATP: 3x por semana de intervalos.', route: '/edad-atp/tests' },
-  cognitiva: { icon: '🧠', label: 'Edad Cognitiva', color: '#7F77DD', action: 'Ejercicio aeróbico + sueño óptimo mantienen tu velocidad.', route: '/edad-atp/tests/reaction-time' },
+  labs: { icon: '🩸', label: 'Edad Labs', color: '#E24B4A', action: 'Optimiza biomarcadores: inflamación, glucosa y micronutrientes (Vit D, B12).', route: '/edad-atp/biomarkers' },
+  composicion: { icon: '💪', label: 'Edad Composición', color: '#a8e02a', action: 'Trabaja composición: fuerza progresiva + proteína suficiente.', route: '/edad-atp/composition' },
+  fitness: { icon: '🏃', label: 'Edad Fitness', color: '#EF9F27', action: 'Protocolo cardio ATP: 3x por semana de intervalos + fuerza.', route: '/edad-atp/tests' },
+  cognicion: { icon: '🧠', label: 'Edad Cognición', color: '#7F77DD', action: 'Ejercicio aeróbico + sueño óptimo mantienen tu velocidad y atención.', route: '/edad-atp/tests/reaction-time' },
+  riesgos: { icon: '❤️', label: 'Edad Riesgos', color: '#E24B4A', action: 'Cuida presión, lípidos (ApoB) y metabólico; suma cardio zona 2.', route: '/edad-atp/vitals' },
 };
 
 // Unidad por clave de matriz (HOMBRES y MUJERES comparten claves; primera gana).
@@ -68,7 +70,7 @@ export default function SubEdadDrillDown() {
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
-  const meta = META[key as string] ?? META.metabolica;
+  const meta = META[key as string] ?? META.labs;
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
