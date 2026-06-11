@@ -150,6 +150,15 @@ export const MOTOR_PASSTHROUGH_FT_KEYS = [
   'plank', 'bolt', 'recovery_hr', 'old_man_test',
 ] as const;
 
+/**
+ * Aliases legacy de edad_atp_functional_tests: clave de matriz → test_keys viejos
+ * con los que se guardó ANTES de unificar la captura (sprint captura unificada).
+ * Solo lectura/fallback — las pantallas nuevas guardan SIEMPRE la clave de matriz.
+ */
+export const FT_KEY_ALIASES: Record<string, string[]> = {
+  test_de_equilibrio_en_un_pie: ['one_leg_balance'],
+};
+
 /** Keys de edad_atp_questionnaire_responses que el motor v2 lee fuera de la matriz. */
 export const MOTOR_PASSTHROUGH_QUEST_KEYS = [
   'claridad_mental', 'energia_mental', 'memoria_autopercibida',

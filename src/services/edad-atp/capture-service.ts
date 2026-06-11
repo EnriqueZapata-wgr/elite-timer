@@ -91,22 +91,45 @@ export async function getLatestExtractedData(userId: string): Promise<Record<str
   return out;
 }
 
-/** Lee la medición de salud más reciente del usuario (para pre-poblar). */
+/**
+ * Coalesce de filas de health_measurements (ordenadas DESC por fecha): para cada
+ * columna toma el valor no-null MÁS RECIENTE. Antes se leía SOLO la última fila y
+ * cualquier upsert posterior de otra métrica "borraba" para la lectura los valores
+ * de días previos (bug B1/B6 del smoke 2026-06-11: VO2max del Cooper desaparecía al
+ * guardar peso otro día; MEDICIONES "hace 0d" con campos vacíos).
+ * `date` queda la de la fila más reciente (badge de frescura).
+ */
+export function coalesceHealthRows(rows: Record<string, any>[]): Record<string, any> | null {
+  if (!rows.length) return null;
+  const out: Record<string, any> = {};
+  for (const row of rows) {
+    for (const [k, v] of Object.entries(row)) {
+      if (v != null && out[k] === undefined) out[k] = v;
+    }
+  }
+  return out;
+}
+
+/** Filas a leer para el coalesce (suficiente histórico sin cargar la tabla entera). */
+export const HEALTH_COALESCE_ROWS = 30;
+
+/** Lee la medición de salud del usuario (coalesce por columna, para pre-poblar). */
 export async function getLatestHealthMeasurement(userId: string): Promise<Record<string, any> | null> {
   const { data, error } = await supabase
     .from('health_measurements')
     .select('*')
     .eq('user_id', userId)
     .order('date', { ascending: false })
-    .limit(1);
+    .limit(HEALTH_COALESCE_ROWS);
   if (error) { logWarn('[edad-atp capture] getLatestHealthMeasurement failed:', error); return null; }
-  return (data ?? [])[0] ?? null;
+  return coalesceHealthRows((data ?? []) as Record<string, any>[]);
 }
 
 export type HealthMeasurementInput = {
   weight_kg?: number; height_cm?: number; body_fat_pct?: number;
   muscle_mass_kg?: number; visceral_fat?: number; grip_strength_kg?: number;
   systolic_bp?: number; diastolic_bp?: number; resting_hr?: number; vo2max_estimate?: number;
+  waist_cm?: number; // columna existente (la lee loadUserData) — captura inline drill-down
 };
 
 /**

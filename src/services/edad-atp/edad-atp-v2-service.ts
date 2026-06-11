@@ -15,11 +15,11 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import type {
   BodyComposition, DomainKey, EdadAtpV1Result, EdadAtpV2Result, PhenoAgeBiomarkers, Sex,
-  SubEdadKey, SubEdadResult,
+  SubEdadResult,
 } from '@/src/types/edad-atp-v2';
 import { computeMotorV2 } from './motor-v2-service';
 import { buildMotorV2Input } from './motor-v2-adapter';
-import type { AreaComponent } from '@/src/types/motor-edad-atp-v2';
+import { motorResultToView } from './motor-v2-view';
 import { computeAlgoritmoExcel } from './algoritmo-excel-service';
 import { computeReactionTimeAge, computeCognitiveModifier } from './cognitive-age-service';
 import { computeEdadMetabolica } from './sub-edad-metabolica-service';
@@ -29,6 +29,7 @@ import { computeEdadFitness } from './sub-edad-fitness-service';
 import { scoreQuestionnaireResponses } from './questionnaire-scoring';
 import { computeSFGlobalReal } from './sf-9band-service';
 import { loadAllParamValues } from './load-all-params';
+import { coalesceHealthRows, HEALTH_COALESCE_ROWS } from './capture-service';
 import { SF_DOMAIN_WEIGHTS } from '@/src/constants/edad-atp-v2-model';
 
 export type EdadAtpV2Inputs = {
@@ -233,41 +234,9 @@ export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result>
   return result;
 }
 
-/** Mapea un AreaComponent (motor) → componente de SubEdadResult (UI). */
-function toUiComponent(c: AreaComponent): SubEdadResult['components'][string] {
-  return {
-    value: c.value ?? 0,
-    score_0_100: c.score_0_100 ?? 0,
-    weight: c.weight,
-    missing: c.score_0_100 == null,
-  };
-}
-
-/**
- * Adapta MotorV2Result → EdadAtpV2Result (forma que consume la UI). La edad por
- * sub-edad es la AJUSTADA (anclada a cronológica), que es la que pesa en el integral.
- */
-export function motorResultToView(motor: import('@/src/types/motor-edad-atp-v2').MotorV2Result): EdadAtpV2Result {
-  const keys: SubEdadKey[] = ['labs', 'composicion', 'fitness', 'cognicion', 'riesgos'];
-  const sub_edades = {} as Record<SubEdadKey, SubEdadResult>;
-  let ceSum = 0;
-  for (const k of keys) {
-    const a = motor.areas[k];
-    const components: SubEdadResult['components'] = {};
-    for (const [ck, cv] of Object.entries(a.components)) components[ck] = toUiComponent(cv);
-    sub_edades[k] = { age_years: a.edad_ajustada, ce_percent: a.ce * 100, components };
-    ceSum += a.ce;
-  }
-  return {
-    chronological_age: motor.cronologica,
-    edad_integral: motor.edad_atp_integral,
-    modificador_cognitivo: 0,
-    ce_integral: ceSum / keys.length,
-    delta_anos: motor.delta_anos,
-    habitos: motor.habitos,
-    sub_edades,
-  };
-}
+// motorResultToView vive en motor-v2-view.ts (módulo puro, testeable sin mock de
+// supabase). Se re-exporta para no romper imports existentes.
+export { motorResultToView } from './motor-v2-view';
 
 // `rowsToMap` se exporta para el loader de inputs del Sprint 2 (captura de datos).
 export { rowsToMap };
@@ -377,7 +346,7 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
       supabase.from('client_profiles').select('date_of_birth, biological_sex, height_cm').eq('user_id', userId).limit(1),
       supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
       supabase.from('lab_uploads').select('extracted_data').eq('user_id', userId).not('extracted_data', 'is', null).order('uploaded_at', { ascending: false }).limit(1),
-      supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1),
+      supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(HEALTH_COALESCE_ROWS),
       supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_body_composition').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
       supabase.from('edad_atp_questionnaire_responses').select('domain, parameter_key, value_text').eq('user_id', userId),
@@ -386,7 +355,9 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     profile = (pRes.data ?? [])[0] ?? null;
     lab = (labRes.data ?? [])[0] ?? null;
     upload = (upRes.data ?? [])[0] ?? null;
-    hm = (hmRes.data ?? [])[0] ?? null;
+    // Coalesce por columna: el upsert diario por (user_id, date) fragmenta las métricas
+    // entre filas — leer solo la última "perdía" VO2/peso de días previos (bug B1/B6).
+    hm = coalesceHealthRows((hmRes.data ?? []) as Record<string, any>[]);
     bioRows = bioRes.data ?? [];
     compRow = (compRes.data ?? [])[0] ?? null;
     qRows = qRes.data ?? [];

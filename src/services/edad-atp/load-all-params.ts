@@ -10,7 +10,8 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getMatriz } from './sf-9band-service';
-import { resolveParamSource, COMPUTED_PARAMS, MOTOR_PASSTHROUGH_FT_KEYS, MOTOR_PASSTHROUGH_QUEST_KEYS } from '@/src/constants/edad-atp-source-map';
+import { resolveParamSource, COMPUTED_PARAMS, FT_KEY_ALIASES, MOTOR_PASSTHROUGH_FT_KEYS, MOTOR_PASSTHROUGH_QUEST_KEYS } from '@/src/constants/edad-atp-source-map';
+import { coalesceHealthRows, HEALTH_COALESCE_ROWS } from './capture-service';
 import type { Sex } from '@/src/types/edad-atp-v2';
 
 function latestByKey<T extends Record<string, any>>(rows: T[], keyField: string, valField: string): Record<string, number> {
@@ -55,7 +56,18 @@ export function resolveParamValues(
         }
         case 'manual': val = src.bio[s.key] ?? src.ext[s.key]; break;
         case 'questionnaire': val = src.quest[s.param_key]; break;
-        case 'functional_test': val = src.ft[s.test_key]; break;
+        case 'functional_test': {
+          val = src.ft[s.test_key];
+          // Aliases legacy: tests guardados con test_key viejo (ej. one_leg_balance)
+          // antes de unificar al key de matriz. Sin esto, esas capturas nunca
+          // llegaban al motor (bug B8 del smoke 2026-06-11).
+          if (val == null) {
+            for (const alias of FT_KEY_ALIASES[s.test_key] ?? []) {
+              if (src.ft[alias] != null) { val = src.ft[alias]; break; }
+            }
+          }
+          break;
+        }
         case 'wearable_or_manual': {
           let raw: number | undefined;
           for (const c of s.columns) if (src.hm[c] != null) { raw = src.hm[c]; break; }
@@ -100,7 +112,7 @@ export async function loadAllParamValues(userId: string, sex: Sex): Promise<Reco
       supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
       supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('lab_uploads').select('extracted_data').eq('user_id', userId).not('extracted_data', 'is', null).order('uploaded_at', { ascending: false }).limit(1),
-      supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(1),
+      supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(HEALTH_COALESCE_ROWS),
       supabase.from('edad_atp_questionnaire_responses').select('parameter_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_functional_tests').select('test_key, value_primary, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
     ]);
@@ -108,7 +120,8 @@ export async function loadAllParamValues(userId: string, sex: Sex): Promise<Reco
       lab: (labRes.data ?? [])[0] ?? {},
       bio: latestByKey(bioRes.data ?? [], 'biomarker_key', 'value'),
       ext: flattenExtracted((upRes.data ?? [])[0]?.extracted_data),
-      hm: (hmRes.data ?? [])[0] ?? {},
+      // Coalesce por columna entre filas (mismo fix que loadUserData — bug B1/B6).
+      hm: coalesceHealthRows((hmRes.data ?? []) as Record<string, any>[]) ?? {},
       quest: latestByKey(qRes.data ?? [], 'parameter_key', 'value'),
       ft: latestByKey(ftRes.data ?? [], 'test_key', 'value_primary'),
     });
