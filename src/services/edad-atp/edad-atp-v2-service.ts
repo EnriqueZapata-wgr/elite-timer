@@ -14,8 +14,12 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import type {
-  BodyComposition, DomainKey, EdadAtpV2Result, PhenoAgeBiomarkers, Sex, SubEdadResult,
+  BodyComposition, DomainKey, EdadAtpV1Result, EdadAtpV2Result, PhenoAgeBiomarkers, Sex,
+  SubEdadKey, SubEdadResult,
 } from '@/src/types/edad-atp-v2';
+import { computeMotorV2 } from './motor-v2-service';
+import { buildMotorV2Input } from './motor-v2-adapter';
+import type { AreaComponent } from '@/src/types/motor-edad-atp-v2';
 import { computeAlgoritmoExcel } from './algoritmo-excel-service';
 import { computeReactionTimeAge, computeCognitiveModifier } from './cognitive-age-service';
 import { computeEdadMetabolica } from './sub-edad-metabolica-service';
@@ -65,7 +69,7 @@ export type EdadAtpV2Inputs = {
   paramValues?: Record<string, number>;
 };
 
-export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV2Result {
+export function computeEdadAtpV2FromInputs(inputs: EdadAtpV2Inputs): EdadAtpV1Result {
   const { chronological_age, sex } = inputs;
 
   // 1. Algoritmo Excel (base sin cognitivo).
@@ -206,36 +210,63 @@ export function buildInputsFromUnified(data: UnifiedUserData): EdadAtpV2Inputs {
  */
 export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result> {
   const data = await loadUserData(userId);
-  const inputs = buildInputsFromUnified(data);
-  // MATRIZ REAL: scoring SF de los 138 params (reemplaza el placeholder 50 por dominio).
   const paramValues = await loadAllParamValues(userId, data.sex);
-  const sf = computeSFGlobalReal(paramValues, data.sex, SF_DOMAIN_WEIGHTS as any);
-  if (Object.keys(sf.domain_scores).length > 0) {
-    inputs.domain_scores = sf.domain_scores as typeof inputs.domain_scores;
-  }
-  inputs.paramValues = paramValues; // alimenta las sub-edades display desde SF de dominio
-  const result = computeEdadAtpV2FromInputs(inputs);
+  const motorInput = buildMotorV2Input(data, paramValues);
+  const motor = computeMotorV2(motorInput);
+  const result = motorResultToView(motor);
   try {
     await supabase.from('edad_atp_calculations').insert({
       user_id: userId,
       chronological_age: result.chronological_age,
       edad_integral: result.edad_integral,
-      algoritmo_excel: result.algoritmo_excel,
-      modificador_cognitivo: result.modificador_cognitivo,
-      phenoage: result.phenoage,
-      sf_score: result.sf_score,
-      ritmo_envejecimiento: result.ritmo_envejecimiento,
       ce_integral: result.ce_integral,
-      edad_metabolica: result.sub_edades.metabolica.age_years,
-      edad_corporal: result.sub_edades.corporal.age_years,
-      edad_cardiovascular: result.sub_edades.cardiovascular.age_years,
-      edad_fitness: result.sub_edades.fitness.age_years,
-      edad_cognitiva: result.sub_edades.cognitiva.age_years,
+      // Las 5 columnas legacy se mapean a las 5 áreas v2 (no se migra el esquema SQL).
+      edad_metabolica: motor.areas.riesgos.edad_ajustada,
+      edad_corporal: motor.areas.composicion.edad_ajustada,
+      edad_cardiovascular: motor.areas.labs.edad_ajustada,
+      edad_fitness: motor.areas.fitness.edad_ajustada,
+      edad_cognitiva: motor.areas.cognicion.edad_ajustada,
     });
   } catch (err) {
     logWarn('[edad-atp-v2] persist calculation failed:', err);
   }
   return result;
+}
+
+/** Mapea un AreaComponent (motor) → componente de SubEdadResult (UI). */
+function toUiComponent(c: AreaComponent): SubEdadResult['components'][string] {
+  return {
+    value: c.value ?? 0,
+    score_0_100: c.score_0_100 ?? 0,
+    weight: c.weight,
+    missing: c.score_0_100 == null,
+  };
+}
+
+/**
+ * Adapta MotorV2Result → EdadAtpV2Result (forma que consume la UI). La edad por
+ * sub-edad es la AJUSTADA (anclada a cronológica), que es la que pesa en el integral.
+ */
+export function motorResultToView(motor: import('@/src/types/motor-edad-atp-v2').MotorV2Result): EdadAtpV2Result {
+  const keys: SubEdadKey[] = ['labs', 'composicion', 'fitness', 'cognicion', 'riesgos'];
+  const sub_edades = {} as Record<SubEdadKey, SubEdadResult>;
+  let ceSum = 0;
+  for (const k of keys) {
+    const a = motor.areas[k];
+    const components: SubEdadResult['components'] = {};
+    for (const [ck, cv] of Object.entries(a.components)) components[ck] = toUiComponent(cv);
+    sub_edades[k] = { age_years: a.edad_ajustada, ce_percent: a.ce * 100, components };
+    ceSum += a.ce;
+  }
+  return {
+    chronological_age: motor.cronologica,
+    edad_integral: motor.edad_atp_integral,
+    modificador_cognitivo: 0,
+    ce_integral: ceSum / keys.length,
+    delta_anos: motor.delta_anos,
+    habitos: motor.habitos,
+    sub_edades,
+  };
 }
 
 // `rowsToMap` se exporta para el loader de inputs del Sprint 2 (captura de datos).

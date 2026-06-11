@@ -47,7 +47,15 @@ export type SubEdadResult = {
   components: Record<string, { value: number; score_0_100: number; weight: number; missing: boolean; band?: string | null }>;
 };
 
-export type EdadAtpV2Result = {
+/** Claves de las 5 sub-edades del motor v2 (por áreas ciegas). */
+export type SubEdadKey = 'labs' | 'composicion' | 'fitness' | 'cognicion' | 'riesgos';
+
+/**
+ * Resultado del modelo v1 (algoritmo Excel + sub-edades antiguas). Se mantiene SOLO
+ * para `computeEdadAtpV2FromInputs` y sus tests de regresión; el orquestador de runtime
+ * ahora usa el motor v2 (ver EdadAtpV2Result).
+ */
+export type EdadAtpV1Result = {
   chronological_age: number;
   edad_integral: number;
   algoritmo_excel: number;
@@ -63,4 +71,20 @@ export type EdadAtpV2Result = {
     fitness: SubEdadResult;
     cognitiva: SubEdadResult;
   };
+};
+
+/**
+ * Resultado del motor v2 (por áreas ciegas) en la forma que consume la UI.
+ * `sub_edades` usa las 5 áreas nuevas; `age_years` por área = edad ajustada (anclada).
+ * Conserva los escalares que la UI ya leía (modificador_cognitivo = 0 en v2: la
+ * cognición se promedia dentro de las áreas, no como modificador separado).
+ */
+export type EdadAtpV2Result = {
+  chronological_age: number;
+  edad_integral: number;
+  modificador_cognitivo: number; // 0 en v2 (compat UI cinematic)
+  ce_integral: number; // 0-1
+  delta_anos: number; // cron − integral
+  habitos: { score: number; factor: number };
+  sub_edades: Record<SubEdadKey, SubEdadResult>;
 };

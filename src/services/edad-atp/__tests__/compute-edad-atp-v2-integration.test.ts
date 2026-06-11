@@ -71,9 +71,11 @@ describe('computeEdadAtpV2 — E2E desde fuentes existentes (sin tablas nuevas)'
     expect(Number.isFinite(r.edad_integral)).toBe(true);
     expect(r.edad_integral).toBeGreaterThan(0);
     expect(r.chronological_age).toBeGreaterThan(0);
-    expect(r.sub_edades.metabolica.age_years).toBeGreaterThan(0);
-    expect(r.sub_edades.corporal.age_years).toBeGreaterThan(0);
-    // Sin cognitivo → modificador 0.
+    // Motor v2: sub-edades por área (labs/composicion/fitness/cognicion/riesgos).
+    expect(r.sub_edades.riesgos.age_years).toBeGreaterThan(0);
+    expect(r.sub_edades.composicion.age_years).toBeGreaterThan(0);
+    expect(r.sub_edades.labs.age_years).toBeGreaterThan(0);
+    // v2 no usa modificador cognitivo separado (cognición se promedia en las áreas).
     expect(r.modificador_cognitivo).toBe(0);
   });
 });
