@@ -7,6 +7,9 @@
  * adaptador es la capa de integración; su mapeo desde fuentes reales debe validarse en
  * runtime (smoke test). Campos sin fuente quedan undefined → el área baja su CE.
  *
+ * Sin captura en la app aún (quedan undefined hasta cinemáticos/wearables, NO castigan
+ * gracias a la renormalización por CE): plank_s, bolt_s, old_man_test, recovery_hr.
+ *
  * Conversión de unidades clave:
  *   - %grasa/%músculo: la matriz guarda fracción decimal (0.11) → ×100 a % para el motor.
  *   - hematocrito/hba1c/rdw: NO los usa el motor v2 directamente como esas claves.
@@ -101,7 +104,7 @@ export function buildMotorV2Input(data: UnifiedUserData, pv: PV): MotorV2Input {
     pasos: num(pv.pasos_al_dia),
     tabaquismo_cig: num(pv.tabaquismo),
     alcohol_mes: num(pv.consumo_de_alcohol_mensual),
-    sueno_h: num(pv.horas_de_sueno, pv.sueno_horas),
+    sueno_h: num(pv.horas_de_sueno),
     consistencia_sueno_min: num(pv.consistencia_sueno),
   };
 }

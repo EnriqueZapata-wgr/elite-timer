@@ -120,8 +120,6 @@ export function computeAreaComposicion(input: MotorV2Input): AreaCiegaResult {
     { key: 'cintura', value: input.waist_cm, weight: WEIGHTS.cintura, score: input.waist_cm != null ? scoreCintura(male, input.waist_cm) : null },
   ];
 
-  // SUMPRODUCT del Excel: pesos suman 1.0, así que no se redistribuye (params ausentes
-  // contribuyen 0 al SUMPRODUCT, igual que el Excel con celdas faltantes).
   let scoreTotal = 0;
   let presentWeight = 0;
   const totalWeight = parts.reduce((s, p) => s + p.weight, 0);
@@ -131,9 +129,14 @@ export function computeAreaComposicion(input: MotorV2Input): AreaCiegaResult {
     components[p.key] = { value: p.value ?? null, score_0_100: p.score, weight: p.weight };
   }
 
+  // Doctrina CE: renormalizar por peso presente. Un param sin captura BAJA el CE,
+  // NUNCA cuenta como score 0 (el Excel siempre tiene celdas completas; runtime no).
+  // Con datos completos presentWeight = 1.0 → gate intacto. Área vacía → neutra (= cron).
+  const scoreNorm = presentWeight > 0 ? scoreTotal / presentWeight : 0;
+
   return {
-    edad_ciega: scoreToEdadCiega(scoreTotal),
-    score: scoreTotal,
+    edad_ciega: presentWeight > 0 ? scoreToEdadCiega(scoreNorm) : input.chronological_age,
+    score: scoreNorm,
     ce: totalWeight > 0 ? presentWeight / totalWeight : 0,
     components,
   };

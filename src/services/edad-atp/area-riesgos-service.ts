@@ -11,7 +11,7 @@ import type { AreaCiegaResult, AreaComponent, MotorV2Input } from '@/src/types/m
 
 const SUBBLOQUE_WEIGHTS = { cardio: 0.3, metabolico: 0.25, inflamatorio: 0.2, hormonal: 0.15, hepatorenal: 0.1 };
 
-type Band = { key: string; field: keyof MotorV2Input; weight: number; score: (v: number, male: boolean, input: MotorV2Input) => number };
+type Band = { key: string; field: keyof MotorV2Input; weight: number; score: (v: number, male: boolean, input: MotorV2Input) => number | null };
 
 const band4 = (v: number, t: [number, number, number, number], dir: 'le' | 'ge'): number => {
   // dir 'le': menor es mejor (score 100 si <= t[0]). 'ge': mayor es mejor.
@@ -25,7 +25,9 @@ const CARDIO: Band[] = [
   { key: 'hdl', field: 'hdl', weight: 0.15, score: (v) => band4(v, [60, 50, 40, 30], 'ge') },
   { key: 'trigliceridos', field: 'triglycerides', weight: 0.1, score: (v) => band4(v, [100, 150, 200, 300], 'le') },
   { key: 'ratio_tg_hdl', field: 'triglycerides', weight: 0.15, score: (v, _m, i) => {
-    const r = i.hdl ? v / i.hdl : Infinity;
+    // Doctrina CE: sin HDL no hay ratio → null (baja CE), NO score 0.
+    if (!i.hdl) return null;
+    const r = v / i.hdl;
     return r <= 2 ? 100 : r <= 3 ? 80 : r <= 4 ? 50 : r <= 6 ? 25 : 0;
   } },
   { key: 'pas', field: 'systolic_bp', weight: 0.15, score: (v) => (v >= 90 && v <= 115 ? 100 : v <= 120 ? 80 : v <= 130 ? 50 : v <= 140 ? 25 : 0) },
@@ -76,47 +78,51 @@ const HEPATORENAL: Band[] = [
   } },
 ];
 
-function scoreSubbloque(bands: Band[], input: MotorV2Input, male: boolean, components: Record<string, AreaComponent>): { score: number; presentW: number; totalW: number } {
+function scoreSubbloque(bands: Band[], input: MotorV2Input, male: boolean, components: Record<string, AreaComponent>): { scoreNorm: number | null; presentW: number; totalW: number } {
   let score = 0;
   let presentW = 0;
   let totalW = 0;
   for (const b of bands) {
     totalW += b.weight;
     const v = input[b.field] as number | undefined;
-    const present = v != null;
-    const s = present ? b.score(v as number, male, input) : null;
-    if (present) { score += (s as number) * b.weight; presentW += b.weight; }
-    components[b.key] = { value: present ? (v as number) : null, score_0_100: s, weight: b.weight };
+    const s = v != null ? b.score(v, male, input) : null;
+    if (s != null) { score += s * b.weight; presentW += b.weight; }
+    components[b.key] = { value: v ?? null, score_0_100: s, weight: b.weight };
   }
-  return { score, presentW, totalW };
+  // Doctrina CE: score del sub-bloque renormalizado por peso presente.
+  // Sub-bloque sin un solo dato → null (se excluye del total, no pesa como 0).
+  return { scoreNorm: presentW > 0 ? score / presentW : null, presentW, totalW };
 }
 
-export function computeAreaRiesgos(input: MotorV2Input): AreaCiegaResult & { subbloques: Record<string, number> } {
+export function computeAreaRiesgos(input: MotorV2Input): AreaCiegaResult & { subbloques: Record<string, number | null> } {
   const male = input.sex === 'male';
   const components: Record<string, AreaComponent> = {};
 
-  const c = scoreSubbloque(CARDIO, input, male, components);
-  const m = scoreSubbloque(METABOLICO, input, male, components);
-  const i = scoreSubbloque(INFLAMATORIO, input, male, components);
-  const h = scoreSubbloque(HORMONAL, input, male, components);
-  const hr = scoreSubbloque(HEPATORENAL, input, male, components);
+  const blocks = [
+    { key: 'cardio' as const, r: scoreSubbloque(CARDIO, input, male, components), w: SUBBLOQUE_WEIGHTS.cardio },
+    { key: 'metabolico' as const, r: scoreSubbloque(METABOLICO, input, male, components), w: SUBBLOQUE_WEIGHTS.metabolico },
+    { key: 'inflamatorio' as const, r: scoreSubbloque(INFLAMATORIO, input, male, components), w: SUBBLOQUE_WEIGHTS.inflamatorio },
+    { key: 'hormonal' as const, r: scoreSubbloque(HORMONAL, input, male, components), w: SUBBLOQUE_WEIGHTS.hormonal },
+    { key: 'hepatorenal' as const, r: scoreSubbloque(HEPATORENAL, input, male, components), w: SUBBLOQUE_WEIGHTS.hepatorenal },
+  ];
 
-  const subbloques = {
-    cardio: c.score, metabolico: m.score, inflamatorio: i.score, hormonal: h.score, hepatorenal: hr.score,
-  };
+  const subbloques: Record<string, number | null> = {};
+  for (const b of blocks) subbloques[b.key] = b.r.scoreNorm;
 
-  const scoreTotal =
-    c.score * SUBBLOQUE_WEIGHTS.cardio +
-    m.score * SUBBLOQUE_WEIGHTS.metabolico +
-    i.score * SUBBLOQUE_WEIGHTS.inflamatorio +
-    h.score * SUBBLOQUE_WEIGHTS.hormonal +
-    hr.score * SUBBLOQUE_WEIGHTS.hepatorenal;
+  // Doctrina CE: el total promedia SOLO sub-bloques con datos, renormalizando sus pesos.
+  // Con datos completos (fixtures) cada scoreNorm = score original y Σw = 1.0 → gate intacto.
+  let acc = 0;
+  let accW = 0;
+  for (const b of blocks) {
+    if (b.r.scoreNorm != null) { acc += b.r.scoreNorm * b.w; accW += b.w; }
+  }
+  const scoreTotal = accW > 0 ? acc / accW : 0;
 
-  const presentW = c.presentW + m.presentW + i.presentW + h.presentW + hr.presentW;
-  const totalW = c.totalW + m.totalW + i.totalW + h.totalW + hr.totalW;
+  const presentW = blocks.reduce((s, b) => s + b.r.presentW, 0);
+  const totalW = blocks.reduce((s, b) => s + b.r.totalW, 0);
 
   return {
-    edad_ciega: scoreToEdadCiega(scoreTotal),
+    edad_ciega: accW > 0 ? scoreToEdadCiega(scoreTotal) : input.chronological_age,
     score: scoreTotal,
     ce: totalW > 0 ? presentW / totalW : 0,
     components,

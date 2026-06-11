@@ -20,6 +20,8 @@ describe('area-riesgos — 5 sub-bloques (gate 4 pacientes)', () => {
     // M1 estradiol 60 (rango 30-200) → score hormonal alto; M2 estradiol 28 (<30) → penalizado.
     const m1 = computeAreaRiesgos(inputFromFixture('M1'));
     const m2 = computeAreaRiesgos(inputFromFixture('M2'));
-    expect(m1.subbloques.hormonal).toBeGreaterThan(m2.subbloques.hormonal);
+    // subbloques ahora es number | null (null = sub-bloque sin datos); con fixtures
+    // completos siempre hay valor — el ! es seguro aquí.
+    expect(m1.subbloques.hormonal!).toBeGreaterThan(m2.subbloques.hormonal!);
   });
 });
