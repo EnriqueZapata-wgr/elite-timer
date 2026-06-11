@@ -5,8 +5,6 @@
 import type { Sex } from '@/src/types/edad-atp-v2';
 import type { MotorAreaKey } from '@/src/constants/edad-atp-motor-v2-config';
 
-export type { MotorAreaKey } from '@/src/constants/edad-atp-motor-v2-config';
-
 /** Un componente (param/test) que alimenta un área: valor crudo + score 0-100 + peso. */
 export type AreaComponent = {
   value: number | null;
