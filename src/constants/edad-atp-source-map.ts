@@ -139,6 +139,23 @@ export const COMPOSITION_HEALTH_MEASUREMENTS_MAP: Record<string, {
   // questionnaire (flag #2 del handoff). TODO: flujo de captura dedicado.
 };
 
+/**
+ * Keys de edad_atp_functional_tests que el MOTOR v2 necesita pero NO son params de la
+ * matriz (no entran al loop de resolveParamValues). Se copian tal cual al dict de salida.
+ * Incluye el test cognitivo Go/No-Go (go_no_go_rt_hits, go_no_go_error_rate).
+ */
+export const MOTOR_PASSTHROUGH_FT_KEYS = [
+  'reaction_time_simple', 'reaction_time_choice',
+  'go_no_go_rt_hits', 'go_no_go_error_rate',
+  'plank', 'bolt', 'recovery_hr', 'old_man_test',
+] as const;
+
+/** Keys de edad_atp_questionnaire_responses que el motor v2 lee fuera de la matriz. */
+export const MOTOR_PASSTHROUGH_QUEST_KEYS = [
+  'claridad_mental', 'energia_mental', 'memoria_autopercibida',
+  'horas_de_sueno', 'consistencia_sueno',
+] as const;
+
 /** Columnas de health_measurements para params Wearable. clave matriz → columna. */
 export const WEARABLE_COLUMN_MAP: Record<string, string[]> = {
   frecuencia_cardiaca_en_reposo_sueno: ['resting_hr'],

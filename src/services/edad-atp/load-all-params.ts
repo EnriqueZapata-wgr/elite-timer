@@ -10,7 +10,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getMatriz } from './sf-9band-service';
-import { resolveParamSource, COMPUTED_PARAMS } from '@/src/constants/edad-atp-source-map';
+import { resolveParamSource, COMPUTED_PARAMS, MOTOR_PASSTHROUGH_FT_KEYS, MOTOR_PASSTHROUGH_QUEST_KEYS } from '@/src/constants/edad-atp-source-map';
 import type { Sex } from '@/src/types/edad-atp-v2';
 
 function latestByKey<T extends Record<string, any>>(rows: T[], keyField: string, valField: string): Record<string, number> {
@@ -82,6 +82,13 @@ export function resolveParamValues(
   for (const [k, spec] of Object.entries(COMPUTED_PARAMS)) {
     const v = spec.formula(out);
     if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  }
+  // Passthrough motor v2: keys de tests/cuestionarios fuera de la matriz (Go/No-Go, etc.).
+  for (const k of MOTOR_PASSTHROUGH_FT_KEYS) {
+    if (out[k] === undefined && typeof src.ft[k] === 'number' && Number.isFinite(src.ft[k])) out[k] = src.ft[k];
+  }
+  for (const k of MOTOR_PASSTHROUGH_QUEST_KEYS) {
+    if (out[k] === undefined && typeof src.quest[k] === 'number' && Number.isFinite(src.quest[k])) out[k] = src.quest[k];
   }
   return out;
 }
