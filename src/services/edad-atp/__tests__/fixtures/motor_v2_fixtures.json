@@ -1,0 +1,1234 @@
+{
+  "H1": {
+    "description": "HOMBRES V7 Excel ejemplo (cron 50, sano-medio)",
+    "inputs": {
+      "Edad cronológica": {
+        "value": 50,
+        "unit": "años"
+      },
+      "Sexo (M=1, F=0)": {
+        "value": 1,
+        "unit": "-"
+      },
+      "Albúmina": {
+        "value": 5.28,
+        "unit": "g/dL"
+      },
+      "Creatinina sérica": {
+        "value": 0.81,
+        "unit": "mg/dL"
+      },
+      "Glucosa ayuno": {
+        "value": 90,
+        "unit": "mg/dL"
+      },
+      "PCR (CRP)": {
+        "value": 0.18,
+        "unit": "mg/dL"
+      },
+      "% Linfocitos": {
+        "value": 33,
+        "unit": "%"
+      },
+      "VCM (MCV)": {
+        "value": 90,
+        "unit": "fL"
+      },
+      "RDW-CV": {
+        "value": 12.8,
+        "unit": "%"
+      },
+      "Fosfatasa Alcalina": {
+        "value": 71,
+        "unit": "U/L"
+      },
+      "Leucocitos (WBC)": {
+        "value": 7.4,
+        "unit": "×10³/μL"
+      },
+      "Vit D (25-OH)": {
+        "value": 33.4,
+        "unit": "ng/mL"
+      },
+      "Vit B12": {
+        "value": 502,
+        "unit": "pg/mL"
+      },
+      "Homocisteína": {
+        "value": 13.72,
+        "unit": "μmol/L"
+      },
+      "Ferritina": {
+        "value": 291,
+        "unit": "ng/mL"
+      },
+      "TSH": {
+        "value": 1.57,
+        "unit": "μUI/mL"
+      },
+      "Cortisol matutino": {
+        "value": 8,
+        "unit": "μg/dL"
+      },
+      "Bilirrubina total": {
+        "value": 0.57,
+        "unit": "mg/dL"
+      },
+      "Peso": {
+        "value": 87.4,
+        "unit": "kg"
+      },
+      "Altura": {
+        "value": 183,
+        "unit": "cm"
+      },
+      "% Grasa corporal": {
+        "value": 24.2,
+        "unit": "%"
+      },
+      "% Músculo esquelético": {
+        "value": 34.6,
+        "unit": "%"
+      },
+      "Grasa visceral": {
+        "value": 10,
+        "unit": "índice"
+      },
+      "Cintura": {
+        "value": 95,
+        "unit": "cm"
+      },
+      "Ratio cintura/cadera": {
+        "value": 0.9,
+        "unit": "ratio"
+      },
+      "FFMI": {
+        "value": 19.7823763026665,
+        "unit": "calc"
+      },
+      "VO2max estimado": {
+        "value": 35,
+        "unit": "ml/kg/min"
+      },
+      "Push-ups máx continuas": {
+        "value": 25,
+        "unit": "#"
+      },
+      "Sentadilla 60s": {
+        "value": 30,
+        "unit": "#"
+      },
+      "Balance 1 pie ojos abiertos": {
+        "value": 45,
+        "unit": "seg"
+      },
+      "Plank máx": {
+        "value": 90,
+        "unit": "seg"
+      },
+      "BOLT": {
+        "value": 25,
+        "unit": "seg"
+      },
+      "Recovery HR 2-min": {
+        "value": 30,
+        "unit": "bpm caída"
+      },
+      "Old Man Test": {
+        "value": 8,
+        "unit": "puntaje 0-10"
+      },
+      "Fuerza de agarre": {
+        "value": 57.4,
+        "unit": "kg"
+      },
+      "RT Simple promedio": {
+        "value": 290,
+        "unit": "ms"
+      },
+      "RT Choice 4-AFC promedio": {
+        "value": 560,
+        "unit": "ms"
+      },
+      "Go/No-Go RT hits": {
+        "value": 320,
+        "unit": "ms"
+      },
+      "Go/No-Go tasa errores": {
+        "value": 12,
+        "unit": "%"
+      },
+      "Claridad mental": {
+        "value": 7,
+        "unit": "0-10"
+      },
+      "Energía mental": {
+        "value": 7,
+        "unit": "0-10"
+      },
+      "Memoria autopercibida": {
+        "value": 7,
+        "unit": "0-10"
+      },
+      "ApoB": {
+        "value": 105,
+        "unit": "mg/dL"
+      },
+      "LDL": {
+        "value": 149,
+        "unit": "mg/dL"
+      },
+      "HDL": {
+        "value": 38,
+        "unit": "mg/dL"
+      },
+      "Colesterol Total": {
+        "value": 189,
+        "unit": "mg/dL"
+      },
+      "Triglicéridos": {
+        "value": 124,
+        "unit": "mg/dL"
+      },
+      "PA Sistólica": {
+        "value": 132,
+        "unit": "mmHg"
+      },
+      "PA Diastólica": {
+        "value": 88,
+        "unit": "mmHg"
+      },
+      "HbA1c": {
+        "value": 5.5,
+        "unit": "%"
+      },
+      "Insulina ayuno": {
+        "value": 7.8,
+        "unit": "μUI/mL"
+      },
+      "HOMA-IR": {
+        "value": 1.73,
+        "unit": "índice"
+      },
+      "NLR (Neutróf/Linfo)": {
+        "value": 1.8,
+        "unit": "ratio"
+      },
+      "Factor reumatoide": {
+        "value": 20,
+        "unit": "UI/mL"
+      },
+      "IgE": {
+        "value": 67,
+        "unit": "UI/mL"
+      },
+      "Testo total (H) / Estradiol (M)": {
+        "value": 3.32,
+        "unit": "ng/mL o pg/mL"
+      },
+      "AST": {
+        "value": 24,
+        "unit": "U/L"
+      },
+      "ALT": {
+        "value": 48,
+        "unit": "U/L"
+      },
+      "GGT": {
+        "value": 51,
+        "unit": "U/L"
+      },
+      "BUN": {
+        "value": 14.7,
+        "unit": "mg/dL"
+      },
+      "Hemoglobina": {
+        "value": 15.2,
+        "unit": "g/dL"
+      },
+      "Hematocrito": {
+        "value": 47.3,
+        "unit": "%"
+      },
+      "Ayuno IF": {
+        "value": 0,
+        "unit": "h/día"
+      },
+      "Ejercicio": {
+        "value": 0,
+        "unit": "h/semana"
+      },
+      "Pasos": {
+        "value": 5000,
+        "unit": "#/día"
+      },
+      "Tabaquismo": {
+        "value": 0,
+        "unit": "cig/día"
+      },
+      "Alcohol": {
+        "value": 0,
+        "unit": "copas/mes"
+      },
+      "Sueño": {
+        "value": 6,
+        "unit": "h/noche"
+      },
+      "Consistencia sueño": {
+        "value": 90,
+        "unit": "min var"
+      },
+      "Score Hábitos global": {
+        "value": 40,
+        "unit": "0-100"
+      }
+    },
+    "expected": {
+      "edad_labs_ciega": 39.8969200016088,
+      "edad_composicion_ciega": 56.5,
+      "edad_fitness_ciega": 37.05,
+      "edad_cognicion_ciega": 45.0833333333333,
+      "edad_riesgos_ciega": 42,
+      "cronologica": 50,
+      "edad_labs_ajustada": 42.4226900012066,
+      "edad_composicion_ajustada": 54.55,
+      "edad_fitness_ajustada": 41.5825,
+      "edad_cognicion_ajustada": 47.2958333333333,
+      "edad_riesgos_ajustada": 44,
+      "edad_pre_modulador": null,
+      "factor_habitos": 47.4589998753167,
+      "edad_atp_integral": 47.4589998753167
+    }
+  },
+  "H2": {
+    "description": "Enrique Zapata (cron 35.83, atleta GWR)",
+    "inputs": {
+      "Edad cronológica": {
+        "value": 35.83,
+        "unit": "años"
+      },
+      "Sexo (M=1, F=0)": {
+        "value": 1,
+        "unit": "-"
+      },
+      "Albúmina": {
+        "value": 4.48,
+        "unit": "g/dL"
+      },
+      "Creatinina sérica": {
+        "value": 1.11,
+        "unit": "mg/dL"
+      },
+      "Glucosa ayuno": {
+        "value": 75,
+        "unit": "mg/dL"
+      },
+      "PCR (CRP)": {
+        "value": 0.2,
+        "unit": "mg/dL"
+      },
+      "% Linfocitos": {
+        "value": 43,
+        "unit": "%"
+      },
+      "VCM (MCV)": {
+        "value": 88.6,
+        "unit": "fL"
+      },
+      "RDW-CV": {
+        "value": 12.9,
+        "unit": "%"
+      },
+      "Fosfatasa Alcalina": {
+        "value": 57,
+        "unit": "U/L"
+      },
+      "Leucocitos (WBC)": {
+        "value": 5.9,
+        "unit": "×10³/μL"
+      },
+      "Vit D (25-OH)": {
+        "value": 51.8,
+        "unit": "ng/mL"
+      },
+      "Vit B12": {
+        "value": 163,
+        "unit": "pg/mL"
+      },
+      "Homocisteína": {
+        "value": 8,
+        "unit": "μmol/L"
+      },
+      "Ferritina": {
+        "value": 135,
+        "unit": "ng/mL"
+      },
+      "TSH": {
+        "value": 2.14,
+        "unit": "μUI/mL"
+      },
+      "Cortisol matutino": {
+        "value": 11.2,
+        "unit": "μg/dL"
+      },
+      "Bilirrubina total": {
+        "value": 0.44,
+        "unit": "mg/dL"
+      },
+      "Peso": {
+        "value": 79,
+        "unit": "kg"
+      },
+      "Altura": {
+        "value": 176,
+        "unit": "cm"
+      },
+      "% Grasa corporal": {
+        "value": 11,
+        "unit": "%"
+      },
+      "% Músculo esquelético": {
+        "value": 50,
+        "unit": "%"
+      },
+      "Grasa visceral": {
+        "value": 3,
+        "unit": "índice"
+      },
+      "Cintura": {
+        "value": 80,
+        "unit": "cm"
+      },
+      "Ratio cintura/cadera": {
+        "value": 0.83,
+        "unit": "ratio"
+      },
+      "FFMI": {
+        "value": 22.7,
+        "unit": "calc"
+      },
+      "VO2max estimado": {
+        "value": 55,
+        "unit": "ml/kg/min"
+      },
+      "Push-ups máx continuas": {
+        "value": 60,
+        "unit": "#"
+      },
+      "Sentadilla 60s": {
+        "value": 50,
+        "unit": "#"
+      },
+      "Balance 1 pie ojos abiertos": {
+        "value": 90,
+        "unit": "seg"
+      },
+      "Plank máx": {
+        "value": 240,
+        "unit": "seg"
+      },
+      "BOLT": {
+        "value": 40,
+        "unit": "seg"
+      },
+      "Recovery HR 2-min": {
+        "value": 50,
+        "unit": "bpm caída"
+      },
+      "Old Man Test": {
+        "value": 10,
+        "unit": "puntaje 0-10"
+      },
+      "Fuerza de agarre": {
+        "value": 65,
+        "unit": "kg"
+      },
+      "RT Simple promedio": {
+        "value": 256,
+        "unit": "ms"
+      },
+      "RT Choice 4-AFC promedio": {
+        "value": 390,
+        "unit": "ms"
+      },
+      "Go/No-Go RT hits": {
+        "value": 280,
+        "unit": "ms"
+      },
+      "Go/No-Go tasa errores": {
+        "value": 5,
+        "unit": "%"
+      },
+      "Claridad mental": {
+        "value": 9,
+        "unit": "0-10"
+      },
+      "Energía mental": {
+        "value": 9,
+        "unit": "0-10"
+      },
+      "Memoria autopercibida": {
+        "value": 9,
+        "unit": "0-10"
+      },
+      "ApoB": {
+        "value": 110,
+        "unit": "mg/dL"
+      },
+      "LDL": {
+        "value": 165,
+        "unit": "mg/dL"
+      },
+      "HDL": {
+        "value": 63,
+        "unit": "mg/dL"
+      },
+      "Colesterol Total": {
+        "value": 214,
+        "unit": "mg/dL"
+      },
+      "Triglicéridos": {
+        "value": 65,
+        "unit": "mg/dL"
+      },
+      "PA Sistólica": {
+        "value": 115,
+        "unit": "mmHg"
+      },
+      "PA Diastólica": {
+        "value": 70,
+        "unit": "mmHg"
+      },
+      "HbA1c": {
+        "value": 5.5,
+        "unit": "%"
+      },
+      "Insulina ayuno": {
+        "value": 2.2,
+        "unit": "μUI/mL"
+      },
+      "HOMA-IR": {
+        "value": 0.41,
+        "unit": "índice"
+      },
+      "NLR (Neutróf/Linfo)": {
+        "value": 1.16,
+        "unit": "ratio"
+      },
+      "Factor reumatoide": {
+        "value": 20,
+        "unit": "UI/mL"
+      },
+      "IgE": {
+        "value": 141,
+        "unit": "UI/mL"
+      },
+      "Testo total (H) / Estradiol (M)": {
+        "value": 9.93,
+        "unit": "ng/mL o pg/mL"
+      },
+      "AST": {
+        "value": 40,
+        "unit": "U/L"
+      },
+      "ALT": {
+        "value": 39,
+        "unit": "U/L"
+      },
+      "GGT": {
+        "value": 21,
+        "unit": "U/L"
+      },
+      "BUN": {
+        "value": 27.5,
+        "unit": "mg/dL"
+      },
+      "Hemoglobina": {
+        "value": 15.2,
+        "unit": "g/dL"
+      },
+      "Hematocrito": {
+        "value": 47.6,
+        "unit": "%"
+      },
+      "Ayuno IF": {
+        "value": 16,
+        "unit": "h/día"
+      },
+      "Ejercicio": {
+        "value": 18,
+        "unit": "h/semana"
+      },
+      "Pasos": {
+        "value": 12000,
+        "unit": "#/día"
+      },
+      "Tabaquismo": {
+        "value": 0,
+        "unit": "cig/día"
+      },
+      "Alcohol": {
+        "value": 0,
+        "unit": "copas/mes"
+      },
+      "Sueño": {
+        "value": 7.5,
+        "unit": "h/noche"
+      },
+      "Consistencia sueño": {
+        "value": 30,
+        "unit": "min var"
+      },
+      "Score Hábitos global": {
+        "value": 95,
+        "unit": "0-100"
+      }
+    },
+    "expected": {
+      "edad_labs_ciega": 29.2513107651396,
+      "edad_composicion_ciega": 22,
+      "edad_fitness_ciega": 22,
+      "edad_cognicion_ciega": 22.2745,
+      "edad_riesgos_ciega": 27.7,
+      "cronologica": 35.83,
+      "edad_labs_ajustada": 30.8959830738547,
+      "edad_composicion_ajustada": 26.149,
+      "edad_fitness_ajustada": 26.8405,
+      "edad_cognicion_ajustada": 28.374475,
+      "edad_riesgos_ajustada": 29.7325,
+      "edad_pre_modulador": null,
+      "factor_habitos": 27.2685549175405,
+      "edad_atp_integral": 27.2685549175405
+    }
+  },
+  "M1": {
+    "description": "Mujer sintética 28 (atleta optimizada)",
+    "inputs": {
+      "Edad cronológica": {
+        "value": 28,
+        "unit": "años"
+      },
+      "Sexo (M=1, F=0)": {
+        "value": 0,
+        "unit": "-"
+      },
+      "Albúmina": {
+        "value": 4.7,
+        "unit": "g/dL"
+      },
+      "Creatinina sérica": {
+        "value": 0.78,
+        "unit": "mg/dL"
+      },
+      "Glucosa ayuno": {
+        "value": 82,
+        "unit": "mg/dL"
+      },
+      "PCR (CRP)": {
+        "value": 0.1,
+        "unit": "mg/dL"
+      },
+      "% Linfocitos": {
+        "value": 38,
+        "unit": "%"
+      },
+      "VCM (MCV)": {
+        "value": 89,
+        "unit": "fL"
+      },
+      "RDW-CV": {
+        "value": 12.5,
+        "unit": "%"
+      },
+      "Fosfatasa Alcalina": {
+        "value": 65,
+        "unit": "U/L"
+      },
+      "Leucocitos (WBC)": {
+        "value": 6.2,
+        "unit": "×10³/μL"
+      },
+      "Vit D (25-OH)": {
+        "value": 45,
+        "unit": "ng/mL"
+      },
+      "Vit B12": {
+        "value": 580,
+        "unit": "pg/mL"
+      },
+      "Homocisteína": {
+        "value": 7,
+        "unit": "μmol/L"
+      },
+      "Ferritina": {
+        "value": 80,
+        "unit": "ng/mL"
+      },
+      "TSH": {
+        "value": 1.8,
+        "unit": "μUI/mL"
+      },
+      "Cortisol matutino": {
+        "value": 12,
+        "unit": "μg/dL"
+      },
+      "Bilirrubina total": {
+        "value": 0.6,
+        "unit": "mg/dL"
+      },
+      "Peso": {
+        "value": 60,
+        "unit": "kg"
+      },
+      "Altura": {
+        "value": 165,
+        "unit": "cm"
+      },
+      "% Grasa corporal": {
+        "value": 18,
+        "unit": "%"
+      },
+      "% Músculo esquelético": {
+        "value": 38,
+        "unit": "%"
+      },
+      "Grasa visceral": {
+        "value": 2,
+        "unit": "índice"
+      },
+      "Cintura": {
+        "value": 65,
+        "unit": "cm"
+      },
+      "Ratio cintura/cadera": {
+        "value": 0.72,
+        "unit": "ratio"
+      },
+      "FFMI": {
+        "value": 17.5,
+        "unit": "calc"
+      },
+      "VO2max estimado": {
+        "value": 50,
+        "unit": "ml/kg/min"
+      },
+      "Push-ups máx continuas": {
+        "value": 35,
+        "unit": "#"
+      },
+      "Sentadilla 60s": {
+        "value": 45,
+        "unit": "#"
+      },
+      "Balance 1 pie ojos abiertos": {
+        "value": 120,
+        "unit": "seg"
+      },
+      "Plank máx": {
+        "value": 180,
+        "unit": "seg"
+      },
+      "BOLT": {
+        "value": 30,
+        "unit": "seg"
+      },
+      "Recovery HR 2-min": {
+        "value": 45,
+        "unit": "bpm caída"
+      },
+      "Old Man Test": {
+        "value": 10,
+        "unit": "puntaje 0-10"
+      },
+      "Fuerza de agarre": {
+        "value": 38,
+        "unit": "kg"
+      },
+      "RT Simple promedio": {
+        "value": 280,
+        "unit": "ms"
+      },
+      "RT Choice 4-AFC promedio": {
+        "value": 500,
+        "unit": "ms"
+      },
+      "Go/No-Go RT hits": {
+        "value": 310,
+        "unit": "ms"
+      },
+      "Go/No-Go tasa errores": {
+        "value": 8,
+        "unit": "%"
+      },
+      "Claridad mental": {
+        "value": 9,
+        "unit": "0-10"
+      },
+      "Energía mental": {
+        "value": 9,
+        "unit": "0-10"
+      },
+      "Memoria autopercibida": {
+        "value": 9,
+        "unit": "0-10"
+      },
+      "ApoB": {
+        "value": 75,
+        "unit": "mg/dL"
+      },
+      "LDL": {
+        "value": 95,
+        "unit": "mg/dL"
+      },
+      "HDL": {
+        "value": 70,
+        "unit": "mg/dL"
+      },
+      "Colesterol Total": {
+        "value": 175,
+        "unit": "mg/dL"
+      },
+      "Triglicéridos": {
+        "value": 70,
+        "unit": "mg/dL"
+      },
+      "PA Sistólica": {
+        "value": 110,
+        "unit": "mmHg"
+      },
+      "PA Diastólica": {
+        "value": 70,
+        "unit": "mmHg"
+      },
+      "HbA1c": {
+        "value": 5,
+        "unit": "%"
+      },
+      "Insulina ayuno": {
+        "value": 4.5,
+        "unit": "μUI/mL"
+      },
+      "HOMA-IR": {
+        "value": 0.91,
+        "unit": "índice"
+      },
+      "NLR (Neutróf/Linfo)": {
+        "value": 1.4,
+        "unit": "ratio"
+      },
+      "Factor reumatoide": {
+        "value": 10,
+        "unit": "UI/mL"
+      },
+      "IgE": {
+        "value": 50,
+        "unit": "UI/mL"
+      },
+      "Testo total (H) / Estradiol (M)": {
+        "value": 60,
+        "unit": "ng/mL o pg/mL"
+      },
+      "AST": {
+        "value": 22,
+        "unit": "U/L"
+      },
+      "ALT": {
+        "value": 18,
+        "unit": "U/L"
+      },
+      "GGT": {
+        "value": 18,
+        "unit": "U/L"
+      },
+      "BUN": {
+        "value": 12,
+        "unit": "mg/dL"
+      },
+      "Hemoglobina": {
+        "value": 13.5,
+        "unit": "g/dL"
+      },
+      "Hematocrito": {
+        "value": 41,
+        "unit": "%"
+      },
+      "Ayuno IF": {
+        "value": 14,
+        "unit": "h/día"
+      },
+      "Ejercicio": {
+        "value": 12,
+        "unit": "h/semana"
+      },
+      "Pasos": {
+        "value": 9000,
+        "unit": "#/día"
+      },
+      "Tabaquismo": {
+        "value": 0,
+        "unit": "cig/día"
+      },
+      "Alcohol": {
+        "value": 4,
+        "unit": "copas/mes"
+      },
+      "Sueño": {
+        "value": 8,
+        "unit": "h/noche"
+      },
+      "Consistencia sueño": {
+        "value": 30,
+        "unit": "min var"
+      },
+      "Score Hábitos global": {
+        "value": 88,
+        "unit": "0-100"
+      }
+    },
+    "expected": {
+      "edad_labs_ciega": 15.6527892653846,
+      "edad_composicion_ciega": 22,
+      "edad_fitness_ciega": 22,
+      "edad_cognicion_ciega": 33.2,
+      "edad_riesgos_ciega": 22,
+      "cronologica": 28,
+      "edad_labs_ajustada": 18.7395919490385,
+      "edad_composicion_ajustada": 23.8,
+      "edad_fitness_ajustada": 24.1,
+      "edad_cognicion_ajustada": 30.86,
+      "edad_riesgos_ajustada": 23.5,
+      "edad_pre_modulador": null,
+      "factor_habitos": 22.3999530878966,
+      "edad_atp_integral": 22.3999530878966
+    }
+  },
+  "M2": {
+    "description": "Mujer sintética 65 (sedentaria DM2)",
+    "inputs": {
+      "Edad cronológica": {
+        "value": 65,
+        "unit": "años"
+      },
+      "Sexo (M=1, F=0)": {
+        "value": 0,
+        "unit": "-"
+      },
+      "Albúmina": {
+        "value": 4,
+        "unit": "g/dL"
+      },
+      "Creatinina sérica": {
+        "value": 1.05,
+        "unit": "mg/dL"
+      },
+      "Glucosa ayuno": {
+        "value": 105,
+        "unit": "mg/dL"
+      },
+      "PCR (CRP)": {
+        "value": 0.5,
+        "unit": "mg/dL"
+      },
+      "% Linfocitos": {
+        "value": 28,
+        "unit": "%"
+      },
+      "VCM (MCV)": {
+        "value": 92,
+        "unit": "fL"
+      },
+      "RDW-CV": {
+        "value": 14.2,
+        "unit": "%"
+      },
+      "Fosfatasa Alcalina": {
+        "value": 80,
+        "unit": "U/L"
+      },
+      "Leucocitos (WBC)": {
+        "value": 7.8,
+        "unit": "×10³/μL"
+      },
+      "Vit D (25-OH)": {
+        "value": 22,
+        "unit": "ng/mL"
+      },
+      "Vit B12": {
+        "value": 350,
+        "unit": "pg/mL"
+      },
+      "Homocisteína": {
+        "value": 14,
+        "unit": "μmol/L"
+      },
+      "Ferritina": {
+        "value": 200,
+        "unit": "ng/mL"
+      },
+      "TSH": {
+        "value": 3.5,
+        "unit": "μUI/mL"
+      },
+      "Cortisol matutino": {
+        "value": 16,
+        "unit": "μg/dL"
+      },
+      "Bilirrubina total": {
+        "value": 0.5,
+        "unit": "mg/dL"
+      },
+      "Peso": {
+        "value": 70,
+        "unit": "kg"
+      },
+      "Altura": {
+        "value": 160,
+        "unit": "cm"
+      },
+      "% Grasa corporal": {
+        "value": 32,
+        "unit": "%"
+      },
+      "% Músculo esquelético": {
+        "value": 25,
+        "unit": "%"
+      },
+      "Grasa visceral": {
+        "value": 9,
+        "unit": "índice"
+      },
+      "Cintura": {
+        "value": 88,
+        "unit": "cm"
+      },
+      "Ratio cintura/cadera": {
+        "value": 0.85,
+        "unit": "ratio"
+      },
+      "FFMI": {
+        "value": 14.5,
+        "unit": "calc"
+      },
+      "VO2max estimado": {
+        "value": 22,
+        "unit": "ml/kg/min"
+      },
+      "Push-ups máx continuas": {
+        "value": 5,
+        "unit": "#"
+      },
+      "Sentadilla 60s": {
+        "value": 10,
+        "unit": "#"
+      },
+      "Balance 1 pie ojos abiertos": {
+        "value": 12,
+        "unit": "seg"
+      },
+      "Plank máx": {
+        "value": 25,
+        "unit": "seg"
+      },
+      "BOLT": {
+        "value": 15,
+        "unit": "seg"
+      },
+      "Recovery HR 2-min": {
+        "value": 18,
+        "unit": "bpm caída"
+      },
+      "Old Man Test": {
+        "value": 4,
+        "unit": "puntaje 0-10"
+      },
+      "Fuerza de agarre": {
+        "value": 18,
+        "unit": "kg"
+      },
+      "RT Simple promedio": {
+        "value": 380,
+        "unit": "ms"
+      },
+      "RT Choice 4-AFC promedio": {
+        "value": 720,
+        "unit": "ms"
+      },
+      "Go/No-Go RT hits": {
+        "value": 420,
+        "unit": "ms"
+      },
+      "Go/No-Go tasa errores": {
+        "value": 25,
+        "unit": "%"
+      },
+      "Claridad mental": {
+        "value": 5,
+        "unit": "0-10"
+      },
+      "Energía mental": {
+        "value": 5,
+        "unit": "0-10"
+      },
+      "Memoria autopercibida": {
+        "value": 6,
+        "unit": "0-10"
+      },
+      "ApoB": {
+        "value": 130,
+        "unit": "mg/dL"
+      },
+      "LDL": {
+        "value": 155,
+        "unit": "mg/dL"
+      },
+      "HDL": {
+        "value": 45,
+        "unit": "mg/dL"
+      },
+      "Colesterol Total": {
+        "value": 230,
+        "unit": "mg/dL"
+      },
+      "Triglicéridos": {
+        "value": 165,
+        "unit": "mg/dL"
+      },
+      "PA Sistólica": {
+        "value": 145,
+        "unit": "mmHg"
+      },
+      "PA Diastólica": {
+        "value": 92,
+        "unit": "mmHg"
+      },
+      "HbA1c": {
+        "value": 6.4,
+        "unit": "%"
+      },
+      "Insulina ayuno": {
+        "value": 12,
+        "unit": "μUI/mL"
+      },
+      "HOMA-IR": {
+        "value": 3.11,
+        "unit": "índice"
+      },
+      "NLR (Neutróf/Linfo)": {
+        "value": 2.2,
+        "unit": "ratio"
+      },
+      "Factor reumatoide": {
+        "value": 25,
+        "unit": "UI/mL"
+      },
+      "IgE": {
+        "value": 90,
+        "unit": "UI/mL"
+      },
+      "Testo total (H) / Estradiol (M)": {
+        "value": 28,
+        "unit": "ng/mL o pg/mL"
+      },
+      "AST": {
+        "value": 32,
+        "unit": "U/L"
+      },
+      "ALT": {
+        "value": 30,
+        "unit": "U/L"
+      },
+      "GGT": {
+        "value": 45,
+        "unit": "U/L"
+      },
+      "BUN": {
+        "value": 20,
+        "unit": "mg/dL"
+      },
+      "Hemoglobina": {
+        "value": 13,
+        "unit": "g/dL"
+      },
+      "Hematocrito": {
+        "value": 39,
+        "unit": "%"
+      },
+      "Ayuno IF": {
+        "value": 12,
+        "unit": "h/día"
+      },
+      "Ejercicio": {
+        "value": 1,
+        "unit": "h/semana"
+      },
+      "Pasos": {
+        "value": 3500,
+        "unit": "#/día"
+      },
+      "Tabaquismo": {
+        "value": 0,
+        "unit": "cig/día"
+      },
+      "Alcohol": {
+        "value": 8,
+        "unit": "copas/mes"
+      },
+      "Sueño": {
+        "value": 6.5,
+        "unit": "h/noche"
+      },
+      "Consistencia sueño": {
+        "value": 75,
+        "unit": "min var"
+      },
+      "Score Hábitos global": {
+        "value": 50,
+        "unit": "0-100"
+      }
+    },
+    "expected": {
+      "edad_labs_ciega": 73.4884719232476,
+      "edad_composicion_ciega": 62.5,
+      "edad_fitness_ciega": 92.9166666666667,
+      "edad_cognicion_ciega": 69.4,
+      "edad_riesgos_ciega": 64.7375,
+      "cronologica": 65,
+      "edad_labs_ajustada": 71.3663539424357,
+      "edad_composicion_ajustada": 63.25,
+      "edad_fitness_ajustada": 83.1458333333333,
+      "edad_cognicion_ajustada": 67.42,
+      "edad_riesgos_ajustada": 64.803125,
+      "edad_pre_modulador": null,
+      "factor_habitos": 73.7856382223894,
+      "edad_atp_integral": 73.7856382223894
+    }
+  },
+  "_config": {
+    "pesos_areas": {
+      "labs": 0.25,
+      "composicion": 0.15,
+      "fitness": 0.2,
+      "cognicion": 0.15,
+      "riesgos": 0.25
+    },
+    "factores_anclaje": {
+      "labs": 0.75,
+      "composicion": 0.7,
+      "fitness": 0.65,
+      "cognicion": 0.55,
+      "riesgos": 0.75
+    },
+    "caps": {
+      "min": 20,
+      "max": 100
+    },
+    "modulador_habitos_thresholds": {
+      "80+": 0.95,
+      "60-79": 1.0,
+      "40-59": 1.05,
+      "<40": 1.1
+    },
+    "tolerance_per_area": 1.5,
+    "tolerance_integral": 1.0
+  }
+}
