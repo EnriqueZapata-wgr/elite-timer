@@ -4,14 +4,15 @@
  */
 import { Colors } from '@/constants/theme';
 
-export type DimKey = 'metabolica' | 'corporal' | 'cardiovascular' | 'fitness' | 'cognitiva';
+// Motor v2: 5 áreas (labs/composicion/fitness/cognicion/riesgos). Emojis sin cambio.
+export type DimKey = 'labs' | 'composicion' | 'fitness' | 'cognicion' | 'riesgos';
 
 export const EDAD_DIMS: { key: DimKey; icon: string; label: string; color: string }[] = [
-  { key: 'metabolica', icon: '🩸', label: 'Metabólica', color: '#E24B4A' },
-  { key: 'corporal', icon: '💪', label: 'Corporal', color: '#a8e02a' },
-  { key: 'cardiovascular', icon: '❤️', label: 'Cardiovascular', color: '#E24B4A' },
+  { key: 'labs', icon: '🩸', label: 'Labs', color: '#E24B4A' },
+  { key: 'composicion', icon: '💪', label: 'Composición', color: '#a8e02a' },
   { key: 'fitness', icon: '🏃', label: 'Fitness', color: '#EF9F27' },
-  { key: 'cognitiva', icon: '🧠', label: 'Cognitiva', color: '#7F77DD' },
+  { key: 'cognicion', icon: '🧠', label: 'Cognición', color: '#7F77DD' },
+  { key: 'riesgos', icon: '❤️', label: 'Riesgos', color: '#E24B4A' },
 ];
 
 export const EDAD_STATUS = { good: Colors.neonGreen, neutral: '#EF9F27', bad: '#E24B4A' };
