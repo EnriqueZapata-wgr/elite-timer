@@ -7,6 +7,10 @@
  * - 20 trials por modo. Go/No-Go ratio 75/25 (go/no-go).
  * - Randomización REAL via PRNG mulberry32 seedeado por sesión (sin librerías nuevas).
  * - Filtro de outliers: descarta el 10% de hits más lentos.
+ * - Fix B5: NO-GO con retención correcta (1500 ms sin tocar) = "correct withhold" y el
+ *   trial AVANZA SOLO. Lógica pura en gng-trial-flow.ts (testeada con PRNG seeded).
+ *
+ * ÚNICO test que se vive en la app (doctrina 2): el teléfono ES el instrumento.
  */
 import { useState, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Alert } from 'react-native';
@@ -18,39 +22,23 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveFunctionalTests } from '@/src/services/edad-atp/capture-service';
+import {
+  mulberry32, avgNoOutliers, buildGngSchedule, gngErrorRatePct,
+  GNG_WITHHOLD_MS, type GngStimulus,
+} from '@/src/services/edad-atp/gng-trial-flow';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const TRIALS = 20;
-const GNG_NOGO_RATIO = 0.25; // 25% de los estímulos son "no-go" (rojo = NO tocar)
+const DEMO_TRIALS = 2;
 
 type Mode = 'simple' | 'choice' | 'gng';
 type Phase = 'instruction' | 'demo' | 'run' | 'saving';
-
-/** PRNG mulberry32: determinista dado un seed, pero distinto cada sesión. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a |= 0; a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Promedio con filtro de outliers: descarta el 10% más lento (lapsos de atención). */
-function avgNoOutliers(a: number[]): number {
-  if (!a.length) return 0;
-  const sorted = [...a].sort((x, y) => x - y);
-  const keep = Math.max(1, Math.ceil(sorted.length * 0.9));
-  const kept = sorted.slice(0, keep);
-  return Math.round(kept.reduce((s, x) => s + x, 0) / kept.length);
-}
 
 const MODE_ORDER: Mode[] = ['simple', 'choice', 'gng'];
 const MODE_COPY: Record<Mode, { title: string; instr: string }> = {
   simple: { title: 'Fase 1 — Reacción simple', instr: 'Toca la pantalla en cuanto el recuadro se ponga VERDE. No te adelantes: tocar antes no cuenta. Primero 2 intentos de práctica.' },
   choice: { title: 'Fase 2 — Elección (4 opciones)', instr: 'Toca el recuadro que se ILUMINE entre los 4. Rápido y preciso. Primero 2 intentos de práctica.' },
-  gng: { title: 'Fase 3 — Go / No-Go', instr: 'Toca cuando el estímulo sea VERDE (Go). NO toques si es ROJO (No-Go). Mide tu inhibición. Primero 2 intentos de práctica.' },
+  gng: { title: 'Fase 3 — Go / No-Go', instr: 'Toca cuando el estímulo sea VERDE (Go). Si es ROJO (No-Go), NO toques: retén y el trial avanza solo. Mide tu inhibición. Primero 2 intentos de práctica.' },
 };
 
 export default function ReactionTimeTest() {
@@ -69,9 +57,15 @@ export default function ReactionTimeTest() {
   const simpleTimes = useRef<number[]>([]);
   const choiceTimes = useRef<number[]>([]);
   const gngHits = useRef<number[]>([]);
-  const gngErrors = useRef(0); // comisiones (tap en no-go) + omisiones (no tap en go)
-  const gngGoCount = useRef(0);
+  const gngErrors = useRef(0); // comisiones (tap en no-go)
+  const gngWithholds = useRef(0); // retenciones correctas en no-go (fix B5)
+  const gngSchedule = useRef<GngStimulus[]>([]); // estímulos pre-decididos con el PRNG
+  const gngIdx = useRef(0); // índice dentro del schedule actual (demo o run)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const withholdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // El timeout de withhold se crea dentro de schedule() (closure vieja) → ref siempre
+  // apuntando al handler del último render para leer phase/trial frescos.
+  const onWithholdRef = useRef<() => void>(() => {});
 
   const mode = MODE_ORDER[modeIdx];
 
@@ -86,14 +80,23 @@ export default function ReactionTimeTest() {
 
   const schedule = useCallback((m: Mode) => {
     setArmed(false); setActive(-1); setIsNoGo(false);
+    if (withholdTimer.current) clearTimeout(withholdTimer.current);
     const delay = 800 + Math.floor(rand() * 1800); // intervalo aleatorio real
     timeoutRef.current = setTimeout(() => {
       startRef.current = Date.now();
       if (m === 'simple') setArmed(true);
       else if (m === 'choice') setActive(Math.floor(rand() * 4));
       else {
-        const noGo = rand() < GNG_NOGO_RATIO;
-        if (noGo) setIsNoGo(true); else { setArmed(true); gngGoCount.current += 1; }
+        // Estímulo pre-decidido en el schedule de la corrida (PRNG de la sesión).
+        const stim = gngSchedule.current[gngIdx.current] ?? (rand() < 0.25 ? 'nogo' : 'go');
+        gngIdx.current += 1;
+        if (stim === 'nogo') {
+          setIsNoGo(true);
+          // Fix B5: retener GNG_WITHHOLD_MS = correct withhold → el trial avanza solo.
+          withholdTimer.current = setTimeout(() => onWithholdRef.current(), GNG_WITHHOLD_MS);
+        } else {
+          setArmed(true);
+        }
       }
     }, delay);
   }, []);
@@ -102,7 +105,8 @@ export default function ReactionTimeTest() {
 
   function startDemo() {
     ensureSeed();
-    demoLeft.current = 2;
+    demoLeft.current = DEMO_TRIALS;
+    if (mode === 'gng') { gngSchedule.current = buildGngSchedule(rand, DEMO_TRIALS); gngIdx.current = 0; }
     setPhase('demo'); setTrial(0);
     setTimeout(() => schedule(mode), 300);
   }
@@ -111,7 +115,11 @@ export default function ReactionTimeTest() {
     setPhase('run'); setTrial(0);
     if (mode === 'simple') simpleTimes.current = [];
     if (mode === 'choice') choiceTimes.current = [];
-    if (mode === 'gng') { gngHits.current = []; gngErrors.current = 0; gngGoCount.current = 0; }
+    if (mode === 'gng') {
+      gngHits.current = []; gngErrors.current = 0; gngWithholds.current = 0;
+      gngSchedule.current = buildGngSchedule(rand, TRIALS);
+      gngIdx.current = 0;
+    }
     setTimeout(() => schedule(mode), 300);
   }
 
@@ -130,9 +138,18 @@ export default function ReactionTimeTest() {
 
   function nextModeOrFinish() {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (withholdTimer.current) clearTimeout(withholdTimer.current);
     if (modeIdx + 1 < MODE_ORDER.length) startInstruction(modeIdx + 1);
     else finish();
   }
+
+  // Retención correcta en NO-GO (fix B5): registrar y avanzar solo. Asignado cada
+  // render para que el timeout (closure vieja de schedule) lea phase/trial frescos.
+  onWithholdRef.current = () => {
+    if (phase === 'run') gngWithholds.current += 1;
+    setIsNoGo(false); haptic.light();
+    advance(phase === 'demo');
+  };
 
   function onSimpleTap() {
     if (!armed) return; // tap antes del estímulo → ignorar (falso inicio)
@@ -153,7 +170,8 @@ export default function ReactionTimeTest() {
   function onGngTap() {
     if (!armed && !isNoGo) return; // sin estímulo aún
     if (isNoGo) {
-      // Comisión: tocó en no-go → error.
+      // Comisión: tocó en no-go → error (cancela el withhold pendiente).
+      if (withholdTimer.current) clearTimeout(withholdTimer.current);
       if (phase === 'run') gngErrors.current += 1;
       setIsNoGo(false); haptic.warning();
       advance(phase === 'demo');
@@ -168,11 +186,14 @@ export default function ReactionTimeTest() {
   async function finish() {
     setPhase('saving');
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (withholdTimer.current) clearTimeout(withholdTimer.current);
     const simple = avgNoOutliers(simpleTimes.current);
     const choice = avgNoOutliers(choiceTimes.current);
     const gngRt = avgNoOutliers(gngHits.current);
-    // Tasa de errores Go/No-Go: comisiones sobre el total de estímulos go presentados.
-    const errRate = gngGoCount.current > 0 ? Math.round((gngErrors.current / TRIALS) * 100) : 0;
+    // Tasa de errores Go/No-Go: comisiones sobre el TOTAL de trials presentados.
+    // Denominador consistente con el withhold automático: todos los trials completan
+    // (hits + comisiones + retenciones correctas = TRIALS).
+    const errRate = gngErrorRatePct(gngErrors.current, TRIALS);
     if (user?.id) {
       await saveFunctionalTests(user.id, [
         { test_key: 'reaction_time_simple', value_primary: simple },
@@ -181,7 +202,7 @@ export default function ReactionTimeTest() {
         { test_key: 'go_no_go_error_rate', value_primary: errRate },
       ]);
     }
-    analytics.track(ATP_EVENTS.EDAD_ATP_FUNCTIONAL_TEST_COMPLETED, { test: 'reaction_time', simple, choice, gng_rt: gngRt, gng_err: errRate });
+    analytics.track(ATP_EVENTS.EDAD_ATP_FUNCTIONAL_TEST_COMPLETED, { test: 'reaction_time', simple, choice, gng_rt: gngRt, gng_err: errRate, gng_withholds: gngWithholds.current });
     haptic.success();
     Alert.alert('Test completado', `Simple ${simple}ms · Choice ${choice}ms · Go/No-Go ${gngRt}ms (${errRate}% err)`, [{ text: 'OK', onPress: () => router.back() }]);
   }
