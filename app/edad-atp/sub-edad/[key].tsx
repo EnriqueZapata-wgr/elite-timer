@@ -1,42 +1,43 @@
 /**
- * Edad ATP — drill-down de una sub-edad (ARQUITECTURA_v2 §6.2). Ruta dinámica:
- * /edad-atp/sub-edad/[key] con key ∈ metabolica|corporal|cardiovascular|fitness|cognitiva.
- * Mini-ring + número, delta vs cronológica, componentes con status, y Acción ATP.
+ * Edad ATP — drill-down de una sub-edad. Ruta dinámica /edad-atp/sub-edad/[key] con
+ * key ∈ labs|composicion|fitness|cognicion|riesgos (áreas del motor v2).
+ *
+ * Sprint captura unificada ("SIMPLE vence inteligente"):
+ *  - ÚNICA fuente de verdad: `sub_edades[key].components` del motor v2 (ya normalizados
+ *    por motor-v2-view: banda, score 0-100 UI y display_value de derivados).
+ *  - El drill-down ES la captura: tap en una fila → editor inline (params manuales de
+ *    health_measurements / subjetivos) o deep-link DIRECTO a su formulario.
+ *  - Color del círculo por delta vs cronológica (statusColor ±1), no color fijo de área.
+ *  - CTA: con params pendientes → "Completar datos" (lleva al primero); sin pendientes
+ *    → Acción ATP de mejora.
  */
 import { useState, useCallback } from 'react';
-import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
+import { ScrollView, StyleSheet, Pressable, View, Modal, Alert } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
+import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
-import type { EdadAtpV2Result, SubEdadResult } from '@/src/types/edad-atp-v2';
+import { saveHealthMeasurement, saveQuestionnaireResponses } from '@/src/services/edad-atp/capture-service';
+import type { EdadAtpV2Result, SubEdadComponent, SubEdadKey, SubEdadResult } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from '@/src/components/edad-atp/tokens';
-import { MATRIZ_HOMBRES, MATRIZ_MUJERES } from '@/src/constants/edad-atp-matriz-v7-v6';
+import {
+  BAND_DISPLAY, type ComponentBand, statusColor,
+  SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR,
+} from '@/src/components/edad-atp/tokens';
+import { COMPONENT_META, getComponentMeta, type ComponentMeta } from '@/src/components/edad-atp/component-meta';
 
-// Motor v2: 5 áreas (labs/composicion/fitness/cognicion/riesgos). El drill-down de cada
-// área muestra los params que la alimentan (sub.components).
-const META: Record<string, { icon: string; label: string; color: string; action: string; route: string }> = {
-  labs: { icon: '🩸', label: 'Edad Labs', color: '#E24B4A', action: 'Optimiza biomarcadores: inflamación, glucosa y micronutrientes (Vit D, B12).', route: '/edad-atp/biomarkers' },
-  composicion: { icon: '💪', label: 'Edad Composición', color: '#a8e02a', action: 'Trabaja composición: fuerza progresiva + proteína suficiente.', route: '/edad-atp/composition' },
-  fitness: { icon: '🏃', label: 'Edad Fitness', color: '#EF9F27', action: 'Protocolo cardio ATP: 3x por semana de intervalos + fuerza.', route: '/edad-atp/tests' },
-  cognicion: { icon: '🧠', label: 'Edad Cognición', color: '#7F77DD', action: 'Ejercicio aeróbico + sueño óptimo mantienen tu velocidad y atención.', route: '/edad-atp/tests/reaction-time' },
-  riesgos: { icon: '❤️', label: 'Edad Riesgos', color: '#E24B4A', action: 'Cuida presión, lípidos (ApoB) y metabólico; suma cardio zona 2.', route: '/edad-atp/vitals' },
+const META: Record<string, { icon: string; label: string; action: string; route: string }> = {
+  labs: { icon: '🩸', label: 'Edad Labs', action: 'Optimiza biomarcadores: inflamación, glucosa y micronutrientes (Vit D, B12).', route: '/edad-atp/biomarkers' },
+  composicion: { icon: '💪', label: 'Edad Composición', action: 'Trabaja composición: fuerza progresiva + proteína suficiente.', route: '/edad-atp/composition' },
+  fitness: { icon: '🏃', label: 'Edad Fitness', action: 'Protocolo cardio ATP: 3x por semana de intervalos + fuerza.', route: '/edad-atp/tests' },
+  cognicion: { icon: '🧠', label: 'Edad Cognición', action: 'Ejercicio aeróbico + sueño óptimo mantienen tu velocidad y atención.', route: '/edad-atp/tests/reaction-time' },
+  riesgos: { icon: '❤️', label: 'Edad Riesgos', action: 'Cuida presión, lípidos (ApoB) y metabólico; suma cardio zona 2.', route: '/edad-atp/vitals' },
 };
-
-// Unidad por clave de matriz (HOMBRES y MUJERES comparten claves; primera gana).
-const PARAM_UNITS: Record<string, string> = {};
-for (const matriz of [MATRIZ_HOMBRES, MATRIZ_MUJERES]) {
-  for (const dom of Object.values(matriz)) {
-    for (const p of dom.params) {
-      if (p.unit && PARAM_UNITS[p.key] === undefined) PARAM_UNITS[p.key] = p.unit;
-    }
-  }
-}
 
 /**
  * Formato por magnitud — Math.round truncaba decimales a "0" (HbA1c 0.055,
@@ -54,36 +55,104 @@ function formatComponentValue(v: number, unit?: string): string {
   return unit ? `${num} ${unit}` : num;
 }
 
-function compStatus(score: number, missing: boolean): { glyph: string; color: string } {
-  if (missing) return { glyph: 'ⓘ pendiente', color: Colors.textSecondary };
-  if (score >= 70) return { glyph: '▲ óptimo', color: Colors.neonGreen };
-  if (score >= 40) return { glyph: '◐ aceptable', color: '#EF9F27' };
-  return { glyph: '▼ bajo', color: '#E24B4A' };
+/** Banda del componente (viene de motor-v2-view); fallback por score normalizado. */
+function bandOf(c: SubEdadComponent): ComponentBand {
+  if (c.band) return c.band as ComponentBand;
+  if (c.missing) return 'pendiente';
+  return c.score_0_100 >= 80 ? 'optimo' : c.score_0_100 >= 50 ? 'aceptable' : 'atencion';
 }
 
-function humanize(key: string): string {
-  return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
+type EditorState =
+  | { kind: 'hm'; compKey: string; meta: ComponentMeta }
+  | { kind: 'subjetivos' }
+  | null;
 
 export default function SubEdadDrillDown() {
   const { key } = useLocalSearchParams<{ key: string }>();
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
-  const meta = META[key as string] ?? META.labs;
+  const [editor, setEditor] = useState<EditorState>(null);
+  const [editorVal, setEditorVal] = useState('');
+  const [subjVals, setSubjVals] = useState<{ claridad: string; energia: string; memoria: string }>({ claridad: '', energia: '', memoria: '' });
+  const [saving, setSaving] = useState(false);
+
+  const areaKey = (key && key in COMPONENT_META ? key : 'labs') as SubEdadKey;
+  const meta = META[areaKey];
+
+  const refresh = useCallback(() => {
+    if (!user?.id) return;
+    computeEdadAtpV2(user.id).then(setResult).catch(() => {});
+  }, [user?.id]);
 
   useFocusEffect(useCallback(() => {
-    if (!user?.id) return;
     analytics.track(ATP_EVENTS.EDAD_ATP_SUBEDAD_VIEWED, { key: String(key) });
-    computeEdadAtpV2(user.id).then(setResult).catch(() => {});
-  }, [user?.id, key]));
+    refresh();
+  }, [refresh, key]));
 
-  const sub: SubEdadResult | null = result ? (result.sub_edades as any)[key as string] ?? null : null;
+  const sub: SubEdadResult | null = result ? result.sub_edades[areaKey] ?? null : null;
   const chrono = result?.chronological_age ?? 0;
   const delta = sub ? Math.round((sub.age_years - chrono) * 10) / 10 : 0;
-  const deltaColor = delta <= -1 ? Colors.neonGreen : delta >= 2 ? '#E24B4A' : '#EF9F27';
+  // Regla única de color (igual que la constelación): delta vs cronológica, ±1.
+  const ageColor = sub ? statusColor(sub.age_years, chrono) : EDAD_PENDING_COLOR;
   // CE bajo = mayoría de params sin contestar → número no representativo, mostrar Pendiente.
   const pending = sub != null && sub.ce_percent < SUB_EDAD_CE_PENDING_THRESHOLD;
+
+  const entries = sub ? Object.entries(sub.components) : [];
+  const pendingComps = entries.filter(([, c]) => bandOf(c) === 'pendiente');
+
+  /** Doctrina 3: la fila ES la captura — editor inline o deep-link directo. */
+  function openCapture(compKey: string, c: SubEdadComponent | null) {
+    const m = getComponentMeta(areaKey, compKey);
+    haptic.light();
+    if (m.capture.type === 'hm') {
+      setEditorVal(c && !c.missing && Number.isFinite(c.value) ? String(c.value) : '');
+      setEditor({ kind: 'hm', compKey, meta: m });
+      return;
+    }
+    if (m.capture.type === 'subjetivos') {
+      const avg = c && !c.missing && Number.isFinite(c.value) ? String(Math.round(c.value)) : '';
+      setSubjVals({ claridad: avg, energia: avg, memoria: avg });
+      setEditor({ kind: 'subjetivos' });
+      return;
+    }
+    router.push(m.capture.route as any);
+  }
+
+  async function saveInlineHm() {
+    if (!user?.id || editor?.kind !== 'hm' || editor.meta.capture.type !== 'hm') return;
+    const n = parseFloat(editorVal);
+    if (!Number.isFinite(n)) { Alert.alert('Valor', 'Ingresa un número válido.'); return; }
+    setSaving(true);
+    const r = await saveHealthMeasurement(user.id, { [editor.meta.capture.field]: editor.meta.integer ? Math.round(n) : n });
+    setSaving(false);
+    if (!r.ok) { Alert.alert('Error', 'No se pudo guardar.'); return; }
+    haptic.success();
+    setEditor(null);
+    refresh(); // recalcula el motor → la fila y el CE se actualizan
+  }
+
+  async function saveInlineSubjetivos() {
+    if (!user?.id) return;
+    const vals: Array<[string, string]> = [
+      ['claridad_mental', subjVals.claridad], ['energia_mental', subjVals.energia], ['memoria_autopercibida', subjVals.memoria],
+    ];
+    const rows = [];
+    for (const [k, s] of vals) {
+      const n = parseFloat(s);
+      if (!Number.isFinite(n) || n < 1 || n > 7) { Alert.alert('Valor', 'Los tres valores deben ser de 1 a 7.'); return; }
+      rows.push({ parameter_key: k, value: Math.round(n) });
+    }
+    setSaving(true);
+    // Domain propio: el delete-before-insert de saveQuestionnaireResponses solo toca
+    // 'cognicion_subjetivos' — no pisa los cuestionarios de dominio existentes.
+    const r = await saveQuestionnaireResponses(user.id, 'cognicion_subjetivos', rows);
+    setSaving(false);
+    if (!r.ok) { Alert.alert('Error', 'No se pudo guardar.'); return; }
+    haptic.success();
+    setEditor(null);
+    refresh();
+  }
 
   return (
     <Screen>
@@ -93,51 +162,103 @@ export default function SubEdadDrillDown() {
           <EliteText variant="caption" style={styles.calc}>Calculando…</EliteText>
         ) : (
           <>
-            <View style={[styles.ring, { borderColor: pending ? EDAD_PENDING_COLOR : meta.color }]}>
+            <View style={[styles.ring, { borderColor: pending ? EDAD_PENDING_COLOR : ageColor }]}>
               <EliteText style={styles.ringIcon}>{meta.icon}</EliteText>
               {pending ? (
                 <EliteText style={[styles.ringPending, { color: EDAD_PENDING_COLOR }]}>⚠️ Pendiente</EliteText>
               ) : (
-                <EliteText style={[styles.ringAge, { color: meta.color }]}>{sub.age_years.toFixed(1)}</EliteText>
+                <EliteText style={[styles.ringAge, { color: ageColor }]}>{sub.age_years.toFixed(1)}</EliteText>
               )}
             </View>
             {pending ? (
               <EliteText variant="caption" style={styles.pendingMsg}>
-                Esta sub-edad necesita más datos. CE actual: {Math.round(sub.ce_percent)}%. Completa los cuestionarios pendientes.
+                Esta sub-edad necesita más datos. CE actual: {Math.round(sub.ce_percent)}%. Captura los parámetros pendientes abajo.
               </EliteText>
             ) : (
-              <EliteText variant="caption" style={[styles.delta, { color: deltaColor }]}>
+              <EliteText variant="caption" style={[styles.delta, { color: ageColor }]}>
                 cronológica {chrono} · {delta > 0 ? '+' : ''}{delta} años · CE {Math.round(sub.ce_percent)}%
               </EliteText>
             )}
 
             <EliteText variant="body" style={styles.sectionTitle}>Componentes</EliteText>
-            {Object.entries(sub.components).map(([k, c]) => {
-              const st = compStatus(c.score_0_100, c.missing);
+            <EliteText variant="caption" style={styles.sectionHint}>Toca una fila para capturar o actualizar su dato.</EliteText>
+            {entries.map(([k, c]) => {
+              const band = bandOf(c);
+              const bd = BAND_DISPLAY[band];
+              const cm = getComponentMeta(areaKey, k);
+              const shown = c.display_value != null ? c.display_value : c.value;
               return (
-                <View key={k} style={styles.compRow}>
-                  <EliteText variant="body" style={styles.compLabel}>{humanize(k)}</EliteText>
+                <Pressable key={k} onPress={() => openCapture(k, c)} style={styles.compRow}>
+                  <EliteText variant="body" style={styles.compLabel}>{cm.label}</EliteText>
                   <View style={styles.compRight}>
-                    {!c.missing ? <EliteText variant="caption" style={styles.compVal}>{formatComponentValue(c.value, PARAM_UNITS[k])}</EliteText> : null}
-                    <EliteText variant="caption" style={[styles.compStatus, { color: st.color }]}>{st.glyph}</EliteText>
+                    {!c.missing ? (
+                      <EliteText variant="caption" style={styles.compVal}>
+                        {c.display_value != null ? c.display_value.toFixed(2) : formatComponentValue(shown, cm.unit)}
+                      </EliteText>
+                    ) : null}
+                    <EliteText variant="caption" style={[styles.compStatus, { color: bd.color }]}>{bd.glyph}</EliteText>
+                    <EliteText style={styles.chevron}>›</EliteText>
                   </View>
-                </View>
+                </Pressable>
               );
             })}
 
-            <View style={styles.actionCard}>
-              <EliteText variant="body" style={styles.actionTitle}>💡 Acción ATP</EliteText>
-              <EliteText variant="caption" style={styles.actionText}>{meta.action}</EliteText>
-              <Pressable onPress={() => { haptic.medium(); router.push(meta.route as any); }} style={styles.actionBtn}>
-                <EliteText variant="body" style={styles.actionBtnText}>Ir a mejorar</EliteText>
-              </Pressable>
-            </View>
+            {pendingComps.length > 0 ? (
+              <View style={styles.actionCard}>
+                <EliteText variant="body" style={styles.actionTitle}>📥 Completa tus datos</EliteText>
+                <EliteText variant="caption" style={styles.actionText}>
+                  {pendingComps.length} {pendingComps.length === 1 ? 'parámetro pendiente' : 'parámetros pendientes'}. Cada captura sube el CE de esta área.
+                </EliteText>
+                <Pressable onPress={() => openCapture(pendingComps[0][0], pendingComps[0][1])} style={styles.actionBtn}>
+                  <EliteText variant="body" style={styles.actionBtnText}>Completar datos</EliteText>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.actionCard}>
+                <EliteText variant="body" style={styles.actionTitle}>💡 Acción ATP</EliteText>
+                <EliteText variant="caption" style={styles.actionText}>{meta.action}</EliteText>
+                <Pressable onPress={() => { haptic.medium(); router.push(meta.route as any); }} style={styles.actionBtn}>
+                  <EliteText variant="body" style={styles.actionBtnText}>Ir a mejorar</EliteText>
+                </Pressable>
+              </View>
+            )}
           </>
         )}
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <EliteText variant="body" style={styles.backText}>Volver</EliteText>
         </Pressable>
       </ScrollView>
+
+      {/* Editor inline: modal numérico simple → guarda → recalcula → refresca. */}
+      <Modal visible={editor != null} transparent animationType="fade" onRequestClose={() => setEditor(null)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            {editor?.kind === 'hm' ? (
+              <>
+                <EliteText variant="body" style={styles.modalTitle}>{editor.meta.label}</EliteText>
+                <NumberInputRow label={editor.meta.label} unit={editor.meta.unit} value={editorVal} onChangeText={setEditorVal} />
+                <Pressable onPress={saveInlineHm} disabled={saving} style={[styles.actionBtn, saving && { opacity: 0.6 }]}>
+                  <EliteText variant="body" style={styles.actionBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
+                </Pressable>
+              </>
+            ) : editor?.kind === 'subjetivos' ? (
+              <>
+                <EliteText variant="body" style={styles.modalTitle}>Subjetivos (1-7)</EliteText>
+                <EliteText variant="caption" style={styles.modalHint}>1 = muy mal · 7 = excelente</EliteText>
+                <NumberInputRow label="Claridad mental" value={subjVals.claridad} onChangeText={(x) => setSubjVals((p) => ({ ...p, claridad: x }))} />
+                <NumberInputRow label="Energía mental" value={subjVals.energia} onChangeText={(x) => setSubjVals((p) => ({ ...p, energia: x }))} />
+                <NumberInputRow label="Memoria autopercibida" value={subjVals.memoria} onChangeText={(x) => setSubjVals((p) => ({ ...p, memoria: x }))} />
+                <Pressable onPress={saveInlineSubjetivos} disabled={saving} style={[styles.actionBtn, saving && { opacity: 0.6 }]}>
+                  <EliteText variant="body" style={styles.actionBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
+                </Pressable>
+              </>
+            ) : null}
+            <Pressable onPress={() => setEditor(null)} style={styles.modalCancel}>
+              <EliteText variant="caption" style={styles.modalCancelText}>Cancelar</EliteText>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -152,11 +273,13 @@ const styles = StyleSheet.create({
   delta: { textAlign: 'center', marginBottom: Spacing.sm },
   pendingMsg: { color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm, paddingHorizontal: Spacing.md, lineHeight: 18 },
   sectionTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold, marginTop: Spacing.sm },
+  sectionHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: -4 },
   compRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   compLabel: { color: Colors.textPrimary, flex: 1 },
   compRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   compVal: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
   compStatus: { fontSize: FontSizes.xs },
+  chevron: { color: Colors.textSecondary, fontSize: FontSizes.md, marginLeft: 2 },
   actionCard: { backgroundColor: 'rgba(168,224,42,0.08)', borderRadius: Radius.card, padding: Spacing.md, gap: 8, marginTop: Spacing.md },
   actionTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold },
   actionText: { color: Colors.textSecondary, fontSize: FontSizes.xs, lineHeight: 18 },
@@ -164,4 +287,10 @@ const styles = StyleSheet.create({
   actionBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
   backBtn: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   backText: { color: Colors.textPrimary },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },
+  modalCard: { width: '100%', backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, gap: Spacing.sm, borderWidth: 1, borderColor: '#1a1a1a' },
+  modalTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold },
+  modalHint: { color: Colors.textSecondary, fontSize: FontSizes.xs },
+  modalCancel: { alignItems: 'center', paddingVertical: Spacing.xs },
+  modalCancelText: { color: Colors.textSecondary },
 });
