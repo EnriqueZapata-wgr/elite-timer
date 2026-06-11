@@ -31,16 +31,21 @@ export default function TestsHub() {
     getLatestHealthMeasurement(user.id).then((row) => setVo2(row?.vo2max_estimate ?? null));
   }, [user?.id]));
 
-  const ftLast = (key: string, unit: string) => {
-    const r = ft[key];
-    return r ? `${Math.round(r.value)}${unit} · hace ${daysAgo(r.measured_at)}d` : 'Pendiente — toca para hacer';
+  // Doctrina "SIMPLE vence inteligente": todos son formularios de captura, EXCEPTO
+  // Reaction Time (el teléfono ES el instrumento — único test que se vive en la app).
+  const ftLast = (keys: string[], unit: string) => {
+    for (const key of keys) {
+      const r = ft[key];
+      if (r) return `${Math.round(r.value)}${unit} · hace ${daysAgo(r.measured_at)}d`;
+    }
+    return 'Pendiente — captura tu resultado';
   };
 
   const ROWS = [
-    { icon: '🧠', title: 'Reaction Time', sub: ftLast('reaction_time_choice', 'ms'), route: '/edad-atp/tests/reaction-time' },
-    { icon: '🏃', title: 'Cooper 12 min', sub: vo2 != null ? `VO2max ${vo2} ml/kg/min` : 'Pendiente — toca para hacer', route: '/edad-atp/tests/cooper' },
-    { icon: '🦾', title: 'Push-ups máximas', sub: ftLast('push_ups_max', ' reps'), route: '/edad-atp/tests/push-ups' },
-    { icon: '⚖️', title: 'Balance / Plank / Old Man', sub: ftLast('one_leg_balance', 's'), route: '/edad-atp/tests/balance' },
+    { icon: '🧠', title: 'Reaction Time', sub: ftLast(['reaction_time_choice'], 'ms'), route: '/edad-atp/tests/reaction-time' },
+    { icon: '🏃', title: 'Cooper 12 min · VO2max', sub: vo2 != null ? `VO2max ${vo2} ml/kg/min` : 'Pendiente — captura tu resultado', route: '/edad-atp/tests/cooper' },
+    { icon: '🦾', title: 'Push-ups máximas', sub: ftLast(['push_ups_max'], ' reps'), route: '/edad-atp/tests/push-ups' },
+    { icon: '⚖️', title: 'Balance · Plank · Old Man · BOLT · Sentadilla · Recovery HR', sub: ftLast(['test_de_equilibrio_en_un_pie', 'one_leg_balance'], 's'), route: '/edad-atp/tests/balance' },
     { icon: '💪', title: 'Grip (dinamómetro)', sub: 'Se captura en Composición', route: '/edad-atp/composition' },
   ];
 
