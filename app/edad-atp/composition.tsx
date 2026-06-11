@@ -85,16 +85,17 @@ export default function CompositionCapture() {
 
   async function handleSave() {
     if (!user?.id) return;
-    const fields = {
-      weight_kg: weight,
-      height_cm: height,
-      body_fat_pct: bodyFat,
-      muscle_mass_kg: num(v.muscle_mass_kg ?? ''),
-      visceral_fat: v.visceral_fat ? Math.round(Number(v.visceral_fat)) : undefined,
-      grip_strength_kg: num(v.grip_strength_kg ?? ''),
-    };
-    if (Object.values(fields).every((x) => x == null || Number.isNaN(x))) {
-      Alert.alert('Sin datos', 'Ingresa al menos un valor.');
+    // Guardar SOLO campos modificados vs lo precargado — actualizar 1 valor no debe
+    // reescribir el resto a ciegas (bug B6 del smoke 2026-06-11).
+    const fields: Record<string, number> = {};
+    for (const k of FIELD_KEYS) {
+      const raw = v[k] ?? '';
+      if (raw === (snapshot[k] ?? '') || raw.trim() === '') continue;
+      const n = k === 'visceral_fat' ? Math.round(Number(raw)) : num(raw);
+      if (n != null && Number.isFinite(n)) fields[k] = n;
+    }
+    if (Object.keys(fields).length === 0) {
+      Alert.alert('Sin cambios', 'Modifica al menos un valor para guardar.');
       return;
     }
     setSaving(true);
