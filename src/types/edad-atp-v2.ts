@@ -44,7 +44,7 @@ export type EdadCorporalAdjustments = {
 export type SubEdadResult = {
   age_years: number;
   ce_percent: number; // 0-100, calidad de evaluación
-  components: Record<string, { value: number; score_0_100: number; weight: number; missing: boolean }>;
+  components: Record<string, { value: number; score_0_100: number; weight: number; missing: boolean; band?: string | null }>;
 };
 
 export type EdadAtpV2Result = {

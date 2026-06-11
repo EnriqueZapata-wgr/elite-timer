@@ -57,4 +57,5 @@ sentry.properties
 # Cowork ↔ Claude Code buzón (no commitear — canal interno de tareas)
 COWORK_TASK.md
 COWORK_REPORT.md
+COWORK_REPORT_FASE4.md
 cowork_handoff/
