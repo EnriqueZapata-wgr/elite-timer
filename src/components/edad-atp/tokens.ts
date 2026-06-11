@@ -27,21 +27,41 @@ export const SUB_EDAD_CE_PENDING_THRESHOLD = 50;
 /** Color del estado pendiente (gris, con ⚠️ ámbar como indicador). */
 export const EDAD_PENDING_COLOR = '#8E8E93';
 
-/** Color por estado de una sub-edad vs cronológica. */
+/**
+ * Color por estado de una sub-edad vs cronológica. Regla única (sprint captura
+ * unificada): edad < cron−1 → verde · dentro de ±1 → neutro · > cron+1 → rojo.
+ * Aplica a TODAS las sub-edades y la constelación.
+ */
 export function statusColor(sub: number, chrono: number): string {
   const d = sub - chrono;
   if (d <= -1) return EDAD_STATUS.good;
-  if (d >= 2) return EDAD_STATUS.bad;
+  if (d >= 1) return EDAD_STATUS.bad;
   return EDAD_STATUS.neutral;
 }
 
-/** Glifo de estado (▲ mejor / ◐ neutro / ▼ peor). */
+/** Glifo de estado (▲ mejor / ◐ neutro / ▼ peor). Mismos umbrales que statusColor. */
 export function statusGlyph(sub: number, chrono: number): string {
   const d = sub - chrono;
   if (d <= -1) return '▲';
-  if (d >= 2) return '▼';
+  if (d >= 1) return '▼';
   return '◐';
 }
+
+/**
+ * Banda de un componente del motor v2 a partir de su score normalizado 0-100.
+ * ≥80 óptimo · ≥50 aceptable · <50 atención · null pendiente.
+ * "capturado" = dato presente sin score 0-100 (PhenoAge core: alimenta la fórmula
+ * directamente, no se banda individualmente). PROHIBIDO el label ambiguo "bajo".
+ */
+export type ComponentBand = 'optimo' | 'aceptable' | 'atencion' | 'pendiente' | 'capturado';
+
+export const BAND_DISPLAY: Record<ComponentBand, { glyph: string; color: string }> = {
+  optimo: { glyph: '▲ óptimo', color: EDAD_STATUS.good },
+  aceptable: { glyph: '◐ aceptable', color: EDAD_STATUS.neutral },
+  atencion: { glyph: '● atención', color: EDAD_STATUS.bad },
+  pendiente: { glyph: 'ⓘ pendiente', color: EDAD_PENDING_COLOR },
+  capturado: { glyph: '✓ capturado', color: '#7FA65A' },
+};
 
 /** Timings de animación (ms). */
 export const EDAD_TIMING = {

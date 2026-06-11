@@ -41,10 +41,27 @@ export type EdadCorporalAdjustments = {
   pct_musculo: number;
 };
 
+/**
+ * Componente de sub-edad en forma UI (normalizado desde AreaComponent del motor):
+ * - score_0_100: SIEMPRE en escala 0-100 UI (las semánticas internas del motor —
+ *   deltas de labs, edades parciales de cognición — se normalizan en motor-v2-view).
+ * - band: banda derivada del score (optimo/aceptable/atencion/pendiente/capturado).
+ * - display_value: valor derivado real para componentes calculados (ratio TG/HDL,
+ *   FFMI); si está, la UI lo muestra en vez de `value`.
+ */
+export type SubEdadComponent = {
+  value: number;
+  score_0_100: number;
+  weight: number;
+  missing: boolean;
+  band?: string | null;
+  display_value?: number | null;
+};
+
 export type SubEdadResult = {
   age_years: number;
   ce_percent: number; // 0-100, calidad de evaluación
-  components: Record<string, { value: number; score_0_100: number; weight: number; missing: boolean; band?: string | null }>;
+  components: Record<string, SubEdadComponent>;
 };
 
 /** Claves de las 5 sub-edades del motor v2 (por áreas ciegas). */
