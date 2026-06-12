@@ -74,7 +74,7 @@ export const COMPONENT_META: Record<SubEdadKey, Record<string, ComponentMeta>> =
     rt_simple: { label: 'Reacción simple', unit: 'ms', capture: REACTION },
     rt_choice: { label: 'Reacción de elección', unit: 'ms', capture: REACTION },
     go_no_go: { label: 'Go / No-Go', unit: 'ms', capture: REACTION },
-    subjetivos: { label: 'Subjetivos (claridad·energía·memoria)', unit: '/7', capture: { type: 'subjetivos' } },
+    subjetivos: { label: 'Subjetivos (claridad·energía·memoria)', unit: '/10', capture: { type: 'subjetivos' } },
   },
   riesgos: {
     apob: { label: 'ApoB', unit: 'mg/dL', capture: BIOMARKERS },

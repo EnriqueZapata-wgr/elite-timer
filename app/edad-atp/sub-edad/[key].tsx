@@ -140,7 +140,8 @@ export default function SubEdadDrillDown() {
     const rows = [];
     for (const [k, s] of vals) {
       const n = parseFloat(s);
-      if (!Number.isFinite(n) || n < 1 || n > 7) { Alert.alert('Valor', 'Los tres valores deben ser de 1 a 7.'); return; }
+      // Cognición v2.1: escala 0-10 (neutro en 5). El motor usa avg10 simétrico.
+      if (!Number.isFinite(n) || n < 0 || n > 10) { Alert.alert('Valor', 'Los tres valores deben ser de 0 a 10.'); return; }
       rows.push({ parameter_key: k, value: Math.round(n) });
     }
     setSaving(true);
@@ -243,11 +244,11 @@ export default function SubEdadDrillDown() {
               </>
             ) : editor?.kind === 'subjetivos' ? (
               <>
-                <EliteText variant="body" style={styles.modalTitle}>Subjetivos (1-7)</EliteText>
-                <EliteText variant="caption" style={styles.modalHint}>1 = muy mal · 7 = excelente</EliteText>
-                <NumberInputRow label="Claridad mental" value={subjVals.claridad} onChangeText={(x) => setSubjVals((p) => ({ ...p, claridad: x }))} />
-                <NumberInputRow label="Energía mental" value={subjVals.energia} onChangeText={(x) => setSubjVals((p) => ({ ...p, energia: x }))} />
-                <NumberInputRow label="Memoria autopercibida" value={subjVals.memoria} onChangeText={(x) => setSubjVals((p) => ({ ...p, memoria: x }))} />
+                <EliteText variant="body" style={styles.modalTitle}>Subjetivos (0-10)</EliteText>
+                <EliteText variant="caption" style={styles.modalHint}>0 = pésimo · 5 = normal · 10 = óptimo</EliteText>
+                <NumberInputRow label="Claridad mental" unit="/10" value={subjVals.claridad} onChangeText={(x) => setSubjVals((p) => ({ ...p, claridad: x }))} />
+                <NumberInputRow label="Energía mental" unit="/10" value={subjVals.energia} onChangeText={(x) => setSubjVals((p) => ({ ...p, energia: x }))} />
+                <NumberInputRow label="Memoria autopercibida" unit="/10" value={subjVals.memoria} onChangeText={(x) => setSubjVals((p) => ({ ...p, memoria: x }))} />
                 <Pressable onPress={saveInlineSubjetivos} disabled={saving} style={[styles.actionBtn, saving && { opacity: 0.6 }]}>
                   <EliteText variant="body" style={styles.actionBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
                 </Pressable>
