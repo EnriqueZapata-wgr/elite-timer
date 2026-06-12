@@ -15,6 +15,11 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeCEFromData, unifiedToCEData, type CEResult } from '@/src/services/edad-atp/ce-service';
 import { loadUserData, countFields, computeEdadAtpV2, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
+import { CeStars } from '@/src/components/edad-atp/CeStars';
+import { DatosNuevosBadge } from '@/src/components/edad-atp/DatosNuevosBadge';
+import { loadDatasetEntries } from '@/src/services/edad-atp/dataset-snapshot';
+import { computeDatasetHash } from '@/src/services/edad-atp/dataset-hash';
+import { getLastCalc, recalcStatus } from '@/src/services/edad-atp/recalc-gate';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
@@ -42,6 +47,7 @@ export default function EdadAtpHub() {
   const [ce, setCe] = useState<CEResult | null>(null);
   const [data, setData] = useState<UnifiedUserData | null>(null);
   const [edadResult, setEdadResult] = useState<EdadAtpV2Result | null>(null);
+  const [hasNewData, setHasNewData] = useState(false);
   const prevCeRef = useRef<number | null>(null);
 
   useFocusEffect(useCallback(() => {
@@ -67,6 +73,11 @@ export default function EdadAtpHub() {
       // Estado "result": si hay evaluación suficiente, precalcula la Integral para el hero.
       if (r.ce_integral >= CALC_THRESHOLD) setEdadResult(await computeEdadAtpV2(user.id));
       else setEdadResult(null);
+      // Badge de datos nuevos (#16): el snapshot actual vs el hash del último cálculo.
+      try {
+        const [entries, last] = await Promise.all([loadDatasetEntries(user.id), getLastCalc(user.id)]);
+        setHasNewData(recalcStatus(computeDatasetHash(entries), last).hasNewData && last != null);
+      } catch { /* badge es best-effort */ }
     })();
   }, [user?.id]));
 
@@ -80,7 +91,7 @@ export default function EdadAtpHub() {
       case 'biomarkers': {
         const phenoNew = ['albumin_g_dl', 'alp_u_l', 'lymphocyte_pct', 'mcv_fl', 'rdw_cv_pct'] as const;
         const n = phenoNew.filter((k) => data[k] != null).length;
-        const hasLabs = used.has('lab_results') || used.has('lab_uploads');
+        const hasLabs = used.has('lab_values');
         return { text: `PhenoAge ${n}/5${hasLabs ? ' · Labs ✓' : ''}`, done: n === 5 };
       }
       case 'composition': {
@@ -110,14 +121,22 @@ export default function EdadAtpHub() {
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.subtitle}>Captura de datos — MVP manual</EliteText>
 
-        {/* CE actual */}
+        {/* CE actual → estrellas (#8) */}
         <View style={styles.ceCard}>
-          <EliteText variant="caption" style={styles.ceLabel}>Calidad de tu evaluación</EliteText>
-          <EliteText style={styles.ceValue}>{Math.round(ceValue)}%</EliteText>
-          <View style={styles.ceBarTrack}>
-            <View style={[styles.ceBarFill, { width: `${Math.min(100, ceValue)}%` }]} />
-          </View>
+          <CeStars ce={ceValue} label="Calidad de tu evaluación" size={22} showLegend />
         </View>
+
+        <DatosNuevosBadge visible={hasNewData} onPress={() => { haptic.medium(); router.push('/edad-atp/result-preview' as any); }} />
+
+        {/* ATP Labs — vista canónica con historial y gráficas */}
+        <Pressable onPress={() => { haptic.medium(); router.push('/edad-atp/labs' as any); }} style={styles.card}>
+          <View style={styles.cardIcon}><Ionicons name="flask-outline" size={22} color={Colors.neonGreen} /></View>
+          <View style={{ flex: 1 }}>
+            <EliteText variant="body" style={styles.cardTitle}>ATP Labs</EliteText>
+            <EliteText variant="caption" style={styles.cardDesc}>Tus laboratorios con historial y gráficas de continuum</EliteText>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+        </Pressable>
 
         {/* Estado "result": Integral ya calculada → hero con CTA a ver/recalcular. */}
         {edadResult && (

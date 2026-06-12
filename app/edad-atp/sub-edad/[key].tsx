@@ -29,7 +29,9 @@ import {
   BAND_DISPLAY, type ComponentBand, statusColor,
   SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR,
 } from '@/src/components/edad-atp/tokens';
-import { COMPONENT_META, getComponentMeta, type ComponentMeta } from '@/src/components/edad-atp/component-meta';
+import { COMPONENT_META, getComponentMeta, componentToParamKey, type ComponentMeta } from '@/src/components/edad-atp/component-meta';
+import { CeStars } from '@/src/components/edad-atp/CeStars';
+import { LabInfoPopup } from '@/src/components/edad-atp/LabInfoPopup';
 
 const META: Record<string, { icon: string; label: string; action: string; route: string }> = {
   labs: { icon: '🩸', label: 'Edad Labs', action: 'Optimiza biomarcadores: inflamación, glucosa y micronutrientes (Vit D, B12).', route: '/edad-atp/biomarkers' },
@@ -76,6 +78,7 @@ export default function SubEdadDrillDown() {
   const [editorVal, setEditorVal] = useState('');
   const [subjVals, setSubjVals] = useState<{ claridad: string; energia: string; memoria: string }>({ claridad: '', energia: '', memoria: '' });
   const [saving, setSaving] = useState(false);
+  const [infoKey, setInfoKey] = useState<string | null>(null);
 
   const areaKey = (key && key in COMPONENT_META ? key : 'labs') as SubEdadKey;
   const meta = META[areaKey];
@@ -173,13 +176,14 @@ export default function SubEdadDrillDown() {
             </View>
             {pending ? (
               <EliteText variant="caption" style={styles.pendingMsg}>
-                Esta sub-edad necesita más datos. CE actual: {Math.round(sub.ce_percent)}%. Captura los parámetros pendientes abajo.
+                Esta sub-edad necesita más datos. Captura los parámetros pendientes abajo.
               </EliteText>
             ) : (
               <EliteText variant="caption" style={[styles.delta, { color: ageColor }]}>
-                cronológica {chrono} · {delta > 0 ? '+' : ''}{delta} años · CE {Math.round(sub.ce_percent)}%
+                cronológica {chrono} · {delta > 0 ? '+' : ''}{delta} años
               </EliteText>
             )}
+            <View style={styles.ceRow}><CeStars ce={sub.ce_percent} size={15} /></View>
 
             <EliteText variant="body" style={styles.sectionTitle}>Componentes</EliteText>
             <EliteText variant="caption" style={styles.sectionHint}>Toca una fila para capturar o actualizar su dato.</EliteText>
@@ -189,7 +193,13 @@ export default function SubEdadDrillDown() {
               const cm = getComponentMeta(areaKey, k);
               const shown = c.display_value != null ? c.display_value : c.value;
               return (
-                <Pressable key={k} onPress={() => openCapture(k, c)} style={styles.compRow}>
+                <Pressable
+                  key={k}
+                  onPress={() => openCapture(k, c)}
+                  onLongPress={() => { haptic.medium(); setInfoKey(componentToParamKey(areaKey, k) ?? k); }}
+                  delayLongPress={350}
+                  style={styles.compRow}
+                >
                   <EliteText variant="body" style={styles.compLabel}>{cm.label}</EliteText>
                   <View style={styles.compRight}>
                     {!c.missing ? (
@@ -260,6 +270,9 @@ export default function SubEdadDrillDown() {
           </View>
         </View>
       </Modal>
+
+      {/* Long-press en un componente → descripción (#3). */}
+      <LabInfoPopup parameterKey={infoKey} onClose={() => setInfoKey(null)} />
     </Screen>
   );
 }
@@ -271,7 +284,8 @@ const styles = StyleSheet.create({
   ringIcon: { fontSize: 26 },
   ringAge: { fontSize: 40, fontFamily: Fonts.extraBold, lineHeight: 44 },
   ringPending: { fontSize: FontSizes.md, fontFamily: Fonts.bold, lineHeight: 24 },
-  delta: { textAlign: 'center', marginBottom: Spacing.sm },
+  delta: { textAlign: 'center', marginBottom: 2 },
+  ceRow: { alignItems: 'center', marginBottom: Spacing.sm },
   pendingMsg: { color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm, paddingHorizontal: Spacing.md, lineHeight: 18 },
   sectionTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold, marginTop: Spacing.sm },
   sectionHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: -4 },

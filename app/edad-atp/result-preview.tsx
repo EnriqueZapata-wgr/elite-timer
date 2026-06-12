@@ -25,8 +25,16 @@ import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstella
 import { CalculationCinematic } from '@/src/components/edad-atp/CalculationCinematic';
 import { RecalculateDiff } from '@/src/components/edad-atp/RecalculateDiff';
 import { EdadAtpShareCard } from '@/src/components/edad-atp/EdadAtpShareCard';
+import { CeStars } from '@/src/components/edad-atp/CeStars';
+import { loadDatasetEntries } from '@/src/services/edad-atp/dataset-snapshot';
+import { computeDatasetHash } from '@/src/services/edad-atp/dataset-hash';
+import { getLastCalc, saveLastCalc, recalcStatus } from '@/src/services/edad-atp/recalc-gate';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+
+/** DD/MM desde YYYY-MM-DD para el copy de "sin cambios". */
+function ddmm(iso: string): string { const [, m, d] = iso.split('-'); return d && m ? `${d}/${m}` : iso; }
 
 const CINEMATIC_FLAG = 'edad_atp_cinematic_seen';
 const LAST_INTEGRAL = 'edad_atp_last_integral';
@@ -38,7 +46,7 @@ function buildSources(d: UnifiedUserData): SourceRow[] {
   const phenoNew = ['albumin_g_dl', 'alp_u_l', 'lymphocyte_pct', 'mcv_fl', 'rdw_cv_pct'] as const;
   const phenoCount = phenoNew.filter((k) => d[k] != null).length;
   const domainCount = Object.keys(d.sf_scores_by_domain ?? {}).length;
-  const hasLabs = used.has('lab_results') || used.has('lab_uploads');
+  const hasLabs = used.has('lab_values');
   const hasCognitive = d.reaction_time_simple_ms != null && d.reaction_time_choice_ms != null;
   return [
     { label: '🩸 Laboratorio', detail: hasLabs ? 'Disponibles' : 'Sin labs', done: hasLabs, route: '/edad-atp/biomarkers' },
@@ -59,22 +67,21 @@ export default function ResultScreen() {
   const [prevIntegral, setPrevIntegral] = useState<number | null>(null);
   const [confetti, setConfetti] = useState(0);
   const [error, setError] = useState(false);
+  const [calcState, setCalcState] = useState<'idle' | 'calculating'>('idle');
+  const [unchanged, setUnchanged] = useState<{ at: string } | null>(null);
   const shareRef = useRef<View>(null);
 
-  async function handleShare() {
-    if (!result) return;
-    try {
-      const uri = await captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' });
-      analytics.track(ATP_EVENTS.EDAD_ATP_SHARED, { edad_integral: Math.round(result.edad_integral) });
-      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'image/png' });
-    } catch { /* compartir cancelado / no disponible */ }
-  }
-
-  useFocusEffect(useCallback(() => {
+  const run = useCallback(async () => {
     if (!user?.id) return;
-    (async () => {
-      try {
+    setCalcState('calculating');
+    try {
       setError(false);
+      // Gating (#15): hash del set actual vs el del último cálculo (antes de recalcular).
+      const [entries, last] = await Promise.all([loadDatasetEntries(user.id), getLastCalc(user.id)]);
+      const currentHash = computeDatasetHash(entries);
+      const status = recalcStatus(currentHash, last);
+      setUnchanged(status.unchanged && status.lastAt ? { at: status.lastAt } : null);
+
       const r = await computeEdadAtpV2(user.id);
       const data = await loadUserData(user.id);
       const seen = await AsyncStorage.getItem(CINEMATIC_FLAG);
@@ -85,7 +92,6 @@ export default function ResultScreen() {
         analytics.track(ATP_EVENTS.EDAD_ATP_RECALCULATED, { from: Math.round(prev * 10) / 10, to: Math.round(r.edad_integral * 10) / 10 });
       }
       AsyncStorage.setItem(LAST_INTEGRAL, String(r.edad_integral));
-      // Confetti: edad < cronológica, o mejora al recalcular ≥ 1 año (X3 si ≥ 5).
       const improvement = prev != null ? prev - r.edad_integral : 0;
       const younger = r.edad_integral < r.chronological_age;
       if (improvement >= 5) setConfetti(250);
@@ -94,6 +100,8 @@ export default function ResultScreen() {
       setResult(r);
       setSources(buildSources(data));
       setCe((await computeCE(user.id)).ce_integral);
+      // Persistir el hash del cálculo → limpia el badge "datos nuevos" del hub (#16).
+      await saveLastCalc(user.id, { hash: currentHash, at: getLocalToday(), integral: r.edad_integral });
       if (!seen) { setCinematic(true); AsyncStorage.setItem(CINEMATIC_FLAG, '1'); analytics.track(ATP_EVENTS.EDAD_ATP_CINEMATIC_PLAYED, {}); }
       analytics.track(ATP_EVENTS.EDAD_ATP_RESULT_PREVIEWED, {
         edad_integral: Math.round(r.edad_integral),
@@ -102,11 +110,23 @@ export default function ResultScreen() {
       if (data.data_sources_used.length > 0) {
         analytics.track(ATP_EVENTS.EDAD_ATP_DATA_PREPOPULATED, { sources_used: data.data_sources_used, fields_count: countFields(data) });
       }
-      } catch {
-        setError(true);
-      }
-    })();
-  }, [user?.id]));
+    } catch {
+      setError(true);
+    } finally {
+      setCalcState('idle');
+    }
+  }, [user?.id]);
+
+  async function handleShare() {
+    if (!result) return;
+    try {
+      const uri = await captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' });
+      analytics.track(ATP_EVENTS.EDAD_ATP_SHARED, { edad_integral: Math.round(result.edad_integral) });
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'image/png' });
+    } catch { /* compartir cancelado / no disponible */ }
+  }
+
+  useFocusEffect(useCallback(() => { run(); }, [run]));
 
   return (
     <Screen>
@@ -119,9 +139,25 @@ export default function ResultScreen() {
         ) : (
           <>
             <SubEdadConstellation result={result} onPressCenter={() => setCinematic(true)} />
-            <EliteText variant="caption" style={styles.gold}>Gold standard ATP · CE {Math.round(ce)}%</EliteText>
+            <View style={styles.ceWrap}><CeStars ce={ce} label="Calidad de tu evaluación" size={20} showLegend /></View>
 
             {prevIntegral != null ? <RecalculateDiff from={prevIntegral} to={result.edad_integral} /> : null}
+
+            {/* CTA explícito de recálculo (#14) con estado y gating sin-cambios (#15). */}
+            <Pressable
+              onPress={() => { if (calcState === 'idle') run(); }}
+              style={[styles.recalcBtn, calcState === 'calculating' && styles.recalcBtnBusy]}
+              disabled={calcState === 'calculating'}
+            >
+              <EliteText variant="body" style={styles.recalcText}>
+                {calcState === 'calculating' ? 'Calculando…' : 'Recalcular Edad ATP'}
+              </EliteText>
+            </Pressable>
+            {unchanged ? (
+              <EliteText variant="caption" style={styles.unchanged}>
+                Sin cambios desde tu último cálculo ({ddmm(unchanged.at)}).
+              </EliteText>
+            ) : null}
 
             <EliteText variant="caption" style={styles.sourcesTitle}>📊 Fuentes que alimentaron el cálculo</EliteText>
             {sources.map((s) => (
@@ -169,7 +205,11 @@ export default function ResultScreen() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   calc: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xl },
-  gold: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.sm },
+  ceWrap: { alignItems: 'center', marginTop: Spacing.sm },
+  recalcBtn: { backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)' },
+  recalcBtnBusy: { opacity: 0.6 },
+  recalcText: { color: Colors.neonGreen, fontFamily: Fonts.bold },
+  unchanged: { color: Colors.textMuted, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 4 },
   sourcesTitle: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: Spacing.md, marginBottom: 2 },
   sourceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   sourceLabel: { color: Colors.textPrimary },

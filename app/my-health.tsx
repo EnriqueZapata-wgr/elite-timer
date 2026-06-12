@@ -26,6 +26,9 @@ import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { haptic } from '@/src/utils/haptics';
+import { EdadAtpHeroCard } from '@/src/components/edad-atp/EdadAtpHeroCard';
+import { UploadTypePicker } from '@/src/components/edad-atp/UploadTypePicker';
+import { routeUploadByType, type UploadType } from '@/src/constants/upload-types';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, TEXT_COLORS } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
@@ -48,7 +51,10 @@ export default function MyHealthScreen() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<{ count: number } | { error: string } | null>(null);
+  const [result, setResult] = useState<{ count: number } | { error: string } | { context: string } | null>(null);
+  // Selector de tipo de upload (#10): método elegido pendiente + visibilidad del picker.
+  const [pendingMethod, setPendingMethod] = useState<'camera' | 'gallery' | 'pdf' | null>(null);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   useEffect(() => { if (userId) loadData(); }, [userId]);
 
@@ -130,7 +136,23 @@ export default function MyHealthScreen() {
     doCalculate();
   };
 
-  const handlePickImage = async (useCamera: boolean) => {
+  // Paso 1 (#10): abrir el selector de tipo antes de elegir el archivo.
+  const openTypePicker = (method: 'camera' | 'gallery' | 'pdf') => {
+    setPendingMethod(method);
+    setResult(null);
+    setPickerVisible(true);
+  };
+
+  // Paso 2: tipo elegido → seguir con el método pendiente, llevando el tipo.
+  const handleTypeSelected = (type: UploadType) => {
+    setPickerVisible(false);
+    const method = pendingMethod;
+    if (method === 'camera') handlePickImage(true, type);
+    else if (method === 'gallery') handlePickImage(false, type);
+    else if (method === 'pdf') handlePickPDF(type);
+  };
+
+  const handlePickImage = async (useCamera: boolean, type?: UploadType) => {
     if (!ImagePicker) {
       Alert.alert(
         'Cámara no disponible',
@@ -144,10 +166,10 @@ export default function MyHealthScreen() {
       : await ImagePicker.launchImageLibraryAsync(opts);
 
     if (res.canceled || !res.assets?.[0]?.base64) return;
-    await processUpload(res.assets[0].base64, 'image');
+    await processUpload(res.assets[0].base64, 'image', type);
   };
 
-  const handlePickPDF = async () => {
+  const handlePickPDF = async (type?: UploadType) => {
     if (!DocumentPicker) {
       Alert.alert(
         'PDF no disponible en esta versión',
@@ -171,33 +193,42 @@ export default function MyHealthScreen() {
         reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
         reader.readAsDataURL(blob);
       });
-      await processUpload(base64, 'pdf');
+      await processUpload(base64, 'pdf', type);
     } catch (err: any) {
       setResult({ error: err.message ?? 'Error al seleccionar PDF' });
     }
   };
 
-  const processUpload = async (base64: string, fileType: 'image' | 'pdf') => {
+  const processUpload = async (base64: string, fileType: 'image' | 'pdf', type?: UploadType) => {
+    // Ruteo por tipo (#10/#11): solo Labs extrae a lab_values; el resto se adjunta como
+    // contexto y NUNCA toca el motor (un archivo del tipo equivocado no corrompe labs).
+    const route = routeUploadByType(type?.id ?? 'labs');
     setUploading(true);
     setResult(null);
     try {
       const { uploadId } = await uploadLabFile(userId, base64, fileType);
       setUploading(false);
-      setProcessing(true);
 
-      const extractResult = await extractLabValues(uploadId);
-      if ('error' in extractResult) {
-        setResult({ error: extractResult.error });
+      if (route.target === 'lab_values') {
+        // Tipo Laboratorios → extracción al motor. Si el contenido no parsea como lab,
+        // extractLabValues falla suave (marca failed, NO escribe valores).
+        setProcessing(true);
+        const extractResult = await extractLabValues(uploadId);
+        if ('error' in extractResult) {
+          setResult({ error: `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${extractResult.error})` });
+        } else {
+          setResult({ count: extractResult.extractedCount });
+          try {
+            const hasProfile = await ensureClientProfile(userId);
+            if (hasProfile) setHealthScore(await calculateAndSaveScore(userId));
+          } catch { /* perfil incompleto */ }
+        }
       } else {
-        setResult({ count: extractResult.extractedCount });
-        // Calcular scores automáticamente si hay perfil completo
-        try {
-          const hasProfile = await ensureClientProfile(userId);
-          if (hasProfile) {
-            const score = await calculateAndSaveScore(userId);
-            setHealthScore(score);
-          }
-        } catch { /* perfil incompleto, el usuario puede calcular manualmente */ }
+        // Composición y tipos 3-7 → guardado como respaldo/contexto, sin extraer a valores.
+        const label = type?.label ?? 'Archivo';
+        setResult({ context: route.target === 'composition'
+          ? `${label} guardado. La composición por archivo aún no se extrae automáticamente — captúrala en Composición.`
+          : `${label} guardado como respaldo de contexto. No alimenta tu Edad ATP.` });
       }
       loadData();
     } catch (err: any) {
@@ -229,6 +260,13 @@ export default function MyHealthScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
 
+        {/* Héroe: Edad ATP (motor v2 + lab_values) — protagonista de Mi Salud (#9). */}
+        {userId ? (
+          <Animated.View entering={FadeInUp.springify()}>
+            <EdadAtpHeroCard userId={userId} />
+          </Animated.View>
+        ) : null}
+
         {/* Subir estudio */}
         <Animated.View entering={FadeInUp.delay(150).springify()}>
         <GradientCard color={TEAL} style={s.uploadCard}>
@@ -242,15 +280,15 @@ export default function MyHealthScreen() {
             </EliteText>
 
             <View style={s.uploadBtns}>
-              <Pressable onPress={() => handlePickImage(true)} style={s.uploadBtn} disabled={uploading || processing}>
+              <Pressable onPress={() => openTypePicker('camera')} style={s.uploadBtn} disabled={uploading || processing}>
                 <Ionicons name="camera-outline" size={18} color={TEAL} />
                 <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Cámara</EliteText>
               </Pressable>
-              <Pressable onPress={() => handlePickImage(false)} style={s.uploadBtn} disabled={uploading || processing}>
+              <Pressable onPress={() => openTypePicker('gallery')} style={s.uploadBtn} disabled={uploading || processing}>
                 <Ionicons name="images-outline" size={18} color={TEAL} />
                 <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Galería</EliteText>
               </Pressable>
-              <Pressable onPress={handlePickPDF} style={s.uploadBtn} disabled={uploading || processing}>
+              <Pressable onPress={() => openTypePicker('pdf')} style={s.uploadBtn} disabled={uploading || processing}>
                 <Ionicons name="document-outline" size={18} color={TEAL} />
                 <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>PDF</EliteText>
               </Pressable>
@@ -284,6 +322,12 @@ export default function MyHealthScreen() {
           <View style={[s.statusBox, { borderColor: SEMANTIC.error + '30' }]}>
             <Ionicons name="alert-circle" size={20} color={SEMANTIC.error} />
             <EliteText variant="caption" style={{ color: SEMANTIC.error }}>{result.error}</EliteText>
+          </View>
+        )}
+        {result && 'context' in result && (
+          <View style={[s.statusBox, { borderColor: TEAL + '30' }]}>
+            <Ionicons name="document-attach-outline" size={20} color={TEAL} />
+            <EliteText variant="caption" style={{ color: TEAL }}>{result.context}</EliteText>
           </View>
         )}
 
@@ -553,6 +597,13 @@ export default function MyHealthScreen() {
         )}
         <MedicalDisclaimer feature="health" />
       </ScrollView>
+
+      {/* Selector de tipo de upload (#10) — se pregunta antes de procesar. */}
+      <UploadTypePicker
+        visible={pickerVisible}
+        onSelect={handleTypeSelected}
+        onCancel={() => { setPickerVisible(false); setPendingMethod(null); }}
+      />
     </Screen>
   );
 }
