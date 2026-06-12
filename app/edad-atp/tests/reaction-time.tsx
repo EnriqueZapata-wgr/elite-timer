@@ -9,11 +9,15 @@
  * - Filtro de outliers: descarta el 10% de hits más lentos.
  * - Fix B5: NO-GO con retención correcta (1500 ms sin tocar) = "correct withhold" y el
  *   trial AVANZA SOLO. Lógica pura en gng-trial-flow.ts (testeada con PRNG seeded).
+ * - v2.1: los errores de comisión se VEN — flash rojo + haptic.error + contador en vivo
+ *   "Errores: N", y la pantalla de resultado muestra accuracy (la inhibición es
+ *   resultado de primera clase, no nota al pie).
  *
  * ÚNICO test que se vive en la app (doctrina 2): el teléfono ES el instrumento.
  */
 import { useState, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import { router } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -32,7 +36,9 @@ const TRIALS = 20;
 const DEMO_TRIALS = 2;
 
 type Mode = 'simple' | 'choice' | 'gng';
-type Phase = 'instruction' | 'demo' | 'run' | 'saving';
+type Phase = 'instruction' | 'demo' | 'run' | 'saving' | 'result';
+
+type Summary = { simple: number; choice: number; gngRt: number; errRate: number; errors: number; noGoTotal: number; correctWithholds: number };
 
 const MODE_ORDER: Mode[] = ['simple', 'choice', 'gng'];
 const MODE_COPY: Record<Mode, { title: string; instr: string }> = {
@@ -50,6 +56,9 @@ export default function ReactionTimeTest() {
   const [armed, setArmed] = useState(false); // estímulo visible (simple/gng go)
   const [active, setActive] = useState(-1); // índice iluminado (choice)
   const [isNoGo, setIsNoGo] = useState(false); // estímulo no-go visible (gng)
+  const [errorCount, setErrorCount] = useState(0); // comisiones visibles en vivo (v2.1)
+  const [summary, setSummary] = useState<Summary | null>(null); // pantalla de resultado
+  const flash = useSharedValue(0); // overlay rojo al fallar un NO-GO
   const startRef = useRef(0);
   const rngRef = useRef<() => number>(mulberry32(1));
   const seededRef = useRef(false);
@@ -119,6 +128,7 @@ export default function ReactionTimeTest() {
       gngHits.current = []; gngErrors.current = 0; gngWithholds.current = 0;
       gngSchedule.current = buildGngSchedule(rand, TRIALS);
       gngIdx.current = 0;
+      setErrorCount(0);
     }
     setTimeout(() => schedule(mode), 300);
   }
@@ -170,10 +180,11 @@ export default function ReactionTimeTest() {
   function onGngTap() {
     if (!armed && !isNoGo) return; // sin estímulo aún
     if (isNoGo) {
-      // Comisión: tocó en no-go → error (cancela el withhold pendiente).
+      // Comisión: tocó en no-go → error (cancela el withhold pendiente). v2.1: se VE.
       if (withholdTimer.current) clearTimeout(withholdTimer.current);
-      if (phase === 'run') gngErrors.current += 1;
-      setIsNoGo(false); haptic.warning();
+      if (phase === 'run') { gngErrors.current += 1; setErrorCount((n) => n + 1); }
+      setIsNoGo(false); haptic.error();
+      flash.value = withSequence(withTiming(1, { duration: 90 }), withTiming(0, { duration: 320 }));
       advance(phase === 'demo');
       return;
     }
@@ -204,11 +215,16 @@ export default function ReactionTimeTest() {
     }
     analytics.track(ATP_EVENTS.EDAD_ATP_FUNCTIONAL_TEST_COMPLETED, { test: 'reaction_time', simple, choice, gng_rt: gngRt, gng_err: errRate, gng_withholds: gngWithholds.current });
     haptic.success();
-    Alert.alert('Test completado', `Simple ${simple}ms · Choice ${choice}ms · Go/No-Go ${gngRt}ms (${errRate}% err)`, [{ text: 'OK', onPress: () => router.back() }]);
+    // Inhibición: retenciones correctas sobre el total de estímulos NO-GO presentados
+    // (= retenciones + comisiones). Es la medida principal del Go/No-Go.
+    const noGoTotal = gngWithholds.current + gngErrors.current;
+    setSummary({ simple, choice, gngRt, errRate, errors: gngErrors.current, noGoTotal, correctWithholds: gngWithholds.current });
+    setPhase('result');
   }
 
   const counter = `${Math.min(trial + 1, TRIALS)}/${TRIALS}`;
   const isDemo = phase === 'demo';
+  const flashStyle = useAnimatedStyle(() => ({ opacity: flash.value }));
 
   return (
     <Screen>
@@ -245,11 +261,44 @@ export default function ReactionTimeTest() {
           <Pressable onPress={onGngTap} style={[styles.target, armed ? styles.targetOn : isNoGo ? styles.targetNoGo : styles.targetOff]}>
             <EliteText variant="body" style={styles.targetText}>{armed ? 'GO ¡TOCA!' : isNoGo ? 'NO-GO ✋' : 'Espera…'}</EliteText>
             <EliteText variant="caption" style={styles.counter}>{isDemo ? 'práctica' : counter}</EliteText>
+            {!isDemo ? (
+              <EliteText variant="caption" style={[styles.errCounter, errorCount > 0 && styles.errCounterOn]}>
+                Errores: {errorCount}
+              </EliteText>
+            ) : null}
           </Pressable>
         )}
 
         {phase === 'saving' && <EliteText variant="caption" style={styles.desc}>Guardando…</EliteText>}
+
+        {phase === 'result' && summary && (
+          <View style={styles.center}>
+            <EliteText variant="body" style={styles.title}>Resultado</EliteText>
+            <View style={styles.resultCard}>
+              <View style={styles.resultRow}><EliteText variant="body" style={styles.resultLabel}>Reacción simple</EliteText><EliteText variant="body" style={styles.resultVal}>{summary.simple} ms</EliteText></View>
+              <View style={styles.resultRow}><EliteText variant="body" style={styles.resultLabel}>Elección (4-AFC)</EliteText><EliteText variant="body" style={styles.resultVal}>{summary.choice} ms</EliteText></View>
+              <View style={styles.resultRow}><EliteText variant="body" style={styles.resultLabel}>Go/No-Go (hits)</EliteText><EliteText variant="body" style={styles.resultVal}>{summary.gngRt} ms</EliteText></View>
+              <View style={styles.resultDivider} />
+              <View style={styles.resultRow}>
+                <EliteText variant="body" style={styles.resultLabel}>Inhibición (No-Go)</EliteText>
+                <EliteText variant="body" style={[styles.resultVal, summary.errors === 0 ? styles.resultGood : styles.resultBad]}>
+                  {summary.correctWithholds}/{summary.noGoTotal} correctos
+                </EliteText>
+              </View>
+              <View style={styles.resultRow}>
+                <EliteText variant="body" style={styles.resultLabel}>Errores de comisión</EliteText>
+                <EliteText variant="body" style={[styles.resultVal, summary.errors === 0 ? styles.resultGood : styles.resultBad]}>
+                  {summary.errors} ({summary.errRate}%)
+                </EliteText>
+              </View>
+            </View>
+            <Pressable onPress={() => router.back()} style={styles.cta}><EliteText variant="body" style={styles.ctaText}>Listo</EliteText></Pressable>
+          </View>
+        )}
       </View>
+
+      {/* Flash rojo al fallar un NO-GO (v2.1: los errores se VEN). */}
+      <Animated.View pointerEvents="none" style={[styles.flash, flashStyle]} />
     </Screen>
   );
 }
@@ -267,6 +316,16 @@ const styles = StyleSheet.create({
   targetNoGo: { backgroundColor: '#E24B4A' },
   targetText: { color: Colors.textOnGreen, fontFamily: Fonts.extraBold, fontSize: FontSizes.xl },
   counter: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  errCounter: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 4, fontFamily: Fonts.semiBold },
+  errCounterOn: { color: '#fff', backgroundColor: 'rgba(226,75,74,0.85)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.sm, overflow: 'hidden' },
   choiceRow: { flexDirection: 'row', gap: Spacing.sm },
   choiceBox: { width: 70, height: 120, borderRadius: Radius.md },
+  flash: { ...StyleSheet.absoluteFillObject, backgroundColor: '#E24B4A' },
+  resultCard: { width: '100%', backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a', gap: Spacing.xs },
+  resultRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
+  resultLabel: { color: Colors.textSecondary },
+  resultVal: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
+  resultGood: { color: Colors.neonGreen },
+  resultBad: { color: '#E24B4A' },
+  resultDivider: { height: 1, backgroundColor: '#1a1a1a', marginVertical: Spacing.xs },
 });
