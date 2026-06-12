@@ -40,7 +40,7 @@ export const MOTOR_V2_CAPS = { min: 20, max: 100 } as const;
  * mapear a edad: un RT de teléfono NO es comparable a uno de laboratorio.
  * Valor de ARRANQUE — Enrique + Mariana lo calibran con datos reales.
  */
-export const RT_TOUCH_LATENCY_MS = 80;
+export const RT_TOUCH_LATENCY_MS = 65;
 
 export type MotorAreaKey = keyof typeof MOTOR_V2_PESOS_AREAS;
 

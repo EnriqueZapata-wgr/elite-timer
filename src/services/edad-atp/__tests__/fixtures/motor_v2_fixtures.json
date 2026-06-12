@@ -287,17 +287,17 @@
       "edad_labs_ciega": 39.8969200016088,
       "edad_composicion_ciega": 56.5,
       "edad_fitness_ciega": 37.05,
-      "edad_cognicion_ciega": 30.39,
+      "edad_cognicion_ciega": 31.89,
       "edad_riesgos_ciega": 42,
       "cronologica": 50,
       "edad_labs_ajustada": 42.4226900012066,
       "edad_composicion_ajustada": 54.55,
       "edad_fitness_ajustada": 41.5825,
-      "edad_cognicion_ajustada": 39.2145,
+      "edad_cognicion_ajustada": 40.0395,
       "edad_riesgos_ajustada": 44,
       "edad_pre_modulador": null,
       "factor_habitos": 47.4589998753167,
-      "edad_atp_integral": 46.1861898753
+      "edad_atp_integral": 46.3161273753
     }
   },
   "H2": {
@@ -1190,17 +1190,17 @@
       "edad_labs_ciega": 73.4884719232476,
       "edad_composicion_ciega": 62.5,
       "edad_fitness_ciega": 92.9166666666667,
-      "edad_cognicion_ciega": 55.965,
+      "edad_cognicion_ciega": 58.965,
       "edad_riesgos_ciega": 64.7375,
       "cronologica": 65,
       "edad_labs_ajustada": 71.3663539424357,
       "edad_composicion_ajustada": 63.25,
       "edad_fitness_ajustada": 83.1458333333333,
-      "edad_cognicion_ajustada": 60.03075,
+      "edad_cognicion_ajustada": 61.68075,
       "edad_riesgos_ajustada": 64.803125,
       "edad_pre_modulador": null,
       "factor_habitos": 73.7856382223894,
-      "edad_atp_integral": 72.6218313474
+      "edad_atp_integral": 72.8817063474
     }
   },
   "_config": {
