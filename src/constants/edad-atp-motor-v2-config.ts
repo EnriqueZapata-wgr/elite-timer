@@ -34,6 +34,14 @@ export const MOTOR_V2_FACTORES_ANCLAJE = {
 /** Caps absolutos de la Edad ATP integral. */
 export const MOTOR_V2_CAPS = { min: 20, max: 100 } as const;
 
+/**
+ * Cognición v2.1 — latencia añadida por captura en pantalla táctil (display + touch
+ * sampling) vs el botón físico de Der & Deary 2006. Se RESTA al RT medido antes de
+ * mapear a edad: un RT de teléfono NO es comparable a uno de laboratorio.
+ * Valor de ARRANQUE — Enrique + Mariana lo calibran con datos reales.
+ */
+export const RT_TOUCH_LATENCY_MS = 80;
+
 export type MotorAreaKey = keyof typeof MOTOR_V2_PESOS_AREAS;
 
 /**
