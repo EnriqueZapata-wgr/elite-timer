@@ -5,7 +5,7 @@ vi.mock('@/src/lib/logger', () => ({ warn: vi.fn(), error: vi.fn(), log: vi.fn()
 
 import { resolveParamValues } from '../load-all-params';
 
-const EMPTY = { lab: {}, bio: {}, ext: {}, hm: {}, quest: {}, ft: {} };
+const EMPTY = { canon: {}, hm: {}, quest: {}, ft: {} };
 
 describe('load-all-params — passthrough motor v2 (keys fuera de la matriz)', () => {
   it('copia go_no_go_rt_hits + go_no_go_error_rate desde functional_tests', () => {

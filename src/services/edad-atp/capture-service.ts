@@ -5,6 +5,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { insertCanonicalBiomarkers, insertLabValuesFromRaw } from './lab-values-service';
 
 export type SaveResult = { ok: boolean; error?: string };
 
@@ -27,6 +28,9 @@ export async function saveLabResults(userId: string, values: Record<string, numb
     logWarn('[edad-atp capture] saveLabResults failed:', error);
     return { ok: false, error: error.message };
   }
+  // Espejo a la fuente única `lab_values` (append-only). `values` está en columnas inglesas
+  // de lab_results → toCanonicalEntries las mapea a claves de matriz y convierte unidades.
+  await insertLabValuesFromRaw(userId, values, { source: 'form' });
   return { ok: true };
 }
 
@@ -48,6 +52,13 @@ export async function saveBiomarkers(userId: string, entries: BiomarkerEntry[]):
     logWarn('[edad-atp capture] saveBiomarkers failed:', error);
     return { ok: false, error: error.message };
   }
+  // Espejo a la fuente única `lab_values` (source 'manual'). biomarker_key ya es clave
+  // canónica (de matriz / PhenoAge); insertCanonicalBiomarkers convierte las unidades pct.
+  await insertCanonicalBiomarkers(
+    userId,
+    entries.map((e) => ({ parameter_key: e.key, value: e.value, unit: e.unit })),
+    { source: 'manual' },
+  );
   return { ok: true };
 }
 

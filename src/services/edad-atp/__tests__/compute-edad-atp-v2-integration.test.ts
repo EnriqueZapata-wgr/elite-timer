@@ -57,12 +57,16 @@ describe('buildInputsFromUnified — mapea UnifiedUserData → EdadAtpV2Inputs',
 });
 
 describe('computeEdadAtpV2 — E2E desde fuentes existentes (sin tablas nuevas)', () => {
-  it('usuario con solo lab_results + health_measurements → calcula Edad Integral', async () => {
+  it('usuario con solo lab_values + health_measurements → calcula Edad Integral', async () => {
     state.tables.client_profiles = [{ date_of_birth: '1981-01-01', biological_sex: 'male' }];
-    state.tables.lab_results = [{
-      glucose: 90, creatinine: 0.9, pcr: 0.2, wbc: 6000, hdl: 50, ldl: 100,
-      triglycerides: 90, cholesterol_total: 180, hba1c: 5.4, insulin: 5, lab_date: '2026-01-01',
-    }];
+    const lv = (parameter_key: string, value: number) =>
+      ({ parameter_key, value, measured_at: '2026-01-01', source: 'lab_pdf', is_voided: false });
+    state.tables.lab_values = [
+      lv('glucosa_en_ayuno', 90), lv('creatinina_serica', 0.9),
+      lv('proteina_c_reactiva_cuantitativa_pcr', 0.2), lv('leucocitos_totales', 6000),
+      lv('colesterol_hdl', 50), lv('colesterol_ldl', 100), lv('trigliceridos', 90),
+      lv('colesterol_total', 180), lv('hba1c', 0.054), lv('insulina', 5),
+    ];
     state.tables.health_measurements = [{
       weight_kg: 80, height_cm: 178, body_fat_pct: 18, muscle_mass_kg: 36,
       systolic_bp: 118, resting_hr: 58, vo2max_estimate: 42, date: '2026-02-01',

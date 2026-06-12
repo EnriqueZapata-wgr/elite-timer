@@ -5,6 +5,7 @@ import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { insertLabValuesFromRaw, voidLabValuesByUpload, voidLabValuesByLabResult } from '@/src/services/edad-atp/lab-values-service';
 
 async function getAuth() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -196,6 +197,21 @@ Solo valores encontrados. No mapeados→other_values.`;
 
     if (labError) throw new Error(labError.message || JSON.stringify(labError));
 
+    // Fuente ÚNICA canónica: escribir cada valor extraído a lab_values (append-only, con
+    // fecha+procedencia por-valor). Esto es lo que alimenta el motor Edad ATP — lab_results
+    // queda como expediente médico crudo. measured_at = fecha del estudio (no de la subida).
+    const rawValues: Record<string, number> = {};
+    for (const [key, val] of Object.entries(values)) {
+      const num = (val as any)?.value;
+      if (typeof num === 'number' && Number.isFinite(num)) rawValues[key] = num;
+    }
+    await insertLabValuesFromRaw(upload.user_id, rawValues, {
+      source: 'lab_pdf',
+      measuredAt: labData.lab_date,
+      uploadId,
+      labResultId: labResult.id,
+    });
+
     // Update upload
     await supabase.from('lab_uploads').update({
       status: 'extracted',
@@ -250,6 +266,11 @@ export async function deleteLabResult(labId: string): Promise<void> {
   // Obtener upload_id antes de borrar
   const { data: lab } = await supabase.from('lab_results').select('upload_id').eq('id', labId).single();
 
+  // Soft-delete de los valores canónicos derivados (no se borran: la lectura los ignora y
+  // cada parámetro vuelve a su penúltimo valor). Por upload y por lab_result para cubrir ambos.
+  await voidLabValuesByLabResult(labId);
+  if (lab?.upload_id) await voidLabValuesByUpload(lab.upload_id);
+
   // Romper referencias circulares antes de borrar
   if (lab?.upload_id) {
     await supabase.from('lab_uploads').update({ lab_result_id: null }).eq('lab_result_id', labId);
@@ -267,6 +288,9 @@ export async function deleteLabResult(labId: string): Promise<void> {
 }
 
 export async function deleteLabUpload(uploadId: string): Promise<void> {
+  // Soft-delete de los valores canónicos de este upload (archivo mal subido, #11): NO se
+  // borran otros valores; la lectura ignora is_voided y los params vuelven al penúltimo.
+  await voidLabValuesByUpload(uploadId);
   // Romper referencia circular: lab_results.upload_id → null
   await supabase.from('lab_results').update({ upload_id: null }).eq('upload_id', uploadId);
   // Borrar lab_results que vinieron de este upload

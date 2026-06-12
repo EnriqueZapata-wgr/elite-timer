@@ -18,7 +18,7 @@ import { buildMotorV2Input } from '../motor-v2-adapter';
 import { computeMotorV2 } from '../motor-v2-service';
 import type { UnifiedUserData } from '../edad-atp-v2-service';
 
-const EMPTY = { lab: {}, bio: {}, ext: {}, hm: {}, quest: {}, ft: {} };
+const EMPTY = { canon: {}, hm: {}, quest: {}, ft: {} };
 const BASE_DATA = { chronological_age: 40, sex: 'male', data_sources_used: [] } as unknown as UnifiedUserData;
 
 function motorFrom(ft: Record<string, number>, dataExtra: Partial<UnifiedUserData> = {}) {

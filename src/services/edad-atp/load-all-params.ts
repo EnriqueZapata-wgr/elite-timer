@@ -2,16 +2,18 @@
  * loadAllParamValues — lee los ~138 params de la matriz V7/V6 desde TODAS las fuentes
  * y devuelve un dict plano { param_key_matriz: valor } listo para computeSFGlobalReal.
  *
- * Fuentes (1 query c/u, en paralelo): lab_results, edad_atp_biomarkers,
- * lab_uploads.extracted_data, health_measurements, edad_atp_questionnaire_responses,
+ * Labs (lab + manual sin columna): fuente ÚNICA canónica `lab_values` (migración 072) —
+ * último valor por parámetro, sin perder paneles previos. Resto de fuentes (1 query c/u):
+ * health_measurements (composición/wearable), edad_atp_questionnaire_responses,
  * edad_atp_functional_tests. Resuelve cada param vía PARAM_SOURCE_MAP y calcula los
- * params `computed` al final. Aplica conversión de unidades DB→matriz cuando aplica.
+ * params `computed` al final. La conversión de unidad ya se aplicó al ESCRIBIR a lab_values.
  */
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getMatriz } from './sf-9band-service';
 import { resolveParamSource, COMPUTED_PARAMS, FT_KEY_ALIASES, MOTOR_PASSTHROUGH_FT_KEYS, MOTOR_PASSTHROUGH_QUEST_KEYS } from '@/src/constants/edad-atp-source-map';
 import { coalesceHealthRows, HEALTH_COALESCE_ROWS } from './capture-service';
+import { loadCanonicalLabValues, canonicalToValueDict } from './lab-values-service';
 import type { Sex } from '@/src/types/edad-atp-v2';
 
 function latestByKey<T extends Record<string, any>>(rows: T[], keyField: string, valField: string): Record<string, number> {
@@ -23,22 +25,16 @@ function latestByKey<T extends Record<string, any>>(rows: T[], keyField: string,
   return out;
 }
 
-function flattenExtracted(raw: any): Record<string, number> {
-  const out: Record<string, number> = {};
-  const ev = raw?.values ?? raw;
-  if (ev && typeof ev === 'object') {
-    for (const [k, v] of Object.entries(ev)) {
-      const val = typeof v === 'number' ? v : (v as any)?.value;
-      if (typeof val === 'number' && Number.isFinite(val)) out[k] = val;
-    }
-  }
-  return out;
-}
-
-/** Versión pura (testeable): resuelve los params desde lookups ya cargados. */
+/**
+ * Versión pura (testeable): resuelve los params desde lookups ya cargados.
+ *
+ * `canon` = mapa canónico de `lab_values` ({ parameter_key: value }), ya en unidad de matriz.
+ * Los params de Laboratorio (`lab`) y los de captura manual sin columna (`manual`) leen de
+ * AQUÍ por su clave de matriz — una sola fuente de verdad, sin perder paneles previos.
+ */
 export function resolveParamValues(
   sex: Sex,
-  src: { lab: Record<string, any>; bio: Record<string, number>; ext: Record<string, number>; hm: Record<string, any>; quest: Record<string, number>; ft: Record<string, number> },
+  src: { canon: Record<string, number>; hm: Record<string, any>; quest: Record<string, number>; ft: Record<string, number> },
 ): Record<string, number> {
   const matriz = getMatriz(sex);
   const out: Record<string, number> = {};
@@ -47,14 +43,10 @@ export function resolveParamValues(
       const s = resolveParamSource(p.key, p.source);
       let val: number | undefined;
       switch (s.source) {
-        case 'lab': {
-          for (const c of s.columns) if (src.lab[c] != null) { val = src.lab[c]; break; }
-          if (val == null) for (const c of s.columns) if (src.ext[c] != null) { val = src.ext[c]; break; }
-          if (val == null && src.ext[p.key] != null) val = src.ext[p.key];
-          if (val != null && s.convert) val = s.convert(val);
-          break;
-        }
-        case 'manual': val = src.bio[s.key] ?? src.ext[s.key]; break;
+        // Labs: valor canónico por clave de matriz (conversión de unidad ya aplicada al
+        // escribir a lab_values). Sin fallback a fuentes viejas — lab_values es la verdad.
+        case 'lab': val = src.canon[p.key]; break;
+        case 'manual': val = src.canon[s.key]; break;
         case 'questionnaire': val = src.quest[s.param_key]; break;
         case 'functional_test': {
           val = src.ft[s.test_key];
@@ -80,7 +72,8 @@ export function resolveParamValues(
           } else {
             val = raw;
           }
-          if (val == null) val = src.bio[p.key];
+          // Fallback a captura manual canónica (ej. vitals capturados como biomarcador).
+          if (val == null) val = src.canon[p.key];
           break;
         }
         case 'computed':
@@ -105,21 +98,17 @@ export function resolveParamValues(
   return out;
 }
 
-/** Carga e integra desde DB (6 queries en paralelo, cada "última" ordenada DESC). */
+/** Carga e integra desde DB. Labs desde lab_values (canónica); resto en paralelo. */
 export async function loadAllParamValues(userId: string, sex: Sex): Promise<Record<string, number>> {
   try {
-    const [labRes, bioRes, upRes, hmRes, qRes, ftRes] = await Promise.all([
-      supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
-      supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
-      supabase.from('lab_uploads').select('extracted_data').eq('user_id', userId).not('extracted_data', 'is', null).order('uploaded_at', { ascending: false }).limit(1),
+    const [canonMap, hmRes, qRes, ftRes] = await Promise.all([
+      loadCanonicalLabValues(userId),
       supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(HEALTH_COALESCE_ROWS),
       supabase.from('edad_atp_questionnaire_responses').select('parameter_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_functional_tests').select('test_key, value_primary, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
     ]);
     return resolveParamValues(sex, {
-      lab: (labRes.data ?? [])[0] ?? {},
-      bio: latestByKey(bioRes.data ?? [], 'biomarker_key', 'value'),
-      ext: flattenExtracted((upRes.data ?? [])[0]?.extracted_data),
+      canon: canonicalToValueDict(canonMap),
       // Coalesce por columna entre filas (mismo fix que loadUserData — bug B1/B6).
       hm: coalesceHealthRows((hmRes.data ?? []) as Record<string, any>[]) ?? {},
       quest: latestByKey(qRes.data ?? [], 'parameter_key', 'value'),

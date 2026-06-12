@@ -9,6 +9,8 @@ vi.mock('@/src/lib/supabase', () => ({
         inserted.push(rows);
         return Promise.resolve({ error: null });
       },
+      // Espejo a lab_values (insertCanonicalBiomarkers) — no afecta el conteo de `inserted`.
+      upsert: () => Promise.resolve({ error: null }),
     }),
   },
 }));

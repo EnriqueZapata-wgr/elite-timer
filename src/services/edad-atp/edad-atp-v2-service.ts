@@ -30,6 +30,7 @@ import { scoreQuestionnaireResponses } from './questionnaire-scoring';
 import { computeSFGlobalReal } from './sf-9band-service';
 import { loadAllParamValues } from './load-all-params';
 import { coalesceHealthRows, HEALTH_COALESCE_ROWS } from './capture-service';
+import { loadCanonicalLabValues, bridgeToPhenoAge } from './lab-values-service';
 import { SF_DOMAIN_WEIGHTS } from '@/src/constants/edad-atp-v2-model';
 
 export type EdadAtpV2Inputs = {
@@ -259,7 +260,7 @@ export const PHENOAGE_DEFAULTS = {
 const DEFAULT_AGE = 40;
 
 export type DataSource =
-  | 'lab_results' | 'lab_uploads' | 'health_measurements'
+  | 'lab_values' | 'lab_results' | 'lab_uploads' | 'health_measurements'
   | 'edad_atp_biomarkers' | 'edad_atp_body_composition'
   | 'edad_atp_questionnaire_responses' | 'edad_atp_functional_tests';
 
@@ -333,28 +334,33 @@ function ageFromDob(dob: string | null | undefined): number | null {
 
 /**
  * Lee y unifica TODAS las fuentes de datos del usuario en un objeto plano.
- * Las 8 queries corren en paralelo (Promise.all).
- * Jerarquía (lo más específico/reciente gana):
- *   edad_atp_biomarkers > lab_uploads.extracted_data > lab_results > health_measurements
+ * Las queries corren en paralelo (Promise.all).
+ * Labs: fuente ÚNICA canónica `lab_values` (último por parámetro, sin perder paneles previos).
+ * Jerarquía no-lab (lo más específico/reciente gana):
+ *   lab_values (labs) ; edad_atp_biomarkers (vitals/fallback) ; health_measurements (composición)
  * (composición usa health_measurements > edad_atp_body_composition como fallback soft).
  */
 export async function loadUserData(userId: string): Promise<UnifiedUserData> {
-  let profile: any = null, lab: any = null, upload: any = null, hm: any = null;
+  let profile: any = null, hm: any = null;
   let bioRows: any[] = [], compRow: any = null, qRows: any[] = [], ftRows: any[] = [];
+  let canonBridge: Record<string, number> = {};
+  let hasCanonLabs = false;
   try {
-    const [pRes, labRes, upRes, hmRes, bioRes, compRes, qRes, ftRes] = await Promise.all([
+    const [canonMap, pRes, hmRes, bioRes, compRes, qRes, ftRes] = await Promise.all([
+      loadCanonicalLabValues(userId),
       supabase.from('client_profiles').select('date_of_birth, biological_sex, height_cm').eq('user_id', userId).limit(1),
-      supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
-      supabase.from('lab_uploads').select('extracted_data').eq('user_id', userId).not('extracted_data', 'is', null).order('uploaded_at', { ascending: false }).limit(1),
       supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(HEALTH_COALESCE_ROWS),
       supabase.from('edad_atp_biomarkers').select('biomarker_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_body_composition').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
       supabase.from('edad_atp_questionnaire_responses').select('domain, parameter_key, value_text').eq('user_id', userId),
       supabase.from('edad_atp_functional_tests').select('test_key, value_primary, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
     ]);
+    // Labs desde la fuente ÚNICA canónica `lab_values` (bridge a campos PhenoAge, con la
+    // inversión de unidad a % donde el consumidor lo espera). Reemplaza lab_results +
+    // lab_uploads.extracted_data, que se leían con limit(1) y descartaban paneles previos.
+    canonBridge = bridgeToPhenoAge(canonMap);
+    hasCanonLabs = Object.keys(canonMap).length > 0;
     profile = (pRes.data ?? [])[0] ?? null;
-    lab = (labRes.data ?? [])[0] ?? null;
-    upload = (upRes.data ?? [])[0] ?? null;
     // Coalesce por columna: el upsert diario por (user_id, date) fragmenta las métricas
     // entre filas — leer solo la última "perdía" VO2/peso de días previos (bug B1/B6).
     hm = coalesceHealthRows((hmRes.data ?? []) as Record<string, any>[]);
@@ -366,21 +372,11 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     logWarn('[edad-atp-v2] loadUserData query failed:', err);
   }
 
-  // Biomarcadores manuales: rows ordenadas desc por measured_at → primera = más reciente.
+  // Biomarcadores manuales NO-lab (vitals/fitness capturados como biomarcador): rows desc
+  // por measured_at → primera = más reciente. Los biomarcadores de LABORATORIO ya viven en
+  // lab_values (canonBridge); aquí solo quedan como fallback de vitals (systolic_bp, etc.).
   const bio: Record<string, number> = {};
   for (const r of bioRows) if (r.value != null && bio[r.biomarker_key] === undefined) bio[r.biomarker_key] = r.value;
-
-  // extracted_data: soporta 2 shapes del parser:
-  //   A (nested): { values: { albumin: { value: 4.48 } } }
-  //   B (flat):   { albumin: 4.48 }
-  const ext: Record<string, number> = {};
-  const ev = upload?.extracted_data?.values ?? upload?.extracted_data;
-  if (ev && typeof ev === 'object') {
-    for (const [k, v] of Object.entries(ev)) {
-      const val = typeof v === 'number' ? v : (v as any)?.value;
-      if (typeof val === 'number' && Number.isFinite(val)) ext[k] = val;
-    }
-  }
 
   // Tests funcionales (RT, etc.).
   const ft: Record<string, number> = {};
@@ -399,9 +395,8 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
   );
 
   const data_sources_used: DataSource[] = [];
+  if (hasCanonLabs) data_sources_used.push('lab_values');
   if (bioRows.length) data_sources_used.push('edad_atp_biomarkers');
-  if (Object.keys(ext).length) data_sources_used.push('lab_uploads');
-  if (lab) data_sources_used.push('lab_results');
   if (hm) data_sources_used.push('health_measurements');
   if (compRow) data_sources_used.push('edad_atp_body_composition');
   if (qRows.length) data_sources_used.push('edad_atp_questionnaire_responses');
@@ -411,19 +406,17 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     chronological_age: ageFromDob(profile?.date_of_birth) ?? DEFAULT_AGE,
     // Sex type no soporta 'intersex' → mapea a 'male' (default del orquestador).
     sex: profile?.biological_sex === 'female' ? 'female' : 'male',
-    // Los 5 PhenoAge "nuevos" también viven en lab_uploads.extracted_data y en
-    // lab_results (columnas añadidas por la migración 017) — no solo en captura manual.
-    // rdw: lab_results usa columna `rdw` y el JSONB key `rdw` (sin _cv).
-    // Fallbacks por sinónimo (es/en) en keys del extracted_data del parser AI.
-    albumin_g_dl: firstNum(bio.albumin, ext.albumin, ext.albumina, ext.serum_albumin, lab?.albumin),
-    creatinine_mg_dl: firstNum(bio.creatinine, ext.creatinine, ext.creatinina, lab?.creatinine),
-    glucose_mg_dl: firstNum(bio.glucose, ext.glucose, ext.glucosa, lab?.glucose),
-    pcr_mg_dl: firstNum(bio.crp, ext.pcr, ext.crp, ext.proteina_c_reactiva, lab?.pcr),
-    lymphocyte_pct: firstNum(bio.lymphocyte_pct, ext.lymphocyte_pct, ext.linfocitos_pct, ext.lymphocytes_pct, lab?.lymphocyte_pct),
-    mcv_fl: firstNum(bio.mcv, ext.mcv, ext.vcm, lab?.mcv),
-    rdw_cv_pct: firstNum(bio.rdw_cv, ext.rdw_cv, ext.rdw, lab?.rdw),
-    alp_u_l: firstNum(bio.alp, ext.alp, ext.fosfatasa_alcalina, lab?.alp),
-    wbc_per_ul: firstNum(bio.wbc, ext.wbc, ext.leucocitos, lab?.wbc),
+    // Labs PhenoAge/metabólicos: fuente ÚNICA `lab_values` (canonBridge). Fallback a bio
+    // (edad_atp_biomarkers) solo por compat de capturas no-lab previas a la migración.
+    albumin_g_dl: firstNum(canonBridge.albumin_g_dl, bio.albumin),
+    creatinine_mg_dl: firstNum(canonBridge.creatinine_mg_dl, bio.creatinine),
+    glucose_mg_dl: firstNum(canonBridge.glucose_mg_dl, bio.glucose),
+    pcr_mg_dl: firstNum(canonBridge.pcr_mg_dl, bio.crp),
+    lymphocyte_pct: firstNum(canonBridge.lymphocyte_pct, bio.lymphocyte_pct),
+    mcv_fl: firstNum(canonBridge.mcv_fl, bio.mcv),
+    rdw_cv_pct: firstNum(canonBridge.rdw_cv_pct, bio.rdw_cv),
+    alp_u_l: firstNum(canonBridge.alp_u_l, bio.alp),
+    wbc_per_ul: firstNum(canonBridge.wbc_per_ul, bio.wbc),
     weight_kg,
     height_cm: firstNum(hm?.height_cm, compRow?.height_cm, profile?.height_cm),
     body_fat_pct: firstNum(hm?.body_fat_pct, compRow?.body_fat_pct),
@@ -436,12 +429,12 @@ export async function loadUserData(userId: string): Promise<UnifiedUserData> {
     resting_hr_bpm: firstNum(bio.resting_hr, hm?.resting_hr),
     vo2max_ml_kg_min: firstNum(bio.vo2max_estimated, hm?.vo2max_estimate),
     push_ups_max: firstNum(ft.push_ups_max),
-    insulin_uU_ml: firstNum(bio.insulin, ext.insulin, lab?.insulin),
-    hba1c_pct: firstNum(bio.hba1c, ext.hba1c, lab?.hba1c),
-    hdl_mg_dl: firstNum(bio.hdl, ext.hdl, lab?.hdl),
-    triglycerides_mg_dl: firstNum(bio.triglycerides, ext.triglycerides, lab?.triglycerides),
-    total_cholesterol_mg_dl: firstNum(bio.total_cholesterol, ext.cholesterol_total, lab?.cholesterol_total),
-    ldl_mg_dl: firstNum(bio.ldl, ext.ldl, lab?.ldl),
+    insulin_uU_ml: firstNum(canonBridge.insulin_uU_ml, bio.insulin),
+    hba1c_pct: firstNum(canonBridge.hba1c_pct, bio.hba1c),
+    hdl_mg_dl: firstNum(canonBridge.hdl_mg_dl, bio.hdl),
+    triglycerides_mg_dl: firstNum(canonBridge.triglycerides_mg_dl, bio.triglycerides),
+    total_cholesterol_mg_dl: firstNum(canonBridge.total_cholesterol_mg_dl, bio.total_cholesterol),
+    ldl_mg_dl: firstNum(canonBridge.ldl_mg_dl, bio.ldl),
     reaction_time_simple_ms: firstNum(ft.reaction_time_simple),
     reaction_time_choice_ms: firstNum(ft.reaction_time_choice),
     sf_scores_by_domain,
