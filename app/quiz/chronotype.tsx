@@ -119,13 +119,15 @@ export default function ChronotypeQuizScreen() {
         await submitQuizResult(quiz.id, answers, scores, result, { schedule });
         await saveUserChronotype(result, schedule, scores);
       }
-      // Update onboarding step
+      // Update onboarding step — SOLO si venimos del flujo de onboarding. Tomar el quiz de
+      // cronotipo SUELTO no debe pisar onboarding_step: reseteaba a usuarios ya 'completed'
+      // a 'chronotype' → quedaban atrapados en onboarding 4/9 al siguiente arranque en frío.
+      const fromOnboarding = params?.from === 'onboarding';
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      if (user && fromOnboarding) {
         await supabase.from('profiles').update({ onboarding_step: 'chronotype' }).eq('id', user.id).then(() => {}, () => {});
       }
       // If from onboarding, continue to quiz integral
-      const fromOnboarding = params?.from === 'onboarding';
       if (fromOnboarding) {
         router.replace('/quiz-take?quiz_id=lifestyle_assessment&from=onboarding' as any);
       } else {
