@@ -15,8 +15,6 @@ import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
 import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult } from '@/src/services/lab-service';
-import { calculateAndSaveScore, getLatestScore, ensureClientProfile } from '@/src/services/health-score-service';
-import type { HealthScore } from '@/src/data/functional-health-engine';
 import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-service';
 import { parseLocalDate } from '@/src/utils/date-helpers';
 import { getStudyType } from '@/src/data/study-types';
@@ -46,8 +44,6 @@ export default function MyHealthScreen() {
   const [healthMeasure, setHealthMeasure] = useState<HealthMeasurement | null>(null);
   const [studies, setStudies] = useState<ClinicalStudy[]>([]);
   const [expandedStudy, setExpandedStudy] = useState<string | null>(null);
-  const [healthScore, setHealthScore] = useState<HealthScore | null>(null);
-  const [calculating, setCalculating] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -61,79 +57,18 @@ export default function MyHealthScreen() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [u, l, st, hs, hm] = await Promise.all([
+      const [u, l, st, hm] = await Promise.all([
         getLabUploads(userId),
         getLabHistory(userId),
         getStudies(userId, 10).catch(() => []),
-        getLatestScore(userId).catch(() => null),
         getLatestMeasurement(userId).catch(() => null),
       ]);
       setUploads(u);
       setLabs(l);
       setStudies(st.filter(s => s.status === 'interpreted' || s.status === 'reviewed'));
-      setHealthScore(hs);
       setHealthMeasure(hm);
     } catch { /* */ }
     setLoading(false);
-  };
-
-  /** Calcular/recalcular scores de salud — pide datos de perfil si faltan */
-  const handleCalculateScore = async () => {
-    haptic.light();
-    // Verificar que exista perfil con fecha de nacimiento
-    const hasProfile = await ensureClientProfile(userId);
-    if (!hasProfile) {
-      // Pedir datos mínimos
-      promptForProfile();
-      return;
-    }
-    doCalculate();
-  };
-
-  const doCalculate = async () => {
-    setCalculating(true);
-    try {
-      const score = await calculateAndSaveScore(userId);
-      setHealthScore(score);
-      haptic.success();
-    } catch (err: any) {
-      Alert.alert('Error al calcular', err.message || 'Verifica que tengas labs subidos.');
-      haptic.error();
-    }
-    setCalculating(false);
-  };
-
-  const promptForProfile = () => {
-    Alert.alert(
-      'Datos necesarios',
-      'Para calcular tu edad biológica necesitamos tu fecha de nacimiento y sexo biológico.\n\n¿Cuál es tu sexo biológico?',
-      [
-        { text: 'Hombre', onPress: () => promptAge('male') },
-        { text: 'Mujer', onPress: () => promptAge('female') },
-        { text: 'Cancelar', style: 'cancel' },
-      ],
-    );
-  };
-
-  const promptAge = (sex: string) => {
-    Alert.alert(
-      '¿Tu rango de edad?',
-      'Selecciona el más cercano:',
-      [
-        { text: '25-30', onPress: () => saveProfileAndCalc(sex, 27) },
-        { text: '31-35', onPress: () => saveProfileAndCalc(sex, 33) },
-        { text: '36-40', onPress: () => saveProfileAndCalc(sex, 38) },
-        { text: '41-50', onPress: () => saveProfileAndCalc(sex, 45) },
-        { text: '51+', onPress: () => saveProfileAndCalc(sex, 55) },
-      ],
-    );
-  };
-
-  const saveProfileAndCalc = async (sex: string, age: number) => {
-    const dob = new Date();
-    dob.setFullYear(dob.getFullYear() - age);
-    await ensureClientProfile(userId, dob.toISOString().split('T')[0], sex);
-    doCalculate();
   };
 
   // Paso 1 (#10): abrir el selector de tipo antes de elegir el archivo.
@@ -218,10 +153,7 @@ export default function MyHealthScreen() {
           setResult({ error: `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${extractResult.error})` });
         } else {
           setResult({ count: extractResult.extractedCount });
-          try {
-            const hasProfile = await ensureClientProfile(userId);
-            if (hasProfile) setHealthScore(await calculateAndSaveScore(userId));
-          } catch { /* perfil incompleto */ }
+          // El héroe Edad ATP (motor v2) recalcula con su propia lectura al volver a enfocar.
         }
       } else {
         // Composición y tipos 3-7 → guardado como respaldo/contexto, sin extraer a valores.
@@ -241,7 +173,7 @@ export default function MyHealthScreen() {
   // Recomendaciones para mejorar la evaluación
   const impactColor = (impact: string) => impact === 'muy alto' ? SEMANTIC.error : impact === 'alto' ? SEMANTIC.warning : CATEGORY_COLORS.nutrition;
 
-  const getRecommendations = (hm: HealthMeasurement | null, labList: LabResult[], hs: HealthScore | null) => {
+  const getRecommendations = (hm: HealthMeasurement | null, labList: LabResult[]) => {
     const recs: { icon: string; title: string; desc: string; impact: string; route: string }[] = [];
     if (!labList.length) recs.push({ icon: 'flask-outline', title: 'Sube laboratorios', desc: 'La IA calcula tu edad biológica con PhenoAge', impact: 'muy alto', route: '/my-health' });
     if (!hm?.grip_strength_kg) recs.push({ icon: 'hand-left-outline', title: 'Fuerza de agarre', desc: 'Predictor #1 de longevidad', impact: 'alto', route: '/health-input' });
@@ -252,7 +184,7 @@ export default function MyHealthScreen() {
     return recs;
   };
 
-  const recs = getRecommendations(healthMeasure, labs, healthScore);
+  const recs = getRecommendations(healthMeasure, labs);
 
   return (
     <Screen>
@@ -314,7 +246,7 @@ export default function MyHealthScreen() {
           <View style={[s.statusBox, { borderColor: Colors.neonGreen + '30' }]}>
             <Ionicons name="checkmark-circle" size={20} color={Colors.neonGreen} />
             <EliteText variant="caption" style={{ color: Colors.neonGreen }}>
-              ¡Estudio analizado! {result.count} valores extraídos. Tus scores se han actualizado.
+              ¡Estudio analizado! {result.count} valores extraídos. Tu Edad ATP se actualizó.
             </EliteText>
           </View>
         )}
@@ -330,100 +262,6 @@ export default function MyHealthScreen() {
             <EliteText variant="caption" style={{ color: TEAL }}>{result.context}</EliteText>
           </View>
         )}
-
-        {/* ── SCORES DE SALUD ── */}
-        {healthScore ? (
-          <Animated.View entering={FadeInUp.delay(200).springify()}>
-            <SectionTitle style={s.sectionLabelSpacing}>TUS SCORES</SectionTitle>
-            <View style={s.scoresGrid}>
-              <ScoreCard
-                label="Edad biológica"
-                value={healthScore.biologicalAge ? Math.round(healthScore.biologicalAge).toString() : '—'}
-                unit="años"
-                icon="fitness-outline"
-                color={healthScore.biologicalAge && healthScore.agingRate
-                  ? (healthScore.agingRate < 1.0 ? SEMANTIC.success : healthScore.agingRate < 1.1 ? SEMANTIC.warning : SEMANTIC.error)
-                  : TEAL}
-              />
-              <ScoreCard
-                label="Salud funcional"
-                value={healthScore.functionalHealthScore ? Math.round(healthScore.functionalHealthScore).toString() : '—'}
-                unit="/100"
-                icon="heart-outline"
-                color={healthScore.functionalHealthScore
-                  ? (healthScore.functionalHealthScore > 80 ? SEMANTIC.success : healthScore.functionalHealthScore > 60 ? SEMANTIC.warning : SEMANTIC.error)
-                  : TEAL}
-              />
-              <ScoreCard
-                label="Envejecimiento"
-                value={healthScore.agingRate ? healthScore.agingRate.toFixed(2) : '—'}
-                unit="x"
-                icon="hourglass-outline"
-                color={healthScore.agingRate
-                  ? (healthScore.agingRate < 1.0 ? SEMANTIC.success : healthScore.agingRate < 1.1 ? SEMANTIC.warning : SEMANTIC.error)
-                  : TEAL}
-              />
-              <ScoreCard
-                label="Calidad eval."
-                value={healthScore.evaluationQuality != null ? Math.round(healthScore.evaluationQuality).toString() : '—'}
-                unit="%"
-                icon="clipboard-outline"
-                color={healthScore.evaluationQuality
-                  ? (healthScore.evaluationQuality > 70 ? SEMANTIC.success : healthScore.evaluationQuality > 40 ? SEMANTIC.warning : SEMANTIC.error)
-                  : TEAL}
-              />
-            </View>
-
-            {/* PhenoAge missing markers */}
-            {healthScore.phenoAgeMissing && healthScore.phenoAgeMissing.length > 0 && (
-              <View style={s.missingBox}>
-                <Ionicons name="information-circle-outline" size={16} color={SEMANTIC.warning} />
-                <EliteText variant="caption" style={{ color: SEMANTIC.warning, fontSize: FontSizes.xs, flex: 1 }}>
-                  Para mejorar la precisión de tu edad biológica, necesitas: {healthScore.phenoAgeMissing.join(', ')}
-                </EliteText>
-              </View>
-            )}
-
-            {/* Dominios */}
-            {healthScore.domains && healthScore.domains.length > 0 && (
-              <View style={s.domainsSection}>
-                <SectionTitle style={{ marginTop: Spacing.sm }}>DOMINIOS</SectionTitle>
-                {healthScore.domains.map((d: any) => {
-                  const pct = Math.round(d.functionalScore ?? 0);
-                  const barColor = pct > 80 ? SEMANTIC.success : pct > 60 ? SEMANTIC.warning : SEMANTIC.error;
-                  return (
-                    <View key={d.key} style={s.domainRow}>
-                      <EliteText variant="caption" style={s.domainLabel}>{d.name}</EliteText>
-                      <View style={s.domainBarBg}>
-                        <View style={[s.domainBarFill, { width: `${pct}%`, backgroundColor: barColor }]} />
-                      </View>
-                      <EliteText variant="caption" style={[s.domainPct, { color: barColor }]}>{pct}</EliteText>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {/* Recalcular */}
-            <AnimatedPressable onPress={handleCalculateScore} disabled={calculating} style={s.recalcBtn}>
-              <Ionicons name="refresh-outline" size={16} color={TEAL} />
-              <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm }}>
-                {calculating ? 'Calculando...' : 'Recalcular scores'}
-              </EliteText>
-            </AnimatedPressable>
-          </Animated.View>
-        ) : labs.length > 0 ? (
-          /* Hay labs pero no scores → botón para calcular */
-          <AnimatedPressable onPress={handleCalculateScore} disabled={calculating} style={s.calcBtnHero}>
-            <Ionicons name="analytics-outline" size={24} color={Colors.black} />
-            <EliteText style={{ color: Colors.black, fontFamily: Fonts.bold, fontSize: FontSizes.lg }}>
-              {calculating ? 'Calculando...' : 'Calcular mis scores'}
-            </EliteText>
-            <EliteText variant="caption" style={{ color: Colors.black + '80', fontSize: FontSizes.xs }}>
-              Edad biológica, salud funcional y más
-            </EliteText>
-          </AnimatedPressable>
-        ) : null}
 
         {/* Recomendaciones */}
         {recs.length > 0 && (
@@ -491,27 +329,40 @@ export default function MyHealthScreen() {
                 Sin labs registrados
               </EliteText>
             ) : (
-              labs.map(lab => (
+              labs.map(lab => {
+                // #5: las capturas manuales (saveLabResults usa lab_name fijo) NO son un panel
+                // de lab subido — diferenciarlas visualmente para no confundir al usuario.
+                const isManual = lab.lab_name === 'Edad ATP (captura manual)';
+                const displayName = isManual ? 'Biomarcadores (captura manual)' : (lab.lab_name ?? 'Laboratorio');
+                return (
                 <View key={lab.id} style={s.labCard}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
-                    <Ionicons name="flask-outline" size={16} color={TEAL} />
+                    <Ionicons name={isManual ? 'create-outline' : 'flask-outline'} size={16} color={isManual ? CATEGORY_COLORS.nutrition : TEAL} />
                     <EliteText variant="body" style={{ fontFamily: Fonts.semiBold, flex: 1 }}>
-                      {lab.lab_name ?? 'Laboratorio'}
+                      {displayName}
                     </EliteText>
-                    <View style={[s.badge, {
-                      backgroundColor: lab.status === 'approved' ? Colors.neonGreen + '15'
-                        : lab.status === 'draft' ? TEAL + '15'
-                        : SEMANTIC.warning + '15'
-                    }]}>
-                      <EliteText variant="caption" style={{
-                        color: lab.status === 'approved' ? Colors.neonGreen
-                          : lab.status === 'draft' ? TEAL
-                          : SEMANTIC.warning,
-                        fontSize: FontSizes.xs, fontFamily: Fonts.bold
-                      }}>
-                        {lab.status === 'approved' ? 'Aprobado' : lab.status === 'draft' ? 'Extraído' : 'En revisión'}
-                      </EliteText>
-                    </View>
+                    {isManual ? (
+                      <View style={[s.badge, { backgroundColor: CATEGORY_COLORS.nutrition + '15' }]}>
+                        <EliteText variant="caption" style={{ color: CATEGORY_COLORS.nutrition, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>
+                          Captura manual
+                        </EliteText>
+                      </View>
+                    ) : (
+                      <View style={[s.badge, {
+                        backgroundColor: lab.status === 'approved' ? Colors.neonGreen + '15'
+                          : lab.status === 'draft' ? TEAL + '15'
+                          : SEMANTIC.warning + '15'
+                      }]}>
+                        <EliteText variant="caption" style={{
+                          color: lab.status === 'approved' ? Colors.neonGreen
+                            : lab.status === 'draft' ? TEAL
+                            : SEMANTIC.warning,
+                          fontSize: FontSizes.xs, fontFamily: Fonts.bold
+                        }}>
+                          {lab.status === 'approved' ? 'Aprobado' : lab.status === 'draft' ? 'Extraído' : 'En revisión'}
+                        </EliteText>
+                      </View>
+                    )}
                   </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
                     <EliteText variant="caption" style={{ color: Colors.textSecondary }}>
@@ -534,7 +385,8 @@ export default function MyHealthScreen() {
                     )}
                   </View>
                 </View>
-              ))
+                );
+              })
             )}
           </Animated.View>
         )}
@@ -608,25 +460,6 @@ export default function MyHealthScreen() {
   );
 }
 
-// === SUB-COMPONENTES ===
-
-function ScoreCard({ label, value, unit, icon, color }: {
-  label: string; value: string; unit: string; icon: string; color: string;
-}) {
-  return (
-    <View style={s.scoreCard}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <Ionicons name={icon as any} size={14} color={color} />
-        <EliteText variant="caption" style={{ color, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold }}>{label}</EliteText>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-        <EliteText style={{ fontSize: FontSizes.hero, fontFamily: Fonts.extraBold, color }}>{value}</EliteText>
-        <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs }}>{unit}</EliteText>
-      </View>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.black },
   content: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
@@ -650,29 +483,6 @@ const s = StyleSheet.create({
   badge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: Radius.pill },
 
   // Scores
-  scoresGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  scoreCard: {
-    width: '48%', flexGrow: 1, backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,
-  },
-  missingBox: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: SEMANTIC.warning + '10', borderRadius: Radius.sm,
-    padding: Spacing.sm, marginTop: Spacing.sm,
-  },
-  domainsSection: { marginBottom: Spacing.sm },
-  domainRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 6 },
-  domainLabel: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, width: 90 },
-  domainBarBg: { flex: 1, height: 4, backgroundColor: SURFACES.cardLight, borderRadius: Radius.xs, overflow: 'hidden' },
-  domainBarFill: { height: '100%', borderRadius: Radius.xs },
-  domainPct: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, width: 28, textAlign: 'right' },
-  recalcBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
-    paddingVertical: Spacing.sm, marginTop: Spacing.sm,
-  },
-  calcBtnHero: {
-    backgroundColor: TEAL, borderRadius: Radius.card, alignItems: 'center',
-    padding: Spacing.lg, gap: Spacing.xs, marginVertical: Spacing.md,
-  },
   recCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
     backgroundColor: SURFACES.card, borderRadius: Radius.card, padding: Spacing.md,

@@ -5,7 +5,7 @@
  * fuente canónica — nada hardcodeado. Carga sus propios datos (autónomo, bajo riesgo).
  */
 import { useEffect, useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -14,6 +14,7 @@ import { computeCE } from '@/src/services/edad-atp/ce-service';
 import type { EdadAtpV2Result, SubEdadKey } from '@/src/types/edad-atp-v2';
 import { EDAD_DIMS, statusColor, SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from './tokens';
 import { CeStars } from './CeStars';
+import { CE_STARS_LEGEND } from './ce-stars';
 
 export function EdadAtpHeroCard({ userId }: { userId: string }) {
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
@@ -60,7 +61,14 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
             cronológica {chrono} · {delta > 0 ? '+' : ''}{delta} años
           </EliteText>
         </View>
-        <CeStars ce={ce} size={16} />
+        <Pressable
+          onPress={() => Alert.alert('Calidad de tu evaluación', CE_STARS_LEGEND)}
+          hitSlop={8}
+          style={styles.ceCol}
+        >
+          <CeStars ce={ce} size={16} label="Calidad de tu evaluación" />
+          <EliteText variant="caption" style={styles.ceHint}>¿Qué es? ⓘ</EliteText>
+        </Pressable>
       </Pressable>
 
       {/* Barras de las 5 áreas. */}
@@ -103,6 +111,8 @@ const styles = StyleSheet.create({
   muted: { color: Colors.textMuted },
   title: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
   heroRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  ceCol: { alignItems: 'flex-end', gap: 1 },
+  ceHint: { color: Colors.textMuted, fontSize: FontSizes.xs },
   kicker: { color: Colors.textSecondary, letterSpacing: 2, fontFamily: Fonts.bold },
   hero: { fontSize: 46, fontFamily: Fonts.extraBold, lineHeight: 50 },
   sub: { color: Colors.textSecondary },

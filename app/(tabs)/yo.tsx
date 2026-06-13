@@ -6,6 +6,7 @@
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
@@ -16,25 +17,34 @@ import { TabScreen } from '@/src/components/ui/TabScreen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { GradientCard } from '@/src/components/ui/GradientCard';
-import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstellation';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getDashboardData, type DashboardData } from '@/src/services/dashboard-service';
-import { generateMasterHealthReport, type MasterHealthReport } from '@/src/services/health-score-engine';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
 import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD, PILLAR_GRADIENTS, getScoreColor } from '@/src/constants/brand';
-import { getUserRankInfo } from '@/src/services/electron-service';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD, PILLAR_GRADIENTS } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { isAdmin } from '@/src/constants/admin-config';
-import { ExplanationModal } from '@/src/components/ui/ExplanationModal';
-import { DOMAIN_EXPLANATIONS, type DomainExplanation } from '@/src/data/domain-explanations';
+
+/** Disciplina ATP — etiqueta cualitativa motivacional por tramo (nunca "reprobado"). */
+function disciplinaLabel(v: number): string {
+  if (v >= 80) return 'En racha';
+  if (v >= 60) return 'Constante';
+  if (v >= 40) return 'Retomando el ritmo';
+  return 'Arrancando';
+}
+/** Color motivacional (sin rojo de "fallo"): lime alto, ámbar medio, azul suave bajo. */
+function disciplinaColor(v: number): string {
+  if (v >= 60) return ATP_BRAND.lime;
+  if (v >= 35) return '#EF9F27';
+  return '#5B9BD5';
+}
 
 // === CONSTANTES ===
 
@@ -53,16 +63,10 @@ export default function YoScreen() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [healthReport, setHealthReport] = useState<MasterHealthReport | null>(null);
-  const [healthLoading, setHealthLoading] = useState(true);
   const [edadResult, setEdadResult] = useState<EdadAtpV2Result | null>(null);
   const [edadCE, setEdadCE] = useState(0);
   const [dailyScore, setDailyScore] = useState<DailyHealthScore | null>(null);
   const [wearableData, setWearableData] = useState<WearableData | null>(null);
-  const [showExplanation, setShowExplanation] = useState(false);
-  const [selectedDomain, setSelectedDomain] = useState<DomainExplanation | null>(null);
-  const [selectedScore, setSelectedScore] = useState<number | undefined>(undefined);
-  const [rankInfo, setRankInfo] = useState<{ total: number; rank: { name: string; icon: string; color: string }; electronsToNext: number; nextRank: { name: string } | null } | null>(null);
 
   const loadData = useCallback(async () => {
     try { setData(await getDashboardData()); } catch { /* silenciar */ }
@@ -84,15 +88,6 @@ export default function YoScreen() {
         if (data) setWearableData(data);
       }
     } catch { /* wearable no disponible */ }
-    // Cargar reporte maestro de salud
-    try {
-      if (user?.id) {
-        setHealthLoading(true);
-        const report = await generateMasterHealthReport(user.id);
-        setHealthReport(report);
-        setHealthLoading(false);
-      }
-    } catch { setHealthLoading(false); }
     // Cargar Edad ATP v2 (número estrella) — solo calcula si hay evaluación suficiente.
     try {
       if (user?.id) {
@@ -106,8 +101,7 @@ export default function YoScreen() {
 
   useFocusEffect(useCallback(() => {
     loadData();
-    if (user?.id) getUserRankInfo(user.id).then(setRankInfo).catch(() => {});
-  }, [loadData, user?.id]));
+  }, [loadData]));
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   const userName = user?.user_metadata?.full_name || data?.profile?.full_name || user?.email?.split('@')[0] || 'Atleta';
@@ -125,20 +119,11 @@ export default function YoScreen() {
   const muscleColor = comp?.muscle_mass_pct != null ? (comp.muscle_mass_pct > 38 ? SEMANTIC.success : comp.muscle_mass_pct > 30 ? SEMANTIC.warning : SEMANTIC.error) : null;
   const visceralColor = comp?.visceral_fat != null ? (comp.visceral_fat < 7 ? SEMANTIC.success : comp.visceral_fat < 13 ? SEMANTIC.warning : SEMANTIC.error) : null;
 
-  // Helper: color por score
-  const scoreColor = (v: number) => v >= 70 ? '#a8e02a' : v >= 40 ? '#EF9F27' : '#E24B4A';
-
-  // Dominios separados: activos (tienen datos) vs pendientes (score=0, sin datos)
-  const allDomains = healthReport?.functionalHealth?.domains
-    ? [...healthReport.functionalHealth.domains].sort((a, b) => b.score - a.score)
-    : [];
-  const sortedDomains = allDomains.filter(d => d.score > 0);
-  const pendingDomains = allDomains.filter(d => d.score === 0);
-
-  // Overall score: preferir dailyScore, fallback a healthReport
-  const overallScore = dailyScore?.overall ?? healthReport?.functionalHealth?.value ?? 0;
-  const overallLevel = dailyScore?.level ?? healthReport?.functionalHealth?.level ?? '';
-  const overallColor = dailyScore?.color ?? healthReport?.functionalHealth?.color ?? '#555';
+  // Disciplina ATP = adherencia semanal de hábitos/recuperación (dailyScore). NO es salud de
+  // fondo (eso es Edad ATP). Se presenta como momentum, sin número-calificación.
+  const momentum = dailyScore?.overall ?? 0;
+  const momentumColor = disciplinaColor(momentum);
+  const RING = 48, RING_SW = 5, RING_R = (RING - RING_SW) / 2, RING_C = 2 * Math.PI * RING_R;
 
   if (loading) {
     return (
@@ -219,55 +204,32 @@ export default function YoScreen() {
                 <EliteText style={s.edadCtaSub}>Evaluación {Math.round(edadCE)}% · toca para completar →</EliteText>
               </AnimatedPressable>
             )}
-
-            {/* Rango de electrones */}
-            {rankInfo && (
-              <View style={s.rankRow}>
-                <Ionicons name={rankInfo.rank.icon as any} size={16} color={rankInfo.rank.color} />
-                <EliteText style={[s.rankName, { color: rankInfo.rank.color }]}>{rankInfo.rank.name}</EliteText>
-                <EliteText style={s.rankElectrons}>⚡ {rankInfo.total}</EliteText>
-                {rankInfo.nextRank && (
-                  <EliteText style={s.rankNext}>· {rankInfo.electronsToNext} para {rankInfo.nextRank.name}</EliteText>
-                )}
-              </View>
-            )}
-
-            {/* 6 mini scores: 3x2 grid */}
-            {dailyScore && (
-              <View style={s.miniScoreGrid}>
-                {([
-                  { key: 'sleep' as const, abbr: 'Sueño' },
-                  { key: 'recovery' as const, abbr: 'Recup.' },
-                  { key: 'compliance' as const, abbr: 'Protoc.' },
-                  { key: 'activity' as const, abbr: 'Activ.' },
-                  { key: 'nutrition' as const, abbr: 'Nutric.' },
-                  { key: 'stress' as const, abbr: 'Estrés' },
-                ]).map((item) => {
-                  const val = dailyScore.components[item.key]?.score ?? 0;
-                  const c = getScoreColor(val);
-                  return (
-                    <View key={item.key} style={s.miniScoreItem}>
-                      <EliteText style={s.miniScoreLabel}>{item.abbr}</EliteText>
-                      <EliteText style={[s.miniScoreValue, { color: c }]}>{val}</EliteText>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
+            {/* Card de Edad ATP limpia: solo la constelación + número + cronológica.
+                La gamificación (electrones/rango) y las 6 métricas diarias viven en HOY. */}
           </GradientCard>
         </Animated.View>
 
         {/* ═══════════════════════════════════════════
-            2b. ATP SCORE — métrica secundaria (desempeño semanal)
+            2b. DISCIPLINA ATP — momentum de hábitos esta semana (no punitivo, #7)
             ═══════════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(150).springify()}>
-          <AnimatedPressable onPress={() => { haptic.light(); router.push('/reports' as any); }} style={s.atpScoreCard}>
-            <View style={[s.atpScoreDot, { backgroundColor: getScoreColor(overallScore) }]} />
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/reports' as any); }} style={s.disciplinaCard}>
+            {/* Anillo que se llena — sin número de "calificación". */}
+            <Svg width={RING} height={RING}>
+              <Circle cx={RING / 2} cy={RING / 2} r={RING_R} stroke="#1a1a1a" strokeWidth={RING_SW} fill="none" />
+              <Circle
+                cx={RING / 2} cy={RING / 2} r={RING_R}
+                stroke={momentumColor} strokeWidth={RING_SW} fill="none" strokeLinecap="round"
+                strokeDasharray={RING_C}
+                strokeDashoffset={RING_C * (1 - Math.max(0.04, Math.min(1, momentum / 100)))}
+                transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
+              />
+            </Svg>
             <View style={{ flex: 1 }}>
-              <EliteText style={s.atpScoreLabel}>ATP SCORE · Tu desempeño semanal</EliteText>
-              <EliteText style={s.atpScoreSub}>{overallLevel ? overallLevel.toUpperCase() : 'Hábitos y recuperación'}</EliteText>
+              <EliteText style={s.disciplinaLabel}>DISCIPLINA ATP</EliteText>
+              <EliteText style={[s.disciplinaState, { color: momentumColor }]}>{disciplinaLabel(momentum)}</EliteText>
+              <EliteText style={s.disciplinaSub}>Qué tan al día vas con tus hábitos esta semana</EliteText>
             </View>
-            <EliteText style={[s.atpScoreValue, { color: getScoreColor(overallScore) }]}>{overallScore}</EliteText>
             <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.muted} />
           </AnimatedPressable>
         </Animated.View>
@@ -288,32 +250,6 @@ export default function YoScreen() {
         </Animated.View>
 
         {/* ═══════════════════════════════════════════
-            4. IMPROVE EVALUATION — Green-tinted card
-            ═══════════════════════════════════════════ */}
-        {healthReport && healthReport.recommendations?.toImproveEvaluation?.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(300).springify()}>
-            <View style={s.improveCard}>
-              <View style={s.improveHeader}>
-                <View style={s.improveIconWrap}>
-                  <Ionicons name="flash" size={14} color={ATP_BRAND.lime} />
-                </View>
-                <EliteText style={s.improveTitle}>MEJORA TU SCORE</EliteText>
-              </View>
-              {(healthReport.recommendations?.toImproveEvaluation ?? []).slice(0, 2).map((rec) => (
-                <AnimatedPressable key={rec.id} onPress={() => { haptic.light(); router.push(rec.route as any); }} style={s.improveRow}>
-                  <Ionicons name={rec.icon as any} size={16} color={rec.impact === 'critical' ? SEMANTIC.error : SEMANTIC.warning} />
-                  <View style={{ flex: 1 }}>
-                    <EliteText style={s.improveRecTitle}>{rec.title}</EliteText>
-                    <EliteText style={s.improveRecSub}>{rec.impactLabel}</EliteText>
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color={TEXT_COLORS.muted} />
-                </AnimatedPressable>
-              ))}
-            </View>
-          </Animated.View>
-        )}
-
-        {/* ═══════════════════════════════════════════
             5. SYNC STATUS — Wearable source + last sync
             ═══════════════════════════════════════════ */}
         {wearableData && (
@@ -332,69 +268,6 @@ export default function YoScreen() {
           </Animated.View>
         )}
 
-        {/* ═══════════════════════════════════════════
-            6. HEALTH DOMAINS — Horizontal bars sorted by score
-            ═══════════════════════════════════════════ */}
-        {sortedDomains.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(400).springify()}>
-            <View style={s.domainsCard}>
-              <EliteText style={s.domainsTitle}>DOMINIOS DE SALUD</EliteText>
-              <EliteText style={{ fontSize: 9, fontFamily: Fonts.regular, color: '#444', marginTop: -8, marginBottom: 8 }}>Toca un dominio para más info</EliteText>
-              {sortedDomains.map((d) => (
-                <AnimatedPressable key={d.domain} onPress={() => {
-                  haptic.light();
-                  // Buscar por key del dominio, label normalizado, o crear fallback
-                  const normalizedLabel = d.label?.toLowerCase()?.normalize('NFD')?.replace(/[\u0300-\u036f]/g, '') ?? '';
-                  const exp = DOMAIN_EXPLANATIONS[d.domain]
-                    ?? DOMAIN_EXPLANATIONS[normalizedLabel]
-                    ?? {
-                      name: d.label ?? d.domain,
-                      icon: d.icon ?? 'information-circle-outline',
-                      color: d.color ?? '#888',
-                      whatItMeans: `Este dominio evalúa un aspecto de tu salud. Tu score actual es ${d.score}.`,
-                      howToImprove: ['Completa más evaluaciones para mejorar este score', 'Registra datos de salud regularmente'],
-                      dataNeeded: ['Más datos necesarios para una evaluación completa'],
-                    };
-                  setSelectedDomain(exp);
-                  setSelectedScore(d.score);
-                  setShowExplanation(true);
-                }}>
-                  <View style={s.domainRow}>
-                    <View style={s.domainIconWrap}>
-                      <Ionicons name={d.icon as any} size={13} color={d.color} />
-                    </View>
-                    <EliteText style={s.domainLabel}>{d.label}</EliteText>
-                    <View style={s.domainBarBg}>
-                      <View style={[s.domainBarFill, { width: `${Math.min(100, d.score)}%`, backgroundColor: d.color }]} />
-                    </View>
-                    <EliteText style={[s.domainPct, { color: d.color }]}>{d.score}</EliteText>
-                  </View>
-                </AnimatedPressable>
-              ))}
-
-              {/* Dominios pendientes — sin datos */}
-              {pendingDomains.length > 0 && (
-                <View style={{ marginTop: 12, opacity: 0.5 }}>
-                  <EliteText style={{ fontSize: 9, fontFamily: Fonts.bold, color: '#555', letterSpacing: 1.5, marginBottom: 8 }}>
-                    DESBLOQUEA CON MÁS DATOS
-                  </EliteText>
-                  {pendingDomains.map((d) => (
-                    <View key={d.domain} style={s.domainRow}>
-                      <View style={s.domainIconWrap}>
-                        <Ionicons name="lock-closed-outline" size={13} color="#444" />
-                      </View>
-                      <EliteText style={s.domainLabel}>{d.label}</EliteText>
-                      <View style={s.domainBarBg}>
-                        <View style={[s.domainBarFill, { width: '0%', backgroundColor: '#333' }]} />
-                      </View>
-                      <EliteText style={[s.domainPct, { color: '#444' }]}>--</EliteText>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
 
         {/* ═══════════════════════════════════════════
             7. BODY COMPOSITION — 4 cards in 2x2 grid
@@ -481,14 +354,6 @@ export default function YoScreen() {
 
         <View style={{ height: Spacing.xxl * 2 }} />
       </ScrollView>
-
-      {/* Modal de explicación de dominio */}
-      <ExplanationModal
-        visible={showExplanation}
-        onClose={() => setShowExplanation(false)}
-        explanation={selectedDomain}
-        currentScore={selectedScore}
-      />
     </TabScreen>
   );
 }
@@ -537,9 +402,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.md,
   },
-  scoreRingWrap: {
-    marginBottom: Spacing.sm,
-  },
   edadCta: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
@@ -555,87 +417,22 @@ const s = StyleSheet.create({
     fontSize: FontSizes.sm,
     color: ATP_BRAND.lime,
   },
-  scoreLevel: {
-    fontFamily: Fonts.bold,
-    fontSize: 13,
-    letterSpacing: 2,
-    marginBottom: Spacing.md,
-  },
-  miniScoreGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    width: '100%',
-    borderTopWidth: 0.5,
-    borderTopColor: '#1a1a1a',
-    paddingTop: Spacing.md,
-  },
-  miniScoreItem: {
-    width: '30%',
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingVertical: 6,
-  },
-  miniScoreLabel: {
-    fontSize: 10,
-    fontFamily: Fonts.semiBold,
-    color: '#555',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 2,
-  },
-  miniScoreValue: {
-    fontSize: FontSizes.xl,
-    fontFamily: Fonts.bold,
-  },
-
-  // ── 2b. ATP Score secondary card ──
-  atpScoreCard: {
+  // ── 2b. Disciplina ATP (momentum, no punitivo) ──
+  disciplinaCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
     backgroundColor: CARD.bg,
     borderRadius: CARD.borderRadius,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginTop: 12,
   },
-  atpScoreDot: { width: 8, height: 8, borderRadius: 4 },
-  atpScoreLabel: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#fff' },
-  atpScoreSub: { fontSize: FontSizes.xs, color: '#555', marginTop: 1 },
-  atpScoreValue: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
-
-  // ── 3. Age Cards ──
-  ageRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
+  disciplinaLabel: {
+    fontSize: 10, fontFamily: Fonts.bold, color: '#555', letterSpacing: 1.5, textTransform: 'uppercase',
   },
-  ageCardBtn: {
-    flex: 1,
-  },
-  ageGradientCard: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  ageLabel: {
-    fontSize: 10,
-    fontFamily: Fonts.bold,
-    color: '#555',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  ageBigNum: {
-    fontSize: 36,
-    fontFamily: Fonts.extraBold,
-    lineHeight: 42,
-  },
-  ageSub: {
-    fontSize: 10,
-    fontFamily: Fonts.semiBold,
-    letterSpacing: 0.5,
-  },
+  disciplinaState: { fontSize: FontSizes.md, fontFamily: Fonts.extraBold, marginTop: 1 },
+  disciplinaSub: { fontSize: FontSizes.xs, color: '#555', marginTop: 1 },
 
   // ── Reportes button ──
   reportsBtn: {
@@ -655,52 +452,6 @@ const s = StyleSheet.create({
     fontFamily: Fonts.bold,
     color: ATP_BRAND.lime,
     letterSpacing: 2,
-  },
-
-  // ── 4. Improve Evaluation ──
-  improveCard: {
-    backgroundColor: CARD.bg,
-    borderRadius: CARD.borderRadius,
-    padding: Spacing.md,
-    marginTop: 12,
-  },
-  improveHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  improveIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#a8e02a15',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  improveTitle: {
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    color: ATP_BRAND.lime,
-    letterSpacing: 1.5,
-  },
-  improveRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: '#1a1a1a',
-  },
-  improveRecTitle: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-    color: '#fff',
-  },
-  improveRecSub: {
-    fontSize: FontSizes.xs,
-    color: '#555',
-    marginTop: 1,
   },
 
   // ── 5. Sync Status ──
@@ -723,80 +474,6 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xs,
     color: '#555',
     fontFamily: Fonts.semiBold,
-  },
-
-  // ── 6. Health Domains ──
-  domainsCard: {
-    backgroundColor: CARD.bg,
-    borderRadius: CARD.borderRadius,
-    padding: Spacing.md,
-    marginTop: 12,
-  },
-  domainsTitle: {
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    color: '#555',
-    letterSpacing: 1.5,
-    marginBottom: 14,
-  },
-  domainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-  },
-  domainIconWrap: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#1a1a1a',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  domainLabel: {
-    color: '#888',
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.semiBold,
-    width: 80,
-  },
-  domainBarBg: {
-    flex: 1,
-    height: 5,
-    backgroundColor: '#1a1a1a',
-    borderRadius: Radius.xs,
-    overflow: 'hidden',
-  },
-  domainBarFill: {
-    height: '100%',
-    borderRadius: Radius.xs,
-  },
-  domainPct: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.bold,
-    width: 28,
-    textAlign: 'right',
-  },
-
-  // ── Rank ──
-  rankRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-  rankName: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-  },
-  rankElectrons: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-    color: '#888',
-  },
-  rankNext: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.regular,
-    color: '#555',
   },
 
   // ── 7. Body Composition ──
