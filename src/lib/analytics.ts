@@ -48,6 +48,9 @@ export const ATP_EVENTS = {
   EDAD_ATP_RECALCULATED: 'edad_atp_recalculated',
   EDAD_ATP_SUBEDAD_VIEWED: 'edad_atp_subedad_viewed',
   EDAD_ATP_FUNCTIONAL_TEST_COMPLETED: 'edad_atp_functional_test_completed',
+  // Parser v2 — confirmación pre-guardado
+  LAB_PARSER_V2_REVIEWED: 'lab_parser_v2_reviewed',
+  LAB_PARSER_V2_CONFIRMED: 'lab_parser_v2_confirmed',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];
