@@ -7,6 +7,7 @@ import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { insertLabValuesFromRaw, voidLabValuesByUpload, voidLabValuesByLabResult } from '@/src/services/edad-atp/lab-values-service';
 import { isLabValueValid, LAB_ABSOLUTE_RANGES } from '@/src/constants/lab-clinical-ranges';
+import { processParserItems, type RawParserItem, type ProcessedItem, type DerivedItem, type DupCandidate } from '@/src/services/edad-atp/lab-parser-process';
 import { warn as logWarn } from '@/src/lib/logger';
 
 /** Reintentos del parser ante fallo de red: backoff 1s, 3s (3 intentos totales). */
@@ -313,6 +314,215 @@ Solo valores encontrados. No mapeados→other_values.`;
     const message = retriable ? LAB_NETWORK_ERROR_MSG : (err?.message ?? 'Error al procesar el archivo');
     await supabase.from('lab_uploads').update({ status: 'failed', error_message: message }).eq('id', uploadId);
     return { error: message, retriable };
+  }
+}
+
+// === PARSER v2 — extract para revisión + guardado confirmado ===
+
+/** Prompt v2: array con confidence + unidad textual del documento (Capa 3). */
+const PARSER_V2_PROMPT = `Eres un extractor de biomarcadores de un laboratorio médico (español/México).
+
+Mapea los nombres a estos keys exactos (usa other_values para lo no listado):
+glucose, hba1c, insulin, homa_ir, cholesterol_total, hdl, ldl, triglycerides, vldl, apo_b, non_hdl_cholesterol, lp_a,
+tsh, t3_free, t4_free, total_t3, total_t4, testosterone, testosterone_free, estradiol, cortisol, dhea, progesterone, fsh, lh, prolactin, shbg, igf1,
+vitamin_d, vitamin_b12, iron, ferritin, magnesium, zinc, folate, calcium, phosphorus,
+pcr, homocysteine, rheumatoid_factor, ldh, cpk, aso, esr, fibrinogen, complement_c3, complement_c4,
+alt, ast, ggt, bilirubin, bilirubin_direct, bilirubin_indirect, alp, albumin, total_protein, globulin, ag_ratio,
+creatinine, uric_acid, bun, urea, sodium, potassium, chloride, co2, gfr,
+hemoglobin, hematocrit, platelets, wbc, rbc, mcv, mch, mchc, rdw, mpv,
+lymphocyte_pct, lymphocytes_abs, neutrophils_pct, neutrophils_abs, monocytes_pct, monocytes_abs, eosinophils_pct, eosinophils_abs, basophils_pct, basophils_abs, bands_pct,
+iga, ige, igg, igm, anti_tpo, anti_tg, iron_binding, iron_saturation, transferrin, free_iron,
+fructosamine, c_peptide, pt, ptt, inr, urine_ph, urine_density
+
+Sinónimos comunes: Glucosa ayunas→glucose, HbA1c/A1C→hba1c, Colesterol total→cholesterol_total, Triglicéridos→triglycerides,
+TGP/ALT→alt, TGO/AST→ast, Creatinina→creatinine, Ácido úrico→uric_acid, BUN→bun, Leucocitos→wbc, VCM→mcv, ADE/RDW→rdw,
+Testosterona→testosterone, Vitamina D/25-OH→vitamin_d, B12→vitamin_b12, Ferritina→ferritin, PCR→pcr, Homocisteína→homocysteine.
+
+Para CADA valor encontrado devuelve un objeto con este shape EXACTO:
+{"key":"ldl","value":149,"unit_in_document":"mg/dL","confidence":"high","raw_text_snippet":"LDL: 149 mg/dL"}
+
+REGLAS:
+1. unit_in_document = la unidad TEXTUAL tal como aparece junto al valor (ej. "mg/dL", "mmol/L", "%"). null si no está clara.
+2. Si la unidad NO está explícita junto al valor → confidence "low". Si el OCR es pobre o el valor es ambiguo → "low" o "medium". Si es claro → "high".
+3. NO inventes valores. Es mejor OMITIR un biomarcador que adivinarlo.
+4. NO mezcles valores de dos pacientes ni de fechas distintas (toma el estudio más reciente).
+5. Solo keys de la lista. Lo no mapeado va en other_values.
+
+Responde SOLO JSON válido (sin backticks) con este shape:
+{"lab_name":"...","lab_date":"YYYY-MM-DD o null","values":[ ...objetos como arriba... ],"other_values":[{"name":"nombre original","value":123,"unit":"mg/dL"}]}`;
+
+export interface LabReviewPayload {
+  uploadId: string;
+  userId: string;
+  labName: string | null;
+  labDate: string;
+  items: ProcessedItem[];
+  derived: DerivedItem[];
+  otherValues: any[];
+  /** Multi-foto: candidatos alternativos por key cuando varias fotos detectaron el mismo biomarker. */
+  duplicates?: Record<string, DupCandidate[]>;
+  /** Multi-foto: todos los uploads que componen esta revisión (para guardar/descartar en bloque). */
+  uploadIds?: string[];
+}
+
+/** Acepta `values` como array v2 o como objeto {key:{value,unit}} (compat) → RawParserItem[]. */
+function normalizeParserValues(values: any): RawParserItem[] {
+  if (Array.isArray(values)) {
+    return values
+      .filter((v) => v && typeof v.key === 'string' && typeof v.value === 'number')
+      .map((v) => ({
+        key: v.key,
+        value: v.value,
+        unit_in_document: v.unit_in_document ?? v.unit ?? null,
+        confidence: (v.confidence === 'high' || v.confidence === 'medium' || v.confidence === 'low') ? v.confidence : 'medium',
+        raw_text_snippet: typeof v.raw_text_snippet === 'string' ? v.raw_text_snippet : undefined,
+      }));
+  }
+  if (values && typeof values === 'object') {
+    const out: RawParserItem[] = [];
+    for (const [key, v] of Object.entries(values)) {
+      const val = (v as any)?.value ?? v;
+      if (typeof val === 'number' && Number.isFinite(val)) {
+        out.push({ key, value: val, unit_in_document: (v as any)?.unit ?? null, confidence: 'medium' });
+      }
+    }
+    return out;
+  }
+  return [];
+}
+
+/**
+ * Capa 3+4: extrae un upload y lo deja LISTO PARA REVISIÓN (NO guarda nada). Corre el LLM v2,
+ * normaliza unidades, auto-deriva y valida. El guardado ocurre solo tras la confirmación del
+ * usuario vía saveConfirmedLabValues. Reusa el retry de red de Sprint 1.
+ */
+export async function extractLabValuesForReview(uploadId: string): Promise<LabReviewPayload | LabExtractError> {
+  const { data: upload } = await supabase.from('lab_uploads').select('*').eq('id', uploadId).single();
+  if (!upload) return { error: 'Upload no encontrado' };
+
+  await supabase.from('lab_uploads').update({ status: 'processing' }).eq('id', uploadId);
+
+  try {
+    const mediaType = upload.file_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
+    const contentType = upload.file_type === 'pdf' ? 'document' : 'image';
+
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const authUid = authUser?.id;
+    const candidateTarget = upload.user_id;
+    const targetUserId = (candidateTarget && candidateTarget !== authUid) ? candidateTarget : null;
+    const meta = await getArgosCallMetadata({ callerUserId: authUid, targetUserId, requestType: 'lab_interpretation' });
+
+    const result = await withNetworkRetry(async () => {
+      const fileRes = await fetch(upload.file_url);
+      const blob = await fileRes.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+      return callAnthropic(
+        [{ role: 'user', content: [
+          { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: PARSER_V2_PROMPT },
+        ]}],
+        8000, undefined, undefined, meta,
+      );
+    });
+
+    const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
+    const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    let parsed: any;
+    try { parsed = JSON.parse(cleaned); } catch { throw new Error('No se pudo parsear la respuesta de IA'); }
+
+    const rawItems = normalizeParserValues(parsed.values);
+    const { items, derived } = processParserItems(rawItems);
+
+    // Guardar crudo para auditoría. status sigue 'processing' hasta que el usuario confirme.
+    await supabase.from('lab_uploads').update({ extracted_data: parsed, ai_raw_response: rawText }).eq('id', uploadId);
+
+    if (items.length === 0) {
+      await supabase.from('lab_uploads').update({ status: 'failed', error_message: 'No biomarkers extracted' }).eq('id', uploadId);
+      return { error: 'No biomarkers extracted', extractedCount: 0, otherValues: parsed.other_values ?? [] };
+    }
+
+    return {
+      uploadId,
+      userId: upload.user_id,
+      labName: parsed.lab_name ?? null,
+      labDate: parsed.lab_date || getLocalToday(),
+      items,
+      derived,
+      otherValues: parsed.other_values ?? [],
+    };
+  } catch (err: any) {
+    const retriable = isRetriableNetworkError(err);
+    const message = retriable ? LAB_NETWORK_ERROR_MSG : (err?.message ?? 'Error al procesar el archivo');
+    await supabase.from('lab_uploads').update({ status: 'failed', error_message: message }).eq('id', uploadId);
+    return { error: message, retriable };
+  }
+}
+
+/**
+ * Capa 4: guarda los valores YA CONFIRMADOS por el usuario (con sus ediciones aplicadas).
+ * Re-valida cada uno contra rangos clínicos (defensa) y escribe SOLO los válidos a
+ * lab_results + lab_values. `confirmed` trae key inglés + valor en unidad canónica.
+ */
+export async function saveConfirmedLabValues(
+  uploadId: string,
+  confirmed: Array<{ key: string; value: number }>,
+  opts: { labDate?: string; labName?: string | null; extraUploadIds?: string[] },
+): Promise<LabExtractResult | LabExtractError> {
+  const { data: upload } = await supabase.from('lab_uploads').select('*').eq('id', uploadId).single();
+  if (!upload) return { error: 'Upload no encontrado' };
+
+  try {
+    const validated: Record<string, number> = {};
+    const rejected: Array<{ key: string; value: number; reason: string }> = [];
+    for (const { key, value } of confirmed) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+      if (isLabValueValid(key, value)) {
+        validated[key] = value;
+      } else {
+        const r = LAB_ABSOLUTE_RANGES[key];
+        rejected.push({ key, value, reason: r ? `Fuera de rango (${r.min}-${r.max} ${r.unit})` : 'Valor inválido' });
+      }
+    }
+
+    const extractedCount = Object.keys(validated).length;
+    if (extractedCount === 0) {
+      await supabase.from('lab_uploads').update({ status: 'failed', error_message: 'Ningún valor confirmado válido' }).eq('id', uploadId);
+      return { error: 'Ningún valor confirmado válido', extractedCount: 0, otherValues: [], rejectedCount: rejected.length, rejected };
+    }
+
+    const labData: Record<string, any> = {
+      user_id: upload.user_id,
+      lab_date: opts.labDate || getLocalToday(),
+      lab_name: opts.labName ?? null,
+      upload_id: uploadId,
+      status: 'draft',
+      ...validated,
+    };
+
+    const { data: labResult, error: labError } = await supabase
+      .from('lab_results').insert(labData).select('id').single();
+    if (labError) throw new Error(labError.message || JSON.stringify(labError));
+
+    await insertLabValuesFromRaw(upload.user_id, validated, {
+      source: 'lab_pdf', measuredAt: labData.lab_date, uploadId, labResultId: labResult.id,
+    });
+
+    await supabase.from('lab_uploads').update({ status: 'extracted', lab_result_id: labResult.id }).eq('id', uploadId);
+
+    // Multi-foto: las demás fotos quedan asociadas al mismo lab_result (no quedan "fallidas").
+    const extras = (opts.extraUploadIds ?? []).filter((id) => id && id !== uploadId);
+    if (extras.length > 0) {
+      await supabase.from('lab_uploads').update({ status: 'extracted', lab_result_id: labResult.id }).in('id', extras);
+    }
+
+    if (rejected.length > 0) logWarn('[lab-parser-v2] confirmados rechazados por rango:', { uploadId, rejected });
+    return { labResultId: labResult.id, extractedCount, otherValues: [], rejectedCount: rejected.length, rejected };
+  } catch (err: any) {
+    return { error: err?.message ?? 'Error al guardar' };
   }
 }
 

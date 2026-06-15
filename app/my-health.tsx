@@ -14,7 +14,11 @@ try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
-import { uploadLabFile, extractLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult } from '@/src/services/lab-service';
+import { uploadLabFile, extractLabValuesForReview, saveConfirmedLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult, type LabReviewPayload } from '@/src/services/lab-service';
+import { needsConfirmation } from '@/src/services/edad-atp/lab-parser-process';
+import { setReview } from '@/src/services/edad-atp/lab-review-store';
+import { mergeReviews } from '@/src/services/edad-atp/lab-review-merge';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-service';
 import { parseLocalDate } from '@/src/utils/date-helpers';
 import { getStudyType } from '@/src/data/study-types';
@@ -38,6 +42,7 @@ const TEAL = CATEGORY_COLORS.metrics;
 export default function MyHealthScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const userId = user?.id ?? '';
 
   const [uploads, setUploads] = useState<LabUpload[]>([]);
@@ -149,6 +154,36 @@ export default function MyHealthScreen() {
     }
   };
 
+  // Parser v2 (Capa 4): extrae SIN guardar → si hay algo dudoso (confidence < high o fuera
+  // de rango), abre la pantalla de confirmación; si todo es high+válido, guarda directo
+  // (conserva la UX rápida — flag #2). Devuelve true si navegó a confirmación.
+  const runReviewFlow = async (uploadId: string): Promise<void> => {
+    const review = await extractLabValuesForReview(uploadId);
+    if ('error' in review) {
+      setResult({
+        error: review.retriable
+          ? review.error
+          : `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${review.error})`,
+        retriable: review.retriable,
+        uploadId,
+      });
+      return;
+    }
+    analytics.track(ATP_EVENTS.LAB_PARSER_V2_REVIEWED, { total: review.items.length, upload_id: uploadId });
+    if (needsConfirmation({ items: review.items, derived: review.derived })) {
+      setReview(review);
+      setResult(null);
+      setProcessing(false);
+      router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId } } as any);
+      return;
+    }
+    // Todo confiable → guardar directo sin molestar al usuario.
+    const confirmed = review.items.filter((i) => i.passedValidation).map((i) => ({ key: i.key, value: i.valueCanonical }));
+    const res = await saveConfirmedLabValues(uploadId, confirmed, { labDate: review.labDate, labName: review.labName });
+    if ('error' in res) setResult({ error: res.error });
+    else setResult({ count: res.extractedCount, rejected: res.rejectedCount });
+  };
+
   const processUpload = async (base64: string, fileType: 'image' | 'pdf', type?: UploadType) => {
     // Ruteo por tipo (#10/#11): solo Labs extrae a lab_values; el resto se adjunta como
     // contexto y NUNCA toca el motor (un archivo del tipo equivocado no corrompe labs).
@@ -160,22 +195,9 @@ export default function MyHealthScreen() {
       setUploading(false);
 
       if (route.target === 'lab_values') {
-        // Tipo Laboratorios → extracción al motor. Si el contenido no parsea como lab,
-        // extractLabValues falla suave (marca failed, NO escribe valores).
+        // Tipo Laboratorios → parser v2: extrae, y confirma con el usuario si hace falta.
         setProcessing(true);
-        const extractResult = await extractLabValues(uploadId);
-        if ('error' in extractResult) {
-          setResult({
-            error: extractResult.retriable
-              ? extractResult.error
-              : `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${extractResult.error})`,
-            retriable: extractResult.retriable,
-            uploadId,
-          });
-        } else {
-          setResult({ count: extractResult.extractedCount, rejected: extractResult.rejectedCount });
-          // El héroe Edad ATP (motor v2) recalcula con su propia lectura al volver a enfocar.
-        }
+        await runReviewFlow(uploadId);
       } else {
         // Composición y tipos 3-7 → guardado como respaldo/contexto, sin extraer a valores.
         const label = type?.label ?? 'Archivo';
@@ -191,9 +213,9 @@ export default function MyHealthScreen() {
     setProcessing(false);
   };
 
-  // Subida múltiple de fotos de labs (#9): sube y extrae cada una secuencialmente con
-  // progreso, y consolida resultados (cada foto añade sus valores a lab_values). NO toca el
-  // parser AI — reusa uploadLabFile + extractLabValues por imagen.
+  // Subida múltiple de fotos de labs (#9): extrae las N fotos EN PARALELO, mergea en una sola
+  // lista (duplicados entre fotos quedan como candidatos a elegir) y abre UNA pantalla de
+  // confirmación consolidada. Doctrina: el usuario ve TODO antes de guardar.
   const processMultipleUploads = async (images: string[], type?: UploadType) => {
     const route = routeUploadByType(type?.id ?? 'labs');
     setResult(null);
@@ -203,43 +225,44 @@ export default function MyHealthScreen() {
       return;
     }
     setProcessing(true);
-    let totalCount = 0, totalRejected = 0, ok = 0;
-    for (let i = 0; i < images.length; i++) {
-      setMultiProgress({ done: i, total: images.length });
-      try {
-        const { uploadId } = await uploadLabFile(userId, images[i], 'image');
-        const r = await extractLabValues(uploadId);
-        if (!('error' in r)) { ok++; totalCount += r.extractedCount; totalRejected += r.rejectedCount; }
-      } catch { /* una foto ilegible no aborta el resto */ }
-    }
+    setMultiProgress({ done: 0, total: images.length });
+    let done = 0;
+    const settled = await Promise.all(
+      images.map(async (img) => {
+        try {
+          const { uploadId } = await uploadLabFile(userId, img, 'image');
+          const review = await extractLabValuesForReview(uploadId);
+          done++; setMultiProgress({ done, total: images.length });
+          return 'error' in review ? null : review;
+        } catch {
+          done++; setMultiProgress({ done, total: images.length });
+          return null;
+        }
+      }),
+    );
     setMultiProgress(null);
-    setProcessing(false);
-    if (ok === 0) {
+    const okReviews = settled.filter(Boolean) as LabReviewPayload[];
+    if (okReviews.length === 0) {
+      setProcessing(false);
       setResult({ error: `No pudimos leer ninguno de los ${images.length} archivos. Revisa que sean fotos legibles de laboratorios.` });
-    } else {
-      setResult({ count: totalCount, rejected: totalRejected, files: ok });
+      loadData();
+      return;
     }
-    loadData();
+    const merged = mergeReviews(okReviews);
+    analytics.track(ATP_EVENTS.LAB_PARSER_V2_REVIEWED, { total: merged.items.length, photos: okReviews.length, upload_id: merged.uploadId });
+    setReview(merged);
+    setResult(null);
+    setProcessing(false);
+    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId: merged.uploadId } } as any);
   };
 
   // Reintento manual de extracción (#5): re-procesa un upload ya subido (fallido por red u
-  // otro motivo) sin volver a pedir el archivo. extractLabValues ya reintenta red internamente.
+  // otro motivo) sin volver a pedir el archivo, por el flujo v2 (con confirmación si hace falta).
   const retryExtraction = async (uploadId: string) => {
     setResult(null);
     setProcessing(true);
     try {
-      const extractResult = await extractLabValues(uploadId);
-      if ('error' in extractResult) {
-        setResult({
-          error: extractResult.retriable
-            ? extractResult.error
-            : `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${extractResult.error})`,
-          retriable: extractResult.retriable,
-          uploadId,
-        });
-      } else {
-        setResult({ count: extractResult.extractedCount, rejected: extractResult.rejectedCount });
-      }
+      await runReviewFlow(uploadId);
     } catch (err: any) {
       setResult({ error: err?.message ?? 'Error al reintentar', retriable: true, uploadId });
     }
