@@ -49,11 +49,13 @@ export default function MyHealthScreen() {
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<
-    | { count: number; rejected?: number }
+    | { count: number; rejected?: number; files?: number }
     | { error: string; retriable?: boolean; uploadId?: string }
     | { context: string }
     | null
   >(null);
+  // Progreso de subida múltiple (#9): {hechos, total} mientras procesa varias fotos.
+  const [multiProgress, setMultiProgress] = useState<{ done: number; total: number } | null>(null);
   // Selector de tipo de upload (#10): método elegido pendiente + visibilidad del picker.
   const [pendingMethod, setPendingMethod] = useState<'camera' | 'gallery' | 'pdf' | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -101,13 +103,20 @@ export default function MyHealthScreen() {
       );
       return;
     }
-    const opts = { quality: 0.8, base64: true };
+    // Galería permite selección múltiple (Mariana #9: antes solo dejaba una foto).
+    // La cámara captura de a una.
+    const opts: any = useCamera
+      ? { quality: 0.8, base64: true }
+      : { quality: 0.8, base64: true, allowsMultipleSelection: true, selectionLimit: 10 };
     const res = useCamera
       ? await ImagePicker.launchCameraAsync(opts)
       : await ImagePicker.launchImageLibraryAsync(opts);
 
-    if (res.canceled || !res.assets?.[0]?.base64) return;
-    await processUpload(res.assets[0].base64, 'image', type);
+    if (res.canceled || !res.assets?.length) return;
+    const images: string[] = res.assets.map((a: any) => a.base64).filter(Boolean);
+    if (images.length === 0) return;
+    if (images.length === 1) { await processUpload(images[0], 'image', type); return; }
+    await processMultipleUploads(images, type);
   };
 
   const handlePickPDF = async (type?: UploadType) => {
@@ -180,6 +189,37 @@ export default function MyHealthScreen() {
     }
     setUploading(false);
     setProcessing(false);
+  };
+
+  // Subida múltiple de fotos de labs (#9): sube y extrae cada una secuencialmente con
+  // progreso, y consolida resultados (cada foto añade sus valores a lab_values). NO toca el
+  // parser AI — reusa uploadLabFile + extractLabValues por imagen.
+  const processMultipleUploads = async (images: string[], type?: UploadType) => {
+    const route = routeUploadByType(type?.id ?? 'labs');
+    setResult(null);
+    // Tipos que no son laboratorios no extraen al motor: procesar solo la primera como contexto.
+    if (route.target !== 'lab_values') {
+      await processUpload(images[0], 'image', type);
+      return;
+    }
+    setProcessing(true);
+    let totalCount = 0, totalRejected = 0, ok = 0;
+    for (let i = 0; i < images.length; i++) {
+      setMultiProgress({ done: i, total: images.length });
+      try {
+        const { uploadId } = await uploadLabFile(userId, images[i], 'image');
+        const r = await extractLabValues(uploadId);
+        if (!('error' in r)) { ok++; totalCount += r.extractedCount; totalRejected += r.rejectedCount; }
+      } catch { /* una foto ilegible no aborta el resto */ }
+    }
+    setMultiProgress(null);
+    setProcessing(false);
+    if (ok === 0) {
+      setResult({ error: `No pudimos leer ninguno de los ${images.length} archivos. Revisa que sean fotos legibles de laboratorios.` });
+    } else {
+      setResult({ count: totalCount, rejected: totalRejected, files: ok });
+    }
+    loadData();
   };
 
   // Reintento manual de extracción (#5): re-procesa un upload ya subido (fallido por red u
@@ -276,7 +316,11 @@ export default function MyHealthScreen() {
         {processing && (
           <View style={s.statusBox}>
             <ActivityIndicator color={TEAL} />
-            <EliteText variant="caption" style={{ color: TEAL }}>Analizando con IA...</EliteText>
+            <EliteText variant="caption" style={{ color: TEAL }}>
+              {multiProgress
+                ? `Analizando ${multiProgress.done + 1} de ${multiProgress.total} con IA...`
+                : 'Analizando con IA...'}
+            </EliteText>
           </View>
         )}
         {result && 'count' in result && (
@@ -284,7 +328,9 @@ export default function MyHealthScreen() {
             <Ionicons name="checkmark-circle" size={20} color={Colors.neonGreen} />
             <View style={{ flex: 1 }}>
               <EliteText variant="caption" style={{ color: Colors.neonGreen }}>
-                ¡Estudio analizado! {result.count} valores extraídos. Tu Edad ATP se actualizó.
+                {result.files && result.files > 1
+                  ? `¡${result.files} estudios analizados! ${result.count} valores extraídos en total. Tu Edad ATP se actualizó.`
+                  : `¡Estudio analizado! ${result.count} valores extraídos. Tu Edad ATP se actualizó.`}
               </EliteText>
               {!!result.rejected && result.rejected > 0 && (
                 <EliteText variant="caption" style={{ color: SEMANTIC.warning, marginTop: 6 }}>
