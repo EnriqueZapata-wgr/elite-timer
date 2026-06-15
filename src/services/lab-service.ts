@@ -6,6 +6,40 @@ import { callAnthropic } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { insertLabValuesFromRaw, voidLabValuesByUpload, voidLabValuesByLabResult } from '@/src/services/edad-atp/lab-values-service';
+import { isLabValueValid, LAB_ABSOLUTE_RANGES } from '@/src/constants/lab-clinical-ranges';
+import { warn as logWarn } from '@/src/lib/logger';
+
+/** Reintentos del parser ante fallo de red: backoff 1s, 3s (3 intentos totales). */
+const PARSER_RETRY_DELAYS_MS = [1000, 3000];
+
+/** Mensaje amigable cuando se agotan los reintentos por red. */
+export const LAB_NETWORK_ERROR_MSG =
+  'No pudimos leer este archivo. Verifica tu conexión e intenta de nuevo.';
+
+/** ¿El error es de red/timeout (reintentable) y no un error de contenido/parseo? */
+function isRetriableNetworkError(err: any): boolean {
+  if (err?.name === 'AbortError') return true;
+  const msg = String(err?.message ?? err ?? '');
+  return /network request failed|networkerror|failed to fetch|timeout|ARGOS_TIMEOUT|aborted|socket hang up/i.test(msg);
+}
+
+/** Ejecuta `fn` reintentando SOLO ante fallos de red, con backoff. Re-lanza el último error. */
+async function withNetworkRetry<T>(fn: () => Promise<T>, label = 'lab-parser'): Promise<T> {
+  let lastErr: any;
+  for (let attempt = 0; attempt <= PARSER_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      lastErr = err;
+      const canRetry = attempt < PARSER_RETRY_DELAYS_MS.length && isRetriableNetworkError(err);
+      if (!canRetry) throw err;
+      const delay = PARSER_RETRY_DELAYS_MS[attempt];
+      logWarn(`[${label}] intento ${attempt + 1} falló por red, reintentando en ${delay}ms:`, err?.message ?? err);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
+}
 
 async function getAuth() {
   const { data: { user } } = await supabase.auth.getUser();
@@ -60,9 +94,26 @@ export async function uploadLabFile(
 
 // === EXTRACT WITH AI ===
 
-export async function extractLabValues(uploadId: string): Promise<{
-  labResultId: string; extractedCount: number; otherValues: any[];
-} | { error: string }> {
+export interface LabExtractResult {
+  labResultId: string;
+  extractedCount: number;
+  otherValues: any[];
+  /** Cuántos valores la IA extrajo pero descartamos por estar fuera de rango clínico. */
+  rejectedCount: number;
+  rejected: Array<{ key: string; value: number; reason: string }>;
+}
+
+export interface LabExtractError {
+  error: string;
+  /** true si el fallo fue de red (agotó reintentos) → la UI puede ofrecer "Reintentar". */
+  retriable?: boolean;
+  extractedCount?: number;
+  otherValues?: any[];
+  rejectedCount?: number;
+  rejected?: Array<{ key: string; value: number; reason: string }>;
+}
+
+export async function extractLabValues(uploadId: string): Promise<LabExtractResult | LabExtractError> {
   // Get upload info
   const { data: upload } = await supabase.from('lab_uploads').select('*').eq('id', uploadId).single();
   if (!upload) return { error: 'Upload no encontrado' };
@@ -70,15 +121,6 @@ export async function extractLabValues(uploadId: string): Promise<{
   await supabase.from('lab_uploads').update({ status: 'processing' }).eq('id', uploadId);
 
   try {
-    // Download file as base64
-    const fileRes = await fetch(upload.file_url);
-    const blob = await fileRes.blob();
-    const base64 = await new Promise<string>((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-      reader.readAsDataURL(blob);
-    });
-
     const mediaType = upload.file_type === 'pdf' ? 'application/pdf' : 'image/jpeg';
     const contentType = upload.file_type === 'pdf' ? 'document' : 'image';
 
@@ -134,16 +176,27 @@ Solo valores encontrados. No mapeados→other_values.`;
       requestType: 'lab_interpretation',
     });
 
-    const result = await callAnthropic(
-      [{ role: 'user', content: [
-        { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
-        { type: 'text', text: prompt },
-      ]}],
-      8000,
-      undefined,
-      undefined,
-      meta,
-    );
+    // Descarga del archivo + llamada al parser AI envueltos en reintento de red (1s, 3s).
+    // Si los 3 intentos fallan por red, withNetworkRetry re-lanza y el catch lo marca retriable.
+    const result = await withNetworkRetry(async () => {
+      const fileRes = await fetch(upload.file_url);
+      const blob = await fileRes.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+      return callAnthropic(
+        [{ role: 'user', content: [
+          { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: prompt },
+        ]}],
+        8000,
+        undefined,
+        undefined,
+        meta,
+      );
+    });
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
 
@@ -152,8 +205,36 @@ Solo valores encontrados. No mapeados→other_values.`;
     let parsed: any;
     try { parsed = JSON.parse(cleaned); } catch { throw new Error('No se pudo parsear la respuesta de IA'); }
 
-    const values = parsed.values || {};
+    const rawExtracted = parsed.values || {};
     const otherValues = parsed.other_values || [];
+
+    // ── Validación clínica (doctrina: null antes que basura) ──────────────────────
+    // Cada valor extraído por la IA se compara contra su rango clínico ABSOLUTO. Los
+    // imposibles (LDL 2.27, HDL 2.15, Col 672 — casos reales de Mariana) se DESCARTAN:
+    // no se escriben a lab_results ni a lab_values. El motor Edad ATP ya maneja el null
+    // (renormaliza CE). Mejor un biomarcador "no detectado" que un número absurdo.
+    const values: Record<string, any> = {};
+    const rejected: Array<{ key: string; value: number; reason: string }> = [];
+    for (const [key, val] of Object.entries(rawExtracted)) {
+      const num = (val as any)?.value;
+      if (num == null) continue; // la IA no lo encontró → simplemente no se incluye
+      if (typeof num === 'number' && isLabValueValid(key, num)) {
+        values[key] = val;
+      } else {
+        const r = LAB_ABSOLUTE_RANGES[key];
+        rejected.push({
+          key,
+          value: num,
+          reason: r
+            ? `Valor ${num} fuera del rango clínico absoluto (${r.min}-${r.max} ${r.unit})`
+            : `Valor ${num} no numérico o inválido`,
+        });
+      }
+    }
+    if (rejected.length > 0) {
+      // logWarn va a Sentry como breadcrumb (no hay instancia de PostHog fuera de React).
+      logWarn('[lab-parser] valores rechazados por rango clínico:', { uploadId, rejected });
+    }
 
     // Create lab_result
     const labData: Record<string, any> = {
@@ -180,13 +261,18 @@ Solo valores encontrados. No mapeados→other_values.`;
     // (evita rows de lab_results con TODOS los campos NULL que ensucian loadUserData).
     const extractedCount = Object.values(values).filter((v: any) => v?.value != null).length;
     if (extractedCount === 0) {
+      // Diferenciar "no se extrajo nada" de "todo lo extraído era basura clínica".
+      const allRejected = rejected.length > 0;
+      const errorMessage = allRejected
+        ? `Ningún valor pasó la validación clínica (${rejected.length} descartados por estar fuera de rango).`
+        : 'No biomarkers extracted';
       await supabase.from('lab_uploads').update({
         status: 'failed',
         extracted_data: parsed,
         ai_raw_response: rawText,
-        error_message: 'No biomarkers extracted',
+        error_message: errorMessage,
       }).eq('id', uploadId);
-      return { error: 'No biomarkers extracted', extractedCount: 0, otherValues };
+      return { error: errorMessage, extractedCount: 0, otherValues, rejectedCount: rejected.length, rejected };
     }
 
     const { data: labResult, error: labError } = await supabase
@@ -220,11 +306,13 @@ Solo valores encontrados. No mapeados→other_values.`;
       lab_result_id: labResult.id,
     }).eq('id', uploadId);
 
-    return { labResultId: labResult.id, extractedCount, otherValues };
+    return { labResultId: labResult.id, extractedCount, otherValues, rejectedCount: rejected.length, rejected };
 
   } catch (err: any) {
-    await supabase.from('lab_uploads').update({ status: 'failed', error_message: err.message }).eq('id', uploadId);
-    return { error: err.message };
+    const retriable = isRetriableNetworkError(err);
+    const message = retriable ? LAB_NETWORK_ERROR_MSG : (err?.message ?? 'Error al procesar el archivo');
+    await supabase.from('lab_uploads').update({ status: 'failed', error_message: message }).eq('id', uploadId);
+    return { error: message, retriable };
   }
 }
 
