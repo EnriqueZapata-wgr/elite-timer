@@ -30,8 +30,10 @@ import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { EditDayModal } from '@/src/components/hoy/EditDayModal';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { ExpandableSheet } from '@/src/components/ui/ExpandableSheet';
 import { getHoyBackgroundRequire } from '@/src/constants/brand';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { nowDividerIndex, minutesOfDay, formatNowLabel } from '@/src/utils/agenda-now';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, chatWithArgosEx, saveConversation } from '@/src/services/argos-service';
@@ -238,6 +240,15 @@ export default function TodayScreen() {
       if (voiceClearTimeoutRef.current) clearTimeout(voiceClearTimeoutRef.current);
     };
   }, [loadDay]);
+
+  // F04.8 + F01.4: re-render ligero cada 60s (sin refetch) para que el divisor "AHORA" y el
+  // fondo dinámico por hora se actualicen en vivo al cruzar el minuto/franja (REFRESH_INTERVAL
+  // es de 5 min, demasiado grueso para un reloj). Solo fuerza re-render; no toca la DB.
+  const [, setMinuteTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setMinuteTick((n) => n + 1), 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // F36.7/F49/F03.7: defense-in-depth. Si el `day_changed` event no llega
   // (RN-Web inconsistente, listener silenciado por isTogglingRef, navegación
@@ -1350,20 +1361,42 @@ export default function TodayScreen() {
 
           {(() => {
             const segments = segmentAgenda(day.agendaItems);
-            const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+            const now = new Date();
+            const nowMin = minutesOfDay(now);
+            const nowLabel = formatNowLabel(now);
 
-            if (segments.length === 0) {
+            // F04.8 / Opción C: divisor "AHORA" SIEMPRE visible entre pasado y futuro.
+            const NowDivider = () => (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 8 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(168,224,42,0.35)' }} />
+                <Text style={{ color: '#a8e02a', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginHorizontal: 8 }}>{nowLabel}</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(168,224,42,0.35)' }} />
+              </View>
+            );
+
+            // Items aplanados en orden (segmentAgenda preserva el orden por hora).
+            const flatMins = segments.flatMap((seg) => seg.items.map((it) => toMinutes(it.time)));
+            const dividerIdx = nowDividerIndex(flatMins, nowMin);
+            const totalItems = flatMins.length;
+
+            if (totalItems === 0) {
               return (
-                <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
-                  <Ionicons name="calendar-outline" size={28} color="#333" />
-                  <Text style={{ color: '#999', fontSize: 13, fontFamily: Fonts.regular }}>
-                    Activa un protocolo para ver tu agenda
-                  </Text>
-                </View>
+                <>
+                  <NowDivider />
+                  <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="calendar-outline" size={28} color="#333" />
+                    <Text style={{ color: '#999', fontSize: 13, fontFamily: Fonts.regular }}>
+                      Activa un protocolo para ver tu agenda
+                    </Text>
+                  </View>
+                </>
               );
             }
 
-            return segments.map(segment => (
+            let globalIdx = 0; // contador entre segments para colocar el divisor una sola vez
+            return (
+              <>
+              {segments.map(segment => (
               <View key={segment.label} style={{ marginBottom: 20 }}>
                 {/* Header de segmento */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -1375,32 +1408,19 @@ export default function TodayScreen() {
                 </View>
 
                 {/* Items */}
-                {segment.items.map((item, idx) => {
+                {segment.items.map((item) => {
                   const itemMin = toMinutes(item.time);
                   const isPast = itemMin < nowMin;
                   const isCurrent = Math.abs(itemMin - nowMin) < 30;
                   const isCompleted = item.completed;
 
-                  // Indicador "AHORA" entre items
-                  let showNowLine = false;
-                  if (idx > 0) {
-                    const prevMin = toMinutes(segment.items[idx - 1].time);
-                    if (prevMin < nowMin && itemMin >= nowMin) showNowLine = true;
-                  }
+                  // Divisor "AHORA" justo antes del primer item futuro (posición global).
+                  const showNowLine = globalIdx === dividerIdx;
+                  globalIdx++;
 
                   return (
                     <View key={item.id}>
-                      {/* Línea "AHORA" */}
-                      {showNowLine && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4 }}>
-                          <View style={{ width: 42 }} />
-                          <View style={{ width: 20, alignItems: 'center', marginRight: 10 }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#a8e02a' }} />
-                          </View>
-                          <View style={{ flex: 1, height: 1, backgroundColor: '#a8e02a', opacity: 0.3 }} />
-                          <Text style={{ color: '#a8e02a', fontSize: 9, fontFamily: Fonts.bold, marginLeft: 6 }}>AHORA</Text>
-                        </View>
-                      )}
+                      {showNowLine && <NowDivider />}
 
                       <View style={{
                         flexDirection: 'row', alignItems: 'center', marginBottom: 6,
@@ -1470,7 +1490,10 @@ export default function TodayScreen() {
                   );
                 })}
               </View>
-            ));
+            ))}
+            {dividerIdx === totalItems && <NowDivider />}
+              </>
+            );
           })()}
         </Animated.View>
 
@@ -1511,48 +1534,35 @@ export default function TodayScreen() {
         </Pressable>
       </Modal>
 
+      {/* ARGOS response → bottom sheet expandible (F07.3). Snap 25/50/90, drag, scroll. */}
+      <ExpandableSheet
+        visible={!!voiceResponse}
+        onClose={() => { setVoiceResponse(''); setVoiceConversationId(null); }}
+        title="ARGOS"
+      >
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+          <Text style={{ color: '#ddd', fontSize: 15, lineHeight: 23 }}>{voiceResponse}</Text>
+        </ScrollView>
+        <Pressable
+          onPress={() => {
+            haptic.medium();
+            const convId = voiceConversationId;
+            setVoiceResponse('');
+            setVoiceConversationId(null);
+            if (convId) router.push({ pathname: '/argos-chat', params: { conversationId: convId } });
+            else router.push('/argos-chat');
+          }}
+          style={{
+            marginTop: 12, backgroundColor: 'rgba(168,224,42,0.15)', borderRadius: 12,
+            paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)',
+          }}
+        >
+          <Text style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: 14 }}>Ver conversación completa →</Text>
+        </Pressable>
+      </ExpandableSheet>
+
       {/* ARGOS dual FAB: mic + chat */}
       <View style={{ position: 'absolute', bottom: 90, right: 20, zIndex: 100, alignItems: 'flex-end' }}>
-        {/* Response bubble (temporal) */}
-        {voiceResponse ? (
-          <Pressable
-            onPress={() => {
-              haptic.medium();
-              if (voiceConversationId) {
-                router.push({ pathname: '/argos-chat', params: { conversationId: voiceConversationId } });
-              } else {
-                router.push('/argos-chat');
-              }
-              setVoiceResponse('');
-              setVoiceConversationId(null);
-            }}
-            style={{
-              backgroundColor: '#0a0a0a', borderRadius: 16, padding: 14,
-              marginBottom: 8, maxWidth: 280,
-              borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-              <Ionicons name="eye" size={12} color="#a8e02a" />
-              <Text style={{ color: '#a8e02a', fontSize: 9, fontWeight: '700' }}>ARGOS</Text>
-              <Text style={{ color: '#666', fontSize: 9, marginLeft: 'auto' }}>
-                tap para abrir
-              </Text>
-            </View>
-            <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 19 }} numberOfLines={6}>
-              {voiceResponse}
-            </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-              <Pressable onPress={(e) => { e.stopPropagation(); setVoiceResponse(''); setVoiceConversationId(null); }}>
-                <Text style={{ color: '#666', fontSize: 10 }}>Cerrar</Text>
-              </Pressable>
-              <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700' }}>
-                Ver completo →
-              </Text>
-            </View>
-          </Pressable>
-        ) : null}
-
         {voiceLoading ? (
           <View style={{
             backgroundColor: '#0a0a0a', borderRadius: 12, padding: 10,
