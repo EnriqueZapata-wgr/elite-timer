@@ -4,9 +4,9 @@
  * `key` = columna real de health_measurements.
  * Nota: recovery_hr quedó de-scopeado (no tiene columna canónica — ver REPORT).
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -35,6 +35,8 @@ function daysAgo(dateStr: string): number {
 export default function VitalsCapture() {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // ?focus=<columna> desde "Datos por capturar": abre el form y resalta el campo (#16).
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const [v, setV] = useState<Record<string, string>>({});
   const [prefilled, setPrefilled] = useState<Record<string, boolean>>({});
   const [snapshot, setSnapshot] = useState<Record<string, string>>({});
@@ -43,6 +45,9 @@ export default function VitalsCapture() {
   const [saving, setSaving] = useState(false);
   const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
   const hasData = Object.keys(prefilled).length > 0;
+
+  // Si llega con ?focus, mostrar el formulario editable directo (no el resumen read-only).
+  useEffect(() => { if (focus) setEditMode(true); }, [focus]);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -106,7 +111,7 @@ export default function VitalsCapture() {
         ) : (
           <View style={styles.card}>
             {FIELDS.map((f) => (
-              <NumberInputRow key={f.key} label={f.label} unit={f.unit} helper={f.helper} badge={prefilled[f.key] ? badge ?? 'Salud' : undefined} value={v[f.key] ?? ''} onChangeText={(x) => set(f.key, x)} />
+              <NumberInputRow key={f.key} label={f.label} unit={f.unit} helper={f.helper} badge={prefilled[f.key] ? badge ?? 'Salud' : undefined} value={v[f.key] ?? ''} onChangeText={(x) => set(f.key, x)} highlight={focus === f.key} />
             ))}
           </View>
         )}

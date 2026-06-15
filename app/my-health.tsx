@@ -27,6 +27,7 @@ import { haptic } from '@/src/utils/haptics';
 import { EdadAtpHeroCard } from '@/src/components/edad-atp/EdadAtpHeroCard';
 import { UploadTypePicker } from '@/src/components/edad-atp/UploadTypePicker';
 import { routeUploadByType, type UploadType } from '@/src/constants/upload-types';
+import { captureRouteFor } from '@/src/constants/data-capture-routes';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, TEXT_COLORS } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
@@ -212,11 +213,11 @@ export default function MyHealthScreen() {
   const getRecommendations = (hm: HealthMeasurement | null, labList: LabResult[]) => {
     const recs: { icon: string; title: string; desc: string; impact: string; route: string }[] = [];
     if (!labList.length) recs.push({ icon: 'flask-outline', title: 'Sube laboratorios', desc: 'La IA calcula tu edad biológica con PhenoAge', impact: 'muy alto', route: '/my-health' });
-    if (!hm?.grip_strength_kg) recs.push({ icon: 'hand-left-outline', title: 'Fuerza de agarre', desc: 'Predictor #1 de longevidad', impact: 'alto', route: '/health-input' });
-    if (!hm?.body_fat_pct) recs.push({ icon: 'body-outline', title: '% Grasa corporal', desc: 'Báscula de bioimpedancia mejora tu score', impact: 'alto', route: '/health-input' });
-    if (!hm?.systolic_bp) recs.push({ icon: 'heart-outline', title: 'Presión arterial', desc: 'Hipertensión es silenciosa', impact: 'alto', route: '/health-input' });
-    if (!hm?.vo2max_estimate) recs.push({ icon: 'fitness-outline', title: 'VO2max', desc: 'Mejor predictor de mortalidad por todas las causas', impact: 'alto', route: '/health-input' });
-    if (!hm?.waist_cm) recs.push({ icon: 'resize-outline', title: 'Medidas corporales', desc: 'Ratio cintura/cadera = marcador cardiovascular', impact: 'medio', route: '/health-input' });
+    if (!hm?.grip_strength_kg) recs.push({ icon: 'hand-left-outline', title: 'Fuerza de agarre', desc: 'Predictor #1 de longevidad', impact: 'alto', route: captureRouteFor('grip_strength_kg') });
+    if (!hm?.body_fat_pct) recs.push({ icon: 'body-outline', title: '% Grasa corporal', desc: 'Báscula de bioimpedancia mejora tu score', impact: 'alto', route: captureRouteFor('body_fat_pct') });
+    if (!hm?.systolic_bp) recs.push({ icon: 'heart-outline', title: 'Presión arterial', desc: 'Hipertensión es silenciosa', impact: 'alto', route: captureRouteFor('systolic_bp') });
+    if (!hm?.vo2max_estimate) recs.push({ icon: 'fitness-outline', title: 'VO2max', desc: 'Mejor predictor de mortalidad por todas las causas', impact: 'alto', route: captureRouteFor('vo2max_estimate') });
+    if (!hm?.waist_cm) recs.push({ icon: 'resize-outline', title: 'Medidas corporales', desc: 'Ratio cintura/cadera = marcador cardiovascular', impact: 'medio', route: captureRouteFor('waist_cm') });
     return recs;
   };
 

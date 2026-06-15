@@ -3,9 +3,9 @@
  * Pre-puebla desde health_measurements (tabla canónica) y guarda ahí mismo —
  * no duplica en edad_atp_body_composition. FFMI se calcula en vivo (no se persiste).
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -32,6 +32,8 @@ const FIELD_KEYS = ['weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 
 export default function CompositionCapture() {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // ?focus=<columna> desde "Datos por capturar": abre el form y resalta el campo (#16).
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const [v, setV] = useState<Record<string, string>>({});
   const [prefilled, setPrefilled] = useState<Record<string, boolean>>({});
   const [snapshot, setSnapshot] = useState<Record<string, string>>({});
@@ -39,6 +41,9 @@ export default function CompositionCapture() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
+
+  // Si llega con ?focus, mostrar el formulario editable directo (no el resumen read-only).
+  useEffect(() => { if (focus) setEditMode(true); }, [focus]);
 
   const SUMMARY: { key: string; label: string; unit: string }[] = [
     { key: 'weight_kg', label: 'Peso', unit: 'kg' },
@@ -161,11 +166,11 @@ export default function CompositionCapture() {
             </EliteText>
           ) : null}
           <NumberInputRow label="Altura" unit="cm" badge={prefilled.height_cm ? badge ?? 'Salud' : undefined} value={v.height_cm ?? ''} onChangeText={(x) => set('height_cm', x)} />
-          <NumberInputRow label="% Grasa corporal" unit="%" badge={prefilled.body_fat_pct ? badge ?? 'Salud' : undefined} value={v.body_fat_pct ?? ''} onChangeText={(x) => set('body_fat_pct', x)} />
+          <NumberInputRow label="% Grasa corporal" unit="%" badge={prefilled.body_fat_pct ? badge ?? 'Salud' : undefined} value={v.body_fat_pct ?? ''} onChangeText={(x) => set('body_fat_pct', x)} highlight={focus === 'body_fat_pct'} />
           <NumberInputRow label="Masa muscular" unit="kg" badge={prefilled.muscle_mass_kg ? badge ?? 'Salud' : undefined} value={v.muscle_mass_kg ?? ''} onChangeText={(x) => set('muscle_mass_kg', x)} helper="Reportada por báscula inteligente" />
           <NumberInputRow label="Grasa visceral" badge={prefilled.visceral_fat ? badge ?? 'Salud' : undefined} value={v.visceral_fat ?? ''} onChangeText={(x) => set('visceral_fat', x)} helper="Índice típico 1–30" />
-          <NumberInputRow label="Fuerza de agarre" unit="kg" badge={prefilled.grip_strength_kg ? badge ?? 'Salud' : undefined} value={v.grip_strength_kg ?? ''} onChangeText={(x) => set('grip_strength_kg', x)} helper="Dinamómetro Camry EH101 (~$25)" />
-          <NumberInputRow label="Cintura" unit="cm" badge={prefilled.waist_cm ? badge ?? 'Salud' : undefined} value={v.waist_cm ?? ''} onChangeText={(x) => set('waist_cm', x)} helper="A la altura del ombligo, sin apretar" />
+          <NumberInputRow label="Fuerza de agarre" unit="kg" badge={prefilled.grip_strength_kg ? badge ?? 'Salud' : undefined} value={v.grip_strength_kg ?? ''} onChangeText={(x) => set('grip_strength_kg', x)} helper="Dinamómetro Camry EH101 (~$25)" highlight={focus === 'grip_strength_kg'} />
+          <NumberInputRow label="Cintura" unit="cm" badge={prefilled.waist_cm ? badge ?? 'Salud' : undefined} value={v.waist_cm ?? ''} onChangeText={(x) => set('waist_cm', x)} helper="A la altura del ombligo, sin apretar" highlight={focus === 'waist_cm'} />
           <NumberInputRow label="Cadera" unit="cm" badge={prefilled.hip_cm ? badge ?? 'Salud' : undefined} value={v.hip_cm ?? ''} onChangeText={(x) => set('hip_cm', x)} helper="En la parte más ancha de los glúteos" />
           <NumberInputRow label="Ratio cintura/cadera" value={whr != null ? String(whr) : ''} readOnly placeholder="auto" helper="Marcador cardiovascular" />
           <NumberInputRow label="Tu FFMI" value={ffmi != null ? (Math.round(ffmi * 10) / 10).toString() : ''} readOnly placeholder="auto" />
