@@ -4,6 +4,7 @@
  * ÚNICA FUENTE DE VERDAD de colores en toda la app.
  * Ningún archivo debe hardcodear un color; debe importar de aquí.
  */
+import { hoyBgBucket } from '@/src/utils/time-of-day';
 
 // ═══ PALETA PRINCIPAL ═══
 
@@ -279,10 +280,12 @@ const BG_IMAGES = {
   nightLow:     require('../../assets/backgrounds/bg-night-low.jpg'),
 } as const;
 
-/** Devuelve la imagen de fondo apropiada segun la hora y el score. */
+/** Devuelve la imagen de fondo apropiada segun la hora (franja pura en time-of-day). */
 export function getHoyBackgroundRequire(hour: number, _score: number) {
-  if (hour >= 22 || hour < 5) return BG_IMAGES.sleep;
-  if (hour < 12) return BG_IMAGES.morning;
-  if (hour < 19) return BG_IMAGES.middayMedium;
-  return BG_IMAGES.nightLow;
+  switch (hoyBgBucket(hour)) {
+    case 'sleep': return BG_IMAGES.sleep;
+    case 'morning': return BG_IMAGES.morning;
+    case 'midday': return BG_IMAGES.middayMedium;
+    default: return BG_IMAGES.nightLow;
+  }
 }
