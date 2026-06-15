@@ -7,7 +7,7 @@ import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { insertLabValuesFromRaw, voidLabValuesByUpload, voidLabValuesByLabResult } from '@/src/services/edad-atp/lab-values-service';
 import { isLabValueValid, LAB_ABSOLUTE_RANGES } from '@/src/constants/lab-clinical-ranges';
-import { processParserItems, type RawParserItem, type ProcessedItem, type DerivedItem } from '@/src/services/edad-atp/lab-parser-process';
+import { processParserItems, type RawParserItem, type ProcessedItem, type DerivedItem, type DupCandidate } from '@/src/services/edad-atp/lab-parser-process';
 import { warn as logWarn } from '@/src/lib/logger';
 
 /** Reintentos del parser ante fallo de red: backoff 1s, 3s (3 intentos totales). */
@@ -359,6 +359,10 @@ export interface LabReviewPayload {
   items: ProcessedItem[];
   derived: DerivedItem[];
   otherValues: any[];
+  /** Multi-foto: candidatos alternativos por key cuando varias fotos detectaron el mismo biomarker. */
+  duplicates?: Record<string, DupCandidate[]>;
+  /** Multi-foto: todos los uploads que componen esta revisión (para guardar/descartar en bloque). */
+  uploadIds?: string[];
 }
 
 /** Acepta `values` como array v2 o como objeto {key:{value,unit}} (compat) → RawParserItem[]. */
@@ -466,7 +470,7 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
 export async function saveConfirmedLabValues(
   uploadId: string,
   confirmed: Array<{ key: string; value: number }>,
-  opts: { labDate?: string; labName?: string | null },
+  opts: { labDate?: string; labName?: string | null; extraUploadIds?: string[] },
 ): Promise<LabExtractResult | LabExtractError> {
   const { data: upload } = await supabase.from('lab_uploads').select('*').eq('id', uploadId).single();
   if (!upload) return { error: 'Upload no encontrado' };
@@ -508,6 +512,12 @@ export async function saveConfirmedLabValues(
     });
 
     await supabase.from('lab_uploads').update({ status: 'extracted', lab_result_id: labResult.id }).eq('id', uploadId);
+
+    // Multi-foto: las demás fotos quedan asociadas al mismo lab_result (no quedan "fallidas").
+    const extras = (opts.extraUploadIds ?? []).filter((id) => id && id !== uploadId);
+    if (extras.length > 0) {
+      await supabase.from('lab_uploads').update({ status: 'extracted', lab_result_id: labResult.id }).in('id', extras);
+    }
 
     if (rejected.length > 0) logWarn('[lab-parser-v2] confirmados rechazados por rango:', { uploadId, rejected });
     return { labResultId: labResult.id, extractedCount, otherValues: [], rejectedCount: rejected.length, rejected };

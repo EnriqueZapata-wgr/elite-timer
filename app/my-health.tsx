@@ -14,9 +14,10 @@ try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
-import { uploadLabFile, extractLabValuesForReview, saveConfirmedLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult } from '@/src/services/lab-service';
+import { uploadLabFile, extractLabValuesForReview, saveConfirmedLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult, type LabReviewPayload } from '@/src/services/lab-service';
 import { needsConfirmation } from '@/src/services/edad-atp/lab-parser-process';
 import { setReview } from '@/src/services/edad-atp/lab-review-store';
+import { mergeReviews } from '@/src/services/edad-atp/lab-review-merge';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { getStudies, type ClinicalStudy } from '@/src/services/clinical-study-service';
 import { parseLocalDate } from '@/src/utils/date-helpers';
@@ -212,9 +213,9 @@ export default function MyHealthScreen() {
     setProcessing(false);
   };
 
-  // Subida múltiple de fotos de labs (#9): sube y procesa cada una con el parser v2
-  // (normaliza + valida) y guarda los válidos por foto, consolidando totales. En multi NO se
-  // abre confirmación por foto (auto-guarda los válidos); la confirmación es para la subida única.
+  // Subida múltiple de fotos de labs (#9): extrae las N fotos EN PARALELO, mergea en una sola
+  // lista (duplicados entre fotos quedan como candidatos a elegir) y abre UNA pantalla de
+  // confirmación consolidada. Doctrina: el usuario ve TODO antes de guardar.
   const processMultipleUploads = async (images: string[], type?: UploadType) => {
     const route = routeUploadByType(type?.id ?? 'labs');
     setResult(null);
@@ -224,27 +225,35 @@ export default function MyHealthScreen() {
       return;
     }
     setProcessing(true);
-    let totalCount = 0, totalRejected = 0, ok = 0;
-    for (let i = 0; i < images.length; i++) {
-      setMultiProgress({ done: i, total: images.length });
-      try {
-        const { uploadId } = await uploadLabFile(userId, images[i], 'image');
-        const review = await extractLabValuesForReview(uploadId);
-        if (!('error' in review)) {
-          const confirmed = review.items.filter((it) => it.passedValidation).map((it) => ({ key: it.key, value: it.valueCanonical }));
-          const res = await saveConfirmedLabValues(uploadId, confirmed, { labDate: review.labDate, labName: review.labName });
-          if (!('error' in res)) { ok++; totalCount += res.extractedCount; totalRejected += res.rejectedCount ?? 0; }
+    setMultiProgress({ done: 0, total: images.length });
+    let done = 0;
+    const settled = await Promise.all(
+      images.map(async (img) => {
+        try {
+          const { uploadId } = await uploadLabFile(userId, img, 'image');
+          const review = await extractLabValuesForReview(uploadId);
+          done++; setMultiProgress({ done, total: images.length });
+          return 'error' in review ? null : review;
+        } catch {
+          done++; setMultiProgress({ done, total: images.length });
+          return null;
         }
-      } catch { /* una foto ilegible no aborta el resto */ }
-    }
+      }),
+    );
     setMultiProgress(null);
-    setProcessing(false);
-    if (ok === 0) {
+    const okReviews = settled.filter(Boolean) as LabReviewPayload[];
+    if (okReviews.length === 0) {
+      setProcessing(false);
       setResult({ error: `No pudimos leer ninguno de los ${images.length} archivos. Revisa que sean fotos legibles de laboratorios.` });
-    } else {
-      setResult({ count: totalCount, rejected: totalRejected, files: ok });
+      loadData();
+      return;
     }
-    loadData();
+    const merged = mergeReviews(okReviews);
+    analytics.track(ATP_EVENTS.LAB_PARSER_V2_REVIEWED, { total: merged.items.length, photos: okReviews.length, upload_id: merged.uploadId });
+    setReview(merged);
+    setResult(null);
+    setProcessing(false);
+    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId: merged.uploadId } } as any);
   };
 
   // Reintento manual de extracción (#5): re-procesa un upload ya subido (fallido por red u

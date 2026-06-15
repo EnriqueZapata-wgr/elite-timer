@@ -94,8 +94,9 @@ export default function LabConfirmationScreen() {
       .map((it) => ({ key: it.key, value: effectiveValue(it) }))
       .filter((c): c is { key: string; value: number } => c.value != null);
 
+    const extraUploadIds = (review.uploadIds ?? []).filter((id) => id !== review.uploadId);
     setSaving(true);
-    const res = await saveConfirmedLabValues(review.uploadId, confirmed, { labDate: review.labDate, labName: review.labName });
+    const res = await saveConfirmedLabValues(review.uploadId, confirmed, { labDate: review.labDate, labName: review.labName, extraUploadIds });
     setSaving(false);
 
     const editedCount = Object.keys(edited).length;
@@ -125,7 +126,8 @@ export default function LabConfirmationScreen() {
       {
         text: 'Descartar', style: 'destructive',
         onPress: async () => {
-          try { await deleteLabUpload(review.uploadId); } catch { /* */ }
+          const ids = review.uploadIds ?? [review.uploadId];
+          for (const id of ids) { try { await deleteLabUpload(id); } catch { /* */ } }
           clearReview(review.uploadId);
           router.replace('/my-health');
         },
@@ -137,6 +139,19 @@ export default function LabConfirmationScreen() {
     haptic.light();
     setEdited((p) => ({ ...p, [it.key]: p[it.key] ?? (it.passedValidation ? String(it.valueCanonical) : '') }));
     setEditingKey(it.key);
+  };
+
+  // Valor actualmente elegido para un item (edición del usuario o el valor por defecto).
+  const currentValue = (it: ProcessedItem): number | null => {
+    const e = edited[it.key];
+    return e != null ? parseDecimalInput(e) : it.valueCanonical;
+  };
+
+  // Multi-foto: elegir uno de los candidatos detectados para ese biomarker.
+  const chooseCandidate = (key: string, value: number) => {
+    haptic.light();
+    setEdited((p) => ({ ...p, [key]: String(value) }));
+    setEditingKey(null);
   };
 
   return (
@@ -194,6 +209,24 @@ export default function LabConfirmationScreen() {
                         : 'Lectura poco clara. Captúralo a mano si lo conoces.'}
                     </EliteText>
                   )}
+                  {/* Multi-foto: varios candidatos para el mismo biomarker → elegir lado a lado. */}
+                  {!isEditing && (review.duplicates?.[it.key]?.length ?? 0) > 1 && (
+                    <View style={styles.dupWrap}>
+                      <EliteText variant="caption" style={styles.dupHint}>Detectado en varias fotos — elige cuál usar:</EliteText>
+                      <View style={styles.dupChips}>
+                        {review.duplicates![it.key].map((c, i) => {
+                          const selected = currentValue(it) === c.value;
+                          return (
+                            <Pressable key={`${c.sourceLabel}-${i}`} onPress={() => chooseCandidate(it.key, c.value)} style={[styles.dupChip, selected && styles.dupChipActive]}>
+                              <EliteText variant="caption" style={[styles.dupChipText, selected && styles.dupChipTextActive]}>
+                                {c.value} {c.unit} · {c.sourceLabel}{!c.passedValidation ? ' ⚠' : ''}
+                              </EliteText>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </View>
+                  )}
                   {!isEditing && it.rawTextSnippet ? (
                     <EliteText variant="caption" style={styles.snippet}>Detectado: “{it.rawTextSnippet}”</EliteText>
                   ) : null}
@@ -243,6 +276,13 @@ const styles = StyleSheet.create({
   itemValue: { fontFamily: Fonts.bold, marginTop: 2 },
   note: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 3 },
   snippet: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 2, fontStyle: 'italic' },
+  dupWrap: { marginTop: 6 },
+  dupHint: { color: SEMANTIC.warning, fontSize: FontSizes.xs, marginBottom: 4 },
+  dupChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  dupChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: '#333', backgroundColor: '#0a0a0a' },
+  dupChipActive: { borderColor: Colors.neonGreen, backgroundColor: 'rgba(168,224,42,0.12)' },
+  dupChipText: { color: Colors.textSecondary, fontSize: FontSizes.xs },
+  dupChipTextActive: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 },
   editInput: {
     width: 90, textAlign: 'right', backgroundColor: '#000', borderRadius: Radius.sm,

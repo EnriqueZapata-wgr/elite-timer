@@ -42,6 +42,15 @@ export interface DerivedItem {
   value: number;
 }
 
+/** Candidato de un biomarker detectado en una foto concreta (multi-foto). */
+export interface DupCandidate {
+  value: number;
+  unit: string;
+  sourceLabel: string;
+  confidence: Confidence;
+  passedValidation: boolean;
+}
+
 export interface ProcessParserResult {
   items: ProcessedItem[];
   derived: DerivedItem[];
