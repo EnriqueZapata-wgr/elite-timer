@@ -37,7 +37,8 @@ export default function VitalsCapture() {
   const { user } = useAuth();
   const analytics = useAnalytics();
   // ?focus=<columna> desde "Datos por capturar": abre el form y resalta el campo (#16).
-  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  // ?prefill=<valor>: regreso del test Cooper con el VO2max calculado (FIX 3).
+  const { focus, prefill } = useLocalSearchParams<{ focus?: string; prefill?: string }>();
   const [v, setV] = useState<Record<string, string>>({});
   const [prefilled, setPrefilled] = useState<Record<string, boolean>>({});
   const [snapshot, setSnapshot] = useState<Record<string, string>>({});
@@ -51,6 +52,8 @@ export default function VitalsCapture() {
 
   // Si llega con ?focus, mostrar el formulario editable directo (no el resumen read-only).
   useEffect(() => { if (focus) setEditMode(true); }, [focus]);
+  // Pre-llenar el VO2max al volver del test Cooper (FIX 3).
+  useEffect(() => { if (prefill) { setEditMode(true); set('vo2max_estimate', String(prefill)); } }, [prefill]);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -122,9 +125,22 @@ export default function VitalsCapture() {
           </View>
         ) : (
           <View style={styles.card}>
-            {FIELDS.map((f) => (
-              <NumberInputRow key={f.key} label={f.label} unit={f.unit} helper={f.helper} badge={prefilled[f.key] ? badge ?? 'Salud' : undefined} value={v[f.key] ?? ''} onChangeText={(x) => set(f.key, x)} highlight={focus === f.key} />
-            ))}
+            {FIELDS.map((f) => {
+              const isVo2 = f.key === 'vo2max_estimate';
+              return (
+                <NumberInputRow
+                  key={f.key}
+                  label={f.label}
+                  unit={f.unit}
+                  helper={isVo2 ? 'Si no lo sabes, haz el test Cooper de 12 min →' : f.helper}
+                  onHelperPress={isVo2 ? () => { haptic.light(); router.push('/edad-atp/tests/cooper?return=vitals' as any); } : undefined}
+                  badge={prefilled[f.key] ? badge ?? 'Salud' : undefined}
+                  value={v[f.key] ?? ''}
+                  onChangeText={(x) => set(f.key, x)}
+                  highlight={focus === f.key}
+                />
+              );
+            })}
           </View>
         )}
 
