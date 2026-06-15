@@ -317,7 +317,7 @@ export default function MyHealthScreen() {
         {/* Recomendaciones */}
         {recs.length > 0 && (
           <Animated.View entering={FadeInUp.delay(250).springify()}>
-            <SectionTitle style={s.sectionLabelSpacing}>MEJORA TU EVALUACIÓN</SectionTitle>
+            <SectionTitle style={s.sectionLabelSpacing}>DATOS POR CAPTURAR</SectionTitle>
             {recs.map((rec, i) => (
               <AnimatedPressable key={rec.title} onPress={() => { haptic.light(); router.push(rec.route as any); }} style={s.recCard}>
                 <Ionicons name={rec.icon as any} size={20} color={impactColor(rec.impact)} />
