@@ -14,6 +14,7 @@ import { getMatriz } from './sf-9band-service';
 import { resolveParamSource, COMPUTED_PARAMS, FT_KEY_ALIASES, MOTOR_PASSTHROUGH_FT_KEYS, MOTOR_PASSTHROUGH_QUEST_KEYS } from '@/src/constants/edad-atp-source-map';
 import { coalesceHealthRows, HEALTH_COALESCE_ROWS } from './capture-service';
 import { loadCanonicalLabValues, canonicalToValueDict } from './lab-values-service';
+import { mapHabitsResponses } from '@/src/constants/habits-categorical-mapping';
 import type { Sex } from '@/src/types/edad-atp-v2';
 
 function latestByKey<T extends Record<string, any>>(rows: T[], keyField: string, valField: string): Record<string, number> {
@@ -21,6 +22,16 @@ function latestByKey<T extends Record<string, any>>(rows: T[], keyField: string,
   for (const r of rows) {
     const k = r[keyField];
     if (out[k] === undefined && r[valField] != null) out[k] = r[valField];
+  }
+  return out;
+}
+
+/** Último value_text por parameter_key (respuestas categóricas de cuestionario). */
+function latestTextByKey<T extends Record<string, any>>(rows: T[], keyField: string, textField: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const r of rows) {
+    const k = r[keyField];
+    if (out[k] === undefined && r[textField] != null) out[k] = String(r[textField]);
   }
   return out;
 }
@@ -104,16 +115,26 @@ export async function loadAllParamValues(userId: string, sex: Sex): Promise<Reco
     const [canonMap, hmRes, qRes, ftRes] = await Promise.all([
       loadCanonicalLabValues(userId),
       supabase.from('health_measurements').select('*').eq('user_id', userId).order('date', { ascending: false }).limit(HEALTH_COALESCE_ROWS),
-      supabase.from('edad_atp_questionnaire_responses').select('parameter_key, value, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
+      supabase.from('edad_atp_questionnaire_responses').select('parameter_key, value, value_text, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
       supabase.from('edad_atp_functional_tests').select('test_key, value_primary, measured_at').eq('user_id', userId).order('measured_at', { ascending: false }),
     ]);
-    return resolveParamValues(sex, {
+    const out = resolveParamValues(sex, {
       canon: canonicalToValueDict(canonMap),
       // Coalesce por columna entre filas (mismo fix que loadUserData — bug B1/B6).
       hm: coalesceHealthRows((hmRes.data ?? []) as Record<string, any>[]) ?? {},
       quest: latestByKey(qRes.data ?? [], 'parameter_key', 'value'),
       ft: latestByKey(ftRes.data ?? [], 'test_key', 'value_primary'),
     });
+    // Opción B: puente categórico→numérico de hábitos. El cuestionario guarda value_text
+    // (exercise_freq, alcohol, smoking); el modulador lee numéricos (ejercicio_semanal,
+    // consumo_de_alcohol_mensual, tabaquismo). Mapeamos y rellenamos SOLO si no hay ya un
+    // valor numérico (no pisa capturas reales). Sin esto el modulador renormaliza a ~60.
+    const habitsText = latestTextByKey(qRes.data ?? [], 'parameter_key', 'value_text');
+    const mappedHabits = mapHabitsResponses(habitsText);
+    for (const [k, v] of Object.entries(mappedHabits)) {
+      if (out[k] === undefined) out[k] = v;
+    }
+    return out;
   } catch (err) {
     logWarn('[edad-atp] loadAllParamValues failed:', err);
     return {};
