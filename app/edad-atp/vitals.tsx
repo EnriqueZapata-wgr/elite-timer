@@ -4,9 +4,9 @@
  * `key` = columna real de health_measurements.
  * Nota: recovery_hr quedó de-scopeado (no tiene columna canónica — ver REPORT).
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -15,6 +15,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveHealthMeasurement, getLatestHealthMeasurement, type HealthMeasurementInput } from '@/src/services/edad-atp/capture-service';
+import { useFormDraft } from '@/src/hooks/useFormDraft';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -35,31 +36,46 @@ function daysAgo(dateStr: string): number {
 export default function VitalsCapture() {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // ?focus=<columna> desde "Datos por capturar": abre el form y resalta el campo (#16).
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const [v, setV] = useState<Record<string, string>>({});
   const [prefilled, setPrefilled] = useState<Record<string, boolean>>({});
   const [snapshot, setSnapshot] = useState<Record<string, string>>({});
   const [badge, setBadge] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
-  const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
+  const { load: loadDraft, save: saveDraft, clear: clearDraft } = useFormDraft('vitals', user?.id);
+  // Persistir el borrador al teclear → sobrevive navegación (Mariana #11/#15).
+  const set = (k: string, val: string) => setV((p) => { const next = { ...p, [k]: val }; saveDraft(next); return next; });
   const hasData = Object.keys(prefilled).length > 0;
+
+  // Si llega con ?focus, mostrar el formulario editable directo (no el resumen read-only).
+  useEffect(() => { if (focus) setEditMode(true); }, [focus]);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
     (async () => {
       const row = await getLatestHealthMeasurement(user.id);
-      if (!row) return;
       const init: Record<string, string> = {};
       const pre: Record<string, boolean> = {};
-      for (const f of FIELDS) {
-        if (row[f.key] != null) { init[f.key] = String(row[f.key]); pre[f.key] = true; }
+      if (row) {
+        for (const f of FIELDS) {
+          if (row[f.key] != null) { init[f.key] = String(row[f.key]); pre[f.key] = true; }
+        }
+        if (row.date) setBadge(`hace ${daysAgo(row.date)}d`);
       }
-      setV(init);
       setSnapshot(init);
       setPrefilled(pre);
-      if (row.date) setBadge(`hace ${daysAgo(row.date)}d`);
+      // Restaurar borrador no guardado encima de lo de DB (Mariana #11/#15).
+      const saved = await loadDraft();
+      if (saved && Object.keys(saved).length > 0) {
+        setV({ ...init, ...saved });
+        setEditMode(true);
+      } else {
+        setV(init);
+      }
     })();
-  }, [user?.id]));
+  }, [user?.id, loadDraft]));
 
   async function handleSave() {
     if (!user?.id) return;
@@ -78,6 +94,7 @@ export default function VitalsCapture() {
     const result = await saveHealthMeasurement(user.id, fields);
     setSaving(false);
     if (!result.ok) { Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.'); return; }
+    await clearDraft(); // ya está en DB: la recarga lo traerá.
     analytics.track(ATP_EVENTS.EDAD_ATP_VITALS_SAVED, { count: changed });
     haptic.success();
     Alert.alert('', 'Datos guardados ✓', [{ text: 'OK', onPress: () => router.back() }]);
@@ -106,7 +123,7 @@ export default function VitalsCapture() {
         ) : (
           <View style={styles.card}>
             {FIELDS.map((f) => (
-              <NumberInputRow key={f.key} label={f.label} unit={f.unit} helper={f.helper} badge={prefilled[f.key] ? badge ?? 'Salud' : undefined} value={v[f.key] ?? ''} onChangeText={(x) => set(f.key, x)} />
+              <NumberInputRow key={f.key} label={f.label} unit={f.unit} helper={f.helper} badge={prefilled[f.key] ? badge ?? 'Salud' : undefined} value={v[f.key] ?? ''} onChangeText={(x) => set(f.key, x)} highlight={focus === f.key} />
             ))}
           </View>
         )}

@@ -3,9 +3,9 @@
  * Pre-puebla desde health_measurements (tabla canónica) y guarda ahí mismo —
  * no duplica en edad_atp_body_composition. FFMI se calcula en vivo (no se persiste).
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -14,6 +14,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveHealthMeasurement, getLatestHealthMeasurement } from '@/src/services/edad-atp/capture-service';
+import { useFormDraft } from '@/src/hooks/useFormDraft';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -27,18 +28,25 @@ function daysAgo(dateStr: string): number {
   return Math.max(0, Math.round((now - then) / 86400000));
 }
 
-const FIELD_KEYS = ['weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 'visceral_fat', 'grip_strength_kg'] as const;
+const FIELD_KEYS = ['weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 'visceral_fat', 'grip_strength_kg', 'waist_cm', 'hip_cm'] as const;
 
 export default function CompositionCapture() {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // ?focus=<columna> desde "Datos por capturar": abre el form y resalta el campo (#16).
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
   const [v, setV] = useState<Record<string, string>>({});
   const [prefilled, setPrefilled] = useState<Record<string, boolean>>({});
   const [snapshot, setSnapshot] = useState<Record<string, string>>({});
   const [badge, setBadge] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
-  const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
+  const { load: loadDraft, save: saveDraft, clear: clearDraft } = useFormDraft('composition', user?.id);
+  // Persistir el borrador al teclear → sobrevive navegación (Mariana #11/#15).
+  const set = (k: string, val: string) => setV((p) => { const next = { ...p, [k]: val }; saveDraft(next); return next; });
+
+  // Si llega con ?focus, mostrar el formulario editable directo (no el resumen read-only).
+  useEffect(() => { if (focus) setEditMode(true); }, [focus]);
 
   const SUMMARY: { key: string; label: string; unit: string }[] = [
     { key: 'weight_kg', label: 'Peso', unit: 'kg' },
@@ -47,6 +55,8 @@ export default function CompositionCapture() {
     { key: 'muscle_mass_kg', label: 'Masa muscular', unit: 'kg' },
     { key: 'visceral_fat', label: 'Grasa visceral', unit: '' },
     { key: 'grip_strength_kg', label: 'Fuerza de agarre', unit: 'kg' },
+    { key: 'waist_cm', label: 'Cintura', unit: 'cm' },
+    { key: 'hip_cm', label: 'Cadera', unit: 'cm' },
   ];
   const hasData = Object.keys(prefilled).length > 0;
 
@@ -55,18 +65,26 @@ export default function CompositionCapture() {
     if (!user?.id) return;
     (async () => {
       const row = await getLatestHealthMeasurement(user.id);
-      if (!row) return;
       const init: Record<string, string> = {};
       const pre: Record<string, boolean> = {};
-      for (const k of FIELD_KEYS) {
-        if (row[k] != null) { init[k] = String(row[k]); pre[k] = true; }
+      if (row) {
+        for (const k of FIELD_KEYS) {
+          if (row[k] != null) { init[k] = String(row[k]); pre[k] = true; }
+        }
+        if (row.date) setBadge(`hace ${daysAgo(row.date)}d`);
       }
-      setV(init);
       setSnapshot(init);
       setPrefilled(pre);
-      if (row.date) setBadge(`hace ${daysAgo(row.date)}d`);
+      // Restaurar borrador no guardado encima de lo de DB (Mariana #11/#15).
+      const saved = await loadDraft();
+      if (saved && Object.keys(saved).length > 0) {
+        setV({ ...init, ...saved });
+        setEditMode(true); // mostrar el form para que vea su captura pendiente
+      } else {
+        setV(init);
+      }
     })();
-  }, [user?.id]));
+  }, [user?.id, loadDraft]));
 
   // FFMI = masa libre de grasa / talla² (en vivo, no se persiste).
   const weight = num(v.weight_kg ?? '');
@@ -76,6 +94,12 @@ export default function CompositionCapture() {
     weight != null && height != null && bodyFat != null && height > 0
       ? (weight * (1 - bodyFat / 100)) / Math.pow(height / 100, 2)
       : undefined;
+
+  // Ratio cintura/cadera (WHR) — marcador cardiovascular validado (Yusuf 2005, INTERHEART).
+  // En vivo, no se persiste (se deriva de waist_cm/hip_cm).
+  const waist = num(v.waist_cm ?? '');
+  const hip = num(v.hip_cm ?? '');
+  const whr = waist != null && hip != null && hip > 0 ? Math.round((waist / hip) * 100) / 100 : undefined;
 
   // Diff de peso vs lo pre-poblado.
   const prevWeight = num(snapshot.weight_kg ?? '');
@@ -104,6 +128,7 @@ export default function CompositionCapture() {
       Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
       return;
     }
+    await clearDraft(); // ya está en DB: la recarga lo traerá, el borrador deja de hacer falta.
     analytics.track(ATP_EVENTS.EDAD_ATP_COMPOSITION_SAVED, {});
     haptic.success();
     Alert.alert('', 'Datos guardados ✓', [{ text: 'OK', onPress: () => router.back() }]);
@@ -134,6 +159,12 @@ export default function CompositionCapture() {
                 <EliteText variant="body" style={styles.sumValue}>{Math.round(ffmi * 10) / 10}</EliteText>
               </View>
             ) : null}
+            {whr != null ? (
+              <View style={styles.sumRow}>
+                <EliteText variant="body" style={styles.sumLabel}>Ratio cintura/cadera</EliteText>
+                <EliteText variant="body" style={styles.sumValue}>{whr}</EliteText>
+              </View>
+            ) : null}
             <Pressable onPress={() => { haptic.light(); setEditMode(true); }} style={styles.updateBtn}>
               <EliteText variant="body" style={styles.updateBtnText}>Actualizar mediciones</EliteText>
             </Pressable>
@@ -147,10 +178,13 @@ export default function CompositionCapture() {
             </EliteText>
           ) : null}
           <NumberInputRow label="Altura" unit="cm" badge={prefilled.height_cm ? badge ?? 'Salud' : undefined} value={v.height_cm ?? ''} onChangeText={(x) => set('height_cm', x)} />
-          <NumberInputRow label="% Grasa corporal" unit="%" badge={prefilled.body_fat_pct ? badge ?? 'Salud' : undefined} value={v.body_fat_pct ?? ''} onChangeText={(x) => set('body_fat_pct', x)} />
+          <NumberInputRow label="% Grasa corporal" unit="%" badge={prefilled.body_fat_pct ? badge ?? 'Salud' : undefined} value={v.body_fat_pct ?? ''} onChangeText={(x) => set('body_fat_pct', x)} highlight={focus === 'body_fat_pct'} />
           <NumberInputRow label="Masa muscular" unit="kg" badge={prefilled.muscle_mass_kg ? badge ?? 'Salud' : undefined} value={v.muscle_mass_kg ?? ''} onChangeText={(x) => set('muscle_mass_kg', x)} helper="Reportada por báscula inteligente" />
           <NumberInputRow label="Grasa visceral" badge={prefilled.visceral_fat ? badge ?? 'Salud' : undefined} value={v.visceral_fat ?? ''} onChangeText={(x) => set('visceral_fat', x)} helper="Índice típico 1–30" />
-          <NumberInputRow label="Fuerza de agarre" unit="kg" badge={prefilled.grip_strength_kg ? badge ?? 'Salud' : undefined} value={v.grip_strength_kg ?? ''} onChangeText={(x) => set('grip_strength_kg', x)} helper="Dinamómetro Camry EH101 (~$25)" />
+          <NumberInputRow label="Fuerza de agarre" unit="kg" badge={prefilled.grip_strength_kg ? badge ?? 'Salud' : undefined} value={v.grip_strength_kg ?? ''} onChangeText={(x) => set('grip_strength_kg', x)} helper="Dinamómetro Camry EH101 (~$25)" highlight={focus === 'grip_strength_kg'} />
+          <NumberInputRow label="Cintura" unit="cm" badge={prefilled.waist_cm ? badge ?? 'Salud' : undefined} value={v.waist_cm ?? ''} onChangeText={(x) => set('waist_cm', x)} helper="A la altura del ombligo, sin apretar" highlight={focus === 'waist_cm'} />
+          <NumberInputRow label="Cadera" unit="cm" badge={prefilled.hip_cm ? badge ?? 'Salud' : undefined} value={v.hip_cm ?? ''} onChangeText={(x) => set('hip_cm', x)} helper="En la parte más ancha de los glúteos" />
+          <NumberInputRow label="Ratio cintura/cadera" value={whr != null ? String(whr) : ''} readOnly placeholder="auto" helper="Marcador cardiovascular" />
           <NumberInputRow label="Tu FFMI" value={ffmi != null ? (Math.round(ffmi * 10) / 10).toString() : ''} readOnly placeholder="auto" />
         </View>
         )}

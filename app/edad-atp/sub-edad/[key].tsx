@@ -229,7 +229,7 @@ export default function SubEdadDrillDown() {
                 <EliteText variant="body" style={styles.actionTitle}>💡 Acción ATP</EliteText>
                 <EliteText variant="caption" style={styles.actionText}>{meta.action}</EliteText>
                 <Pressable onPress={() => { haptic.medium(); router.push(meta.route as any); }} style={styles.actionBtn}>
-                  <EliteText variant="body" style={styles.actionBtnText}>Ir a mejorar</EliteText>
+                  <EliteText variant="body" style={styles.actionBtnText}>Agregar datos</EliteText>
                 </Pressable>
               </View>
             )}

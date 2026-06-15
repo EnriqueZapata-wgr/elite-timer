@@ -17,11 +17,13 @@ interface Props {
   readOnly?: boolean;
   /** Etiqueta verde "ya tienes este dato" (ej. "Labs · hace 12d"). */
   badge?: string;
+  /** Resalta la fila (input enfocado desde "Datos por capturar" con ?focus=). */
+  highlight?: boolean;
 }
 
-export function NumberInputRow({ label, unit, value, onChangeText, helper, placeholder, readOnly, badge }: Props) {
+export function NumberInputRow({ label, unit, value, onChangeText, helper, placeholder, readOnly, badge, highlight }: Props) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, highlight && styles.rowHighlight]}>
       <View style={styles.labelCol}>
         <EliteText variant="body" style={styles.label}>{label}{unit ? ` (${unit})` : ''}</EliteText>
         {badge ? (
@@ -32,7 +34,7 @@ export function NumberInputRow({ label, unit, value, onChangeText, helper, place
         {helper ? <EliteText variant="caption" style={styles.helper}>{helper}</EliteText> : null}
       </View>
       <TextInput
-        style={[styles.input, readOnly && styles.inputReadOnly]}
+        style={[styles.input, readOnly && styles.inputReadOnly, highlight && styles.inputHighlight]}
         value={value}
         onChangeText={onChangeText}
         editable={!readOnly}
@@ -46,6 +48,8 @@ export function NumberInputRow({ label, unit, value, onChangeText, helper, place
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xs },
+  rowHighlight: { backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: Radius.sm, paddingHorizontal: Spacing.xs, marginHorizontal: -Spacing.xs },
+  inputHighlight: { borderColor: Colors.neonGreen },
   labelCol: { flex: 1 },
   label: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   helper: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 1 },

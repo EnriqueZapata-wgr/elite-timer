@@ -476,7 +476,7 @@ export default function EdadAtpOnboardingScreen() {
                       placeholder="cm"
                       placeholderTextColor="#444"
                       value={cintura}
-                      onChangeText={t => setCintura(t.replace(/[^0-9.]/g, ''))}
+                      onChangeText={t => setCintura(t.replace(',', '.').replace(/[^0-9.]/g, ''))}
                       keyboardType="decimal-pad"
                       returnKeyType="next"
                       onSubmitEditing={() => estaturaRef.current?.focus()}
@@ -491,7 +491,7 @@ export default function EdadAtpOnboardingScreen() {
                       placeholder="cm"
                       placeholderTextColor="#444"
                       value={estatura}
-                      onChangeText={t => setEstatura(t.replace(/[^0-9.]/g, ''))}
+                      onChangeText={t => setEstatura(t.replace(',', '.').replace(/[^0-9.]/g, ''))}
                       keyboardType="decimal-pad"
                       returnKeyType="done"
                     />
@@ -572,7 +572,7 @@ export default function EdadAtpOnboardingScreen() {
                 placeholder="Ej: 78"
                 placeholderTextColor="#444"
                 value={peso}
-                onChangeText={t => setPeso(t.replace(/[^0-9.]/g, ''))}
+                onChangeText={t => setPeso(t.replace(',', '.').replace(/[^0-9.]/g, ''))}
                 keyboardType="decimal-pad"
               />
 
@@ -582,7 +582,7 @@ export default function EdadAtpOnboardingScreen() {
                 placeholder="Ej: 22"
                 placeholderTextColor="#444"
                 value={grasaPct}
-                onChangeText={t => setGrasaPct(t.replace(/[^0-9.]/g, ''))}
+                onChangeText={t => setGrasaPct(t.replace(',', '.').replace(/[^0-9.]/g, ''))}
                 keyboardType="decimal-pad"
               />
 
@@ -592,7 +592,7 @@ export default function EdadAtpOnboardingScreen() {
                 placeholder="Ej: 8"
                 placeholderTextColor="#444"
                 value={visceralRating}
-                onChangeText={t => setVisceralRating(t.replace(/[^0-9.]/g, ''))}
+                onChangeText={t => setVisceralRating(t.replace(',', '.').replace(/[^0-9.]/g, ''))}
                 keyboardType="decimal-pad"
               />
             </Animated.View>
