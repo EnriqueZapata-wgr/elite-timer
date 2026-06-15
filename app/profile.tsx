@@ -11,10 +11,13 @@
  * mostraba una edad que no correspondía → aquí el usuario la ve y corrige su fecha).
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, TextInput, Alert, ScrollView, KeyboardAvoidingView, Platform, Pressable, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+// Módulo nativo — require con try/catch para compat OTA (igual que my-health).
+let ImagePicker: any = null;
+try { ImagePicker = require('expo-image-picker'); } catch { /* */ }
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -49,6 +52,8 @@ export default function ProfileScreen() {
   const [sex, setSex] = useState<'male' | 'female' | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.user_metadata?.avatar_url ?? null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -82,6 +87,90 @@ export default function ProfileScreen() {
     : null;
   const liveAge = ageFromDob(dobStr);
   const isValid = name.trim().length >= 2 && !!day && !!month && !!year && !!sex;
+
+  // ── Foto de perfil (FIX 2) ──────────────────────────────────────────────────
+  function chooseAvatar() {
+    if (avatarUploading) return;
+    haptic.light();
+    if (!ImagePicker) {
+      Alert.alert('No disponible', 'La cámara/galería no está disponible en esta versión.');
+      return;
+    }
+    const opts: any[] = [
+      { text: 'Tomar foto', onPress: () => pickAvatar(true) },
+      { text: 'Elegir de galería', onPress: () => pickAvatar(false) },
+    ];
+    if (avatarUrl) opts.push({ text: 'Quitar foto', style: 'destructive', onPress: removeAvatar });
+    opts.push({ text: 'Cancelar', style: 'cancel' });
+    Alert.alert('Foto de perfil', undefined, opts);
+  }
+
+  async function pickAvatar(useCamera: boolean) {
+    if (!ImagePicker || !user?.id) return;
+    try {
+      const perm = useCamera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm?.status !== 'granted') {
+        Alert.alert('Permiso requerido', 'Necesitamos acceso para cambiar tu foto.');
+        return;
+      }
+      // Crop 1:1 forzado — la app muestra el avatar circular.
+      const res = useCamera
+        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
+        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      if (res.canceled || !res.assets?.[0]?.uri) return;
+      await uploadAvatar(res.assets[0].uri);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'No se pudo seleccionar la foto.');
+    }
+  }
+
+  async function uploadAvatar(uri: string) {
+    if (!user?.id) return;
+    setAvatarUploading(true);
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      if (blob.size > 5 * 1024 * 1024) {
+        Alert.alert('Imagen muy grande', 'Elige una foto de menos de 5 MB.');
+        return; // bullet-proof: el avatar viejo se mantiene
+      }
+      const ext = (uri.split('.').pop() || 'jpg').split('?')[0];
+      const fileName = `${user.id}/avatar-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
+      if (upErr) { Alert.alert('Error al subir', upErr.message); return; }
+      const { data: urlData } = await supabase.storage
+        .from('avatars')
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365);
+      if (!urlData?.signedUrl) { Alert.alert('Error', 'No se pudo obtener la URL de la imagen.'); return; }
+      await supabase.from('profiles').update({ avatar_url: urlData.signedUrl }).eq('id', user.id);
+      await supabase.auth.updateUser({ data: { avatar_url: urlData.signedUrl } });
+      setAvatarUrl(urlData.signedUrl); // el header de YO lee de auth metadata → se actualiza solo
+      haptic.success();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'No se pudo subir la foto.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
+
+  async function removeAvatar() {
+    if (!user?.id) return;
+    setAvatarUploading(true);
+    try {
+      await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
+      await supabase.auth.updateUser({ data: { avatar_url: null } });
+      setAvatarUrl(null); // vuelve a las iniciales del nombre
+      haptic.success();
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'No se pudo quitar la foto.');
+    } finally {
+      setAvatarUploading(false);
+    }
+  }
 
   async function handleSave() {
     if (!user?.id || !isValid) return;
@@ -122,7 +211,17 @@ export default function ProfileScreen() {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Avatar + edad cronológica derivada */}
           <Animated.View entering={FadeInUp.duration(400)} style={styles.avatarWrap}>
-            <UserAvatar uri={user?.user_metadata?.avatar_url} name={name || user?.email || 'A'} size={72} />
+            <Pressable onPress={chooseAvatar} disabled={avatarUploading} style={styles.avatarTap}>
+              <UserAvatar uri={avatarUrl} name={name || user?.email || 'A'} size={88} />
+              <View style={styles.cameraBadge}>
+                <Ionicons name="camera" size={14} color="#000" />
+              </View>
+              {avatarUploading && (
+                <View style={styles.avatarSpinner}>
+                  <ActivityIndicator color={ATP_BRAND.lime} />
+                </View>
+              )}
+            </Pressable>
             {liveAge != null ? (
               <EliteText style={styles.ageText}>{liveAge} años</EliteText>
             ) : (
@@ -217,6 +316,16 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#fff', letterSpacing: 2 },
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   avatarWrap: { alignItems: 'center', gap: 8, marginTop: 16, marginBottom: 8 },
+  avatarTap: { position: 'relative' },
+  cameraBadge: {
+    position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14,
+    backgroundColor: ATP_BRAND.lime, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#000',
+  },
+  avatarSpinner: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 44,
+    backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center',
+  },
   ageText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime },
   ageHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#555', textAlign: 'center' },
   inputLabel: { fontSize: 10, fontFamily: Fonts.semiBold, color: '#888', letterSpacing: 2, marginTop: 24, marginBottom: 8 },

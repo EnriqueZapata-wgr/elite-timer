@@ -11,7 +11,7 @@
  */
 import { useState, useCallback } from 'react';
 import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -31,6 +31,8 @@ function vo2FromDistance(meters: number): number | null {
 export default function CooperTest() {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // ?return=vitals: el usuario vino desde Mediciones a medir su VO2max → volver con el valor.
+  const { return: returnTo } = useLocalSearchParams<{ return?: string }>();
   const [meters, setMeters] = useState('');
   const [vo2Direct, setVo2Direct] = useState('');
   const [current, setCurrent] = useState<number | null>(null);
@@ -60,6 +62,11 @@ export default function CooperTest() {
       test: 'cooper', vo2max: finalVo2, source: hasDirect ? 'direct' : 'distance',
     });
     haptic.success();
+    // Si vino desde Mediciones, regresar con el valor pre-llenado para confirmar (FIX 3).
+    if (returnTo === 'vitals') {
+      router.replace(`/edad-atp/vitals?focus=vo2max_estimate&prefill=${finalVo2}` as any);
+      return;
+    }
     Alert.alert('VO2max guardado', `${finalVo2} ml/kg/min`, [{ text: 'OK', onPress: () => router.back() }]);
   }
 

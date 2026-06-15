@@ -3,7 +3,7 @@
  * label + input decimal + unidad + helper opcional. `readOnly` para valores
  * auto-calculados (ej. FFMI).
  */
-import { View, TextInput, StyleSheet } from 'react-native';
+import { View, TextInput, StyleSheet, Pressable } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -19,9 +19,11 @@ interface Props {
   badge?: string;
   /** Resalta la fila (input enfocado desde "Datos por capturar" con ?focus=). */
   highlight?: boolean;
+  /** Si se pasa, el helper se vuelve un link tappable (ej. "haz el test Cooper →"). */
+  onHelperPress?: () => void;
 }
 
-export function NumberInputRow({ label, unit, value, onChangeText, helper, placeholder, readOnly, badge, highlight }: Props) {
+export function NumberInputRow({ label, unit, value, onChangeText, helper, placeholder, readOnly, badge, highlight, onHelperPress }: Props) {
   return (
     <View style={[styles.row, highlight && styles.rowHighlight]}>
       <View style={styles.labelCol}>
@@ -31,7 +33,15 @@ export function NumberInputRow({ label, unit, value, onChangeText, helper, place
             <EliteText variant="caption" style={styles.badgeText}>✓ {badge}</EliteText>
           </View>
         ) : null}
-        {helper ? <EliteText variant="caption" style={styles.helper}>{helper}</EliteText> : null}
+        {helper ? (
+          onHelperPress ? (
+            <Pressable onPress={onHelperPress} hitSlop={6}>
+              <EliteText variant="caption" style={styles.helperLink}>{helper}</EliteText>
+            </Pressable>
+          ) : (
+            <EliteText variant="caption" style={styles.helper}>{helper}</EliteText>
+          )
+        ) : null}
       </View>
       <TextInput
         style={[styles.input, readOnly && styles.inputReadOnly, highlight && styles.inputHighlight]}
@@ -53,6 +63,7 @@ const styles = StyleSheet.create({
   labelCol: { flex: 1 },
   label: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   helper: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 1 },
+  helperLink: { color: Colors.neonGreen, fontSize: FontSizes.xs, marginTop: 2, fontFamily: Fonts.semiBold },
   badge: { alignSelf: 'flex-start', backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 1, marginTop: 2 },
   badgeText: { color: Colors.neonGreen, fontSize: FontSizes.xs },
   input: {
