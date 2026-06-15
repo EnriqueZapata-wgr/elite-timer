@@ -119,6 +119,15 @@ export default function YoScreen() {
   const muscleColor = comp?.muscle_mass_pct != null ? (comp.muscle_mass_pct > 38 ? SEMANTIC.success : comp.muscle_mass_pct > 30 ? SEMANTIC.warning : SEMANTIC.error) : null;
   const visceralColor = comp?.visceral_fat != null ? (comp.visceral_fat < 7 ? SEMANTIC.success : comp.visceral_fat < 13 ? SEMANTIC.warning : SEMANTIC.error) : null;
 
+  // Solo las métricas con dato real (Mariana screenshot 4: no mostrar "--" cuando hay datos,
+  // ni la card vacía cuando no hay ninguno).
+  const compFields = [
+    { label: 'GRASA CORPORAL', value: comp?.body_fat_pct, unit: '%', color: fatColor ?? TEXT_COLORS.muted },
+    { label: 'MASA MAGRA', value: comp?.muscle_mass_pct, unit: '%', color: muscleColor ?? TEXT_COLORS.muted },
+    { label: 'GRASA VISCERAL', value: comp?.visceral_fat, unit: ' ', color: visceralColor ?? TEXT_COLORS.muted },
+    { label: 'BMR', value: (comp as any)?.bmr, unit: 'kcal', color: TEXT_COLORS.muted },
+  ].filter((f) => f.value != null);
+
   // Disciplina ATP = adherencia semanal de hábitos/recuperación (dailyScore). NO es salud de
   // fondo (eso es Edad ATP). Se presenta como momentum, sin número-calificación.
   const momentum = dailyScore?.overall ?? 0;
@@ -270,51 +279,25 @@ export default function YoScreen() {
 
 
         {/* ═══════════════════════════════════════════
-            7. BODY COMPOSITION — 4 cards in 2x2 grid
+            7. BODY COMPOSITION — solo métricas con dato (sin "--")
             ═══════════════════════════════════════════ */}
+        {compFields.length > 0 && (
         <Animated.View entering={FadeInUp.delay(500).springify()}>
           <SectionTitle style={s.sectionTitleSpacing}>COMPOSICIÓN CORPORAL</SectionTitle>
 
           <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }}>
             <View style={s.compGrid}>
-              {/* Body Fat % */}
-              <View style={s.compCard}>
-                <EliteText style={s.compLabel}>GRASA CORPORAL</EliteText>
-                <EliteText style={[s.compValue, { color: fatColor ?? TEXT_COLORS.muted }]}>
-                  {comp?.body_fat_pct != null ? `${comp.body_fat_pct}` : '--'}
-                </EliteText>
-                <EliteText style={s.compUnit}>%</EliteText>
-              </View>
-
-              {/* Lean Mass */}
-              <View style={s.compCard}>
-                <EliteText style={s.compLabel}>MASA MAGRA</EliteText>
-                <EliteText style={[s.compValue, { color: muscleColor ?? TEXT_COLORS.muted }]}>
-                  {comp?.muscle_mass_pct != null ? `${comp.muscle_mass_pct}` : '--'}
-                </EliteText>
-                <EliteText style={s.compUnit}>%</EliteText>
-              </View>
-
-              {/* Visceral Fat */}
-              <View style={s.compCard}>
-                <EliteText style={s.compLabel}>GRASA VISCERAL</EliteText>
-                <EliteText style={[s.compValue, { color: visceralColor ?? TEXT_COLORS.muted }]}>
-                  {comp?.visceral_fat != null ? `${comp.visceral_fat}` : '--'}
-                </EliteText>
-                <EliteText style={s.compUnit}> </EliteText>
-              </View>
-
-              {/* BMR */}
-              <View style={s.compCard}>
-                <EliteText style={s.compLabel}>BMR</EliteText>
-                <EliteText style={[s.compValue, { color: TEXT_COLORS.muted }]}>
-                  {(comp as any)?.bmr != null ? `${(comp as any).bmr}` : '--'}
-                </EliteText>
-                <EliteText style={s.compUnit}>kcal</EliteText>
-              </View>
+              {compFields.map((f) => (
+                <View key={f.label} style={s.compCard}>
+                  <EliteText style={s.compLabel}>{f.label}</EliteText>
+                  <EliteText style={[s.compValue, { color: f.color }]}>{`${f.value}`}</EliteText>
+                  <EliteText style={s.compUnit}>{f.unit}</EliteText>
+                </View>
+              ))}
             </View>
           </AnimatedPressable>
         </Animated.View>
+        )}
 
         {/* ═══════════════════════════════════════════
             8. CONNECT WEARABLE BANNER
