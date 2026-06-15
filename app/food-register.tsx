@@ -24,7 +24,7 @@ import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { PILLAR_GRADIENTS } from '@/src/constants/brand';
-import { DEFAULT_MEAL_TIMES, getMealTimes, setMealTimes, MEAL_IDS, type MealId } from '@/src/services/meal-times-service';
+import { DEFAULT_MEAL_TIMES, getMealTimes, setMealTimes, getCurrentMeal, formatMealWindow, MEAL_IDS, type MealId, type MealTimes } from '@/src/services/meal-times-service';
 
 // id/name/icon/color estáticos; la ventana horaria (time) viene de la config del usuario.
 const MEAL_TYPES = [
@@ -41,17 +41,18 @@ export default function FoodRegisterScreen() {
   const { user } = useAuth();
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
   const [frequents, setFrequents] = useState<any[]>([]);
-  // Horarios de comida configurables por el usuario (#14).
-  const [mealTimes, setMealTimesState] = useState<Record<MealId, string>>(DEFAULT_MEAL_TIMES);
+  // Horarios de comida configurables + sync DB + timezone real (#14, decisión Enrique).
+  const [mealTimes, setMealTimesState] = useState<MealTimes>(DEFAULT_MEAL_TIMES);
+  const [timezone, setTimezone] = useState<string>('America/Mexico_City');
   const [editorOpen, setEditorOpen] = useState(false);
-  const [editDraft, setEditDraft] = useState<Record<MealId, string>>(DEFAULT_MEAL_TIMES);
+  const [editDraft, setEditDraft] = useState<MealTimes>(DEFAULT_MEAL_TIMES);
 
   // Si llega con mealType, ir directo a opciones de ese tipo
   const directMealType = params.mealType ? MEAL_TYPES.find(m => m.id === params.mealType) : null;
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
-    getMealTimes(user.id).then(setMealTimesState);
+    getMealTimes(user.id).then(({ mealTimes: mt, timezone: tz }) => { setMealTimesState(mt); setTimezone(tz); });
     const today = getLocalToday();
     supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
       .eq('user_id', user.id).eq('date', today)
@@ -135,11 +136,18 @@ export default function FoodRegisterScreen() {
   }
 
   async function saveMealTimes() {
+    if (!user?.id) { setEditorOpen(false); return; }
     haptic.medium();
-    await setMealTimes(user?.id, editDraft);
+    await setMealTimes(user.id, editDraft, timezone);
     setMealTimesState(editDraft);
     setEditorOpen(false);
   }
+
+  const updateDraft = (id: MealId, field: 'start' | 'end', v: string) =>
+    setEditDraft((p) => ({ ...p, [id]: { ...p[id], [field]: v } }));
+
+  // En qué comida estamos ahora (timezone real) — para el indicador "AHORA".
+  const currentMeal = getCurrentMeal(mealTimes, timezone);
 
   const goToScan = (mealType: string) => {
     haptic.medium();
@@ -272,8 +280,13 @@ export default function FoodRegisterScreen() {
                       <Ionicons name={meal.icon} size={24} color={meal.color} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <EliteText style={s.mealName}>{meal.name}</EliteText>
-                      <EliteText style={s.mealTime}>{mealTimes[meal.id as MealId]}</EliteText>
+                      <View style={s.mealNameRow}>
+                        <EliteText style={s.mealName}>{meal.name}</EliteText>
+                        {meal.id === currentMeal && (
+                          <View style={s.nowPill}><EliteText style={s.nowPillText}>AHORA</EliteText></View>
+                        )}
+                      </View>
+                      <EliteText style={s.mealTime}>{formatMealWindow(mealTimes[meal.id as MealId])}</EliteText>
                     </View>
                     {hasLogs ? (
                       <View style={s.mealBadge}>
@@ -292,24 +305,36 @@ export default function FoodRegisterScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* Editor de horarios de comida (#14) — device-local, sin migración. */}
+      {/* Editor de horarios de comida (#14) — sync DB + timezone real. */}
       <Modal visible={editorOpen} transparent animationType="fade" onRequestClose={() => setEditorOpen(false)}>
         <Pressable style={s.modalBackdrop} onPress={() => setEditorOpen(false)}>
           <Pressable style={s.modalCard} onPress={() => {}}>
             <EliteText style={s.modalTitle}>Tus horarios de comida</EliteText>
-            <EliteText style={s.modalHint}>Ajusta las ventanas a tu rutina (ej. 8:00 – 9:30).</EliteText>
+            <EliteText style={s.modalHint}>Formato 24h (HH:MM). Se sincronizan en todos tus dispositivos.</EliteText>
             {MEAL_IDS.map((id) => {
               const meal = MEAL_TYPES.find((m) => m.id === id)!;
               return (
                 <View key={id} style={s.editRow}>
                   <EliteText style={s.editLabel}>{meal.name}</EliteText>
-                  <TextInput
-                    style={s.editInput}
-                    value={editDraft[id]}
-                    onChangeText={(t) => setEditDraft((p) => ({ ...p, [id]: t }))}
-                    placeholder={DEFAULT_MEAL_TIMES[id]}
-                    placeholderTextColor="#444"
-                  />
+                  <View style={s.editTimes}>
+                    <TextInput
+                      style={s.editInput}
+                      value={editDraft[id].start}
+                      onChangeText={(t) => updateDraft(id, 'start', t)}
+                      placeholder={DEFAULT_MEAL_TIMES[id].start}
+                      placeholderTextColor="#444"
+                      maxLength={5}
+                    />
+                    <EliteText style={s.editDash}>–</EliteText>
+                    <TextInput
+                      style={s.editInput}
+                      value={editDraft[id].end}
+                      onChangeText={(t) => updateDraft(id, 'end', t)}
+                      placeholder={DEFAULT_MEAL_TIMES[id].end}
+                      placeholderTextColor="#444"
+                      maxLength={5}
+                    />
+                  </View>
                 </View>
               );
             })}
@@ -361,9 +386,11 @@ const s = StyleSheet.create({
   modalHint: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#666', marginTop: 4, marginBottom: Spacing.md },
   editRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm, marginBottom: Spacing.sm },
   editLabel: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#fff', flex: 1 },
+  editTimes: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  editDash: { color: '#666', fontFamily: Fonts.semiBold },
   editInput: {
-    width: 150, textAlign: 'center', backgroundColor: '#000', borderRadius: Radius.sm,
-    paddingHorizontal: 10, paddingVertical: 8, color: '#fff', fontFamily: Fonts.semiBold,
+    width: 64, textAlign: 'center', backgroundColor: '#000', borderRadius: Radius.sm,
+    paddingHorizontal: 8, paddingVertical: 8, color: '#fff', fontFamily: Fonts.semiBold,
     borderWidth: 1, borderColor: '#222',
   },
   modalBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.md },
@@ -386,11 +413,14 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  mealNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   mealName: {
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
     color: '#fff',
   },
+  nowPill: { backgroundColor: '#a8e02a', borderRadius: Radius.pill, paddingHorizontal: 7, paddingVertical: 1 },
+  nowPillText: { fontSize: 9, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
   mealTime: {
     fontSize: FontSizes.xs,
     fontFamily: Fonts.regular,

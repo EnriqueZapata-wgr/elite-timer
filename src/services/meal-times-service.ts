@@ -1,43 +1,84 @@
 /**
- * Meal Times Service — ventanas horarias de comidas configurables por el usuario
- * (Mariana #14: la pantalla "¿Qué comida registras?" mostraba horarios fijos que
- * ignoraban la configuración del usuario).
+ * Meal Times Service — capa con I/O: SYNC entre dispositivos (DB) + timezone real.
+ * Decisión de Enrique sobre el flag #2 del Sprint 2+3 (antes era device-local).
  *
- * Persistencia DEVICE-LOCAL (AsyncStorage), a propósito: no existe columna/tabla de
- * horarios por-comida y el sprint NO permite migraciones SQL sin aprobar (flag #2).
- * Si se quiere sync entre dispositivos, hace falta una columna en client_profiles
- * (ej. meal_times JSONB) — pendiente de aprobación de Enrique (ver COWORK_REPORT).
+ * Fuente de verdad: `client_profiles.meal_times` (JSONB) + `client_profiles.timezone` (IANA),
+ * agregadas por la migración 073 (Enrique la corre manual). Si la columna no existe o el
+ * usuario está offline, cae a DEFAULT_MEAL_TIMES sin romper.
+ *
+ * La lógica pura (tipos, defaults, getCurrentMeal, format…) vive en `meal-times-core.ts`
+ * (testeable sin imports nativos) y se reexporta aquí para no romper imports existentes.
  */
+import * as Localization from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/src/lib/supabase';
+import {
+  MEAL_IDS, DEFAULT_MEAL_TIMES, normalizeMealTimes, parseLegacyWindow,
+  type MealTimes,
+} from '@/src/services/meal-times-core';
 
-export const MEAL_IDS = ['breakfast', 'snack_am', 'lunch', 'snack_pm', 'dinner'] as const;
-export type MealId = typeof MEAL_IDS[number];
+export {
+  MEAL_IDS, MEAL_LABELS, DEFAULT_MEAL_TIMES, formatMealWindow, normalizeMealTimes, getCurrentMeal,
+} from '@/src/services/meal-times-core';
+export type { MealId, MealWindow, MealTimes } from '@/src/services/meal-times-core';
 
-/** Horarios por defecto (los que estaban hardcoded en food-register). */
-export const DEFAULT_MEAL_TIMES: Record<MealId, string> = {
-  breakfast: '7:00 – 9:00',
-  snack_am: '10:00 – 11:00',
-  lunch: '13:00 – 15:00',
-  snack_pm: '16:00 – 17:00',
-  dinner: '19:00 – 21:00',
-};
+const legacyKey = (userId?: string) => `meal_times:${userId ?? 'anon'}`;
 
-const storageKey = (userId?: string) => `meal_times:${userId ?? 'anon'}`;
-
-/** Horarios efectivos: overrides del usuario sobre los defaults. */
-export async function getMealTimes(userId?: string): Promise<Record<MealId, string>> {
+/** Timezone IANA del dispositivo (fallback CDMX). */
+export function deviceTimezone(): string {
   try {
-    const raw = await AsyncStorage.getItem(storageKey(userId));
-    const override = raw ? (JSON.parse(raw) as Partial<Record<MealId, string>>) : {};
-    return { ...DEFAULT_MEAL_TIMES, ...override };
+    return Localization.getCalendars()[0]?.timeZone ?? 'America/Mexico_City';
   } catch {
-    return { ...DEFAULT_MEAL_TIMES };
+    return 'America/Mexico_City';
   }
 }
 
-/** Guarda los horarios configurados por el usuario (device-local). */
-export async function setMealTimes(userId: string | undefined, times: Record<MealId, string>): Promise<void> {
+/** Sube los horarios legacy device-local a DB (una vez) y borra el AsyncStorage. */
+async function migrateLegacyLocal(userId: string): Promise<MealTimes | null> {
   try {
-    await AsyncStorage.setItem(storageKey(userId), JSON.stringify(times));
-  } catch { /* best-effort */ }
+    const raw = await AsyncStorage.getItem(legacyKey(userId));
+    if (!raw) return null;
+    const legacy = JSON.parse(raw) as Record<string, string>;
+    const out: MealTimes = { ...DEFAULT_MEAL_TIMES };
+    for (const id of MEAL_IDS) {
+      const w = legacy[id] ? parseLegacyWindow(legacy[id]) : null;
+      if (w) out[id] = w;
+    }
+    await setMealTimes(userId, out);
+    await AsyncStorage.removeItem(legacyKey(userId));
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+/** Lee horarios + timezone del usuario (DB). Migra legacy local si hace falta. */
+export async function getMealTimes(userId: string): Promise<{ mealTimes: MealTimes; timezone: string }> {
+  let mealTimes: MealTimes = DEFAULT_MEAL_TIMES;
+  let timezone = deviceTimezone();
+  try {
+    const { data } = await supabase
+      .from('client_profiles')
+      .select('meal_times, timezone')
+      .eq('user_id', userId)
+      .single();
+    if (data?.meal_times) {
+      mealTimes = normalizeMealTimes(data.meal_times);
+    } else {
+      const migrated = await migrateLegacyLocal(userId);
+      if (migrated) mealTimes = migrated;
+    }
+    if (data?.timezone) timezone = data.timezone;
+  } catch {
+    /* offline / columna aún no migrada → defaults */
+  }
+  return { mealTimes, timezone };
+}
+
+/** Guarda horarios + timezone. Sync inmediato a DB (sirve en todos los dispositivos). */
+export async function setMealTimes(userId: string, mealTimes: MealTimes, timezone?: string): Promise<void> {
+  const tz = timezone ?? deviceTimezone();
+  await supabase
+    .from('client_profiles')
+    .upsert({ user_id: userId, meal_times: mealTimes, timezone: tz }, { onConflict: 'user_id' });
 }
