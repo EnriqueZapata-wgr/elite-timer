@@ -174,14 +174,17 @@ export default function YoScreen() {
             ═══════════════════════════════════════════ */}
         <Animated.View entering={FadeIn.delay(50).duration(400)}>
           <View style={s.topBar}>
-            {/* Avatar */}
-            <UserAvatar
-              uri={user?.user_metadata?.avatar_url}
-              name={user?.user_metadata?.full_name || user?.email || initials}
-            />
-
-            {/* Título */}
-            <EliteText style={s.topTitle}>YO</EliteText>
+            {/* Avatar + "YO" → Perfil (Mariana #1: nombre/edad/sexo no se encontraban). */}
+            <AnimatedPressable
+              onPress={() => { haptic.light(); router.push('/profile' as any); }}
+              style={s.identityTap}
+            >
+              <UserAvatar
+                uri={user?.user_metadata?.avatar_url}
+                name={user?.user_metadata?.full_name || user?.email || initials}
+              />
+              <EliteText style={s.topTitle}>YO</EliteText>
+            </AnimatedPressable>
             <ElectronBadge />
 
             <View style={{ flex: 1 }} />
@@ -355,6 +358,11 @@ const s = StyleSheet.create({
     gap: 12,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
+  },
+  identityTap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   topTitle: {
     fontFamily: Fonts.extraBold,
