@@ -19,6 +19,7 @@ import {
 import { calculateAndSaveScore } from '@/src/services/health-score-service';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
+import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 
@@ -164,12 +165,13 @@ export default function HealthInputScreen() {
       setData(prev => ({ ...prev, [key]: null }));
       return;
     }
-    const parsed = parseFloat(value);
+    // Acepta coma O punto decimal (Mariana flag #10): "6,5" y "6.5" son equivalentes.
+    const parsed = parseDecimalInput(value);
     // REG-9: no permitir NaN en el estado. Si el input no es numérico, se
     // mantiene como null (el usuario ve el campo vacío hasta que escriba algo
     // parseable). El clamp al rango del campo se aplica en handleSave para
     // no pelear con el usuario mientras teclea.
-    setData(prev => ({ ...prev, [key]: Number.isFinite(parsed) ? parsed : null }));
+    setData(prev => ({ ...prev, [key]: parsed }));
   };
 
   const handleSave = async () => {
