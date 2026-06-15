@@ -76,6 +76,13 @@ const HEALTH_ITEMS = [
     color: '#c084fc',
     route: '/quizzes',
   },
+  {
+    name: 'Pruebas Cinemáticas',
+    subtitle: 'Plank · BOLT · Old Man · Recovery HR',
+    icon: 'body-outline' as const,
+    color: '#22d3ee',
+    route: '/edad-atp/cinematic-tests-index',
+  },
 ];
 
 export default function HealthHubScreen() {
