@@ -16,6 +16,7 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveHealthMeasurement, getLatestHealthMeasurement, type HealthMeasurementInput } from '@/src/services/edad-atp/capture-service';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
+import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const FIELDS: { key: string; label: string; unit: string; helper?: string; integer?: boolean }[] = [
@@ -67,8 +68,8 @@ export default function VitalsCapture() {
     for (const f of FIELDS) {
       const raw = v[f.key];
       if (raw == null || raw.trim() === '') continue;
-      const n = parseFloat(raw);
-      if (!Number.isFinite(n)) continue;
+      const n = parseDecimalInput(raw); // acepta coma O punto (#10)
+      if (n == null) continue;
       (fields as any)[f.key] = f.integer ? Math.round(n) : n;
       if (raw !== snapshot[f.key]) changed++;
     }

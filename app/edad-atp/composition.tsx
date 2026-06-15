@@ -15,12 +15,11 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveHealthMeasurement, getLatestHealthMeasurement } from '@/src/services/edad-atp/capture-service';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
+import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
-const num = (s: string): number | undefined => {
-  const n = parseFloat(s);
-  return Number.isFinite(n) ? n : undefined;
-};
+// Acepta coma O punto decimal (Mariana flag #10).
+const num = (s: string): number | undefined => parseDecimalInput(s) ?? undefined;
 
 function daysAgo(dateStr: string): number {
   const then = parseLocalDate(dateStr).getTime();

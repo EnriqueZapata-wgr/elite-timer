@@ -19,6 +19,7 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveBiomarkers, getManualBiomarkers, getLatestExtractedData, type BiomarkerEntry } from '@/src/services/edad-atp/capture-service';
 import { getLabHistory } from '@/src/services/lab-service';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
+import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // key = biomarker_key (edad_atp_biomarkers). labCol = columna en lab_results si difiere.
@@ -76,6 +77,9 @@ export default function BiomarkersCapture() {
   const [editMode, setEditMode] = useState(false);
   const [showAvailable, setShowAvailable] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Edición inline de UN toque (#16): qué fila disponible se está editando + cuál guardando.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -117,14 +121,29 @@ export default function BiomarkersCapture() {
   const available = ALL_BIO.filter((f) => current[f.key] != null);
   const missing = ALL_BIO.filter((f) => current[f.key] == null);
 
+  // Guarda UN biomarcador editado inline (#16). Persiste a edad_atp_biomarkers + lab_values
+  // y refresca current sin recargar la pantalla.
+  async function handleInlineSave(f: Bio) {
+    if (!user?.id) return;
+    const numv = parseDecimalInput(values[f.key]);
+    if (numv == null) { Alert.alert('Valor inválido', 'Ingresa un número válido.'); return; }
+    if (current[f.key]?.value === numv) { setEditingKey(null); return; }
+    setSavingKey(f.key);
+    const result = await saveBiomarkers(user.id, [{ key: f.key, value: numv, unit: f.unit }]);
+    setSavingKey(null);
+    if (!result.ok) { Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.'); return; }
+    analytics.track(ATP_EVENTS.EDAD_ATP_BIOMARKERS_SAVED, { count: 1, source: 'inline' });
+    haptic.success();
+    setCurrent((p) => ({ ...p, [f.key]: { value: numv, source: 'Manual · hace 0d' } }));
+    setEditingKey(null);
+  }
+
   async function handleSave() {
     if (!user?.id) return;
     const entries: BiomarkerEntry[] = [];
     for (const f of ALL_BIO) {
-      const raw = values[f.key];
-      if (raw == null || raw.trim() === '') continue;
-      const numv = parseFloat(raw);
-      if (!Number.isFinite(numv)) continue;
+      const numv = parseDecimalInput(values[f.key]);
+      if (numv == null) continue;
       // En edit-mode no re-guardar un valor idéntico al ya existente.
       if (current[f.key]?.value === numv) continue;
       entries.push({ key: f.key, value: numv, unit: f.unit });
@@ -154,26 +173,60 @@ export default function BiomarkersCapture() {
               <EliteText variant="body" style={styles.okTitle}>✓ Disponibles ({available.length})</EliteText>
               <Ionicons name={showAvailable ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.textSecondary} />
             </Pressable>
-            {showAvailable && available.map((f) => (
-              editMode ? (
-                <NumberInputRow
+            {showAvailable && (
+              <EliteText variant="caption" style={styles.tapHint}>Toca un valor para corregirlo.</EliteText>
+            )}
+            {showAvailable && available.map((f) => {
+              // Edición masiva (botón "Editar manualmente"): todas las filas como inputs.
+              if (editMode) {
+                return (
+                  <NumberInputRow
+                    key={f.key}
+                    label={f.label}
+                    unit={f.unit}
+                    badge={current[f.key]?.source}
+                    value={values[f.key] ?? String(current[f.key]!.value)}
+                    onChangeText={(v) => setField(f.key, v)}
+                  />
+                );
+              }
+              // Edición inline de UN toque: esta fila se está editando.
+              if (editingKey === f.key) {
+                return (
+                  <View key={f.key} style={styles.inlineEdit}>
+                    <NumberInputRow
+                      label={f.label}
+                      unit={f.unit}
+                      value={values[f.key] ?? String(current[f.key]!.value)}
+                      onChangeText={(v) => setField(f.key, v)}
+                    />
+                    <View style={styles.inlineBtns}>
+                      <Pressable onPress={() => { haptic.light(); setEditingKey(null); }} style={styles.inlineCancel}>
+                        <EliteText variant="caption" style={{ color: Colors.textSecondary }}>Cancelar</EliteText>
+                      </Pressable>
+                      <Pressable onPress={() => handleInlineSave(f)} disabled={savingKey === f.key} style={[styles.inlineSave, savingKey === f.key && { opacity: 0.6 }]}>
+                        <EliteText variant="caption" style={styles.inlineSaveText}>{savingKey === f.key ? 'Guardando…' : 'Guardar'}</EliteText>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              }
+              // Read-only tappable: un toque abre el input inline (sin navegar a otra pantalla).
+              return (
+                <Pressable
                   key={f.key}
-                  label={f.label}
-                  unit={f.unit}
-                  badge={current[f.key]?.source}
-                  value={values[f.key] ?? String(current[f.key]!.value)}
-                  onChangeText={(v) => setField(f.key, v)}
-                />
-              ) : (
-                <View key={f.key} style={styles.availRow}>
+                  onPress={() => { haptic.light(); setField(f.key, String(current[f.key]!.value)); setEditingKey(f.key); }}
+                  style={styles.availRow}
+                >
                   <EliteText variant="body" style={styles.availLabel}>{f.label}</EliteText>
                   <View style={styles.availRight}>
                     <EliteText variant="body" style={styles.availValue}>{current[f.key]!.value} {f.unit}</EliteText>
                     <EliteText variant="caption" style={styles.availSrc}>{current[f.key]!.source}</EliteText>
                   </View>
-                </View>
-              )
-            ))}
+                  <Ionicons name="create-outline" size={14} color={Colors.textSecondary} style={{ marginLeft: 6 }} />
+                </Pressable>
+              );
+            })}
             <Pressable onPress={() => { haptic.light(); setEditMode((e) => !e); }} style={styles.editBtn}>
               <Ionicons name={editMode ? 'close' : 'create-outline'} size={15} color={Colors.neonGreen} />
               <EliteText variant="caption" style={styles.editBtnText}>{editMode ? 'Cancelar edición' : 'Editar manualmente'}</EliteText>
@@ -218,7 +271,13 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: Spacing.xs },
   okTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: FontSizes.md },
   pendTitle: { color: '#e0a020', fontFamily: Fonts.bold, fontSize: FontSizes.md, marginBottom: Spacing.xs },
+  tapHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
   availRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.xs },
+  inlineEdit: { borderTopWidth: 1, borderTopColor: '#1a1a1a', paddingTop: Spacing.xs, marginTop: Spacing.xs },
+  inlineBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.xs },
+  inlineCancel: { paddingVertical: 6, paddingHorizontal: 12 },
+  inlineSave: { backgroundColor: Colors.neonGreen, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 16 },
+  inlineSaveText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
   availLabel: { color: Colors.textPrimary, flex: 1 },
   availRight: { alignItems: 'flex-end' },
   availValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
