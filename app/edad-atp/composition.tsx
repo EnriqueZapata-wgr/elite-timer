@@ -14,6 +14,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveHealthMeasurement, getLatestHealthMeasurement } from '@/src/services/edad-atp/capture-service';
+import { useFormDraft } from '@/src/hooks/useFormDraft';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -40,7 +41,9 @@ export default function CompositionCapture() {
   const [badge, setBadge] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
-  const set = (k: string, val: string) => setV((p) => ({ ...p, [k]: val }));
+  const { load: loadDraft, save: saveDraft, clear: clearDraft } = useFormDraft('composition', user?.id);
+  // Persistir el borrador al teclear → sobrevive navegación (Mariana #11/#15).
+  const set = (k: string, val: string) => setV((p) => { const next = { ...p, [k]: val }; saveDraft(next); return next; });
 
   // Si llega con ?focus, mostrar el formulario editable directo (no el resumen read-only).
   useEffect(() => { if (focus) setEditMode(true); }, [focus]);
@@ -62,18 +65,26 @@ export default function CompositionCapture() {
     if (!user?.id) return;
     (async () => {
       const row = await getLatestHealthMeasurement(user.id);
-      if (!row) return;
       const init: Record<string, string> = {};
       const pre: Record<string, boolean> = {};
-      for (const k of FIELD_KEYS) {
-        if (row[k] != null) { init[k] = String(row[k]); pre[k] = true; }
+      if (row) {
+        for (const k of FIELD_KEYS) {
+          if (row[k] != null) { init[k] = String(row[k]); pre[k] = true; }
+        }
+        if (row.date) setBadge(`hace ${daysAgo(row.date)}d`);
       }
-      setV(init);
       setSnapshot(init);
       setPrefilled(pre);
-      if (row.date) setBadge(`hace ${daysAgo(row.date)}d`);
+      // Restaurar borrador no guardado encima de lo de DB (Mariana #11/#15).
+      const saved = await loadDraft();
+      if (saved && Object.keys(saved).length > 0) {
+        setV({ ...init, ...saved });
+        setEditMode(true); // mostrar el form para que vea su captura pendiente
+      } else {
+        setV(init);
+      }
     })();
-  }, [user?.id]));
+  }, [user?.id, loadDraft]));
 
   // FFMI = masa libre de grasa / talla² (en vivo, no se persiste).
   const weight = num(v.weight_kg ?? '');
@@ -117,6 +128,7 @@ export default function CompositionCapture() {
       Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
       return;
     }
+    await clearDraft(); // ya está en DB: la recarga lo traerá, el borrador deja de hacer falta.
     analytics.track(ATP_EVENTS.EDAD_ATP_COMPOSITION_SAVED, {});
     haptic.success();
     Alert.alert('', 'Datos guardados ✓', [{ text: 'OK', onPress: () => router.back() }]);
