@@ -141,6 +141,7 @@ export type HealthMeasurementInput = {
   muscle_mass_kg?: number; visceral_fat?: number; grip_strength_kg?: number;
   systolic_bp?: number; diastolic_bp?: number; resting_hr?: number; vo2max_estimate?: number;
   waist_cm?: number; // columna existente (la lee loadUserData) — captura inline drill-down
+  hip_cm?: number;   // captura de cadera → ratio cintura/cadera (Mariana #13)
 };
 
 /**

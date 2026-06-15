@@ -27,7 +27,7 @@ function daysAgo(dateStr: string): number {
   return Math.max(0, Math.round((now - then) / 86400000));
 }
 
-const FIELD_KEYS = ['weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 'visceral_fat', 'grip_strength_kg'] as const;
+const FIELD_KEYS = ['weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 'visceral_fat', 'grip_strength_kg', 'waist_cm', 'hip_cm'] as const;
 
 export default function CompositionCapture() {
   const { user } = useAuth();
@@ -47,6 +47,8 @@ export default function CompositionCapture() {
     { key: 'muscle_mass_kg', label: 'Masa muscular', unit: 'kg' },
     { key: 'visceral_fat', label: 'Grasa visceral', unit: '' },
     { key: 'grip_strength_kg', label: 'Fuerza de agarre', unit: 'kg' },
+    { key: 'waist_cm', label: 'Cintura', unit: 'cm' },
+    { key: 'hip_cm', label: 'Cadera', unit: 'cm' },
   ];
   const hasData = Object.keys(prefilled).length > 0;
 
@@ -76,6 +78,12 @@ export default function CompositionCapture() {
     weight != null && height != null && bodyFat != null && height > 0
       ? (weight * (1 - bodyFat / 100)) / Math.pow(height / 100, 2)
       : undefined;
+
+  // Ratio cintura/cadera (WHR) — marcador cardiovascular validado (Yusuf 2005, INTERHEART).
+  // En vivo, no se persiste (se deriva de waist_cm/hip_cm).
+  const waist = num(v.waist_cm ?? '');
+  const hip = num(v.hip_cm ?? '');
+  const whr = waist != null && hip != null && hip > 0 ? Math.round((waist / hip) * 100) / 100 : undefined;
 
   // Diff de peso vs lo pre-poblado.
   const prevWeight = num(snapshot.weight_kg ?? '');
@@ -134,6 +142,12 @@ export default function CompositionCapture() {
                 <EliteText variant="body" style={styles.sumValue}>{Math.round(ffmi * 10) / 10}</EliteText>
               </View>
             ) : null}
+            {whr != null ? (
+              <View style={styles.sumRow}>
+                <EliteText variant="body" style={styles.sumLabel}>Ratio cintura/cadera</EliteText>
+                <EliteText variant="body" style={styles.sumValue}>{whr}</EliteText>
+              </View>
+            ) : null}
             <Pressable onPress={() => { haptic.light(); setEditMode(true); }} style={styles.updateBtn}>
               <EliteText variant="body" style={styles.updateBtnText}>Actualizar mediciones</EliteText>
             </Pressable>
@@ -151,6 +165,9 @@ export default function CompositionCapture() {
           <NumberInputRow label="Masa muscular" unit="kg" badge={prefilled.muscle_mass_kg ? badge ?? 'Salud' : undefined} value={v.muscle_mass_kg ?? ''} onChangeText={(x) => set('muscle_mass_kg', x)} helper="Reportada por báscula inteligente" />
           <NumberInputRow label="Grasa visceral" badge={prefilled.visceral_fat ? badge ?? 'Salud' : undefined} value={v.visceral_fat ?? ''} onChangeText={(x) => set('visceral_fat', x)} helper="Índice típico 1–30" />
           <NumberInputRow label="Fuerza de agarre" unit="kg" badge={prefilled.grip_strength_kg ? badge ?? 'Salud' : undefined} value={v.grip_strength_kg ?? ''} onChangeText={(x) => set('grip_strength_kg', x)} helper="Dinamómetro Camry EH101 (~$25)" />
+          <NumberInputRow label="Cintura" unit="cm" badge={prefilled.waist_cm ? badge ?? 'Salud' : undefined} value={v.waist_cm ?? ''} onChangeText={(x) => set('waist_cm', x)} helper="A la altura del ombligo, sin apretar" />
+          <NumberInputRow label="Cadera" unit="cm" badge={prefilled.hip_cm ? badge ?? 'Salud' : undefined} value={v.hip_cm ?? ''} onChangeText={(x) => set('hip_cm', x)} helper="En la parte más ancha de los glúteos" />
+          <NumberInputRow label="Ratio cintura/cadera" value={whr != null ? String(whr) : ''} readOnly placeholder="auto" helper="Marcador cardiovascular" />
           <NumberInputRow label="Tu FFMI" value={ffmi != null ? (Math.round(ffmi * 10) / 10).toString() : ''} readOnly placeholder="auto" />
         </View>
         )}
