@@ -47,7 +47,12 @@ export default function MyHealthScreen() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [result, setResult] = useState<{ count: number } | { error: string } | { context: string } | null>(null);
+  const [result, setResult] = useState<
+    | { count: number; rejected?: number }
+    | { error: string; retriable?: boolean; uploadId?: string }
+    | { context: string }
+    | null
+  >(null);
   // Selector de tipo de upload (#10): método elegido pendiente + visibilidad del picker.
   const [pendingMethod, setPendingMethod] = useState<'camera' | 'gallery' | 'pdf' | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -150,9 +155,15 @@ export default function MyHealthScreen() {
         setProcessing(true);
         const extractResult = await extractLabValues(uploadId);
         if ('error' in extractResult) {
-          setResult({ error: `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${extractResult.error})` });
+          setResult({
+            error: extractResult.retriable
+              ? extractResult.error
+              : `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${extractResult.error})`,
+            retriable: extractResult.retriable,
+            uploadId,
+          });
         } else {
-          setResult({ count: extractResult.extractedCount });
+          setResult({ count: extractResult.extractedCount, rejected: extractResult.rejectedCount });
           // El héroe Edad ATP (motor v2) recalcula con su propia lectura al volver a enfocar.
         }
       } else {
@@ -168,6 +179,31 @@ export default function MyHealthScreen() {
     }
     setUploading(false);
     setProcessing(false);
+  };
+
+  // Reintento manual de extracción (#5): re-procesa un upload ya subido (fallido por red u
+  // otro motivo) sin volver a pedir el archivo. extractLabValues ya reintenta red internamente.
+  const retryExtraction = async (uploadId: string) => {
+    setResult(null);
+    setProcessing(true);
+    try {
+      const extractResult = await extractLabValues(uploadId);
+      if ('error' in extractResult) {
+        setResult({
+          error: extractResult.retriable
+            ? extractResult.error
+            : `No pudimos leer laboratorios de este archivo. No se modificó tu data. (${extractResult.error})`,
+          retriable: extractResult.retriable,
+          uploadId,
+        });
+      } else {
+        setResult({ count: extractResult.extractedCount, rejected: extractResult.rejectedCount });
+      }
+    } catch (err: any) {
+      setResult({ error: err?.message ?? 'Error al reintentar', retriable: true, uploadId });
+    }
+    setProcessing(false);
+    loadData();
   };
 
   // Recomendaciones para mejorar la evaluación
@@ -243,17 +279,32 @@ export default function MyHealthScreen() {
           </View>
         )}
         {result && 'count' in result && (
-          <View style={[s.statusBox, { borderColor: Colors.neonGreen + '30' }]}>
+          <View style={[s.statusBox, { borderColor: Colors.neonGreen + '30', alignItems: 'flex-start' }]}>
             <Ionicons name="checkmark-circle" size={20} color={Colors.neonGreen} />
-            <EliteText variant="caption" style={{ color: Colors.neonGreen }}>
-              ¡Estudio analizado! {result.count} valores extraídos. Tu Edad ATP se actualizó.
-            </EliteText>
+            <View style={{ flex: 1 }}>
+              <EliteText variant="caption" style={{ color: Colors.neonGreen }}>
+                ¡Estudio analizado! {result.count} valores extraídos. Tu Edad ATP se actualizó.
+              </EliteText>
+              {!!result.rejected && result.rejected > 0 && (
+                <EliteText variant="caption" style={{ color: SEMANTIC.warning, marginTop: 6 }}>
+                  ⚠️ {result.rejected} {result.rejected === 1 ? 'valor no pasó' : 'valores no pasaron'} la validación clínica y {result.rejected === 1 ? 'queda' : 'quedan'} como {result.rejected === 1 ? 'pendiente' : 'pendientes'}. Puedes ingresarlos a mano tocando cada biomarcador.
+                </EliteText>
+              )}
+            </View>
           </View>
         )}
         {result && 'error' in result && (
-          <View style={[s.statusBox, { borderColor: SEMANTIC.error + '30' }]}>
+          <View style={[s.statusBox, { borderColor: SEMANTIC.error + '30', alignItems: 'flex-start' }]}>
             <Ionicons name="alert-circle" size={20} color={SEMANTIC.error} />
-            <EliteText variant="caption" style={{ color: SEMANTIC.error }}>{result.error}</EliteText>
+            <View style={{ flex: 1 }}>
+              <EliteText variant="caption" style={{ color: SEMANTIC.error }}>{result.error}</EliteText>
+              {result.retriable && result.uploadId && (
+                <Pressable onPress={() => retryExtraction(result.uploadId!)} disabled={processing} style={s.retryBtn}>
+                  <Ionicons name="refresh" size={14} color={TEAL} />
+                  <EliteText variant="caption" style={{ color: TEAL, fontFamily: Fonts.semiBold }}>Reintentar</EliteText>
+                </Pressable>
+              )}
+            </View>
           </View>
         )}
         {result && 'context' in result && (
@@ -293,6 +344,11 @@ export default function MyHealthScreen() {
                   <EliteText variant="caption" style={{ color: Colors.textSecondary, flex: 1, fontSize: FontSizes.sm }}>
                     {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : 'Procesando'}
                   </EliteText>
+                  {u.status === 'failed' && (
+                    <Pressable onPress={() => retryExtraction(u.id)} disabled={processing} style={{ padding: 6 }}>
+                      <Ionicons name="refresh" size={18} color={TEAL} />
+                    </Pressable>
+                  )}
                   <Pressable
                     onPress={() => {
                       Alert.alert('Eliminar', '¿Eliminar este upload fallido?', [
@@ -475,6 +531,11 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: TEAL + '08', borderWidth: 1, borderColor: TEAL + '20',
     borderRadius: Radius.card, padding: Spacing.md, marginBottom: Spacing.md,
+  },
+  retryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8,
+    alignSelf: 'flex-start', paddingVertical: 4, paddingHorizontal: 10,
+    borderRadius: Radius.pill, borderWidth: 1, borderColor: TEAL + '40',
   },
   sectionLabelSpacing: { marginTop: Spacing.lg },
   labCard: {
