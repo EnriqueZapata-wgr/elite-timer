@@ -9,6 +9,8 @@ import { getLocalToday, getLocalHour, toLocalDateString } from '@/src/utils/date
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { getUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
+import { getMealTimes } from '@/src/services/meal-times-service';
+import { mealAgendaItems, sleepAgendaItem } from '@/src/utils/agenda-extras';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -99,6 +101,8 @@ export interface AgendaItem {
   isNext: boolean;
   isSmart: boolean;
   route?: string;
+  /** Item informativo (comida/sueño): se muestra en la línea de tiempo pero no es toggleable. */
+  informational?: boolean;
 }
 
 /**
@@ -643,6 +647,22 @@ async function buildAgenda(
     }
   } catch { /* skip */ }
 
+  // === COMIDAS (de meal_times configurado; informativas) ===
+  try {
+    const { mealTimes } = await getMealTimes(userId);
+    items.push(...mealAgendaItems(mealTimes));
+  } catch { /* sin meal_times → defaults ya los trae el servicio */ }
+
+  // === SUEÑO objetivo (cronotipo; informativo) ===
+  try {
+    const { data: chrono } = await supabase
+      .from('user_chronotype').select('schedule, sleep_time')
+      .eq('user_id', userId).maybeSingle();
+    const sleepRaw = (chrono as any)?.schedule?.sleep_time ?? (chrono as any)?.sleep_time;
+    const sleepItem = sleepAgendaItem(sleepRaw);
+    if (sleepItem) items.push(sleepItem);
+  } catch { /* sin cronotipo → sin item de sueño */ }
+
   // === DEDUPLICATE + SORT + MARK NEXT ===
   const seen = new Set<string>();
   const deduped = items.filter(i => { const k = `${i.time}-${i.name}`.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
@@ -652,7 +672,7 @@ async function buildAgenda(
   const nowMin = hour * 60 + new Date().getMinutes();
   let foundNext = false;
   for (const i of deduped) {
-    if (!i.completed && !foundNext && parseMinutes(i.time) >= nowMin - 30) {
+    if (!i.completed && !i.informational && !foundNext && parseMinutes(i.time) >= nowMin - 30) {
       i.isNext = true;
       foundNext = true;
     }
