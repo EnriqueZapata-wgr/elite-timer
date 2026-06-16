@@ -1,94 +1,119 @@
-# COWORK_REPORT — Sprint Paty Bugs (Pulir HOY)
+# COWORK_REPORT — Overnight: Cleanup obsoletas + Pulido HOY profundo
 
-**Branch:** `fix/paty-bugs-hoy` (desde `main` @ ec860e6)
-**Estado:** ✅ `npx tsc --noEmit` 0 errores · `npx vitest run` 408/408 (+23 nuevos).
+**Branch:** `fix/overnight-cleanup-hoy` (desde `main` @ 413c04e)
+**Estado:** ✅ `npx tsc --noEmit` 0 errores · `npx vitest run` 415/415 (+7 nuevos).
 **SQL:** ninguna. **NO merge, NO OTA.**
+**Modo overnight:** decisiones conservadoras tomadas solo, documentadas abajo.
 
-> `COWORK_REPORT.md` / `COWORK_TASK.md` en `.gitignore`.
+> `COWORK_REPORT.md` / `COWORK_TASK.md` en `.gitignore` (este se force-add).
 
 ---
 
-## Hallazgo inicial importante
+## PARTE 1 — Cleanup obsoletas → 0 ELIMINACIONES (todo está VIVO) ⚠️
 
-Al auditar `main` encontré que **varios bugs ya estaban implementados** (probablemente de un
-sprint previo ya mergeado), no solo "investigados". Verifiqué cada uno contra el código real
-(no confié en el brief) y completé lo que faltaba:
+**Hallazgo crítico:** los 4 archivos marcados como "fantasma" en el brief están **VIVOS en el
+flujo de onboarding activo**. Borrarlos rompe el registro de TODO usuario nuevo. Por la propia
+regla del task ("si hay imports/uso vivo → flag y NO borres"), **no eliminé ninguno**. Evidencia:
 
-| Bug | Estado encontrado | Acción |
+| Archivo candidato | ¿Vivo? | Evidencia (verificada en código) |
 |---|---|---|
-| 1 — Botones agua inline | YA implementado (botones +250/+500/-250, `handleWaterDelta`, `addWater`) | Verificado + completé doctrina (emitir `electrons_changed`) |
-| 2 — Sync HOY↔Nutrición | HOY ya escuchaba eventos; Nutrición NO | Añadí listener en Nutrición + emit faltante |
-| 3 — AHORA en agenda | Parcial (solo entre 2 items) | Reescrito: AHORA SIEMPRE visible |
-| 4 — Fondo dinámico | YA implementado (`getHoyBackgroundRequire` por hora) | Verificado + ticker para cambio en vivo + helper testeable |
-| 5 — FAB mic atorado | bug real | Arreglado (reset de estado en finally) |
-| 6 — Popup ARGOS no expandible | bug real (burbuja altura fija) | Reescrito a bottom sheet expandible |
+| `app/onboarding/edad-atp.tsx` | **VIVO** | `app/index.tsx:54` rutea `onboarding_step='context' → /onboarding/edad-atp`; `onboarding-service.ts:16,41`; `app/_layout.tsx:155` (Stack.Screen) |
+| `app/onboarding/chronotype.tsx` | **VIVO** | `app/index.tsx:58` `'goal' → /onboarding/chronotype`; `onboarding-service.ts:20,37`; `_layout.tsx:151`. NO es duplicado de `app/quiz/chronotype.tsx` (este es el quiz standalone de 10 preguntas; el de onboarding es el bloque de 7) |
+| `src/services/edad-atp-service.ts` | **acoplado** | Su ÚNICO consumer es `onboarding/edad-atp.tsx` (vivo). Borrarlo rompe tsc |
+| `src/constants/edad-atp-model.ts` | **acoplado** | Solo lo usan edad-atp-service + onboarding/edad-atp.tsx (ambos vivos) |
+
+**Cadena de onboarding viva (verificada):** `onboarding-basics → goal → chronotype → health →
+nutrition → context → edad-atp → voice-config → summary → (tabs)`. Los 8 archivos de
+`app/onboarding/*` están registrados en `_layout` y son targets de navegación → **todos VIVOS**.
+
+**Bundle size:** 0 bytes eliminados (nada se borró). El potencial de limpieza (edad-atp.tsx 1157
+líneas + chronotype dup 374 + service + model) NO se realizó por ser flujo vivo.
+
+### 🚩 FLAG para Enrique — cómo limpiar de verdad (decisión de producto, NO la tomé solo)
+
+El "motor v1 fantasma" de `onboarding/edad-atp.tsx` es un **paso del onboarding que el usuario VE**
+(calcula una edad biológica estimada y la guarda). Quitarlo cambia la UX de registro → es decisión
+de producto, fuera de overnight. Si decides quitarlo, el rewire mínimo es:
+1. `app/index.tsx:54` → `case 'context': setOnboardingRoute('/onboarding/voice-config');`
+2. `onboarding-service.ts:16` → `case 'context': return '/onboarding/voice-config';` y `:41` (back nav de voice_config) → `return '/onboarding/context';`
+3. Quitar `<Stack.Screen name="onboarding/edad-atp" .../>` de `_layout.tsx:155`.
+4. Entonces sí: borrar `onboarding/edad-atp.tsx`, `edad-atp-service.ts`, `edad-atp-model.ts`.
+`onboarding/chronotype.tsx` **NO** lo toques: es un bloque real del onboarding (no es el quiz).
 
 ---
 
-## Antes/Después por bug
+## PARTE 2 — Pulido HOY profundo ✅
 
-### Bug 1 — Botones agua (F01.10/F03.2) · `src/services/hydration-service.ts`
-- **Antes:** `addWater` emitía solo `day_changed`.
-- **Después:** emite `day_changed` **y** `electrons_changed` (reglas #5/#6) → la barra y el electrón de agua se refrescan al instante. Los botones inline y el clamp anti-negativo (`Math.max(0, …)`) ya existían y los verifiqué.
+| # | Scope | Antes | Después | Archivos |
+|---|---|---|---|---|
+| 1 | Quitar caritas mood | 4 emoji buttons quick-log | eliminados (UI + handler + state + estilos) | `index.tsx` |
+| 2 | Quitar glucosa de HOY | quick-log 80/90/.../120 | eliminado de HOY (la pantalla /glucose-log sigue) | `index.tsx` |
+| 3 | Check-in emocional navegable | sección MOOD con quick-log | card "Check-in emocional" tappable → `/checkin` | `index.tsx` |
+| 4 | Card cardio del día | no existía | `WearableMetricCard` (placeholder, wearable es stub) | `WearableMetricCard.tsx`, `index.tsx` |
+| 5 | Card pasos | no existía | `WearableMetricCard` (placeholder) | idem |
+| 6 | Revivir agenda | solo ayuno/protocolo | + comidas (meal_times) + sueño (cronotipo), informativos | `day-compiler.ts`, `agenda-extras.ts` |
 
-### Bug 2 — Sync HOY↔Nutrición (F03.7) · `app/nutrition.tsx`
-- **Antes:** Nutrición solo recargaba con `useFocusEffect` (no escuchaba eventos).
-- **Después:** se suscribe a `day_changed`/`electrons_changed` → se actualiza en vivo. Su `addWater` inline ahora también emite `electrons_changed`. HOY ya escuchaba ambos.
-
-### Bug 3 — Divisor AHORA siempre (F04.8) · `app/(tabs)/index.tsx` + `src/utils/agenda-now.ts`
-- **Antes:** la línea AHORA solo aparecía si había una transición entre 2 items dentro de un segmento. Con agenda esparcida o vacía → invisible.
-- **Después:** divisor `AHORA · HH:MM am` **siempre** visible, en la posición global correcta (arriba si todo futuro, abajo si todo pasado, entre el último pasado y el primer futuro, o solo si no hay items). Lógica pura `nowDividerIndex` (testeada).
-
-### Bug 4 — Fondo dinámico (F01.4) · `src/utils/time-of-day.ts` + `src/constants/brand.ts` + ticker en index
-- **Antes:** `getHoyBackgroundRequire(hour)` ya elegía fondo por franja (sleep/morning/midday/night) — funcionaba al abrir la app. NO cambiaba en vivo al cruzar franja (hora calculada solo al render).
-- **Después:** extraje `hoyBgBucket(hour)` (puro, testeable) y brand delega ahí. Añadí un **ticker de 60s** en HOY que re-renderiza (sin refetch) → fondo + AHORA se actualizan en vivo al cruzar el minuto/franja.
-
-### Bug 5 — FAB mic atorado (F07.1) · `src/components/VoiceButton.tsx`
-- **Antes:** `stopListening` llamaba `SpeechModule.stop()` pero el reset de `isListening` dependía de los listeners (`'end'`/`'result'`); si no disparaban → atorado hasta el safety-timeout de 30s.
-- **Después:** `finally` que **siempre** resetea `isListening`/`partialText`, aunque `stop()` falle. El haptic va en su propio try/catch.
-
-### Bug 6 — ARGOS expandible (F07.3) · `src/components/ui/ExpandableSheet.tsx` + index
-- **Antes:** burbuja de altura fija (`maxWidth 280`, `numberOfLines={6}`), texto truncado, solo "tap para abrir".
-- **Después:** `ExpandableSheet` (reanimated + gesture-handler; **no hay `@gorhom/bottom-sheet`** en deps) con snap points ~25/50/90%, drag del handle, drag-abajo o backdrop para cerrar, contenido scrollable. Abre en 50%. Incluye "Ver conversación completa →".
+**Detalle:**
+- **Mood/glucosa:** removí la UI, los handlers `quickLogMood`/`quickLogGlucose`, el state y los
+  estilos. **NO toqué la economía de electrones** (los electrones `checkin`/`glucose_log` se siguen
+  ganando en `/checkin` y `/glucose-log`; solo quité el atajo desde HOY). day-compiler conserva su
+  lógica cross-pillar de mood/glucosa (no la usé para earnings, no la rompí).
+- **Wearable:** `WearableMetricCard` reusable (naming consistente, Spacing/Radius/Fonts del design
+  system, colores brand). Lee `getWearableDataForDate(hoy)`; el servicio es un **stub** (devuelve
+  null) → muestra "—" + hint "Conecta tu wearable". Cuando se reactive HealthKit/Health Connect,
+  los cards muestran datos reales sin más cambios.
+- **Agenda:** items informativos (comidas + sueño) con icono estático (no checkbox toggleable, no
+  cuentan como "siguiente"). Builders puros en `agenda-extras.ts` (testeados). Protocolos/entreno
+  ya fluían vía `daily_plans` — no los dupliqué.
 
 ---
 
-## Decisiones / flags autónomos
+## Flags / decisiones autónomas
 
-1. **Bug 6 sin `@gorhom/bottom-sheet`** (no está en deps; añadirlo es dep nueva → build nativo, fuera de sprint OTA). Implementé el sheet con `react-native-reanimated` + `react-native-gesture-handler` (sí están), envolviendo un `GestureHandlerRootView` dentro del Modal (patrón requerido para gestos en Modal). **Bullet-proof:** si el gesto fallara en algún device, el handle es **tappable** (cicla 50%↔90%) y el backdrop cierra → siempre usable. **No tengo device para probar el gesto** — pendiente de tu smoke test; si el drag se siente raro, el fallback tap igual funciona.
-2. **Bug 4 ya estaba implementado.** No reescribí nada grande (como pedía el brief si la lógica existía). Solo extraje el helper puro + ticker para el cambio en vivo.
-3. **`brand.ts` (tocado para bug 4):** cambio mínimo y behavior-preserving (delega a `hoyBgBucket`). No es motor/matrices.
-4. **Divisor AHORA en límite de segmento:** si el corte cae justo al inicio de un segmento (ej. TARDE), el divisor aparece bajo el header del segmento. Es correcto y legible; no lo consideré un problema.
-5. **No toqué** motor v2, matrices, parser AI ni edad-atp.
+1. **`/checkin-emocional` NO existe** — solo `app/checkin.tsx` (`/checkin`). El brief pedía navegar
+   a `/checkin-emocional`. Navegué a `/checkin` (la ruta real) para no romper con un 404. Si quieres
+   el nombre `/checkin-emocional`, hay que crear/renombrar la pantalla — dímelo.
+2. **Wearable es un STUB** (`wearable-service.ts`: `isWearableAvailable()→false`,
+   `getWearableDataForDate()→null`; comentario dice que los paquetes nativos se removieron por
+   requerir compileSdkVersion 34+). Por eso los cards muestran placeholder. **Integración real de
+   wearable = sprint dedicado** (permisos nativos + build). NO la implementé (como indicaba el brief).
+3. **PARTE 1 = 0 eliminaciones** (todo vivo). Es el resultado conservador correcto; el rewire para
+   limpiar de verdad es decisión de producto (arriba).
+4. **Completitud de comidas en agenda:** los items de comida son informativos (no marcan
+   completado). Derivar "comida registrada" de `food_logs.meal_type` es un follow-up; lo dejé simple.
+5. **No toqué:** electrones/protones, motor v2/matrices/parser, ARGOS chat/sheet, welcome/tour.
+
+---
+
+## Deuda técnica encontrada
+- El paso `onboarding/edad-atp` usa el **motor v1** (`edad-atp-service`/`edad-atp-model`) que ya
+  está obsoleto vs el motor v2. Sigue vivo en onboarding. Recomendación: rewire (arriba) en un
+  sprint con Enrique presente para validar el cambio de UX de registro.
 
 ---
 
 ## EXIT CRITERIA
 
 - [x] `npx tsc --noEmit` → 0 errores.
-- [x] `npx vitest run` → 408/408 (57 archivos), +23 nuevos.
-- [x] Tests nuevos: agua (clamp + emisión), AHORA (posicionamiento), fondo por hora.
-- [x] Push a `origin/fix/paty-bugs-hoy`.
-- [ ] **NO merge, NO OTA** — Enrique valida con smoke test.
+- [x] `npx vitest run` → 415/415 (58 archivos), +7 nuevos.
+- [x] PARTE 1 auditada (eliminaciones extras documentadas: ninguna, con razón).
+- [x] Push a `origin/fix/overnight-cleanup-hoy`.
+- [ ] **NO merge, NO OTA** — Enrique valida.
 
 ---
 
 ## SMOKE TEST (Enrique)
 
-- [ ] Tap `+250` agua en HOY → barra sube + electrón se actualiza al instante.
-- [ ] Tap `-250` con 0 ml → no baja de 0.
-- [ ] Tap `+500` → registra 500 ml.
-- [ ] Tap en el card (área no de botones) → navega a Nutrición.
-- [ ] Registrar agua en Nutrición → HOY sincroniza sin pull-to-refresh (y viceversa).
-- [ ] AHORA visible cuando no hay items en agenda.
-- [ ] AHORA como divisor correcto entre pasado y futuro (y se mueve al pasar el minuto).
-- [ ] Abrir app a 6am / 2pm / 9pm → fondo cambia (y cambia en vivo si cruzas franja con la app abierta).
-- [ ] Tap-and-hold mic 10x seguidas → no se atora; si falla a media → vuelve a inactivo.
-- [ ] ARGOS (respuesta de voz) → abre como sheet a 50%; drag arriba → 90%, drag abajo → cierra; mensajes largos scrollean; tap en handle alterna tamaño; "Ver conversación completa →" abre el chat.
+- [ ] HOY abre sin crashear.
+- [ ] NO hay caritas de mood.
+- [ ] NO hay card de glucosa.
+- [ ] Tap en "Check-in emocional" → abre `/checkin`.
+- [ ] Cards "Cardio hoy" + "Pasos" visibles (placeholder "—" + "Conecta tu wearable", porque el wearable es stub).
+- [ ] Agenda muestra más que ayuno: comidas (Desayuno/Comida/Cena…) + "Dormir" (si hay cronotipo) + protocolos.
+- [ ] Items de comida/sueño NO tienen checkbox (icono estático).
+- [ ] Onboarding (si entras a su path con un usuario nuevo) NO aborta — NO se tocó.
 
 ---
 
 ## Nota de higiene
-
-Los 2 archivos sueltos sin trackear `test_habits.js` / `test_missing_scenarios.js` (de la sesión
-overnight de cinemáticos) siguen ahí — NO son de este sprint, NO los commiteé. Bórralos cuando quieras.
+Los artefactos `test_habits.js` / `test_missing_scenarios.js` ya fueron borrados en el sprint anterior.

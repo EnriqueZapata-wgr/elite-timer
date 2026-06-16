@@ -31,6 +31,8 @@ import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { EditDayModal } from '@/src/components/hoy/EditDayModal';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ExpandableSheet } from '@/src/components/ui/ExpandableSheet';
+import { getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
+import { WearableMetricCard } from '@/src/components/hoy/WearableMetricCard';
 import { getHoyBackgroundRequire } from '@/src/constants/brand';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { nowDividerIndex, minutesOfDay, formatNowLabel } from '@/src/utils/agenda-now';
@@ -160,8 +162,7 @@ export default function TodayScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const [streak, setStreak] = useState<number | null>(null);
-  const [glucoseSaving, setGlucoseSaving] = useState(false);
-  const [moodSaving, setMoodSaving] = useState(false);
+  const [wearable, setWearable] = useState<WearableData | null>(null);
   const [supplements, setSupplements] = useState<{ id: string; name: string; dosage: string; timing: string }[]>([]);
   const [suppTaken, setSuppTaken] = useState<Record<string, boolean>>({});
   const [hasJournalToday, setHasJournalToday] = useState<boolean>(true);
@@ -249,6 +250,16 @@ export default function TodayScreen() {
     const t = setInterval(() => setMinuteTick((n) => n + 1), 60 * 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Wearable (cardio del día + pasos). Hoy el servicio es un stub → null (placeholder).
+  // Cuando se reactive HealthKit/Health Connect, estos cards muestran datos reales sin más cambios.
+  useEffect(() => {
+    let alive = true;
+    getWearableDataForDate(getLocalToday())
+      .then((w) => { if (alive) setWearable(w); })
+      .catch(() => { if (alive) setWearable(null); });
+    return () => { alive = false; };
+  }, [user?.id]);
 
   // F36.7/F49/F03.7: defense-in-depth. Si el `day_changed` event no llega
   // (RN-Web inconsistente, listener silenciado por isTogglingRef, navegación
@@ -663,63 +674,8 @@ export default function TodayScreen() {
     }
   }
 
-  // --- Quick log: mood (1 tap desde HOY) ---
-  // Mapeo a cuadrante RULER + pleasantness 1-10. Emociones genéricas para registro rápido;
-  // el usuario puede entrar a /checkin para selección detallada.
-  async function quickLogMood(opt: {
-    quadrant: 'high_pleasant' | 'low_pleasant' | 'low_unpleasant' | 'high_unpleasant';
-    pleasantness: number;
-    energy_level: number;
-    emotions: string[];
-  }) {
-    if (!user?.id || moodSaving) return;
-    haptic.medium();
-    setMoodSaving(true);
-    try {
-      const { error } = await supabase.from('emotional_checkins').insert({
-        user_id: user.id,
-        quadrant: opt.quadrant,
-        emotions: opt.emotions,
-        energy_level: opt.energy_level,
-        pleasantness: opt.pleasantness,
-      });
-      if (error) throw error;
-      try { await awardBooleanElectron(user.id, 'checkin'); } catch { /* idempotent */ }
-      DeviceEventEmitter.emit('electrons_changed');
-      DeviceEventEmitter.emit('day_changed');
-      haptic.success();
-    } catch (e) {
-      console.warn('Quick mood error:', e);
-    } finally {
-      setMoodSaving(false);
-    }
-  }
-
-  // --- Quick log: glucosa (1 tap desde HOY) ---
-  async function quickLogGlucose(value: number) {
-    if (!user?.id || glucoseSaving) return;
-    haptic.medium();
-    setGlucoseSaving(true);
-    try {
-      const now = new Date();
-      const { error } = await supabase.from('glucose_logs').insert({
-        user_id: user.id,
-        date: getLocalToday(),
-        time: now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        value_mg_dl: value,
-        context: 'random',
-      });
-      if (error) throw error;
-      try { await awardBooleanElectron(user.id, 'glucose_log'); } catch { /* idempotent */ }
-      DeviceEventEmitter.emit('electrons_changed');
-      DeviceEventEmitter.emit('day_changed');
-      haptic.success();
-    } catch (e) {
-      console.warn('Quick glucose error:', e);
-    } finally {
-      setGlucoseSaving(false);
-    }
-  }
+  // Quick-logs de mood (caritas) y glucosa eliminados del HOY (sprint cleanup): el mood se
+  // captura en /checkin y la glucosa en /glucose-log (no es realista en MVP sin CGM).
 
   // --- Quick voice desde HOY (sin abrir chat) ---
   async function handleQuickVoice(transcript: string) {
@@ -1028,60 +984,41 @@ export default function TodayScreen() {
         )}
 
         {/* ═══════════════════════════════════════
-            QUICK LOG — Mood (1 tap)
+            CHECK-IN EMOCIONAL — card navegable (sin caritas)
         ═══════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(145).springify()} style={s.section}>
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>MOOD</Text>
-            <Pressable onPress={() => { haptic.light(); router.push('/checkin' as any); }}>
-              <Text style={s.quickLogMore}>detalle →</Text>
-            </Pressable>
-          </View>
-          <View style={s.quickRow}>
-            {([
-              { e: '😄', label: 'Genial',  quadrant: 'high_pleasant'  as const, pleasantness: 9, energy_level: 8, emotions: ['happy'] },
-              { e: '🙂', label: 'Bien',    quadrant: 'low_pleasant'   as const, pleasantness: 7, energy_level: 5, emotions: ['calm'] },
-              { e: '😐', label: 'Normal',  quadrant: 'low_pleasant'   as const, pleasantness: 5, energy_level: 5, emotions: ['neutral'] },
-              { e: '😞', label: 'Bajo',    quadrant: 'low_unpleasant' as const, pleasantness: 3, energy_level: 3, emotions: ['sad'] },
-            ]).map(m => (
-              <Pressable
-                key={m.label}
-                onPress={() => quickLogMood({
-                  quadrant: m.quadrant, pleasantness: m.pleasantness,
-                  energy_level: m.energy_level, emotions: m.emotions,
-                })}
-                disabled={moodSaving}
-                style={[s.moodBtn, moodSaving && { opacity: 0.5 }]}
-              >
-                <Text style={s.moodEmoji}>{m.e}</Text>
-                <Text style={s.moodLabel}>{m.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <AnimatedPressable onPress={() => { haptic.light(); router.push('/checkin' as any); }} style={s.checkinCard}>
+            <View style={s.checkinIcon}>
+              <Ionicons name="heart-circle-outline" size={24} color="#f472b6" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.checkinTitle}>Check-in emocional</Text>
+              <Text style={s.checkinSub}>Registra cómo te sientes hoy</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#666" />
+          </AnimatedPressable>
         </Animated.View>
 
         {/* ═══════════════════════════════════════
-            QUICK LOG — Glucosa (1 tap)
+            WEARABLE — cardio del día + pasos
         ═══════════════════════════════════════ */}
         <Animated.View entering={FadeInUp.delay(150).springify()} style={s.section}>
-          <View style={s.sectionHeader}>
-            <Text style={s.sectionTitle}>GLUCOSA</Text>
-            <Pressable onPress={() => { haptic.light(); router.push('/glucose-log' as any); }}>
-              <Text style={s.quickLogMore}>otro →</Text>
-            </Pressable>
+          <Text style={s.sectionTitle}>ACTIVIDAD</Text>
+          <View style={s.wearableRow}>
+            <WearableMetricCard
+              icon="fitness-outline" color="#fb7185" label="Cardio hoy"
+              value={wearable?.activeMinutes != null ? String(wearable.activeMinutes) : null}
+              unit="min"
+            />
+            <WearableMetricCard
+              icon="walk-outline" color="#38bdf8" label="Pasos"
+              value={wearable?.steps != null ? String(wearable.steps) : null}
+              unit="pasos"
+            />
           </View>
-          <View style={s.quickRow}>
-            {[80, 90, 100, 110, 120].map(v => (
-              <Pressable
-                key={v}
-                onPress={() => quickLogGlucose(v)}
-                disabled={glucoseSaving}
-                style={[s.glucoseBtn, glucoseSaving && { opacity: 0.5 }]}
-              >
-                <Text style={s.glucoseBtnText}>{v}</Text>
-              </Pressable>
-            ))}
-          </View>
+          {wearable == null && (
+            <Text style={s.wearableHint}>Conecta tu wearable (Apple Watch / Health Connect) para ver tu actividad.</Text>
+          )}
         </Animated.View>
 
         {/* ═══════════════════════════════════════
@@ -1468,6 +1405,10 @@ export default function TodayScreen() {
                           </View>
 
                           {/* Checkbox */}
+                          {item.informational ? (
+                            // Comidas / sueño: informativos, sin checkbox toggleable.
+                            <Ionicons name="ellipse-outline" size={18} color="#444" style={{ marginLeft: 10 }} />
+                          ) : (
                           <Pressable onPress={() => toggleAgendaItem(item.id)} hitSlop={16} style={{ marginLeft: 10 }}>
                             {isCompleted ? (
                               <Ionicons name="checkmark-circle" size={26} color="#a8e02a" />
@@ -1484,6 +1425,7 @@ export default function TodayScreen() {
                               </View>
                             )}
                           </Pressable>
+                          )}
                         </View>
                       </View>
                     </View>
@@ -1987,43 +1929,20 @@ const s = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     color: '#666',
   },
-  glucoseBtn: {
-    flex: 1,
-    minWidth: 56,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(251,146,60,0.10)',
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: 'rgba(251,146,60,0.25)',
-    alignItems: 'center',
+  // Check-in emocional (card navegable) + wearable
+  checkinCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: CARD.bg, borderRadius: Radius.card, padding: Spacing.md,
+    borderWidth: 0.5, borderColor: 'rgba(244,114,182,0.25)',
   },
-  glucoseBtnText: {
-    color: '#fb923c',
-    fontSize: 14,
-    fontFamily: Fonts.bold,
-    fontVariant: ['tabular-nums'],
+  checkinIcon: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: 'rgba(244,114,182,0.12)', alignItems: 'center', justifyContent: 'center',
   },
-  moodBtn: {
-    flex: 1,
-    minWidth: 60,
-    paddingHorizontal: 6,
-    paddingVertical: 10,
-    backgroundColor: 'rgba(244,114,182,0.10)',
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: 'rgba(244,114,182,0.25)',
-    alignItems: 'center',
-    gap: 2,
-  },
-  moodEmoji: {
-    fontSize: 22,
-  },
-  moodLabel: {
-    color: '#f472b6',
-    fontSize: 10,
-    fontFamily: Fonts.semiBold,
-  },
+  checkinTitle: { color: '#fff', fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
+  checkinSub: { color: '#888', fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
+  wearableRow: { flexDirection: 'row', gap: Spacing.sm },
+  wearableHint: { color: '#666', fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: Spacing.sm },
   suppRow: {
     flexDirection: 'row',
     alignItems: 'center',
