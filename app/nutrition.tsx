@@ -113,6 +113,14 @@ export default function NutritionScreen() {
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+  // F03.7: sincronizar en vivo cuando se registra agua/electrones desde HOY (sin pull-to-refresh).
+  useEffect(() => {
+    const subs = [
+      DeviceEventEmitter.addListener('day_changed', () => loadData()),
+      DeviceEventEmitter.addListener('electrons_changed', () => loadData()),
+    ];
+    return () => subs.forEach((s) => s.remove());
+  }, [loadData]);
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   const addWater = async (ml: number) => {
@@ -137,6 +145,7 @@ export default function NutritionScreen() {
         await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, target_ml: goalMl, entries });
       }
       DeviceEventEmitter.emit('day_changed');
+      DeviceEventEmitter.emit('electrons_changed');
     } catch { setSummary(prev => ({ ...prev, waterMl: prevMl })); }
   };
 

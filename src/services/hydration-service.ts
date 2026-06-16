@@ -106,7 +106,10 @@ export async function addWater(userId: string, deltaMl: number): Promise<number 
       if (error) return null;
     }
 
+    // Reglas #5 + #6: tras mutar agua, refrescar día Y electrones (la barra/electrón de agua
+    // y cualquier pantalla suscrita se actualizan al instante, sin pull-to-refresh).
     DeviceEventEmitter.emit('day_changed');
+    DeviceEventEmitter.emit('electrons_changed');
     return newTotal;
   } catch {
     return null;

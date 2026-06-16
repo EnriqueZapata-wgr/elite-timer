@@ -146,13 +146,19 @@ export function VoiceButton({ onTranscript, variant = 'fab' }: VoiceButtonProps)
   }
 
   function stopListening() {
-    if (!sttAvailable || !SpeechModule || !isListening) return;
+    if (!sttAvailable || !SpeechModule) return;
     try {
       SpeechModule.stop();
     } catch (e) {
       console.error('Stop listening error:', e);
+    } finally {
+      // F07.1: resetear SIEMPRE el estado, aunque stop() falle o el evento 'end' no llegue.
+      // Antes dependía de los listeners ('end'/'result'); si no disparaban, el FAB quedaba
+      // atorado en "grabando" hasta el safety-timeout de 30s. Ahora suelta de inmediato.
+      setIsListening(false);
+      setPartialText('');
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } catch { /* */ }
   }
 
   // Tamaños
