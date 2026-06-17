@@ -19,8 +19,12 @@ import { getReview, clearReview } from '@/src/services/edad-atp/lab-review-store
 import type { ProcessedItem } from '@/src/services/edad-atp/lab-parser-process';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { haptic } from '@/src/utils/haptics';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SEMANTIC } from '@/src/constants/brand';
+
+// YYYY-MM-DD válido (entre 1900 y 2099).
+const ISO_DATE_RE = /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 
 // Etiquetas legibles de los biomarcadores más comunes (fallback: la propia key).
 const LABELS: Record<string, string> = {
@@ -63,6 +67,13 @@ export default function LabConfirmationScreen() {
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Fecha del estudio (editable). Default: la que el LLM detectó o HOY.
+  // Validamos contra ISO YYYY-MM-DD antes de guardar para que measured_at
+  // en lab_values respete la time-series (estudios viejos van al histórico).
+  const [labDate, setLabDate] = useState<string>(
+    review?.labDate && ISO_DATE_RE.test(review.labDate) ? review.labDate : getLocalToday(),
+  );
+  const labDateValid = ISO_DATE_RE.test(labDate);
 
   if (!review) {
     return (
@@ -94,9 +105,14 @@ export default function LabConfirmationScreen() {
       .map((it) => ({ key: it.key, value: effectiveValue(it) }))
       .filter((c): c is { key: string; value: number } => c.value != null);
 
+    if (!labDateValid) {
+      Alert.alert('Fecha inválida', 'La fecha del estudio debe estar en formato AAAA-MM-DD.');
+      return;
+    }
+
     const extraUploadIds = (review.uploadIds ?? []).filter((id) => id !== review.uploadId);
     setSaving(true);
-    const res = await saveConfirmedLabValues(review.uploadId, confirmed, { labDate: review.labDate, labName: review.labName, extraUploadIds });
+    const res = await saveConfirmedLabValues(review.uploadId, confirmed, { labDate, labName: review.labName, extraUploadIds });
     setSaving(false);
 
     const editedCount = Object.keys(edited).length;
@@ -161,6 +177,31 @@ export default function LabConfirmationScreen() {
         <EliteText variant="caption" style={styles.intro}>
           Detectamos estos valores en tu laboratorio. Revísalos y corrige lo que haga falta antes de guardar.
         </EliteText>
+
+        {/* Fecha del estudio editable — clave para que estudios viejos vayan al histórico. */}
+        <View style={[styles.dateCard, !labDateValid && { borderColor: SEMANTIC.error + '60' }]}>
+          <View style={styles.dateRow}>
+            <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
+            <View style={{ flex: 1 }}>
+              <EliteText variant="caption" style={styles.dateLabel}>Fecha del estudio</EliteText>
+              <TextInput
+                style={styles.dateInput}
+                value={labDate}
+                onChangeText={setLabDate}
+                placeholder="AAAA-MM-DD"
+                placeholderTextColor={Colors.textMuted}
+                autoCorrect={false}
+                autoCapitalize="none"
+                maxLength={10}
+              />
+              <EliteText variant="caption" style={styles.dateHint}>
+                {labDateValid
+                  ? 'Tus valores se guardarán en esta fecha (puedes corregirla si el documento es de otro año).'
+                  : 'Usa formato AAAA-MM-DD (ej. 2024-03-15).'}
+              </EliteText>
+            </View>
+          </View>
+        </View>
 
         {review.items.map((it) => {
           const st = statusOf(it);
@@ -270,6 +311,15 @@ export default function LabConfirmationScreen() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   intro: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
+  dateCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
+  dateRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  dateLabel: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, marginBottom: 4 },
+  dateInput: {
+    backgroundColor: '#000', borderRadius: Radius.sm, paddingHorizontal: Spacing.sm,
+    paddingVertical: 8, color: Colors.textPrimary, fontFamily: Fonts.semiBold,
+    borderWidth: 1, borderColor: '#222', fontSize: FontSizes.md,
+  },
+  dateHint: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 4 },
   itemCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1 },
   itemRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   itemLabel: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },

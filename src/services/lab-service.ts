@@ -201,10 +201,14 @@ Solo valores encontrados. No mapeados→other_values.`;
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
 
-    // Parse JSON (clean backticks if present)
+    // Parse JSON: limpia backticks y extrae el primer {...} en caso de que el
+    // LLM (Sonnet 4.6 o fallback Gemini) lo envuelva con texto explicativo.
+    // Bulletproof contra "Aquí está el JSON:" / "Lo siento, no pude..." / etc.
     const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
     let parsed: any;
-    try { parsed = JSON.parse(cleaned); } catch { throw new Error('No se pudo parsear la respuesta de IA'); }
+    try { parsed = JSON.parse(jsonStr); } catch { throw new Error('No se pudo parsear la respuesta de IA'); }
 
     const rawExtracted = parsed.values || {};
     const otherValues = parsed.other_values || [];
@@ -430,9 +434,12 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
     });
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
+    // Misma estrategia que el flujo v1: limpia backticks + extrae primer {...}.
     const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
     let parsed: any;
-    try { parsed = JSON.parse(cleaned); } catch { throw new Error('No se pudo parsear la respuesta de IA'); }
+    try { parsed = JSON.parse(jsonStr); } catch { throw new Error('No se pudo parsear la respuesta de IA'); }
 
     const rawItems = normalizeParserValues(parsed.values);
     const { items, derived } = processParserItems(rawItems);
