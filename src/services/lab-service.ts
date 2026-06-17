@@ -13,6 +13,33 @@ import { warn as logWarn } from '@/src/lib/logger';
 /** Reintentos del parser ante fallo de red: backoff 1s, 3s (3 intentos totales). */
 const PARSER_RETRY_DELAYS_MS = [1000, 3000];
 
+/**
+ * Extrae el primer objeto JSON balanceado del texto, ignorando texto extra
+ * antes/después. Cuenta llaves abiertas/cerradas respetando strings.
+ * Bulletproof contra LLMs que añaden "Aquí está el JSON:", explicaciones, etc.
+ * Devuelve null si no encuentra ningún objeto JSON.
+ */
+function extractJsonObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (ch === '\\') { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.substring(start, i + 1);
+    }
+  }
+  return null;
+}
+
 /** Mensaje amigable cuando se agotan los reintentos por red. */
 export const LAB_NETWORK_ERROR_MSG =
   'No pudimos leer este archivo. Verifica tu conexión e intenta de nuevo.';
@@ -201,14 +228,17 @@ Solo valores encontrados. No mapeados→other_values.`;
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
 
-    // Parse JSON: limpia backticks y extrae el primer {...} en caso de que el
-    // LLM (Sonnet 4.6 o fallback Gemini) lo envuelva con texto explicativo.
-    // Bulletproof contra "Aquí está el JSON:" / "Lo siento, no pude..." / etc.
+    // Parse JSON con extracción bracket-balanced: ignora texto antes/después
+    // del JSON, respeta strings y escapes. Bulletproof contra cualquier LLM.
     const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
+    const jsonStr = extractJsonObject(cleaned) ?? cleaned;
     let parsed: any;
-    try { parsed = JSON.parse(jsonStr); } catch { throw new Error('No se pudo parsear la respuesta de IA'); }
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      logWarn('[lab-parser v1] JSON.parse falló. rawText:', rawText.substring(0, 500));
+      throw new Error('No se pudo parsear la respuesta de IA');
+    }
 
     const rawExtracted = parsed.values || {};
     const otherValues = parsed.other_values || [];
@@ -434,12 +464,16 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
     });
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
-    // Misma estrategia que el flujo v1: limpia backticks + extrae primer {...}.
+    // Misma estrategia que el flujo v1: limpia backticks + extrae JSON balanceado.
     const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : cleaned;
+    const jsonStr = extractJsonObject(cleaned) ?? cleaned;
     let parsed: any;
-    try { parsed = JSON.parse(jsonStr); } catch { throw new Error('No se pudo parsear la respuesta de IA'); }
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (e) {
+      logWarn('[lab-parser v2] JSON.parse falló. rawText:', rawText.substring(0, 500));
+      throw new Error('No se pudo parsear la respuesta de IA');
+    }
 
     const rawItems = normalizeParserValues(parsed.values);
     const { items, derived } = processParserItems(rawItems);
