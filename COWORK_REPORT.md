@@ -2,6 +2,8 @@
 
 **Branch:** `feat/labs-pdfs-grandes` · **Estado:** push, NO merge, NO OTA · **tsc:** 0 errores · **tests:** 465 pasan (445 previos + 20 nuevos)
 
+> **ACTUALIZACIÓN (Enrique abrió acceso a SQL):** la migración **076 YA se corrió en prod** (ELITE-APP-FULLDB) vía `supabase db query --linked`. Verificado: enum status con 7 valores, `pg_net` activo, trigger `on_lab_upload_pending` → `trigger_lab_parser_worker` creado. El trigger queda **inerte** hasta que se complete el resto del orden de deploy (worker desplegado + GUC seteado) y nada escribe `'pending'` con el flag OFF. **Falta:** (1) `supabase functions deploy lab-parser-worker` + secret `ANTHROPIC_API_KEY`, (2) GUC `app.settings.supabase_url` + `app.settings.service_role_key` (maneja secretos → lo haces tú), (3) flip `LAB_ASYNC_WORKER_ENABLED=true` + OTA tras smoke test.
+
 ## Problema raíz
 PDFs > ~500KB revientan el cap de 60s de la Edge Function. UNILABS (254KB) funciona; un PDF de 1.3MB hace timeout con `input_tokens=0`. El parser corría EN EL CLIENTE vía `argos-proxy`, atado al request → cap de 60s. La compresión-cliente fue rechazada ("que jale bien, sin workarounds"): el fix real es sacar el LLM del request y hacerlo **async server-side**.
 
