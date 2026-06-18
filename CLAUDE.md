@@ -32,7 +32,11 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
 9. OTA para JS/TS: eas update --branch preview
 10. Native builds solo para cambios nativos o nueva versión
 11. NUNCA cambiar versión en app.json sin hacer build inmediato
-12. Migraciones SQL: ejecutar manualmente en Supabase SQL Editor
+12. Migraciones SQL:
+    - Idempotentes obligatorias (IF NOT EXISTS / ON CONFLICT DO NOTHING)
+    - Cowork audita branch antes del merge
+    - Después del merge: `npx supabase db push` aplica al remoto (Supabase CLI linkeado al proyecto)
+    - SQL Editor solo para queries puntuales / debug, no para migraciones rutinarias
 
 ## Documentos clave
 - ATP_MASTER_DOC_MAY2026.md — estado completo
