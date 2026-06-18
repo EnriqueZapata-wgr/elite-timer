@@ -140,6 +140,18 @@ export interface LabResult {
   status: string; upload_id: string | null; [key: string]: any;
 }
 
+/**
+ * Capa 9 — FLAG del worker async. OFF por defecto (flujo síncrono actual intacto).
+ * Encender SOLO cuando los 3 estén listos en el proyecto:
+ *   1. Edge Function `lab-parser-worker` desplegada
+ *   2. Migración 076 corrida (enum 'pending' + trigger pg_net)
+ *   3. GUC seteado: app.settings.supabase_url + app.settings.service_role_key
+ * Con el flag OFF, enqueueLabWorker nunca se llama y el cliente sigue extrayendo en línea.
+ * Bulletproof: si se enciende sin (1)/(2)/(3), el upload quedaría en 'pending' sin procesar
+ * → por eso default false y se enciende a mano tras validar el backend. Ver COWORK_REPORT.
+ */
+export const LAB_ASYNC_WORKER_ENABLED = false;
+
 // === UPLOAD ===
 
 export async function uploadLabFile(
@@ -385,6 +397,17 @@ Solo valores encontrados. No mapeados→other_values.`;
   }
 }
 
+/**
+ * Capa 9 — encola el upload para el worker async server-side. status → 'pending' dispara el
+ * trigger de la migración 076, que invoca a `lab-parser-worker` vía pg_net. El worker procesa
+ * en background (sin el cap de 60s) y al terminar pone 'extracted'/'failed' → Supabase Realtime
+ * notifica al cliente. El cliente NO espera al LLM. Idempotente.
+ */
+export async function enqueueLabWorker(uploadId: string): Promise<void> {
+  const { error } = await supabase.from('lab_uploads').update({ status: 'pending' }).eq('id', uploadId);
+  if (error) throw new Error(error.message || JSON.stringify(error));
+}
+
 // === PARSER v2 — extract para revisión + guardado confirmado ===
 
 /** Prompt v2: array con confidence + unidad textual del documento (Capa 3). */
@@ -528,6 +551,43 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
     await supabase.from('lab_uploads').update({ status: 'failed', error_message: message }).eq('id', uploadId);
     return { error: message, retriable };
   }
+}
+
+/**
+ * Capa 9: reconstruye el LabReviewPayload desde extracted_data YA guardado por el worker async
+ * (shape {values:{key:{value,unit}}, other_values, lab_name, lab_date}). Reusa EXACTAMENTE el
+ * mismo pipeline que el flujo síncrono (normalizeParserValues → processParserItems) para que la
+ * pantalla de confirmación sea idéntica venga del worker o del cliente. NO llama al LLM: solo
+ * transforma data en memoria. Así el cliente "reconstruye la revisión" sin re-procesar.
+ */
+export function reconstructReviewFromExtractedData(upload: any): LabReviewPayload | LabExtractError {
+  const parsed = upload?.extracted_data;
+  if (!parsed || typeof parsed !== 'object') return { error: 'Sin datos extraídos' };
+  const rawItems = normalizeParserValues(parsed.values);
+  const { items, derived } = processParserItems(rawItems);
+  if (items.length === 0) {
+    return { error: 'No biomarkers extracted', extractedCount: 0, otherValues: parsed.other_values ?? [] };
+  }
+  return {
+    uploadId: upload.id,
+    userId: upload.user_id,
+    labName: parsed.lab_name ?? null,
+    labDate: parsed.lab_date || getLocalToday(),
+    items,
+    derived,
+    otherValues: parsed.other_values ?? [],
+  };
+}
+
+/**
+ * Capa 9: carga la revisión desde DB cuando el worker ya extrajo (no hay payload en memoria,
+ * p.ej. el banner 'extracted' tras cerrar/reabrir la app). Lee lab_uploads.extracted_data y
+ * reconstruye. Lo usa lab-confirmation como fallback cuando lab-review-store está vacío.
+ */
+export async function loadReviewFromDb(uploadId: string): Promise<LabReviewPayload | LabExtractError> {
+  const { data: upload } = await supabase.from('lab_uploads').select('*').eq('id', uploadId).single();
+  if (!upload) return { error: 'Upload no encontrado' };
+  return reconstructReviewFromExtractedData(upload);
 }
 
 /**

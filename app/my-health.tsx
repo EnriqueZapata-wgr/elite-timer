@@ -32,6 +32,8 @@ import { UploadTypePicker } from '@/src/components/edad-atp/UploadTypePicker';
 import { routeUploadByType, type UploadType } from '@/src/constants/upload-types';
 import { captureRouteFor } from '@/src/constants/data-capture-routes';
 import { validateLabFile } from '@/src/utils/lab-file-validator';
+import { needsCompression } from '@/src/services/lab-compressor';
+import { warn as logWarn } from '@/src/lib/logger';
 import { useLabProcessing } from '@/src/hooks/useLabProcessing';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, TEXT_COLORS } from '@/src/constants/brand';
@@ -201,6 +203,12 @@ export default function MyHealthScreen() {
       if (v.needsConfirm) {
         const proceed = await confirmDialog('PDF largo', v.confirmMessage ?? '¿Continuar?');
         if (!proceed) return;
+      }
+      // Capa 4 — gating de PDFs grandes. La compresión cliente PDF→JPG requiere un renderer
+      // nativo (no en deps), así que NO comprimimos aquí: el worker server-side (Capa 9) SPLITEA
+      // el PDF en chunks paralelos, que es lo que de verdad mata el timeout de 60s. Dejamos rastro.
+      if (needsCompression(fileType, fileSize)) {
+        logWarn('[labs] PDF grande (>2MB): el worker async lo procesará por chunks', { fileSize, pageCount: v.pageCount });
       }
       // Capa 8 — flujo ASYNC: subir, abrir sheet, extraer en background (no bloquea).
       setUploading(true);

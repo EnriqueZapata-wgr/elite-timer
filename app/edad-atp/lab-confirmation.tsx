@@ -6,7 +6,7 @@
  * inline cualquiera, ve los auto-calculados, y solo al confirmar se guarda. Doctrina del
  * sprint: cero sorpresas — nada se guarda sin que el usuario lo apruebe.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, TextInput, Alert } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +14,8 @@ import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { saveConfirmedLabValues, deleteLabUpload } from '@/src/services/lab-service';
-import { getReview, clearReview } from '@/src/services/edad-atp/lab-review-store';
+import { saveConfirmedLabValues, deleteLabUpload, loadReviewFromDb, type LabReviewPayload } from '@/src/services/lab-service';
+import { getReview, setReview, clearReview } from '@/src/services/edad-atp/lab-review-store';
 import type { ProcessedItem } from '@/src/services/edad-atp/lab-parser-process';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { haptic } from '@/src/utils/haptics';
@@ -62,7 +62,10 @@ const STATUS_META: Record<Status, { icon: any; color: string }> = {
 export default function LabConfirmationScreen() {
   const { uploadId } = useLocalSearchParams<{ uploadId?: string }>();
   const analytics = useAnalytics();
-  const review = uploadId ? getReview(uploadId) : undefined;
+  // Capa 9: el review puede venir en memoria (flujo síncrono) o cargarse desde DB (worker async,
+  // que ya dejó extracted_data). Empezamos con el de memoria y, si falta, lo traemos de DB.
+  const [review, setReviewState] = useState<LabReviewPayload | undefined>(uploadId ? getReview(uploadId) : undefined);
+  const [loadingReview, setLoadingReview] = useState(false);
 
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [editingKey, setEditingKey] = useState<string | null>(null);
@@ -75,7 +78,36 @@ export default function LabConfirmationScreen() {
   );
   const labDateValid = ISO_DATE_RE.test(labDate);
 
+  // Worker async: si no hay review en memoria, reconstruir desde lab_uploads.extracted_data.
+  useEffect(() => {
+    if (review || !uploadId) return;
+    let alive = true;
+    setLoadingReview(true);
+    loadReviewFromDb(uploadId)
+      .then((r) => {
+        if (!alive) return;
+        if (!('error' in r)) {
+          setReview(r); // cachea en memoria para guardar/descartar
+          setReviewState(r);
+          if (r.labDate && ISO_DATE_RE.test(r.labDate)) setLabDate(r.labDate);
+        }
+      })
+      .finally(() => { if (alive) setLoadingReview(false); });
+    return () => { alive = false; };
+  }, [uploadId, review]);
+
   if (!review) {
+    if (loadingReview) {
+      return (
+        <Screen>
+          <PillarHeader pillar="metrics" title="Confirmar laboratorio" />
+          <View style={styles.emptyWrap}>
+            <Ionicons name="hourglass-outline" size={40} color={Colors.textMuted} />
+            <EliteText variant="caption" style={styles.emptyText}>Cargando tu laboratorio…</EliteText>
+          </View>
+        </Screen>
+      );
+    }
     return (
       <Screen>
         <PillarHeader pillar="metrics" title="Confirmar laboratorio" />

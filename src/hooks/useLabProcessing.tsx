@@ -7,7 +7,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
-import { extractLabValuesForReview, deleteLabUpload } from '@/src/services/lab-service';
+import { extractLabValuesForReview, deleteLabUpload, enqueueLabWorker, LAB_ASYNC_WORKER_ENABLED } from '@/src/services/lab-service';
 import { setReview } from '@/src/services/edad-atp/lab-review-store';
 import {
   labProcReducer, initialLabProcState, type LabProcState, type ProcessingUpload,
@@ -49,6 +49,15 @@ export function LabProcessingProvider({ children }: { children: React.ReactNode 
   // El status final (extracted/failed) llega por Realtime (lab-service hace el UPDATE en DB).
   const runExtraction = useCallback(async (uploadId: string) => {
     dispatch({ type: 'patch', uploadId, changes: { status: 'processing', errorMessage: undefined } });
+    // Capa 9 (flag ON): NO extraemos en el cliente. Encolamos el worker server-side (status →
+    // 'pending' dispara el trigger 076) y dejamos que Realtime traiga 'extracted'/'failed'. Al
+    // tocar el banner, lab-confirmation carga la revisión desde DB (loadReviewFromDb).
+    if (LAB_ASYNC_WORKER_ENABLED) {
+      try { await enqueueLabWorker(uploadId); }
+      catch { dispatch({ type: 'patch', uploadId, changes: { status: 'failed', errorMessage: 'No se pudo encolar el análisis.' } }); }
+      return;
+    }
+    // Flujo síncrono (flag OFF): el cliente corre el LLM y cachea el review en memoria.
     try {
       const review = await extractLabValuesForReview(uploadId);
       if (!('error' in review)) setReview(review);
