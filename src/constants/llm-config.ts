@@ -9,8 +9,8 @@ export const ATP_LLM = {
   FALLBACK_PROVIDER: 'google' as const,
   MAX_TOKENS_DEFAULT: 4000,
   MAX_TOKENS_ESTIMATE: 2000,
-  // Timeout del CLIENTE — límite de seguridad. Debe ser mayor que el peor
-  // caso del Edge Function (Anthropic 25s + Gemini 15s + overhead) para que
-  // no corte una respuesta válida ni cancele un fallback en curso.
-  TIMEOUT_MS: 50000,
+  // Timeout del CLIENTE — debe ser mayor que el peor caso del Edge Function
+  // (Anthropic 58s + Gemini 25s + overhead) para que no aborte una respuesta
+  // válida ni cancele un fallback en curso. 90s da margen real.
+  TIMEOUT_MS: 90000,
 } as const;

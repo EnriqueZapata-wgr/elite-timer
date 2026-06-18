@@ -509,8 +509,14 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
     const rawItems = normalizeParserValues(parsed.values);
     const { items, derived } = processParserItems(rawItems);
 
-    // Guardar crudo para auditoría. status sigue 'processing' hasta que el usuario confirme.
-    await supabase.from('lab_uploads').update({ extracted_data: parsed, ai_raw_response: rawText }).eq('id', uploadId);
+    // Guardar crudo + marcar 'extracted' (listo para revisión). Esto dispara Realtime
+    // → el banner async pasa a "Lab listo · Toca para revisar". El usuario después
+    // confirmará valores en lab-confirmation, lo que actualizará a 'confirmed'.
+    await supabase.from('lab_uploads').update({
+      extracted_data: parsed,
+      ai_raw_response: rawText,
+      status: 'extracted',
+    }).eq('id', uploadId);
 
     if (items.length === 0) {
       reportLabNoBiomarkers(uploadId, 'v2', parsed);
