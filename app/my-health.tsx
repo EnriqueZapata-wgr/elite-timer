@@ -14,8 +14,7 @@ try { DocumentPicker = require('expo-document-picker'); } catch { /* */ }
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useAuth } from '@/src/contexts/auth-context';
-import { uploadLabFile, extractLabValuesForReview, saveConfirmedLabValues, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult, type LabReviewPayload } from '@/src/services/lab-service';
-import { needsConfirmation } from '@/src/services/edad-atp/lab-parser-process';
+import { uploadLabFile, extractLabValuesForReview, getLabHistory, getLabUploads, deleteLabUpload, deleteLabResult, type LabUpload, type LabResult, type LabReviewPayload } from '@/src/services/lab-service';
 import { setReview } from '@/src/services/edad-atp/lab-review-store';
 import { mergeReviews } from '@/src/services/edad-atp/lab-review-merge';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
@@ -154,9 +153,10 @@ export default function MyHealthScreen() {
     }
   };
 
-  // Parser v2 (Capa 4): extrae SIN guardar → si hay algo dudoso (confidence < high o fuera
-  // de rango), abre la pantalla de confirmación; si todo es high+válido, guarda directo
-  // (conserva la UX rápida — flag #2). Devuelve true si navegó a confirmación.
+  // Parser v2 (Capa 4): extrae SIN guardar → SIEMPRE abre la pantalla de confirmación
+  // para que el usuario revise valores + fecha del estudio antes de guardar.
+  // Decisión Enrique 2026-06-17: cero sorpresas, el usuario siempre confirma
+  // (cambio respecto al flujo anterior que guardaba directo si todo era high+válido).
   const runReviewFlow = async (uploadId: string): Promise<void> => {
     const review = await extractLabValuesForReview(uploadId);
     if ('error' in review) {
@@ -170,18 +170,10 @@ export default function MyHealthScreen() {
       return;
     }
     analytics.track(ATP_EVENTS.LAB_PARSER_V2_REVIEWED, { total: review.items.length, upload_id: uploadId });
-    if (needsConfirmation({ items: review.items, derived: review.derived })) {
-      setReview(review);
-      setResult(null);
-      setProcessing(false);
-      router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId } } as any);
-      return;
-    }
-    // Todo confiable → guardar directo sin molestar al usuario.
-    const confirmed = review.items.filter((i) => i.passedValidation).map((i) => ({ key: i.key, value: i.valueCanonical }));
-    const res = await saveConfirmedLabValues(uploadId, confirmed, { labDate: review.labDate, labName: review.labName });
-    if ('error' in res) setResult({ error: res.error });
-    else setResult({ count: res.extractedCount, rejected: res.rejectedCount });
+    setReview(review);
+    setResult(null);
+    setProcessing(false);
+    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId } } as any);
   };
 
   const processUpload = async (base64: string, fileType: 'image' | 'pdf', type?: UploadType) => {
