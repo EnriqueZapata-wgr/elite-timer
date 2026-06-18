@@ -441,15 +441,16 @@ export default function MyHealthScreen() {
                     {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : 'Procesando'}
                   </EliteText>
                   {u.status === 'failed' && (
-                    <Pressable onPress={() => retryExtraction(u.id)} disabled={processing} style={{ padding: 6 }}>
+                    <Pressable onPress={() => retryExtraction(u.id)} style={{ padding: 6 }}>
                       <Ionicons name="refresh" size={18} color={TEAL} />
                     </Pressable>
                   )}
-                  {/* Capa 7: capturar a mano viendo el PDF cuando el parser falló. */}
+                  {/* Capa 7: capturar a mano viendo el PDF cuando el parser falló.
+                      NOTA: NO disabled por processing — son uploads distintos, deben
+                      poder operarse aunque otro upload esté en curso. */}
                   {u.status === 'failed' && (
                     <Pressable
                       onPress={() => { haptic.light(); router.push({ pathname: '/edad-atp/biomarkers', params: { sourceUploadId: u.id, sourceFileName: u.file_name ?? 'lab' } } as any); }}
-                      disabled={processing}
                       style={{ padding: 6 }}
                     >
                       <Ionicons name="create-outline" size={18} color={Colors.neonGreen} />
