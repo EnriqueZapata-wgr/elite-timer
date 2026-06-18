@@ -111,17 +111,27 @@ async function callAnthropicProvider(args: {
     }];
   }
 
+  // Detectar si el request incluye PDFs (type: "document"). Anthropic requiere
+  // header beta para procesarlos correctamente. Sin esto, los PDFs timeout o
+  // se ignoran silenciosamente (causa raíz de uploads de labs PDF rotos 1+ mes).
+  const hasPdf = JSON.stringify(args.messages).includes('"type":"document"');
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
+    "anthropic-version": "2023-06-01",
+  };
+  if (hasPdf) {
+    headers["anthropic-beta"] = "pdfs-2024-09-25";
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
-        "anthropic-version": "2023-06-01",
-      },
+      headers,
       body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
