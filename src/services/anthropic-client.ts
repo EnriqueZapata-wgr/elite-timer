@@ -67,3 +67,43 @@ export async function callAnthropic(
   }
   return data;
 }
+
+/**
+ * Capa 5 (Files API) — sube un archivo a Anthropic vía el proxy (action 'upload_file') y
+ * devuelve el file_id. Lanza si el proxy/endpoint no responde OK; el caller hace fallback a
+ * base64. NO usa la API key en cliente (la maneja el edge function).
+ */
+export async function uploadFileToAnthropicViaProxy(
+  fileBase64: string,
+  fileName: string,
+  mimeType: string,
+): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ATP_LLM.TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(PROXY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ action: 'upload_file', fileBase64, fileName, mimeType }),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err?.name === 'AbortError') throw new Error('ARGOS_TIMEOUT');
+    throw err;
+  }
+  clearTimeout(timeoutId);
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`anthropic_files_upload_failed ${response.status}: ${errorText}`);
+  }
+  const data = await response.json();
+  const fileId = data?.file_id ?? data?.id;
+  if (!fileId || typeof fileId !== 'string') throw new Error('anthropic_files_upload_no_id');
+  return fileId;
+}

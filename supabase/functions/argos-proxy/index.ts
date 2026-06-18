@@ -114,16 +114,21 @@ async function callAnthropicProvider(args: {
   // Detectar si el request incluye PDFs (type: "document"). Anthropic requiere
   // header beta para procesarlos correctamente. Sin esto, los PDFs timeout o
   // se ignoran silenciosamente (causa raíz de uploads de labs PDF rotos 1+ mes).
-  const hasPdf = JSON.stringify(args.messages).includes('"type":"document"');
+  const serialized = JSON.stringify(args.messages);
+  const hasPdf = serialized.includes('"type":"document"');
+  // Capa 5: si el documento referencia un file_id (Files API), añadir su beta header.
+  const hasFileSource = serialized.includes('"file_id"');
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
     "anthropic-version": "2023-06-01",
   };
-  if (hasPdf) {
-    headers["anthropic-beta"] = "pdfs-2024-09-25";
-  }
+  const betas: string[] = [];
+  if (hasPdf) betas.push("pdfs-2024-09-25");
+  // ⚠️ Verificar versión vigente del beta de Files API en docs.anthropic.com (puede cambiar).
+  if (hasFileSource) betas.push("files-api-2025-04-14");
+  if (betas.length > 0) headers["anthropic-beta"] = betas.join(",");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
@@ -256,6 +261,39 @@ serve(async (req) => {
 
   try {
     body = await req.json();
+
+    // ─── Capa 5 (Files API): subir un archivo a Anthropic y devolver file_id ───
+    // El cliente lo cachea en lab_uploads.anthropic_file_id y lo referencia en mensajes.
+    // ⚠️ Beta header 'files-api-2025-04-14' — verificar versión vigente antes de prod.
+    if (body.action === "upload_file") {
+      try {
+        const bin = atob(body.fileBase64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const form = new FormData();
+        form.append("file", new Blob([bytes], { type: body.mimeType || "application/pdf" }), body.fileName || "lab.pdf");
+        const res = await fetch("https://api.anthropic.com/v1/files", {
+          method: "POST",
+          headers: {
+            "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
+            "anthropic-version": "2023-06-01",
+            "anthropic-beta": "files-api-2025-04-14",
+          },
+          body: form,
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          return new Response(JSON.stringify({ error: { type: "files_upload_failed", message: JSON.stringify(data?.error) || `status ${res.status}` } }),
+            { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(JSON.stringify({ file_id: data.id }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ error: { type: "files_upload_exception", message: e?.message || String(e) } }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     const { messages, max_tokens, model, system, userId, tier, requestType, targetUserId, targetProfileId } = body;
     const finalModel = model || PRIMARY_MODEL_DEFAULT;
     const finalMaxTokens = max_tokens || 4000;
