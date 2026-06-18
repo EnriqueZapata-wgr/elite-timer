@@ -29,6 +29,9 @@ import { ProgramsProvider } from '@/src/contexts/programs-context';
 import { SessionsProvider } from '@/src/contexts/sessions-context';
 import { SettingsProvider } from '@/src/contexts/settings-context';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
+import { LabProcessingProvider } from '@/src/hooks/useLabProcessing';
+import { LabProcessingSheet } from '@/src/components/labs/LabProcessingSheet';
+import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -103,6 +106,7 @@ function RootLayout() {
           <SettingsProvider>
             <ProgramsProvider>
               <SessionsProvider>
+              <LabProcessingProvider>
               <Stack screenOptions={{
                 headerShown: false,
                 animation: 'ios_from_right',
@@ -173,7 +177,11 @@ function RootLayout() {
                 <Stack.Screen name="log-cardio" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />
               </Stack>
+              {/* Capa 8 — UX async: sheet + banner globales del procesamiento de labs. */}
+              <LabProcessingSheet />
+              <ProcessingMiniBanner />
               <StatusBar style="light" />
+              </LabProcessingProvider>
               </SessionsProvider>
             </ProgramsProvider>
           </SettingsProvider>
