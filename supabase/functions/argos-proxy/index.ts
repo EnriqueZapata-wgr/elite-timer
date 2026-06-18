@@ -124,11 +124,15 @@ async function callAnthropicProvider(args: {
     "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
     "anthropic-version": "2023-06-01",
   };
+  // 2026-06-18: PDFs ya son GA en Sonnet 4.x (no requieren beta header).
+  // Pasar el header viejo `pdfs-2024-09-25` causa que Anthropic cuelgue el
+  // request sin procesar (input_tokens=0, timeout silencioso). Quitamos beta
+  // de PDFs. Files API SÍ requiere beta pero por ahora está desactivada
+  // (no se manda type:"file" desde el cliente).
   const betas: string[] = [];
-  if (hasPdf) betas.push("pdfs-2024-09-25");
-  // ⚠️ Verificar versión vigente del beta de Files API en docs.anthropic.com (puede cambiar).
   if (hasFileSource) betas.push("files-api-2025-04-14");
   if (betas.length > 0) headers["anthropic-beta"] = betas.join(",");
+  void hasPdf; // referenced for backward-compat — header no se manda
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
