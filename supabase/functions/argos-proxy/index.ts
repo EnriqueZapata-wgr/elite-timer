@@ -7,8 +7,12 @@ const corsHeaders = {
 };
 
 // Resilience config (espejo de src/constants/llm-config.ts)
-const ANTHROPIC_TIMEOUT_MS = 25000;
-const GEMINI_TIMEOUT_MS = 15000;
+// 2026-06-17: subido Anthropic 25s→55s y Gemini 15s→25s — los PDFs de labs
+// con muchas páginas/biomarcadores no caben en 25s. Anthropic responde bien
+// pero tarda ~30-40s con visión + JSON estructurado. Cap del Edge Function
+// de Supabase es 60s, dejamos 5s de margen para procesamiento post.
+const ANTHROPIC_TIMEOUT_MS = 55000;
+const GEMINI_TIMEOUT_MS = 25000;
 const HARD_CAP_DAILY = 50;
 const FALLBACK_MODEL = "gemini-2.5-flash"; // Gemini 2.5 Flash — string confirmado mayo 2026
 const PRIMARY_MODEL_DEFAULT = "claude-sonnet-4-6";
