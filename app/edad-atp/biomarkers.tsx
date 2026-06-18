@@ -5,9 +5,10 @@
  * Toda edición/captura manual escribe a edad_atp_biomarkers (override: el
  * orchestrator prioriza edad_atp_biomarkers > extracted_data > lab_results).
  */
-import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { useState, useCallback, useEffect } from 'react';
+import { View, ScrollView, StyleSheet, Pressable, Alert, Linking } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { supabase } from '@/src/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -81,6 +82,15 @@ export default function BiomarkersCapture() {
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
+  // Capa 7: captura manual desde un upload fallido — muestra de qué archivo y permite verlo.
+  const { sourceUploadId, sourceFileName } = useLocalSearchParams<{ sourceUploadId?: string; sourceFileName?: string }>();
+  const [sourceFileUrl, setSourceFileUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!sourceUploadId) return;
+    supabase.from('lab_uploads').select('file_url').eq('id', sourceUploadId).maybeSingle()
+      .then(({ data }) => setSourceFileUrl(data?.file_url ?? null));
+  }, [sourceUploadId]);
+
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
     (async () => {
@@ -153,6 +163,10 @@ export default function BiomarkersCapture() {
     const result = await saveBiomarkers(user.id, entries);
     setSaving(false);
     if (!result.ok) { Alert.alert('Error', 'No se pudieron guardar. Intenta de nuevo.'); return; }
+    // Capa 7: si veníamos de un upload fallido, marcarlo confirmado (capturado a mano).
+    if (sourceUploadId) {
+      try { await supabase.from('lab_uploads').update({ status: 'confirmed' }).eq('id', sourceUploadId); } catch { /* best-effort */ }
+    }
     analytics.track(ATP_EVENTS.EDAD_ATP_BIOMARKERS_SAVED, { count: entries.length, edit_mode: editMode });
     haptic.success();
     Alert.alert('', 'Datos guardados ✓', [{ text: 'OK', onPress: () => router.back() }]);
@@ -162,6 +176,19 @@ export default function BiomarkersCapture() {
     <Screen>
       <PillarHeader pillar="metrics" title="Biomarcadores" />
       <ScrollView contentContainerStyle={styles.content}>
+        {sourceUploadId ? (
+          <View style={styles.sourceBanner}>
+            <Ionicons name="document-text-outline" size={16} color={Colors.neonGreen} />
+            <EliteText variant="caption" style={styles.sourceText} numberOfLines={1}>
+              Capturando desde: {sourceFileName ?? 'tu archivo'}
+            </EliteText>
+            {sourceFileUrl ? (
+              <Pressable onPress={() => { haptic.light(); Linking.openURL(sourceFileUrl); }} hitSlop={8}>
+                <EliteText variant="caption" style={styles.sourceLink}>Ver archivo</EliteText>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
         <EliteText variant="caption" style={styles.intro}>
           Cargamos lo que ya tienes en tu expediente. Solo completa lo que falta para subir la precisión.
         </EliteText>
@@ -267,6 +294,13 @@ export default function BiomarkersCapture() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   intro: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
+  sourceBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: 'rgba(168,224,42,0.08)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.25)',
+    borderRadius: Radius.card, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.sm,
+  },
+  sourceText: { color: Colors.textPrimary, flex: 1, fontSize: FontSizes.xs },
+  sourceLink: { color: Colors.neonGreen, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   section: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: Spacing.xs },
   okTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: FontSizes.md },

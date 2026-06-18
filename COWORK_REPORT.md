@@ -1,119 +1,107 @@
-# COWORK_REPORT — Overnight: Cleanup obsoletas + Pulido HOY profundo
+# COWORK_REPORT — Labs Bulletproof v1 (UX async ELITE + 7 capas de blindaje)
 
-**Branch:** `fix/overnight-cleanup-hoy` (desde `main` @ 413c04e)
-**Estado:** ✅ `npx tsc --noEmit` 0 errores · `npx vitest run` 415/415 (+7 nuevos).
-**SQL:** ninguna. **NO merge, NO OTA.**
-**Modo overnight:** decisiones conservadoras tomadas solo, documentadas abajo.
+**Branch:** `feat/labs-bulletproof-v1` (desde `main` @ 9820cf6)
+**Estado:** ✅ `npx tsc --noEmit` 0 errores · `npx vitest run` 445/445 (+30 nuevos).
+**SQL:** migración 075 lista **NO ejecutada**. **NO merge, NO OTA.**
+**Modo overnight:** decisiones conservadoras tomadas solo + flags abajo.
 
 > `COWORK_REPORT.md` / `COWORK_TASK.md` en `.gitignore` (este se force-add).
 
 ---
 
-## PARTE 1 — Cleanup obsoletas → 0 ELIMINACIONES (todo está VIVO) ⚠️
+## Capas implementadas (antes/después)
 
-**Hallazgo crítico:** los 4 archivos marcados como "fantasma" en el brief están **VIVOS en el
-flujo de onboarding activo**. Borrarlos rompe el registro de TODO usuario nuevo. Por la propia
-regla del task ("si hay imports/uso vivo → flag y NO borres"), **no eliminé ninguno**. Evidencia:
+| Capa | Qué | Archivos | Tests |
+|------|-----|----------|-------|
+| 1 — Validación cliente | bloquea pre-upload: >20MB, >50 pág, PDF protegido; soft-confirm 21-50 pág; imagen pesada informa | `src/utils/lab-file-validator.ts` | 14 |
+| 2 — Reintento inteligente | retry red **+ 529/overload/503/timeout** (backoff 3s/8s) | `src/utils/smart-retry.ts` (+ lab-service) | 7 |
+| 5 — Files API | sube PDF 1 vez a Anthropic (`file_id` cacheado) con **fallback transparente a base64** | `lab-service.ts`, `anthropic-client.ts`, `argos-proxy/index.ts`, migración 075 | (vía smart-retry/validator) |
+| 6 — Logging granular | JSON parse-fail y "sin biomarcadores" → Sentry con preview del raw | `lab-service.ts` | — |
+| 7 — Captura manual desde fallido | botón "Capturar manual" en upload fallido → biomarkers con banner del archivo + "Ver archivo"; marca `confirmed` al guardar | `my-health.tsx`, `biomarkers.tsx` | — |
+| 8 — UX async ELITE | sheet + mini-banner global + orb + hook con Realtime; subida no bloquea | `lab-processing-reducer.ts`, `useLabProcessing.tsx`, `ProcessingOrbAnimation/LabProcessingSheet/ProcessingMiniBanner`, `_layout.tsx`, `my-health.tsx` | 9 (reducer) |
 
-| Archivo candidato | ¿Vivo? | Evidencia (verificada en código) |
-|---|---|---|
-| `app/onboarding/edad-atp.tsx` | **VIVO** | `app/index.tsx:54` rutea `onboarding_step='context' → /onboarding/edad-atp`; `onboarding-service.ts:16,41`; `app/_layout.tsx:155` (Stack.Screen) |
-| `app/onboarding/chronotype.tsx` | **VIVO** | `app/index.tsx:58` `'goal' → /onboarding/chronotype`; `onboarding-service.ts:20,37`; `_layout.tsx:151`. NO es duplicado de `app/quiz/chronotype.tsx` (este es el quiz standalone de 10 preguntas; el de onboarding es el bloque de 7) |
-| `src/services/edad-atp-service.ts` | **acoplado** | Su ÚNICO consumer es `onboarding/edad-atp.tsx` (vivo). Borrarlo rompe tsc |
-| `src/constants/edad-atp-model.ts` | **acoplado** | Solo lo usan edad-atp-service + onboarding/edad-atp.tsx (ambos vivos) |
-
-**Cadena de onboarding viva (verificada):** `onboarding-basics → goal → chronotype → health →
-nutrition → context → edad-atp → voice-config → summary → (tabs)`. Los 8 archivos de
-`app/onboarding/*` están registrados en `_layout` y son targets de navegación → **todos VIVOS**.
-
-**Bundle size:** 0 bytes eliminados (nada se borró). El potencial de limpieza (edad-atp.tsx 1157
-líneas + chronotype dup 374 + service + model) NO se realizó por ser flujo vivo.
-
-### 🚩 FLAG para Enrique — cómo limpiar de verdad (decisión de producto, NO la tomé solo)
-
-El "motor v1 fantasma" de `onboarding/edad-atp.tsx` es un **paso del onboarding que el usuario VE**
-(calcula una edad biológica estimada y la guarda). Quitarlo cambia la UX de registro → es decisión
-de producto, fuera de overnight. Si decides quitarlo, el rewire mínimo es:
-1. `app/index.tsx:54` → `case 'context': setOnboardingRoute('/onboarding/voice-config');`
-2. `onboarding-service.ts:16` → `case 'context': return '/onboarding/voice-config';` y `:41` (back nav de voice_config) → `return '/onboarding/context';`
-3. Quitar `<Stack.Screen name="onboarding/edad-atp" .../>` de `_layout.tsx:155`.
-4. Entonces sí: borrar `onboarding/edad-atp.tsx`, `edad-atp-service.ts`, `edad-atp-model.ts`.
-`onboarding/chronotype.tsx` **NO** lo toques: es un bloque real del onboarding (no es el quiz).
+**Total nuevos: 30 tests.** Flujo nuevo: validar → subir → `startProcessing` (abre sheet, extrae
+en background) → Realtime actualiza estado → banner verde/rojo → tap → confirmación. Nunca bloquea.
 
 ---
 
-## PARTE 2 — Pulido HOY profundo ✅
+## Arquitectura UX async (Capa 8)
 
-| # | Scope | Antes | Después | Archivos |
-|---|---|---|---|---|
-| 1 | Quitar caritas mood | 4 emoji buttons quick-log | eliminados (UI + handler + state + estilos) | `index.tsx` |
-| 2 | Quitar glucosa de HOY | quick-log 80/90/.../120 | eliminado de HOY (la pantalla /glucose-log sigue) | `index.tsx` |
-| 3 | Check-in emocional navegable | sección MOOD con quick-log | card "Check-in emocional" tappable → `/checkin` | `index.tsx` |
-| 4 | Card cardio del día | no existía | `WearableMetricCard` (placeholder, wearable es stub) | `WearableMetricCard.tsx`, `index.tsx` |
-| 5 | Card pasos | no existía | `WearableMetricCard` (placeholder) | idem |
-| 6 | Revivir agenda | solo ayuno/protocolo | + comidas (meal_times) + sueño (cronotipo), informativos | `day-compiler.ts`, `agenda-extras.ts` |
-
-**Detalle:**
-- **Mood/glucosa:** removí la UI, los handlers `quickLogMood`/`quickLogGlucose`, el state y los
-  estilos. **NO toqué la economía de electrones** (los electrones `checkin`/`glucose_log` se siguen
-  ganando en `/checkin` y `/glucose-log`; solo quité el atajo desde HOY). day-compiler conserva su
-  lógica cross-pillar de mood/glucosa (no la usé para earnings, no la rompí).
-- **Wearable:** `WearableMetricCard` reusable (naming consistente, Spacing/Radius/Fonts del design
-  system, colores brand). Lee `getWearableDataForDate(hoy)`; el servicio es un **stub** (devuelve
-  null) → muestra "—" + hint "Conecta tu wearable". Cuando se reactive HealthKit/Health Connect,
-  los cards muestran datos reales sin más cambios.
-- **Agenda:** items informativos (comidas + sueño) con icono estático (no checkbox toggleable, no
-  cuentan como "siguiente"). Builders puros en `agenda-extras.ts` (testeados). Protocolos/entreno
-  ya fluían vía `daily_plans` — no los dupliqué.
+- **Estado central:** `LabProcessingProvider` (montado en `_layout`, dentro de Auth) con un
+  reducer PURO (`lab-processing-reducer`, testeado) + suscripción **Supabase Realtime** a
+  `lab_uploads` del usuario. Al arrancar, carga uploads `uploaded/pending/processing` y reanuda
+  los atascados (>5 min).
+- **Sheet** (`LabProcessingSheet`, global): reusa el `ExpandableSheet` ya probado (drag/snap/
+  backdrop). Drag-down → minimiza al banner. Estados con orb + filename + elapsed + progreso
+  indeterminado + botones (Revisar / Reintentar / Capturar manual).
+- **Mini-banner** (`ProcessingMiniBanner`, global en `_layout`): sticky sobre el tab bar, visible
+  en TODAS las pantallas; "Procesando N labs… Ns", auto-dismiss del éxito a 8s, tap re-expande.
+- **Orb** (`ProcessingOrbAnimation`): reanimated puro (pulso / checkmark / X) + haptic por estado.
+  Reutilizable (futuro: genética, plan ARGOS).
+- **Confirmación:** al terminar la extracción en background, el review se cachea
+  (`lab-review-store.setReview`) y el botón "Revisar valores" navega a `/edad-atp/lab-confirmation`.
 
 ---
 
-## Flags / decisiones autónomas
+## Decisiones autónomas (overnight) + FLAGS
 
-1. **`/checkin-emocional` NO existe** — solo `app/checkin.tsx` (`/checkin`). El brief pedía navegar
-   a `/checkin-emocional`. Navegué a `/checkin` (la ruta real) para no romper con un 404. Si quieres
-   el nombre `/checkin-emocional`, hay que crear/renombrar la pantalla — dímelo.
-2. **Wearable es un STUB** (`wearable-service.ts`: `isWearableAvailable()→false`,
-   `getWearableDataForDate()→null`; comentario dice que los paquetes nativos se removieron por
-   requerir compileSdkVersion 34+). Por eso los cards muestran placeholder. **Integración real de
-   wearable = sprint dedicado** (permisos nativos + build). NO la implementé (como indicaba el brief).
-3. **PARTE 1 = 0 eliminaciones** (todo vivo). Es el resultado conservador correcto; el rewire para
-   limpiar de verdad es decisión de producto (arriba).
-4. **Completitud de comidas en agenda:** los items de comida son informativos (no marcan
-   completado). Derivar "comida registrada" de `food_logs.meal_type` es un follow-up; lo dejé simple.
-5. **No toqué:** electrones/protones, motor v2/matrices/parser, ARGOS chat/sheet, welcome/tour.
+1. **Files API — beta header `files-api-2025-04-14` SIN verificar** (no puedo navegar a
+   docs.anthropic.com de noche). **Mitigación bulletproof:** TODO el path tiene fallback a base64
+   — si el endpoint no está desplegado, la columna 075 no migró, o el header es incorrecto, el
+   flujo cae al método actual sin regresión. **Acción Enrique:** verificar el beta vigente antes
+   de confiar en la ruta file_id; probar el endpoint `upload_file` en el edge function desplegado.
+2. **`argos-proxy` (edge function Deno) — NO testeable aquí** (no hay runtime Deno). Implementé el
+   `action: 'upload_file'` y el beta header de forma ADITIVA (no toca el path actual de mensajes).
+   Verificar en deploy.
+3. **Subida múltiple (varias fotos) sigue con su flujo de confirmación consolidada** (sprint
+   anterior), NO el sheet async. El sheet/banner async es para subida ÚNICA. Unificar multi-foto
+   al sheet es follow-up (evité re-trabajar UX que ya funciona).
+4. **Tests de componentes RN (sheet/banner) NO incluidos:** el harness vitest es node sin
+   react-native testing library; renderizar componentes reanimated/Ionicons rompe. Testé el
+   NÚCLEO LÓGICO: reducer (9), validator (14), smart-retry (7). Los componentes siguen el patrón
+   ya probado del ExpandableSheet. **Verificar en device** (smoke test abajo).
+5. **`countPdfPages` por regex** (no hay `pdf-lib` en deps, como anticipaba el brief). Cubre ~95%;
+   si no puede contar, PERMITE (mejor procesar que bloquear). Password vía heurística `/Encrypt`.
+6. **Snap points del sheet:** reusé el ExpandableSheet (25/50/90) en vez de 35/70/92 del brief —
+   componente probado > snaps exactos. Funcionalmente equivalente.
+7. **`tabBarHeight` del banner:** constante aproximada (60 + safe area + 8) — no hay hook de altura
+   del tab bar accesible en `_layout`. Ajustable si queda mal en algún device.
+8. **No toqué** motor v2, parser v2 (solo lo envolví con retry/Files), ARGOS chat sheet,
+   edad-atp, electrones/protones. Realtime emite solo (no DeviceEventEmitter, regla #3).
 
 ---
 
-## Deuda técnica encontrada
-- El paso `onboarding/edad-atp` usa el **motor v1** (`edad-atp-service`/`edad-atp-model`) que ya
-  está obsoleto vs el motor v2. Sigue vivo en onboarding. Recomendación: rewire (arriba) en un
-  sprint con Enrique presente para validar el cambio de UX de registro.
+## Migración SQL (correr manual)
+`supabase/migrations/075_lab_uploads_anthropic_file_id.sql` — `ADD COLUMN IF NOT EXISTS
+anthropic_file_id TEXT`. Idempotente. Sin ella, Files API cae a base64 (sin romper).
 
 ---
 
 ## EXIT CRITERIA
-
 - [x] `npx tsc --noEmit` → 0 errores.
-- [x] `npx vitest run` → 415/415 (58 archivos), +7 nuevos.
-- [x] PARTE 1 auditada (eliminaciones extras documentadas: ninguna, con razón).
-- [x] Push a `origin/fix/overnight-cleanup-hoy`.
-- [ ] **NO merge, NO OTA** — Enrique valida.
+- [x] `npx vitest run` → 445/445 (+30: validator, smart-retry, reducer).
+- [x] Push a `origin/feat/labs-bulletproof-v1`.
+- [ ] **NO merge, NO OTA** — Enrique valida + corre 075 + despliega edge function + verifica beta header.
 
 ---
 
 ## SMOKE TEST (Enrique)
-
-- [ ] HOY abre sin crashear.
-- [ ] NO hay caritas de mood.
-- [ ] NO hay card de glucosa.
-- [ ] Tap en "Check-in emocional" → abre `/checkin`.
-- [ ] Cards "Cardio hoy" + "Pasos" visibles (placeholder "—" + "Conecta tu wearable", porque el wearable es stub).
-- [ ] Agenda muestra más que ayuno: comidas (Desayuno/Comida/Cena…) + "Dormir" (si hay cronotipo) + protocolos.
-- [ ] Items de comida/sueño NO tienen checkbox (icono estático).
-- [ ] Onboarding (si entras a su path con un usuario nuevo) NO aborta — NO se tocó.
+- [ ] Subir PDF mediano → sheet aparece, orb pulsa, termina, banner verde, tap → confirmación.
+- [ ] Subir PDF >20MB → bloquea pre-upload con mensaje claro.
+- [ ] Subir PDF protegido (/Encrypt) → bloquea con mensaje.
+- [ ] Subir PDF de 25 páginas → pide confirmación antes de subir.
+- [ ] Iniciar upload, navegar a HOY → mini-banner sigue visible abajo; al terminar se pone verde.
+- [ ] Drag-down del sheet → minimiza a banner; tap banner → re-expande.
+- [ ] Subir lab y matar la app → al reabrir, el banner muestra el processing y se actualiza (Realtime + reanudación).
+- [ ] Wifi off a media subida → reintenta auto (3s/8s); si todo falla → estado error claro + Reintentar/Capturar manual.
+- [ ] Upload fallido (lista "uploads con error") → "Capturar manual" → biomarkers con banner del archivo + "Ver archivo".
+- [ ] Subir 2 labs casi a la vez → banner "Procesando 2 labs…".
+- [ ] (Tras correr 075 + deploy proxy) verificar que el 2º intento del mismo PDF reusa file_id (logs argos).
 
 ---
 
-## Nota de higiene
-Los artefactos `test_habits.js` / `test_missing_scenarios.js` ya fueron borrados en el sprint anterior.
+## Deuda técnica / follow-ups
+- Verificar y, si cambió, actualizar el beta header de Files API (flag #1).
+- Tests de componentes UI requieren agregar `@testing-library/react-native` al harness (no está).
+- Unificar multi-foto al sheet async (hoy usa confirmación consolidada del sprint previo).
+- Plumbing del nombre real de archivo (hoy genérico `lab.pdf`/`lab.jpg` en el sheet).

@@ -31,6 +31,8 @@ import { EdadAtpHeroCard } from '@/src/components/edad-atp/EdadAtpHeroCard';
 import { UploadTypePicker } from '@/src/components/edad-atp/UploadTypePicker';
 import { routeUploadByType, type UploadType } from '@/src/constants/upload-types';
 import { captureRouteFor } from '@/src/constants/data-capture-routes';
+import { validateLabFile } from '@/src/utils/lab-file-validator';
+import { useLabProcessing } from '@/src/hooks/useLabProcessing';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, TEXT_COLORS } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
@@ -42,7 +44,17 @@ export default function MyHealthScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const analytics = useAnalytics();
+  const labProcessing = useLabProcessing();
   const userId = user?.id ?? '';
+
+  /** Confirm con Promise<boolean> para el soft-warn de PDFs largos (Capa 1). */
+  const confirmDialog = (title: string, message: string): Promise<boolean> =>
+    new Promise((resolve) => {
+      Alert.alert(title, message, [
+        { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Continuar', onPress: () => resolve(true) },
+      ]);
+    });
 
   const [uploads, setUploads] = useState<LabUpload[]>([]);
   const [labs, setLabs] = useState<LabResult[]>([]);
@@ -180,17 +192,39 @@ export default function MyHealthScreen() {
     // Ruteo por tipo (#10/#11): solo Labs extrae a lab_values; el resto se adjunta como
     // contexto y NUNCA toca el motor (un archivo del tipo equivocado no corrompe labs).
     const route = routeUploadByType(type?.id ?? 'labs');
+
+    // Capa 1 — validación cliente ANTES de subir (solo para labs).
+    if (route.target === 'lab_values') {
+      const fileSize = Math.floor(base64.length * 0.75); // base64 → bytes aprox
+      const v = validateLabFile(base64, fileType, fileSize);
+      if (!v.ok) { setResult({ error: v.error }); return; }
+      if (v.needsConfirm) {
+        const proceed = await confirmDialog('PDF largo', v.confirmMessage ?? '¿Continuar?');
+        if (!proceed) return;
+      }
+      // Capa 8 — flujo ASYNC: subir, abrir sheet, extraer en background (no bloquea).
+      setUploading(true);
+      setResult(null);
+      try {
+        const { uploadId } = await uploadLabFile(userId, base64, fileType);
+        setUploading(false);
+        const fileName = type?.label ? `${type.label}.${fileType === 'pdf' ? 'pdf' : 'jpg'}` : `lab.${fileType === 'pdf' ? 'pdf' : 'jpg'}`;
+        labProcessing.startProcessing(uploadId, fileName, fileSize, v.pageCount);
+        loadData();
+      } catch (err: any) {
+        setUploading(false);
+        setResult({ error: err.message ?? 'Error al subir' });
+      }
+      return;
+    }
+
     setUploading(true);
     setResult(null);
     try {
       const { uploadId } = await uploadLabFile(userId, base64, fileType);
       setUploading(false);
 
-      if (route.target === 'lab_values') {
-        // Tipo Laboratorios → parser v2: extrae, y confirma con el usuario si hace falta.
-        setProcessing(true);
-        await runReviewFlow(uploadId);
-      } else {
+      {
         // Composición y tipos 3-7 → guardado como respaldo/contexto, sin extraer a valores.
         const label = type?.label ?? 'Archivo';
         setResult({ context: route.target === 'composition'
@@ -409,6 +443,16 @@ export default function MyHealthScreen() {
                   {u.status === 'failed' && (
                     <Pressable onPress={() => retryExtraction(u.id)} disabled={processing} style={{ padding: 6 }}>
                       <Ionicons name="refresh" size={18} color={TEAL} />
+                    </Pressable>
+                  )}
+                  {/* Capa 7: capturar a mano viendo el PDF cuando el parser falló. */}
+                  {u.status === 'failed' && (
+                    <Pressable
+                      onPress={() => { haptic.light(); router.push({ pathname: '/edad-atp/biomarkers', params: { sourceUploadId: u.id, sourceFileName: u.file_name ?? 'lab' } } as any); }}
+                      disabled={processing}
+                      style={{ padding: 6 }}
+                    >
+                      <Ionicons name="create-outline" size={18} color={Colors.neonGreen} />
                     </Pressable>
                   )}
                   <Pressable

@@ -2,16 +2,45 @@
  * Lab Service — Upload, extracción IA, CRUD de resultados de laboratorio.
  */
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from '@/src/services/anthropic-client';
+import { callAnthropic, uploadFileToAnthropicViaProxy } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { insertLabValuesFromRaw, voidLabValuesByUpload, voidLabValuesByLabResult } from '@/src/services/edad-atp/lab-values-service';
 import { isLabValueValid, LAB_ABSOLUTE_RANGES } from '@/src/constants/lab-clinical-ranges';
 import { processParserItems, type RawParserItem, type ProcessedItem, type DerivedItem, type DupCandidate } from '@/src/services/edad-atp/lab-parser-process';
 import { warn as logWarn } from '@/src/lib/logger';
+import * as Sentry from '@sentry/react-native';
 
-/** Reintentos del parser ante fallo de red: backoff 1s, 3s (3 intentos totales). */
-const PARSER_RETRY_DELAYS_MS = [1000, 3000];
+/** Capa 6 — logging granular a Sentry cuando el JSON del LLM no parsea (con preview del raw). */
+function reportLabParseFailure(uploadId: string, flow: 'v1' | 'v2', rawText: string, jsonStr: string, e: unknown): void {
+  logWarn(`[lab-parser ${flow}] JSON.parse falló. rawText:`, rawText.substring(0, 500));
+  try {
+    Sentry.captureMessage('lab-parser JSON parse failed', {
+      level: 'warning',
+      contexts: {
+        labParser: {
+          uploadId, flow,
+          rawTextLength: rawText.length,
+          rawTextPreview: rawText.substring(0, 800),
+          jsonStrLength: jsonStr.length,
+          errorMessage: String(e),
+        },
+      },
+    } as any);
+  } catch { /* sentry best-effort */ }
+}
+
+/** Capa 6 — logging cuando el LLM responde pero sin biomarcadores extraíbles. */
+function reportLabNoBiomarkers(uploadId: string, flow: 'v1' | 'v2', parsed: any): void {
+  try {
+    Sentry.captureMessage('lab-parser no biomarkers extracted', {
+      level: 'warning',
+      contexts: { labParser: { uploadId, flow, parsed: JSON.stringify(parsed ?? {}).substring(0, 1000) } },
+    } as any);
+  } catch { /* sentry best-effort */ }
+}
+
+import { isRetriableError, withSmartRetry } from '@/src/utils/smart-retry';
 
 /**
  * Extrae el primer objeto JSON balanceado del texto, ignorando texto extra
@@ -44,29 +73,63 @@ function extractJsonObject(text: string): string | null {
 export const LAB_NETWORK_ERROR_MSG =
   'No pudimos leer este archivo. Verifica tu conexión e intenta de nuevo.';
 
-/** ¿El error es de red/timeout (reintentable) y no un error de contenido/parseo? */
-function isRetriableNetworkError(err: any): boolean {
-  if (err?.name === 'AbortError') return true;
-  const msg = String(err?.message ?? err ?? '');
-  return /network request failed|networkerror|failed to fetch|timeout|ARGOS_TIMEOUT|aborted|socket hang up/i.test(msg);
+/** Lee un Blob como base64 (sin el prefijo data:). */
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
+    reader.readAsDataURL(blob);
+  });
 }
 
-/** Ejecuta `fn` reintentando SOLO ante fallos de red, con backoff. Re-lanza el último error. */
-async function withNetworkRetry<T>(fn: () => Promise<T>, label = 'lab-parser'): Promise<T> {
-  let lastErr: any;
-  for (let attempt = 0; attempt <= PARSER_RETRY_DELAYS_MS.length; attempt++) {
+/**
+ * Capa 5 — corre el parser sobre un upload. Intenta Anthropic Files API (file_id cacheado en
+ * lab_uploads.anthropic_file_id) para evitar re-subir el PDF en cada reintento; si CUALQUIER
+ * parte falla (endpoint no desplegado, columna 075 no migrada, error de subida) hace fallback
+ * TRANSPARENTE a base64 inline (comportamiento actual). Envuelto en withSmartRetry (Capa 2).
+ */
+async function runParserOnUpload(
+  upload: any,
+  uploadId: string,
+  contentType: string,
+  mediaType: string,
+  prompt: string,
+  meta: any,
+): Promise<any> {
+  let fileId: string | undefined = (upload?.anthropic_file_id as string) || undefined;
+  if (!fileId) {
     try {
-      return await fn();
-    } catch (err: any) {
-      lastErr = err;
-      const canRetry = attempt < PARSER_RETRY_DELAYS_MS.length && isRetriableNetworkError(err);
-      if (!canRetry) throw err;
-      const delay = PARSER_RETRY_DELAYS_MS[attempt];
-      logWarn(`[${label}] intento ${attempt + 1} falló por red, reintentando en ${delay}ms:`, err?.message ?? err);
-      await new Promise((r) => setTimeout(r, delay));
+      const fileRes = await fetch(upload.file_url);
+      const base64 = await blobToBase64(await fileRes.blob());
+      fileId = await uploadFileToAnthropicViaProxy(base64, upload.file_name ?? 'lab', mediaType);
+      // Cachear (best-effort: si la columna 075 no existe aún, el update falla suave).
+      const { error } = await supabase.from('lab_uploads').update({ anthropic_file_id: fileId }).eq('id', uploadId);
+      if (error) logWarn('[lab-parser] no se pudo cachear anthropic_file_id (¿migración 075 pendiente?):', error.message);
+    } catch (e: any) {
+      logWarn('[lab-parser] Files API no disponible, fallback a base64:', e?.message ?? e);
+      fileId = undefined;
     }
   }
-  throw lastErr;
+
+  return withSmartRetry(
+    async () => {
+      let source: any;
+      if (fileId) {
+        source = { type: 'file', file_id: fileId };
+      } else {
+        const fileRes = await fetch(upload.file_url);
+        source = { type: 'base64', media_type: mediaType, data: await blobToBase64(await fileRes.blob()) };
+      }
+      return callAnthropic(
+        [{ role: 'user', content: [
+          { type: contentType, source },
+          { type: 'text', text: prompt },
+        ]}],
+        8000, undefined, undefined, meta,
+      );
+    },
+    { onRetry: (attempt, delay, err) => logWarn(`[lab-parser] intento ${attempt} falló (${err?.message ?? err}), reintentando en ${delay}ms`) },
+  );
 }
 
 async function getAuth() {
@@ -204,27 +267,8 @@ Solo valores encontrados. No mapeados→other_values.`;
       requestType: 'lab_interpretation',
     });
 
-    // Descarga del archivo + llamada al parser AI envueltos en reintento de red (1s, 3s).
-    // Si los 3 intentos fallan por red, withNetworkRetry re-lanza y el catch lo marca retriable.
-    const result = await withNetworkRetry(async () => {
-      const fileRes = await fetch(upload.file_url);
-      const blob = await fileRes.blob();
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-        reader.readAsDataURL(blob);
-      });
-      return callAnthropic(
-        [{ role: 'user', content: [
-          { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
-          { type: 'text', text: prompt },
-        ]}],
-        8000,
-        undefined,
-        undefined,
-        meta,
-      );
-    });
+    // Capa 5: Files API (file_id cacheado) con fallback transparente a base64. Capa 2: retry.
+    const result = await runParserOnUpload(upload, uploadId, contentType, mediaType, prompt, meta);
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
 
@@ -236,7 +280,7 @@ Solo valores encontrados. No mapeados→other_values.`;
     try {
       parsed = JSON.parse(jsonStr);
     } catch (e) {
-      logWarn('[lab-parser v1] JSON.parse falló. rawText:', rawText.substring(0, 500));
+      reportLabParseFailure(uploadId, 'v1', rawText, jsonStr, e);
       throw new Error('No se pudo parsear la respuesta de IA');
     }
 
@@ -296,6 +340,7 @@ Solo valores encontrados. No mapeados→other_values.`;
     // (evita rows de lab_results con TODOS los campos NULL que ensucian loadUserData).
     const extractedCount = Object.values(values).filter((v: any) => v?.value != null).length;
     if (extractedCount === 0) {
+      reportLabNoBiomarkers(uploadId, 'v1', parsed);
       // Diferenciar "no se extrajo nada" de "todo lo extraído era basura clínica".
       const allRejected = rejected.length > 0;
       const errorMessage = allRejected
@@ -344,7 +389,7 @@ Solo valores encontrados. No mapeados→other_values.`;
     return { labResultId: labResult.id, extractedCount, otherValues, rejectedCount: rejected.length, rejected };
 
   } catch (err: any) {
-    const retriable = isRetriableNetworkError(err);
+    const retriable = isRetriableError(err);
     const message = retriable ? LAB_NETWORK_ERROR_MSG : (err?.message ?? 'Error al procesar el archivo');
     await supabase.from('lab_uploads').update({ status: 'failed', error_message: message }).eq('id', uploadId);
     return { error: message, retriable };
@@ -446,22 +491,8 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
     const targetUserId = (candidateTarget && candidateTarget !== authUid) ? candidateTarget : null;
     const meta = await getArgosCallMetadata({ callerUserId: authUid, targetUserId, requestType: 'lab_interpretation' });
 
-    const result = await withNetworkRetry(async () => {
-      const fileRes = await fetch(upload.file_url);
-      const blob = await fileRes.blob();
-      const base64 = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-        reader.readAsDataURL(blob);
-      });
-      return callAnthropic(
-        [{ role: 'user', content: [
-          { type: contentType, source: { type: 'base64', media_type: mediaType, data: base64 } },
-          { type: 'text', text: PARSER_V2_PROMPT },
-        ]}],
-        8000, undefined, undefined, meta,
-      );
-    });
+    // Capa 5: Files API con fallback a base64. Capa 2: retry inteligente.
+    const result = await runParserOnUpload(upload, uploadId, contentType, mediaType, PARSER_V2_PROMPT, meta);
 
     const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
     // Misma estrategia que el flujo v1: limpia backticks + extrae JSON balanceado.
@@ -471,7 +502,7 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
     try {
       parsed = JSON.parse(jsonStr);
     } catch (e) {
-      logWarn('[lab-parser v2] JSON.parse falló. rawText:', rawText.substring(0, 500));
+      reportLabParseFailure(uploadId, 'v2', rawText, jsonStr, e);
       throw new Error('No se pudo parsear la respuesta de IA');
     }
 
@@ -482,6 +513,7 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
     await supabase.from('lab_uploads').update({ extracted_data: parsed, ai_raw_response: rawText }).eq('id', uploadId);
 
     if (items.length === 0) {
+      reportLabNoBiomarkers(uploadId, 'v2', parsed);
       await supabase.from('lab_uploads').update({ status: 'failed', error_message: 'No biomarkers extracted' }).eq('id', uploadId);
       return { error: 'No biomarkers extracted', extractedCount: 0, otherValues: parsed.other_values ?? [] };
     }
@@ -496,7 +528,7 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
       otherValues: parsed.other_values ?? [],
     };
   } catch (err: any) {
-    const retriable = isRetriableNetworkError(err);
+    const retriable = isRetriableError(err);
     const message = retriable ? LAB_NETWORK_ERROR_MSG : (err?.message ?? 'Error al procesar el archivo');
     await supabase.from('lab_uploads').update({ status: 'failed', error_message: message }).eq('id', uploadId);
     return { error: message, retriable };
