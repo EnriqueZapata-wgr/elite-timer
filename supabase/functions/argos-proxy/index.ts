@@ -11,7 +11,7 @@ const corsHeaders = {
 // con muchas páginas/biomarcadores no caben en 25s. Anthropic responde bien
 // pero tarda ~30-40s con visión + JSON estructurado. Cap del Edge Function
 // de Supabase es 60s, dejamos 5s de margen para procesamiento post.
-const ANTHROPIC_TIMEOUT_MS = 55000;
+const ANTHROPIC_TIMEOUT_MS = 58000;
 const GEMINI_TIMEOUT_MS = 25000;
 const HARD_CAP_DAILY = 50;
 const FALLBACK_MODEL = "gemini-2.5-flash"; // Gemini 2.5 Flash — string confirmado mayo 2026
@@ -287,6 +287,11 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Detectar si el request incluye PDFs. Para PDFs grandes evitamos el
+    // fallback Gemini porque (a) Gemini no soporta type:"document" tipo Anthropic
+    // y (b) consume tiempo del Edge Function (60s cap) que Anthropic puede usar.
+    const hasPdfRequest = JSON.stringify(messages).includes('"type":"document"');
+
     // 1) Anthropic primero
     let anthropicErr: string | null = null;
     try {
@@ -324,7 +329,24 @@ serve(async (req) => {
       anthropicErr = e?.name === "AbortError" ? "anthropic_timeout" : (e?.message || String(e));
     }
 
-    // 2) Fallback a Gemini
+    // Para PDFs: NO usar Gemini fallback. Reportar el timeout/error de Anthropic directo.
+    // Gemini no procesa el bloque type:"document" igual y devuelve basura.
+    if (hasPdfRequest) {
+      const latencyMs = Date.now() - startTime;
+      await logArgosCall(supabase, {
+        user_id: userId, tier, provider: "anthropic", model: finalModel,
+        request_type: requestType, latency_ms: latencyMs, success: false,
+        error_message: `pdf_no_fallback:${anthropicErr}`,
+        fallback_used: false,
+        target_user_id: targetUserId ?? null,
+        target_profile_id: targetProfileId ?? null,
+      });
+      return new Response(JSON.stringify({
+        error: { type: "anthropic_pdf_error", message: anthropicErr || "anthropic_timeout" },
+      }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // 2) Fallback a Gemini (solo para texto/imagen, no para PDFs)
     try {
       const gem = await callGeminiProvider({
         model: FALLBACK_MODEL,
