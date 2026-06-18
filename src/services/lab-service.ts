@@ -96,30 +96,19 @@ async function runParserOnUpload(
   prompt: string,
   meta: any,
 ): Promise<any> {
-  let fileId: string | undefined = (upload?.anthropic_file_id as string) || undefined;
-  if (!fileId) {
-    try {
-      const fileRes = await fetch(upload.file_url);
-      const base64 = await blobToBase64(await fileRes.blob());
-      fileId = await uploadFileToAnthropicViaProxy(base64, upload.file_name ?? 'lab', mediaType);
-      // Cachear (best-effort: si la columna 075 no existe aún, el update falla suave).
-      const { error } = await supabase.from('lab_uploads').update({ anthropic_file_id: fileId }).eq('id', uploadId);
-      if (error) logWarn('[lab-parser] no se pudo cachear anthropic_file_id (¿migración 075 pendiente?):', error.message);
-    } catch (e: any) {
-      logWarn('[lab-parser] Files API no disponible, fallback a base64:', e?.message ?? e);
-      fileId = undefined;
-    }
-  }
+  // Files API DESHABILITADO 2026-06-18: el beta header `files-api-2025-04-14`
+  // no es válido contra Anthropic API actual → calls con file_id timeout sin
+  // procesar el PDF (input_tokens=0). Volvemos a base64 inline (lo que funcionaba
+  // antes de la Capa 5). Cuando se valide el header correcto, restaurar.
+  // Mantenemos compat: si el upload tiene anthropic_file_id viejo guardado, lo
+  // ignoramos (no lo borramos para no perder data de auditoría).
+  void upload?.anthropic_file_id;
+  void uploadId;
 
   return withSmartRetry(
     async () => {
-      let source: any;
-      if (fileId) {
-        source = { type: 'file', file_id: fileId };
-      } else {
-        const fileRes = await fetch(upload.file_url);
-        source = { type: 'base64', media_type: mediaType, data: await blobToBase64(await fileRes.blob()) };
-      }
+      const fileRes = await fetch(upload.file_url);
+      const source = { type: 'base64', media_type: mediaType, data: await blobToBase64(await fileRes.blob()) };
       return callAnthropic(
         [{ role: 'user', content: [
           { type: contentType, source },
