@@ -25,9 +25,9 @@ export const ATP_BRAND = {
 
 export const SURFACES = {
   base: '#0A0A0A',       // Tab bar, sidebar (casi negro, sutil)
-  card: '#0A0A0A',       // Cards, contenedores elevados (unificado con rediseño)
+  card: '#121212',       // Cards = ELEVATION[1] (unificado viejo+nuevo, se despega del negro)
   cardLight: '#1A1A1A',  // Bordes, separadores, pista del timer
-  border: '#1A1A1A',     // Bordes sutiles de cards (unificado con rediseño)
+  border: '#1F1F1F',     // Bordes sutiles de cards = ELEVATION[1].border
   disabled: '#333333',   // Elementos deshabilitados
 } as const;
 
@@ -121,17 +121,17 @@ export function withOpacity(hex: string, opacity: number): string {
 
 /** Backgrounds canonicos */
 export const BG = {
-  screen: '#000',          // fondo de TODA pantalla
-  card: '#0a0a0a',         // fondo de TODA card
-  cardElevated: '#111',    // card sobre card (raro, evitar)
-  input: '#0a0a0a',        // fondo de inputs
+  screen: '#000',          // fondo de TODA pantalla = ELEVATION[0]
+  card: '#121212',         // fondo de TODA card = ELEVATION[1] (se despega del negro)
+  cardElevated: '#1A1A1A', // card sobre card = ELEVATION[2]
+  input: '#0a0a0a',        // fondo de inputs (recedido, contrasta con la card)
 } as const;
 
 /** Bordes canonicos */
 export const BORDER = {
-  card: '#1a1a1a',         // borde de cards — NUNCA usar como bg
+  card: '#1F1F1F',         // borde de cards = ELEVATION[1].border — NUNCA usar como bg
   input: '#222',           // borde de inputs
-  subtle: '#111',          // separadores internos
+  subtle: '#141414',       // separadores internos
 } as const;
 
 /** Texto canonico */
@@ -172,8 +172,8 @@ export const PILL = {
 
 /** Estilo unico de Card */
 export const CARD = {
-  bg: '#0a0a0a',
-  borderColor: '#1a1a1a',
+  bg: '#121212',           // = ELEVATION[1] (se despega del negro)
+  borderColor: '#1F1F1F',
   borderWidth: 0.5,
   borderRadius: 16,
   padding: 16,
@@ -210,9 +210,9 @@ export const LETTER_SPACING = {
  */
 export const ELEVATION = {
   0: { bg: '#000000', border: 'transparent' },
-  1: { bg: '#0E0E0E', border: '#1C1C1C' },
-  2: { bg: '#161616', border: '#262626' },
-  3: { bg: '#1E1E1E', border: '#2E2E2E' },
+  1: { bg: '#121212', border: '#1F1F1F' }, // card estandar — se despega del negro
+  2: { bg: '#1A1A1A', border: '#2A2A2A' }, // card sobre card / sheet / modal
+  3: { bg: '#222222', border: '#323232' }, // popover / menu flotante
 } as const;
 
 /**
