@@ -55,6 +55,15 @@ if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
 
+// Momentos del día para agrupar suplementos (mismo modelo que app/supplements.tsx).
+const SUPP_TIMINGS = [
+  { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
+  { id: 'with_food', label: 'Con comida', icon: 'restaurant-outline' as const, color: '#a8e02a' },
+  { id: 'afternoon', label: 'Tarde', icon: 'partly-sunny-outline' as const, color: '#fb923c' },
+  { id: 'evening', label: 'Noche', icon: 'moon-outline' as const, color: '#818cf8' },
+  { id: 'bedtime', label: 'Antes de dormir', icon: 'bed-outline' as const, color: '#c084fc' },
+] as const;
+
 // ═══ HELPERS ═══
 
 /** Color del score según porcentaje */
@@ -165,6 +174,8 @@ export default function TodayScreen() {
   const [wearable, setWearable] = useState<WearableData | null>(null);
   const [supplements, setSupplements] = useState<{ id: string; name: string; dosage: string; timing: string }[]>([]);
   const [suppTaken, setSuppTaken] = useState<Record<string, boolean>>({});
+  // Override de expansión por momento del día (undefined = colapsado si todo tomado).
+  const [openTimings, setOpenTimings] = useState<Record<string, boolean>>({});
   const [hasJournalToday, setHasJournalToday] = useState<boolean>(true);
   const [journalDraft, setJournalDraft] = useState('');
   const [journalSaving, setJournalSaving] = useState(false);
@@ -1071,23 +1082,57 @@ export default function TodayScreen() {
                 <Text style={s.quickLogMore}>gestionar →</Text>
               </Pressable>
             </View>
-            <View style={{ gap: 6 }}>
-              {supplements.map(supp => {
-                const taken = !!suppTaken[supp.id];
+            <View style={{ gap: 8 }}>
+              {SUPP_TIMINGS.map(t => {
+                const items = supplements.filter(su => (su.timing || 'morning') === t.id);
+                if (items.length === 0) return null;
+                const takenCount = items.filter(su => suppTaken[su.id]).length;
+                const allDone = takenCount === items.length;
+                // Default: colapsado si el grupo está completo; abierto si hay pendientes.
+                const open = openTimings[t.id] ?? !allDone;
                 return (
-                  <Pressable
-                    key={supp.id}
-                    onPress={() => toggleSupplement(supp.id)}
-                    style={[s.suppRow, taken && s.suppRowDone]}
-                  >
-                    {taken ? (
-                      <Ionicons name="checkmark-circle" size={22} color="#a8e02a" />
-                    ) : (
-                      <View style={s.suppDot} />
+                  <View key={t.id}>
+                    <Pressable
+                      onPress={() => {
+                        haptic.light();
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                        setOpenTimings(prev => ({ ...prev, [t.id]: !open }));
+                      }}
+                      style={s.suppGroupHeader}
+                    >
+                      <Ionicons name={t.icon} size={15} color={t.color} />
+                      <Text style={[s.suppGroupTitle, { color: t.color }]}>{t.label}</Text>
+                      <View style={s.suppGroupCount}>
+                        {allDone && <Ionicons name="checkmark-circle" size={14} color="#a8e02a" />}
+                        <Text style={[s.suppGroupCountText, allDone && { color: '#a8e02a' }]}>
+                          {takenCount}/{items.length}
+                        </Text>
+                      </View>
+                      <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
+                    </Pressable>
+                    {open && (
+                      <View style={{ gap: 6, marginTop: 8 }}>
+                        {items.map(supp => {
+                          const taken = !!suppTaken[supp.id];
+                          return (
+                            <Pressable
+                              key={supp.id}
+                              onPress={() => toggleSupplement(supp.id)}
+                              style={[s.suppRow, taken && s.suppRowDone]}
+                            >
+                              {taken ? (
+                                <Ionicons name="checkmark-circle" size={22} color="#a8e02a" />
+                              ) : (
+                                <View style={s.suppDot} />
+                              )}
+                              <Text style={[s.suppName, taken && s.suppNameDone]} numberOfLines={1}>{supp.name}</Text>
+                              <Text style={s.suppDosage}>{supp.dosage}</Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
                     )}
-                    <Text style={[s.suppName, taken && s.suppNameDone]} numberOfLines={1}>{supp.name}</Text>
-                    <Text style={s.suppDosage}>{supp.dosage}</Text>
-                  </Pressable>
+                  </View>
                 );
               })}
             </View>
@@ -1943,6 +1988,30 @@ const s = StyleSheet.create({
   checkinSub: { color: '#888', fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
   wearableRow: { flexDirection: 'row', gap: Spacing.sm },
   wearableHint: { color: '#666', fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: Spacing.sm },
+  suppGroupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  suppGroupTitle: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  suppGroupCount: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  suppGroupCountText: {
+    color: '#666',
+    fontSize: 11,
+    fontFamily: Fonts.semiBold,
+  },
   suppRow: {
     flexDirection: 'row',
     alignItems: 'center',
