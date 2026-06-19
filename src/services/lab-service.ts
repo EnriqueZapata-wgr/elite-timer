@@ -150,7 +150,7 @@ export interface LabResult {
  * Bulletproof: si se enciende sin (1)/(2)/(3), el upload quedaría en 'pending' sin procesar
  * → por eso default false y se enciende a mano tras validar el backend. Ver COWORK_REPORT.
  */
-export const LAB_ASYNC_WORKER_ENABLED = false;
+export const LAB_ASYNC_WORKER_ENABLED = true;
 
 // === UPLOAD ===
 
