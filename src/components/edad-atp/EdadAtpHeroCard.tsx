@@ -4,9 +4,9 @@
  * detalle. Reemplaza los datos legacy como protagonista. Se alimenta SOLO del motor v2 y la
  * fuente canónica — nada hardcodeado. Carga sus propios datos (autónomo, bajo riesgo).
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View, Pressable, StyleSheet, Alert } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
@@ -21,7 +21,10 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
   const [ce, setCe] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // useFocusEffect en vez de useEffect: recalcula cuando la pantalla obtiene focus de nuevo
+  // (ej: regresar de la pantalla de recálculo). Antes con useEffect+[userId] solo corría 1×
+  // al montar → quedaba pegado el valor viejo después de recalcular.
+  useFocusEffect(useCallback(() => {
     let alive = true;
     (async () => {
       try {
@@ -33,7 +36,7 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
       if (alive) setLoading(false);
     })();
     return () => { alive = false; };
-  }, [userId]);
+  }, [userId]));
 
   if (loading) {
     return <View style={styles.card}><EliteText variant="caption" style={styles.muted}>Calculando tu Edad ATP…</EliteText></View>;
