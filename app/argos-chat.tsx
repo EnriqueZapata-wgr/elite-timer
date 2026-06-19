@@ -368,7 +368,8 @@ export default function ArgosChat() {
                     hr: { backgroundColor: '#333', height: 0.5, marginVertical: 12 },
                     em: { color: '#ccc', fontStyle: 'italic' },
                     paragraph: { color: '#e2e2e2', fontSize: 14, lineHeight: 21, marginBottom: 8 },
-                    // Blockquote tematizado para dark mode (el default de la librería es casi blanco / ilegible)
+                    // Dark-mode para TODO elemento con default claro de la librería
+                    // (blockquote, code y fences renderizan caja casi blanca / ilegible por defecto).
                     blockquote: {
                       backgroundColor: '#111',
                       borderLeftColor: '#a8e02a',
@@ -377,6 +378,28 @@ export default function ArgosChat() {
                       paddingHorizontal: 12,
                       paddingVertical: 8,
                       marginVertical: 8,
+                    },
+                    code_inline: {
+                      backgroundColor: '#1a1a1a',
+                      color: '#e2e2e2',
+                      borderWidth: 0,
+                      fontSize: 13,
+                    },
+                    code_block: {
+                      backgroundColor: '#111',
+                      color: '#e2e2e2',
+                      borderColor: '#1f1f1f',
+                      borderWidth: 0.5,
+                      borderRadius: 8,
+                      padding: 12,
+                    },
+                    fence: {
+                      backgroundColor: '#111',
+                      color: '#e2e2e2',
+                      borderColor: '#1f1f1f',
+                      borderWidth: 0.5,
+                      borderRadius: 8,
+                      padding: 12,
                     },
                   }}
                   rules={MARKDOWN_RULES}
