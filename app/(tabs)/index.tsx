@@ -761,8 +761,8 @@ export default function TodayScreen() {
         <ImageBackground source={heroBg} style={s.heroBg} imageStyle={s.heroBgImage} resizeMode="cover">
           <BlurView intensity={15} tint="dark" style={StyleSheet.absoluteFill} />
           <LinearGradient
-            colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.85)', '#000']}
-            locations={[0, 0.25, 0.65, 1]}
+            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.88)', '#000']}
+            locations={[0, 0.3, 0.7, 1]}
             style={[s.heroGradient, { paddingTop: insets.top + 8 }]}
           >
             {/* Top bar */}

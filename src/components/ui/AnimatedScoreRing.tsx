@@ -20,6 +20,8 @@ interface Props {
   showLabel?: boolean;
   /** Si false, oculta el número central (para cuando se renderiza contenido custom encima). */
   showScore?: boolean;
+  /** Bloom suave alrededor del arco (glow cross-platform via arcos SVG translúcidos). */
+  glow?: boolean;
 }
 
 export function AnimatedScoreRing({
@@ -29,6 +31,7 @@ export function AnimatedScoreRing({
   label = 'ATP SCORE',
   showLabel = true,
   showScore = true,
+  glow = true,
 }: Props) {
   const animatedScore = useRef(new Animated.Value(0)).current;
   const [displayScore, setDisplayScore] = useState(0);
@@ -66,6 +69,25 @@ export function AnimatedScoreRing({
           strokeWidth={strokeWidth}
           fill="none"
         />
+        {/* Bloom / glow — arcos translúcidos más anchos (cross-platform, sin filtros SVG) */}
+        {glow && progress > 0 && (
+          <>
+            <Circle
+              cx={center} cy={center} r={radius}
+              stroke={color} strokeWidth={strokeWidth + 8} fill="none" opacity={0.1}
+              strokeDasharray={`${circumference}`}
+              strokeDashoffset={circumference * (1 - progress)}
+              strokeLinecap="round" rotation="-90" origin={`${center}, ${center}`}
+            />
+            <Circle
+              cx={center} cy={center} r={radius}
+              stroke={color} strokeWidth={strokeWidth + 4} fill="none" opacity={0.18}
+              strokeDasharray={`${circumference}`}
+              strokeDashoffset={circumference * (1 - progress)}
+              strokeLinecap="round" rotation="-90" origin={`${center}, ${center}`}
+            />
+          </>
+        )}
         {/* Progreso */}
         <Circle
           cx={center}
