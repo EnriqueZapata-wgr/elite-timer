@@ -44,7 +44,7 @@ export const LAB_ABSOLUTE_RANGES: Record<string, { min: number; max: number; uni
   tsh: { min: 0.01, max: 100, unit: 'µUI/mL' },
   t3_free: { min: 0.5, max: 10, unit: 'pg/mL' },
   t4_free: { min: 0.1, max: 5, unit: 'ng/dL' },
-  testosterone: { min: 0.5, max: 20, unit: 'ng/mL' }, // total H
+  testosterone: { min: 5, max: 3000, unit: 'ng/dL' }, // total H (canónico ng/dL: rango clínico abs)
   estradiol: { min: 5, max: 2000, unit: 'pg/mL' }, // perimenopáusico amplio
   cortisol: { min: 1, max: 100, unit: 'µg/dL' },
 
