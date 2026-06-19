@@ -368,6 +368,16 @@ export default function ArgosChat() {
                     hr: { backgroundColor: '#333', height: 0.5, marginVertical: 12 },
                     em: { color: '#ccc', fontStyle: 'italic' },
                     paragraph: { color: '#e2e2e2', fontSize: 14, lineHeight: 21, marginBottom: 8 },
+                    // Blockquote tematizado para dark mode (el default de la librería es casi blanco / ilegible)
+                    blockquote: {
+                      backgroundColor: '#111',
+                      borderLeftColor: '#a8e02a',
+                      borderLeftWidth: 3,
+                      borderRadius: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      marginVertical: 8,
+                    },
                   }}
                   rules={MARKDOWN_RULES}
                 >

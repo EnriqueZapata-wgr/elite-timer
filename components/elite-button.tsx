@@ -1,5 +1,8 @@
 import { Pressable, Text, StyleSheet, type ViewStyle } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Colors, Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 /**
  * Variantes visuales del botón:
@@ -37,22 +40,27 @@ export function EliteButton({
   disabled = false,
   style,
 }: EliteButtonProps) {
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
   return (
-    <Pressable
+    <AnimatedPressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
+      onPressIn={() => { if (!disabled) scale.value = withSpring(0.97, { damping: 15, stiffness: 400 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 300 }); }}
+      style={[
+        animatedStyle,
         styles.base,
         variantStyles[variant],
         disabled && styles.disabled,
-        pressed && !disabled && styles.pressed,
         style,
       ]}
     >
       <Text style={[styles.textBase, textVariantStyles[variant]]}>
         {label}
       </Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -74,10 +82,6 @@ const styles = StyleSheet.create({
   // Opacidad reducida cuando está deshabilitado
   disabled: {
     opacity: 0.3,
-  },
-  // Feedback táctil al presionar
-  pressed: {
-    opacity: 0.7,
   },
 });
 

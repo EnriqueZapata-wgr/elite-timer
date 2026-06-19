@@ -195,6 +195,66 @@ export const LETTER_SPACING = {
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════
+// ELEVACION + GLOW + ROLES DE ACENTO  (Fase 1 — rediseño UI/UX)
+// ═══════════════════════════════════════════════════════════════════
+// Objetivo: dar PROFUNDIDAD real (las cards a #0a0a0a casi no se separan
+// del fondo negro) y RESTRICCION de acento. Codigo nuevo debe elegir un
+// nivel de ELEVATION en vez de hardcodear bg/borde, y reservar GLOW para
+// UN solo elemento heroico por pantalla.
+
+/**
+ * Escala de superficies por nivel de elevacion (dark mode).
+ * Cada nivel sube luminancia + borde para que el ojo lea profundidad.
+ *   0 = fondo de pantalla   1 = card estandar
+ *   2 = card sobre card / sheet / modal   3 = popover / menu flotante
+ */
+export const ELEVATION = {
+  0: { bg: '#000000', border: 'transparent' },
+  1: { bg: '#0E0E0E', border: '#1C1C1C' },
+  2: { bg: '#161616', border: '#262626' },
+  3: { bg: '#1E1E1E', border: '#2E2E2E' },
+} as const;
+
+/**
+ * Glow para el elemento HEROICO de cada pantalla (dato/CTA protagonista).
+ * Regla: maximo 1 uso por vista. Lima por defecto; usar `withGlow(color)`
+ * para halos por categoria.
+ */
+export const GLOW = {
+  accent: {
+    shadowColor: ATP_BRAND.lime,
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 12, // Android
+  },
+} as const;
+
+/** Halo a partir de un color de categoria (mismo perfil que GLOW.accent). */
+export function withGlow(color: string) {
+  return {
+    shadowColor: color,
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 12,
+  } as const;
+}
+
+/**
+ * ROLES DE ACENTO — disciplina de color (causa raiz del "no wow": el lima
+ * esta en TODO). Heuristica: si en una pantalla cuentas >3 elementos lima,
+ * sobra acento.
+ *   primary  → accion primaria + dato heroico (max 1-2 por vista) → lima
+ *   neutral  → todo lo tactil secundario → TEXT.secondary / BORDER.card
+ *   category → tinte/icono por pilar, SIEMPRE desaturado (no a tope)
+ */
+export const ACCENT_ROLES = {
+  primary: ATP_BRAND.lime,
+  neutral: TEXT_COLORS.secondary,
+} as const;
+
+// ═══════════════════════════════════════════════════════════════════
 // PREMIUM DESIGN TOKENS — colores semanticos, gradients, mensajes
 // ═══════════════════════════════════════════════════════════════════
 

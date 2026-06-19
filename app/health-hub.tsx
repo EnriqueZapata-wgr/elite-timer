@@ -117,12 +117,18 @@ export default function HealthHubScreen() {
                     <Ionicons name={item.icon} size={22} color={item.color} />
                   </View>
                   <View style={s.cardInfo}>
-                    <EliteText style={[s.cardName, item.comingSoon && { color: TEXT_COLORS.muted }]}>
+                    <EliteText style={[s.cardName, item.comingSoon && { color: TEXT_COLORS.secondary }]}>
                       {item.name}
                     </EliteText>
                     <EliteText variant="caption" style={s.cardSub}>{item.subtitle}</EliteText>
                   </View>
-                  <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />
+                  {item.comingSoon ? (
+                    <View style={[s.badge, { backgroundColor: withOpacity(item.color, 0.15) }]}>
+                      <EliteText style={[s.badgeText, { color: item.color }]}>PRONTO</EliteText>
+                    </View>
+                  ) : (
+                    <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />
+                  )}
                 </View>
               </GradientCard>
             </AnimatedPressable>
@@ -150,7 +156,7 @@ const s = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   cardDisabled: {
-    opacity: 0.45,
+    opacity: 0.7,
   },
   cardContent: {
     flexDirection: 'row',
