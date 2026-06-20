@@ -782,13 +782,9 @@ export default function TodayScreen() {
                 <View style={s.topBarLeft}>
                   <Text style={s.brandLabel}>ATP DAILY</Text>
                   <ElectronBadge />
-                  {streak !== null && (
-                    <View style={s.streakPill}>
-                      <Text style={s.streakPillText}>
-                        {streak > 0 ? `🔥 ${streak} ${streak === 1 ? 'día' : 'días'}` : '🔥 Empieza tu racha'}
-                      </Text>
-                    </View>
-                  )}
+                  {/* Chip "🔥 racha" eliminado 2026-06-19 (decisión Enrique) — el header
+                      ya dice "ATP DAILY" y el chip rompía jerarquía. Si volvemos a
+                      mostrar streak, mejor reservarlo para un módulo dedicado. */}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                   <AnimatedPressable onPress={() => { haptic.light(); router.push('/protocol-config' as any); }} style={s.topBarIcon}>
