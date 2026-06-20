@@ -18,45 +18,28 @@ ALTER TABLE lab_uploads ADD CONSTRAINT lab_uploads_status_check
 -- ── 2. Extensión pg_net (HTTP desde Postgres) ────────────────────────────────
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
--- ── 3. Config: URL del proyecto + service_role key ───────────────────────────
--- Setear UNA vez (reemplazar <...>). Se leen con current_setting() en el trigger.
--- ALTER DATABASE postgres SET app.settings.supabase_url = 'https://<PROJECT_REF>.supabase.co';
--- ALTER DATABASE postgres SET app.settings.service_role_key = '<SERVICE_ROLE_KEY>';
--- (alternativa: hardcodear la URL en la función de abajo si no se quiere usar GUC).
-
--- ── 4. Función que llama al worker vía pg_net ────────────────────────────────
+-- ── 3. Función que llama al worker vía pg_net ────────────────────────────────
+-- 2026-06-18: reescrita sin GUCs. URL hardcoded del proyecto (pública en Edge Functions),
+-- y SIN Authorization header porque el Edge Function `lab-parser-worker` tiene
+-- verify_jwt: false. Esto evita exponer service_role_key vía GUCs en la DB y
+-- simplifica el setup: la migración funciona apenas se aplica, sin pasos extra.
 CREATE OR REPLACE FUNCTION trigger_lab_parser_worker()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
-DECLARE
-  v_url  text;
-  v_key  text;
 BEGIN
-  -- Lee config; si no está seteada, no rompe el INSERT/UPDATE (solo no dispara el worker).
-  BEGIN
-    v_url := current_setting('app.settings.supabase_url', true);
-    v_key := current_setting('app.settings.service_role_key', true);
-  EXCEPTION WHEN OTHERS THEN
-    v_url := NULL; v_key := NULL;
-  END;
-
-  IF v_url IS NULL OR v_key IS NULL THEN
-    RAISE WARNING 'trigger_lab_parser_worker: app.settings.supabase_url/service_role_key no configurados; worker no disparado para upload %', NEW.id;
-    RETURN NEW;
-  END IF;
-
   PERFORM net.http_post(
-    url     := v_url || '/functions/v1/lab-parser-worker',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer ' || v_key
-    ),
+    url     := 'https://itqkfozqvpwikogggqng.supabase.co/functions/v1/lab-parser-worker',
+    headers := jsonb_build_object('Content-Type', 'application/json'),
     body    := jsonb_build_object('uploadId', NEW.id),
     timeout_milliseconds := 5000  -- solo encolar; el worker responde 202 al instante
   );
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  -- Si el dispatch falla, no rompe el INSERT/UPDATE. Solo loguea WARNING.
+  RAISE WARNING 'trigger_lab_parser_worker dispatch fallido para upload %: %', NEW.id, SQLERRM;
   RETURN NEW;
 END;
 $$;
