@@ -39,6 +39,7 @@ Roadmap → v2.0.0 (julio-agosto 2026 — publicación a stores)
     - SQL Editor solo para queries puntuales / debug, no para migraciones rutinarias
 
 ## Documentos clave
+- docs/DESIGN_SYSTEM.md — criterio UI/UX, tokens, reglas de diseño (LEER antes de tocar pantallas)
 - ATP_MASTER_DOC_MAY2026.md — estado completo
 - R and D/AUDIT_REPORT_2026_05_07.md — auditoría externa Cowork
 - R and D/PATY_CRASH_TEST_5_RAW.md — bugs reales reportados por usuario
