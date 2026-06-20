@@ -815,11 +815,11 @@ export default function TodayScreen() {
             {day.protocol && (
               <Animated.View entering={FadeInUp.delay(100).springify()}>
                 <Pressable onPress={() => router.push('/protocol-config' as any)} style={s.protocolPill}>
-                  <Ionicons name="flask-outline" size={12} color="#a8e02a" />
+                  <Ionicons name="flask-outline" size={12} color="rgba(255,255,255,0.6)" />
                   <Text style={s.protocolPillText}>
                     {day.protocol.name} · Día {day.protocol.dayNumber}/{day.protocol.totalDays}
                   </Text>
-                  <Ionicons name="chevron-forward" size={12} color="rgba(168,224,42,0.5)" />
+                  <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.4)" />
                 </Pressable>
               </Animated.View>
             )}
@@ -1637,7 +1637,7 @@ const s = StyleSheet.create({
     padding: Spacing.xs,
   },
   brandLabel: {
-    color: '#a8e02a',
+    color: 'rgba(255,255,255,0.6)', // acento moderado: brand label neutral, no compite con el héroe lima
     letterSpacing: 3,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
@@ -1702,17 +1702,17 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(168,224,42,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.06)', // acento moderado: chip de info secundaria, neutral
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: Radius.pill,
     alignSelf: 'flex-start',
     marginBottom: Spacing.md,
     borderWidth: 0.5,
-    borderColor: 'rgba(168,224,42,0.2)',
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   protocolPillText: {
-    color: '#a8e02a',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: FontSizes.sm,
     fontFamily: Fonts.semiBold,
   },
@@ -1747,13 +1747,13 @@ const s = StyleSheet.create({
   // ── Secciones ──
   section: {
     paddingHorizontal: Spacing.md,
-    marginTop: 24,
+    marginTop: Spacing.xl, // 32 — más aire entre secciones (jerarquía: que respire)
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
-    marginBottom: Spacing.sm,
+    marginBottom: 12, // separación título→contenido
   },
   sectionTitle: {
     fontSize: FontSizes.sm,
