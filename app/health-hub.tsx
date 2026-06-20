@@ -20,6 +20,14 @@ import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
 const HEALTH_ITEMS = [
   {
+    // HC3: acceso explícito y correcto a ATP MI SALUD (antes se entraba por cards mal-ruteadas).
+    name: 'ATP MI SALUD',
+    subtitle: 'Tu panel funcional: corazón, glucosa, biomarcadores',
+    icon: 'heart-outline' as const,
+    color: '#38bdf8',
+    route: '/my-health',
+  },
+  {
     name: 'Protocolos',
     subtitle: 'Configura electrones, metas y horarios',
     icon: 'settings-outline' as const,

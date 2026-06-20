@@ -38,6 +38,15 @@ const FRONTS = [
     color: '#7F77DD',
     route: '/habits-portal',
   },
+  {
+    // M2: acceso directo a ATP MI SALUD (antes solo se entraba mal-ruteado desde Historia Clínica).
+    id: 'misalud',
+    title: 'ATP MI SALUD',
+    subtitle: 'Tu panel funcional: corazón, glucosa, biomarcadores',
+    icon: 'heart-outline' as const,
+    color: '#38bdf8',
+    route: '/my-health',
+  },
 ];
 
 export default function KitScreen() {
@@ -57,34 +66,11 @@ export default function KitScreen() {
           <View style={s.subtitleRow}>
             <Text style={s.subtitleGreen}>TU ECOSISTEMA</Text>
           </View>
-          <Text style={s.subtitleMain}>Tus dos frentes</Text>
+          <Text style={s.subtitleMain}>Tus frentes</Text>
         </Animated.View>
 
-        {/* ARGOS card */}
-        <Animated.View entering={FadeInUp.delay(80).springify()} style={s.cardWrap}>
-          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/argos-chat'); }}>
-            <LinearGradient
-              colors={['rgba(168,224,42,0.12)', 'rgba(168,224,42,0.03)', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[s.card, { borderColor: 'rgba(168,224,42,0.15)' }]}
-            >
-              <View style={[s.accent, { backgroundColor: '#a8e02a' }]} />
-              <View style={s.cardInner}>
-                <View style={s.cardLeft}>
-                  <View style={[s.iconCircle, { backgroundColor: 'rgba(168,224,42,0.15)' }]}>
-                    <Ionicons name="eye-outline" size={28} color="#a8e02a" />
-                  </View>
-                  <View>
-                    <Text style={s.cardTitle}>ARGOS</Text>
-                    <Text style={s.cardSub}>Tu IA de salud funcional</Text>
-                  </View>
-                </View>
-                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#a8e02a" />
-              </View>
-            </LinearGradient>
-          </AnimatedPressable>
-        </Animated.View>
+        {/* N2: card de ARGOS eliminada de Mi ATP — ARGOS pasa al menú inferior (Parte 8).
+            argos-chat sigue funcional (FAB actual / 5to tab). */}
 
         {/* Frentes top-level */}
         {FRONTS.map((front, idx) => (
