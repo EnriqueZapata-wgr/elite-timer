@@ -54,8 +54,11 @@ supabase/functions/.env
 sentry.properties
 **/sentry.properties
 
-# Cowork ↔ Claude Code buzón (no commitear — canal interno de tareas)
+# Cowork ↔ Claude Code: solo el buzón activo del momento se ignora (rota).
+# Los reportes históricos y los buzones de cowork_handoff/ SÍ se versionan
+# para trazabilidad de sprints (auditoría + historia del proyecto).
 COWORK_TASK.md
-COWORK_REPORT.md
 COWORK_REPORT_FASE4.md
-cowork_handoff/
+
+# Supabase CLI temp files (estado local del cli, no compartible)
+supabase/.temp/
