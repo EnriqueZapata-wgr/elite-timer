@@ -18,7 +18,16 @@ import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
-const HEALTH_ITEMS = [
+type HealthItem = {
+  name: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  route: string;
+  comingSoon?: boolean;
+};
+
+const HEALTH_ITEMS: HealthItem[] = [
   {
     // HC3: acceso explícito y correcto a ATP MI SALUD (antes se entraba por cards mal-ruteadas).
     name: 'ATP MI SALUD',
@@ -43,12 +52,12 @@ const HEALTH_ITEMS = [
   },
   // HC4: ATP SOL se quitó de Historia Clínica — vive en Hábitos → Mente (/mind-hub → /solar).
   {
+    // HC1: cetonas activado (espejo de glucosa). Migración 078 ketones_logs lista (NO ejecutada).
     name: 'Cetonas en sangre',
-    subtitle: 'Monitoreo de cetosis',
+    subtitle: 'Monitoreo de cetosis (mmol/L)',
     icon: 'water-outline' as const,
     color: '#c084fc',
     route: '/ketones-log',
-    comingSoon: true,
   },
   {
     name: 'Laboratorios',

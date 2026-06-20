@@ -115,6 +115,60 @@ export const LAB_COLUMN_TO_CANONICAL: Record<string, { keys: string[]; convertPc
   mcv: { keys: ['mcv'] },
   alp: { keys: ['alp'] },
   lymphocyte_pct: { keys: ['lymphocyte_pct'] },
+
+  // --- L2 (audit 19-jun): biomarcadores que el parser SÍ extrae pero que antes se DROPEABAN
+  // por no tener mapeo → ahora persisten a lab_values (graficables). Clave canónica = nombre
+  // inglés (graph-only, no alimentan matriz salvo que ya tengan key arriba). Ver
+  // cowork_handoff/AUDIT_LABS_BIOMARKERS.md. Los _pct se guardan como % (igual que lymphocyte_pct).
+  // Tiroides extendida:
+  t4_free: { keys: ['t4_free'] },
+  total_t3: { keys: ['total_t3'] },
+  total_t4: { keys: ['total_t4'] },
+  anti_tpo: { keys: ['anti_tpo'] },
+  anti_tg: { keys: ['anti_tg'] },
+  // Hormonal extendida:
+  estradiol: { keys: ['estradiol'] },
+  progesterone: { keys: ['progesterone'] },
+  dhea: { keys: ['dhea'] },
+  shbg: { keys: ['shbg'] },
+  igf1: { keys: ['igf1'] },
+  // Lípidos extendidos:
+  non_hdl_cholesterol: { keys: ['non_hdl_cholesterol'] },
+  lp_a: { keys: ['lp_a'] },
+  // Minerales:
+  calcium: { keys: ['calcium'] },
+  phosphorus: { keys: ['phosphorus'] },
+  zinc: { keys: ['zinc'] },
+  // Inflamación / coagulación:
+  esr: { keys: ['esr'] },
+  fibrinogen: { keys: ['fibrinogen'] },
+  complement_c3: { keys: ['complement_c3'] },
+  complement_c4: { keys: ['complement_c4'] },
+  pt: { keys: ['pt'] },
+  ptt: { keys: ['ptt'] },
+  inr: { keys: ['inr'] },
+  // Hepático / proteínas:
+  bilirubin_direct: { keys: ['bilirubin_direct'] },
+  bilirubin_indirect: { keys: ['bilirubin_indirect'] },
+  total_protein: { keys: ['total_protein'] },
+  globulin: { keys: ['globulin'] },
+  ag_ratio: { keys: ['ag_ratio'] },
+  // Renal / electrolitos:
+  co2: { keys: ['co2'] },
+  gfr: { keys: ['gfr'] },
+  // Biometría hemática extendida:
+  platelets: { keys: ['platelets'] },
+  rbc: { keys: ['rbc'] },
+  mch: { keys: ['mch'] },
+  mchc: { keys: ['mchc'] },
+  mpv: { keys: ['mpv'] },
+  neutrophils_pct: { keys: ['neutrophils_pct'] },
+  monocytes_pct: { keys: ['monocytes_pct'] },
+  eosinophils_pct: { keys: ['eosinophils_pct'] },
+  basophils_pct: { keys: ['basophils_pct'] },
+  // Metabólico extendido:
+  fructosamine: { keys: ['fructosamine'] },
+  c_peptide: { keys: ['c_peptide'] },
 };
 
 /**
