@@ -308,7 +308,7 @@ export default function YoScreen() {
         {!wearableData && (
           <Animated.View entering={FadeInUp.delay(550).springify()}>
             <AnimatedPressable style={s.connectBanner} onPress={() => { haptic.light(); router.push('/settings'); }}>
-              <Ionicons name="watch-outline" size={20} color={ATP_BRAND.lime} />
+              <Ionicons name="watch-outline" size={20} color="#888" />
               <View style={{ flex: 1 }}>
                 <EliteText style={s.connectBannerTitle}>Conecta tu dispositivo</EliteText>
                 <EliteText style={s.connectBannerDesc}>Apple Watch, Oura, Garmin para mejorar tus scores</EliteText>
