@@ -23,6 +23,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
+import { getMonthDays, getWeekdayMondayFirst } from '@/src/utils/cycle-calendar';
 import { haptic } from '@/src/utils/haptics';
 import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
@@ -39,7 +40,11 @@ const GREEN = '#22c55e';
 const VIOLET = '#a78bfa';
 
 const SCREEN_W = Dimensions.get('window').width;
-const DAY_SIZE = Math.floor((SCREEN_W - Spacing.md * 2 - 12) / 7);
+// Fallback antes de medir: el grid vive dentro de ScrollView (Spacing.md) + calCard (Spacing.md),
+// así que el ancho real es SCREEN_W - 4*Spacing.md. El cálculo viejo (-2*md-12) sobreestimaba el
+// ancho → la 7ª columna (Domingo) se envolvía y desalineaba todo el grid. El tamaño real se
+// recalcula con onLayout (cellSize) para ser a prueba de cambios de padding.
+const DAY_SIZE = Math.floor((SCREEN_W - Spacing.md * 4) / 7);
 
 const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
 const MONTHS = [
@@ -118,22 +123,7 @@ function diffDays(a: string, b: string): number {
   );
 }
 
-/** Genera todos los días de un mes como array de YYYY-MM-DD */
-function getMonthDays(year: number, month: number): string[] {
-  const days: string[] = [];
-  const count = new Date(year, month + 1, 0).getDate();
-  for (let d = 1; d <= count; d++) {
-    const mm = String(month + 1).padStart(2, '0');
-    const dd = String(d).padStart(2, '0');
-    days.push(`${year}-${mm}-${dd}`);
-  }
-  return days;
-}
-
-/** Día de la semana: 0=Lunes, 6=Domingo */
-function getWeekday(dateStr: string): number {
-  return (new Date(dateStr + 'T12:00:00').getDay() + 6) % 7;
-}
+// getMonthDays / getWeekdayMondayFirst viven en src/utils/cycle-calendar.ts (testeable).
 
 // ═══ CÁLCULO DE FASES ═══
 
@@ -270,7 +260,10 @@ export default function CycleScreen() {
 
   // Calendario: días del mes visible
   const monthDays = useMemo(() => getMonthDays(calMonth.year, calMonth.month), [calMonth]);
-  const firstWeekday = useMemo(() => monthDays.length > 0 ? getWeekday(monthDays[0]) : 0, [monthDays]);
+  const firstWeekday = useMemo(() => monthDays.length > 0 ? getWeekdayMondayFirst(monthDays[0]) : 0, [monthDays]);
+  // Ancho real del grid medido en runtime → tamaño de celda exacto (7 columnas siempre caben).
+  const [gridW, setGridW] = useState(0);
+  const cellSize = gridW > 0 ? Math.floor(gridW / 7) : DAY_SIZE;
 
   const navigateMonth = (delta: number) => {
     haptic.light();
@@ -519,18 +512,18 @@ export default function CycleScreen() {
 
             {/* Encabezados de días de semana */}
             <View style={st.weekRow}>
-              {WEEKDAYS.map(d => (
-                <View key={d} style={st.weekCell}>
+              {WEEKDAYS.map((d, i) => (
+                <View key={`${d}${i}`} style={[st.weekCell, { width: cellSize }]}>
                   <EliteText style={st.weekText}>{d}</EliteText>
                 </View>
               ))}
             </View>
 
-            {/* Grid de días */}
-            <View style={st.calGrid}>
+            {/* Grid de días — onLayout mide el ancho real para que las 7 columnas quepan */}
+            <View style={st.calGrid} onLayout={e => setGridW(e.nativeEvent.layout.width)}>
               {/* Celdas vacías antes del primer día */}
               {Array.from({ length: firstWeekday }).map((_, i) => (
-                <View key={`e${i}`} style={st.dayCell} />
+                <View key={`e${i}`} style={[st.dayCell, { width: cellSize, height: cellSize, borderRadius: cellSize / 2 }]} />
               ))}
 
               {monthDays.map(dateStr => {
@@ -575,7 +568,7 @@ export default function CycleScreen() {
                   <Pressable
                     key={dateStr}
                     onPress={() => openEditor(dateStr)}
-                    style={[st.dayCell, { backgroundColor: bg }, isT && st.dayToday]}
+                    style={[st.dayCell, { width: cellSize, height: cellSize, borderRadius: cellSize / 2, backgroundColor: bg }, isT && st.dayToday]}
                   >
                     <EliteText style={[
                       st.dayText,
