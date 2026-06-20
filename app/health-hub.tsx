@@ -18,7 +18,24 @@ import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
-const HEALTH_ITEMS = [
+type HealthItem = {
+  name: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  route: string;
+  comingSoon?: boolean;
+};
+
+const HEALTH_ITEMS: HealthItem[] = [
+  {
+    // HC3: acceso explícito y correcto a ATP MI SALUD (antes se entraba por cards mal-ruteadas).
+    name: 'ATP MI SALUD',
+    subtitle: 'Tu panel funcional: corazón, glucosa, biomarcadores',
+    icon: 'heart-outline' as const,
+    color: '#38bdf8',
+    route: '/my-health',
+  },
   {
     name: 'Protocolos',
     subtitle: 'Configura electrones, metas y horarios',
@@ -33,42 +50,30 @@ const HEALTH_ITEMS = [
     color: '#fb923c',
     route: '/glucose-log',
   },
+  // HC4: ATP SOL se quitó de Historia Clínica — vive en Hábitos → Mente (/mind-hub → /solar).
   {
-    name: 'ATP SOL',
-    subtitle: 'Exposición solar y vitamina D',
-    icon: 'sunny' as const,
-    color: '#fbbf24',
-    route: '/solar',
-  },
-  {
+    // HC1: cetonas activado (espejo de glucosa). Migración 078 ketones_logs lista (NO ejecutada).
     name: 'Cetonas en sangre',
-    subtitle: 'Monitoreo de cetosis',
+    subtitle: 'Monitoreo de cetosis (mmol/L)',
     icon: 'water-outline' as const,
     color: '#c084fc',
     route: '/ketones-log',
-    comingSoon: true,
   },
   {
     name: 'Laboratorios',
     subtitle: 'Sube y consulta tus estudios',
     icon: 'document-text-outline' as const,
     color: '#60a5fa',
-    route: '/my-health',
+    route: '/edad-atp/labs', // HC2: antes iba a /my-health
   },
   {
     name: 'Biomarcadores',
-    subtitle: 'Métricas de salud integral',
+    subtitle: 'Peso, composición, fuerza de agarre, medidas',
     icon: 'pulse-outline' as const,
     color: '#22c55e',
-    route: '/my-health',
+    route: '/health-input', // HC2: métricas corporales (antes /my-health)
   },
-  {
-    name: 'Dominios de salud',
-    subtitle: '10 áreas que definen tu ATP Score',
-    icon: 'grid-outline' as const,
-    color: '#1D9E75',
-    route: '/my-health',
-  },
+  // HC2: card "Dominios de salud" eliminada (mandaba a ATP MI SALUD por error).
   {
     name: 'Tests y evaluaciones',
     subtitle: 'Braverman · Evaluaciones funcionales',

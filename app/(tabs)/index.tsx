@@ -994,21 +994,8 @@ export default function TodayScreen() {
           </Animated.View>
         )}
 
-        {/* ═══════════════════════════════════════
-            CHECK-IN EMOCIONAL — card navegable (sin caritas)
-        ═══════════════════════════════════════ */}
-        <Animated.View entering={FadeInUp.delay(145).springify()} style={s.section}>
-          <AnimatedPressable onPress={() => { haptic.light(); router.push('/checkin' as any); }} style={s.checkinCard}>
-            <View style={s.checkinIcon}>
-              <Ionicons name="heart-circle-outline" size={24} color="#f472b6" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.checkinTitle}>Check-in emocional</Text>
-              <Text style={s.checkinSub}>Registra cómo te sientes hoy</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="#666" />
-          </AnimatedPressable>
-        </Animated.View>
+        {/* H8: card de acceso directo "Check-in emocional" eliminada — el acceso queda solo
+            en el hábito de Check-in (que navega a /checkin, ver H1). */}
 
         {/* ═══════════════════════════════════════
             WEARABLE — cardio del día + pasos

@@ -128,7 +128,7 @@ export default function AtpLabsScreen() {
 
   return (
     <Screen>
-      <PillarHeader pillar="metrics" title="ATP Labs" />
+      <PillarHeader pillar="metrics" title="Labs" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.subtitle}>
           Tus laboratorios — el último valor de cada parámetro. Mantén apretado para saber qué es.

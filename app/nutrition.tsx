@@ -18,7 +18,6 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { HelpButton } from '@/src/components/HelpButton';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
-import { WaterGoalEditor } from '@/src/components/hydration/WaterGoalEditor';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -59,7 +58,6 @@ export default function NutritionScreen() {
   const [summary, setSummary] = useState<DaySummary>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showEditor, setShowEditor] = useState(false);
   const [showMacroBanner, setShowMacroBanner] = useState(false);
 
   // Banner una sola vez cuando macros OFF (PRD §6.6 — borrador, validar Mariana)
@@ -123,33 +121,7 @@ export default function NutritionScreen() {
   }, [loadData]);
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
-  const addWater = async (ml: number) => {
-    if (!user?.id) return;
-    haptic.light();
-    const prevMl = summary.waterMl;
-    const newMl = Math.max(0, prevMl + ml);
-    const delta = newMl - prevMl;
-    if (delta === 0 && ml < 0) return;
-    setSummary(prev => ({ ...prev, waterMl: newMl }));
-    const dateStr = getLocalToday();
-    const nowTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-    try {
-      const { data: existing } = await supabase.from('hydration_logs').select('id, total_ml, entries')
-        .eq('user_id', user.id).eq('date', dateStr).maybeSingle();
-      const entries = [...((existing?.entries as any[]) ?? []), { time: nowTime, amount_ml: delta }];
-      const total = Math.max(0, (existing?.total_ml ?? 0) + delta);
-      if (existing?.id) {
-        await supabase.from('hydration_logs').update({ total_ml: total, entries }).eq('id', existing.id);
-      } else {
-        const goalMl = await getUserWaterGoal(user.id);
-        await supabase.from('hydration_logs').insert({ user_id: user.id, date: dateStr, total_ml: total, target_ml: goalMl, entries });
-      }
-      DeviceEventEmitter.emit('day_changed');
-      DeviceEventEmitter.emit('electrons_changed');
-    } catch { setSummary(prev => ({ ...prev, waterMl: prevMl })); }
-  };
-
-  const waterPct = summary.waterGoal > 0 ? Math.min(100, Math.round((summary.waterMl / summary.waterGoal) * 100)) : 0;
+  // Nu1: addWater/waterPct removidos junto con la card de Hidratación (ahora en Hábitos).
 
   return (
     <Screen>
@@ -264,49 +236,8 @@ export default function NutritionScreen() {
               onPress={() => { haptic.light(); router.push('/my-recipes' as any); }} />
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.delay(140).springify()}>
-            <NavCard icon="timer-outline" color="#fbbf24" title="Ayuno"
-              subtitle={summary.isFasting ? `En curso · ${summary.fastHours}h` : 'Iniciar protocolo'}
-              badge={summary.isFasting ? `${summary.fastHours}h` : undefined}
-              badgeColor={summary.isFasting ? '#fbbf24' : undefined}
-              onPress={() => { haptic.light(); router.push('/fasting' as any); }} />
-          </Animated.View>
-
-          {/* Hidratación — inline con botones */}
-          <Animated.View entering={FadeInUp.delay(160).springify()}>
-            <GradientCard gradient={{ start: 'rgba(56,189,248,0.10)', end: 'rgba(56,189,248,0.03)' }} padding={16} style={s.navCard}>
-              <View style={s.navRow}>
-                <View style={[s.navIcon, { backgroundColor: 'rgba(56,189,248,0.15)' }]}>
-                  <Ionicons name="water-outline" size={22} color="#38bdf8" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <EliteText style={s.navTitle}>Hidratación</EliteText>
-                  <Pressable onPress={() => { haptic.light(); setShowEditor(true); }} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <EliteText style={s.navSub}>
-                      {(summary.waterMl / 1000).toFixed(1)}L / {(summary.waterGoal / 1000).toFixed(1)}L
-                    </EliteText>
-                    <Ionicons name="pencil" size={11} color="#888" style={{ marginLeft: 6 }} />
-                  </Pressable>
-                </View>
-              </View>
-              <View style={s.waterBar}>
-                <View style={[s.waterBarFill, { width: `${waterPct}%` }]} />
-              </View>
-              <View style={s.waterBtns}>
-                {summary.waterMl > 0 && (
-                  <AnimatedPressable onPress={() => addWater(-250)} style={s.waterBtnMinus}>
-                    <EliteText style={s.waterBtnMinusText}>-250ml</EliteText>
-                  </AnimatedPressable>
-                )}
-                <AnimatedPressable onPress={() => addWater(250)} style={s.waterBtn}>
-                  <EliteText style={s.waterBtnText}>+250ml</EliteText>
-                </AnimatedPressable>
-                <AnimatedPressable onPress={() => addWater(500)} style={s.waterBtn}>
-                  <EliteText style={s.waterBtnText}>+500ml</EliteText>
-                </AnimatedPressable>
-              </View>
-            </GradientCard>
-          </Animated.View>
+          {/* Nu1: Ayuno e Hidratación se quitaron de Nutrición — viven en Hábitos → Mente
+              (/fasting y /hydration). Evita duplicar el mismo acceso en dos pilares. */}
 
           <Animated.View entering={FadeInUp.delay(180).springify()}>
             <NavCard icon="analytics-outline" color="#fb923c" title="Glucosa"
@@ -328,14 +259,6 @@ export default function NutritionScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {user?.id && (
-        <WaterGoalEditor
-          userId={user.id}
-          visible={showEditor}
-          onClose={() => setShowEditor(false)}
-          onSaved={(ml) => setSummary(prev => ({ ...prev, waterGoal: ml }))}
-        />
-      )}
     </Screen>
   );
 }

@@ -47,6 +47,8 @@ export default function TestsHub() {
     { icon: '🦾', title: 'Push-ups máximas', sub: ftLast(['push_ups_max'], ' reps'), route: '/edad-atp/tests/push-ups' },
     { icon: '⚖️', title: 'Balance · Plank · Old Man · BOLT · Sentadilla · Recovery HR', sub: ftLast(['test_de_equilibrio_en_un_pie', 'one_leg_balance'], 's'), route: '/edad-atp/tests/balance' },
     { icon: '💪', title: 'Grip (dinamómetro)', sub: 'Se captura en Composición', route: '/edad-atp/composition' },
+    // T1: Cronotipos ahora accesible desde Tests (wrapper que re-exporta el quiz existente).
+    { icon: '🌙', title: 'Cronotipo', sub: 'Tu ritmo circadiano: ¿alondra o búho?', route: '/edad-atp/tests/chronotype' },
   ];
 
   return (

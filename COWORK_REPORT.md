@@ -1,79 +1,137 @@
-# COWORK REPORT — Sprint OVERNIGHT 2: Labs PDFs grandes bulletproof
+# COWORK REPORT — Sprint OVERNIGHT MEGA: Bugs P0 + IA (backlog 19-jun)
 
-**Branch:** `feat/labs-pdfs-grandes` · **Estado:** push, NO merge, NO OTA · **tsc:** 0 errores · **tests:** 465 pasan (445 previos + 20 nuevos)
+**Branch:** `feat/bugs-p0-backlog-19jun` (desde `main`) · **Estado:** push, NO merge, NO OTA
+**tsc:** 0 errores · **tests:** 474 pasan (465 previos + 9 nuevos de calendario ciclo)
+**Migraciones:** 077, 078 listas como `.sql` — **NO ejecutadas** (regla #12).
 
-> **ACTUALIZACIÓN (Enrique abrió acceso a SQL):** la migración **076 YA se corrió en prod** (ELITE-APP-FULLDB) vía `supabase db query --linked`. Verificado: enum status con 7 valores, `pg_net` activo, trigger `on_lab_upload_pending` → `trigger_lab_parser_worker` creado. El trigger queda **inerte** hasta que se complete el resto del orden de deploy (worker desplegado + GUC seteado) y nada escribe `'pending'` con el flag OFF. **Falta:** (1) `supabase functions deploy lab-parser-worker` + secret `ANTHROPIC_API_KEY`, (2) GUC `app.settings.supabase_url` + `app.settings.service_role_key` (maneja secretos → lo haces tú), (3) flip `LAB_ASYNC_WORKER_ENABLED=true` + OTA tras smoke test.
+## Estado de avance por parte
 
-## Problema raíz
-PDFs > ~500KB revientan el cap de 60s de la Edge Function. UNILABS (254KB) funciona; un PDF de 1.3MB hace timeout con `input_tokens=0`. El parser corría EN EL CLIENTE vía `argos-proxy`, atado al request → cap de 60s. La compresión-cliente fue rechazada ("que jale bien, sin workarounds"): el fix real es sacar el LLM del request y hacerlo **async server-side**.
+| Parte | Items | Estado |
+|---|---|---|
+| 1 | C1, C2, L1, N3, N4, H5 | ✅ Completa (H5 ya estaba — flag) |
+| 2 | H1, H2, H8, HC2, HC4, Nu1 | ✅ Completa (H2 ya estaba) |
+| 3 | M1, M2, HC3, N2 | ✅ Completa (M1 ya era card grande) |
+| 4 | L2, HC1 ✅ · L3 🟡 | 🟡 Parcial (L3 flagged: dep inexistente) |
+| 5 | T1 ✅ · T2, T3 ❌ | 🟡 Parcial (solo T1) |
+| 6 | H3, H7 | ❌ No iniciada |
+| 7 | C3 | ❌ No iniciada |
+| 8 | N1 | ❌ No iniciada |
 
-## Arquitectura (3 capas)
-```
-Cliente sube PDF (cualquier tamaño)
-  → Capa 4: gating si >2MB (compresión PDF→JPG)        [INERTE — ver flag #1]
-  → uploadLabFile → Storage + INSERT lab_uploads
-  → enqueueLabWorker → status='pending'                 [solo si flag #2 ON]
-       └─ trigger 076 (pg_net) → lab-parser-worker
-            → Capa 3: split si >5 págs en chunks de 3 (pdf-lib)
-            → chunks EN PARALELO (Promise.allSettled, 1 call Anthropic c/u)
-            → Capa 9: EdgeRuntime.waitUntil (sin cap de 60s)
-            → merge (1ª ocurrencia gana) → UPDATE 'extracted'/'failed'
-  → Supabase Realtime → banner del cliente se actualiza
-  → tap "Revisar" → loadReviewFromDb (reconstruye desde extracted_data)
-```
-El cliente **ya no espera al LLM**.
+**Dónde paré y por qué:** completé Partes 1-4 + T1 de la Parte 5. T2 (migrar todos los tests a
+UI tipo Braverman) y T3 (módulo de cuestionarios de Historia Clínica + migración 079) son builds
+de varias horas cada uno; siguiendo la regla del task ("no empieces una parte que no cabe; para
+limpio + flag") me detuve en el último item completable con calidad en vez de dejar código
+frankenstein a medias. Partes 6-8 quedan para el siguiente overnight (orden estricto las pone
+después de 5). Cada parte está en un commit incremental.
 
-## Antes / Después por capa
+---
 
-### Capa 4 — Compresión cliente PDF→JPG
-- **Antes:** no existía.
-- **Después:** `src/services/lab-compressor.ts` — `needsCompression()` (gating PDF >2MB) + `compressLabFile()`.
-- **Honestidad:** la conversión real PDF→JPG necesita un **renderer nativo** (react-native-pdf / pdf.js+canvas; `expo-image-manipulator` NO rasteriza PDFs). Ninguno está en deps y el sprint prohíbe deps nativas nuevas. Por eso el gating es correcto pero la compresión cae a "no comprimido" (sube el original). **No es bloqueante**: el worker + splitting resuelven el PDF grande sin compresión cliente. Wired en `my-health.tsx` solo como breadcrumb. → **FLAG #1**.
+## Antes / Después por bug
 
-### Capa 3 — Splitting en chunks paralelos
-- **Antes:** un solo call con el PDF entero → timeout.
-- **Después:** `src/services/lab-pdf-splitter.ts` (math pura testeable: `planChunks`/`shouldSplit`) + `src/services/lab-chunked-parser.ts` (`mergeChunkResults`). El split de bytes real vive en el worker (pdf-lib vía esm.sh, Deno). Chunks de 3 páginas, umbral >5.
-- **Merge (doctrina):** 1ª ocurrencia gana (la página 1 suele traer los totales), válido le gana a no-válido, errores parciales no tumban el resultado (`Promise.allSettled`).
+### PARTE 1 — Bugs P0 visibles
+- **C1+C2 (calendario ciclo).** Root cause ÚNICO: en `app/cycle.tsx`, `DAY_SIZE` calculaba el
+  ancho con `SCREEN_W - 2*md - 12` pero el grid vive dentro de ScrollView(md)+card(md) = 4*md.
+  Las 7 celdas quedaban ~20px anchas de más → la 7ª (Domingo) se envolvía a otra fila → grid
+  desalineado: el viernes 19-jun aparecía bajo la columna "Lunes" (C1) y Domingo se veía vacío
+  (C2). Fix: ancho real medido con `onLayout` (`cellSize = gridW/7`, a prueba de padding) +
+  fórmula de fallback corregida. Helper puro `src/utils/cycle-calendar.ts` con 9 tests
+  (alineación día↔encabezado, bisiesto, julio con 2 huecos, hoy en columna 4).
+- **L1 (ATP ATP LABS).** `PillarHeader` ya antepone "ATP"; el title era "ATP Labs" → doble.
+  Ahora title="Labs" → "ATP LABS".
+- **N3 (burbuja feedback en prod).** `<FeedbackButton/>` en `app/(tabs)/_layout.tsx` ahora solo
+  bajo `__DEV__ || isAdmin(user?.id)`.
+- **N4 (safe area tabbar).** `paddingBottom: 8` hardcoded → `insets.bottom + 8` y
+  `height: 60 + insets.bottom` (Android botones SO / iPhone home bar no se traslapan; gesture
+  nav no agrega padding de más).
+- **H5 (Inicia tu racha). FLAG:** el literal "Inicia tu racha" NO existe en el código. El header
+  del HOY ya dice "ATP DAILY" (una de las frases sugeridas). El único string con "racha" es el
+  chip funcional `🔥 Empieza tu racha` (cuando streak=0). No toqué copy funcional sin tu frase
+  elegida. → Si quieres otra frase para el chip, dímela.
 
-### Capa 9 — Worker server-side
-- **Antes:** no existía; el LLM corría en el cliente atado al request.
-- **Después:** `supabase/functions/lab-parser-worker/index.ts`. Responde 202 al instante y procesa con `EdgeRuntime.waitUntil()` (sin cap de 60s). Idempotente (no reprocesa `extracted`/`confirmed`). Ante error → `failed` + `error_message`. Llama Anthropic directo (Sonnet 4.6, sin beta header de PDFs — ya es GA; el beta inválido era la causa del `input_tokens=0`).
-- **Migración:** `supabase/migrations/076_lab_uploads_async_worker.sql` — amplía el enum de status (+`pending`,`confirmed`,`cancelled`), `pg_net` + función `trigger_lab_parser_worker` + trigger `on_lab_upload_pending`. **NO ejecutada** (regla #12).
+### PARTE 2 — Flujo + ruteo
+- **H1 (tap checkin → /checkin).** `checkin` ahora es electrón VERIFICADO (`day-compiler.ts`):
+  tap del hábito navega a `/checkin` (vía `onElectronTap`, no togglea), y el compilador lo
+  enciende solo cuando hay un `emotional_checkin` de hoy (derivado de `moodRes`, sin query extra).
+- **H2 (checkin enciende hábito + electrones). YA ESTABA:** `checkin.tsx` ya llamaba
+  `awardBooleanElectron('checkin')` + `emit('electrons_changed'|'day_changed')` al guardar.
+- **H8 (quitar acceso directo).** Card "Check-in emocional" sobre ACTIVIDAD eliminada del HOY.
+- **HC2 (re-ruteo Historia Clínica).** Biomarcadores → `/health-input` (métricas: peso,
+  composición, grasa visceral, fuerza de agarre, medidas — es la pantalla correcta, ver flag
+  abajo); Laboratorios → `/edad-atp/labs`; card "Dominios de salud" eliminada.
+- **HC4 (quitar ATP SOL).** Fuera de Historia Clínica; verificado accesible en Hábitos → Mente
+  (`/mind-hub` → `/solar`).
+- **Nu1 (quitar Hidratación + Ayuno de Nutrición).** Cards removidas; ambas viven en Hábitos →
+  Mente (`/fasting`, `/hydration`). Limpié `addWater`/`waterPct`/`showEditor`/`WaterGoalEditor`.
 
-## Cómo el cliente reconstruye la revisión desde `extracted_data`
-El worker guarda `extracted_data = {values:{key:{value,unit}}, other_values, lab_name, lab_date}`. El cliente NO re-procesa: `reconstructReviewFromExtractedData()` pasa eso por el **mismo** pipeline del flujo síncrono — `normalizeParserValues()` (acepta el shape objeto) → `processParserItems()` (conversión de unidades + derivados + validación clínica). Resultado: `LabReviewPayload` idéntico venga del worker o del cliente. `lab-confirmation.tsx` usa `loadReviewFromDb()` como fallback cuando el store en memoria está vacío (típico tras cerrar/reabrir la app con el worker async).
+### PARTE 3 — Information Architecture (Mi ATP = `app/(tabs)/kit.tsx`)
+- **M1.** Las cards de Mi ATP ya eran grandes (120px, icono en círculo, título+descripción).
+- **M2.** Nueva card grande "ATP MI SALUD" → `/my-health` (3 frentes: Historia Clínica, Hábitos,
+  ATP MI SALUD).
+- **N2.** Card de ARGOS eliminada de Mi ATP (pasa al menú inferior, Parte 8). `argos-chat` sigue
+  funcional.
+- **HC3.** Historia Clínica gana card explícita "ATP MI SALUD" → `/my-health`.
 
-## Decisiones (overnight, conservadoras)
-1. **Worker llama Anthropic directo, no vía `argos-proxy`** — el proxy hace logging/circuit-breaker pero el worker corre server-side con su propia API key; evita una dependencia extra en el path crítico. *Trade-off:* los chunks no quedan en `argos_logs`. Reconsiderar si se quiere telemetría por-chunk.
-2. **Merge duplicado en el worker** (no puede importar `src/`). Documentado como intencional; misma doctrina que `lab-chunked-parser.ts`.
-3. **Split de bytes en el worker, math pura en el cliente** — `planChunks` testeable en vitest; pdf-lib solo en Deno.
-4. **Enum status ampliado en 076** — el cliente ya escribía `'pending'` (estado local del reducer) pero el CHECK de la tabla (018) solo permitía 4 valores; el flujo async lo necesita en DB.
+### PARTE 4 — ATP LABS profundo
+- **HC1 (cetonas). ✅** `/ketones-log` funcional (espejo de `glucose-log`, mmol/L + rangos de
+  cetosis nutricional); card activada en Historia Clínica; **migración 078** `ketones_logs`
+  (NUMERIC mmol, RLS, NO ejecutada). Sin electrón (no hay key en el catálogo — NO toqué la
+  economía; se puede sumar después).
+- **L2 (audit biomarcadores). ✅** ~37 biomarcadores que el parser SÍ extrae se DROPEABAN por no
+  tener mapeo en `LAB_COLUMN_TO_CANONICAL` → agregados (tiroides ext, hormonal, lípidos,
+  minerales, inflamación/coag, hepático, renal, biometría hemática, metabólico). **Migración
+  077** (columnas espejo en `lab_results`, flujo v1, NO ejecutada). Doc completo en
+  `cowork_handoff/AUDIT_LABS_BIOMARKERS.md`.
+- **L3 (unidades canónicas). 🟡 FLAG:** el task asumía un `lab-unit-converters.ts` con
+  `normalizeLabValue()` que **NO existe**. Además `insertLabValuesFromRaw` recibe valores **sin
+  unidad** (la unidad se pierde antes). Canonicalizar de verdad (testo ng/dL vs ng/mL → una sola
+  serie) requiere un módulo nuevo de conversión por-unidad + propagar la unidad hasta el insert.
+  Es un mini-sprint propio; no lo improvisé para no romper la time-series. Propuesta en el doc.
 
-## FLAGS (acción de Enrique)
-- **FLAG #1 — Compresión cliente INERTE.** `lab-compressor.ts` gatea pero no comprime (sin renderer nativo). No bloqueante: el worker splitea. Para activar compresión real haría falta una dep nativa (fuera de scope) o un edge function `pdf-to-jpg`.
-- **FLAG #2 — `LAB_ASYNC_WORKER_ENABLED = false`** (en `src/services/lab-service.ts`). **OFF por defecto**: el cliente sigue extrayendo en línea (flujo actual intacto). Encender SOLO cuando estén los 3:
-  1. Edge Function `lab-parser-worker` desplegada (`supabase functions deploy lab-parser-worker`)
-  2. Migración 076 corrida en SQL Editor
-  3. GUC seteado: `app.settings.supabase_url` + `app.settings.service_role_key` (o hardcodear la URL en la función)
-  - Si se enciende sin (1)/(2)/(3), los uploads quedarían en `'pending'` sin procesar → por eso default OFF y se enciende a mano tras validar backend.
+### PARTE 5 — Tests + Cuestionarios
+- **T1 (Cronotipo en Tests). ✅** Wrapper `app/edad-atp/tests/chronotype.tsx` re-exporta el quiz
+  existente (sin duplicar) + entrada en el índice de Tests.
+- **T2 (UI Braverman para todos los tests). ❌** No iniciado — requiere un `<TestQuestionScreen>`
+  reusable + migrar 8 tests (multi-hora).
+- **T3 + HC5 (módulo cuestionarios Historia Clínica). ❌** No iniciado — requiere migración 079
+  `historia_clinica` + pantalla índice + ≥3 cuestionarios + validación de preguntas con Mariana.
 
-## Orden de deploy (importa)
-1. `supabase functions deploy lab-parser-worker` + secret `ANTHROPIC_API_KEY`.
-2. Correr `076` en SQL Editor.
-3. Setear GUC (`supabase_url`, `service_role_key`).
-4. Smoke test (abajo).
-5. Recién entonces flip `LAB_ASYNC_WORKER_ENABLED = true` + OTA.
+---
 
-## Smoke test (post-deploy)
-1. PDF chico (1-2 págs): sube → 'pending' → 'extracted' en segundos → "Revisar" muestra valores.
-2. PDF grande (>5 págs, >1.3MB): sube → worker splitea → chunks en paralelo → 'extracted' SIN timeout. (Este es el caso que antes reventaba.)
-3. PDF basura/ilegible: → 'failed' con `error_message`, botones Reintentar / Capturar manual.
-4. Cerrar app durante 'processing' → reabrir → banner se reanuda vía Realtime; al terminar, "Revisar" carga vía `loadReviewFromDb`.
-5. Imagen (foto de lab): sigue por el flujo de imagen (1 chunk), sin regresión.
+## FLAGS para Enrique
+1. **H5:** dame la frase para el chip de racha si "Empieza tu racha" no te gusta (no existe
+   "Inicia tu racha").
+2. **HC2 Biomarcadores:** lo ruteé a `/health-input` (la pantalla de métricas: peso/composición/
+   grasa visceral/músculo/agarre/medidas). Si esperabas otra, ajústalo.
+3. **L3:** necesita módulo de conversión de unidades nuevo (no existe el que asumía el task).
+4. **Cetonas:** sin electrón asociado (no quise tocar la economía). ¿Agregamos `ketones_log` al
+   catálogo de electrones?
+5. **Anomalía de repo (no la causé):** en `main` hay ~30 archivos core SIN trackear en git
+   (`tsconfig.json`, `vitest.config.ts`, `types/`, migraciones 041-076) — existen en disco pero
+   no están commiteados ni en local ni en `origin/main`. La app compila porque están en disco.
+   Mis commits agregan explícitamente los archivos que toco. Vale la pena reconciliar esto.
 
-## Archivos
-**Nuevos:** `lab-pdf-splitter.ts`, `lab-chunked-parser.ts`, `lab-compressor.ts` (+ 3 tests, 20 casos) · `supabase/functions/lab-parser-worker/index.ts` · `supabase/migrations/076_lab_uploads_async_worker.sql`
-**Modificados:** `lab-service.ts` (flag, `enqueueLabWorker`, `loadReviewFromDb`, `reconstructReviewFromExtractedData`) · `useLabProcessing.tsx` (branch worker en `runExtraction`) · `lab-confirmation.tsx` (fallback `loadReviewFromDb`) · `my-health.tsx` (gating Capa 4)
+## Migraciones (idempotentes, NO ejecutadas)
+- `077_lab_results_missing_columns.sql` — columnas faltantes (L2).
+- `078_ketones_logs.sql` — tabla cetonas (HC1).
+- Pendientes para Partes 5/7: `079_historia_clinica`, `080_pregnancy_status`.
 
-## NO testeado en runtime aquí
-El worker es Deno (no hay runtime local) y pg_net/EdgeRuntime solo existen en Supabase. Validar en deploy con el smoke test. La math pura (split plan, merge, gating) SÍ está cubierta por vitest.
+## Smoke test (lo que SÍ se puede validar de Partes 1-5/T1)
+- [ ] CICLO: calendario 7 columnas alineadas; hoy (viernes) bajo "Vi", no "Lu".
+- [ ] ATP LABS: header dice solo "ATP LABS".
+- [ ] Sin burbuja feedback en build de producción (sí en dev/admin).
+- [ ] TabBar por encima de los botones del SO en Android.
+- [ ] HOY: sin card de acceso directo de Check-in sobre ACTIVIDAD; tap del hábito Check-in →
+      `/checkin`; completar el checkin enciende el hábito.
+- [ ] Historia Clínica: Biomarcadores → métricas, Laboratorios → ATP LABS, sin Dominios, sin
+      ATP SOL, con card ATP MI SALUD, Cetonas activado (→ /ketones-log, guarda mmol/L).
+- [ ] Nutrición: sin Hidratación ni Ayuno.
+- [ ] Mi ATP: 3 cards grandes (HC, Hábitos, ATP MI SALUD), sin ARGOS.
+- [ ] Tests: aparece "Cronotipo".
+- [ ] Tras correr 077: subir PDF con panel completo → nuevos biomarcadores en `lab_values`.
+
+## Commits
+1. `fix(p0/parte1)` — calendario + título + feedback + safe area
+2. `fix(p0/parte2)` — checkin + re-ruteo HC + limpieza Nutrición
+3. `feat(p0/parte3)` — Mi ATP IA (ATP MI SALUD + quitar ARGOS)
+4. `feat(p0/parte4)` — cetonas + audit L2 biomarcadores
+5. `feat(p0/parte5)` — T1 Cronotipo en Tests

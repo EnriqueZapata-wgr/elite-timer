@@ -22,7 +22,7 @@ import { warn as logWarn } from '@/src/lib/logger';
  *
  * `period_log` solo se ofrece a usuarias con `biological_sex === 'female'`.
  */
-export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements', 'period_log'] as const;
+export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements', 'period_log', 'checkin'] as const;
 export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 
 /** Ruta de la pantalla de actividad para cada electrón verificado. */
@@ -32,6 +32,7 @@ export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, string> = {
   strength: '/log-exercise',
   supplements: '/supplements',
   period_log: '/cycle',
+  checkin: '/checkin', // H1: tap del hábito Check-in emocional → /checkin (no togglea)
 };
 
 /** Electrones que solo se ofrecen a un subconjunto de usuarios. */
@@ -196,12 +197,17 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
   ]);
 
   // Para los verificados: derivar `completed` de actividad real, NO del blob.
+  // checkin: el último emotional_checkin (moodRes) es de HOY (no requiere query extra).
+  const lastCheckinDate = (moodRes.data as any)?.created_at
+    ? toLocalDateString(new Date((moodRes.data as any).created_at))
+    : null;
   const verifiedCompleted: Record<string, boolean> = {
     meditation: (meditationCountRes.count ?? 0) >= 1,
     breathwork: (breathingCountRes.count ?? 0) >= 1,
     strength: (exerciseCountRes.count ?? 0) >= 1,
     supplements: (supplementCountRes.count ?? 0) >= 1,
     period_log: (cycleLogCountRes.count ?? 0) >= 1,
+    checkin: lastCheckinDate === today,
   };
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;
