@@ -38,7 +38,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { nowDividerIndex, minutesOfDay, formatNowLabel } from '@/src/utils/agenda-now';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
-import { generateDailyInsight, chatWithArgosEx, saveConversation } from '@/src/services/argos-service';
+import { generateDailyInsight, invalidateDailyInsight, chatWithArgosEx, saveConversation } from '@/src/services/argos-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getCurrentStreak } from '@/src/services/adherence-service';
 import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
@@ -238,6 +238,9 @@ export default function TodayScreen() {
     // listeners NO disparan loadDay hasta que todos terminen.
     const sub1 = DeviceEventEmitter.addListener('day_changed', () => {
       if (isTogglingRef.current === 0) loadDay();
+      // H7: el contexto del día cambió → invalida el insight cacheado (se regenera
+      // en la próxima carga del Home). Lazy: no dispara LLM aquí.
+      if (user?.id) invalidateDailyInsight(user.id);
     });
     const sub2 = DeviceEventEmitter.addListener('electrons_changed', () => {
       if (isTogglingRef.current === 0) loadDay();
