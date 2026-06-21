@@ -21,6 +21,34 @@ describe('lab-parser-process — processParserItems', () => {
     expect(r.items[0].unitCanonical).toBe('mg/dL');
   });
 
+  // L3: testosterona ng/mL y ng/dL deben converger a la MISMA unidad canónica (ng/dL)
+  // para que no aparezcan como 2 series incomparables en la gráfica. Regression guard del
+  // fix de Parser v2 (Capa 2): el path PDF canoniza en el borde de extracción.
+  it('L3: testosterona ng/mL → ng/dL (×100, explícito)', () => {
+    const r = processParserItems([
+      { key: 'testosterone', value: 9.93, unit_in_document: 'ng/mL', confidence: 'high' },
+    ]);
+    expect(r.items[0].valueCanonical).toBe(993);
+    expect(r.items[0].unitCanonical).toBe('ng/dL');
+    expect(r.items[0].conversionMethod).toBe('explicit');
+  });
+
+  it('L3: testosterona ng/dL se mantiene (misma serie que la convertida)', () => {
+    const r = processParserItems([
+      { key: 'testosterone', value: 600, unit_in_document: 'ng/dL', confidence: 'high' },
+    ]);
+    expect(r.items[0].valueCanonical).toBe(600);
+    expect(r.items[0].unitCanonical).toBe('ng/dL');
+  });
+
+  it('L3: testosterona sin unidad y magnitud ng/mL (<20) → heurística ×100', () => {
+    const r = processParserItems([
+      { key: 'testosterone', value: 6.5, unit_in_document: null, confidence: 'high' },
+    ]);
+    expect(r.items[0].valueCanonical).toBe(650);
+    expect(r.items[0].conversionMethod).toBe('heuristic');
+  });
+
   it('caso Mariana: LDL 2.27 mg/dL → normaliza sin cambio y FALLA validación', () => {
     const r = processParserItems([
       { key: 'ldl', value: 2.27, unit_in_document: 'mg/dL', confidence: 'high' },
