@@ -17,7 +17,7 @@ FASE A (sin tocar código). Mapa para cablear en FASE B. Números validados vs
 | hydration_tap | self | `src/services/hydration-service.ts` | ~113 | `addWater` | `hydration_tap_{uid}_{date}_{N}` | ✅ YA |
 | supplement_check | self | `app/supplements.tsx` (119) **+** `app/(tabs)/index.tsx` (654) | 119 / 654 | upsert `supplement_logs` (DOS paths: pantalla supplements y quick-toggle del HOY) | `supplement_check_{uid}_{date}_{suppId}` | NUEVO (2 paths) |
 | lab_uploaded | elite | `supabase/functions/lab-parser-worker/index.ts` | ~171 | tras `status='extracted'` (server-side) | `lab_uploaded_{uid}_{uploadId}` | NUEVO (B.3 server) |
-| test_completed | elite | `src/services/edad-atp/capture-service.ts` | 242 | `saveFunctionalTests` | `test_completed_{uid}_{date}_{testKey}` | NUEVO |
+| test_completed | elite | pantallas de tests edad-atp (NO capture-service) | — | tras `saveFunctionalTests` | `test_completed_{uid}_{date}` | ⚠️ DIFERIDO a pantalla |
 
 ### Notas de hookpoints
 - **supplement_check tiene 2 paths** (pantalla Suplementos y quick-toggle del HOY). La key
@@ -64,6 +64,8 @@ FASE A (sin tocar código). Mapa para cablear en FASE B. Números validados vs
    findables.
 5. **cardio_hr_wearable**: no cableable hoy (sin ingestión). FLAG, no improviso.
 
-## Hookpoints NO cableables ahora (con razón)
-- **cardio_hr_wearable** — no existe ingestión de sesiones cardio por wearable.
-- **test_completed (cap semanal)** — se cableará con cap diario; ventana semanal exacta = follow-up.
+## Hookpoints NO cableables ahora / diferidos (con razón)
+- **sleep/steps/cardio_wearable** — `wearable-service` DESACTIVADO (native packages removidos).
+- **test_completed** — NO se cabló en `capture-service` (lo importan ~13 tests edad-atp; meterle
+  electron-award-client → react-native rompía su colección en Vitest). Cap semanal YA implementado
+  (capWindow='week'). Wiring del award = a nivel pantalla de cada test, DIFERIDO a review.

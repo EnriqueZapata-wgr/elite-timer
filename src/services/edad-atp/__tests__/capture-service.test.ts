@@ -1,9 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// capture-service ahora importa electron-award-client (→ react-native). Mock RN para que
-// vitest no parsee el módulo nativo real (mismo patrón que hydration-service.test).
-vi.mock('react-native', () => ({ DeviceEventEmitter: { emit: vi.fn() } }));
-
 // Captura las filas insertadas para verificar el batch.
 const inserted: any[] = [];
 vi.mock('@/src/lib/supabase', () => ({
