@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, ScrollView, Pressable,
   Keyboard, Platform, ActivityIndicator,
 } from 'react-native';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -38,6 +38,12 @@ const QUICK_SUGGESTIONS = [
 
 export default function ArgosChat() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
+  // N1: solo mostrar back-arrow si hay a dónde volver (deep link / push). Como tab raíz
+  // no hay historial → canGoBack() es false y se oculta. En main ARGOS es ruta pusheada
+  // (canGoBack true → back visible, sin cambio); el guard ya queda correcto para cuando
+  // ARGOS pase a ser tab (p8). DRY: una sola pantalla sirve a ambos accesos.
+  const canGoBack = navigation.canGoBack();
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const scrollRef = useRef<ScrollView>(null);
   const [messages, setMessages] = useState<ArgosMessage[]>([]);
@@ -205,9 +211,11 @@ export default function ArgosChat() {
         borderBottomWidth: 0.5, borderBottomColor: '#1a1a1a',
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Pressable onPress={() => { stopSpeaking(); router.back(); }} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
+          {canGoBack && (
+            <Pressable onPress={() => { stopSpeaking(); router.back(); }} hitSlop={12}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </Pressable>
+          )}
           <View style={{
             width: 36, height: 36, borderRadius: 18,
             backgroundColor: 'rgba(168,224,42,0.15)',

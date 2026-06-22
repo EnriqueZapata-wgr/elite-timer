@@ -1,3 +1,82 @@
+# COWORK REPORT — Sprint OVERNIGHT: L3 + TestInputScreen + H7 + N1 (20-jun)
+
+**Branch:** `feat/overnight-l3-testinput-pulidos-20jun` (desde `main` @ 8505867) · **Estado:** push, NO merge, NO OTA
+**tsc:** 0 errores · **tests:** 492 pasan (474 previos + 18 nuevos) · suite completa verde
+**Migraciones:** `081_lab_values_canonicalize_units.sql` lista — **NO ejecutada** (regla #12). **082 NO necesaria** (ver H7).
+
+## Estado de avance por parte
+
+| Parte | Items | Estado |
+|---|---|---|
+| 1 | L3 canonicalización unidades | ✅ Completa (re-scoped — ver abajo) |
+| 2 | TestInputScreen + 8 tests | 🟡 Componente ✅ + tests ✅; migración de los 8 NO hecha (conflicto de doctrina — FLAG) |
+| 3 | H7 cache invalidar en day_changed | ✅ Completa |
+| 4 | N1 back-arrow ARGOS | ✅ Completa (defensiva; síntoma depende de p8 — FLAG) |
+| 5 | Purga magic colors | ⏭️ Skipped (opcional; sin deuda nueva introducida) |
+
+**Commits:** `1381eea` (P1) · `<TestInputScreen>` P2 · `be9680d` (P3) · `069785d` (P4).
+
+## ⚠️ Contexto del repo al arrancar (no lo causé — léelo primero)
+- **NO arranqué en `main`.** El repo estaba en `feat/overnight-partes-5b-6-7-8` (sprint previo
+  5b/6/7/8: cuestionarios HC, H3/H7-notif, C3 embarazo, N1-ARGOS-tab) **sin mergear ni pushear**,
+  con cambios SIN commitear (`_layout.tsx`, `index.tsx`: N3 feedback solo-DEV + quitar VoiceButton FAB,
+  fechados 2026-06-20). Para branchear desde `main` limpio los **stashié**:
+  `git stash list` → `stash@{0}` ("WIP partes-5b-8…"). **Recupéralos** al volver a esa rama:
+  `git checkout feat/overnight-partes-5b-6-7-8 && git stash pop stash@{0}`.
+- **`main` NO contiene partes 5b-8** → `TestQuestionScreen` (referencia del task) vive en esa rama,
+  no en `main`. Lo consulté vía `git show` sin mergear.
+
+## Detalle + FLAGS para Enrique
+
+### P1 — L3 (✅, re-scoped por hallazgo)
+La premisa del task estaba **desactualizada**: `normalizeLabValue` YA existe y YA está wired en el
+parser v2 (`lab-parser-process.ts` Capa 2) → **el path de PDF en vivo YA canoniza** (testosterona
+ng/mL→ng/dL incluido). Por eso:
+- **NO bolteé `normalizeLabValue` al insert** (`insertLabValuesFromRaw`): ahí los valores ya son
+  canónicos, SIN unidad y con keys ESPAÑOLAS (`testosterona_total`) ≠ keys inglesas del converter →
+  sería no-op / doble-conversión. El §1.1 del handoff asumía arquitectura vieja.
+- **Migración 081 = conservadora, basada en `unit` EXPLÍCITO** (determinista). **NO** hace fix por
+  magnitud (ambiguo: 15 = testosterona femenina real vs ng/mL) **NI** toca hba1c/hematocrito/rdw_cv
+  (lab_values los guarda como DECIMAL canónico; el §1.3 del handoff los habría CORROMPIDO).
+- **3 tests de regresión** de testosterona en el pipeline. **Filas legacy con `unit` NULL** quedan sin
+  auto-fix (decisión tuya: ¿script con contexto de sexo por usuario, o dejar que el parser v2 las
+  corrija al re-subir?).
+
+### P2 — TestInputScreen (🟡 componente sí, migración no)
+- ✅ **`<TestInputScreen>`** reusable (number/time/reps/distance, min/max, MM:SS, haptics, tokens) +
+  helpers puros + **13 tests**. Aditivo, sin tocar nada existente.
+- ❌ **NO migré los 8 tests.** Conflicto real: el codebase **ya evolucionó** a un **FORMULARIO
+  consolidado** (`app/edad-atp/tests/balance.tsx`: 6 tests con `NumberInputRow` + key-auditing al
+  motor v2) + motor de cronómetro (`StopwatchTestScreen` para plank/bolt), bajo doctrina **documentada
+  en código**: *"SIMPLE vence inteligente: CERO flujos en vivo"* — lo OPUESTO al UX per-test con
+  cronómetro embebido del task. Force-migrar **regresaría esa decisión de producto** y duplicaría
+  `NumberInputRow`. **DECISIÓN TUYA:** (a) adoptar `TestInputScreen` y revertir la doctrina "cero
+  flujos en vivo", (b) quedarte con el form consolidado actual, o (c) híbrido (TestInputScreen solo
+  para tests nuevos/single-value). Dejé el componente listo para cualquiera.
+
+### P3 — H7 (✅)
+Invalidación del insight diario en `day_changed` (nutrición/ayuno). Marca la fila de HOY como vieja
+(`created_at`→epoch) → próximo load regenera. **LAZY a propósito**: NO regenera en el listener porque
+`day_changed` se dispara varias veces/día → evitaría spam de LLM (coincide con "próxima request
+forzará re-generación" del handoff). En módulo aislado `argos-insight-cache.ts` (+2 tests). Scoped por
+user_id (+RLS). **082 NO necesaria:** la tabla no tiene `expires_at`; la freshness ya es por `created_at`.
+Nota: como el Home es tab persistente, "próxima carga" puede ser al re-montar/relanzar; si quieres
+refresh al volver al tab, convertir el efecto del insight a `useFocusEffect` (1 línea, no lo hice por
+ser efecto de Phase 1/2).
+
+### P4 — N1 (✅ defensiva)
+Back-arrow condicionado a `navigation.canGoBack()`. **En `main` ARGOS NO es tab** (es ruta pusheada →
+canGoBack true → back visible, SIN cambio). El síntoma del task (back raro en tab raíz) **solo existe
+tras mergear p8** (ARGOS-4to-tab, en la otra rama). El guard ya deja la pantalla correcta para ese
+escenario. **Verifica N1 después de mergear p8.**
+
+### P5 — Magic colors (⏭️ skipped, opcional)
+Mis archivos NUEVOS ya usan tokens (cero magic colors introducidos). Los existentes tocados con magic
+colors son `index.tsx` (Phase 1/2 — OFF-LIMITS) y `argos-chat.tsx` (purga cosmética con riesgo cerca
+del fix de markdown). Regla "opcional / no bloquear / NO tocar Phase 1/2" → skip.
+
+---
+
 # COWORK REPORT — Sprint OVERNIGHT MEGA: Bugs P0 + IA (backlog 19-jun)
 
 **Branch:** `feat/bugs-p0-backlog-19jun` (desde `main`) · **Estado:** push, NO merge, NO OTA
