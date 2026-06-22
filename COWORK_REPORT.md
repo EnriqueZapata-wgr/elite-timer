@@ -1,3 +1,64 @@
+# COWORK REPORT — Sprint OVERNIGHT: Economía Cierre Total (22-jun)
+
+**Branch:** `feat/economia-cierre-total` (desde `feat/economia-electrons-server-side`) · **Estado:** NO merge, NO OTA, **NO push** (Enrique aprueba)
+**tsc:** 0 errores · **tests:** 553 pasan (515 base + 38 de economía acumulados) · **Feature OFF** (byte-idéntico verificado por test E2E flujo 5)
+**Migración:** 093 idempotente — **NO ejecutada**. Doc operación: `docs/ECONOMIA_OPERACION.md`.
+
+> Cierre de los placeholders y wiring diferido de los 2 sprints previos, calibrado contra el
+> doc económico oficial `R and D/03_ECONOMIA_PROTONES_H_PLUS.md` (que ya existe en el repo).
+
+## Estado por fase — 5/5
+
+| Fase | Items | Estado |
+|---|---|---|
+| A | Investigación hookpoints + call-sites | ✅ `cowork_handoff/INVESTIGACION_HOOKPOINTS.md` |
+| B | Cableado awards + lab-worker + call-sites | ✅ awards + lab-worker; call-sites guardados por 402 (ver flags) |
+| C | Calibración con doc económico | ✅ rank real, referral 200k/50k, sub-bonus 100k, cap semanal test |
+| D | Tests E2E flag simulado (5 flujos) | ✅ 5 tests + fix de ripple |
+| E | Docs operación + reporte | ✅ |
+
+## Cableado aplicado (FASE B)
+- **Awards fire-and-forget (no-op si flag OFF):** hidratación (decay) y check-in [ya estaban];
+  **nuevos:** meditación, food_photo (solo con foto — el doc no premia food_text), supplement_check
+  (pantalla Suplementos + quick-toggle HOY, misma key idempotente entre ambos paths).
+- **lab_uploaded:** award server-side en `lab-parser-worker` tras `extracted` (Opción 1 del handoff),
+  gated por env, idempotente por upload_id, service_role.
+- **Pre-flight:** chat ya wrappeado; el **402 del proxy es el guard real** de TODOS los call-sites.
+
+## Calibración aplicada (FASE C, doc gana)
+- **Curva de rank**: reemplazado el placeholder `sqrt` por la curva real por bandas (1-9/10-29/
+  30-49/50-79/80-99) en `rank.ts` + SQL `economy_rank_from_lifetime` (migración 093, misma matemática)
+  + `rankTierLabel` (insignias Iniciado→Maestro ATP) mostradas en RankBadge.
+- **Referral**: 200,000 H+ al referrer + 50,000 al referido (era placeholder 100k).
+- **subscription_bonus**: 100,000 H+ + RPC `grant_monthly_subscription_bonus` (service_role, para webhook IAP).
+- **test_completed**: cap **semanal** (doc: 1/semana) vía `capWindow='week'` + `resolveWindow` rolling-7d.
+- **Costos IA y montos de hábitos**: ya coincidían con el doc (validado por tests `award-rules`).
+
+## Tests añadidos
+- `award-rules.test.ts` (+resolveWindow week, amounts vs doc), `rank.test.ts` (curva por bandas +
+  round-trip + insignias), `e2e-flow.test.ts` (5 flujos). Suite total: 76 files / 553 tests.
+
+## Decisiones autónomas + FLAGS
+1. **Ripple capture-service (resuelto):** cablear test_completed en `capture-service` arrastró
+   `react-native` (vía electron-award-client) y rompió la colección de ~13 tests edad-atp en Vitest.
+   → revertido; **test_completed se cableará a nivel pantalla** (infra lista, cap semanal hecho). FLAG.
+2. **Wearables (sleep/steps/cardio): NO cableables** — `wearable-service` está DESACTIVADO (paquetes
+   nativos removidos). Awards listos para cuando se reactive la ingestión. FLAG.
+3. **withPreflight en food/lab/supplement/routine NO cableado**: son call-sites en SERVICIOS;
+   meter Alert+router ahí sería frankenstein + ripple de tipo de retorno. El **402 server-side ya
+   los guarda**. El pre-empt UX queda solo en chat (patrón establecido). FLAG (opcional).
+4. **tier vs evidence_tier:** se mantiene `requiredEvidence` explícito (decisión del sprint previo).
+5. **subscription reset/no-acumula** por ciclo: requiere flujo de billing (sprint IAP). FLAG.
+6. **8 call-sites callAnthropic fuera de catálogo** (recipe, shopping_list, food_reanalysis,
+   label_scan, meal_suggestion, daily_summary, clinical_interpretation, goal_decomposition): sin
+   costo en el doc → NO se cobran. FLAG documentado en investigación.
+
+## Para activar
+Ver `docs/ECONOMIA_OPERACION.md` (comandos exactos, smoke, métricas, troubleshooting). Resumen:
+merge 3 ramas → `db push` (082-093) → deploy 4 Edge Functions → flag ON (cliente + env servidor) → OTA.
+
+---
+
 # COWORK REPORT — Sprint OVERNIGHT: Award Electrones Server-Side + Pre-flight + Challenge Progress (22-jun)
 
 **Branch:** `feat/economia-electrons-server-side` (desde `feat/economia-protones-h-plus`) · **Estado:** NO merge, NO OTA, **NO push** (Enrique aprueba)
