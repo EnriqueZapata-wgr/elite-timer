@@ -1,3 +1,88 @@
+# COWORK REPORT — Sprint OVERNIGHT: Award Electrones Server-Side + Pre-flight + Challenge Progress (22-jun)
+
+**Branch:** `feat/economia-electrons-server-side` (desde `feat/economia-protones-h-plus`) · **Estado:** NO merge, NO OTA, **NO push** (Enrique aprueba)
+**tsc:** 0 errores · **tests:** 542 pasan (515 base + 27 nuevos) · **Feature OFF** (`LAB_ECONOMY_ENABLED=false`)
+**Migraciones:** 092 idempotente — **NO ejecutada**. **Edge Functions nuevas:** award-electrons, settle-challenge (NO desplegadas).
+
+> Cierra el **bloqueante #1** del sprint 21-jun: el award de electrones por hábito ya NO es client-side; pasa por Edge Function validada. El cliente nunca acredita moneda.
+
+## Estado de avance por parte — 5/5
+
+| Parte | Items | Estado |
+|---|---|---|
+| 1 | Edge Function award-electrons | ✅ (+migración 092 idempotency atómica, +_shared/award-rules, 9 tests) |
+| 2 | requestElectronAward + cableado | ✅ helper+4 tests; 2 hookpoints cableados, 8 diferidos (flag) |
+| 3 | withPreflight + call-sites ARGOS | ✅ helper+4 tests; chat cableado, resto diferido (flag) |
+| 4 | Challenge progress + settle-challenge | ✅ writer+EdgeFn+10 tests |
+| 5 | Tests + verificación + reporte | ✅ tsc=0, 542 tests |
+
+## Decisiones autónomas + FLAGS para Enrique
+
+1. **Migración 092 (idempotency ATÓMICA).** La 091 chequeaba idempotency con `EXISTS` sobre
+   metadata — race-prone (2 requests simultáneos → doble award). 092 añade columna
+   `idempotency_key` + UNIQUE index parcial y reescribe `award_electrons` para que la INSERCIÓN
+   de la tx sea la compuerta (`ON CONFLICT DO NOTHING`) → a prueba de concurrencia. Backfill de
+   la key vieja en metadata. **NO ejecutada.**
+2. **tier vs evidence_tier (ambigüedad del handoff).** El `tier` abstracto de HABIT_RULES
+   ('premium'…) no coincide con el enum `evidence_tier` del cliente ('wearable'…). Definí
+   `requiredEvidence` EXPLÍCITO por hábito (sin ambigüedad) y valido contra él. (sleep/steps/
+   cardio→wearable; meditation/food/checkin→evidence; hydration/supplement→self; lab/test→elite.)
+3. **Caps por día con ventana anti-abuso.** El server no conoce la TZ del usuario → acepta
+   `local_date` del cliente PERO la clampa a ±1 día de hoy UTC (evita gaming de caps con fechas
+   lejanas). Ventana = [date 00:00Z, +24h). Aproximación documentada; suficiente para anti-spam.
+4. **Cableado de hookpoints PARCIAL (conservador).** El helper `fireElectronAward` está cableado
+   en 2 hookpoints representativos: **hidratación** (ejercita el decay) y **check-in** (cap 1/día).
+   Los 8 restantes (sleep/steps wearable, food foto/texto, meditación, supplement, lab, test) son
+   **1 línea fire-and-forget c/u** pero quedan DIFERIDOS para tu review (tocar 8 flujos sensibles
+   a ciegas en run autónomo es riesgoso; **inertes con flag OFF**). NO removí `awardBooleanElectron`
+   legacy (maneja el ring de HOY actual): el award nuevo es ADITIVO al economy, no lo reemplaza.
+5. **Call-sites ARGOS: el mapa del handoff NO existe.** Los 8 archivos `src/services/argos-chat.ts`
+   etc. no existen — el cliente funnelea TODO por `callAnthropic` (anthropic-client.ts). Cableé el
+   call-site real representativo (**sendMessage de argos-chat**, gate antes del update optimista).
+   **El guard REAL es el 402 server-side del proxy** (ya existe); withPreflight es UX que lo
+   pre-empta. Resto de wiring UI diferido a review.
+6. **config.toml no existía** → creé uno mínimo con las 2 Edge Functions (verify_jwt=true). Si hay
+   un config.toml más completo en otro entorno, reconciliar.
+7. **settle-challenge** re-valida el criterio server-side (no confía en cliente) y el caller solo
+   liquida su propia participación; la RPC es idempotente (no re-paga).
+
+## Archivos creados
+```
+supabase/migrations/092_electron_transactions_idempotency.sql
+supabase/functions/award-electrons/index.ts
+supabase/functions/settle-challenge/index.ts
+supabase/functions/_shared/award-rules.ts
+supabase/functions/_shared/challenge-criteria.ts
+supabase/config.toml
+src/services/economy/electron-award-client.ts
+src/services/economy/with-preflight.ts
+src/services/economy/challenge-progress-writer.ts
+src/services/economy/__tests__/{award-rules,electron-award-client,with-preflight,challenge-criteria,challenge-progress-writer}.test.ts
+```
+## Archivos modificados
+```
+src/services/hydration-service.ts   ← fireElectronAward('hydration_tap') (decay)
+app/checkin.tsx                      ← fireElectronAward('checkin_emotional')
+app/argos-chat.tsx                   ← withPreflight('chat') en sendMessage
+```
+
+## Smoke test checklist (tras activar flag + push migraciones + deploy Edge Functions)
+- [ ] `LAB_ECONOMY_ENABLED=true` (economy-config.ts) + env del proxy + deploy award-electrons/settle-challenge.
+- [ ] Tomar agua varias veces → award decreciente (2,2,2,1,…), cap a los 10.
+- [ ] Repetir el mismo tap (misma idempotency_key) → NO doble award.
+- [ ] Check-in emocional → +10 E- una vez/día.
+- [ ] Chat ARGOS con H+ bajo → Alert "Ir a la Tienda" (no llama LLM); con H+ → normal.
+- [ ] Unirse a reto + cumplir criterio → settle-challenge acredita premio una sola vez.
+- [ ] **Con flag OFF (default):** tomar agua / check-in / chat → NO award E-, NO descuento H+,
+      NO Alert. Comportamiento byte-idéntico al actual.
+
+## Para activar (orden)
+1. `npx supabase db push` (incluye 092). 2. Deploy Edge Functions award-electrons + settle-challenge.
+3. `LAB_ECONOMY_ENABLED=true` en economy-config.ts + env del proxy. 4. Cablear los 8 hookpoints
+restantes + call-sites ARGOS restantes (1 línea c/u). 5. Calibrar curva de rank/montos con el doc económico.
+
+---
+
 # COWORK REPORT — Sprint OVERNIGHT: Economía Protones H+ (21-jun)
 
 **Branch:** `feat/economia-protones-h-plus` (desde `main`) · **Estado:** NO merge, NO OTA, **NO push** (Enrique aprueba)
