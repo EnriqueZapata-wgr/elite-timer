@@ -1,0 +1,9 @@
+# Supabase config — MÍNIMO (este repo no tenía config.toml; solo declaramos las Edge
+# Functions de la economía). El resto de secciones usan defaults del CLI. ⚠️ Si existe un
+# config.toml más completo generado en otro entorno, reconciliar. Ver COWORK_REPORT.
+
+[functions.award-electrons]
+verify_jwt = true
+
+[functions.settle-challenge]
+verify_jwt = true
