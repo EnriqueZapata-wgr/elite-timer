@@ -1,3 +1,73 @@
+# COWORK REPORT — Sprint OVERNIGHT: Economía Protones H+ (21-jun)
+
+**Branch:** `feat/economia-protones-h-plus` (desde `main`) · **Estado:** NO merge, NO OTA, **NO push** (Enrique aprueba)
+**tsc:** 0 errores · **tests:** 515 pasan (492 base + 23 nuevos de economía) · **Feature OFF** (`LAB_ECONOMY_ENABLED=false`)
+**Migraciones:** 082–091 (10) idempotentes — **NO ejecutadas**.
+
+## Estado de avance por parte — TODAS las 7 entregadas
+
+| Parte | Items | Estado |
+|---|---|---|
+| 1 | 9 tablas SQL (+RPC 091) | ✅ Completa (10 migraciones; +seguridad, ver flag #1) |
+| 2 | 5 servicios + tests | ✅ Completa (18 tests) |
+| 3 | argos-proxy debit+refund | ✅ Completa (gated OFF → sin cambio de comportamiento) |
+| 4 | UI admin + subpantallas | ✅ admin/convert/history/referrals + logros como "Pronto" |
+| 5 | Tienda H+ Clash Royale | ✅ Completa (mock IAP) |
+| 6 | Header HOY E-/H+/Rank | ✅ Completa (pill self-gated) |
+| 7 | UI Retos | ✅ Completa (3 tabs + join) |
+
+**Commits:** migraciones · servicios · proxy+preflight · UI (componentes+pantallas+header).
+
+## Decisiones autónomas + FLAGS para Enrique
+
+1. **🔒 SEGURIDAD (desviación deliberada vs handoff) — la más importante.** El RLS del handoff
+   (`FOR ALL USING auth.uid()=user_id`) en balances/tx permitiría que el **cliente se auto-acreditara
+   moneda** (exploit de minteo). Lo cambié a **SELECT-only** y TODA mutación pasa por **RPCs
+   SECURITY DEFINER atómicas** (091, no estaba en el handoff). Permisos: débito/convert/join →
+   `authenticated`; **crédito (award/settle) → solo `service_role`**. Consecuencia a resolver antes
+   de activar: el **award de electrones por hábito** hoy es client-trigger → necesita path
+   server-validado (edge fn / trigger / RPC con validación). Sin eso, los hábitos no acreditan E-
+   desde el cliente. **Es el bloqueante #1 para encender la feature.**
+2. **📄 Doc económico AUSENTE.** `Business development/Product Decisions/03_ECONOMIA_PROTONES_H_PLUS.md`
+   NO existe en el repo (ni la carpeta `Business development/`). Usé los números calibrados que el
+   **handoff ya embebe** (1 H+=$0.001, 100 E-=3000 H+, costos IA, paquetes). Faltan del doc y quedaron
+   con placeholder/flag: **curva de rank** (`economy_rank_from_lifetime` / `rank.ts` — fórmula
+   sqrt placeholder), **monto de subscription_bonus**, **REFERRAL_REWARD_PROTONS=100000** (placeholder).
+   Calibrar con el doc cuando aparezca.
+3. **IAP real no incluido** (sprint dedicado, como pide el handoff). `shop-service.mockPurchase`
+   intenta `award_protons` (path del webhook) → desde cliente da error (esperado por anti-minteo).
+   La compra real credita por **webhook server-side**. La UX de tienda/confirmación sí es real.
+4. **Pre-flight de H+ en ARGOS:** helper `preflightAction()` listo (no-op si flag off) + el proxy
+   responde 402. **NO cableé** el pre-flight en cada call-site de ARGOS ni el redirect a tienda
+   (toca flujos UX de ARGOS; mejor con tu review visual). Wiring pendiente.
+5. **Referrals signup/paid + challenge settle** son **server-side** (tocan filas de otro usuario /
+   acreditan premio). Implementados pero deben invocarse desde edge fn/cron. `checkChallengeCriteria`
+   compara progreso guardado vs objetivo, pero **quién escribe el `progress`** (evaluador por tipo de
+   criterio) NO está hecho — flag.
+6. **Refund** agregado al CHECK de `proton_transactions` (el handoff lo usaba sin incluirlo en el enum).
+7. **RLS añadida** a `proton_action_costs` y `proton_packages` (el handoff las omitió; regla #4) como
+   read-público (catálogo no secreto).
+
+## Smoke test checklist (validar en device tras activar flag + push migraciones)
+- [ ] `LAB_ECONOMY_ENABLED=true` → Header HOY muestra pill E-/H+/Rank; tap → /economy/admin.
+- [ ] Admin: RankBadge con barra de progreso + BalanceCard H+ + filas de navegación.
+- [ ] Convertir: stepper + preview en vivo; confirmar baja E- (no rank) y sube H+.
+- [ ] Historial: filtro E-/H+ lista movimientos con signo/color.
+- [ ] Tienda: 3 paquetes (oro/plata/bronce) + "Más Popular" en el medio; confirmación.
+- [ ] Retos: tabs Disponibles/Activos/Historial; unirse cobra H+ y aparece en Activos.
+- [ ] Referidos: código ATPxxxxxx + share nativo.
+- [ ] ARGOS con balance bajo → proxy responde 402 insufficient_protons.
+- [ ] Con flag OFF (default): el HOY y ARGOS se comportan EXACTAMENTE como hoy (sin pill, sin debit).
+
+## Para activar la feature (orden)
+1. `npx supabase db push` (migraciones 082–091).
+2. Resolver el award server-validado de electrones por hábito (flag #1).
+3. Set env `LAB_ECONOMY_ENABLED=true` en el edge function argos-proxy + `LAB_ECONOMY_ENABLED=true` en `economy-config.ts`.
+4. Cablear pre-flight + redirect a tienda en call-sites de ARGOS.
+5. Calibrar curva de rank + montos con el doc económico.
+
+---
+
 # COWORK REPORT — Sprint OVERNIGHT: L3 + TestInputScreen + H7 + N1 (20-jun)
 
 **Branch:** `feat/overnight-l3-testinput-pulidos-20jun` (desde `main` @ 8505867) · **Estado:** push, NO merge, NO OTA
