@@ -28,6 +28,7 @@ import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
+import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { EditDayModal } from '@/src/components/hoy/EditDayModal';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ExpandableSheet } from '@/src/components/ui/ExpandableSheet';
@@ -801,6 +802,8 @@ export default function TodayScreen() {
                   </AnimatedPressable>
                 </View>
               </View>
+              {/* P6: pill E-/H+/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
+              <EconomyHeaderPill />
             </Animated.View>
 
             {/* Saludo */}
