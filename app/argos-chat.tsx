@@ -14,6 +14,7 @@ import {
   loadConversation, type ArgosMessage,
 } from '../src/services/argos-service';
 import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
+import { withPreflight, wasAborted } from '../src/services/economy/with-preflight';
 import { VoiceButton } from '../src/components/VoiceButton';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
@@ -101,6 +102,12 @@ export default function ArgosChat() {
   async function sendMessage(text?: string) {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
+
+    // Economía: pre-flight H+ (no-op + byte-idéntico si LAB_ECONOMY_ENABLED=false). Si no
+    // alcanza, aborta ANTES del update optimista (ofrece ir a la tienda). El proxy igual
+    // responde 402 como guard real server-side.
+    const gate = await withPreflight('chat', async () => true);
+    if (wasAborted(gate)) return;
 
     // Detener si ARGOS estaba hablando
     if (getIsSpeaking()) await stopSpeaking();
