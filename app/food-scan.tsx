@@ -35,6 +35,8 @@ import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/s
 import { FoodReviewEditor, parseAIToReview, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { useAuth } from '@/src/contexts/auth-context';
+import { fireElectronAward } from '@/src/services/economy/electron-award-client';
+import { getLocalToday } from '@/src/utils/date-helpers';
 
 // === CONSTANTES ===
 
@@ -492,6 +494,14 @@ export default function FoodScanScreen() {
         meal_type: mealType, description: description || textInput || 'Sin descripción',
         photo_url: photoUrl, meal_time: now, hunger_level: hungerVal,
       });
+      // Economía (fire-and-forget; no-op si flag OFF). Solo comida CON FOTO (doc: 8 E-, cap 4/día).
+      if (user?.id && photoUrl) {
+        fireElectronAward({
+          habit_type: 'food_photo', evidence_tier: 'evidence', local_date: getLocalToday(),
+          idempotency_key: `food_photo_${user.id}_${getLocalToday()}_${now}`,
+          metadata: { meal_type: mealType },
+        });
+      }
       haptic.light();
       router.back();
     } catch (err: any) {

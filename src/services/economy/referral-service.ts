@@ -10,9 +10,9 @@
 import { supabase } from '@/src/lib/supabase';
 import type { Referral } from './economy-types';
 import { awardProtons } from './proton-service';
+import { REFERRAL_REWARD_PROTONS, REFERRED_BONUS_PROTONS } from './economy-config';
 
-/** Recompensa por referido pagado (placeholder — calibrar con doc económico). */
-export const REFERRAL_REWARD_PROTONS = 100000;
+export { REFERRAL_REWARD_PROTONS } from './economy-config';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin O/0/I/1 ambiguos
 
@@ -73,7 +73,9 @@ export async function markReferralPaid(newUserId: string): Promise<void> {
   if (!data || (data as any).status === 'rewarded') return;
 
   const referrerId = (data as any).referrer_id as string;
+  // Doc: +200,000 H+ al referrer, +50,000 H+ al referido (ambos al pagar 1ra sub).
   await awardProtons(referrerId, REFERRAL_REWARD_PROTONS, 'referral_bonus', undefined, { referred_id: newUserId });
+  await awardProtons(newUserId, REFERRED_BONUS_PROTONS, 'referral_bonus', undefined, { role: 'referred', referrer_id: referrerId });
   await supabase
     .from('referrals')
     .update({ status: 'rewarded', paid_at: new Date().toISOString(), rewarded_at: new Date().toISOString(), reward_protons: REFERRAL_REWARD_PROTONS })

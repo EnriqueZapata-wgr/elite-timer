@@ -173,6 +173,21 @@ async function processLabUpload(supabase: any, uploadId: string): Promise<void> 
       extracted_data: { values: merged.values, other_values: merged.other_values, lab_name: merged.lab_name, lab_date: merged.lab_date },
       ai_raw_response: JSON.stringify(merged).substring(0, 50000),
     }).eq('id', uploadId);
+
+    // Economía: award E- por lab subido (élite, 200). GATED por env — sin setear
+    // LAB_ECONOMY_ENABLED=true el worker se comporta IDÉNTICO. Idempotente por upload_id
+    // (la RPC 092 dedupea). service_role permite el crédito. No rompe el worker si falla.
+    if (Deno.env.get('LAB_ECONOMY_ENABLED') === 'true' && upload.user_id) {
+      try {
+        await supabase.rpc('award_electrons', {
+          p_user_id: upload.user_id,
+          p_amount: 200,
+          p_reason: 'lab_uploaded',
+          p_metadata: { lab_upload_id: uploadId },
+          p_idempotency_key: `lab_uploaded_${upload.user_id}_${uploadId}`,
+        });
+      } catch (e) { console.error('lab_uploaded award failed:', e); }
+    }
   } catch (e: any) {
     try {
       await supabase.from('lab_uploads').update({ status: 'failed', error_message: `Worker error: ${e?.message ?? e}` }).eq('id', uploadId);

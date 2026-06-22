@@ -17,6 +17,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { useTimer } from '@/hooks/use-timer';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
+import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -217,6 +218,12 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
           await awardBooleanElectron(user.id, 'meditation');
           DeviceEventEmitter.emit('electrons_changed');
           DeviceEventEmitter.emit('day_changed');
+          // Economía (fire-and-forget; no-op si flag OFF). Cap 3/día; key por sesión.
+          fireElectronAward({
+            habit_type: 'meditation_in_app', evidence_tier: 'evidence', local_date: getLocalToday(),
+            idempotency_key: `meditation_in_app_${user.id}_${getLocalToday()}_${meditation.id}_${elapsed}`,
+            metadata: { template_id: meditation.id, duration_seconds: elapsed },
+          });
         }
       }
     } catch (e: any) {

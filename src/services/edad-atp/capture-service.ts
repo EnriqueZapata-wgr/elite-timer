@@ -253,5 +253,9 @@ export async function saveFunctionalTests(userId: string, entries: FunctionalTes
     logWarn('[edad-atp capture] saveFunctionalTests failed:', error);
     return { ok: false, error: error.message };
   }
+  // Economía: test_completed NO se cablea aquí. capture-service es importado por ~13 tests
+  // edad-atp; arrastrar electron-award-client (→ react-native) rompía su colección en Vitest.
+  // El award de test_completed se cablea a nivel PANTALLA (deferido, FLAG en COWORK_REPORT);
+  // la infra (regla + Edge Function + cap semanal) ya está lista.
   return { ok: true };
 }

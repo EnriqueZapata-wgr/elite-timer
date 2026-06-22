@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 // Lógica pura compartida con la Edge Function award-electrons.
 import {
-  HABIT_RULES, applyDecay, amountForOccurrence, validateHabit, resolveDayWindow,
+  HABIT_RULES, applyDecay, amountForOccurrence, validateHabit, resolveDayWindow, resolveWindow,
 } from '../../../../supabase/functions/_shared/award-rules';
 
 describe('award-rules — applyDecay (hidratación)', () => {
@@ -56,5 +56,36 @@ describe('award-rules — resolveDayWindow (anti-abuso de caps)', () => {
     const w = resolveDayWindow('2026-06-22', now);
     expect(w.start).toBe('2026-06-22T00:00:00.000Z');
     expect(w.end).toBe('2026-06-23T00:00:00.000Z');
+  });
+});
+
+describe('award-rules — resolveWindow (cap diario vs semanal)', () => {
+  const now = '2026-06-22T15:00:00.000Z';
+  it("'day' = mismo día", () => {
+    const w = resolveWindow('2026-06-22', now, 'day');
+    expect(w.start).toBe('2026-06-22T00:00:00.000Z');
+    expect(w.end).toBe('2026-06-23T00:00:00.000Z');
+  });
+  it("'week' = rolling 7 días terminando hoy", () => {
+    const w = resolveWindow('2026-06-22', now, 'week');
+    expect(w.start).toBe('2026-06-16T00:00:00.000Z'); // 6 días antes
+    expect(w.end).toBe('2026-06-23T00:00:00.000Z');
+  });
+  it('test_completed usa capWindow week (doc: 1/semana)', () => {
+    expect(HABIT_RULES.test_completed.capWindow).toBe('week');
+  });
+});
+
+describe('award-rules — amounts vs doc económico', () => {
+  it('montos calibrados coinciden con el doc', () => {
+    expect(HABIT_RULES.sleep_wearable.amount).toBe(30);
+    expect(HABIT_RULES.steps_wearable.amount).toBe(20);
+    expect(HABIT_RULES.cardio_hr_wearable.amount).toBe(25);
+    expect(HABIT_RULES.meditation_in_app.amount).toBe(15);
+    expect(HABIT_RULES.food_photo.amount).toBe(8);
+    expect(HABIT_RULES.checkin_emotional.amount).toBe(10);
+    expect(HABIT_RULES.hydration_tap.amount).toBe(2);
+    expect(HABIT_RULES.lab_uploaded.amount).toBe(200);
+    expect(HABIT_RULES.test_completed.amount).toBe(100);
   });
 });

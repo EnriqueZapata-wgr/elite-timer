@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
 import { getLocalToday } from '../src/utils/date-helpers';
+import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 
@@ -122,6 +123,13 @@ export default function SupplementsScreen() {
         date: today,
         taken: true,
       }, { onConflict: 'user_id,supplement_id,date' });
+      // Economía (fire-and-forget; no-op si flag OFF). Key por suplemento/día → idempotente
+      // (re-toggle no re-acredita). Cap 8/día, decay (doc: self-report bajo).
+      fireElectronAward({
+        habit_type: 'supplement_check', evidence_tier: 'self', local_date: today,
+        idempotency_key: `supplement_check_${userId}_${today}_${supplementId}`,
+        metadata: { supplement_id: supplementId },
+      });
     }
     DeviceEventEmitter.emit('electrons_changed');
   }

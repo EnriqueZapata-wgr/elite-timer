@@ -3,13 +3,18 @@
 
 export type EvidenceTier = "wearable" | "evidence" | "self" | "elite";
 
+export type CapWindow = "day" | "week";
+
 export interface HabitRule {
   requiredEvidence: EvidenceTier;
   amount: number;
   dailyCap: number;
   decay: boolean;
+  /** Ventana del cap. Default 'day'. test_completed='week' (doc: 1/semana max). */
+  capWindow?: CapWindow;
 }
 
+// Calibrado vs R and D/03_ECONOMIA_PROTONES_H_PLUS.md (tabla "Generación por hábitos").
 export const HABIT_RULES: Record<string, HabitRule> = {
   sleep_wearable:     { requiredEvidence: "wearable", amount: 30,  dailyCap: 1,  decay: false },
   steps_wearable:     { requiredEvidence: "wearable", amount: 20,  dailyCap: 1,  decay: false },
@@ -21,7 +26,7 @@ export const HABIT_RULES: Record<string, HabitRule> = {
   hydration_tap:      { requiredEvidence: "self",     amount: 2,   dailyCap: 10, decay: true  },
   supplement_check:   { requiredEvidence: "self",     amount: 3,   dailyCap: 8,  decay: true  },
   lab_uploaded:       { requiredEvidence: "elite",    amount: 200, dailyCap: 5,  decay: false },
-  test_completed:     { requiredEvidence: "elite",    amount: 100, dailyCap: 1,  decay: false },
+  test_completed:     { requiredEvidence: "elite",    amount: 100, dailyCap: 1,  decay: false, capWindow: "week" },
 };
 
 /** Curva decreciente: 1er = base, baja con cada repetición, mínimo 1. */
@@ -65,4 +70,16 @@ export function resolveDayWindow(localDate: string | undefined, nowIso: string):
   const start = `${date}T00:00:00.000Z`;
   const end = new Date(Date.parse(start) + 86_400_000).toISOString();
   return { start, end, date };
+}
+
+/**
+ * Ventana para contar el cap según `capWindow`. 'day' = el día calendario; 'week' = rolling
+ * 7 días terminando hoy (anti-farm para hábitos élite tipo test_completed: 1/semana).
+ */
+export function resolveWindow(localDate: string | undefined, nowIso: string, capWindow: CapWindow = "day"): { start: string; end: string; date: string } {
+  const day = resolveDayWindow(localDate, nowIso);
+  if (capWindow === "day") return day;
+  // week: 7 días rolling que terminan al final del día actual.
+  const start = new Date(Date.parse(day.start) - 6 * 86_400_000).toISOString();
+  return { start, end: day.end, date: day.date };
 }

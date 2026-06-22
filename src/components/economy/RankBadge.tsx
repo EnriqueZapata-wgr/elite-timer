@@ -5,7 +5,7 @@
 import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
-import { rankProgress } from '@/src/services/economy/rank';
+import { rankProgress, rankTierLabel } from '@/src/services/economy/rank';
 import { formatFull } from '@/src/services/economy/format';
 import { ATP_BRAND, PILLAR_GRADIENTS, TEXT, ELEVATION } from '@/src/constants/brand';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
@@ -19,13 +19,14 @@ interface Props {
 export function RankBadge({ lifetimeElectrons, rankLabel }: Props) {
   const { rank, nextRank, floor, ceil, progress } = rankProgress(lifetimeElectrons);
   const pct = Math.round(progress * 100);
+  const label = rankLabel ?? rankTierLabel(rank).toUpperCase(); // insignia del doc por defecto
 
   return (
     <GradientCard gradient={PILLAR_GRADIENTS.fitness} accentColor={ATP_BRAND.lime} accentPosition="top">
       <EliteText variant="caption" style={styles.label}>⚡ TU RANK</EliteText>
       <View style={styles.rankRow}>
         <EliteText style={styles.rankNum}>{rank}</EliteText>
-        {rankLabel ? <EliteText style={styles.rankLabel}>{rankLabel}</EliteText> : null}
+        <EliteText style={styles.rankLabel}>{label}</EliteText>
       </View>
 
       {rank < 99 ? (
