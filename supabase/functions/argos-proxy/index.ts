@@ -263,6 +263,22 @@ serve(async (req) => {
   const startTime = Date.now();
   let body: any = {};
 
+  // ─── Economía H+ (gated). OFF por default (LAB_ECONOMY_ENABLED no seteado) → el proxy se
+  // comporta EXACTAMENTE igual que antes. Enrique activa con la env var tras validar. ───
+  const ECONOMY_ON = Deno.env.get("LAB_ECONOMY_ENABLED") === "true";
+  let economyCost = 0;
+  let economyDebited = false;
+  async function refundEconomy(uid?: string) {
+    if (!economyDebited || !uid || economyCost <= 0) return;
+    economyDebited = false; // idempotente: solo reembolsa una vez
+    try {
+      await supabase.rpc("award_protons", {
+        p_user_id: uid, p_amount: economyCost, p_type: "refund",
+        p_action_key: null, p_metadata: { reason: "llm_failed" },
+      });
+    } catch (e) { console.error("economy refund failed:", e); }
+  }
+
   try {
     body = await req.json();
 
@@ -329,6 +345,36 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ─── Economía H+: descontar ANTES del LLM (atomicidad). Gated por ECONOMY_ON. ───
+    // Sin H+ suficientes → 402, NO llamamos al LLM (el cliente hace pre-flight y guía a la
+    // tienda). Si el LLM falla luego, refundEconomy() reembolsa. Costo desde la tabla.
+    if (ECONOMY_ON && userId) {
+      const { data: costRow } = await supabase
+        .from("proton_action_costs").select("cost_h_plus, enabled")
+        .eq("action_key", requestType || "chat").maybeSingle();
+      economyCost = costRow && costRow.enabled !== false ? Number(costRow.cost_h_plus) : 0;
+      if (economyCost > 0) {
+        const { data: debit } = await supabase.rpc("spend_protons", {
+          p_user_id: userId, p_amount: economyCost,
+          p_action_key: requestType || "chat", p_metadata: null,
+        });
+        if (!debit || debit.success !== true) {
+          await logArgosCall(supabase, {
+            user_id: userId, tier, provider: "anthropic", model: finalModel,
+            request_type: requestType, latency_ms: Date.now() - startTime, success: false,
+            error_message: "insufficient_protons",
+            target_user_id: targetUserId ?? null, target_profile_id: targetProfileId ?? null,
+          });
+          return new Response(JSON.stringify({
+            error: { type: "insufficient_protons", message: "No tienes suficientes H+ para esta acción" },
+            h_plus_required: economyCost,
+            h_plus_current: debit?.new_balance ?? 0,
+          }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        economyDebited = true;
+      }
+    }
+
     // Detectar si el request incluye PDFs. Para PDFs grandes evitamos el
     // fallback Gemini porque (a) Gemini no soporta type:"document" tipo Anthropic
     // y (b) consume tiempo del Edge Function (60s cap) que Anthropic puede usar.
@@ -383,6 +429,7 @@ serve(async (req) => {
         target_user_id: targetUserId ?? null,
         target_profile_id: targetProfileId ?? null,
       });
+      await refundEconomy(userId); // LLM falló → devolver H+
       return new Response(JSON.stringify({
         error: { type: "anthropic_pdf_error", message: anthropicErr || "anthropic_timeout" },
       }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -455,6 +502,7 @@ serve(async (req) => {
     }
 
     // 3) Respuesta degradada (status 200 — el cliente lee _degraded)
+    await refundEconomy(userId); // ambos proveedores fallaron → devolver H+
     return new Response(JSON.stringify({
       content: [{
         type: "text",
@@ -478,6 +526,7 @@ serve(async (req) => {
       target_user_id: body.targetUserId ?? null,
       target_profile_id: body.targetProfileId ?? null,
     });
+    await refundEconomy(body.userId); // excepción → devolver H+ si se debitó
     return new Response(JSON.stringify({ error: error?.message || String(error) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
