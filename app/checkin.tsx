@@ -16,6 +16,8 @@ import {
 import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
+import { fireElectronAward } from '@/src/services/economy/electron-award-client';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -91,6 +93,11 @@ export default function CheckinScreen() {
           await awardBooleanElectron(user.id, 'checkin');
           DeviceEventEmitter.emit('electrons_changed');
           DeviceEventEmitter.emit('day_changed');
+          // Economía (fire-and-forget; no-op si flag OFF). Cap 1/día → key por día.
+          fireElectronAward({
+            habit_type: 'checkin_emotional', evidence_tier: 'evidence', local_date: getLocalToday(),
+            idempotency_key: `checkin_emotional_${user.id}_${getLocalToday()}`,
+          });
         }
       } catch (e) { logWarn('[checkin] award electron failed', e); }
 
