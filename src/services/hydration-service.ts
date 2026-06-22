@@ -5,6 +5,7 @@
 import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
+import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 
 const DEFAULT_WATER_GOAL_ML = 2500;
 
@@ -110,6 +111,15 @@ export async function addWater(userId: string, deltaMl: number): Promise<number 
     // y cualquier pantalla suscrita se actualizan al instante, sin pull-to-refresh).
     DeviceEventEmitter.emit('day_changed');
     DeviceEventEmitter.emit('electrons_changed');
+    // Economía (fire-and-forget; no-op si LAB_ECONOMY_ENABLED=false). Solo al AÑADIR agua.
+    // El server calcula el decay por # de taps del día; la key es única por tap (entries.length).
+    if (actualDelta > 0) {
+      fireElectronAward({
+        habit_type: 'hydration_tap', evidence_tier: 'self', local_date: date,
+        idempotency_key: `hydration_tap_${userId}_${date}_${entries.length}`,
+        metadata: { ml: actualDelta },
+      });
+    }
     return newTotal;
   } catch {
     return null;
