@@ -29,6 +29,7 @@ import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/elec
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
+import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { EditDayModal } from '@/src/components/hoy/EditDayModal';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ExpandableSheet } from '@/src/components/ui/ExpandableSheet';
@@ -654,6 +655,13 @@ export default function TodayScreen() {
         await supabase.from('supplement_logs').upsert({
           user_id: user.id, supplement_id: supplementId, date: today, taken: true,
         }, { onConflict: 'user_id,supplement_id,date' });
+        // Economía (fire-and-forget; no-op si flag OFF). Misma key que la pantalla Suplementos
+        // → idempotente entre ambos paths (no doble award).
+        fireElectronAward({
+          habit_type: 'supplement_check', evidence_tier: 'self', local_date: today,
+          idempotency_key: `supplement_check_${user.id}_${today}_${supplementId}`,
+          metadata: { supplement_id: supplementId, source: 'hoy_quicktoggle' },
+        });
       }
 
       // Sync boolean electron 'supplements' con estado agregado.

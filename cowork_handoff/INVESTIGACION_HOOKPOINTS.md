@@ -7,9 +7,9 @@ FASE A (sin tocar código). Mapa para cablear en FASE B. Números validados vs
 
 | habit_type | evidence | Path | Línea | Función / mutación | idempotency_key | Status |
 |---|---|---|---|---|---|---|
-| sleep_wearable | wearable | `src/services/wearable-service.ts` | 71 | `saveWearableToSupabase` (cuando `data.sleep`) | `sleep_wearable_{uid}_{date}` | NUEVO |
-| steps_wearable | wearable | `src/services/wearable-service.ts` | 71 | `saveWearableToSupabase` (cuando `data.steps`) | `steps_wearable_{uid}_{date}` | NUEVO |
-| cardio_hr_wearable | wearable | — | — | **NO HAY hookpoint claro** (WearableData no expone cardio; log-cardio no escribe tabla detectable) | — | ⚠️ FLAG no-cableable |
+| sleep_wearable | wearable | `src/services/wearable-service.ts` | 71 | `saveWearableToSupabase` está **DESACTIVADO** (stub, native packages removidos) | — | ⚠️ FLAG no-cableable |
+| steps_wearable | wearable | `src/services/wearable-service.ts` | 71 | idem — wearable service desactivado | — | ⚠️ FLAG no-cableable |
+| cardio_hr_wearable | wearable | — | — | sin ingestión cardio + wearable service desactivado | — | ⚠️ FLAG no-cableable |
 | meditation_in_app | evidence | `app/meditation.tsx` | 202 | `handleComplete` (insert `mind_sessions`) | `meditation_in_app_{uid}_{date}_{ts}` | NUEVO |
 | food_photo | evidence | `app/food-register.tsx` | 78 | insert `food_logs` con `photo_url` | `food_photo_{uid}_{date}_{logId}` | NUEVO |
 | food_text | evidence | `app/food-text.tsx` | 253 | insert `food_logs` solo texto | `food_text_{uid}_{date}_{logId}` | NUEVO |

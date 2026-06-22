@@ -5,6 +5,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { insertCanonicalBiomarkers, insertLabValuesFromRaw } from './lab-values-service';
 
 export type SaveResult = { ok: boolean; error?: string };
@@ -253,5 +254,12 @@ export async function saveFunctionalTests(userId: string, entries: FunctionalTes
     logWarn('[edad-atp capture] saveFunctionalTests failed:', error);
     return { ok: false, error: error.message };
   }
+  // Economía (fire-and-forget; no-op si flag OFF). test_completed = élite. Key por día →
+  // cap diario del server (1) limita; ventana semanal exacta = follow-up (ver INVESTIGACION).
+  fireElectronAward({
+    habit_type: 'test_completed', evidence_tier: 'elite', local_date: getLocalToday(),
+    idempotency_key: `test_completed_${userId}_${getLocalToday()}`,
+    metadata: { test_keys: entries.map((e) => e.test_key) },
+  });
   return { ok: true };
 }
