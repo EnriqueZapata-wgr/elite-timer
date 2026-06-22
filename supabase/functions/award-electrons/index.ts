@@ -9,7 +9,7 @@
 // `requiredEvidence` EXPLÍCITO (sin ambigüedad). Ver COWORK_REPORT (flag).
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { validateHabit, amountForOccurrence, resolveDayWindow } from "../_shared/award-rules.ts";
+import { validateHabit, amountForOccurrence, resolveWindow } from "../_shared/award-rules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,8 +57,8 @@ serve(async (req) => {
       return json({ success: true, electrons_awarded: 0, idempotent: true, new_balance: balanceNowQ.data?.current_electrons ?? 0, new_rank: balanceNowQ.data?.current_rank ?? 1 });
     }
 
-    // 4. Cap diario + occurrence index (para decay).
-    const win = resolveDayWindow(body.local_date, new Date().toISOString());
+    // 4. Cap (día o semana según la regla) + occurrence index (para decay).
+    const win = resolveWindow(body.local_date, new Date().toISOString(), rule.capWindow ?? "day");
     const { count } = await admin
       .from("electron_transactions")
       .select("id", { count: "exact", head: true })
