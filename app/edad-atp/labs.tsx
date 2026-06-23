@@ -11,7 +11,7 @@ import { View, ScrollView, StyleSheet, Pressable, useWindowDimensions } from 're
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
-import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { GlobalTopBar } from '@/src/components/ui/GlobalTopBar';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
@@ -21,6 +21,7 @@ import { loadUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import { findMatrizParam, findMatrizDomain } from '@/src/constants/edad-atp-matriz-lookup';
 import { CANONICAL_PCT_KEYS, decimalToPct } from '@/src/constants/lab-canonical-map';
+import { isClinicalOnlyParam } from '@/src/constants/lab-clinical-ranges';
 import { score9Bands } from '@/src/services/edad-atp/sf-9band-service';
 import { EDAD_STATUS, EDAD_PENDING_COLOR } from '@/src/components/edad-atp/tokens';
 import { LabInfoPopup } from '@/src/components/edad-atp/LabInfoPopup';
@@ -41,6 +42,7 @@ type Row = {
   color: string;
   domain_name: string;
   domain_key: string;
+  clinical_only: boolean;
 };
 
 type SortMode = 'panel' | 'fecha' | 'estado';
@@ -101,6 +103,7 @@ export default function AtpLabsScreen() {
           color: statusColor(sx, key, cv.value),
           domain_name: dom?.domain_name_es ?? 'Otros',
           domain_key: dom?.domain_key ?? 'otros',
+          clinical_only: isClinicalOnlyParam(key),
         };
       });
       setSex(sx);
@@ -127,8 +130,8 @@ export default function AtpLabsScreen() {
   const grouped = groupForRender(sorted, sort);
 
   return (
-    <Screen>
-      <PillarHeader pillar="metrics" title="Labs" />
+    <Screen edges={[]}>
+      <GlobalTopBar title="ATP Labs" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.subtitle}>
           Tus laboratorios — el último valor de cada parámetro. Mantén apretado para saber qué es.
@@ -168,6 +171,11 @@ export default function AtpLabsScreen() {
                       <EliteText variant="caption" style={styles.rowMeta}>
                         {SOURCE_LABEL[r.source]} · {r.measured_at}{r.is_stale ? ' · ⚠ >1 año' : ''}
                       </EliteText>
+                      {r.clinical_only ? (
+                        <EliteText variant="caption" style={styles.clinicalNote}>
+                          Rango clínico (pendiente rango funcional)
+                        </EliteText>
+                      ) : null}
                     </View>
                     <EliteText style={[styles.rowValue, { color: r.is_stale ? EDAD_PENDING_COLOR : r.color }]}>
                       {r.displayValue}{r.unit ? ` ${r.unit}` : ''}
@@ -247,6 +255,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, padding: Spacing.md },
   rowName: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   rowMeta: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 1 },
+  clinicalNote: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 1, fontStyle: 'italic' },
   rowValue: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   chartBox: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
 });

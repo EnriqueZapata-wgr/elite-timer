@@ -268,13 +268,18 @@ serve(async (req) => {
   const ECONOMY_ON = Deno.env.get("LAB_ECONOMY_ENABLED") === "true";
   let economyCost = 0;
   let economyDebited = false;
+  let economyIdemKey: string | null = null; // idempotency_key del gasto, para trazar el refund
   async function refundEconomy(uid?: string) {
     if (!economyDebited || !uid || economyCost <= 0) return;
-    economyDebited = false; // idempotente: solo reembolsa una vez
+    economyDebited = false; // idempotente: solo reembolsa una vez por instancia de request
     try {
       await supabase.rpc("award_protons", {
         p_user_id: uid, p_amount: economyCost, p_type: "refund",
-        p_action_key: null, p_metadata: { reason: "llm_failed" },
+        p_action_key: null,
+        // La key del gasto viaja en metadata (no en la columna idempotency_key) → el refund
+        // queda ligado a su cobro sin chocar con el UNIQUE index del gasto. La atomicidad del
+        // refund la garantiza el flag economyDebited (un solo refund por request).
+        p_metadata: { reason: "llm_failed", idempotency_key: economyIdemKey },
       });
     } catch (e) { console.error("economy refund failed:", e); }
   }
@@ -314,7 +319,7 @@ serve(async (req) => {
       }
     }
 
-    const { messages, max_tokens, model, system, userId, tier, requestType, targetUserId, targetProfileId } = body;
+    const { messages, max_tokens, model, system, userId, tier, requestType, targetUserId, targetProfileId, idempotency_key } = body;
     const finalModel = model || PRIMARY_MODEL_DEFAULT;
     const finalMaxTokens = max_tokens || 4000;
 
@@ -354,10 +359,22 @@ serve(async (req) => {
         .eq("action_key", requestType || "chat").maybeSingle();
       economyCost = costRow && costRow.enabled !== false ? Number(costRow.cost_h_plus) : 0;
       if (economyCost > 0) {
+        // Idempotencia (094): si el cliente manda idempotency_key, dos requests con la misma key
+        // (doble tap / retry / re-render) cobran UNA sola vez — spend_protons v2 es atómico vía
+        // UNIQUE index. Bw compat: sin key, cobra como antes (apps viejas) y logueamos el warning
+        // para medir la adopción del fix.
+        economyIdemKey = typeof idempotency_key === "string" && idempotency_key ? idempotency_key : null;
+        if (!economyIdemKey) {
+          console.warn("[economy] spend sin idempotency_key (app vieja?) action=", requestType || "chat", "user=", userId);
+        }
         const { data: debit } = await supabase.rpc("spend_protons", {
           p_user_id: userId, p_amount: economyCost,
-          p_action_key: requestType || "chat", p_metadata: null,
+          p_action_key: requestType || "chat",
+          p_metadata: economyIdemKey ? { idempotency_key: economyIdemKey } : null,
         });
+        if (debit?.idempotent) {
+          console.log("[economy] idempotent retry — sin doble cobro", economyIdemKey);
+        }
         if (!debit || debit.success !== true) {
           await logArgosCall(supabase, {
             user_id: userId, tier, provider: "anthropic", model: finalModel,
@@ -371,7 +388,10 @@ serve(async (req) => {
             h_plus_current: debit?.new_balance ?? 0,
           }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
-        economyDebited = true;
+        // Solo este request "es dueño" del cobro si REALMENTE debitó. En un retry idempotente
+        // el cobro pertenece al request original → NO marcamos economyDebited aquí, así este
+        // request no dispara un refund que acreditaría el cobro legítimo del otro.
+        economyDebited = !debit.idempotent;
       }
     }
 

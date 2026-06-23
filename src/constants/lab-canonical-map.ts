@@ -169,6 +169,56 @@ export const LAB_COLUMN_TO_CANONICAL: Record<string, { keys: string[]; convertPc
   // Metabólico extendido:
   fructosamine: { keys: ['fructosamine'] },
   c_peptide: { keys: ['c_peptide'] },
+
+  // --- Lote 2B (sprint 094): catálogo extendido clinical_only (marcadores tumorales,
+  // autoinmunes, cardio, fertilidad, paratiroides, endocrino, virales, renal, otros).
+  // Clave inglesa (parser) → parameter_key canónico (español cuando aplica). graph-only.
+  // NOTA: `tibc` e `ige_total` NO se agregan aquí — son el MISMO biomarcador que iron_binding
+  // e ige ya existentes; se resuelven vía EXTRACTED_KEY_ALIASES para no duplicar (ver abajo).
+  // Marcadores tumorales:
+  psa: { keys: ['antigeno_prostatico_especifico'] },
+  ca_125: { keys: ['ca_125'] },
+  ca_19_9: { keys: ['ca_19_9'] },
+  ca_15_3: { keys: ['ca_15_3'] },
+  cea: { keys: ['cea'] },
+  afp: { keys: ['alfa_fetoproteina'] },
+  // Autoinmunes:
+  ana: { keys: ['anticuerpos_antinucleares'] },
+  anti_dna: { keys: ['anti_dna'] },
+  anti_ccp: { keys: ['anti_ccp'] },
+  // Cardio biomarcadores:
+  troponin_i: { keys: ['troponina_i'] },
+  troponin_t: { keys: ['troponina_t'] },
+  bnp: { keys: ['bnp'] },
+  nt_pro_bnp: { keys: ['nt_pro_bnp'] },
+  ck_mb: { keys: ['ck_mb'] },
+  // Fertilidad:
+  amh: { keys: ['hormona_antimulleriana'] },
+  inhibin_b: { keys: ['inhibina_b'] },
+  beta_hcg: { keys: ['beta_hcg'] },
+  // Paratiroides:
+  pth: { keys: ['parathormona'] },
+  calcitonin: { keys: ['calcitonina'] },
+  vitamin_d_125: { keys: ['vitamina_d_125_activa'] },
+  // Endocrino:
+  acth: { keys: ['acth'] },
+  aldosterone: { keys: ['aldosterona'] },
+  renin_activity: { keys: ['renina'] },
+  growth_hormone: { keys: ['hormona_crecimiento_gh'] },
+  // Virales / hepatitis:
+  anti_hbs: { keys: ['anti_hbs'] },
+  hbsag: { keys: ['hbsag'] },
+  anti_hcv: { keys: ['anti_hcv'] },
+  hiv: { keys: ['hiv'] },
+  // Renal:
+  microalbumin: { keys: ['microalbuminuria'] },
+  cystatin_c: { keys: ['cistatina_c'] },
+  // Otros:
+  d_dimer: { keys: ['dimero_d'] },
+  procalcitonin: { keys: ['procalcitonina'] },
+  ammonia: { keys: ['amonio'] },
+  lactate: { keys: ['lactato'] },
+  reticulocyte_pct: { keys: ['reticulocitos_pct'] },
 };
 
 /**
@@ -189,6 +239,33 @@ export const EXTRACTED_KEY_ALIASES: Record<string, string> = {
   linfocitos_pct: 'lymphocyte_pct',
   lymphocytes_pct: 'lymphocyte_pct',
   free_testosterone: 'testosterone_free',
+  // --- Lote 2B (sprint 094): el parser a veces emite el nombre español → normalizar a la
+  // columna inglesa de LAB_COLUMN_TO_CANONICAL. (Los que ya son ingleses, ca_125/cea/etc., no
+  // necesitan alias.)
+  antigeno_prostatico_especifico: 'psa',
+  alfa_fetoproteina: 'afp',
+  anticuerpos_antinucleares: 'ana',
+  troponina_i: 'troponin_i',
+  troponina_t: 'troponin_t',
+  hormona_antimulleriana: 'amh',
+  inhibina_b: 'inhibin_b',
+  parathormona: 'pth',
+  calcitonina: 'calcitonin',
+  vitamina_d_125_activa: 'vitamin_d_125',
+  aldosterona: 'aldosterone',
+  renina: 'renin_activity',
+  hormona_crecimiento_gh: 'growth_hormone',
+  microalbuminuria: 'microalbumin',
+  cistatina_c: 'cystatin_c',
+  dimero_d: 'd_dimer',
+  procalcitonina: 'procalcitonin',
+  amonio: 'ammonia',
+  lactato: 'lactate',
+  reticulocitos_pct: 'reticulocyte_pct',
+  // Conflictos resueltos (mismo biomarcador que uno existente → NO duplicar canónico):
+  tibc: 'iron_binding',
+  capacidad_total_fijacion_hierro: 'iron_binding',
+  ige_total: 'ige',
 };
 
 /** Resuelve una key cruda (de extracted_data) a su english column canónica, si la hay. */
