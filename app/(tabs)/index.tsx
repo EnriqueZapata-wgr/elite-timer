@@ -49,6 +49,7 @@ import { speakArgos } from '@/src/services/argos-voice';
 // VoiceButton removido del HOY (decisión 21-jun). handleQuickVoice + modal de respuesta quedan
 // como código muerto hasta el sprint de cleanup HOY profundo.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HoyDayCard } from '@/src/components/economy/HoyDayCard';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
@@ -835,20 +836,10 @@ export default function TodayScreen() {
               </Animated.View>
             )}
 
-            {/* Score ring + electrones */}
-            <Animated.View entering={FadeInUp.delay(120).springify()} style={s.heroScoreWrap}>
-              <View style={s.heroScoreRow}>
-                <AnimatedScoreRing score={pct} size={120} strokeWidth={3} label="ELECTRONES" />
-                <View style={s.heroScoreInfo}>
-                  <Text style={[s.heroElectronNum, { color: elColor }]}>
-                    {day.electronProgress.earned.toFixed(1)} ⚡
-                  </Text>
-                  <Text style={s.heroElectronSlash}>
-                    de {day.electronProgress.possible.toFixed(1)}
-                  </Text>
-                  <Text style={[s.heroScoreLabel, { color: elColor }]}>{elLabel}</Text>
-                </View>
-              </View>
+            {/* TU DÍA — card unificada (decisión Enrique 22-jun): reemplaza el círculo
+                viejo + "X de Y BAJA CARGA" por una sola UI con E- ganados hoy + barra. */}
+            <Animated.View entering={FadeInUp.delay(120).springify()}>
+              <HoyDayCard percentage={pct} />
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
