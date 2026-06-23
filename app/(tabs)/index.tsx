@@ -46,7 +46,8 @@ import { getCurrentStreak } from '@/src/services/adherence-service';
 import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { speakArgos } from '@/src/services/argos-voice';
-import { VoiceButton } from '@/src/components/VoiceButton';
+// VoiceButton removido del HOY (decisión 21-jun). handleQuickVoice + modal de respuesta quedan
+// como código muerto hasta el sprint de cleanup HOY profundo.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
@@ -1558,22 +1559,7 @@ export default function TodayScreen() {
           </View>
         ) : null}
 
-        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-          {/* Mic button */}
-          <VoiceButton onTranscript={handleQuickVoice} variant="fab" />
-          {/* Chat button */}
-          <Pressable
-            onPress={() => { haptic.medium(); router.push('/argos-chat'); }}
-            style={{
-              width: 48, height: 48, borderRadius: 24,
-              backgroundColor: 'rgba(168,224,42,0.15)',
-              justifyContent: 'center', alignItems: 'center',
-              borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
-            }}
-          >
-            <Ionicons name="chatbubble-outline" size={22} color="#a8e02a" />
-          </Pressable>
-        </View>
+        {/* N1: ARGOS vive en el menú inferior, no como FAB. Mic FAB removido. */}
       </View>
     </View>
   );

@@ -30,8 +30,8 @@ export default function TabLayout() {
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const [forceAthleteView, setForceAthleteView] = useState(false);
-  // N3: la burbuja de feedback solo en DEV o para admins (no en build de producción).
-  const showFeedback = __DEV__ || isAdmin(user?.id);
+  // N3: la burbuja de feedback solo en DEV (no en build de producción ni para admins).
+  const showFeedback = __DEV__;
 
   const showCoachPanel = width >= COACH_PANEL_MIN_WIDTH && isCoach && !forceAthleteView;
 
@@ -101,6 +101,16 @@ export default function TabLayout() {
             title: 'Mi ATP',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="grid-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        {/* N1: ARGOS como 4to tab (antes era FAB flotante). */}
+        <Tabs.Screen
+          name="argos"
+          options={{
+            title: 'ARGOS',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? 'eye' : 'eye-outline'} size={24} color={color} />
             ),
           }}
         />
