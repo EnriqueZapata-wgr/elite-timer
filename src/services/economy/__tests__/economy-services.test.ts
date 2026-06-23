@@ -30,12 +30,12 @@ beforeEach(() => { rpcMock.mockReset(); fromMock.mockReset(); });
 describe('proton-service — spendProtons', () => {
   it('éxito → success + newBalance', async () => {
     rpcMock.mockResolvedValue({ data: { success: true, new_balance: 100 }, error: null });
-    const r = await spendProtons('u1', 2800, 'chat');
+    const r = await spendProtons('u1', 280, 'chat');
     expect(r).toEqual({ success: true, newBalance: 100, error: undefined });
   });
   it('insuficiente → success false', async () => {
     rpcMock.mockResolvedValue({ data: { success: false, new_balance: 5, error: 'insufficient_protons' }, error: null });
-    const r = await spendProtons('u1', 2800, 'chat');
+    const r = await spendProtons('u1', 280, 'chat');
     expect(r.success).toBe(false);
     expect(r.error).toBe('insufficient_protons');
   });
@@ -44,9 +44,9 @@ describe('proton-service — spendProtons', () => {
 describe('proton-service — awardProtons (refund)', () => {
   it('llama award_protons con el tipo', async () => {
     rpcMock.mockResolvedValue({ data: null, error: null });
-    const r = await awardProtons('u1', 2800, 'refund', 'chat', { reason: 'llm_failed' });
+    const r = await awardProtons('u1', 280, 'refund', 'chat', { reason: 'llm_failed' });
     expect(r.success).toBe(true);
-    expect(rpcMock).toHaveBeenCalledWith('award_protons', expect.objectContaining({ p_type: 'refund', p_amount: 2800 }));
+    expect(rpcMock).toHaveBeenCalledWith('award_protons', expect.objectContaining({ p_type: 'refund', p_amount: 280 }));
   });
 });
 
@@ -57,21 +57,21 @@ describe('proton-service — getActionCost', () => {
   });
   it('cae al fallback del seed si no hay fila', async () => {
     fromMock.mockReturnValue(chain({ data: null, error: { message: 'x' } }));
-    expect(await getActionCost('chat')).toBe(2800);
+    expect(await getActionCost('chat')).toBe(280);
   });
 });
 
 describe('converter — preview + convert', () => {
   it('previewProtons base y con multiplier', () => {
-    expect(previewProtons(100)).toBe(3000);
-    expect(previewProtons(100, 2)).toBe(6000);
-    expect(previewProtons(300)).toBe(9000);
+    expect(previewProtons(100)).toBe(300);
+    expect(previewProtons(100, 2)).toBe(600);
+    expect(previewProtons(300)).toBe(900);
   });
   it('convert dispara RPC con electrones', async () => {
-    rpcMock.mockResolvedValue({ data: { success: true, protons_gained: 3000, multiplier: 1 }, error: null });
+    rpcMock.mockResolvedValue({ data: { success: true, protons_gained: 300, multiplier: 1 }, error: null });
     const r = await convertElectronsToProtons('u1', 100);
     expect(r.success).toBe(true);
-    expect(r.protonsGained).toBe(3000);
+    expect(r.protonsGained).toBe(300);
     expect(rpcMock).toHaveBeenCalledWith('convert_electrons_to_protons', { p_user_id: 'u1', p_electrons: 100 });
   });
 });

@@ -45,7 +45,7 @@ export default function EconomyAdminScreen() {
   }, [load]));
 
   const navItems: NavItem[] = [
-    { icon: 'swap-horizontal', label: 'Convertir E- → H+', sublabel: 'Tasa actual 100 → 3,000', route: '/economy/convert' },
+    { icon: 'swap-horizontal', label: 'Convertir E- → H+', sublabel: 'Tasa actual 100 → 300', route: '/economy/convert' },
     { icon: 'receipt-outline', label: 'Historial de movimientos', sublabel: 'E- y H+', route: '/economy/history' },
     { icon: 'flag-outline', label: 'Mis Retos', sublabel: 'Browse + activos', route: '/economy/challenges' },
     { icon: 'people-outline', label: 'Referidos', sublabel: 'Tu código + tracking', route: '/economy/referrals' },

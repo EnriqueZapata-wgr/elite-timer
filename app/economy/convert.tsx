@@ -66,7 +66,7 @@ export default function ConvertScreen() {
         <View style={styles.orbWrap}><ProtonOrb size={64} /></View>
 
         <EliteText variant="caption" style={styles.muted}>
-          Tienes {formatFull(available)} E- · tasa 100 E- = {formatFull(3000 * multiplier)} H+
+          Tienes {formatFull(available)} E- · tasa 100 E- = {formatFull(300 * multiplier)} H+
           {multiplier > 1 ? `  (reto ×${multiplier})` : ''}
         </EliteText>
 

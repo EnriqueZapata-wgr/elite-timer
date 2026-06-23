@@ -70,7 +70,7 @@ describe('E2E — Flujo 2: chat con H+ insuficiente', () => {
   it('flag ON + balance bajo → Alert con opción tienda, aborta', async () => {
     flagOn = true;
     // Mismo objeto sirve a getActionCost (cost_h_plus) y getProtonBalance (current_protons).
-    sb.single = { data: { cost_h_plus: 2800, enabled: true, current_protons: 100, lifetime_earned: 0, lifetime_spent: 0 } };
+    sb.single = { data: { cost_h_plus: 280, enabled: true, current_protons: 50, lifetime_earned: 0, lifetime_spent: 0 } };
     alert.mockImplementation((_t: string, _m: string, btns: any[]) => btns[1].onPress()); // "Ir a la Tienda"
     const proceed = vi.fn();
     const r = await withPreflight('chat', proceed);
@@ -81,9 +81,9 @@ describe('E2E — Flujo 2: chat con H+ insuficiente', () => {
 });
 
 describe('E2E — Flujo 3: conversión con campaña activa (×2)', () => {
-  it('100 E- con multiplier 2 → 6,000 H+ (no 3,000)', () => {
-    expect(previewProtons(100, 1)).toBe(3000);
-    expect(previewProtons(100, 2)).toBe(6000);
+  it('100 E- con multiplier 2 → 600 H+ (no 300)', () => {
+    expect(previewProtons(100, 1)).toBe(300);
+    expect(previewProtons(100, 2)).toBe(600);
   });
 });
 
