@@ -5,7 +5,7 @@
  * el header HOY no muestra E-/H+, el proxy NO descuenta H+, y las pantallas /economy/*
  * quedan accesibles solo para QA pero sin gatear acciones. Enrique lo activa tras validar.
  */
-export const LAB_ECONOMY_ENABLED = false;
+export const LAB_ECONOMY_ENABLED = true;
 
 /** Conversión base: 100 E- = 3,000 H+ (30 H+/E-), ajustada por multiplier de reto en server. */
 export const BASE_CONVERSION = { electrons: 100, protons: 3000 } as const;
