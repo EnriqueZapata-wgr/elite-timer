@@ -239,6 +239,9 @@ export const EXTRACTED_KEY_ALIASES: Record<string, string> = {
   linfocitos_pct: 'lymphocyte_pct',
   lymphocytes_pct: 'lymphocyte_pct',
   free_testosterone: 'testosterone_free',
+  // #labs-desmadre (23-jun): el parser/captura emite `total_cholesterol` pero la columna del map
+  // es `cholesterol_total` → sin este alias quedaba como key huérfana (duplicado con colesterol_total).
+  total_cholesterol: 'cholesterol_total',
   // --- Lote 2B (sprint 094): el parser a veces emite el nombre español → normalizar a la
   // columna inglesa de LAB_COLUMN_TO_CANONICAL. (Los que ya son ingleses, ca_125/cea/etc., no
   // necesitan alias.)
@@ -271,6 +274,25 @@ export const EXTRACTED_KEY_ALIASES: Record<string, string> = {
 /** Resuelve una key cruda (de extracted_data) a su english column canónica, si la hay. */
 export function normalizeExtractedKey(rawKey: string): string {
   return EXTRACTED_KEY_ALIASES[rawKey] ?? rawKey;
+}
+
+/**
+ * Colapsa un `parameter_key` (de lab_values) a su forma canónica español cuando es una columna
+ * inglesa de un solo destino. Resuelve el "desmadre" de duplicados en/es (#labs-desmadre): el
+ * parser/captura a veces persistió la key inglesa cruda (`testosterone`) en vez de la canónica
+ * (`testosterona_total`), creando DOS filas para el mismo biomarcador.
+ *
+ * Derivado de LAB_COLUMN_TO_CANONICAL: SOLO colapsa columnas inglesas con UNA clave destino
+ * distinta de la columna. Excluye a propósito:
+ *  - multi-key (ast/ggt escriben 2 filas) → no se sabe a cuál colapsar sin tocar el motor v2,
+ *  - self-map (albumin/mcv/calcium/t4_free/estradiol… ya son canónicas inglesas) → se dejan.
+ * Idempotente: una key ya canónica (o desconocida) se devuelve sin cambios.
+ */
+export function canonicalParameterKey(parameterKey: string): string {
+  const col = normalizeExtractedKey(parameterKey);
+  const m = LAB_COLUMN_TO_CANONICAL[col];
+  if (m && m.keys.length === 1 && m.keys[0] !== col) return m.keys[0];
+  return parameterKey;
 }
 
 /**

@@ -527,3 +527,85 @@ Cero cambios de código en Parte 4 (opción más conservadora). No hay pantallas
 - [ ] **Enrique:** smoke device — doble-tap rápido en send → 1 solo cobro H+
 - [ ] **Enrique:** aprobar GlobalTopBar en labs → rollout por tandas (D1)
 - [ ] **Enrique:** decidir cherry-pick p5b (TestQuestionScreen + HC) (H1)
+
+---
+---
+
+# SPRINT OVERNIGHT — ATP LABS Desmadre (23-jun-2026)
+
+**Branch:** `feat/labs-desmadre-fix`. **NO merge, NO OTA.**
+**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **585/585 (81 archivos)**, 0 regresiones (11 tests nuevos).
+
+## Decisión bloqueante D0 — base de branch
+El handoff dice "branch desde `main` con todo lo del 4partes ya mergeado", pero `origin/main` **NO**
+contiene el sprint 4partes (quedó pusheado sin merge). Branquear desde `main` puro habría generado
+historias divergentes de `lab-canonical-map.ts` (4partes ya lo extendió) → conflictos garantizados +
+inventario inconsistente. **Decisión conservadora:** branquear desde `feat/overnight-4partes-22jun`
+(el "main+4partes" de facto). Stack para Enrique: `main → 4partes → labs-desmadre`.
+
+## Nota — WIP ajeno en el working tree
+`app/economy/admin.tsx` traía una modificación sin commitear de Enrique ("Mi Economía" → "Mi
+Progreso", 23-jun). NO es de esta tarea → se dejó intacta y los commits fueron selectivos (no se
+incluyó admin.tsx).
+
+## Tabla 5/5 fases
+
+| Fase | Estado | Notas |
+|---|---|---|
+| 0 — Inventario | ✅ | `cowork_handoff/INVENTARIO_LABS.md` desde queries reales (MCP, read-only) |
+| 1 — Aliases/canonical | ✅ | helper `canonicalParameterKey` + alias `total_cholesterol` (gap real detectado por test) |
+| 2 — Dedup display | ✅ | `collapseLanguageDuplicates` (display-only, no toca motor) en `labs.tsx` |
+| 3 — Migración 095 | ✅ | colisión-segura, `is_voided`, validada con BEGIN/ROLLBACK contra DB real |
+| 4 — Forward fix | ✅ | `insertCanonicalBiomarkers` ahora canonicaliza la key (causa raíz) |
+| 5 — Tests + report | ✅ | 11 tests nuevos + esta sección |
+
+## Diagnóstico (FASE 0) — lo importante
+- Los 73 `parameter_key` de `lab_values` están todos reconocibles: **NO hay basura** ("Levocartine
+  fatum", "h41", etc. del screenshot NO existen en la tabla; void defensivo en 095, 0 matches).
+- **14 pares en/es** conviven (raw inglés con unidad + canónico español con `unit=null`). El path PDF
+  (`insertLabValuesFromRaw`→`toCanonicalEntries`) sí canonicaliza; el de **captura manual**
+  (`insertCanonicalBiomarkers`) **NO** → causa raíz de las filas raw inglés.
+- **Valor absurdo confirmado:** `testosterona_total` 9–9.93 (ng/mL etiquetado ng/dL) → ×100.
+- **FLAG AST/GGT:** el canonical-map escribe cada uno a 2 claves → duplicado en UI. NO se auto-colapsa
+  (ambas podrían alimentar el motor v2; regla #4). Decisión de matriz para Enrique.
+- Query 3 (heurística difusa por valor-cercano) = **solo falsos positivos** → descartada.
+
+## Arquitectura del fix (por qué así)
+1. **`canonicalParameterKey`** (lab-canonical-map.ts): derivado del map — colapsa SOLO columnas
+   inglesas de 1 destino (`testosterone`→`testosterona_total`); excluye automáticamente multi-key
+   (ast/ggt) y self-maps (albumin/calcium/t4_free…). Una fuente, sin lista que mantener.
+2. **FASE 2 = ya existía** (`dedupeLatestByKey` dedupea por key). El fix real es colapsar en/es:
+   `collapseLanguageDuplicates` se aplica **solo en display** (labs.tsx), DESPUÉS de
+   `loadCanonicalLabValues`, para NO alterar lo que ve el motor v2 (regla #4).
+3. **FASE 4 = forward fix**: el worker NO inserta en `lab_values` (solo `extracted_data`); el insert
+   real es cliente. Se reforzó `insertCanonicalBiomarkers` para canonicalizar la key → la captura
+   manual ya no crea raw inglés.
+4. **Migración 095**: `is_voided` (reversible) en vez de DELETE; merge colisión-seguro (void de la
+   fila inglesa que choca con el UNIQUE + rename del resto); `metadata` jsonb para trazar el ×100.
+   Validada con `BEGIN…ROLLBACK` contra la DB real (merge OK: testosterona 5→9, glucosa 16→18, hdl
+   14→16; sin violación de constraint).
+
+## Decisiones autónomas
+- **D1** — Rango/merge ABSOLUTO: `testosterona_total < 50 → ×100` (heurística ng/mL→ng/dL). Reconcilia
+  9.93→993 con el `testosterone` 994 mergeado. Anotado en `metadata`.
+- **D2** — `calcium` NO se mapea a `calcio` (el handoff lo pedía): en el canonical-map `calcium` ES la
+  clave canónica (`keys:['calcium']`) → mapearlo rompería. Se respeta el map.
+- **D3** — AST/GGT doble-key: FLAG, no auto-fix (riesgo motor v2).
+- **D4** — leucocitos mixtos / b12 6000 / testo libre 0.022: FLAG, no auto-fix (ver INVENTARIO §5).
+- **D5** — Migración 095 validada con ROLLBACK (no persiste) para no entregar SQL roto; respeta "NO ejecutar".
+
+## Archivos
+**Nuevos:** `cowork_handoff/INVENTARIO_LABS.md`, `supabase/migrations/095_lab_values_cleanup.sql`,
+`src/constants/__tests__/lab-canonical-aliases.test.ts`, `src/services/edad-atp/__tests__/lab-values-dedup.test.ts`.
+**Modificados:** `src/constants/lab-canonical-map.ts` (canonicalParameterKey + alias total_cholesterol),
+`src/services/edad-atp/lab-values-service.ts` (collapseLanguageDuplicates + insertCanonicalBiomarkers),
+`app/edad-atp/labs.tsx` (aplica collapse).
+
+## Checklist de cierre
+- [x] `npx tsc --noEmit` → 0 errores
+- [x] `npx vitest run` → 585/585 (11 nuevos: 6 aliases + 5 dedup)
+- [x] Migración 095 validada con BEGIN/ROLLBACK (no persistida)
+- [ ] **Enrique:** `npx supabase db push` (095 — añade columna metadata, merge en/es, ×100 testo)
+- [ ] **Enrique:** OTA preview (`eas update --branch preview`) para el dedup de display
+- [ ] **Enrique:** smoke device — ATP LABS sin duplicados en/es ni testosterona 9.93
+- [ ] **Enrique:** decidir clave única AST/GGT (FLAG matriz)

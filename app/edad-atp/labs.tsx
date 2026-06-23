@@ -16,7 +16,7 @@ import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { loadCanonicalLabValues, getParameterSeries, type CanonicalValue, type LabValueSource } from '@/src/services/edad-atp/lab-values-service';
+import { loadCanonicalLabValues, collapseLanguageDuplicates, getParameterSeries, type CanonicalValue, type LabValueSource } from '@/src/services/edad-atp/lab-values-service';
 import { loadUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import { findMatrizParam, findMatrizDomain } from '@/src/constants/edad-atp-matriz-lookup';
@@ -86,7 +86,9 @@ export default function AtpLabsScreen() {
       setLoading(true);
       const data = await loadUserData(user.id);
       const sx: Sex = data.sex;
-      const canon = await loadCanonicalLabValues(user.id);
+      // #labs-desmadre: colapsar duplicados por idioma SOLO para display (no afecta al motor v2,
+      // que lee por su propio bridge). Funde `testosterone` en `testosterona_total`, etc.
+      const canon = collapseLanguageDuplicates(await loadCanonicalLabValues(user.id));
       if (!alive) return;
       const built: Row[] = Object.entries(canon).map(([key, cv]: [string, CanonicalValue]) => {
         const meta = getLabParamMeta(key);
