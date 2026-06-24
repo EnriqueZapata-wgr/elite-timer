@@ -650,3 +650,69 @@ es follow-up).
 - [ ] **Enrique:** cleanup visual del HOY (remover secciones viejas que las cards reemplazan)
 - [ ] **Enrique:** YO redesign (Parte 2) con feedback visual
 - [ ] **Enrique:** masked-view + build para tab icons (Parte 4)
+
+---
+---
+
+# SPRINT OVERNIGHT — Asset Swap Imágenes B/N (24-jun-2026)
+
+**Branch:** `feat/asset-swap-imagenes-24jun` (desde `main`, que ya tiene los 5 sprints anteriores mergeados — base correcta). **NO merge, NO OTA.**
+**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **634/634 (87 archivos)**, 0 regresiones (11 tests nuevos).
+
+## ⚠️ DECISIÓN CRÍTICA — las 73 imágenes (411MB) NO se commitearon
+Las imágenes existen localmente en las carpetas correctas (`assets/images/{agenda,electrons,hoy-extra,
+yo,pillars}/`) pero pesan **411MB en total** (agenda 239MB, yo 77MB, electrons 46MB, hoy-extra 42MB,
+pillars 8.7MB — PNGs full-res de Midjourney, ~5MB c/u). **Commitearlas = bloat PERMANENTE de 411MB en
+la historia de git**, y el handoff dice explícitamente que Enrique las **comprimirá** (Squoosh →
+~500KB) post-sprint → commitear las crudas ahora generaría doble bloat permanente.
+
+**Decisión:** se commitea SOLO el código (el wiring de `require()`, que es el deliverable del sprint).
+Las imágenes quedan en el working tree local de Enrique (untracked) → su smoke/build LOCAL funciona.
+**ACCIÓN ENRIQUE (antes del merge):** comprimir las 73 imágenes (Squoosh) y commitearlas a los MISMOS
+paths/nombres (verificados 1:1 contra el código). Si se mergea SIN las imágenes comprometidas, Metro
+rompe (require de archivo inexistente). Los paths del código coinciden EXACTAMENTE con los nombres
+locales (verificado folder por folder).
+
+## Regla crítica resuelta — `require('.png')` y vitest
+`require('@/assets/...png')` lo empaqueta Metro en runtime, pero **rompe el resolver de node/vitest**
+(`MODULE_NOT_FOUND`) y no respeta el alias `@`. Por eso:
+- Los `require()` de assets viven SOLO en módulos de componente/picker (`HoyEditorialSection`,
+  `image-rotation`, `agenda-image-picker`, `yo-image-picker`) que NINGÚN test importa.
+- **NO** se pusieron en `hoy-cards.ts` (Parte 1 del handoff los pedía ahí) porque ese archivo lo
+  importan 2 tests (registry + visibility-service) → habría roto vitest. Los 8 requires de electrones
+  se movieron a un mapa en `HoyEditorialSection`. Mismo resultado visual, registry test-safe.
+- La lógica PURA (hashing determinístico, mapeo de categoría, género/cronotipo) se extrajo a
+  `src/utils/image-pick-core.ts` (SIN assets) → 100% testeable. **11 tests.**
+
+## Tabla 6 partes
+
+| Parte | Estado | Notas |
+|---|---|---|
+| 1 — Electrons (8) | ✅ | imageBn en `HoyEditorialSection` (ELECTRON_IMAGES), no en hoy-cards (test-safe) |
+| 2 — HOY extra (7) + cardio rotación | ✅ | data cards estáticas + `pickCardioImage` (seed determinístico) |
+| 3 — MI ATP pillars (2) | ✅ | `kit.tsx` con imageBn historia-clinica + habitos |
+| 4 — Hero Agenda rotación (42) | ✅ | `agenda-image-picker.ts` + `categoryToFolder` + seed por evento+día |
+| 5 — YO sex-aware (el/ella) | ✅ helpers | `yo-image-picker.ts` listo (proactivo); wiring de YO sigue DIFERIDO (task #9) |
+| 6 — Cronotipo sex-aware lookup | ✅ | `pickCronotipoImage` + `cronotipoKey` (acepta inglés del modelo: lion/bear/wolf/dolphin → ES) |
+
+## Determinismo (regla seed)
+`seededIndex(seedKey, length)` = hash de charCodes % length. Misma `seedKey` (ej. `${userId}-${eventId}-${today}`)
+→ misma imagen toda la sesión del día (no "salta" en re-renders). Mañana cambia. Sin seed → índice 0 estable.
+
+## Mejora sobre el handoff (cronotipo)
+El `pickCronotipoImage` del handoff hacía `chronotype.toLowerCase()` asumiendo input ya en español. Pero
+el modelo usa inglés (`lion`/`bear`/`wolf`/`dolphin`, ver `CHRONO_META` en yo.tsx). `cronotipoKey` mapea
+ambos idiomas → clave ES (leon/lobo/oso/delfin), con fallback `leon`. Testeado.
+
+## Archivos
+**Nuevos:** `src/utils/image-pick-core.ts` (puro), `src/utils/image-rotation.ts` (cardio), `src/utils/agenda-image-picker.ts` (42 agenda), `src/utils/yo-image-picker.ts` (sex-aware + cronotipo), `src/utils/__tests__/image-pick-core.test.ts`.
+**Modificados:** `src/components/hoy/HoyEditorialSection.tsx` (imageBn data/electron/cardio/hero), `app/(tabs)/kit.tsx` (imageBn pillars), `app/(tabs)/index.tsx` (seedKey).
+**NO commiteadas:** las 73 imágenes (411MB) — Enrique las comprime + commitea (ver decisión crítica arriba).
+
+## Checklist de cierre
+- [x] `npx tsc --noEmit` → 0 errores
+- [x] `npx vitest run` → 634/634 (11 nuevos)
+- [x] Paths de require verificados 1:1 contra los archivos locales (electrons 8, hoy-extra 7, pillars 2, yo 14, agenda 42)
+- [ ] **Enrique (BLOQUEANTE para merge):** comprimir 73 imágenes (Squoosh ~500KB) + commitearlas a los mismos paths
+- [ ] **Enrique:** smoke device — cards con foto B/N; cardio/hero rotan determinístico por día
+- [ ] **Enrique:** wiring de YO (task #9) usará los helpers de `yo-image-picker.ts` ya listos
