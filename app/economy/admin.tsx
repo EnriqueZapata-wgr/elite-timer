@@ -1,5 +1,6 @@
 /**
- * MI ECONOMÍA — pantalla admin de balance (E- + H+ + rank + accesos).
+ * MI PROGRESO — pantalla central de balance + rank + logros (E- + H+ + accesos).
+ * Nombre antes "Mi Economía" — renombrado 23-jun por Enrique (incluye logros, no solo dinero).
  * Lee balances reales; refresca en 'balance_changed'. Entrada escalonada FadeInDown.
  * Las secciones aún no construidas se muestran como "Próximamente" (nav honesta).
  */
@@ -55,7 +56,7 @@ export default function EconomyAdminScreen() {
 
   return (
     <Screen edges={[]}>
-      <ScreenHeader title="Mi Economía" onBack={() => router.back()} />
+      <ScreenHeader title="Mi Progreso" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.delay(40).springify()}>
           <RankBadge lifetimeElectrons={electrons?.lifetime_electrons ?? 0} />

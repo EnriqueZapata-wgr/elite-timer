@@ -25,9 +25,13 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, type VerifiedElectronKey } from '@/src/services/day-compiler';
+import { SplashLoader } from '@/src/components/SplashLoader';
+import { countUnreadNotifications } from '@/src/services/hoy/notifications-service';
+import { HoyEditorialSection } from '@/src/components/hoy/HoyEditorialSection';
+import { getCardsVisible } from '@/src/services/hoy/visibility-service';
+import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
-import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { EditDayModal } from '@/src/components/hoy/EditDayModal';
@@ -164,6 +168,13 @@ export default function TodayScreen() {
   // --- Estado único ---
   const [day, setDay] = useState<CompiledDay | null>(null);
   const [loading, setLoading] = useState(true);
+  // Progreso real del compile (alimenta SplashLoader 0-100% en vez del spinner indeterminado).
+  const [progress, setProgress] = useState(0);
+  const [progressLabel, setProgressLabel] = useState('Iniciando…');
+  // #hoy-redesign Parte 6: conteo de notificaciones para el badge de la campana.
+  const [notifCount, setNotifCount] = useState(0);
+  // #tabs-redesign V1.3: visibilidad de las cards editoriales (default: todas).
+  const [cardsVisible, setCardsVisible] = useState<Set<string>>(new Set(HOY_CARD_ORDER_DEFAULT));
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [dailyInsight, setDailyInsight] = useState<string>('');
@@ -207,7 +218,7 @@ export default function TodayScreen() {
   const loadDay = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const compiled = await compileDay(user.id);
+      const compiled = await compileDay(user.id, (pct, label) => { setProgress(pct); setProgressLabel(label); });
       if (compiled) setDay(compiled);
     } catch (e) {
       console.warn('Error compiling day:', e);
@@ -286,7 +297,19 @@ export default function TodayScreen() {
   // toggle de electrón en config, edición de wake_time.
   useFocusEffect(useCallback(() => {
     if (isTogglingRef.current === 0) loadDay();
-  }, [loadDay]));
+    // #hoy-redesign Parte 6: refrescar el badge de notificaciones al enfocar HOY.
+    if (user?.id) countUnreadNotifications(user.id).then(setNotifCount).catch(() => setNotifCount(0));
+    // #tabs-redesign V1.3: refrescar visibilidad de cards al enfocar.
+    if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
+  }, [loadDay, user?.id]));
+
+  // #tabs-redesign V1.3: re-cargar visibilidad cuando se togglea en /protocol-config.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('hoy_visibility_changed', () => {
+      if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [user?.id]);
 
   // --- Tour de onboarding ---
   useEffect(() => {
@@ -746,32 +769,28 @@ export default function TodayScreen() {
 
   // ═══ RENDER ═══
 
+  // Carga unificada: misma identidad visual que el splash nativo + barra de progreso REAL
+  // (0-100% alimentada por compileDay). Reemplaza el spinner indeterminado "Compilando tu día…".
   if (loading && !day) {
     return (
-      <View style={s.loadingWrap}>
+      <>
         <StatusBar style="light" />
-        <ActivityIndicator size="large" color="#a8e02a" />
-        <Text style={s.loadingText}>Compilando tu día...</Text>
-      </View>
+        <SplashLoader progress={progress} label={progressLabel} />
+      </>
     );
   }
 
   if (!day) {
-    // HOY-10: agregar botón Reintentar para que la pantalla no quede muerta
-    // cuando la primera carga falla (típicamente fallo de red).
+    // HOY-10: primera carga falló (típicamente red) → SplashLoader en modo error con Reintentar.
     return (
-      <View style={s.loadingWrap}>
+      <>
         <StatusBar style="light" />
-        <Text style={s.loadingText}>No se pudo cargar tu día.</Text>
-        <Pressable
-          onPress={() => { haptic.medium(); setLoading(true); loadDay(); }}
-          style={s.retryBtn}
-          hitSlop={8}
-        >
-          <Ionicons name="refresh-outline" size={18} color="#000" />
-          <Text style={s.retryBtnText}>Reintentar</Text>
-        </Pressable>
-      </View>
+        <SplashLoader
+          progress={progress}
+          error="No se pudo cargar tu día."
+          onRetry={() => { haptic.medium(); setProgress(0); setLoading(true); loadDay(); }}
+        />
+      </>
     );
   }
 
@@ -795,19 +814,17 @@ export default function TodayScreen() {
               <View style={s.topBar}>
                 <View style={s.topBarLeft}>
                   <Text style={s.brandLabel}>ATP DAILY</Text>
-                  <ElectronBadge />
-                  {/* Chip "🔥 racha" eliminado 2026-06-19 (decisión Enrique) — el header
-                      ya dice "ATP DAILY" y el chip rompía jerarquía. Si volvemos a
-                      mostrar streak, mejor reservarlo para un módulo dedicado. */}
+                  {/* #hoy-redesign Parte 1: ElectronBadge viejo retirado del header (HoyDayCard ya
+                      muestra los E- del día). El engrane se movió al botón del final del scroll. */}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <AnimatedPressable onPress={() => { haptic.light(); router.push('/protocol-config' as any); }} style={s.topBarIcon}>
-                    <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
-                  </AnimatedPressable>
+                  {/* #hoy-redesign Parte 6: campana con badge de conteo real (notifications-service). */}
                   <AnimatedPressable onPress={() => { haptic.light(); setShowNotifications(true); }} style={s.topBarIcon}>
                     <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
-                    {dailyInsight ? (
-                      <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#a8e02a' }} />
+                    {notifCount > 0 ? (
+                      <View style={s.notifBadge}>
+                        <Text style={s.notifBadgeText}>{notifCount > 99 ? '99+' : notifCount}</Text>
+                      </View>
                     ) : null}
                   </AnimatedPressable>
                 </View>
@@ -843,6 +860,12 @@ export default function TodayScreen() {
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
+
+        {/* #tabs-redesign V1.3 Parte 1: tira de cards editoriales (aditiva, gated por visibility).
+            El cleanup de las secciones viejas queda para auditoría visual (ver COWORK_REPORT). */}
+        <View style={{ paddingHorizontal: Spacing.md, marginTop: Spacing.md }}>
+          <HoyEditorialSection day={day} uvMini={uvMini} cardsVisible={cardsVisible} />
+        </View>
 
         {/* Insight ARGOS movido a notificaciones (campana) */}
 
@@ -1610,6 +1633,12 @@ const s = StyleSheet.create({
   topBarIcon: {
     padding: Spacing.xs,
   },
+  // #hoy-redesign Parte 6: badge de conteo en la campana.
+  notifBadge: {
+    position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#fb7185', paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center',
+  },
+  notifBadgeText: { color: '#fff', fontSize: 9, fontFamily: Fonts.bold },
   brandLabel: {
     color: 'rgba(255,255,255,0.6)', // acento moderado: brand label neutral, no compite con el héroe lima
     letterSpacing: 3,

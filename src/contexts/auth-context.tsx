@@ -108,7 +108,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    // Deep link mobile: el email de reset abre la app en `atp://reset-password` (antes caía al
+    // Site URL default de Supabase → localhost:3000, roto en device). Enrique ya registró
+    // `atp://reset-password` y `atp://**` en Redirect URLs del dashboard.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'atp://reset-password',
+    });
     if (error) return { error: translateError(error.message) };
     return { error: null };
   }, []);

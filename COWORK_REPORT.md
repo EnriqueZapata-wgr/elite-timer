@@ -434,178 +434,219 @@ después de 5). Cada parte está en un commit incremental.
 ---
 ---
 
-# SPRINT OVERNIGHT — 4 PARTES (22-jun-2026)
+# SPRINT OVERNIGHT — AUTH Mini-Sprint (23-jun-2026)
 
-**Branch:** `feat/overnight-4partes-22jun` (desde `main`). **NO merge, NO OTA** — Enrique audita + smoke en device.
-**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **574/574 tests pasan (79 archivos)**, 0 regresiones.
+**Branch:** `feat/auth-minisprint-23jun` (desde `main`). **NO merge, NO OTA.**
+**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **560/560 (77 archivos)**, 0 regresiones (7 tests nuevos).
+
+## Nota de base (D0)
+El handoff dice "base main después del merge de labs-desmadre/4partes que Enrique hizo hoy", pero
+`origin/main` AÚN no tiene esos sprints mergeados. **A diferencia del sprint anterior, este es
+independiente**: toca login/register/forgot/auth-context/day-compiler/brand/(tabs)/index/_layout,
+SIN overlap con los archivos de labs. Por eso se branqueó desde `main` (como pide la instrucción):
+da una branch que mergea limpio e independiente. `app/economy/admin.tsx` traía un WIP de Enrique
+("Mi Economía"→"Mi Progreso") — se dejó intacto; commits selectivos.
 
 ## Tabla 4/4 partes
 
-| # | Parte | Estado | Notas |
-|---|-------|--------|-------|
-| 1 | GlobalTopBar persistente (#75) | Componente + tests + integración de referencia (labs) | Rollout masivo a ~50 pantallas DIFERIDO a auditoría (decisión D1) |
-| 2 | Idempotency doble cobro ARGOS (#71) | COMPLETO | Migración 094 atómica + proxy + cliente + guard doble-tap + 5 tests |
-| 3 | ATP LABS catálogo extendido (#50) | COMPLETO | +68 rangos, flag clinical_only, +33 canonical, +70 display labels ES, 13 tests |
-| 4 | TESTS/cuestionarios (#51) | Auditado/documentado | Sin refactors riesgosos overnight (hallazgos H1-H4) |
-
----
-
-## PARTE 2 — Idempotency doble cobro ARGOS (#71) — COMPLETO
-
-**Bug:** 22-jun 8:16pm, 1 mensaje a ARGOS cobró 2x (280 H+ x2 = 560 H+) con 42ms de diferencia.
-
-**Solución (defensa en profundidad, race-safe):**
-1. **`supabase/migrations/094_proton_transactions_idempotency.sql`** — réplica EXACTA del patrón atómico de la 092 (electrones) para el GASTO de protones:
-   - Columna `idempotency_key TEXT` + `UNIQUE INDEX` parcial en `proton_transactions`.
-   - `spend_protons` v2: la INSERCIÓN de la tx es la compuerta atómica (`ON CONFLICT DO NOTHING`); el balance solo se debita si la tx se insertó. Misma firma (la key viaja en `p_metadata`) → `CREATE OR REPLACE` preserva permisos.
-   - Retry idempotente devuelve `{ success:true, idempotent:true }` SIN re-debitar (chequeo ANTES del insufficient-check, para no leer un retry como "fondos insuficientes").
-2. **`argos-proxy/index.ts`** — lee `idempotency_key` del body, lo pasa en `p_metadata` a `spend_protons` y al refund. En retry idempotente NO marca `economyDebited` (evita que este request refund-ee el cobro legítimo del otro). Warning a log si llega sin key (medir adopción). **Bw compat:** la RPC vieja ignora el campo `idempotent` → comportamiento idéntico al actual.
-3. **Cliente** — `getArgosCallMetadata` genera `idempotencyKey` (uuid v4) por defecto y la hila a `callAnthropic` → body `idempotency_key`. **Generalizable:** TODOS los call-sites (chat, food_*, supplement_scan, lab_interpretation, insight, weekly_insight, etc.) que pasan `meta` obtienen idempotencia server-side automáticamente.
-4. **Chat doble-tap** — `argos-chat.tsx`: guard de re-entrancy con `useRef` (SÍNCRONO, atrapa el doble-tap antes de que `loading`/state actualice) + una idempotency_key por turno hilada a `chatWithArgosEx`.
-
-**Helper UUID canónico nuevo:** `src/utils/uuid.ts` (regla #2: nunca `crypto.randomUUID` directo). Antes estaba duplicado en routine-service / protocol-builder-service (se dejaron intactos — conservador; el nuevo código usa el canónico).
-
-**PENDIENTE Enrique:** la migración 094 NO se ejecutó (regla #6). Tras auditar: `npx supabase db push`. El proxy tampoco se redeployó (NO deploy). Hasta entonces el cliente ya manda la key (inerte sin la RPC v2; el guard de doble-tap SÍ protege desde ya).
-
----
-
-## PARTE 3 — ATP LABS catálogo extendido (#50) — COMPLETO
-
-**Archivos:** `lab-clinical-ranges.ts` (+68 rangos, tipo `LabAbsoluteRange` con `clinical_only`, helper `isClinicalOnlyParam`), `lab-canonical-map.ts` (+33 entradas Lote 2B + 23 aliases), `component-meta.ts` (+70 display labels ES), `app/edad-atp/labs.tsx` (sublabel "Rango clínico (pendiente rango funcional)").
-
-**Hallazgo:** casi todo el Lote 2A YA existía en el canonical-map (audit L2 19-jun). El trabajo real fue: el flag `clinical_only`, los rangos clínicos, el Lote 2B nuevo (marcadores tumorales/autoinmunes/cardio/fertilidad/etc.) y los display labels.
-
-### Decisiones autónomas (conservadoras)
-
-- **D2 — Rango ABSOLUTO != banda funcional de matriz (Lote 1).** El spec pedía calcular el rango de `anti_tpo`/`anti_tg`/`progesterone` desde las bandas de la matriz V7/V6. PERO `LAB_ABSOLUTE_RANGES` es un filtro de PLAUSIBILIDAD clínica (descartar basura del parser), no la banda óptima. Usar la banda de matriz (anti-TPO óptimo 0-35) como filtro absoluto **descartaría valores reales** de Hashimoto (100-1000+). Decisión: rango absoluto AMPLIO (anti_tpo/anti_tg 0-5000, progesterone 0-60), `clinical_only:false` (SÍ tienen curva funcional, que aplica el motor de Edad ATP aparte). Test cubre `isLabValueValid('anti_tpo', 500) === true`.
-- **D3 — calcium/phosphorus/neutrophils_pct/total_protein NO están en la matriz.** El spec los listaba en Lote 1 (con matriz), pero la matriz solo tiene el PRODUCTO `calcio*fosforo`, no los individuales. Decisión: `clinical_only:true` con rango de plausibilidad clínica estándar.
-- **D4 — Conflictos tibc/ige_total.** `tibc` = mismo biomarcador que `iron_binding` existente (canónico `capacidad_de_fijacion_de_hierro`, que SÍ está en matriz); `ige_total` = mismo que `ige` existente. Decisión: NO duplicar en canonical-map — aliasados vía `EXTRACTED_KEY_ALIASES` (`tibc`→`iron_binding`, `capacidad_total_fijacion_hierro`→`iron_binding`, `ige_total`→`ige`). Se conservan sus rangos (inocuos). Test lo verifica.
-- **D5 — t4_free y platelets** ya existían en rangos → solo se les agregó `clinical_only:true` (mismos valores). Sin duplicar.
-
-### Fix 3.A (título doble ATP LABS)
-No se reprodujo un título duplicado literal: `labs.tsx` usaba un solo `PillarHeader title="Labs"`; "ATP Labs" es la card de navegación del hub `edad-atp/index.tsx`, no un header duplicado. Se resolvió de forma definitiva al integrar GlobalTopBar en labs (un solo header "ATP Labs"). El duplicado por unidades (3.B) no se reprodujo con los datos actuales (el agrupamiento por `parameter_key` ya es único) → FLAG a validar con datos reales en device.
-
----
-
-## PARTE 1 — GlobalTopBar persistente (#75) — Componente + integración de referencia
-
-**Entregado:** `src/components/ui/GlobalTopBar.tsx` (+ `global-topbar-utils.ts` con `isHomePath` puro testeable + 3 tests). Tokens canónicos (BG/BORDER/TEXT), `EconomyHeaderPill` self-gated, `AnimatedPressable`, haptic, safe-area. Campana en HOY (`onBellPress`), casita (`router.replace('/')`) en el resto; back independiente del home. Integrado como referencia en `app/edad-atp/labs.tsx` (swap limpio de PillarHeader; `<Screen edges={[]}>` para no duplicar safe-area).
-
-### D1 — Rollout masivo DIFERIDO (decisión conservadora, "NO frankenstein")
-El spec pedía aplicarlo a ~50 pantallas heterogéneas (ScreenHeader, PillarHeader con color de pilar, headers inline, y los HEROES a medida de las tabs HOY/Yo/Mi ATP). Aplicar 50 swaps sin verificación visual overnight es el riesgo de frankenstein que el handoff pide evitar. Además:
-- Las tabs (index/yo/kit) tienen heroes bespoke + ya renderizan la pill → meterles GlobalTopBar encima crea doble-header; necesita decisión de diseño.
-- PillarHeader aporta color de identidad de pilar que GlobalTopBar elimina (cambio de Design System a validar).
-
-**Recomendación:** Enrique aprueba el componente en labs (device), y luego rollout por tandas (stack screens con PillarHeader primero: biomarkers, cycle, checkin, food-scan, supplements, health-hub, edad-atp/*, economy/*, tests/*; tabs al final con diseño revisado). Cada swap: `<Screen edges={[]}>` + reemplazar el header existente por `<GlobalTopBar title=... />`.
-
----
-
-## PARTE 4 — TESTS/cuestionarios (#51) — Auditado (sin refactors riesgosos)
-
-### Hallazgos
-- **H1 — `TestQuestionScreen` NO existe en `main`.** El motor reusable + los 5 cuestionarios HC se crearon en el commit `7570251 feat(p5b)` que **nunca aterrizó en main** (solo se restauró la migración `079_historia_clinica` en `79b6819`). Hoy `TestQuestionScreen` es solo una referencia en un comentario de `TestInputScreen.tsx`. `app/historia-clinica/` NO existe. → El premiso de "verificar que los HC usen TestQuestionScreen" es inaplicable en esta branch. **Decisión Enrique:** cherry-pick de p5b (`7570251`)? Fuera de scope overnight (cambio grande, no auditado).
-- **H2 — Cronotipos:** 3 pantallas (`app/quiz/chronotype.tsx`, `app/onboarding/chronotype.tsx`, `app/edad-atp/tests/chronotype.tsx` = re-export de quiz). Usan el componente reusable `QuizQuestion` (1 pregunta/pantalla, haptic). Funcionales.
-- **H3 — Componentes reusables que SÍ existen:** `QuestionnaireScreen` (9 cuestionarios edad-atp por dominio) y `QuizQuestion` (onboarding). Bien.
-- **H4 — Estilo viejo (monolítico):** Braverman (313 preguntas), functional-quiz, quiz-take. Funcionan. Refactorizarlos a un componente reusable overnight, sin verificación, es alto riesgo → DIFERIDO a backlog.
-
-### Acción
-Cero cambios de código en Parte 4 (opción más conservadora). No hay pantallas huérfanas seguras de borrar (borrar exige verificación visual). Todo documentado para decisión de Enrique.
-
----
-
-## Resumen de archivos
-
-**Nuevos:** `src/utils/uuid.ts`, `supabase/migrations/094_proton_transactions_idempotency.sql`, `src/components/ui/GlobalTopBar.tsx`, `src/components/ui/global-topbar-utils.ts`, `src/components/ui/__tests__/global-topbar.test.ts`, `src/services/__tests__/argos-idempotency.test.ts`, `src/constants/__tests__/lab-catalog-094.test.ts`.
-
-**Modificados:** `argos-proxy/index.ts`, `argos-service.ts`, `anthropic-client.ts`, `app/argos-chat.tsx`, `lab-clinical-ranges.ts`, `lab-canonical-map.ts`, `component-meta.ts`, `app/edad-atp/labs.tsx`.
-
-## Checklist de cierre
-- [x] `npx tsc --noEmit` → 0 errores
-- [x] `npx vitest run` → 574/574 (incl. 21 tests nuevos)
-- [ ] **Enrique:** `npx supabase db push` (migración 094) tras auditar
-- [ ] **Enrique:** redeploy `argos-proxy` (NO se deployó)
-- [ ] **Enrique:** smoke device — doble-tap rápido en send → 1 solo cobro H+
-- [ ] **Enrique:** aprobar GlobalTopBar en labs → rollout por tandas (D1)
-- [ ] **Enrique:** decidir cherry-pick p5b (TestQuestionScreen + HC) (H1)
-
----
----
-
-# SPRINT OVERNIGHT — ATP LABS Desmadre (23-jun-2026)
-
-**Branch:** `feat/labs-desmadre-fix`. **NO merge, NO OTA.**
-**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **585/585 (81 archivos)**, 0 regresiones (11 tests nuevos).
-
-## Decisión bloqueante D0 — base de branch
-El handoff dice "branch desde `main` con todo lo del 4partes ya mergeado", pero `origin/main` **NO**
-contiene el sprint 4partes (quedó pusheado sin merge). Branquear desde `main` puro habría generado
-historias divergentes de `lab-canonical-map.ts` (4partes ya lo extendió) → conflictos garantizados +
-inventario inconsistente. **Decisión conservadora:** branquear desde `feat/overnight-4partes-22jun`
-(el "main+4partes" de facto). Stack para Enrique: `main → 4partes → labs-desmadre`.
-
-## Nota — WIP ajeno en el working tree
-`app/economy/admin.tsx` traía una modificación sin commitear de Enrique ("Mi Economía" → "Mi
-Progreso", 23-jun). NO es de esta tarea → se dejó intacta y los commits fueron selectivos (no se
-incluyó admin.tsx).
-
-## Tabla 5/5 fases
-
-| Fase | Estado | Notas |
+| Parte | Estado | Notas |
 |---|---|---|
-| 0 — Inventario | ✅ | `cowork_handoff/INVENTARIO_LABS.md` desde queries reales (MCP, read-only) |
-| 1 — Aliases/canonical | ✅ | helper `canonicalParameterKey` + alias `total_cholesterol` (gap real detectado por test) |
-| 2 — Dedup display | ✅ | `collapseLanguageDuplicates` (display-only, no toca motor) en `labs.tsx` |
-| 3 — Migración 095 | ✅ | colisión-segura, `is_voided`, validada con BEGIN/ROLLBACK contra DB real |
-| 4 — Forward fix | ✅ | `insertCanonicalBiomarkers` ahora canonicaliza la key (causa raíz) |
-| 5 — Tests + report | ✅ | 11 tests nuevos + esta sección |
+| A — Auth UI fixes | ✅ | logo grande, inputs 100% width, footer links, gradient + teal en 3 pantallas |
+| B — onboarding zombie | ✅ (con fix de bloqueo) | NO era zombie: tenía ref viva → repoint + borrado seguro (ver D-B) |
+| C — Splash/Loading unificado | ✅ (alcance conservador) | SplashLoader + progreso real; integración en (tabs) HOY, rewire de boot diferido (D-C) |
+| D — Reset password deep link | ✅ | redirectTo atp:// + pantalla + handler + parser testeado |
 
-## Diagnóstico (FASE 0) — lo importante
-- Los 73 `parameter_key` de `lab_values` están todos reconocibles: **NO hay basura** ("Levocartine
-  fatum", "h41", etc. del screenshot NO existen en la tabla; void defensivo en 095, 0 matches).
-- **14 pares en/es** conviven (raw inglés con unidad + canónico español con `unit=null`). El path PDF
-  (`insertLabValuesFromRaw`→`toCanonicalEntries`) sí canonicaliza; el de **captura manual**
-  (`insertCanonicalBiomarkers`) **NO** → causa raíz de las filas raw inglés.
-- **Valor absurdo confirmado:** `testosterona_total` 9–9.93 (ng/mL etiquetado ng/dL) → ×100.
-- **FLAG AST/GGT:** el canonical-map escribe cada uno a 2 claves → duplicado en UI. NO se auto-colapsa
-  (ambas podrían alimentar el motor v2; regla #4). Decisión de matriz para Enrique.
-- Query 3 (heurística difusa por valor-cercano) = **solo falsos positivos** → descartada.
+## PARTE A — Auth UI (login / register / forgot-password)
+- **Fix 1 (logo):** login con logo a ~22% del alto (`Dimensions`) + tagline teal. Register/forgot sin logo gigante (handoff).
+- **Fix 2 (inputs width):** causa raíz — `EliteInput.container` no tenía width; el password iba en un wrapper `width:100%` y el email no → desalineados. Fix: `width:'100%'` por DEFAULT en EliteInput (arregla las 3 pantallas de un golpe, menos invasivo). Se quitó el `containerStyle` redundante del password en login.
+- **Fix 3 (footer):** `src/components/auth/AuthLinksFooter.tsx` (marca ATP+Comunidad en teal arriba, Términos+Privacidad gris abajo). Solo en login. Abre con `Linking.openURL`.
+- **Fix 4 (contraste teal):** `ATP_BRAND.teal = '#1ABC9C'` (el más bajo del molecule gradient). Aplicado a: labels+focus de inputs (prop opcional `accentColor` en EliteInput — NO cambia el resto de la app), links secundarios, back arrow, tagline. CTA principal sigue lima. Fondo: `src/components/auth/AuthScreen.tsx` con gradient sutil `#0A0E14→#000` (expo-linear-gradient), usado por las 3 pantallas (consistencia).
 
-## Arquitectura del fix (por qué así)
-1. **`canonicalParameterKey`** (lab-canonical-map.ts): derivado del map — colapsa SOLO columnas
-   inglesas de 1 destino (`testosterone`→`testosterona_total`); excluye automáticamente multi-key
-   (ast/ggt) y self-maps (albumin/calcium/t4_free…). Una fuente, sin lista que mantener.
-2. **FASE 2 = ya existía** (`dedupeLatestByKey` dedupea por key). El fix real es colapsar en/es:
-   `collapseLanguageDuplicates` se aplica **solo en display** (labs.tsx), DESPUÉS de
-   `loadCanonicalLabValues`, para NO alterar lo que ve el motor v2 (regla #4).
-3. **FASE 4 = forward fix**: el worker NO inserta en `lab_values` (solo `extracted_data`); el insert
-   real es cliente. Se reforzó `insertCanonicalBiomarkers` para canonicalizar la key → la captura
-   manual ya no crea raw inglés.
-4. **Migración 095**: `is_voided` (reversible) en vez de DELETE; merge colisión-seguro (void de la
-   fila inglesa que choca con el UNIQUE + rename del resto); `metadata` jsonb para trazar el ×100.
-   Validada con `BEGIN…ROLLBACK` contra la DB real (merge OK: testosterona 5→9, glucosa 16→18, hdl
-   14→16; sin violación de constraint).
+## PARTE B — onboarding zombie (DECISIÓN D-B, bloqueo resuelto)
+**El handoff afirmaba "0 llamadas entrantes" — FALSO.** `app/index.tsx:81` hacía
+`<Redirect href="/onboarding" />` para usuarios SIN sesión: `app/onboarding.tsx` era la pantalla de
+entrada logged-out (carrusel de 3 slides). Borrarlo a secas dejaría una ruta muerta en el arranque.
+**Resolución conservadora y reversible:**
+1. Repoint `app/index.tsx:81` `/onboarding` → `/login` (flujo estándar; el onboarding real vive en `/onboarding-basics + /onboarding/*`).
+2. Quitado `<Stack.Screen name="onboarding">` de `_layout.tsx`.
+3. `git rm app/onboarding.tsx`.
+Verificado: 0 referencias residuales a `/onboarding` exacto. Cambia el first-run UX (sin carrusel) →
+si Enrique lo quería, revertir es trivial (git). Documentado para su decisión.
 
-## Decisiones autónomas
-- **D1** — Rango/merge ABSOLUTO: `testosterona_total < 50 → ×100` (heurística ng/mL→ng/dL). Reconcilia
-  9.93→993 con el `testosterone` 994 mergeado. Anotado en `metadata`.
-- **D2** — `calcium` NO se mapea a `calcio` (el handoff lo pedía): en el canonical-map `calcium` ES la
-  clave canónica (`keys:['calcium']`) → mapearlo rompería. Se respeta el map.
-- **D3** — AST/GGT doble-key: FLAG, no auto-fix (riesgo motor v2).
-- **D4** — leucocitos mixtos / b12 6000 / testo libre 0.022: FLAG, no auto-fix (ver INVENTARIO §5).
-- **D5** — Migración 095 validada con ROLLBACK (no persiste) para no entregar SQL roto; respeta "NO ejecutar".
+## PARTE C — Splash/Loading (DECISIÓN D-C, alcance conservador)
+- `compileDay(userId, onProgress?)` — callback opcional, additive (callers viejos no rompen). Hitos: 10 perfil → 45 métricas → 65 señales → 80 energía → 95 agenda → 100 listo.
+- `src/components/SplashLoader.tsx` — logo + tagline + **barra 0-100% animada (Reanimated 4 withTiming)** + label; modo error con Reintentar. Misma identidad visual que el splash nativo.
+- **Integración:** se reemplazó el bloque de loading indeterminado de `app/(tabs)/index.tsx` ("Compilando tu día…" + spinner) por `<SplashLoader>` alimentado por el progreso real. **Conservador:** NO se rewireó el boot (render en `app/index.tsx` antes de navegar + eliminar doble carga). Rewirear el arranque sin verificación en device es alto riesgo (pantalla blanca = catastrófico). El SplashLoader visualmente idéntico al splash nativo ya hace que las dos fases se sientan continuas. **Rewire completo del boot → DIFERIDO a auditoría de Enrique.**
+
+## PARTE D — Reset password deep link
+- `auth-context.resetPassword`: `redirectTo: 'atp://reset-password'`.
+- `app/reset-password.tsx`: lee tokens (params) → `setSession` valida → form (nueva+confirmar) → `updateUser({password})` → `/login`. Estados validating/ready/invalid con mensajes claros. Estilo auth consistente.
+- `app/_layout.tsx`: handler `Linking.addEventListener('url')` + `getInitialURL()` (cold start) → parsea y enruta.
+- `src/utils/reset-password-link.ts`: parser PURO `parseResetPasswordUrl` que cubre tokens en FRAGMENT (#, default de Supabase) **y** query (?). 7 tests.
+
+## Tests
+- ✅ `src/utils/__tests__/reset-password-link.test.ts` (7 tests: fragment, query, url-encoded, faltantes).
+- ⚠️ Test de `day-compiler` onProgress: NO corre en este harness — el grafo de imports de day-compiler rompe el transform de vitest ("Expected 'from', got 'typeOf'", mismo límite ya visto con argos-service). El `onProgress` se valida por tsc + smoke en device. (Se intentó con supabase mockeado; el error es de parse de un módulo transitivo, no de mock.)
 
 ## Archivos
-**Nuevos:** `cowork_handoff/INVENTARIO_LABS.md`, `supabase/migrations/095_lab_values_cleanup.sql`,
-`src/constants/__tests__/lab-canonical-aliases.test.ts`, `src/services/edad-atp/__tests__/lab-values-dedup.test.ts`.
-**Modificados:** `src/constants/lab-canonical-map.ts` (canonicalParameterKey + alias total_cholesterol),
-`src/services/edad-atp/lab-values-service.ts` (collapseLanguageDuplicates + insertCanonicalBiomarkers),
-`app/edad-atp/labs.tsx` (aplica collapse).
+**Nuevos:** `src/components/auth/AuthScreen.tsx`, `src/components/auth/AuthLinksFooter.tsx`, `src/components/SplashLoader.tsx`, `app/reset-password.tsx`, `src/utils/reset-password-link.ts`, `src/utils/__tests__/reset-password-link.test.ts`.
+**Modificados:** `app/login.tsx`, `app/register.tsx`, `app/forgot-password.tsx`, `app/index.tsx`, `app/_layout.tsx`, `app/(tabs)/index.tsx`, `src/contexts/auth-context.tsx`, `src/services/day-compiler.ts`, `src/constants/brand.ts`, `components/elite-input.tsx`.
+**Borrados:** `app/onboarding.tsx`.
 
 ## Checklist de cierre
 - [x] `npx tsc --noEmit` → 0 errores
-- [x] `npx vitest run` → 585/585 (11 nuevos: 6 aliases + 5 dedup)
-- [x] Migración 095 validada con BEGIN/ROLLBACK (no persistida)
-- [ ] **Enrique:** `npx supabase db push` (095 — añade columna metadata, merge en/es, ×100 testo)
-- [ ] **Enrique:** OTA preview (`eas update --branch preview`) para el dedup de display
-- [ ] **Enrique:** smoke device — ATP LABS sin duplicados en/es ni testosterona 9.93
-- [ ] **Enrique:** decidir clave única AST/GGT (FLAG matriz)
+- [x] `npx vitest run` → 560/560 (7 nuevos)
+- [ ] **Enrique:** smoke device — login/register/forgot consistentes (teal + gradient + logo)
+- [ ] **Enrique:** smoke — barra de progreso real al abrir HOY
+- [ ] **Enrique:** smoke — email de reset abre `atp://reset-password` y permite cambiar contraseña
+- [ ] **Enrique:** confirmar que NO se quería el carrusel de onboarding.tsx (si sí, revertir D-B)
+- [ ] **Enrique:** decidir si quiere el rewire completo del boot (D-C) en un follow-up
+
+---
+---
+
+# SPRINT OVERNIGHT — HOY Redesign Editorial (23-jun-2026)
+
+**Branch:** `feat/hoy-redesign-editorial-23jun`. **NO merge, NO OTA.**
+**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **587/587 (80 archivos)**, 0 regresiones (27 tests nuevos).
+
+## D0 — base de branch + recuperación de git
+`origin/main` AÚN no tiene mergeados labs-desmadre / 4partes / auth-minisprint. Este sprint
+**reescribe `app/(tabs)/index.tsx`**, que auth-minisprint ya modificó (SplashLoader) → branquear
+desde main puro garantizaría conflicto en ese archivo. **Branqueado desde `feat/auth-minisprint-23jun`**
+(la branch más reciente que toca ese archivo + ya tiene `ATP_BRAND.teal`). Stack para Enrique:
+main → 4partes/labs/auth → HOY.
+
+⚠️ **Recuperación de git:** al crear la branch, el índice venía contaminado con cambios staged de
+4partes+labs (restos de operaciones git previas) + un COWORK_REPORT sin-mergear. Se limpió a un
+estado idéntico a auth-minisprint (HEAD), **preservando el WIP de Enrique en `admin.tsx`** ("Mi
+Progreso") y los untracked `R and D/*`. Los archivos de 4partes/labs ya están commiteados en sus
+branches; aquí eran solo contaminación.
+
+## D-scope — qué se entregó vs. qué se difirió (conservador, "NO frankenstein")
+El HOY (`app/(tabs)/index.tsx`) tiene **2363 líneas** y 25+ estados interdependientes (suplementos,
+journal, weekly insight, voice, daily review…). Reescribir su cuerpo (rip-out de secciones + wiring
+de 15 cards) **sin verificación visual** es el riesgo de frankenstein que el handoff pide evitar, y
+choca con "NO romper HoyDayCard ni Suplementos". Por eso:
+
+- ✅ **ENTREGADO (fundación completa + testeada + integraciones seguras).**
+- ⏸️ **DIFERIDO con guía** (abajo): el rewrite del cuerpo del HOY (Parte 1 grande + Parte 4) y Parte 7.
+
+## Tabla 8 partes
+
+| Parte | Estado | Notas |
+|---|---|---|
+| 1 — Cleanup viejos | ⚠️ Parcial | Header limpio (ElectronBadge + engrane retirados, Parte 6). Rip-out de Próximo Electrón/agenda hardcoded/proteína suelta → DIFERIDO (va junto al wiring Parte 4) |
+| 2 — `<EditorialCard>` | ✅ | `src/components/hoy/EditorialCard.tsx` (+ placeholder gradient Parte 8 incluido) |
+| 3 — HeroAgendaCard + lógica local | ✅ | `HeroAgendaCard.tsx` + `local-recommendation.ts` (20 reglas, 14 tests) |
+| 4 — 14 cards en HOY | ⏸️ DIFERIDO | Componentes + registry listos; wiring al cuerpo del HOY → guía abajo |
+| 5 — Toggle ON/OFF + DB | ✅ | migración 096 + `visibility-service.ts` (9 tests) + sección "Mostrar en HOY" en protocol-config |
+| 6 — Campana badge real | ✅ | `notifications-service.ts` (4 tests) + badge de conteo en el header del HOY |
+| 7 — Tab icons gradient | ⏸️ DIFERIDO | requiere `@react-native-masked-view/masked-view` (NO instalado) → dep nativo, no se instala overnight |
+| 8 — Placeholders B/N | ✅ | integrado en EditorialCard/HeroAgendaCard (gradient sólido + icono si falta `imageBn`) |
+
+## Fundación entregada (reusable, compila, testeada)
+- `src/constants/hoy-cards.ts` — registry de las 14 cards (cardKey, categoría, icono, título, gradient, ruta) + orden default.
+- `src/components/hoy/EditorialCard.tsx` — card editorial full-bleed con 4 estados (pending/in_window/done/out_of_hour) + placeholder de gradient.
+- `src/components/hoy/HeroAgendaCard.tsx` — hero con countdown + 2 botones (lima/teal).
+- `src/services/hoy/local-recommendation.ts` — mensaje contextual GRATIS (sin ARGOS), 20 reglas. **14 tests.**
+- `src/services/hoy/visibility-service.ts` + `supabase/migrations/096_hoy_cards_visibility.sql` — toggles ON/OFF (default: todas visibles, HOY nunca vacío por datos). **9 tests.**
+- `src/services/hoy/notifications-service.ts` — conteo resiliente (cada fuente en su try/catch; tabla futura inexistente → 0). **4 tests.**
+
+## Integraciones seguras hechas en pantallas existentes
+- **`app/(tabs)/index.tsx`** (header): retirado `ElectronBadge` + engrane (acceso ya existe en el botón "Configurar mi protocolo" al final del scroll); campana ahora con **badge de conteo real** (`countUnreadNotifications`, refresca al focus). El cuerpo del HOY queda intacto (estable).
+- **`app/protocol-config.tsx`**: sección "MOSTRAR EN HOY" con switches por card; persiste inmediato y emite `hoy_visibility_changed`.
+
+## GUÍA de integración del cuerpo del HOY (Parte 1 grande + Parte 4) — para Enrique / follow-up
+Todo lo necesario ya existe; falta el wiring visual (que necesita tu ojo). Receta:
+1. En `app/(tabs)/index.tsx`, cargar visibilidad: `const [cardsVisible, setCardsVisible] = useState<Set<string>>(new Set(HOY_CARD_ORDER_DEFAULT))`; cargar en focus con `getCardsVisible(user.id)`; listener `DeviceEventEmitter.addListener('hoy_visibility_changed', …)`.
+2. **Remover** (Parte 1): la card "Próximo Electrón" (~L853-883), la sección agenda hardcoded (~L1327-1474), el bloque "Te faltan Xg proteína" suelto. (Líneas pre-cleanup; re-verificar tras este commit.)
+3. **Insertar** tras `<HoyDayCard>`: `<HeroAgendaCard>` (alimentado por `day.agendaItems.find(i=>i.isNext)` + `generateLocalRecommendation`), luego map sobre `HOY_CARD_SPECS` filtrando `cardsVisible.has(spec.cardKey)`, renderizando `<EditorialCard>`. Los DATOS ya están en `day`: estado "done" desde `day.booleanElectrons` (completed) / progreso desde `day.quantitativeElectrons` (proteína/agua) / UV desde `uvMini`. El tap reusa los handlers existentes (`onElectronTap`) o `router.push(spec.route)`.
+4. Suplementos detallado y el botón "Configurar mi protocolo" se quedan al final (KEEP).
+Es un **re-skin de datos que el day-compiler YA computa**, no 15 flujos nuevos.
+
+## Parte 7 (tab icons gradient) — por qué diferida
+Requiere `@react-native-masked-view/masked-view` (no instalado). Instalar un dep NATIVO overnight
+implica un build nativo que no se puede verificar aquí. **Enrique:** `npx expo install
+@react-native-masked-view/masked-view` + build, luego aplicar el `GradientIcon` del handoff en `_layout.tsx`.
+
+## Archivos
+**Nuevos:** `src/constants/hoy-cards.ts`, `src/components/hoy/EditorialCard.tsx`, `src/components/hoy/HeroAgendaCard.tsx`, `src/services/hoy/local-recommendation.ts`, `src/services/hoy/visibility-service.ts`, `src/services/hoy/notifications-service.ts`, `supabase/migrations/096_hoy_cards_visibility.sql`, + 3 archivos de tests.
+**Modificados:** `app/(tabs)/index.tsx` (header cleanup + badge), `app/protocol-config.tsx` (sección toggles).
+
+## Checklist de cierre
+- [x] `npx tsc --noEmit` → 0 errores
+- [x] `npx vitest run` → 587/587 (27 nuevos)
+- [ ] **Enrique:** `npx supabase db push` (migración 096 — columna hoy_cards_visible)
+- [ ] **Enrique:** smoke — badge de campana con conteo; toggles "Mostrar en HOY" persisten
+- [ ] **Enrique:** wiring del cuerpo del HOY (Parte 1+4) siguiendo la guía, con feedback visual
+- [ ] **Enrique:** instalar masked-view + build para Parte 7 (tab icons gradient)
+
+---
+---
+
+# SPRINT OVERNIGHT — Tabs Redesign V1.3 (24-jun-2026)
+
+**Branch:** `feat/tabs-redesign-v13-24jun` (desde `feat/hoy-redesign-editorial-23jun` — base correcta, explícita). **NO merge, NO OTA.**
+**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **591/591 (81 archivos)**, 0 regresiones (4 tests nuevos; +27 de la fundación heredada).
+
+## D0 — bloqueo crítico de assets (require)
+El handoff usa `require('@/assets/images/hoy-extra/uv.jpg')` "con fallback gradient". **PERO** un
+`require()` de un archivo INEXISTENTE **rompe el bundler de Metro en build-time** (no es fallback de
+runtime); y `require(\`...cronotipo-${x}.jpg\`)` dinámico **no lo soporta Metro**. Verifiqué: NINGUNA
+carpeta editorial existe (`agenda/`, `electrons/`, `hoy-extra/`, `yo/`, `pillars/` vacías). **Decisión:
+OMITIR `imageBn` en TODAS las cards** → EditorialCard cae a su placeholder de gradient (ya implementado,
+funciona con `imageBn` undefined). Cuando Enrique suba assets, basta pasar `imageBn={require(...)}`.
+
+## D-scope — conservador (3 pantallas principales, sin verificación visual)
+Reescribir HOY (2363 líneas, estado entrelazado: voice/journal/weekly) + YO (dashboard pulido con
+constelación interactiva) a ciegas es el riesgo de frankenstein que el handoff pide evitar, y choca
+con "NO romper". Por eso:
+
+| Parte | Estado | Notas |
+|---|---|---|
+| EditorialCard `size` | ✅ | variante normal/hero/pillar |
+| 3 — MI ATP (kit) | ✅ COMPLETO | rewrite a 2 pillar cards (Historia Clínica + Hábitos; 3ª "ATP MI SALUD" retirada) |
+| 1 — HOY body | ✅ Cards cableadas (aditivo) | `HoyEditorialSection` (15 cards, datos reales de `day`, gated por visibility). Cleanup de secciones viejas DIFERIDO (ver abajo) |
+| 5 — composition | ✅ Verificada | `/edad-atp/composition` existe y es ruta válida; su card-tap llega con el redesign de YO |
+| 2 — YO redesign | ⏸️ DIFERIDO | reemplazar la constelación/dashboard pulido a ciegas = alto riesgo; specs en el handoff |
+| 4 — Tab icons gradient | ⏸️ DIFERIDO | requiere `@react-native-masked-view` (dep nativo) + rebuild no verificable |
+
+## Cómo quedó HOY (Parte 1)
+- `src/components/hoy/HoyEditorialSection.tsx` — aísla TODO el wiring nuevo; el `index.tsx` de 2363
+  líneas solo ganó: 1 import, el estado `cardsVisible` + carga, y 1 línea de render tras el hero.
+- Renderiza: Hero (próximo evento de `day.agendaItems`) + UV (uvMini) + Check-in/Proteína/Agua
+  (electrones bool/cuant de `day`) + 8 cards de electrones (map cardKey→source) + Cardio/Pasos.
+  **Defensivo** (optional chaining + fallbacks → no crashea por dato faltante). Gated por
+  `cardsVisible` (visibility-service + listener `hoy_visibility_changed`).
+- **ADITIVO a propósito:** NO removí las secciones viejas (Próximo Electrón, grid de electrones,
+  counters proteína/agua, agenda hardcoded, voice/journal). Removerlas a ciegas del archivo
+  entrelazado es el riesgo que evitamos. **Cleanup = paso de auditoría visual de Enrique** (las
+  cards nuevas conviven con las viejas hasta entonces). Guía de removals en el handoff Parte 1.
+
+## Parte 3 (MI ATP) — completa
+`app/(tabs)/kit.tsx` reescrito: header + 2 `EditorialCard size="pillar"` (Historia Clínica →
+/health-hub, Hábitos → /habits-portal). Retiré `ElectronBadge` del header (unificar economía).
+Subtítulos descriptivos simples (sin queries pesadas → estable; el conteo real labs/biomarcadores
+es follow-up).
+
+## Diferidos — detalle
+- **Parte 2 (YO):** `yo.tsx` (533 líneas) tiene `SubEdadConstellation` (interactiva), anillo de
+  disciplina, grid de composición — UX pulida y funcional. Reemplazarla por 10 cards editoriales a
+  ciegas degradaría y arriesgaría. Specs completas en el handoff; recomiendo hacerlo con feedback
+  visual. (La migración 097 `yo_cards_visible` tampoco se creó — decisión: YO no usa toggles aún.)
+- **Parte 4 (tab icons):** `npx expo install @react-native-masked-view/masked-view` + build nativo,
+  no verificable overnight. El `GradientIcon` del handoff queda listo para pegar en `_layout.tsx`.
+
+## Archivos
+**Nuevos:** `src/components/hoy/HoyEditorialSection.tsx`, `src/constants/__tests__/hoy-cards-registry.test.ts`.
+**Modificados:** `src/components/hoy/EditorialCard.tsx` (variante `size`), `app/(tabs)/kit.tsx` (rewrite), `app/(tabs)/index.tsx` (sección editorial aditiva + estado cardsVisible).
+
+## Checklist de cierre
+- [x] `npx tsc --noEmit` → 0 errores
+- [x] `npx vitest run` → 591/591 (4 nuevos)
+- [ ] **Enrique:** smoke device — MI ATP (2 pillars), HOY (cards editoriales debajo del hero), toggles
+- [ ] **Enrique:** subir assets B/N a `assets/images/{electrons,hoy-extra,yo,pillars,agenda}/` → cards muestran foto
+- [ ] **Enrique:** cleanup visual del HOY (remover secciones viejas que las cards reemplazan)
+- [ ] **Enrique:** YO redesign (Parte 2) con feedback visual
+- [ ] **Enrique:** masked-view + build para tab icons (Parte 4)
