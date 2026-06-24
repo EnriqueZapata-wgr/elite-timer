@@ -19,10 +19,16 @@ export type EditorialCardState = 'pending' | 'in_window' | 'done' | 'out_of_hour
 /** Tamaño de la card: normal (lista), hero (próximo evento), pillar (frente full ~45% pantalla). */
 export type EditorialCardSize = 'normal' | 'hero' | 'pillar';
 
-// Cards más altas para acomodar imágenes 16:9 sin zoom agresivo (era normal=150, hero=220, pillar=280).
-// Las imágenes Midjourney son 16:9 (~1.78:1); cards con altura menor a width/1.78 producen overzoom.
-// Width típico mobile ~360px → para 16:9 necesitamos ≥200px de alto. Pillar más alto = más impacto.
-const SIZE_HEIGHT: Record<EditorialCardSize, number> = { normal: 210, hero: 260, pillar: 340 };
+// Aspect ratio por size — coincide con las imágenes Midjourney (16:9 = 1.78) para que NO haya
+// zoom/recorte. Antes usábamos minHeight fijo (210/260/340) y las cards quedaban más cuadradas
+// que la imagen → cover recortaba mucho horizontal en pillars y se veía solo gradient.
+// Ahora la card siempre tiene la forma de la foto: pillar más ancho/dramático, normal 16:9 puro.
+// Pillar usa 4:3 (1.33) → un poco más cuadrada para impacto pero aún acomoda casi toda la foto.
+const SIZE_ASPECT: Record<EditorialCardSize, number> = {
+  normal: 16 / 9,  // 1.78 — exacto a la imagen
+  hero: 16 / 9,    // 1.78 — exacto a la imagen
+  pillar: 4 / 3,   // 1.33 — más cuadrada para impacto en Mi ATP (recorta ~25% horizontal)
+};
 
 export interface EditorialCardProps {
   cardKey: string;
@@ -44,13 +50,13 @@ export function EditorialCard({
 }: EditorialCardProps) {
   const done = state === 'done';
   const inWindow = state === 'in_window';
-  const minHeight = SIZE_HEIGHT[size];
+  const aspectRatio = SIZE_ASPECT[size];
   const big = size === 'pillar';
 
   return (
     <AnimatedPressable
       onPress={onTap ? () => { haptic.light(); onTap(); } : undefined}
-      style={[styles.card, { minHeight }, inWindow && styles.glow]}
+      style={[styles.card, { aspectRatio }, inWindow && styles.glow]}
     >
       {/* Fondo: imagen B/N si existe, sino placeholder de gradient sólido con icono grande. */}
       {imageBn ? (
@@ -82,7 +88,7 @@ export function EditorialCard({
       {/* Velo extra cuando está hecho (apaga la card). */}
       {done ? <View style={[StyleSheet.absoluteFill, styles.doneVeil]} /> : null}
 
-      <View style={[styles.content, { minHeight }]}>
+      <View style={styles.content}>
         <View style={styles.topRow}>
           <EliteText style={[styles.icon, big && styles.iconBig]}>{icon}</EliteText>
           {inWindow && badge ? (
@@ -108,7 +114,7 @@ export function EditorialCard({
 
 const styles = StyleSheet.create({
   card: {
-    width: '100%', minHeight: 150, borderRadius: Radius.card, overflow: 'hidden',
+    width: '100%', borderRadius: Radius.card, overflow: 'hidden',
     marginBottom: Spacing.md, backgroundColor: '#000',
   },
   glow: {
