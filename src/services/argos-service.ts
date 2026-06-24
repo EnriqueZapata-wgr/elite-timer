@@ -12,6 +12,7 @@ import { getCycleInfo } from './cycle-service';
 import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTag, type CoachGateResult } from '@/src/lib/coach-engine';
 import { error as logError } from '@/src/lib/logger';
 import { persistTurnAudit } from './coach-audit-service';
+import { generateUUID } from '@/src/utils/uuid';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -31,6 +32,9 @@ export interface ArgosCallMetadata {
   requestType: string;
   targetUserId?: string | null;
   targetProfileId?: string | null;
+  /** Idempotency key (#71): el server cobra H+ una sola vez por key. Nace en el intent del
+   *  usuario y se REUSA en todos los retries de esa misma operación. Default: generateUUID. */
+  idempotencyKey?: string;
 }
 
 export async function getArgosCallMetadata(opts?: {
@@ -39,6 +43,9 @@ export async function getArgosCallMetadata(opts?: {
   targetProfileId?: string | null;
   requestType?: string;
   tier?: string;
+  /** Reusar la MISMA key entre retries de un mismo intent (ej. doble tap de send). Si no se
+   *  pasa, se genera una nueva por llamada — protege el vector de retry-dentro-de-callAnthropic. */
+  idempotencyKey?: string;
 }): Promise<ArgosCallMetadata> {
   let userId = opts?.callerUserId;
   let tier = opts?.tier;
@@ -57,6 +64,7 @@ export async function getArgosCallMetadata(opts?: {
     requestType: opts?.requestType ?? 'chat',
     targetUserId: opts?.targetUserId ?? null,
     targetProfileId: opts?.targetProfileId ?? null,
+    idempotencyKey: opts?.idempotencyKey ?? generateUUID(),
   };
 }
 
@@ -1312,7 +1320,7 @@ function buildProtocolGuard(activeProtocol?: string): string {
 export async function chatWithArgosEx(
   userId: string,
   messages: ArgosMessage[],
-  options?: { model?: string; conversationId?: string | null },
+  options?: { model?: string; conversationId?: string | null; idempotencyKey?: string },
 ): Promise<ArgosChatResult> {
   // Coach-engine gate (Step COACH 7/N): corre ANTES del LLM. Defensa graceful —
   // si el gate revienta, el chat continúa con un system prompt sin gate.
@@ -1343,7 +1351,7 @@ export async function chatWithArgosEx(
     ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection + coachGateInjection + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
-  const meta = await getArgosCallMetadata({ requestType: 'chat' });
+  const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });
   let data;
   try {
     data = await callAnthropic(

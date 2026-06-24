@@ -22,6 +22,7 @@ import {
   STALE_DAYS,
   toCanonicalEntries,
   toCanonicalUnit,
+  canonicalParameterKey,
   PHENOAGE_FIELD_TO_CANONICAL,
   decimalToPct,
 } from '@/src/constants/lab-canonical-map';
@@ -102,6 +103,25 @@ export async function loadCanonicalLabValues(userId: string): Promise<CanonicalM
   }
 }
 
+/**
+ * Colapsa duplicados por idioma en un mapa canónico (#labs-desmadre): si conviven una key raw
+ * inglesa (`testosterone`) y su canónica español (`testosterona_total`), las funde en UNA — gana
+ * la más reciente (empate → la que ya estaba en el destino canónico). Defense-in-depth de SOLO
+ * DISPLAY: la UI de ATP LABS la aplica DESPUÉS de loadCanonicalLabValues, así no toca lo que ve el
+ * motor v2 (que lee por su propio bridge). Función pura, testeable sin Supabase.
+ */
+export function collapseLanguageDuplicates(map: CanonicalMap): CanonicalMap {
+  const out: CanonicalMap = {};
+  for (const [key, cv] of Object.entries(map)) {
+    const canon = canonicalParameterKey(key);
+    const prev = out[canon];
+    // Gana la más reciente. Empate por fecha → conserva la primera (preferencia al destino canónico
+    // si el mapa lo trae antes; el orden de Object.entries respeta inserción).
+    if (!prev || prev.measured_at < cv.measured_at) out[canon] = cv;
+  }
+  return out;
+}
+
 /** Aplana el mapa canónico a { parameter_key: value } (para el motor de matriz). */
 export function canonicalToValueDict(map: CanonicalMap): Record<string, number> {
   const out: Record<string, number> = {};
@@ -171,15 +191,21 @@ export async function insertCanonicalBiomarkers(
 ): Promise<{ ok: boolean; inserted: number; error?: string }> {
   if (entries.length === 0) return { ok: true, inserted: 0 };
   const measured_at = opts.measuredAt ?? getLocalToday();
-  const rows = entries.map((e) => ({
-    user_id: userId,
-    parameter_key: e.parameter_key,
-    // Conversión de unidad UNA vez, en el borde de escritura (hba1c/hematocrito/rdw_cv %→dec).
-    value: toCanonicalUnit(e.parameter_key, e.value),
-    unit: e.unit ?? null,
-    measured_at,
-    source: opts.source,
-  }));
+  const rows = entries.map((e) => {
+    // #labs-desmadre: colapsar key raw inglesa → canónica español ANTES de persistir, para que la
+    // captura manual no vuelva a crear duplicados (`testosterone` vs `testosterona_total`). El path
+    // de PDF ya canonicaliza vía toCanonicalEntries; aquí faltaba. Idempotente para keys ya canónicas.
+    const parameter_key = canonicalParameterKey(e.parameter_key);
+    return {
+      user_id: userId,
+      parameter_key,
+      // Conversión de unidad UNA vez, en el borde de escritura (hba1c/hematocrito/rdw_cv %→dec).
+      value: toCanonicalUnit(parameter_key, e.value),
+      unit: e.unit ?? null,
+      measured_at,
+      source: opts.source,
+    };
+  });
   const { error } = await supabase
     .from('lab_values')
     .upsert(rows, { onConflict: 'user_id,parameter_key,measured_at,source', ignoreDuplicates: true });

@@ -20,6 +20,7 @@ export async function callAnthropic(
     requestType?: string;
     targetUserId?: string | null;
     targetProfileId?: string | null;
+    idempotencyKey?: string;
   },
 ): Promise<any> {
   const body: Record<string, unknown> = {
@@ -31,6 +32,8 @@ export async function callAnthropic(
     ...(metadata?.requestType && { requestType: metadata.requestType }),
     ...(metadata?.targetUserId && { targetUserId: metadata.targetUserId }),
     ...(metadata?.targetProfileId && { targetProfileId: metadata.targetProfileId }),
+    // #71: el server (spend_protons v2) cobra H+ una sola vez por idempotency_key.
+    ...(metadata?.idempotencyKey && { idempotency_key: metadata.idempotencyKey }),
   };
   if (system) body.system = system;
 

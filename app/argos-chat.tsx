@@ -16,6 +16,7 @@ import {
 import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
 import { withPreflight, wasAborted } from '../src/services/economy/with-preflight';
 import { VoiceButton } from '../src/components/VoiceButton';
+import { generateUUID } from '../src/utils/uuid';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -47,6 +48,10 @@ export default function ArgosChat() {
   const canGoBack = navigation.canGoBack();
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const scrollRef = useRef<ScrollView>(null);
+  // Guard de re-entrancy (#71): un ref (síncrono) atrapa el doble-tap/re-render ANTES de que
+  // `loading` (state, async) actualice. Sin esto, dos taps a 42ms disparaban 2 requests → doble
+  // cobro H+. El server además es idempotente (spend_protons v2), esto es la 1ª línea de defensa.
+  const sendingRef = useRef(false);
   const [messages, setMessages] = useState<ArgosMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -102,12 +107,17 @@ export default function ArgosChat() {
   async function sendMessage(text?: string) {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
+    // #71: atrapar doble-tap/re-render de forma SÍNCRONA (antes del primer await).
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+    // Una sola idempotency_key para TODO este turno (incluye los retries internos de callAnthropic).
+    const idempotencyKey = generateUUID();
 
     // Economía: pre-flight H+ (no-op + byte-idéntico si LAB_ECONOMY_ENABLED=false). Si no
     // alcanza, aborta ANTES del update optimista (ofrece ir a la tienda). El proxy igual
     // responde 402 como guard real server-side.
     const gate = await withPreflight('chat', async () => true);
-    if (wasAborted(gate)) return;
+    if (wasAborted(gate)) { sendingRef.current = false; return; }
 
     // Detener si ARGOS estaba hablando
     if (getIsSpeaking()) await stopSpeaking();
@@ -130,7 +140,7 @@ export default function ArgosChat() {
     let finalMessages: ArgosMessage[] | null = null;
     let wasDegraded = false;
     try {
-      const result = await chatWithArgosEx(userId, cleanForLLM, { conversationId });
+      const result = await chatWithArgosEx(userId, cleanForLLM, { conversationId, idempotencyKey });
       wasDegraded = result.degraded;
 
       const assistantTurn: ArgosMessage = wasDegraded
@@ -171,6 +181,7 @@ export default function ArgosChat() {
       finalMessages = errored;
     } finally {
       setLoading(false);
+      sendingRef.current = false; // #71: liberar el guard al terminar el turno
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
     }
 
