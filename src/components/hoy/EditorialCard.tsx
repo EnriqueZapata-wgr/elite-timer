@@ -19,7 +19,10 @@ export type EditorialCardState = 'pending' | 'in_window' | 'done' | 'out_of_hour
 /** Tamaño de la card: normal (lista), hero (próximo evento), pillar (frente full ~45% pantalla). */
 export type EditorialCardSize = 'normal' | 'hero' | 'pillar';
 
-const SIZE_HEIGHT: Record<EditorialCardSize, number> = { normal: 150, hero: 220, pillar: 280 };
+// Cards más altas para acomodar imágenes 16:9 sin zoom agresivo (era normal=150, hero=220, pillar=280).
+// Las imágenes Midjourney son 16:9 (~1.78:1); cards con altura menor a width/1.78 producen overzoom.
+// Width típico mobile ~360px → para 16:9 necesitamos ≥200px de alto. Pillar más alto = más impacto.
+const SIZE_HEIGHT: Record<EditorialCardSize, number> = { normal: 210, hero: 260, pillar: 340 };
 
 export interface EditorialCardProps {
   cardKey: string;
@@ -58,13 +61,24 @@ export function EditorialCard({
           <EliteText style={styles.placeholderIcon}>{icon}</EliteText>
         </View>
       )}
-      {/* Overlay de gradient de categoría (diagonal). */}
+      {/* Overlay de gradient de categoría (diagonal). Opacity bajo con imagen para que SE VEA la
+          foto B/N (era 0.82 = tapaba la imagen). Ahora 0.45 deja visible ~55% de la imagen. */}
       <LinearGradient
         colors={gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, { opacity: imageBn ? 0.82 : 0.9 }]}
+        style={[StyleSheet.absoluteFill, { opacity: imageBn ? 0.45 : 0.9 }]}
       />
+      {/* Velo oscuro en la parte inferior para que el texto blanco sea legible sobre cualquier
+          imagen (sin esto, fotos claras hacen ilegible el texto). */}
+      {imageBn ? (
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.55)']}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       {/* Velo extra cuando está hecho (apaga la card). */}
       {done ? <View style={[StyleSheet.absoluteFill, styles.doneVeil]} /> : null}
 
