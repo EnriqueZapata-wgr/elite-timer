@@ -78,7 +78,9 @@ export default function IndexRedirect() {
     );
   }
 
-  if (!session) return <Redirect href={'/onboarding' as any} />;
+  // Sin sesión → login. (Antes iba a `/onboarding` — carrusel MVP viejo eliminado este sprint;
+  // el onboarding real post-signup vive en /onboarding-basics + /onboarding/*.)
+  if (!session) return <Redirect href={'/login' as any} />;
   if (onboardingDone === false && onboardingRoute) return <Redirect href={onboardingRoute as any} />;
   return <Redirect href="/(tabs)" />;
 }

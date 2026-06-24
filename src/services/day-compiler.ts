@@ -163,9 +163,13 @@ const ELECTRON_KW = [
 
 // ═══ MAIN ═══
 
-export async function compileDay(userId: string): Promise<CompiledDay> {
+/** Callback de progreso del compile (0-100, label en español). Opcional → no rompe callers. */
+export type CompileProgress = (pct: number, label: string) => void;
+
+export async function compileDay(userId: string, onProgress?: CompileProgress): Promise<CompiledDay> {
   const today = getLocalToday();
   const hour = getLocalHour();
+  onProgress?.(10, 'Cargando tu perfil');
 
   // Parallelizar queries (incluye verificación de actividad real para los
   // electrones verificados — ver VERIFIED_ELECTRON_KEYS).
@@ -196,6 +200,8 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
       .eq('user_id', userId).eq('date', today),
   ]);
 
+  onProgress?.(45, 'Cargando métricas');
+
   // Para los verificados: derivar `completed` de actividad real, NO del blob.
   // checkin: el último emotional_checkin (moodRes) es de HOY (no requiere query extra).
   const lastCheckinDate = (moodRes.data as any)?.created_at
@@ -212,6 +218,7 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;
   const crossPillar = await deriveCrossPillar(userId, moodRes.data, glucoseRes.data, biologicalSex);
+  onProgress?.(65, 'Analizando señales');
 
   const prefs = prefsRes.data;
   // HOY-1: la columna JSONB `electrons` puede venir explícitamente como `null`
@@ -334,17 +341,20 @@ export async function compileDay(userId: string): Promise<CompiledDay> {
 
   // Next electron
   const nextElectron = pickNextElectron(booleanElectrons, quantitativeElectrons, hour);
+  onProgress?.(80, 'Compilando energía');
 
   // Suggestion
   const suggestion = buildSuggestion(quantitativeElectrons, fastRes.data?.[0], hour, crossPillar);
 
   // Agenda
   const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.data?.[0], crossPillar, wakeFromPrefs);
+  onProgress?.(95, 'Generando agenda');
 
   // Greeting
   const greeting = hour < 12 ? 'Buenos días,' : hour < 18 ? 'Buenas tardes,' : 'Buenas noches,';
   const date = formatDisplayDate(today);
 
+  onProgress?.(100, 'Listo');
   return {
     greeting, date, userName, protocol,
     electronProgress: { earned, possible, percentage },

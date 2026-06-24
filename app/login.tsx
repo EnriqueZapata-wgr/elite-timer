@@ -4,17 +4,22 @@
  * Branding ELITE + campos de email/password + links a registro y recuperación.
  */
 import { useState } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image, Dimensions } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenContainer } from '@/components/screen-container';
+import { AuthScreen } from '@/src/components/auth/AuthScreen';
+import { AuthLinksFooter } from '@/src/components/auth/AuthLinksFooter';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
+
+// Logo grande en login (~22% del alto de pantalla, como el splash nativo).
+const LOGO_HEIGHT = Math.round(Dimensions.get('window').height * 0.22);
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -49,7 +54,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScreenContainer centered={false}>
+    <AuthScreen>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -62,6 +67,7 @@ export default function LoginScreen() {
           {/* Branding ATP */}
           <Animated.View entering={FadeInUp.delay(50).springify()} style={styles.brand}>
             <Image source={require('@/assets/images/logo-horizontal-dark.png')} style={styles.logoImg} resizeMode="contain" />
+            <EliteText variant="caption" style={styles.tagline}>ACTIVA TU ENERGÍA Y SALUD</EliteText>
           </Animated.View>
 
           {/* Formulario */}
@@ -74,6 +80,7 @@ export default function LoginScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              accentColor={ATP_BRAND.teal}
             />
 
             <View style={styles.passwordContainer}>
@@ -84,7 +91,7 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
-                containerStyle={styles.passwordInput}
+                accentColor={ATP_BRAND.teal}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -127,10 +134,12 @@ export default function LoginScreen() {
                 ¿Olvidaste tu contraseña?
               </EliteText>
             </Pressable>
+
+            <AuthLinksFooter />
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenContainer>
+    </AuthScreen>
   );
 }
 
@@ -146,11 +155,16 @@ const styles = StyleSheet.create({
   // Branding
   brand: {
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    marginBottom: Spacing.xl,
   },
   logoImg: {
-    width: 250,
-    height: 100,
+    width: '85%',
+    height: LOGO_HEIGHT,
+  },
+  tagline: {
+    color: ATP_BRAND.teal,
+    letterSpacing: 2,
+    marginTop: Spacing.sm,
   },
   // Formulario
   form: {
@@ -190,11 +204,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   linkHighlight: {
-    color: Colors.neonGreen,
+    color: ATP_BRAND.teal,
     fontFamily: Fonts.semiBold,
   },
   forgotLink: {
-    color: Colors.neonGreen,
+    color: ATP_BRAND.teal,
     textAlign: 'center',
   },
 });

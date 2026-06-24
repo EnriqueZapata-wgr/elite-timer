@@ -7,11 +7,12 @@ import { useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenContainer } from '@/components/screen-container';
+import { AuthScreen } from '@/src/components/auth/AuthScreen';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
 
@@ -53,11 +54,11 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <ScreenContainer centered={false}>
+    <AuthScreen>
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color={Colors.neonGreen} />
+          <Ionicons name="chevron-back" size={28} color={ATP_BRAND.teal} />
         </Pressable>
         <EliteText variant="title" style={styles.title}>RECUPERAR</EliteText>
       </View>
@@ -95,6 +96,7 @@ export default function ForgotPasswordScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              accentColor={ATP_BRAND.teal}
             />
 
             {error && (
@@ -115,7 +117,7 @@ export default function ForgotPasswordScreen() {
           </>
         )}
       </View>
-    </ScreenContainer>
+    </AuthScreen>
   );
 }
 

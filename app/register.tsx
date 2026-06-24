@@ -8,12 +8,13 @@ import { useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ScreenContainer } from '@/components/screen-container';
+import { AuthScreen } from '@/src/components/auth/AuthScreen';
 import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Fonts } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';
 
@@ -70,7 +71,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <ScreenContainer centered={false}>
+    <AuthScreen>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -82,7 +83,7 @@ export default function RegisterScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <BackButton color={Colors.neonGreen} />
+            <BackButton color={ATP_BRAND.teal} />
             <EliteText variant="title" style={styles.title}>CREAR CUENTA</EliteText>
           </View>
 
@@ -95,6 +96,7 @@ export default function RegisterScreen() {
               onChangeText={setFullName}
               autoCapitalize="words"
               autoComplete="name"
+              accentColor={ATP_BRAND.teal}
             />
 
             <EliteInput
@@ -105,6 +107,7 @@ export default function RegisterScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
+              accentColor={ATP_BRAND.teal}
             />
 
             <View style={styles.passwordContainer}>
@@ -115,7 +118,7 @@ export default function RegisterScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
-                containerStyle={styles.passwordInput}
+                accentColor={ATP_BRAND.teal}
               />
               <Pressable
                 onPress={() => setShowPassword(!showPassword)}
@@ -136,6 +139,7 @@ export default function RegisterScreen() {
               onChangeText={setConfirmPassword}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              accentColor={ATP_BRAND.teal}
             />
 
             {error && (
@@ -162,7 +166,7 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </ScreenContainer>
+    </AuthScreen>
   );
 }
 
@@ -217,7 +221,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   linkHighlight: {
-    color: Colors.neonGreen,
+    color: ATP_BRAND.teal,
     fontFamily: Fonts.semiBold,
   },
 });

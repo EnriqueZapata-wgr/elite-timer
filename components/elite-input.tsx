@@ -8,24 +8,27 @@ interface EliteInputProps extends TextInputProps {
   label?: string;
   /** Estilos adicionales del contenedor */
   containerStyle?: ViewStyle;
+  /** Color de acento opcional (borde en focus + label). Default: verde lima del kit. */
+  accentColor?: string;
 }
 
 /**
  * EliteInput — Campo de texto con estilo ELITE.
  * Fondo oscuro, borde verde en focus, tipografía Poppins.
+ * Ancho 100% por default (consistencia entre campos); `accentColor` tiñe focus+label.
  */
-export function EliteInput({ label, containerStyle, style, ...props }: EliteInputProps) {
+export function EliteInput({ label, containerStyle, style, accentColor, ...props }: EliteInputProps) {
   const [focused, setFocused] = useState(false);
 
   return (
     <View style={[styles.container, containerStyle]}>
       {label && (
-        <EliteText variant="label" style={styles.label}>
+        <EliteText variant="label" style={[styles.label, accentColor ? { color: accentColor } : null]}>
           {label}
         </EliteText>
       )}
       <TextInput
-        style={[styles.input, focused && styles.focused, style]}
+        style={[styles.input, focused && styles.focused, focused && accentColor ? { borderColor: accentColor } : null, style]}
         placeholderTextColor={Colors.textSecondary}
         onFocus={e => {
           setFocused(true);
@@ -44,6 +47,7 @@ export function EliteInput({ label, containerStyle, style, ...props }: EliteInpu
 const styles = StyleSheet.create({
   container: {
     marginBottom: Spacing.md,
+    width: '100%', // consistencia: todos los campos al mismo ancho (fix bug login email vs password)
   },
   label: {
     marginBottom: Spacing.xs,

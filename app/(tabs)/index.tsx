@@ -25,6 +25,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, type VerifiedElectronKey } from '@/src/services/day-compiler';
+import { SplashLoader } from '@/src/components/SplashLoader';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
@@ -164,6 +165,9 @@ export default function TodayScreen() {
   // --- Estado único ---
   const [day, setDay] = useState<CompiledDay | null>(null);
   const [loading, setLoading] = useState(true);
+  // Progreso real del compile (alimenta SplashLoader 0-100% en vez del spinner indeterminado).
+  const [progress, setProgress] = useState(0);
+  const [progressLabel, setProgressLabel] = useState('Iniciando…');
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [dailyInsight, setDailyInsight] = useState<string>('');
@@ -207,7 +211,7 @@ export default function TodayScreen() {
   const loadDay = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const compiled = await compileDay(user.id);
+      const compiled = await compileDay(user.id, (pct, label) => { setProgress(pct); setProgressLabel(label); });
       if (compiled) setDay(compiled);
     } catch (e) {
       console.warn('Error compiling day:', e);
@@ -746,32 +750,28 @@ export default function TodayScreen() {
 
   // ═══ RENDER ═══
 
+  // Carga unificada: misma identidad visual que el splash nativo + barra de progreso REAL
+  // (0-100% alimentada por compileDay). Reemplaza el spinner indeterminado "Compilando tu día…".
   if (loading && !day) {
     return (
-      <View style={s.loadingWrap}>
+      <>
         <StatusBar style="light" />
-        <ActivityIndicator size="large" color="#a8e02a" />
-        <Text style={s.loadingText}>Compilando tu día...</Text>
-      </View>
+        <SplashLoader progress={progress} label={progressLabel} />
+      </>
     );
   }
 
   if (!day) {
-    // HOY-10: agregar botón Reintentar para que la pantalla no quede muerta
-    // cuando la primera carga falla (típicamente fallo de red).
+    // HOY-10: primera carga falló (típicamente red) → SplashLoader en modo error con Reintentar.
     return (
-      <View style={s.loadingWrap}>
+      <>
         <StatusBar style="light" />
-        <Text style={s.loadingText}>No se pudo cargar tu día.</Text>
-        <Pressable
-          onPress={() => { haptic.medium(); setLoading(true); loadDay(); }}
-          style={s.retryBtn}
-          hitSlop={8}
-        >
-          <Ionicons name="refresh-outline" size={18} color="#000" />
-          <Text style={s.retryBtnText}>Reintentar</Text>
-        </Pressable>
-      </View>
+        <SplashLoader
+          progress={progress}
+          error="No se pudo cargar tu día."
+          onRetry={() => { haptic.medium(); setProgress(0); setLoading(true); loadDay(); }}
+        />
+      </>
     );
   }
 

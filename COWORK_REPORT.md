@@ -430,3 +430,74 @@ después de 5). Cada parte está en un commit incremental.
 3. `feat(p0/parte3)` — Mi ATP IA (ATP MI SALUD + quitar ARGOS)
 4. `feat(p0/parte4)` — cetonas + audit L2 biomarcadores
 5. `feat(p0/parte5)` — T1 Cronotipo en Tests
+
+---
+---
+
+# SPRINT OVERNIGHT — AUTH Mini-Sprint (23-jun-2026)
+
+**Branch:** `feat/auth-minisprint-23jun` (desde `main`). **NO merge, NO OTA.**
+**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **560/560 (77 archivos)**, 0 regresiones (7 tests nuevos).
+
+## Nota de base (D0)
+El handoff dice "base main después del merge de labs-desmadre/4partes que Enrique hizo hoy", pero
+`origin/main` AÚN no tiene esos sprints mergeados. **A diferencia del sprint anterior, este es
+independiente**: toca login/register/forgot/auth-context/day-compiler/brand/(tabs)/index/_layout,
+SIN overlap con los archivos de labs. Por eso se branqueó desde `main` (como pide la instrucción):
+da una branch que mergea limpio e independiente. `app/economy/admin.tsx` traía un WIP de Enrique
+("Mi Economía"→"Mi Progreso") — se dejó intacto; commits selectivos.
+
+## Tabla 4/4 partes
+
+| Parte | Estado | Notas |
+|---|---|---|
+| A — Auth UI fixes | ✅ | logo grande, inputs 100% width, footer links, gradient + teal en 3 pantallas |
+| B — onboarding zombie | ✅ (con fix de bloqueo) | NO era zombie: tenía ref viva → repoint + borrado seguro (ver D-B) |
+| C — Splash/Loading unificado | ✅ (alcance conservador) | SplashLoader + progreso real; integración en (tabs) HOY, rewire de boot diferido (D-C) |
+| D — Reset password deep link | ✅ | redirectTo atp:// + pantalla + handler + parser testeado |
+
+## PARTE A — Auth UI (login / register / forgot-password)
+- **Fix 1 (logo):** login con logo a ~22% del alto (`Dimensions`) + tagline teal. Register/forgot sin logo gigante (handoff).
+- **Fix 2 (inputs width):** causa raíz — `EliteInput.container` no tenía width; el password iba en un wrapper `width:100%` y el email no → desalineados. Fix: `width:'100%'` por DEFAULT en EliteInput (arregla las 3 pantallas de un golpe, menos invasivo). Se quitó el `containerStyle` redundante del password en login.
+- **Fix 3 (footer):** `src/components/auth/AuthLinksFooter.tsx` (marca ATP+Comunidad en teal arriba, Términos+Privacidad gris abajo). Solo en login. Abre con `Linking.openURL`.
+- **Fix 4 (contraste teal):** `ATP_BRAND.teal = '#1ABC9C'` (el más bajo del molecule gradient). Aplicado a: labels+focus de inputs (prop opcional `accentColor` en EliteInput — NO cambia el resto de la app), links secundarios, back arrow, tagline. CTA principal sigue lima. Fondo: `src/components/auth/AuthScreen.tsx` con gradient sutil `#0A0E14→#000` (expo-linear-gradient), usado por las 3 pantallas (consistencia).
+
+## PARTE B — onboarding zombie (DECISIÓN D-B, bloqueo resuelto)
+**El handoff afirmaba "0 llamadas entrantes" — FALSO.** `app/index.tsx:81` hacía
+`<Redirect href="/onboarding" />` para usuarios SIN sesión: `app/onboarding.tsx` era la pantalla de
+entrada logged-out (carrusel de 3 slides). Borrarlo a secas dejaría una ruta muerta en el arranque.
+**Resolución conservadora y reversible:**
+1. Repoint `app/index.tsx:81` `/onboarding` → `/login` (flujo estándar; el onboarding real vive en `/onboarding-basics + /onboarding/*`).
+2. Quitado `<Stack.Screen name="onboarding">` de `_layout.tsx`.
+3. `git rm app/onboarding.tsx`.
+Verificado: 0 referencias residuales a `/onboarding` exacto. Cambia el first-run UX (sin carrusel) →
+si Enrique lo quería, revertir es trivial (git). Documentado para su decisión.
+
+## PARTE C — Splash/Loading (DECISIÓN D-C, alcance conservador)
+- `compileDay(userId, onProgress?)` — callback opcional, additive (callers viejos no rompen). Hitos: 10 perfil → 45 métricas → 65 señales → 80 energía → 95 agenda → 100 listo.
+- `src/components/SplashLoader.tsx` — logo + tagline + **barra 0-100% animada (Reanimated 4 withTiming)** + label; modo error con Reintentar. Misma identidad visual que el splash nativo.
+- **Integración:** se reemplazó el bloque de loading indeterminado de `app/(tabs)/index.tsx` ("Compilando tu día…" + spinner) por `<SplashLoader>` alimentado por el progreso real. **Conservador:** NO se rewireó el boot (render en `app/index.tsx` antes de navegar + eliminar doble carga). Rewirear el arranque sin verificación en device es alto riesgo (pantalla blanca = catastrófico). El SplashLoader visualmente idéntico al splash nativo ya hace que las dos fases se sientan continuas. **Rewire completo del boot → DIFERIDO a auditoría de Enrique.**
+
+## PARTE D — Reset password deep link
+- `auth-context.resetPassword`: `redirectTo: 'atp://reset-password'`.
+- `app/reset-password.tsx`: lee tokens (params) → `setSession` valida → form (nueva+confirmar) → `updateUser({password})` → `/login`. Estados validating/ready/invalid con mensajes claros. Estilo auth consistente.
+- `app/_layout.tsx`: handler `Linking.addEventListener('url')` + `getInitialURL()` (cold start) → parsea y enruta.
+- `src/utils/reset-password-link.ts`: parser PURO `parseResetPasswordUrl` que cubre tokens en FRAGMENT (#, default de Supabase) **y** query (?). 7 tests.
+
+## Tests
+- ✅ `src/utils/__tests__/reset-password-link.test.ts` (7 tests: fragment, query, url-encoded, faltantes).
+- ⚠️ Test de `day-compiler` onProgress: NO corre en este harness — el grafo de imports de day-compiler rompe el transform de vitest ("Expected 'from', got 'typeOf'", mismo límite ya visto con argos-service). El `onProgress` se valida por tsc + smoke en device. (Se intentó con supabase mockeado; el error es de parse de un módulo transitivo, no de mock.)
+
+## Archivos
+**Nuevos:** `src/components/auth/AuthScreen.tsx`, `src/components/auth/AuthLinksFooter.tsx`, `src/components/SplashLoader.tsx`, `app/reset-password.tsx`, `src/utils/reset-password-link.ts`, `src/utils/__tests__/reset-password-link.test.ts`.
+**Modificados:** `app/login.tsx`, `app/register.tsx`, `app/forgot-password.tsx`, `app/index.tsx`, `app/_layout.tsx`, `app/(tabs)/index.tsx`, `src/contexts/auth-context.tsx`, `src/services/day-compiler.ts`, `src/constants/brand.ts`, `components/elite-input.tsx`.
+**Borrados:** `app/onboarding.tsx`.
+
+## Checklist de cierre
+- [x] `npx tsc --noEmit` → 0 errores
+- [x] `npx vitest run` → 560/560 (7 nuevos)
+- [ ] **Enrique:** smoke device — login/register/forgot consistentes (teal + gradient + logo)
+- [ ] **Enrique:** smoke — barra de progreso real al abrir HOY
+- [ ] **Enrique:** smoke — email de reset abre `atp://reset-password` y permite cambiar contraseña
+- [ ] **Enrique:** confirmar que NO se quería el carrusel de onboarding.tsx (si sí, revertir D-B)
+- [ ] **Enrique:** decidir si quiere el rewire completo del boot (D-C) en un follow-up

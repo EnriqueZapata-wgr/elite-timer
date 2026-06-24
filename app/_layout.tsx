@@ -10,7 +10,8 @@ import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
+import * as Linking from 'expo-linking';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
@@ -32,6 +33,7 @@ import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { LabProcessingProvider } from '@/src/hooks/useLabProcessing';
 import { LabProcessingSheet } from '@/src/components/labs/LabProcessingSheet';
 import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner';
+import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -84,6 +86,24 @@ function RootLayout() {
     checkUpdate();
   }, []);
 
+  // Deep link de reset de contraseña (atp://reset-password#access_token=...&refresh_token=...).
+  // Supabase manda los tokens en el fragment; los parseamos y enrutamos a la pantalla con params.
+  // Cubre app abierta (addEventListener) y cold start (getInitialURL).
+  useEffect(() => {
+    function handle(url: string | null) {
+      if (!isResetPasswordLink(url)) return;
+      const { accessToken, refreshToken } = parseResetPasswordUrl(url);
+      if (!accessToken) return;
+      router.push({
+        pathname: '/reset-password',
+        params: { access_token: accessToken, refresh_token: refreshToken ?? '' },
+      } as any);
+    }
+    const sub = Linking.addEventListener('url', ({ url }) => handle(url));
+    Linking.getInitialURL().then(handle).catch(() => { /* sin URL inicial */ });
+    return () => sub.remove();
+  }, []);
+
   if (!fontsLoaded) {
     return null;
   }
@@ -117,6 +137,7 @@ function RootLayout() {
                 <Stack.Screen name="login" options={{ animation: 'fade' }} />
                 <Stack.Screen name="register" options={{ animation: 'fade' }} />
                 <Stack.Screen name="forgot-password" />
+                <Stack.Screen name="reset-password" options={{ animation: 'fade' }} />
                 <Stack.Screen name="timer" />
                 <Stack.Screen name="programs" />
                 <Stack.Screen name="create-program" />
@@ -148,7 +169,6 @@ function RootLayout() {
                 <Stack.Screen name="quiz-take" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quizzes" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="braverman" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="onboarding-basics" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding-complete" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="onboarding/goal" options={{ headerShown: false, animation: 'slide_from_right' }} />

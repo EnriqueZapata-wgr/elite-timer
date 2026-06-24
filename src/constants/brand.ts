@@ -15,6 +15,7 @@ export const ATP_BRAND = {
   green2: '#3DBF6E',     // Verde medio
   teal1: '#2EC28A',      // Teal intermedio
   teal2: '#1ABC9C',      // Teal profundo
+  teal: '#1ABC9C',       // Teal de acento (= el más bajo del molecule gradient) — acentos auth/UI
   white: '#FFFFFF',
 
   // Gradiente de la molécula (de lima a teal)
