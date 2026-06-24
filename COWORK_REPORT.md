@@ -581,3 +581,72 @@ implica un build nativo que no se puede verificar aquí. **Enrique:** `npx expo 
 - [ ] **Enrique:** smoke — badge de campana con conteo; toggles "Mostrar en HOY" persisten
 - [ ] **Enrique:** wiring del cuerpo del HOY (Parte 1+4) siguiendo la guía, con feedback visual
 - [ ] **Enrique:** instalar masked-view + build para Parte 7 (tab icons gradient)
+
+---
+---
+
+# SPRINT OVERNIGHT — Tabs Redesign V1.3 (24-jun-2026)
+
+**Branch:** `feat/tabs-redesign-v13-24jun` (desde `feat/hoy-redesign-editorial-23jun` — base correcta, explícita). **NO merge, NO OTA.**
+**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **591/591 (81 archivos)**, 0 regresiones (4 tests nuevos; +27 de la fundación heredada).
+
+## D0 — bloqueo crítico de assets (require)
+El handoff usa `require('@/assets/images/hoy-extra/uv.jpg')` "con fallback gradient". **PERO** un
+`require()` de un archivo INEXISTENTE **rompe el bundler de Metro en build-time** (no es fallback de
+runtime); y `require(\`...cronotipo-${x}.jpg\`)` dinámico **no lo soporta Metro**. Verifiqué: NINGUNA
+carpeta editorial existe (`agenda/`, `electrons/`, `hoy-extra/`, `yo/`, `pillars/` vacías). **Decisión:
+OMITIR `imageBn` en TODAS las cards** → EditorialCard cae a su placeholder de gradient (ya implementado,
+funciona con `imageBn` undefined). Cuando Enrique suba assets, basta pasar `imageBn={require(...)}`.
+
+## D-scope — conservador (3 pantallas principales, sin verificación visual)
+Reescribir HOY (2363 líneas, estado entrelazado: voice/journal/weekly) + YO (dashboard pulido con
+constelación interactiva) a ciegas es el riesgo de frankenstein que el handoff pide evitar, y choca
+con "NO romper". Por eso:
+
+| Parte | Estado | Notas |
+|---|---|---|
+| EditorialCard `size` | ✅ | variante normal/hero/pillar |
+| 3 — MI ATP (kit) | ✅ COMPLETO | rewrite a 2 pillar cards (Historia Clínica + Hábitos; 3ª "ATP MI SALUD" retirada) |
+| 1 — HOY body | ✅ Cards cableadas (aditivo) | `HoyEditorialSection` (15 cards, datos reales de `day`, gated por visibility). Cleanup de secciones viejas DIFERIDO (ver abajo) |
+| 5 — composition | ✅ Verificada | `/edad-atp/composition` existe y es ruta válida; su card-tap llega con el redesign de YO |
+| 2 — YO redesign | ⏸️ DIFERIDO | reemplazar la constelación/dashboard pulido a ciegas = alto riesgo; specs en el handoff |
+| 4 — Tab icons gradient | ⏸️ DIFERIDO | requiere `@react-native-masked-view` (dep nativo) + rebuild no verificable |
+
+## Cómo quedó HOY (Parte 1)
+- `src/components/hoy/HoyEditorialSection.tsx` — aísla TODO el wiring nuevo; el `index.tsx` de 2363
+  líneas solo ganó: 1 import, el estado `cardsVisible` + carga, y 1 línea de render tras el hero.
+- Renderiza: Hero (próximo evento de `day.agendaItems`) + UV (uvMini) + Check-in/Proteína/Agua
+  (electrones bool/cuant de `day`) + 8 cards de electrones (map cardKey→source) + Cardio/Pasos.
+  **Defensivo** (optional chaining + fallbacks → no crashea por dato faltante). Gated por
+  `cardsVisible` (visibility-service + listener `hoy_visibility_changed`).
+- **ADITIVO a propósito:** NO removí las secciones viejas (Próximo Electrón, grid de electrones,
+  counters proteína/agua, agenda hardcoded, voice/journal). Removerlas a ciegas del archivo
+  entrelazado es el riesgo que evitamos. **Cleanup = paso de auditoría visual de Enrique** (las
+  cards nuevas conviven con las viejas hasta entonces). Guía de removals en el handoff Parte 1.
+
+## Parte 3 (MI ATP) — completa
+`app/(tabs)/kit.tsx` reescrito: header + 2 `EditorialCard size="pillar"` (Historia Clínica →
+/health-hub, Hábitos → /habits-portal). Retiré `ElectronBadge` del header (unificar economía).
+Subtítulos descriptivos simples (sin queries pesadas → estable; el conteo real labs/biomarcadores
+es follow-up).
+
+## Diferidos — detalle
+- **Parte 2 (YO):** `yo.tsx` (533 líneas) tiene `SubEdadConstellation` (interactiva), anillo de
+  disciplina, grid de composición — UX pulida y funcional. Reemplazarla por 10 cards editoriales a
+  ciegas degradaría y arriesgaría. Specs completas en el handoff; recomiendo hacerlo con feedback
+  visual. (La migración 097 `yo_cards_visible` tampoco se creó — decisión: YO no usa toggles aún.)
+- **Parte 4 (tab icons):** `npx expo install @react-native-masked-view/masked-view` + build nativo,
+  no verificable overnight. El `GradientIcon` del handoff queda listo para pegar en `_layout.tsx`.
+
+## Archivos
+**Nuevos:** `src/components/hoy/HoyEditorialSection.tsx`, `src/constants/__tests__/hoy-cards-registry.test.ts`.
+**Modificados:** `src/components/hoy/EditorialCard.tsx` (variante `size`), `app/(tabs)/kit.tsx` (rewrite), `app/(tabs)/index.tsx` (sección editorial aditiva + estado cardsVisible).
+
+## Checklist de cierre
+- [x] `npx tsc --noEmit` → 0 errores
+- [x] `npx vitest run` → 591/591 (4 nuevos)
+- [ ] **Enrique:** smoke device — MI ATP (2 pillars), HOY (cards editoriales debajo del hero), toggles
+- [ ] **Enrique:** subir assets B/N a `assets/images/{electrons,hoy-extra,yo,pillars,agenda}/` → cards muestran foto
+- [ ] **Enrique:** cleanup visual del HOY (remover secciones viejas que las cards reemplazan)
+- [ ] **Enrique:** YO redesign (Parte 2) con feedback visual
+- [ ] **Enrique:** masked-view + build para tab icons (Parte 4)

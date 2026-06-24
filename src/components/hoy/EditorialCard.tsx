@@ -16,6 +16,11 @@ import { haptic } from '@/src/utils/haptics';
 
 export type EditorialCardState = 'pending' | 'in_window' | 'done' | 'out_of_hour';
 
+/** Tamaño de la card: normal (lista), hero (próximo evento), pillar (frente full ~45% pantalla). */
+export type EditorialCardSize = 'normal' | 'hero' | 'pillar';
+
+const SIZE_HEIGHT: Record<EditorialCardSize, number> = { normal: 150, hero: 220, pillar: 280 };
+
 export interface EditorialCardProps {
   cardKey: string;
   icon: string;
@@ -25,21 +30,24 @@ export interface EditorialCardProps {
   imageBn?: ImageSourcePropType;
   gradient: [string, string] | [string, string, string];
   state?: EditorialCardState;
+  size?: EditorialCardSize;
   badge?: string;
   ctaLabel?: string;
   onTap?: () => void;
 }
 
 export function EditorialCard({
-  cardKey, icon, title, subtitle, message, imageBn, gradient, state = 'pending', badge, ctaLabel, onTap,
+  cardKey, icon, title, subtitle, message, imageBn, gradient, state = 'pending', size = 'normal', badge, ctaLabel, onTap,
 }: EditorialCardProps) {
   const done = state === 'done';
   const inWindow = state === 'in_window';
+  const minHeight = SIZE_HEIGHT[size];
+  const big = size === 'pillar';
 
   return (
     <AnimatedPressable
       onPress={onTap ? () => { haptic.light(); onTap(); } : undefined}
-      style={[styles.card, inWindow && styles.glow]}
+      style={[styles.card, { minHeight }, inWindow && styles.glow]}
     >
       {/* Fondo: imagen B/N si existe, sino placeholder de gradient sólido con icono grande. */}
       {imageBn ? (
@@ -60,9 +68,9 @@ export function EditorialCard({
       {/* Velo extra cuando está hecho (apaga la card). */}
       {done ? <View style={[StyleSheet.absoluteFill, styles.doneVeil]} /> : null}
 
-      <View style={styles.content}>
+      <View style={[styles.content, { minHeight }]}>
         <View style={styles.topRow}>
-          <EliteText style={styles.icon}>{icon}</EliteText>
+          <EliteText style={[styles.icon, big && styles.iconBig]}>{icon}</EliteText>
           {inWindow && badge ? (
             <View style={styles.badge}><EliteText style={styles.badgeText}>{badge}</EliteText></View>
           ) : null}
@@ -72,8 +80,8 @@ export function EditorialCard({
         </View>
 
         <View style={styles.bottom}>
-          <EliteText style={styles.title} numberOfLines={1}>{title}</EliteText>
-          {subtitle ? <EliteText style={styles.subtitle} numberOfLines={1}>{subtitle}</EliteText> : null}
+          <EliteText style={[styles.title, big && styles.titleBig]} numberOfLines={2}>{title}</EliteText>
+          {subtitle ? <EliteText style={[styles.subtitle, big && styles.subtitleBig]} numberOfLines={2}>{subtitle}</EliteText> : null}
           {message ? <EliteText style={styles.message} numberOfLines={2}>{message}</EliteText> : null}
           {ctaLabel ? (
             <View style={styles.cta}><EliteText style={styles.ctaText}>{ctaLabel}</EliteText></View>
@@ -98,13 +106,16 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: Spacing.lg, justifyContent: 'space-between', minHeight: 150 },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   icon: { fontSize: 26 },
+  iconBig: { fontSize: 40 },
   badge: { backgroundColor: ATP_BRAND.lime, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   badgeText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1 },
   doneBadge: { backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   doneBadgeText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   bottom: { gap: 2 },
   title: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xl, letterSpacing: 1 },
+  titleBig: { fontSize: FontSizes.display, lineHeight: 38 },
   subtitle: { color: 'rgba(255,255,255,0.85)', fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  subtitleBig: { fontSize: FontSizes.lg },
   message: { color: 'rgba(255,255,255,0.9)', fontSize: FontSizes.sm, marginTop: 4, lineHeight: 18 },
   cta: { marginTop: Spacing.sm, alignSelf: 'flex-start', backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: 999 },
   ctaText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },

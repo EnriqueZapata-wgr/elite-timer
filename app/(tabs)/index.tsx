@@ -27,6 +27,9 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, type VerifiedElectronKey } from '@/src/services/day-compiler';
 import { SplashLoader } from '@/src/components/SplashLoader';
 import { countUnreadNotifications } from '@/src/services/hoy/notifications-service';
+import { HoyEditorialSection } from '@/src/components/hoy/HoyEditorialSection';
+import { getCardsVisible } from '@/src/services/hoy/visibility-service';
+import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
@@ -170,6 +173,8 @@ export default function TodayScreen() {
   const [progressLabel, setProgressLabel] = useState('Iniciando…');
   // #hoy-redesign Parte 6: conteo de notificaciones para el badge de la campana.
   const [notifCount, setNotifCount] = useState(0);
+  // #tabs-redesign V1.3: visibilidad de las cards editoriales (default: todas).
+  const [cardsVisible, setCardsVisible] = useState<Set<string>>(new Set(HOY_CARD_ORDER_DEFAULT));
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [dailyInsight, setDailyInsight] = useState<string>('');
@@ -294,7 +299,17 @@ export default function TodayScreen() {
     if (isTogglingRef.current === 0) loadDay();
     // #hoy-redesign Parte 6: refrescar el badge de notificaciones al enfocar HOY.
     if (user?.id) countUnreadNotifications(user.id).then(setNotifCount).catch(() => setNotifCount(0));
+    // #tabs-redesign V1.3: refrescar visibilidad de cards al enfocar.
+    if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
   }, [loadDay, user?.id]));
+
+  // #tabs-redesign V1.3: re-cargar visibilidad cuando se togglea en /protocol-config.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('hoy_visibility_changed', () => {
+      if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [user?.id]);
 
   // --- Tour de onboarding ---
   useEffect(() => {
@@ -845,6 +860,12 @@ export default function TodayScreen() {
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
+
+        {/* #tabs-redesign V1.3 Parte 1: tira de cards editoriales (aditiva, gated por visibility).
+            El cleanup de las secciones viejas queda para auditoría visual (ver COWORK_REPORT). */}
+        <View style={{ paddingHorizontal: Spacing.md, marginTop: Spacing.md }}>
+          <HoyEditorialSection day={day} uvMini={uvMini} cardsVisible={cardsVisible} />
+        </View>
 
         {/* Insight ARGOS movido a notificaciones (campana) */}
 
