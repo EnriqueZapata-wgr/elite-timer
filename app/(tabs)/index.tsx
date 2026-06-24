@@ -26,9 +26,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, type VerifiedElectronKey } from '@/src/services/day-compiler';
 import { SplashLoader } from '@/src/components/SplashLoader';
+import { countUnreadNotifications } from '@/src/services/hoy/notifications-service';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
-import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { EditDayModal } from '@/src/components/hoy/EditDayModal';
@@ -168,6 +168,8 @@ export default function TodayScreen() {
   // Progreso real del compile (alimenta SplashLoader 0-100% en vez del spinner indeterminado).
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('Iniciando…');
+  // #hoy-redesign Parte 6: conteo de notificaciones para el badge de la campana.
+  const [notifCount, setNotifCount] = useState(0);
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [dailyInsight, setDailyInsight] = useState<string>('');
@@ -290,7 +292,9 @@ export default function TodayScreen() {
   // toggle de electrón en config, edición de wake_time.
   useFocusEffect(useCallback(() => {
     if (isTogglingRef.current === 0) loadDay();
-  }, [loadDay]));
+    // #hoy-redesign Parte 6: refrescar el badge de notificaciones al enfocar HOY.
+    if (user?.id) countUnreadNotifications(user.id).then(setNotifCount).catch(() => setNotifCount(0));
+  }, [loadDay, user?.id]));
 
   // --- Tour de onboarding ---
   useEffect(() => {
@@ -795,19 +799,17 @@ export default function TodayScreen() {
               <View style={s.topBar}>
                 <View style={s.topBarLeft}>
                   <Text style={s.brandLabel}>ATP DAILY</Text>
-                  <ElectronBadge />
-                  {/* Chip "🔥 racha" eliminado 2026-06-19 (decisión Enrique) — el header
-                      ya dice "ATP DAILY" y el chip rompía jerarquía. Si volvemos a
-                      mostrar streak, mejor reservarlo para un módulo dedicado. */}
+                  {/* #hoy-redesign Parte 1: ElectronBadge viejo retirado del header (HoyDayCard ya
+                      muestra los E- del día). El engrane se movió al botón del final del scroll. */}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  <AnimatedPressable onPress={() => { haptic.light(); router.push('/protocol-config' as any); }} style={s.topBarIcon}>
-                    <Ionicons name="settings-outline" size={20} color={Colors.textSecondary} />
-                  </AnimatedPressable>
+                  {/* #hoy-redesign Parte 6: campana con badge de conteo real (notifications-service). */}
                   <AnimatedPressable onPress={() => { haptic.light(); setShowNotifications(true); }} style={s.topBarIcon}>
                     <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
-                    {dailyInsight ? (
-                      <View style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#a8e02a' }} />
+                    {notifCount > 0 ? (
+                      <View style={s.notifBadge}>
+                        <Text style={s.notifBadgeText}>{notifCount > 99 ? '99+' : notifCount}</Text>
+                      </View>
                     ) : null}
                   </AnimatedPressable>
                 </View>
@@ -1610,6 +1612,12 @@ const s = StyleSheet.create({
   topBarIcon: {
     padding: Spacing.xs,
   },
+  // #hoy-redesign Parte 6: badge de conteo en la campana.
+  notifBadge: {
+    position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8,
+    backgroundColor: '#fb7185', paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center',
+  },
+  notifBadgeText: { color: '#fff', fontSize: 9, fontFamily: Fonts.bold },
   brandLabel: {
     color: 'rgba(255,255,255,0.6)', // acento moderado: brand label neutral, no compite con el héroe lima
     letterSpacing: 3,

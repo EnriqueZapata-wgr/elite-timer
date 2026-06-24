@@ -16,6 +16,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
 import { setUserWaterGoal } from '../src/services/hydration-service';
+import { getCardsVisible, setCardVisible } from '../src/services/hoy/visibility-service';
+import { HOY_CARD_ORDER_DEFAULT } from '../src/constants/hoy-cards';
+
+// #hoy-redesign Parte 5: labels legibles por cardKey para la sección "Mostrar en HOY".
+const HOY_CARD_LABELS: Record<string, string> = {
+  hero_agenda: 'Agenda (hero)', uv: 'UV Index', checkin: 'Check-in emocional', proteina: 'Proteína',
+  agua: 'Agua', luz_solar: 'Luz solar', meditacion: 'Meditación', suplementos: 'Suplementos',
+  bano_frio: 'Baño frío', grounding: 'Grounding', fuerza: 'Fuerza', breathwork: 'Breathwork',
+  lentes_rojos: 'Lentes rojos', cardio: 'Cardio', pasos: 'Pasos',
+};
 
 const ALL_ELECTRONS = [
   { source: 'cold_shower', name: 'Baño frío', icon: 'snow-outline' as const, weight: 3.0, description: 'Proteínas de choque térmico + dopamina' },
@@ -55,6 +65,21 @@ export default function ProtocolConfig() {
   const [wakeTime, setWakeTime] = useState('07:00');
   const [sleepTime, setSleepTime] = useState('23:00');
   const [hasChanges, setHasChanges] = useState(false);
+  // #hoy-redesign Parte 5: visibilidad de cards del HOY (persiste inmediato, no usa "GUARDAR").
+  const [cardsVisible, setCardsVisible] = useState<Set<string>>(new Set(HOY_CARD_ORDER_DEFAULT));
+
+  const toggleHoyCard = useCallback(async (cardKey: string) => {
+    if (!userId) return;
+    const visible = !cardsVisible.has(cardKey);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCardsVisible((prev) => {
+      const next = new Set(prev);
+      if (visible) next.add(cardKey); else next.delete(cardKey);
+      return next;
+    });
+    await setCardVisible(userId, cardKey, visible);
+    DeviceEventEmitter.emit('hoy_visibility_changed');
+  }, [userId, cardsVisible]);
 
   useEffect(() => {
     (async () => {
@@ -68,6 +93,7 @@ export default function ProtocolConfig() {
       loadActiveProtocol();
       loadAvailableProtocols();
       loadPreferences();
+      getCardsVisible(userId).then(setCardsVisible); // #hoy-redesign Parte 5
     }
   }, [userId]));
 
@@ -490,6 +516,32 @@ export default function ProtocolConfig() {
             </View>
           </View>
         </View>
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════════
+          SECCIÓN 6 — MOSTRAR EN HOY (#hoy-redesign Parte 5)
+          Persiste inmediato (no usa "GUARDAR"); emite hoy_visibility_changed.
+      ══════════════════════════════════════════════════════════════ */}
+      <Section label="MOSTRAR EN HOY" subtitle="Elige qué cards aparecen en tu pantalla de HOY">
+        {HOY_CARD_ORDER_DEFAULT.map((cardKey) => {
+          const on = cardsVisible.has(cardKey);
+          return (
+            <View key={cardKey} style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              backgroundColor: '#0a0a0a', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8,
+            }}>
+              <Text style={{ color: on ? '#fff' : '#666', fontSize: 14 }}>
+                {HOY_CARD_LABELS[cardKey] ?? cardKey}
+              </Text>
+              <Switch
+                value={on}
+                onValueChange={() => toggleHoyCard(cardKey)}
+                trackColor={{ true: '#a8e02a', false: '#1a1a1a' }}
+                thumbColor="#fff"
+              />
+            </View>
+          );
+        })}
       </Section>
 
       {/* Guardar (bottom) */}

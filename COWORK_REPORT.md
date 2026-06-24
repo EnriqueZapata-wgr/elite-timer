@@ -501,3 +501,83 @@ si Enrique lo quería, revertir es trivial (git). Documentado para su decisión.
 - [ ] **Enrique:** smoke — email de reset abre `atp://reset-password` y permite cambiar contraseña
 - [ ] **Enrique:** confirmar que NO se quería el carrusel de onboarding.tsx (si sí, revertir D-B)
 - [ ] **Enrique:** decidir si quiere el rewire completo del boot (D-C) en un follow-up
+
+---
+---
+
+# SPRINT OVERNIGHT — HOY Redesign Editorial (23-jun-2026)
+
+**Branch:** `feat/hoy-redesign-editorial-23jun`. **NO merge, NO OTA.**
+**Resultado:** `npx tsc --noEmit` → **0 errores**. `npx vitest run` → **587/587 (80 archivos)**, 0 regresiones (27 tests nuevos).
+
+## D0 — base de branch + recuperación de git
+`origin/main` AÚN no tiene mergeados labs-desmadre / 4partes / auth-minisprint. Este sprint
+**reescribe `app/(tabs)/index.tsx`**, que auth-minisprint ya modificó (SplashLoader) → branquear
+desde main puro garantizaría conflicto en ese archivo. **Branqueado desde `feat/auth-minisprint-23jun`**
+(la branch más reciente que toca ese archivo + ya tiene `ATP_BRAND.teal`). Stack para Enrique:
+main → 4partes/labs/auth → HOY.
+
+⚠️ **Recuperación de git:** al crear la branch, el índice venía contaminado con cambios staged de
+4partes+labs (restos de operaciones git previas) + un COWORK_REPORT sin-mergear. Se limpió a un
+estado idéntico a auth-minisprint (HEAD), **preservando el WIP de Enrique en `admin.tsx`** ("Mi
+Progreso") y los untracked `R and D/*`. Los archivos de 4partes/labs ya están commiteados en sus
+branches; aquí eran solo contaminación.
+
+## D-scope — qué se entregó vs. qué se difirió (conservador, "NO frankenstein")
+El HOY (`app/(tabs)/index.tsx`) tiene **2363 líneas** y 25+ estados interdependientes (suplementos,
+journal, weekly insight, voice, daily review…). Reescribir su cuerpo (rip-out de secciones + wiring
+de 15 cards) **sin verificación visual** es el riesgo de frankenstein que el handoff pide evitar, y
+choca con "NO romper HoyDayCard ni Suplementos". Por eso:
+
+- ✅ **ENTREGADO (fundación completa + testeada + integraciones seguras).**
+- ⏸️ **DIFERIDO con guía** (abajo): el rewrite del cuerpo del HOY (Parte 1 grande + Parte 4) y Parte 7.
+
+## Tabla 8 partes
+
+| Parte | Estado | Notas |
+|---|---|---|
+| 1 — Cleanup viejos | ⚠️ Parcial | Header limpio (ElectronBadge + engrane retirados, Parte 6). Rip-out de Próximo Electrón/agenda hardcoded/proteína suelta → DIFERIDO (va junto al wiring Parte 4) |
+| 2 — `<EditorialCard>` | ✅ | `src/components/hoy/EditorialCard.tsx` (+ placeholder gradient Parte 8 incluido) |
+| 3 — HeroAgendaCard + lógica local | ✅ | `HeroAgendaCard.tsx` + `local-recommendation.ts` (20 reglas, 14 tests) |
+| 4 — 14 cards en HOY | ⏸️ DIFERIDO | Componentes + registry listos; wiring al cuerpo del HOY → guía abajo |
+| 5 — Toggle ON/OFF + DB | ✅ | migración 096 + `visibility-service.ts` (9 tests) + sección "Mostrar en HOY" en protocol-config |
+| 6 — Campana badge real | ✅ | `notifications-service.ts` (4 tests) + badge de conteo en el header del HOY |
+| 7 — Tab icons gradient | ⏸️ DIFERIDO | requiere `@react-native-masked-view/masked-view` (NO instalado) → dep nativo, no se instala overnight |
+| 8 — Placeholders B/N | ✅ | integrado en EditorialCard/HeroAgendaCard (gradient sólido + icono si falta `imageBn`) |
+
+## Fundación entregada (reusable, compila, testeada)
+- `src/constants/hoy-cards.ts` — registry de las 14 cards (cardKey, categoría, icono, título, gradient, ruta) + orden default.
+- `src/components/hoy/EditorialCard.tsx` — card editorial full-bleed con 4 estados (pending/in_window/done/out_of_hour) + placeholder de gradient.
+- `src/components/hoy/HeroAgendaCard.tsx` — hero con countdown + 2 botones (lima/teal).
+- `src/services/hoy/local-recommendation.ts` — mensaje contextual GRATIS (sin ARGOS), 20 reglas. **14 tests.**
+- `src/services/hoy/visibility-service.ts` + `supabase/migrations/096_hoy_cards_visibility.sql` — toggles ON/OFF (default: todas visibles, HOY nunca vacío por datos). **9 tests.**
+- `src/services/hoy/notifications-service.ts` — conteo resiliente (cada fuente en su try/catch; tabla futura inexistente → 0). **4 tests.**
+
+## Integraciones seguras hechas en pantallas existentes
+- **`app/(tabs)/index.tsx`** (header): retirado `ElectronBadge` + engrane (acceso ya existe en el botón "Configurar mi protocolo" al final del scroll); campana ahora con **badge de conteo real** (`countUnreadNotifications`, refresca al focus). El cuerpo del HOY queda intacto (estable).
+- **`app/protocol-config.tsx`**: sección "MOSTRAR EN HOY" con switches por card; persiste inmediato y emite `hoy_visibility_changed`.
+
+## GUÍA de integración del cuerpo del HOY (Parte 1 grande + Parte 4) — para Enrique / follow-up
+Todo lo necesario ya existe; falta el wiring visual (que necesita tu ojo). Receta:
+1. En `app/(tabs)/index.tsx`, cargar visibilidad: `const [cardsVisible, setCardsVisible] = useState<Set<string>>(new Set(HOY_CARD_ORDER_DEFAULT))`; cargar en focus con `getCardsVisible(user.id)`; listener `DeviceEventEmitter.addListener('hoy_visibility_changed', …)`.
+2. **Remover** (Parte 1): la card "Próximo Electrón" (~L853-883), la sección agenda hardcoded (~L1327-1474), el bloque "Te faltan Xg proteína" suelto. (Líneas pre-cleanup; re-verificar tras este commit.)
+3. **Insertar** tras `<HoyDayCard>`: `<HeroAgendaCard>` (alimentado por `day.agendaItems.find(i=>i.isNext)` + `generateLocalRecommendation`), luego map sobre `HOY_CARD_SPECS` filtrando `cardsVisible.has(spec.cardKey)`, renderizando `<EditorialCard>`. Los DATOS ya están en `day`: estado "done" desde `day.booleanElectrons` (completed) / progreso desde `day.quantitativeElectrons` (proteína/agua) / UV desde `uvMini`. El tap reusa los handlers existentes (`onElectronTap`) o `router.push(spec.route)`.
+4. Suplementos detallado y el botón "Configurar mi protocolo" se quedan al final (KEEP).
+Es un **re-skin de datos que el day-compiler YA computa**, no 15 flujos nuevos.
+
+## Parte 7 (tab icons gradient) — por qué diferida
+Requiere `@react-native-masked-view/masked-view` (no instalado). Instalar un dep NATIVO overnight
+implica un build nativo que no se puede verificar aquí. **Enrique:** `npx expo install
+@react-native-masked-view/masked-view` + build, luego aplicar el `GradientIcon` del handoff en `_layout.tsx`.
+
+## Archivos
+**Nuevos:** `src/constants/hoy-cards.ts`, `src/components/hoy/EditorialCard.tsx`, `src/components/hoy/HeroAgendaCard.tsx`, `src/services/hoy/local-recommendation.ts`, `src/services/hoy/visibility-service.ts`, `src/services/hoy/notifications-service.ts`, `supabase/migrations/096_hoy_cards_visibility.sql`, + 3 archivos de tests.
+**Modificados:** `app/(tabs)/index.tsx` (header cleanup + badge), `app/protocol-config.tsx` (sección toggles).
+
+## Checklist de cierre
+- [x] `npx tsc --noEmit` → 0 errores
+- [x] `npx vitest run` → 587/587 (27 nuevos)
+- [ ] **Enrique:** `npx supabase db push` (migración 096 — columna hoy_cards_visible)
+- [ ] **Enrique:** smoke — badge de campana con conteo; toggles "Mostrar en HOY" persisten
+- [ ] **Enrique:** wiring del cuerpo del HOY (Parte 1+4) siguiendo la guía, con feedback visual
+- [ ] **Enrique:** instalar masked-view + build para Parte 7 (tab icons gradient)
