@@ -43,15 +43,25 @@ export interface EditorialCardProps {
   badge?: string;
   ctaLabel?: string;
   onTap?: () => void;
+  /** 4.1 — barra de progreso opcional (proteína/agua). Solo visual; el subtitle lleva los números. */
+  progress?: { current: number; target: number; unit?: string };
+  /** 4.2 — valor de electrones de la card (+N). Se muestra como pill lima si state !== 'done'. */
+  electronsValue?: number;
+  /** 4.3 — acciones rápidas (máx 3) bajo la barra (ej. Agua +250/+500/-250). */
+  quickActions?: { label: string; onTap: () => void }[];
 }
 
 export function EditorialCard({
   cardKey, icon, title, subtitle, message, imageBn, gradient, state = 'pending', size = 'normal', badge, ctaLabel, onTap,
+  progress, electronsValue, quickActions,
 }: EditorialCardProps) {
   const done = state === 'done';
   const inWindow = state === 'in_window';
   const aspectRatio = SIZE_ASPECT[size];
   const big = size === 'pillar';
+  const progressPct = progress && progress.target > 0
+    ? Math.min(100, Math.max(0, (progress.current / progress.target) * 100))
+    : 0;
 
   return (
     <AnimatedPressable
@@ -104,18 +114,38 @@ export function EditorialCard({
       <View style={styles.content}>
         <View style={styles.topRow}>
           <EliteText style={[styles.icon, big && styles.iconBig]}>{icon}</EliteText>
-          {inWindow && badge ? (
-            <View style={styles.badge}><EliteText style={styles.badgeText}>{badge}</EliteText></View>
-          ) : null}
-          {done ? (
-            <View style={styles.doneBadge}><EliteText style={styles.doneBadgeText}>Hecho hoy ✓</EliteText></View>
-          ) : null}
+          <View style={styles.topRight}>
+            {done ? (
+              <View style={styles.doneBadge}><EliteText style={styles.doneBadgeText}>Hecho hoy ✓</EliteText></View>
+            ) : (
+              <>
+                {inWindow && badge ? (
+                  <View style={styles.badge}><EliteText style={styles.badgeText}>{badge}</EliteText></View>
+                ) : null}
+                {electronsValue != null ? (
+                  <View style={styles.electronsPill}><EliteText style={styles.electronsPillText}>+{electronsValue}</EliteText></View>
+                ) : null}
+              </>
+            )}
+          </View>
         </View>
 
         <View style={styles.bottom}>
           <EliteText style={[styles.title, big && styles.titleBig]} numberOfLines={2}>{title}</EliteText>
           {subtitle ? <EliteText style={[styles.subtitle, big && styles.subtitleBig]} numberOfLines={2}>{subtitle}</EliteText> : null}
           {message ? <EliteText style={styles.message} numberOfLines={2}>{message}</EliteText> : null}
+          {progress ? (
+            <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progressPct}%` }]} /></View>
+          ) : null}
+          {quickActions && quickActions.length > 0 ? (
+            <View style={styles.quickRow}>
+              {quickActions.slice(0, 3).map((qa) => (
+                <AnimatedPressable key={qa.label} onPress={() => { haptic.light(); qa.onTap(); }} style={styles.quickBtn}>
+                  <EliteText style={styles.quickBtnText}>{qa.label}</EliteText>
+                </AnimatedPressable>
+              ))}
+            </View>
+          ) : null}
           {ctaLabel ? (
             <View style={styles.cta}><EliteText style={styles.ctaText}>{ctaLabel}</EliteText></View>
           ) : null}
@@ -140,13 +170,24 @@ const styles = StyleSheet.create({
   // SIN minHeight: si lo dejamos, fuerza altura > la del aspectRatio y rompe el ratio.
   content: { flex: 1, padding: Spacing.lg, justifyContent: 'space-between' },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   icon: { fontSize: 26 },
   iconBig: { fontSize: 40 },
+  // 4.2 — pill de electrones (+N) lima translúcido.
+  electronsPill: { backgroundColor: 'rgba(168,224,42,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  electronsPillText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs },
   badge: { backgroundColor: ATP_BRAND.lime, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   badgeText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1 },
   doneBadge: { backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   doneBadgeText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   bottom: { gap: 2 },
+  // 4.1 — barra de progreso (proteína/agua).
+  progressTrack: { height: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 8, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.85)' },
+  // 4.3 — acciones rápidas (agua).
+  quickRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  quickBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)' },
+  quickBtnText: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xs },
   title: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xl, letterSpacing: 1 },
   titleBig: { fontSize: FontSizes.display, lineHeight: 38 },
   subtitle: { color: 'rgba(255,255,255,0.85)', fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
