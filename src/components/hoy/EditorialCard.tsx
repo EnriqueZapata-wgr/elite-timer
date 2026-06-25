@@ -58,22 +58,35 @@ export function EditorialCard({
       onPress={onTap ? () => { haptic.light(); onTap(); } : undefined}
       style={[styles.card, { aspectRatio }, inWindow && styles.glow]}
     >
-      {/* Fondo: imagen B/N si existe, sino placeholder de gradient sólido con icono grande. */}
+      {/* Fondo: imagen B/N si existe, sino placeholder de gradient sólido con icono grande.
+          IMPORTANTE: width/height EXPLÍCITOS además de absoluteFill. RN tiene un bug conocido
+          donde Image con solo absoluteFill no calcula dimensiones del padre cuando el padre
+          usa aspectRatio, y la Image renderiza a su tamaño natural (2048x1146) — solo se ve
+          el crop sup-izq porque la card tiene overflow:hidden. Con width/height '100%' fuerza
+          la escala correcta y resizeMode='cover' funciona como se espera. */}
       {imageBn ? (
-        <Image source={imageBn} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image
+          source={imageBn}
+          style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
+          resizeMode="cover"
+        />
       ) : (
         <View style={StyleSheet.absoluteFill}>
           <View style={[StyleSheet.absoluteFill, { backgroundColor: gradient[0], opacity: 0.25 }]} />
           <EliteText style={styles.placeholderIcon}>{icon}</EliteText>
         </View>
       )}
-      {/* Overlay de gradient de categoría (diagonal). Opacity bajo con imagen para que SE VEA la
-          foto B/N (era 0.82 = tapaba la imagen). Ahora 0.45 deja visible ~55% de la imagen. */}
+      {/* Overlay de gradient de categoría (diagonal).
+          - SIN imagen: gradient sólido (placeholder) con opacity 0.9.
+          - CON imagen: gradient diagonal de color fuerte (alpha 80% = CC hex) a casi transparente
+            (alpha 10% = 1A hex) → la esquina sup-izq tiene tinte de color, la esquina inf-der deja
+            ver la imagen casi pura. Esto resuelve cuando el gradient es uniforme/saturado (verde-verde)
+            que con opacity 0.45 sólido tintaba TODO y tapaba visualmente la imagen B/N. */}
       <LinearGradient
-        colors={gradient}
+        colors={imageBn ? [`${gradient[0]}CC`, `${gradient[1]}1A`] : gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, { opacity: imageBn ? 0.45 : 0.9 }]}
+        style={[StyleSheet.absoluteFill, !imageBn && { opacity: 0.9 }]}
       />
       {/* Velo oscuro en la parte inferior para que el texto blanco sea legible sobre cualquier
           imagen (sin esto, fotos claras hacen ilegible el texto). */}
