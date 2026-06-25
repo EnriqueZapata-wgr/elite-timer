@@ -12,11 +12,27 @@ import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { pickHabitImage } from '@/src/utils/image-rotation';
+import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string; femaleOnly?: boolean };
+
+// #cableado-final 3.4: imágenes estáticas por card. fitness es sex-aware (pickFitnessImage) y ciclo
+// rota (pickHabitImage) → se resuelven aparte en renderCard.
+const HABIT_CARD_IMAGES: Record<string, any> = {
+  nutricion: require('@/assets/images/habits-portal/nutricion.png'),
+  suplementacion: require('@/assets/images/habits-portal/suplementacion.png'),
+  ayuno: require('@/assets/images/habits-portal/ayuno.png'),
+  sueno: require('@/assets/images/habits-portal/sueno.png'),
+  meditacion: require('@/assets/images/electrons/meditacion.png'),
+  respiracion: require('@/assets/images/electrons/breathwork.png'),
+  checkin: require('@/assets/images/hoy-extra/checkin.png'),
+  journal: require('@/assets/images/hoy-extra/journal.png'),
+  hidratacion: require('@/assets/images/hoy-extra/agua.png'),
+  atp_sol: require('@/assets/images/electrons/luz-solar.png'),
+};
 
 const PILARES: Card[] = [
   { key: 'nutricion', title: 'NUTRICIÓN', subtitle: 'Comida · recetas · food scan', icon: '🥗', gradient: ['#5B9BD5', '#3B82F6'], route: '/nutrition' },
@@ -50,11 +66,17 @@ export default function HabitsPortalScreen() {
   }, [user?.id]);
   useEffect(() => { loadSex(); }, [loadSex]);
 
+  const imageFor = (key: string) => {
+    if (key === 'fitness') return pickFitnessImage(bioSex);      // sex-aware
+    if (key === 'ciclo') return pickHabitImage('ciclo', user?.id); // rotación determinística
+    return HABIT_CARD_IMAGES[key];                                // estática
+  };
+
   const renderCard = (c: Card, idx: number) => (
     <Animated.View key={c.key} entering={FadeInUp.delay(60 + idx * 40).springify()}>
       <EditorialCard
         cardKey={`habit_${c.key}`} icon={c.icon} title={c.title} subtitle={c.subtitle}
-        gradient={c.gradient} imageBn={pickHabitImage(c.key, user?.id)}
+        gradient={c.gradient} imageBn={imageFor(c.key)}
         onTap={() => router.push(c.route as any)}
       />
     </Animated.View>

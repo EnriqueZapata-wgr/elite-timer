@@ -48,6 +48,13 @@ const HOY_EXTRA_IMAGES = {
   proteina: require('@/assets/images/hoy-extra/proteina.png'),
   agua: require('@/assets/images/hoy-extra/agua.png'),
   pasos: require('@/assets/images/hoy-extra/pasos.png'),
+  // #cableado-final 3.3: imágenes nuevas.
+  ayuno: require('@/assets/images/hoy-extra/ayuno.png'),
+  sueno: require('@/assets/images/hoy-extra/sueno.png'),
+  journal: require('@/assets/images/hoy-extra/journal.png'),
+  no_alcohol: require('@/assets/images/hoy-extra/no-alcohol.png'),
+  no_procesados: require('@/assets/images/hoy-extra/no-procesados.png'),
+  screen_cutoff: require('@/assets/images/hoy-extra/screen-cutoff.png'),
 } as const;
 
 const ELECTRON_IMAGES: Record<string, any> = {
@@ -112,7 +119,8 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
   // 4.4 — completar/revocar un electrón booleano tocando la card.
   const toggleBoolean = async (cardKey: string) => {
     if (!userId) return;
-    const source = (cardKey === 'checkin' ? 'checkin' : CARD_TO_ELECTRON[cardKey]) as ElectronSource;
+    // Cards nuevas (no_alcohol/journal/no_processed_foods/screen_time_cutoff) usan cardKey=source.
+    const source = (cardKey === 'checkin' ? 'checkin' : (CARD_TO_ELECTRON[cardKey] ?? cardKey)) as ElectronSource;
     if (!source) return;
     const isCompleted = boolBySource.get(source)?.completed;
     if (isCompleted) await revokeBooleanElectron(userId, source);
@@ -125,6 +133,25 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
   const heroImage = nextEvent
     ? pickAgendaImage(categoryToFolder(nextEvent.category, nextEvent.name, getLocalHour()), `${seedKey ?? ''}-${nextEvent.id}-${today}`)
     : undefined;
+
+  // #cableado-final 3.3: render de una card booleana nueva (cardKey === electron source). Toggle
+  // desde card + círculo checkable. Mismo patrón que los electrones, pero como bloque explícito.
+  const renderBoolCard = (cardKey: string, subtitlePending: string, imageBn: any) => {
+    if (!show(cardKey)) return null;
+    const spec = HOY_CARD_BY_KEY[cardKey];
+    if (!spec) return null;
+    const el = boolBySource.get(cardKey);
+    return (
+      <EditorialCard
+        key={cardKey} cardKey={cardKey} icon={spec.icon} title={spec.title}
+        subtitle={el?.completed ? 'Hecho hoy' : subtitlePending}
+        gradient={spec.gradient} imageBn={imageBn}
+        state={el?.completed ? 'done' : 'pending'}
+        electronsValue={el?.weight} showCheckCircle
+        onTap={() => toggleBoolean(cardKey)}
+      />
+    );
+  };
 
   return (
     <>
@@ -168,6 +195,8 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         />
       ) : null}
 
+      {renderBoolCard('journal', 'Escribe tu día', HOY_EXTRA_IMAGES.journal)}
+
       {show('proteina') && protein ? (
         <EditorialCard
           cardKey="proteina" icon="🍳" title="PROTEÍNA"
@@ -181,6 +210,8 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           onTap={() => go('/food-register')}
         />
       ) : null}
+
+      {renderBoolCard('no_processed_foods', 'Día sin procesados', HOY_EXTRA_IMAGES.no_procesados)}
 
       {show('agua') && water ? (
         <EditorialCard
@@ -201,14 +232,14 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         />
       ) : null}
 
-      {/* 4.7 — AYUNO. 2.5: alineado al resto — SIN in_window/glow, gradient suavizado, "Ayunando"
-          en el subtitle (no badge ni glow). Sin imageBn (asset pendiente → gradient). */}
+      {/* 4.7 — AYUNO. 2.5: alineado al resto (sin in_window/glow). 3.3: imagen cableada. */}
       {show('ayuno') ? (
         <EditorialCard
           cardKey="ayuno" icon="⏳" title="AYUNO"
           subtitle={activeFast ? `Ayunando · ${formatFastDuration(activeFast.fast_start)}` : 'Sin ayuno activo'}
           message={activeFast ? 'Tu ventana de ayuno está abierta' : 'Inicia tu ayuno cuando estés listo'}
           gradient={['#6B46C1', '#1E3A8A']}
+          imageBn={HOY_EXTRA_IMAGES.ayuno}
           ctaLabel={activeFast ? 'Romper ayuno' : 'Iniciar ayuno'}
           onTap={() => go('/fasting')}
         />
@@ -231,6 +262,9 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         );
       })}
 
+      {renderBoolCard('no_alcohol', 'Día sin alcohol', HOY_EXTRA_IMAGES.no_alcohol)}
+      {renderBoolCard('screen_time_cutoff', '1h sin pantallas antes de dormir', HOY_EXTRA_IMAGES.screen_cutoff)}
+
       {show('cardio') ? (
         <EditorialCard
           cardKey="cardio" icon="❤️‍🔥" title="CARDIO"
@@ -246,6 +280,17 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           subtitle="Sin datos · conecta Health Connect" gradient={['#27AE60', '#8B4513']}
           imageBn={HOY_EXTRA_IMAGES.pasos}
           onTap={() => go('/settings')}
+        />
+      ) : null}
+
+      {/* 3.3: SLEEP informativa — day-compiler no expone `sleep` (sin fuente hasta wearables) →
+          sin barra/toggle, enlace a /reports. Sin círculo. */}
+      {show('sleep') ? (
+        <EditorialCard
+          cardKey="sleep" icon="🌙" title="SUEÑO"
+          subtitle="Descanso y recuperación" gradient={['#2C3E50', '#1A1A2E']}
+          imageBn={HOY_EXTRA_IMAGES.sueno}
+          onTap={() => go('/reports')}
         />
       ) : null}
     </>

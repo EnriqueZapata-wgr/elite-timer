@@ -19,6 +19,11 @@ export const ELECTRON_WEIGHTS = {
   breathwork:   { weight: 1.0, name: 'Breathwork',      icon: 'cloud-outline',         color: '#60a5fa' },
   red_glasses:  { weight: 1.0, name: 'Lentes rojos',    icon: 'glasses-outline',       color: '#f87171' },
   period_log:   { weight: 1.0, name: 'Registrar ciclo', icon: 'calendar-outline',      color: '#fb7185' },
+  // #cableado-final 3.1: nuevos electrones booleanos (icon = nombre Ionicons; el emoji decorativo
+  // vive en el spec de hoy-cards). El `type`/`description` del buzón no aplican: el shape real es
+  // {weight,name,icon,color}.
+  no_processed_foods:  { weight: 2.0, name: 'Sin procesados',           icon: 'nutrition-outline',       color: '#34d399' },
+  screen_time_cutoff:  { weight: 1.0, name: 'Off-pantallas pre-sueño',  icon: 'phone-portrait-outline',  color: '#94a3b8' },
 
   // Cuantitativos diarios (proporcional al %)
   protein:      { weight: 2.0, name: 'Proteína',        icon: 'restaurant-outline',    color: '#a6c8ff' },
