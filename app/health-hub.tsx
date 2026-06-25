@@ -1,7 +1,7 @@
 /**
  * Historia Clínica — frente clínico top-level (#v13c 2.3). Rediseño editorial: 8 EditorialCards en
- * columna (16:9). Imágenes pendientes de generar → placeholder gradient (con emoji) hasta tener los
- * assets en `assets/images/health-hub/` (TODO mini-sprint posterior). Rutas/subtítulos sin cambios.
+ * columna (16:9). Imágenes B/N cableadas (#cableado-final 3.7) desde `assets/images/health-hub/`.
+ * Rutas/subtítulos sin cambios.
  */
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -14,6 +14,18 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS } from '@/src/constants/brand';
 
 type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string };
+
+// #cableado-final 3.7: imágenes B/N estáticas por card (require() estático — Metro).
+const HEALTH_HUB_IMAGES: Record<string, any> = {
+  mi_salud: require('@/assets/images/health-hub/mi-salud.png'),
+  protocolos: require('@/assets/images/health-hub/protocolos.png'),
+  glucosa: require('@/assets/images/health-hub/glucosa.png'),
+  cetonas: require('@/assets/images/health-hub/cetonas.png'),
+  labs: require('@/assets/images/health-hub/laboratorios.png'),
+  biomarcadores: require('@/assets/images/health-hub/biomarcadores.png'),
+  tests: require('@/assets/images/health-hub/tests-evaluaciones.png'),
+  cinematicas: require('@/assets/images/health-hub/pruebas-cinematicas.png'),
+};
 
 const CARDS: Card[] = [
   { key: 'mi_salud', title: 'ATP MI SALUD', subtitle: 'Tu panel funcional: corazón, glucosa, biomarcadores', icon: '🫀', gradient: ['#38BDF8', '#3B82F6'], route: '/my-health' },
@@ -42,7 +54,7 @@ export default function HealthHubScreen() {
           <Animated.View key={c.key} entering={FadeInUp.delay(80 + idx * 40).springify()}>
             <EditorialCard
               cardKey={`hh_${c.key}`} icon={c.icon} title={c.title} subtitle={c.subtitle}
-              gradient={c.gradient}
+              gradient={c.gradient} imageBn={HEALTH_HUB_IMAGES[c.key]}
               onTap={() => router.push(c.route as any)}
             />
           </Animated.View>
