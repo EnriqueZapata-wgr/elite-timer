@@ -28,7 +28,6 @@ import { isWearableAvailable, getWearableDataForDate, type WearableData } from '
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD, PILLAR_GRADIENTS } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
-import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { isAdmin } from '@/src/constants/admin-config';
 import { YoEditorialSection } from '@/src/components/yo/YoEditorialSection';
@@ -196,21 +195,15 @@ export default function YoScreen() {
               />
               <EliteText style={s.topTitle}>YO</EliteText>
             </AnimatedPressable>
-            <ElectronBadge />
+            {/* 2.6: ElectronBadge eliminado — el banner persistente (TabScreen) ya muestra E-/H+/Rank. */}
 
             <View style={{ flex: 1 }} />
 
-            {/* Chronotype pill */}
-            {cm ? (
-              <AnimatedPressable onPress={() => { haptic.light(); router.push('/quiz/chronotype' as any); }} style={[s.chronoPill, { borderColor: cm.color + '60' }]}>
-                <Ionicons name={cm.icon as any} size={13} color={cm.color} />
-                <EliteText style={[s.chronoPillText, { color: cm.color }]}>{cm.name.toUpperCase()}</EliteText>
-              </AnimatedPressable>
-            ) : (
-              <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={s.settingsBtn}>
-                <Ionicons name="settings-outline" size={20} color={TEXT_COLORS.muted} />
-              </AnimatedPressable>
-            )}
+            {/* 2.4: pill cronotipo eliminado (redundante con la card CRONOTIPO del feed editorial).
+                Queda el acceso a settings. */}
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={s.settingsBtn}>
+              <Ionicons name="settings-outline" size={20} color={TEXT_COLORS.muted} />
+            </AnimatedPressable>
           </View>
         </Animated.View>
 
