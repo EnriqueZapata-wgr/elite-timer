@@ -123,7 +123,9 @@ const styles = StyleSheet.create({
   },
   placeholderIcon: { position: 'absolute', alignSelf: 'center', top: '30%', fontSize: 64, opacity: 0.35 },
   doneVeil: { backgroundColor: 'rgba(0,0,0,0.55)' },
-  content: { flex: 1, padding: Spacing.lg, justifyContent: 'space-between', minHeight: 150 },
+  // flex:1 hace que el content llene la card (cuyo height ya viene de aspectRatio en el padre).
+  // SIN minHeight: si lo dejamos, fuerza altura > la del aspectRatio y rompe el ratio.
+  content: { flex: 1, padding: Spacing.lg, justifyContent: 'space-between' },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   icon: { fontSize: 26 },
   iconBig: { fontSize: 40 },
