@@ -31,6 +31,8 @@ import { haptic } from '@/src/utils/haptics';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { isAdmin } from '@/src/constants/admin-config';
+import { YoEditorialSection } from '@/src/components/yo/YoEditorialSection';
+import { supabase } from '@/src/lib/supabase';
 
 /** Disciplina ATP — etiqueta cualitativa motivacional por tramo (nunca "reprobado"). */
 function disciplinaLabel(v: number): string {
@@ -67,6 +69,8 @@ export default function YoScreen() {
   const [edadCE, setEdadCE] = useState(0);
   const [dailyScore, setDailyScore] = useState<DailyHealthScore | null>(null);
   const [wearableData, setWearableData] = useState<WearableData | null>(null);
+  // #yo-editorial: sexo biológico para las variantes -el/-ella (DashboardData no lo trae).
+  const [bioSex, setBioSex] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try { setData(await getDashboardData()); } catch { /* silenciar */ }
@@ -88,6 +92,13 @@ export default function YoScreen() {
         if (data) setWearableData(data);
       }
     } catch { /* wearable no disponible */ }
+    // Sexo biológico para imágenes -el/-ella (default male en el picker si falta).
+    try {
+      if (user?.id) {
+        const { data: cp } = await supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle();
+        setBioSex((cp as any)?.biological_sex ?? null);
+      }
+    } catch { /* sin perfil — el picker cae a male */ }
     // Cargar Edad ATP v2 (número estrella) — solo calcula si hay evaluación suficiente.
     try {
       if (user?.id) {
@@ -203,63 +214,20 @@ export default function YoScreen() {
           </View>
         </Animated.View>
 
-        {/* ═══════════════════════════════════════════
-            2. EDAD ATP — Constellation (número estrella) o CTA
-            ═══════════════════════════════════════════ */}
-        <Animated.View entering={FadeInUp.delay(100).springify()}>
-          <GradientCard gradient={PILLAR_GRADIENTS.health} padding={20} style={s.scoreCardWrap}>
-            {edadResult ? (
-              <SubEdadConstellation result={edadResult} onPressCenter={() => router.push('/edad-atp/result-preview' as any)} />
-            ) : (
-              <AnimatedPressable onPress={() => { haptic.medium(); router.push('/edad-atp' as any); }} style={s.edadCta}>
-                <EliteText style={s.edadCtaTitle}>Calcula tu Edad ATP</EliteText>
-                <EliteText style={s.edadCtaSub}>Evaluación {Math.round(edadCE)}% · toca para completar →</EliteText>
-              </AnimatedPressable>
-            )}
-            {/* Card de Edad ATP limpia: solo la constelación + número + cronológica.
-                La gamificación (electrones/rango) y las 6 métricas diarias viven en HOY. */}
-          </GradientCard>
+        {/* #yo-editorial 4.3: feed editorial (9 cards) — reemplaza Edad ATP (constelación),
+            Disciplina (anillo), botón Ver Reportes y Composición (grid 2x2). */}
+        <Animated.View entering={FadeInUp.delay(100).springify()} style={{ marginTop: Spacing.md }}>
+          <YoEditorialSection
+            sex={bioSex}
+            chronotype={chrono?.chronotype}
+            edadResult={edadResult}
+            composition={comp}
+            momentum={momentum}
+          />
         </Animated.View>
 
-        {/* ═══════════════════════════════════════════
-            2b. DISCIPLINA ATP — momentum de hábitos esta semana (no punitivo, #7)
-            ═══════════════════════════════════════════ */}
-        <Animated.View entering={FadeInUp.delay(150).springify()}>
-          <AnimatedPressable onPress={() => { haptic.light(); router.push('/reports' as any); }} style={s.disciplinaCard}>
-            {/* Anillo que se llena — sin número de "calificación". */}
-            <Svg width={RING} height={RING}>
-              <Circle cx={RING / 2} cy={RING / 2} r={RING_R} stroke="#1a1a1a" strokeWidth={RING_SW} fill="none" />
-              <Circle
-                cx={RING / 2} cy={RING / 2} r={RING_R}
-                stroke={momentumColor} strokeWidth={RING_SW} fill="none" strokeLinecap="round"
-                strokeDasharray={RING_C}
-                strokeDashoffset={RING_C * (1 - Math.max(0.04, Math.min(1, momentum / 100)))}
-                transform={`rotate(-90 ${RING / 2} ${RING / 2})`}
-              />
-            </Svg>
-            <View style={{ flex: 1 }}>
-              <EliteText style={s.disciplinaLabel}>DISCIPLINA ATP</EliteText>
-              <EliteText style={[s.disciplinaState, { color: momentumColor }]}>{disciplinaLabel(momentum)}</EliteText>
-              <EliteText style={s.disciplinaSub}>Qué tan al día vas con tus hábitos esta semana</EliteText>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.muted} />
-          </AnimatedPressable>
-        </Animated.View>
-
-        {/* Edad Biológica / Ritmo del modelo viejo (health-score-engine) ELIMINADO:
-            la Edad ATP v2 (constellation arriba) es ahora el gold standard. */}
-
-        {/* Botón de Reportes — acceso al hub de gráficas */}
-        <Animated.View entering={FadeInUp.delay(220).springify()}>
-          <AnimatedPressable
-            onPress={() => { haptic.light(); router.push('/reports' as any); }}
-            style={s.reportsBtn}
-          >
-            <Ionicons name="bar-chart-outline" size={16} color={ATP_BRAND.lime} />
-            <EliteText style={s.reportsBtnText}>VER REPORTES</EliteText>
-            <Ionicons name="chevron-forward" size={14} color={ATP_BRAND.lime} />
-          </AnimatedPressable>
-        </Animated.View>
+        {/* #yo-editorial 4.3: DISCIPLINA (anillo) y botón VER REPORTES eliminados — ahora son
+            cards editoriales (DISCIPLINA con barra de progreso, VER REPORTES) en YoEditorialSection. */}
 
         {/* ═══════════════════════════════════════════
             5. SYNC STATUS — Wearable source + last sync
@@ -281,26 +249,8 @@ export default function YoScreen() {
         )}
 
 
-        {/* ═══════════════════════════════════════════
-            7. BODY COMPOSITION — solo métricas con dato (sin "--")
-            ═══════════════════════════════════════════ */}
-        {compFields.length > 0 && (
-        <Animated.View entering={FadeInUp.delay(500).springify()}>
-          <SectionTitle style={s.sectionTitleSpacing}>COMPOSICIÓN CORPORAL</SectionTitle>
-
-          <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-health' as any); }}>
-            <View style={s.compGrid}>
-              {compFields.map((f) => (
-                <View key={f.label} style={s.compCard}>
-                  <EliteText style={s.compLabel}>{f.label}</EliteText>
-                  <EliteText style={[s.compValue, { color: f.color }]}>{`${f.value}`}</EliteText>
-                  <EliteText style={s.compUnit}>{f.unit}</EliteText>
-                </View>
-              ))}
-            </View>
-          </AnimatedPressable>
-        </Animated.View>
-        )}
+        {/* #yo-editorial 4.3: COMPOSICIÓN CORPORAL (grid 2x2) eliminada — ahora es EditorialCard
+            hero (sex-aware) en YoEditorialSection. */}
 
         {/* ═══════════════════════════════════════════
             8. CONNECT WEARABLE BANNER
