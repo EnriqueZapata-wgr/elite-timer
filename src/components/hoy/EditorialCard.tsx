@@ -49,11 +49,23 @@ export interface EditorialCardProps {
   electronsValue?: number;
   /** 4.3 — acciones rápidas (máx 3) bajo la barra (ej. Agua +250/+500/-250). */
   quickActions?: { label: string; onTap: () => void }[];
+  /** 2.1 — círculo checkable (estilo checklist) en la esquina sup-izq. Solo para cards
+   *  completables (electrones/proteína/agua). Informativas (UV, cardio, YO, …) lo omiten. */
+  showCheckCircle?: boolean;
+}
+
+/** Círculo checkable: vacío (pending) o lleno lima con palomita (done). Reemplaza el emoji viejo. */
+function CheckCircle({ done }: { done: boolean }) {
+  return (
+    <View style={[styles.checkCircle, done && styles.checkCircleDone]}>
+      {done ? <EliteText style={styles.checkMark}>✓</EliteText> : null}
+    </View>
+  );
 }
 
 export function EditorialCard({
   cardKey, icon, title, subtitle, message, imageBn, gradient, state = 'pending', size = 'normal', badge, ctaLabel, onTap,
-  progress, electronsValue, quickActions,
+  progress, electronsValue, quickActions, showCheckCircle,
 }: EditorialCardProps) {
   const done = state === 'done';
   const inWindow = state === 'in_window';
@@ -113,7 +125,8 @@ export function EditorialCard({
 
       <View style={styles.content}>
         <View style={styles.topRow}>
-          <EliteText style={[styles.icon, big && styles.iconBig]}>{icon}</EliteText>
+          {/* 2.1: círculo checkable en vez del emoji (que se eliminó del topRow). */}
+          {showCheckCircle ? <CheckCircle done={done} /> : <View />}
           <View style={styles.topRight}>
             {done ? (
               <View style={styles.doneBadge}><EliteText style={styles.doneBadgeText}>Hecho hoy ✓</EliteText></View>
@@ -173,6 +186,13 @@ const styles = StyleSheet.create({
   topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   icon: { fontSize: 26 },
   iconBig: { fontSize: 40 },
+  // 2.1 — círculo checkable.
+  checkCircle: {
+    width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: 'transparent', alignItems: 'center', justifyContent: 'center',
+  },
+  checkCircleDone: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  checkMark: { color: '#000', fontFamily: Fonts.bold, fontSize: 16, lineHeight: 18 },
   // 4.2 — pill de electrones (+N) lima translúcido.
   electronsPill: { backgroundColor: 'rgba(168,224,42,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   electronsPillText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs },

@@ -13,6 +13,7 @@ import type { ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BG } from '@/src/constants/brand';
+import { TopBannerPersistent } from '@/src/components/layout/TopBannerPersistent';
 
 interface TabScreenProps {
   children: ReactNode;
@@ -22,6 +23,8 @@ export function TabScreen({ children }: TabScreenProps) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* #v13c 2.6: banner persistente (Home + E-/H+/Rank) en las tabs que usan TabScreen (YO, MI ATP). */}
+      <TopBannerPersistent />
       {children}
     </View>
   );

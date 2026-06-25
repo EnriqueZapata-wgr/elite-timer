@@ -1,93 +1,29 @@
 /**
- * Historia Clínica — frente clínico top-level (Mi ATP → Historia Clínica).
- *
- * Protocolos, Glucosa, Cetonas, Labs, Biomarcadores, Dominios de salud,
- * Tests y evaluaciones (Braverman + quizzes funcionales).
+ * Historia Clínica — frente clínico top-level (#v13c 2.3). Rediseño editorial: 8 EditorialCards en
+ * columna (16:9). Imágenes pendientes de generar → placeholder gradient (con emoji) hasta tener los
+ * assets en `assets/images/health-hub/` (TODO mini-sprint posterior). Rutas/subtítulos sin cambios.
  */
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-
 import { EliteText } from '@/components/elite-text';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Screen } from '@/src/components/ui/Screen';
-import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { GradientCard } from '@/src/components/ui/GradientCard';
-import { haptic } from '@/src/utils/haptics';
+import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { TEXT_COLORS } from '@/src/constants/brand';
 
-type HealthItem = {
-  name: string;
-  subtitle: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  color: string;
-  route: string;
-  comingSoon?: boolean;
-};
+type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string };
 
-const HEALTH_ITEMS: HealthItem[] = [
-  {
-    // HC3: acceso explícito y correcto a ATP MI SALUD (antes se entraba por cards mal-ruteadas).
-    name: 'ATP MI SALUD',
-    subtitle: 'Tu panel funcional: corazón, glucosa, biomarcadores',
-    icon: 'heart-outline' as const,
-    color: '#38bdf8',
-    route: '/my-health',
-  },
-  {
-    name: 'Protocolos',
-    subtitle: 'Configura electrones, metas y horarios',
-    icon: 'settings-outline' as const,
-    color: '#a8e02a',
-    route: '/protocol-config',
-  },
-  {
-    name: 'Glucosa',
-    subtitle: 'Registro y rangos funcionales',
-    icon: 'analytics-outline' as const,
-    color: '#fb923c',
-    route: '/glucose-log',
-  },
-  // HC4: ATP SOL se quitó de Historia Clínica — vive en Hábitos → Mente (/mind-hub → /solar).
-  {
-    // HC1: cetonas activado (espejo de glucosa). Migración 078 ketones_logs lista (NO ejecutada).
-    name: 'Cetonas en sangre',
-    subtitle: 'Monitoreo de cetosis (mmol/L)',
-    icon: 'water-outline' as const,
-    color: '#c084fc',
-    route: '/ketones-log',
-  },
-  {
-    name: 'Laboratorios',
-    subtitle: 'Sube y consulta tus estudios',
-    icon: 'document-text-outline' as const,
-    color: '#60a5fa',
-    route: '/edad-atp/labs', // HC2: antes iba a /my-health
-  },
-  {
-    name: 'Biomarcadores',
-    subtitle: 'Peso, composición, fuerza de agarre, medidas',
-    icon: 'pulse-outline' as const,
-    color: '#22c55e',
-    route: '/health-input', // HC2: métricas corporales (antes /my-health)
-  },
-  // HC2: card "Dominios de salud" eliminada (mandaba a ATP MI SALUD por error).
-  {
-    name: 'Tests y evaluaciones',
-    subtitle: 'Braverman · Evaluaciones funcionales',
-    icon: 'clipboard-outline' as const,
-    color: '#c084fc',
-    route: '/quizzes',
-  },
-  {
-    name: 'Pruebas Cinemáticas',
-    subtitle: 'Plank · BOLT · Old Man · Recovery HR',
-    icon: 'body-outline' as const,
-    color: '#22d3ee',
-    route: '/edad-atp/cinematic-tests-index',
-  },
+const CARDS: Card[] = [
+  { key: 'mi_salud', title: 'ATP MI SALUD', subtitle: 'Tu panel funcional: corazón, glucosa, biomarcadores', icon: '🫀', gradient: ['#38BDF8', '#3B82F6'], route: '/my-health' },
+  { key: 'protocolos', title: 'PROTOCOLOS', subtitle: 'Configura electrones, metas y horarios', icon: '⚙️', gradient: ['#A8E02A', '#1ABC9C'], route: '/protocol-config' },
+  { key: 'glucosa', title: 'GLUCOSA', subtitle: 'Registro y rangos funcionales', icon: '🩸', gradient: ['#FB923C', '#EF4444'], route: '/glucose-log' },
+  { key: 'cetonas', title: 'CETONAS EN SANGRE', subtitle: 'Monitoreo de cetosis (mmol/L)', icon: '💧', gradient: ['#C084FC', '#A855F7'], route: '/ketones-log' },
+  { key: 'labs', title: 'LABORATORIOS', subtitle: 'Sube y consulta tus estudios', icon: '🧪', gradient: ['#60A5FA', '#3B82F6'], route: '/edad-atp/labs' },
+  { key: 'biomarcadores', title: 'BIOMARCADORES', subtitle: 'Peso, composición, fuerza de agarre, medidas', icon: '📊', gradient: ['#22C55E', '#16A34A'], route: '/health-input' },
+  { key: 'tests', title: 'TESTS Y EVALUACIONES', subtitle: 'Braverman · Evaluaciones funcionales', icon: '🧠', gradient: ['#C084FC', '#8B5CF6'], route: '/quizzes' },
+  { key: 'cinematicas', title: 'PRUEBAS CINEMÁTICAS', subtitle: 'Plank · BOLT · Old Man · Recovery HR', icon: '🏃', gradient: ['#22D3EE', '#0EA5E9'], route: '/edad-atp/cinematic-tests-index' },
 ];
 
 export default function HealthHubScreen() {
@@ -99,44 +35,16 @@ export default function HealthHubScreen() {
         <PillarHeader pillar="health" title="Historia Clínica" />
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <EliteText variant="caption" style={s.subtitle}>
-            Tu ecosistema de salud funcional
-          </EliteText>
+          <EliteText variant="caption" style={s.subtitle}>Tu ecosistema de salud funcional</EliteText>
         </Animated.View>
 
-        {HEALTH_ITEMS.map((item, idx) => (
-          <Animated.View key={item.name} entering={FadeInUp.delay(100 + idx * 50).springify()}>
-            <AnimatedPressable
-              onPress={() => {
-                if (item.comingSoon) { Alert.alert('', 'Pronto disponible'); return; }
-                haptic.medium();
-                router.push(item.route as any);
-              }}
-            >
-              <GradientCard
-                color={item.color}
-                style={[s.card, item.comingSoon && s.cardDisabled]}
-              >
-                <View style={s.cardContent}>
-                  <View style={[s.iconWrap, { backgroundColor: withOpacity(item.color, 0.15) }]}>
-                    <Ionicons name={item.icon} size={22} color={item.color} />
-                  </View>
-                  <View style={s.cardInfo}>
-                    <EliteText style={[s.cardName, item.comingSoon && { color: TEXT_COLORS.secondary }]}>
-                      {item.name}
-                    </EliteText>
-                    <EliteText variant="caption" style={s.cardSub}>{item.subtitle}</EliteText>
-                  </View>
-                  {item.comingSoon ? (
-                    <View style={[s.badge, { backgroundColor: withOpacity(item.color, 0.15) }]}>
-                      <EliteText style={[s.badgeText, { color: item.color }]}>PRONTO</EliteText>
-                    </View>
-                  ) : (
-                    <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />
-                  )}
-                </View>
-              </GradientCard>
-            </AnimatedPressable>
+        {CARDS.map((c, idx) => (
+          <Animated.View key={c.key} entering={FadeInUp.delay(80 + idx * 40).springify()}>
+            <EditorialCard
+              cardKey={`hh_${c.key}`} icon={c.icon} title={c.title} subtitle={c.subtitle}
+              gradient={c.gradient}
+              onTap={() => router.push(c.route as any)}
+            />
           </Animated.View>
         ))}
 
@@ -147,55 +55,9 @@ export default function HealthHubScreen() {
 }
 
 const s = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: Spacing.md,
-  },
+  scroll: { paddingHorizontal: Spacing.md },
   subtitle: {
-    color: TEXT_COLORS.secondary,
-    fontSize: FontSizes.sm,
-    marginBottom: Spacing.lg,
-    marginTop: Spacing.xs,
-  },
-  card: {
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  cardDisabled: {
-    opacity: 0.7,
-  },
-  cardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardInfo: {
-    flex: 1,
-  },
-  cardName: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.semiBold,
-    color: TEXT_COLORS.primary,
-    marginBottom: 2,
-  },
-  cardSub: {
-    color: TEXT_COLORS.secondary,
-    fontSize: FontSizes.xs,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  badgeText: {
-    fontSize: 9,
-    fontFamily: Fonts.bold,
-    letterSpacing: 1,
+    color: TEXT_COLORS.secondary, fontSize: FontSizes.sm,
+    marginBottom: Spacing.lg, marginTop: Spacing.xs, fontFamily: Fonts.regular,
   },
 });
