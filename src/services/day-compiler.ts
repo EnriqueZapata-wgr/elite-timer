@@ -118,7 +118,9 @@ interface CrossPillar {
 
 // ═══ DEFAULTS ═══
 
-const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower', 'grounding', 'no_alcohol'];
+const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower', 'grounding', 'no_alcohol',
+  // #cableado-final 3.1: nuevos hábitos booleanos para que sus cards reflejen estado (completed/weight).
+  'journal', 'no_processed_foods', 'screen_time_cutoff'];
 const DEFAULT_QUANTS = ['protein', 'water'];
 
 const DEFAULT_QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
