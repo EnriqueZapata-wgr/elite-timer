@@ -24,6 +24,16 @@ const CRONOTIPO_IMAGES: Record<CronotipoKey, ImageSourcePropType> = {
   delfin: require('@/assets/images/yo/cronotipo-delfin.png'),
 };
 
+// #cableado-final 3.6: variantes sex-aware nuevas.
+const FITNESS_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
+  male: require('@/assets/images/habits-portal/fitness-el.png'),
+  female: require('@/assets/images/habits-portal/fitness-ella.png'),
+};
+const EMBARAZO_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
+  male: require('@/assets/images/cycle/embarazo/embarazo-el.png'),
+  female: require('@/assets/images/cycle/embarazo/embarazo-ella.png'),
+};
+
 /** Imágenes estáticas restantes del YO (no sex-aware). */
 export const YO_STATIC_IMAGES = {
   rank: require('@/assets/images/yo/rank-logros.png'),
@@ -44,4 +54,15 @@ export function pickComposicionImage(sex?: string | null): ImageSourcePropType {
 
 export function pickCronotipoImage(chronotype?: string | null): ImageSourcePropType {
   return CRONOTIPO_IMAGES[cronotipoKey(chronotype)];
+}
+
+/** Fitness sex-aware (default male). */
+export function pickFitnessImage(sex?: string | null): ImageSourcePropType {
+  return FITNESS_IMAGES[sexKey(sex)];
+}
+
+/** Embarazo sex-aware. Default FEMALE (la persona embarazada es biológicamente femenina; la
+ *  variante male es para el partner masculino). Aún no se usa — listo para la máscara ATP Embarazo. */
+export function pickEmbarazoImage(sex?: string | null): ImageSourcePropType {
+  return EMBARAZO_IMAGES[sex === 'male' ? 'male' : 'female'];
 }

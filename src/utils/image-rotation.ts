@@ -38,7 +38,12 @@ const HABIT_IMAGES: Record<string, ImageSourcePropType[]> = {
   ayuno: [],       // TODO: assets/images/hoy-extra/ayuno.png
   sueno: [],       // TODO: assets/images/hoy-extra/sueno.png
   journal: [],     // TODO: assets/images/electrons/journal.png
-  ciclo: [],       // TODO: assets/images/cycle/ciclo.png
+  // #cableado-final 3.5: ciclo con 3 variantes → rotación determinística por día/sesión.
+  ciclo: [
+    require('@/assets/images/cycle/ciclo-01.png'),
+    require('@/assets/images/cycle/ciclo-02.png'),
+    require('@/assets/images/cycle/ciclo-03.png'),
+  ],
 };
 
 /** Imagen de una card de hábito (rotación determinística). `undefined` si no hay variantes → gradient. */
