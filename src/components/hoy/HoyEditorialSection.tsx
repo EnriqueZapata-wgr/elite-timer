@@ -11,6 +11,8 @@
  * electrones, agenda hardcoded, counters proteína/agua) queda para la auditoría visual de Enrique
  * (ver COWORK_REPORT) — removerlas a ciegas del archivo entrelazado es el riesgo que evitamos.
  */
+import { useState, useEffect, useCallback } from 'react';
+import { DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
 import { EditorialCard, type EditorialCardState } from '@/src/components/hoy/EditorialCard';
 import { HeroAgendaCard } from '@/src/components/hoy/HeroAgendaCard';
@@ -19,7 +21,24 @@ import { generateLocalRecommendation } from '@/src/services/hoy/local-recommenda
 import { getLocalHour, getLocalToday } from '@/src/utils/date-helpers';
 import { pickCardioImage } from '@/src/utils/image-rotation';
 import { pickAgendaImage, categoryToFolder } from '@/src/utils/agenda-image-picker';
+import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
+import { addWater } from '@/src/services/hydration-service';
+import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
+import type { ElectronSource } from '@/src/constants/electrons';
 import type { CompiledDay } from '@/src/services/day-compiler';
+
+/** Cards booleanas que se completan TOCANDO la card (toggle). El resto enlaza a su pantalla. */
+const TOGGLE_CARDS = new Set(['luz_solar', 'bano_frio', 'grounding', 'lentes_rojos', 'checkin']);
+
+/** "14h 32m" desde el ISO de inicio del ayuno. */
+function formatFastDuration(startISO: string | null): string {
+  if (!startISO) return '';
+  const ms = Date.now() - new Date(startISO).getTime();
+  if (ms < 0) return '0h 00m';
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return `${h}h ${String(m).padStart(2, '0')}m`;
+}
 
 // #asset-swap: requires ESTÁTICOS (Metro no soporta dinámico). Viven aquí (componente, NO en
 // hoy-cards.ts que los tests importan — require('.png') rompe el resolver de vitest).
@@ -55,11 +74,13 @@ interface Props {
   day: CompiledDay;
   uvMini?: UvMini | null;
   cardsVisible: Set<string>;
+  /** userId para toggle de electrones / agua / ayuno. (También es el seed de rotaciones.) */
+  userId?: string;
   /** Seed para rotaciones determinísticas (ej. userId): misma img toda la sesión del día. */
   seedKey?: string;
 }
 
-export function HoyEditorialSection({ day, uvMini, cardsVisible, seedKey }: Props) {
+export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey }: Props) {
   const router = useRouter();
   const show = (k: string) => cardsVisible.has(k);
   const go = (route: string) => router.push(route as any);
@@ -69,6 +90,35 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, seedKey }: Prop
   const protein = quant('protein');
   const water = quant('water');
   const today = getLocalToday();
+
+  // 4.7 — ayuno activo (live). Carga al montar + cuando emite day_changed; tick cada minuto.
+  const [activeFast, setActiveFast] = useState<FastingLog | null>(null);
+  const [, setTick] = useState(0);
+  const loadFast = useCallback(() => {
+    if (!userId) { setActiveFast(null); return; }
+    getActiveFast(userId).then(setActiveFast).catch(() => setActiveFast(null));
+  }, [userId]);
+  useEffect(() => {
+    loadFast();
+    const sub = DeviceEventEmitter.addListener('day_changed', loadFast);
+    return () => sub.remove();
+  }, [loadFast]);
+  useEffect(() => {
+    if (!activeFast) return;
+    const id = setInterval(() => setTick((t) => t + 1), 60000); // re-render del timer cada minuto
+    return () => clearInterval(id);
+  }, [activeFast]);
+
+  // 4.4 — completar/revocar un electrón booleano tocando la card.
+  const toggleBoolean = async (cardKey: string) => {
+    if (!userId) return;
+    const source = (cardKey === 'checkin' ? 'checkin' : CARD_TO_ELECTRON[cardKey]) as ElectronSource;
+    if (!source) return;
+    const isCompleted = boolBySource.get(source)?.completed;
+    if (isCompleted) await revokeBooleanElectron(userId, source);
+    else await awardBooleanElectron(userId, source);
+    DeviceEventEmitter.emit('electrons_changed');
+  };
 
   // Próximo evento de la agenda (si existe) → Hero. Imagen rotada por categoría (determinística).
   const nextEvent = (day.agendaItems ?? []).find((i) => i.isNext);
@@ -112,7 +162,8 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, seedKey }: Prop
           gradient={['#1ABC9C', '#9B59B6']}
           imageBn={HOY_EXTRA_IMAGES.checkin}
           state={boolBySource.get('checkin')?.completed ? 'done' : 'pending'}
-          onTap={() => go('/checkin')}
+          electronsValue={boolBySource.get('checkin')?.weight}
+          onTap={() => toggleBoolean('checkin')}
         />
       ) : null}
 
@@ -124,6 +175,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, seedKey }: Prop
           gradient={['#FF8C00', '#C0392B']}
           imageBn={HOY_EXTRA_IMAGES.proteina}
           state={protein.current >= protein.target ? 'done' : 'pending'}
+          progress={{ current: protein.current, target: protein.target, unit: 'g' }}
           onTap={() => go('/food-register')}
         />
       ) : null}
@@ -136,7 +188,27 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, seedKey }: Prop
           gradient={['#3498DB', '#1ABC9C']}
           imageBn={HOY_EXTRA_IMAGES.agua}
           state={water.current >= water.target ? 'done' : 'pending'}
+          progress={{ current: water.current, target: water.target, unit: 'ml' }}
+          quickActions={userId ? [
+            { label: '+250 ml', onTap: () => { addWater(userId, 250); } },
+            { label: '+500 ml', onTap: () => { addWater(userId, 500); } },
+            { label: '-250 ml', onTap: () => { addWater(userId, -250); } },
+          ] : undefined}
           onTap={() => go('/hydration')}
+        />
+      ) : null}
+
+      {/* 4.7 — AYUNO: timer LIVE si activo, CTA si no. Sin imageBn (asset pendiente → gradient). */}
+      {show('ayuno') ? (
+        <EditorialCard
+          cardKey="ayuno" icon="⏳" title="AYUNO"
+          subtitle={activeFast ? formatFastDuration(activeFast.fast_start) : 'Sin ayuno activo'}
+          message={activeFast ? 'Tu ventana de ayuno está abierta' : 'Inicia tu ayuno cuando estés listo'}
+          gradient={['#9B59B6', '#3498DB']}
+          state={activeFast ? 'in_window' : 'pending'}
+          badge={activeFast ? 'AYUNANDO' : undefined}
+          ctaLabel={activeFast ? 'Romper ayuno' : 'Iniciar ayuno'}
+          onTap={() => go('/fasting')}
         />
       ) : null}
 
@@ -145,12 +217,14 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, seedKey }: Prop
         if (!spec) return null;
         const el = boolBySource.get(CARD_TO_ELECTRON[cardKey]);
         const state: EditorialCardState = el?.completed ? 'done' : 'pending';
+        const canToggle = TOGGLE_CARDS.has(cardKey);
         return (
           <EditorialCard
             key={cardKey} cardKey={cardKey} icon={spec.icon} title={spec.title}
             subtitle={el?.completed ? 'Hecho hoy' : el?.description || ''}
             gradient={spec.gradient} imageBn={ELECTRON_IMAGES[cardKey]} state={state}
-            onTap={() => go(spec.route || el?.pillarRoute || '/kit')}
+            electronsValue={el?.weight}
+            onTap={canToggle ? () => toggleBoolean(cardKey) : () => go(spec.route || el?.pillarRoute || '/kit')}
           />
         );
       })}

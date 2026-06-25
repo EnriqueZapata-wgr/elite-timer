@@ -42,7 +42,7 @@ export const HOY_CARD_SPECS: HoyCardSpec[] = [
 /** Orden COMPLETO de visibilidad (hero + 14), default para el toggle ON/OFF (migración 096). */
 export const HOY_CARD_ORDER_DEFAULT: string[] = [
   'hero_agenda',
-  'uv', 'checkin', 'proteina', 'agua',
+  'uv', 'checkin', 'proteina', 'agua', 'ayuno',
   'luz_solar', 'meditacion', 'suplementos', 'bano_frio', 'grounding', 'fuerza', 'breathwork', 'lentes_rojos',
   'cardio', 'pasos',
 ];

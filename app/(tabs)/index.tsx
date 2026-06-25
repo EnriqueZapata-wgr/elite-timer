@@ -864,7 +864,7 @@ export default function TodayScreen() {
         {/* #tabs-redesign V1.3 Parte 1: tira de cards editoriales (aditiva, gated por visibility).
             El cleanup de las secciones viejas queda para auditoría visual (ver COWORK_REPORT). */}
         <View style={{ paddingHorizontal: Spacing.md, marginTop: Spacing.md }}>
-          <HoyEditorialSection day={day} uvMini={uvMini} cardsVisible={cardsVisible} seedKey={user?.id} />
+          <HoyEditorialSection day={day} uvMini={uvMini} cardsVisible={cardsVisible} userId={user?.id} seedKey={user?.id} />
         </View>
 
         {/* Insight ARGOS movido a notificaciones (campana) */}
