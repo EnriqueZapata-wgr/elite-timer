@@ -163,6 +163,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           imageBn={HOY_EXTRA_IMAGES.checkin}
           state={boolBySource.get('checkin')?.completed ? 'done' : 'pending'}
           electronsValue={boolBySource.get('checkin')?.weight}
+          showCheckCircle
           onTap={() => toggleBoolean('checkin')}
         />
       ) : null}
@@ -176,6 +177,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           imageBn={HOY_EXTRA_IMAGES.proteina}
           state={protein.current >= protein.target ? 'done' : 'pending'}
           progress={{ current: protein.current, target: protein.target, unit: 'g' }}
+          showCheckCircle
           onTap={() => go('/food-register')}
         />
       ) : null}
@@ -194,19 +196,19 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             { label: '+500 ml', onTap: () => { addWater(userId, 500); } },
             { label: '-250 ml', onTap: () => { addWater(userId, -250); } },
           ] : undefined}
+          showCheckCircle
           onTap={() => go('/hydration')}
         />
       ) : null}
 
-      {/* 4.7 — AYUNO: timer LIVE si activo, CTA si no. Sin imageBn (asset pendiente → gradient). */}
+      {/* 4.7 — AYUNO. 2.5: alineado al resto — SIN in_window/glow, gradient suavizado, "Ayunando"
+          en el subtitle (no badge ni glow). Sin imageBn (asset pendiente → gradient). */}
       {show('ayuno') ? (
         <EditorialCard
           cardKey="ayuno" icon="⏳" title="AYUNO"
-          subtitle={activeFast ? formatFastDuration(activeFast.fast_start) : 'Sin ayuno activo'}
+          subtitle={activeFast ? `Ayunando · ${formatFastDuration(activeFast.fast_start)}` : 'Sin ayuno activo'}
           message={activeFast ? 'Tu ventana de ayuno está abierta' : 'Inicia tu ayuno cuando estés listo'}
-          gradient={['#9B59B6', '#3498DB']}
-          state={activeFast ? 'in_window' : 'pending'}
-          badge={activeFast ? 'AYUNANDO' : undefined}
+          gradient={['#6B46C1', '#1E3A8A']}
           ctaLabel={activeFast ? 'Romper ayuno' : 'Iniciar ayuno'}
           onTap={() => go('/fasting')}
         />
@@ -223,7 +225,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             key={cardKey} cardKey={cardKey} icon={spec.icon} title={spec.title}
             subtitle={el?.completed ? 'Hecho hoy' : el?.description || ''}
             gradient={spec.gradient} imageBn={ELECTRON_IMAGES[cardKey]} state={state}
-            electronsValue={el?.weight}
+            electronsValue={el?.weight} showCheckCircle
             onTap={canToggle ? () => toggleBoolean(cardKey) : () => go(spec.route || el?.pillarRoute || '/kit')}
           />
         );
