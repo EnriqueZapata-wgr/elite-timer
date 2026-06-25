@@ -27,6 +27,7 @@ const PILLARS = [
     message: 'Tu expediente vivo',
     gradient: ['#1ABC9C', '#16A085'] as [string, string],
     route: '/health-hub',
+    imageBn: require('@/assets/images/pillars/historia-clinica.png'),
   },
   {
     cardKey: 'kit_habitos',
@@ -36,6 +37,7 @@ const PILLARS = [
     message: 'Lo que defines a diario',
     gradient: ['#A8E02A', '#1ABC9C'] as [string, string],
     route: '/habits-portal',
+    imageBn: require('@/assets/images/pillars/habitos.png'),
   },
 ];
 
@@ -63,6 +65,7 @@ export default function KitScreen() {
               subtitle={p.subtitle}
               message={p.message}
               gradient={p.gradient}
+              imageBn={p.imageBn}
               onTap={() => { haptic.medium(); router.push(p.route as any); }}
             />
           </Animated.View>

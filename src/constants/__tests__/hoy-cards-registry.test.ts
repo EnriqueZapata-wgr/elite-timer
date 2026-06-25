@@ -25,11 +25,13 @@ describe('HOY card registry', () => {
     }
   });
 
-  it('el orden default (hero + 14) incluye hero_agenda y las 14 cards', () => {
+  it('el orden default incluye hero_agenda + ayuno + las 14 cards del registro', () => {
     expect(HOY_CARD_ORDER_DEFAULT[0]).toBe('hero_agenda');
-    expect(HOY_CARD_ORDER_DEFAULT.length).toBe(15);
-    // toda card del orden (salvo el hero) debe estar en el registro
-    for (const k of HOY_CARD_ORDER_DEFAULT.filter((x) => x !== 'hero_agenda')) {
+    expect(HOY_CARD_ORDER_DEFAULT.length).toBe(16);
+    expect(HOY_CARD_ORDER_DEFAULT).toContain('ayuno');
+    // toda card del orden (salvo hero_agenda y ayuno, que son cards inline especiales sin spec)
+    // debe estar en el registro.
+    for (const k of HOY_CARD_ORDER_DEFAULT.filter((x) => x !== 'hero_agenda' && x !== 'ayuno')) {
       expect(HOY_CARD_BY_KEY[k], k).toBeTruthy();
     }
   });

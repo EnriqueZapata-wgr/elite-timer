@@ -19,7 +19,16 @@ export type EditorialCardState = 'pending' | 'in_window' | 'done' | 'out_of_hour
 /** Tamaño de la card: normal (lista), hero (próximo evento), pillar (frente full ~45% pantalla). */
 export type EditorialCardSize = 'normal' | 'hero' | 'pillar';
 
-const SIZE_HEIGHT: Record<EditorialCardSize, number> = { normal: 150, hero: 220, pillar: 280 };
+// Aspect ratio por size — coincide con las imágenes Midjourney (16:9 = 1.78) para que NO haya
+// zoom/recorte. Antes usábamos minHeight fijo (210/260/340) y las cards quedaban más cuadradas
+// que la imagen → cover recortaba mucho horizontal en pillars y se veía solo gradient.
+// Ahora la card siempre tiene la forma de la foto: pillar más ancho/dramático, normal 16:9 puro.
+// Pillar usa 4:3 (1.33) → un poco más cuadrada para impacto pero aún acomoda casi toda la foto.
+const SIZE_ASPECT: Record<EditorialCardSize, number> = {
+  normal: 16 / 9,  // 1.78 — exacto a la imagen
+  hero: 16 / 9,    // 1.78 — exacto a la imagen
+  pillar: 4 / 3,   // 1.33 — más cuadrada para impacto en Mi ATP (recorta ~25% horizontal)
+};
 
 export interface EditorialCardProps {
   cardKey: string;
@@ -34,55 +43,109 @@ export interface EditorialCardProps {
   badge?: string;
   ctaLabel?: string;
   onTap?: () => void;
+  /** 4.1 — barra de progreso opcional (proteína/agua). Solo visual; el subtitle lleva los números. */
+  progress?: { current: number; target: number; unit?: string };
+  /** 4.2 — valor de electrones de la card (+N). Se muestra como pill lima si state !== 'done'. */
+  electronsValue?: number;
+  /** 4.3 — acciones rápidas (máx 3) bajo la barra (ej. Agua +250/+500/-250). */
+  quickActions?: { label: string; onTap: () => void }[];
 }
 
 export function EditorialCard({
   cardKey, icon, title, subtitle, message, imageBn, gradient, state = 'pending', size = 'normal', badge, ctaLabel, onTap,
+  progress, electronsValue, quickActions,
 }: EditorialCardProps) {
   const done = state === 'done';
   const inWindow = state === 'in_window';
-  const minHeight = SIZE_HEIGHT[size];
+  const aspectRatio = SIZE_ASPECT[size];
   const big = size === 'pillar';
+  const progressPct = progress && progress.target > 0
+    ? Math.min(100, Math.max(0, (progress.current / progress.target) * 100))
+    : 0;
 
   return (
     <AnimatedPressable
       onPress={onTap ? () => { haptic.light(); onTap(); } : undefined}
-      style={[styles.card, { minHeight }, inWindow && styles.glow]}
+      style={[styles.card, { aspectRatio }, inWindow && styles.glow]}
     >
-      {/* Fondo: imagen B/N si existe, sino placeholder de gradient sólido con icono grande. */}
+      {/* Fondo: imagen B/N si existe, sino placeholder de gradient sólido con icono grande.
+          IMPORTANTE: width/height EXPLÍCITOS además de absoluteFill. RN tiene un bug conocido
+          donde Image con solo absoluteFill no calcula dimensiones del padre cuando el padre
+          usa aspectRatio, y la Image renderiza a su tamaño natural (2048x1146) — solo se ve
+          el crop sup-izq porque la card tiene overflow:hidden. Con width/height '100%' fuerza
+          la escala correcta y resizeMode='cover' funciona como se espera. */}
       {imageBn ? (
-        <Image source={imageBn} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image
+          source={imageBn}
+          style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
+          resizeMode="cover"
+        />
       ) : (
         <View style={StyleSheet.absoluteFill}>
           <View style={[StyleSheet.absoluteFill, { backgroundColor: gradient[0], opacity: 0.25 }]} />
           <EliteText style={styles.placeholderIcon}>{icon}</EliteText>
         </View>
       )}
-      {/* Overlay de gradient de categoría (diagonal). */}
+      {/* Overlay de gradient de categoría (diagonal).
+          - SIN imagen: gradient sólido (placeholder) con opacity 0.9.
+          - CON imagen: gradient diagonal de color fuerte (alpha 80% = CC hex) a casi transparente
+            (alpha 10% = 1A hex) → la esquina sup-izq tiene tinte de color, la esquina inf-der deja
+            ver la imagen casi pura. Esto resuelve cuando el gradient es uniforme/saturado (verde-verde)
+            que con opacity 0.45 sólido tintaba TODO y tapaba visualmente la imagen B/N. */}
       <LinearGradient
-        colors={gradient}
+        colors={imageBn ? [`${gradient[0]}CC`, `${gradient[1]}1A`] : gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={[StyleSheet.absoluteFill, { opacity: imageBn ? 0.82 : 0.9 }]}
+        style={[StyleSheet.absoluteFill, !imageBn && { opacity: 0.9 }]}
       />
+      {/* Velo oscuro en la parte inferior para que el texto blanco sea legible sobre cualquier
+          imagen (sin esto, fotos claras hacen ilegible el texto). */}
+      {imageBn ? (
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.55)']}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
       {/* Velo extra cuando está hecho (apaga la card). */}
       {done ? <View style={[StyleSheet.absoluteFill, styles.doneVeil]} /> : null}
 
-      <View style={[styles.content, { minHeight }]}>
+      <View style={styles.content}>
         <View style={styles.topRow}>
           <EliteText style={[styles.icon, big && styles.iconBig]}>{icon}</EliteText>
-          {inWindow && badge ? (
-            <View style={styles.badge}><EliteText style={styles.badgeText}>{badge}</EliteText></View>
-          ) : null}
-          {done ? (
-            <View style={styles.doneBadge}><EliteText style={styles.doneBadgeText}>Hecho hoy ✓</EliteText></View>
-          ) : null}
+          <View style={styles.topRight}>
+            {done ? (
+              <View style={styles.doneBadge}><EliteText style={styles.doneBadgeText}>Hecho hoy ✓</EliteText></View>
+            ) : (
+              <>
+                {inWindow && badge ? (
+                  <View style={styles.badge}><EliteText style={styles.badgeText}>{badge}</EliteText></View>
+                ) : null}
+                {electronsValue != null ? (
+                  <View style={styles.electronsPill}><EliteText style={styles.electronsPillText}>+{electronsValue}</EliteText></View>
+                ) : null}
+              </>
+            )}
+          </View>
         </View>
 
         <View style={styles.bottom}>
           <EliteText style={[styles.title, big && styles.titleBig]} numberOfLines={2}>{title}</EliteText>
           {subtitle ? <EliteText style={[styles.subtitle, big && styles.subtitleBig]} numberOfLines={2}>{subtitle}</EliteText> : null}
           {message ? <EliteText style={styles.message} numberOfLines={2}>{message}</EliteText> : null}
+          {progress ? (
+            <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${progressPct}%` }]} /></View>
+          ) : null}
+          {quickActions && quickActions.length > 0 ? (
+            <View style={styles.quickRow}>
+              {quickActions.slice(0, 3).map((qa) => (
+                <AnimatedPressable key={qa.label} onPress={() => { haptic.light(); qa.onTap(); }} style={styles.quickBtn}>
+                  <EliteText style={styles.quickBtnText}>{qa.label}</EliteText>
+                </AnimatedPressable>
+              ))}
+            </View>
+          ) : null}
           {ctaLabel ? (
             <View style={styles.cta}><EliteText style={styles.ctaText}>{ctaLabel}</EliteText></View>
           ) : null}
@@ -94,7 +157,7 @@ export function EditorialCard({
 
 const styles = StyleSheet.create({
   card: {
-    width: '100%', minHeight: 150, borderRadius: Radius.card, overflow: 'hidden',
+    width: '100%', borderRadius: Radius.card, overflow: 'hidden',
     marginBottom: Spacing.md, backgroundColor: '#000',
   },
   glow: {
@@ -103,15 +166,28 @@ const styles = StyleSheet.create({
   },
   placeholderIcon: { position: 'absolute', alignSelf: 'center', top: '30%', fontSize: 64, opacity: 0.35 },
   doneVeil: { backgroundColor: 'rgba(0,0,0,0.55)' },
-  content: { flex: 1, padding: Spacing.lg, justifyContent: 'space-between', minHeight: 150 },
+  // flex:1 hace que el content llene la card (cuyo height ya viene de aspectRatio en el padre).
+  // SIN minHeight: si lo dejamos, fuerza altura > la del aspectRatio y rompe el ratio.
+  content: { flex: 1, padding: Spacing.lg, justifyContent: 'space-between' },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   icon: { fontSize: 26 },
   iconBig: { fontSize: 40 },
+  // 4.2 — pill de electrones (+N) lima translúcido.
+  electronsPill: { backgroundColor: 'rgba(168,224,42,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  electronsPillText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs },
   badge: { backgroundColor: ATP_BRAND.lime, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   badgeText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1 },
   doneBadge: { backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
   doneBadgeText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   bottom: { gap: 2 },
+  // 4.1 — barra de progreso (proteína/agua).
+  progressTrack: { height: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.18)', marginTop: 8, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.85)' },
+  // 4.3 — acciones rápidas (agua).
+  quickRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  quickBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.15)' },
+  quickBtnText: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xs },
   title: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.xl, letterSpacing: 1 },
   titleBig: { fontSize: FontSizes.display, lineHeight: 38 },
   subtitle: { color: 'rgba(255,255,255,0.85)', fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
