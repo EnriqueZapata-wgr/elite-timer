@@ -126,11 +126,34 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     return () => clearInterval(id);
   }, [activeFast]);
 
-  // 4.4 — completar/revocar un electrón booleano tocando la card.
-  // #v13d 2.1: DUAL WRITE (blob daily_electrons + electron_logs), igual que el toggle del HOY.
-  // Antes solo escribía electron_logs → el day-compiler lee `completed` de los no-verificados
-  // desde el blob `daily_electrons.electrons`, así que la card nunca palomeaba tras recompilar.
-  const toggleBoolean = async (cardKey: string) => {
+  // #v13e 3.A.2 — OPTIMISTIC UPDATE. Antes: tap → await Supabase x2 → emit → recompila → re-render
+  // (3-5s de lag antes de que la card palomeara). Ahora: setState optimista palomea AHORA y la
+  // persistencia corre async con rollback si falla. El override se mantiene hasta que el compiler
+  // refleje el estado real (reconciliación abajo) → sin flicker de vuelta a "pending".
+  const [optimisticOverrides, setOptimisticOverrides] = useState<Record<string, boolean>>({});
+
+  // Estado visual de un booleano: override optimista > estado compilado > false.
+  const isDone = (source: string): boolean =>
+    optimisticOverrides[source] ?? boolBySource.get(source)?.completed ?? false;
+
+  // Cuando el compiler recompila (day.booleanElectrons cambia), soltar los overrides que el estado
+  // real ya alcanzó; conservar los que aún no se reflejan (evita parpadeo a pending).
+  useEffect(() => {
+    setOptimisticOverrides((prev) => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+      const next: Record<string, boolean> = {};
+      for (const k of keys) {
+        const real = boolBySource.get(k)?.completed ?? false;
+        if (real !== prev[k]) next[k] = prev[k];
+      }
+      return Object.keys(next).length === keys.length ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day.booleanElectrons]);
+
+  // 4.4 — completar/revocar un electrón booleano tocando la card (optimista + rollback).
+  const toggleBoolean = (cardKey: string) => {
     if (!userId) return;
     // Cards nuevas (no_alcohol/journal/no_processed_foods/screen_time_cutoff) usan cardKey=source.
     const source = (CARD_TO_ELECTRON[cardKey] ?? cardKey) as ElectronSource;
@@ -138,28 +161,34 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     // Verificados (checkin/meditation/…) derivan `completed` de actividad real, no del blob.
     // No deben togglearse desde la card (checkin navega a /checkin). Guard defensivo.
     if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) return;
-    const wasCompleted = boolBySource.get(source)?.completed ?? false;
-    // 1) blob daily_electrons (lo que el compiler lee para UI rápida)
+    const wasCompleted = isDone(source);
+    const next = !wasCompleted;
+    // 1) UI optimista: palomea/despalomea AHORA.
+    setOptimisticOverrides((prev) => ({ ...prev, [source]: next }));
+    // 2) Persistencia async fire-and-forget con rollback si falla.
+    persistToggle(source, next).catch((e) => {
+      setOptimisticOverrides((prev) => ({ ...prev, [source]: wasCompleted }));
+      logWarn('[HoyEditorial] toggle failed, reverted', e);
+    });
+  };
+
+  // #v13d 2.1: DUAL WRITE (blob daily_electrons + electron_logs). El compiler lee `completed` de los
+  // no-verificados desde el blob; electron_logs lleva el acumulado/rango.
+  const persistToggle = async (source: ElectronSource, next: boolean) => {
     const newStates: Record<string, boolean> = {};
     for (const e of day.booleanElectrons ?? []) {
       newStates[e.source] = e.completed;
     }
     // #v13e 3.A.1: SIEMPRE persistir el source toggleado, aunque (por prefs viejos) no viva en
-    // booleanElectrons. Antes el loop solo escribía keys ya presentes → el tap sobre un source
-    // ausente no escribía nada al blob y la card nunca palomeaba (toggle silencioso).
-    newStates[source] = !wasCompleted;
-    try {
-      const { error } = await supabase
-        .from('daily_electrons')
-        .upsert({ user_id: userId, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
-      if (error) throw error;
-      // 2) electron_logs (acumulado / rango)
-      if (wasCompleted) await revokeBooleanElectron(userId, source);
-      else await awardBooleanElectron(userId, source);
-      DeviceEventEmitter.emit('electrons_changed');
-    } catch (e) {
-      logWarn('[HoyEditorial] toggle electron failed', e);
-    }
+    // booleanElectrons (toggle silencioso).
+    newStates[source] = next;
+    const { error } = await supabase
+      .from('daily_electrons')
+      .upsert({ user_id: userId!, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
+    if (error) throw error;
+    if (next) await awardBooleanElectron(userId!, source);
+    else await revokeBooleanElectron(userId!, source);
+    DeviceEventEmitter.emit('electrons_changed');
   };
 
   // Próximo evento de la agenda (si existe) → Hero. Imagen rotada por categoría (determinística).
@@ -175,13 +204,15 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     const spec = HOY_CARD_BY_KEY[cardKey];
     if (!spec) return null;
     // #v13d 2.1: leer por `source` mapeado (no por cardKey) para reflejar el electrón real.
-    const el = boolBySource.get(CARD_TO_ELECTRON[cardKey] ?? cardKey);
+    const source = CARD_TO_ELECTRON[cardKey] ?? cardKey;
+    const el = boolBySource.get(source);
+    const done = isDone(source); // #v13e 3.A.2: estado optimista
     return (
       <EditorialCard
         key={cardKey} cardKey={cardKey} icon={spec.icon} title={spec.title}
-        subtitle={el?.completed ? 'Hecho hoy' : subtitlePending}
+        subtitle={done ? 'Hecho hoy' : subtitlePending}
         gradient={spec.gradient} imageBn={imageBn}
-        state={el?.completed ? 'done' : 'pending'}
+        state={done ? 'done' : 'pending'}
         electronsValue={el?.weight} showCheckCircle
         onTap={() => toggleBoolean(cardKey)}
       />
@@ -323,13 +354,15 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
       {ELECTRON_CARD_ORDER.filter(show).map((cardKey) => {
         const spec = HOY_CARD_BY_KEY[cardKey];
         if (!spec) return null;
-        const el = boolBySource.get(CARD_TO_ELECTRON[cardKey]);
-        const state: EditorialCardState = el?.completed ? 'done' : 'pending';
+        const source = CARD_TO_ELECTRON[cardKey];
+        const el = boolBySource.get(source);
+        const done = isDone(source); // #v13e 3.A.2: estado optimista (verificados caen al compilado)
+        const state: EditorialCardState = done ? 'done' : 'pending';
         const canToggle = TOGGLE_CARDS.has(cardKey);
         return (
           <EditorialCard
             key={cardKey} cardKey={cardKey} icon={spec.icon} title={spec.title}
-            subtitle={el?.completed ? 'Hecho hoy' : el?.description || ''}
+            subtitle={done ? 'Hecho hoy' : el?.description || ''}
             gradient={spec.gradient} imageBn={ELECTRON_IMAGES[cardKey]} state={state}
             electronsValue={el?.weight} showCheckCircle
             onTap={canToggle ? () => toggleBoolean(cardKey) : () => go(spec.route || el?.pillarRoute || '/kit')}
