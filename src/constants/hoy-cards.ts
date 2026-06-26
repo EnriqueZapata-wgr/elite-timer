@@ -49,14 +49,14 @@ export const HOY_CARD_SPECS: HoyCardSpec[] = [
 /**
  * Orden de visibilidad del HOY, default para el toggle ON/OFF (migración 096).
  * #v13e (reorden): orden cronológico por las 5 sub-secciones (DESPERTAR / NUTRICIÓN / ACTIVIDAD /
- * CIERRE / DESCANSO). SUPLEMENTOS ya NO vive en HOY (enlaza a /supplements desde HÁBITOS).
+ * CIERRE / DESCANSO). #v13f 2.4: SUPLEMENTOS restaurada como card editorial (X/Y tomados) en NUTRICIÓN.
  */
 export const HOY_CARD_ORDER_DEFAULT: string[] = [
   'hero_agenda',
   // DESPERTAR
   'uv', 'luz_solar', 'checkin', 'meditacion',
   // NUTRICIÓN
-  'proteina', 'agua', 'no_processed_foods', 'ayuno',
+  'proteina', 'agua', 'suplementos', 'no_processed_foods', 'ayuno',
   // ACTIVIDAD
   'fuerza', 'cardio', 'pasos', 'grounding', 'bano_frio',
   // CIERRE

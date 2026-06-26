@@ -29,6 +29,7 @@ import { addWater } from '@/src/services/hydration-service';
 import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
 import { getBurnTimeMinutes } from '@/src/services/uv-service';
 import { getCardioSessionsToday, type CardioSession } from '@/src/services/fitness-service';
+import { getSupplementsTodayCount, type SupplementsToday } from '@/src/services/supplements-service';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import type { ElectronSource } from '@/src/constants/electrons';
@@ -101,7 +102,7 @@ const CARD_INFO: Record<string, string> = {
   meditacion: 'Una sesión de meditación hoy. Se otorga al completar la práctica en Mente.',
   breathwork: 'Una sesión de respiración hoy. Se otorga al completarla en Mente.',
   fuerza: 'Registra un entrenamiento de fuerza hoy. Se otorga al guardar el ejercicio.',
-  suplementos: 'Toma tus suplementos del día. Se otorga al marcarlos en Suplementación.',
+  suplementos: 'Toma los suplementos programados de tu protocolo. Palomea automáticamente cuando completas el 75%.',
   checkin: 'Registra tu estado emocional hoy. Se otorga al guardar el check-in.',
   cardio: 'Registra una sesión de cardio hoy. Se otorga al guardar la sesión.',
   proteina: 'Alcanza tu meta diaria de proteína. El electrón es proporcional al % logrado.',
@@ -115,7 +116,7 @@ const CARD_INFO: Record<string, string> = {
  */
 const HOY_SECTIONS: { title: string; cardKeys: string[] }[] = [
   { title: 'DESPERTAR', cardKeys: ['uv', 'luz_solar', 'checkin', 'meditacion'] },
-  { title: 'NUTRICIÓN', cardKeys: ['proteina', 'agua', 'no_processed_foods', 'ayuno'] },
+  { title: 'NUTRICIÓN', cardKeys: ['proteina', 'agua', 'suplementos', 'no_processed_foods', 'ayuno'] },
   { title: 'ACTIVIDAD', cardKeys: ['fuerza', 'cardio', 'pasos', 'grounding', 'bano_frio'] },
   { title: 'CIERRE', cardKeys: ['breathwork', 'lentes_rojos', 'journal', 'screen_time_cutoff', 'no_alcohol'] },
   { title: 'DESCANSO', cardKeys: ['sleep'] },
@@ -179,6 +180,20 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     const subEl = DeviceEventEmitter.addListener('electrons_changed', loadCardio);
     return () => { subDay.remove(); subEl.remove(); };
   }, [loadCardio]);
+
+  // #v13f 2.4 — conteo de suplementos del día (X/Y) para la card SUPLEMENTOS. Recarga al volver de
+  // /supplements (electrons_changed) o al cambiar el día.
+  const [suppCount, setSuppCount] = useState<SupplementsToday>({ total: 0, taken: 0 });
+  const loadSupps = useCallback(() => {
+    if (!userId) { setSuppCount({ total: 0, taken: 0 }); return; }
+    getSupplementsTodayCount(userId).then(setSuppCount).catch(() => setSuppCount({ total: 0, taken: 0 }));
+  }, [userId]);
+  useEffect(() => {
+    loadSupps();
+    const subDay = DeviceEventEmitter.addListener('day_changed', loadSupps);
+    const subEl = DeviceEventEmitter.addListener('electrons_changed', loadSupps);
+    return () => { subDay.remove(); subEl.remove(); };
+  }, [loadSupps]);
 
   // #v13e 3.A.2 — OPTIMISTIC UPDATE. Antes: tap → await Supabase x2 → emit → recompila → re-render
   // (3-5s de lag antes de que la card palomeara). Ahora: setState optimista palomea AHORA y la
@@ -473,8 +488,28 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         );
       }
       case 'luz_solar': case 'meditacion': case 'bano_frio': case 'grounding':
-      case 'fuerza': case 'breathwork': case 'lentes_rojos': case 'suplementos':
+      case 'fuerza': case 'breathwork': case 'lentes_rojos':
         return renderElectronCard(cardKey);
+      // #v13f 2.4: SUPLEMENTOS restaurada — conteo X/Y tomados hoy, palomea al 75%. Navega a /supplements.
+      case 'suplementos': {
+        const spec = HOY_CARD_BY_KEY['suplementos'];
+        if (!spec) return null;
+        const { total, taken } = suppCount;
+        const ratio = total > 0 ? taken / total : 0;
+        const done = total > 0 && ratio >= 0.75;
+        return (
+          <EditorialCard
+            cardKey="suplementos" icon={spec.icon} title={spec.title}
+            subtitle={total > 0 ? `${taken} / ${total} tomados` : 'Sin suplementos en tu protocolo'}
+            gradient={spec.gradient} imageBn={ELECTRON_IMAGES.suplementos}
+            state={done ? 'done' : 'pending'}
+            electronsValue={boolBySource.get('supplements')?.weight}
+            showCheckCircle
+            infoText={CARD_INFO['suplementos']}
+            onTap={() => go('/supplements')}
+          />
+        );
+      }
       // #v13e 3.A.3 + 3.B.3: CARDIO verificado — palomea al guardar sesión + km/min del día.
       case 'cardio': {
         const el = boolBySource.get('cardio');
