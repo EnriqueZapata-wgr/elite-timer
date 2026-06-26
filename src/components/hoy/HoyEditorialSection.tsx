@@ -91,6 +91,27 @@ const CARD_TO_ELECTRON: Record<string, string> = {
 };
 const ELECTRON_CARD_ORDER = ['luz_solar', 'meditacion', 'suplementos', 'bano_frio', 'grounding', 'fuerza', 'breathwork', 'lentes_rojos'];
 
+/** #v13e 3.D — copy del info-tip "i" por card (cómo se gana el electrón). Corto (1-2 líneas). */
+const CARD_INFO: Record<string, string> = {
+  luz_solar: 'Exponerte 10–20 min al sol matutino (sin lentes oscuros) mejora tu ritmo circadiano y vitamina D. Palomea cuando lo hagas.',
+  bano_frio: 'Inmersión 2–5 min en agua fría (10–15°C) activa grasa parda y norepinefrina. Cuenta una vez al día.',
+  grounding: '10+ min descalzo en tierra, pasto o arena reduce inflamación. Cuenta una vez al día.',
+  lentes_rojos: 'Lentes que bloquean luz azul 1–2h antes de dormir mejoran tu melatonina. Palomea cuando los uses.',
+  no_alcohol: 'Día sin alcohol: mejora sueño, recuperación hepática y claridad mental. Palomea si no consumiste.',
+  no_processed_foods: 'Día sin alimentos ultraprocesados. Palomea cuando lo confirmes.',
+  screen_time_cutoff: '1 hora sin pantallas antes de dormir mejora tu sueño. Palomea cuando lo cumplas esa noche.',
+  journal: 'Escribe cualquier entrada de journal hoy. El electrón se otorga al guardar tu entrada.',
+  meditacion: 'Una sesión de meditación hoy. Se otorga al completar la práctica en Mente.',
+  breathwork: 'Una sesión de respiración hoy. Se otorga al completarla en Mente.',
+  fuerza: 'Registra un entrenamiento de fuerza hoy. Se otorga al guardar el ejercicio.',
+  suplementos: 'Toma tus suplementos del día. Se otorga al marcarlos en Suplementación.',
+  checkin: 'Registra tu estado emocional hoy. Se otorga al guardar el check-in.',
+  cardio: 'Registra una sesión de cardio hoy. Se otorga al guardar la sesión.',
+  proteina: 'Alcanza tu meta diaria de proteína. El electrón es proporcional al % logrado.',
+  agua: 'Alcanza tu meta diaria de agua. El electrón es proporcional al % logrado.',
+  ayuno: 'Completa tu ventana de ayuno objetivo. El electrón se otorga al cumplir las horas meta.',
+};
+
 interface UvMini { current?: number; level?: string }
 
 interface Props {
@@ -233,6 +254,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         gradient={spec.gradient} imageBn={imageBn}
         state={done ? 'done' : 'pending'}
         electronsValue={el?.weight} showCheckCircle
+        infoText={CARD_INFO[cardKey]}
         onTap={() => toggleBoolean(cardKey)}
       />
     );
@@ -290,6 +312,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           state={boolBySource.get('checkin')?.completed ? 'done' : 'pending'}
           electronsValue={boolBySource.get('checkin')?.weight}
           showCheckCircle
+          infoText={CARD_INFO['checkin']}
           // #v13d 2.2: checkin NO togglea desde card → navega a /checkin. El award sucede al
           // guardar dentro de /checkin (emite electrons_changed → recompila → card palomea).
           onTap={() => go('/checkin')}
@@ -311,6 +334,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             state={el?.completed ? 'done' : 'pending'}
             electronsValue={el?.weight}
             showCheckCircle
+            infoText={CARD_INFO['journal']}
             onTap={() => go('/journal')}
           />
         );
@@ -326,6 +350,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           state={protein.current >= protein.target ? 'done' : 'pending'}
           progress={{ current: protein.current, target: protein.target, unit: 'g' }}
           showCheckCircle
+          infoText={CARD_INFO['proteina']}
           onTap={() => go('/food-register')}
         />
       ) : null}
@@ -347,6 +372,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             { label: '-250 ml', onTap: () => { addWater(userId, -250); } },
           ] : undefined}
           showCheckCircle
+          infoText={CARD_INFO['agua']}
           onTap={() => go('/hydration')}
         />
       ) : null}
@@ -372,6 +398,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             progress={activeFast ? { current: hoursActive, target: targetHours, unit: 'h' } : undefined}
             showCheckCircle={!!activeFast}
             ctaLabel={activeFast ? 'Romper ayuno' : 'Iniciar ayuno'}
+            infoText={CARD_INFO['ayuno']}
             onTap={() => go('/fasting')}
           />
         );
@@ -391,6 +418,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             subtitle={done ? 'Hecho hoy' : el?.description || ''}
             gradient={spec.gradient} imageBn={ELECTRON_IMAGES[cardKey]} state={state}
             electronsValue={el?.weight} showCheckCircle
+            infoText={CARD_INFO[cardKey]}
             onTap={canToggle ? () => toggleBoolean(cardKey) : () => go(spec.route || el?.pillarRoute || '/kit')}
           />
         );
@@ -419,6 +447,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             state={done ? 'done' : 'pending'}
             electronsValue={el?.weight}
             showCheckCircle
+            infoText={CARD_INFO['cardio']}
             onTap={() => go('/log-cardio')}
           />
         );
