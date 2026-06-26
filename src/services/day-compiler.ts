@@ -124,6 +124,24 @@ const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower'
   // #v13d 2.2: checkin verificado entra a booleanElectrons → su card refleja `Hecho hoy ✓`.
   // `completed` se deriva de actividad real (emotional_checkins de hoy), no del blob — ver verifiedCompleted.
   'checkin'];
+
+/**
+ * #v13e 3.A.1 — CAUSA RAÍZ del "toggle silencioso" (SIN PROCESADOS / OFF-PANTALLAS no palomeaban).
+ *
+ * `activeBoolKeys = prefs.active_boolean_electrons ?? DEFAULT_BOOLEANS` usa la lista PERSISTIDA del
+ * usuario cuando existe. Pero el DEFAULT de la columna (migración 043_day_preferences.sql) es solo
+ * los 6 originales ['sunlight','meditation','supplements','cold_shower','grounding','no_alcohol'], y
+ * protocol-config (ALL_ELECTRONS) NO ofrece journal/no_processed_foods/screen_time_cutoff como
+ * toggleables. Así que esos keys NUNCA entran a la lista persistida → nunca entran a booleanElectrons
+ * → al tocar la card, el toggle escribe un electron_log huérfano + un blob sin el key, y al recompilar
+ * la card no tiene estado (`completed` undefined) → se queda en "pending" para siempre. (no_alcohol y
+ * checkin SÍ palomean porque ambos sí son seleccionables / viven en la lista persistida.)
+ *
+ * FIX sin migración: estos hábitos son "core" (no deseleccionables) → viven en código, no en prefs.
+ * Se fuerzan SIEMPRE en activeBoolKeys vía unión, respetando la (de)selección de los seleccionables.
+ * `cardio` (#v13e 3.A.3) es verificado y tampoco es seleccionable → también va aquí.
+ */
+const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio'];
 const DEFAULT_QUANTS = ['protein', 'water'];
 
 const DEFAULT_QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
@@ -240,7 +258,11 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     userName = userRes.data.user?.email?.split('@')[0]?.toUpperCase() || '';
   }
 
-  const activeBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
+  // #v13e 3.A.1: unión persistido + MANDATORY (core no-deseleccionables). Sin esto, los hábitos
+  // que no viven en active_boolean_electrons (journal/no_processed_foods/screen_time_cutoff/cardio)
+  // nunca entraban a booleanElectrons → su card nunca palomeaba. Set para dedupe.
+  const persistedBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
+  const activeBoolKeys: string[] = Array.from(new Set([...persistedBoolKeys, ...MANDATORY_BOOLEANS]));
   const activeQuantKeys: string[] = (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)
     .filter((k: string) => k !== 'steps' && k !== 'sleep'); // Sin fuente hasta wearables
 

@@ -142,8 +142,12 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     // 1) blob daily_electrons (lo que el compiler lee para UI rápida)
     const newStates: Record<string, boolean> = {};
     for (const e of day.booleanElectrons ?? []) {
-      newStates[e.source] = e.source === source ? !wasCompleted : e.completed;
+      newStates[e.source] = e.completed;
     }
+    // #v13e 3.A.1: SIEMPRE persistir el source toggleado, aunque (por prefs viejos) no viva en
+    // booleanElectrons. Antes el loop solo escribía keys ya presentes → el tap sobre un source
+    // ausente no escribía nada al blob y la card nunca palomeaba (toggle silencioso).
+    newStates[source] = !wasCompleted;
     try {
       const { error } = await supabase
         .from('daily_electrons')
