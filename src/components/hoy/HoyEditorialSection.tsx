@@ -424,25 +424,46 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         );
       })() : null}
 
-      {show('pasos') ? (
-        <EditorialCard
-          cardKey="pasos" icon="🚶" title="PASOS"
-          subtitle="Sin datos · conecta Health Connect" gradient={['#27AE60', '#8B4513']}
-          imageBn={HOY_EXTRA_IMAGES.pasos}
-          onTap={() => go('/settings')}
-        />
-      ) : null}
+      {/* #v13e 3.B.2: PASOS — si el compiler expone steps con data, barra de progreso (como AGUA);
+          si no (sin Health Connect aún), CTA a conectar. Defensivo: cuando llegue la fuente, funciona
+          solo. TODO: integrar Health Connect (steps está filtrado en day-compiler hasta entonces). */}
+      {show('pasos') ? (() => {
+        const steps = quant('steps');
+        const hasSteps = !!steps && steps.current > 0;
+        return (
+          <EditorialCard
+            cardKey="pasos" icon="🚶" title="PASOS"
+            subtitle={hasSteps ? `${steps!.displayCurrent} / ${steps!.displayTarget}` : 'Sin datos · conecta Health Connect'}
+            gradient={['#27AE60', '#8B4513']}
+            imageBn={HOY_EXTRA_IMAGES.pasos}
+            state={hasSteps && steps!.current >= steps!.target ? 'done' : 'pending'}
+            progress={hasSteps ? { current: steps!.current, target: steps!.target, unit: 'pasos' } : undefined}
+            onTap={() => go('/settings')}
+          />
+        );
+      })() : null}
 
-      {/* 3.3: SLEEP informativa — day-compiler no expone `sleep` (sin fuente hasta wearables) →
-          sin barra/toggle, enlace a /reports. Sin círculo. */}
-      {show('sleep') ? (
-        <EditorialCard
-          cardKey="sleep" icon="🌙" title="SUEÑO"
-          subtitle="Descanso y recuperación" gradient={['#2C3E50', '#1A1A2E']}
-          imageBn={HOY_EXTRA_IMAGES.sueno}
-          onTap={() => go('/reports')}
-        />
-      ) : null}
+      {/* #v13e 3.B.4: SUEÑO con lógica horaria. 4am–6pm muestra "tu sueño de anoche" (resultados),
+          6pm–4am muestra "tu hora de dormir" (recomendación). Sin fuente de datos aún → copy de
+          conectar wearable distinto según el rango. Navega a /reports (placeholder).
+          TODO: rutas dedicadas /sleep-report (am) y /sleep-recommend (pm). */}
+      {show('sleep') ? (() => {
+        const h = getLocalHour();
+        const isMorning = h >= 4 && h < 18;
+        const subtitle = isMorning ? 'Tu sueño de anoche' : 'Tu hora de dormir';
+        const message = isMorning
+          ? 'Conecta Apple Watch / Health Connect para ver tu descanso'
+          : 'Conecta tu wearable para personalizar tu hora de dormir';
+        return (
+          <EditorialCard
+            cardKey="sleep" icon="🌙" title="SUEÑO"
+            subtitle={subtitle} message={message}
+            gradient={['#2C3E50', '#1A1A2E']}
+            imageBn={HOY_EXTRA_IMAGES.sueno}
+            onTap={() => go('/reports')}
+          />
+        );
+      })() : null}
     </>
   );
 }
