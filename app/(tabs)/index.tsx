@@ -856,7 +856,13 @@ export default function TodayScreen() {
 
             {/* TU DÍA — #v13d 2.7: card editorial (imagen B/N despertar + número display + barra). */}
             <Animated.View entering={FadeInUp.delay(120).springify()}>
-              <HoyDayCardEditorial percentage={pct} seedKey={user?.id} />
+              <HoyDayCardEditorial
+                percentage={pct}
+                seedKey={user?.id}
+                streak={streak}
+                completedCount={day.booleanElectrons.filter(e => e.completed).length}
+                totalCount={day.booleanElectrons.length}
+              />
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
@@ -925,198 +931,20 @@ export default function TodayScreen() {
           </Animated.View>
         )}
 
-        {/* ═══════════════════════════════════════
-            DAILY REVIEW — Cierre del día (≥20h, reglas)
-        ═══════════════════════════════════════ */}
-        {dailyReview && !dailyReviewDismissed && (
-          <Animated.View entering={FadeInUp.delay(142).springify()} style={s.section}>
-            <View style={s.reviewCard}>
-              <View style={s.reviewHeader}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="moon-outline" size={14} color="#818cf8" />
-                  <Text style={s.reviewLabel}>CIERRE DEL DÍA</Text>
-                </View>
-                <Pressable onPress={dismissDailyReview} hitSlop={10}>
-                  <Ionicons name="close" size={16} color="#666" />
-                </Pressable>
-              </View>
-
-              {/* Resumen numérico */}
-              <View style={s.reviewSummaryRow}>
-                <View style={s.reviewStat}>
-                  <Text style={s.reviewStatValue}>{dailyReview.scorePct}%</Text>
-                  <Text style={s.reviewStatLabel}>ATP Score</Text>
-                </View>
-                <View style={s.reviewStat}>
-                  <Text style={s.reviewStatValue}>{dailyReview.boolCompleted}/{dailyReview.boolTotal}</Text>
-                  <Text style={s.reviewStatLabel}>Electrones</Text>
-                </View>
-                <View style={s.reviewStat}>
-                  <Text style={s.reviewStatValue}>🔥 {dailyReview.streak}</Text>
-                  <Text style={s.reviewStatLabel}>Racha</Text>
-                </View>
-              </View>
-
-              {/* Highlights */}
-              {dailyReview.highlights.length > 0 && (
-                <View style={{ marginTop: 10, gap: 4 }}>
-                  {dailyReview.highlights.map((h, i) => (
-                    <View key={i} style={{ flexDirection: 'row', gap: 6 }}>
-                      <Ionicons name="checkmark-circle" size={14} color="#a8e02a" style={{ marginTop: 2 }} />
-                      <Text style={s.reviewItem}>{h}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* Red flag */}
-              {dailyReview.redFlag && (
-                <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-                  <Ionicons name="alert-circle-outline" size={14} color="#fb7185" style={{ marginTop: 2 }} />
-                  <Text style={[s.reviewItem, { color: '#fb7185' }]}>{dailyReview.redFlag}</Text>
-                </View>
-              )}
-
-              {/* Foco mañana */}
-              <View style={s.reviewFocus}>
-                <Text style={s.reviewFocusLabel}>MAÑANA</Text>
-                <Text style={s.reviewFocusText}>{dailyReview.focus}</Text>
-              </View>
-            </View>
-          </Animated.View>
-        )}
+        {/* #v13e 3.C: "Cierre del día" (DAILY REVIEW) eliminado del HOY — su mini-reporte (score,
+            electrones, racha) ahora vive integrado en la card TU DÍA (HoyDayCardEditorial). */}
 
         {/* H8: card de acceso directo "Check-in emocional" eliminada — el acceso queda solo
             en el hábito de Check-in (que navega a /checkin, ver H1). */}
 
-        {/* ═══════════════════════════════════════
-            WEARABLE — cardio del día + pasos
-        ═══════════════════════════════════════ */}
-        <Animated.View entering={FadeInUp.delay(150).springify()} style={s.section}>
-          <Text style={s.sectionTitle}>ACTIVIDAD</Text>
-          <View style={s.wearableRow}>
-            <WearableMetricCard
-              icon="fitness-outline" color="#fb7185" label="Cardio hoy"
-              value={wearable?.activeMinutes != null ? String(wearable.activeMinutes) : null}
-              unit="min"
-            />
-            <WearableMetricCard
-              icon="walk-outline" color="#38bdf8" label="Pasos"
-              value={wearable?.steps != null ? String(wearable.steps) : null}
-              unit="pasos"
-            />
-          </View>
-          {wearable == null && (
-            <Text style={s.wearableHint}>Conecta tu wearable (Apple Watch / Health Connect) para ver tu actividad.</Text>
-          )}
-        </Animated.View>
+        {/* #v13e 3.C: "Actividad" (wearable Cardio hoy + Pasos) eliminada del HOY — las cards
+            editoriales CARDIO (km/min, 3.B.3) y PASOS (3.B.2) arriba ya cubren esto. */}
 
-        {/* ═══════════════════════════════════════
-            QUICK PROMPT — Journal nocturno (≥21h, sin entrada hoy)
-        ═══════════════════════════════════════ */}
-        {hour >= 21 && !hasJournalToday && (
-          <Animated.View entering={FadeInUp.delay(152).springify()} style={s.section}>
-            <View style={s.journalCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <Ionicons name="book-outline" size={16} color="#c084fc" />
-                <Text style={s.journalTitle}>¿Cómo estuvo tu día?</Text>
-              </View>
-              <TextInput
-                value={journalDraft}
-                onChangeText={setJournalDraft}
-                placeholder="Una línea, un pensamiento..."
-                placeholderTextColor="rgba(255,255,255,0.25)"
-                multiline
-                editable={!journalSaving}
-                style={s.journalInput}
-                maxLength={500}
-              />
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-                <Pressable onPress={() => { haptic.light(); router.push('/journal' as any); }}>
-                  <Text style={s.quickLogMore}>journal completo →</Text>
-                </Pressable>
-                <Pressable
-                  onPress={saveQuickJournal}
-                  disabled={journalSaving || journalDraft.trim().length < 3}
-                  style={[
-                    s.journalSaveBtn,
-                    (journalSaving || journalDraft.trim().length < 3) && { opacity: 0.4 },
-                  ]}
-                >
-                  <Text style={s.journalSaveText}>{journalSaving ? 'GUARDANDO…' : 'GUARDAR'}</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Animated.View>
-        )}
+        {/* #v13e 3.C: "¿Cómo estuvo tu día?" (journal nocturno inline) eliminado del HOY —
+            la card JOURNAL navega a /journal donde se registra (no aportaba valor extra aquí). */}
 
-        {/* ═══════════════════════════════════════
-            QUICK CHECK — Suplementos de hoy
-        ═══════════════════════════════════════ */}
-        {supplements.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(155).springify()} style={s.section}>
-            <View style={s.sectionHeader}>
-              <Text style={s.sectionTitle}>SUPLEMENTOS DE HOY</Text>
-              <Pressable onPress={() => { haptic.light(); router.push('/supplements' as any); }}>
-                <Text style={s.quickLogMore}>gestionar →</Text>
-              </Pressable>
-            </View>
-            <View style={{ gap: 8 }}>
-              {SUPP_TIMINGS.map(t => {
-                const items = supplements.filter(su => (su.timing || 'morning') === t.id);
-                if (items.length === 0) return null;
-                const takenCount = items.filter(su => suppTaken[su.id]).length;
-                const allDone = takenCount === items.length;
-                // Default: colapsado si el grupo está completo; abierto si hay pendientes.
-                const open = openTimings[t.id] ?? !allDone;
-                return (
-                  <View key={t.id}>
-                    <Pressable
-                      onPress={() => {
-                        haptic.light();
-                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                        setOpenTimings(prev => ({ ...prev, [t.id]: !open }));
-                      }}
-                      style={s.suppGroupHeader}
-                    >
-                      <Ionicons name={t.icon} size={15} color={t.color} />
-                      <Text style={[s.suppGroupTitle, { color: t.color }]}>{t.label}</Text>
-                      <View style={s.suppGroupCount}>
-                        {allDone && <Ionicons name="checkmark-circle" size={14} color="#a8e02a" />}
-                        <Text style={[s.suppGroupCountText, allDone && { color: '#a8e02a' }]}>
-                          {takenCount}/{items.length}
-                        </Text>
-                      </View>
-                      <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#666" />
-                    </Pressable>
-                    {open && (
-                      <View style={{ gap: 6, marginTop: 8 }}>
-                        {items.map(supp => {
-                          const taken = !!suppTaken[supp.id];
-                          return (
-                            <Pressable
-                              key={supp.id}
-                              onPress={() => toggleSupplement(supp.id)}
-                              style={[s.suppRow, taken && s.suppRowDone]}
-                            >
-                              {taken ? (
-                                <Ionicons name="checkmark-circle" size={22} color="#a8e02a" />
-                              ) : (
-                                <View style={s.suppDot} />
-                              )}
-                              <Text style={[s.suppName, taken && s.suppNameDone]} numberOfLines={1}>{supp.name}</Text>
-                              <Text style={s.suppDosage}>{supp.dosage}</Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          </Animated.View>
-        )}
+        {/* #v13e 3.C: "Suplementos de hoy" (tabla con timing groups) eliminada del HOY — vive en
+            /supplements (accesible desde MI ATP → HÁBITOS → SUPLEMENTACIÓN). Saturaba el HOY. */}
 
         {/* #v13d 2.4: UV mini-card legacy eliminada — la card UV editorial (HoyEditorialSection)
             ya cubre esto con más impacto. `uvMini` se mantiene (alimenta esa card). */}
