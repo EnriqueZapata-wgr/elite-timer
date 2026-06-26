@@ -373,14 +373,24 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
       {renderBoolCard('no_alcohol', 'Día sin alcohol', HOY_EXTRA_IMAGES.no_alcohol)}
       {renderBoolCard('screen_time_cutoff', '1h sin pantallas antes de dormir', HOY_EXTRA_IMAGES.screen_cutoff)}
 
-      {show('cardio') ? (
-        <EditorialCard
-          cardKey="cardio" icon="❤️‍🔥" title="CARDIO"
-          subtitle="Sin datos · conecta wearable" gradient={['#E74C3C', '#FFA500']}
-          imageBn={pickCardioImage(`${seedKey ?? ''}-cardio-${today}`)}
-          onTap={() => go('/log-cardio')}
-        />
-      ) : null}
+      {/* #v13e 3.A.3: CARDIO verificado — palomea al guardar sesión (cardio_sessions hoy). Navega a
+          /log-cardio (no togglea). El km/min del subtitle llega en 3.B.3. */}
+      {show('cardio') ? (() => {
+        const el = boolBySource.get('cardio');
+        const done = isDone('cardio');
+        return (
+          <EditorialCard
+            cardKey="cardio" icon="❤️‍🔥" title="CARDIO"
+            subtitle={done ? 'Hecho hoy' : 'Sin sesión hoy · registrar'}
+            gradient={['#E74C3C', '#FFA500']}
+            imageBn={pickCardioImage(`${seedKey ?? ''}-cardio-${today}`)}
+            state={done ? 'done' : 'pending'}
+            electronsValue={el?.weight}
+            showCheckCircle
+            onTap={() => go('/log-cardio')}
+          />
+        );
+      })() : null}
 
       {show('pasos') ? (
         <EditorialCard

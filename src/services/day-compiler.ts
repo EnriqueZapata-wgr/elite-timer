@@ -22,7 +22,9 @@ import { warn as logWarn } from '@/src/lib/logger';
  *
  * `period_log` solo se ofrece a usuarias con `biological_sex === 'female'`.
  */
-export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements', 'period_log', 'checkin'] as const;
+export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements', 'period_log', 'checkin',
+  // #v13e 3.A.3: cardio verificado — completed = ≥1 sesión en cardio_sessions hoy.
+  'cardio'] as const;
 export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 
 /** Ruta de la pantalla de actividad para cada electrón verificado. */
@@ -33,6 +35,7 @@ export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, string> = {
   supplements: '/supplements',
   period_log: '/cycle',
   checkin: '/checkin', // H1: tap del hábito Check-in emocional → /checkin (no togglea)
+  cardio: '/log-cardio', // #v13e 3.A.3: tap de la card CARDIO → registrar sesión (no togglea)
 };
 
 /** Electrones que solo se ofrecen a un subconjunto de usuarios. */
@@ -199,6 +202,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, exerciseCountRes, supplementCountRes, cycleLogCountRes,
+    cardioCountRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -221,6 +225,9 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
       .eq('user_id', userId).eq('date', today).eq('taken', true),
     supabase.from('cycle_daily_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today),
+    // #v13e 3.A.3: ¿hubo ≥1 sesión de cardio hoy? → card CARDIO verificada palomea.
+    supabase.from('cardio_sessions').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
@@ -237,6 +244,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     supplements: (supplementCountRes.count ?? 0) >= 1,
     period_log: (cycleLogCountRes.count ?? 0) >= 1,
     checkin: lastCheckinDate === today,
+    cardio: (cardioCountRes.count ?? 0) >= 1, // #v13e 3.A.3
   };
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;

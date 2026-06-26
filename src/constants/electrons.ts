@@ -24,6 +24,9 @@ export const ELECTRON_WEIGHTS = {
   // {weight,name,icon,color}.
   no_processed_foods:  { weight: 2.0, name: 'Sin procesados',           icon: 'nutrition-outline',       color: '#34d399' },
   screen_time_cutoff:  { weight: 1.0, name: 'Off-pantallas pre-sueño',  icon: 'phone-portrait-outline',  color: '#94a3b8' },
+  // #v13e 3.A.3: cardio booleano VERIFICADO (completed = ≥1 sesión en cardio_sessions hoy). El award
+  // sucede al guardar en /log-cardio + reconcileVerifiedLedger lo mantiene honesto.
+  cardio:              { weight: 2.5, name: 'Cardio',                   icon: 'heart-half-outline',      color: '#fb7185' },
 
   // Cuantitativos diarios (proporcional al %)
   protein:      { weight: 2.0, name: 'Proteína',        icon: 'restaurant-outline',    color: '#a6c8ff' },
