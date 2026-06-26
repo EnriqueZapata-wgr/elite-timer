@@ -46,13 +46,23 @@ export const HOY_CARD_SPECS: HoyCardSpec[] = [
   { cardKey: 'screen_time_cutoff', category: 'rhythm', icon: '📵', title: 'OFF-PANTALLAS', gradient: ['#34495E', '#2C3E50'] },
 ];
 
-/** Orden COMPLETO de visibilidad (hero + 14), default para el toggle ON/OFF (migración 096). */
+/**
+ * Orden de visibilidad del HOY, default para el toggle ON/OFF (migración 096).
+ * #v13e (reorden): orden cronológico por las 5 sub-secciones (DESPERTAR / NUTRICIÓN / ACTIVIDAD /
+ * CIERRE / DESCANSO). SUPLEMENTOS ya NO vive en HOY (enlaza a /supplements desde HÁBITOS).
+ */
 export const HOY_CARD_ORDER_DEFAULT: string[] = [
   'hero_agenda',
-  'uv', 'checkin', 'journal', 'proteina', 'no_processed_foods', 'agua',
-  'ayuno', 'luz_solar', 'meditacion', 'breathwork', 'suplementos', 'bano_frio',
-  'grounding', 'fuerza', 'lentes_rojos', 'no_alcohol', 'cardio', 'pasos',
-  'screen_time_cutoff', 'sleep',
+  // DESPERTAR
+  'uv', 'luz_solar', 'checkin', 'meditacion',
+  // NUTRICIÓN
+  'proteina', 'agua', 'no_processed_foods', 'ayuno',
+  // ACTIVIDAD
+  'fuerza', 'cardio', 'pasos', 'grounding', 'bano_frio',
+  // CIERRE
+  'breathwork', 'lentes_rojos', 'journal', 'screen_time_cutoff', 'no_alcohol',
+  // DESCANSO
+  'sleep',
 ];
 
 /** Lookup rápido por cardKey. */
