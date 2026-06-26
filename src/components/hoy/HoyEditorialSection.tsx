@@ -210,6 +210,39 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day.booleanElectrons]);
 
+  // #v13f 2.1 — AGUA optimistic. Antes: tap quickAction → addWater await Supabase → emit day_changed
+  // → recompila → re-render (3-5s de lag + parpadeo sube/baja). Ahora: el total optimista sube/baja
+  // AHORA y la persistencia corre async; el override se mantiene hasta que el compiler lo refleje.
+  const [optimisticWaterMl, setOptimisticWaterMl] = useState<number | null>(null);
+  const currentWaterMl = optimisticWaterMl ?? water?.current ?? 0;
+  useEffect(() => {
+    // Reconciliar: cuando el valor compilado alcanza al optimista, soltar el override.
+    if (optimisticWaterMl != null && (water?.current ?? 0) === optimisticWaterMl) {
+      setOptimisticWaterMl(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [water?.current]);
+
+  const adjustWater = (deltaMl: number) => {
+    if (!userId) return;
+    const base = optimisticWaterMl ?? water?.current ?? 0;
+    setOptimisticWaterMl(Math.max(0, base + deltaMl)); // optimista inmediato (clamp a 0, como addWater)
+    addWater(userId, deltaMl).then((result) => {
+      // addWater devuelve null si falló → revertir restando el delta del optimista en vuelo.
+      // En éxito emite day_changed → recompila → la reconciliación de arriba limpia el override.
+      if (result == null) {
+        setOptimisticWaterMl((prev) => (prev == null ? null : Math.max(0, prev - deltaMl)));
+        logWarn('[HoyEditorial] addWater failed, reverted');
+      }
+    }).catch((e) => {
+      setOptimisticWaterMl((prev) => (prev == null ? null : Math.max(0, prev - deltaMl)));
+      logWarn('[HoyEditorial] addWater error, reverted', e);
+    });
+  };
+
+  /** Formato de ml para el subtitle optimista (mismo criterio que day-compiler.fmtQuant). */
+  const fmtMl = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}L` : `${v}ml`);
+
   // 4.4 — completar/revocar un electrón booleano tocando la card (optimista + rollback).
   const toggleBoolean = (cardKey: string) => {
     if (!userId) return;
@@ -375,27 +408,31 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             onTap={() => go('/food-register')}
           />
         );
-      case 'agua':
+      case 'agua': {
         if (!water) return null;
+        // #v13f 2.1: valor optimista (sube/baja al instante, sin esperar recompile).
+        const ml = currentWaterMl;
+        const done = ml >= water.target;
         return (
           <EditorialCard
             cardKey="agua" icon="💧" title="AGUA"
-            subtitle={`${water.displayCurrent} / ${water.displayTarget}`}
-            message={water.current >= water.target ? 'Meta superada' : 'Sigue hidratándote'}
+            subtitle={`${fmtMl(ml)} / ${water.displayTarget}`}
+            message={done ? 'Meta superada' : 'Sigue hidratándote'}
             gradient={['#3498DB', '#1ABC9C']}
             imageBn={HOY_EXTRA_IMAGES.agua}
-            state={water.current >= water.target ? 'done' : 'pending'}
-            progress={{ current: water.current, target: water.target, unit: 'ml' }}
+            state={done ? 'done' : 'pending'}
+            progress={{ current: ml, target: water.target, unit: 'ml' }}
             quickActions={userId ? [
-              { label: '+250 ml', onTap: () => { addWater(userId, 250); } },
-              { label: '+500 ml', onTap: () => { addWater(userId, 500); } },
-              { label: '-250 ml', onTap: () => { addWater(userId, -250); } },
+              { label: '+250 ml', onTap: () => adjustWater(250) },
+              { label: '+500 ml', onTap: () => adjustWater(500) },
+              { label: '-250 ml', onTap: () => adjustWater(-250) },
             ] : undefined}
             showCheckCircle
             infoText={CARD_INFO['agua']}
             onTap={() => go('/hydration')}
           />
         );
+      }
       case 'no_processed_foods':
         return renderBoolCard('no_processed_foods', 'Día sin procesados', HOY_EXTRA_IMAGES.no_procesados);
       // #v13d 2.6: AYUNO con barra de progreso (horas activas vs meta) + círculo al cumplir.
