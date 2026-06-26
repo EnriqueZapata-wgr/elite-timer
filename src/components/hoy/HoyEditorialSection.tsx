@@ -200,15 +200,22 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         />
       ) : null}
 
-      {show('uv') ? (
-        <EditorialCard
-          cardKey="uv" icon="☀️" title="UV INDEX"
-          subtitle={uvMini?.current != null ? `${uvMini.current}${uvMini.level ? ' · ' + uvMini.level : ''}` : 'Sin datos'}
-          gradient={['#FFD700', '#FFA500']}
-          imageBn={HOY_EXTRA_IMAGES.uv}
-          onTap={() => go('/solar')}
-        />
-      ) : null}
+      {/* #v13d 2.5: UV card hero — número prominente en el title + advertencia contextual en
+          subtitle (UV es info crítica para exposición solar guiada). */}
+      {show('uv') ? (() => {
+        const uv = uvMini?.current;
+        const hint = uv == null ? '' : uv >= 8 ? ' · evita 11-15h' : uv >= 6 ? ' · busca sombra' : '';
+        return (
+          <EditorialCard
+            cardKey="uv" size="hero" icon="☀️"
+            title={uv != null ? `UV INDEX ${uv}` : 'UV INDEX'}
+            subtitle={uv != null ? `${uvMini?.level ?? ''}${hint}`.trim() || 'Sin datos' : 'Sin datos'}
+            gradient={['#FFD700', '#FFA500']}
+            imageBn={HOY_EXTRA_IMAGES.uv}
+            onTap={() => go('/solar')}
+          />
+        );
+      })() : null}
 
       {show('checkin') ? (
         <EditorialCard
@@ -262,18 +269,31 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         />
       ) : null}
 
-      {/* 4.7 — AYUNO. 2.5: alineado al resto (sin in_window/glow). 3.3: imagen cableada. */}
-      {show('ayuno') ? (
-        <EditorialCard
-          cardKey="ayuno" icon="⏳" title="AYUNO"
-          subtitle={activeFast ? `Ayunando · ${formatFastDuration(activeFast.fast_start)}` : 'Sin ayuno activo'}
-          message={activeFast ? 'Tu ventana de ayuno está abierta' : 'Inicia tu ayuno cuando estés listo'}
-          gradient={['#6B46C1', '#1E3A8A']}
-          imageBn={HOY_EXTRA_IMAGES.ayuno}
-          ctaLabel={activeFast ? 'Romper ayuno' : 'Iniciar ayuno'}
-          onTap={() => go('/fasting')}
-        />
-      ) : null}
+      {/* 4.7 — AYUNO. 2.5: alineado al resto. 3.3: imagen cableada.
+          #v13d 2.6: barra de progreso (horas activas vs meta) + círculo que palomea al cumplir. */}
+      {show('ayuno') ? (() => {
+        const targetHours = activeFast?.target_hours ?? 16; // default 16h si el modelo no trae meta
+        const hoursActive = activeFast?.fast_start
+          ? Math.max(0, (Date.now() - new Date(activeFast.fast_start).getTime()) / 3600000)
+          : 0;
+        const fastDone = !!activeFast && hoursActive >= targetHours;
+        return (
+          <EditorialCard
+            cardKey="ayuno" icon="⏳" title="AYUNO"
+            subtitle={activeFast
+              ? `Ayunando · ${formatFastDuration(activeFast.fast_start)} de ${targetHours}h meta`
+              : 'Sin ayuno activo'}
+            message={activeFast ? 'Tu ventana de ayuno está abierta' : 'Inicia tu ayuno cuando estés listo'}
+            gradient={['#6B46C1', '#1E3A8A']}
+            imageBn={HOY_EXTRA_IMAGES.ayuno}
+            state={fastDone ? 'done' : 'pending'}
+            progress={activeFast ? { current: hoursActive, target: targetHours, unit: 'h' } : undefined}
+            showCheckCircle={!!activeFast}
+            ctaLabel={activeFast ? 'Romper ayuno' : 'Iniciar ayuno'}
+            onTap={() => go('/fasting')}
+          />
+        );
+      })() : null}
 
       {ELECTRON_CARD_ORDER.filter(show).map((cardKey) => {
         const spec = HOY_CARD_BY_KEY[cardKey];
