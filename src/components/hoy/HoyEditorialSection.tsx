@@ -40,10 +40,6 @@ const TOGGLE_CARDS = new Set(['luz_solar', 'bano_frio', 'grounding', 'lentes_roj
   // NOTA: 'journal' NO va aquí — navega a /journal (igual que checkin), el award sucede al guardar entry.
   'no_alcohol', 'no_processed_foods', 'screen_time_cutoff']);
 
-/** #v13e 3.B.1: fototipo por default (tipo 3, piel media — más común en MX) hasta que exista
- *  client_profiles.fitzpatrick_type + cuestionario. La card UV invita a personalizar en tests. */
-const FITZPATRICK_DEFAULT = 3;
-
 /** "14h 32m" desde el ISO de inicio del ayuno. */
 function formatFastDuration(startISO: string | null): string {
   if (!startISO) return '';
@@ -243,6 +239,22 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
   /** Formato de ml para el subtitle optimista (mismo criterio que day-compiler.fmtQuant). */
   const fmtMl = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}L` : `${v}ml`);
 
+  // #v13f 2.2 — fototipo Fitzpatrick (profiles.skin_type) para el tiempo de exposición UV. Default 3
+  // si no hay valor en BD. Se refresca al volver de /solar (evento 'fototipo_changed' emitido allí).
+  const [fitzpatrickType, setFitzpatrickType] = useState<number>(3);
+  useEffect(() => {
+    if (!userId) return;
+    const loadFototipo = async () => {
+      try {
+        const { data } = await supabase.from('profiles').select('skin_type').eq('id', userId).maybeSingle();
+        if (data?.skin_type) setFitzpatrickType(data.skin_type as number);
+      } catch { /* default 3 */ }
+    };
+    loadFototipo();
+    const sub = DeviceEventEmitter.addListener('fototipo_changed', loadFototipo);
+    return () => sub.remove();
+  }, [userId]);
+
   // 4.4 — completar/revocar un electrón booleano tocando la card (optimista + rollback).
   const toggleBoolean = (cardKey: string) => {
     if (!userId) return;
@@ -342,9 +354,9 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
       case 'uv': {
         const uv = uvMini?.current;
         const hint = uv == null ? '' : uv >= 8 ? ' · evita 11-15h' : uv >= 6 ? ' · busca sombra' : '';
-        const safeMin = uv != null && uv > 0 ? getBurnTimeMinutes(uv, FITZPATRICK_DEFAULT) : null;
+        const safeMin = uv != null && uv > 0 ? getBurnTimeMinutes(uv, fitzpatrickType) : null;
         const message = safeMin != null
-          ? `Exposición segura: ~${safeMin} min (tipo ${FITZPATRICK_DEFAULT}) · Personaliza en tests`
+          ? `Exposición segura: ~${safeMin} min (tipo ${fitzpatrickType}) · Personaliza en tests`
           : undefined;
         return (
           <EditorialCard
