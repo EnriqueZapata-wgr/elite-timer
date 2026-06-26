@@ -53,9 +53,11 @@ export interface EditorialCardProps {
   /** 2.1 — círculo checkable (estilo checklist) en la esquina sup-izq. Solo para cards
    *  completables (electrones/proteína/agua). Informativas (UV, cardio, YO, …) lo omiten. */
   showCheckCircle?: boolean;
-  /** #v13e 3.D — copy explicativo del electrón. Si se define, muestra un botón "i" que abre un
-   *  Alert nativo con el título de la card + este texto (cómo se gana el electrón). */
+  /** #v13e 3.D — copy explicativo del electrón. Si se define, muestra un botón "i". */
   infoText?: string;
+  /** #v13f 2.6 — handler del botón "i". Si se provee, abre el InfoTipModal custom del HOY;
+   *  si no, cae al Alert nativo (fallback para cards fuera del HOY). */
+  onInfoPress?: (title: string, text: string) => void;
 }
 
 /** Círculo checkable: vacío (pending) o lleno lima con palomita (done). Reemplaza el emoji viejo. */
@@ -69,7 +71,7 @@ function CheckCircle({ done }: { done: boolean }) {
 
 export function EditorialCard({
   cardKey, icon, title, subtitle, message, imageBn, gradient, state = 'pending', size = 'normal', badge, ctaLabel, onTap,
-  progress, electronsValue, quickActions, showCheckCircle, infoText,
+  progress, electronsValue, quickActions, showCheckCircle, infoText, onInfoPress,
 }: EditorialCardProps) {
   const done = state === 'done';
   const inWindow = state === 'in_window';
@@ -135,7 +137,12 @@ export function EditorialCard({
             {/* #v13e 3.D: botón "i" → Alert con copy de cómo se gana el electrón. */}
             {infoText ? (
               <Pressable
-                onPress={() => { haptic.light(); Alert.alert(title, infoText); }}
+                onPress={() => {
+                  haptic.light();
+                  // #v13f 2.6: modal custom si el padre lo provee; Alert nativo como fallback.
+                  if (onInfoPress) onInfoPress(title, infoText);
+                  else Alert.alert(title, infoText);
+                }}
                 hitSlop={10}
                 style={styles.infoBtn}
               >

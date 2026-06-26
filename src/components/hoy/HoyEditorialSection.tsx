@@ -11,13 +11,14 @@
  * electrones, agenda hardcoded, counters proteína/agua) queda para la auditoría visual de Enrique
  * (ver COWORK_REPORT) — removerlas a ciegas del archivo entrelazado es el riesgo que evitamos.
  */
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment, cloneElement, isValidElement } from 'react';
 import { DeviceEventEmitter, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
 import { EditorialCard, type EditorialCardState } from '@/src/components/hoy/EditorialCard';
+import { InfoTipModal } from '@/src/components/ui/InfoTipModal';
 import { HOY_CARD_BY_KEY } from '@/src/constants/hoy-cards';
 import { getLocalHour, getLocalToday } from '@/src/utils/date-helpers';
 import { pickCardioImage } from '@/src/utils/image-rotation';
@@ -266,6 +267,10 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     const sub = DeviceEventEmitter.addListener('fototipo_changed', loadFototipo);
     return () => sub.remove();
   }, [userId]);
+
+  // #v13f 2.6 — info-tip: modal centrado custom (reemplaza el Alert nativo del botón "i").
+  const [infoModal, setInfoModal] = useState<{ title: string; message: string } | null>(null);
+  const handleInfo = useCallback((title: string, message: string) => setInfoModal({ title, message }), []);
 
   // 4.4 — completar/revocar un electrón booleano tocando la card (optimista + rollback).
   const toggleBoolean = (cardKey: string) => {
@@ -572,10 +577,18 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     <>
       {/* #v13f 2.5: HeroAgendaCard "AHORA" eliminada (aparecía/desaparecía ±30min, confuso).
           HOY arranca directo con TU DÍA → DESPERTAR. TODO: agenda + notificaciones (sprint futuro). */}
-      {/* Orden cronológico: 5 sub-secciones con header lima. Una sección sin cards visibles se omite. */}
+      {/* Orden cronológico: 5 sub-secciones con header lima. Una sección sin cards visibles se omite.
+          #v13f 2.6: se inyecta onInfoPress a cada card (cloneElement) → el botón "i" abre el modal custom. */}
       {HOY_SECTIONS.map((section) => {
         const cards = section.cardKeys
-          .map((k) => { const node = renderCard(k); return node ? <Fragment key={k}>{node}</Fragment> : null; })
+          .map((k) => {
+            const node = renderCard(k);
+            if (!node) return null;
+            const withInfo = isValidElement(node)
+              ? cloneElement(node as React.ReactElement<any>, { onInfoPress: handleInfo })
+              : node;
+            return <Fragment key={k}>{withInfo}</Fragment>;
+          })
           .filter(Boolean);
         if (cards.length === 0) return null;
         return (
@@ -585,6 +598,13 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           </View>
         );
       })}
+
+      <InfoTipModal
+        visible={!!infoModal}
+        title={infoModal?.title ?? ''}
+        message={infoModal?.message ?? ''}
+        onClose={() => setInfoModal(null)}
+      />
     </>
   );
 }
