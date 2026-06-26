@@ -24,11 +24,15 @@ import { pickAgendaImage, categoryToFolder } from '@/src/utils/agenda-image-pick
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
+import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import type { ElectronSource } from '@/src/constants/electrons';
-import type { CompiledDay } from '@/src/services/day-compiler';
+import { VERIFIED_ELECTRON_KEYS, type CompiledDay } from '@/src/services/day-compiler';
 
 /** Cards booleanas que se completan TOCANDO la card (toggle). El resto enlaza a su pantalla. */
-const TOGGLE_CARDS = new Set(['luz_solar', 'bano_frio', 'grounding', 'lentes_rojos', 'checkin']);
+const TOGGLE_CARDS = new Set(['luz_solar', 'bano_frio', 'grounding', 'lentes_rojos',
+  // #v13d 2.1: cards nuevas también togglean desde la card (renderBoolCard ya lo hace; aquí por consistencia).
+  'journal', 'no_alcohol', 'no_processed_foods', 'screen_time_cutoff']);
 
 /** "14h 32m" desde el ISO de inicio del ayuno. */
 function formatFastDuration(startISO: string | null): string {
@@ -72,6 +76,9 @@ const ELECTRON_IMAGES: Record<string, any> = {
 const CARD_TO_ELECTRON: Record<string, string> = {
   luz_solar: 'sunlight', meditacion: 'meditation', suplementos: 'supplements', bano_frio: 'cold_shower',
   grounding: 'grounding', fuerza: 'strength', breathwork: 'breathwork', lentes_rojos: 'red_glasses',
+  // #v13d 2.1: cards nuevas (cardKey === source, mapeo identidad explícito para consistencia).
+  journal: 'journal', no_alcohol: 'no_alcohol', no_processed_foods: 'no_processed_foods',
+  screen_time_cutoff: 'screen_time_cutoff',
 };
 const ELECTRON_CARD_ORDER = ['luz_solar', 'meditacion', 'suplementos', 'bano_frio', 'grounding', 'fuerza', 'breathwork', 'lentes_rojos'];
 
@@ -117,15 +124,35 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
   }, [activeFast]);
 
   // 4.4 — completar/revocar un electrón booleano tocando la card.
+  // #v13d 2.1: DUAL WRITE (blob daily_electrons + electron_logs), igual que el toggle del HOY.
+  // Antes solo escribía electron_logs → el day-compiler lee `completed` de los no-verificados
+  // desde el blob `daily_electrons.electrons`, así que la card nunca palomeaba tras recompilar.
   const toggleBoolean = async (cardKey: string) => {
     if (!userId) return;
     // Cards nuevas (no_alcohol/journal/no_processed_foods/screen_time_cutoff) usan cardKey=source.
-    const source = (cardKey === 'checkin' ? 'checkin' : (CARD_TO_ELECTRON[cardKey] ?? cardKey)) as ElectronSource;
+    const source = (CARD_TO_ELECTRON[cardKey] ?? cardKey) as ElectronSource;
     if (!source) return;
-    const isCompleted = boolBySource.get(source)?.completed;
-    if (isCompleted) await revokeBooleanElectron(userId, source);
-    else await awardBooleanElectron(userId, source);
-    DeviceEventEmitter.emit('electrons_changed');
+    // Verificados (checkin/meditation/…) derivan `completed` de actividad real, no del blob.
+    // No deben togglearse desde la card (checkin navega a /checkin). Guard defensivo.
+    if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) return;
+    const wasCompleted = boolBySource.get(source)?.completed ?? false;
+    // 1) blob daily_electrons (lo que el compiler lee para UI rápida)
+    const newStates: Record<string, boolean> = {};
+    for (const e of day.booleanElectrons ?? []) {
+      newStates[e.source] = e.source === source ? !wasCompleted : e.completed;
+    }
+    try {
+      const { error } = await supabase
+        .from('daily_electrons')
+        .upsert({ user_id: userId, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
+      if (error) throw error;
+      // 2) electron_logs (acumulado / rango)
+      if (wasCompleted) await revokeBooleanElectron(userId, source);
+      else await awardBooleanElectron(userId, source);
+      DeviceEventEmitter.emit('electrons_changed');
+    } catch (e) {
+      logWarn('[HoyEditorial] toggle electron failed', e);
+    }
   };
 
   // Próximo evento de la agenda (si existe) → Hero. Imagen rotada por categoría (determinística).
@@ -140,7 +167,8 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     if (!show(cardKey)) return null;
     const spec = HOY_CARD_BY_KEY[cardKey];
     if (!spec) return null;
-    const el = boolBySource.get(cardKey);
+    // #v13d 2.1: leer por `source` mapeado (no por cardKey) para reflejar el electrón real.
+    const el = boolBySource.get(CARD_TO_ELECTRON[cardKey] ?? cardKey);
     return (
       <EditorialCard
         key={cardKey} cardKey={cardKey} icon={spec.icon} title={spec.title}
@@ -191,7 +219,9 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           state={boolBySource.get('checkin')?.completed ? 'done' : 'pending'}
           electronsValue={boolBySource.get('checkin')?.weight}
           showCheckCircle
-          onTap={() => toggleBoolean('checkin')}
+          // #v13d 2.2: checkin NO togglea desde card → navega a /checkin. El award sucede al
+          // guardar dentro de /checkin (emite electrons_changed → recompila → card palomea).
+          onTap={() => go('/checkin')}
         />
       ) : null}
 
