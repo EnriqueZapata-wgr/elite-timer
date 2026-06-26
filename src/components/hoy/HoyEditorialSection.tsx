@@ -18,12 +18,9 @@ import { EliteText } from '@/components/elite-text';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
 import { EditorialCard, type EditorialCardState } from '@/src/components/hoy/EditorialCard';
-import { HeroAgendaCard } from '@/src/components/hoy/HeroAgendaCard';
 import { HOY_CARD_BY_KEY } from '@/src/constants/hoy-cards';
-import { generateLocalRecommendation } from '@/src/services/hoy/local-recommendation';
 import { getLocalHour, getLocalToday } from '@/src/utils/date-helpers';
 import { pickCardioImage } from '@/src/utils/image-rotation';
-import { pickAgendaImage, categoryToFolder } from '@/src/utils/agenda-image-picker';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
@@ -309,12 +306,6 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     DeviceEventEmitter.emit('electrons_changed');
   };
 
-  // Próximo evento de la agenda (si existe) → Hero. Imagen rotada por categoría (determinística).
-  const nextEvent = (day.agendaItems ?? []).find((i) => i.isNext);
-  const heroImage = nextEvent
-    ? pickAgendaImage(categoryToFolder(nextEvent.category, nextEvent.name, getLocalHour()), `${seedKey ?? ''}-${nextEvent.id}-${today}`)
-    : undefined;
-
   // #cableado-final 3.3: render de una card booleana nueva (cardKey === electron source). Toggle
   // desde card + círculo checkable. Mismo patrón que los electrones, pero como bloque explícito.
   const renderBoolCard = (cardKey: string, subtitlePending: string, imageBn: any) => {
@@ -579,23 +570,8 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
 
   return (
     <>
-      {show('hero_agenda') && nextEvent ? (
-        <HeroAgendaCard
-          icon="📅"
-          title={nextEvent.name}
-          timeLabel={nextEvent.time}
-          countdownLabel={nextEvent.isNext ? 'AHORA' : undefined}
-          message={generateLocalRecommendation(
-            { category: nextEvent.category, name: nextEvent.name, defaultMessage: nextEvent.subtitle },
-            { hour: getLocalHour(), proteinConsumed: protein?.current, proteinTarget: protein?.target },
-          )}
-          gradient={['#A8E02A', '#1ABC9C']}
-          imageBn={heroImage}
-          onTapAgenda={() => go('/protocol-config')}
-          onComplete={() => { /* completar evento → AGENDA V2 (sprint futuro) */ }}
-        />
-      ) : null}
-
+      {/* #v13f 2.5: HeroAgendaCard "AHORA" eliminada (aparecía/desaparecía ±30min, confuso).
+          HOY arranca directo con TU DÍA → DESPERTAR. TODO: agenda + notificaciones (sprint futuro). */}
       {/* Orden cronológico: 5 sub-secciones con header lima. Una sección sin cards visibles se omite. */}
       {HOY_SECTIONS.map((section) => {
         const cards = section.cardKeys

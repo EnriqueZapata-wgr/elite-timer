@@ -52,7 +52,7 @@ export const HOY_CARD_SPECS: HoyCardSpec[] = [
  * CIERRE / DESCANSO). #v13f 2.4: SUPLEMENTOS restaurada como card editorial (X/Y tomados) en NUTRICIÓN.
  */
 export const HOY_CARD_ORDER_DEFAULT: string[] = [
-  'hero_agenda',
+  // #v13f 2.5: 'hero_agenda' eliminado (card "AHORA" confusa). HOY arranca con DESPERTAR.
   // DESPERTAR
   'uv', 'luz_solar', 'checkin', 'meditacion',
   // NUTRICIÓN

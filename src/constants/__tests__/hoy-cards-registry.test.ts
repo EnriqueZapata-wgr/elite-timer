@@ -25,10 +25,12 @@ describe('HOY card registry', () => {
     }
   });
 
-  it('el orden default incluye hero_agenda + ayuno + las cards del registro', () => {
-    expect(HOY_CARD_ORDER_DEFAULT[0]).toBe('hero_agenda');
-    // #v13f 2.4: hero + ayuno (inline) + 19 con spec = 21 (SUPLEMENTOS restaurada en NUTRICIÓN).
-    expect(HOY_CARD_ORDER_DEFAULT.length).toBe(21);
+  it('el orden default arranca en uv + incluye ayuno/suplementos + cards del registro', () => {
+    // #v13f 2.5: 'hero_agenda' eliminado → la primera card es UV (sub-sección DESPERTAR).
+    expect(HOY_CARD_ORDER_DEFAULT[0]).toBe('uv');
+    expect(HOY_CARD_ORDER_DEFAULT).not.toContain('hero_agenda');
+    // ayuno (inline, sin spec) + 19 con spec = 20.
+    expect(HOY_CARD_ORDER_DEFAULT.length).toBe(20);
     expect(HOY_CARD_ORDER_DEFAULT).toContain('ayuno');
     expect(HOY_CARD_ORDER_DEFAULT).toContain('suplementos');
     // las 5 nuevas (#cableado-final) deben estar en el registro
