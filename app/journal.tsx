@@ -209,6 +209,11 @@ export default function JournalScreen() {
   // ═══ GUARDAR ═══
 
   async function handleSave() {
+    // #v13f 2.3: guard de sesión — si no hay user.id, el INSERT fallaría silenciosamente por RLS.
+    if (!user?.id) {
+      Alert.alert('Sesión expirada', 'Vuelve a iniciar sesión para guardar tu entrada.');
+      return;
+    }
     haptic.medium();
     setSaving(true);
     let content = '';
@@ -250,10 +255,21 @@ export default function JournalScreen() {
         mood_after: moodAfter,
       });
       if (insertError) {
-        logError('Journal insert error:', insertError.message);
+        // #v13f 2.3: loguear el error REAL (no asumir causa) + diferenciar el mensaje al usuario.
+        // El detalle (code/message) queda en logs para que Enrique reporte la causa exacta.
+        console.error('[journal handleSave] insert failed:', insertError?.message, (insertError as any)?.code, insertError);
+        logError('[journal] handleSave insert failed', `${(insertError as any)?.code ?? ''} ${insertError?.message ?? ''}`.trim());
+        const msg = insertError?.message ?? '';
+        const code = (insertError as any)?.code ?? '';
+        const isAuth = !user?.id || msg.includes('JWT') || msg.toLowerCase().includes('auth');
+        const isRLS = code === '42501' || msg.toLowerCase().includes('policy') || msg.includes('RLS');
+        const isNet = msg.includes('Network') || msg.includes('Failed to fetch');
         Alert.alert(
           'No se pudo guardar',
-          'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.'
+          isAuth ? 'Tu sesión expiró. Vuelve a iniciar sesión.' :
+          isRLS ? 'Permiso denegado al guardar (RLS). Reporta a soporte.' :
+          isNet ? 'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.' :
+          `Error: ${msg || 'desconocido'}`
         );
         setSaving(false);
         return;
@@ -268,10 +284,16 @@ export default function JournalScreen() {
       resetForm();
       loadEntries();
     } catch (e: any) {
-      logError('Journal handleSave catch:', e?.message ?? String(e));
+      // #v13f 2.3: loguear el error REAL del catch también (network u otro).
+      console.error('[journal handleSave] catch:', e?.message, e);
+      logError('[journal] handleSave catch', e?.message ?? String(e));
+      const msg = e?.message ?? '';
+      const isNet = msg.includes('Network') || msg.includes('Failed to fetch');
       Alert.alert(
         'No se pudo guardar',
-        'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.'
+        isNet
+          ? 'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.'
+          : `Error: ${msg || 'desconocido'}`
       );
     }
     setSaving(false);
