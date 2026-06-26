@@ -120,7 +120,10 @@ interface CrossPillar {
 
 const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower', 'grounding', 'no_alcohol',
   // #cableado-final 3.1: nuevos hábitos booleanos para que sus cards reflejen estado (completed/weight).
-  'journal', 'no_processed_foods', 'screen_time_cutoff'];
+  'journal', 'no_processed_foods', 'screen_time_cutoff',
+  // #v13d 2.2: checkin verificado entra a booleanElectrons → su card refleja `Hecho hoy ✓`.
+  // `completed` se deriva de actividad real (emotional_checkins de hoy), no del blob — ver verifiedCompleted.
+  'checkin'];
 const DEFAULT_QUANTS = ['protein', 'water'];
 
 const DEFAULT_QUANT_CONFIG: Record<string, { target: number; unit: string }> = {

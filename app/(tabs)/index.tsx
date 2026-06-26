@@ -53,7 +53,8 @@ import { speakArgos } from '@/src/services/argos-voice';
 // VoiceButton removido del HOY (decisión 21-jun). handleQuickVoice + modal de respuesta quedan
 // como código muerto hasta el sprint de cleanup HOY profundo.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { HoyDayCard } from '@/src/components/economy/HoyDayCard';
+// #v13d 2.7: HoyDayCard legacy → HoyDayCardEditorial (imagen B/N + tipografía display).
+import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditorial';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
@@ -853,10 +854,9 @@ export default function TodayScreen() {
               </Animated.View>
             )}
 
-            {/* TU DÍA — card unificada (decisión Enrique 22-jun): reemplaza el círculo
-                viejo + "X de Y BAJA CARGA" por una sola UI con E- ganados hoy + barra. */}
+            {/* TU DÍA — #v13d 2.7: card editorial (imagen B/N despertar + número display + barra). */}
             <Animated.View entering={FadeInUp.delay(120).springify()}>
-              <HoyDayCard percentage={pct} />
+              <HoyDayCardEditorial percentage={pct} seedKey={user?.id} />
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
@@ -1118,32 +1118,8 @@ export default function TodayScreen() {
           </Animated.View>
         )}
 
-        {/* UV mini-card (ATP SOL) */}
-        {uvMini && (
-          <AnimatedPressable
-            onPress={() => { haptic.medium(); router.push('/solar' as any); }}
-            style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }}
-          >
-            <View style={{
-              backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14,
-              borderWidth: 1, borderColor: '#1a1a1a',
-              flexDirection: 'row', alignItems: 'center', gap: 12,
-            }}>
-              <View style={{
-                width: 36, height: 36, borderRadius: 18,
-                backgroundColor: `${uvMini.color}15`,
-                justifyContent: 'center', alignItems: 'center',
-              }}>
-                <Text style={{ fontSize: 16 }}>{uvMini.emoji}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>UV {uvMini.current} · {uvMini.level}</Text>
-                <Text style={{ color: '#666', fontSize: 11 }}>{uvMini.vitaminD || uvMini.advice}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={14} color="#444" />
-            </View>
-          </AnimatedPressable>
-        )}
+        {/* #v13d 2.4: UV mini-card legacy eliminada — la card UV editorial (HoyEditorialSection)
+            ya cubre esto con más impacto. `uvMini` se mantiene (alimenta esa card). */}
 
         {/* #hoy-funcionalidad 4.9: SECCIÓN 3 "ELECTRONES" (grid 2x4) eliminada — los electrones
             ahora son cards editoriales (toggle desde card) en HoyEditorialSection. */}
@@ -1151,28 +1127,8 @@ export default function TodayScreen() {
         {/* #hoy-funcionalidad 4.9: SECCIÓN 4 "CUANTITATIVOS" (barras proteína/agua sueltas)
             eliminada — ahora son cards editoriales PROTEÍNA/AGUA con barra + quickActions. */}
 
-        {/* ═══════════════════════════════════════
-            SECCIÓN 5: SUGERENCIA INTELIGENTE
-        ═══════════════════════════════════════ */}
-        {day.suggestion && (
-          <Animated.View entering={FadeInUp.delay(200).springify()} style={s.section}>
-            <AnimatedPressable
-              onPress={() => {
-                haptic.light();
-                router.push(day.suggestion!.route as any);
-              }}
-              style={s.suggestionCard}
-            >
-              <View style={s.suggestionRow}>
-                <Ionicons name="sparkles" size={18} color="#EF9F27" />
-                <View style={s.suggestionTextWrap}>
-                  <Text style={s.suggestionText}>{day.suggestion.text}</Text>
-                  <Text style={s.suggestionAction}>{day.suggestion.action} →</Text>
-                </View>
-              </View>
-            </AnimatedPressable>
-          </Animated.View>
-        )}
+        {/* #v13d 2.4: SECCIÓN 5 "SUGERENCIA INTELIGENTE" (IA recommended) eliminada — decisión
+            Enrique: las cards editoriales contextuales (Hero/AYUNO/UV) ya cubren esto. */}
 
         {/* Botón configurar protocolo */}
         <AnimatedPressable

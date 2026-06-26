@@ -9,7 +9,7 @@
  *  - ARGOS integra UV con el resto de la salud.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +36,8 @@ export default function Solar() {
   const [showHourly, setShowHourly] = useState(false);
   const [showProtection, setShowProtection] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  // #v13d 2.3: distinguir el fallo de ubicación (permiso/timeout GPS) del fallo de red (UV API).
+  const [errorState, setErrorState] = useState<null | 'location' | 'fetch'>(null);
 
   useEffect(() => {
     (async () => {
@@ -56,10 +58,12 @@ export default function Solar() {
 
   async function loadUV() {
     setLoading(true);
+    setErrorState(null);
     try {
       const loc = await getCurrentLocation();
       if (!loc) {
-        Alert.alert('Ubicación', 'ATP SOL necesita tu ubicación para mostrar el índice UV.');
+        // Ubicación denegada o timeout GPS (8s) → UI de reintentar, no loading infinito.
+        setErrorState('location');
         setLoading(false);
         return;
       }
@@ -75,9 +79,13 @@ export default function Solar() {
             DeviceEventEmitter.emit('electrons_changed');
           }
         } catch (e) { /* opcional */ }
+      } else {
+        // fetchUVData devolvió null (red caída o timeout 10s) → UI de reintentar.
+        setErrorState('fetch');
       }
     } catch (e) {
       console.error('UV error:', e);
+      setErrorState('fetch');
     } finally {
       setLoading(false);
     }
@@ -314,6 +322,16 @@ export default function Solar() {
 
           <Pressable onPress={() => { loadUV(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }} style={{ alignItems: 'center', paddingVertical: 12 }}>
             <Text style={{ color: '#444', fontSize: 11 }}>Toca para actualizar UV</Text>
+          </Pressable>
+        </View>
+      ) : errorState === 'fetch' ? (
+        // #v13d 2.3: fallo de red / timeout 10s → reintentar (no quedar en loading forever).
+        <View style={{ alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 }}>
+          <Ionicons name="cloud-offline-outline" size={48} color="#fb923c" />
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700', marginTop: 16, textAlign: 'center' }}>No pudimos obtener datos UV</Text>
+          <Text style={{ color: '#999', fontSize: 13, textAlign: 'center', marginTop: 8 }}>Revisa tu conexión e inténtalo de nuevo</Text>
+          <Pressable onPress={loadUV} style={{ backgroundColor: '#fbbf24', borderRadius: 16, paddingVertical: 14, paddingHorizontal: 24, marginTop: 20 }}>
+            <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>REINTENTAR</Text>
           </Pressable>
         </View>
       ) : (

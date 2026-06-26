@@ -54,9 +54,13 @@ export function getProtectionAdvice(uv: number): { icon: string; text: string; s
 }
 
 export async function fetchUVData(latitude: number, longitude: number): Promise<UVData | null> {
+  // #v13d 2.3: AbortController con timeout 10s → la pantalla /solar nunca queda colgada
+  // en "Obteniendo datos UV..." si Open-Meteo no responde.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   try {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&hourly=uv_index&daily=sunrise,sunset&timezone=auto&forecast_days=2`;
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) return null;
     const data = await response.json();
 
@@ -111,9 +115,12 @@ export async function fetchUVData(latitude: number, longitude: number): Promise<
       sunrise: data.daily?.sunrise?.[0]?.split('T')[1]?.slice(0, 5) || '',
       sunset: data.daily?.sunset?.[0]?.split('T')[1]?.slice(0, 5) || '',
     };
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.name === 'AbortError') { console.warn('UV fetch timeout (10s)'); return null; }
     console.error('UV fetch error:', e);
     return null;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -122,7 +129,13 @@ export async function getCurrentLocation(): Promise<{ latitude: number; longitud
     const Location = require('expo-location');
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') return null;
-    const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+    // #v13d 2.3: Promise.race con timeout 8s → si expo-location no resuelve (GPS frío,
+    // sin señal), no colgamos /solar indefinidamente. El reject cae al catch → null.
+    const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Location timeout')), 8000),
+    );
+    const location: any = await Promise.race([locationPromise, timeoutPromise]);
     return { latitude: location.coords.latitude, longitude: location.coords.longitude };
   } catch (e) {
     return null;
