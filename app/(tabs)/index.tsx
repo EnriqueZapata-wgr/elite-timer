@@ -53,7 +53,8 @@ import { speakArgos } from '@/src/services/argos-voice';
 // VoiceButton removido del HOY (decisión 21-jun). handleQuickVoice + modal de respuesta quedan
 // como código muerto hasta el sprint de cleanup HOY profundo.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { HoyDayCard } from '@/src/components/economy/HoyDayCard';
+// #v13d 2.7: HoyDayCard legacy → HoyDayCardEditorial (imagen B/N + tipografía display).
+import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditorial';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
@@ -853,10 +854,9 @@ export default function TodayScreen() {
               </Animated.View>
             )}
 
-            {/* TU DÍA — card unificada (decisión Enrique 22-jun): reemplaza el círculo
-                viejo + "X de Y BAJA CARGA" por una sola UI con E- ganados hoy + barra. */}
+            {/* TU DÍA — #v13d 2.7: card editorial (imagen B/N despertar + número display + barra). */}
             <Animated.View entering={FadeInUp.delay(120).springify()}>
-              <HoyDayCard percentage={pct} />
+              <HoyDayCardEditorial percentage={pct} seedKey={user?.id} />
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
