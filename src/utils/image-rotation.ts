@@ -5,7 +5,7 @@
  * → NO se importa en tests.
  */
 import type { ImageSourcePropType } from 'react-native';
-import { seededIndex } from '@/src/utils/image-pick-core';
+import { seededIndex, tuDiaImageGroup } from '@/src/utils/image-pick-core';
 
 const CARDIO_IMAGES: ImageSourcePropType[] = [
   require('@/assets/images/hoy-extra/cardio-01.png'),
@@ -51,4 +51,29 @@ export function pickHabitImage(habitKey: string, seedKey?: string): ImageSourceP
   const variants = HABIT_IMAGES[habitKey];
   if (!variants || variants.length === 0) return undefined;
   return variants[seededIndex(seedKey, variants.length)];
+}
+
+/**
+ * #v13e 3.B.5 — imagen de la card "TU DÍA" según la HORA del día (no por día). Grupos por franja
+ * (tuDiaImageGroup). Las carpetas medio-día/atardecer/noche aún no existen → fallback a despertar
+ * (Enrique las genera; al llegar, solo se llenan los arrays vacíos y la rotación arranca sola).
+ */
+const TU_DIA_IMAGES: Record<string, ImageSourcePropType[]> = {
+  despertar: [
+    require('@/assets/images/agenda/despertar/despertar-01.png'),
+    require('@/assets/images/agenda/despertar/despertar-02.png'),
+    require('@/assets/images/agenda/despertar/despertar-03.png'),
+    require('@/assets/images/agenda/despertar/despertar-04.png'),
+  ],
+  'medio-dia': [], // TODO: assets/images/hoy-extra/tu-dia/medio-dia/*
+  atardecer: [],   // TODO: assets/images/hoy-extra/tu-dia/atardecer/*
+  noche: [],       // TODO: assets/images/hoy-extra/tu-dia/noche/*
+};
+
+export function pickTuDiaImage(hour: number, seedKey?: string): ImageSourcePropType | undefined {
+  const group = tuDiaImageGroup(hour);
+  const variants = TU_DIA_IMAGES[group];
+  const pool = variants && variants.length > 0 ? variants : TU_DIA_IMAGES.despertar;
+  if (!pool || pool.length === 0) return undefined;
+  return pool[seededIndex(seedKey, pool.length)];
 }

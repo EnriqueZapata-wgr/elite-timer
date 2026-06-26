@@ -22,8 +22,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { LAB_ECONOMY_ENABLED } from '@/src/services/economy/economy-config';
-import { getLocalToday } from '@/src/utils/date-helpers';
-import { pickAgendaImage } from '@/src/utils/agenda-image-picker';
+import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
+import { pickTuDiaImage } from '@/src/utils/image-rotation';
 import { ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -70,7 +70,8 @@ export function HoyDayCardEditorial({ percentage, seedKey }: Props) {
 
   const loadLabel = labelForPct(percentage);
   const loadColor = colorForPct(percentage);
-  const image: ImageSourcePropType | undefined = pickAgendaImage('despertar', `${seedKey ?? ''}-tudia-${getLocalToday()}`);
+  // #v13e 3.B.5: imagen por franja horaria (fallback a despertar mientras llegan las nuevas carpetas).
+  const image: ImageSourcePropType | undefined = pickTuDiaImage(getLocalHour(), `${seedKey ?? ''}-tudia-${getLocalToday()}`);
 
   return (
     <AnimatedPressable
