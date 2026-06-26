@@ -25,6 +25,7 @@ import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/elec
 import { addWater } from '@/src/services/hydration-service';
 import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
 import { getBurnTimeMinutes } from '@/src/services/uv-service';
+import { getCardioSessionsToday, type CardioSession } from '@/src/services/fitness-service';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import type { ElectronSource } from '@/src/constants/electrons';
@@ -130,6 +131,19 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     const id = setInterval(() => setTick((t) => t + 1), 60000); // re-render del timer cada minuto
     return () => clearInterval(id);
   }, [activeFast]);
+
+  // #v13e 3.B.3 — sesiones de cardio de hoy (resumen km/min en la card CARDIO).
+  const [cardioToday, setCardioToday] = useState<CardioSession[]>([]);
+  const loadCardio = useCallback(() => {
+    if (!userId) { setCardioToday([]); return; }
+    getCardioSessionsToday(userId).then(setCardioToday).catch(() => setCardioToday([]));
+  }, [userId]);
+  useEffect(() => {
+    loadCardio();
+    const subDay = DeviceEventEmitter.addListener('day_changed', loadCardio);
+    const subEl = DeviceEventEmitter.addListener('electrons_changed', loadCardio);
+    return () => { subDay.remove(); subEl.remove(); };
+  }, [loadCardio]);
 
   // #v13e 3.A.2 — OPTIMISTIC UPDATE. Antes: tap → await Supabase x2 → emit → recompila → re-render
   // (3-5s de lag antes de que la card palomeara). Ahora: setState optimista palomea AHORA y la
@@ -385,15 +399,21 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
       {renderBoolCard('no_alcohol', 'Día sin alcohol', HOY_EXTRA_IMAGES.no_alcohol)}
       {renderBoolCard('screen_time_cutoff', '1h sin pantallas antes de dormir', HOY_EXTRA_IMAGES.screen_cutoff)}
 
-      {/* #v13e 3.A.3: CARDIO verificado — palomea al guardar sesión (cardio_sessions hoy). Navega a
-          /log-cardio (no togglea). El km/min del subtitle llega en 3.B.3. */}
+      {/* #v13e 3.A.3 + 3.B.3: CARDIO verificado — palomea al guardar sesión (cardio_sessions hoy) y
+          muestra km + min sumados del día. Navega a /log-cardio (no togglea). */}
       {show('cardio') ? (() => {
         const el = boolBySource.get('cardio');
         const done = isDone('cardio');
+        const hasCardio = cardioToday.length > 0;
+        const totalKm = cardioToday.reduce((s, c) => s + (c.distance_meters ?? 0), 0) / 1000;
+        const totalMin = cardioToday.reduce((s, c) => s + (c.duration_seconds ?? 0), 0) / 60;
+        const subtitle = hasCardio
+          ? `${totalKm.toFixed(1)} km · ${Math.round(totalMin)} min`
+          : (done ? 'Hecho hoy' : 'Sin sesión hoy · registrar');
         return (
           <EditorialCard
             cardKey="cardio" icon="❤️‍🔥" title="CARDIO"
-            subtitle={done ? 'Hecho hoy' : 'Sin sesión hoy · registrar'}
+            subtitle={subtitle}
             gradient={['#E74C3C', '#FFA500']}
             imageBn={pickCardioImage(`${seedKey ?? ''}-cardio-${today}`)}
             state={done ? 'done' : 'pending'}
