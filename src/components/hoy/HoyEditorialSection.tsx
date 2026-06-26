@@ -24,6 +24,7 @@ import { pickAgendaImage, categoryToFolder } from '@/src/utils/agenda-image-pick
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
+import { getBurnTimeMinutes } from '@/src/services/uv-service';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import type { ElectronSource } from '@/src/constants/electrons';
@@ -34,6 +35,10 @@ const TOGGLE_CARDS = new Set(['luz_solar', 'bano_frio', 'grounding', 'lentes_roj
   // #v13d 2.1: cards nuevas también togglean desde la card (renderBoolCard ya lo hace; aquí por consistencia).
   // NOTA: 'journal' NO va aquí — navega a /journal (igual que checkin), el award sucede al guardar entry.
   'no_alcohol', 'no_processed_foods', 'screen_time_cutoff']);
+
+/** #v13e 3.B.1: fototipo por default (tipo 3, piel media — más común en MX) hasta que exista
+ *  client_profiles.fitzpatrick_type + cuestionario. La card UV invita a personalizar en tests. */
+const FITZPATRICK_DEFAULT = 3;
 
 /** "14h 32m" desde el ISO de inicio del ayuno. */
 function formatFastDuration(startISO: string | null): string {
@@ -243,11 +248,18 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
       {show('uv') ? (() => {
         const uv = uvMini?.current;
         const hint = uv == null ? '' : uv >= 8 ? ' · evita 11-15h' : uv >= 6 ? ' · busca sombra' : '';
+        // #v13e 3.B.1: tiempo de exposición segura. Fototipo no persistido aún → default tipo 3
+        // (más común en MX) con CTA a personalizar. TODO: migración client_profiles.fitzpatrick_type.
+        const safeMin = uv != null && uv > 0 ? getBurnTimeMinutes(uv, FITZPATRICK_DEFAULT) : null;
+        const message = safeMin != null
+          ? `Exposición segura: ~${safeMin} min (tipo ${FITZPATRICK_DEFAULT}) · Personaliza en tests`
+          : undefined;
         return (
           <EditorialCard
             cardKey="uv" size="hero" icon="☀️"
             title={uv != null ? `UV INDEX ${uv}` : 'UV INDEX'}
             subtitle={uv != null ? `${uvMini?.level ?? ''}${hint}`.trim() || 'Sin datos' : 'Sin datos'}
+            message={message}
             gradient={['#FFD700', '#FFA500']}
             imageBn={HOY_EXTRA_IMAGES.uv}
             onTap={() => go('/solar')}
