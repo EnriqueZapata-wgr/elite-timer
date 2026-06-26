@@ -22,8 +22,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { LAB_ECONOMY_ENABLED } from '@/src/services/economy/economy-config';
-import { getLocalToday } from '@/src/utils/date-helpers';
-import { pickAgendaImage } from '@/src/utils/agenda-image-picker';
+import { getLocalToday, getLocalHour } from '@/src/utils/date-helpers';
+import { pickTuDiaImage } from '@/src/utils/image-rotation';
 import { ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -32,11 +32,15 @@ interface Props {
   percentage: number;
   /** Seed para rotación determinística de la imagen (ej. userId): misma img toda la sesión del día. */
   seedKey?: string;
+  /** #v13e 3.C.1 — mini-reporte integrado (antes vivía en "Cierre del día", ahora eliminado). */
+  streak?: number | null;
+  completedCount?: number;
+  totalCount?: number;
 }
 
 const DAWN_GRADIENT: [string, string] = ['#F59E0B', '#312E81'];
 
-export function HoyDayCardEditorial({ percentage, seedKey }: Props) {
+export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCount, totalCount }: Props) {
   const { user } = useAuth();
   const [earnedToday, setEarnedToday] = useState<number>(0);
   const barWidth = useSharedValue(0);
@@ -70,7 +74,8 @@ export function HoyDayCardEditorial({ percentage, seedKey }: Props) {
 
   const loadLabel = labelForPct(percentage);
   const loadColor = colorForPct(percentage);
-  const image: ImageSourcePropType | undefined = pickAgendaImage('despertar', `${seedKey ?? ''}-tudia-${getLocalToday()}`);
+  // #v13e 3.B.5: imagen por franja horaria (fallback a despertar mientras llegan las nuevas carpetas).
+  const image: ImageSourcePropType | undefined = pickTuDiaImage(getLocalHour(), `${seedKey ?? ''}-tudia-${getLocalToday()}`);
 
   return (
     <AnimatedPressable
@@ -113,6 +118,17 @@ export function HoyDayCardEditorial({ percentage, seedKey }: Props) {
             <EliteText style={[styles.pctText, { color: loadColor }]}>{Math.round(percentage)}%</EliteText>
             <EliteText style={[styles.loadLabel, { color: loadColor }]}>{loadLabel}</EliteText>
           </View>
+          {/* #v13e 3.C.1: mini-reporte integrado (racha + completadas) — el E-/carga ya están arriba. */}
+          {(streak != null || totalCount != null) ? (
+            <View style={styles.statRow}>
+              {streak != null ? (
+                <EliteText style={styles.statText}>🔥 {streak} {streak === 1 ? 'día' : 'días'}</EliteText>
+              ) : null}
+              {totalCount != null ? (
+                <EliteText style={styles.statText}>✓ {completedCount ?? 0}/{totalCount}</EliteText>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </View>
     </AnimatedPressable>
@@ -152,6 +168,8 @@ const styles = StyleSheet.create({
   barTrack: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.18)', overflow: 'hidden', marginTop: Spacing.xs },
   barFill: { height: '100%', borderRadius: 4 },
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
+  statRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
+  statText: { color: 'rgba(255,255,255,0.85)', fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   pctText: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   loadLabel: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1.2 },
 });

@@ -242,6 +242,20 @@ async function checkCardioRecords(session: CardioSession): Promise<{ distance_la
   return newPRs;
 }
 
+/** #v13e 3.B.3: sesiones de cardio de HOY (para el resumen km/min en la card del HOY). */
+export async function getCardioSessionsToday(userId: string): Promise<CardioSession[]> {
+  try {
+    const { data } = await supabase
+      .from('cardio_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', getLocalToday());
+    return (data as CardioSession[]) ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /** Ultima sesion por disciplina (para mostrar en el hub). */
 export async function getLastCardioSessions(): Promise<Record<CardioDiscipline, CardioSession | null>> {
   const empty: Record<CardioDiscipline, CardioSession | null> = {

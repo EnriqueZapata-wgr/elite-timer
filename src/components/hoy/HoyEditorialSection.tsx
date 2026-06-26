@@ -11,9 +11,12 @@
  * electrones, agenda hardcoded, counters proteína/agua) queda para la auditoría visual de Enrique
  * (ver COWORK_REPORT) — removerlas a ciegas del archivo entrelazado es el riesgo que evitamos.
  */
-import { useState, useEffect, useCallback } from 'react';
-import { DeviceEventEmitter } from 'react-native';
+import { useState, useEffect, useCallback, Fragment } from 'react';
+import { DeviceEventEmitter, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { EliteText } from '@/components/elite-text';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { Fonts, FontSizes, Spacing } from '@/constants/theme';
 import { EditorialCard, type EditorialCardState } from '@/src/components/hoy/EditorialCard';
 import { HeroAgendaCard } from '@/src/components/hoy/HeroAgendaCard';
 import { HOY_CARD_BY_KEY } from '@/src/constants/hoy-cards';
@@ -24,6 +27,8 @@ import { pickAgendaImage, categoryToFolder } from '@/src/utils/agenda-image-pick
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
+import { getBurnTimeMinutes } from '@/src/services/uv-service';
+import { getCardioSessionsToday, type CardioSession } from '@/src/services/fitness-service';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import type { ElectronSource } from '@/src/constants/electrons';
@@ -34,6 +39,10 @@ const TOGGLE_CARDS = new Set(['luz_solar', 'bano_frio', 'grounding', 'lentes_roj
   // #v13d 2.1: cards nuevas también togglean desde la card (renderBoolCard ya lo hace; aquí por consistencia).
   // NOTA: 'journal' NO va aquí — navega a /journal (igual que checkin), el award sucede al guardar entry.
   'no_alcohol', 'no_processed_foods', 'screen_time_cutoff']);
+
+/** #v13e 3.B.1: fototipo por default (tipo 3, piel media — más común en MX) hasta que exista
+ *  client_profiles.fitzpatrick_type + cuestionario. La card UV invita a personalizar en tests. */
+const FITZPATRICK_DEFAULT = 3;
 
 /** "14h 32m" desde el ISO de inicio del ayuno. */
 function formatFastDuration(startISO: string | null): string {
@@ -83,7 +92,43 @@ const CARD_TO_ELECTRON: Record<string, string> = {
   no_alcohol: 'no_alcohol', no_processed_foods: 'no_processed_foods',
   screen_time_cutoff: 'screen_time_cutoff',
 };
-const ELECTRON_CARD_ORDER = ['luz_solar', 'meditacion', 'suplementos', 'bano_frio', 'grounding', 'fuerza', 'breathwork', 'lentes_rojos'];
+/** #v13e 3.D — copy del info-tip "i" por card (cómo se gana el electrón). Corto (1-2 líneas). */
+const CARD_INFO: Record<string, string> = {
+  luz_solar: 'Exponerte 10–20 min al sol matutino (sin lentes oscuros) mejora tu ritmo circadiano y vitamina D. Palomea cuando lo hagas.',
+  bano_frio: 'Inmersión 2–5 min en agua fría (10–15°C) activa grasa parda y norepinefrina. Cuenta una vez al día.',
+  grounding: '10+ min descalzo en tierra, pasto o arena reduce inflamación. Cuenta una vez al día.',
+  lentes_rojos: 'Lentes que bloquean luz azul 1–2h antes de dormir mejoran tu melatonina. Palomea cuando los uses.',
+  no_alcohol: 'Día sin alcohol: mejora sueño, recuperación hepática y claridad mental. Palomea si no consumiste.',
+  no_processed_foods: 'Día sin alimentos ultraprocesados. Palomea cuando lo confirmes.',
+  screen_time_cutoff: '1 hora sin pantallas antes de dormir mejora tu sueño. Palomea cuando lo cumplas esa noche.',
+  journal: 'Escribe cualquier entrada de journal hoy. El electrón se otorga al guardar tu entrada.',
+  meditacion: 'Una sesión de meditación hoy. Se otorga al completar la práctica en Mente.',
+  breathwork: 'Una sesión de respiración hoy. Se otorga al completarla en Mente.',
+  fuerza: 'Registra un entrenamiento de fuerza hoy. Se otorga al guardar el ejercicio.',
+  suplementos: 'Toma tus suplementos del día. Se otorga al marcarlos en Suplementación.',
+  checkin: 'Registra tu estado emocional hoy. Se otorga al guardar el check-in.',
+  cardio: 'Registra una sesión de cardio hoy. Se otorga al guardar la sesión.',
+  proteina: 'Alcanza tu meta diaria de proteína. El electrón es proporcional al % logrado.',
+  agua: 'Alcanza tu meta diaria de agua. El electrón es proporcional al % logrado.',
+  ayuno: 'Completa tu ventana de ayuno objetivo. El electrón se otorga al cumplir las horas meta.',
+};
+
+/**
+ * #v13e (reorden) — HOY en orden cronológico con 5 sub-secciones. SUPLEMENTOS ya no vive en HOY
+ * (enlaza a /supplements desde HÁBITOS). TU DÍA + HERO AGENDA van arriba SIN section title.
+ */
+const HOY_SECTIONS: { title: string; cardKeys: string[] }[] = [
+  { title: 'DESPERTAR', cardKeys: ['uv', 'luz_solar', 'checkin', 'meditacion'] },
+  { title: 'NUTRICIÓN', cardKeys: ['proteina', 'agua', 'no_processed_foods', 'ayuno'] },
+  { title: 'ACTIVIDAD', cardKeys: ['fuerza', 'cardio', 'pasos', 'grounding', 'bano_frio'] },
+  { title: 'CIERRE', cardKeys: ['breathwork', 'lentes_rojos', 'journal', 'screen_time_cutoff', 'no_alcohol'] },
+  { title: 'DESCANSO', cardKeys: ['sleep'] },
+];
+
+/** Header de sub-sección del HOY (lima, estilo "TU ECOSISTEMA"). */
+function SectionTitle({ children }: { children: string }) {
+  return <EliteText style={styles.sectionTitle}>{children}</EliteText>;
+}
 
 interface UvMini { current?: number; level?: string }
 
@@ -126,11 +171,47 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     return () => clearInterval(id);
   }, [activeFast]);
 
-  // 4.4 — completar/revocar un electrón booleano tocando la card.
-  // #v13d 2.1: DUAL WRITE (blob daily_electrons + electron_logs), igual que el toggle del HOY.
-  // Antes solo escribía electron_logs → el day-compiler lee `completed` de los no-verificados
-  // desde el blob `daily_electrons.electrons`, así que la card nunca palomeaba tras recompilar.
-  const toggleBoolean = async (cardKey: string) => {
+  // #v13e 3.B.3 — sesiones de cardio de hoy (resumen km/min en la card CARDIO).
+  const [cardioToday, setCardioToday] = useState<CardioSession[]>([]);
+  const loadCardio = useCallback(() => {
+    if (!userId) { setCardioToday([]); return; }
+    getCardioSessionsToday(userId).then(setCardioToday).catch(() => setCardioToday([]));
+  }, [userId]);
+  useEffect(() => {
+    loadCardio();
+    const subDay = DeviceEventEmitter.addListener('day_changed', loadCardio);
+    const subEl = DeviceEventEmitter.addListener('electrons_changed', loadCardio);
+    return () => { subDay.remove(); subEl.remove(); };
+  }, [loadCardio]);
+
+  // #v13e 3.A.2 — OPTIMISTIC UPDATE. Antes: tap → await Supabase x2 → emit → recompila → re-render
+  // (3-5s de lag antes de que la card palomeara). Ahora: setState optimista palomea AHORA y la
+  // persistencia corre async con rollback si falla. El override se mantiene hasta que el compiler
+  // refleje el estado real (reconciliación abajo) → sin flicker de vuelta a "pending".
+  const [optimisticOverrides, setOptimisticOverrides] = useState<Record<string, boolean>>({});
+
+  // Estado visual de un booleano: override optimista > estado compilado > false.
+  const isDone = (source: string): boolean =>
+    optimisticOverrides[source] ?? boolBySource.get(source)?.completed ?? false;
+
+  // Cuando el compiler recompila (day.booleanElectrons cambia), soltar los overrides que el estado
+  // real ya alcanzó; conservar los que aún no se reflejan (evita parpadeo a pending).
+  useEffect(() => {
+    setOptimisticOverrides((prev) => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+      const next: Record<string, boolean> = {};
+      for (const k of keys) {
+        const real = boolBySource.get(k)?.completed ?? false;
+        if (real !== prev[k]) next[k] = prev[k];
+      }
+      return Object.keys(next).length === keys.length ? prev : next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day.booleanElectrons]);
+
+  // 4.4 — completar/revocar un electrón booleano tocando la card (optimista + rollback).
+  const toggleBoolean = (cardKey: string) => {
     if (!userId) return;
     // Cards nuevas (no_alcohol/journal/no_processed_foods/screen_time_cutoff) usan cardKey=source.
     const source = (CARD_TO_ELECTRON[cardKey] ?? cardKey) as ElectronSource;
@@ -138,24 +219,34 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     // Verificados (checkin/meditation/…) derivan `completed` de actividad real, no del blob.
     // No deben togglearse desde la card (checkin navega a /checkin). Guard defensivo.
     if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) return;
-    const wasCompleted = boolBySource.get(source)?.completed ?? false;
-    // 1) blob daily_electrons (lo que el compiler lee para UI rápida)
+    const wasCompleted = isDone(source);
+    const next = !wasCompleted;
+    // 1) UI optimista: palomea/despalomea AHORA.
+    setOptimisticOverrides((prev) => ({ ...prev, [source]: next }));
+    // 2) Persistencia async fire-and-forget con rollback si falla.
+    persistToggle(source, next).catch((e) => {
+      setOptimisticOverrides((prev) => ({ ...prev, [source]: wasCompleted }));
+      logWarn('[HoyEditorial] toggle failed, reverted', e);
+    });
+  };
+
+  // #v13d 2.1: DUAL WRITE (blob daily_electrons + electron_logs). El compiler lee `completed` de los
+  // no-verificados desde el blob; electron_logs lleva el acumulado/rango.
+  const persistToggle = async (source: ElectronSource, next: boolean) => {
     const newStates: Record<string, boolean> = {};
     for (const e of day.booleanElectrons ?? []) {
-      newStates[e.source] = e.source === source ? !wasCompleted : e.completed;
+      newStates[e.source] = e.completed;
     }
-    try {
-      const { error } = await supabase
-        .from('daily_electrons')
-        .upsert({ user_id: userId, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
-      if (error) throw error;
-      // 2) electron_logs (acumulado / rango)
-      if (wasCompleted) await revokeBooleanElectron(userId, source);
-      else await awardBooleanElectron(userId, source);
-      DeviceEventEmitter.emit('electrons_changed');
-    } catch (e) {
-      logWarn('[HoyEditorial] toggle electron failed', e);
-    }
+    // #v13e 3.A.1: SIEMPRE persistir el source toggleado, aunque (por prefs viejos) no viva en
+    // booleanElectrons (toggle silencioso).
+    newStates[source] = next;
+    const { error } = await supabase
+      .from('daily_electrons')
+      .upsert({ user_id: userId!, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
+    if (error) throw error;
+    if (next) await awardBooleanElectron(userId!, source);
+    else await revokeBooleanElectron(userId!, source);
+    DeviceEventEmitter.emit('electrons_changed');
   };
 
   // Próximo evento de la agenda (si existe) → Hero. Imagen rotada por categoría (determinística).
@@ -171,17 +262,235 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     const spec = HOY_CARD_BY_KEY[cardKey];
     if (!spec) return null;
     // #v13d 2.1: leer por `source` mapeado (no por cardKey) para reflejar el electrón real.
-    const el = boolBySource.get(CARD_TO_ELECTRON[cardKey] ?? cardKey);
+    const source = CARD_TO_ELECTRON[cardKey] ?? cardKey;
+    const el = boolBySource.get(source);
+    const done = isDone(source); // #v13e 3.A.2: estado optimista
     return (
       <EditorialCard
         key={cardKey} cardKey={cardKey} icon={spec.icon} title={spec.title}
-        subtitle={el?.completed ? 'Hecho hoy' : subtitlePending}
+        subtitle={done ? 'Hecho hoy' : subtitlePending}
         gradient={spec.gradient} imageBn={imageBn}
-        state={el?.completed ? 'done' : 'pending'}
+        state={done ? 'done' : 'pending'}
         electronsValue={el?.weight} showCheckCircle
+        infoText={CARD_INFO[cardKey]}
         onTap={() => toggleBoolean(cardKey)}
       />
     );
+  };
+
+  // Electrón booleano (luz_solar/meditacion/bano_frio/grounding/fuerza/breathwork/lentes_rojos).
+  // suplementos ya no se ofrece en HOY (no vive en ninguna sección) → nunca se renderiza.
+  const renderElectronCard = (cardKey: string) => {
+    const spec = HOY_CARD_BY_KEY[cardKey];
+    if (!spec) return null;
+    const source = CARD_TO_ELECTRON[cardKey];
+    const el = boolBySource.get(source);
+    const done = isDone(source); // #v13e 3.A.2: estado optimista (verificados caen al compilado)
+    const state: EditorialCardState = done ? 'done' : 'pending';
+    const canToggle = TOGGLE_CARDS.has(cardKey);
+    return (
+      <EditorialCard
+        cardKey={cardKey} icon={spec.icon} title={spec.title}
+        subtitle={done ? 'Hecho hoy' : el?.description || ''}
+        gradient={spec.gradient} imageBn={ELECTRON_IMAGES[cardKey]} state={state}
+        electronsValue={el?.weight} showCheckCircle
+        infoText={CARD_INFO[cardKey]}
+        onTap={canToggle ? () => toggleBoolean(cardKey) : () => go(spec.route || el?.pillarRoute || '/kit')}
+      />
+    );
+  };
+
+  // Render de una card por cardKey (gateado por visibilidad). Las secciones (HOY_SECTIONS) deciden
+  // el orden y agrupación; aquí solo vive el "cómo se ve" cada card.
+  const renderCard = (cardKey: string): React.ReactNode => {
+    if (!show(cardKey)) return null;
+    switch (cardKey) {
+      // #v13d 2.5: UV card hero — número prominente + #v13e 3.B.1 exposición segura.
+      case 'uv': {
+        const uv = uvMini?.current;
+        const hint = uv == null ? '' : uv >= 8 ? ' · evita 11-15h' : uv >= 6 ? ' · busca sombra' : '';
+        const safeMin = uv != null && uv > 0 ? getBurnTimeMinutes(uv, FITZPATRICK_DEFAULT) : null;
+        const message = safeMin != null
+          ? `Exposición segura: ~${safeMin} min (tipo ${FITZPATRICK_DEFAULT}) · Personaliza en tests`
+          : undefined;
+        return (
+          <EditorialCard
+            cardKey="uv" size="hero" icon="☀️"
+            title={uv != null ? `UV INDEX ${uv}` : 'UV INDEX'}
+            subtitle={uv != null ? `${uvMini?.level ?? ''}${hint}`.trim() || 'Sin datos' : 'Sin datos'}
+            message={message}
+            gradient={['#FFD700', '#FFA500']}
+            imageBn={HOY_EXTRA_IMAGES.uv}
+            onTap={() => go('/solar')}
+          />
+        );
+      }
+      case 'checkin':
+        // #v13d 2.2: checkin NO togglea desde card → navega a /checkin (el award sucede dentro).
+        return (
+          <EditorialCard
+            cardKey="checkin" icon="❤️" title="CHECK-IN EMOCIONAL"
+            subtitle={isDone('checkin') ? 'Registrado hoy' : '¿Cómo te sientes hoy?'}
+            gradient={['#1ABC9C', '#9B59B6']}
+            imageBn={HOY_EXTRA_IMAGES.checkin}
+            state={isDone('checkin') ? 'done' : 'pending'}
+            electronsValue={boolBySource.get('checkin')?.weight}
+            showCheckCircle
+            infoText={CARD_INFO['checkin']}
+            onTap={() => go('/checkin')}
+          />
+        );
+      // #v13d post-smoke: journal navega a /journal (el award sucede al guardar entry dentro).
+      case 'journal': {
+        const spec = HOY_CARD_BY_KEY['journal'];
+        if (!spec) return null;
+        const el = boolBySource.get('journal');
+        const done = isDone('journal');
+        return (
+          <EditorialCard
+            cardKey="journal" icon={spec.icon} title={spec.title}
+            subtitle={done ? 'Registrado hoy' : 'Escribe tu día'}
+            gradient={spec.gradient} imageBn={HOY_EXTRA_IMAGES.journal}
+            state={done ? 'done' : 'pending'}
+            electronsValue={el?.weight}
+            showCheckCircle
+            infoText={CARD_INFO['journal']}
+            onTap={() => go('/journal')}
+          />
+        );
+      }
+      case 'proteina':
+        if (!protein) return null;
+        return (
+          <EditorialCard
+            cardKey="proteina" icon="🍳" title="PROTEÍNA"
+            subtitle={`${protein.displayCurrent} / ${protein.displayTarget}`}
+            message={protein.current < protein.target ? `Te faltan ${Math.max(0, Math.round(protein.target - protein.current))}g` : 'Meta lograda ✓'}
+            gradient={['#FF8C00', '#C0392B']}
+            imageBn={HOY_EXTRA_IMAGES.proteina}
+            state={protein.current >= protein.target ? 'done' : 'pending'}
+            progress={{ current: protein.current, target: protein.target, unit: 'g' }}
+            showCheckCircle
+            infoText={CARD_INFO['proteina']}
+            onTap={() => go('/food-register')}
+          />
+        );
+      case 'agua':
+        if (!water) return null;
+        return (
+          <EditorialCard
+            cardKey="agua" icon="💧" title="AGUA"
+            subtitle={`${water.displayCurrent} / ${water.displayTarget}`}
+            message={water.current >= water.target ? 'Meta superada' : 'Sigue hidratándote'}
+            gradient={['#3498DB', '#1ABC9C']}
+            imageBn={HOY_EXTRA_IMAGES.agua}
+            state={water.current >= water.target ? 'done' : 'pending'}
+            progress={{ current: water.current, target: water.target, unit: 'ml' }}
+            quickActions={userId ? [
+              { label: '+250 ml', onTap: () => { addWater(userId, 250); } },
+              { label: '+500 ml', onTap: () => { addWater(userId, 500); } },
+              { label: '-250 ml', onTap: () => { addWater(userId, -250); } },
+            ] : undefined}
+            showCheckCircle
+            infoText={CARD_INFO['agua']}
+            onTap={() => go('/hydration')}
+          />
+        );
+      case 'no_processed_foods':
+        return renderBoolCard('no_processed_foods', 'Día sin procesados', HOY_EXTRA_IMAGES.no_procesados);
+      // #v13d 2.6: AYUNO con barra de progreso (horas activas vs meta) + círculo al cumplir.
+      case 'ayuno': {
+        const targetHours = activeFast?.target_hours ?? 16; // default 16h si el modelo no trae meta
+        const hoursActive = activeFast?.fast_start
+          ? Math.max(0, (Date.now() - new Date(activeFast.fast_start).getTime()) / 3600000)
+          : 0;
+        const fastDone = !!activeFast && hoursActive >= targetHours;
+        return (
+          <EditorialCard
+            cardKey="ayuno" icon="⏳" title="AYUNO"
+            subtitle={activeFast
+              ? `Ayunando · ${formatFastDuration(activeFast.fast_start)} de ${targetHours}h meta`
+              : 'Sin ayuno activo'}
+            message={activeFast ? 'Tu ventana de ayuno está abierta' : 'Inicia tu ayuno cuando estés listo'}
+            gradient={['#6B46C1', '#1E3A8A']}
+            imageBn={HOY_EXTRA_IMAGES.ayuno}
+            state={fastDone ? 'done' : 'pending'}
+            progress={activeFast ? { current: hoursActive, target: targetHours, unit: 'h' } : undefined}
+            showCheckCircle={!!activeFast}
+            ctaLabel={activeFast ? 'Romper ayuno' : 'Iniciar ayuno'}
+            infoText={CARD_INFO['ayuno']}
+            onTap={() => go('/fasting')}
+          />
+        );
+      }
+      case 'luz_solar': case 'meditacion': case 'bano_frio': case 'grounding':
+      case 'fuerza': case 'breathwork': case 'lentes_rojos': case 'suplementos':
+        return renderElectronCard(cardKey);
+      // #v13e 3.A.3 + 3.B.3: CARDIO verificado — palomea al guardar sesión + km/min del día.
+      case 'cardio': {
+        const el = boolBySource.get('cardio');
+        const done = isDone('cardio');
+        const hasCardio = cardioToday.length > 0;
+        const totalKm = cardioToday.reduce((s, c) => s + (c.distance_meters ?? 0), 0) / 1000;
+        const totalMin = cardioToday.reduce((s, c) => s + (c.duration_seconds ?? 0), 0) / 60;
+        const subtitle = hasCardio
+          ? `${totalKm.toFixed(1)} km · ${Math.round(totalMin)} min`
+          : (done ? 'Hecho hoy' : 'Sin sesión hoy · registrar');
+        return (
+          <EditorialCard
+            cardKey="cardio" icon="❤️‍🔥" title="CARDIO"
+            subtitle={subtitle}
+            gradient={['#E74C3C', '#FFA500']}
+            imageBn={pickCardioImage(`${seedKey ?? ''}-cardio-${today}`)}
+            state={done ? 'done' : 'pending'}
+            electronsValue={el?.weight}
+            showCheckCircle
+            infoText={CARD_INFO['cardio']}
+            onTap={() => go('/log-cardio')}
+          />
+        );
+      }
+      // #v13e 3.B.2: PASOS — barra si hay data; CTA si no (sin Health Connect aún).
+      case 'pasos': {
+        const steps = quant('steps');
+        const hasSteps = !!steps && steps.current > 0;
+        return (
+          <EditorialCard
+            cardKey="pasos" icon="🚶" title="PASOS"
+            subtitle={hasSteps ? `${steps!.displayCurrent} / ${steps!.displayTarget}` : 'Sin datos · conecta Health Connect'}
+            gradient={['#27AE60', '#8B4513']}
+            imageBn={HOY_EXTRA_IMAGES.pasos}
+            state={hasSteps && steps!.current >= steps!.target ? 'done' : 'pending'}
+            progress={hasSteps ? { current: steps!.current, target: steps!.target, unit: 'pasos' } : undefined}
+            onTap={() => go('/settings')}
+          />
+        );
+      }
+      case 'screen_time_cutoff':
+        return renderBoolCard('screen_time_cutoff', '1h sin pantallas antes de dormir', HOY_EXTRA_IMAGES.screen_cutoff);
+      case 'no_alcohol':
+        return renderBoolCard('no_alcohol', 'Día sin alcohol', HOY_EXTRA_IMAGES.no_alcohol);
+      // #v13e 3.B.4: SUEÑO con lógica horaria (4am–6pm resultados / 6pm–4am recomendación).
+      case 'sleep': {
+        const h = getLocalHour();
+        const isMorning = h >= 4 && h < 18;
+        const subtitle = isMorning ? 'Tu sueño de anoche' : 'Tu hora de dormir';
+        const message = isMorning
+          ? 'Conecta Apple Watch / Health Connect para ver tu descanso'
+          : 'Conecta tu wearable para personalizar tu hora de dormir';
+        return (
+          <EditorialCard
+            cardKey="sleep" icon="🌙" title="SUEÑO"
+            subtitle={subtitle} message={message}
+            gradient={['#2C3E50', '#1A1A2E']}
+            imageBn={HOY_EXTRA_IMAGES.sueno}
+            onTap={() => go('/reports')}
+          />
+        );
+      }
+      default:
+        return null;
+    }
   };
 
   return (
@@ -203,167 +512,30 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         />
       ) : null}
 
-      {/* #v13d 2.5: UV card hero — número prominente en el title + advertencia contextual en
-          subtitle (UV es info crítica para exposición solar guiada). */}
-      {show('uv') ? (() => {
-        const uv = uvMini?.current;
-        const hint = uv == null ? '' : uv >= 8 ? ' · evita 11-15h' : uv >= 6 ? ' · busca sombra' : '';
+      {/* Orden cronológico: 5 sub-secciones con header lima. Una sección sin cards visibles se omite. */}
+      {HOY_SECTIONS.map((section) => {
+        const cards = section.cardKeys
+          .map((k) => { const node = renderCard(k); return node ? <Fragment key={k}>{node}</Fragment> : null; })
+          .filter(Boolean);
+        if (cards.length === 0) return null;
         return (
-          <EditorialCard
-            cardKey="uv" size="hero" icon="☀️"
-            title={uv != null ? `UV INDEX ${uv}` : 'UV INDEX'}
-            subtitle={uv != null ? `${uvMini?.level ?? ''}${hint}`.trim() || 'Sin datos' : 'Sin datos'}
-            gradient={['#FFD700', '#FFA500']}
-            imageBn={HOY_EXTRA_IMAGES.uv}
-            onTap={() => go('/solar')}
-          />
-        );
-      })() : null}
-
-      {show('checkin') ? (
-        <EditorialCard
-          cardKey="checkin" icon="❤️" title="CHECK-IN EMOCIONAL"
-          subtitle={boolBySource.get('checkin')?.completed ? 'Registrado hoy' : '¿Cómo te sientes hoy?'}
-          gradient={['#1ABC9C', '#9B59B6']}
-          imageBn={HOY_EXTRA_IMAGES.checkin}
-          state={boolBySource.get('checkin')?.completed ? 'done' : 'pending'}
-          electronsValue={boolBySource.get('checkin')?.weight}
-          showCheckCircle
-          // #v13d 2.2: checkin NO togglea desde card → navega a /checkin. El award sucede al
-          // guardar dentro de /checkin (emite electrons_changed → recompila → card palomea).
-          onTap={() => go('/checkin')}
-        />
-      ) : null}
-
-      {/* #v13d post-smoke fix: journal NO togglea desde card → navega a /journal (igual que
-          checkin). El award sucede al guardar entry dentro (app/journal.tsx ya llama
-          awardBooleanElectron + emite electrons_changed → recompila → card palomea). */}
-      {show('journal') ? (() => {
-        const spec = HOY_CARD_BY_KEY['journal'];
-        if (!spec) return null;
-        const el = boolBySource.get('journal');
-        return (
-          <EditorialCard
-            cardKey="journal" icon={spec.icon} title={spec.title}
-            subtitle={el?.completed ? 'Registrado hoy' : 'Escribe tu día'}
-            gradient={spec.gradient} imageBn={HOY_EXTRA_IMAGES.journal}
-            state={el?.completed ? 'done' : 'pending'}
-            electronsValue={el?.weight}
-            showCheckCircle
-            onTap={() => go('/journal')}
-          />
-        );
-      })() : null}
-
-      {show('proteina') && protein ? (
-        <EditorialCard
-          cardKey="proteina" icon="🍳" title="PROTEÍNA"
-          subtitle={`${protein.displayCurrent} / ${protein.displayTarget}`}
-          message={protein.current < protein.target ? `Te faltan ${Math.max(0, Math.round(protein.target - protein.current))}g` : 'Meta lograda ✓'}
-          gradient={['#FF8C00', '#C0392B']}
-          imageBn={HOY_EXTRA_IMAGES.proteina}
-          state={protein.current >= protein.target ? 'done' : 'pending'}
-          progress={{ current: protein.current, target: protein.target, unit: 'g' }}
-          showCheckCircle
-          onTap={() => go('/food-register')}
-        />
-      ) : null}
-
-      {renderBoolCard('no_processed_foods', 'Día sin procesados', HOY_EXTRA_IMAGES.no_procesados)}
-
-      {show('agua') && water ? (
-        <EditorialCard
-          cardKey="agua" icon="💧" title="AGUA"
-          subtitle={`${water.displayCurrent} / ${water.displayTarget}`}
-          message={water.current >= water.target ? 'Meta superada' : 'Sigue hidratándote'}
-          gradient={['#3498DB', '#1ABC9C']}
-          imageBn={HOY_EXTRA_IMAGES.agua}
-          state={water.current >= water.target ? 'done' : 'pending'}
-          progress={{ current: water.current, target: water.target, unit: 'ml' }}
-          quickActions={userId ? [
-            { label: '+250 ml', onTap: () => { addWater(userId, 250); } },
-            { label: '+500 ml', onTap: () => { addWater(userId, 500); } },
-            { label: '-250 ml', onTap: () => { addWater(userId, -250); } },
-          ] : undefined}
-          showCheckCircle
-          onTap={() => go('/hydration')}
-        />
-      ) : null}
-
-      {/* 4.7 — AYUNO. 2.5: alineado al resto. 3.3: imagen cableada.
-          #v13d 2.6: barra de progreso (horas activas vs meta) + círculo que palomea al cumplir. */}
-      {show('ayuno') ? (() => {
-        const targetHours = activeFast?.target_hours ?? 16; // default 16h si el modelo no trae meta
-        const hoursActive = activeFast?.fast_start
-          ? Math.max(0, (Date.now() - new Date(activeFast.fast_start).getTime()) / 3600000)
-          : 0;
-        const fastDone = !!activeFast && hoursActive >= targetHours;
-        return (
-          <EditorialCard
-            cardKey="ayuno" icon="⏳" title="AYUNO"
-            subtitle={activeFast
-              ? `Ayunando · ${formatFastDuration(activeFast.fast_start)} de ${targetHours}h meta`
-              : 'Sin ayuno activo'}
-            message={activeFast ? 'Tu ventana de ayuno está abierta' : 'Inicia tu ayuno cuando estés listo'}
-            gradient={['#6B46C1', '#1E3A8A']}
-            imageBn={HOY_EXTRA_IMAGES.ayuno}
-            state={fastDone ? 'done' : 'pending'}
-            progress={activeFast ? { current: hoursActive, target: targetHours, unit: 'h' } : undefined}
-            showCheckCircle={!!activeFast}
-            ctaLabel={activeFast ? 'Romper ayuno' : 'Iniciar ayuno'}
-            onTap={() => go('/fasting')}
-          />
-        );
-      })() : null}
-
-      {ELECTRON_CARD_ORDER.filter(show).map((cardKey) => {
-        const spec = HOY_CARD_BY_KEY[cardKey];
-        if (!spec) return null;
-        const el = boolBySource.get(CARD_TO_ELECTRON[cardKey]);
-        const state: EditorialCardState = el?.completed ? 'done' : 'pending';
-        const canToggle = TOGGLE_CARDS.has(cardKey);
-        return (
-          <EditorialCard
-            key={cardKey} cardKey={cardKey} icon={spec.icon} title={spec.title}
-            subtitle={el?.completed ? 'Hecho hoy' : el?.description || ''}
-            gradient={spec.gradient} imageBn={ELECTRON_IMAGES[cardKey]} state={state}
-            electronsValue={el?.weight} showCheckCircle
-            onTap={canToggle ? () => toggleBoolean(cardKey) : () => go(spec.route || el?.pillarRoute || '/kit')}
-          />
+          <View key={section.title}>
+            <SectionTitle>{section.title}</SectionTitle>
+            {cards}
+          </View>
         );
       })}
-
-      {renderBoolCard('no_alcohol', 'Día sin alcohol', HOY_EXTRA_IMAGES.no_alcohol)}
-      {renderBoolCard('screen_time_cutoff', '1h sin pantallas antes de dormir', HOY_EXTRA_IMAGES.screen_cutoff)}
-
-      {show('cardio') ? (
-        <EditorialCard
-          cardKey="cardio" icon="❤️‍🔥" title="CARDIO"
-          subtitle="Sin datos · conecta wearable" gradient={['#E74C3C', '#FFA500']}
-          imageBn={pickCardioImage(`${seedKey ?? ''}-cardio-${today}`)}
-          onTap={() => go('/log-cardio')}
-        />
-      ) : null}
-
-      {show('pasos') ? (
-        <EditorialCard
-          cardKey="pasos" icon="🚶" title="PASOS"
-          subtitle="Sin datos · conecta Health Connect" gradient={['#27AE60', '#8B4513']}
-          imageBn={HOY_EXTRA_IMAGES.pasos}
-          onTap={() => go('/settings')}
-        />
-      ) : null}
-
-      {/* 3.3: SLEEP informativa — day-compiler no expone `sleep` (sin fuente hasta wearables) →
-          sin barra/toggle, enlace a /reports. Sin círculo. */}
-      {show('sleep') ? (
-        <EditorialCard
-          cardKey="sleep" icon="🌙" title="SUEÑO"
-          subtitle="Descanso y recuperación" gradient={['#2C3E50', '#1A1A2E']}
-          imageBn={HOY_EXTRA_IMAGES.sueno}
-          onTap={() => go('/reports')}
-        />
-      ) : null}
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionTitle: {
+    color: ATP_BRAND.lime,
+    fontFamily: Fonts.bold,
+    fontSize: FontSizes.sm,
+    letterSpacing: 2,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+});

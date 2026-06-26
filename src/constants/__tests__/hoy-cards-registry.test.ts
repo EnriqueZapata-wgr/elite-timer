@@ -27,8 +27,11 @@ describe('HOY card registry', () => {
 
   it('el orden default incluye hero_agenda + ayuno + las cards del registro', () => {
     expect(HOY_CARD_ORDER_DEFAULT[0]).toBe('hero_agenda');
-    expect(HOY_CARD_ORDER_DEFAULT.length).toBe(21); // hero + ayuno (inline) + 19 con spec
+    // #v13e (reorden): hero + ayuno (inline) + 18 con spec = 20 (SUPLEMENTOS ya no vive en HOY).
+    expect(HOY_CARD_ORDER_DEFAULT.length).toBe(20);
     expect(HOY_CARD_ORDER_DEFAULT).toContain('ayuno');
+    // SUPLEMENTOS se eliminó del HOY (enlaza a /supplements desde HÁBITOS).
+    expect(HOY_CARD_ORDER_DEFAULT).not.toContain('suplementos');
     // las 5 nuevas (#cableado-final) deben estar en el registro
     for (const k of ['no_alcohol', 'sleep', 'journal', 'no_processed_foods', 'screen_time_cutoff']) {
       expect(HOY_CARD_BY_KEY[k], k).toBeTruthy();

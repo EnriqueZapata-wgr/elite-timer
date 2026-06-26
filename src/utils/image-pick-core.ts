@@ -34,6 +34,19 @@ export function categoryToFolder(eventCategory: string, eventTitle: string | und
   return 'otros';
 }
 
+export type TuDiaGroup = 'despertar' | 'medio-dia' | 'atardecer' | 'noche';
+/**
+ * #v13e 3.B.5 — grupo de imagen de la card "TU DÍA" según la hora (rotación por hora, no por día).
+ *   5–12 despertar · 12–18 medio-día · 18–22 atardecer · 22–5 noche.
+ * Las carpetas medio-día/atardecer/noche se generan después → el picker cae a despertar mientras tanto.
+ */
+export function tuDiaImageGroup(hour: number): TuDiaGroup {
+  if (hour >= 5 && hour < 12) return 'despertar';
+  if (hour >= 12 && hour < 18) return 'medio-dia';
+  if (hour >= 18 && hour < 22) return 'atardecer';
+  return 'noche';
+}
+
 export type SexKey = 'male' | 'female';
 /** Normaliza el sexo biológico a la clave de imagen el/ella (default male). */
 export function sexKey(sex: string | undefined | null): SexKey {

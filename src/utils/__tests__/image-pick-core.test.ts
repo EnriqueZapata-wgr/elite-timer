@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seededIndex, categoryToFolder, sexKey, cronotipoKey } from '@/src/utils/image-pick-core';
+import { seededIndex, categoryToFolder, sexKey, cronotipoKey, tuDiaImageGroup } from '@/src/utils/image-pick-core';
 
 /**
  * #asset-swap — lógica pura de selección de imágenes. (Los pickers con require('.png') no se
@@ -48,6 +48,20 @@ describe('categoryToFolder', () => {
   });
   it('categoría desconocida → otros', () => {
     expect(categoryToFolder('weird', 'X', 12)).toBe('otros');
+  });
+});
+
+describe('tuDiaImageGroup', () => {
+  it('mapea las 4 franjas por hora', () => {
+    expect(tuDiaImageGroup(6)).toBe('despertar');   // 5–12
+    expect(tuDiaImageGroup(11)).toBe('despertar');
+    expect(tuDiaImageGroup(12)).toBe('medio-dia');  // 12–18
+    expect(tuDiaImageGroup(17)).toBe('medio-dia');
+    expect(tuDiaImageGroup(18)).toBe('atardecer');  // 18–22
+    expect(tuDiaImageGroup(21)).toBe('atardecer');
+    expect(tuDiaImageGroup(22)).toBe('noche');      // 22–5
+    expect(tuDiaImageGroup(3)).toBe('noche');
+    expect(tuDiaImageGroup(5)).toBe('despertar');   // borde inferior
   });
 });
 

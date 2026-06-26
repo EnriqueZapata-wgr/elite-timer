@@ -8,7 +8,7 @@
 import { useState, useMemo } from 'react';
 import {
   View, ScrollView, StyleSheet, TextInput, Alert,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, DeviceEventEmitter,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +25,8 @@ import {
   formatPace,
   type CardioDiscipline,
 } from '@/src/services/fitness-service';
+import { awardBooleanElectron } from '@/src/services/electron-service';
+import { warn as logWarn } from '@/src/lib/logger';
 
 const LIME = CATEGORY_COLORS.fitness;
 
@@ -93,6 +95,16 @@ export default function LogCardioScreen() {
       });
 
       haptic.success();
+
+      // #v13e 3.A.3: otorgar electrón de cardio + refrescar HOY (card palomea + ATP Score sube).
+      // cardio es verificado (≥1 sesión hoy) → award idempotente; el emit recompila el día.
+      try {
+        await awardBooleanElectron(result.session.user_id, 'cardio');
+        DeviceEventEmitter.emit('electrons_changed');
+        DeviceEventEmitter.emit('day_changed');
+      } catch (e) {
+        logWarn('[log-cardio] award electron failed', e);
+      }
 
       if (result.newPRs.length > 0) {
         const prMsg = result.newPRs

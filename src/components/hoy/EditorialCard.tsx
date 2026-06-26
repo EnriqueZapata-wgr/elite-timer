@@ -6,7 +6,8 @@
  * Estados: pending (vivo) · in_window (glow lima + badge "AHORA") · done (overlay + "Hecho hoy ✓")
  * · out_of_hour (mensaje contextual). Tokens canónicos + haptic + PressableScale (AnimatedPressable).
  */
-import { View, StyleSheet, Image, type ImageSourcePropType } from 'react-native';
+import { View, StyleSheet, Image, Pressable, Alert, type ImageSourcePropType } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -52,6 +53,9 @@ export interface EditorialCardProps {
   /** 2.1 — círculo checkable (estilo checklist) en la esquina sup-izq. Solo para cards
    *  completables (electrones/proteína/agua). Informativas (UV, cardio, YO, …) lo omiten. */
   showCheckCircle?: boolean;
+  /** #v13e 3.D — copy explicativo del electrón. Si se define, muestra un botón "i" que abre un
+   *  Alert nativo con el título de la card + este texto (cómo se gana el electrón). */
+  infoText?: string;
 }
 
 /** Círculo checkable: vacío (pending) o lleno lima con palomita (done). Reemplaza el emoji viejo. */
@@ -65,7 +69,7 @@ function CheckCircle({ done }: { done: boolean }) {
 
 export function EditorialCard({
   cardKey, icon, title, subtitle, message, imageBn, gradient, state = 'pending', size = 'normal', badge, ctaLabel, onTap,
-  progress, electronsValue, quickActions, showCheckCircle,
+  progress, electronsValue, quickActions, showCheckCircle, infoText,
 }: EditorialCardProps) {
   const done = state === 'done';
   const inWindow = state === 'in_window';
@@ -128,6 +132,16 @@ export function EditorialCard({
           {/* 2.1: círculo checkable en vez del emoji (que se eliminó del topRow). */}
           {showCheckCircle ? <CheckCircle done={done} /> : <View />}
           <View style={styles.topRight}>
+            {/* #v13e 3.D: botón "i" → Alert con copy de cómo se gana el electrón. */}
+            {infoText ? (
+              <Pressable
+                onPress={() => { haptic.light(); Alert.alert(title, infoText); }}
+                hitSlop={10}
+                style={styles.infoBtn}
+              >
+                <Ionicons name="information-circle-outline" size={18} color="rgba(255,255,255,0.7)" />
+              </Pressable>
+            ) : null}
             {done ? (
               <View style={styles.doneBadge}><EliteText style={styles.doneBadgeText}>Hecho hoy ✓</EliteText></View>
             ) : (
@@ -184,6 +198,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: Spacing.lg, justifyContent: 'space-between' },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   topRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  infoBtn: { padding: 2 },
   icon: { fontSize: 26 },
   iconBig: { fontSize: 40 },
   // 2.1 — círculo checkable.
