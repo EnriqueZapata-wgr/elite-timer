@@ -11,24 +11,23 @@
  * electrones, agenda hardcoded, counters proteína/agua) queda para la auditoría visual de Enrique
  * (ver COWORK_REPORT) — removerlas a ciegas del archivo entrelazado es el riesgo que evitamos.
  */
-import { useState, useEffect, useCallback, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment, cloneElement, isValidElement } from 'react';
 import { DeviceEventEmitter, View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
 import { EditorialCard, type EditorialCardState } from '@/src/components/hoy/EditorialCard';
-import { HeroAgendaCard } from '@/src/components/hoy/HeroAgendaCard';
+import { InfoTipModal } from '@/src/components/ui/InfoTipModal';
 import { HOY_CARD_BY_KEY } from '@/src/constants/hoy-cards';
-import { generateLocalRecommendation } from '@/src/services/hoy/local-recommendation';
 import { getLocalHour, getLocalToday } from '@/src/utils/date-helpers';
 import { pickCardioImage } from '@/src/utils/image-rotation';
-import { pickAgendaImage, categoryToFolder } from '@/src/utils/agenda-image-picker';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
 import { getBurnTimeMinutes } from '@/src/services/uv-service';
 import { getCardioSessionsToday, type CardioSession } from '@/src/services/fitness-service';
+import { getSupplementsTodayCount, type SupplementsToday } from '@/src/services/supplements-service';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import type { ElectronSource } from '@/src/constants/electrons';
@@ -39,10 +38,6 @@ const TOGGLE_CARDS = new Set(['luz_solar', 'bano_frio', 'grounding', 'lentes_roj
   // #v13d 2.1: cards nuevas también togglean desde la card (renderBoolCard ya lo hace; aquí por consistencia).
   // NOTA: 'journal' NO va aquí — navega a /journal (igual que checkin), el award sucede al guardar entry.
   'no_alcohol', 'no_processed_foods', 'screen_time_cutoff']);
-
-/** #v13e 3.B.1: fototipo por default (tipo 3, piel media — más común en MX) hasta que exista
- *  client_profiles.fitzpatrick_type + cuestionario. La card UV invita a personalizar en tests. */
-const FITZPATRICK_DEFAULT = 3;
 
 /** "14h 32m" desde el ISO de inicio del ayuno. */
 function formatFastDuration(startISO: string | null): string {
@@ -105,7 +100,7 @@ const CARD_INFO: Record<string, string> = {
   meditacion: 'Una sesión de meditación hoy. Se otorga al completar la práctica en Mente.',
   breathwork: 'Una sesión de respiración hoy. Se otorga al completarla en Mente.',
   fuerza: 'Registra un entrenamiento de fuerza hoy. Se otorga al guardar el ejercicio.',
-  suplementos: 'Toma tus suplementos del día. Se otorga al marcarlos en Suplementación.',
+  suplementos: 'Toma los suplementos programados de tu protocolo. Palomea automáticamente cuando completas el 75%.',
   checkin: 'Registra tu estado emocional hoy. Se otorga al guardar el check-in.',
   cardio: 'Registra una sesión de cardio hoy. Se otorga al guardar la sesión.',
   proteina: 'Alcanza tu meta diaria de proteína. El electrón es proporcional al % logrado.',
@@ -119,7 +114,7 @@ const CARD_INFO: Record<string, string> = {
  */
 const HOY_SECTIONS: { title: string; cardKeys: string[] }[] = [
   { title: 'DESPERTAR', cardKeys: ['uv', 'luz_solar', 'checkin', 'meditacion'] },
-  { title: 'NUTRICIÓN', cardKeys: ['proteina', 'agua', 'no_processed_foods', 'ayuno'] },
+  { title: 'NUTRICIÓN', cardKeys: ['proteina', 'agua', 'suplementos', 'no_processed_foods', 'ayuno'] },
   { title: 'ACTIVIDAD', cardKeys: ['fuerza', 'cardio', 'pasos', 'grounding', 'bano_frio'] },
   { title: 'CIERRE', cardKeys: ['breathwork', 'lentes_rojos', 'journal', 'screen_time_cutoff', 'no_alcohol'] },
   { title: 'DESCANSO', cardKeys: ['sleep'] },
@@ -184,6 +179,20 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     return () => { subDay.remove(); subEl.remove(); };
   }, [loadCardio]);
 
+  // #v13f 2.4 — conteo de suplementos del día (X/Y) para la card SUPLEMENTOS. Recarga al volver de
+  // /supplements (electrons_changed) o al cambiar el día.
+  const [suppCount, setSuppCount] = useState<SupplementsToday>({ total: 0, taken: 0 });
+  const loadSupps = useCallback(() => {
+    if (!userId) { setSuppCount({ total: 0, taken: 0 }); return; }
+    getSupplementsTodayCount(userId).then(setSuppCount).catch(() => setSuppCount({ total: 0, taken: 0 }));
+  }, [userId]);
+  useEffect(() => {
+    loadSupps();
+    const subDay = DeviceEventEmitter.addListener('day_changed', loadSupps);
+    const subEl = DeviceEventEmitter.addListener('electrons_changed', loadSupps);
+    return () => { subDay.remove(); subEl.remove(); };
+  }, [loadSupps]);
+
   // #v13e 3.A.2 — OPTIMISTIC UPDATE. Antes: tap → await Supabase x2 → emit → recompila → re-render
   // (3-5s de lag antes de que la card palomeara). Ahora: setState optimista palomea AHORA y la
   // persistencia corre async con rollback si falla. El override se mantiene hasta que el compiler
@@ -209,6 +218,59 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day.booleanElectrons]);
+
+  // #v13f 2.1 — AGUA optimistic. Antes: tap quickAction → addWater await Supabase → emit day_changed
+  // → recompila → re-render (3-5s de lag + parpadeo sube/baja). Ahora: el total optimista sube/baja
+  // AHORA y la persistencia corre async; el override se mantiene hasta que el compiler lo refleje.
+  const [optimisticWaterMl, setOptimisticWaterMl] = useState<number | null>(null);
+  const currentWaterMl = optimisticWaterMl ?? water?.current ?? 0;
+  useEffect(() => {
+    // Reconciliar: cuando el valor compilado alcanza al optimista, soltar el override.
+    if (optimisticWaterMl != null && (water?.current ?? 0) === optimisticWaterMl) {
+      setOptimisticWaterMl(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [water?.current]);
+
+  const adjustWater = (deltaMl: number) => {
+    if (!userId) return;
+    const base = optimisticWaterMl ?? water?.current ?? 0;
+    setOptimisticWaterMl(Math.max(0, base + deltaMl)); // optimista inmediato (clamp a 0, como addWater)
+    addWater(userId, deltaMl).then((result) => {
+      // addWater devuelve null si falló → revertir restando el delta del optimista en vuelo.
+      // En éxito emite day_changed → recompila → la reconciliación de arriba limpia el override.
+      if (result == null) {
+        setOptimisticWaterMl((prev) => (prev == null ? null : Math.max(0, prev - deltaMl)));
+        logWarn('[HoyEditorial] addWater failed, reverted');
+      }
+    }).catch((e) => {
+      setOptimisticWaterMl((prev) => (prev == null ? null : Math.max(0, prev - deltaMl)));
+      logWarn('[HoyEditorial] addWater error, reverted', e);
+    });
+  };
+
+  /** Formato de ml para el subtitle optimista (mismo criterio que day-compiler.fmtQuant). */
+  const fmtMl = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}L` : `${v}ml`);
+
+  // #v13f 2.2 — fototipo Fitzpatrick (profiles.skin_type) para el tiempo de exposición UV. Default 3
+  // si no hay valor en BD. Se refresca al volver de /solar (evento 'fototipo_changed' emitido allí).
+  const [fitzpatrickType, setFitzpatrickType] = useState<number>(3);
+  useEffect(() => {
+    if (!userId) return;
+    const loadFototipo = async () => {
+      try {
+        const { data } = await supabase.from('profiles').select('skin_type').eq('id', userId).maybeSingle();
+        if (data?.skin_type) setFitzpatrickType(data.skin_type as number);
+      } catch { /* default 3 */ }
+    };
+    loadFototipo();
+    const sub = DeviceEventEmitter.addListener('fototipo_changed', loadFototipo);
+    return () => sub.remove();
+  }, [userId]);
+
+  // #v13f 2.6 — info-tip: modal centrado custom (reemplaza el Alert nativo del botón "i").
+  const [infoModal, setInfoModal] = useState<{ title: string; message: string } | null>(null);
+  const handleInfo = useCallback((title: string, message: string) => setInfoModal({ title, message }), []);
 
   // 4.4 — completar/revocar un electrón booleano tocando la card (optimista + rollback).
   const toggleBoolean = (cardKey: string) => {
@@ -248,12 +310,6 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     else await revokeBooleanElectron(userId!, source);
     DeviceEventEmitter.emit('electrons_changed');
   };
-
-  // Próximo evento de la agenda (si existe) → Hero. Imagen rotada por categoría (determinística).
-  const nextEvent = (day.agendaItems ?? []).find((i) => i.isNext);
-  const heroImage = nextEvent
-    ? pickAgendaImage(categoryToFolder(nextEvent.category, nextEvent.name, getLocalHour()), `${seedKey ?? ''}-${nextEvent.id}-${today}`)
-    : undefined;
 
   // #cableado-final 3.3: render de una card booleana nueva (cardKey === electron source). Toggle
   // desde card + círculo checkable. Mismo patrón que los electrones, pero como bloque explícito.
@@ -309,9 +365,9 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
       case 'uv': {
         const uv = uvMini?.current;
         const hint = uv == null ? '' : uv >= 8 ? ' · evita 11-15h' : uv >= 6 ? ' · busca sombra' : '';
-        const safeMin = uv != null && uv > 0 ? getBurnTimeMinutes(uv, FITZPATRICK_DEFAULT) : null;
+        const safeMin = uv != null && uv > 0 ? getBurnTimeMinutes(uv, fitzpatrickType) : null;
         const message = safeMin != null
-          ? `Exposición segura: ~${safeMin} min (tipo ${FITZPATRICK_DEFAULT}) · Personaliza en tests`
+          ? `Exposición segura: ~${safeMin} min (tipo ${fitzpatrickType}) · Personaliza en tests`
           : undefined;
         return (
           <EditorialCard
@@ -375,27 +431,31 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             onTap={() => go('/food-register')}
           />
         );
-      case 'agua':
+      case 'agua': {
         if (!water) return null;
+        // #v13f 2.1: valor optimista (sube/baja al instante, sin esperar recompile).
+        const ml = currentWaterMl;
+        const done = ml >= water.target;
         return (
           <EditorialCard
             cardKey="agua" icon="💧" title="AGUA"
-            subtitle={`${water.displayCurrent} / ${water.displayTarget}`}
-            message={water.current >= water.target ? 'Meta superada' : 'Sigue hidratándote'}
+            subtitle={`${fmtMl(ml)} / ${water.displayTarget}`}
+            message={done ? 'Meta superada' : 'Sigue hidratándote'}
             gradient={['#3498DB', '#1ABC9C']}
             imageBn={HOY_EXTRA_IMAGES.agua}
-            state={water.current >= water.target ? 'done' : 'pending'}
-            progress={{ current: water.current, target: water.target, unit: 'ml' }}
+            state={done ? 'done' : 'pending'}
+            progress={{ current: ml, target: water.target, unit: 'ml' }}
             quickActions={userId ? [
-              { label: '+250 ml', onTap: () => { addWater(userId, 250); } },
-              { label: '+500 ml', onTap: () => { addWater(userId, 500); } },
-              { label: '-250 ml', onTap: () => { addWater(userId, -250); } },
+              { label: '+250 ml', onTap: () => adjustWater(250) },
+              { label: '+500 ml', onTap: () => adjustWater(500) },
+              { label: '-250 ml', onTap: () => adjustWater(-250) },
             ] : undefined}
             showCheckCircle
             infoText={CARD_INFO['agua']}
             onTap={() => go('/hydration')}
           />
         );
+      }
       case 'no_processed_foods':
         return renderBoolCard('no_processed_foods', 'Día sin procesados', HOY_EXTRA_IMAGES.no_procesados);
       // #v13d 2.6: AYUNO con barra de progreso (horas activas vs meta) + círculo al cumplir.
@@ -424,8 +484,28 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         );
       }
       case 'luz_solar': case 'meditacion': case 'bano_frio': case 'grounding':
-      case 'fuerza': case 'breathwork': case 'lentes_rojos': case 'suplementos':
+      case 'fuerza': case 'breathwork': case 'lentes_rojos':
         return renderElectronCard(cardKey);
+      // #v13f 2.4: SUPLEMENTOS restaurada — conteo X/Y tomados hoy, palomea al 75%. Navega a /supplements.
+      case 'suplementos': {
+        const spec = HOY_CARD_BY_KEY['suplementos'];
+        if (!spec) return null;
+        const { total, taken } = suppCount;
+        const ratio = total > 0 ? taken / total : 0;
+        const done = total > 0 && ratio >= 0.75;
+        return (
+          <EditorialCard
+            cardKey="suplementos" icon={spec.icon} title={spec.title}
+            subtitle={total > 0 ? `${taken} / ${total} tomados` : 'Sin suplementos en tu protocolo'}
+            gradient={spec.gradient} imageBn={ELECTRON_IMAGES.suplementos}
+            state={done ? 'done' : 'pending'}
+            electronsValue={boolBySource.get('supplements')?.weight}
+            showCheckCircle
+            infoText={CARD_INFO['suplementos']}
+            onTap={() => go('/supplements')}
+          />
+        );
+      }
       // #v13e 3.A.3 + 3.B.3: CARDIO verificado — palomea al guardar sesión + km/min del día.
       case 'cardio': {
         const el = boolBySource.get('cardio');
@@ -495,27 +575,20 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
 
   return (
     <>
-      {show('hero_agenda') && nextEvent ? (
-        <HeroAgendaCard
-          icon="📅"
-          title={nextEvent.name}
-          timeLabel={nextEvent.time}
-          countdownLabel={nextEvent.isNext ? 'AHORA' : undefined}
-          message={generateLocalRecommendation(
-            { category: nextEvent.category, name: nextEvent.name, defaultMessage: nextEvent.subtitle },
-            { hour: getLocalHour(), proteinConsumed: protein?.current, proteinTarget: protein?.target },
-          )}
-          gradient={['#A8E02A', '#1ABC9C']}
-          imageBn={heroImage}
-          onTapAgenda={() => go('/protocol-config')}
-          onComplete={() => { /* completar evento → AGENDA V2 (sprint futuro) */ }}
-        />
-      ) : null}
-
-      {/* Orden cronológico: 5 sub-secciones con header lima. Una sección sin cards visibles se omite. */}
+      {/* #v13f 2.5: HeroAgendaCard "AHORA" eliminada (aparecía/desaparecía ±30min, confuso).
+          HOY arranca directo con TU DÍA → DESPERTAR. TODO: agenda + notificaciones (sprint futuro). */}
+      {/* Orden cronológico: 5 sub-secciones con header lima. Una sección sin cards visibles se omite.
+          #v13f 2.6: se inyecta onInfoPress a cada card (cloneElement) → el botón "i" abre el modal custom. */}
       {HOY_SECTIONS.map((section) => {
         const cards = section.cardKeys
-          .map((k) => { const node = renderCard(k); return node ? <Fragment key={k}>{node}</Fragment> : null; })
+          .map((k) => {
+            const node = renderCard(k);
+            if (!node) return null;
+            const withInfo = isValidElement(node)
+              ? cloneElement(node as React.ReactElement<any>, { onInfoPress: handleInfo })
+              : node;
+            return <Fragment key={k}>{withInfo}</Fragment>;
+          })
           .filter(Boolean);
         if (cards.length === 0) return null;
         return (
@@ -525,6 +598,13 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           </View>
         );
       })}
+
+      <InfoTipModal
+        visible={!!infoModal}
+        title={infoModal?.title ?? ''}
+        message={infoModal?.message ?? ''}
+        onClose={() => setInfoModal(null)}
+      />
     </>
   );
 }

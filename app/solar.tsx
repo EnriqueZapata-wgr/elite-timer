@@ -96,6 +96,10 @@ export default function Solar() {
     setShowSkinPicker(false);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (userId) await supabase.from('profiles').update({ skin_type: type }).eq('id', userId);
+    // #v13f 2.2: avisar a la card UV del HOY que el fototipo cambió → refresh inmediato del
+    // tiempo de exposición segura (sin esperar a recompilar al volver).
+    const { DeviceEventEmitter } = require('react-native');
+    DeviceEventEmitter.emit('fototipo_changed');
   }
 
   const level = uvData ? getUVLevel(uvData.currentUV) : null;
