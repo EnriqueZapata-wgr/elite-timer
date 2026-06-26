@@ -32,7 +32,8 @@ import { VERIFIED_ELECTRON_KEYS, type CompiledDay } from '@/src/services/day-com
 /** Cards booleanas que se completan TOCANDO la card (toggle). El resto enlaza a su pantalla. */
 const TOGGLE_CARDS = new Set(['luz_solar', 'bano_frio', 'grounding', 'lentes_rojos',
   // #v13d 2.1: cards nuevas también togglean desde la card (renderBoolCard ya lo hace; aquí por consistencia).
-  'journal', 'no_alcohol', 'no_processed_foods', 'screen_time_cutoff']);
+  // NOTA: 'journal' NO va aquí — navega a /journal (igual que checkin), el award sucede al guardar entry.
+  'no_alcohol', 'no_processed_foods', 'screen_time_cutoff']);
 
 /** "14h 32m" desde el ISO de inicio del ayuno. */
 function formatFastDuration(startISO: string | null): string {
@@ -77,7 +78,9 @@ const CARD_TO_ELECTRON: Record<string, string> = {
   luz_solar: 'sunlight', meditacion: 'meditation', suplementos: 'supplements', bano_frio: 'cold_shower',
   grounding: 'grounding', fuerza: 'strength', breathwork: 'breathwork', lentes_rojos: 'red_glasses',
   // #v13d 2.1: cards nuevas (cardKey === source, mapeo identidad explícito para consistencia).
-  journal: 'journal', no_alcohol: 'no_alcohol', no_processed_foods: 'no_processed_foods',
+  // NOTA: 'journal' NO va aquí — la card navega a /journal (igual que checkin) y el award
+  // sucede al guardar entry dentro. No se toglea desde la card.
+  no_alcohol: 'no_alcohol', no_processed_foods: 'no_processed_foods',
   screen_time_cutoff: 'screen_time_cutoff',
 };
 const ELECTRON_CARD_ORDER = ['luz_solar', 'meditacion', 'suplementos', 'bano_frio', 'grounding', 'fuerza', 'breathwork', 'lentes_rojos'];
@@ -232,7 +235,25 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         />
       ) : null}
 
-      {renderBoolCard('journal', 'Escribe tu día', HOY_EXTRA_IMAGES.journal)}
+      {/* #v13d post-smoke fix: journal NO togglea desde card → navega a /journal (igual que
+          checkin). El award sucede al guardar entry dentro (app/journal.tsx ya llama
+          awardBooleanElectron + emite electrons_changed → recompila → card palomea). */}
+      {show('journal') ? (() => {
+        const spec = HOY_CARD_BY_KEY['journal'];
+        if (!spec) return null;
+        const el = boolBySource.get('journal');
+        return (
+          <EditorialCard
+            cardKey="journal" icon={spec.icon} title={spec.title}
+            subtitle={el?.completed ? 'Registrado hoy' : 'Escribe tu día'}
+            gradient={spec.gradient} imageBn={HOY_EXTRA_IMAGES.journal}
+            state={el?.completed ? 'done' : 'pending'}
+            electronsValue={el?.weight}
+            showCheckCircle
+            onTap={() => go('/journal')}
+          />
+        );
+      })() : null}
 
       {show('proteina') && protein ? (
         <EditorialCard
