@@ -28,6 +28,7 @@ import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON
 import { SplashLoader } from '@/src/components/SplashLoader';
 import { countUnreadNotifications } from '@/src/services/hoy/notifications-service';
 import { HoyEditorialSection } from '@/src/components/hoy/HoyEditorialSection';
+import { AgendaPreviewCard } from '@/src/components/agenda/AgendaPreviewCard';
 import { getCardsVisible } from '@/src/services/hoy/visibility-service';
 import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
@@ -866,6 +867,11 @@ export default function TodayScreen() {
             </Animated.View>
           </LinearGradient>
         </ImageBackground>
+
+        {/* #v13g F3: bloque AGENDA DE HOY entre TU DÍA y las sub-secciones — navega a /agenda. */}
+        <View style={{ paddingHorizontal: Spacing.md }}>
+          <AgendaPreviewCard userId={user?.id} />
+        </View>
 
         {/* #tabs-redesign V1.3 Parte 1: tira de cards editoriales (aditiva, gated por visibility).
             El cleanup de las secciones viejas queda para auditoría visual (ver COWORK_REPORT). */}
