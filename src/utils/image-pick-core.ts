@@ -47,6 +47,26 @@ export function tuDiaImageGroup(hour: number): TuDiaGroup {
   return 'noche';
 }
 
+/**
+ * #v13g — categoría de un evento de agenda (+ nombre) → carpeta de imágenes (assets/images/agenda/*).
+ * Keyword-based y robusto (las categorías vienen de protocolo/cronotipo/manual, no normalizadas).
+ * Mapea a las 12 carpetas existentes; default 'otros'.
+ */
+export function agendaCategoryToFolder(category: string, name?: string): string {
+  const t = `${(category ?? '').toLowerCase()} ${(name ?? '').toLowerCase()}`;
+  if (/(cardio|corr|run|bici|cicl|nad|remo)/.test(t)) return 'cardio';
+  if (/(fuerza|entren|gym|pesas|fitness|ejercicio|workout|strength|mobil)/.test(t)) return 'entrenar';
+  if (/(suplement|supp)/.test(t)) return 'suplementos';
+  if (/(medit|mente|mind|respir|breath|journal|calm)/.test(t)) return 'meditacion';
+  if (/(dorm|sue|sleep|noche)/.test(t)) return 'sleep';
+  if (/(despert|wake|levant)/.test(t)) return 'despertar';
+  if (/(hidrat|agua|water)/.test(t)) return 'hidratacion';
+  if (/(comida|nutric|desayun|almuerz|cena|meal|food|protei)/.test(t)) return 'comida';
+  if (/(off|pantalla|screen)/.test(t)) return 'off-pantallas';
+  if (/(sol|luz|sun|uv)/.test(t)) return 'sol-am';
+  return 'otros';
+}
+
 export type SexKey = 'male' | 'female';
 /** Normaliza el sexo biológico a la clave de imagen el/ella (default male). */
 export function sexKey(sex: string | undefined | null): SexKey {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seededIndex, categoryToFolder, sexKey, cronotipoKey, tuDiaImageGroup } from '@/src/utils/image-pick-core';
+import { seededIndex, categoryToFolder, sexKey, cronotipoKey, tuDiaImageGroup, agendaCategoryToFolder } from '@/src/utils/image-pick-core';
 
 /**
  * #asset-swap — lógica pura de selección de imágenes. (Los pickers con require('.png') no se
@@ -62,6 +62,21 @@ describe('tuDiaImageGroup', () => {
     expect(tuDiaImageGroup(22)).toBe('noche');      // 22–5
     expect(tuDiaImageGroup(3)).toBe('noche');
     expect(tuDiaImageGroup(5)).toBe('despertar');   // borde inferior
+  });
+});
+
+describe('agendaCategoryToFolder', () => {
+  it('mapea categorías/nombres de agenda a carpetas de imágenes', () => {
+    expect(agendaCategoryToFolder('ritmo', 'Despertar')).toBe('despertar');
+    expect(agendaCategoryToFolder('sueño', 'Dormir')).toBe('sleep');
+    expect(agendaCategoryToFolder('fitness', 'Entreno de fuerza')).toBe('entrenar');
+    expect(agendaCategoryToFolder('cardio', 'Correr Z2')).toBe('cardio');
+    expect(agendaCategoryToFolder('nutricion', 'Desayuno')).toBe('comida');
+    expect(agendaCategoryToFolder('suplementos', 'Stack AM')).toBe('suplementos');
+    expect(agendaCategoryToFolder('mente', 'Meditación')).toBe('meditacion');
+    expect(agendaCategoryToFolder('hidratacion', 'Agua')).toBe('hidratacion');
+    expect(agendaCategoryToFolder('ritmo', 'Luz solar')).toBe('sol-am');
+    expect(agendaCategoryToFolder('custom', 'Algo raro')).toBe('otros');
   });
 });
 

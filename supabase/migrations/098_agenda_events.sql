@@ -65,4 +65,8 @@ ALTER TABLE user_notification_tokens ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS user_notification_tokens_own ON user_notification_tokens;
 CREATE POLICY user_notification_tokens_own ON user_notification_tokens FOR ALL USING (auth.uid() = user_id);
 
+-- Eventos de protocolo/cronotipo que el usuario "quitó" de su agenda → la auto-gen NO los recrea.
+-- Cada entry es la key `HH:MM|nombre-en-minúsculas`.
+ALTER TABLE user_day_preferences ADD COLUMN IF NOT EXISTS disabled_protocol_events TEXT[] DEFAULT '{}';
+
 NOTIFY pgrst, 'reload schema';
