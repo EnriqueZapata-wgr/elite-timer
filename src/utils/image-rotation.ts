@@ -32,12 +32,14 @@ const HABIT_IMAGES: Record<string, ImageSourcePropType[]> = {
   hidratacion: [require('@/assets/images/hoy-extra/agua.png')],
   atp_sol: [require('@/assets/images/electrons/luz-solar.png')],
   suplementacion: [require('@/assets/images/electrons/suplementos.png')],
-  // Pendientes de generar (placeholder gradient hasta tener el asset):
-  nutricion: [],   // TODO: assets/images/habits-portal/nutricion.png
-  fitness: [],     // TODO: assets/images/habits-portal/fitness.png
-  ayuno: [],       // TODO: assets/images/hoy-extra/ayuno.png
-  sueno: [],       // TODO: assets/images/hoy-extra/sueno.png
-  journal: [],     // TODO: assets/images/electrons/journal.png
+  // #post-tu-dia: assets ya generados — cableados.
+  nutricion: [require('@/assets/images/habits-portal/nutricion.png')],
+  ayuno: [require('@/assets/images/habits-portal/ayuno.png')],
+  sueno: [require('@/assets/images/habits-portal/sueno.png')],
+  journal: [require('@/assets/images/hoy-extra/journal.png')],
+  // fitness: queda fuera de este Record porque es SEX-AWARE → usar pickFitnessImage(sex)
+  // de yo-image-picker.ts (devuelve fitness-el.png | fitness-ella.png según biological_sex).
+  fitness: [],
   // #cableado-final 3.5: ciclo con 3 variantes → rotación determinística por día/sesión.
   ciclo: [
     require('@/assets/images/cycle/ciclo-01.png'),
@@ -55,19 +57,34 @@ export function pickHabitImage(habitKey: string, seedKey?: string): ImageSourceP
 
 /**
  * #v13e 3.B.5 — imagen de la card "TU DÍA" según la HORA del día (no por día). Grupos por franja
- * (tuDiaImageGroup). Las carpetas medio-día/atardecer/noche aún no existen → fallback a despertar
- * (Enrique las genera; al llegar, solo se llenan los arrays vacíos y la rotación arranca sola).
+ * (tuDiaImageGroup). Asset hoy-extra/tu-dia/* generado y cableado (estructura PLANA, no sub-carpetas).
+ * Para el grupo 'despertar' (5–12h) se usan las nuevas `amanecer-*` (más alineadas al concepto
+ * "tu día empieza"), no las despertar-* de agenda/ (que siguen sirviendo a la HeroAgendaCard).
  */
 const TU_DIA_IMAGES: Record<string, ImageSourcePropType[]> = {
+  // 5–12h — usa amanecer-XX (no las despertar-XX de agenda/, que son para HeroAgendaCard)
   despertar: [
-    require('@/assets/images/agenda/despertar/despertar-01.png'),
-    require('@/assets/images/agenda/despertar/despertar-02.png'),
-    require('@/assets/images/agenda/despertar/despertar-03.png'),
-    require('@/assets/images/agenda/despertar/despertar-04.png'),
+    require('@/assets/images/hoy-extra/tu-dia/amanecer-01.png'),
+    require('@/assets/images/hoy-extra/tu-dia/amanecer-02.png'),
   ],
-  'medio-dia': [], // TODO: assets/images/hoy-extra/tu-dia/medio-dia/*
-  atardecer: [],   // TODO: assets/images/hoy-extra/tu-dia/atardecer/*
-  noche: [],       // TODO: assets/images/hoy-extra/tu-dia/noche/*
+  // 12–18h
+  'medio-dia': [
+    require('@/assets/images/hoy-extra/tu-dia/medio-dia-01.png'),
+    require('@/assets/images/hoy-extra/tu-dia/medio-dia-02.png'),
+    require('@/assets/images/hoy-extra/tu-dia/medio-dia-03.png'),
+  ],
+  // 18–22h
+  atardecer: [
+    require('@/assets/images/hoy-extra/tu-dia/atardecer-01.png'),
+    require('@/assets/images/hoy-extra/tu-dia/atardecer-02.png'),
+    require('@/assets/images/hoy-extra/tu-dia/atardecer-03.png'),
+  ],
+  // 22–5h
+  noche: [
+    require('@/assets/images/hoy-extra/tu-dia/noche-01.png'),
+    require('@/assets/images/hoy-extra/tu-dia/noche-02.png'),
+    require('@/assets/images/hoy-extra/tu-dia/noche-03.png'),
+  ],
 };
 
 export function pickTuDiaImage(hour: number, seedKey?: string): ImageSourcePropType | undefined {
