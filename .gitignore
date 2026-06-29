@@ -62,3 +62,6 @@ COWORK_REPORT_FASE4.md
 
 # Supabase CLI temp files (estado local del cli, no compartible)
 supabase/.temp/
+
+# Claude Code local settings
+.claude/settings.local.json
