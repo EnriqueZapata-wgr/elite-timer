@@ -1,12 +1,14 @@
 /**
- * AgendaPreviewCard (#v13g F3) — bloque en HOY (entre TU DÍA y DESPERTAR) que vincula con /agenda.
+ * AgendaPreviewCard (#v13h — rediseño editorial) — bloque en HOY que vincula con /agenda.
  * Muestra "AGENDA DE HOY" + próximos 3 eventos (compactos) y navega a /agenda al tap. Auto-genera
- * los eventos del día (idempotente) para sentirse viva. Estado vacío → CTA configurar.
+ * los eventos del día (idempotente) para sentirse viva. Estado vacío → icono + copy + CTA lima.
+ * Lenguaje visual: fondo gradient sutil + acento lateral lima + chip pill de próximos.
  */
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { AgendaMiniCard } from '@/src/components/agenda/AgendaMiniCard';
@@ -50,18 +52,25 @@ export function AgendaPreviewCard({ userId }: Props) {
 
   return (
     <AnimatedPressable onPress={go} style={styles.card}>
+      {/* Fondo gradient sutil de profundidad. */}
+      <LinearGradient colors={['#151515', '#0A0A0A']} style={StyleSheet.absoluteFill} />
+
       <View style={styles.header}>
         <EliteText style={styles.title}>AGENDA DE HOY</EliteText>
-        <View style={styles.chipRow}>
-          <EliteText style={styles.chip}>
+        <View style={styles.chip}>
+          <EliteText style={styles.chipText}>
             {events.length === 0 ? 'Configurar' : `${upcoming.length} próximos`}
           </EliteText>
-          <Ionicons name="chevron-forward" size={14} color={ATP_BRAND.lime} />
+          <Ionicons name="chevron-forward" size={13} color={ATP_BRAND.lime} />
         </View>
       </View>
 
       {events.length === 0 ? (
-        <EliteText style={styles.emptyText}>Crea eventos o configura tu protocolo y cronotipo para verlos aquí.</EliteText>
+        <View style={styles.empty}>
+          <Ionicons name="calendar-outline" size={36} color="rgba(255,255,255,0.2)" />
+          <EliteText style={styles.emptyText}>Crea eventos o configura tu protocolo y cronotipo para verlos aquí.</EliteText>
+          <View style={styles.emptyCta}><EliteText style={styles.emptyCtaText}>CONFIGURAR AGENDA</EliteText></View>
+        </View>
       ) : (
         <View style={styles.list}>
           {preview.map((ev) => (
@@ -75,14 +84,22 @@ export function AgendaPreviewCard({ userId }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#0E0E0E', borderRadius: Radius.card,
-    borderWidth: 0.5, borderColor: 'rgba(168,224,42,0.25)',
-    padding: Spacing.md, marginTop: Spacing.md,
+    borderRadius: Radius.card, overflow: 'hidden',
+    borderLeftWidth: 3, borderLeftColor: ATP_BRAND.lime,
+    backgroundColor: '#0A0A0A',
+    padding: Spacing.lg, marginTop: Spacing.md,
   },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
-  title: { color: '#fff', fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1.5 },
-  chipRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  chip: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
-  list: { gap: 0 },
-  emptyText: { color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+  title: { color: '#fff', fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 2 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(168,224,42,0.12)', borderWidth: 0.5, borderColor: 'rgba(168,224,42,0.35)',
+    paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: Radius.pill,
+  },
+  chipText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  list: {},
+  empty: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
+  emptyText: { color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18, textAlign: 'center' },
+  emptyCta: { marginTop: Spacing.xs, backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
+  emptyCtaText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1 },
 });

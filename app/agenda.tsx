@@ -1,14 +1,17 @@
 /**
- * /agenda (#v13g F3) — ventana dependiente de HOY: timeline de eventos del día como mini-cards
- * horizontales. Auto-genera desde protocolo+cronotipo al entrar, permite editar/completar/posponer/
- * eliminar (EventActionModal) y crear custom (FAB "+"). Atrás regresa a HOY.
+ * /agenda (#v13h — rediseño editorial) — ventana dependiente de HOY: timeline de eventos del día
+ * como mini-cards horizontales. Fondo gradient vertical + header editorial (título grande + fecha
+ * lima + chip) + divisores MAÑANA/TARDE/NOCHE + FAB con glow lima. Auto-genera desde protocolo+
+ * cronotipo al entrar, permite editar/completar/posponer/eliminar (EventActionModal) y crear custom
+ * (FAB "+"). Atrás regresa a HOY. Sprint VISUAL: no toca agenda-service ni modales.
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, DeviceEventEmitter, Alert, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Screen } from '@/src/components/ui/Screen';
-import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { BackButton } from '@/src/components/ui/BackButton';
 import { EliteText } from '@/components/elite-text';
 import { AgendaMiniCard } from '@/src/components/agenda/AgendaMiniCard';
 import { EventActionModal } from '@/src/components/agenda/EventActionModal';
@@ -28,6 +31,28 @@ function formatToday(): string {
   const days = ['DOMINGO', 'LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO'];
   const months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+/** Item de la lista: un evento o un divisor de franja horaria. */
+type AgendaListItem = AgendaEventInstance | { divider: string };
+
+/**
+ * Inserta divisores MAÑANA (5-12h) / TARDE (12-18h) / NOCHE (18h+) donde cambia el rango horario.
+ * NO reordena (los eventos ya vienen por hora), solo intercala labels.
+ */
+function insertDayPartDividers(events: AgendaEventInstance[]): AgendaListItem[] {
+  const out: AgendaListItem[] = [];
+  let lastPart: 'morning' | 'afternoon' | 'evening' | null = null;
+  for (const ev of events) {
+    const h = parseInt(ev.time.split(':')[0], 10);
+    const part = h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening';
+    if (part !== lastPart) {
+      out.push({ divider: part === 'morning' ? 'MAÑANA' : part === 'afternoon' ? 'TARDE' : 'NOCHE' });
+      lastPart = part;
+    }
+    out.push(ev);
+  }
+  return out;
 }
 
 export default function AgendaScreen() {
@@ -99,13 +124,19 @@ export default function AgendaScreen() {
 
   return (
     <Screen>
-      <ScreenHeader title="Agenda de hoy" onBack={() => router.back()} />
+      {/* Fondo gradient vertical sutil (top negro · medio ligeramente más claro · bottom negro). */}
+      <LinearGradient colors={['#000000', '#0A0A0A', '#000000']} style={StyleSheet.absoluteFill} />
 
-      <View style={styles.subHeader}>
-        <EliteText style={styles.date}>{formatToday()}</EliteText>
+      {/* Header editorial: back + chip a la derecha, luego título grande + fecha lima. */}
+      <View style={styles.headerRow}>
+        <BackButton onPress={() => router.back()} />
         <View style={styles.chip}>
           <EliteText style={styles.chipText}>{events.length} eventos · {upcoming} próximos</EliteText>
         </View>
+      </View>
+      <View style={styles.titleBlock}>
+        <EliteText style={styles.title}>AGENDA DE HOY</EliteText>
+        <EliteText style={styles.date}>{formatToday()}</EliteText>
       </View>
 
       {loading ? (
@@ -118,14 +149,21 @@ export default function AgendaScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {events.map((ev) => (
-            <AgendaMiniCard key={ev.id} event={ev} seedKey={userId} onTap={() => setSelected(ev)} />
-          ))}
+          {insertDayPartDividers(events).map((item, i) =>
+            'divider' in item ? (
+              <View key={`div-${i}`} style={styles.divider}>
+                <EliteText style={styles.dividerLabel}>{item.divider}</EliteText>
+                <View style={styles.dividerLine} />
+              </View>
+            ) : (
+              <AgendaMiniCard key={item.id} event={item} seedKey={userId} onTap={() => setSelected(item)} />
+            )
+          )}
           <View style={{ height: 96 }} />
         </ScrollView>
       )}
 
-      {/* FAB crear */}
+      {/* FAB crear — glow lima real. */}
       <Pressable style={styles.fab} onPress={() => { haptic.medium(); setSelected(null); setFormMode('create'); }}>
         <Ionicons name="add" size={28} color="#000" />
       </Pressable>
@@ -156,18 +194,30 @@ export default function AgendaScreen() {
 }
 
 const styles = StyleSheet.create({
-  subHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
-  date: { color: 'rgba(255,255,255,0.6)', fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1 },
-  chip: { backgroundColor: 'rgba(168,224,42,0.12)', paddingHorizontal: Spacing.md, paddingVertical: 4, borderRadius: Radius.pill },
+  headerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md, paddingTop: Spacing.sm,
+  },
+  chip: {
+    backgroundColor: 'rgba(168,224,42,0.12)', borderWidth: 0.5, borderColor: 'rgba(168,224,42,0.4)',
+    paddingHorizontal: Spacing.md, paddingVertical: 5, borderRadius: Radius.pill,
+  },
   chipText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
-  list: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
+  titleBlock: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs, paddingBottom: Spacing.md },
+  title: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 2 },
+  date: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 3, marginTop: 3 },
+  list: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs },
+  // Divisor de franja horaria: label a la izq + línea que llena el resto.
+  divider: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm, marginBottom: Spacing.sm },
+  dividerLabel: { color: 'rgba(255,255,255,0.4)', fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, letterSpacing: 2 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.08)' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.sm },
   emptyTitle: { color: '#fff', fontFamily: Fonts.bold, fontSize: FontSizes.lg, marginTop: Spacing.sm },
   emptyText: { color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
   fab: {
     position: 'absolute', right: Spacing.lg, bottom: Spacing.xl,
-    width: 56, height: 56, borderRadius: 28, backgroundColor: ATP_BRAND.lime,
+    width: 60, height: 60, borderRadius: 30, backgroundColor: ATP_BRAND.lime,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: ATP_BRAND.lime, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+    shadowColor: ATP_BRAND.lime, shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 0 }, elevation: 8,
   },
 });
