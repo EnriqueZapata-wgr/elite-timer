@@ -88,13 +88,13 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
     const disabled = await getDisabledKeys(userId);
 
     const toInsert: any[] = [];
-    const pushEvent = (name: string, time: string, category: string, source: AgendaSource, duration?: number | null) => {
+    const pushEvent = (name: string, time: string, category: string, source: AgendaSource, duration?: number | null, notify?: number | null) => {
       const key = eventKey(name, time);
       if (existingKeys.has(key) || disabled.has(key)) return;
       existingKeys.add(key);
       toInsert.push({
         id: generateUUID(), user_id: userId, name, time: hhmm(time), category,
-        source, duration_min: duration ?? null, notify_minutes_before: 0, is_active: true,
+        source, duration_min: duration ?? null, notify_minutes_before: notify ?? 0, is_active: true,
       });
     };
 
@@ -113,7 +113,7 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
       const plan = await generateDailyPlan(userId, targetDate);
       for (const a of plan?.actions ?? []) {
         if (!a.scheduled_time || !a.name) continue;
-        pushEvent(a.name, a.scheduled_time, a.category || 'custom', 'protocol', a.duration_min);
+        pushEvent(a.name, a.scheduled_time, a.category || 'custom', 'protocol', a.duration_min, a.notify_minutes_before);
       }
     } catch (e) { logWarn('[agenda] generateDailyPlan failed', e); }
 
