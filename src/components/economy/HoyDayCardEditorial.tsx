@@ -48,21 +48,33 @@ export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCoun
   const load = useCallback(async () => {
     if (!LAB_ECONOMY_ENABLED || !user?.id) return;
     const today = getLocalToday();
+    // #fix bug +71 (2026-06-30): lee de electron_logs (fuente de verdad de los toggles) usando la
+    // columna `date` LOCAL en vez de electron_transactions con filtro timezone-UTC hardcoded.
+    // Bugs previos:
+    //   (1) 'YYYY-MM-DDT00:00:00.000Z' incluía 6h del día anterior en México UTC-6 → sumaba +30-50 electrones ajenos.
+    //   (2) electron_transactions es la tabla de la economía H+ (write path distinto); los toggles
+    //       de HoyEditorialSection escriben a electron_logs → estaban desincronizadas.
+    // La columna `date` de electron_logs es DATE (no timestamptz), y el award la setea con
+    // getLocalToday() → mismo día calendario del usuario, sin ambigüedad de timezone.
     const { data } = await supabase
-      .from('electron_transactions')
-      .select('amount')
+      .from('electron_logs')
+      .select('electrons')
       .eq('user_id', user.id)
-      .gte('created_at', `${today}T00:00:00.000Z`)
-      .gt('amount', 0);
-    const total = (data ?? []).reduce((acc: number, t: any) => acc + (t.amount ?? 0), 0);
-    setEarnedToday(total);
+      .eq('date', today);
+    const total = (data ?? []).reduce((acc: number, t: any) => acc + Number(t.electrons ?? 0), 0);
+    // Redondeo 1 decimal: los weights son 1.0/1.5/2.0/2.5/3.0 → floats limpios, pero por si acaso.
+    setEarnedToday(Math.round(total * 10) / 10);
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => {
     if (!LAB_ECONOMY_ENABLED) return;
     load();
-    const sub = DeviceEventEmitter.addListener('balance_changed', load);
-    return () => sub.remove();
+    // #fix bug +71: escuchar 'electrons_changed' (lo que emite HoyEditorialSection.toggleBoolean)
+    // además de 'balance_changed' — sino la card no se refresca al palomear un electrón desde HOY.
+    const sub1 = DeviceEventEmitter.addListener('balance_changed', load);
+    const sub2 = DeviceEventEmitter.addListener('electrons_changed', load);
+    const sub3 = DeviceEventEmitter.addListener('day_changed', load);
+    return () => { sub1.remove(); sub2.remove(); sub3.remove(); };
   }, [load]));
 
   const animatedBar = useAnimatedStyle(() => ({ width: `${barWidth.value}%` }));
