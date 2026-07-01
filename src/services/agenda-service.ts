@@ -180,6 +180,39 @@ export async function getAgendaForDate(userId: string, date?: string): Promise<A
   }
 }
 
+// ═══ PROHIBICIONES (banner) ═══
+
+/**
+ * #v13i D — Etiqueta corta de una prohibición: "Eliminar café" → "Café", "Sin alcohol" → "Alcohol".
+ * Quita el verbo de prohibición inicial y capitaliza.
+ */
+export function extractRestrictionLabel(name: string): string {
+  let s = (name ?? '').trim();
+  s = s.replace(/^(eliminar|evitar|reducir|sin|no|cero|nada de|dejar(?:\s+(?:el|la|los|las))?)\s+/i, '').trim();
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * #v13i D — Prohibiciones del día para el banner. Lee daily_plans.restrictions (migración 100) y
+ * devuelve etiquetas cortas únicas. Defensivo: [] si la columna no existe o no hay plan.
+ */
+export async function getRestrictionsForDate(userId: string, date?: string): Promise<string[]> {
+  const targetDate = date || getLocalToday();
+  try {
+    const { data } = await supabase
+      .from('daily_plans').select('restrictions')
+      .eq('user_id', userId).eq('date', targetDate).maybeSingle();
+    const raw = (data?.restrictions as any[]) ?? [];
+    const labels = raw
+      .map((r) => extractRestrictionLabel(typeof r === 'string' ? r : (r?.name ?? '')))
+      .filter(Boolean);
+    return Array.from(new Set(labels));
+  } catch {
+    return [];
+  }
+}
+
 // ═══ CRUD ═══
 
 /** Crea un evento manual + su log de hoy. */
