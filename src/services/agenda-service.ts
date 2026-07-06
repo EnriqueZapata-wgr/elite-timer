@@ -9,10 +9,13 @@
  *
  * Defensivo: toda lectura cae a [] / no-op si falla; nunca rompe la pantalla.
  */
+import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { generateUUID } from '@/src/services/routine-service';
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
+import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
+import type { ElectronSource } from '@/src/constants/electrons';
 import { warn as logWarn } from '@/src/lib/logger';
 
 export type AgendaSource = 'manual' | 'protocol' | 'chronotype' | 'manual_override';
@@ -287,6 +290,105 @@ export async function setEventStatus(userId: string, logId: string, status: Agen
   const patch: any = { status };
   if (status === 'completed') patch.completed_at = new Date().toISOString();
   await supabase.from('agenda_event_logs').update(patch).eq('id', logId).eq('user_id', userId);
+}
+
+// ═══ SYNC HOY ↔ AGENDA (AGENDA-COMPLETE F1) ═══
+
+/**
+ * Matching electrón booleano ↔ evento de agenda por patrón de NOMBRE del evento.
+ * Por nombre y NO por category: las categorías reales (nutrition/optimization/rest/mind)
+ * agrupan cosas distintas (ej. 'optimization' = luz solar + suplementos + lentes rojos)
+ * y matchear por categoría completaría eventos que no corresponden.
+ *
+ * Solo electrones booleanos NO verificados: los verificados (meditation, breathwork,
+ * strength, supplements, cardio, checkin) derivan `completed` de actividad real y no
+ * deben auto-otorgarse desde la agenda. `journal` tampoco: su award sucede al guardar
+ * la entrada en /journal.
+ */
+const ELECTRON_EVENT_MATCHERS: { source: ElectronSource; pattern: RegExp }[] = [
+  { source: 'sunlight', pattern: /luz solar/i },
+  { source: 'cold_shower', pattern: /ducha fr|baño fr|exposición a fr|terapia de fr/i },
+  { source: 'grounding', pattern: /grounding|descalz/i },
+  { source: 'red_glasses', pattern: /lentes rojos|luz roja/i },
+  { source: 'screen_time_cutoff', pattern: /pantallas|detox digital/i },
+];
+
+/**
+ * HOY → Agenda: al completar/revocar un electrón booleano en HOY, marca los eventos de
+ * agenda de hoy que matchean como completed (o los regresa a pending). Idempotente:
+ * solo toca logs cuyo status necesita cambiar. Defensivo: nunca lanza (affected 0 si falla).
+ */
+export async function syncCompletionFromElectron(
+  userId: string,
+  electronSource: string,
+  completed: boolean,
+): Promise<{ affected: number }> {
+  try {
+    const matcher = ELECTRON_EVENT_MATCHERS.find((m) => m.source === electronSource);
+    if (!matcher) return { affected: 0 };
+    const today = getLocalToday();
+    const { data: logs } = await supabase
+      .from('agenda_event_logs')
+      .select('id, status, agenda_events!inner(name, is_active)')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .in('status', completed ? ['pending', 'snoozed'] : ['completed']);
+    const targets = ((logs ?? []) as any[]).filter((l) => {
+      const ev = l.agenda_events;
+      return ev && ev.is_active !== false && matcher.pattern.test(ev.name ?? '');
+    });
+    if (targets.length === 0) return { affected: 0 };
+    await supabase
+      .from('agenda_event_logs')
+      .update({
+        status: completed ? 'completed' : 'pending',
+        completed_at: completed ? new Date().toISOString() : null,
+      })
+      .in('id', targets.map((l) => l.id));
+    DeviceEventEmitter.emit('day_changed');
+    return { affected: targets.length };
+  } catch (e) {
+    logWarn('[agenda] syncCompletionFromElectron failed', e);
+    return { affected: 0 };
+  }
+}
+
+/**
+ * Agenda → HOY: al completar un evento en /agenda, si su nombre matchea un electrón
+ * booleano no-verificado, lo otorga (dual write blob daily_electrons + electron_logs,
+ * mismo patrón que HoyEditorialSection.persistToggle). Usa el MISMO idempotencyKey
+ * determinístico (user:source:día) que el toggle de HOY → completar en ambas
+ * superficies produce UN solo log. Devuelve true si sincronizó un electrón.
+ */
+export async function syncElectronFromEvent(
+  userId: string,
+  eventName: string,
+  completed: boolean,
+): Promise<boolean> {
+  try {
+    const matcher = ELECTRON_EVENT_MATCHERS.find((m) => m.pattern.test(eventName ?? ''));
+    if (!matcher) return false;
+    const source = matcher.source;
+    const today = getLocalToday();
+    // Blob daily_electrons: el compiler lee `completed` de los no-verificados de aquí.
+    const { data: row } = await supabase
+      .from('daily_electrons').select('electrons')
+      .eq('user_id', userId).eq('date', today).maybeSingle();
+    const states = { ...((row?.electrons as Record<string, boolean>) ?? {}), [source]: completed };
+    await supabase
+      .from('daily_electrons')
+      .upsert({ user_id: userId, date: today, electrons: states }, { onConflict: 'user_id,date' });
+    if (completed) {
+      await awardBooleanElectron(userId, source, { idempotencyKey: `${userId}:${source}:${today}` });
+    } else {
+      await revokeBooleanElectron(userId, source);
+    }
+    DeviceEventEmitter.emit('electrons_changed');
+    return true;
+  } catch (e) {
+    logWarn('[agenda] syncElectronFromEvent failed', e);
+    return false;
+  }
 }
 
 /** Pospone una instancia: corre scheduled_at + recalcula notify_at + re-arma la notif. */

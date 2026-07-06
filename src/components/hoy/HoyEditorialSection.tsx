@@ -23,6 +23,7 @@ import { HOY_CARD_BY_KEY } from '@/src/constants/hoy-cards';
 import { getLocalHour, getLocalToday } from '@/src/utils/date-helpers';
 import { pickCardioImage } from '@/src/utils/image-rotation';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
+import { syncCompletionFromElectron } from '@/src/services/agenda-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getActiveFast, type FastingLog } from '@/src/services/fasting-service';
 import { getBurnTimeMinutes } from '@/src/services/uv-service';
@@ -309,6 +310,11 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
     // #v13i C.3: idempotencyKey determinística por (user, source, día) → doble-tap = 1 solo log.
     if (next) await awardBooleanElectron(userId!, source, { idempotencyKey: `${userId}:${source}:${today}` });
     else await revokeBooleanElectron(userId!, source);
+    // F1 (AGENDA-COMPLETE): espejo HOY→Agenda — palomea/despalomea los eventos del día que
+    // matchean el electrón. Guard .catch: si el sync falla NO se revierte el toggle.
+    await syncCompletionFromElectron(userId!, source, next).catch((e) => {
+      logWarn('[HoyEditorial] sync HOY→Agenda failed', e);
+    });
     DeviceEventEmitter.emit('electrons_changed');
   };
 

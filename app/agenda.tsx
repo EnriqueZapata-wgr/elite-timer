@@ -24,8 +24,9 @@ import { ATP_BRAND } from '@/src/constants/brand';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 import {
   generateAgendaEvents, getAgendaForDate, getRestrictionsForDate, createCustomEvent, updateAgendaEvent,
-  deleteAgendaEvent, setEventStatus, snoozeEvent, type AgendaEventInstance,
+  deleteAgendaEvent, setEventStatus, snoozeEvent, syncElectronFromEvent, type AgendaEventInstance,
 } from '@/src/services/agenda-service';
+import { hasNotificationPermission, registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
 
 function formatToday(): string {
   const d = new Date(getLocalToday() + 'T12:00:00');
@@ -93,7 +94,11 @@ export default function AgendaScreen() {
   // ── acciones ──
   const handleComplete = async () => {
     if (!userId || !selected) return;
-    await setEventStatus(userId, selected.id, 'completed');
+    const ev = selected;
+    await setEventStatus(userId, ev.id, 'completed');
+    // F1 (AGENDA-COMPLETE): reverso Agenda→HOY — si el evento matchea un electrón booleano
+    // no-verificado, lo otorga (la card de HOY se palomea). Guard: no rompe el completar.
+    await syncElectronFromEvent(userId, ev.name, true).catch(() => {});
     setSelected(null);
     DeviceEventEmitter.emit('day_changed');
     reload();
@@ -126,6 +131,22 @@ export default function AgendaScreen() {
     setSelected(null);
     DeviceEventEmitter.emit('day_changed');
     reload();
+    // F2 (AGENDA-COMPLETE) fallback: configuró recordatorio pero nunca dio permiso de
+    // notificaciones (ej. saltó la pantalla del onboarding) → prompt inline.
+    if (value.notifyMinutesBefore > 0) void ensureNotifPermission(userId);
+  };
+  const ensureNotifPermission = async (uid: string) => {
+    try {
+      if (await hasNotificationPermission()) return;
+      Alert.alert(
+        'Necesitamos permiso',
+        'Para enviarte este recordatorio necesitamos permiso de notificaciones. ¿Activar ahora?',
+        [
+          { text: 'Ahora no', style: 'cancel' },
+          { text: 'Activar', onPress: () => { registerForPushNotificationsAsync(uid, { prompt: true }).catch(() => {}); } },
+        ],
+      );
+    } catch { /* no-op: el permiso se puede pedir después */ }
   };
 
   return (
