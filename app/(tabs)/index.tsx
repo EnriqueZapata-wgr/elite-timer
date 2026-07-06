@@ -11,7 +11,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, Text, Modal, TextInput,
+  View, StyleSheet, ScrollView, Pressable, Text, TextInput,
   Dimensions, DeviceEventEmitter, ImageBackground,
   LayoutAnimation, Platform, UIManager, ActivityIndicator, Alert,
 } from 'react-native';
@@ -26,7 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, type VerifiedElectronKey } from '@/src/services/day-compiler';
 import { SplashLoader } from '@/src/components/SplashLoader';
-import { countUnreadNotifications } from '@/src/services/hoy/notifications-service';
+import { NotificationBellIcon } from '@/src/components/hoy/NotificationBellIcon';
 import { HoyEditorialSection } from '@/src/components/hoy/HoyEditorialSection';
 import { AgendaPreviewCard } from '@/src/components/agenda/AgendaPreviewCard';
 import { getCardsVisible } from '@/src/services/hoy/visibility-service';
@@ -173,19 +173,17 @@ export default function TodayScreen() {
   // Progreso real del compile (alimenta SplashLoader 0-100% en vez del spinner indeterminado).
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState('Iniciando…');
-  // #hoy-redesign Parte 6: conteo de notificaciones para el badge de la campana.
-  const [notifCount, setNotifCount] = useState(0);
+  // F3 (AGENDA-COMPLETE): la campana ahora es NotificationBellIcon (self-contained,
+  // badge = user_notifications sin leer, tap → /notifications).
   // #tabs-redesign V1.3: visibilidad de las cards editoriales (default: todas).
   const [cardsVisible, setCardsVisible] = useState<Set<string>>(new Set(HOY_CARD_ORDER_DEFAULT));
   const [expandedSource, setExpandedSource] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState(false);
-  const [dailyInsight, setDailyInsight] = useState<string>('');
   const [showTour, setShowTour] = useState(false);
   const [voiceLoading, setVoiceLoading] = useState(false);
   const [voiceResponse, setVoiceResponse] = useState('');
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceConversationId, setVoiceConversationId] = useState<string | null>(null);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const [streak, setStreak] = useState<number | null>(null);
   const [wearable, setWearable] = useState<WearableData | null>(null);
@@ -299,8 +297,6 @@ export default function TodayScreen() {
   // toggle de electrón en config, edición de wake_time.
   useFocusEffect(useCallback(() => {
     if (isTogglingRef.current === 0) loadDay();
-    // #hoy-redesign Parte 6: refrescar el badge de notificaciones al enfocar HOY.
-    if (user?.id) countUnreadNotifications(user.id).then(setNotifCount).catch(() => setNotifCount(0));
     // #tabs-redesign V1.3: refrescar visibilidad de cards al enfocar.
     if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
   }, [loadDay, user?.id]));
@@ -425,6 +421,8 @@ export default function TodayScreen() {
   }, []);
 
   // --- Insight diario ARGOS (refresca cada 6h) ---
+  // F3 (AGENDA-COMPLETE): HOY solo genera+cachea en argos_daily_insights; el consumo
+  // (render) se movió a /notifications (card INSIGHT ARGOS fijada arriba).
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
@@ -438,7 +436,6 @@ export default function TodayScreen() {
           .eq('date', today)
           .maybeSingle();
         if (cached?.insight) {
-          setDailyInsight(cached.insight);
           const cacheAge = cached.created_at
             ? (Date.now() - new Date(cached.created_at).getTime()) / (1000 * 60 * 60)
             : Infinity;
@@ -449,7 +446,6 @@ export default function TodayScreen() {
       try {
         const insight = await generateDailyInsight(user.id);
         if (insight) {
-          setDailyInsight(insight);
           await supabase.from('argos_daily_insights').upsert(
             { user_id: user.id, date: today, insight, created_at: new Date().toISOString() },
             { onConflict: 'user_id,date' },
@@ -820,15 +816,8 @@ export default function TodayScreen() {
                       muestra los E- del día). El engrane se movió al botón del final del scroll. */}
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  {/* #hoy-redesign Parte 6: campana con badge de conteo real (notifications-service). */}
-                  <AnimatedPressable onPress={() => { haptic.light(); setShowNotifications(true); }} style={s.topBarIcon}>
-                    <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
-                    {notifCount > 0 ? (
-                      <View style={s.notifBadge}>
-                        <Text style={s.notifBadgeText}>{notifCount > 99 ? '99+' : notifCount}</Text>
-                      </View>
-                    ) : null}
-                  </AnimatedPressable>
+                  {/* F3 (AGENDA-COMPLETE): campana con badge real (user_notifications) → /notifications. */}
+                  <NotificationBellIcon />
                 </View>
               </View>
               {/* P6: pill E-/H+/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
@@ -998,35 +987,8 @@ export default function TodayScreen() {
       {/* Tour de onboarding */}
       {showTour && <AppTour onComplete={() => setShowTour(false)} />}
 
-      {/* Notification modal (insight ARGOS) */}
-      <Modal visible={showNotifications} transparent animationType="slide" onRequestClose={() => setShowNotifications(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' }} onPress={() => setShowNotifications(false)}>
-          <Pressable style={{ backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 }} onPress={() => {}}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 16 }}>Notificaciones</Text>
-
-            {dailyInsight ? (
-              <Pressable onPress={() => { setShowNotifications(false); router.push('/argos-chat'); }}>
-                <View style={{
-                  backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 16,
-                  borderWidth: 1, borderColor: 'rgba(168,224,42,0.12)',
-                  flexDirection: 'row', gap: 12,
-                }}>
-                  <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(168,224,42,0.15)', justifyContent: 'center', alignItems: 'center' }}>
-                    <Ionicons name="eye" size={14} color="#a8e02a" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#a8e02a', fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }}>INSIGHT ARGOS</Text>
-                    <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20, marginTop: 4 }}>{dailyInsight}</Text>
-                  </View>
-                </View>
-              </Pressable>
-            ) : (
-              <Text style={{ color: '#666', fontSize: 13, textAlign: 'center', paddingVertical: 20 }}>Sin notificaciones nuevas</Text>
-            )}
-          </Pressable>
-        </Pressable>
-      </Modal>
+      {/* F3 (AGENDA-COMPLETE): el modal de la campana se retiró — el inbox vive en /notifications
+          (el INSIGHT ARGOS del día se muestra ahí, fijado arriba). */}
 
       {/* ARGOS response → bottom sheet expandible (F07.3). Snap 25/50/90, drag, scroll. */}
       <ExpandableSheet
@@ -1125,15 +1087,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  topBarIcon: {
-    padding: Spacing.xs,
-  },
-  // #hoy-redesign Parte 6: badge de conteo en la campana.
-  notifBadge: {
-    position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16, borderRadius: 8,
-    backgroundColor: '#fb7185', paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center',
-  },
-  notifBadgeText: { color: '#fff', fontSize: 9, fontFamily: Fonts.bold },
   brandLabel: {
     color: 'rgba(255,255,255,0.6)', // acento moderado: brand label neutral, no compite con el héroe lima
     letterSpacing: 3,

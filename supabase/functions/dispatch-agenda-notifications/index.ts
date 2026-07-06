@@ -76,7 +76,19 @@ serve(async (req) => {
     }
   }
 
-  // 5) marcar como notificados (siempre, para no reintentar en loop aunque un token falle)
+  // 5) inbox in-app (AGENDA-COMPLETE F3): una row en user_notifications por recordatorio
+  // procesado, tenga o no push token el user — la campana/lista funcionan sin permiso de push.
+  const inboxRows = (pending as any[]).map((log) => ({
+    user_id: log.user_id,
+    type: "agenda_reminder",
+    title: "ATP — Próximo evento",
+    body: `${log.agenda_events?.name ?? "Evento"} · en breve`,
+    data: { logId: log.id, eventId: log.event_id, category: log.agenda_events?.category, route: "/agenda" },
+  }));
+  const { error: inboxErr } = await supabase.from("user_notifications").insert(inboxRows);
+  if (inboxErr) console.error("[dispatch-agenda] inbox insert failed", inboxErr.message);
+
+  // 6) marcar como notificados (siempre, para no reintentar en loop aunque un token falle)
   const logIds = (pending as any[]).map((p) => p.id);
   await supabase.from("agenda_event_logs").update({ notified_at: now }).in("id", logIds);
 
