@@ -3,7 +3,7 @@
  * Campos: nombre · hora (HH:MM) · categoría (chips) · notificar (chips de minutos antes).
  * Sin drag-drop ni gestos: inputs + botones. Modal nativo centrado.
  */
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal, View, Pressable, StyleSheet, TextInput, ScrollView } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
@@ -65,6 +65,19 @@ export function EventFormModal({ visible, title, initial, onSave, onClose }: Pro
   const [time, setTime] = useState(initial?.time ?? '');
   const [category, setCategory] = useState(initial?.category ?? 'custom');
   const [notify, setNotify] = useState<number>(initial?.notifyMinutesBefore ?? 0);
+
+  // F5 (AGENDA-COMPLETE) fix "editar no persiste": el modal vive montado (visible solo lo
+  // oculta), así que el useState de arriba solo siembra en el PRIMER mount → al abrir "Editar"
+  // el form mostraba estado viejo/vacío en vez del evento seleccionado. Re-seed al abrir.
+  useEffect(() => {
+    if (visible) {
+      setName(initial?.name ?? '');
+      setTime(initial?.time ?? '');
+      setCategory(initial?.category ?? 'custom');
+      setNotify(initial?.notifyMinutesBefore ?? 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const canSave = name.trim().length > 0 && normalizeTime(time) !== '';
 
