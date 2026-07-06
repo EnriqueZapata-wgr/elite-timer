@@ -306,7 +306,8 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
       .from('daily_electrons')
       .upsert({ user_id: userId!, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
     if (error) throw error;
-    if (next) await awardBooleanElectron(userId!, source);
+    // #v13i C.3: idempotencyKey determinística por (user, source, día) → doble-tap = 1 solo log.
+    if (next) await awardBooleanElectron(userId!, source, { idempotencyKey: `${userId}:${source}:${today}` });
     else await revokeBooleanElectron(userId!, source);
     DeviceEventEmitter.emit('electrons_changed');
   };

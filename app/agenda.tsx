@@ -14,6 +14,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { EliteText } from '@/components/elite-text';
 import { AgendaMiniCard } from '@/src/components/agenda/AgendaMiniCard';
+import { RestrictionsBanner } from '@/src/components/agenda/RestrictionsBanner';
 import { EventActionModal } from '@/src/components/agenda/EventActionModal';
 import { EventFormModal, type EventFormValue } from '@/src/components/agenda/EventFormModal';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -22,7 +23,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 import {
-  generateAgendaEvents, getAgendaForDate, createCustomEvent, updateAgendaEvent,
+  generateAgendaEvents, getAgendaForDate, getRestrictionsForDate, createCustomEvent, updateAgendaEvent,
   deleteAgendaEvent, setEventStatus, snoozeEvent, type AgendaEventInstance,
 } from '@/src/services/agenda-service';
 
@@ -59,14 +60,19 @@ export default function AgendaScreen() {
   const { user } = useAuth();
   const userId = user?.id;
   const [events, setEvents] = useState<AgendaEventInstance[]>([]);
+  const [restrictions, setRestrictions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<AgendaEventInstance | null>(null);
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null);
 
   const reload = useCallback(async () => {
-    if (!userId) { setEvents([]); setLoading(false); return; }
-    const list = await getAgendaForDate(userId, getLocalToday());
+    if (!userId) { setEvents([]); setRestrictions([]); setLoading(false); return; }
+    const [list, restr] = await Promise.all([
+      getAgendaForDate(userId, getLocalToday()),
+      getRestrictionsForDate(userId, getLocalToday()),
+    ]);
     setEvents(list);
+    setRestrictions(restr);
     setLoading(false);
   }, [userId]);
 
@@ -139,6 +145,13 @@ export default function AgendaScreen() {
         <EliteText style={styles.date}>{formatToday()}</EliteText>
       </View>
 
+      {/* #v13i D — prohibiciones del día (arriba de la lista, no en el timeline). */}
+      {restrictions.length > 0 ? (
+        <View style={styles.bannerWrap}>
+          <RestrictionsBanner restrictions={restrictions} />
+        </View>
+      ) : null}
+
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={ATP_BRAND.lime} /></View>
       ) : events.length === 0 ? (
@@ -204,6 +217,7 @@ const styles = StyleSheet.create({
   },
   chipText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   titleBlock: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs, paddingBottom: Spacing.md },
+  bannerWrap: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
   title: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 2 },
   date: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 3, marginTop: 3 },
   list: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs },

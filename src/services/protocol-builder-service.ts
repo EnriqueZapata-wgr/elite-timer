@@ -7,6 +7,7 @@
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { computeStreak, computeAvgCompliance } from '@/src/services/adherence-service';
+import { warn as logWarn } from '@/src/lib/logger';
 
 // === TYPES ===
 
@@ -21,6 +22,8 @@ export interface DailyPlan {
   completed_actions: number;
   compliance_pct: number;
   generated_at: string;
+  /** #v13i — prohibiciones del día (action_type='restriction'); NO van al timeline, alimentan el banner. */
+  restrictions?: any[];
 }
 
 export interface PlanAction {
@@ -37,6 +40,8 @@ export interface PlanAction {
   completed_at: string | null;
   skipped: boolean;
   order: number;
+  /** #v13i — minutos de aviso antes del evento (default por categoría en el compiler). */
+  notify_minutes_before?: number;
 }
 
 export interface UserProtocol {
@@ -104,10 +109,10 @@ export async function generateDailyPlan(userId: string, date?: string, force = f
     }
   }
 
-  // Compilar timeline inteligente
-  const allActions = compileDailyTimeline(rawActions, chronoType);
+  // Compilar timeline inteligente (async: lee ventana de alimentación de preferencias).
+  const { actions: allActions, restrictions } = await compileDailyTimeline(rawActions, chronoType, userId);
 
-  // Guardar
+  // Guardar (restrictions se persiste aparte: la columna es de la migración 100).
   const plan = {
     user_id: userId,
     date: targetDate,
@@ -124,7 +129,16 @@ export async function generateDailyPlan(userId: string, date?: string, force = f
     .select().single();
 
   if (error) throw error;
-  return data as DailyPlan;
+
+  // Persistir prohibiciones best-effort. Si daily_plans.restrictions aún no existe (migración 100
+  // pendiente), no romper: el plan ya se guardó y el banner lee defensivamente.
+  if (restrictions.length > 0) {
+    const { error: rErr } = await supabase
+      .from('daily_plans').update({ restrictions }).eq('id', (data as any).id);
+    if (rErr) logWarn('[protocol-builder] restrictions no persistido (migración 100 pendiente)', rErr);
+  }
+
+  return { ...(data as DailyPlan), restrictions };
 }
 
 // === TOGGLE ACTION ===
@@ -327,12 +341,20 @@ export async function resetDay(userId: string, date: string): Promise<DailyPlan 
 
 // ═══ COMPILADOR INTELIGENTE DE TIMELINE ═══
 
-function compileDailyTimeline(
+async function compileDailyTimeline(
   rawActions: { action: any; protocolName: string; protocolId: string }[],
   chronotype: string,
-): PlanAction[] {
+  userId: string,
+): Promise<{ actions: PlanAction[]; restrictions: any[] }> {
+  // #v13i B.2 — separar prohibiciones (action_type='restriction'): NO van al timeline, van al banner.
+  const restrictions: any[] = [];
+  const timelineRaw = rawActions.filter((r) => {
+    if (r.action?.action_type === 'restriction') { restrictions.push(r.action); return false; }
+    return true;
+  });
+
   // Clasificar cada acción
-  const classified = rawActions.map(r => ({
+  const classified = timelineRaw.map(r => ({
     ...r.action,
     protocolName: r.protocolName,
     protocolId: r.protocolId,
@@ -348,11 +370,11 @@ function compileDailyTimeline(
   const deduped = smartDeduplicate(rest);
 
   // Crear tarjetas fusionadas de suplementos
-  const compiled: PlanAction[] = [];
+  let compiled: PlanAction[] = [];
   if (suppsAM.length > 0) compiled.push(mergeSupplements(suppsAM, 'AM'));
   if (suppsPM.length > 0) compiled.push(mergeSupplements(suppsPM, 'PM'));
 
-  // Convertir deduplicados a PlanAction
+  // Convertir deduplicados a PlanAction (A.2 — notify default por categoría si el template no trae)
   for (const a of deduped) {
     compiled.push({
       id: generateUUID(),
@@ -366,13 +388,14 @@ function compileDailyTimeline(
       protocol_id: a.protocolId,
       completed: false, completed_at: null, skipped: false,
       order: getSortPriority(a.actionType),
+      notify_minutes_before: a.notify_minutes_before ?? DEFAULT_NOTIFY_MIN[a.actionType] ?? 0,
     });
   }
 
-  // Detectar ventana de alimentación
-  const feedingWindow = detectFeedingWindow(classified);
+  // Detectar ventana de alimentación (A.3 — protocolo → user_day_preferences → default 16:8)
+  const feedingWindow = await detectFeedingWindow(classified, userId);
 
-  // Ajustar comidas a ventana
+  // Ajustar comidas existentes a la ventana
   if (feedingWindow) {
     for (const action of compiled) {
       if (classifyAction(action.name, action.category, action.scheduled_time) !== 'meal') continue;
@@ -386,17 +409,26 @@ function compileDailyTimeline(
         action.scheduled_time = feedingWindow.end;
       }
     }
+    // A.4 — asegurar 2ª/3ª comida si la ventana lo permite
+    compiled = ensureMeals(compiled, feedingWindow);
   }
 
-  // Aplicar cronotipo (solo a acciones ajustables — no nocturnas fijas)
+  // A.5 — rellenar huecos diurnos >4h con hidratación (opcional, eliminable desde /agenda)
+  compiled = fillDaytimeGaps(compiled);
+
+  // Aplicar cronotipo (solo a acciones ajustables — no nocturnas fijas ni auto-generadas)
   const chronoOffset = { lion: -60, bear: 0, wolf: 90, dolphin: 0 }[chronotype] || 0;
-  for (const action of compiled) {
-    const type = classifyAction(action.name, action.category, action.scheduled_time);
-    if (['sleep', 'sleep_prep'].includes(type)) continue; // no ajustar rutina nocturna
-    if (chronoOffset !== 0) {
+  if (chronoOffset !== 0) {
+    for (const action of compiled) {
+      const type = classifyAction(action.name, action.category, action.scheduled_time);
+      if (['sleep', 'sleep_prep'].includes(type)) continue;          // rutina nocturna fija
+      if ((action.protocol_name || '').startsWith('Auto')) continue; // comidas/fillers auto = ventana absoluta
       action.scheduled_time = adjustTime(action.scheduled_time, chronoOffset);
     }
   }
+
+  // A.1 — resolver conflictos de horario (misma HH:MM → separar +5min según prioridad)
+  resolveTimeConflicts(compiled);
 
   // Ordenar por hora + prioridad de slot
   compiled.sort((a, b) => {
@@ -420,7 +452,136 @@ function compileDailyTimeline(
   compiled.forEach((a, i) => a.order = i + 1);
 
   // Limitar a 15
-  return compiled.slice(0, 15);
+  return { actions: compiled.slice(0, 15), restrictions };
+}
+
+// #v13i A.2 — defaults de aviso (minutos antes) por tipo de acción clasificado.
+const DEFAULT_NOTIFY_MIN: Record<string, number> = {
+  meal: 15,
+  exercise: 30,
+  supplement_am: 5,
+  supplement_pm: 5,
+  sleep: 30,
+  meditation: 5,
+  breathing: 5,
+  sunlight: 0,
+  hydration: 0,
+  journaling: 5,
+  sleep_prep: 5,
+  social: 15,
+  other: 0,
+};
+
+// #v13i A.1 — prioridad para resolver conflictos de hora (mayor = conserva su slot).
+function actionPriority(a: PlanAction): number {
+  const t = classifyAction(a.name, a.category, a.scheduled_time);
+  const rank: Record<string, number> = {
+    other: 100,        // acción nombrada genérica — máxima
+    sleep: 95,         // dormir ancla el final
+    meal: 70,
+    exercise: 60,
+    meditation: 58, breathing: 58, journaling: 58,
+    supplement_am: 50, supplement_pm: 50,
+    social: 45,
+    hydration: 40,
+    sunlight: 30,
+    sleep_prep: 20,
+  };
+  return rank[t] ?? 80;
+}
+
+// #v13i A.1 — separar eventos que caen en la misma HH:MM en +5min escalonado.
+function resolveTimeConflicts(actions: PlanAction[]): void {
+  const byTime = new Map<string, PlanAction[]>();
+  for (const a of actions) {
+    const t = a.scheduled_time;
+    if (!byTime.has(t)) byTime.set(t, []);
+    byTime.get(t)!.push(a);
+  }
+  for (const [time, group] of byTime) {
+    if (group.length <= 1) continue;
+    group.sort((a, b) => actionPriority(b) - actionPriority(a)); // mayor prioridad se queda
+    let offset = 5;
+    for (let i = 1; i < group.length; i++) {
+      group[i].scheduled_time = addMinutesToTime(time, offset);
+      offset += 5;
+    }
+  }
+}
+
+function addMinutesToTime(time: string, minutes: number): string {
+  return minutesToTime(timeToMinutes(time) + minutes);
+}
+
+// #v13i A.4 — si hay ventana de alimentación pero <3 comidas, insertar las que falten.
+function ensureMeals(actions: PlanAction[], feedingWindow: { start: string; end: string }): PlanAction[] {
+  const meals = actions.filter(a => classifyAction(a.name, a.category, a.scheduled_time) === 'meal');
+  if (meals.length >= 3) return actions;
+
+  const startMin = timeToMinutes(feedingWindow.start);
+  const endMin = timeToMinutes(feedingWindow.end);
+  const windowLen = endMin - startMin;
+
+  const desiredMeals: { name: string; timeMin: number }[] = [];
+  if (meals.length === 0) {
+    desiredMeals.push({ name: 'Romper ayuno — comida limpia', timeMin: startMin });
+    desiredMeals.push({ name: 'Comida principal', timeMin: startMin + Math.floor(windowLen * 0.5) });
+    desiredMeals.push({ name: 'Cena ligera', timeMin: endMin - 60 });
+  } else if (meals.length === 1) {
+    const firstMealMin = timeToMinutes(meals[0].scheduled_time);
+    desiredMeals.push({ name: 'Comida principal', timeMin: firstMealMin + Math.max(240, Math.floor(windowLen * 0.4)) });
+    desiredMeals.push({ name: 'Cena ligera', timeMin: endMin - 60 });
+  } else if (meals.length === 2) {
+    const middle = Math.floor((timeToMinutes(meals[0].scheduled_time) + timeToMinutes(meals[1].scheduled_time)) / 2);
+    desiredMeals.push({ name: 'Snack proteico', timeMin: middle });
+  }
+
+  const newMeals: PlanAction[] = desiredMeals.map(m => ({
+    id: generateUUID(),
+    name: m.name,
+    category: 'nutrition',
+    scheduled_time: minutesToTime(m.timeMin),
+    duration_min: 15,
+    instructions: 'Proteína + grasas + vegetales. Ajustar cantidad al hambre real.',
+    link_type: 'food_scan',
+    protocol_name: 'Auto (feeding window)',
+    completed: false, completed_at: null, skipped: false,
+    order: 50,
+    notify_minutes_before: 15,
+  }));
+
+  return [...actions, ...newMeals];
+}
+
+// #v13i A.5 — rellenar huecos diurnos (9-20h) mayores a 4h con un recordatorio de hidratación.
+function fillDaytimeGaps(actions: PlanAction[]): PlanAction[] {
+  const dayActions = actions
+    .filter(a => {
+      const t = timeToMinutes(a.scheduled_time);
+      return t >= 9 * 60 && t <= 20 * 60;
+    })
+    .sort((a, b) => timeToMinutes(a.scheduled_time) - timeToMinutes(b.scheduled_time));
+
+  const fillers: PlanAction[] = [];
+  for (let i = 0; i < dayActions.length - 1; i++) {
+    const gap = timeToMinutes(dayActions[i + 1].scheduled_time) - timeToMinutes(dayActions[i].scheduled_time);
+    if (gap < 240) continue; // <4h, sin filler
+    const midMin = timeToMinutes(dayActions[i].scheduled_time) + Math.floor(gap / 2);
+    fillers.push({
+      id: generateUUID(),
+      name: 'Hidratación · vaso de agua',
+      category: 'nutrition',
+      scheduled_time: minutesToTime(midMin),
+      duration_min: 2,
+      instructions: 'Vaso de agua con pizca de sal. Mantén el metabolismo despierto.',
+      link_type: null,
+      protocol_name: 'Auto (gap filler)',
+      completed: false, completed_at: null, skipped: false,
+      order: 55,
+      notify_minutes_before: 0,
+    });
+  }
+  return [...actions, ...fillers];
 }
 
 // Clasificar acción por nombre
@@ -485,6 +646,7 @@ function mergeSupplements(supps: any[], period: 'AM' | 'PM'): PlanAction {
     protocol_name: protocols.join(', '),
     completed: false, completed_at: null, skipped: false,
     order: period === 'AM' ? 30 : 160,
+    notify_minutes_before: 5,
   };
 }
 
@@ -510,16 +672,34 @@ function smartDeduplicate(actions: any[]): any[] {
   return Array.from(seen.values());
 }
 
-// Detectar ventana de alimentación desde protocolos
-function detectFeedingWindow(actions: any[]): { start: string; end: string } | null {
+// #v13i A.3 — Ventana de alimentación: protocolo → user_day_preferences → default ATP 16:8.
+async function detectFeedingWindow(actions: any[], userId: string): Promise<{ start: string; end: string } | null> {
+  // 1) Desde el protocolo (ayuno declarado en una acción).
   const fasting = actions.find((a: any) => {
     const n = (a.name || '').toLowerCase();
     return n.includes('ayuno') && (n.includes('16') || n.includes('18') || n.includes('intermitente'));
   });
-  if (!fasting) return null;
-  const n = (fasting.name || '').toLowerCase();
-  if (n.includes('18')) return { start: '12:00', end: '18:00' };
-  return { start: '12:00', end: '20:00' }; // 16:8 default
+  if (fasting) {
+    const n = (fasting.name || '').toLowerCase();
+    if (n.includes('18')) return { start: '12:00', end: '18:00' };
+    return { start: '12:00', end: '20:00' }; // 16:8
+  }
+
+  // 2) Fallback: preferencias del usuario (fasting_target_hours).
+  try {
+    const { data: prefs } = await supabase
+      .from('user_day_preferences').select('goals')
+      .eq('user_id', userId).maybeSingle();
+    const fastingHours = (prefs?.goals as any)?.fasting_target_hours;
+    if (typeof fastingHours === 'number' && fastingHours >= 12) {
+      if (fastingHours >= 18) return { start: '12:00', end: '18:00' };
+      if (fastingHours >= 16) return { start: '12:00', end: '20:00' };
+      return { start: '10:00', end: '20:00' }; // 14h
+    }
+  } catch { /* sin prefs → default */ }
+
+  // 3) Default ATP 16:8.
+  return { start: '12:00', end: '20:00' };
 }
 
 // Forzar orden lógico en rutina nocturna

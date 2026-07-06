@@ -12,11 +12,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { AgendaMiniCard } from '@/src/components/agenda/AgendaMiniCard';
+import { RestrictionsBanner } from '@/src/components/agenda/RestrictionsBanner';
 import { haptic } from '@/src/utils/haptics';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
-import { generateAgendaEvents, getAgendaForDate, type AgendaEventInstance } from '@/src/services/agenda-service';
+import { generateAgendaEvents, getAgendaForDate, getRestrictionsForDate, type AgendaEventInstance } from '@/src/services/agenda-service';
 
 interface Props {
   userId?: string;
@@ -24,6 +25,7 @@ interface Props {
 
 export function AgendaPreviewCard({ userId }: Props) {
   const [events, setEvents] = useState<AgendaEventInstance[]>([]);
+  const [restrictions, setRestrictions] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(useCallback(() => {
@@ -31,13 +33,19 @@ export function AgendaPreviewCard({ userId }: Props) {
     (async () => {
       if (!userId) { setLoaded(true); return; }
       await generateAgendaEvents(userId, getLocalToday()); // idempotente
-      const list = await getAgendaForDate(userId, getLocalToday());
-      if (active) { setEvents(list); setLoaded(true); }
+      const [list, restr] = await Promise.all([
+        getAgendaForDate(userId, getLocalToday()),
+        getRestrictionsForDate(userId, getLocalToday()),
+      ]);
+      if (active) { setEvents(list); setRestrictions(restr); setLoaded(true); }
     })();
     const sub = DeviceEventEmitter.addListener('day_changed', async () => {
       if (!userId) return;
-      const list = await getAgendaForDate(userId, getLocalToday());
-      if (active) setEvents(list);
+      const [list, restr] = await Promise.all([
+        getAgendaForDate(userId, getLocalToday()),
+        getRestrictionsForDate(userId, getLocalToday()),
+      ]);
+      if (active) { setEvents(list); setRestrictions(restr); }
     });
     return () => { active = false; sub.remove(); };
   }, [userId]));
@@ -64,6 +72,13 @@ export function AgendaPreviewCard({ userId }: Props) {
           <Ionicons name="chevron-forward" size={13} color={ATP_BRAND.lime} />
         </View>
       </View>
+
+      {/* #v13i D — prohibiciones del día (versión compacta). */}
+      {restrictions.length > 0 ? (
+        <View style={styles.bannerWrap}>
+          <RestrictionsBanner restrictions={restrictions} compact />
+        </View>
+      ) : null}
 
       {events.length === 0 ? (
         <View style={styles.empty}>
@@ -97,6 +112,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: Radius.pill,
   },
   chipText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  bannerWrap: { marginBottom: Spacing.sm },
   list: {},
   empty: { alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.sm },
   emptyText: { color: 'rgba(255,255,255,0.5)', fontFamily: Fonts.regular, fontSize: FontSizes.sm, lineHeight: 18, textAlign: 'center' },

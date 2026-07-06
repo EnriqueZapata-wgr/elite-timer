@@ -8,20 +8,23 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { ELECTRON_WEIGHTS, type ElectronSource, getRank, getNextRank } from '@/src/constants/electrons';
 
-/** Otorga un electrón booleano del día. Retorna true si se otorgó (no duplicado). */
-export async function awardBooleanElectron(userId: string, source: ElectronSource): Promise<boolean> {
+/**
+ * Otorga un electrón booleano del día. Retorna true si el electrón quedó otorgado (nuevo o ya
+ * presente). #v13i C: idempotente vía UNIQUE index (migración 101) — dos taps en carrera colisionan
+ * en la misma `idempotency_key` determinística (user:source:día) → una sola fila, sin doble-conteo.
+ */
+export async function awardBooleanElectron(
+  userId: string,
+  source: ElectronSource,
+  opts?: { idempotencyKey?: string },
+): Promise<boolean> {
   const today = getLocalToday();
   const cfg = ELECTRON_WEIGHTS[source];
+  if (!cfg) return false;
 
-  // Verificar que no se haya otorgado hoy
-  const { count } = await supabase
-    .from('electron_logs')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('source', source)
-    .eq('date', today);
-
-  if ((count ?? 0) > 0) return false;
+  // Key determinística por (user, source, día). Un idempotencyKey explícito (mismo tap reintentado)
+  // también dedupica. Ambos casos colapsan al mismo row vía el UNIQUE index parcial.
+  const idemKey = opts?.idempotencyKey ?? `${userId}:${source}:${today}`;
 
   const { error } = await supabase.from('electron_logs').insert({
     user_id: userId,
@@ -29,8 +32,30 @@ export async function awardBooleanElectron(userId: string, source: ElectronSourc
     source,
     category: 'boolean_daily',
     electrons: cfg.weight,
+    idempotency_key: idemKey,
   });
 
+  if (!error) return true;
+  if (error.code === '23505') return true; // ya otorgado hoy → retry idempotente (no error)
+
+  // Fallback defensivo: la columna idempotency_key aún no existe (migración 101 pendiente) →
+  // ruta legacy check-then-insert para no romper el award mientras se aplica la migración.
+  if (/idempotency_key/i.test(error.message ?? '')) {
+    return awardBooleanElectronLegacy(userId, source, cfg.weight, today);
+  }
+  return false;
+}
+
+/** Ruta legacy (pre-migración 101): dedup por (user, source, día) sin idempotency_key. */
+async function awardBooleanElectronLegacy(userId: string, source: string, weight: number, today: string): Promise<boolean> {
+  const { count } = await supabase
+    .from('electron_logs')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId).eq('source', source).eq('date', today);
+  if ((count ?? 0) > 0) return false;
+  const { error } = await supabase.from('electron_logs').insert({
+    user_id: userId, date: today, source, category: 'boolean_daily', electrons: weight,
+  });
   return !error;
 }
 

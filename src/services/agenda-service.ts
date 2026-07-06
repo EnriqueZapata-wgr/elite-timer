@@ -88,13 +88,13 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
     const disabled = await getDisabledKeys(userId);
 
     const toInsert: any[] = [];
-    const pushEvent = (name: string, time: string, category: string, source: AgendaSource, duration?: number | null) => {
+    const pushEvent = (name: string, time: string, category: string, source: AgendaSource, duration?: number | null, notify?: number | null) => {
       const key = eventKey(name, time);
       if (existingKeys.has(key) || disabled.has(key)) return;
       existingKeys.add(key);
       toInsert.push({
         id: generateUUID(), user_id: userId, name, time: hhmm(time), category,
-        source, duration_min: duration ?? null, notify_minutes_before: 0, is_active: true,
+        source, duration_min: duration ?? null, notify_minutes_before: notify ?? 0, is_active: true,
       });
     };
 
@@ -113,7 +113,7 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
       const plan = await generateDailyPlan(userId, targetDate);
       for (const a of plan?.actions ?? []) {
         if (!a.scheduled_time || !a.name) continue;
-        pushEvent(a.name, a.scheduled_time, a.category || 'custom', 'protocol', a.duration_min);
+        pushEvent(a.name, a.scheduled_time, a.category || 'custom', 'protocol', a.duration_min, a.notify_minutes_before);
       }
     } catch (e) { logWarn('[agenda] generateDailyPlan failed', e); }
 
@@ -176,6 +176,39 @@ export async function getAgendaForDate(userId: string, date?: string): Promise<A
     return instances;
   } catch (e) {
     logWarn('[agenda] getAgendaForDate failed', e);
+    return [];
+  }
+}
+
+// ═══ PROHIBICIONES (banner) ═══
+
+/**
+ * #v13i D — Etiqueta corta de una prohibición: "Eliminar café" → "Café", "Sin alcohol" → "Alcohol".
+ * Quita el verbo de prohibición inicial y capitaliza.
+ */
+export function extractRestrictionLabel(name: string): string {
+  let s = (name ?? '').trim();
+  s = s.replace(/^(eliminar|evitar|reducir|sin|no|cero|nada de|dejar(?:\s+(?:el|la|los|las))?)\s+/i, '').trim();
+  if (!s) return '';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/**
+ * #v13i D — Prohibiciones del día para el banner. Lee daily_plans.restrictions (migración 100) y
+ * devuelve etiquetas cortas únicas. Defensivo: [] si la columna no existe o no hay plan.
+ */
+export async function getRestrictionsForDate(userId: string, date?: string): Promise<string[]> {
+  const targetDate = date || getLocalToday();
+  try {
+    const { data } = await supabase
+      .from('daily_plans').select('restrictions')
+      .eq('user_id', userId).eq('date', targetDate).maybeSingle();
+    const raw = (data?.restrictions as any[]) ?? [];
+    const labels = raw
+      .map((r) => extractRestrictionLabel(typeof r === 'string' ? r : (r?.name ?? '')))
+      .filter(Boolean);
+    return Array.from(new Set(labels));
+  } catch {
     return [];
   }
 }
