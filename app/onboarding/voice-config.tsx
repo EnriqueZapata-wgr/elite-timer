@@ -84,8 +84,8 @@ export default function VoiceConfigOnboardingScreen() {
     } catch (e) {
       console.warn('Error saving voice config:', e);
     } finally {
-      // Backfill → directo a HOY; onboarding normal → siguiente paso (summary).
-      router.replace((isBackfill ? '/(tabs)' : '/onboarding/summary') as any);
+      // Backfill → directo a HOY; onboarding normal → siguiente paso (F2: notifications → summary).
+      router.replace((isBackfill ? '/(tabs)' : '/onboarding/notifications') as any);
     }
   }, [user?.id, router, isBackfill]);
 

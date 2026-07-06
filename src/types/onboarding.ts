@@ -13,6 +13,7 @@ export type OnboardingStep =
   | 'context'
   | 'edad_atp'
   | 'voice_config'
+  | 'notifications'
   | 'completed';
 
 // === Questions ===

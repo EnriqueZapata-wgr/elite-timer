@@ -11,7 +11,8 @@ import type { OnboardingStep, BlockAnswers, FunctionalFlags, FunctionalIssue } f
 export function getOnboardingRoute(step: OnboardingStep): string {
   switch (step) {
     case 'completed': return '/(tabs)';
-    case 'voice_config': return '/onboarding/summary';
+    case 'notifications': return '/onboarding/summary';
+    case 'voice_config': return '/onboarding/notifications';
     case 'edad_atp':  return '/onboarding/voice-config';
     case 'context':   return '/onboarding/edad-atp';
     case 'nutrition': return '/onboarding/context';
@@ -39,6 +40,7 @@ export function getPreviousOnboardingRoute(block: OnboardingStep): string | null
     case 'context':    return '/onboarding/nutrition';
     case 'edad_atp':   return '/onboarding/context';
     case 'voice_config': return '/onboarding/edad-atp';
+    case 'notifications': return '/onboarding/voice-config';
     default:           return null;
   }
 }
