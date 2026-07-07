@@ -59,12 +59,12 @@ export default function RegisterScreen() {
       haptic.success();
       if (typeof window !== 'undefined' && window.alert) {
         window.alert('Cuenta creada exitosamente.');
-        router.replace('/onboarding-basics' as any);
+        router.replace('/onboarding/v2/welcome' as any);
       } else {
         Alert.alert(
           'Cuenta creada',
           'Tu cuenta ha sido creada exitosamente.',
-          [{ text: 'OK', onPress: () => router.replace('/onboarding-basics' as any) }],
+          [{ text: 'OK', onPress: () => router.replace('/onboarding/v2/welcome' as any) }],
         );
       }
     }

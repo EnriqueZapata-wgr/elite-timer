@@ -170,16 +170,16 @@ function RootLayout() {
                 <Stack.Screen name="quiz-take" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quizzes" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="braverman" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding-basics" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding-complete" options={{ headerShown: false, animation: 'fade' }} />
-                <Stack.Screen name="onboarding/goal" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding/chronotype" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding/health" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding/nutrition" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding/context" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding/edad-atp" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* Onboarding v2 (F2 sprint UX blockers) — motor v1 eliminado */}
+                <Stack.Screen name="onboarding/v2/welcome" options={{ headerShown: false, animation: 'fade' }} />
+                <Stack.Screen name="onboarding/v2/profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/v2/goal" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/v2/cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/v2/chronotype" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/v2/consent" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="onboarding/v2/notifications" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* Standalone: config de voz ARGOS (backfill founders + re-configuración) */}
                 <Stack.Screen name="onboarding/voice-config" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="onboarding/summary" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="journal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle-charts" options={{ headerShown: false, animation: 'slide_from_right' }} />
