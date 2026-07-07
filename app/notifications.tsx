@@ -74,8 +74,33 @@ export default function NotificationsScreen() {
       setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x)));
       await markNotificationRead(userId, n.id);
     }
-    const route = typeof n.data?.route === 'string' ? n.data.route : null;
-    if (route) router.push(route as any);
+
+    // Deep link resolution (fix mini-#121):
+    // 1) route explícito en data.route → prioridad
+    // 2) fallback por tipo de notif (agenda_reminder → /agenda, etc.)
+    // 3) sin match → NO navega (queda en /notifications, no cae silencioso a HOY)
+    const rawRoute = typeof n.data?.route === 'string' ? n.data.route : null;
+    const eventId = typeof n.data?.eventId === 'string' ? n.data.eventId : null;
+
+    let target: string | null = rawRoute;
+    if (!target) {
+      // Fallback por tipo (futuros tipos: lab_ready → /(tabs)/mi-atp, insight → /argos-chat, etc.)
+      if (n.type === 'agenda_reminder') target = '/agenda';
+    }
+
+    if (!target) return; // Sin destino → quedarse en /notifications
+
+    try {
+      // Object form de expo-router: navega correcto con params opcionales
+      if (eventId && target === '/agenda') {
+        router.push({ pathname: '/agenda', params: { event: eventId } } as any);
+      } else {
+        router.push(target as any);
+      }
+    } catch (err) {
+      // Falla de navegación → quedarse en /notifications (no caer silencioso a HOY)
+      console.warn('[notifications] navigation failed:', err);
+    }
   };
 
   const handleMarkAll = async () => {
