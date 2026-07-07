@@ -754,6 +754,18 @@ async function loadUserContext(userId: string): Promise<UserContext> {
   const today = getLocalToday();
   const context: UserContext = { name: '' };
 
+  // #132 F3.4 — consent enforcement: si el usuario apagó la memoria
+  // persistente de ARGOS (user_consent.argos_persistent_memory=false),
+  // NO se carga contexto histórico rico: solo va el mensaje actual.
+  // El contexto se arma AQUÍ (cliente), por eso el enforcement vive aquí
+  // y no en argos-proxy.
+  try {
+    const { hasArgosMemoryConsent } = await import('./consent-service');
+    if (!(await hasArgosMemoryConsent(userId))) {
+      return context; // contexto mínimo: sin nombre, labs, hábitos ni historial
+    }
+  } catch (_) { /* fail-open: consent default es ON */ }
+
   try {
     // Perfil básico (profiles.full_name)
     const { data: profile } = await supabase
