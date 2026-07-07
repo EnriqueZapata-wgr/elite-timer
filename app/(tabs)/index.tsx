@@ -62,6 +62,7 @@ import { speakArgos } from '@/src/services/argos-voice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // #v13d 2.7: HoyDayCard legacy → HoyDayCardEditorial (imagen B/N + tipografía display).
 import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditorial';
+import { TopBanner } from '@/src/components/global/TopBanner';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
@@ -866,6 +867,8 @@ export default function TodayScreen() {
   return (
     <View style={s.root}>
       <StatusBar style="light" />
+      {/* #23: banner contextual flotante (racha / protones / notifs / insight) */}
+      <TopBanner offset={44} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
         {/* ═══════════════════════════════════════

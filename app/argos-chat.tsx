@@ -22,6 +22,7 @@ import { withPreflight, wasAborted } from '../src/services/economy/with-prefligh
 import { VoiceButton } from '../src/components/VoiceButton';
 import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { TopBanner } from '@/src/components/global/TopBanner';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -279,6 +280,8 @@ function ArgosChat() {
 
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
+      {/* #23: banner contextual flotante (debajo del header de ARGOS) */}
+      <TopBanner offset={60} />
       {/* Header */}
       <View style={{
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
