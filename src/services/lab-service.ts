@@ -675,11 +675,6 @@ export async function getLabUploads(userId: string): Promise<LabUpload[]> {
   return (data ?? []) as LabUpload[];
 }
 
-export async function updateLabValues(labId: string, values: Record<string, any>): Promise<void> {
-  const { error } = await supabase.from('lab_results').update(values).eq('id', labId);
-  if (error) throw error;
-}
-
 export async function approveLabResult(labId: string): Promise<void> {
   const user = await getAuth();
   const { error } = await supabase.from('lab_results').update({

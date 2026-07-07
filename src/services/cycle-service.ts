@@ -114,26 +114,5 @@ export async function getCycleInfo(userId: string) {
   };
 }
 
-export async function startPeriod(userId: string, date?: string) {
-  const startDate = date ?? getLocalToday();
-  return supabase.from('cycle_periods').insert({ user_id: userId, start_date: startDate });
-}
-
-export async function endPeriod(userId: string) {
-  const { data } = await supabase.from('cycle_periods').select('id').eq('user_id', userId).is('end_date', null).order('start_date', { ascending: false }).limit(1);
-  if (data?.[0]) await supabase.from('cycle_periods').update({ end_date: getLocalToday() }).eq('id', data[0].id);
-}
-
-export async function logSymptoms(userId: string, symptoms: Record<string, any>) {
-  const info = await getCycleInfo(userId);
-  return supabase.from('cycle_symptoms').upsert({
-    user_id: userId, date: getLocalToday(),
-    cycle_day: info?.currentDay ?? null, phase: info?.currentPhase ?? null,
-    ...symptoms,
-  }, { onConflict: 'user_id,date' });
-}
-
-export async function getTodaySymptoms(userId: string) {
-  const { data } = await supabase.from('cycle_symptoms').select('*').eq('user_id', userId).eq('date', getLocalToday()).single();
-  return data;
-}
+// F6 (#26): startPeriod/endPeriod/logSymptoms/getTodaySymptoms eliminados —
+// exports sin importadores; cycle.tsx escribe periodos/sintomas por sus propios paths.
