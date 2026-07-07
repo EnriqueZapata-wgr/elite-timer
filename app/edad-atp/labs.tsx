@@ -16,7 +16,8 @@ import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { loadCanonicalLabValues, collapseLanguageDuplicates, getParameterSeries, type CanonicalValue, type LabValueSource } from '@/src/services/edad-atp/lab-values-service';
+import { loadCanonicalLabValues, collapseLanguageDuplicates, loadAllSeries, type CanonicalValue, type LabValueSource } from '@/src/services/edad-atp/lab-values-service';
+import { trendFromSeries, interpretValue, type Trend, type SeriePoint } from '@/src/components/edad-atp/parameter-chart-model';
 import { loadUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { getLabParamMeta } from '@/src/components/edad-atp/component-meta';
 import { findMatrizParam, findMatrizDomain } from '@/src/constants/edad-atp-matriz-lookup';
@@ -28,7 +29,7 @@ import { LabInfoPopup } from '@/src/components/edad-atp/LabInfoPopup';
 import { ParameterChart } from '@/src/components/edad-atp/ParameterChart';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { Sex } from '@/src/types/edad-atp-v2';
-import type { SeriePoint } from '@/src/components/edad-atp/parameter-chart-model';
+
 
 type Row = {
   key: string;
@@ -43,6 +44,14 @@ type Row = {
   domain_name: string;
   domain_key: string;
   clinical_only: boolean;
+  /** F4.1: tendencia de las últimas mediciones (null con <2 datos). */
+  trend: Trend | null;
+};
+
+const TREND_ICON: Record<Trend, { icon: 'trending-up' | 'trending-down' | 'remove'; label: string }> = {
+  up: { icon: 'trending-up', label: 'subiendo' },
+  down: { icon: 'trending-down', label: 'bajando' },
+  flat: { icon: 'remove', label: 'estable' },
 };
 
 type SortMode = 'panel' | 'fecha' | 'estado';
@@ -78,6 +87,7 @@ export default function AtpLabsScreen() {
   const [popupKey, setPopupKey] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [series, setSeries] = useState<Record<string, SeriePoint[]>>({});
+  const [showAllRanges, setShowAllRanges] = useState(false);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -88,8 +98,18 @@ export default function AtpLabsScreen() {
       const sx: Sex = data.sex;
       // #labs-desmadre: colapsar duplicados por idioma SOLO para display (no afecta al motor v2,
       // que lee por su propio bridge). Funde `testosterone` en `testosterona_total`, etc.
-      const canon = collapseLanguageDuplicates(await loadCanonicalLabValues(user.id));
+      // F4: series completas en UNA query — tendencias en cards + gráficas sin round-trip.
+      const [canonRaw, allSeries] = await Promise.all([
+        loadCanonicalLabValues(user.id),
+        loadAllSeries(user.id),
+      ]);
+      const canon = collapseLanguageDuplicates(canonRaw);
       if (!alive) return;
+      const seriesMap: Record<string, SeriePoint[]> = {};
+      for (const [key, raw] of Object.entries(allSeries)) {
+        const isPct = CANONICAL_PCT_KEYS.has(key);
+        seriesMap[key] = raw.map((p) => ({ ...p, value: p.value == null ? null : isPct ? decimalToPct(p.value) : p.value }));
+      }
       const built: Row[] = Object.entries(canon).map(([key, cv]: [string, CanonicalValue]) => {
         const meta = getLabParamMeta(key);
         const dom = findMatrizDomain(sx, key);
@@ -106,27 +126,21 @@ export default function AtpLabsScreen() {
           domain_name: dom?.domain_name_es ?? 'Otros',
           domain_key: dom?.domain_key ?? 'otros',
           clinical_only: isClinicalOnlyParam(key),
+          trend: trendFromSeries(seriesMap[key] ?? []),
         };
       });
       setSex(sx);
+      setSeries(seriesMap);
       setRows(built);
       setLoading(false);
     })();
     return () => { alive = false; };
   }, [user?.id]));
 
-  const onToggleChart = useCallback(async (key: string) => {
+  const onToggleChart = useCallback((key: string) => {
     haptic.medium();
-    if (expanded === key) { setExpanded(null); return; }
-    setExpanded(key);
-    if (!series[key] && user?.id) {
-      const raw = await getParameterSeries(user.id, key);
-      // Mostrar series pct en % también en la gráfica (coherente con la lista).
-      const isPct = CANONICAL_PCT_KEYS.has(key);
-      const pts: SeriePoint[] = raw.map((p) => ({ ...p, value: isPct ? decimalToPct(p.value) : p.value }));
-      setSeries((s) => ({ ...s, [key]: pts }));
-    }
-  }, [expanded, series, user?.id]);
+    setExpanded((prev) => (prev === key ? null : key));
+  }, []);
 
   const sorted = sortRows(rows, sort);
   const grouped = groupForRender(sorted, sort);
@@ -179,6 +193,9 @@ export default function AtpLabsScreen() {
                         </EliteText>
                       ) : null}
                     </View>
+                    {r.trend ? (
+                      <Ionicons name={TREND_ICON[r.trend].icon} size={13} color={Colors.textSecondary} />
+                    ) : null}
                     <EliteText style={[styles.rowValue, { color: r.is_stale ? EDAD_PENDING_COLOR : r.color }]}>
                       {r.displayValue}{r.unit ? ` ${r.unit}` : ''}
                     </EliteText>
@@ -186,13 +203,33 @@ export default function AtpLabsScreen() {
                   </Pressable>
                   {expanded === r.key ? (
                     <View style={styles.chartBox}>
+                      {renderRangeSummary(sex, r)}
                       <ParameterChart
                         series={series[r.key] ?? []}
                         bandLimits={pctAdjustedBandLimits(sex, r.key)}
                         todayISO={getLocalToday()}
                         unit={r.unit}
                         width={width - Spacing.md * 2 - Spacing.md * 2}
+                        showAllRanges={showAllRanges}
                       />
+                      <View style={styles.rangeToggleRow}>
+                        <Pressable
+                          onPress={() => { haptic.light(); setShowAllRanges(false); }}
+                          style={[styles.rangeToggle, !showAllRanges && styles.rangeToggleActive]}
+                        >
+                          <EliteText variant="caption" style={[styles.rangeToggleText, !showAllRanges && styles.rangeToggleTextActive]}>
+                            Solo funcional
+                          </EliteText>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => { haptic.light(); setShowAllRanges(true); }}
+                          style={[styles.rangeToggle, showAllRanges && styles.rangeToggleActive]}
+                        >
+                          <EliteText variant="caption" style={[styles.rangeToggleText, showAllRanges && styles.rangeToggleTextActive]}>
+                            Todos los rangos
+                          </EliteText>
+                        </Pressable>
+                      </View>
                     </View>
                   ) : null}
                 </View>
@@ -219,6 +256,52 @@ function pctAdjustedBandLimits(sex: Sex, key: string): (number | null)[] | null 
   return p.bandLimits.map((b) => (b == null ? null : decimalToPct(b)));
 }
 
+/**
+ * F4.1: resumen de rangos + interpretación 1-línea sobre la gráfica.
+ * Verde = rango funcional ATP ([3]-[4]); gris = rango amplio aceptable ([1]-[6]).
+ */
+function renderRangeSummary(sex: Sex, r: Row) {
+  const limits = pctAdjustedBandLimits(sex, r.key);
+  if (!limits) {
+    return (
+      <EliteText variant="caption" style={styles.rangeInfoMuted}>
+        Sin banda funcional en la matriz — se muestra solo el historial.
+      </EliteText>
+    );
+  }
+  const fnLo = limits[3];
+  const fnHi = limits[4];
+  const outLo = limits[1];
+  const outHi = limits[6];
+  const interp = interpretValue(r.displayValue, limits);
+  return (
+    <View style={styles.rangeInfoBox}>
+      <View style={styles.rangeInfoRow}>
+        {fnLo != null && fnHi != null ? (
+          <EliteText variant="caption" style={styles.rangeInfoFunctional}>
+            Funcional: {fnLo}–{fnHi}{r.unit ? ` ${r.unit}` : ''}
+          </EliteText>
+        ) : null}
+        {outLo != null && outHi != null ? (
+          <EliteText variant="caption" style={styles.rangeInfoOuter}>
+            Amplio: {outLo}–{outHi}
+          </EliteText>
+        ) : null}
+        {r.trend ? (
+          <EliteText variant="caption" style={styles.rangeInfoOuter}>
+            Tendencia: {TREND_ICON[r.trend].label}
+          </EliteText>
+        ) : null}
+      </View>
+      {interp ? (
+        <EliteText variant="caption" style={[styles.rangeInterp, { color: r.color }]}>
+          {interp}
+        </EliteText>
+      ) : null}
+    </View>
+  );
+}
+
 function sortRows(rows: Row[], sort: SortMode): Row[] {
   const copy = [...rows];
   if (sort === 'fecha') copy.sort((a, b) => (a.measured_at < b.measured_at ? 1 : -1));
@@ -229,7 +312,7 @@ function sortRows(rows: Row[], sort: SortMode): Row[] {
   return copy;
 }
 
-function groupForRender(rows: Row[], sort: SortMode): Array<{ title: string; rows: Row[] }> {
+function groupForRender(rows: Row[], sort: SortMode): { title: string; rows: Row[] }[] {
   if (sort === 'panel') {
     const map = new Map<string, Row[]>();
     for (const r of rows) {
@@ -260,4 +343,15 @@ const styles = StyleSheet.create({
   clinicalNote: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 1, fontStyle: 'italic' },
   rowValue: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   chartBox: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
+  rangeInfoBox: { marginBottom: Spacing.xs },
+  rangeInfoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  rangeInfoFunctional: { color: '#4ade80', fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  rangeInfoOuter: { color: Colors.textSecondary, fontSize: FontSizes.xs },
+  rangeInfoMuted: { color: Colors.textMuted, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
+  rangeInterp: { fontSize: FontSizes.xs, marginTop: 3, lineHeight: 15 },
+  rangeToggleRow: { flexDirection: 'row', gap: Spacing.xs, marginTop: Spacing.xs },
+  rangeToggle: { paddingHorizontal: Spacing.sm, paddingVertical: 5, borderRadius: Radius.md, backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#1a1a1a' },
+  rangeToggleActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },
+  rangeToggleText: { color: Colors.textMuted, fontSize: FontSizes.xs },
+  rangeToggleTextActive: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
 });
