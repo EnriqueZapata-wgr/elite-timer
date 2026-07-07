@@ -567,6 +567,23 @@ export default function SettingsScreen() {
             </>
           )}
 
+          {/* #69: sonidos de la cinemática Edad ATP (movido de DEV a SONIDOS —
+              ahora hay assets reales y es un ajuste de usuario, no de dev) */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="musical-notes-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Sonidos Edad ATP</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Ticks del cálculo + chime del reveal</EliteText>
+              </View>
+            </View>
+            <Switch
+              value={edadSound}
+              onValueChange={(v) => { haptic.light(); setEdadSound(v); persistSoundPref(v); }}
+              trackColor={{ true: Colors.neonGreen, false: '#333' }}
+            />
+          </View>
+
           <Divider />
         </Animated.View>
 
@@ -681,20 +698,6 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
           </Pressable>
-          <View style={styles.settingRow}>
-            <View style={styles.settingRowLeft}>
-              <Ionicons name="musical-notes-outline" size={20} color={Colors.textSecondary} />
-              <View>
-                <EliteText variant="body" style={styles.settingRowLabel}>Sonidos Edad ATP</EliteText>
-                <EliteText variant="caption" style={styles.settingRowSub}>Efectos de la cinemática (respeta silencio)</EliteText>
-              </View>
-            </View>
-            <Switch
-              value={edadSound}
-              onValueChange={(v) => { haptic.light(); setEdadSound(v); persistSoundPref(v); }}
-              trackColor={{ true: Colors.neonGreen, false: '#333' }}
-            />
-          </View>
           <Divider />
         </Animated.View>
 
