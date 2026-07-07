@@ -307,6 +307,35 @@ export default function SettingsScreen() {
           <Divider />
         </Animated.View>
 
+        {/* ══════ LEGAL Y PRIVACIDAD (#42/#132 overnight) ══════ */}
+        <Animated.View entering={FadeInUp.delay(230).springify()}>
+          <SectionLabel>LEGAL Y PRIVACIDAD</SectionLabel>
+
+          <Pressable onPress={() => { haptic.medium(); router.push('/settings/privacy' as any); }} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Privacidad y datos</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Consentimientos, exportar o eliminar cuenta</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
+
+          <Pressable onPress={() => { haptic.medium(); router.push('/settings/legal' as any); }} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="document-text-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Legal y disclaimers</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Términos, privacidad, avisos médicos</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
+
+          <Divider />
+        </Animated.View>
+
         {/* ══════ NUTRICIÓN ══════ */}
         <Animated.View entering={FadeInUp.delay(230).springify()}>
           <SectionLabel>NUTRICIÓN</SectionLabel>

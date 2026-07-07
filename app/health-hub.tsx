@@ -37,6 +37,7 @@ import {
   buildExecutiveSummary,
   type ClinicalSymptom,
 } from '@/src/services/clinical-history-service';
+import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string };
 
@@ -63,7 +64,7 @@ const CARDS: Card[] = [
   { key: 'cinematicas', title: 'PRUEBAS CINEMÁTICAS', subtitle: 'Plank · BOLT · Old Man · Recovery HR', icon: '🏃', gradient: ['#22D3EE', '#0EA5E9'], route: '/edad-atp/cinematic-tests-index' },
 ];
 
-export default function HealthHubScreen() {
+function HealthHubScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -401,3 +402,12 @@ const s = StyleSheet.create({
   },
   modalSaveText: { color: '#000', fontSize: 14, fontFamily: Fonts.extraBold },
 });
+
+// #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
+export default function HealthHubScreenGated() {
+  return (
+    <MedicalDisclaimerGate>
+      <HealthHubScreen />
+    </MedicalDisclaimerGate>
+  );
+}

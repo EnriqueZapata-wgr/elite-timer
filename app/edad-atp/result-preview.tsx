@@ -32,6 +32,7 @@ import { getLastCalc, saveLastCalc, recalcStatus } from '@/src/services/edad-atp
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 /** DD/MM desde YYYY-MM-DD para el copy de "sin cambios". */
 function ddmm(iso: string): string { const [, m, d] = iso.split('-'); return d && m ? `${d}/${m}` : iso; }
@@ -57,7 +58,7 @@ function buildSources(d: UnifiedUserData): SourceRow[] {
   ];
 }
 
-export default function ResultScreen() {
+function ResultScreen() {
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [result, setResult] = useState<EdadAtpV2Result | null>(null);
@@ -221,3 +222,12 @@ const styles = StyleSheet.create({
   backText: { color: Colors.textPrimary },
   offscreen: { position: 'absolute', left: -10000, top: 0 },
 });
+
+// #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
+export default function ResultScreenGated() {
+  return (
+    <MedicalDisclaimerGate>
+      <ResultScreen />
+    </MedicalDisclaimerGate>
+  );
+}

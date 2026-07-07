@@ -29,6 +29,7 @@ import { LabInfoPopup } from '@/src/components/edad-atp/LabInfoPopup';
 import { ParameterChart } from '@/src/components/edad-atp/ParameterChart';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { Sex } from '@/src/types/edad-atp-v2';
+import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 
 type Row = {
@@ -77,7 +78,7 @@ function statusColor(sex: Sex, key: string, value: number): string {
   return EDAD_STATUS.bad;
 }
 
-export default function AtpLabsScreen() {
+function AtpLabsScreen() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [rows, setRows] = useState<Row[]>([]);
@@ -355,3 +356,12 @@ const styles = StyleSheet.create({
   rangeToggleText: { color: Colors.textMuted, fontSize: FontSizes.xs },
   rangeToggleTextActive: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
 });
+
+// #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
+export default function AtpLabsScreenGated() {
+  return (
+    <MedicalDisclaimerGate>
+      <AtpLabsScreen />
+    </MedicalDisclaimerGate>
+  );
+}

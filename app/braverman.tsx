@@ -35,6 +35,7 @@ import {
 } from '../src/constants/braverman-questions';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { advancePosition, retreatPosition, canRetreat } from '@/src/utils/braverman-nav';
+import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 const PART1 = BRAVERMAN_QUESTIONS.filter(q => q.part === 'dominance');
 const PART2 = BRAVERMAN_QUESTIONS.filter(q => q.part === 'deficiency');
@@ -50,7 +51,7 @@ const CARD_SHIFT = 24;
 
 type Screen = 'intro' | 'quiz' | 'transition' | 'results';
 
-export default function BravermanTest() {
+function BravermanTest() {
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState<Screen>('intro');
   const [currentPart, setCurrentPart] = useState(1);
@@ -831,4 +832,13 @@ export default function BravermanTest() {
   }
 
   return null;
+}
+
+// #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
+export default function BravermanTestGated() {
+  return (
+    <MedicalDisclaimerGate>
+      <BravermanTest />
+    </MedicalDisclaimerGate>
+  );
 }
