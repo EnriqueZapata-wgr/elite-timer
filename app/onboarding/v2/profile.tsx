@@ -19,12 +19,17 @@ import { completeV2Step } from '@/src/services/onboarding-v2-service';
 import { v2StepNumber, v2Route, V2_STEPS } from '@/src/services/onboarding-v2-core';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { haptic } from '@/src/utils/haptics';
+import { AgeGateModal } from '@/src/components/onboarding/AgeGateModal';
+import { ageFromDob, ageGateTier } from '@/src/utils/age-gate';
+import { getLocalToday } from '@/src/utils/date-helpers';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
 
 export default function V2ProfileScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const analytics = useAnalytics();
 
   const [sex, setSex] = useState<'male' | 'female' | null>(null);
   const [day, setDay] = useState('');
@@ -33,6 +38,8 @@ export default function V2ProfileScreen() {
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [loading, setLoading] = useState(false);
+  // Age gate (#41): modal según edad calculada al submitir
+  const [gate, setGate] = useState<{ variant: 'blocked' | 'parental'; age: number; dateStr: string } | null>(null);
 
   // Prefill (usuario que venía de v1 con datos ya capturados)
   useEffect(() => {
@@ -64,8 +71,10 @@ export default function V2ProfileScreen() {
     if (!d || !m || !y || d < 1 || d > 31 || m < 1 || m > 12 || y < 1900) return null;
     const date = new Date(y, m - 1, d);
     if (date.getDate() !== d || date.getMonth() !== m - 1) return null;
+    // Age gate (#41): edades <13 SÍ pasan la validación de formato — el gate
+    // decide (modal blocked), no un alert genérico de "fecha inválida".
     const age = (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-    if (age < 13 || age > 100) return null;
+    if (age < 0 || age > 120) return null;
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
 
@@ -73,15 +82,41 @@ export default function V2ProfileScreen() {
     if (!user?.id || !isValid || loading) return;
     const dateStr = validateDate();
     if (!dateStr) {
-      Alert.alert('Fecha inválida', 'Introduce una fecha de nacimiento válida (13-100 años).');
+      Alert.alert('Fecha inválida', 'Introduce una fecha de nacimiento válida.');
       return;
     }
+    // Age gate (#41): <13 bloquea, 13-17 requiere consentimiento parental
+    const age = ageFromDob(dateStr, getLocalToday());
+    const tier = ageGateTier(age);
+    analytics.track(ATP_EVENTS.AGE_GATE_TRIGGERED, { tier, age });
+    if (tier === 'blocked') {
+      haptic.error();
+      setGate({ variant: 'blocked', age, dateStr });
+      return;
+    }
+    if (tier === 'parental') {
+      haptic.warning();
+      setGate({ variant: 'parental', age, dateStr });
+      return;
+    }
+    await persistAndContinue(dateStr, null);
+  }
+
+  /** Guarda perfil + verificación de edad (y consentimiento parental si aplica). */
+  async function persistAndContinue(dateStr: string, parentEmail: string | null) {
+    if (!user?.id) return;
     setLoading(true);
     try {
       await ensureClientProfile(user.id, dateStr, sex!);
       await supabase.from('client_profiles').update({ height_cm: heightNum }).eq('user_id', user.id);
       await saveHealthMeasurement(user.id, { weight_kg: weightNum!, height_cm: heightNum! });
+      const now = new Date().toISOString();
+      await supabase.from('profiles').update({
+        age_verified_at: now,
+        ...(parentEmail ? { parental_consent_email: parentEmail, parental_consent_at: now } : {}),
+      }).eq('id', user.id);
       haptic.success();
+      setGate(null);
       const next = await completeV2Step(user.id, 'profile');
       router.replace(next as any);
     } catch {
@@ -89,6 +124,13 @@ export default function V2ProfileScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  /** <13: salir de la app — cierra sesión y regresa a login. */
+  async function handleBlockedExit() {
+    setGate(null);
+    try { await signOut(); } catch { /* igual navegamos */ }
+    router.replace('/login' as any);
   }
 
   return (
@@ -186,6 +228,19 @@ export default function V2ProfileScreen() {
           </AnimatedPressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Age gate (#41): <13 bloquea, 13-17 pide consentimiento parental */}
+      {gate && (
+        <AgeGateModal
+          visible
+          variant={gate.variant}
+          age={gate.age}
+          saving={loading}
+          onExit={handleBlockedExit}
+          onParentalConfirm={(email) => persistAndContinue(gate.dateStr, email)}
+          onDismiss={() => setGate(null)}
+        />
+      )}
     </OnboardingShell>
   );
 }
