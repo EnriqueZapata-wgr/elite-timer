@@ -333,6 +333,17 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
           </Pressable>
 
+          <Pressable onPress={() => { haptic.medium(); router.push('/afiliados/aplicar' as any); }} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="briefcase-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Programa de afiliados</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Clínicos, coaches, centros y creadores</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
+
           <Divider />
         </Animated.View>
 
