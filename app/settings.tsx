@@ -307,6 +307,22 @@ export default function SettingsScreen() {
           <Divider />
         </Animated.View>
 
+        {/* ══════ NOTIFICACIONES (#61 polish) ══════ */}
+        <Animated.View entering={FadeInUp.delay(225).springify()}>
+          <SectionLabel>NOTIFICACIONES</SectionLabel>
+          <Pressable onPress={() => { haptic.medium(); router.push('/settings/notifications' as any); }} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Notificaciones</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Modos, tipos y horas de silencio</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
+          <Divider />
+        </Animated.View>
+
         {/* ══════ LEGAL Y PRIVACIDAD (#42/#132 overnight) ══════ */}
         <Animated.View entering={FadeInUp.delay(230).springify()}>
           <SectionLabel>LEGAL Y PRIVACIDAD</SectionLabel>
