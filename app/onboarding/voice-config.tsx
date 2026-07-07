@@ -27,8 +27,7 @@ import {
 } from '@/src/services/coach-voice-config-service';
 import {
   saveBlockProgress, loadBlockProgress, clearBlockProgress,
-  completeStep, getPreviousOnboardingRoute,
-} from '@/src/services/onboarding-service';
+} from '@/src/services/onboarding-v2-service';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
 
@@ -74,20 +73,15 @@ export default function VoiceConfigOnboardingScreen() {
       const config = computeVoiceConfigFromAnswers(finalAnswers);
       await saveVoiceConfig(user.id, config);
       await clearBlockProgress(user.id);
-      // En backfill NO llamamos completeStep: el founder ya tiene
-      // onboarding_step='completed' y completeStep('voice_config') lo regresaría
-      // (UPDATE onboarding_step='voice_config') → quedaría atrapado en el summary.
-      if (!isBackfill) {
-        await completeStep(user.id, 'voice_config');
-      }
       haptic.success();
     } catch (e) {
       console.warn('Error saving voice config:', e);
     } finally {
-      // Backfill → directo a HOY; onboarding normal → siguiente paso (F2: notifications → summary).
-      router.replace((isBackfill ? '/(tabs)' : '/onboarding/notifications') as any);
+      // v2 (F2): la pantalla es standalone (backfill / configuración de voz).
+      // Ya no forma parte del flujo de onboarding — siempre sale a HOY.
+      router.replace('/(tabs)');
     }
-  }, [user?.id, router, isBackfill]);
+  }, [user?.id, router]);
 
   const handleOptionSelect = useCallback((optionId: string) => {
     const q = VOICE_CONFIG_QUESTIONS[currentQ];
@@ -112,11 +106,8 @@ export default function VoiceConfigOnboardingScreen() {
     if (currentQ > 0) {
       setCurrentQ(prev => prev - 1);
       setAnimKey(prev => prev + 1);
-    } else {
-      const prev = getPreviousOnboardingRoute('voice_config');
-      if (prev) router.replace(prev as any);
     }
-  }, [currentQ, router]);
+  }, [currentQ]);
 
   const q = VOICE_CONFIG_QUESTIONS[currentQ];
   const showBack = currentQ > 0; // back disponible salvo en Q1

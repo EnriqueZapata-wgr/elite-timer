@@ -186,7 +186,7 @@ export async function insertLabValuesFromRaw(
  */
 export async function insertCanonicalBiomarkers(
   userId: string,
-  entries: Array<{ parameter_key: string; value: number; unit?: string }>,
+  entries: { parameter_key: string; value: number; unit?: string }[],
   opts: { source: LabValueSource; measuredAt?: string },
 ): Promise<{ ok: boolean; inserted: number; error?: string }> {
   if (entries.length === 0) return { ok: true, inserted: 0 };
@@ -249,10 +249,37 @@ export async function voidLabValuesByLabResult(labResultId: string): Promise<{ o
  * Serie temporal completa (no-voided) de un parámetro, ascendente por fecha — para la
  * gráfica de continuum (Fase 3). Aquí porque comparte la tabla; la UI la consume luego.
  */
+/**
+ * Series completas de TODOS los parámetros en UNA query (F4: tendencias en las
+ * cards de ATP Labs + gráficas instantáneas al expandir, sin round-trip por tap).
+ * Devuelve { parameter_key: puntos asc por fecha }.
+ */
+export async function loadAllSeries(
+  userId: string,
+): Promise<Record<string, { value: number; measured_at: string; source: LabValueSource }[]>> {
+  try {
+    const { data, error } = await supabase
+      .from('lab_values')
+      .select('parameter_key, value, measured_at, source')
+      .eq('user_id', userId)
+      .eq('is_voided', false)
+      .order('measured_at', { ascending: true });
+    if (error) { logWarn('[lab-values] loadAllSeries failed:', error); return {}; }
+    const out: Record<string, { value: number; measured_at: string; source: LabValueSource }[]> = {};
+    for (const row of (data ?? []) as { parameter_key: string; value: number; measured_at: string; source: LabValueSource }[]) {
+      (out[row.parameter_key] ??= []).push({ value: row.value, measured_at: row.measured_at, source: row.source });
+    }
+    return out;
+  } catch (err) {
+    logWarn('[lab-values] loadAllSeries threw:', err);
+    return {};
+  }
+}
+
 export async function getParameterSeries(
   userId: string,
   parameterKey: string,
-): Promise<Array<{ value: number; measured_at: string; source: LabValueSource }>> {
+): Promise<{ value: number; measured_at: string; source: LabValueSource }[]> {
   try {
     const { data, error } = await supabase
       .from('lab_values')
@@ -262,7 +289,7 @@ export async function getParameterSeries(
       .eq('is_voided', false)
       .order('measured_at', { ascending: true });
     if (error) { logWarn('[lab-values] getParameterSeries failed:', error); return []; }
-    return (data ?? []) as Array<{ value: number; measured_at: string; source: LabValueSource }>;
+    return (data ?? []) as { value: number; measured_at: string; source: LabValueSource }[];
   } catch (err) {
     logWarn('[lab-values] getParameterSeries threw:', err);
     return [];

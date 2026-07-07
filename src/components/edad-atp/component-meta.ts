@@ -13,6 +13,7 @@
  */
 import type { SubEdadKey } from '@/src/types/edad-atp-v2';
 import type { HealthMeasurementInput } from '@/src/services/edad-atp/capture-service';
+import { EXTRACTED_KEY_ALIASES } from '@/src/constants/lab-canonical-map';
 
 export type ComponentCapture =
   | { type: 'hm'; field: keyof HealthMeasurementInput }
@@ -278,6 +279,22 @@ export const LAB_PARAM_META: Record<string, LabParamMeta> = {
   amonio: { display_name: 'Amonio', abbr: 'Amonio', unit: 'µg/dL', description: 'Desecho nitrogenado que el hígado depura; alto orienta a falla hepática.' },
   lactato: { display_name: 'Lactato', abbr: 'Lactato', unit: 'mmol/L', description: 'Sube con ejercicio intenso o falta de oxígeno en los tejidos.' },
   reticulocitos_pct: { display_name: 'Reticulocitos %', abbr: 'Reticulocitos', unit: '%', description: 'Glóbulos rojos jóvenes; indican cuánto produce la médula ósea.' },
+
+  // ─── F4.3 (sprint UX blockers): keys canónicas INGLESAS sin contraparte española ───
+  // (self-map en LAB_COLUMN_TO_CANONICAL — llegan tal cual a lab_values y el fallback
+  // humanizado las mostraba en inglés).
+  estradiol: { display_name: 'Estradiol', abbr: 'E2', unit: 'pg/mL', description: 'Principal estrógeno. Clave en ciclo, hueso y salud cardiovascular.' },
+  cholesterol_total: { display_name: 'Colesterol total', abbr: 'Col. total', unit: 'mg/dL', description: 'Suma de las fracciones de colesterol. Importa el reparto entre HDL, LDL y triglicéridos.' },
+  ag_ratio: { display_name: 'Índice Albúmina/Globulina', abbr: 'A/G', unit: 'índice', description: 'Relación entre albúmina y globulinas; orienta sobre nutrición, hígado e inflamación.' },
+  testosterone_free: { display_name: 'Testosterona libre', abbr: 'Testo libre', unit: 'pg/mL', description: 'Fracción activa de la testosterona, disponible para los tejidos.' },
+  ana: { display_name: 'Anticuerpos Antinucleares (ANA)', abbr: 'ANA', unit: 'título', description: 'Tamizaje de autoinmunidad; positivo requiere interpretación clínica.' },
+  amh: { display_name: 'Hormona Antimülleriana', abbr: 'AMH', unit: 'ng/mL', description: 'Estima la reserva ovárica; útil en planeación reproductiva.' },
+  inhibin_b: { display_name: 'Inhibina B', abbr: 'Inhibina B', unit: 'pg/mL', description: 'Marcador de función gonadal (reserva ovárica / espermatogénesis).' },
+  rdw: { display_name: 'RDW (Amplitud de Distribución Eritrocitaria)', abbr: 'RDW', unit: '%', description: 'Variación de tamaño de los glóbulos rojos; sube en varias anemias.' },
+  wbc: { display_name: 'Leucocitos', abbr: 'Leucocitos', unit: '10³/µL', description: 'Recuento de glóbulos blancos; el ejército inmune circulante.' },
+  pcr: { display_name: 'Proteína C Reactiva', abbr: 'PCR', unit: 'mg/L', description: 'Marcador de inflamación sistémica; clave en riesgo cardiovascular.' },
+  creatinine: { display_name: 'Creatinina', abbr: 'Creatinina', unit: 'mg/dL', description: 'Desecho muscular que filtran los riñones; marcador de función renal.' },
+  glucose: { display_name: 'Glucosa', abbr: 'Glucosa', unit: 'mg/dL', description: 'Azúcar en sangre; central en salud metabólica.' },
 };
 
 /**
@@ -308,10 +325,29 @@ export function componentToParamKey(area: SubEdadKey, componentKey: string): str
   return COMPONENT_TO_PARAM_KEY[area]?.[componentKey] ?? null;
 }
 
+/**
+ * F4.3 (labels en español): varias keys canónicas quedaron en INGLÉS porque
+ * EXTRACTED_KEY_ALIASES mapea la key española cruda → columna inglesa
+ * (`microalbuminuria` → `microalbumin`), pero el meta español vive bajo la key
+ * española. Este mapa inverso (en→es) resuelve el display sin duplicar metas.
+ */
+let REVERSE_ALIAS_META: Record<string, string> | null = null;
+function reverseAliasMeta(): Record<string, string> {
+  if (!REVERSE_ALIAS_META) {
+    REVERSE_ALIAS_META = {};
+    for (const [esKey, enKey] of Object.entries(EXTRACTED_KEY_ALIASES)) {
+      if (LAB_PARAM_META[esKey] && !REVERSE_ALIAS_META[enKey]) REVERSE_ALIAS_META[enKey] = esKey;
+    }
+  }
+  return REVERSE_ALIAS_META;
+}
+
 /** Display de un parámetro de lab por su parameter_key canónico (con fallback humanizado). */
 export function getLabParamMeta(parameterKey: string): LabParamMeta {
   const m = LAB_PARAM_META[parameterKey];
   if (m) return m;
+  const esKey = reverseAliasMeta()[parameterKey];
+  if (esKey) return LAB_PARAM_META[esKey];
   const human = parameterKey.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   return { display_name: human, abbr: human, description: '' };
 }

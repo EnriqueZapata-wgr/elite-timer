@@ -24,6 +24,8 @@ interface Props {
   unit?: string;
   width: number;
   height?: number;
+  /** F4.2: además de la banda funcional, dibuja la banda amplia (gris) de la matriz. */
+  showAllRanges?: boolean;
 }
 
 /** DD/MM corto desde YYYY-MM-DD. */
@@ -32,8 +34,8 @@ function shortDate(iso: string): string {
   return d && m ? `${d}/${m}` : iso;
 }
 
-export function ParameterChart({ series, bandLimits, todayISO, unit = '', width, height = 160 }: Props) {
-  const model = buildChartModel(series, bandLimits, todayISO);
+export function ParameterChart({ series, bandLimits, todayISO, unit = '', width, height = 160, showAllRanges = false }: Props) {
+  const model = buildChartModel(series, bandLimits, todayISO, showAllRanges);
   if (model.empty) {
     return (
       <View style={[styles.empty, { width, height }]}>
@@ -42,7 +44,8 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
     );
   }
 
-  const pad = { top: 14, bottom: 22, left: 8, right: 36 };
+  // F4.2: top 18 da aire al label del último valor; right 42 evita cortar los números de banda.
+  const pad = { top: 18, bottom: 22, left: 8, right: 42 };
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
   const px = (x: number) => pad.left + x * plotW;
@@ -52,9 +55,32 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
     .map((p, i) => `${i === 0 ? 'M' : 'L'} ${px(p.x).toFixed(1)} ${py(p.y).toFixed(1)}`)
     .join(' ');
 
+  const last = model.points[model.points.length - 1];
+  // Label del último valor: arriba del punto, sin salirse del canvas.
+  const lastLabelY = Math.max(9, py(last.y) - 8);
+  const outer = showAllRanges ? model.outerBand : null;
+
   return (
     <View style={{ width }}>
       <Svg width={width} height={height}>
+        {/* Banda amplia (aceptable de la matriz) — solo con "todos los rangos". */}
+        {outer ? (
+          <>
+            <Rect
+              x={pad.left}
+              y={py(outer.hiNorm)}
+              width={plotW}
+              height={Math.max(0, py(outer.loNorm) - py(outer.hiNorm))}
+              fill={Colors.textSecondary}
+              opacity={0.07}
+            />
+            <Line x1={pad.left} y1={py(outer.hiNorm)} x2={pad.left + plotW} y2={py(outer.hiNorm)} stroke={Colors.textSecondary} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.35} />
+            <Line x1={pad.left} y1={py(outer.loNorm)} x2={pad.left + plotW} y2={py(outer.loNorm)} stroke={Colors.textSecondary} strokeWidth={0.5} strokeDasharray="2 4" opacity={0.35} />
+            <SvgText x={width - pad.right + 3} y={py(outer.hiNorm) + 3} fill={Colors.textSecondary} fontSize={8} opacity={0.55}>{outer.hi}</SvgText>
+            <SvgText x={width - pad.right + 3} y={py(outer.loNorm) + 3} fill={Colors.textSecondary} fontSize={8} opacity={0.55}>{outer.lo}</SvgText>
+          </>
+        ) : null}
+
         {/* Banda funcional ATP (rango óptimo de Mariana). */}
         {model.band ? (
           <>
@@ -78,18 +104,31 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
           <Path d={linePath} stroke={Colors.textSecondary} strokeWidth={1.5} fill="none" opacity={0.7} />
         ) : null}
 
-        {/* Puntos fechados. Stale = anillo gris hueco. */}
+        {/* Puntos fechados. Stale = anillo gris hueco. Carried (forward-fill) = anillo del color de estado. */}
         {model.points.map((p, i) => (
           <Circle
             key={i}
             cx={px(p.x)}
             cy={py(p.y)}
-            r={4}
-            fill={p.is_stale ? 'transparent' : STATUS_COLOR[p.status]}
+            r={p.carried ? 3 : 4}
+            fill={p.is_stale || p.carried ? 'transparent' : STATUS_COLOR[p.status]}
             stroke={p.is_stale ? EDAD_PENDING_COLOR : STATUS_COLOR[p.status]}
-            strokeWidth={p.is_stale ? 1.5 : 0}
+            strokeWidth={p.is_stale || p.carried ? 1.5 : 0}
+            opacity={p.carried ? 0.6 : 1}
           />
         ))}
+
+        {/* Último valor — el dato protagonista de la gráfica. */}
+        <SvgText
+          x={Math.min(px(last.x), width - pad.right - 2)}
+          y={lastLabelY}
+          fill={STATUS_COLOR[last.status]}
+          fontSize={10}
+          fontWeight="bold"
+          textAnchor="end"
+        >
+          {last.value}
+        </SvgText>
 
         {/* Etiquetas de fecha (primera, última). */}
         {model.points.length > 0 ? (
@@ -106,7 +145,8 @@ export function ParameterChart({ series, bandLimits, todayISO, unit = '', width,
 
       <View style={styles.legendRow}>
         <EliteText variant="caption" style={styles.legendItem}>
-          <EliteText style={{ color: EDAD_STATUS.good }}>▬</EliteText> Rango funcional ATP
+          <EliteText style={{ color: EDAD_STATUS.good }}>▬</EliteText> Rango funcional
+          {outer ? <EliteText style={{ color: Colors.textSecondary }}>  ▭ Rango amplio</EliteText> : null}
         </EliteText>
         <EliteText variant="caption" style={styles.legendItem}>
           <EliteText style={{ color: EDAD_PENDING_COLOR }}>○</EliteText> &gt; 1 año {unit ? `· ${unit}` : ''}

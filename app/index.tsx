@@ -7,6 +7,7 @@ import { Redirect } from 'expo-router';
 import { View, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
+import { resolveOnboardingRoute } from '@/src/services/onboarding-v2-core';
 import { Colors } from '@/constants/theme';
 
 const logoVertical = require('@/assets/images/splash-icon.png');
@@ -33,7 +34,7 @@ export default function IndexRedirect() {
         if (step === 'completed') {
           // Backfill (Step COACH 7.2/N): founders que terminaron onboarding ANTES
           // del paso de voz (COACH 4/N) no tienen fila en coach_voice_config.
-          // Si falta, redirigir al paso de voz en modo backfill (vuelve a HOY, no al summary).
+          // Si falta, redirigir al paso de voz en modo backfill (vuelve a HOY).
           const { data: voiceConfig } = await supabase
             .from('coach_voice_config')
             .select('id')
@@ -46,20 +47,11 @@ export default function IndexRedirect() {
             setOnboardingDone(true);
           }
         } else {
+          // Onboarding v2 (F2 sprint UX blockers): 'v2_<step>' → su pantalla;
+          // valores legacy v1 → reiniciar en v2 welcome (los datos ya
+          // capturados persisten y las pantallas v2 los prefillan).
           setOnboardingDone(false);
-          // Redirigir al paso correcto (onboarding v2 — 9 bloques)
-          switch (step) {
-            case 'notifications': setOnboardingRoute('/onboarding/summary'); break;
-            case 'voice_config': setOnboardingRoute('/onboarding/notifications'); break;
-            case 'edad_atp':   setOnboardingRoute('/onboarding/voice-config'); break;
-            case 'context':    setOnboardingRoute('/onboarding/edad-atp'); break;
-            case 'nutrition':  setOnboardingRoute('/onboarding/context'); break;
-            case 'health':     setOnboardingRoute('/onboarding/nutrition'); break;
-            case 'chronotype': setOnboardingRoute('/onboarding/health'); break;
-            case 'goal':       setOnboardingRoute('/onboarding/chronotype'); break;
-            case 'basics':     setOnboardingRoute('/onboarding/goal'); break;
-            default:           setOnboardingRoute('/onboarding-basics'); break;
-          }
+          setOnboardingRoute(resolveOnboardingRoute(step) ?? '/onboarding/v2/welcome');
         }
       } catch {
         // Error de query → degradar a tabs (mismo comportamiento previo).
@@ -79,8 +71,7 @@ export default function IndexRedirect() {
     );
   }
 
-  // Sin sesión → login. (Antes iba a `/onboarding` — carrusel MVP viejo eliminado este sprint;
-  // el onboarding real post-signup vive en /onboarding-basics + /onboarding/*.)
+  // Sin sesión → login. El onboarding post-signup vive en /onboarding/v2/*.
   if (!session) return <Redirect href={'/login' as any} />;
   if (onboardingDone === false && onboardingRoute) return <Redirect href={onboardingRoute as any} />;
   return <Redirect href="/(tabs)" />;

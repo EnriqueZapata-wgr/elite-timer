@@ -19,6 +19,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
+import { cycleModalityOptions, defaultCycleModality, type CycleModality } from '@/src/services/onboarding-v2-core';
+import { saveCycleModality } from '@/src/services/onboarding-v2-service';
 
 const ROSE = '#fb7185';
 const GRADIENT = { start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.03)' };
@@ -31,6 +33,9 @@ export default function CycleSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
   const [activeCompanion, setActiveCompanion] = useState(false);
+  // F2.1 (task #111): modalidad de ciclo — misma opción que en onboarding v2 paso 4
+  const [sex, setSex] = useState<'male' | 'female'>('female');
+  const [modality, setModality] = useState<CycleModality | null>(null);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -46,7 +51,22 @@ export default function CycleSettingsScreen() {
     supabase.from('cycle_companions').select('status')
       .eq('owner_id', user.id).eq('status', 'active').limit(1)
       .then(({ data }) => setActiveCompanion((data ?? []).length > 0));
+    // Modalidad de ciclo (client_profiles, migración 153)
+    supabase.from('client_profiles').select('biological_sex, cycle_modality')
+      .eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => {
+        const sx = data?.biological_sex === 'male' ? 'male' : 'female';
+        setSex(sx);
+        setModality((data?.cycle_modality as CycleModality) ?? defaultCycleModality(sx));
+      });
   }, [user?.id]));
+
+  const handleModality = async (value: CycleModality) => {
+    if (!user?.id) return;
+    haptic.light();
+    setModality(value);
+    await saveCycleModality(user.id, value);
+  };
 
   const handleSave = async () => {
     if (!user?.id) return;
@@ -96,6 +116,29 @@ export default function CycleSettingsScreen() {
                 maxLength={2}
               />
             </View>
+          </GradientCard>
+        </Animated.View>
+
+        {/* F2.1 (task #111): modalidad de ciclo — espejo del paso 4 del onboarding v2 */}
+        <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.md }}>
+          <GradientCard gradient={GRADIENT} padding={20}>
+            <SectionTitle>MODALIDAD DE CICLO</SectionTitle>
+            {cycleModalityOptions(sex).map(opt => {
+              const selected = modality === opt.value;
+              return (
+                <AnimatedPressable
+                  key={opt.value}
+                  onPress={() => handleModality(opt.value)}
+                  style={[s.modePill, selected && s.modePillActive]}
+                >
+                  <Ionicons name={opt.icon as any} size={18} color={selected ? '#fff' : ROSE} />
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={[s.modeLabel, selected && { color: '#fff' }]}>{opt.label}</EliteText>
+                    <EliteText style={s.modeSub}>{opt.description}</EliteText>
+                  </View>
+                </AnimatedPressable>
+              );
+            })}
           </GradientCard>
         </Animated.View>
 
