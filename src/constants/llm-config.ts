@@ -3,7 +3,7 @@
  * Cambiar aquí afecta toda la app.
  */
 export const ATP_LLM = {
-  PRIMARY_MODEL: 'claude-sonnet-4-6',
+  PRIMARY_MODEL: 'claude-sonnet-5', // 2026-07-06: upgrade desde claude-sonnet-4-6 (cost-neutral, mejor razonamiento clínico)
   PRIMARY_PROVIDER: 'anthropic' as const,
   FALLBACK_MODEL: 'gemini-2.5-flash',
   FALLBACK_PROVIDER: 'google' as const,

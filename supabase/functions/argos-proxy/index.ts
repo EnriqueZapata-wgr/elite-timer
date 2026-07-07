@@ -15,13 +15,19 @@ const ANTHROPIC_TIMEOUT_MS = 58000;
 const GEMINI_TIMEOUT_MS = 25000;
 const HARD_CAP_DAILY = 50;
 const FALLBACK_MODEL = "gemini-2.5-flash"; // Gemini 2.5 Flash — string confirmado mayo 2026
-const PRIMARY_MODEL_DEFAULT = "claude-sonnet-4-6";
+const PRIMARY_MODEL_DEFAULT = "claude-sonnet-5"; // 2026-07-06: upgrade Sonnet 4.6 → 5 (cost-neutral, mejor razonamiento clínico)
 
-// Pricing en USD por 1M tokens (mayo 2026 — actualizar si cambia)
+// Pricing en USD por 1M tokens
+// Sonnet 5 pricing (Anthropic, lanzado 30-jun-2026):
+//   - Intro (hasta 31-ago-2026): $2 in / $10 out / $0.20 cache_read / $2.50 cache_write
+//   - Standard (desde 1-sep-2026): $3 in / $15 out / $0.30 cache_read / $3.75 cache_write
+// Usamos STANDARD como default en la tabla — durante intro los precios reales son 33% más baratos.
+// Al 1-sep-2026 no requiere cambio de config. Actualizar aquí si Anthropic ajusta.
 // Gemini 2.5 Flash pricing confirmado mayo 2026: $0.30/M in, $2.50/M out
 const PRICING: Record<string, { input: number; output: number; cache_read: number; cache_write: number }> = {
-  "claude-sonnet-4-6": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 },
-  "claude-sonnet-4-20250514": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 },
+  "claude-sonnet-5": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 },
+  "claude-sonnet-4-6": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 }, // legacy — sigue en tabla para logs históricos
+  "claude-sonnet-4-20250514": { input: 3, output: 15, cache_read: 0.30, cache_write: 3.75 }, // legacy
   "gemini-2.5-flash": { input: 0.30, output: 2.50, cache_read: 0, cache_write: 0 },
 };
 
