@@ -1,7 +1,7 @@
 /**
  * Cycle Service — Tracking de ciclo menstrual, fases, predicción, ajustes.
  */
-import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
+import { parseLocalDate } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 
 // ═══ FASES ═══
