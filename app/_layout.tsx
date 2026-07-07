@@ -149,6 +149,11 @@ function RootLayout() {
                 <Stack.Screen name="routine-execution" options={{ animation: 'fade' }} />
                 <Stack.Screen name="builder" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="settings/legal" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="settings/privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="afiliados/aplicar" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="afiliados/dashboard" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="afiliados/mi-codigo" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="log-exercise" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="personal-records" />
                 <Stack.Screen name="progress" />

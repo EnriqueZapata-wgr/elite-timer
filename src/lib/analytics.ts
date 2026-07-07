@@ -51,6 +51,10 @@ export const ATP_EVENTS = {
   // Parser v2 — confirmación pre-guardado
   LAB_PARSER_V2_REVIEWED: 'lab_parser_v2_reviewed',
   LAB_PARSER_V2_CONFIRMED: 'lab_parser_v2_confirmed',
+  // Compliance (#41/#42, overnight 2026-07-06)
+  AGE_GATE_TRIGGERED: 'age_gate_triggered',
+  MEDICAL_DISCLAIMER_SHOWN: 'medical_disclaimer_shown',
+  MEDICAL_DISCLAIMER_ACCEPTED: 'medical_disclaimer_accepted',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];

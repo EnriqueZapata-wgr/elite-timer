@@ -17,6 +17,7 @@ import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-v
 import { withPreflight, wasAborted } from '../src/services/economy/with-preflight';
 import { VoiceButton } from '../src/components/VoiceButton';
 import { generateUUID } from '../src/utils/uuid';
+import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -38,7 +39,7 @@ const QUICK_SUGGESTIONS = [
   { label: 'Receta alta en proteína', icon: 'nutrition-outline' as const },
 ];
 
-export default function ArgosChat() {
+function ArgosChat() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   // N1: solo mostrar back-arrow si hay a dónde volver (deep link / push). Como tab raíz
@@ -492,5 +493,14 @@ export default function ArgosChat() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+// #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
+export default function ArgosChatGated() {
+  return (
+    <MedicalDisclaimerGate>
+      <ArgosChat />
+    </MedicalDisclaimerGate>
   );
 }

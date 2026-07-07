@@ -39,10 +39,11 @@ import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, withOpacity, TEXT_COLORS } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
+import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 const TEAL = CATEGORY_COLORS.metrics;
 
-export default function MyHealthScreen() {
+function MyHealthScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const analytics = useAnalytics();
@@ -673,3 +674,12 @@ const s = StyleSheet.create({
     backgroundColor: withOpacity(CATEGORY_COLORS.metrics, 0.12), borderRadius: Radius.sm, padding: Spacing.md, borderLeftWidth: 2, borderLeftColor: TEAL,
   },
 });
+
+// #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
+export default function MyHealthScreenGated() {
+  return (
+    <MedicalDisclaimerGate>
+      <MyHealthScreen />
+    </MedicalDisclaimerGate>
+  );
+}
