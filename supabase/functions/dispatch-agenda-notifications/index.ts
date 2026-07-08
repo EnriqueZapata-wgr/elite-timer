@@ -22,6 +22,19 @@
 //   v5 (esto): smart criterio anti-bulk (task #135)
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+// Sprint #50 hardening v7 — helpers puros (testeados en vitest)
+import {
+  analyzeExpoTickets,
+  CIRCUIT_BREAKER_FAIL_THRESHOLD,
+  circuitBreakerTripped,
+  DEAD_TOKEN_ERROR,
+  isPendingAnomalous,
+  sendPushBatchWithRetry,
+  structuredLog,
+  tokensToInvalidate,
+  type PushFailure,
+  type PushSendResult,
+} from "./hardening.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +54,7 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
   const now = new Date();
   const nowIso = now.toISOString();
+  const runStartMs = Date.now(); // v7 T3: duration_ms del run_summary
 
   // 1) logs con notify pendiente
   const { data: pending, error: pendingErr } = await supabase
@@ -52,9 +66,21 @@ serve(async (req) => {
     .limit(500);
 
   if (pendingErr) {
+    structuredLog("error", "pending_query_failed", { error: pendingErr.message });
     return new Response(JSON.stringify({ error: pendingErr.message }), { status: 500, headers: corsHeaders });
   }
-  if (!pending?.length) return new Response("No pending", { status: 200, headers: corsHeaders });
+  if (!pending?.length) {
+    structuredLog("info", "no_pending", { duration_ms: Date.now() - runStartMs });
+    return new Response("No pending", { status: 200, headers: corsHeaders });
+  }
+
+  // v7 T5: alarma de backlog anormal (cron detenido / bug generando logs)
+  if (isPendingAnomalous(pending.length)) {
+    structuredLog("warn", "anomaly_high_pending", {
+      pending_count: pending.length,
+      message: "Backlog anormal — verificar si el cron se detuvo o hay bug en agenda_event_logs",
+    });
+  }
 
   const allUserIds = [...new Set(pending.map((p: any) => p.user_id))];
 
@@ -98,6 +124,10 @@ serve(async (req) => {
 
   const allowed = (pending as any[]).filter((log) => allowsAgenda(log.user_id));
   const suppressedByPrefs = pending.length - allowed.length;
+  // v7 T3: un log por user suprimido por prefs (no por log — menos ruido)
+  for (const userId of new Set((pending as any[]).filter((l) => !allowsAgenda(l.user_id)).map((l) => l.user_id))) {
+    structuredLog("info", "suppressed_prefs", { user_id: userId });
+  }
 
   // 3) NUEVO: Cooldown check — para cada user allowed, buscar última notif de agenda
   // en las últimas COOLDOWN_MINUTES. Si existe, marcar SUS logs como notified sin
@@ -116,6 +146,10 @@ serve(async (req) => {
   const withinCooldown = allowed.filter((log: any) => usersInCooldown.has(log.user_id));
   const toDispatch = allowed.filter((log: any) => !usersInCooldown.has(log.user_id));
   const suppressedByCooldown = withinCooldown.length;
+  // v7 T3: un log por user en cooldown
+  for (const userId of new Set(withinCooldown.map((l: any) => l.user_id))) {
+    structuredLog("info", "suppressed_cooldown", { user_id: userId });
+  }
 
   // 4) NUEVO: Agrupar toDispatch por (user_id, bucket_15min) basado en scheduled_at
   type Bucket = {
@@ -160,9 +194,12 @@ serve(async (req) => {
     .in("user_id", dispatchUserIds);
 
   const tokenMap = new Map<string, string[]>();
+  // v7 T2: reverse map token→user para el dead-letter (push_failure_log.user_id)
+  const tokenToUser = new Map<string, string>();
   for (const t of (tokens ?? []) as any[]) {
     if (!tokenMap.has(t.user_id)) tokenMap.set(t.user_id, []);
     tokenMap.get(t.user_id)!.push(t.expo_push_token);
+    tokenToUser.set(t.expo_push_token, t.user_id);
   }
 
   // 6) Construir mensajes y rows de inbox por BUCKET (no por log)
@@ -219,30 +256,158 @@ serve(async (req) => {
     });
   }
 
-  // 7) Enviar push en batches de 100
+  // 7) Enviar push en batches de 100 — v7 T1: retry con backoff (500ms/2s/5s,
+  //    solo red/5xx/429). Los resultados se conservan para dead-letter (T2) y
+  //    circuit breaker (T4).
+  const expoFetch = (body: string) =>
+    fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body,
+    });
+
+  const batchResults: { batch: any[]; result: PushSendResult }[] = [];
+  let pushRetried = 0;
   for (let i = 0; i < messages.length; i += 100) {
     const batch = messages.slice(i, i + 100);
-    try {
-      await fetch("https://exp.host/--/api/v2/push/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(batch),
+    const result = await sendPushBatchWithRetry(batch, expoFetch);
+    batchResults.push({ batch, result });
+    if (result.ok && result.attempts > 1) pushRetried++;
+    if (!result.ok) {
+      structuredLog("error", "push_failed", {
+        batch_size: batch.length,
+        attempts: result.attempts,
+        status: result.status,
+        network_error: result.networkError,
       });
-    } catch (e) {
-      console.error("[dispatch-agenda] expo push send failed", e);
     }
+  }
+
+  // 7b) v7 T2: dead-letter — parsear tickets, registrar fallos y auto-invalidar
+  //     tokens con 3+ DeviceNotRegistered. Best-effort: nada de esto bloquea
+  //     el dispatch si la tabla o el delete fallan.
+  const allFailures: PushFailure[] = [];
+  for (const { batch, result } of batchResults) {
+    if (result.ok && result.tickets.length > 0) {
+      allFailures.push(...analyzeExpoTickets(result.tickets, batch));
+    }
+  }
+  let tokensInvalidated = 0;
+  if (allFailures.length > 0) {
+    const failureRows = allFailures
+      .filter((f) => tokenToUser.has(f.token))
+      .map((f) => ({
+        user_id: tokenToUser.get(f.token)!,
+        expo_push_token: f.token,
+        error_code: f.errorCode,
+        error_message: f.errorMessage,
+        bucket_key: f.bucketKey,
+      }));
+    if (failureRows.length > 0) {
+      const { error: dlErr } = await supabase.from("push_failure_log").insert(failureRows);
+      if (dlErr) structuredLog("error", "dead_letter_insert_failed", { error: dlErr.message });
+    }
+
+    const deadTokensNow = [...new Set(
+      allFailures.filter((f) => f.errorCode === DEAD_TOKEN_ERROR).map((f) => f.token),
+    )];
+    if (deadTokensNow.length > 0) {
+      // Conteo HISTÓRICO de DeviceNotRegistered por token (incluye este run)
+      const { data: deadRows } = await supabase
+        .from("push_failure_log")
+        .select("expo_push_token")
+        .in("expo_push_token", deadTokensNow)
+        .eq("error_code", DEAD_TOKEN_ERROR);
+      const counts: Record<string, number> = {};
+      for (const row of (deadRows ?? []) as any[]) {
+        counts[row.expo_push_token] = (counts[row.expo_push_token] ?? 0) + 1;
+      }
+      const invalidate = tokensToInvalidate(counts);
+      if (invalidate.length > 0) {
+        const { error: invErr } = await supabase
+          .from("user_notification_tokens")
+          .delete()
+          .in("expo_push_token", invalidate);
+        if (invErr) {
+          structuredLog("error", "token_invalidation_failed", { error: invErr.message });
+        } else {
+          tokensInvalidated = invalidate.length;
+          for (const token of invalidate) {
+            structuredLog("warn", "token_invalidated", {
+              user_id: tokenToUser.get(token) ?? null,
+              // token truncado: suficiente para debug, no filtra el token completo
+              token_prefix: token.slice(0, 24),
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // 7c) v7 T4: circuit breaker — si >50% de los batches falló por RED,
+  //     expo.host probablemente está caído. NO marcamos los logs de dispatch
+  //     como notified (el próximo run los reintenta) ni insertamos inbox
+  //     (evita que el cooldown del próximo run los suprima). Los SUPRIMIDOS
+  //     por prefs/cooldown sí se marcan: esa supresión es intencional.
+  const networkFailedBatches = batchResults.filter((b) => !b.result.ok && b.result.networkError).length;
+  if (circuitBreakerTripped(batchResults.length, networkFailedBatches)) {
+    structuredLog("error", "circuit_breaker_tripped", {
+      total_batches: batchResults.length,
+      network_failed_batches: networkFailedBatches,
+      threshold: CIRCUIT_BREAKER_FAIL_THRESHOLD,
+    });
+    const dispatchLogIds = new Set(toDispatch.map((l: any) => l.id));
+    const suppressedLogIds = (pending as any[]).map((p) => p.id).filter((id) => !dispatchLogIds.has(id));
+    if (suppressedLogIds.length > 0) {
+      await supabase.from("agenda_event_logs").update({ notified_at: nowIso }).in("id", suppressedLogIds);
+    }
+    structuredLog("info", "run_summary", {
+      buckets: buckets.size,
+      push_success: 0,
+      push_retried: pushRetried,
+      push_failed: batchResults.filter((b) => !b.result.ok).length,
+      tokens_invalidated: tokensInvalidated,
+      suppressed_by_prefs: suppressedByPrefs,
+      suppressed_by_cooldown: suppressedByCooldown,
+      circuit_breaker: true,
+      duration_ms: Date.now() - runStartMs,
+    });
+    return new Response(JSON.stringify({
+      ok: false,
+      error: "circuit_breaker_tripped",
+      total_batches: batchResults.length,
+      network_failed_batches: networkFailedBatches,
+    }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   // 8) Insertar rows del inbox
   if (inboxRows.length > 0) {
     const { error: inboxErr } = await supabase.from("user_notifications").insert(inboxRows);
-    if (inboxErr) console.error("[dispatch-agenda] inbox insert failed", inboxErr.message);
+    if (inboxErr) structuredLog("error", "inbox_insert_failed", { error: inboxErr.message });
   }
 
   // 9) Marcar TODOS los logs pendientes como notificados (dispatched + suppressed)
   //    — supresión es intencional, no debe reintentar en loop
   const logIds = (pending as any[]).map((p) => p.id);
   await supabase.from("agenda_event_logs").update({ notified_at: nowIso }).in("id", logIds);
+
+  // v7 T3: resumen agregado del run (parseable en Supabase Logs)
+  const okBatches = batchResults.filter((b) => b.result.ok);
+  const pushSuccess = okBatches.reduce((sum, b) => {
+    const okTickets = b.result.tickets.filter((t) => t.status === "ok").length;
+    // 2xx sin tickets parseables → contar el batch completo como enviado
+    return sum + (b.result.tickets.length > 0 ? okTickets : b.batch.length);
+  }, 0);
+  structuredLog("info", "run_summary", {
+    buckets: buckets.size,
+    push_success: pushSuccess,
+    push_retried: pushRetried,
+    push_failed: batchResults.filter((b) => !b.result.ok).length,
+    tokens_invalidated: tokensInvalidated,
+    suppressed_by_prefs: suppressedByPrefs,
+    suppressed_by_cooldown: suppressedByCooldown,
+    duration_ms: Date.now() - runStartMs,
+  });
 
   return new Response(JSON.stringify({
     ok: true,
