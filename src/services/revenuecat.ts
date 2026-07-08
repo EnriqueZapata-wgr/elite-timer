@@ -30,6 +30,7 @@ export function getPurchases(): PurchasesModule | null {
   }
   try {
     // require perezoso: el import estático crashea si el native module no existe
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const mod = require('react-native-purchases');
     purchasesModule = (mod.default ?? mod) as PurchasesModule;
   } catch {
