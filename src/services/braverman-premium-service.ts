@@ -1,12 +1,19 @@
 /**
- * Braverman PREMIUM (#90, marathon F5) — IO: resultado + cache + generación.
- * Standalone (no toca argos-service — Cowork trabaja ahí en paralelo).
- * Gate por tier se hace en la pantalla con useSubscription().
+ * Braverman PREMIUM (#90, #143) — IO: resultado + cache + cobro H+ + generación.
+ * Standalone (no toca argos-service).
+ *
+ * Doctrina H+ (Enrique 2026-07-08): las features LLM caras se COBRAN con
+ * Protones, no se gatean por tier. Este es el patrón ancla para #96/#97:
+ *   cache hit → gratis · cache miss → spend_protons (idempotente por
+ *   resultado) → LLM → cache. Si el LLM falla tras el cobro, el retry es
+ *   GRATIS: la misma idempotency_key hace que spend devuelva success sin
+ *   volver a debitar, y el flujo continúa hasta cachear el reporte.
  */
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
 import { getArgosCallMetadata } from './argos-service';
 import { getClientProfile } from './client-profile-service';
+import { getActionCost, getProtonBalance, spendProtons } from './economy/proton-service';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import {
   buildPremiumReportPrompt,
@@ -31,10 +38,14 @@ export interface BravermanResultRow {
   completed_at: string | null;
 }
 
+/** action_key registrado en proton_action_costs (migración 162, 1,000 H+). */
+export const BRAVERMAN_PREMIUM_ACTION_KEY = 'braverman_premium_report';
+
 export type PremiumReportResult =
   | { status: 'ok'; markdown: string; cached: boolean }
   | { status: 'no_test' }
-  | { status: 'error' };
+  | { status: 'insufficient_h_plus'; required: number; balance: number }
+  | { status: 'error'; message?: string };
 
 export async function getLatestCompleteBravermanResult(
   userId: string,
@@ -81,9 +92,34 @@ async function getAgeAndSex(userId: string): Promise<{ age: number | null; sex: 
   }
 }
 
+export interface PremiumQuote {
+  cost: number;
+  /** null = balance aún no disponible (cold start, task #134) */
+  balance: number | null;
+  hasCachedReport: boolean;
+  hasCompletedTest: boolean;
+}
+
+/** Datos para la card previa (#143): precio + balance + si ya lo tiene. */
+export async function getBravermanPremiumQuote(userId: string): Promise<PremiumQuote> {
+  const result = await getLatestCompleteBravermanResult(userId);
+  const [cost, balanceRow, cached] = await Promise.all([
+    getActionCost(BRAVERMAN_PREMIUM_ACTION_KEY),
+    getProtonBalance(userId).catch(() => null),
+    result ? getCachedReport(result.id) : Promise.resolve(null),
+  ]);
+  return {
+    cost,
+    balance: balanceRow ? balanceRow.current_protons : null,
+    hasCachedReport: cached !== null,
+    hasCompletedTest: result !== null,
+  };
+}
+
 /**
  * Genera (o devuelve del cache) el reporte premium del último test completo.
  * LLM ~30-60s — el caller muestra loading. Cache insert best-effort.
+ * #143: cobra el costo H+ ANTES del LLM (idempotente por resultado).
  */
 export async function generateBravermanPremiumReport(userId: string): Promise<PremiumReportResult> {
   const result = await getLatestCompleteBravermanResult(userId);
@@ -91,6 +127,21 @@ export async function generateBravermanPremiumReport(userId: string): Promise<Pr
 
   const cached = await getCachedReport(result.id);
   if (cached) return { status: 'ok', markdown: cached, cached: true };
+
+  // #143: cobro H+ (precio server-side de proton_action_costs, fallback 1000).
+  // idempotency_key por resultado: doble tap / retry tras fallo LLM = 1 cobro máx.
+  const cost = await getActionCost(BRAVERMAN_PREMIUM_ACTION_KEY);
+  const idempotencyKey = `braverman-premium-${result.id}`;
+  const spend = await spendProtons(userId, cost, BRAVERMAN_PREMIUM_ACTION_KEY, {
+    idempotency_key: idempotencyKey,
+    braverman_result_id: result.id,
+  });
+  if (!spend.success) {
+    if (spend.error === 'insufficient_protons') {
+      return { status: 'insufficient_h_plus', required: cost, balance: spend.newBalance };
+    }
+    return { status: 'error', message: spend.error };
+  }
 
   const { age, sex } = await getAgeAndSex(userId);
   const prompt = buildPremiumReportPrompt({
@@ -114,7 +165,12 @@ export async function generateBravermanPremiumReport(userId: string): Promise<Pr
   });
 
   try {
-    const meta = await getArgosCallMetadata({ requestType: 'braverman_premium_report' });
+    // Misma idempotency_key hacia el proxy: si argos-proxy también cobra por
+    // requestType, spend_protons la reconoce y NO debita dos veces.
+    const meta = await getArgosCallMetadata({
+      requestType: BRAVERMAN_PREMIUM_ACTION_KEY,
+      idempotencyKey,
+    });
     const data = await callAnthropic(
       [{ role: 'user', content: prompt.user }],
       3000,
