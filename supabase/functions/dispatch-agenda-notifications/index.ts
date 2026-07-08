@@ -28,6 +28,7 @@ import {
   CIRCUIT_BREAKER_FAIL_THRESHOLD,
   circuitBreakerTripped,
   DEAD_TOKEN_ERROR,
+  isPendingAnomalous,
   sendPushBatchWithRetry,
   structuredLog,
   tokensToInvalidate,
@@ -71,6 +72,14 @@ serve(async (req) => {
   if (!pending?.length) {
     structuredLog("info", "no_pending", { duration_ms: Date.now() - runStartMs });
     return new Response("No pending", { status: 200, headers: corsHeaders });
+  }
+
+  // v7 T5: alarma de backlog anormal (cron detenido / bug generando logs)
+  if (isPendingAnomalous(pending.length)) {
+    structuredLog("warn", "anomaly_high_pending", {
+      pending_count: pending.length,
+      message: "Backlog anormal — verificar si el cron se detuvo o hay bug en agenda_event_logs",
+    });
   }
 
   const allUserIds = [...new Set(pending.map((p: any) => p.user_id))];

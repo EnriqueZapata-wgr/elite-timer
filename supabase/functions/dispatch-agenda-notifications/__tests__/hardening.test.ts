@@ -6,6 +6,7 @@ import {
   circuitBreakerTripped,
   DEAD_TOKEN_FAILS_TO_INVALIDATE,
   DEFAULT_RETRY,
+  isPendingAnomalous,
   isRetryableStatus,
   sendPushBatchWithRetry,
   tokensToInvalidate,
@@ -126,6 +127,20 @@ describe('T2 · tokensToInvalidate', () => {
 
   it('sin conteos → vacío', () => {
     expect(tokensToInvalidate({})).toHaveLength(0);
+  });
+});
+
+describe('T5 · isPendingAnomalous', () => {
+  it('>200 pending → anómalo; 200 exacto no', () => {
+    expect(isPendingAnomalous(500)).toBe(true);
+    expect(isPendingAnomalous(201)).toBe(true);
+    expect(isPendingAnomalous(200)).toBe(false);
+    expect(isPendingAnomalous(0)).toBe(false);
+  });
+
+  it('umbral configurable', () => {
+    expect(isPendingAnomalous(50, 10)).toBe(true);
+    expect(isPendingAnomalous(5, 10)).toBe(false);
   });
 });
 

@@ -184,3 +184,15 @@ export function circuitBreakerTripped(
   if (totalBatches <= 0) return false;
   return networkFailedBatches / totalBatches > threshold;
 }
+
+// ── T5: Anomaly detection ───────────────────────────────────────────────────
+
+export const ANOMALY_PENDING_THRESHOLD = 200;
+
+/** Backlog anormal: cron detenido o bug generando agenda_event_logs de más. */
+export function isPendingAnomalous(
+  pendingCount: number,
+  threshold: number = ANOMALY_PENDING_THRESHOLD,
+): boolean {
+  return pendingCount > threshold;
+}
