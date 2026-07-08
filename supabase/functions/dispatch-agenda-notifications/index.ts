@@ -25,6 +25,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 // Sprint #50 hardening v7 — helpers puros (testeados en vitest)
 import {
   analyzeExpoTickets,
+  CIRCUIT_BREAKER_FAIL_THRESHOLD,
+  circuitBreakerTripped,
   DEAD_TOKEN_ERROR,
   sendPushBatchWithRetry,
   structuredLog,
@@ -331,6 +333,42 @@ serve(async (req) => {
         }
       }
     }
+  }
+
+  // 7c) v7 T4: circuit breaker — si >50% de los batches falló por RED,
+  //     expo.host probablemente está caído. NO marcamos los logs de dispatch
+  //     como notified (el próximo run los reintenta) ni insertamos inbox
+  //     (evita que el cooldown del próximo run los suprima). Los SUPRIMIDOS
+  //     por prefs/cooldown sí se marcan: esa supresión es intencional.
+  const networkFailedBatches = batchResults.filter((b) => !b.result.ok && b.result.networkError).length;
+  if (circuitBreakerTripped(batchResults.length, networkFailedBatches)) {
+    structuredLog("error", "circuit_breaker_tripped", {
+      total_batches: batchResults.length,
+      network_failed_batches: networkFailedBatches,
+      threshold: CIRCUIT_BREAKER_FAIL_THRESHOLD,
+    });
+    const dispatchLogIds = new Set(toDispatch.map((l: any) => l.id));
+    const suppressedLogIds = (pending as any[]).map((p) => p.id).filter((id) => !dispatchLogIds.has(id));
+    if (suppressedLogIds.length > 0) {
+      await supabase.from("agenda_event_logs").update({ notified_at: nowIso }).in("id", suppressedLogIds);
+    }
+    structuredLog("info", "run_summary", {
+      buckets: buckets.size,
+      push_success: 0,
+      push_retried: pushRetried,
+      push_failed: batchResults.filter((b) => !b.result.ok).length,
+      tokens_invalidated: tokensInvalidated,
+      suppressed_by_prefs: suppressedByPrefs,
+      suppressed_by_cooldown: suppressedByCooldown,
+      circuit_breaker: true,
+      duration_ms: Date.now() - runStartMs,
+    });
+    return new Response(JSON.stringify({
+      ok: false,
+      error: "circuit_breaker_tripped",
+      total_batches: batchResults.length,
+      network_failed_batches: networkFailedBatches,
+    }), { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   // 8) Insertar rows del inbox

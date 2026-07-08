@@ -167,3 +167,20 @@ export function structuredLog(
 ): void {
   console.log(JSON.stringify(buildLogEntry(level, event, fields)));
 }
+
+// ── T4: Circuit breaker suave ───────────────────────────────────────────────
+
+export const CIRCUIT_BREAKER_FAIL_THRESHOLD = 0.5;
+
+/**
+ * true si MÁS del threshold de los batches falló con error de red
+ * (expo.host caído / red rota). 50% exacto NO dispara; 0 batches nunca.
+ */
+export function circuitBreakerTripped(
+  totalBatches: number,
+  networkFailedBatches: number,
+  threshold: number = CIRCUIT_BREAKER_FAIL_THRESHOLD,
+): boolean {
+  if (totalBatches <= 0) return false;
+  return networkFailedBatches / totalBatches > threshold;
+}

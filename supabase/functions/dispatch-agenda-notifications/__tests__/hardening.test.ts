@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   analyzeExpoTickets,
   buildLogEntry,
+  circuitBreakerTripped,
   DEAD_TOKEN_FAILS_TO_INVALIDATE,
   DEFAULT_RETRY,
   isRetryableStatus,
@@ -125,6 +126,24 @@ describe('T2 · tokensToInvalidate', () => {
 
   it('sin conteos → vacío', () => {
     expect(tokensToInvalidate({})).toHaveLength(0);
+  });
+});
+
+describe('T4 · circuitBreakerTripped', () => {
+  it('60% de fallos de red dispara el trip', () => {
+    expect(circuitBreakerTripped(5, 3)).toBe(true); // 60% > 50%
+  });
+
+  it('50% exacto NO dispara (umbral estricto >)', () => {
+    expect(circuitBreakerTripped(4, 2)).toBe(false);
+  });
+
+  it('0 batches nunca dispara (run sin mensajes)', () => {
+    expect(circuitBreakerTripped(0, 0)).toBe(false);
+  });
+
+  it('100% de fallos dispara', () => {
+    expect(circuitBreakerTripped(2, 2)).toBe(true);
   });
 });
 
