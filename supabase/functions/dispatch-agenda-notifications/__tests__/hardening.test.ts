@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   analyzeExpoTickets,
+  buildLogEntry,
   DEAD_TOKEN_FAILS_TO_INVALIDATE,
   DEFAULT_RETRY,
   isRetryableStatus,
@@ -124,5 +125,25 @@ describe('T2 · tokensToInvalidate', () => {
 
   it('sin conteos → vacío', () => {
     expect(tokensToInvalidate({})).toHaveLength(0);
+  });
+});
+
+describe('T3 · buildLogEntry', () => {
+  it('shape parseable: component + level + event + fields', () => {
+    const entry = buildLogEntry('warn', 'token_invalidated', { user_id: 'u1', token_prefix: 'Expo[abc' });
+    expect(entry).toEqual({
+      component: 'dispatch-agenda-notifications',
+      level: 'warn',
+      event: 'token_invalidated',
+      user_id: 'u1',
+      token_prefix: 'Expo[abc',
+    });
+  });
+
+  it('serializa a JSON sin perder campos', () => {
+    const entry = buildLogEntry('info', 'run_summary', { buckets: 12, duration_ms: 340 });
+    const parsed = JSON.parse(JSON.stringify(entry));
+    expect(parsed.buckets).toBe(12);
+    expect(parsed.component).toBe('dispatch-agenda-notifications');
   });
 });

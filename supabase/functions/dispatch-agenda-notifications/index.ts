@@ -27,6 +27,7 @@ import {
   analyzeExpoTickets,
   DEAD_TOKEN_ERROR,
   sendPushBatchWithRetry,
+  structuredLog,
   tokensToInvalidate,
   type PushFailure,
   type PushSendResult,
@@ -50,6 +51,7 @@ serve(async (req) => {
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
   const now = new Date();
   const nowIso = now.toISOString();
+  const runStartMs = Date.now(); // v7 T3: duration_ms del run_summary
 
   // 1) logs con notify pendiente
   const { data: pending, error: pendingErr } = await supabase
@@ -61,9 +63,13 @@ serve(async (req) => {
     .limit(500);
 
   if (pendingErr) {
+    structuredLog("error", "pending_query_failed", { error: pendingErr.message });
     return new Response(JSON.stringify({ error: pendingErr.message }), { status: 500, headers: corsHeaders });
   }
-  if (!pending?.length) return new Response("No pending", { status: 200, headers: corsHeaders });
+  if (!pending?.length) {
+    structuredLog("info", "no_pending", { duration_ms: Date.now() - runStartMs });
+    return new Response("No pending", { status: 200, headers: corsHeaders });
+  }
 
   const allUserIds = [...new Set(pending.map((p: any) => p.user_id))];
 
@@ -107,6 +113,10 @@ serve(async (req) => {
 
   const allowed = (pending as any[]).filter((log) => allowsAgenda(log.user_id));
   const suppressedByPrefs = pending.length - allowed.length;
+  // v7 T3: un log por user suprimido por prefs (no por log — menos ruido)
+  for (const userId of new Set((pending as any[]).filter((l) => !allowsAgenda(l.user_id)).map((l) => l.user_id))) {
+    structuredLog("info", "suppressed_prefs", { user_id: userId });
+  }
 
   // 3) NUEVO: Cooldown check — para cada user allowed, buscar última notif de agenda
   // en las últimas COOLDOWN_MINUTES. Si existe, marcar SUS logs como notified sin
@@ -125,6 +135,10 @@ serve(async (req) => {
   const withinCooldown = allowed.filter((log: any) => usersInCooldown.has(log.user_id));
   const toDispatch = allowed.filter((log: any) => !usersInCooldown.has(log.user_id));
   const suppressedByCooldown = withinCooldown.length;
+  // v7 T3: un log por user en cooldown
+  for (const userId of new Set(withinCooldown.map((l: any) => l.user_id))) {
+    structuredLog("info", "suppressed_cooldown", { user_id: userId });
+  }
 
   // 4) NUEVO: Agrupar toDispatch por (user_id, bucket_15min) basado en scheduled_at
   type Bucket = {
@@ -242,12 +256,19 @@ serve(async (req) => {
     });
 
   const batchResults: { batch: any[]; result: PushSendResult }[] = [];
+  let pushRetried = 0;
   for (let i = 0; i < messages.length; i += 100) {
     const batch = messages.slice(i, i + 100);
     const result = await sendPushBatchWithRetry(batch, expoFetch);
     batchResults.push({ batch, result });
+    if (result.ok && result.attempts > 1) pushRetried++;
     if (!result.ok) {
-      console.error(`[dispatch-agenda] expo batch failed after ${result.attempts} attempts (status=${result.status}, network=${result.networkError})`);
+      structuredLog("error", "push_failed", {
+        batch_size: batch.length,
+        attempts: result.attempts,
+        status: result.status,
+        network_error: result.networkError,
+      });
     }
   }
 
@@ -273,7 +294,7 @@ serve(async (req) => {
       }));
     if (failureRows.length > 0) {
       const { error: dlErr } = await supabase.from("push_failure_log").insert(failureRows);
-      if (dlErr) console.error("[dispatch-agenda] push_failure_log insert failed", dlErr.message);
+      if (dlErr) structuredLog("error", "dead_letter_insert_failed", { error: dlErr.message });
     }
 
     const deadTokensNow = [...new Set(
@@ -297,9 +318,16 @@ serve(async (req) => {
           .delete()
           .in("expo_push_token", invalidate);
         if (invErr) {
-          console.error("[dispatch-agenda] token invalidation failed", invErr.message);
+          structuredLog("error", "token_invalidation_failed", { error: invErr.message });
         } else {
           tokensInvalidated = invalidate.length;
+          for (const token of invalidate) {
+            structuredLog("warn", "token_invalidated", {
+              user_id: tokenToUser.get(token) ?? null,
+              // token truncado: suficiente para debug, no filtra el token completo
+              token_prefix: token.slice(0, 24),
+            });
+          }
         }
       }
     }
@@ -308,13 +336,31 @@ serve(async (req) => {
   // 8) Insertar rows del inbox
   if (inboxRows.length > 0) {
     const { error: inboxErr } = await supabase.from("user_notifications").insert(inboxRows);
-    if (inboxErr) console.error("[dispatch-agenda] inbox insert failed", inboxErr.message);
+    if (inboxErr) structuredLog("error", "inbox_insert_failed", { error: inboxErr.message });
   }
 
   // 9) Marcar TODOS los logs pendientes como notificados (dispatched + suppressed)
   //    — supresión es intencional, no debe reintentar en loop
   const logIds = (pending as any[]).map((p) => p.id);
   await supabase.from("agenda_event_logs").update({ notified_at: nowIso }).in("id", logIds);
+
+  // v7 T3: resumen agregado del run (parseable en Supabase Logs)
+  const okBatches = batchResults.filter((b) => b.result.ok);
+  const pushSuccess = okBatches.reduce((sum, b) => {
+    const okTickets = b.result.tickets.filter((t) => t.status === "ok").length;
+    // 2xx sin tickets parseables → contar el batch completo como enviado
+    return sum + (b.result.tickets.length > 0 ? okTickets : b.batch.length);
+  }, 0);
+  structuredLog("info", "run_summary", {
+    buckets: buckets.size,
+    push_success: pushSuccess,
+    push_retried: pushRetried,
+    push_failed: batchResults.filter((b) => !b.result.ok).length,
+    tokens_invalidated: tokensInvalidated,
+    suppressed_by_prefs: suppressedByPrefs,
+    suppressed_by_cooldown: suppressedByCooldown,
+    duration_ms: Date.now() - runStartMs,
+  });
 
   return new Response(JSON.stringify({
     ok: true,

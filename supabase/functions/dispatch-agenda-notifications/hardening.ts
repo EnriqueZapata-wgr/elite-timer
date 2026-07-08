@@ -139,3 +139,31 @@ export function tokensToInvalidate(
     .filter(([, count]) => count >= threshold)
     .map(([token]) => token);
 }
+
+// ── T3: Observability estructurada ──────────────────────────────────────────
+
+export type LogLevel = 'info' | 'warn' | 'error';
+
+export interface LogEntry {
+  component: string;
+  level: LogLevel;
+  event: string;
+  [key: string]: unknown;
+}
+
+/** Entry parseable para Supabase Logs. Pura (testeable); structuredLog la imprime. */
+export function buildLogEntry(
+  level: LogLevel,
+  event: string,
+  fields: Record<string, unknown> = {},
+): LogEntry {
+  return { component: 'dispatch-agenda-notifications', level, event, ...fields };
+}
+
+export function structuredLog(
+  level: LogLevel,
+  event: string,
+  fields: Record<string, unknown> = {},
+): void {
+  console.log(JSON.stringify(buildLogEntry(level, event, fields)));
+}
