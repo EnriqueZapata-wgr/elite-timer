@@ -8,16 +8,31 @@
 
 ## 1. Trial gratuito
 
-- ATP ofrece **14 días de trial gratuito** de ATP Pro al primer signup
+**Estructura de trials por tier (decisión 2026-07-07):**
+
+- **ATP Base Mensual:** **14 días de trial gratuito**
+- **ATP Base Anual:** **7 días de trial gratuito**
+- **ATP Pro (mensual y anual):** **SIN trial** — se paga desde el primer día
+- **ATP Clínico Fx:** **SIN trial** (producto B2B)
+
+**Razones estratégicas del sin-trial en Pro:**
+- Costo ARGOS Pro durante trial es significativo (~$70-100 MXN/user/semana)
+- Los usuarios Base pueden probar features Pro pagando con Protones H+ (moneda interna) — sin costo cash para ATP
+- Diferenciación clara: Base = entry con trial generoso; Pro = compromiso desde día 1
+
+**Reglas del trial:**
 - Durante el trial NO se cobra a tu método de pago
-- Puedes cancelar en cualquier momento del trial sin costo desde:
+- Puedes cancelar en cualquier momento sin costo desde:
   - **iOS:** App Store → tu cuenta → Suscripciones → ATP → Cancelar
   - **Android:** Play Store → tu cuenta → Suscripciones → ATP → Cancelar
   - **Dentro de ATP:** Configuración → Suscripción → Cancelar trial
 - Al terminar el trial:
-  - Si no cancelaste: cobro automático de ATP Pro ($1,499 MXN/mes)
-  - Si cancelaste: downgrade automático a ATP Base o eliminación de acceso según tu elección
+  - Si no cancelaste: cobro automático del plan
+  - Si cancelaste: cancelación efectiva
 - **Un solo trial por cuenta/dispositivo.** Nuevos trials sujetos a validación anti-fraude.
+
+**ARGOS Pro con Protones H+ (Base users):**
+Los usuarios Base pueden acceder a features ARGOS Pro pagando con Protones H+ dentro de la app (ver Términos de Servicio sección 5). Esta opción NO es reembolsable (es un consumo interno de moneda, no una suscripción).
 
 ## 2. Suscripciones activas
 

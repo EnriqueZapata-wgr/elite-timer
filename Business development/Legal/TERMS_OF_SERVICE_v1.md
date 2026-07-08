@@ -55,9 +55,15 @@ Precios sujetos a cambio con 30 días de aviso previo.
 
 ### 5.2 Trial gratuito
 
-- 14 días de trial completo ATP Pro (sujeto a cambios)
-- Un trial por dispositivo/cuenta
-- Al terminar: downgrade automático a ATP Base o cancelación según tu elección
+**Estructura por tier (actualizada 2026-07-07):**
+- **ATP Base Mensual:** 14 días de trial gratuito
+- **ATP Base Anual:** 7 días de trial gratuito
+- **ATP Pro (mensual y anual):** SIN trial — se paga desde el primer día
+- **ATP Clínico Fx:** SIN trial (producto B2B)
+
+Un trial por dispositivo/cuenta. Al terminar: cobro automático si no cancelaste, o cancelación si sí.
+
+**Alternativa Pro para users Base:** los usuarios de ATP Base pueden acceder a features ARGOS Pro pagando con Protones H+ (moneda interna) dentro de la app. Esta opción NO constituye una suscripción y NO es reembolsable.
 
 ### 5.3 Facturación
 
