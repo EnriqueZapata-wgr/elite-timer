@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { callAnthropic } from './anthropic-client';
+import { buildDemandingCoachInjection, DEMANDING_COACH_USER_HINT } from './routine-coach-logic';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { getHydrationStats } from './hydration-service';
@@ -1602,6 +1603,8 @@ export async function generateRoutine(
     equipment: string[];
     focus?: string;
     level?: string;
+    /** #97: Modo Coach Exigente — inyecta buildDemandingCoachInjection */
+    demandingCoach?: boolean;
   },
 ): Promise<GeneratedRoutine | null> {
   const context = await loadUserContext(userId);
@@ -1633,6 +1636,7 @@ MÉTODOS DISPONIBLES:
 ${prInfo}
 ${request.level ? `Nivel del usuario: ${request.level}` : ''}
 ${context.gender ? `Género: ${context.gender}` : ''}
+${request.demandingCoach ? buildDemandingCoachInjection(request.level) : ''}
 
 Responde SOLO en JSON válido (sin markdown, sin backticks):
 {
@@ -1653,7 +1657,8 @@ Responde SOLO en JSON válido (sin markdown, sin backticks):
 Objetivo: ${request.goal}
 Equipamiento: ${request.equipment.join(', ')}
 ${request.focus ? `Enfoque: ${request.focus}` : ''}
-${request.level ? `Nivel: ${request.level}` : ''}`,
+${request.level ? `Nivel: ${request.level}` : ''}
+${request.demandingCoach ? DEMANDING_COACH_USER_HINT : ''}`,
       }],
       1500,
       MODEL_CHAT,
