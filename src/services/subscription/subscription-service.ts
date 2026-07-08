@@ -47,6 +47,31 @@ export async function fetchActiveBoost(userId: string): Promise<BoostStatus> {
   return boostStatusFromRow(data);
 }
 
+export interface SubscriptionEvent {
+  id: string;
+  event_type: string;
+  product_id: string;
+  tier: string | null;
+  price_usd: number | null;
+  currency: string | null;
+  processed_at: string;
+}
+
+/** Historial de pagos/eventos (audit trail del webhook; RLS: filas propias). */
+export async function fetchSubscriptionEvents(
+  userId: string,
+  limit = 20,
+): Promise<SubscriptionEvent[]> {
+  const { data, error } = await supabase
+    .from('subscription_events')
+    .select('id, event_type, product_id, tier, price_usd, currency, processed_at')
+    .eq('user_id', userId)
+    .order('processed_at', { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return data as SubscriptionEvent[];
+}
+
 /**
  * Activa el Boost Pro 24h descontando H+ (RPC atómico, rate limit 3/semana).
  * Errores posibles: rate_limit_exceeded · already_active · insufficient_h_plus.
