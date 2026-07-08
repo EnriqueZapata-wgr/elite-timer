@@ -11,6 +11,8 @@ import {
   generateRecipe, generateShoppingList,
   type GeneratedRecipe, type ShoppingList,
 } from '../src/services/argos-service';
+import { buildRecipeAdvancedContext } from '../src/services/recipe-context-service';
+import { EliteToggle } from '@/components/elite-toggle';
 
 const MEAL_TYPES = [
   { id: 'desayuno', label: 'Desayuno', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -35,6 +37,8 @@ export default function ArgosRecipesScreen() {
   const [selectedGoal, setSelectedGoal] = useState('alta proteína');
   const [recipe, setRecipe] = useState<GeneratedRecipe | null>(null);
   const [shoppingList, setShoppingList] = useState<ShoppingList | null>(null);
+  // #96: cross-módulo (labs + preferencias + objetivo + ciclo) — opt-in
+  const [advancedMode, setAdvancedMode] = useState(false);
 
   async function handleGenerateRecipe() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -42,9 +46,16 @@ export default function ArgosRecipesScreen() {
 
     setMode('generating');
     try {
+      // #96: si el toggle está ON, junta contexto real del usuario.
+      // Best-effort: si falla, la receta se genera con el flujo normal.
+      let advancedContext: string | null = null;
+      if (advancedMode) {
+        advancedContext = await buildRecipeAdvancedContext(user.id).catch(() => null);
+      }
       const result = await generateRecipe(user.id, {
         type: selectedMeal,
         goal: selectedGoal,
+        advancedContext,
       });
       if (result) {
         setRecipe(result);
@@ -144,12 +155,24 @@ export default function ArgosRecipesScreen() {
             ))}
           </View>
 
+          {/* #96: cross-módulo — labs + preferencias + objetivo + ciclo en el prompt */}
+          <View style={{ marginBottom: 16 }}>
+            <EliteToggle
+              label="Personalización avanzada"
+              description="ARGOS cruza tus labs, alergias, objetivo y ciclo. Tarda un poco más."
+              value={advancedMode}
+              onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setAdvancedMode(v); }}
+            />
+          </View>
+
           <Pressable onPress={handleGenerateRecipe} disabled={!selectedMeal} style={{
             backgroundColor: selectedMeal ? '#a8e02a' : '#1a1a1a', borderRadius: 16, padding: 16, alignItems: 'center',
             flexDirection: 'row', justifyContent: 'center', gap: 8,
           }}>
             <Ionicons name="eye-outline" size={20} color={selectedMeal ? '#000' : '#444'} />
-            <Text style={{ color: selectedMeal ? '#000' : '#444', fontSize: 16, fontWeight: '800' }}>GENERAR RECETA</Text>
+            <Text style={{ color: selectedMeal ? '#000' : '#444', fontSize: 16, fontWeight: '800' }}>
+              {advancedMode ? 'GENERAR RECETA · AVANZADA' : 'GENERAR RECETA'}
+            </Text>
           </Pressable>
 
           {/* Separador */}

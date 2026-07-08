@@ -1694,6 +1694,8 @@ export async function generateRecipe(
     maxMinutes?: number;
     ingredients?: string[];
     restrictions?: string[];
+    /** #96: bloque cross-módulo (labs+prefs+ciclo) de buildRecipeAdvancedContext */
+    advancedContext?: string | null;
   },
 ): Promise<GeneratedRecipe | null> {
   const context = await loadUserContext(userId);
@@ -1709,6 +1711,7 @@ FILOSOFÍA NUTRICIONAL ATP:
 
 ${context.recentNutrition ? `Hoy lleva: ${context.recentNutrition.todayCalories} kcal, ${context.recentNutrition.todayProtein}g proteína en ${context.recentNutrition.mealsToday} comidas.` : ''}
 
+${request.advancedContext ? `${request.advancedContext}\n` : ''}
 Responde SOLO en JSON válido (sin markdown, sin backticks):
 {
   "name": "Nombre de la receta",
