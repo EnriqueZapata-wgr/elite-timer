@@ -23,7 +23,14 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 // Sprint #50 hardening v7 — helpers puros (testeados en vitest)
-import { sendPushBatchWithRetry, type PushSendResult } from "./hardening.ts";
+import {
+  analyzeExpoTickets,
+  DEAD_TOKEN_ERROR,
+  sendPushBatchWithRetry,
+  tokensToInvalidate,
+  type PushFailure,
+  type PushSendResult,
+} from "./hardening.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -162,9 +169,12 @@ serve(async (req) => {
     .in("user_id", dispatchUserIds);
 
   const tokenMap = new Map<string, string[]>();
+  // v7 T2: reverse map token→user para el dead-letter (push_failure_log.user_id)
+  const tokenToUser = new Map<string, string>();
   for (const t of (tokens ?? []) as any[]) {
     if (!tokenMap.has(t.user_id)) tokenMap.set(t.user_id, []);
     tokenMap.get(t.user_id)!.push(t.expo_push_token);
+    tokenToUser.set(t.expo_push_token, t.user_id);
   }
 
   // 6) Construir mensajes y rows de inbox por BUCKET (no por log)
@@ -238,6 +248,60 @@ serve(async (req) => {
     batchResults.push({ batch, result });
     if (!result.ok) {
       console.error(`[dispatch-agenda] expo batch failed after ${result.attempts} attempts (status=${result.status}, network=${result.networkError})`);
+    }
+  }
+
+  // 7b) v7 T2: dead-letter — parsear tickets, registrar fallos y auto-invalidar
+  //     tokens con 3+ DeviceNotRegistered. Best-effort: nada de esto bloquea
+  //     el dispatch si la tabla o el delete fallan.
+  const allFailures: PushFailure[] = [];
+  for (const { batch, result } of batchResults) {
+    if (result.ok && result.tickets.length > 0) {
+      allFailures.push(...analyzeExpoTickets(result.tickets, batch));
+    }
+  }
+  let tokensInvalidated = 0;
+  if (allFailures.length > 0) {
+    const failureRows = allFailures
+      .filter((f) => tokenToUser.has(f.token))
+      .map((f) => ({
+        user_id: tokenToUser.get(f.token)!,
+        expo_push_token: f.token,
+        error_code: f.errorCode,
+        error_message: f.errorMessage,
+        bucket_key: f.bucketKey,
+      }));
+    if (failureRows.length > 0) {
+      const { error: dlErr } = await supabase.from("push_failure_log").insert(failureRows);
+      if (dlErr) console.error("[dispatch-agenda] push_failure_log insert failed", dlErr.message);
+    }
+
+    const deadTokensNow = [...new Set(
+      allFailures.filter((f) => f.errorCode === DEAD_TOKEN_ERROR).map((f) => f.token),
+    )];
+    if (deadTokensNow.length > 0) {
+      // Conteo HISTÓRICO de DeviceNotRegistered por token (incluye este run)
+      const { data: deadRows } = await supabase
+        .from("push_failure_log")
+        .select("expo_push_token")
+        .in("expo_push_token", deadTokensNow)
+        .eq("error_code", DEAD_TOKEN_ERROR);
+      const counts: Record<string, number> = {};
+      for (const row of (deadRows ?? []) as any[]) {
+        counts[row.expo_push_token] = (counts[row.expo_push_token] ?? 0) + 1;
+      }
+      const invalidate = tokensToInvalidate(counts);
+      if (invalidate.length > 0) {
+        const { error: invErr } = await supabase
+          .from("user_notification_tokens")
+          .delete()
+          .in("expo_push_token", invalidate);
+        if (invErr) {
+          console.error("[dispatch-agenda] token invalidation failed", invErr.message);
+        } else {
+          tokensInvalidated = invalidate.length;
+        }
+      }
     }
   }
 

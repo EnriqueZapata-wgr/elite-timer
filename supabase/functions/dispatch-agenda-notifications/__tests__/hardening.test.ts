@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  analyzeExpoTickets,
+  DEAD_TOKEN_FAILS_TO_INVALIDATE,
   DEFAULT_RETRY,
   isRetryableStatus,
   sendPushBatchWithRetry,
+  tokensToInvalidate,
 } from '../hardening';
 
 const noSleep = vi.fn(async () => {});
@@ -70,5 +73,56 @@ describe('T1 · sendPushBatchWithRetry', () => {
     expect(isRetryableStatus(502)).toBe(true);
     expect(isRetryableStatus(400)).toBe(false);
     expect(isRetryableStatus(404)).toBe(false);
+  });
+});
+
+describe('T2 · analyzeExpoTickets', () => {
+  const batch = [
+    { to: 'tokA', data: { bucketKey: 'u1:100' } },
+    { to: 'tokB', data: { bucketKey: 'u2:100' } },
+    { to: 'tokC' },
+  ];
+
+  it('DeviceNotRegistered mapea token + bucket para invalidación', () => {
+    const failures = analyzeExpoTickets([
+      { status: 'ok' },
+      { status: 'error', message: 'not registered', details: { error: 'DeviceNotRegistered' } },
+      { status: 'ok' },
+    ], batch);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toEqual({
+      token: 'tokB',
+      errorCode: 'DeviceNotRegistered',
+      errorMessage: 'not registered',
+      bucketKey: 'u2:100',
+    });
+  });
+
+  it('errores sin details.error → Unknown; sin data → bucketKey null', () => {
+    const failures = analyzeExpoTickets([
+      { status: 'ok' },
+      { status: 'ok' },
+      { status: 'error', message: 'boom' },
+    ], batch);
+    expect(failures[0].errorCode).toBe('Unknown');
+    expect(failures[0].bucketKey).toBeNull();
+  });
+
+  it('todo ok → sin fallos', () => {
+    expect(analyzeExpoTickets([{ status: 'ok' }, { status: 'ok' }, { status: 'ok' }], batch)).toHaveLength(0);
+  });
+});
+
+describe('T2 · tokensToInvalidate', () => {
+  it('invalida con >= 3 fallos DeviceNotRegistered; menos no', () => {
+    const result = tokensToInvalidate({ tokA: 3, tokB: 2, tokC: 7 });
+    expect(result).toContain('tokA');
+    expect(result).toContain('tokC');
+    expect(result).not.toContain('tokB');
+    expect(DEAD_TOKEN_FAILS_TO_INVALIDATE).toBe(3);
+  });
+
+  it('sin conteos → vacío', () => {
+    expect(tokensToInvalidate({})).toHaveLength(0);
   });
 });

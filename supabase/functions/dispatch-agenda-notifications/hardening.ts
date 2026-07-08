@@ -83,3 +83,59 @@ export async function sendPushBatchWithRetry(
   }
   return { ok: false, attempts: config.maxAttempts, status: lastStatus, tickets: [], networkError };
 }
+
+// ── T2: Dead-letter para tokens rotos ───────────────────────────────────────
+
+/** Código Expo que indica token muerto (app borrada / token expirado). */
+export const DEAD_TOKEN_ERROR = 'DeviceNotRegistered';
+/** Fails con DeviceNotRegistered antes de auto-invalidar el token. */
+export const DEAD_TOKEN_FAILS_TO_INVALIDATE = 3;
+
+export interface PushFailure {
+  token: string;
+  errorCode: string;
+  errorMessage: string | null;
+  bucketKey: string | null;
+}
+
+interface BatchMessage {
+  to: string;
+  data?: { bucketKey?: string };
+}
+
+/**
+ * Cruza los tickets de Expo (mismo orden que el batch enviado) con los
+ * mensajes para extraer fallos por token. Tickets 'ok' se ignoran.
+ */
+export function analyzeExpoTickets(
+  tickets: ExpoPushTicket[],
+  batch: BatchMessage[],
+): PushFailure[] {
+  const failures: PushFailure[] = [];
+  for (let i = 0; i < tickets.length; i++) {
+    const ticket = tickets[i];
+    if (ticket?.status !== 'error') continue;
+    const message = batch[i];
+    if (!message?.to) continue;
+    failures.push({
+      token: message.to,
+      errorCode: ticket.details?.error ?? 'Unknown',
+      errorMessage: ticket.message ?? null,
+      bucketKey: message.data?.bucketKey ?? null,
+    });
+  }
+  return failures;
+}
+
+/**
+ * Tokens con ≥ threshold fallos DeviceNotRegistered acumulados → invalidar.
+ * Recibe el conteo histórico (query a push_failure_log) ya agregado.
+ */
+export function tokensToInvalidate(
+  deadFailCountByToken: Record<string, number>,
+  threshold: number = DEAD_TOKEN_FAILS_TO_INVALIDATE,
+): string[] {
+  return Object.entries(deadFailCountByToken)
+    .filter(([, count]) => count >= threshold)
+    .map(([token]) => token);
+}
