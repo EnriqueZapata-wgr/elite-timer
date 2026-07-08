@@ -33,6 +33,11 @@ export interface HeroRecommendation {
   subtitle: string;
   cta?: string;
   route?: string;
+  /**
+   * #136: acción resoluble inline desde la card (optimistic update en HOY)
+   * en vez de navegar — p. ej. registrar un vaso de agua con un tap.
+   */
+  quickAction?: { type: 'water'; amountMl: number };
 }
 
 interface HeroRule {
@@ -69,7 +74,8 @@ export const HERO_RULES: HeroRule[] = [
   },
   {
     id: 'ayuno-romper',
-    condition: (c) => c.fastingActive && (midday(c) || afternoon(c)),
+    // #136: piso 11h (spec) + techo 20h — no empujamos "rompe el ayuno" de noche
+    condition: (c) => c.fastingActive && c.hour >= 11 && c.hour <= 20,
     make: () => ({
       title: 'Rompe el ayuno con proteína',
       subtitle: 'Primer alimento: proteína + grasa buena, no azúcar.',
@@ -81,17 +87,22 @@ export const HERO_RULES: HeroRule[] = [
   // ── Hábitos faltantes hoy ──
   {
     id: 'agua-pendiente',
-    condition: (c) => !c.fastingActive && c.hour >= 10 && c.waterMl <= 0,
-    make: () => ({
-      title: 'Bebe tu primer vaso de agua',
-      subtitle: 'Cero ml registrados hoy. La hidratación mueve todo lo demás.',
-      cta: 'Registrar agua',
-      route: '/hydration',
+    // #136: ventana 8-20h (a las 21h+ ya no tiene sentido empujar agua) y
+    // copy time-aware: "primer vaso" a las 7pm sonaba absurdo (bug Enrique).
+    condition: (c) => !c.fastingActive && c.hour >= 8 && c.hour <= 20 && c.waterMl <= 0,
+    make: (c) => ({
+      title: c.hour < 12 ? 'Bebe tu primer vaso de agua' : 'Aún sin agua registrada hoy',
+      subtitle: c.hour < 12
+        ? 'Cero ml registrados hoy. La hidratación mueve todo lo demás.'
+        : 'Un vaso ahora — la hidratación mueve todo lo demás.',
+      cta: 'Registrar 250 ml',
+      quickAction: { type: 'water', amountMl: 250 },
     }),
   },
   {
     id: 'proteina-pendiente',
-    condition: (c) => !c.fastingActive && c.hour >= 11 && c.proteinG <= 0,
+    // #136: techo 20h — sin nag de proteína a las 10pm
+    condition: (c) => !c.fastingActive && c.hour >= 11 && c.hour <= 20 && c.proteinG <= 0,
     make: () => ({
       title: 'Agrega proteína ahora',
       subtitle: 'Sin proteína registrada hoy — tu masa muscular la pide.',
@@ -101,7 +112,8 @@ export const HERO_RULES: HeroRule[] = [
   },
   {
     id: 'sol-pendiente',
-    condition: (c) => !c.sunDone && morning(c) && c.hour >= 7,
+    // #136: ventana 6-11h (spec) — la luz que regula cortisol es la matutina
+    condition: (c) => !c.sunDone && c.hour >= 6 && c.hour <= 11,
     make: () => ({
       title: 'Sal 10 minutos al sol',
       subtitle: 'Luz matutina = cortisol bien puesto + vitamina D + mejor sueño.',
@@ -115,8 +127,8 @@ export const HERO_RULES: HeroRule[] = [
     make: (c) => ({
       title: 'Vas abajo en hidratación',
       subtitle: `${Math.round(c.waterMl)} de ${Math.round(c.waterTargetMl)} ml — recupera antes de la noche.`,
-      cta: 'Registrar agua',
-      route: '/hydration',
+      cta: 'Registrar 250 ml',
+      quickAction: { type: 'water', amountMl: 250 },
     }),
   },
 
@@ -231,7 +243,8 @@ export const HERO_RULES: HeroRule[] = [
   },
   {
     id: 'noche-mente',
-    condition: (c) => evening(c) && !c.meditationDone && !c.journalDone,
+    // #136: desde las 20h (spec) — a las 19h todavía compite con cena/cierre
+    condition: (c) => c.hour >= 20 && c.hour < 23 && !c.meditationDone && !c.journalDone,
     make: () => ({
       title: 'Cierra el día en calma',
       subtitle: 'Meditación corta + journal: descarga la mente antes de dormir.',
@@ -241,7 +254,9 @@ export const HERO_RULES: HeroRule[] = [
   },
   {
     id: 'noche-pantallas',
-    condition: (c) => c.hour >= 21 || c.hour < 5,
+    // #136: 21-22h — antes disparaba 21-23 y 0-5am; la madrugada ahora la
+    // cubre el fallback "duerme" (empujar lentes rojos a las 3am era ruido)
+    condition: (c) => c.hour >= 21 && c.hour <= 22,
     make: () => ({
       title: 'Reduce pantallas y luz azul',
       subtitle: 'Lentes rojos o modo noche: protege tu melatonina.',
@@ -257,12 +272,54 @@ export const HERO_RULES: HeroRule[] = [
   },
 ];
 
-/** Fallback editorial si ninguna regla matchea. */
-const FALLBACK: HeroRecommendation = {
-  id: 'fallback',
-  title: 'Tu sistema operativo está corriendo',
-  subtitle: 'Cada electrón que completas hoy es rendimiento mañana.',
-};
+/**
+ * #136 F1.2: fallback contextual empático por franja horaria — si ninguna
+ * regla fuerte matchea, en vez de forzar una débil acompañamos el momento.
+ */
+export function getContextualFallback(hour: number): HeroRecommendation {
+  if (hour >= 6 && hour < 11) {
+    return {
+      id: 'fallback-manana',
+      title: 'Buen día. ¿Qué te propones hoy?',
+      subtitle: 'Una intención escrita vale más que diez en la cabeza.',
+      cta: 'Journal',
+      route: '/journal',
+    };
+  }
+  if (hour >= 11 && hour < 15) {
+    return {
+      id: 'fallback-mediodia',
+      title: '¿Cómo estás llevando el día?',
+      subtitle: '2 minutos de check-in y ajustas la tarde a tiempo.',
+      cta: 'Check-in',
+      route: '/checkin',
+    };
+  }
+  if (hour >= 15 && hour < 19) {
+    return {
+      id: 'fallback-tarde',
+      title: 'Cierre productivo. Pausa consciente.',
+      subtitle: 'Tres respiraciones profundas resetean tu sistema nervioso.',
+      cta: 'Respirar',
+      route: '/breathing',
+    };
+  }
+  if (hour >= 19 && hour < 23) {
+    return {
+      id: 'fallback-noche',
+      title: 'Prepara tu descanso',
+      subtitle: 'La calidad de mañana se decide esta noche.',
+      cta: 'Meditar',
+      route: '/meditation',
+    };
+  }
+  // 23h-6am: lo único correcto que recomendar
+  return {
+    id: 'fallback-madrugada',
+    title: 'Tu mejor protocolo ahora es dormir',
+    subtitle: 'El sueño profundo es donde se construye todo lo demás.',
+  };
+}
 
 /** Primera regla que matchea gana. Nunca devuelve null. */
 export function getHeroRecommendation(ctx: HeroContext): HeroRecommendation {
@@ -271,7 +328,7 @@ export function getHeroRecommendation(ctx: HeroContext): HeroRecommendation {
       return { id: rule.id, ...rule.make(ctx) };
     }
   }
-  return FALLBACK;
+  return getContextualFallback(ctx.hour);
 }
 
 /** Ventana de cache para no cambiar la recomendación de forma errática. */
