@@ -51,6 +51,8 @@ export default function EconomyAdminScreen() {
     { icon: 'flag-outline', label: 'Mis Retos', sublabel: 'Browse + activos', route: '/economy/challenges' },
     { icon: 'people-outline', label: 'Referidos', sublabel: 'Tu código + tracking', route: '/economy/referrals' },
     { icon: 'cart-outline', label: 'Tienda H+', sublabel: 'Paquetes', route: '/economy/shop' },
+    // #99: explicación visual de la economía
+    { icon: 'school-outline', label: '¿Cómo gano H+?', sublabel: 'La economía en 60 segundos', route: '/economy/how-to-earn' },
     { icon: 'trophy-outline', label: 'Mis Logros', sublabel: 'Próximamente', soon: true },
   ];
 

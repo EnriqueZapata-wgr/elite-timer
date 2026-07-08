@@ -224,6 +224,7 @@ function RootLayout() {
                 <Stack.Screen name="economy/shop" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="economy/convert" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/history" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="economy/how-to-earn" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="economy/challenges" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/referrals" options={{ headerShown: false, animation: 'slide_from_right' }} />
               </Stack>
