@@ -13,6 +13,9 @@ import {
 /** Costo/duración del Boost H+ (Task #133). El backend usa estos defaults. */
 export const PRO_BOOST_COST_H_PLUS = 500;
 export const PRO_BOOST_DURATION_HOURS = 24;
+/** #101: Boost Pro Semanal — 7 días de Pro por 3,000 H+ (mismo RPC atómico). */
+export const PRO_BOOST_WEEKLY_COST_H_PLUS = 3000;
+export const PRO_BOOST_WEEKLY_DURATION_HOURS = 168;
 
 export interface ActivateBoostResult {
   success: boolean;
@@ -76,11 +79,15 @@ export async function fetchSubscriptionEvents(
  * Activa el Boost Pro 24h descontando H+ (RPC atómico, rate limit 3/semana).
  * Errores posibles: rate_limit_exceeded · already_active · insufficient_h_plus.
  */
-export async function activateProBoost(userId: string): Promise<ActivateBoostResult> {
+export async function activateProBoost(
+  userId: string,
+  costHPlus: number = PRO_BOOST_COST_H_PLUS,
+  durationHours: number = PRO_BOOST_DURATION_HOURS,
+): Promise<ActivateBoostResult> {
   const { data, error } = await supabase.rpc('activate_pro_boost', {
     p_user_id: userId,
-    p_cost_h_plus: PRO_BOOST_COST_H_PLUS,
-    p_duration_hours: PRO_BOOST_DURATION_HOURS,
+    p_cost_h_plus: costHPlus,
+    p_duration_hours: durationHours,
   });
   if (error) {
     return { success: false, hPlusRemaining: 0, expiresAt: null, error: error.message };
