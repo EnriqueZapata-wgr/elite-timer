@@ -33,8 +33,55 @@ serve(async (req) => {
   }
   if (!pending?.length) return new Response("No pending", { status: 200, headers: corsHeaders });
 
-  // 2) tokens por usuario
-  const userIds = [...new Set(pending.map((p: any) => p.user_id))];
+  const allUserIds = [...new Set(pending.map((p: any) => p.user_id))];
+
+  // 1.5) #61 enforcement: user_notification_prefs (migración 157). Sin fila =
+  // defaults (todo ON, sin quiet hours). Un log suprimido igual se marca
+  // notified_at (paso 6) — es supresión intencional, no retry.
+  // Quiet hours se evalúan en America/Mexico_City (mercado actual; no hay
+  // columna de timezone por usuario todavía — TODO cuando exista).
+  const { data: prefsRows } = await supabase
+    .from("user_notification_prefs")
+    .select("user_id, mode, agenda_enabled, quiet_hours_start, quiet_hours_end")
+    .in("user_id", allUserIds);
+
+  const mxMinutes = (() => {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Mexico_City", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(new Date());
+    const h = parseInt(parts.find((p) => p.type === "hour")?.value ?? "0", 10) % 24;
+    const m = parseInt(parts.find((p) => p.type === "minute")?.value ?? "0", 10);
+    return h * 60 + m;
+  })();
+
+  const timeToMin = (t: string | null): number | null => {
+    if (!t) return null;
+    const m = /^(\d{1,2}):(\d{2})/.exec(t);
+    if (!m) return null;
+    return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  };
+
+  const allowsAgenda = (userId: string): boolean => {
+    const p = (prefsRows ?? []).find((r: any) => r.user_id === userId);
+    if (!p) return true; // defaults
+    if (p.mode === "silent") return false;
+    if (p.agenda_enabled === false) return false;
+    const start = timeToMin(p.quiet_hours_start);
+    const end = timeToMin(p.quiet_hours_end);
+    if (start != null && end != null && start !== end) {
+      const inQuiet = start < end
+        ? mxMinutes >= start && mxMinutes < end
+        : mxMinutes >= start || mxMinutes < end;
+      if (inQuiet) return false;
+    }
+    return true;
+  };
+
+  const allowed = (pending as any[]).filter((log) => allowsAgenda(log.user_id));
+  const suppressedCount = pending.length - allowed.length;
+
+  // 2) tokens por usuario (solo los permitidos)
+  const userIds = [...new Set(allowed.map((p: any) => p.user_id))];
   const { data: tokens } = await supabase
     .from("user_notification_tokens")
     .select("user_id, expo_push_token")
@@ -48,7 +95,7 @@ serve(async (req) => {
 
   // 3) construir mensajes para la Expo push API
   const messages: any[] = [];
-  for (const log of pending as any[]) {
+  for (const log of allowed) {
     const userTokens = tokenMap.get(log.user_id) ?? [];
     const event = log.agenda_events;
     for (const token of userTokens) {
@@ -77,20 +124,24 @@ serve(async (req) => {
   }
 
   // 5) inbox in-app (AGENDA-COMPLETE F3): una row en user_notifications por recordatorio
-  // procesado, tenga o no push token el user — la campana/lista funcionan sin permiso de push.
-  const inboxRows = (pending as any[]).map((log) => ({
+  // permitido, tenga o no push token el user — la campana/lista funcionan sin permiso de push.
+  // #61: los suprimidos por prefs tampoco entran al inbox (apagar agenda = apagarla de verdad).
+  const inboxRows = allowed.map((log) => ({
     user_id: log.user_id,
     type: "agenda_reminder",
     title: "ATP — Próximo evento",
     body: `${log.agenda_events?.name ?? "Evento"} · en breve`,
     data: { logId: log.id, eventId: log.event_id, category: log.agenda_events?.category, route: "/agenda" },
   }));
-  const { error: inboxErr } = await supabase.from("user_notifications").insert(inboxRows);
-  if (inboxErr) console.error("[dispatch-agenda] inbox insert failed", inboxErr.message);
+  if (inboxRows.length > 0) {
+    const { error: inboxErr } = await supabase.from("user_notifications").insert(inboxRows);
+    if (inboxErr) console.error("[dispatch-agenda] inbox insert failed", inboxErr.message);
+  }
 
-  // 6) marcar como notificados (siempre, para no reintentar en loop aunque un token falle)
+  // 6) marcar como notificados (TODOS los pendientes, incluidos los suprimidos
+  // por prefs — supresión intencional, no debe reintentar en loop)
   const logIds = (pending as any[]).map((p) => p.id);
   await supabase.from("agenda_event_logs").update({ notified_at: now }).in("id", logIds);
 
-  return new Response(`Sent ${messages.length}`, { status: 200, headers: corsHeaders });
+  return new Response(`Sent ${messages.length} · suppressed ${suppressedCount}`, { status: 200, headers: corsHeaders });
 });

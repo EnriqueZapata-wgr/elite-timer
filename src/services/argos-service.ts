@@ -1287,6 +1287,9 @@ export interface ArgosMessage {
   // textos contaminan el contexto (auto-refuerzan errores como atribuirle
   // "fase lútea" a un usuario hombre).
   degraded?: boolean;
+  // F2 (#93): epoch ms del turno — separadores de tiempo en el chat (>5 min).
+  // Opcional: conversaciones viejas sin ts simplemente no muestran separador.
+  ts?: number;
 }
 
 export interface ArgosChatResult {
@@ -1538,6 +1541,19 @@ export async function loadConversations(userId: string, limit: number = 20): Pro
     .order('updated_at', { ascending: false })
     .limit(limit);
   return data || [];
+}
+
+/** F2 (#93): eliminar una conversación (pantalla de historial). */
+export async function deleteConversation(conversationId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('argos_conversations')
+    .delete()
+    .eq('id', conversationId);
+  if (error) {
+    console.warn('[argos] deleteConversation:', error.message);
+    return false;
+  }
+  return true;
 }
 
 export async function loadConversation(conversationId: string): Promise<ArgosMessage[]> {

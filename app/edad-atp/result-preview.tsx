@@ -23,6 +23,7 @@ import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { SubEdadConstellation } from '@/src/components/edad-atp/SubEdadConstellation';
 import { CalculationCinematic } from '@/src/components/edad-atp/CalculationCinematic';
+import { playImprove, loadSoundPref } from '@/src/components/edad-atp/edad-sound';
 import { RecalculateDiff } from '@/src/components/edad-atp/RecalculateDiff';
 import { EdadAtpShareCard } from '@/src/components/edad-atp/EdadAtpShareCard';
 import { CeStars } from '@/src/components/edad-atp/CeStars';
@@ -77,6 +78,8 @@ function ResultScreen() {
     setCalcState('calculating');
     try {
       setError(false);
+      // #69: hidratar el toggle de sonidos ANTES de que la cinemática/mejora suene.
+      loadSoundPref().catch(() => {});
       // Gating (#15): hash del set actual vs el del último cálculo (antes de recalcular).
       const [entries, last] = await Promise.all([loadDatasetEntries(user.id), getLastCalc(user.id)]);
       const currentHash = computeDatasetHash(entries);
@@ -98,6 +101,9 @@ function ResultScreen() {
       if (improvement >= 5) setConfetti(250);
       else if (younger || improvement >= 1) setConfetti(120);
       else setConfetti(0);
+      // #69: ding de mejora si tu Edad ATP bajó vs el cálculo anterior
+      // (la cinemática no corre en recálculos — el sonido da el feedback).
+      if (improvement >= 0.5) playImprove();
       setResult(r);
       setSources(buildSources(data));
       setCe((await computeCE(user.id)).ce_integral);

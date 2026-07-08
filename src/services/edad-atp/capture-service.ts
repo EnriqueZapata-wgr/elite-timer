@@ -162,37 +162,10 @@ export async function saveHealthMeasurement(userId: string, fields: HealthMeasur
   return { ok: true };
 }
 
-export type BodyCompositionInput = {
-  weight_kg?: number;
-  height_cm?: number;
-  body_fat_pct?: number;
-  skeletal_muscle_pct?: number;
-  visceral_fat?: number;
-  grip_strength_kg?: number;
-  ffmi?: number;
-};
-
-/**
- * @deprecated Sprint 2.5 — la composición ahora se escribe a health_measurements
- * (tabla canónica) vía saveHealthMeasurement. Esta función ya NO se usa por las
- * pantallas; se conserva solo por compatibilidad. loadUserData sigue LEYENDO de
- * edad_atp_body_composition como fallback para datos generados en Sprint 2.
- * TODO: deprecate edad_atp_body_composition table en sprint futuro (sin migración
- * destructiva — los datos existentes se mantienen leíbles).
- */
-export async function saveBodyComposition(userId: string, comp: BodyCompositionInput): Promise<SaveResult> {
-  const { error } = await supabase.from('edad_atp_body_composition').insert({
-    user_id: userId,
-    ...comp,
-    source: 'manual',
-    measured_at: new Date().toISOString(),
-  });
-  if (error) {
-    logWarn('[edad-atp capture] saveBodyComposition failed:', error);
-    return { ok: false, error: error.message };
-  }
-  return { ok: true };
-}
+// F6 (#26): saveBodyComposition + BodyCompositionInput ELIMINADOS — deprecated
+// desde Sprint 2.5 y sin importadores (la escritura va a health_measurements vía
+// saveHealthMeasurement). OJO: loadUserData sigue LEYENDO edad_atp_body_composition
+// como fallback de datos Sprint 2 — la TABLA no se toca (sin migración destructiva).
 
 export type QuestionnaireResponse = { parameter_key: string; value?: number; value_text?: string };
 

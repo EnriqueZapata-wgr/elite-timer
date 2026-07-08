@@ -48,6 +48,12 @@ import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight, chatWithArgosEx, saveConversation } from '@/src/services/argos-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getCurrentStreak } from '@/src/services/adherence-service';
+import {
+  getHeroRecommendation, HERO_CACHE_MS,
+  type HeroContext, type HeroRecommendation, type CyclePhase,
+} from '@/src/services/hero-recommendation-service';
+import { getCycleInfo } from '@/src/services/cycle-service';
+import { getActiveFast } from '@/src/services/fasting-service';
 import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import { speakArgos } from '@/src/services/argos-voice';
@@ -56,6 +62,7 @@ import { speakArgos } from '@/src/services/argos-voice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // #v13d 2.7: HoyDayCard legacy → HoyDayCardEditorial (imagen B/N + tipografía display).
 import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditorial';
+import { TopBanner } from '@/src/components/global/TopBanner';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
@@ -213,20 +220,85 @@ export default function TodayScreen() {
   // HOY-6: ref que espeja `suppTaken` para evitar leer estado stale del
   // closure cuando el usuario toggle dos suplementos rápido.
   const suppTakenRef = useRef<Record<string, boolean>>({});
+  // #68: recomendación HERO dinámica + timestamp del último cómputo (cache 15
+  // min para que la recomendación no cambie de forma errática entre focus).
+  const [heroRec, setHeroRec] = useState<HeroRecommendation | null>(null);
+  const heroRecAtRef = useRef(0);
+
+  /**
+   * #68: arma el contexto (mayormente ya cargado en CompiledDay) + 3 señales
+   * baratas (ciclo/ayuno/última Edad ATP) y evalúa las reglas locales.
+   * `force` ignora el cache (lo usa loadDay cuando el día cambió de verdad).
+   */
+  const computeHeroRec = useCallback(async (compiled: CompiledDay, streakVal: number | null, force = false) => {
+    if (!user?.id) return;
+    const now = Date.now();
+    if (!force && heroRecAtRef.current && now - heroRecAtRef.current < HERO_CACHE_MS) return;
+    heroRecAtRef.current = now;
+
+    // Señales extra (baratas, en paralelo; cualquiera puede fallar sin romper)
+    let cyclePhase: CyclePhase | null = null;
+    let fastingActive = false;
+    let edadAtpDelta: number | null = null;
+    const [cycleRes, fastRes, edadRes] = await Promise.allSettled([
+      userSex === 'female' ? getCycleInfo(user.id) : Promise.resolve(null),
+      getActiveFast(user.id),
+      supabase.from('edad_atp_calculations')
+        .select('chronological_age, edad_integral')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (cycleRes.status === 'fulfilled' && cycleRes.value?.currentPhase) {
+      cyclePhase = cycleRes.value.currentPhase as CyclePhase;
+    }
+    if (fastRes.status === 'fulfilled') fastingActive = !!fastRes.value;
+    if (edadRes.status === 'fulfilled' && edadRes.value?.data?.edad_integral != null) {
+      edadAtpDelta = Number(edadRes.value.data.chronological_age) - Number(edadRes.value.data.edad_integral);
+    }
+
+    const quant = (k: string) => compiled.quantitativeElectrons.find(e => e.source === k);
+    const bool = (k: string) => compiled.booleanElectrons.find(e => e.source === k);
+    const ctx: HeroContext = {
+      hour: new Date().getHours(),
+      score: compiled.electronProgress.percentage,
+      streak: streakVal ?? 0,
+      waterMl: quant('water')?.current ?? 0,
+      waterTargetMl: quant('water')?.target ?? 0,
+      proteinG: quant('protein')?.current ?? 0,
+      proteinTargetG: quant('protein')?.target ?? 0,
+      sunDone: bool('sunlight')?.completed ?? false,
+      meditationDone: bool('meditation')?.completed ?? false,
+      journalDone: bool('journal')?.completed ?? false,
+      fastingActive,
+      sex: userSex === 'female' || userSex === 'male' ? userSex : null,
+      cyclePhase,
+      edadAtpDelta,
+    };
+    setHeroRec(getHeroRecommendation(ctx));
+  }, [user?.id, userSex]);
 
   // --- Carga de datos ---
   const loadDay = useCallback(async () => {
     if (!user?.id) return;
+    let compiledForHero: CompiledDay | null = null;
+    let streakForHero: number | null = null;
     try {
       const compiled = await compileDay(user.id, (pct, label) => { setProgress(pct); setProgressLabel(label); });
-      if (compiled) setDay(compiled);
+      if (compiled) { setDay(compiled); compiledForHero = compiled; }
     } catch (e) {
       console.warn('Error compiling day:', e);
     }
     try {
       const s = await getCurrentStreak(user.id);
       setStreak(s);
+      streakForHero = s;
     } catch { /* silencioso */ }
+    // #68: recomputar la recomendación HERO (respeta el cache de 15 min).
+    if (compiledForHero) {
+      computeHeroRec(compiledForHero, streakForHero).catch(() => { /* silencioso */ });
+    }
     try {
       const today = getLocalToday();
       const [suppsRes, logsRes, journalRes] = await Promise.all([
@@ -243,7 +315,7 @@ export default function TodayScreen() {
       setHasJournalToday((journalRes.count ?? 0) > 0);
     } catch { /* silencioso */ }
     setLoading(false);
-  }, [user?.id]);
+  }, [user?.id, computeHeroRec]);
 
   useEffect(() => {
     setLoading(true);
@@ -795,6 +867,8 @@ export default function TodayScreen() {
   return (
     <View style={s.root}>
       <StatusBar style="light" />
+      {/* #23: banner contextual flotante (racha / protones / notifs / insight) */}
+      <TopBanner offset={44} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
         {/* ═══════════════════════════════════════
@@ -841,6 +915,32 @@ export default function TodayScreen() {
                   </Text>
                   <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.4)" />
                 </Pressable>
+              </Animated.View>
+            )}
+
+            {/* #68: recomendación HERO dinámica — la primera regla que matchea
+                (hora + hábitos + ciclo + ayuno + racha + Edad ATP) */}
+            {heroRec && (
+              <Animated.View key={heroRec.id} entering={FadeInUp.delay(110).springify()}>
+                <AnimatedPressable
+                  onPress={() => {
+                    if (heroRec.route) { haptic.light(); router.push(heroRec.route as any); }
+                  }}
+                  disabled={!heroRec.route}
+                  style={s.heroRecCard}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.heroRecKicker}>AHORA</Text>
+                    <Text style={s.heroRecTitle}>{heroRec.title}</Text>
+                    <Text style={s.heroRecSubtitle}>{heroRec.subtitle}</Text>
+                  </View>
+                  {heroRec.route && (
+                    <View style={s.heroRecCta}>
+                      {heroRec.cta ? <Text style={s.heroRecCtaText}>{heroRec.cta}</Text> : null}
+                      <Ionicons name="chevron-forward" size={14} color="#a8e02a" />
+                    </View>
+                  )}
+                </AnimatedPressable>
               </Animated.View>
             )}
 
@@ -1161,6 +1261,48 @@ const s = StyleSheet.create({
     marginBottom: Spacing.md,
     borderWidth: 0.5,
     borderColor: 'rgba(255,255,255,0.12)',
+  },
+  // #68: card de recomendación HERO dinámica (glass sutil sobre la foto)
+  heroRecCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,255,255,0.07)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: Radius.md,
+    padding: 14,
+    marginBottom: Spacing.md,
+  },
+  heroRecKicker: {
+    color: '#a8e02a',
+    fontSize: 9,
+    fontFamily: Fonts.semiBold,
+    letterSpacing: 2,
+    marginBottom: 3,
+  },
+  heroRecTitle: {
+    color: '#fff',
+    fontSize: FontSizes.lg,
+    fontFamily: Fonts.semiBold,
+    lineHeight: 22,
+  },
+  heroRecSubtitle: {
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.regular,
+    marginTop: 2,
+    lineHeight: 17,
+  },
+  heroRecCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  heroRecCtaText: {
+    color: '#a8e02a',
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.bold,
   },
   protocolPillText: {
     color: 'rgba(255,255,255,0.7)',

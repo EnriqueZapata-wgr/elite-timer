@@ -1,13 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, Pressable,
-  Keyboard, Platform, ActivityIndicator,
+  Keyboard, Platform, Alert,
 } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as Clipboard from 'expo-clipboard';
 import Markdown from 'react-native-markdown-display';
+import Animated, {
+  useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, withDelay,
+} from 'react-native-reanimated';
 import { supabase } from '../src/lib/supabase';
 import {
   chatWithArgosEx, saveConversation, loadConversations,
@@ -18,6 +22,7 @@ import { withPreflight, wasAborted } from '../src/services/economy/with-prefligh
 import { VoiceButton } from '../src/components/VoiceButton';
 import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { TopBanner } from '@/src/components/global/TopBanner';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -28,6 +33,40 @@ const MARKDOWN_RULES = {
     </Text>
   ),
 };
+
+// F2.3 (#93): un punto del indicador "ARGOS está pensando..." — pulso con
+// delay escalonado para el efecto de ola.
+function TypingDot({ delay }: { delay: number }) {
+  const opacity = useSharedValue(0.25);
+  useEffect(() => {
+    opacity.value = withDelay(delay, withRepeat(
+      withSequence(
+        withTiming(1, { duration: 320 }),
+        withTiming(0.25, { duration: 320 }),
+      ),
+      -1,
+    ));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return (
+    <Animated.View style={[{
+      width: 6, height: 6, borderRadius: 3, backgroundColor: '#a8e02a',
+    }, style]} />
+  );
+}
+
+/** F2.3: etiqueta del separador temporal entre mensajes (>5 min de gap). */
+function timestampLabel(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const time = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+  if (sameDay) return time;
+  return `${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${time}`;
+}
+
+const TIMESTAMP_GAP_MS = 5 * 60 * 1000;
 
 // Sugerencias rápidas
 const QUICK_SUGGESTIONS = [
@@ -47,7 +86,8 @@ function ArgosChat() {
   // (canGoBack true → back visible, sin cambio); el guard ya queda correcto para cuando
   // ARGOS pase a ser tab (p8). DRY: una sola pantalla sirve a ambos accesos.
   const canGoBack = navigation.canGoBack();
-  const params = useLocalSearchParams<{ conversationId?: string }>();
+  // F2.2: `new=1` (desde el historial) arranca en blanco sin auto-cargar la última conversación.
+  const params = useLocalSearchParams<{ conversationId?: string; new?: string }>();
   const scrollRef = useRef<ScrollView>(null);
   // Guard de re-entrancy (#71): un ref (síncrono) atrapa el doble-tap/re-render ANTES de que
   // `loading` (state, async) actualice. Sin esto, dos taps a 42ms disparaban 2 requests → doble
@@ -58,8 +98,6 @@ function ArgosChat() {
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
-  const [pastConversations, setPastConversations] = useState<any[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
@@ -88,17 +126,17 @@ function ArgosChat() {
 
   // Detener TTS al salir de la pantalla
   useFocusEffect(useCallback(() => {
-    if (userId) loadPastConversations();
+    if (userId) autoLoadRecent();
     return () => { stopSpeaking(); };
   }, [userId]));
 
-  async function loadPastConversations() {
-    if (!userId) return;
-    const convs = await loadConversations(userId, 10);
-    setPastConversations(convs);
-
-    // Auto-cargar la conversación más reciente si no hay una activa
-    if (convs[0] && messages.length === 0 && !conversationId) {
+  // Auto-cargar la conversación más reciente si no hay una activa
+  // (salvo que se haya pedido conversación nueva desde el historial: new=1).
+  async function autoLoadRecent() {
+    if (!userId || params.new === '1') return;
+    if (messages.length > 0 || conversationId) return;
+    const convs = await loadConversations(userId, 1);
+    if (convs[0]) {
       const msgs = await loadConversation(convs[0].id);
       setMessages(msgs);
       setConversationId(convs[0].id);
@@ -126,12 +164,11 @@ function ArgosChat() {
     setInput('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const userTurn: ArgosMessage = { role: 'user', content: messageText };
+    const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
     const newMessages: ArgosMessage[] = [...messages, userTurn];
     setMessages(newMessages);
     setLoading(true);
-
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    // Auto-scroll: lo maneja onContentSizeChange del ScrollView (F2.1)
 
     // ARG-1/ARG-8: filtrar turnos degradados ANTES de mandarlos al LLM —
     // un turno marcado como degraded (rate-limited, ambos providers caídos,
@@ -145,8 +182,8 @@ function ArgosChat() {
       wasDegraded = result.degraded;
 
       const assistantTurn: ArgosMessage = wasDegraded
-        ? { role: 'assistant', content: result.text, degraded: true }
-        : { role: 'assistant', content: result.text };
+        ? { role: 'assistant', content: result.text, degraded: true, ts: Date.now() }
+        : { role: 'assistant', content: result.text, ts: Date.now() };
 
       if (wasDegraded) {
         // ARG-2: una respuesta degradada NO debe ensuciar contexto futuro.
@@ -176,14 +213,15 @@ function ArgosChat() {
       const errored: ArgosMessage[] = [
         ...baseMessages,
         { ...userTurn, degraded: true },
-        { role: 'assistant', content: 'Lo siento, tuve un problema al procesar tu consulta. Intenta de nuevo.', degraded: true },
+        { role: 'assistant', content: 'Lo siento, tuve un problema al procesar tu consulta. Intenta de nuevo.', degraded: true, ts: Date.now() },
       ];
       setMessages(errored);
       finalMessages = errored;
     } finally {
       setLoading(false);
       sendingRef.current = false; // #71: liberar el guard al terminar el turno
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
+      // F2.3: feedback háptico sutil al terminar de "pensar"
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
     // ARG-2: persistir SOLO los turnos no degradados. Si todo el turno fue
@@ -203,26 +241,47 @@ function ArgosChat() {
     }
   }
 
-  async function openConversation(conv: any) {
-    const msgs = await loadConversation(conv.id);
-    setMessages(msgs);
-    setConversationId(conv.id);
-    setShowHistory(false);
-  }
-
   function startNewConversation() {
     stopSpeaking();
     setMessages([]);
     setConversationId(null);
-    setShowHistory(false);
   }
 
   function handleVoiceTranscript(text: string) {
     sendMessage(text);
   }
 
+  /** F2.3: long-press en burbuja → copiar / (user) editar y reenviar. */
+  function handleMessageLongPress(msg: ArgosMessage, index: number) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const actions: { text: string; onPress?: () => void; style?: 'cancel' }[] = [
+      {
+        text: 'Copiar',
+        onPress: async () => {
+          await Clipboard.setStringAsync(msg.content);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        },
+      },
+    ];
+    if (msg.role === 'user' && !loading) {
+      actions.push({
+        text: 'Editar y reenviar',
+        onPress: () => {
+          // Truncar desde este turno: al reenviar, saveConversation sobreescribe
+          // la conversación con el historial editado (mismo conversationId).
+          setMessages(messages.slice(0, index));
+          setInput(msg.content);
+        },
+      });
+    }
+    actions.push({ text: 'Cancelar', style: 'cancel' });
+    Alert.alert('Mensaje', undefined, actions);
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: '#000' }}>
+      {/* #23: banner contextual flotante (debajo del header de ARGOS) */}
+      <TopBanner offset={60} />
       {/* Header */}
       <View style={{
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -266,7 +325,8 @@ function ArgosChat() {
               color={autoSpeak ? '#a8e02a' : '#666'}
             />
           </Pressable>
-          <Pressable onPress={() => setShowHistory(!showHistory)} hitSlop={12}>
+          {/* F2.2: historial → pantalla dedicada */}
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/argos/conversations' as any); }} hitSlop={12}>
             <Ionicons name="time-outline" size={22} color="#999" />
           </Pressable>
           <Pressable onPress={startNewConversation} hitSlop={12}>
@@ -275,44 +335,16 @@ function ArgosChat() {
         </View>
       </View>
 
-      {/* Historial de conversaciones */}
-      {showHistory && (
-        <View style={{
-          backgroundColor: '#0a0a0a', borderBottomWidth: 0.5, borderBottomColor: '#1a1a1a',
-          maxHeight: 200,
-        }}>
-          <ScrollView>
-            {pastConversations.length === 0 ? (
-              <Text style={{ color: '#666', fontSize: 13, padding: 16, textAlign: 'center' }}>
-                Sin conversaciones anteriores
-              </Text>
-            ) : (
-              pastConversations.map(conv => (
-                <Pressable key={conv.id} onPress={() => openConversation(conv)} style={{
-                  paddingVertical: 12, paddingHorizontal: 20,
-                  borderBottomWidth: 0.5, borderBottomColor: '#1a1a1a',
-                }}>
-                  <Text style={{ color: '#fff', fontSize: 14 }} numberOfLines={1}>
-                    {conv.title}
-                  </Text>
-                  <Text style={{ color: '#666', fontSize: 11, marginTop: 2 }}>
-                    {new Date(conv.updated_at).toLocaleDateString('es-MX', {
-                      day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-                    })}
-                  </Text>
-                </Pressable>
-              ))
-            )}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Área de mensajes */}
+      {/* Área de mensajes — F2.1: auto-scroll al crecer el contenido (mensaje
+          nuevo, indicador de typing o conversación cargada del historial) */}
       <ScrollView
         ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 20 }}
         keyboardShouldPersistTaps="handled"
+        onContentSizeChange={() => {
+          if (messages.length > 0 || loading) scrollRef.current?.scrollToEnd({ animated: true });
+        }}
       >
         {/* Estado vacío — sugerencias */}
         {messages.length === 0 && (
@@ -358,6 +390,15 @@ function ArgosChat() {
             marginBottom: 12,
             alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
           }}>
+            {/* F2.3: separador temporal discreto cuando el gap es >5 min */}
+            {msg.ts != null && (index === 0 || (messages[index - 1]?.ts != null && msg.ts - messages[index - 1].ts! > TIMESTAMP_GAP_MS)) && (
+              <Text style={{
+                alignSelf: 'center', color: '#555', fontSize: 10,
+                letterSpacing: 1, marginVertical: 8,
+              }}>
+                {timestampLabel(msg.ts)}
+              </Text>
+            )}
             {msg.role === 'assistant' && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                 <View style={{
@@ -370,8 +411,10 @@ function ArgosChat() {
                 <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700' }}>ARGOS</Text>
               </View>
             )}
-            {/* Burbuja del mensaje — selectable, sin tap-to-speak (TTS solo desde el toggle del header) */}
-            <View
+            {/* Burbuja del mensaje — selectable; long-press → copiar / editar y reenviar (F2.3) */}
+            <Pressable
+              onLongPress={() => handleMessageLongPress(msg, index)}
+              delayLongPress={350}
               style={{
                 maxWidth: '85%',
                 backgroundColor: msg.role === 'user' ? '#a8e02a' : '#0a0a0a',
@@ -438,20 +481,24 @@ function ArgosChat() {
                   {msg.content}
                 </Text>
               )}
-            </View>
+            </Pressable>
           </View>
         ))}
 
-        {/* Indicador de carga */}
+        {/* F2.3: indicador "ARGOS está pensando..." con dots animados */}
         {loading && (
           <View style={{
-            flexDirection: 'row', alignItems: 'center', gap: 8,
+            flexDirection: 'row', alignItems: 'center', gap: 10,
             backgroundColor: '#0a0a0a', borderRadius: 18, borderBottomLeftRadius: 4,
-            padding: 14, alignSelf: 'flex-start', maxWidth: '60%',
+            padding: 14, alignSelf: 'flex-start', maxWidth: '70%',
             borderWidth: 1, borderColor: '#1a1a1a',
           }}>
-            <ActivityIndicator size="small" color="#a8e02a" />
-            <Text style={{ color: '#999', fontSize: 13 }}>ARGOS analiza...</Text>
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              <TypingDot delay={0} />
+              <TypingDot delay={160} />
+              <TypingDot delay={320} />
+            </View>
+            <Text style={{ color: '#999', fontSize: 13 }}>ARGOS está pensando...</Text>
           </View>
         )}
       </ScrollView>

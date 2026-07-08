@@ -306,19 +306,6 @@ export async function calculateDailyScore(userId?: string, date?: string): Promi
   return score;
 }
 
-// === RECIPES ===
-
-export async function getRecipes(limit = 20): Promise<Recipe[]> {
-  const { data } = await supabase.from('recipes').select('*')
-    .eq('is_public', true).order('created_at', { ascending: false }).limit(limit);
-  return data ?? [];
-}
-
-export async function getRecipe(recipeId: string): Promise<Recipe | null> {
-  const { data } = await supabase.from('recipes').select('*').eq('id', recipeId).single();
-  return data;
-}
-
 // === LABEL ANALYSIS ===
 
 export async function analyzeLabelPhoto(
