@@ -13,7 +13,8 @@ export default defineConfig({
     },
   },
   test: {
-    include: ['src/**/__tests__/**/*.test.ts'],
+    // Sprint #50: los helpers puros de edge functions también se testean aquí
+    include: ['src/**/__tests__/**/*.test.ts', 'supabase/functions/**/__tests__/**/*.test.ts'],
     exclude: ['node_modules', 'src/engine/__tests__/**'], // engine.test.ts existente NO se toca
     environment: 'node',
     globals: false,

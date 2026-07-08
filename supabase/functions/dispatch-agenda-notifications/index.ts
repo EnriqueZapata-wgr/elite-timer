@@ -22,6 +22,8 @@
 //   v5 (esto): smart criterio anti-bulk (task #135)
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+// Sprint #50 hardening v7 — helpers puros (testeados en vitest)
+import { sendPushBatchWithRetry, type PushSendResult } from "./hardening.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -219,17 +221,23 @@ serve(async (req) => {
     });
   }
 
-  // 7) Enviar push en batches de 100
+  // 7) Enviar push en batches de 100 — v7 T1: retry con backoff (500ms/2s/5s,
+  //    solo red/5xx/429). Los resultados se conservan para dead-letter (T2) y
+  //    circuit breaker (T4).
+  const expoFetch = (body: string) =>
+    fetch("https://exp.host/--/api/v2/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body,
+    });
+
+  const batchResults: { batch: any[]; result: PushSendResult }[] = [];
   for (let i = 0; i < messages.length; i += 100) {
     const batch = messages.slice(i, i + 100);
-    try {
-      await fetch("https://exp.host/--/api/v2/push/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(batch),
-      });
-    } catch (e) {
-      console.error("[dispatch-agenda] expo push send failed", e);
+    const result = await sendPushBatchWithRetry(batch, expoFetch);
+    batchResults.push({ batch, result });
+    if (!result.ok) {
+      console.error(`[dispatch-agenda] expo batch failed after ${result.attempts} attempts (status=${result.status}, network=${result.networkError})`);
     }
   }
 
