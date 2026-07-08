@@ -124,6 +124,8 @@ function RootLayout() {
         }}
       >
         <AuthProvider>
+          {/* Sync invisible: configura RevenueCat y vincula user.id como app_user_id */}
+          <RevenueCatSync />
           <SettingsProvider>
             <ProgramsProvider>
               <SessionsProvider>
