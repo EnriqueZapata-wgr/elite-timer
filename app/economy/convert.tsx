@@ -30,8 +30,10 @@ export default function ConvertScreen() {
 
   const load = useCallback(async () => {
     if (!user?.id) return;
+    // Task #134: getElectronBalance ahora puede devolver null (cold start / RLS hidratando).
+    // Si es null, no actualizamos available — mantiene el valor previo (0 al inicio).
     const [bal, rate] = await Promise.all([getElectronBalance(user.id), getConversionRate(user.id)]);
-    setAvailable(bal.current_electrons);
+    if (bal) setAvailable(bal.current_electrons);
     setMultiplier(rate.multiplier);
   }, [user?.id]);
 
