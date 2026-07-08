@@ -184,8 +184,13 @@ function RootLayout() {
                 <Stack.Screen name="smart-shopping" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-input" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz-take" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* #67 p5b: cuestionarios Historia Clínica (cherry-pick 7570251) */}
+                <Stack.Screen name="historia-clinica/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="historia-clinica/[category]" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quizzes" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="braverman" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* #90: reporte premium ARGOS del Braverman */}
+                <Stack.Screen name="braverman-premium" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Onboarding v2 (F2 sprint UX blockers) — motor v1 eliminado */}
                 <Stack.Screen name="onboarding/v2/welcome" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="onboarding/v2/profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
@@ -197,6 +202,8 @@ function RootLayout() {
                 {/* Standalone: config de voz ARGOS (backfill founders + re-configuración) */}
                 <Stack.Screen name="onboarding/voice-config" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="journal" options={{ animation: 'slide_from_right' }} />
+                {/* #39: historial dedicado del journal */}
+                <Stack.Screen name="journal-history" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle-charts" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle-history" options={{ headerShown: false, animation: 'slide_from_right' }} />
@@ -221,6 +228,7 @@ function RootLayout() {
                 <Stack.Screen name="economy/shop" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="economy/convert" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/history" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="economy/how-to-earn" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="economy/challenges" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/referrals" options={{ headerShown: false, animation: 'slide_from_right' }} />
               </Stack>

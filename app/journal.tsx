@@ -22,7 +22,7 @@ import { awardBooleanElectron } from '@/src/services/electron-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -359,16 +359,22 @@ export default function JournalScreen() {
   return (
     <Screen>
       <PillarHeader pillar="mind" title="Journal" rightContent={
-        <HelpButton
-          title="Tu diario ATP"
-          color="#c084fc"
-          tips={[
-            'Elige entre 4 tipos: Gratitud, Visión, Estoico o Descarga',
-            'Escribe libremente — no hay longitud mínima',
-            'Tus entradas anteriores aparecen abajo',
-            'Activa el recordatorio diario para no olvidar tu descarga mental',
-          ]}
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {/* #39: historial dedicado con filtros/búsqueda/edición */}
+          <Pressable onPress={() => { haptic.light(); router.push('/journal-history' as any); }} hitSlop={8}>
+            <Ionicons name="time-outline" size={22} color="#c084fc" />
+          </Pressable>
+          <HelpButton
+            title="Tu diario ATP"
+            color="#c084fc"
+            tips={[
+              'Elige entre 4 tipos: Gratitud, Visión, Estoico o Descarga',
+              'Escribe libremente — no hay longitud mínima',
+              'El reloj (arriba) abre tu historial completo con filtros',
+              'Activa el recordatorio diario para no olvidar tu descarga mental',
+            ]}
+          />
+        </View>
       } />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         <EliteText variant="caption" style={s.subtitle}>Elige tu práctica de hoy</EliteText>

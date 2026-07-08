@@ -607,6 +607,30 @@ function BravermanTest() {
             </Text>
           </Animated.View>
 
+          {/* #90: Reporte PREMIUM ARGOS — análisis profundo generado por IA */}
+          <Animated.View entering={FadeInDown.delay(160).springify()}>
+            <AnimatedPressable
+              onPress={() => { haptic.medium(); router.push('/braverman-premium' as any); }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 12,
+                backgroundColor: withOpacity('#A8E02A', 0.08), borderRadius: 16,
+                borderWidth: 1, borderColor: withOpacity('#A8E02A', 0.3),
+                padding: 16, marginTop: Spacing.md,
+              }}
+            >
+              <Text style={{ fontSize: 24 }}>🧠</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#A8E02A', fontSize: 14, fontFamily: Fonts.bold }}>
+                  Reporte PREMIUM ARGOS
+                </Text>
+                <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>
+                  Análisis profundo de tus 4 naturalezas + plan específico
+                </Text>
+              </View>
+              <Text style={{ color: '#A8E02A', fontSize: 16 }}>→</Text>
+            </AnimatedPressable>
+          </Animated.View>
+
           {/* Dominance bars */}
           <Animated.View entering={FadeInDown.delay(200).springify()}>
           <Text style={{

@@ -51,6 +51,8 @@ const HEALTH_HUB_IMAGES: Record<string, any> = {
   biomarcadores: require('@/assets/images/health-hub/biomarcadores.png'),
   tests: require('@/assets/images/health-hub/tests-evaluaciones.png'),
   cinematicas: require('@/assets/images/health-hub/pruebas-cinematicas.png'),
+  // #67 p5b: sin asset dedicado aún — reutiliza el B/N de tests
+  historia_clinica: require('@/assets/images/health-hub/tests-evaluaciones.png'),
 };
 
 const CARDS: Card[] = [
@@ -61,6 +63,8 @@ const CARDS: Card[] = [
   { key: 'labs', title: 'LABORATORIOS', subtitle: 'Sube y consulta tus estudios', icon: '🧪', gradient: ['#60A5FA', '#3B82F6'], route: '/edad-atp/labs' },
   { key: 'biomarcadores', title: 'BIOMARCADORES', subtitle: 'Peso, composición, fuerza de agarre, medidas', icon: '📊', gradient: ['#22C55E', '#16A34A'], route: '/health-input' },
   { key: 'tests', title: 'TESTS Y EVALUACIONES', subtitle: 'Braverman · Evaluaciones funcionales', icon: '🧠', gradient: ['#C084FC', '#8B5CF6'], route: '/quizzes' },
+  // #67 p5b (cherry-pick 7570251): cuestionarios de historia clínica funcional
+  { key: 'historia_clinica', title: 'HISTORIA CLÍNICA', subtitle: 'Padecimientos, familiares, tratamientos, salud bucal', icon: '📋', gradient: ['#1D9E75', '#16A34A'], route: '/historia-clinica' },
   { key: 'cinematicas', title: 'PRUEBAS CINEMÁTICAS', subtitle: 'Plank · BOLT · Old Man · Recovery HR', icon: '🏃', gradient: ['#22D3EE', '#0EA5E9'], route: '/edad-atp/cinematic-tests-index' },
 ];
 

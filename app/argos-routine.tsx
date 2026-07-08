@@ -49,6 +49,8 @@ export default function ArgosRoutineScreen() {
   const [duration, setDuration] = useState(60);
   const [routine, setRoutine] = useState<GeneratedRoutine | null>(null);
   const [loading, setLoading] = useState(false);
+  // #97: Modo Coach Exigente — ARGOS reta de verdad (adiós "3 lagartijas")
+  const [demandingCoach, setDemandingCoach] = useState(false);
 
   async function handleGenerate() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -64,6 +66,7 @@ export default function ArgosRoutineScreen() {
         equipment,
         focus: focus !== 'full' ? focus : undefined,
         level: 'intermediate',
+        demandingCoach,
       });
       if (result) {
         setRoutine(result);
@@ -276,8 +279,34 @@ export default function ArgosRoutineScreen() {
               </Pressable>
             ))}
           </View>
+          {/* #97: Modo Coach Exigente */}
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setDemandingCoach(v => !v); }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24,
+              backgroundColor: demandingCoach ? 'rgba(239,68,68,0.1)' : '#0a0a0a',
+              borderRadius: 16, padding: 16, borderWidth: 1.5,
+              borderColor: demandingCoach ? '#ef4444' : '#1a1a1a',
+            }}
+          >
+            <Ionicons name="flame" size={22} color={demandingCoach ? '#ef4444' : '#666'} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: demandingCoach ? '#ef4444' : '#fff', fontSize: 14, fontWeight: '700' }}>
+                Modo Coach Exigente
+              </Text>
+              <Text style={{ color: '#999', fontSize: 12, marginTop: 2 }}>
+                ARGOS te reta de verdad. Nada de rutinas suaves.
+              </Text>
+            </View>
+            <Ionicons
+              name={demandingCoach ? 'checkmark-circle' : 'ellipse-outline'}
+              size={22}
+              color={demandingCoach ? '#ef4444' : '#444'}
+            />
+          </Pressable>
+
           <Pressable onPress={handleGenerate} style={{
-            backgroundColor: '#a8e02a', borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 30,
+            backgroundColor: '#a8e02a', borderRadius: 16, padding: 16, alignItems: 'center', marginTop: 16,
             flexDirection: 'row', justifyContent: 'center', gap: 8,
           }}>
             <Ionicons name="eye-outline" size={20} color="#000" />
@@ -312,6 +341,19 @@ export default function ArgosRoutineScreen() {
               <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>
                 GENERADA POR ARGOS
               </Text>
+              {/* #97: tag del modo exigente */}
+              {demandingCoach && (
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 3,
+                  backgroundColor: 'rgba(239,68,68,0.15)', borderRadius: 4,
+                  paddingHorizontal: 6, paddingVertical: 2,
+                }}>
+                  <Ionicons name="flame" size={10} color="#ef4444" />
+                  <Text style={{ color: '#ef4444', fontSize: 9, fontWeight: '800', letterSpacing: 1 }}>
+                    EXIGENTE
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{routine.name}</Text>
             <Text style={{ color: '#999', fontSize: 13, marginTop: 4 }}>{routine.description}</Text>
