@@ -189,6 +189,8 @@ function RootLayout() {
                 <Stack.Screen name="historia-clinica/[category]" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quizzes" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="braverman" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* #90: reporte premium ARGOS del Braverman */}
+                <Stack.Screen name="braverman-premium" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Onboarding v2 (F2 sprint UX blockers) — motor v1 eliminado */}
                 <Stack.Screen name="onboarding/v2/welcome" options={{ headerShown: false, animation: 'fade' }} />
                 <Stack.Screen name="onboarding/v2/profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
