@@ -34,6 +34,7 @@ import { LabProcessingProvider } from '@/src/hooks/useLabProcessing';
 import { LabProcessingSheet } from '@/src/components/labs/LabProcessingSheet';
 import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner';
 import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
+import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
