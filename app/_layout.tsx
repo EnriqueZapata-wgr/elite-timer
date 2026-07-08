@@ -184,6 +184,9 @@ function RootLayout() {
                 <Stack.Screen name="smart-shopping" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-input" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz-take" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* #67 p5b: cuestionarios Historia Clínica (cherry-pick 7570251) */}
+                <Stack.Screen name="historia-clinica/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="historia-clinica/[category]" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quizzes" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="braverman" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Onboarding v2 (F2 sprint UX blockers) — motor v1 eliminado */}
