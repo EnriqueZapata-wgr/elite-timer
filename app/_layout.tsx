@@ -153,6 +153,12 @@ function RootLayout() {
                 <Stack.Screen name="builder" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings/legal" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* #137: sub-pantallas del hub de Ajustes reorganizado */}
+                <Stack.Screen name="settings/cuenta" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="settings/salud" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="settings/experiencia" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="settings/conexiones" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="settings/dev" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/notifications" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="argos/conversations" options={{ headerShown: false, animation: 'slide_from_right' }} />
