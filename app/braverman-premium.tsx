@@ -1,10 +1,11 @@
 /**
- * REPORTE PREMIUM ARGOS — Braverman (#90, marathon F5).
- * Gate: effectiveTier pro/clinician (el Boost H+ de 24h también abre la puerta).
- * Free/base ven lock editorial con CTA a boost/paywall. Cache por resultado.
+ * REPORTE PREMIUM ARGOS — Braverman (#90, #143).
+ * Doctrina H+: se COBRA con Protones (1,000 H+, precio server-side), NO se
+ * gatea por tier. Cache por resultado = compra permanente (releer gratis).
+ * Precio y balance siempre visibles antes del tap (consentimiento explícito).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import Markdown from 'react-native-markdown-display';
@@ -14,9 +15,11 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
-import { useSubscription } from '@/src/hooks/useSubscription';
+import { formatFull } from '@/src/services/economy/format';
 import {
   generateBravermanPremiumReport,
+  getBravermanPremiumQuote,
+  type PremiumQuote,
   type PremiumReportResult,
 } from '@/src/services/braverman-premium-service';
 import { haptic } from '@/src/utils/haptics';
@@ -33,9 +36,10 @@ const LOADING_PHRASES = [
 
 export default function BravermanPremiumScreen() {
   const { user } = useAuth();
-  const { isPro, isLoading: subLoading } = useSubscription();
-  const [state, setState] = useState<'idle' | 'loading' | 'done' | 'error' | 'no_test'>('idle');
+  const [state, setState] = useState<'idle' | 'offer' | 'loading' | 'done' | 'error' | 'no_test'>('idle');
+  const [quote, setQuote] = useState<PremiumQuote | null>(null);
   const [markdown, setMarkdown] = useState<string | null>(null);
+  const [wasCached, setWasCached] = useState(false);
   const [phraseIdx, setPhraseIdx] = useState(0);
   const startedRef = useRef(false);
 
@@ -46,20 +50,40 @@ export default function BravermanPremiumScreen() {
     if (result.status === 'ok') {
       haptic.success();
       setMarkdown(result.markdown);
+      setWasCached(result.cached);
       setState('done');
-    } else {
-      setState(result.status === 'no_test' ? 'no_test' : 'error');
+      // #143: cobro exitoso → refrescar pill de economía (regla CLAUDE.md #5)
+      if (!result.cached) DeviceEventEmitter.emit('balance_changed');
+      return;
     }
+    if (result.status === 'insufficient_h_plus') {
+      haptic.warning();
+      setState('offer');
+      Alert.alert(
+        'Te faltan H+',
+        `Este reporte usa ${formatFull(result.required)} H+ y tienes ${formatFull(result.balance)}. Recarga o gana más completando tu día.`,
+        [
+          { text: 'Ahora no', style: 'cancel' },
+          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop' as any) },
+        ],
+      );
+      return;
+    }
+    setState(result.status === 'no_test' ? 'no_test' : 'error');
   }, [user?.id]);
 
-  // Auto-genera al entrar si tiene acceso (cache hace esto barato en re-visitas)
+  // #143: al entrar carga precio + balance. Si ya lo tiene (cache) lo muestra
+  // directo SIN cobrar ni preguntar; si no, card previa con consentimiento.
   useEffect(() => {
-    if (subLoading || startedRef.current || !user?.id) return;
-    if (isPro) {
-      startedRef.current = true;
-      generate();
-    }
-  }, [subLoading, isPro, user?.id, generate]);
+    if (startedRef.current || !user?.id) return;
+    startedRef.current = true;
+    getBravermanPremiumQuote(user.id).then((q) => {
+      setQuote(q);
+      if (!q.hasCompletedTest) { setState('no_test'); return; }
+      if (q.hasCachedReport) { generate(); return; } // gratis, directo
+      setState('offer');
+    }).catch(() => setState('error'));
+  }, [user?.id, generate]);
 
   // Rotación de frases del loading (el LLM tarda 30-60s)
   useEffect(() => {
@@ -70,40 +94,53 @@ export default function BravermanPremiumScreen() {
     return () => clearInterval(interval);
   }, [state]);
 
-  // ── Gate para free/base ──
-  if (!subLoading && !isPro) {
-    return (
-      <Screen edges={[]}>
-        <ScreenHeader title="Reporte Premium" onBack={() => router.back()} />
-        <View style={styles.lockContainer}>
-          <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.lockCard}>
-            <EliteText style={{ fontSize: 44 }}>🧠</EliteText>
-            <EliteText style={styles.lockTitle}>Tu cerebro, a fondo</EliteText>
-            <EliteText style={styles.lockBody}>
-              ARGOS cruza tus 313 respuestas con tu perfil y genera un análisis
-              profundo: proporciones exactas, fortalezas, vulnerabilidades y un
-              plan específico de nutrientes, suplementos, ejercicio y mente.
-            </EliteText>
-            <AnimatedPressable
-              onPress={() => { haptic.medium(); router.push('/paywall' as any); }}
-              style={styles.lockCtaPrimary}
-            >
-              <EliteText style={styles.lockCtaPrimaryText}>Ver ATP Pro</EliteText>
-            </AnimatedPressable>
-            <EliteText style={styles.lockHint}>
-              ¿Tienes Protones? El Boost H+ de 24 horas (en HOY) también lo desbloquea.
-            </EliteText>
-          </Animated.View>
-        </View>
-      </Screen>
-    );
-  }
+  const canAfford = quote?.balance == null || quote.balance >= (quote?.cost ?? 0);
 
   return (
     <Screen edges={[]}>
       <ScreenHeader title="Reporte Premium" onBack={() => router.back()} />
 
-      {(state === 'loading' || state === 'idle' || subLoading) && (
+      {/* #143: card previa — precio + balance visibles ANTES de generar */}
+      {state === 'offer' && quote && (
+        <View style={styles.lockContainer}>
+          <Animated.View entering={FadeInUp.delay(60).springify()} style={styles.lockCard}>
+            <EliteText style={{ fontSize: 44 }}>🧠</EliteText>
+            <EliteText style={styles.lockTitle}>Reporte Premium · Braverman</EliteText>
+            <EliteText style={styles.lockBody}>
+              Análisis ARGOS de tu naturaleza neurotransmisora: proporciones
+              exactas, fortalezas, vulnerabilidades y un plan específico de
+              nutrientes, suplementos, ejercicio y mente.
+            </EliteText>
+            <View style={styles.priceRow}>
+              <EliteText style={styles.priceText}>💎 Usa {formatFull(quote.cost)} H+</EliteText>
+              <EliteText style={styles.balanceText}>
+                Tu balance: {quote.balance == null ? '…' : `${formatFull(quote.balance)} H+`}
+              </EliteText>
+            </View>
+            <AnimatedPressable
+              onPress={() => { haptic.medium(); generate(); }}
+              style={styles.lockCtaPrimary}
+            >
+              <EliteText style={styles.lockCtaPrimaryText}>
+                Generar reporte ({formatFull(quote.cost)} H+)
+              </EliteText>
+            </AnimatedPressable>
+            {!canAfford && (
+              <AnimatedPressable
+                onPress={() => { haptic.light(); router.push('/economy/shop' as any); }}
+                style={styles.shopLink}
+              >
+                <EliteText style={styles.shopLinkText}>Te faltan H+ — conseguir más →</EliteText>
+              </AnimatedPressable>
+            )}
+            <EliteText style={styles.lockHint}>
+              Se genera una sola vez: queda tuyo para releer cuando quieras.
+            </EliteText>
+          </Animated.View>
+        </View>
+      )}
+
+      {(state === 'loading' || state === 'idle') && (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={ATP_BRAND.lime} />
           <Animated.View key={phraseIdx} entering={FadeIn.duration(500)}>
@@ -144,8 +181,16 @@ export default function BravermanPremiumScreen() {
       {state === 'done' && markdown && (
         <ScrollView contentContainerStyle={styles.reportContent} showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInUp.springify()}>
-            <View style={styles.reportBadge}>
-              <EliteText style={styles.reportBadgeText}>ANÁLISIS ARGOS · PREMIUM</EliteText>
+            <View style={styles.badgeRow}>
+              <View style={styles.reportBadge}>
+                <EliteText style={styles.reportBadgeText}>ANÁLISIS ARGOS · PREMIUM</EliteText>
+              </View>
+              {/* #143: comunica cache permanente — releer nunca vuelve a costar */}
+              <View style={styles.ownedBadge}>
+                <EliteText style={styles.ownedBadgeText}>
+                  {wasCached ? '✓ Ya lo tienes' : '✓ Tuyo para siempre'} — releer es gratis
+                </EliteText>
+              </View>
             </View>
             <Markdown
               style={{
@@ -229,14 +274,39 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   loadingHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary },
+  priceRow: {
+    alignItems: 'center',
+    gap: 2,
+    marginTop: Spacing.xs,
+  },
+  priceText: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: ATP_BRAND.lime },
+  balanceText: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary },
+  shopLink: { paddingVertical: 6 },
+  shopLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: ATP_BRAND.lime },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  ownedBadge: {
+    backgroundColor: ELEVATION[2].bg,
+    borderRadius: Radius.xs,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  ownedBadgeText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 10,
+    color: TEXT.secondary,
+    letterSpacing: 0.5,
+  },
   reportContent: { padding: Spacing.md, paddingBottom: 60 },
   reportBadge: {
-    alignSelf: 'flex-start',
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.12),
     borderRadius: Radius.xs,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
-    marginBottom: Spacing.sm,
   },
   reportBadgeText: {
     fontFamily: Fonts.bold,
