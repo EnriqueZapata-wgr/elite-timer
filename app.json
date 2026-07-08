@@ -80,7 +80,7 @@
       "sentryDsn": "https://dfb5a8e5f6d2d983f9e0ed2408eee465@o4511351605231616.ingest.us.sentry.io/4511351625547776",
       "posthogKey": "phc_Bjw7aJ3hyrFTn68ZyZsL5qad95eKNEVUnzQzu8UWA2L8",
       "revenuecatIosKey": "test_sghBdzhCreYftMTyCERAyiwisxX",
-      "revenuecatAndroidKey": "PENDIENTE_ENRIQUE_COPIA_DEL_DASHBOARD",
+      "revenuecatAndroidKey": "test_sghBdzhCreYftMTyCERAyiwisxX",
       "router": {},
       "eas": {
         "projectId": "5ab4ad17-7e3f-422e-af22-13dc696dbf4e"
