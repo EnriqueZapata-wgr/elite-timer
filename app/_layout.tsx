@@ -200,6 +200,8 @@ function RootLayout() {
                 {/* Standalone: config de voz ARGOS (backfill founders + re-configuración) */}
                 <Stack.Screen name="onboarding/voice-config" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="journal" options={{ animation: 'slide_from_right' }} />
+                {/* #39: historial dedicado del journal */}
+                <Stack.Screen name="journal-history" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle-charts" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="cycle-history" options={{ headerShown: false, animation: 'slide_from_right' }} />
