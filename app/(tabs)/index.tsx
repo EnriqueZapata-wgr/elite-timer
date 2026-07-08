@@ -29,6 +29,7 @@ import { SplashLoader } from '@/src/components/SplashLoader';
 import { NotificationBellIcon } from '@/src/components/hoy/NotificationBellIcon';
 import { HoyEditorialSection } from '@/src/components/hoy/HoyEditorialSection';
 import { AgendaPreviewCard } from '@/src/components/agenda/AgendaPreviewCard';
+import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
 import { getCardsVisible } from '@/src/services/hoy/visibility-service';
 import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
@@ -961,6 +962,10 @@ export default function TodayScreen() {
         <View style={{ paddingHorizontal: Spacing.md }}>
           <AgendaPreviewCard userId={user?.id} />
         </View>
+
+        {/* Task #133: Boost H+ — 24h de Pro con Protones (solo tier base / countdown si activo).
+            La card trae su propio wrapper: si no aplica no deja hueco. */}
+        <ProBoostCard />
 
         {/* #tabs-redesign V1.3 Parte 1: tira de cards editoriales (aditiva, gated por visibility).
             El cleanup de las secciones viejas queda para auditoría visual (ver COWORK_REPORT). */}

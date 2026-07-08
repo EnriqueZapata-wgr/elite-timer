@@ -34,6 +34,7 @@ import { LabProcessingProvider } from '@/src/hooks/useLabProcessing';
 import { LabProcessingSheet } from '@/src/components/labs/LabProcessingSheet';
 import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner';
 import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
+import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -123,6 +124,8 @@ function RootLayout() {
         }}
       >
         <AuthProvider>
+          {/* Sync invisible: configura RevenueCat y vincula user.id como app_user_id */}
+          <RevenueCatSync />
           <SettingsProvider>
             <ProgramsProvider>
               <SessionsProvider>
@@ -204,6 +207,9 @@ function RootLayout() {
                 <Stack.Screen name="fitness-hiit" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="log-cardio" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* Suscripciones RevenueCat (sprint IAP V1.3) */}
+                <Stack.Screen name="paywall" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
+                <Stack.Screen name="settings/subscription" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Economía Protones H+ (feature gated; pantallas accesibles para QA) */}
                 <Stack.Screen name="economy/admin" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/shop" options={{ headerShown: false, animation: 'slide_from_bottom' }} />

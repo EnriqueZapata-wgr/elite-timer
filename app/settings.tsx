@@ -307,6 +307,22 @@ export default function SettingsScreen() {
           <Divider />
         </Animated.View>
 
+        {/* ══════ SUSCRIPCIÓN (sprint IAP V1.3) ══════ */}
+        <Animated.View entering={FadeInUp.delay(222).springify()}>
+          <SectionLabel>SUSCRIPCIÓN</SectionLabel>
+          <Pressable onPress={() => { haptic.medium(); router.push('/settings/subscription' as any); }} style={styles.settingRow}>
+            <View style={styles.settingRowLeft}>
+              <Ionicons name="diamond-outline" size={20} color={Colors.textSecondary} />
+              <View>
+                <EliteText variant="body" style={styles.settingRowLabel}>Suscripción</EliteText>
+                <EliteText variant="caption" style={styles.settingRowSub}>Tu plan, renovación e historial</EliteText>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          </Pressable>
+          <Divider />
+        </Animated.View>
+
         {/* ══════ NOTIFICACIONES (#61 polish) ══════ */}
         <Animated.View entering={FadeInUp.delay(225).springify()}>
           <SectionLabel>NOTIFICACIONES</SectionLabel>
