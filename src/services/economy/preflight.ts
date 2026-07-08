@@ -10,7 +10,7 @@
  * sprint (toca flujos UX de ARGOS, mejor con review visual de Enrique). Helper listo.
  */
 import { LAB_ECONOMY_ENABLED } from './economy-config';
-import { getActionCost, getProtonBalance } from './proton-service';
+import { getActionCost, getProtonBalanceOrZero } from './proton-service';
 
 export interface PreflightResult {
   ok: boolean;
@@ -20,9 +20,11 @@ export interface PreflightResult {
 
 export async function preflightAction(userId: string, actionKey: string): Promise<PreflightResult> {
   if (!LAB_ECONOMY_ENABLED) return { ok: true, required: 0, current: 0 }; // feature OFF → no gatea
+  // Preflight es gating — necesitamos el zero-state defensivo aquí (si balance es null,
+  // NO permitir la acción). Por eso usamos OrZero en vez de la variante nueva.
   const [required, balance] = await Promise.all([
     getActionCost(actionKey),
-    getProtonBalance(userId),
+    getProtonBalanceOrZero(userId),
   ]);
   return { ok: balance.current_protons >= required, required, current: balance.current_protons };
 }

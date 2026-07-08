@@ -8,13 +8,25 @@ import { supabase } from '@/src/lib/supabase';
 import type { ProtonBalance, ProtonTransaction, ProtonTxType } from './economy-types';
 import { FALLBACK_ACTION_COSTS, type ActionKey } from './economy-config';
 
-export async function getProtonBalance(userId: string): Promise<ProtonBalance> {
-  const { data } = await supabase
+export async function getProtonBalance(userId: string): Promise<ProtonBalance | null> {
+  // Task #134 fix: en vez de devolver zeros como fallback (que causaban el flash a 0
+  // en la pill de economía al abrir la app), devolvemos null. El componente decide
+  // si mostrar cache local, placeholder, o esperar. Ver comentario en electron-service.
+  const { data, error } = await supabase
     .from('proton_balance')
     .select('user_id, current_protons, lifetime_earned, lifetime_spent')
     .eq('user_id', userId)
     .maybeSingle();
-  if (data) return data as ProtonBalance;
+  if (error || !data) return null;
+  return data as ProtonBalance;
+}
+
+/**
+ * Fallback zero-state para casos de inicialización. Úsalo con criterio — NUNCA en UI.
+ */
+export async function getProtonBalanceOrZero(userId: string): Promise<ProtonBalance> {
+  const balance = await getProtonBalance(userId);
+  if (balance) return balance;
   return { user_id: userId, current_protons: 0, lifetime_earned: 0, lifetime_spent: 0 };
 }
 

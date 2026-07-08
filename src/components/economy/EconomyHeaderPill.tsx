@@ -3,9 +3,17 @@
  * Self-contained: se auto-gatea (LAB_ECONOMY_ENABLED) y carga sus propios balances.
  * Si la feature está OFF o no hay usuario → no renderiza nada (cero impacto en el HOY).
  * Tap → /economy/admin. Refresca en 'balance_changed'.
+ *
+ * Task #134 fix: cache local en AsyncStorage evita el flash a "⚡0 · 💎0 · Rank 1"
+ * al abrir la app. Estrategia:
+ *   1. Al montar → intentar hidratar desde cache local (mostrar balance previo instantáneo).
+ *   2. En background → fetch remoto. Si devuelve null (RLS hidratando o sin fila) → mantener
+ *      cache. Solo actualizar cuando venga data real.
+ *   3. Tras cada fetch exitoso → persistir a cache para próxima apertura.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
@@ -19,14 +27,42 @@ import { formatCompact } from '@/src/services/economy/format';
 import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
 import { Fonts, FontSizes } from '@/constants/theme';
 
+type BalanceData = { e: number; h: number; rank: number };
+const CACHE_KEY = (userId: string) => `atp:econ:balance:${userId}`;
+
 export function EconomyHeaderPill() {
   const { user } = useAuth();
-  const [data, setData] = useState<{ e: number; h: number; rank: number } | null>(null);
+  const [data, setData] = useState<BalanceData | null>(null);
+
+  // Hidratar desde cache al montar (evita flash a 0). Corre una sola vez por user.
+  useEffect(() => {
+    if (!LAB_ECONOMY_ENABLED || !user?.id) return;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(CACHE_KEY(user.id));
+        if (raw) {
+          const cached = JSON.parse(raw) as BalanceData;
+          setData(cached);
+        }
+      } catch {} // Silencioso: si falla el cache, seguimos con fetch remoto
+    })();
+  }, [user?.id]);
 
   const load = useCallback(async () => {
     if (!LAB_ECONOMY_ENABLED || !user?.id) return;
     const [e, p] = await Promise.all([getElectronBalance(user.id), getProtonBalance(user.id)]);
-    setData({ e: e.current_electrons, h: p.current_protons, rank: e.current_rank });
+    // Solo actualizar si AMBAS queries devolvieron data real. Si alguna es null (cold
+    // start con RLS hidratando o sin fila), mantener el cache actual — nunca pintar
+    // ceros como si el user hubiera perdido su progreso.
+    if (!e || !p) return;
+    const next: BalanceData = {
+      e: e.current_electrons,
+      h: p.current_protons,
+      rank: e.current_rank,
+    };
+    setData(next);
+    // Persistir a cache para próxima apertura
+    try { await AsyncStorage.setItem(CACHE_KEY(user.id), JSON.stringify(next)); } catch {}
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => {

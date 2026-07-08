@@ -237,22 +237,64 @@ async function callGeminiProvider(args: {
 
 // ─── CIRCUIT BREAKER ────────────────────────────────────────────
 
-async function checkAndIncrementUsage(supabase: any, userId: string | undefined): Promise<{
+// Rate limits per tier (task #40 + #133).
+// El effectiveTier considera boost H+ activo (Base con boost = Pro por 24h).
+const TIER_DAILY_LIMITS: Record<string, number> = {
+  free: 5,
+  base: 25,
+  pro: 150,
+  clinician: 100,
+};
+
+// Detecta el tier real del user (profiles.tier + boost activo).
+// Cache 30s in-memory sencillo — evita golpear DB en cada request.
+const tierCache = new Map<string, { effectiveTier: string; expiresAt: number }>();
+
+async function detectEffectiveTier(supabase: any, userId: string): Promise<string> {
+  const cached = tierCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.effectiveTier;
+
+  try {
+    // 1) Read profiles.tier
+    const { data: profile } = await supabase
+      .from("profiles").select("tier").eq("id", userId).maybeSingle();
+    const baseTier = profile?.tier ?? "free";
+
+    // 2) Check boost H+ activo (task #133)
+    if (baseTier === "base") {
+      const { data: boost } = await supabase.rpc("has_active_pro_boost", { p_user_id: userId });
+      if (boost === true) {
+        tierCache.set(userId, { effectiveTier: "pro", expiresAt: Date.now() + 30000 });
+        return "pro";
+      }
+    }
+
+    tierCache.set(userId, { effectiveTier: baseTier, expiresAt: Date.now() + 30000 });
+    return baseTier;
+  } catch (e) {
+    console.error("detectEffectiveTier error:", e);
+    return "free"; // fail-safe
+  }
+}
+
+async function checkAndIncrementUsage(supabase: any, userId: string | undefined, effectiveTier: string): Promise<{
   blocked: boolean;
   count: number;
+  limit: number;
 }> {
-  if (!userId) return { blocked: false, count: 0 };
+  const limit = TIER_DAILY_LIMITS[effectiveTier] ?? HARD_CAP_DAILY;
+  if (!userId) return { blocked: false, count: 0, limit };
   try {
     const { data, error } = await supabase.rpc("increment_argos_usage", { p_user_id: userId });
     if (error) {
       console.error("increment_argos_usage error:", error);
-      return { blocked: false, count: 0 }; // fail-open: no bloquear si la función falla
+      return { blocked: false, count: 0, limit }; // fail-open
     }
     const count = typeof data === "number" ? data : 0;
-    return { blocked: count > HARD_CAP_DAILY, count };
+    return { blocked: count > limit, count, limit };
   } catch (e) {
     console.error("increment_argos_usage exception:", e);
-    return { blocked: false, count: 0 };
+    return { blocked: false, count: 0, limit };
   }
 }
 
@@ -325,34 +367,42 @@ serve(async (req) => {
       }
     }
 
-    const { messages, max_tokens, model, system, userId, tier, requestType, targetUserId, targetProfileId, idempotency_key } = body;
+    const { messages, max_tokens, model, system, userId, tier: clientTier, requestType, targetUserId, targetProfileId, idempotency_key } = body;
     const finalModel = model || PRIMARY_MODEL_DEFAULT;
     const finalMaxTokens = max_tokens || 4000;
 
-    // Circuit breaker (server-side)
-    const usage = await checkAndIncrementUsage(supabase, userId);
+    // Detectar tier real server-side (task #40 + task #133 boost H+).
+    // El clientTier es informativo — el server es la fuente de verdad.
+    const effectiveTier = userId ? await detectEffectiveTier(supabase, userId) : (clientTier ?? "free");
+
+    // Circuit breaker per tier (server-side)
+    const usage = await checkAndIncrementUsage(supabase, userId, effectiveTier);
     if (usage.blocked) {
       const latencyMs = Date.now() - startTime;
       await logArgosCall(supabase, {
         user_id: userId,
-        tier,
+        tier: effectiveTier,
         provider: "anthropic",
         model: finalModel,
         request_type: requestType,
         latency_ms: latencyMs,
         success: false,
-        error_message: "rate_limited",
+        error_message: `rate_limited:tier=${effectiveTier}:limit=${usage.limit}`,
         fallback_used: false,
         target_user_id: targetUserId ?? null,
         target_profile_id: targetProfileId ?? null,
       });
+      const upgradeMsg = effectiveTier === "free"
+        ? "Alcanzaste el límite diario. Suscríbete a ATP Base para más acceso."
+        : effectiveTier === "base"
+          ? "Alcanzaste el límite Base (25/día). Prueba un boost Pro por 24h con Protones H+ o actualiza a ATP Pro."
+          : `Alcanzaste el límite (${usage.limit}/día). Se renueva mañana.`;
       return new Response(JSON.stringify({
-        content: [{
-          type: "text",
-          text: `Alcanzaste el límite diario de consultas a ARGOS (${HARD_CAP_DAILY}). Se renueva mañana.`,
-        }],
+        content: [{ type: "text", text: upgradeMsg }],
         model: finalModel,
         _rate_limited: true,
+        _tier: effectiveTier,
+        _limit: usage.limit,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -383,7 +433,7 @@ serve(async (req) => {
         }
         if (!debit || debit.success !== true) {
           await logArgosCall(supabase, {
-            user_id: userId, tier, provider: "anthropic", model: finalModel,
+            user_id: userId, tier: effectiveTier, provider: "anthropic", model: finalModel,
             request_type: requestType, latency_ms: Date.now() - startTime, success: false,
             error_message: "insufficient_protons",
             target_user_id: targetUserId ?? null, target_profile_id: targetProfileId ?? null,
@@ -420,7 +470,7 @@ serve(async (req) => {
       if (ant.ok) {
         await logArgosCall(supabase, {
           user_id: userId,
-          tier,
+          tier: effectiveTier,
           provider: "anthropic",
           model: finalModel,
           request_type: requestType,
@@ -448,7 +498,7 @@ serve(async (req) => {
     if (hasPdfRequest) {
       const latencyMs = Date.now() - startTime;
       await logArgosCall(supabase, {
-        user_id: userId, tier, provider: "anthropic", model: finalModel,
+        user_id: userId, tier: effectiveTier, provider: "anthropic", model: finalModel,
         request_type: requestType, latency_ms: latencyMs, success: false,
         error_message: `pdf_no_fallback:${anthropicErr}`,
         fallback_used: false,
@@ -474,7 +524,7 @@ serve(async (req) => {
       if (gem.ok && gem.text) {
         await logArgosCall(supabase, {
           user_id: userId,
-          tier,
+          tier: effectiveTier,
           provider: "google",
           model: FALLBACK_MODEL,
           request_type: requestType,
@@ -498,7 +548,7 @@ serve(async (req) => {
       const latencyMsDeg = Date.now() - startTime;
       await logArgosCall(supabase, {
         user_id: userId,
-        tier,
+        tier: effectiveTier,
         provider: "google",
         model: FALLBACK_MODEL,
         request_type: requestType,
@@ -514,7 +564,7 @@ serve(async (req) => {
       const gemErr = e?.name === "AbortError" ? "gemini_timeout" : (e?.message || String(e));
       await logArgosCall(supabase, {
         user_id: userId,
-        tier,
+        tier: effectiveTier,
         provider: "google",
         model: FALLBACK_MODEL,
         request_type: requestType,

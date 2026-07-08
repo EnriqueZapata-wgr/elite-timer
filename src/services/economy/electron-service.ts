@@ -33,14 +33,29 @@ export async function awardElectrons(
   return { success: true };
 }
 
-export async function getElectronBalance(userId: string): Promise<ElectronBalance> {
-  const { data } = await supabase
+export async function getElectronBalance(userId: string): Promise<ElectronBalance | null> {
+  // Task #134 fix: en vez de devolver zeros como fallback (que causaban "flash a 0" al
+  // abrir la app, aterrando al user), devolvemos null cuando la query no tiene fila o
+  // falla. El componente decide si mostrar cache local, placeholder, o esperar. La
+  // "fila que no existe" es indistinguible en runtime de "RLS aún hidratando" — ambos
+  // casos NO deben mostrar ceros como si el user hubiera perdido su progreso.
+  const { data, error } = await supabase
     .from('electron_balance')
     .select('user_id, current_electrons, lifetime_electrons, current_rank')
     .eq('user_id', userId)
     .maybeSingle();
-  if (data) return data as ElectronBalance;
-  // Sin fila aún → balance cero, rank 1 (no rompe la UI).
+  if (error || !data) return null;
+  return data as ElectronBalance;
+}
+
+/**
+ * Para casos donde SÍ necesitas garantía de que el balance existe (ej. inicializar
+ * un user nuevo). Si no hay fila, devuelve el zero-state. Úsalo con criterio —
+ * NUNCA en UI de display porque puede causar el flash a 0.
+ */
+export async function getElectronBalanceOrZero(userId: string): Promise<ElectronBalance> {
+  const balance = await getElectronBalance(userId);
+  if (balance) return balance;
   return { user_id: userId, current_electrons: 0, lifetime_electrons: 0, current_rank: 1 };
 }
 

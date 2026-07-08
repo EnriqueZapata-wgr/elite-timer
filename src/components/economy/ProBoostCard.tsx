@@ -36,7 +36,9 @@ export function ProBoostCard() {
 
   const loadBalance = useCallback(() => {
     if (!user?.id) return;
-    getProtonBalance(user.id).then((b) => setHPlus(b.current_protons)).catch(() => {});
+    // Task #134: getProtonBalance ahora puede devolver null (cold start / RLS hidratando).
+    // Solo actualizar si tenemos data real — no pintar 0 defensivamente.
+    getProtonBalance(user.id).then((b) => { if (b) setHPlus(b.current_protons); }).catch(() => {});
   }, [user?.id]);
 
   useEffect(() => {
