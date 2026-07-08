@@ -18,6 +18,10 @@ import { Ionicons } from '@expo/vector-icons';
 // Módulo nativo — require con try/catch para compat OTA (igual que my-health).
 let ImagePicker: any = null;
 try { ImagePicker = require('expo-image-picker'); } catch { /* */ }
+// #138: resize antes de subir. Módulo nativo nuevo — no existe en binarios
+// pre-build; si falta, subimos el base64 del picker tal cual.
+let ImageManipulator: any = null;
+try { ImageManipulator = require('expo-image-manipulator'); } catch { /* */ }
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -25,6 +29,7 @@ import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { getClientProfile, upsertClientProfile } from '@/src/services/client-profile-service';
+import { base64ToUint8Array } from '@/src/utils/base64';
 import { parseLocalDate, getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -116,32 +121,69 @@ export default function ProfileScreen() {
         return;
       }
       // Crop 1:1 forzado — la app muestra el avatar circular.
+      // #138: base64:true — en RN el upload por Blob de fetch(file://) falla
+      // con "Network request failed"; subimos bytes decodificados del base64.
+      const pickerOpts = { allowsEditing: true, aspect: [1, 1] as [number, number], quality: 0.8, base64: true };
       const res = useCamera
-        ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
-        : await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+        ? await ImagePicker.launchCameraAsync(pickerOpts)
+        : await ImagePicker.launchImageLibraryAsync(pickerOpts);
       if (res.canceled || !res.assets?.[0]?.uri) return;
-      await uploadAvatar(res.assets[0].uri);
+      await uploadAvatar(res.assets[0]);
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'No se pudo seleccionar la foto.');
     }
   }
 
-  async function uploadAvatar(uri: string) {
+  async function uploadAvatar(asset: { uri: string; base64?: string | null; mimeType?: string }) {
     if (!user?.id) return;
     setAvatarUploading(true);
     try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      if (blob.size > 5 * 1024 * 1024) {
+      let base64 = asset.base64 ?? null;
+      let contentType = asset.mimeType ?? 'image/jpeg';
+
+      // #138: resize a 1024px + JPEG 0.8 — una foto de iPhone (5+ MB) baja a
+      // ~200 KB y el upload deja de dar timeouts. Módulo opcional (pre-build).
+      if (ImageManipulator?.manipulateAsync) {
+        try {
+          const manipulated = await ImageManipulator.manipulateAsync(
+            asset.uri,
+            [{ resize: { width: 1024 } }],
+            { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+          );
+          if (manipulated?.base64) {
+            base64 = manipulated.base64;
+            contentType = 'image/jpeg';
+          }
+        } catch { /* usamos el base64 del picker */ }
+      }
+
+      // Web: fetch/Blob sí funciona y el picker no siempre da base64.
+      let body: Uint8Array | Blob;
+      if (base64) {
+        body = base64ToUint8Array(base64);
+      } else if (Platform.OS === 'web') {
+        body = await (await fetch(asset.uri)).blob();
+        contentType = (body as Blob).type || contentType;
+      } else {
+        Alert.alert('Error al subir', 'No pudimos leer la imagen. Intenta con otra foto.');
+        return;
+      }
+
+      const size = body instanceof Blob ? body.size : body.byteLength;
+      if (size > 5 * 1024 * 1024) {
         Alert.alert('Imagen muy grande', 'Elige una foto de menos de 5 MB.');
         return; // bullet-proof: el avatar viejo se mantiene
       }
-      const ext = (uri.split('.').pop() || 'jpg').split('?')[0];
+
+      const ext = contentType === 'image/png' ? 'png' : 'jpg';
       const fileName = `${user.id}/avatar-${Date.now()}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('avatars')
-        .upload(fileName, blob, { upsert: true, contentType: blob.type || 'image/jpeg' });
-      if (upErr) { Alert.alert('Error al subir', upErr.message); return; }
+        .upload(fileName, body, { upsert: true, contentType });
+      if (upErr) {
+        Alert.alert('Error al subir', 'No pudimos guardar tu foto. Revisa tu conexión e intenta de nuevo.');
+        return;
+      }
       const { data: urlData } = await supabase.storage
         .from('avatars')
         .createSignedUrl(fileName, 60 * 60 * 24 * 365);

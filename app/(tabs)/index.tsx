@@ -225,6 +225,9 @@ export default function TodayScreen() {
   // min para que la recomendación no cambie de forma errática entre focus).
   const [heroRec, setHeroRec] = useState<HeroRecommendation | null>(null);
   const heroRecAtRef = useRef(0);
+  // #136: estado optimista de la card AHORA — check inmediato al registrar
+  // inline; se limpia cuando el recompute (post day_changed) trae la nueva rec.
+  const [heroResolved, setHeroResolved] = useState(false);
 
   /**
    * #68: arma el contexto (mayormente ya cargado en CompiledDay) + 3 señales
@@ -278,10 +281,33 @@ export default function TodayScreen() {
       edadAtpDelta,
     };
     setHeroRec(getHeroRecommendation(ctx));
+    // #136: el recompute con datos frescos cierra el ciclo optimista
+    setHeroResolved(false);
   }, [user?.id, userSex]);
 
+  /**
+   * #136: quick action de la card AHORA (agua) — optimistic update:
+   * check inmediato, endpoint en background, revert + alert si falla.
+   * addWater emite day_changed → loadDay(true) trae la siguiente rec.
+   */
+  const handleHeroQuickAction = useCallback(async (rec: HeroRecommendation) => {
+    if (!user?.id || rec.quickAction?.type !== 'water') return;
+    haptic.success();
+    setHeroResolved(true);
+    try {
+      const result = await addWater(user.id, rec.quickAction.amountMl);
+      if (result === null) throw new Error('addWater returned null');
+    } catch (e) {
+      logWarn('[HOY] hero quick action failed', e);
+      setHeroResolved(false);
+      Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
+    }
+  }, [user?.id]);
+
   // --- Carga de datos ---
-  const loadDay = useCallback(async () => {
+  // #136: forceHero salta el cache de 15 min del HERO — se usa cuando los
+  // datos del día REALMENTE cambiaron (day_changed/electrons_changed).
+  const loadDay = useCallback(async (forceHero = false) => {
     if (!user?.id) return;
     let compiledForHero: CompiledDay | null = null;
     let streakForHero: number | null = null;
@@ -296,9 +322,10 @@ export default function TodayScreen() {
       setStreak(s);
       streakForHero = s;
     } catch { /* silencioso */ }
-    // #68: recomputar la recomendación HERO (respeta el cache de 15 min).
+    // #68: recomputar la recomendación HERO (respeta el cache de 15 min,
+    // salvo forceHero #136).
     if (compiledForHero) {
-      computeHeroRec(compiledForHero, streakForHero).catch(() => { /* silencioso */ });
+      computeHeroRec(compiledForHero, streakForHero, forceHero).catch(() => { /* silencioso */ });
     }
     try {
       const today = getLocalToday();
@@ -325,13 +352,14 @@ export default function TodayScreen() {
     // HOY-5: el contador > 0 indica que algún toggle está en vuelo — los
     // listeners NO disparan loadDay hasta que todos terminen.
     const sub1 = DeviceEventEmitter.addListener('day_changed', () => {
-      if (isTogglingRef.current === 0) loadDay();
+      // #136: el día cambió de verdad → HERO recomputa YA (sin cache)
+      if (isTogglingRef.current === 0) loadDay(true);
       // H7: el contexto del día cambió → invalida el insight cacheado (se regenera
       // en la próxima carga del Home). Lazy: no dispara LLM aquí.
       if (user?.id) invalidateDailyInsight(user.id);
     });
     const sub2 = DeviceEventEmitter.addListener('electrons_changed', () => {
-      if (isTogglingRef.current === 0) loadDay();
+      if (isTogglingRef.current === 0) loadDay(true);
     });
     return () => {
       clearInterval(interval);
@@ -922,25 +950,52 @@ export default function TodayScreen() {
             {/* #68: recomendación HERO dinámica — la primera regla que matchea
                 (hora + hábitos + ciclo + ayuno + racha + Edad ATP) */}
             {heroRec && (
-              <Animated.View key={heroRec.id} entering={FadeInUp.delay(110).springify()}>
+              <Animated.View
+                key={`${heroRec.id}${heroResolved ? '-ok' : ''}`}
+                entering={FadeInUp.delay(110).springify()}
+              >
                 <AnimatedPressable
                   onPress={() => {
-                    if (heroRec.route) { haptic.light(); router.push(heroRec.route as any); }
+                    if (heroResolved) return;
+                    // #136: acción inline (agua) → optimistic update sin navegar
+                    if (heroRec.quickAction) { handleHeroQuickAction(heroRec); return; }
+                    if (heroRec.route) {
+                      haptic.light();
+                      // #136: al volver de la pantalla destino el próximo
+                      // loadDay recomputa sin esperar los 15 min de cache
+                      heroRecAtRef.current = 0;
+                      router.push(heroRec.route as any);
+                    }
                   }}
-                  disabled={!heroRec.route}
+                  disabled={heroResolved || (!heroRec.route && !heroRec.quickAction)}
                   style={s.heroRecCard}
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={s.heroRecKicker}>AHORA</Text>
-                    <Text style={s.heroRecTitle}>{heroRec.title}</Text>
-                    <Text style={s.heroRecSubtitle}>{heroRec.subtitle}</Text>
+                    {heroResolved && heroRec.quickAction ? (
+                      <>
+                        <Text style={s.heroRecTitle}>Registrado ✓</Text>
+                        <Text style={s.heroRecSubtitle}>+{heroRec.quickAction.amountMl} ml de agua — bien ahí.</Text>
+                      </>
+                    ) : (
+                      <>
+                        <Text style={s.heroRecTitle}>{heroRec.title}</Text>
+                        <Text style={s.heroRecSubtitle}>{heroRec.subtitle}</Text>
+                      </>
+                    )}
                   </View>
-                  {heroRec.route && (
+                  {heroResolved ? (
+                    <Ionicons name="checkmark-circle" size={22} color="#a8e02a" />
+                  ) : (heroRec.route || heroRec.quickAction) ? (
                     <View style={s.heroRecCta}>
                       {heroRec.cta ? <Text style={s.heroRecCtaText}>{heroRec.cta}</Text> : null}
-                      <Ionicons name="chevron-forward" size={14} color="#a8e02a" />
+                      <Ionicons
+                        name={heroRec.quickAction ? 'add-circle-outline' : 'chevron-forward'}
+                        size={14}
+                        color="#a8e02a"
+                      />
                     </View>
-                  )}
+                  ) : null}
                 </AnimatedPressable>
               </Animated.View>
             )}

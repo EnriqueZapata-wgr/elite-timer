@@ -38,10 +38,10 @@ describe('getHeroRecommendation (#68) — reglas por prioridad', () => {
     expect(r.id).toBe('ayuno-romper');
   });
 
-  it('3. sin agua después de las 10 → primer vaso', () => {
+  it('3. sin agua después de las 8 → registrar inline (#136: quickAction, ya no navega)', () => {
     const r = getHeroRecommendation(ctx({ hour: 11, waterMl: 0 }));
     expect(r.id).toBe('agua-pendiente');
-    expect(r.route).toBe('/hydration');
+    expect(r.quickAction).toEqual({ type: 'water', amountMl: 250 });
   });
 
   it('4. el ayuno silencia el nag de agua (no está comiendo/bebiendo calorías)', () => {
@@ -145,6 +145,70 @@ describe('getHeroRecommendation (#68) — reglas por prioridad', () => {
     }));
     expect(r.title.length).toBeGreaterThan(5);
     expect(r.subtitle.length).toBeGreaterThan(5);
+  });
+
+  // ── #136: ventanas horarias + fallbacks contextuales ──
+
+  it('22. agua NO dispara a las 21h (ventana 8-20) — el bug de las 7pm', () => {
+    const r = getHeroRecommendation(ctx({ hour: 21, waterMl: 0 }));
+    expect(r.id).not.toBe('agua-pendiente');
+    expect(r.id).toBe('noche-pantallas');
+  });
+
+  it('23. agua a las 19h usa copy vespertino con quick action, no "primer vaso"', () => {
+    const r = getHeroRecommendation(ctx({ hour: 19, waterMl: 0 }));
+    expect(r.id).toBe('agua-pendiente');
+    expect(r.title.toLowerCase()).not.toContain('primer');
+    expect(r.quickAction).toEqual({ type: 'water', amountMl: 250 });
+  });
+
+  it('24. agua en la mañana mantiene el copy "primer vaso"', () => {
+    const r = getHeroRecommendation(ctx({ hour: 9, waterMl: 0 }));
+    expect(r.id).toBe('agua-pendiente');
+    expect(r.title.toLowerCase()).toContain('primer');
+  });
+
+  it('25. sol NO dispara después de las 11h', () => {
+    const r = getHeroRecommendation(ctx({ hour: 12, sunDone: false }));
+    expect(r.id).not.toBe('sol-pendiente');
+  });
+
+  it('26. noche-mente NO dispara a las 19h (arranca a las 20h)', () => {
+    const r = getHeroRecommendation(ctx({
+      hour: 19, meditationDone: false, journalDone: false, edadAtpDelta: 0.2,
+    }));
+    expect(r.id).not.toBe('noche-mente');
+    expect(r.id).toBe('fallback-noche');
+  });
+
+  it('27. fallback mañana → intención con Journal', () => {
+    const r = getHeroRecommendation(ctx({ hour: 8, edadAtpDelta: 0.2 }));
+    expect(r.id).toBe('fallback-manana');
+    expect(r.route).toBe('/journal');
+  });
+
+  it('28. fallback mediodía → check-in', () => {
+    const r = getHeroRecommendation(ctx({ hour: 14, edadAtpDelta: 0.2, score: 75 }));
+    expect(r.id).toBe('fallback-mediodia');
+    expect(r.route).toBe('/checkin');
+  });
+
+  it('29. fallback tarde → respiración', () => {
+    const r = getHeroRecommendation(ctx({ hour: 16, edadAtpDelta: 0.2, score: 75 }));
+    expect(r.id).toBe('fallback-tarde');
+    expect(r.route).toBe('/breathing');
+  });
+
+  it('30. madrugada → dormir (antes empujaba lentes rojos a las 3am)', () => {
+    const r = getHeroRecommendation(ctx({ hour: 2, edadAtpDelta: 0.2 }));
+    expect(r.id).toBe('fallback-madrugada');
+    expect(r.route).toBeUndefined();
+  });
+
+  it('31. agua-mitad en la tarde también trae quick action', () => {
+    const r = getHeroRecommendation(ctx({ hour: 16, waterMl: 400, waterTargetMl: 2000, score: 80 }));
+    expect(r.id).toBe('agua-mitad');
+    expect(r.quickAction?.type).toBe('water');
   });
 
   it('todas las reglas tienen id único', () => {
