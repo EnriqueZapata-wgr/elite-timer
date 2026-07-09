@@ -29,6 +29,7 @@ import {
   type MeditationTemplate,
   type MeditationPhase,
 } from '@/src/data/meditation-library';
+import { phaseIndexAt } from '@/src/services/meditation-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
@@ -148,14 +149,11 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
   const phases = meditation.phases;
   const elapsed = totalSeconds - timeLeft;
 
-  // Determinar fase actual según el tiempo transcurrido
+  // Determinar fase actual según el tiempo transcurrido (T3: core puro testeado)
   useEffect(() => {
     if (status !== 'running') return;
-    let idx = 0;
-    for (let i = phases.length - 1; i >= 0; i--) {
-      if (elapsed >= phases[i].startSeconds) { idx = i; break; }
-    }
-    setCurrentPhaseIdx(idx);
+    setCurrentPhaseIdx(phaseIndexAt(elapsed, phases));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, status]);
 
   // Sonido al cambiar de fase

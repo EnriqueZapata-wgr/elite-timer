@@ -1,8 +1,10 @@
 /**
  * Biblioteca de meditaciones guiadas por texto con fases.
+ *
+ * PURA (sin imports de brand/categories runtime) para ser testeable en el
+ * harness Vitest node. Color literal espejo de CATEGORY_COLORS.mind.
  */
 import type { InterventionType } from '@/src/constants/categories';
-import { getCategoryColor } from '@/src/constants/categories';
 
 export interface MeditationPhase {
   startSeconds: number;
@@ -14,17 +16,48 @@ export interface MeditationTemplate {
   id: string;
   title: string;
   description: string;
-  type: 'mindfulness' | 'body_scan' | 'gratitude' | 'visualization' | 'focus' | 'wim_hof' | 'relaxation';
+  type: 'mindfulness' | 'body_scan' | 'gratitude' | 'visualization' | 'focus' | 'wim_hof' | 'relaxation' | 'silence';
   durationMinutes: number;
   category: InterventionType;
   accentColor: string;
   phases: MeditationPhase[];
   closingMessage: string;
+  /** Placeholder para audio futuro (sin audio real por licensing). */
+  audioUrl?: string;
 }
 
-const P = getCategoryColor('mind');
+const P = '#7F77DD'; // espejo de CATEGORY_COLORS.mind (brand.ts)
+
+/**
+ * Sesión de silencio (T3 Sprint MENTE): free-form, solo campana de inicio/
+ * cierre — un prompt al arrancar y uno para regresar. Factory para las 4
+ * duraciones sin duplicar copy.
+ */
+function silenceSession(minutes: number): MeditationTemplate {
+  const total = minutes * 60;
+  return {
+    id: `silence-${minutes}`,
+    title: `Silencio ${minutes} min`,
+    description: 'Sin guía. Solo tú y tu respiración.',
+    type: 'silence',
+    durationMinutes: minutes,
+    category: 'mind',
+    accentColor: P,
+    closingMessage: `${minutes} minutos de silencio. El ruido puede esperar.`,
+    phases: [
+      { startSeconds: 0, text: 'Silencio.', instruction: 'Cierra los ojos. No hay guía — tu respiración es el ancla.' },
+      { startSeconds: Math.max(30, total - 30), text: 'Suavemente, regresa.', instruction: 'Mueve los dedos. Abre los ojos cuando estés listo.' },
+    ],
+  };
+}
 
 export const MEDITATION_LIBRARY: MeditationTemplate[] = [
+  // === SILENCIO (T3 Sprint MENTE — free-form, sin guía) ===
+  silenceSession(5),
+  silenceSession(10),
+  silenceSession(15),
+  silenceSession(20),
+
   // === MINDFULNESS ===
   {
     id: 'mindfulness-5', title: 'Presencia', description: 'Atención a la respiración',
@@ -216,6 +249,7 @@ export const MEDITATION_LIBRARY: MeditationTemplate[] = [
 
 /** Tipos con icono y label para la selección */
 export const MEDITATION_TYPES: { type: string; label: string; icon: string }[] = [
+  { type: 'silence', label: 'Silencio', icon: 'moon-outline' },
   { type: 'mindfulness', label: 'Mindfulness', icon: 'leaf-outline' },
   { type: 'body_scan', label: 'Body Scan', icon: 'body-outline' },
   { type: 'gratitude', label: 'Gratitud', icon: 'heart-outline' },
