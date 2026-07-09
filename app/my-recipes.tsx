@@ -3,7 +3,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Alert, TextInput, Modal, Pressable, DeviceEventEmitter } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -28,12 +28,17 @@ interface Recipe {
   total_fat: number;
   meal_type: string | null;
   created_at: string;
+  /** T5 (#56): favoritos (migración 168). */
+  is_favorite: boolean;
 }
 
 export default function MyRecipesScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
+  // T5 (#56): filtro de favoritas
+  const [filter, setFilter] = useState<'all' | 'favorites'>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newCalories, setNewCalories] = useState('');
@@ -83,6 +88,17 @@ export default function MyRecipesScreen() {
     }
   }
 
+  // T5 (#56): toggle favorito (optimista)
+  async function toggleFavorite(recipe: Recipe) {
+    haptic.light();
+    setRecipes(prev => prev.map(r => r.id === recipe.id ? { ...r, is_favorite: !r.is_favorite } : r));
+    const { error } = await supabase
+      .from('user_recipes')
+      .update({ is_favorite: !recipe.is_favorite })
+      .eq('id', recipe.id);
+    if (error) loadRecipes(); // revertir al estado real
+  }
+
   async function deleteRecipe(recipe: Recipe) {
     haptic.heavy();
     Alert.alert('Eliminar receta', `¿Eliminar "${recipe.name}"?`, [
@@ -126,14 +142,36 @@ export default function MyRecipesScreen() {
         <EliteText variant="caption" style={s.subtitle}>
           Guarda tus comidas frecuentes para registrar con un toque
         </EliteText>
+
+        {/* T5 (#56): filtro Todas | Favoritas + acceso a lista de compra */}
+        <View style={s.filterRow}>
+          {([['all', 'Todas'], ['favorites', '❤️ Favoritas']] as const).map(([id, label]) => (
+            <Pressable
+              key={id}
+              onPress={() => { haptic.light(); setFilter(id); }}
+              style={[s.filterPill, filter === id && s.filterPillOn]}
+            >
+              <EliteText style={[s.filterText, filter === id && s.filterTextOn]}>{label}</EliteText>
+            </Pressable>
+          ))}
+          <View style={{ flex: 1 }} />
+          <Pressable
+            onPress={() => { haptic.light(); router.push('/lista-compra' as any); }}
+            style={s.shoppingBtn}
+          >
+            <Ionicons name="cart-outline" size={14} color="#a8e02a" />
+            <EliteText style={s.shoppingText}>Lista de compra</EliteText>
+          </Pressable>
+        </View>
+
         {recipes.length > 0 && (
           <EliteText variant="caption" style={{ color: '#666', fontSize: 11, marginBottom: 8 }}>
             Desliza ← o mantén presionado para eliminar
           </EliteText>
         )}
 
-        {/* Lista de recetas */}
-        {recipes.map((recipe, idx) => (
+        {/* Lista de recetas (filtrada) */}
+        {recipes.filter(r => filter === 'all' || r.is_favorite).map((recipe, idx) => (
           <Animated.View key={recipe.id} entering={FadeInUp.delay(idx * 50).springify()}>
             <SwipeToDeleteRow onConfirmDelete={() => deleteRecipe(recipe)}>
             <AnimatedPressable onPress={() => useRecipe(recipe)} onLongPress={() => deleteRecipe(recipe)}>
@@ -141,6 +179,14 @@ export default function MyRecipesScreen() {
                 <View style={s.recipeHeader}>
                   <Ionicons name="bookmark" size={16} color="#fbbf24" />
                   <EliteText style={s.recipeName} numberOfLines={1}>{recipe.name}</EliteText>
+                  {/* T5: corazón de favorito */}
+                  <Pressable onPress={() => toggleFavorite(recipe)} hitSlop={10}>
+                    <Ionicons
+                      name={recipe.is_favorite ? 'heart' : 'heart-outline'}
+                      size={20}
+                      color={recipe.is_favorite ? '#fb7185' : '#444'}
+                    />
+                  </Pressable>
                 </View>
                 <View style={s.macroRow}>
                   <View style={s.macroItem}>
@@ -249,7 +295,23 @@ export default function MyRecipesScreen() {
 
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md },
-  subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.lg },
+  subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.md },
+
+  // T5: filtros + lista de compra
+  filterRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.md },
+  filterPill: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 17,
+    backgroundColor: '#0a0a0a', borderWidth: 0.5, borderColor: '#1a1a1a',
+  },
+  filterPillOn: { backgroundColor: '#a8e02a', borderColor: '#a8e02a' },
+  filterText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: '#666' },
+  filterTextOn: { color: '#000' },
+  shoppingBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 7, borderRadius: 17,
+    borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)',
+  },
+  shoppingText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: '#a8e02a' },
 
   recipeCard: {
     backgroundColor: SURFACES.card, borderRadius: Radius.card,
