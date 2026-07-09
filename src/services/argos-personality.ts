@@ -218,14 +218,14 @@ export function buildGreeting(
 /**
  * Sufijo de PRESENCIA para el system prompt. Es aditivo: no redefine la
  * identidad del coach ni el tono del voice_config, solo aporta el "quién está
- * hablando ahora mismo" (nombre + momento del día). Mantener BREVE — cada
- * token aquí compite con el contexto real del usuario.
+ * hablando ahora mismo" (nombre + tono). El contexto temporal vive en su propia
+ * capa (buildTimeContextInjection, T5). Mantener BREVE — cada token aquí compite
+ * con el contexto real del usuario.
  *
  * El texto es directriz para el modelo, no copy visible al usuario.
  */
 export function buildPersonalityInjection(opts: {
   nombre?: string;
-  timeOfDay?: TimeOfDay;
 }): string {
   const nombre = (opts.nombre ?? '').trim();
   const lines: string[] = ['\n\n## PRESENCIA (capa de tono, no reemplaza reglas)'];
@@ -240,4 +240,37 @@ export function buildPersonalityInjection(opts: {
     '- Si conoces un dato reciente del usuario, refiérelo con naturalidad ("ayer batiste tu récord de agua").',
   );
   return lines.join('\n');
+}
+
+// ── Contexto temporal (T5 time-aware) ────────────────────────────────────────
+
+/** Descripción breve del momento del día (para inyección en el prompt). */
+function describeTimeOfDay(tod: TimeOfDay): string {
+  switch (tod) {
+    case 'early_morning':
+      return '- Es de madrugada/muy temprano en Ciudad de México: el usuario probablemente arranca su rutina. Prioriza hidratación, luz y activación suave.';
+    case 'morning':
+      return '- Es de mañana en Ciudad de México: buen momento para entrenar fuerte, planear el día y desayuno/hidratación.';
+    case 'noon':
+      return '- Es mediodía en Ciudad de México: ventana de energía alta; comida principal y foco en tareas demandantes.';
+    case 'afternoon':
+      return '- Es media tarde en Ciudad de México: útil para recalibrar, movilidad y evitar bajones de glucosa.';
+    case 'evening':
+      return '- Cae la tarde en Ciudad de México: cierre del día; empieza a bajar estímulos y prepara la recuperación.';
+    case 'night':
+      return '- Es de noche en Ciudad de México: prioriza descanso, no sugieras cardio intenso ni cafeína.';
+    case 'late_night':
+    default:
+      return '- Es muy noche/madrugada en Ciudad de México: el usuario debería dormir. Evita planes de esfuerzo; enfoca sueño y recuperación.';
+  }
+}
+
+/**
+ * Inyección de CONTEXTO TEMPORAL para el system prompt del LLM (T5). Le dice a
+ * ARGOS qué momento del día es en Ciudad de México y cómo debe adaptar sus
+ * recomendaciones. Directriz para el modelo, no copy visible.
+ */
+export function buildTimeContextInjection(date: Date = new Date()): string {
+  const tod = getTimeOfDay(date);
+  return `\n\n## CONTEXTO TEMPORAL (Ciudad de México)\n${describeTimeOfDay(tod)}\nAjusta tono y recomendaciones a este momento del día. No propongas acciones fuera de lugar para la hora (ej. entrenamiento pesado de madrugada).`;
 }

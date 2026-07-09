@@ -9,6 +9,7 @@ import {
   formatVoiceLine,
   buildGreeting,
   buildPersonalityInjection,
+  buildTimeContextInjection,
   ARGOS_VOICE,
   type TimeOfDay,
 } from '@/src/services/argos-personality';
@@ -179,5 +180,27 @@ describe('buildPersonalityInjection — sufijo de presencia para el LLM', () => 
     const s = buildPersonalityInjection({});
     expect(s).not.toContain('se llama');
     expect(s).toContain('PRESENCIA');
+  });
+  it('no incluye contexto temporal (esa capa es de T5)', () => {
+    const s = buildPersonalityInjection({ nombre: 'Enrique' });
+    expect(s).not.toContain('CONTEXTO TEMPORAL');
+  });
+});
+
+describe('buildTimeContextInjection — capa temporal T5', () => {
+  it('etiqueta la capa y menciona Ciudad de México', () => {
+    const s = buildTimeContextInjection(new Date('2026-07-08T18:00:00Z'));
+    expect(s).toContain('CONTEXTO TEMPORAL');
+    expect(s).toContain('Ciudad de México');
+  });
+  it('de noche (22:00 CDMX) evita sugerir cardio/cafeína', () => {
+    // 04:00 UTC → 22:00 CDMX → night
+    const s = buildTimeContextInjection(new Date('2026-07-08T04:00:00Z'));
+    expect(s.toLowerCase()).toMatch(/cardio|cafeína|descanso/);
+  });
+  it('de mañana (08:00 CDMX) habilita entrenar fuerte', () => {
+    // 14:00 UTC → 08:00 CDMX → morning
+    const s = buildTimeContextInjection(new Date('2026-07-08T14:00:00Z'));
+    expect(s.toLowerCase()).toContain('mañana');
   });
 });
