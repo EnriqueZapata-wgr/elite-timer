@@ -40,6 +40,13 @@ export default function SettingsDevScreen() {
             sub="Captura de datos del modelo v2"
             onPress={() => { haptic.medium(); router.push('/edad-atp' as any); }}
           />
+          {/* T3 MAGIA 2.0: test aid — reproducir la cinemática sin resetear el flag en DB */}
+          <SettingRow
+            icon="eye-outline"
+            label="Ver Meet ARGOS de nuevo"
+            sub="Reproduce la cinemática de primer contacto"
+            onPress={() => { haptic.medium(); router.push('/argos/meet' as any); }}
+          />
         </Animated.View>
         <View style={{ height: 40 }} />
       </ScrollView>
