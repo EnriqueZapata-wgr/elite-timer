@@ -23,6 +23,7 @@ import { VoiceButton } from '../src/components/VoiceButton';
 import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { TopBanner } from '@/src/components/global/TopBanner';
+import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -294,13 +295,7 @@ function ArgosChat() {
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </Pressable>
           )}
-          <View style={{
-            width: 36, height: 36, borderRadius: 18,
-            backgroundColor: 'rgba(168,224,42,0.15)',
-            justifyContent: 'center', alignItems: 'center',
-          }}>
-            <Ionicons name="eye-outline" size={20} color="#a8e02a" />
-          </View>
+          <ArgosAvatar state={loading ? 'thinking' : 'idle'} size={36} />
           <View>
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>ARGOS</Text>
             <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>
@@ -349,13 +344,7 @@ function ArgosChat() {
         {/* Estado vacío — sugerencias */}
         {messages.length === 0 && (
           <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-            <View style={{
-              width: 80, height: 80, borderRadius: 40,
-              backgroundColor: 'rgba(168,224,42,0.1)',
-              justifyContent: 'center', alignItems: 'center', marginBottom: 16,
-            }}>
-              <Ionicons name="eye-outline" size={40} color="#a8e02a" />
-            </View>
+            <ArgosAvatar state="idle" size={80} variant="full" style={{ marginBottom: 16 }} />
             <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 4 }}>
               Hola, soy ARGOS
             </Text>
