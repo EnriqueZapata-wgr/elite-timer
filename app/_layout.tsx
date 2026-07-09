@@ -35,6 +35,8 @@ import { LabProcessingSheet } from '@/src/components/labs/LabProcessingSheet';
 import { ProcessingMiniBanner } from '@/src/components/labs/ProcessingMiniBanner';
 import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-password-link';
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
+import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
+import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -130,6 +132,7 @@ function RootLayout() {
             <ProgramsProvider>
               <SessionsProvider>
               <LabProcessingProvider>
+              <ArgosPresenceProvider>
               <Stack screenOptions={{
                 headerShown: false,
                 animation: 'ios_from_right',
@@ -235,7 +238,10 @@ function RootLayout() {
               {/* Capa 8 — UX async: sheet + banner globales del procesamiento de labs. */}
               <LabProcessingSheet />
               <ProcessingMiniBanner />
+              {/* MAGIA ARGOS T2: acceso flotante cross-app (auto-hide contextual). */}
+              <ArgosFloatingButton />
               <StatusBar style="light" />
+              </ArgosPresenceProvider>
               </LabProcessingProvider>
               </SessionsProvider>
             </ProgramsProvider>
