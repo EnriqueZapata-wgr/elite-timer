@@ -25,6 +25,7 @@ import type { FoodItem } from '@/src/data/food-database';
 import { analyzeFoodText as analyzeWithAI } from '@/src/services/nutrition-service';
 import { FoodReviewEditor, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
+import { maybeGeneratePostMealInsight } from '@/src/services/argos-nutrition-insights';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
@@ -278,6 +279,8 @@ export default function FoodTextScreen() {
       }
 
       DeviceEventEmitter.emit('day_changed');
+      // T6 NUTRICIÓN: insight post-meal de ARGOS (opt-in + throttle, no bloquea)
+      if (user?.id) void maybeGeneratePostMealInsight(user.id, desc);
       router.back();
     } catch (err: any) {
       Alert.alert('Error al guardar', err.message || 'Intenta de nuevo');

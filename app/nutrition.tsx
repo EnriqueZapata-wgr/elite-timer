@@ -26,6 +26,7 @@ import { useMacroMode } from '@/src/hooks/useMacroMode';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { isFeatureVisible } from '@/src/services/nutrition-mode-core';
 import { computeAndSaveDailyScore, getScoreTrend, type ScoreTrendPoint } from '@/src/services/nutrition-score-service';
+import { getTodayInsight, NUTRITION_INSIGHT_EVENT, type CachedInsight } from '@/src/services/argos-nutrition-insights';
 import type { ScoreBreakdown } from '@/src/services/nutrition-score-core';
 import { NutritionScoreCard } from '@/src/components/nutricion/NutritionScoreCard';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -69,6 +70,16 @@ export default function NutritionScreen() {
   // T3: score del día (se recalcula al enfocar / day_changed) + trend 7d
   const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdown | null>(null);
   const [scoreTrend, setScoreTrend] = useState<ScoreTrendPoint[]>([]);
+  // T6: insight post-meal de ARGOS (opt-in; null si no hay de hoy)
+  const [insight, setInsight] = useState<CachedInsight | null>(null);
+
+  useEffect(() => {
+    getTodayInsight().then(setInsight);
+    const sub = DeviceEventEmitter.addListener(NUTRITION_INSIGHT_EVENT, () => {
+      getTodayInsight().then(setInsight);
+    });
+    return () => sub.remove();
+  }, []);
 
   // Banner una sola vez cuando macros OFF (PRD §6.6 — borrador, validar Mariana)
   useEffect(() => {
@@ -261,6 +272,16 @@ export default function NutritionScreen() {
           </Animated.View>
         )}
 
+        {/* T6: insight post-meal de ARGOS (solo si el opt-in generó uno hoy) */}
+        {insight && (
+          <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.sm }}>
+            <View style={s.insightCard}>
+              <Ionicons name="eye" size={14} color="#a8e02a" style={{ marginTop: 2 }} />
+              <EliteText style={s.insightText}>{insight.text}</EliteText>
+            </View>
+          </Animated.View>
+        )}
+
         {/* T6: ARGOS nutricional — chat con contexto del pilar pre-cargado */}
         <Animated.View entering={FadeInUp.delay(85).springify()} style={{ marginTop: Spacing.sm }}>
           <NavCard icon="eye-outline" color="#a8e02a" title="Hablar con ARGOS"
@@ -403,6 +424,13 @@ const s = StyleSheet.create({
     borderRadius: Radius.md, paddingVertical: 12,
   },
   registerBtnText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: BLUE },
+  // T6: insight post-meal
+  insightCard: {
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+    backgroundColor: 'rgba(168,224,42,0.06)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
+    borderRadius: 14, padding: 14,
+  },
+  insightText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#cbd5e1', lineHeight: 19, fontStyle: 'italic' },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   navIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   navTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: '#fff' },

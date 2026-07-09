@@ -8,9 +8,11 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 
 import { Alert } from 'react-native';
+import { useEffect, useState } from 'react';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteToggle } from '@/components/elite-toggle';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
+import { getInsightsEnabled, setInsightsEnabled } from '@/src/services/argos-nutrition-insights';
 import { SectionLabel, Divider, SettingRow, ui } from '@/src/components/settings/settings-ui';
 import { haptic } from '@/src/utils/haptics';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
@@ -23,6 +25,9 @@ export default function SettingsSaludScreen() {
   // T2 NUTRICIÓN (#52): nutrition_mode reemplaza al toggle "Modo Macro" —
   // el service sincroniza macro_mode por debajo (UIs legacy siguen coherentes).
   const { isComplete, setMode } = useNutritionMode();
+  // T6 NUTRICIÓN: insights post-comida de ARGOS (opt-in, default OFF)
+  const [insights, setInsights] = useState(false);
+  useEffect(() => { getInsightsEnabled().then(setInsights); }, []);
 
   function onToggleComplete(v: boolean) {
     haptic.light();
@@ -70,6 +75,12 @@ export default function SettingsSaludScreen() {
             description="Modo simple: solo score y proteína. Modo completo: todo el detalle de macros, micros, timing y calidad."
             value={isComplete}
             onValueChange={onToggleComplete}
+          />
+          <EliteToggle
+            label="Insights de ARGOS al comer"
+            description="Tras registrar una comida, ARGOS te da un insight breve en el hub de Nutrición"
+            value={insights}
+            onValueChange={v => { haptic.light(); setInsights(v); setInsightsEnabled(v); }}
           />
           <Divider />
         </Animated.View>
