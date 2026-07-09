@@ -13,6 +13,15 @@ import { getLocalToday } from '../src/utils/date-helpers';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
+import { DOSE_PATTERNS } from '@/src/services/supplements-adherence-core';
+import { getWeeklyAdherence } from '@/src/services/supplements-adherence-service';
+import {
+  SUPPLEMENT_CATALOG,
+  OBJECTIVE_LABELS,
+  catalogByObjective,
+  type CatalogSupplement,
+  type SupplementObjective,
+} from '@/src/constants/supplement-catalog';
 
 const TIMING_OPTIONS = [
   { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -33,6 +42,11 @@ export default function SupplementsScreen() {
   const [newTiming, setNewTiming] = useState('morning');
   const [newReason, setNewReason] = useState('');
   const [recommendations, setRecommendations] = useState<any[]>([]);
+  // T4 (#54): tabs Mis suplementos | Catálogo + dosis flexible + adherencia
+  const [tab, setTab] = useState<'mine' | 'catalog'>('mine');
+  const [newPattern, setNewPattern] = useState<string>(DOSE_PATTERNS[0]);
+  const [catalogObjective, setCatalogObjective] = useState<SupplementObjective>('base');
+  const [weeklyAdherence, setWeeklyAdherence] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -46,6 +60,7 @@ export default function SupplementsScreen() {
       loadSupplements();
       loadTodayLogs();
       loadRecommendations();
+      getWeeklyAdherence(userId).then(setWeeklyAdherence).catch(() => {});
     }
   }, [userId]));
 
@@ -143,12 +158,32 @@ export default function SupplementsScreen() {
       timing: newTiming,
       reason: newReason.trim() || null,
       source: 'manual',
+      dose_pattern: newPattern, // T4 (#54): patrón de toma (migración 167)
     });
-    setNewName(''); setNewDosage(''); setNewTiming('morning'); setNewReason('');
+    setNewName(''); setNewDosage(''); setNewTiming('morning'); setNewReason(''); setNewPattern(DOSE_PATTERNS[0]);
     setShowAdd(false);
     loadSupplements();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
+
+  // T4 (#54): agregar desde el catálogo ATP a mi biblioteca
+  async function addFromCatalog(item: CatalogSupplement) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await supabase.from('user_supplements').insert({
+      user_id: userId,
+      name: item.name,
+      dosage: item.dose,
+      timing: item.timing,
+      reason: item.benefit,
+      source: 'catalog',
+      dose_pattern: item.dosePattern,
+      notes: item.cautions ?? null,
+    });
+    loadSupplements();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  const ownedNames = new Set(supplements.map(s => String(s.name).toLowerCase()));
 
   async function removeSupplement(id: string, name: string) {
     Alert.alert('Eliminar suplemento', `¿Eliminar "${name}" de tu plan?`, [
@@ -192,7 +227,28 @@ export default function SupplementsScreen() {
         </View>
       </View>
 
-      {/* Progreso del día */}
+      {/* T4 (#54): tabs Mis suplementos | Catálogo ATP */}
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 }}>
+        {([['mine', 'Mis suplementos'], ['catalog', 'Catálogo']] as const).map(([id, label]) => (
+          <Pressable
+            key={id}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTab(id); }}
+            style={{
+              paddingHorizontal: 16, paddingVertical: 8, borderRadius: 17,
+              backgroundColor: tab === id ? '#a8e02a' : '#0a0a0a',
+              borderWidth: 0.5, borderColor: tab === id ? '#a8e02a' : '#1a1a1a',
+            }}
+          >
+            <Text style={{ color: tab === id ? '#000' : '#666', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
+              {label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {tab === 'mine' && (
+      <>
+      {/* Progreso del día + adherencia semanal */}
       <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
         <View style={{
           backgroundColor: 'rgba(29,158,117,0.08)', borderRadius: 16, padding: 18,
@@ -210,6 +266,12 @@ export default function SupplementsScreen() {
               width: `${completionPct}%`,
             }} />
           </View>
+          {/* T4: adherencia semanal contra dose_pattern */}
+          {weeklyAdherence !== null && (
+            <Text style={{ color: '#999', fontSize: 11, marginTop: 8 }}>
+              Adherencia esta semana: <Text style={{ color: weeklyAdherence >= 80 ? '#a8e02a' : '#fbbf24', fontWeight: '700' }}>{weeklyAdherence}%</Text>
+            </Text>
+          )}
           {totalCount > 0 && takenCount === totalCount && (
             <Text style={{ color: '#1D9E75', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>
               ✓ Todos los suplementos tomados
@@ -299,8 +361,10 @@ export default function SupplementsScreen() {
                     }}>
                       {supp.name}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                       <Text style={{ color: '#666', fontSize: 11 }}>{supp.dosage}</Text>
+                      {/* T4: patrón de toma visible (dosis flexible, 167) */}
+                      {supp.dose_pattern && <Text style={{ color: '#1D9E75', fontSize: 11 }}>· {supp.dose_pattern}</Text>}
                       {supp.reason && <Text style={{ color: '#444', fontSize: 11 }}>· {supp.reason}</Text>}
                     </View>
                   </View>
@@ -322,6 +386,72 @@ export default function SupplementsScreen() {
         <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 4 }}>
           Toca para marcar · Desliza ← (o mantén presionado) para eliminar
         </Text>
+      )}
+      </>
+      )}
+
+      {/* ══════════════ T4 (#54): CATÁLOGO ATP por objetivo ══════════════ */}
+      {tab === 'catalog' && (
+        <View style={{ paddingHorizontal: 20 }}>
+          {/* Pills de objetivo */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
+            {(Object.keys(OBJECTIVE_LABELS) as SupplementObjective[]).map(obj => (
+              <Pressable
+                key={obj}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCatalogObjective(obj); }}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                  paddingHorizontal: 14, paddingVertical: 8, borderRadius: 17, marginRight: 8,
+                  backgroundColor: catalogObjective === obj ? 'rgba(29,158,117,0.15)' : '#0a0a0a',
+                  borderWidth: 1, borderColor: catalogObjective === obj ? '#1D9E75' : '#1a1a1a',
+                }}
+              >
+                <Ionicons name={OBJECTIVE_LABELS[obj].icon as any} size={14} color={catalogObjective === obj ? '#1D9E75' : '#666'} />
+                <Text style={{ color: catalogObjective === obj ? '#1D9E75' : '#999', fontSize: 12, fontWeight: '600' }}>
+                  {OBJECTIVE_LABELS[obj].label}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
+          {catalogByObjective(catalogObjective).map(item => {
+            const owned = ownedNames.has(item.name.toLowerCase());
+            return (
+              <View key={item.id} style={{
+                backgroundColor: '#0a0a0a', borderRadius: 14, padding: 16, marginBottom: 10,
+                borderWidth: 1, borderColor: '#1a1a1a',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 }}>{item.name}</Text>
+                  <Pressable
+                    onPress={() => !owned && addFromCatalog(item)}
+                    disabled={owned}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12,
+                      backgroundColor: owned ? '#1a1a1a' : '#a8e02a',
+                    }}
+                  >
+                    <Text style={{ color: owned ? '#666' : '#000', fontSize: 12, fontWeight: '800' }}>
+                      {owned ? 'EN TU PLAN' : '+ AGREGAR'}
+                    </Text>
+                  </Pressable>
+                </View>
+                <Text style={{ color: '#999', fontSize: 12, marginTop: 6 }}>
+                  {item.dose} · {item.dosePattern} · {item.benefit}
+                </Text>
+                <Text style={{ color: '#666', fontSize: 11, marginTop: 6, lineHeight: 16 }}>{item.evidence}</Text>
+                {item.cautions && (
+                  <Text style={{ color: '#EF9F27', fontSize: 11, marginTop: 6, lineHeight: 16 }}>
+                    ⚠ {item.cautions}
+                  </Text>
+                )}
+              </View>
+            );
+          })}
+          <Text style={{ color: '#444', fontSize: 10, textAlign: 'center', marginTop: 8, lineHeight: 15 }}>
+            Consulta con un experto. Esto no sustituye a un profesional de salud.
+          </Text>
+        </View>
       )}
 
       {/* ══════════════════════════════════════════
@@ -361,6 +491,24 @@ export default function SupplementsScreen() {
                 padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
               }}
             />
+
+            {/* T4 (#54): patrón de toma — la adherencia se mide contra esto */}
+            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Frecuencia</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {DOSE_PATTERNS.map(p => (
+                <Pressable
+                  key={p}
+                  onPress={() => setNewPattern(p)}
+                  style={{
+                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
+                    backgroundColor: newPattern === p ? 'rgba(168,224,42,0.15)' : '#111',
+                    borderWidth: 1.5, borderColor: newPattern === p ? '#a8e02a' : '#1a1a1a',
+                  }}
+                >
+                  <Text style={{ color: newPattern === p ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>{p}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
 
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>¿Cuándo tomarlo?</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>

@@ -25,6 +25,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { PILLAR_GRADIENTS } from '@/src/constants/brand';
 import { DEFAULT_MEAL_TIMES, getMealTimes, setMealTimes, getCurrentMeal, formatMealWindow, MEAL_IDS, type MealId, type MealTimes } from '@/src/services/meal-times-service';
+import { maybeGeneratePostMealInsight } from '@/src/services/argos-nutrition-insights';
 
 // id/name/icon/color estáticos; la ventana horaria (time) viene de la config del usuario.
 const MEAL_TYPES = [
@@ -93,6 +94,8 @@ export default function FoodRegisterScreen() {
         .eq('id', food.id);
 
       DeviceEventEmitter.emit('day_changed');
+      // T6 NUTRICIÓN: insight post-meal de ARGOS (opt-in + throttle, no bloquea)
+      void maybeGeneratePostMealInsight(user.id, food.food_name);
       haptic.success();
       Alert.alert('Registrado', `${food.food_name} agregado`);
       // Refrescar logs

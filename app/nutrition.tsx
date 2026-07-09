@@ -23,6 +23,12 @@ import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getUserWaterGoal } from '@/src/services/hydration-service';
 import { useMacroMode } from '@/src/hooks/useMacroMode';
+import { useNutritionMode } from '@/src/hooks/useNutritionMode';
+import { isFeatureVisible } from '@/src/services/nutrition-mode-core';
+import { computeAndSaveDailyScore, getScoreTrend, type ScoreTrendPoint } from '@/src/services/nutrition-score-service';
+import { getTodayInsight, NUTRITION_INSIGHT_EVENT, type CachedInsight } from '@/src/services/argos-nutrition-insights';
+import type { ScoreBreakdown } from '@/src/services/nutrition-score-core';
+import { NutritionScoreCard } from '@/src/components/nutricion/NutritionScoreCard';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS, PILLAR_GRADIENTS } from '@/src/constants/brand';
 
@@ -55,10 +61,25 @@ export default function NutritionScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { macroMode } = useMacroMode();
+  // T1/T2 NUTRICIÓN: cards visibles según modo simple/completo (#52)
+  const { mode } = useNutritionMode();
   const [summary, setSummary] = useState<DaySummary>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showMacroBanner, setShowMacroBanner] = useState(false);
+  // T3: score del día (se recalcula al enfocar / day_changed) + trend 7d
+  const [scoreBreakdown, setScoreBreakdown] = useState<ScoreBreakdown | null>(null);
+  const [scoreTrend, setScoreTrend] = useState<ScoreTrendPoint[]>([]);
+  // T6: insight post-meal de ARGOS (opt-in; null si no hay de hoy)
+  const [insight, setInsight] = useState<CachedInsight | null>(null);
+
+  useEffect(() => {
+    getTodayInsight().then(setInsight);
+    const sub = DeviceEventEmitter.addListener(NUTRITION_INSIGHT_EVENT, () => {
+      getTodayInsight().then(setInsight);
+    });
+    return () => sub.remove();
+  }, []);
 
   // Banner una sola vez cuando macros OFF (PRD §6.6 — borrador, validar Mariana)
   useEffect(() => {
@@ -106,6 +127,17 @@ export default function NutritionScreen() {
         glucoseContext: glucoseRes.data?.[0]?.context ?? null,
       });
     } catch { /* silenciar */ }
+
+    // T3: score funcional — calcula + persiste (daily_nutrition_scores) y trae trend
+    try {
+      const [breakdown, trend] = await Promise.all([
+        computeAndSaveDailyScore(user.id),
+        getScoreTrend(user.id, 7),
+      ]);
+      setScoreBreakdown(breakdown);
+      setScoreTrend(trend);
+    } catch { /* score fail-soft */ }
+
     setLoading(false);
     setRefreshing(false);
   }, [user?.id]);
@@ -144,7 +176,20 @@ export default function NutritionScreen() {
         contentContainerStyle={s.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BLUE} />}
       >
-        {/* ═══ HERO: Resumen del día ═══ */}
+        {/* ═══ T3: SCORE DEL DÍA — la card estrella ═══ */}
+        <Animated.View entering={FadeInUp.delay(30).springify()} style={{ marginBottom: Spacing.md }}>
+          <NutritionScoreCard
+            breakdown={scoreBreakdown}
+            mode={mode}
+            trend={scoreTrend}
+            proteinG={summary.protein}
+            waterMl={summary.waterMl}
+          />
+        </Animated.View>
+
+        {/* ═══ HERO: Resumen del día (solo modo COMPLETO — en simple el
+            score card ya trae proteína/agua sin ruido) ═══ */}
+        {mode === 'complete' && (
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <GradientCard gradient={PILLAR_GRADIENTS.nutrition} padding={20}>
             <EliteText style={s.heroTitle}>RESUMEN DEL DÍA</EliteText>
@@ -182,6 +227,7 @@ export default function NutritionScreen() {
             <EliteText style={s.heroSub}>{summary.mealCount} comidas registradas hoy</EliteText>
           </GradientCard>
         </Animated.View>
+        )}
 
         {/* Banner educativo una sola vez (macros OFF) */}
         {showMacroBanner && (
@@ -196,8 +242,56 @@ export default function NutritionScreen() {
           </Animated.View>
         )}
 
+        {/* T1: REGISTRAR COMIDA — 3 vías (foto | texto | guardados) */}
+        <Animated.View entering={FadeInUp.delay(70).springify()} style={{ marginTop: Spacing.md }}>
+          <View style={s.registerRow}>
+            {[
+              { label: 'Foto', icon: 'camera-outline' as const, route: '/food-scan' },
+              { label: 'Texto', icon: 'create-outline' as const, route: '/food-text' },
+              { label: 'Guardados', icon: 'bookmark-outline' as const, route: '/food-register' },
+            ].map((cta) => (
+              <AnimatedPressable
+                key={cta.label}
+                onPress={() => { haptic.light(); router.push(cta.route as any); }}
+                style={s.registerBtn}
+              >
+                <Ionicons name={cta.icon} size={18} color={BLUE} />
+                <EliteText style={s.registerBtnText}>{cta.label}</EliteText>
+              </AnimatedPressable>
+            ))}
+          </View>
+        </Animated.View>
+
+        {/* T1: AYUNO — visible solo cuando hay ayuno activo (no duplica el
+            acceso de Hábitos; muestra estado vivo) */}
+        {summary.isFasting && isFeatureVisible('fasting', mode) && (
+          <Animated.View entering={FadeInUp.delay(75).springify()} style={{ marginTop: Spacing.sm }}>
+            <NavCard icon="timer-outline" color="#fbbf24" title="Ayuno activo"
+              subtitle={`${summary.fastHours}h en curso · toca para ver detalle`}
+              onPress={() => { haptic.light(); router.push('/fasting' as any); }} />
+          </Animated.View>
+        )}
+
+        {/* T6: insight post-meal de ARGOS (solo si el opt-in generó uno hoy) */}
+        {insight && (
+          <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.sm }}>
+            <View style={s.insightCard}>
+              <Ionicons name="eye" size={14} color="#a8e02a" style={{ marginTop: 2 }} />
+              <EliteText style={s.insightText}>{insight.text}</EliteText>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* T6: ARGOS nutricional — chat con contexto del pilar pre-cargado */}
+        <Animated.View entering={FadeInUp.delay(85).springify()} style={{ marginTop: Spacing.sm }}>
+          <NavCard icon="eye-outline" color="#a8e02a" title="Hablar con ARGOS"
+            subtitle="Sobre tu nutrición de hoy — conoce tus datos"
+            onPress={() => { haptic.light(); router.push('/argos-chat?from=nutrition' as any); }} />
+        </Animated.View>
+
         {/* ARGOS recetas */}
-        <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.lg }}>
+        {isFeatureVisible('recipes', mode) && (
+        <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.sm }}>
           <AnimatedPressable onPress={() => { haptic.medium(); router.push('/argos-recipes'); }}>
             <View style={{
               backgroundColor: 'rgba(56,189,248,0.06)', borderRadius: 16, padding: 18, marginBottom: 4,
@@ -218,33 +312,38 @@ export default function NutritionScreen() {
             </View>
           </AnimatedPressable>
         </Animated.View>
+        )}
 
-        {/* ═══ CARDS DE NAVEGACIÓN ═══ */}
+        {/* ═══ CARDS DE NAVEGACIÓN — visibles según modo (#52) ═══ */}
         <View style={{ marginTop: Spacing.lg }}>
-          <Animated.View entering={FadeInUp.delay(100).springify()}>
-            <NavCard icon="restaurant-outline" color={BLUE} title="Registrar comida" subtitle="Desayuno · Comida · Cena"
-              onPress={() => { haptic.light(); router.push('/food-register' as any); }} />
-          </Animated.View>
-
+          {isFeatureVisible('supplements', mode) && (
           <Animated.View entering={FadeInUp.delay(110).springify()}>
             <NavCard icon="flask-outline" color="#1D9E75" title="Suplementos" subtitle="Tu plan diario personalizado"
               onPress={() => { haptic.light(); router.push('/supplements' as any); }} />
           </Animated.View>
+          )}
 
+          {isFeatureVisible('recipes', mode) && (
           <Animated.View entering={FadeInUp.delay(120).springify()}>
             <NavCard icon="bookmark-outline" color="#fbbf24" title="Mis recetas" subtitle="Guarda comidas frecuentes para reusar"
               onPress={() => { haptic.light(); router.push('/my-recipes' as any); }} />
           </Animated.View>
+          )}
 
           {/* Nu1: Ayuno e Hidratación se quitaron de Nutrición — viven en Hábitos → Mente
-              (/fasting y /hydration). Evita duplicar el mismo acceso en dos pilares. */}
+              (/fasting y /hydration). Evita duplicar el mismo acceso en dos pilares.
+              T1: la card de arriba solo aparece con ayuno ACTIVO (estado vivo). */}
 
+          {isFeatureVisible('glucose', mode) && (
           <Animated.View entering={FadeInUp.delay(180).springify()}>
             <NavCard icon="analytics-outline" color="#fb923c" title="Glucosa"
               subtitle={summary.lastGlucose ? `Último: ${summary.lastGlucose} mg/dL` : 'Registrar medición'}
               onPress={() => { haptic.light(); router.push('/glucose-log' as any); }} />
           </Animated.View>
+          )}
 
+          {isFeatureVisible('scanner', mode) && (
+          <>
           <Animated.View entering={FadeInUp.delay(200).springify()}>
             <NavCard icon="barcode-outline" color="#a8e02a" title="Escanear etiqueta" subtitle="Foto de producto → aditivos y calidad"
               onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } } as any); }} />
@@ -254,6 +353,8 @@ export default function NutritionScreen() {
             <NavCard icon="medical-outline" color="#fbbf24" title="Evaluar suplemento" subtitle="Evalúa calidad y dosis"
               onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } } as any); }} />
           </Animated.View>
+          </>
+          )}
         </View>
 
         <View style={{ height: 80 }} />
@@ -315,6 +416,21 @@ const s = StyleSheet.create({
   macroBannerText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#cbd5e1', lineHeight: 18 },
 
   navCard: { marginBottom: Spacing.sm },
+  // T1: fila de 3 vías de registro
+  registerRow: { flexDirection: 'row', gap: Spacing.sm },
+  registerBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: 'rgba(91,155,213,0.08)', borderWidth: 1, borderColor: 'rgba(91,155,213,0.25)',
+    borderRadius: Radius.md, paddingVertical: 12,
+  },
+  registerBtnText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: BLUE },
+  // T6: insight post-meal
+  insightCard: {
+    flexDirection: 'row', gap: 10, alignItems: 'flex-start',
+    backgroundColor: 'rgba(168,224,42,0.06)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
+    borderRadius: 14, padding: 14,
+  },
+  insightText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#cbd5e1', lineHeight: 19, fontStyle: 'italic' },
   navRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   navIcon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   navTitle: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: '#fff' },
