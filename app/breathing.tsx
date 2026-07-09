@@ -21,6 +21,13 @@ import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
+import {
+  advanceBreathSecond,
+  phaseColor,
+  phaseTargetScale,
+  INITIAL_STEP,
+  type BreathStep,
+} from '@/src/services/breath-timer-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
@@ -150,13 +157,25 @@ function SelectorScreen({ onSelect, onBack }: {
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold }}>{t.title}</Text>
                   <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>{t.description}</Text>
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
                     <View style={{ backgroundColor: `${PURPLE}15`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                       <Text style={{ color: PURPLE, fontSize: 10, fontFamily: Fonts.semiBold }}>{t.durationMinutes} min</Text>
                     </View>
                     <View style={{ backgroundColor: 'rgba(168,224,42,0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                       <Text style={{ color: '#a8e02a', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.phases.map(p => p.seconds + 's').join('-')}</Text>
                     </View>
+                    {/* Sprint MENTE: nivel + beneficio principal */}
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: '#999', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.level}</Text>
+                    </View>
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: '#999', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.benefit}</Text>
+                    </View>
+                    {t.contraindications && (
+                      <View style={{ backgroundColor: 'rgba(239,159,39,0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                        <Text style={{ color: '#EF9F27', fontSize: 10, fontFamily: Fonts.semiBold }}>⚠ precauciones</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 <Ionicons name="play-circle-outline" size={28} color={PURPLE} />
@@ -317,39 +336,38 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   const [secondsInPhase, setSecondsInPhase] = useState(0);
   const [totalElapsed, setTotalElapsed] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // T2 MENTE: la verdad del avance vive en el ref (síncrono) y la máquina de
+  // estados pura (breath-timer-core, testeada). Los useState solo pintan.
+  const stepRef = useRef<BreathStep>(INITIAL_STEP);
 
   // Animación del círculo
   const scaleAnim = useRef(new RNAnimated.Value(1)).current;
 
   const currentPhase = template.phases[currentPhaseIdx];
-  const phaseProgress = currentPhase ? secondsInPhase / currentPhase.seconds : 0;
   const totalProgress = totalSeconds > 0 ? totalElapsed / totalSeconds : 0;
   const totalRemaining = totalSeconds - totalElapsed;
+  // T2 MENTE: color por fase (requisito Enrique — verde inhala / azul retén /
+  // naranja exhala). En idle el anillo queda en el morado del pilar.
+  const ringColor = status === 'idle' || !currentPhase ? PURPLE : phaseColor(currentPhase.action);
 
-  // Animar círculo según fase
+  // Animar círculo según fase: crece en inhala, decrece en exhala, se
+  // mantiene en retención (phaseTargetScale del core).
   useEffect(() => {
     if (status !== 'running' || !currentPhase) return;
-
     const remaining = currentPhase.seconds - secondsInPhase;
     if (remaining <= 0) return;
-
-    if (currentPhase.action === 'inhale') {
+    const target = phaseTargetScale(currentPhase.action);
+    if (target !== null) {
       RNAnimated.timing(scaleAnim, {
-        toValue: 1.5,
-        duration: remaining * 1000,
-        useNativeDriver: true,
-      }).start();
-    } else if (currentPhase.action === 'exhale') {
-      RNAnimated.timing(scaleAnim, {
-        toValue: 1.0,
+        toValue: target,
         duration: remaining * 1000,
         useNativeDriver: true,
       }).start();
     }
-    // hold/hold_empty: no animation change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPhaseIdx, status]);
 
-  // Timer principal
+  // Timer principal — un tick por segundo sobre la máquina de estados pura.
   useEffect(() => {
     if (status !== 'running') {
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
@@ -357,36 +375,26 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     }
 
     intervalRef.current = setInterval(() => {
-      setSecondsInPhase(prev => {
-        const next = prev + 1;
-        if (next >= template.phases[currentPhaseIdx].seconds) {
-          // Avanzar fase
-          const nextPhaseIdx = currentPhaseIdx + 1;
-          if (nextPhaseIdx >= template.phases.length) {
-            // Avanzar ciclo
-            const nextCycle = currentCycle + 1;
-            if (nextCycle >= template.cycles) {
-              // Completar
-              clearInterval(intervalRef.current!);
-              intervalRef.current = null;
-              setTimeout(() => handleComplete(), 0);
-              return 0;
-            }
-            setCurrentCycle(nextCycle);
-            setCurrentPhaseIdx(0);
-            vibrateMedium();
-          } else {
-            setCurrentPhaseIdx(nextPhaseIdx);
-          }
-          return 0;
-        }
-        return next;
-      });
+      const { next, event } = advanceBreathSecond(stepRef.current, template);
+      if (event === 'completed') {
+        clearInterval(intervalRef.current!);
+        intervalRef.current = null;
+        setTotalElapsed(prev => prev + 1);
+        setTimeout(() => handleComplete(), 0);
+        return;
+      }
+      stepRef.current = next;
+      setCurrentCycle(next.cycleIdx);
+      setCurrentPhaseIdx(next.phaseIdx);
+      setSecondsInPhase(next.secondsInPhase);
       setTotalElapsed(prev => prev + 1);
+      if (event === 'cycle_advanced') vibrateMedium();
+      else if (event === 'phase_advanced') haptic.light();
     }, 1000);
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [status, currentPhaseIdx, currentCycle]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
 
   const handleStart = () => {
     if (status === 'idle') {
@@ -515,17 +523,22 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
         {/* Header */}
         <EliteText style={styles.timerTitle}>{template.title}</EliteText>
 
-        {/* Círculo animado */}
+        {/* Círculo animado — color por fase (T2 MENTE) */}
         <View style={styles.circleContainer}>
           <RNAnimated.View style={[
             styles.breathCircle,
-            { transform: [{ scale: scaleAnim }] },
+            {
+              transform: [{ scale: scaleAnim }],
+              borderColor: ringColor,
+              backgroundColor: `${ringColor}15`,
+              shadowColor: ringColor,
+            },
           ]}>
             <EliteText style={styles.actionText}>
               {status === 'idle' ? 'Listo' : currentPhase?.label ?? ''}
             </EliteText>
             {status !== 'idle' && (
-              <EliteText style={styles.phaseCountdown}>
+              <EliteText style={[styles.phaseCountdown, { color: ringColor }]}>
                 {currentPhase ? currentPhase.seconds - secondsInPhase : 0}
               </EliteText>
             )}
@@ -548,9 +561,21 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
         )}
 
         {status === 'idle' && (
-          <EliteText variant="caption" style={styles.idleInfo}>
-            {template.durationMinutes} min · {template.cycles} ciclos · {template.phases.map(p => p.seconds + 's').join('-')}
-          </EliteText>
+          <>
+            <EliteText variant="caption" style={styles.idleInfo}>
+              {template.durationMinutes} min · {template.cycles} ciclos · {template.phases.map(p => p.seconds + 's').join('-')}
+            </EliteText>
+            {/* T2 MENTE: contraindicaciones ANTES de iniciar (Wim Hof et al) */}
+            {template.contraindications && template.contraindications.length > 0 && (
+              <View style={styles.contraCard}>
+                <Ionicons name="warning-outline" size={16} color="#EF9F27" />
+                <EliteText variant="caption" style={styles.contraText}>
+                  No recomendado con: {template.contraindications.join(' · ')}.
+                  {' '}Si aplica, consulta con un experto antes.
+                </EliteText>
+              </View>
+            )}
+          </>
         )}
 
         {/* Controles */}
@@ -647,7 +672,16 @@ const styles = StyleSheet.create({
     width: '100%', height: 3, backgroundColor: Colors.surfaceLight, borderRadius: Radius.xs, overflow: 'hidden',
   },
   totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: Radius.xs },
-  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
+  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.md, fontSize: FontSizes.md },
+  // T2 MENTE: advertencia de contraindicaciones antes de iniciar
+  contraCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: 'rgba(239,159,39,0.10)', borderColor: 'rgba(239,159,39,0.35)',
+    borderWidth: 1, borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    marginBottom: Spacing.lg, marginHorizontal: Spacing.lg, maxWidth: 340,
+  },
+  contraText: { flex: 1, color: '#EF9F27', fontSize: FontSizes.sm, lineHeight: 18 },
 
   // Controles
   controls: { alignItems: 'center', gap: Spacing.md },

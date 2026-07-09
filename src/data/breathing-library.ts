@@ -1,14 +1,19 @@
 /**
  * Biblioteca de ejercicios de respiración con ciclos y fases.
+ *
+ * PURA (sin imports de brand/RN) para ser testeable en el harness Vitest
+ * node — brand.ts arrastra require() de imágenes. El color es espejo de
+ * CATEGORY_COLORS.mind; si brand cambia, actualizar aquí.
  */
 import type { InterventionType } from '@/src/constants/categories';
-import { CATEGORY_COLORS } from '../constants/brand';
 
 export interface BreathingPhase {
   action: 'inhale' | 'hold' | 'exhale' | 'hold_empty';
   seconds: number;
   label: string;
 }
+
+export type BreathingLevel = 'principiante' | 'intermedio' | 'avanzado';
 
 export interface BreathingTemplate {
   id: string;
@@ -20,9 +25,17 @@ export interface BreathingTemplate {
   category: InterventionType;
   accentColor: string;
   closingMessage: string;
+  /** Sprint MENTE: nivel sugerido. */
+  level: BreathingLevel;
+  /** Sprint MENTE: beneficio principal (una línea, editorial). */
+  benefit: string;
+  /** Sprint MENTE: contraindicaciones — se muestran ANTES de iniciar. */
+  contraindications?: string[];
+  /** Placeholder para audio futuro (sin audio real por licensing). */
+  audioUrl?: string;
 }
 
-const P = CATEGORY_COLORS.mind;
+const P = '#7F77DD'; // espejo de CATEGORY_COLORS.mind (brand.ts)
 
 export const BREATHING_LIBRARY: BreathingTemplate[] = [
   {
@@ -40,6 +53,8 @@ export const BREATHING_LIBRARY: BreathingTemplate[] = [
     category: 'mind',
     accentColor: P,
     closingMessage: 'Sistema nervioso equilibrado. Listo para lo que sea.',
+    level: 'principiante',
+    benefit: 'Enfoque bajo presión',
   },
   {
     id: '478-relaxation',
@@ -55,20 +70,24 @@ export const BREATHING_LIBRARY: BreathingTemplate[] = [
     category: 'mind',
     accentColor: P,
     closingMessage: 'Tu sistema nervioso está en modo recuperación.',
+    level: 'principiante',
+    benefit: 'Calma profunda pre-sueño',
   },
   {
     id: 'coherent-5',
-    title: 'Respiración coherente',
-    description: 'Equilibra el sistema nervioso autónomo. 5.5 ciclos/min.',
+    title: 'Coherencia 5-5',
+    description: 'Equilibra el sistema nervioso autónomo. 6 ciclos/min.',
     durationMinutes: 5,
-    cycles: 27,
+    cycles: 30,
     phases: [
       { action: 'inhale', seconds: 5, label: 'Inhala' },
-      { action: 'exhale', seconds: 6, label: 'Exhala' },
+      { action: 'exhale', seconds: 5, label: 'Exhala' },
     ],
     category: 'mind',
     accentColor: P,
     closingMessage: 'HRV optimizada. Coherencia cardíaca activada.',
+    level: 'principiante',
+    benefit: 'Optimización de HRV',
   },
   {
     id: 'energize-2',
@@ -83,6 +102,32 @@ export const BREATHING_LIBRARY: BreathingTemplate[] = [
     category: 'mind',
     accentColor: P,
     closingMessage: 'Oxígeno al máximo. Tu cuerpo está despierto.',
+    level: 'intermedio',
+    benefit: 'Activación matutina',
+    contraindications: ['Embarazo', 'Hipertensión no controlada'],
+  },
+  {
+    id: 'wim-hof-lite',
+    title: 'Wim Hof Lite',
+    description: '30 respiraciones profundas + retención. Energía y resiliencia.',
+    durationMinutes: 7,
+    cycles: 3,
+    phases: [
+      { action: 'inhale', seconds: 60, label: 'Respira profundo ×30' },
+      { action: 'hold_empty', seconds: 60, label: 'Exhala y retén' },
+      { action: 'hold', seconds: 15, label: 'Inhala grande y retén' },
+    ],
+    category: 'mind',
+    accentColor: P,
+    closingMessage: '3 rondas. Tu cuerpo está oxigenado y despierto.',
+    level: 'avanzado',
+    benefit: 'Energía + resiliencia al estrés',
+    contraindications: [
+      'Embarazo',
+      'Condiciones cardíacas',
+      'Epilepsia',
+      'Nunca en agua ni manejando',
+    ],
   },
   {
     id: 'physiological-sigh',
@@ -99,5 +144,7 @@ export const BREATHING_LIBRARY: BreathingTemplate[] = [
     category: 'mind',
     accentColor: P,
     closingMessage: 'Cortisol reducido en 60 segundos. La ciencia funciona.',
+    level: 'principiante',
+    benefit: 'Reset del estrés en 1 minuto',
   },
 ];
