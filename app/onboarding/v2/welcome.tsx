@@ -17,6 +17,9 @@ import { completeV2Step } from '@/src/services/onboarding-v2-service';
 import { v2StepNumber, V2_STEPS } from '@/src/services/onboarding-v2-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
+import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
+
+const COPY = ONBOARDING_COPY.welcome;
 
 export default function V2WelcomeScreen() {
   const router = useRouter();
@@ -52,19 +55,16 @@ export default function V2WelcomeScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <Animated.View entering={FadeInUp.duration(400)}>
-            <EliteText style={s.kicker}>BIENVENIDO A ATP</EliteText>
-            <EliteText style={s.title}>Tu sistema operativo de rendimiento humano</EliteText>
-            <EliteText style={s.subtitle}>
-              Fitness, nutrición, mente, salud funcional y tu ciclo — integrados con inteligencia que te conoce.
-              Empecemos por lo básico.
-            </EliteText>
+            <EliteText style={s.kicker}>{COPY.kicker}</EliteText>
+            <EliteText style={s.title}>{COPY.title}</EliteText>
+            <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(150).duration(400)}>
-            <EliteText style={s.inputLabel}>¿CÓMO TE LLAMAS?</EliteText>
+            <EliteText style={s.inputLabel}>{COPY.nameLabel}</EliteText>
             <TextInput
               style={s.input}
-              placeholder="Tu nombre"
+              placeholder={COPY.namePlaceholder}
               placeholderTextColor="#444"
               value={name}
               onChangeText={setName}
@@ -72,9 +72,7 @@ export default function V2WelcomeScreen() {
               returnKeyType="done"
               autoFocus
             />
-            <EliteText style={s.hint}>
-              Podrás agregar tu foto después, en tu Perfil.
-            </EliteText>
+            <EliteText style={s.hint}>{COPY.photoHint}</EliteText>
           </Animated.View>
         </ScrollView>
 
@@ -85,7 +83,7 @@ export default function V2WelcomeScreen() {
             disabled={!isValid || loading}
           >
             <EliteText style={[s.continueBtnText, !isValid && { opacity: 0.4 }]}>
-              {loading ? 'Guardando…' : 'EMPEZAR'}
+              {loading ? ONBOARDING_COPY.common.saving : COPY.cta}
             </EliteText>
             {!loading && <Ionicons name="arrow-forward" size={18} color={isValid ? '#000' : '#666'} />}
           </AnimatedPressable>

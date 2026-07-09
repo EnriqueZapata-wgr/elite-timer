@@ -25,6 +25,9 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
+import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
+
+const COPY = ONBOARDING_COPY.profile;
 
 export default function V2ProfileScreen() {
   const router = useRouter();
@@ -82,7 +85,7 @@ export default function V2ProfileScreen() {
     if (!user?.id || !isValid || loading) return;
     const dateStr = validateDate();
     if (!dateStr) {
-      Alert.alert('Fecha inválida', 'Introduce una fecha de nacimiento válida.');
+      Alert.alert(COPY.invalidDateTitle, COPY.invalidDateBody);
       return;
     }
     // Age gate (#41): <13 bloquea, 13-17 requiere consentimiento parental
@@ -120,7 +123,7 @@ export default function V2ProfileScreen() {
       const next = await completeV2Step(user.id, 'profile');
       router.replace(next as any);
     } catch {
-      Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
+      Alert.alert(COPY.errorTitle, COPY.errorBody);
     } finally {
       setLoading(false);
     }
@@ -142,15 +145,13 @@ export default function V2ProfileScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <Animated.View entering={FadeInUp.duration(400)}>
-            <EliteText style={s.title}>Tu perfil base</EliteText>
-            <EliteText style={s.subtitle}>
-              Con esto calculamos tu Edad ATP y calibramos tus rangos de salud.
-            </EliteText>
+            <EliteText style={s.title}>{COPY.title}</EliteText>
+            <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
           </Animated.View>
 
           {/* Sexo biológico */}
           <Animated.View entering={FadeInUp.delay(100).duration(400)}>
-            <EliteText style={s.inputLabel}>SEXO BIOLÓGICO</EliteText>
+            <EliteText style={s.inputLabel}>{COPY.sexLabel}</EliteText>
             <View style={s.sexRow}>
               {(['male', 'female'] as const).map(v => (
                 <AnimatedPressable
@@ -160,7 +161,7 @@ export default function V2ProfileScreen() {
                 >
                   <Ionicons name={v === 'male' ? 'man-outline' : 'woman-outline'} size={24} color={sex === v ? '#000' : '#666'} />
                   <EliteText style={[s.sexBtnText, sex === v && s.sexBtnTextActive]}>
-                    {v === 'male' ? 'Hombre' : 'Mujer'}
+                    {v === 'male' ? COPY.sexMale : COPY.sexFemale}
                   </EliteText>
                 </AnimatedPressable>
               ))}
@@ -169,7 +170,7 @@ export default function V2ProfileScreen() {
 
           {/* Fecha de nacimiento */}
           <Animated.View entering={FadeInUp.delay(180).duration(400)}>
-            <EliteText style={s.inputLabel}>FECHA DE NACIMIENTO</EliteText>
+            <EliteText style={s.inputLabel}>{COPY.dobLabel}</EliteText>
             <View style={s.dateRow}>
               <TextInput
                 style={[s.input, s.dateInput]} placeholder="DD" placeholderTextColor="#444"
@@ -195,7 +196,7 @@ export default function V2ProfileScreen() {
           <Animated.View entering={FadeInUp.delay(260).duration(400)}>
             <View style={s.hwRow}>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.inputLabel}>ALTURA (CM)</EliteText>
+                <EliteText style={s.inputLabel}>{COPY.heightLabel}</EliteText>
                 <TextInput
                   style={s.input} placeholder="170" placeholderTextColor="#444"
                   value={height} onChangeText={(t) => setHeight(t.replace(/[^\d.,]/g, '').slice(0, 5))}
@@ -203,7 +204,7 @@ export default function V2ProfileScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <EliteText style={s.inputLabel}>PESO (KG)</EliteText>
+                <EliteText style={s.inputLabel}>{COPY.weightLabel}</EliteText>
                 <TextInput
                   style={s.input} placeholder="70" placeholderTextColor="#444"
                   value={weight} onChangeText={(t) => setWeight(t.replace(/[^\d.,]/g, '').slice(0, 5))}
@@ -211,7 +212,7 @@ export default function V2ProfileScreen() {
                 />
               </View>
             </View>
-            <EliteText style={s.hint}>Estos datos alimentan tu Edad ATP desde el día 1.</EliteText>
+            <EliteText style={s.hint}>{COPY.hint}</EliteText>
           </Animated.View>
         </ScrollView>
 
@@ -222,7 +223,7 @@ export default function V2ProfileScreen() {
             disabled={!isValid || loading}
           >
             <EliteText style={[s.continueBtnText, !isValid && { opacity: 0.4 }]}>
-              {loading ? 'Guardando…' : 'CONTINUAR'}
+              {loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}
             </EliteText>
             {!loading && <Ionicons name="arrow-forward" size={18} color={isValid ? '#000' : '#666'} />}
           </AnimatedPressable>

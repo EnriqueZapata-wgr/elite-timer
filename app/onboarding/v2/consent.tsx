@@ -18,25 +18,9 @@ import { v2StepNumber, v2Route, V2_STEPS } from '@/src/services/onboarding-v2-co
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
+import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
-const POINTS = [
-  {
-    icon: 'information-circle-outline',
-    text: 'ATP es una herramienta de bienestar y educación. No diagnostica, trata ni cura enfermedades.',
-  },
-  {
-    icon: 'medkit-outline',
-    text: 'Las recomendaciones (suplementos, ayuno, protocolos, ejercicio) son informativas y no sustituyen el consejo de tu médico.',
-  },
-  {
-    icon: 'warning-outline',
-    text: 'Si tienes una condición médica, tomas medicamentos, estás embarazada o en lactancia, consulta a un profesional de salud antes de aplicar cambios.',
-  },
-  {
-    icon: 'analytics-outline',
-    text: 'Los análisis de laboratorios y biomarcadores usan rangos funcionales de referencia; su interpretación clínica corresponde a tu profesional de salud.',
-  },
-];
+const COPY = ONBOARDING_COPY.consent;
 
 export default function V2ConsentScreen() {
   const router = useRouter();
@@ -65,14 +49,12 @@ export default function V2ConsentScreen() {
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>
-          <EliteText style={s.title}>Antes de empezar</EliteText>
-          <EliteText style={s.subtitle}>
-            Lo importante, sin letras chiquitas:
-          </EliteText>
+          <EliteText style={s.title}>{COPY.title}</EliteText>
+          <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(120).duration(400)} style={{ marginTop: Spacing.lg, gap: 10 }}>
-          {POINTS.map((p, i) => (
+          {COPY.points.map((p, i) => (
             <View key={i} style={s.pointCard}>
               <Ionicons name={p.icon as any} size={18} color="#fbbf24" style={{ marginTop: 2 }} />
               <EliteText style={s.pointText}>{p.text}</EliteText>
@@ -85,9 +67,7 @@ export default function V2ConsentScreen() {
             <View style={[s.checkbox, accepted && s.checkboxOn]}>
               {accepted && <Ionicons name="checkmark" size={14} color="#000" />}
             </View>
-            <EliteText style={s.checkText}>
-              Entiendo que ATP no sustituye atención médica profesional y acepto los términos de uso y avisos médicos.
-            </EliteText>
+            <EliteText style={s.checkText}>{COPY.checkbox}</EliteText>
           </Pressable>
         </Animated.View>
       </ScrollView>
@@ -99,7 +79,7 @@ export default function V2ConsentScreen() {
           disabled={!accepted || loading}
         >
           <EliteText style={[s.continueBtnText, !accepted && { opacity: 0.4 }]}>
-            {loading ? 'Guardando…' : 'ACEPTO Y CONTINÚO'}
+            {loading ? ONBOARDING_COPY.common.saving : COPY.cta}
           </EliteText>
           {!loading && <Ionicons name="arrow-forward" size={18} color={accepted ? '#000' : '#666'} />}
         </AnimatedPressable>

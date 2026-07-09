@@ -22,6 +22,9 @@ import {
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
+
+const COPY = ONBOARDING_COPY.chronotype;
 
 const PURPLE = '#7c3aed';
 
@@ -83,15 +86,15 @@ export default function V2ChronotypeScreen() {
         <ScrollView contentContainerStyle={s.scroll}>
           <Animated.View entering={FadeInUp.duration(400)} style={s.insightCard}>
             <EliteText style={{ fontSize: 56, textAlign: 'center' }}>{meta.emoji}</EliteText>
-            <EliteText style={s.insightKicker}>TU CRONOTIPO</EliteText>
-            <EliteText style={s.insightTitle}>Eres {meta.name}</EliteText>
+            <EliteText style={s.insightKicker}>{COPY.resultKicker}</EliteText>
+            <EliteText style={s.insightTitle}>{COPY.resultTitlePrefix} {meta.name}</EliteText>
             <EliteText style={s.insightBlurb}>{meta.blurb}</EliteText>
             <View style={s.scheduleBox}>
               {[
-                { icon: 'sunny-outline', label: 'Despertar ideal', time: schedule.wake },
-                { icon: 'flash-outline', label: 'Pico físico', time: schedule.peak_physical },
-                { icon: 'bulb-outline', label: 'Pico mental', time: `${schedule.peak_focus_start}–${schedule.peak_focus_end}` },
-                { icon: 'bed-outline', label: 'Dormir ideal', time: schedule.sleep },
+                { icon: 'sunny-outline', label: COPY.scheduleWake, time: schedule.wake },
+                { icon: 'flash-outline', label: COPY.schedulePhysical, time: schedule.peak_physical },
+                { icon: 'bulb-outline', label: COPY.scheduleFocus, time: `${schedule.peak_focus_start}–${schedule.peak_focus_end}` },
+                { icon: 'bed-outline', label: COPY.scheduleSleep, time: schedule.sleep },
               ].map(row => (
                 <View key={row.label} style={s.scheduleRow}>
                   <Ionicons name={row.icon as any} size={16} color={PURPLE} />
@@ -104,7 +107,7 @@ export default function V2ChronotypeScreen() {
         </ScrollView>
         <View style={s.bottomBar}>
           <AnimatedPressable style={s.continueBtn} onPress={handleContinue} disabled={loading}>
-            <EliteText style={s.continueBtnText}>{loading ? 'Guardando…' : 'CONTINUAR'}</EliteText>
+            <EliteText style={s.continueBtnText}>{loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}</EliteText>
             {!loading && <Ionicons name="arrow-forward" size={18} color="#000" />}
           </AnimatedPressable>
         </View>
@@ -118,7 +121,7 @@ export default function V2ChronotypeScreen() {
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View key={animKey} entering={FadeInUp.duration(300)}>
           <EliteText style={s.counter}>
-            CRONOTIPO · {currentQ + 1} DE {CHRONO_QUESTIONS.length}
+            {COPY.counterKicker} · {currentQ + 1} DE {CHRONO_QUESTIONS.length}
           </EliteText>
           <EliteText style={s.title}>{question.text}</EliteText>
           <View style={{ marginTop: Spacing.lg }}>
