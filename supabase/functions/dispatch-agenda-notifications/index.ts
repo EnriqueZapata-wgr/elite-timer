@@ -19,7 +19,11 @@
 //   v13g F6: creación original
 //   v3 AGENDA-COMPLETE F3: agrega inbox in-app
 //   v4 POLISH V1.3 F5: enforcement de user_notification_prefs
-//   v5 (esto): smart criterio anti-bulk (task #135)
+//   v6 refactor: smart criterio anti-bulk (task #135)
+//   v7 Sprint #50 hardening: retries + dead-letter + observability + circuit breaker + anomaly
+//   v8 (esto) Cowork overnight 2026-07-08: fixes bugs preexistentes flagueados por Fable:
+//     - T1 cap 1 bucket/user/run (intra-run cooldown para runs de recuperación)
+//     - T2 .order("notify_at" asc) para no starvar logs viejos en backlog >500
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 // Sprint #50 hardening v7 — helpers puros (testeados en vitest)
@@ -57,12 +61,16 @@ serve(async (req) => {
   const runStartMs = Date.now(); // v7 T3: duration_ms del run_summary
 
   // 1) logs con notify pendiente
+  // v8 T2: .order("notify_at", asc) — si hay >500 pending, los MÁS VIEJOS van primero
+  // (bug Fable flagueó en delivery #50: sin order, logs viejos podían morir de hambre
+  // cuando el backlog crecía). T5 (anomaly) sigue alertando al backlog anormal.
   const { data: pending, error: pendingErr } = await supabase
     .from("agenda_event_logs")
     .select("id, user_id, event_id, scheduled_at, agenda_events(name, category)")
     .lte("notify_at", nowIso)
     .is("notified_at", null)
     .not("notify_at", "is", null)
+    .order("notify_at", { ascending: true })
     .limit(500);
 
   if (pendingErr) {
@@ -185,6 +193,41 @@ serve(async (req) => {
     if (log.agenda_events?.category) bucket.categories.add(log.agenda_events.category);
     if (log.scheduled_at < bucket.earliestScheduledAt) bucket.earliestScheduledAt = log.scheduled_at;
   }
+
+  // 4b) v8 T1: cap 1 bucket per user por run (intra-run cooldown).
+  // Bug Fable flagueó en delivery #50: si el cron pausa y acumula, un run de
+  // recuperación podía mandar N buckets al mismo user antes de que el cooldown
+  // 30-min (que compara vs user_notifications) tuviera chance de aplicar.
+  // Fix: dentro del mismo run, solo un bucket per user (el earliest — mayor
+  // urgencia). Los demás se marcan como notified (supresión intencional
+  // coherente con prefs/cooldown). El próximo scheduled_at real del user seguirá
+  // el flujo normal cuando su cron corra.
+  const bucketsByUser = new Map<string, Bucket[]>();
+  for (const bucket of buckets.values()) {
+    if (!bucketsByUser.has(bucket.userId)) bucketsByUser.set(bucket.userId, []);
+    bucketsByUser.get(bucket.userId)!.push(bucket);
+  }
+  const intraRunSuppressedLogIds: string[] = [];
+  let suppressedByIntraRunCap = 0;
+  const primaryBuckets = new Map<string, Bucket>();
+  for (const [userId, userBuckets] of bucketsByUser) {
+    userBuckets.sort((a, b) => a.earliestScheduledAt.localeCompare(b.earliestScheduledAt));
+    primaryBuckets.set(userBuckets[0].bucketKey, userBuckets[0]);
+    for (let i = 1; i < userBuckets.length; i++) {
+      intraRunSuppressedLogIds.push(...userBuckets[i].logs.map((l) => l.id));
+      suppressedByIntraRunCap += userBuckets[i].logs.length;
+    }
+    if (userBuckets.length > 1) {
+      structuredLog("info", "suppressed_intra_run_cap", {
+        user_id: userId,
+        buckets_suppressed: userBuckets.length - 1,
+        buckets_dispatched: 1,
+      });
+    }
+  }
+  // Reemplazar el mapa de buckets con los primarios (cap aplicado)
+  buckets.clear();
+  for (const [key, bucket] of primaryBuckets) buckets.set(key, bucket);
 
   // 5) Tokens por usuario (solo los que efectivamente van a recibir notif)
   const dispatchUserIds = [...new Set([...buckets.values()].map((b) => b.userId))];
@@ -369,6 +412,7 @@ serve(async (req) => {
       tokens_invalidated: tokensInvalidated,
       suppressed_by_prefs: suppressedByPrefs,
       suppressed_by_cooldown: suppressedByCooldown,
+      suppressed_by_intra_run_cap: suppressedByIntraRunCap,
       circuit_breaker: true,
       duration_ms: Date.now() - runStartMs,
     });
@@ -406,6 +450,7 @@ serve(async (req) => {
     tokens_invalidated: tokensInvalidated,
     suppressed_by_prefs: suppressedByPrefs,
     suppressed_by_cooldown: suppressedByCooldown,
+    suppressed_by_intra_run_cap: suppressedByIntraRunCap,
     duration_ms: Date.now() - runStartMs,
   });
 
