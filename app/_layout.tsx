@@ -182,6 +182,9 @@ function RootLayout() {
                 <Stack.Screen name="my-health" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="clinical-system" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="mind-hub" options={{ animation: 'slide_from_right' }} />
+                {/* Sprint MENTE Ecosystem: hub del pilar + progreso (streaks/medallas) */}
+                <Stack.Screen name="mente" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="mente/progreso" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="habits-portal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz/chronotype" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
