@@ -14,6 +14,7 @@ import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTa
 import { error as logError } from '@/src/lib/logger';
 import { persistTurnAudit } from './coach-audit-service';
 import { generateUUID } from '@/src/utils/uuid';
+import { buildPersonalityInjection, getTimeOfDay } from './argos-personality';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1363,8 +1364,16 @@ export async function chatWithArgosEx(
   const voiceConfig = await VoiceModulator.getVoiceConfig(userId);
   const voiceInjection = VoiceModulator.buildVoiceInjection(voiceConfig);
   const coachGateInjection = gateResult ? buildCoachGateInjection(gateResult) : '';
+  // Capa de PRESENCIA (T3 MAGIA ARGOS): nombre + tono cercano-directo. Aditiva,
+  // no reemplaza el voice_config dinámico ni la identidad del coach. `context.name`
+  // ya viene gated por consent de memoria (vacío si el usuario la apagó).
+  const presenceInjection = buildPersonalityInjection({
+    nombre: context.name,
+    timeOfDay: getTimeOfDay(),
+  });
   const systemPrompt =
-    ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection + coachGateInjection + contextPrompt;
+    ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection +
+    coachGateInjection + presenceInjection + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });
