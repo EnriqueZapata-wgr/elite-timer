@@ -3,7 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  // x-atp-stream: opt-in de streaming SSE (T2 MAGIA 2.0)
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-atp-stream",
 };
 
 // Resilience config (espejo de src/constants/llm-config.ts)
@@ -89,6 +90,51 @@ async function logArgosCall(supabase: any, params: {
 
 // 🟡 Anthropic prompt caching ya es GA en mayo 2026 — sin header beta requerido.
 // Si Anthropic vuelve a exigir beta, agregar: "anthropic-beta": "prompt-caching-2024-07-31".
+//
+// T2 MAGIA 2.0: helper compartido entre el modo no-stream (callAnthropicProvider)
+// y el modo SSE (rama streaming del handler) — mismo body/headers en ambos.
+function buildAnthropicHttp(args: {
+  model: string;
+  messages: any[];
+  system?: string;
+  max_tokens: number;
+  stream?: boolean;
+}): { requestBody: Record<string, unknown>; headers: Record<string, string> } {
+  const requestBody: Record<string, unknown> = {
+    model: args.model,
+    max_tokens: args.max_tokens,
+    messages: args.messages,
+  };
+  if (args.stream) requestBody.stream = true;
+  if (args.system) {
+    // Prompt caching: system como array con cache_control ephemeral
+    requestBody.system = [{
+      type: "text",
+      text: args.system,
+      cache_control: { type: "ephemeral" },
+    }];
+  }
+
+  // Capa 5: si el documento referencia un file_id (Files API), añadir su beta header.
+  const serialized = JSON.stringify(args.messages);
+  const hasFileSource = serialized.includes('"file_id"');
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
+    "anthropic-version": "2023-06-01",
+  };
+  // 2026-06-18: PDFs ya son GA en Sonnet 4.x (no requieren beta header).
+  // Pasar el header viejo `pdfs-2024-09-25` causa que Anthropic cuelgue el
+  // request sin procesar (input_tokens=0, timeout silencioso). Files API SÍ
+  // requiere beta pero por ahora está desactivada (no se manda type:"file").
+  const betas: string[] = [];
+  if (hasFileSource) betas.push("files-api-2025-04-14");
+  if (betas.length > 0) headers["anthropic-beta"] = betas.join(",");
+
+  return { requestBody, headers };
+}
+
 async function callAnthropicProvider(args: {
   model: string;
   messages: any[];
@@ -103,42 +149,7 @@ async function callAnthropicProvider(args: {
   cache_read_tokens: number;
   cache_write_tokens: number;
 }> {
-  const requestBody: Record<string, unknown> = {
-    model: args.model,
-    max_tokens: args.max_tokens,
-    messages: args.messages,
-  };
-  if (args.system) {
-    // Prompt caching: system como array con cache_control ephemeral
-    requestBody.system = [{
-      type: "text",
-      text: args.system,
-      cache_control: { type: "ephemeral" },
-    }];
-  }
-
-  // Detectar si el request incluye PDFs (type: "document"). Anthropic requiere
-  // header beta para procesarlos correctamente. Sin esto, los PDFs timeout o
-  // se ignoran silenciosamente (causa raíz de uploads de labs PDF rotos 1+ mes).
-  const serialized = JSON.stringify(args.messages);
-  const hasPdf = serialized.includes('"type":"document"');
-  // Capa 5: si el documento referencia un file_id (Files API), añadir su beta header.
-  const hasFileSource = serialized.includes('"file_id"');
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
-    "anthropic-version": "2023-06-01",
-  };
-  // 2026-06-18: PDFs ya son GA en Sonnet 4.x (no requieren beta header).
-  // Pasar el header viejo `pdfs-2024-09-25` causa que Anthropic cuelgue el
-  // request sin procesar (input_tokens=0, timeout silencioso). Quitamos beta
-  // de PDFs. Files API SÍ requiere beta pero por ahora está desactivada
-  // (no se manda type:"file" desde el cliente).
-  const betas: string[] = [];
-  if (hasFileSource) betas.push("files-api-2025-04-14");
-  if (betas.length > 0) headers["anthropic-beta"] = betas.join(",");
-  void hasPdf; // referenced for backward-compat — header no se manda
+  const { requestBody, headers } = buildAnthropicHttp(args);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS);
@@ -260,8 +271,12 @@ async function detectEffectiveTier(supabase: any, userId: string): Promise<strin
       .from("profiles").select("tier").eq("id", userId).maybeSingle();
     const baseTier = profile?.tier ?? "free";
 
-    // 2) Check boost H+ activo (task #133)
-    if (baseTier === "base") {
+    // 2) Check boost H+ activo (task #133 + MAGIA 2.0 T5)
+    // T5: el boost también aplica a tier free — antes solo se consultaba para
+    // base, así que un free con boost activo seguía limitado a 5/día (bug real
+    // que golpeó a Enrique 2026-07-09). El RPC activate_pro_boost no restringe
+    // tier; la doctrina es "ofrece transacción H+, no fuerces upgrade".
+    if (baseTier === "base" || baseTier === "free") {
       const { data: boost } = await supabase.rpc("has_active_pro_boost", { p_user_id: userId });
       if (boost === true) {
         tierCache.set(userId, { effectiveTier: "pro", expiresAt: Date.now() + 30000 });
@@ -392,17 +407,29 @@ serve(async (req) => {
         target_user_id: targetUserId ?? null,
         target_profile_id: targetProfileId ?? null,
       });
-      const upgradeMsg = effectiveTier === "free"
-        ? "Alcanzaste el límite diario. Suscríbete a ATP Base para más acceso."
-        : effectiveTier === "base"
-          ? "Alcanzaste el límite Base (25/día). Prueba un boost Pro por 24h con Protones H+ o actualiza a ATP Pro."
-          : `Alcanzaste el límite (${usage.limit}/día). Se renueva mañana.`;
+      // MAGIA 2.0 T5: payload enriquecido para el RateLimitCard del cliente.
+      // Se mantiene `content` + `_rate_limited` para bundles viejos (el campo
+      // top-level `error` NO se usa aquí — callAnthropic legacy lanza al verlo
+      // y degradaría el mensaje en apps sin OTA).
+      // COPY tentativo — revisar con Enrique post-sprint.
+      const canBoost = effectiveTier === "free" || effectiveTier === "base";
+      const upgradeMsg = canBoost
+        ? `Llegaste al máximo de hoy (${usage.limit}/${usage.limit}). Activa Boost Pro por 500 H+ para 24h sin límite. O espera hasta mañana.`
+        : `Alcanzaste el límite (${usage.limit}/día). Se renueva mañana.`;
+      const resetsAt = new Date(new Date().setUTCHours(24, 0, 0, 0)).toISOString();
       return new Response(JSON.stringify({
         content: [{ type: "text", text: upgradeMsg }],
         model: finalModel,
         _rate_limited: true,
         _tier: effectiveTier,
         _limit: usage.limit,
+        rate_limit: {
+          tier: effectiveTier,
+          limit_daily: usage.limit,
+          used_today: Math.min(usage.count, usage.limit),
+          resets_at: resetsAt,
+          boost_option: canBoost ? { cost_h_plus: 500, duration_hours: 24 } : null,
+        },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -455,6 +482,98 @@ serve(async (req) => {
     // fallback Gemini porque (a) Gemini no soporta type:"document" tipo Anthropic
     // y (b) consume tiempo del Edge Function (60s cap) que Anthropic puede usar.
     const hasPdfRequest = JSON.stringify(messages).includes('"type":"document"');
+
+    // ─── T2 MAGIA 2.0: STREAMING SSE ─────────────────────────────────
+    // Opt-in por body.stream o header X-ATP-Stream (callers legacy intactos).
+    // El rate limit ya se contó arriba (al INICIO, coherente con no-stream).
+    // Si el POST inicial a Anthropic falla, se cae al flujo no-stream de abajo
+    // (Anthropic no-stream → Gemini) y el cliente recibe JSON normal.
+    const wantsStream = body.stream === true || req.headers.get("x-atp-stream") === "true";
+    if (wantsStream && !hasPdfRequest) {
+      try {
+        const { requestBody, headers } = buildAnthropicHttp({
+          model: finalModel, messages, system, max_tokens: finalMaxTokens, stream: true,
+        });
+        const upstream = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST", headers, body: JSON.stringify(requestBody),
+        });
+        if (upstream.ok && upstream.body) {
+          const encoder = new TextEncoder();
+          const decoder = new TextDecoder();
+          const reader = upstream.body.getReader();
+          let sseBuffer = "";
+          let inputTokens = 0, outputTokens = 0, cacheRead = 0, cacheWrite = 0;
+          const outStream = new ReadableStream({
+            async start(controller) {
+              const send = (obj: unknown) =>
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
+              // Metadata en el primer evento (idempotency key del turno).
+              send({ type: "start", model: finalModel, idempotency_key: idempotency_key ?? null });
+              try {
+                while (true) {
+                  const { done, value } = await reader.read();
+                  if (done) break;
+                  sseBuffer += decoder.decode(value, { stream: true });
+                  const events = sseBuffer.split("\n\n");
+                  sseBuffer = events.pop() ?? "";
+                  for (const raw of events) {
+                    const dataLine = raw.split("\n").find((l) => l.startsWith("data:"));
+                    if (!dataLine) continue;
+                    let payload: any;
+                    try { payload = JSON.parse(dataLine.slice(5).trim()); } catch { continue; }
+                    if (payload.type === "message_start") {
+                      inputTokens = payload.message?.usage?.input_tokens || 0;
+                      cacheRead = payload.message?.usage?.cache_read_input_tokens || 0;
+                      cacheWrite = payload.message?.usage?.cache_creation_input_tokens || 0;
+                    } else if (payload.type === "content_block_delta" && payload.delta?.type === "text_delta" && payload.delta.text) {
+                      send({ type: "chunk", text: payload.delta.text });
+                    } else if (payload.type === "message_delta") {
+                      outputTokens = payload.usage?.output_tokens || outputTokens;
+                    } else if (payload.type === "error") {
+                      throw new Error(payload.error?.message || "anthropic_stream_error");
+                    }
+                  }
+                }
+                send({ type: "done" });
+                await logArgosCall(supabase, {
+                  user_id: userId, tier: effectiveTier, provider: "anthropic", model: finalModel,
+                  request_type: requestType, input_tokens: inputTokens, output_tokens: outputTokens,
+                  cache_read_tokens: cacheRead, cache_write_tokens: cacheWrite,
+                  latency_ms: Date.now() - startTime, success: true, fallback_used: false,
+                  target_user_id: targetUserId ?? null, target_profile_id: targetProfileId ?? null,
+                });
+              } catch (e: any) {
+                // Murió a mitad del stream → evento de error + refund H+.
+                // El cliente descarta el parcial y reintenta no-stream.
+                send({ type: "error", message: e?.message || String(e) });
+                await logArgosCall(supabase, {
+                  user_id: userId, tier: effectiveTier, provider: "anthropic", model: finalModel,
+                  request_type: requestType, input_tokens: inputTokens, output_tokens: outputTokens,
+                  latency_ms: Date.now() - startTime, success: false,
+                  error_message: `stream_failed:${e?.message || String(e)}`,
+                  target_user_id: targetUserId ?? null, target_profile_id: targetProfileId ?? null,
+                });
+                await refundEconomy(userId);
+              } finally {
+                controller.close();
+              }
+            },
+          });
+          return new Response(outStream, {
+            headers: {
+              ...corsHeaders,
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              "Connection": "keep-alive",
+            },
+          });
+        }
+        console.warn("anthropic stream POST failed:", upstream.status, "→ fallback no-stream");
+        try { await upstream.body?.cancel(); } catch (_) { /* noop */ }
+      } catch (e) {
+        console.warn("anthropic stream setup failed:", e, "→ fallback no-stream");
+      }
+    }
 
     // 1) Anthropic primero
     let anthropicErr: string | null = null;

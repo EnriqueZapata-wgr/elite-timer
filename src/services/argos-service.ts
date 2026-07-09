@@ -4,7 +4,8 @@
  * Usa callAnthropic (Supabase Edge Function proxy).
  */
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from './anthropic-client';
+import { callAnthropic, callAnthropicStream } from './anthropic-client';
+import { ArgosStreamUnavailableError } from './argos-stream-core';
 import { buildDemandingCoachInjection, DEMANDING_COACH_USER_HINT } from './routine-coach-logic';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { ATP_LLM } from '@/src/constants/llm-config';
@@ -16,6 +17,7 @@ import { persistTurnAudit } from './coach-audit-service';
 import { generateUUID } from '@/src/utils/uuid';
 import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
 import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
+import { parseRateLimitInfo, type RateLimitInfo } from './argos-rate-limit-core';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1298,6 +1300,9 @@ export interface ArgosMessage {
 export interface ArgosChatResult {
   text: string;
   degraded: boolean;
+  /** T5 MAGIA 2.0: presente cuando el turno fue bloqueado por rate limit —
+   *  el caller muestra RateLimitCard (con boost H+) en vez del texto genérico. */
+  rateLimit?: RateLimitInfo;
 }
 
 /**
@@ -1335,17 +1340,24 @@ function buildProtocolGuard(activeProtocol?: string): string {
  * El caller usa ese flag para NO persistir ni reenviar el turno en
  * conversaciones futuras (ver ARG-1/ARG-2).
  */
-export async function chatWithArgosEx(
+interface ArgosChatOptions {
+  model?: string;
+  conversationId?: string | null;
+  idempotencyKey?: string;
+  /** T4 MAGIA ARGOS: pantalla desde la que se abrió el chat (contexto). */
+  screenContext?: ArgosScreen;
+}
+
+/**
+ * Preparación compartida del turno de chat (gate + contexto + inyecciones).
+ * Usada por chatWithArgosEx (no-stream) y generateResponseStream (T2) para
+ * que ambos modos manden EXACTAMENTE el mismo system prompt.
+ */
+async function prepareChatTurn(
   userId: string,
   messages: ArgosMessage[],
-  options?: {
-    model?: string;
-    conversationId?: string | null;
-    idempotencyKey?: string;
-    /** T4 MAGIA ARGOS: pantalla desde la que se abrió el chat (contexto). */
-    screenContext?: ArgosScreen;
-  },
-): Promise<ArgosChatResult> {
+  options?: ArgosChatOptions,
+): Promise<{ systemPrompt: string; gateResult: CoachGateResult | null; conversationId: string | null }> {
   // Coach-engine gate (Step COACH 7/N): corre ANTES del LLM. Defensa graceful —
   // si el gate revienta, el chat continúa con un system prompt sin gate.
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
@@ -1383,6 +1395,16 @@ export async function chatWithArgosEx(
   const systemPrompt =
     ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection +
     coachGateInjection + presenceInjection + timeInjection + screenInjection + contextPrompt;
+
+  return { systemPrompt, gateResult, conversationId };
+}
+
+export async function chatWithArgosEx(
+  userId: string,
+  messages: ArgosMessage[],
+  options?: ArgosChatOptions,
+): Promise<ArgosChatResult> {
+  const { systemPrompt, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });
@@ -1413,6 +1435,8 @@ export async function chatWithArgosEx(
   // o `_degraded` (ambos providers fallaron). `_fallback: true` significa que
   // Gemini respondió como fallback — eso NO es degradado, es éxito.
   const degraded = !!(data?._degraded || data?._rate_limited);
+  // T5 MAGIA 2.0: payload enriquecido del rate limit → RateLimitCard en el caller.
+  const rateLimit = parseRateLimitInfo(data) ?? undefined;
   const rawText = data?.content?.[0]?.text;
   const text = rawText || 'Lo siento, no pude procesar tu consulta.';
 
@@ -1440,7 +1464,7 @@ export async function chatWithArgosEx(
     void persistTurnAudit(userId, conversationId, gateResult, finalText);
   }
 
-  return { text: finalText, degraded: degraded || !rawText };
+  return { text: finalText, degraded: degraded || !rawText, rateLimit };
 }
 
 /**
@@ -1468,6 +1492,66 @@ export async function chatWithArgos(
 ): Promise<string> {
   const result = await chatWithArgosEx(userId, messages, options);
   return result.text;
+}
+
+/**
+ * T2 MAGIA 2.0 — chat en modo STREAMING. Yields de chunks de texto conforme
+ * el LLM los produce (typing effect real + avatar 'speaking').
+ *
+ * Mismo system prompt que chatWithArgosEx (prepareChatTurn compartido).
+ * Errores tipados para el caller:
+ *  - ArgosRateLimitError        → mostrar RateLimitCard (T5).
+ *  - ArgosStreamUnavailableError → fallback graceful a chatWithArgosEx.
+ *
+ * El rate limit se cuenta al INICIO del stream (server-side, igual que
+ * no-stream). Si el stream muere a la mitad, el server reembolsa H+.
+ */
+export async function* generateResponseStream(
+  userId: string,
+  messages: ArgosMessage[],
+  options?: ArgosChatOptions,
+): AsyncGenerator<string, void, void> {
+  const { systemPrompt, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
+  const model = options?.model || MODEL_CHAT;
+  const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });
+
+  let full = '';
+  for await (const evt of callAnthropicStream(
+    messages.map(m => ({ role: m.role, content: m.content })),
+    1024,
+    model,
+    systemPrompt,
+    meta,
+  )) {
+    if (evt.type === 'chunk' && evt.text) {
+      full += evt.text;
+      yield evt.text;
+    } else if (evt.type === 'error') {
+      // Murió a mitad del stream (el server ya reembolsó H+). El caller
+      // descarta el parcial y reintenta en modo no-stream.
+      throw new ArgosStreamUnavailableError(evt.message || 'stream_error');
+    }
+  }
+  if (!full) throw new ArgosStreamUnavailableError('empty_stream');
+
+  // Post-LLM enforcement (mismo patrón que chatWithArgosEx): anotar si falta
+  // nivel de evidencia en una recomendación clínico-colindante.
+  try {
+    const evidenceCheck = await EvidenceTag.enforceEvidenceTag(full);
+    if (!evidenceCheck.valid && containsClinicalRecommendation(full)) {
+      const suffix =
+        '\n\n⚠️ _Esta recomendación no tiene nivel de evidencia explícito. Confírmala con tu profesional de salud antes de actuar._';
+      full += suffix;
+      yield suffix;
+    }
+  } catch (err) {
+    logError('[ARGOS] evidence-tag check failed (stream):', err);
+  }
+
+  // Auditoría fire-and-forget (igual que el modo no-stream).
+  if (gateResult) {
+    void persistTurnAudit(userId, conversationId, gateResult, full);
+  }
 }
 
 // === INSIGHT DIARIO ===

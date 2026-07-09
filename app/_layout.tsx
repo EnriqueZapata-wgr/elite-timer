@@ -37,6 +37,7 @@ import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-pa
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
+import { MeetArgosGate } from '@/src/components/argos/MeetArgosGate';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -242,6 +243,9 @@ function RootLayout() {
               <ProcessingMiniBanner />
               {/* MAGIA ARGOS T2: acceso flotante cross-app (auto-hide contextual). */}
               <ArgosFloatingButton />
+              {/* MAGIA 2.0 T3: Meet ARGOS para usuarios existentes con flag NULL
+                  (antes solo se alcanzaba al terminar onboarding v2). */}
+              <MeetArgosGate />
               <StatusBar style="light" />
               </ArgosPresenceProvider>
               </LabProcessingProvider>
