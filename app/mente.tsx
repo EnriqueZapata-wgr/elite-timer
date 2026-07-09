@@ -29,6 +29,8 @@ import {
 } from '@/src/components/mente/mente-hub-core';
 import { supabase } from '@/src/lib/supabase';
 import { fetchJournalDates, computeJournalStreak } from '@/src/services/journal-service';
+import { promptForDate } from '@/src/data/checkin-prompts';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
 import { MEDITATION_LIBRARY } from '@/src/data/meditation-library';
 import { haptic } from '@/src/utils/haptics';
@@ -187,7 +189,7 @@ export default function MenteHubScreen() {
               <EliteText style={s.checkinSub}>
                 {hub.checkinsToday > 0
                   ? `${hub.checkinsToday} check-in${hub.checkinsToday > 1 ? 's' : ''} hoy · registra otro momento`
-                  : 'Reconoce → etiqueta → entiende · 30 segundos'}
+                  : promptForDate(getLocalToday())}
               </EliteText>
             </View>
             <View style={s.checkinDot}>

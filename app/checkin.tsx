@@ -14,6 +14,9 @@ import {
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
 import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
+import { promptForDate, buildCheckinJournalEntry } from '@/src/data/checkin-prompts';
+import { computeJournalStreak } from '@/src/services/journal-logic';
+import { toLocalDateString } from '@/src/utils/date-helpers';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
@@ -44,6 +47,9 @@ export default function CheckinScreen() {
   const [saving, setSaving] = useState(false);
   const [recent, setRecent] = useState<CheckinRecord[]>([]);
   const [pastCheckins, setPastCheckins] = useState<CheckinRecord[]>([]);
+  // T4 MENTE: streak de días consecutivos con check-in (se calcula al guardar)
+  const [checkinStreak, setCheckinStreak] = useState(0);
+  const dailyPrompt = promptForDate(getLocalToday());
 
   useEffect(() => {
     getTodayCheckins().then(setRecent).catch(() => {});
@@ -98,6 +104,35 @@ export default function CheckinScreen() {
             habit_type: 'checkin_emotional', evidence_tier: 'evidence', local_date: getLocalToday(),
             idempotency_key: `checkin_emotional_${user.id}_${getLocalToday()}`,
           });
+
+          // T4 MENTE: nota del check-in → mini entrada de journal (tag checkin).
+          // Best-effort: si falla, el check-in ya quedó guardado.
+          const journalRow = buildCheckinJournalEntry({
+            userId: user.id,
+            date: getLocalToday(),
+            quadrant,
+            emotionLabels: selectedEmotions
+              .map(id => EMOTIONS.find(e => e.id === id)?.label)
+              .filter((l): l is string => !!l),
+            note,
+            prompt: dailyPrompt,
+          });
+          if (journalRow) {
+            const { error: jErr } = await supabase.from('journal_entries').insert(journalRow);
+            if (jErr) logWarn('[checkin] journal bridge failed', jErr.message);
+          }
+
+          // T4 MENTE: streak de check-ins (días consecutivos, ancla hoy/ayer)
+          try {
+            const { data: rows } = await supabase
+              .from('emotional_checkins')
+              .select('created_at')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false })
+              .limit(400);
+            const dates = (rows ?? []).map((r: any) => toLocalDateString(new Date(r.created_at)));
+            setCheckinStreak(computeJournalStreak(dates));
+          } catch { /* streak es decorativo */ }
         }
       } catch (e) { logWarn('[checkin] award electron failed', e); }
 
@@ -119,6 +154,12 @@ export default function CheckinScreen() {
           <EliteText variant="caption" style={styles.doneSub}>
             {selectedEmotions.map(id => EMOTIONS.find(e => e.id === id)?.label).join(' · ')}
           </EliteText>
+          {/* T4 MENTE: streak de días consecutivos */}
+          {checkinStreak > 1 && (
+            <EliteText variant="caption" style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
+              🔥 {checkinStreak} días seguidos escuchándote
+            </EliteText>
+          )}
           <Pressable onPress={() => { haptic.medium(); router.back(); }} style={[styles.doneBtn, { borderColor: qColor + '40' }]}>
             <EliteText variant="body" style={[styles.doneBtnText, { color: qColor }]}>Volver</EliteText>
           </Pressable>
@@ -325,13 +366,21 @@ export default function CheckinScreen() {
             <ContextSection label="¿Con quién?" items={CONTEXT_WHO} selected={ctxWho} onSelect={v => { haptic.light(); setCtxWho(ctxWho === v ? null : v); }} color={qColor} />
             <ContextSection label="¿Qué estás haciendo?" items={CONTEXT_DOING} selected={ctxDoing} onSelect={v => { haptic.light(); setCtxDoing(ctxDoing === v ? null : v); }} color={qColor} />
 
+            {/* T4 MENTE: prompt del día — rotativo, determinista por fecha.
+                Si escribes algo, se guarda también como mini-entrada de journal. */}
+            <View style={[styles.promptCard, { borderColor: qColor + '30' }]}>
+              <EliteText variant="caption" style={styles.promptLabel}>PROMPT DEL DÍA</EliteText>
+              <EliteText variant="body" style={styles.promptText}>{dailyPrompt}</EliteText>
+            </View>
+
             <TextInput
               style={styles.noteInput}
               value={note}
               onChangeText={setNote}
-              placeholder="¿Algo más? (opcional)"
+              placeholder="Respóndelo aquí si quieres — se guarda en tu journal"
               placeholderTextColor={Colors.textSecondary + '50'}
-              maxLength={200}
+              multiline
+              maxLength={500}
             />
 
             <Pressable
@@ -477,7 +526,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
     color: Colors.textPrimary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
     marginTop: Spacing.sm, borderWidth: 0.5, borderColor: SURFACES.border,
+    minHeight: 72, textAlignVertical: 'top',
   },
+  // T4 MENTE: prompt del día
+  promptCard: {
+    backgroundColor: SURFACES.card, borderWidth: 1, borderRadius: Radius.md,
+    padding: Spacing.md, marginTop: Spacing.sm, gap: 4,
+  },
+  promptLabel: {
+    color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2,
+  },
+  promptText: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, lineHeight: 24 },
 
   registerBtn: {
     alignSelf: 'center', marginTop: Spacing.lg,
