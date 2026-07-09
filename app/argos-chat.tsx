@@ -24,6 +24,7 @@ import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { TopBanner } from '@/src/components/global/TopBanner';
 import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
+import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -88,7 +89,7 @@ function ArgosChat() {
   // ARGOS pase a ser tab (p8). DRY: una sola pantalla sirve a ambos accesos.
   const canGoBack = navigation.canGoBack();
   // F2.2: `new=1` (desde el historial) arranca en blanco sin auto-cargar la última conversación.
-  const params = useLocalSearchParams<{ conversationId?: string; new?: string }>();
+  const params = useLocalSearchParams<{ conversationId?: string; new?: string; from?: string }>();
   const scrollRef = useRef<ScrollView>(null);
   // Guard de re-entrancy (#71): un ref (síncrono) atrapa el doble-tap/re-render ANTES de que
   // `loading` (state, async) actualice. Sin esto, dos taps a 42ms disparaban 2 requests → doble
@@ -179,7 +180,12 @@ function ArgosChat() {
     let finalMessages: ArgosMessage[] | null = null;
     let wasDegraded = false;
     try {
-      const result = await chatWithArgosEx(userId, cleanForLLM, { conversationId, idempotencyKey });
+      const result = await chatWithArgosEx(userId, cleanForLLM, {
+        conversationId,
+        idempotencyKey,
+        // T4: si el chat se abrió desde una pantalla (floating button), ARGOS lo sabe.
+        screenContext: coerceScreen(params.from),
+      });
       wasDegraded = result.degraded;
 
       const assistantTurn: ArgosMessage = wasDegraded

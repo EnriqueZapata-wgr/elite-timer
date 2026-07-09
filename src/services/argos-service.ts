@@ -15,6 +15,7 @@ import { error as logError } from '@/src/lib/logger';
 import { persistTurnAudit } from './coach-audit-service';
 import { generateUUID } from '@/src/utils/uuid';
 import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
+import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1337,7 +1338,13 @@ function buildProtocolGuard(activeProtocol?: string): string {
 export async function chatWithArgosEx(
   userId: string,
   messages: ArgosMessage[],
-  options?: { model?: string; conversationId?: string | null; idempotencyKey?: string },
+  options?: {
+    model?: string;
+    conversationId?: string | null;
+    idempotencyKey?: string;
+    /** T4 MAGIA ARGOS: pantalla desde la que se abrió el chat (contexto). */
+    screenContext?: ArgosScreen;
+  },
 ): Promise<ArgosChatResult> {
   // Coach-engine gate (Step COACH 7/N): corre ANTES del LLM. Defensa graceful —
   // si el gate revienta, el chat continúa con un system prompt sin gate.
@@ -1371,9 +1378,11 @@ export async function chatWithArgosEx(
   // Capa de CONTEXTO TEMPORAL (T5 MAGIA ARGOS): momento del día en CDMX + cómo
   // adaptar recomendaciones a la hora.
   const timeInjection = buildTimeContextInjection();
+  // Capa de CONTEXTO DE PANTALLA (T4 MAGIA ARGOS): desde dónde se abrió el chat.
+  const screenInjection = buildScreenContextInjection(options?.screenContext);
   const systemPrompt =
     ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection +
-    coachGateInjection + presenceInjection + timeInjection + contextPrompt;
+    coachGateInjection + presenceInjection + timeInjection + screenInjection + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });
