@@ -14,9 +14,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { supabase } from '../src/lib/supabase';
 import {
-  chatWithArgosEx, saveConversation, loadConversations,
+  chatWithArgosEx, generateResponseStream, saveConversation, loadConversations,
   loadConversation, type ArgosMessage,
 } from '../src/services/argos-service';
+import { ArgosRateLimitError } from '../src/services/argos-stream-core';
 import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
 import { withPreflight, wasAborted } from '../src/services/economy/with-preflight';
 import { VoiceButton } from '../src/components/VoiceButton';
@@ -25,7 +26,7 @@ import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerG
 import { TopBanner } from '@/src/components/global/TopBanner';
 import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
 import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
-import { type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
+import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
@@ -107,6 +108,8 @@ function ArgosChat() {
   // T5 MAGIA 2.0: rate limit contextual — card con boost H+ + avatar 'unavailable'.
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
   const [boostJustActivated, setBoostJustActivated] = useState(false);
+  // T2 MAGIA 2.0: true mientras llegan chunks del stream — avatar 'speaking'.
+  const [streaming, setStreaming] = useState(false);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -150,6 +153,51 @@ function ArgosChat() {
     }
   }
 
+  /**
+   * T2: corre el turno en modo STREAMING (typing effect real, avatar speaking).
+   * Devuelve el texto completo, o null si el stream no está disponible —
+   * el caller cae al modo no-stream. ArgosRateLimitError se propaga (T5).
+   */
+  async function tryStreamingTurn(cleanForLLM: ArgosMessage[], idempotencyKey: string): Promise<string | null> {
+    if (!userId) return null;
+    let full = '';
+    let appended = false;
+    try {
+      const stream = generateResponseStream(userId, cleanForLLM, {
+        conversationId,
+        idempotencyKey,
+        screenContext: coerceScreen(params.from),
+      });
+      for await (const chunk of stream) {
+        full += chunk;
+        if (!appended) {
+          appended = true;
+          setLoading(false);   // sale "pensando" → entra "hablando"
+          setStreaming(true);
+          const first: ArgosMessage = { role: 'assistant', content: full, ts: Date.now() };
+          setMessages(prev => [...prev, first]);
+        } else {
+          const snapshot = full;
+          setMessages(prev => {
+            const copy = [...prev];
+            const last = copy[copy.length - 1];
+            if (last?.role === 'assistant') copy[copy.length - 1] = { ...last, content: snapshot };
+            return copy;
+          });
+        }
+      }
+      return full || null;
+    } catch (e) {
+      // Limpiar el parcial (si hubo) — el turno se resuelve por otra vía.
+      if (appended) setMessages(prev => prev.slice(0, -1));
+      if (e instanceof ArgosRateLimitError) throw e;
+      console.warn('[ARGOS] stream no disponible, fallback no-stream:', (e as Error)?.message);
+      return null;
+    } finally {
+      setStreaming(false);
+    }
+  }
+
   async function sendMessage(text?: string) {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
@@ -188,58 +236,83 @@ function ArgosChat() {
     let finalMessages: ArgosMessage[] | null = null;
     let wasDegraded = false;
     try {
-      const result = await chatWithArgosEx(userId, cleanForLLM, {
-        conversationId,
-        idempotencyKey,
-        // T4: si el chat se abrió desde una pantalla (floating button), ARGOS lo sabe.
-        screenContext: coerceScreen(params.from),
-      });
-      wasDegraded = result.degraded;
+      // T2: primero STREAMING (typing effect + avatar speaking). Devuelve null
+      // si el stream no está disponible → fallback graceful al modo no-stream.
+      const streamedText = await tryStreamingTurn(cleanForLLM, idempotencyKey);
 
-      const assistantTurn: ArgosMessage = wasDegraded
-        ? { role: 'assistant', content: result.text, degraded: true, ts: Date.now() }
-        : { role: 'assistant', content: result.text, ts: Date.now() };
-
-      if (result.rateLimit) {
-        // T5: rate limit → RateLimitCard (boost H+) en vez de burbuja genérica.
-        // El turno del usuario queda visible pero degraded (no se persiste ni
-        // se reenvía al LLM — patrón ARG-2).
-        const baseMessages = newMessages.slice(0, -1);
-        finalMessages = [...baseMessages, { ...userTurn, degraded: true }];
-        setMessages(finalMessages);
-        setRateLimit(result.rateLimit);
-      } else if (wasDegraded) {
-        // ARG-2: una respuesta degradada NO debe ensuciar contexto futuro.
-        // Marcamos AMBOS turnos (pregunta + respuesta) como degraded → quedan
-        // visibles en la UI pero el filtro de cleanForLLM y de cleanForSave
-        // los excluye en próximos turnos y al persistir.
-        const baseMessages = newMessages.slice(0, -1);
-        finalMessages = [
-          ...baseMessages,
-          { ...userTurn, degraded: true },
-          assistantTurn,
-        ];
-        setMessages(finalMessages);
-        // No invocar speakArgos en respuestas degradadas — son mensajes de error.
-      } else {
+      if (streamedText !== null) {
+        const assistantTurn: ArgosMessage = { role: 'assistant', content: streamedText, ts: Date.now() };
         finalMessages = [...newMessages, assistantTurn];
         setMessages(finalMessages);
         if (autoSpeak) {
-          speakArgos(result.text);
+          speakArgos(streamedText);
+        }
+      } else {
+        setLoading(true); // el intento de stream pudo haber apagado el indicador
+        const result = await chatWithArgosEx(userId, cleanForLLM, {
+          conversationId,
+          idempotencyKey,
+          // T4: si el chat se abrió desde una pantalla (floating button), ARGOS lo sabe.
+          screenContext: coerceScreen(params.from),
+        });
+        wasDegraded = result.degraded;
+
+        const assistantTurn: ArgosMessage = wasDegraded
+          ? { role: 'assistant', content: result.text, degraded: true, ts: Date.now() }
+          : { role: 'assistant', content: result.text, ts: Date.now() };
+
+        if (result.rateLimit) {
+          // T5: rate limit → RateLimitCard (boost H+) en vez de burbuja genérica.
+          // El turno del usuario queda visible pero degraded (no se persiste ni
+          // se reenvía al LLM — patrón ARG-2).
+          const baseMessages = newMessages.slice(0, -1);
+          finalMessages = [...baseMessages, { ...userTurn, degraded: true }];
+          setMessages(finalMessages);
+          setRateLimit(result.rateLimit);
+        } else if (wasDegraded) {
+          // ARG-2: una respuesta degradada NO debe ensuciar contexto futuro.
+          // Marcamos AMBOS turnos (pregunta + respuesta) como degraded → quedan
+          // visibles en la UI pero el filtro de cleanForLLM y de cleanForSave
+          // los excluye en próximos turnos y al persistir.
+          const baseMessages = newMessages.slice(0, -1);
+          finalMessages = [
+            ...baseMessages,
+            { ...userTurn, degraded: true },
+            assistantTurn,
+          ];
+          setMessages(finalMessages);
+          // No invocar speakArgos en respuestas degradadas — son mensajes de error.
+        } else {
+          finalMessages = [...newMessages, assistantTurn];
+          setMessages(finalMessages);
+          if (autoSpeak) {
+            speakArgos(result.text);
+          }
         }
       }
     } catch (e) {
-      console.error('ARGOS chat error:', e);
-      // Excepción real (no devolución degradada): marcar también como degraded
-      // para no persistir/reenviar este turno fallido.
-      const baseMessages = newMessages.slice(0, -1);
-      const errored: ArgosMessage[] = [
-        ...baseMessages,
-        { ...userTurn, degraded: true },
-        { role: 'assistant', content: 'Lo siento, tuve un problema al procesar tu consulta. Intenta de nuevo.', degraded: true, ts: Date.now() },
-      ];
-      setMessages(errored);
-      finalMessages = errored;
+      if (e instanceof ArgosRateLimitError) {
+        // T5: rate limit detectado durante el stream — misma UX que no-stream.
+        const info = parseRateLimitInfo(e.payload);
+        const baseMessages = newMessages.slice(0, -1);
+        finalMessages = [...baseMessages, { ...userTurn, degraded: true }];
+        setMessages(finalMessages);
+        if (info) setRateLimit(info);
+        wasDegraded = true;
+      } else {
+        console.error('ARGOS chat error:', e);
+        // Excepción real (no devolución degradada): marcar también como degraded
+        // para no persistir/reenviar este turno fallido.
+        const baseMessages = newMessages.slice(0, -1);
+        const errored: ArgosMessage[] = [
+          ...baseMessages,
+          { ...userTurn, degraded: true },
+          { role: 'assistant', content: 'Lo siento, tuve un problema al procesar tu consulta. Intenta de nuevo.', degraded: true, ts: Date.now() },
+        ];
+        setMessages(errored);
+        finalMessages = errored;
+        wasDegraded = true;
+      }
     } finally {
       setLoading(false);
       sendingRef.current = false; // #71: liberar el guard al terminar el turno
@@ -317,9 +390,14 @@ function ArgosChat() {
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </Pressable>
           )}
-          {/* T1+T5: unavailable en rate limit, thinking mientras procesa */}
+          {/* T1+T2+T5: unavailable en rate limit · speaking en stream · thinking procesando */}
           <ArgosAvatar
-            state={rateLimit && !boostJustActivated ? 'unavailable' : loading ? 'thinking' : 'idle'}
+            state={
+              rateLimit && !boostJustActivated ? 'unavailable'
+                : streaming ? 'speaking'
+                : loading ? 'thinking'
+                : 'idle'
+            }
             size={36}
           />
           <View>
