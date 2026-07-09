@@ -165,6 +165,8 @@ function RootLayout() {
                 <Stack.Screen name="settings/privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/notifications" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="argos/conversations" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* MAGIA ARGOS T6: primer contacto cinemático post-onboarding. */}
+                <Stack.Screen name="argos/meet" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
                 <Stack.Screen name="afiliados/aplicar" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="afiliados/dashboard" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="afiliados/mi-codigo" options={{ headerShown: false, animation: 'slide_from_right' }} />

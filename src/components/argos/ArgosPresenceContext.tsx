@@ -7,7 +7,9 @@
  *    (T6). Default true para no bloquear QA / usuarios existentes; el provider
  *    afina el valor leyendo profiles.argos_introduced_at (ver T6).
  */
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useAuth } from '@/src/contexts/auth-context';
+import { hasArgosBeenIntroduced } from '@/src/services/argos-intro-service';
 
 interface ArgosPresenceValue {
   hidden: boolean;
@@ -25,8 +27,21 @@ export function ArgosPresenceProvider({
   children: ReactNode;
   initialIntroduced?: boolean;
 }) {
+  const { user } = useAuth();
   const [hidden, setHidden] = useState(false);
   const [introduced, setIntroduced] = useState(initialIntroduced);
+
+  // T6: la verdad durable es profiles.argos_introduced_at. Usuarios existentes
+  // (backfilleados en migración 163) → true; usuarios nuevos → false hasta que
+  // pasen por "Meet ARGOS" (que además llama setIntroduced(true) en vivo).
+  useEffect(() => {
+    let alive = true;
+    if (!user?.id) return;
+    hasArgosBeenIntroduced(user.id)
+      .then((v) => { if (alive) setIntroduced(v); })
+      .catch(() => { /* fail-open: se queda con el default */ });
+    return () => { alive = false; };
+  }, [user?.id]);
 
   const value = useMemo<ArgosPresenceValue>(
     () => ({ hidden, setHidden, introduced, setIntroduced }),

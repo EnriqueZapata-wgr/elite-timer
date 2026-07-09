@@ -33,7 +33,9 @@ export async function completeV2Step(userId: string, step: V2Step): Promise<stri
     onboarding_completed_at: new Date().toISOString(),
   }).eq('id', userId);
   DeviceEventEmitter.emit('onboarding_step_changed');
-  return '/(tabs)';
+  // MAGIA ARGOS T6: primer contacto cinemático con ARGOS antes de HOY. La
+  // pantalla marca argos_introduced_at y luego enruta a /(tabs).
+  return '/argos/meet';
 }
 
 /** Guarda la modalidad de ciclo (task #111) en client_profiles. */
