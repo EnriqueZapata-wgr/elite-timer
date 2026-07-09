@@ -3,9 +3,6 @@
  * Usa fetch directo al endpoint de Edge Functions (más confiable que supabase.functions.invoke).
  */
 import Constants from 'expo-constants';
-// expo/fetch (WinterCG): a diferencia del fetch global de RN, soporta
-// response.body como ReadableStream — requerido para consumir SSE (T2).
-import { fetch as streamingFetch } from 'expo/fetch';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import {
   ArgosRateLimitError,
@@ -121,6 +118,17 @@ export async function* callAnthropicStream(
     ...(metadata?.idempotencyKey && { idempotency_key: metadata.idempotencyKey }),
   };
   if (system) body.system = system;
+
+  // expo/fetch (WinterCG): a diferencia del fetch global de RN, soporta
+  // response.body como ReadableStream — requerido para consumir SSE.
+  // Import PEREZOSO: sus dependencias nativas no resuelven en el harness
+  // node (Vitest) — solo se carga cuando de verdad se streamea en device.
+  let streamingFetch: typeof import('expo/fetch').fetch;
+  try {
+    ({ fetch: streamingFetch } = await import('expo/fetch'));
+  } catch (err: any) {
+    throw new ArgosStreamUnavailableError(`expo_fetch_unavailable: ${err?.message || err}`);
+  }
 
   let response: Awaited<ReturnType<typeof streamingFetch>>;
   try {
