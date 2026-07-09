@@ -14,6 +14,8 @@ import { VoiceModulator, runCoachEngineGate, buildCoachGateInjection, EvidenceTa
 import { error as logError } from '@/src/lib/logger';
 import { persistTurnAudit } from './coach-audit-service';
 import { generateUUID } from '@/src/utils/uuid';
+import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
+import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1336,7 +1338,13 @@ function buildProtocolGuard(activeProtocol?: string): string {
 export async function chatWithArgosEx(
   userId: string,
   messages: ArgosMessage[],
-  options?: { model?: string; conversationId?: string | null; idempotencyKey?: string },
+  options?: {
+    model?: string;
+    conversationId?: string | null;
+    idempotencyKey?: string;
+    /** T4 MAGIA ARGOS: pantalla desde la que se abrió el chat (contexto). */
+    screenContext?: ArgosScreen;
+  },
 ): Promise<ArgosChatResult> {
   // Coach-engine gate (Step COACH 7/N): corre ANTES del LLM. Defensa graceful —
   // si el gate revienta, el chat continúa con un system prompt sin gate.
@@ -1363,8 +1371,18 @@ export async function chatWithArgosEx(
   const voiceConfig = await VoiceModulator.getVoiceConfig(userId);
   const voiceInjection = VoiceModulator.buildVoiceInjection(voiceConfig);
   const coachGateInjection = gateResult ? buildCoachGateInjection(gateResult) : '';
+  // Capa de PRESENCIA (T3 MAGIA ARGOS): nombre + tono cercano-directo. Aditiva,
+  // no reemplaza el voice_config dinámico ni la identidad del coach. `context.name`
+  // ya viene gated por consent de memoria (vacío si el usuario la apagó).
+  const presenceInjection = buildPersonalityInjection({ nombre: context.name });
+  // Capa de CONTEXTO TEMPORAL (T5 MAGIA ARGOS): momento del día en CDMX + cómo
+  // adaptar recomendaciones a la hora.
+  const timeInjection = buildTimeContextInjection();
+  // Capa de CONTEXTO DE PANTALLA (T4 MAGIA ARGOS): desde dónde se abrió el chat.
+  const screenInjection = buildScreenContextInjection(options?.screenContext);
   const systemPrompt =
-    ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection + coachGateInjection + contextPrompt;
+    ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection +
+    coachGateInjection + presenceInjection + timeInjection + screenInjection + contextPrompt;
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });

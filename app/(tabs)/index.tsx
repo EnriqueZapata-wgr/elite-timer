@@ -833,7 +833,8 @@ export default function TodayScreen() {
     setVoiceTranscript(transcript);
     try {
       const messages = [{ role: 'user' as const, content: transcript }];
-      const result = await chatWithArgosEx(user.id, messages);
+      // T4 MAGIA ARGOS: este quick-ask nace en HOY — se lo decimos a ARGOS.
+      const result = await chatWithArgosEx(user.id, messages, { screenContext: 'hoy' });
       setVoiceResponse(result.text);
 
       // ARG-2: si la respuesta fue degradada (rate-limited / providers caídos),
