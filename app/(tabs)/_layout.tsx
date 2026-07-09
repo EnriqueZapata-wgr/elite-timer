@@ -104,18 +104,13 @@ export default function TabLayout() {
             ),
           }}
         />
-        {/* N1: ARGOS como 4to tab (antes era FAB flotante). */}
+        {/* ── Tabs ocultas (siguen como rutas válidas pero no aparecen en el tab bar) ── */}
+        {/* MAGIA 2.0 T4: ARGOS sale del tab bar (redundante con el floating
+            button). La ruta /argos sigue viva para deep links. */}
         <Tabs.Screen
           name="argos"
-          options={{
-            title: 'ARGOS',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'eye' : 'eye-outline'} size={24} color={color} />
-            ),
-          }}
+          options={{ href: null }}
         />
-
-        {/* ── Tabs ocultas (siguen como rutas válidas pero no aparecen en el tab bar) ── */}
         <Tabs.Screen
           name="biblioteca"
           options={{ href: null }}
