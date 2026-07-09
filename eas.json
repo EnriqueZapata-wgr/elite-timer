@@ -9,6 +9,18 @@
       },
       "channel": "preview"
     },
+    "production": {
+      "channel": "production",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "resourceClass": "m-medium"
+      }
+    }
+  },
+  "submit": {
     "production": {}
   }
 }
