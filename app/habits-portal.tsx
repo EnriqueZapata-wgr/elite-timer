@@ -26,10 +26,9 @@ const HABIT_CARD_IMAGES: Record<string, any> = {
   suplementacion: require('@/assets/images/habits-portal/suplementacion.png'),
   ayuno: require('@/assets/images/habits-portal/ayuno.png'),
   sueno: require('@/assets/images/habits-portal/sueno.png'),
-  meditacion: require('@/assets/images/electrons/meditacion.png'),
-  respiracion: require('@/assets/images/electrons/breathwork.png'),
-  checkin: require('@/assets/images/hoy-extra/checkin.png'),
-  journal: require('@/assets/images/hoy-extra/journal.png'),
+  // Sprint MENTE Ecosystem: la card MENTE reusa la imagen de meditación
+  // hasta que Enrique genere el asset editorial del pilar (MJ pendiente).
+  mente: require('@/assets/images/electrons/meditacion.png'),
   hidratacion: require('@/assets/images/hoy-extra/agua.png'),
   atp_sol: require('@/assets/images/electrons/luz-solar.png'),
 };
@@ -43,10 +42,9 @@ const PILARES: Card[] = [
 ];
 
 const DIARIOS: Card[] = [
-  { key: 'meditacion', title: 'MEDITACIÓN', subtitle: 'Baja cortisol', icon: '🧘', gradient: ['#1ABC9C', '#16A085'], route: '/meditation' },
-  { key: 'respiracion', title: 'RESPIRACIÓN', subtitle: 'Activa el parasimpático', icon: '🌬', gradient: ['#85C1E9', '#2E86C1'], route: '/breathing' },
-  { key: 'checkin', title: 'CHECK-IN', subtitle: '¿Cómo te sientes hoy?', icon: '❤️', gradient: ['#1ABC9C', '#9B59B6'], route: '/checkin' },
-  { key: 'journal', title: 'JOURNAL', subtitle: 'Escribe tu día', icon: '📓', gradient: ['#9B59B6', '#6C3483'], route: '/journal' },
+  // Sprint MENTE Ecosystem: las 4 cards sueltas (meditación/respiración/
+  // check-in/journal) se colapsan en el hub /mente — un pilar, una puerta.
+  { key: 'mente', title: 'MENTE', subtitle: 'Journal · respiración · meditación · check-in', icon: '🧠', gradient: ['#7F77DD', '#6C3483'], route: '/mente' },
   { key: 'ciclo', title: 'CICLO', subtitle: 'Tu ciclo y síntomas', icon: '🌙', gradient: ['#D4537E', '#9B59B6'], route: '/cycle', femaleOnly: true },
   { key: 'hidratacion', title: 'HIDRATACIÓN', subtitle: 'Tu meta de agua', icon: '💧', gradient: ['#3498DB', '#1ABC9C'], route: '/hydration' },
   { key: 'atp_sol', title: 'ATP SOL', subtitle: 'Luz solar y vitamina D', icon: '☀️', gradient: ['#FFD700', '#FFA500'], route: '/solar' },
