@@ -260,8 +260,12 @@ async function detectEffectiveTier(supabase: any, userId: string): Promise<strin
       .from("profiles").select("tier").eq("id", userId).maybeSingle();
     const baseTier = profile?.tier ?? "free";
 
-    // 2) Check boost H+ activo (task #133)
-    if (baseTier === "base") {
+    // 2) Check boost H+ activo (task #133 + MAGIA 2.0 T5)
+    // T5: el boost también aplica a tier free — antes solo se consultaba para
+    // base, así que un free con boost activo seguía limitado a 5/día (bug real
+    // que golpeó a Enrique 2026-07-09). El RPC activate_pro_boost no restringe
+    // tier; la doctrina es "ofrece transacción H+, no fuerces upgrade".
+    if (baseTier === "base" || baseTier === "free") {
       const { data: boost } = await supabase.rpc("has_active_pro_boost", { p_user_id: userId });
       if (boost === true) {
         tierCache.set(userId, { effectiveTier: "pro", expiresAt: Date.now() + 30000 });
@@ -392,17 +396,29 @@ serve(async (req) => {
         target_user_id: targetUserId ?? null,
         target_profile_id: targetProfileId ?? null,
       });
-      const upgradeMsg = effectiveTier === "free"
-        ? "Alcanzaste el límite diario. Suscríbete a ATP Base para más acceso."
-        : effectiveTier === "base"
-          ? "Alcanzaste el límite Base (25/día). Prueba un boost Pro por 24h con Protones H+ o actualiza a ATP Pro."
-          : `Alcanzaste el límite (${usage.limit}/día). Se renueva mañana.`;
+      // MAGIA 2.0 T5: payload enriquecido para el RateLimitCard del cliente.
+      // Se mantiene `content` + `_rate_limited` para bundles viejos (el campo
+      // top-level `error` NO se usa aquí — callAnthropic legacy lanza al verlo
+      // y degradaría el mensaje en apps sin OTA).
+      // COPY tentativo — revisar con Enrique post-sprint.
+      const canBoost = effectiveTier === "free" || effectiveTier === "base";
+      const upgradeMsg = canBoost
+        ? `Llegaste al máximo de hoy (${usage.limit}/${usage.limit}). Activa Boost Pro por 500 H+ para 24h sin límite. O espera hasta mañana.`
+        : `Alcanzaste el límite (${usage.limit}/día). Se renueva mañana.`;
+      const resetsAt = new Date(new Date().setUTCHours(24, 0, 0, 0)).toISOString();
       return new Response(JSON.stringify({
         content: [{ type: "text", text: upgradeMsg }],
         model: finalModel,
         _rate_limited: true,
         _tier: effectiveTier,
         _limit: usage.limit,
+        rate_limit: {
+          tier: effectiveTier,
+          limit_daily: usage.limit,
+          used_today: Math.min(usage.count, usage.limit),
+          resets_at: resetsAt,
+          boost_option: canBoost ? { cost_h_plus: 500, duration_hours: 24 } : null,
+        },
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 

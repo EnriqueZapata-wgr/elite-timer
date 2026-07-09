@@ -16,6 +16,7 @@ import { persistTurnAudit } from './coach-audit-service';
 import { generateUUID } from '@/src/utils/uuid';
 import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
 import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
+import { parseRateLimitInfo, type RateLimitInfo } from './argos-rate-limit-core';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1298,6 +1299,9 @@ export interface ArgosMessage {
 export interface ArgosChatResult {
   text: string;
   degraded: boolean;
+  /** T5 MAGIA 2.0: presente cuando el turno fue bloqueado por rate limit —
+   *  el caller muestra RateLimitCard (con boost H+) en vez del texto genérico. */
+  rateLimit?: RateLimitInfo;
 }
 
 /**
@@ -1413,6 +1417,8 @@ export async function chatWithArgosEx(
   // o `_degraded` (ambos providers fallaron). `_fallback: true` significa que
   // Gemini respondió como fallback — eso NO es degradado, es éxito.
   const degraded = !!(data?._degraded || data?._rate_limited);
+  // T5 MAGIA 2.0: payload enriquecido del rate limit → RateLimitCard en el caller.
+  const rateLimit = parseRateLimitInfo(data) ?? undefined;
   const rawText = data?.content?.[0]?.text;
   const text = rawText || 'Lo siento, no pude procesar tu consulta.';
 
@@ -1440,7 +1446,7 @@ export async function chatWithArgosEx(
     void persistTurnAudit(userId, conversationId, gateResult, finalText);
   }
 
-  return { text: finalText, degraded: degraded || !rawText };
+  return { text: finalText, degraded: degraded || !rawText, rateLimit };
 }
 
 /**

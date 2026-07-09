@@ -24,6 +24,8 @@ import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { TopBanner } from '@/src/components/global/TopBanner';
 import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
+import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
+import { type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
@@ -102,6 +104,9 @@ function ArgosChat() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // T5 MAGIA 2.0: rate limit contextual — card con boost H+ + avatar 'unavailable'.
+  const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
+  const [boostJustActivated, setBoostJustActivated] = useState(false);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -170,6 +175,9 @@ function ArgosChat() {
     const newMessages: ArgosMessage[] = [...messages, userTurn];
     setMessages(newMessages);
     setLoading(true);
+    // T5: nuevo intento limpia el estado de rate limit anterior
+    setRateLimit(null);
+    setBoostJustActivated(false);
     // Auto-scroll: lo maneja onContentSizeChange del ScrollView (F2.1)
 
     // ARG-1/ARG-8: filtrar turnos degradados ANTES de mandarlos al LLM —
@@ -192,7 +200,15 @@ function ArgosChat() {
         ? { role: 'assistant', content: result.text, degraded: true, ts: Date.now() }
         : { role: 'assistant', content: result.text, ts: Date.now() };
 
-      if (wasDegraded) {
+      if (result.rateLimit) {
+        // T5: rate limit → RateLimitCard (boost H+) en vez de burbuja genérica.
+        // El turno del usuario queda visible pero degraded (no se persiste ni
+        // se reenvía al LLM — patrón ARG-2).
+        const baseMessages = newMessages.slice(0, -1);
+        finalMessages = [...baseMessages, { ...userTurn, degraded: true }];
+        setMessages(finalMessages);
+        setRateLimit(result.rateLimit);
+      } else if (wasDegraded) {
         // ARG-2: una respuesta degradada NO debe ensuciar contexto futuro.
         // Marcamos AMBOS turnos (pregunta + respuesta) como degraded → quedan
         // visibles en la UI pero el filtro de cleanForLLM y de cleanForSave
@@ -301,7 +317,11 @@ function ArgosChat() {
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </Pressable>
           )}
-          <ArgosAvatar state={loading ? 'thinking' : 'idle'} size={36} />
+          {/* T1+T5: unavailable en rate limit, thinking mientras procesa */}
+          <ArgosAvatar
+            state={rateLimit && !boostJustActivated ? 'unavailable' : loading ? 'thinking' : 'idle'}
+            size={36}
+          />
           <View>
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>ARGOS</Text>
             <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>
@@ -479,6 +499,14 @@ function ArgosChat() {
             </Pressable>
           </View>
         ))}
+
+        {/* T5: card de rate limit con salida transaccional (boost H+) */}
+        {rateLimit && (
+          <RateLimitCard
+            info={rateLimit}
+            onBoostActivated={() => setBoostJustActivated(true)}
+          />
+        )}
 
         {/* F2.3: indicador "ARGOS está pensando..." con dots animados */}
         {loading && (
