@@ -21,6 +21,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND, ELEVATION, GLOW, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -51,6 +52,7 @@ const LEGAL_LINKS = [
 
 export default function PaywallScreen() {
   const { offerings, purchase, restore, sdkReady, tier } = useSubscription();
+  const analytics = useAnalytics();
   const [period, setPeriod] = useState<Period>('yearly');
   const [busy, setBusy] = useState<PlanKey | 'restore' | null>(null);
 
@@ -77,6 +79,8 @@ export default function PaywallScreen() {
     const result = await purchase(pkg);
     setBusy(null);
     if (result.success) {
+      // T5 HARDENING: funnel core — suscripción iniciada.
+      analytics.track(ATP_EVENTS.SUBSCRIPTION_STARTED, { plan, period });
       haptic.success();
       Alert.alert(
         plan === 'pro' ? 'Bienvenido a ATP Pro' : 'Bienvenido a ATP Base',

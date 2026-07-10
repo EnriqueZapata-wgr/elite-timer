@@ -22,6 +22,7 @@ import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { PILLAR_GRADIENTS } from '@/src/constants/brand';
 import { DEFAULT_MEAL_TIMES, getMealTimes, setMealTimes, getCurrentMeal, formatMealWindow, MEAL_IDS, type MealId, type MealTimes } from '@/src/services/meal-times-service';
@@ -40,6 +41,7 @@ export default function FoodRegisterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ mealType?: string }>();
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
   const [frequents, setFrequents] = useState<any[]>([]);
   // Horarios de comida configurables + sync DB + timezone real (#14, decisión Enrique).
@@ -94,6 +96,8 @@ export default function FoodRegisterScreen() {
         .eq('id', food.id);
 
       DeviceEventEmitter.emit('day_changed');
+      // T5 HARDENING: funnel core — comida registrada desde frecuentes.
+      analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'frequent', meal_type: food.meal_type });
       // T6 NUTRICIÓN: insight post-meal de ARGOS (opt-in + throttle, no bloquea)
       void maybeGeneratePostMealInsight(user.id, food.food_name);
       haptic.success();

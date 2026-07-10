@@ -23,12 +23,14 @@ import { formatFull } from '@/src/services/economy/format';
 import { PRO_BOOST_COST_H_PLUS } from '@/src/services/subscription/subscription-service';
 import { formatBoostRemaining } from '@/src/services/subscription/tier-logic';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 export function ProBoostCard() {
   const { user } = useAuth();
   const { tier, boost, activateBoost, isLoading } = useSubscription();
+  const analytics = useAnalytics();
   const [hPlus, setHPlus] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   // Re-render por minuto para que el countdown avance
@@ -59,6 +61,8 @@ export function ProBoostCard() {
     const result = await activateBoost();
     setBusy(false);
     if (result.success) {
+      // T5 HARDENING: funnel core — boost activado desde la card de economía.
+      analytics.track(ATP_EVENTS.BOOST_ACTIVATED, { source: 'pro_boost_card' });
       haptic.success();
       setHPlus(result.hPlusRemaining);
       return;

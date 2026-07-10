@@ -14,6 +14,7 @@ import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Fonts } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';
@@ -21,6 +22,7 @@ import { BackButton } from '@/src/components/ui/BackButton';
 export default function RegisterScreen() {
   const router = useRouter();
   const { signUp } = useAuth();
+  const analytics = useAnalytics();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -56,6 +58,8 @@ export default function RegisterScreen() {
     if (result.error) {
       setError(result.error);
     } else {
+      // T5 HARDENING: funnel core — cuenta creada (sin PII en props).
+      analytics.track(ATP_EVENTS.USER_SIGNED_UP, { method: 'email' });
       haptic.success();
       if (typeof window !== 'undefined' && window.alert) {
         window.alert('Cuenta creada exitosamente.');

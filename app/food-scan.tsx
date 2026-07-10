@@ -37,6 +37,7 @@ import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { useAuth } from '@/src/contexts/auth-context';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 
 // === CONSTANTES ===
 
@@ -291,6 +292,7 @@ function LoadingDots({ color }: { color: string }) {
 export default function FoodScanScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const { mode: mp, mealType: mealParam } = useLocalSearchParams<{ mode?: string; mealType?: string }>();
   const mode: ScanMode = (mp as ScanMode) || 'food';
   const cfg = MODE_CFG[mode];
@@ -475,6 +477,8 @@ export default function FoodScanScreen() {
 
       // Regla #6 CLAUDE.md: HOY/Nutrición recompilan el día (fix flag NUTRICIÓN).
       DeviceEventEmitter.emit('day_changed');
+      // T5 HARDENING: funnel core — comida registrada (sin descripción en props).
+      analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'scan_reviewed', meal_type: mealType, has_photo: !!photoUrl });
       haptic.success();
       setSaved(true);
     } catch (err: any) {
@@ -506,6 +510,8 @@ export default function FoodScanScreen() {
       }
       // Regla #6 CLAUDE.md: HOY/Nutrición recompilan el día (fix flag NUTRICIÓN).
       DeviceEventEmitter.emit('day_changed');
+      // T5 HARDENING: funnel core — comida registrada sin análisis.
+      analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'scan_raw', meal_type: mealType, has_photo: !!photoUrl });
       haptic.light();
       router.back();
     } catch (err: any) {
