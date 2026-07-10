@@ -22,6 +22,12 @@ export const ATP_BRAND = {
   moleculeGradient: ['#A8E02A', '#6DCC48', '#3DBF6E', '#2EC28A', '#1ABC9C'] as const,
 } as const;
 
+// ═══ ENLACES EXTERNOS ═══
+// Bridge a la comunidad humana (Skool). Único canal de conversación humana —
+// in-app NO hay chat privado (doctrina cerrada). Configurable post-launch:
+// cambiará a skool.com/tribu-atp (o plan premium) cuando haya presupuesto.
+export const SKOOL_URL = 'https://www.skool.com/the-vital-order-7560/about';
+
 // ═══ SUPERFICIES ═══
 
 export const SURFACES = {
