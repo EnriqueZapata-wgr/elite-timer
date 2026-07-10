@@ -48,6 +48,8 @@ const HEALTH_HUB_IMAGES: Record<string, any> = {
   glucosa: require('@/assets/images/health-hub/glucosa.png'),
   cetonas: require('@/assets/images/health-hub/cetonas.png'),
   labs: require('@/assets/images/health-hub/laboratorios.png'),
+  // Sprint LABS GUÍA: reutiliza el B/N de laboratorios
+  labs_guide: require('@/assets/images/health-hub/laboratorios.png'),
   biomarcadores: require('@/assets/images/health-hub/biomarcadores.png'),
   tests: require('@/assets/images/health-hub/tests-evaluaciones.png'),
   cinematicas: require('@/assets/images/health-hub/pruebas-cinematicas.png'),
@@ -61,6 +63,8 @@ const CARDS: Card[] = [
   { key: 'glucosa', title: 'GLUCOSA', subtitle: 'Registro y rangos funcionales', icon: '🩸', gradient: ['#FB923C', '#EF4444'], route: '/glucose-log' },
   { key: 'cetonas', title: 'CETONAS EN SANGRE', subtitle: 'Monitoreo de cetosis (mmol/L)', icon: '💧', gradient: ['#C084FC', '#A855F7'], route: '/ketones-log' },
   { key: 'labs', title: 'LABORATORIOS', subtitle: 'Sube y consulta tus estudios', icon: '🧪', gradient: ['#60A5FA', '#3B82F6'], route: '/edad-atp/labs' },
+  // Sprint LABS GUÍA: trigger permanente — "¿qué labs me hago?" (reduce churn)
+  { key: 'labs_guide', title: 'GUÍA DE LABORATORIOS', subtitle: '¿Qué estudios hacerte? Paquetes, precios y dónde (México)', icon: '📄', gradient: ['#A8E02A', '#60A5FA'], route: '/labs-guide' },
   { key: 'biomarcadores', title: 'BIOMARCADORES', subtitle: 'Peso, composición, fuerza de agarre, medidas', icon: '📊', gradient: ['#22C55E', '#16A34A'], route: '/health-input' },
   { key: 'tests', title: 'TESTS Y EVALUACIONES', subtitle: 'Braverman · Evaluaciones funcionales', icon: '🧠', gradient: ['#C084FC', '#8B5CF6'], route: '/quizzes' },
   // #67 p5b (cherry-pick 7570251): cuestionarios de historia clínica funcional

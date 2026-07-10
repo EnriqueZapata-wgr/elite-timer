@@ -69,7 +69,7 @@ export function TopBanner({ offset = 0 }: Props) {
     if (dismissedDate === today) { setDismissed(true); return; }
     setDismissed(false);
 
-    const [streakRes, unreadRes, protonsRes, insightRes] = await Promise.allSettled([
+    const [streakRes, unreadRes, protonsRes, insightRes, labsRes] = await Promise.allSettled([
       getCurrentStreak(user.id),
       countUnreadInbox(user.id),
       supabase.from('proton_transactions')
@@ -82,6 +82,10 @@ export function TopBanner({ offset = 0 }: Props) {
         .eq('user_id', user.id)
         .eq('date', today)
         .maybeSingle(),
+      // Sprint LABS GUÍA: ¿ya subió algún estudio? (0 = candidato a la guía)
+      supabase.from('lab_uploads')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
     ]);
 
     const next: BannerVariant[] = [];
@@ -126,6 +130,18 @@ export function TopBanner({ offset = 0 }: Props) {
         text: '💡 Insight de hoy listo',
         cta: 'Ver',
         route: '/notifications',
+      });
+    }
+
+    // Sprint LABS GUÍA (trigger post-onboarding): sin estudios subidos →
+    // invitar a la guía. count === 0 estricto: si la query falla no molestamos.
+    if (labsRes.status === 'fulfilled' && labsRes.value.count === 0) {
+      next.push({
+        id: 'labs_guide',
+        icon: 'flask-outline',
+        text: '¿No sabes qué labs hacerte?',
+        cta: 'Guía',
+        route: '/labs-guide',
       });
     }
 

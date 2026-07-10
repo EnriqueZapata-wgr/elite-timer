@@ -199,6 +199,8 @@ function RootLayout() {
                 {/* Sprint NUTRICIÓN T5: lista de compra desde mis recetas */}
                 <Stack.Screen name="lista-compra" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-input" options={{ animation: 'slide_from_right' }} />
+                {/* Sprint LABS GUÍA: guía descargable "¿qué labs me hago?" */}
+                <Stack.Screen name="labs-guide" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz-take" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* #67 p5b: cuestionarios Historia Clínica (cherry-pick 7570251) */}
                 <Stack.Screen name="historia-clinica/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
