@@ -178,9 +178,22 @@ export default function EdadAtpHub() {
             <EliteText variant="body" style={styles.calcBtnText}>{edadResult ? 'Recalcular mi Edad' : 'Calcular mi Edad'}</EliteText>
           </Pressable>
         ) : (
-          <EliteText variant="caption" style={styles.needMore}>
-            Necesitas más datos para calcular tu Edad ATP (mínimo {CALC_THRESHOLD}% de evaluación).
-          </EliteText>
+          <>
+            <EliteText variant="caption" style={styles.needMore}>
+              Necesitas más datos para calcular tu Edad ATP (mínimo {CALC_THRESHOLD}% de evaluación).
+            </EliteText>
+            {/* Sprint LABS GUÍA: el bloqueo más común es "no sé qué labs hacerme" */}
+            <Pressable
+              onPress={() => { haptic.medium(); router.push('/labs-guide' as any); }}
+              style={styles.guideBtn}
+            >
+              <Ionicons name="document-text-outline" size={16} color={Colors.neonGreen} />
+              <EliteText variant="caption" style={styles.guideBtnText}>
+                ¿No sabes qué labs hacerte? Descarga la guía
+              </EliteText>
+              <Ionicons name="chevron-forward" size={14} color={Colors.neonGreen} />
+            </Pressable>
+          </>
         )}
       </ScrollView>
     </Screen>
@@ -211,4 +224,11 @@ const styles = StyleSheet.create({
   calcBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md },
   calcBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
   needMore: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.md, paddingHorizontal: Spacing.md },
+  // Sprint LABS GUÍA: CTA a la guía cuando falta data para calcular
+  guideBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: '#222',
+    paddingVertical: Spacing.md, marginTop: Spacing.sm,
+  },
+  guideBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
 });
