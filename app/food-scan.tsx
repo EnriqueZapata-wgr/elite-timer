@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, TextInput,
-  Image, Dimensions, Alert, Platform,
+  Image, Dimensions, Alert, Platform, DeviceEventEmitter,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -473,6 +473,8 @@ export default function FoodScanScreen() {
         });
       }
 
+      // Regla #6 CLAUDE.md: HOY/Nutrición recompilan el día (fix flag NUTRICIÓN).
+      DeviceEventEmitter.emit('day_changed');
       haptic.success();
       setSaved(true);
     } catch (err: any) {
@@ -502,6 +504,8 @@ export default function FoodScanScreen() {
           metadata: { meal_type: mealType },
         });
       }
+      // Regla #6 CLAUDE.md: HOY/Nutrición recompilan el día (fix flag NUTRICIÓN).
+      DeviceEventEmitter.emit('day_changed');
       haptic.light();
       router.back();
     } catch (err: any) {
