@@ -77,6 +77,13 @@ const GROUPS: SettingsGroup[] = [
     route: '/settings/conexiones',
   },
   {
+    icon: 'earth-outline',
+    iconColor: CATEGORY_COLORS.optimization,
+    title: 'Comunidad',
+    subtitle: 'Perfil público, visibilidad y Tribu ATP',
+    route: '/settings/comunidad',
+  },
+  {
     icon: 'document-text-outline',
     iconColor: Colors.textSecondary,
     title: 'Legal y soporte',
