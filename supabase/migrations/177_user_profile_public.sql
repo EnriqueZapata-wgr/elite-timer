@@ -80,10 +80,16 @@ CREATE TRIGGER trg_sync_public_from_electron
 -- ── Backfill de usuarios existentes ─────────────────────────────────────────
 -- Crea la fila pública con defaults + snapshot de electron_balance. username
 -- queda NULL (el user lo elige después). display_name deriva de full_name.
+--
+-- ⚠️ INNER JOIN auth.users: filtra profiles HUÉRFANOS (residuo legacy con
+-- profiles.id sin fila en auth.users). Sin este filtro el FK
+-- user_profile_public_user_id_fkey aborta la transacción completa (hotfix
+-- 2026-07-11). El FK apunta a auth.users, no a profiles.
 
 INSERT INTO user_profile_public (user_id, display_name, avatar_url, lifetime_electrons, current_rank)
 SELECT p.id, p.full_name, p.avatar_url,
        COALESCE(eb.lifetime_electrons, 0), COALESCE(eb.current_rank, 1)
 FROM profiles p
+INNER JOIN auth.users u ON u.id = p.id
 LEFT JOIN electron_balance eb ON eb.user_id = p.id
 ON CONFLICT (user_id) DO NOTHING;
