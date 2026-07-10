@@ -15,6 +15,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
 import { completeV2Step } from '@/src/services/onboarding-v2-service';
 import { v2StepNumber, v2Route, V2_STEPS } from '@/src/services/onboarding-v2-core';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
@@ -28,6 +29,7 @@ const REASONS = [
 export default function V2NotificationsScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [loading, setLoading] = useState(false);
 
   async function finish(withPrompt: boolean) {
@@ -39,6 +41,9 @@ export default function V2NotificationsScreen() {
       }
       haptic.success();
       const next = await completeV2Step(user.id, 'notifications');
+      // T5 HARDENING: último paso completado → funnel core. notifications es el
+      // paso final del flow v2 (completeV2Step marcó 'completed' y enruta a meet).
+      analytics.track(ATP_EVENTS.ONBOARDING_COMPLETED, { notifications_enabled: withPrompt });
       router.replace(next as any);
     } finally {
       setLoading(false);

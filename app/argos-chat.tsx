@@ -28,6 +28,7 @@ import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
 import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
 import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -98,6 +99,7 @@ function ArgosChat() {
   // `loading` (state, async) actualice. Sin esto, dos taps a 42ms disparaban 2 requests → doble
   // cobro H+. El server además es idempotente (spend_protons v2), esto es la 1ª línea de defensa.
   const sendingRef = useRef(false);
+  const analytics = useAnalytics();
   const [messages, setMessages] = useState<ArgosMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -222,6 +224,8 @@ function ArgosChat() {
     const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
     const newMessages: ArgosMessage[] = [...messages, userTurn];
     setMessages(newMessages);
+    // T5 HARDENING: funnel core — mensaje enviado (sin contenido, solo metadata).
+    analytics.track(ATP_EVENTS.ARGOS_MESSAGE_SENT, { turn_index: newMessages.length });
     setLoading(true);
     // T5: nuevo intento limpia el estado de rate limit anterior
     setRateLimit(null);
@@ -316,6 +320,8 @@ function ArgosChat() {
     } finally {
       setLoading(false);
       sendingRef.current = false; // #71: liberar el guard al terminar el turno
+      // T5 HARDENING: respuesta recibida (degraded=true si fue rate limit/error).
+      analytics.track(ATP_EVENTS.ARGOS_MESSAGE_RECEIVED, { degraded: wasDegraded });
       // F2.3: feedback háptico sutil al terminar de "pensar"
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }

@@ -1,10 +1,11 @@
 /**
  * AJUSTES › DEVELOPER (#137) — solo __DEV__ o admins (founders/team).
  */
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, Alert } from 'react-native';
 import { Redirect, useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
+import * as Sentry from '@sentry/react-native';
 
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -46,6 +47,25 @@ export default function SettingsDevScreen() {
             label="Ver Meet ARGOS de nuevo"
             sub="Reproduce la cinemática de primer contacto"
             onPress={() => { haptic.medium(); router.push('/argos/meet' as any); }}
+          />
+          {/* T6 HARDENING: verificación Sentry end-to-end. Sentry corre con
+              enabled: !__DEV__ (app/_layout.tsx) → este botón solo REPORTA en
+              builds preview/producción; en dev es no-op silencioso. */}
+          <SettingRow
+            icon="bug-outline"
+            label="Enviar test error a Sentry"
+            sub="Solo reporta en builds no-dev (preview/prod)"
+            onPress={() => {
+              haptic.warning();
+              const marker = `sentry-verify ${new Date().toISOString()}`;
+              Sentry.captureException(new Error(`[T6 HARDENING] Test error manual — ${marker}`));
+              Alert.alert(
+                'Test enviado',
+                __DEV__
+                  ? 'Estás en build DEV: Sentry está deshabilitado (enabled: !__DEV__). Prueba desde un build preview.'
+                  : `Capturado como "${marker}". Revisa atp-mobile en Sentry (org atp-v5) y verifica stack trace legible.`,
+              );
+            }}
           />
         </Animated.View>
         <View style={{ height: 40 }} />

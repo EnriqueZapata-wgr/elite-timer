@@ -23,6 +23,7 @@ import { fireElectronAward } from '@/src/services/economy/electron-award-client'
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { warn as logWarn } from '@/src/lib/logger';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -35,6 +36,7 @@ const CELL = (SW - Spacing.md * 2 - 2) / 2;
 export default function CheckinScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ protocolItemId?: string }>();
+  const analytics = useAnalytics();
 
   const [step, setStep] = useState(1);
   const [quadrant, setQuadrant] = useState<QuadrantKey | null>(null);
@@ -91,6 +93,8 @@ export default function CheckinScreen() {
       if (params.protocolItemId) {
         try { await toggleCompletion(params.protocolItemId); } catch (e) { logWarn('[checkin] toggleCompletion failed', e); }
       }
+      // T5 HARDENING: funnel core — check-in completado (cuadrante, sin nota).
+      analytics.track(ATP_EVENTS.CHECKIN_COMPLETED, { quadrant, emotions: selectedEmotions.length });
 
       // Electrón por check-in emocional
       try {

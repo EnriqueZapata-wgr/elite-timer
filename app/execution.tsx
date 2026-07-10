@@ -14,6 +14,7 @@ import { useRoutineEngine } from '@/hooks/use-routine-engine';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius, BlockColors } from '@/constants/theme';
 import { SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, BLOCK_COLORS, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
@@ -114,11 +115,23 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
   const stepColor = getStepColor(currentStep);
   const isCountdown = remainingSeconds <= 3 && remainingSeconds > 0 && engineState === 'running';
 
+  // T5 HARDENING: funnel core — workout iniciado (primera vez que corre el engine).
+  const analytics = useAnalytics();
+  const startedTrackedRef = useRef(false);
+  useEffect(() => {
+    if (engineState !== 'running' || startedTrackedRef.current) return;
+    startedTrackedRef.current = true;
+    analytics.track(ATP_EVENTS.WORKOUT_STARTED, { mode: 'timer' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engineState]);
+
   // Guardar sesión de timer al completar
   const savedRef = useRef(false);
   useEffect(() => {
     if (engineState !== 'completed' || !stats || !routine || savedRef.current) return;
     savedRef.current = true;
+    // T5 HARDENING: funnel core — workout completado.
+    analytics.track(ATP_EVENTS.WORKOUT_COMPLETED, { mode: 'timer', duration_s: stats.actualDurationSeconds });
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase.from('mind_sessions').insert({

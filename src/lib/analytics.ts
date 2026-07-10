@@ -55,6 +55,18 @@ export const ATP_EVENTS = {
   AGE_GATE_TRIGGERED: 'age_gate_triggered',
   MEDICAL_DISCLAIMER_SHOWN: 'medical_disclaimer_shown',
   MEDICAL_DISCLAIMER_ACCEPTED: 'medical_disclaimer_accepted',
+  // Eventos críticos pre-beta (Sprint HARDENING T5 — funnel core)
+  USER_SIGNED_UP: 'user_signed_up',
+  MEET_ARGOS_VIEWED: 'meet_argos_viewed',
+  ARGOS_MESSAGE_RECEIVED: 'argos_message_received',
+  FOOD_LOGGED: 'food_logged',
+  WORKOUT_STARTED: 'workout_started',
+  WORKOUT_COMPLETED: 'workout_completed',
+  JOURNAL_ENTRY_CREATED: 'journal_entry_created',
+  CHECKIN_COMPLETED: 'checkin_completed',
+  SUBSCRIPTION_STARTED: 'subscription_started',
+  BOOST_ACTIVATED: 'boost_activated',
+  BRAVERMAN_PREMIUM_PURCHASED: 'braverman_premium_purchased',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];

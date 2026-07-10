@@ -23,6 +23,7 @@ import {
   type PremiumReportResult,
 } from '@/src/services/braverman-premium-service';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -36,6 +37,7 @@ const LOADING_PHRASES = [
 
 export default function BravermanPremiumScreen() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const [state, setState] = useState<'idle' | 'offer' | 'loading' | 'done' | 'error' | 'no_test'>('idle');
   const [quote, setQuote] = useState<PremiumQuote | null>(null);
   const [markdown, setMarkdown] = useState<string | null>(null);
@@ -49,6 +51,8 @@ export default function BravermanPremiumScreen() {
     const result: PremiumReportResult = await generateBravermanPremiumReport(user.id);
     if (result.status === 'ok') {
       haptic.success();
+      // T5 HARDENING: funnel core — solo cobros reales (cached = re-lectura gratis).
+      if (!result.cached) analytics.track(ATP_EVENTS.BRAVERMAN_PREMIUM_PURCHASED, {});
       setMarkdown(result.markdown);
       setWasCached(result.cached);
       setState('done');

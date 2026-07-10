@@ -18,6 +18,7 @@ import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { markArgosIntroduced } from '@/src/services/argos-intro-service';
 import { useAuth } from '@/src/contexts/auth-context';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
@@ -27,10 +28,17 @@ export default function MeetArgosScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { setIntroduced } = useArgosPresence();
+  const analytics = useAnalytics();
   const [avatarState, setAvatarState] = useState<'speaking' | 'idle'>('speaking');
   const [loading, setLoading] = useState(false);
 
   const firstName = ((user?.user_metadata?.full_name as string) || '').trim().split(' ')[0] || '';
+
+  // T5 HARDENING: funnel core — la cinemática se vio (una vez por mount).
+  useEffect(() => {
+    analytics.track(ATP_EVENTS.MEET_ARGOS_VIEWED, {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Cinemática: ARGOS "habla" al entrar, luego se calma.
   useEffect(() => {

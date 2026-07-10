@@ -20,6 +20,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ConfettiCelebration } from '@/src/components/ui/ConfettiCelebration';
 import { useRoutineMode } from '@/src/hooks/useRoutineMode';
 import { getLastWeight } from '@/src/services/exercise-service';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
 import { BLOCK_COLORS, SEMANTIC, CATEGORY_COLORS } from '@/src/constants/brand';
@@ -72,6 +73,22 @@ function RoutineContent({ routine }: { routine: Routine }) {
   useKeepAwake();
 
   const rm = useRoutineMode(routine);
+
+  // T5 HARDENING: funnel core — workout iniciado/completado (una vez por sesión).
+  const analytics = useAnalytics();
+  const startedTrackedRef = useRef(false);
+  const completedTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!startedTrackedRef.current && rm.phase !== 'idle') {
+      startedTrackedRef.current = true;
+      analytics.track(ATP_EVENTS.WORKOUT_STARTED, { mode: 'routine', exercises: rm.exercises.length });
+    }
+    if (!completedTrackedRef.current && rm.phase === 'completed') {
+      completedTrackedRef.current = true;
+      analytics.track(ATP_EVENTS.WORKOUT_COMPLETED, { mode: 'routine', exercises: rm.exercises.length, prs: rm.sessionPRs.size });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rm.phase]);
 
   // Inputs del set actual
   const [reps, setReps] = useState(10);

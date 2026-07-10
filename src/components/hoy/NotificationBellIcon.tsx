@@ -1,18 +1,21 @@
 /**
- * NotificationBellIcon (AGENDA-COMPLETE F3) — campana del header del HOY con badge real
- * (user_notifications sin leer, migración 150). Tap → /notifications (historial).
- * Se refresca al enfocar la pantalla y con el evento 'notifications_changed' (emitido
- * por user-notifications-service al marcar leídas).
+ * NotificationBellIcon (AGENDA-COMPLETE F3 · HARDENING T3) — campana del header del HOY
+ * con badge real (user_notifications sin leer, migración 150). Tap → /notifications.
+ * Se refresca al enfocar la pantalla, con el evento 'notifications_changed' (emitido
+ * por user-notifications-service al marcar leídas) y al RECIBIR un push con la app en
+ * foreground (T3: antes el badge no se enteraba hasta re-enfocar).
  */
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
+import { bellBadgeLabel } from './notification-bell-core';
 import { Colors, Fonts } from '@/constants/theme';
 
 export function NotificationBellIcon() {
@@ -27,7 +30,10 @@ export function NotificationBellIcon() {
   useFocusEffect(useCallback(() => {
     load();
     const sub = DeviceEventEmitter.addListener('notifications_changed', load);
-    return () => sub.remove();
+    // T3: push recibido con la app abierta → el badge se actualiza al instante
+    // (dispatch-agenda-notifications inserta la row de inbox ANTES del push).
+    const pushSub = Notifications.addNotificationReceivedListener(() => load());
+    return () => { sub.remove(); pushSub.remove(); };
   }, [load]));
 
   return (
@@ -36,9 +42,9 @@ export function NotificationBellIcon() {
       style={styles.icon}
     >
       <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />
-      {unread > 0 ? (
+      {bellBadgeLabel(unread) ? (
         <View style={styles.badge}>
-          <EliteText style={styles.badgeText}>{unread > 9 ? '9+' : unread}</EliteText>
+          <EliteText style={styles.badgeText}>{bellBadgeLabel(unread)}</EliteText>
         </View>
       ) : null}
     </AnimatedPressable>

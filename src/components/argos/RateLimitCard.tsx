@@ -20,6 +20,7 @@ import { useSubscription } from '@/src/hooks/useSubscription';
 import { formatFull } from '@/src/services/economy/format';
 import { canOfferBoost, formatResetWait, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND, ELEVATION, SEMANTIC, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -31,6 +32,7 @@ interface Props {
 
 export function RateLimitCard({ info, onBoostActivated }: Props) {
   const { activateBoost } = useSubscription();
+  const analytics = useAnalytics();
   const [busy, setBusy] = useState(false);
   const [activated, setActivated] = useState(false);
 
@@ -44,6 +46,8 @@ export function RateLimitCard({ info, onBoostActivated }: Props) {
     const result = await activateBoost();
     setBusy(false);
     if (result.success) {
+      // T5 HARDENING: funnel core — boost activado desde el rate limit.
+      analytics.track(ATP_EVENTS.BOOST_ACTIVATED, { source: 'rate_limit_card' });
       haptic.success();
       setActivated(true);
       onBoostActivated?.();

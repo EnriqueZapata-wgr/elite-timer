@@ -27,6 +27,7 @@ import { FoodReviewEditor, type ReviewState } from '@/src/components/nutrition/F
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { maybeGeneratePostMealInsight } from '@/src/services/argos-nutrition-insights';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity,
@@ -134,6 +135,7 @@ function calcQualityScore(ingredients: SelectedIngredient[], totalProtein: numbe
 export default function FoodTextScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const analytics = useAnalytics();
   const params = useLocalSearchParams<{ mealType?: string }>();
 
   // --- Estado de búsqueda ---
@@ -279,6 +281,8 @@ export default function FoodTextScreen() {
       }
 
       DeviceEventEmitter.emit('day_changed');
+      // T5 HARDENING: funnel core — comida registrada por texto.
+      analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'text', meal_type: mealType });
       // T6 NUTRICIÓN: insight post-meal de ARGOS (opt-in + throttle, no bloquea)
       if (user?.id) void maybeGeneratePostMealInsight(user.id, desc);
       router.back();

@@ -18,6 +18,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn, error as logError } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
+import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG } from '@/src/constants/brand';
@@ -59,6 +60,7 @@ const STOIC_QUOTES = [
 
 export default function JournalScreen() {
   const { user } = useAuth();
+  const analytics = useAnalytics();
 
   // Modo: selector vs formulario
   const [selectedType, setSelectedType] = useState<string | null>(null);
@@ -275,6 +277,8 @@ export default function JournalScreen() {
         return;
       }
       haptic.success();
+      // T5 HARDENING: funnel core — entrada creada (solo el tipo, sin contenido).
+      analytics.track(ATP_EVENTS.JOURNAL_ENTRY_CREATED, { entry_type: selectedType });
       // Electrón
       if (user?.id) {
         try { await awardBooleanElectron(user.id, 'journal'); DeviceEventEmitter.emit('electrons_changed'); DeviceEventEmitter.emit('day_changed'); } catch (e) { logWarn('[journal] award electron failed', e); }
