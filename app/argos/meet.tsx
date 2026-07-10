@@ -28,6 +28,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { markArgosIntroduced } from '@/src/services/argos-intro-service';
+import { queueOnboardingCelebration } from '@/src/components/onboarding/onboarding-completion-core';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -131,6 +132,8 @@ export default function MeetArgosScreen() {
       try { await markArgosIntroduced(user.id); } catch { /* fail-open */ }
     }
     setIntroduced(true);
+    // T5: el overlay global la consume al aterrizar en HOY.
+    queueOnboardingCelebration(firstName);
     router.replace('/(tabs)' as any);
   }
 

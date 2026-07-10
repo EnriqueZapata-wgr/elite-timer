@@ -39,6 +39,7 @@ import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceConte
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
 import { MeetArgosGate } from '@/src/components/argos/MeetArgosGate';
 import { AtpSplash } from '@/src/components/AtpSplash';
+import { OnboardingCompletion } from '@/src/components/onboarding/OnboardingCompletion';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -255,6 +256,8 @@ function RootLayout() {
               {/* MAGIA 2.0 T3: Meet ARGOS para usuarios existentes con flag NULL
                   (antes solo se alcanzaba al terminar onboarding v2). */}
               <MeetArgosGate />
+              {/* T5 ONBOARDING épico: celebración al aterrizar en HOY tras Meet ARGOS. */}
+              <OnboardingCompletion />
               {/* T2 ONBOARDING épico: splash cinemático sobre todo lo demás. */}
               {!splashDone && <AtpSplash onFinish={() => setSplashDone(true)} />}
               <StatusBar style="light" />
