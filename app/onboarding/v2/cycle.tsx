@@ -23,6 +23,9 @@ import {
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
+
+const COPY = ONBOARDING_COPY.cycle;
 
 const CYCLE_PINK = '#D4537E'; // color de categoría ciclo (brand)
 
@@ -69,12 +72,10 @@ export default function V2CycleScreen() {
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>
           <EliteText style={s.title}>
-            {sex === 'female' ? 'Tu ciclo, tu modalidad' : 'Módulo de Ciclo'}
+            {sex === 'female' ? COPY.titleFemale : COPY.titleMale}
           </EliteText>
           <EliteText style={s.subtitle}>
-            {sex === 'female'
-              ? 'ATP adapta entrenamiento, nutrición y protocolos a tu fase. Elige la modalidad que refleja tu momento actual.'
-              : 'ATP incluye un módulo de ciclo menstrual. Puedes desactivarlo o vincularte con tu pareja para recibir insights de compañero.'}
+            {sex === 'female' ? COPY.subtitleFemale : COPY.subtitleMale}
           </EliteText>
         </Animated.View>
 
@@ -100,9 +101,7 @@ export default function V2CycleScreen() {
               </AnimatedPressable>
             );
           })}
-          <EliteText style={s.hint}>
-            Puedes cambiar esto cuando quieras en Ajustes de Ciclo.
-          </EliteText>
+          <EliteText style={s.hint}>{COPY.hint}</EliteText>
         </Animated.View>
       </ScrollView>
 
@@ -113,7 +112,7 @@ export default function V2CycleScreen() {
           disabled={!modality || loading}
         >
           <EliteText style={[s.continueBtnText, !modality && { opacity: 0.4 }]}>
-            {loading ? 'Guardando…' : 'CONTINUAR'}
+            {loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}
           </EliteText>
           {!loading && <Ionicons name="arrow-forward" size={18} color={modality ? '#000' : '#666'} />}
         </AnimatedPressable>

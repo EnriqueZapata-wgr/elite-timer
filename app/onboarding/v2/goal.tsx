@@ -3,7 +3,7 @@
  * longevidad / composición / energía / deporte / preparación).
  */
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -18,6 +18,9 @@ import { v2StepNumber, v2Route, V2_STEPS, GOAL_OPTIONS } from '@/src/services/on
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
+import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
+
+const COPY = ONBOARDING_COPY.goal;
 
 export default function V2GoalScreen() {
   const router = useRouter();
@@ -38,18 +41,38 @@ export default function V2GoalScreen() {
     }
   }
 
+  /** Skip con advertencia leve (T3): avanza sin guardar objetivo. */
+  function handleSkip() {
+    if (!user?.id || loading) return;
+    const c = ONBOARDING_COPY.common;
+    Alert.alert(c.skipTitle, c.skipBody, [
+      { text: c.skipCancel, style: 'cancel' },
+      {
+        text: c.skipConfirm,
+        onPress: async () => {
+          setLoading(true);
+          try {
+            const next = await completeV2Step(user.id!, 'goal');
+            router.replace(next as any);
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <OnboardingShell
       step={v2StepNumber('goal')}
       totalSteps={V2_STEPS.length}
       onBack={() => router.replace(v2Route('profile') as any)}
+      onSkip={handleSkip}
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>
-          <EliteText style={s.title}>¿Qué buscas lograr?</EliteText>
-          <EliteText style={s.subtitle}>
-            ARGOS y tus protocolos se calibran alrededor de este objetivo. Puedes cambiarlo después.
-          </EliteText>
+          <EliteText style={s.title}>{COPY.title}</EliteText>
+          <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(120).duration(400)} style={{ marginTop: Spacing.lg }}>
@@ -72,7 +95,7 @@ export default function V2GoalScreen() {
           disabled={!goal || loading}
         >
           <EliteText style={[s.continueBtnText, !goal && { opacity: 0.4 }]}>
-            {loading ? 'Guardando…' : 'CONTINUAR'}
+            {loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}
           </EliteText>
           {!loading && <Ionicons name="arrow-forward" size={18} color={goal ? '#000' : '#666'} />}
         </AnimatedPressable>

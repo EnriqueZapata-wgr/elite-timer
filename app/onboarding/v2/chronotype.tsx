@@ -4,7 +4,7 @@
  * y muestra un mini-insight antes de continuar.
  */
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -22,6 +22,9 @@ import {
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
+
+const COPY = ONBOARDING_COPY.chronotype;
 
 const PURPLE = '#7c3aed';
 
@@ -74,6 +77,27 @@ export default function V2ChronotypeScreen() {
     }
   }
 
+  /** Skip con advertencia leve (T3): el quiz completo vive en /quiz/chronotype. */
+  function handleSkip() {
+    if (!user?.id || loading) return;
+    const c = ONBOARDING_COPY.common;
+    Alert.alert(c.skipTitle, c.skipBody, [
+      { text: c.skipCancel, style: 'cancel' },
+      {
+        text: c.skipConfirm,
+        onPress: async () => {
+          setLoading(true);
+          try {
+            const next = await completeV2Step(user.id!, 'chronotype');
+            router.replace(next as any);
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  }
+
   // ── Insight ──
   if (result) {
     const meta = CHRONO_META[result];
@@ -83,15 +107,15 @@ export default function V2ChronotypeScreen() {
         <ScrollView contentContainerStyle={s.scroll}>
           <Animated.View entering={FadeInUp.duration(400)} style={s.insightCard}>
             <EliteText style={{ fontSize: 56, textAlign: 'center' }}>{meta.emoji}</EliteText>
-            <EliteText style={s.insightKicker}>TU CRONOTIPO</EliteText>
-            <EliteText style={s.insightTitle}>Eres {meta.name}</EliteText>
+            <EliteText style={s.insightKicker}>{COPY.resultKicker}</EliteText>
+            <EliteText style={s.insightTitle}>{COPY.resultTitlePrefix} {meta.name}</EliteText>
             <EliteText style={s.insightBlurb}>{meta.blurb}</EliteText>
             <View style={s.scheduleBox}>
               {[
-                { icon: 'sunny-outline', label: 'Despertar ideal', time: schedule.wake },
-                { icon: 'flash-outline', label: 'Pico físico', time: schedule.peak_physical },
-                { icon: 'bulb-outline', label: 'Pico mental', time: `${schedule.peak_focus_start}–${schedule.peak_focus_end}` },
-                { icon: 'bed-outline', label: 'Dormir ideal', time: schedule.sleep },
+                { icon: 'sunny-outline', label: COPY.scheduleWake, time: schedule.wake },
+                { icon: 'flash-outline', label: COPY.schedulePhysical, time: schedule.peak_physical },
+                { icon: 'bulb-outline', label: COPY.scheduleFocus, time: `${schedule.peak_focus_start}–${schedule.peak_focus_end}` },
+                { icon: 'bed-outline', label: COPY.scheduleSleep, time: schedule.sleep },
               ].map(row => (
                 <View key={row.label} style={s.scheduleRow}>
                   <Ionicons name={row.icon as any} size={16} color={PURPLE} />
@@ -104,7 +128,7 @@ export default function V2ChronotypeScreen() {
         </ScrollView>
         <View style={s.bottomBar}>
           <AnimatedPressable style={s.continueBtn} onPress={handleContinue} disabled={loading}>
-            <EliteText style={s.continueBtnText}>{loading ? 'Guardando…' : 'CONTINUAR'}</EliteText>
+            <EliteText style={s.continueBtnText}>{loading ? ONBOARDING_COPY.common.saving : ONBOARDING_COPY.common.continue}</EliteText>
             {!loading && <Ionicons name="arrow-forward" size={18} color="#000" />}
           </AnimatedPressable>
         </View>
@@ -114,11 +138,11 @@ export default function V2ChronotypeScreen() {
 
   // ── Preguntas ──
   return (
-    <OnboardingShell step={v2StepNumber('chronotype')} totalSteps={V2_STEPS.length} onBack={handleBack}>
+    <OnboardingShell step={v2StepNumber('chronotype')} totalSteps={V2_STEPS.length} onBack={handleBack} onSkip={handleSkip}>
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View key={animKey} entering={FadeInUp.duration(300)}>
           <EliteText style={s.counter}>
-            CRONOTIPO · {currentQ + 1} DE {CHRONO_QUESTIONS.length}
+            {COPY.counterKicker} · {currentQ + 1} DE {CHRONO_QUESTIONS.length}
           </EliteText>
           <EliteText style={s.title}>{question.text}</EliteText>
           <View style={{ marginTop: Spacing.lg }}>

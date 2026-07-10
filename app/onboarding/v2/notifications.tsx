@@ -19,12 +19,9 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
-const REASONS = [
-  { icon: 'calendar-outline', title: 'Tu agenda del día', desc: 'Recordatorios de tus bloques: entrenar, comer, dormir.' },
-  { icon: 'flash-outline', title: 'Electrones y rachas', desc: 'No pierdas tu racha por olvidar un check-in.' },
-  { icon: 'chatbubble-ellipses-outline', title: 'ARGOS', desc: 'Insights personalizados en el momento correcto.' },
-];
+const COPY = ONBOARDING_COPY.notifications;
 
 export default function V2NotificationsScreen() {
   const router = useRouter();
@@ -61,14 +58,12 @@ export default function V2NotificationsScreen() {
           <View style={s.bellWrap}>
             <Ionicons name="notifications-outline" size={36} color={ATP_BRAND.lime} />
           </View>
-          <EliteText style={s.title}>Notificaciones con propósito</EliteText>
-          <EliteText style={s.subtitle}>
-            Nada de spam. Solo lo que mueve tu rendimiento:
-          </EliteText>
+          <EliteText style={s.title}>{COPY.title}</EliteText>
+          <EliteText style={s.subtitle}>{COPY.subtitle}</EliteText>
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(120).duration(400)} style={{ marginTop: Spacing.lg, gap: 10 }}>
-          {REASONS.map(r => (
+          {COPY.reasons.map(r => (
             <View key={r.title} style={s.reasonCard}>
               <View style={s.reasonIcon}>
                 <Ionicons name={r.icon as any} size={18} color={ATP_BRAND.lime} />
@@ -85,11 +80,11 @@ export default function V2NotificationsScreen() {
       <View style={s.bottomBar}>
         <AnimatedPressable style={s.continueBtn} onPress={() => finish(true)} disabled={loading}>
           <EliteText style={s.continueBtnText}>
-            {loading ? 'Un momento…' : 'ACTIVAR NOTIFICACIONES'}
+            {loading ? ONBOARDING_COPY.common.oneMoment : COPY.cta}
           </EliteText>
         </AnimatedPressable>
         <AnimatedPressable style={s.skipBtn} onPress={() => finish(false)} disabled={loading}>
-          <EliteText style={s.skipText}>Ahora no</EliteText>
+          <EliteText style={s.skipText}>{COPY.skip}</EliteText>
         </AnimatedPressable>
       </View>
     </OnboardingShell>

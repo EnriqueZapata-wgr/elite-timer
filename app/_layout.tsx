@@ -6,7 +6,7 @@
  */
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -38,6 +38,8 @@ import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
 import { MeetArgosGate } from '@/src/components/argos/MeetArgosGate';
+import { AtpSplash } from '@/src/components/AtpSplash';
+import { OnboardingCompletion } from '@/src/components/onboarding/OnboardingCompletion';
 
 Sentry.init({
   dsn: Constants.expoConfig?.extra?.sentryDsn,
@@ -60,6 +62,9 @@ const EliteTheme = {
 };
 
 function RootLayout() {
+  // Splash cinemático (T2 ONBOARDING épico): overlay que toma el relevo del
+  // splash nativo y hace dissolve a la app. Se desmonta una vez por arranque.
+  const [splashDone, setSplashDone] = useState(false);
   // Cargamos solo los 4 pesos que usa la app — no los 18 disponibles
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
@@ -251,6 +256,10 @@ function RootLayout() {
               {/* MAGIA 2.0 T3: Meet ARGOS para usuarios existentes con flag NULL
                   (antes solo se alcanzaba al terminar onboarding v2). */}
               <MeetArgosGate />
+              {/* T5 ONBOARDING épico: celebración al aterrizar en HOY tras Meet ARGOS. */}
+              <OnboardingCompletion />
+              {/* T2 ONBOARDING épico: splash cinemático sobre todo lo demás. */}
+              {!splashDone && <AtpSplash onFinish={() => setSplashDone(true)} />}
               <StatusBar style="light" />
               </ArgosPresenceProvider>
               </LabProcessingProvider>
