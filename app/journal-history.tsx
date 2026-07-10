@@ -224,6 +224,12 @@ export default function JournalHistoryScreen() {
           <EliteText style={styles.emptyText}>Cargando…</EliteText>
         ) : entries.length === 0 ? (
           <Animated.View entering={FadeInUp.delay(130).springify()} style={styles.emptyBox}>
+            {/* T4 HARDENING: icono editorial B/N (paridad con los demás empty states) */}
+            <Ionicons
+              name={debouncedSearch || typeFilter ? 'funnel-outline' : 'book-outline'}
+              size={44}
+              color="rgba(255,255,255,0.18)"
+            />
             <EliteText style={styles.emptyTitle}>
               {debouncedSearch || typeFilter ? 'Nada con esos filtros' : 'Aún no hay entradas'}
             </EliteText>

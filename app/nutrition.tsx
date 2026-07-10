@@ -193,7 +193,16 @@ export default function NutritionScreen() {
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <GradientCard gradient={PILLAR_GRADIENTS.nutrition} padding={20}>
             <EliteText style={s.heroTitle}>RESUMEN DEL DÍA</EliteText>
-            {macroMode ? (
+            {summary.mealCount === 0 ? (
+              /* T4 HARDENING: primer día / día vacío — guía en vez de ceros. */
+              <View style={s.emptyHero}>
+                <Ionicons name="restaurant-outline" size={28} color={BLUE} />
+                <EliteText style={s.emptyHeroTitle}>Tu día nutricional empieza aquí</EliteText>
+                <EliteText style={s.emptyHeroText}>
+                  Registra tu primera comida — foto o texto, como prefieras.
+                </EliteText>
+              </View>
+            ) : macroMode ? (
               <View style={s.macroRow}>
                 <View style={s.macroItem}>
                   <EliteText style={s.macroValue}>{summary.calories}</EliteText>
@@ -224,7 +233,11 @@ export default function NutritionScreen() {
                 </View>
               </View>
             )}
-            <EliteText style={s.heroSub}>{summary.mealCount} comidas registradas hoy</EliteText>
+            {summary.mealCount > 0 && (
+              <EliteText style={s.heroSub}>
+                {summary.mealCount} {summary.mealCount === 1 ? 'comida registrada' : 'comidas registradas'} hoy
+              </EliteText>
+            )}
           </GradientCard>
         </Animated.View>
         )}
@@ -407,6 +420,13 @@ const s = StyleSheet.create({
   macroLabel: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
   macroDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.08)' },
   heroSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: Spacing.md },
+  // T4 HARDENING: empty state del hero (día sin comidas)
+  emptyHero: { alignItems: 'center', gap: 6, paddingVertical: Spacing.sm },
+  emptyHeroTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#fff', marginTop: 4 },
+  emptyHeroText: {
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.55)',
+    textAlign: 'center', lineHeight: 19,
+  },
 
   macroBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
