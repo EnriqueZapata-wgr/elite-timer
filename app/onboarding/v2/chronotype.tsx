@@ -4,7 +4,7 @@
  * y muestra un mini-insight antes de continuar.
  */
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -77,6 +77,27 @@ export default function V2ChronotypeScreen() {
     }
   }
 
+  /** Skip con advertencia leve (T3): el quiz completo vive en /quiz/chronotype. */
+  function handleSkip() {
+    if (!user?.id || loading) return;
+    const c = ONBOARDING_COPY.common;
+    Alert.alert(c.skipTitle, c.skipBody, [
+      { text: c.skipCancel, style: 'cancel' },
+      {
+        text: c.skipConfirm,
+        onPress: async () => {
+          setLoading(true);
+          try {
+            const next = await completeV2Step(user.id!, 'chronotype');
+            router.replace(next as any);
+          } finally {
+            setLoading(false);
+          }
+        },
+      },
+    ]);
+  }
+
   // ── Insight ──
   if (result) {
     const meta = CHRONO_META[result];
@@ -117,7 +138,7 @@ export default function V2ChronotypeScreen() {
 
   // ── Preguntas ──
   return (
-    <OnboardingShell step={v2StepNumber('chronotype')} totalSteps={V2_STEPS.length} onBack={handleBack}>
+    <OnboardingShell step={v2StepNumber('chronotype')} totalSteps={V2_STEPS.length} onBack={handleBack} onSkip={handleSkip}>
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View key={animKey} entering={FadeInUp.duration(300)}>
           <EliteText style={s.counter}>
