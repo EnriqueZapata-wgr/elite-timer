@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DOSE_PATTERNS,
   expectedDaysPerWeek,
   weeklyAdherencePct,
+  doseCountFor,
+  takenDaysBySupplement,
+  supplementsTodayProgress,
 } from '@/src/services/supplements-adherence-core';
-import { SUPPLEMENT_CATALOG, catalogByObjective, OBJECTIVE_LABELS } from '@/src/constants/supplement-catalog';
 
 describe('expectedDaysPerWeek — patrón → días esperados (T4 #54)', () => {
   it('mapea los 4 patrones', () => {
@@ -45,26 +46,70 @@ describe('weeklyAdherencePct', () => {
   });
 });
 
-describe('SUPPLEMENT_CATALOG — catálogo curado (review Mariana pendiente)', () => {
-  it('todos los items tienen dosis, patrón válido, evidencia con [Nivel N] y objetivo válido', () => {
-    for (const item of SUPPLEMENT_CATALOG) {
-      expect(item.dose.length).toBeGreaterThan(0);
-      expect(DOSE_PATTERNS).toContain(item.dosePattern);
-      expect(item.evidence).toMatch(/\[Nivel [1-5]\]/);
-      expect(Object.keys(OBJECTIVE_LABELS)).toContain(item.objective);
-    }
+// NOTA Sprint SUPS+BHA: el catálogo curado (SUPPLEMENT_CATALOG) se degradó —
+// doctrina "suplementos son REGISTRO, no recomendación". Biblioteca vacía por
+// default; sus tests se eliminaron junto con src/constants/supplement-catalog.ts.
+
+describe('doseCountFor — multi-dosis (188)', () => {
+  it('legacy sin dose_times → 1 toma', () => {
+    expect(doseCountFor(null)).toBe(1);
+    expect(doseCountFor(undefined)).toBe(1);
+    expect(doseCountFor([])).toBe(1);
   });
-  it('ids únicos y cobertura de los 5 objetivos', () => {
-    const ids = SUPPLEMENT_CATALOG.map(s => s.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    (Object.keys(OBJECTIVE_LABELS) as (keyof typeof OBJECTIVE_LABELS)[]).forEach(obj => {
-      expect(catalogByObjective(obj).length).toBeGreaterThan(0);
-    });
+  it('N etiquetas válidas → N tomas', () => {
+    expect(doseCountFor(['mañana'])).toBe(1);
+    expect(doseCountFor(['mañana', 'comida', 'noche'])).toBe(3);
   });
-  it('suplementos con riesgo conocido llevan cautions (ashwagandha, zinc, omega-3)', () => {
-    const byId = (id: string) => SUPPLEMENT_CATALOG.find(s => s.id === id)!;
-    expect(byId('ashwagandha').cautions).toBeTruthy();
-    expect(byId('zinc').cautions).toBeTruthy();
-    expect(byId('omega3').cautions).toBeTruthy();
+  it('ignora entradas vacías/no-string', () => {
+    expect(doseCountFor(['mañana', '', '  '])).toBe(1);
+    expect(doseCountFor(['08:00', '20:00'])).toBe(2);
+  });
+});
+
+describe('takenDaysBySupplement — dedupe por fecha (adherencia sigue por días)', () => {
+  it('N logs multi-dosis en el mismo día cuentan como 1 día', () => {
+    const days = takenDaysBySupplement([
+      { supplement_id: 'a', date: '2026-07-10', taken: true },
+      { supplement_id: 'a', date: '2026-07-10', taken: true }, // 2ª toma, mismo día
+      { supplement_id: 'a', date: '2026-07-09', taken: true },
+      { supplement_id: 'b', date: '2026-07-10', taken: true },
+    ]);
+    expect(days['a']).toBe(2);
+    expect(days['b']).toBe(1);
+  });
+  it('ignora taken=false y filas sin fecha', () => {
+    const days = takenDaysBySupplement([
+      { supplement_id: 'a', date: '2026-07-10', taken: false },
+      { supplement_id: 'a', date: '', taken: true },
+    ]);
+    expect(days['a']).toBeUndefined();
+  });
+});
+
+describe('supplementsTodayProgress — N tomas = N checks (card HOY)', () => {
+  const supps = [
+    { id: 'vitc', dose_times: ['mañana', 'comida', 'noche'] }, // 3 tomas
+    { id: 'mg', dose_times: null },                             // legacy 1 toma
+  ];
+  it('total = Σ tomas; taken cuenta tomas individuales', () => {
+    expect(supplementsTodayProgress(supps, [])).toEqual({ total: 4, taken: 0 });
+    expect(supplementsTodayProgress(supps, [
+      { supplement_id: 'vitc', dose_index: 0, taken: true },
+      { supplement_id: 'vitc', dose_index: 2, taken: true },
+      { supplement_id: 'mg', dose_index: 0, taken: true },
+    ])).toEqual({ total: 4, taken: 3 });
+  });
+  it('dedupe por (supp, dose_index) y cap al nº de tomas (logs huérfanos no inflan)', () => {
+    expect(supplementsTodayProgress(supps, [
+      { supplement_id: 'mg', dose_index: 0, taken: true },
+      { supplement_id: 'mg', dose_index: 0, taken: true }, // duplicado
+      { supplement_id: 'mg', dose_index: 5, taken: true }, // huérfano de dosis eliminada
+    ])).toEqual({ total: 4, taken: 1 });
+  });
+  it('logs de suplementos inactivos no cuentan; dose_index null → 0 (legacy)', () => {
+    expect(supplementsTodayProgress(supps, [
+      { supplement_id: 'inactivo', dose_index: 0, taken: true },
+      { supplement_id: 'vitc', dose_index: null, taken: true },
+    ])).toEqual({ total: 4, taken: 1 });
   });
 });
