@@ -1,11 +1,12 @@
 /**
- * Mi ATP — portal de navegación con 2 frentes top-level (#tabs-redesign V1.3).
+ * Mi ATP — portal de navegación con 3 frentes top-level (#tabs-redesign V1.3 + hotfix-ux).
  *
  *   Mi ATP
  *   ├── HISTORIA CLÍNICA → /health-hub (expediente vivo)
- *   └── HÁBITOS          → /habits-portal (práctica diaria)
+ *   ├── HÁBITOS          → /habits-portal (práctica diaria)
+ *   └── COMUNIDAD        → /comunidad/ranking (hub social: ranking/amigos/perfiles)
  *
- * Rediseño editorial: 2 cards FULL (EditorialCard size="pillar"). La 3ª card "ATP MI SALUD"
+ * Rediseño editorial: cards FULL (EditorialCard size="pillar"). La card "ATP MI SALUD"
  * se retiró (su acceso vive dentro de Historia Clínica / health-hub). La ruta sigue siendo /kit.
  * Sin imágenes B/N aún → EditorialCard cae a placeholder de gradient (assets pendientes).
  */
@@ -38,6 +39,19 @@ const PILLARS = [
     gradient: ['#A8E02A', '#1ABC9C'] as [string, string],
     route: '/habits-portal',
     imageBn: require('@/assets/images/pillars/habitos.png'),
+  },
+  // hotfix-ux FIX 1: entry point del hub COMUNIDAD (bloqueador #3). No existe app/comunidad/index.tsx;
+  // el hub de facto es /comunidad/ranking (desde ahí se llega a Amigos por el header y a perfiles por
+  // cada fila). Sin asset B/N aún → EditorialCard cae al placeholder de gradient (patrón documentado).
+  {
+    cardKey: 'kit_comunidad',
+    icon: '🤝',
+    title: 'COMUNIDAD',
+    subtitle: 'Ranking · Amigos · Tribu',
+    message: 'Comunidad, no competencia',
+    gradient: ['#7F77DD', '#5B9BD5'] as [string, string],
+    route: '/comunidad/ranking',
+    imageBn: undefined,
   },
 ];
 
