@@ -24,14 +24,17 @@ export type KudosKey = (typeof KUDOS_EMOJIS)[number]['key'];
 export const KUDOS_KEYS: KudosKey[] = KUDOS_EMOJIS.map(k => k.key);
 
 // ── Feed: whitelist de eventos (SOLO no-clínico) ─────────────────────────────
-// day_complete queda FUERA de v1 (decisión #4): se agrega post-DX-F4 cuando
-// adherence-service sea la fuente estable. NO incluir aquí hasta entonces.
+// day_complete ENTRA en V1.1 (megabuzón Sprint 4, 2026-07): la exclusión
+// original de la decisión #4 ("fuera de v1 hasta post-DX-F4") queda revertida —
+// daily_plans.compliance_pct ya es la fuente estable (adherence-service).
+// El CHECK de la migración 193 es el espejo hardcodeado de esta lista.
 
 export const FEED_EVENT_TYPES = [
   'badge_earned',
   'streak_milestone',
   'rank_up',
   'fitness_pr',
+  'day_complete',
 ] as const;
 
 export type FeedEventType = (typeof FEED_EVENT_TYPES)[number];

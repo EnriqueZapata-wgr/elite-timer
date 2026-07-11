@@ -29,8 +29,15 @@ describe('anti-leak · whitelist del feed', () => {
     }
   });
 
-  it('day_complete queda fuera de v1 (decisión #4)', () => {
-    expect((FEED_EVENT_TYPES as readonly string[]).includes('day_complete')).toBe(false);
+  // CAMBIO DE DECISIÓN (V1.1, megabuzón Sprint 4 2026-07): la decisión #4
+  // excluía day_complete de v1 hasta que adherence-service fuera fuente estable
+  // (post-DX-F4). Eso ya ocurrió — daily_plans.compliance_pct es la fuente — y
+  // el megabuzón aprueba su entrada al whitelist. Este test fijaba la exclusión;
+  // ahora fija la INCLUSIÓN (y que siga siendo no-clínico: disjunto de FORBIDDEN,
+  // verificado arriba).
+  it('day_complete entra en V1.1 (decisión #4 revertida por megabuzón Sprint 4)', () => {
+    expect((FEED_EVENT_TYPES as readonly string[]).includes('day_complete')).toBe(true);
+    expect((FORBIDDEN_FEED_EVENTS as readonly string[]).includes('day_complete')).toBe(false);
   });
 });
 

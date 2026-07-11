@@ -7,6 +7,8 @@
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { computeStreak, computeAvgCompliance } from '@/src/services/adherence-service';
+import { emitDayComplete } from '@/src/services/community/feed-service';
+import { isDayComplete } from '@/src/services/community/feed-core';
 import { warn as logWarn } from '@/src/lib/logger';
 
 // === TYPES ===
@@ -162,6 +164,13 @@ export async function toggleAction(userId: string, date: string, actionId: strin
   const { data } = await supabase
     .from('daily_plans').update({ actions, completed_actions: completedCount, compliance_pct: compliance })
     .eq('id', plan.id).select().single();
+
+  // Comunidad V1.1 §2.4: día completo (100%) → evento day_complete al feed
+  // social. Fire-and-forget (emitDayComplete jamás lanza), payload no-clínico
+  // (fecha + score) e idempotente por (user, fecha) — UNIQUE parcial de la 193.
+  if (isDayComplete(compliance)) {
+    void emitDayComplete(userId, date, compliance);
+  }
 
   return data as DailyPlan;
 }
