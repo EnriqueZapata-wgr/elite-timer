@@ -46,7 +46,7 @@ function ResultRow({ row, state, onAdd }: {
   const name = publicDisplayName(row);
   return (
     <View style={s.row}>
-      <Pressable style={s.rowMain} onPress={() => router.push(`/comunidad/perfil/${row.user_id}`)}>
+      <Pressable style={s.rowMain} onPress={() => router.push(`/comunidad/perfil/${row.user_id}` as any)}>
         <UserAvatar uri={row.avatar_url} name={name} size={38} />
         <View style={{ flex: 1 }}>
           <EliteText style={s.name} numberOfLines={1}>{name}</EliteText>

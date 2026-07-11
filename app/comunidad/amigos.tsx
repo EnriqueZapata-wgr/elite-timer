@@ -30,7 +30,7 @@ import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 
 function openProfile(userId: string) {
-  router.push(`/comunidad/perfil/${userId}`);
+  router.push(`/comunidad/perfil/${userId}` as any);   // expo-router typegen post-beta
 }
 
 function IncomingRow({ row, onRespond }: {
@@ -144,7 +144,7 @@ export default function CommunityFriendsScreen() {
           <Pressable onPress={() => router.back()} hitSlop={12}>
             <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
           </Pressable>
-          <Pressable onPress={() => router.push('/comunidad/buscar')} hitSlop={12}>
+          <Pressable onPress={() => router.push('/comunidad/buscar' as any)} hitSlop={12}>
             <Ionicons name="search" size={22} color={TEXT.primary} />
           </Pressable>
         </View>
@@ -184,7 +184,7 @@ export default function CommunityFriendsScreen() {
               title="Todavía no tienes amigos aquí"
               subtitle="Busca a tu gente por nombre de usuario y entrena acompañado."
               actionLabel="Buscar personas"
-              onAction={() => router.push('/comunidad/buscar')}
+              onAction={() => router.push('/comunidad/buscar' as any)}
               color={ATP_BRAND.lime}
             />
           )
@@ -194,7 +194,7 @@ export default function CommunityFriendsScreen() {
       </Animated.View>
 
       {friends.length > 0 && (
-        <Pressable style={s.searchLink} onPress={() => router.push('/comunidad/buscar')}>
+        <Pressable style={s.searchLink} onPress={() => router.push('/comunidad/buscar' as any)}>
           <Ionicons name="person-add-outline" size={16} color={ATP_BRAND.lime} />
           <EliteText style={s.searchLinkText}>Buscar más personas</EliteText>
         </Pressable>
