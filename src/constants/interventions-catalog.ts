@@ -20,10 +20,14 @@
  * ⏳ PENDIENTE 2da sesión Mariana: validar ajustes v3 + agregar ciclo femenino,
  * tiroides, postparto, salud masculina, piel, immune post-infección.
  *
- * ⚠️ REQUIEREN VALIDACIÓN CLÍNICA MARIANA (marcadas con nota):
+ * ⚠️ REQUIEREN VALIDACIÓN CLÍNICA MARIANA (campo `requiresClinicalValidation: true`;
+ * Mariana quita el flag al firmar cada una — task #9). El motor NO las sugiere
+ * (matchInterventions las excluye de suggestions/universals); el user sí puede
+ * activarlas manualmente si ya las tiene en user_interventions. Flaggeadas hoy:
  *  bulletproof_coffee (Cowork corregido: doctrina Enrique BPC no sube insulina),
- *  wim_hof_metodo, hiperventilacion_matutina, tablas_co2_o2, luz_roja_ojos,
- *  dive_reflex_cara_hielo, jawzercise.
+ *  wim_hof_basico, wim_hof_extendido, hiperventilacion_matutina, tabla_co2,
+ *  tabla_o2, luz_roja_ojos, dive_reflex_cara_hielo, jawzercise, ayuno_20_4_omad,
+ *  ejercicio_ayuno_fuerza, protocolo_ayuno_sardinas.
  */
 import type { InterventionCategory, InterventionRoot } from './intervention-vocab';
 

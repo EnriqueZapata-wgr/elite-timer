@@ -11,6 +11,8 @@ import {
 } from '../intervention-service-core';
 import { matchInterventions } from '../intervention-engine-core';
 import type { DxRoot } from '../intervention-engine-core';
+import { CLINICAL_VALIDATION_PENDING } from '@/src/constants/interventions-catalog';
+import { INTERVENTION_ROOTS } from '@/src/constants/intervention-vocab';
 
 const USER = 'user-1';
 
@@ -79,6 +81,24 @@ describe('planSuggestedInserts', () => {
   it('con todo existente → cero inserts', () => {
     const all = planSuggestedInserts(USER, match, [], 'dx-1', schedule).map(i => i.intervention_key);
     expect(planSuggestedInserts(USER, match, all, 'dx-1', schedule)).toHaveLength(0);
+  });
+
+  it('gating clínico end-to-end: ninguna pendiente llega a user_interventions vía sync', () => {
+    const fullDx: DxRoot[] = INTERVENTION_ROOTS.map(r => ({ root_key: r, severity: 5 }));
+    const inserts = planSuggestedInserts(USER, matchInterventions(fullDx), [], 'dx-1', schedule);
+    const pendingKeys = new Set(CLINICAL_VALIDATION_PENDING.map(i => i.key));
+    for (const ins of inserts) {
+      expect(pendingKeys.has(ins.intervention_key), `${ins.intervention_key} pendiente insertada`).toBe(false);
+    }
+  });
+
+  it('data existente intacta: una pendiente ya activa del user resuelve y ordena normal', () => {
+    // El user activó bulletproof_coffee antes del gating → sigue viva en su protocolo.
+    const rows = [row({ intervention_key: 'bulletproof_coffee', status: 'active', priority: 2 })];
+    const resolved = resolveRows(rows);
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0].def.name).toBe('Bulletproof coffee');
+    expect(sortProtocol(resolved)).toHaveLength(1);
   });
 });
 
