@@ -27,6 +27,9 @@ export const ELECTRON_WEIGHTS = {
   // #v13e 3.A.3: cardio booleano VERIFICADO (completed = ≥1 sesión en cardio_sessions hoy). El award
   // sucede al guardar en /log-cardio + reconcileVerifiedLedger lo mantiene honesto.
   cardio:              { weight: 2.5, name: 'Cardio',                   icon: 'heart-half-outline',      color: '#fb7185' },
+  // dx-f3: compleción diaria de una intervención de Mi Protocolo. NO es toggle del HOY (no va en
+  // MANDATORY_BOOLEANS): el award sale de logCompletion con idempotencyKey por intervención+día.
+  intervention:        { weight: 1.5, name: 'Intervención',             icon: 'medkit-outline',          color: '#1D9E75' },
 
   // Cuantitativos diarios (proporcional al %)
   protein:      { weight: 2.0, name: 'Proteína',        icon: 'restaurant-outline',    color: '#a6c8ff' },

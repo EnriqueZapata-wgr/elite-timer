@@ -49,9 +49,20 @@ describe('interventions-catalog structure', () => {
 });
 
 describe('universales (fallback garantizado)', () => {
-  it('hay al menos los universales base', () => {
-    expect(UNIVERSAL_INTERVENTIONS.length).toBeGreaterThanOrEqual(4);
-    for (const u of UNIVERSAL_INTERVENTIONS) expect(u.isUniversal).toBe(true);
+  it('son exactamente los 7 universales P1 (doctrina dx-f3)', () => {
+    expect(UNIVERSAL_INTERVENTIONS.map(u => u.key).sort()).toEqual([
+      'apagar_pantallas_noche',
+      'exposicion_solar_matutina',
+      'grounding',
+      'hidratacion_matutina',
+      'recordatorio_comer',
+      'recordatorio_dormir',
+      'respiracion_nocturna',
+    ]);
+    for (const u of UNIVERSAL_INTERVENTIONS) {
+      expect(u.isUniversal).toBe(true);
+      expect(u.priority, `${u.key} debe ser P1`).toBe(1);
+    }
   });
 
   it('universales circadianos declaran circadian y no timeOfDay fijo', () => {

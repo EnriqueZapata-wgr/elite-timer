@@ -38,6 +38,7 @@ import {
   type ClinicalSymptom,
 } from '@/src/services/clinical-history-service';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { MyProtocolCard } from '@/src/components/interventions/MyProtocolCard';
 
 type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string };
 
@@ -164,6 +165,20 @@ function HealthHubScreen() {
               <Text style={s.summaryCtaSecondaryText}>Ver reporte ARGOS</Text>
             </AnimatedPressable>
           </View>
+        </Animated.View>
+
+        {/* ── Diagnóstico + Protocolo (Card A + Card B — dx-f3) ── */}
+        <Animated.View entering={FadeInUp.delay(100).springify()}>
+          <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Diagnóstico y protocolo</SectionTitle>
+          <EditorialCard
+            cardKey="hh_diagnostico"
+            icon="🧬"
+            title="MI DIAGNÓSTICO FUNCIONAL"
+            subtitle="Raíces detectadas · nivel 1-5 · versionado"
+            gradient={['#1D9E75', '#0EA5E9']}
+            onTap={() => router.push('/salud/diagnostico' as any)}
+          />
+          <MyProtocolCard />
         </Animated.View>
 
         {/* ── 7 sistemas funcionales ── */}

@@ -115,8 +115,9 @@ describe('timing circadiano', () => {
     expect(subtractMinutes('25:00', 30)).toBeNull();
   });
 
-  it('computeUniversalTime sleep = 30 min antes de dormir', () => {
-    expect(computeUniversalTime('sleep', { sleep_time: '23:00' })).toBe('22:30');
+  it('computeUniversalTime sleep = 60 min antes de dormir (dx-f3)', () => {
+    expect(computeUniversalTime('sleep', { sleep_time: '23:00' })).toBe('22:00');
+    expect(computeUniversalTime('sleep', { sleep_time: '00:30' })).toBe('23:30');
     expect(computeUniversalTime('sleep', {})).toBeNull();
   });
 
