@@ -56,6 +56,9 @@ const HEALTH_HUB_IMAGES: Record<string, any> = {
   cinematicas: require('@/assets/images/health-hub/pruebas-cinematicas.png'),
   // #67 p5b: sin asset dedicado aún — reutiliza el B/N de tests
   historia_clinica: require('@/assets/images/health-hub/tests-evaluaciones.png'),
+  // SALUD F5: sin assets dedicados aún — reutilizan B/N vecinos
+  sintomas: require('@/assets/images/health-hub/mi-salud.png'),
+  padecimientos: require('@/assets/images/health-hub/biomarcadores.png'),
 };
 
 const CARDS: Card[] = [
@@ -70,6 +73,9 @@ const CARDS: Card[] = [
   { key: 'tests', title: 'TESTS Y EVALUACIONES', subtitle: 'Braverman · Evaluaciones funcionales', icon: '🧠', gradient: ['#C084FC', '#8B5CF6'], route: '/quizzes' },
   // #67 p5b (cherry-pick 7570251): cuestionarios de historia clínica funcional
   { key: 'historia_clinica', title: 'HISTORIA CLÍNICA', subtitle: 'Padecimientos, familiares, tratamientos, salud bucal', icon: '📋', gradient: ['#1D9E75', '#16A34A'], route: '/historia-clinica' },
+  // SALUD F5: síntomas aislados quick-tap + registro de padecimientos (alimentan el DX; tablas 173/174)
+  { key: 'sintomas', title: 'SÍNTOMAS', subtitle: 'Registro rápido de síntomas sueltos y su timeline', icon: '🩹', gradient: ['#1D9E75', '#0EA5E9'], route: '/salud/sintomas' },
+  { key: 'padecimientos', title: 'PADECIMIENTOS', subtitle: 'Tus condiciones y episodios — tu expediente vivo', icon: '🗂️', gradient: ['#1D9E75', '#F59E0B'], route: '/salud/padecimientos' },
   { key: 'cinematicas', title: 'PRUEBAS CINEMÁTICAS', subtitle: 'Plank · BOLT · Old Man · Recovery HR', icon: '🏃', gradient: ['#22D3EE', '#0EA5E9'], route: '/edad-atp/cinematic-tests-index' },
 ];
 
