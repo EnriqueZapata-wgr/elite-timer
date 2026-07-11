@@ -7,8 +7,9 @@
  * onboarding-v2-core.ts porque son parte del modelo, no del chrome de UI.
  *
  * El copy de consent está alineado con
- * Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md —
- * cambios ahí requieren review de Mariana.
+ * Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md y con el
+ * review aprobado de Mariana (Beta_Launch_Kit/06_COPY_MARIANA_REVIEW_COMPACTO.md,
+ * sección 9, ítems >>) — cambios ahí requieren review de Mariana.
  *
  * Archivo puro (sin react-native): testeable con el harness Vitest node-only.
  */
@@ -87,7 +88,7 @@ export const ONBOARDING_COPY = {
       },
       {
         icon: 'medkit-outline',
-        text: 'Las recomendaciones (suplementos, ayuno, protocolos, ejercicio) son informativas y no sustituyen el consejo de tu médico.',
+        text: 'ATP no reemplaza una consulta médica o nutricional. Las recomendaciones (suplementos, ayuno, protocolos, ejercicio) se basan en medicina funcional y no sustituyen una consulta personalizada.',
       },
       {
         icon: 'warning-outline',
@@ -96,6 +97,10 @@ export const ONBOARDING_COPY = {
       {
         icon: 'analytics-outline',
         text: 'Los análisis de laboratorios y biomarcadores usan rangos funcionales de referencia; su interpretación clínica corresponde a tu profesional de salud.',
+      },
+      {
+        icon: 'hardware-chip-outline',
+        text: 'ARGOS procesa tus datos con inteligencia artificial para personalizar tus recomendaciones. Al continuar das tu consentimiento explícito para este procesamiento.',
       },
     ],
     checkbox:

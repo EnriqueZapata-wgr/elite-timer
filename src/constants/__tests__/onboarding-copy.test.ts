@@ -25,11 +25,23 @@ describe('onboarding-copy · estructura', () => {
     for (const s of strings) expect(s.trim().length).toBeGreaterThan(0);
   });
 
-  it('consent conserva los 4 disclaimers médicos y el checkbox explícito', () => {
-    expect(ONBOARDING_COPY.consent.points).toHaveLength(4);
+  it('consent conserva los 5 disclaimers médicos y el checkbox explícito', () => {
+    expect(ONBOARDING_COPY.consent.points).toHaveLength(5);
     expect(ONBOARDING_COPY.consent.checkbox).toMatch(/no sustituye atención médica/i);
     // Compliance: nunca prometer diagnóstico/tratamiento.
     expect(ONBOARDING_COPY.consent.points[0].text).toMatch(/No diagnostica/i);
+  });
+
+  it('consent incluye los 3 disclaimers aprobados por Mariana (doc 06, >>)', () => {
+    const texts = ONBOARDING_COPY.consent.points.map((p) => p.text).join(' ');
+    // 1) ATP no reemplaza consulta médica o nutricional.
+    expect(texts).toMatch(/no reemplaza una consulta médica o nutricional/i);
+    // 2) Recomendaciones basadas en medicina funcional, no sustituyen consulta personalizada.
+    expect(texts).toMatch(/medicina funcional/i);
+    expect(texts).toMatch(/no sustituyen una consulta personalizada/i);
+    // 3) Consentimiento explícito para procesamiento IA.
+    expect(texts).toMatch(/consentimiento explícito/i);
+    expect(texts).toMatch(/inteligencia artificial/i);
   });
 
   it('el skip existe con advertencia leve (no bloqueante, no culposa)', () => {

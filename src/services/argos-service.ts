@@ -1425,8 +1425,9 @@ export async function chatWithArgosEx(
       };
     }
     console.warn('ARGOS chat error:', e);
+    // Copy aprobado por Mariana (doc 06, errores ARGOS >> "se cayó la red").
     return {
-      text: 'Lo siento, no pude procesar tu consulta.',
+      text: 'Se me fue la señal. Reintenta en unos minutos.',
       degraded: true,
     };
   }
@@ -1438,7 +1439,7 @@ export async function chatWithArgosEx(
   // T5 MAGIA 2.0: payload enriquecido del rate limit → RateLimitCard en el caller.
   const rateLimit = parseRateLimitInfo(data) ?? undefined;
   const rawText = data?.content?.[0]?.text;
-  const text = rawText || 'Lo siento, no pude procesar tu consulta.';
+  const text = rawText || 'Se me fue la señal. Reintenta en unos minutos.';
 
   // Post-LLM enforcement (Step COACH 7/N): si la respuesta es una recomendación
   // clínico-colindante SIN nivel de evidencia explícito, anótala (no la modifica).

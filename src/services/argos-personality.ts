@@ -13,8 +13,10 @@
  *  - La hora se resuelve en zona América/Ciudad de México (patrón v6), pero
  *    la fuente de hora es inyectable para tests deterministas.
  *
- * NOTA DE COPY: las frases son BORRADOR de Fable. Enrique/Mariana validan el
- * wording final antes de Founders M1 (marcadas en el buzón de entrega).
+ * NOTA DE COPY: encouragement/concern/celebration usan el copy APROBADO por
+ * Mariana (Beta_Launch_Kit/06_COPY_MARIANA_REVIEW_COMPACTO.md, review
+ * 2026-07-10, ítems marcados >>). Los greetings quedan como estaban por
+ * decisión de Enrique (sprint POLISH).
  */
 
 // ── Franja horaria ────────────────────────────────────────────────────────
@@ -115,26 +117,25 @@ export const ARGOS_VOICE = {
     ],
   } as Record<GreetingSlot, string[]>,
 
-  // Al completar hábitos / acciones efectivas.
+  // Al completar hábitos / acciones efectivas. Copy aprobado (doc 06, >>).
   encouragement: [
-    'Eso cuenta. Acción efectiva registrada.',
-    'Un electrón más al sistema. Sigue.',
-    'Consistencia sobre intensidad. Vas bien.',
-    'Sumado. El proceso se construye así, un dato a la vez.',
+    'Bien. Un paso más.',
+    'Confirmado. Te llevo la cuenta.',
   ],
 
-  // Al detectar drops en métricas / racha en riesgo.
+  // Al detectar drops en métricas / racha en riesgo. Copy aprobado (doc 06, >>).
   concern: [
-    'Vi una caída en tus datos. No es alarma, es señal. Ajustemos.',
-    'Algo bajó respecto a tu línea base. Hablemos de qué pasó.',
-    'Tu sistema pide atención hoy. Prioricemos recuperación.',
+    'Se vale fallar, pero no se vale rendirse, retomemos el rumbo.',
+    'Detecté que no hay registro de hábito, ¿olvidaste anotarlo?',
+    '¿Todo bien?',
   ],
 
-  // Al alcanzar hitos: rachas, PRs, rangos.
+  // Al alcanzar hitos: rachas, PRs, rangos. Copy aprobado (doc 06, >>).
+  // {porcentaje} lo provee el caller (percentil del hito); sin dato, no usar esa variante.
   celebration: [
-    'Eso es un récord tuyo. Documentado. Bien hecho, {nombre}.',
-    'Nuevo hito, {nombre}. El proceso está rindiendo.',
-    'Racha sostenida. Esto ya no es suerte, es método.',
+    'Récord roto. Vas con todo.',
+    'Nuevo rango conseguido. Bien merecido.',
+    'Solo {porcentaje}% de las personas logran algo así, sigue adelante.',
   ],
 } as const;
 
@@ -183,12 +184,18 @@ export class VoiceRotator {
 // ── Templating ──────────────────────────────────────────────────────────────
 
 /**
- * Sustituye {nombre} (y colapsa el saludo si no hay nombre para no dejar
- * comas huérfanas: "Buenos días, ." → "Buenos días."). Trim final.
+ * Sustituye {nombre} y {porcentaje} (y colapsa el saludo si no hay nombre para
+ * no dejar comas huérfanas: "Buenos días, ." → "Buenos días."). Trim final.
  */
-export function formatVoiceLine(line: string, vars: { nombre?: string }): string {
+export function formatVoiceLine(
+  line: string,
+  vars: { nombre?: string; porcentaje?: string | number },
+): string {
   const nombre = (vars.nombre ?? '').trim();
   let out = line.replace(/\{nombre\}/g, nombre);
+  if (vars.porcentaje !== undefined) {
+    out = out.replace(/\{porcentaje\}/g, String(vars.porcentaje));
+  }
   if (!nombre) {
     // Limpia comas/vocativos huérfanos que quedaban antes/después del nombre.
     out = out
