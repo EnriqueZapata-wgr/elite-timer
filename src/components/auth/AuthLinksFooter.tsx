@@ -5,13 +5,13 @@
  */
 import { View, StyleSheet, Pressable, Linking } from 'react-native';
 import { EliteText } from '@/components/elite-text';
-import { ATP_BRAND, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, SKOOL_URL } from '@/src/constants/brand';
 import { Spacing, FontSizes } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
 
 const URLS = {
   web: 'https://www.somosatp.com',
-  comunidad: 'https://www.skool.com/the-vital-order-7560/about',
+  comunidad: SKOOL_URL, // C5: constante única (antes hardcode)
   terminos: 'https://www.somosatp.com/terminosycondiciones',
   privacidad: 'https://www.somosatp.com/avisodeprivacidad',
 } as const;

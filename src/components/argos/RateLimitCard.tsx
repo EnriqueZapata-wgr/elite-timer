@@ -9,7 +9,7 @@
  * COPY tentativo — revisar con Enrique post-sprint.
  */
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Linking, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +21,7 @@ import { formatFull } from '@/src/services/economy/format';
 import { canOfferBoost, formatResetWait, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { ATP_BRAND, ELEVATION, SEMANTIC, TEXT, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, SEMANTIC, TEXT, withOpacity, SKOOL_URL } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 interface Props {
@@ -130,6 +130,16 @@ export function RateLimitCard({ info, onBoostActivated }: Props) {
           </AnimatedPressable>
         </>
       )}
+
+      {/* C5 COMUNIDAD: bridge a la Tribu (Skool) — no cambia el copy aprobado de arriba */}
+      <AnimatedPressable
+        onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
+        style={s.tribeBtn}
+      >
+        <EliteText style={s.tribeText}>
+          O si prefieres hablar con humanos ahora mismo, la Tribu está en Skool.
+        </EliteText>
+      </AnimatedPressable>
     </Animated.View>
   );
 }
@@ -178,6 +188,12 @@ const s = StyleSheet.create({
   boostBtnText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: '#000' },
   secondaryBtn: { alignItems: 'center', paddingVertical: 4 },
   secondaryText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
+  // C5 COMUNIDAD: bridge a la Tribu (Skool)
+  tribeBtn: { alignItems: 'center', paddingVertical: 4 },
+  tribeText: {
+    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary,
+    textAlign: 'center', lineHeight: 18, textDecorationLine: 'underline',
+  },
 });
 
 export default RateLimitCard;
