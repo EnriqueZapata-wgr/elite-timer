@@ -26,7 +26,7 @@ export const REFERRED_BONUS_PROTONS = 5_000;
 export type ActionKey =
   | 'chat' | 'food_estimate_photo' | 'supplement_scan' | 'lab_interpretation'
   | 'routine' | 'food_estimate_text' | 'insight' | 'weekly_insight'
-  | 'braverman_premium_report';
+  | 'braverman_premium_report' | 'dx_generation';
 
 /** Fallback de costos si la tabla no respondió (mismos números que el seed 086, normalizados /10). */
 export const FALLBACK_ACTION_COSTS: Record<ActionKey, number> = {
@@ -40,4 +40,6 @@ export const FALLBACK_ACTION_COSTS: Record<ActionKey, number> = {
   weekly_insight: 40,
   // #143: reportes premium — ancla doctrina H+ (seed en migración 162)
   braverman_premium_report: 1000,
+  // DX+Intervenciones F2: síntesis "Mi Diagnóstico Funcional" (seed server-side)
+  dx_generation: 1000,
 };
