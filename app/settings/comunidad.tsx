@@ -131,6 +131,18 @@ export default function SettingsComunidadScreen() {
         )}
       </Animated.View>
 
+      {/* ── Amigos (C2) ── */}
+      <Animated.View entering={FadeInUp.delay(115).springify()}>
+        <Pressable style={s.friendsLink} onPress={() => router.push('/comunidad/amigos')}>
+          <Ionicons name="people-outline" size={20} color={ATP_BRAND.lime} />
+          <View style={{ flex: 1 }}>
+            <EliteText style={s.rowTitle}>Mis amigos</EliteText>
+            <EliteText style={s.rowDesc}>Solicitudes, tu tribu y buscar personas.</EliteText>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+        </Pressable>
+      </Animated.View>
+
       {/* ── Aparecer ── */}
       <Animated.View entering={FadeInUp.delay(140).springify()}>
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Descubrimiento</SectionTitle>
@@ -184,6 +196,11 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 8,
+  },
+  friendsLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.md, padding: Spacing.md, marginTop: Spacing.md,
   },
   skoolCard: {
     backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,

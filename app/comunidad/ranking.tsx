@@ -38,7 +38,10 @@ function LeaderRow({ row, highlight }: { row: RankedLeaderboardRow; highlight?: 
   const name = row.display_name ?? row.username ?? 'Atleta ATP';
   const medal = MEDALS[row.position];
   return (
-    <View style={[s.row, highlight && s.rowHighlight]}>
+    <Pressable
+      style={[s.row, highlight && s.rowHighlight]}
+      onPress={() => router.push(`/comunidad/perfil/${row.user_id}`)}
+    >
       <View style={s.posWrap}>
         {medal
           ? <EliteText style={s.medal}>{medal}</EliteText>
@@ -61,7 +64,7 @@ function LeaderRow({ row, highlight }: { row: RankedLeaderboardRow; highlight?: 
           <EliteText style={s.streak}>🔥 {row.streak_days}</EliteText>
         )}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -96,9 +99,15 @@ export default function CommunityRankingScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ATP_BRAND.lime} />}
     >
       <View style={{ paddingTop: insets.top + 8 }}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
-        </Pressable>
+        <View style={s.headerRow}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+          </Pressable>
+          {/* C2: acceso a Amigos desde el header de comunidad */}
+          <Pressable onPress={() => router.push('/comunidad/amigos')} hitSlop={12}>
+            <Ionicons name="people-outline" size={22} color={TEXT.primary} />
+          </Pressable>
+        </View>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
           <EliteText style={s.title}>Ranking</EliteText>
           <EliteText style={s.subtitle}>Comunidad, no competencia. Celebramos la constancia.</EliteText>
@@ -148,6 +157,7 @@ export default function CommunityRankingScreen() {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 28, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: Spacing.md },
   subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 4 },
   sectionTitle: {
