@@ -604,7 +604,9 @@ async function buildAgenda(
   // F03.7: prioridad de wake_time:
   //   1. user_day_preferences.goals.wake_time (lo que el usuario edita en
   //      protocol-config — fuente más reciente).
-  //   2. user_chronotype.schedule.wake_time (set en onboarding).
+  //   2. user_chronotype.wake_time (columna PLANA, set en onboarding).
+  //      HOTFIX schema: NO existe columna `schedule` — el select viejo daba
+  //      400 silencioso y wakeTime caía siempre al default.
   //   3. fallback '07:00'.
   let wakeTime = '07:00';
   if (wakeFromPrefs) {
@@ -612,9 +614,9 @@ async function buildAgenda(
   } else {
     try {
       const { data: chrono } = await supabase
-        .from('user_chronotype').select('schedule')
+        .from('user_chronotype').select('wake_time')
         .eq('user_id', userId).maybeSingle();
-      if (chrono?.schedule?.wake_time) wakeTime = chrono.schedule.wake_time;
+      if ((chrono as any)?.wake_time) wakeTime = (chrono as any).wake_time;
     } catch { /* default 07:00 */ }
   }
 
@@ -742,11 +744,13 @@ async function buildAgenda(
   } catch { /* sin meal_times → defaults ya los trae el servicio */ }
 
   // === SUEÑO objetivo (cronotipo; informativo) ===
+  // HOTFIX schema: sleep_time es columna PLANA — el select de `schedule`
+  // daba 400 silencioso y el item de sueño nunca aparecía en la agenda.
   try {
     const { data: chrono } = await supabase
-      .from('user_chronotype').select('schedule, sleep_time')
+      .from('user_chronotype').select('sleep_time')
       .eq('user_id', userId).maybeSingle();
-    const sleepRaw = (chrono as any)?.schedule?.sleep_time ?? (chrono as any)?.sleep_time;
+    const sleepRaw = (chrono as any)?.sleep_time;
     const sleepItem = sleepAgendaItem(sleepRaw);
     if (sleepItem) items.push(sleepItem);
   } catch { /* sin cronotipo → sin item de sueño */ }

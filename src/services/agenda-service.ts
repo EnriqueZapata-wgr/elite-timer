@@ -116,11 +116,13 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
     };
 
     // Cronotipo → despertar + dormir
+    // HOTFIX schema: wake_time/sleep_time son columnas PLANAS — NO existe
+    // columna `schedule` (el select viejo daba 400 silencioso → sin eventos).
     try {
       const { data: chrono } = await supabase
-        .from('user_chronotype').select('schedule').eq('user_id', userId).maybeSingle();
-      const wake = (chrono as any)?.schedule?.wake_time;
-      const sleep = (chrono as any)?.schedule?.sleep_time;
+        .from('user_chronotype').select('wake_time, sleep_time').eq('user_id', userId).maybeSingle();
+      const wake = (chrono as any)?.wake_time;
+      const sleep = (chrono as any)?.sleep_time;
       if (typeof wake === 'string' && /^\d{1,2}:\d{2}/.test(wake)) pushEvent('Despertar', wake, 'ritmo', 'chronotype');
       if (typeof sleep === 'string' && /^\d{1,2}:\d{2}/.test(sleep)) pushEvent('Dormir', sleep, 'sueño', 'chronotype');
     } catch (e) { logWarn('[agenda] chronotype gen failed', e); }

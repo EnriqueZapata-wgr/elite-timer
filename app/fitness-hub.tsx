@@ -60,20 +60,24 @@ export default function FitnessHubScreen() {
 
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
+      // HOTFIX schema: exercise_logs no tiene columna `date` — es `logged_at`
+      // (mismo bug de clase que personal_records abajo: 400 silencioso → stats en 0).
       const { data: logs } = await supabase
         .from('exercise_logs')
-        .select('date, weight_kg, reps')
+        .select('logged_at, weight_kg, reps')
         .eq('user_id', user.id)
-        .gte('date', weekAgo);
+        .gte('logged_at', weekAgo);
 
-      const uniqueDays = new Set((logs || []).map(l => l.date)).size;
+      const uniqueDays = new Set((logs || []).map(l => String(l.logged_at ?? '').slice(0, 10))).size;
       const totalVolume = (logs || []).reduce((sum, l) => sum + ((l.weight_kg || 0) * (l.reps || 0)), 0);
 
+      // HOTFIX schema (verificado por SQL): personal_records no tiene `date` —
+      // la columna real es `achieved_at`. El date=gte daba 400 silencioso.
       const { data: prs } = await supabase
         .from('personal_records')
         .select('id')
         .eq('user_id', user.id)
-        .gte('date', weekAgo);
+        .gte('achieved_at', weekAgo);
 
       setStats({ sessions: uniqueDays, volume: Math.round(totalVolume), prs: prs?.length || 0 });
     } catch { /* opcional */ }
@@ -85,7 +89,10 @@ export default function FitnessHubScreen() {
       if (!user) return;
 
       const { data: prs } = await supabase.from('personal_records').select('id').eq('user_id', user.id);
-      const { data: routines } = await supabase.from('routines').select('id').eq('user_id', user.id);
+      // HOTFIX schema: routines usa `creator_id` (no `user_id`) — ver
+      // routine-service/coach-panel-service. El filtro user_id=eq daba 400
+      // silencioso → "0 rutinas creadas" siempre.
+      const { data: routines } = await supabase.from('routines').select('id').eq('creator_id', user.id);
 
       setDynamicSubs({
         'Mi Fitness': `${prs?.length || 0} récords personales registrados`,

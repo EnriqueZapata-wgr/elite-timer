@@ -91,20 +91,29 @@ export async function getNutritionReport(period: ReportPeriod): Promise<Nutritio
     const dateRange = buildDateRange(days);
     const startDate = dateRange[0];
 
-    const { data } = await supabase
-      .from('food_logs')
-      .select('date, calories, protein_g, score')
-      .eq('user_id', userId)
-      .gte('date', startDate);
+    // HOTFIX schema (verificado por SQL): food_logs NO tiene columna `score` —
+    // el select viejo daba 400 silencioso y TODO el reporte de nutrición salía
+    // en ceros. El score del día vive en daily_nutrition_scores.overall_score.
+    const [{ data }, { data: scoreRows }] = await Promise.all([
+      supabase
+        .from('food_logs')
+        .select('date, calories, protein_g')
+        .eq('user_id', userId)
+        .gte('date', startDate),
+      supabase
+        .from('daily_nutrition_scores')
+        .select('overall_score')
+        .eq('user_id', userId)
+        .gte('date', startDate),
+    ]);
 
     // Agrupar por fecha
-    const byDate = new Map<string, { calories: number; protein: number; scores: number[]; count: number }>();
+    const byDate = new Map<string, { calories: number; protein: number; count: number }>();
     for (const row of (data ?? []) as any[]) {
       const key = row.date;
-      const existing = byDate.get(key) ?? { calories: 0, protein: 0, scores: [], count: 0 };
+      const existing = byDate.get(key) ?? { calories: 0, protein: 0, count: 0 };
       existing.calories += row.calories ?? 0;
       existing.protein += row.protein_g ?? 0;
-      if (row.score != null) existing.scores.push(row.score);
       existing.count += 1;
       byDate.set(key, existing);
     }
@@ -123,7 +132,9 @@ export async function getNutritionReport(period: ReportPeriod): Promise<Nutritio
     const avgProtein = daysWithData > 0
       ? Math.round(totals.reduce((s, t) => s + t.protein, 0) / daysWithData)
       : 0;
-    const allScores = totals.flatMap(t => t.scores);
+    const allScores = ((scoreRows ?? []) as any[])
+      .map((r) => r.overall_score)
+      .filter((n): n is number => typeof n === 'number');
     const avgScore = allScores.length > 0
       ? Math.round(allScores.reduce((s, n) => s + n, 0) / allScores.length)
       : 0;
