@@ -19,6 +19,7 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
+import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import {
   ACTIVITY_META,
   formatDuration,
@@ -139,6 +140,9 @@ export default function MenteHubScreen() {
         >
           <Ionicons name="trophy-outline" size={18} color={ATP_BRAND.lime} />
         </AnimatedPressable>
+      </View>
+      <View style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
+        <CommunityPresence pillar="mente" />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
