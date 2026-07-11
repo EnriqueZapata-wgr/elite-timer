@@ -637,6 +637,94 @@ const HC_EXTENSION: HCQuestionnaire[] = [
 
 HC_QUESTIONNAIRES.push(...HC_EXTENSION);
 
+// ═══════════════════════════════════════════════════════════════════════════
+// FOTOTIPO FITZPATRICK (Salud F5) — 6 preguntas, scoring 0-24 → tipo I-VI.
+// Escala validada clínicamente (Fitzpatrick 1975, Harvard). Los puntos por opción
+// viven en src/services/dx/fitzpatrick-core.ts (FITZPATRICK_POINTS); el resultado
+// se persiste como entero 1-6 en profiles.skin_type (misma columna que ATP SOL).
+// NO cuenta para niveles del DX (no está en HC_BASE_IDS ni HC_AREA_IDS).
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const FITZPATRICK_QUESTIONNAIRE: HCQuestionnaire = {
+  id: 'fitzpatrick',
+  title: 'Fototipo de piel',
+  blurb: '6 preguntas para calibrar tu dosis de sol matutino',
+  icon: 'sunny-outline',
+  color: '#FBBF24',
+  questions: [
+    {
+      id: 'eye_color',
+      text: '¿Cuál es el color natural de tus ojos?',
+      options: [
+        { id: 'azul_claro', text: 'Azul claro, verde claro, gris claro' },
+        { id: 'azul_oscuro', text: 'Azul oscuro, verde oscuro, gris oscuro' },
+        { id: 'cafe_claro', text: 'Café claro, avellana' },
+        { id: 'cafe_oscuro', text: 'Café oscuro' },
+        { id: 'negro', text: 'Café muy oscuro / negro' },
+      ],
+    },
+    {
+      id: 'hair_color',
+      text: '¿Cuál es tu color natural de pelo (sin teñir)?',
+      options: [
+        { id: 'pelirrojo', text: 'Pelirrojo, rubio pálido' },
+        { id: 'rubio', text: 'Rubio, castaño claro' },
+        { id: 'castano_medio', text: 'Castaño medio' },
+        { id: 'castano_oscuro', text: 'Castaño oscuro' },
+        { id: 'negro', text: 'Negro azabache' },
+      ],
+    },
+    {
+      id: 'skin_color_unexposed',
+      text: '¿Cuál es el color natural de tu piel en zonas NO expuestas al sol?',
+      hint: 'Parte interna del brazo',
+      options: [
+        { id: 'muy_blanca', text: 'Muy blanca / blanca lechosa' },
+        { id: 'blanca', text: 'Blanca / marfil' },
+        { id: 'beige', text: 'Beige / oliva claro' },
+        { id: 'morena_clara', text: 'Café claro / moreno claro' },
+        { id: 'oscura', text: 'Café oscuro / negro' },
+      ],
+    },
+    {
+      id: 'freckles',
+      text: '¿Cuántas pecas tienes en zonas NO expuestas al sol?',
+      options: [
+        { id: 'muchas', text: 'Muchas' },
+        { id: 'bastantes', text: 'Bastantes' },
+        { id: 'algunas', text: 'Algunas' },
+        { id: 'pocas', text: 'Pocas' },
+        { id: 'ninguna', text: 'Ninguna' },
+      ],
+    },
+    {
+      id: 'sun_reaction',
+      text: 'Cuando expones tu piel al sol después de mucho tiempo sin exposición, ¿qué le pasa?',
+      hint: 'Ej. primer día de vacaciones',
+      options: [
+        { id: 'siempre_quema', text: 'Siempre se quema, dolorosa, con ampollas' },
+        { id: 'casi_siempre_quema', text: 'Casi siempre se quema, luego a veces se broncea' },
+        { id: 'a_veces_quema', text: 'A veces se quema levemente, luego se broncea gradual' },
+        { id: 'rara_vez_quema', text: 'Rara vez se quema, se broncea bien' },
+        { id: 'nunca_quema', text: 'Nunca se quema, se broncea profundo' },
+      ],
+    },
+    {
+      id: 'tanning_ability',
+      text: 'Después de varias semanas de exposición gradual al sol, ¿qué tan bien te bronceas?',
+      options: [
+        { id: 'nunca', text: 'Nunca me bronceo, solo me pongo rojo' },
+        { id: 'muy_poco', text: 'Me bronceo muy poco' },
+        { id: 'ligero', text: 'Me bronceo ligeramente' },
+        { id: 'bien', text: 'Me bronceo bien' },
+        { id: 'profundo', text: 'Me bronceo profundamente' },
+      ],
+    },
+  ],
+};
+
+HC_QUESTIONNAIRES.push(FITZPATRICK_QUESTIONNAIRE);
+
 /** ID del levantamiento integral (peso alto: sube el DX a nivel 2). */
 export const HC_INTEGRAL_ID = 'integral';
 

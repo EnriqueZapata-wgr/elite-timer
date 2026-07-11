@@ -37,6 +37,8 @@ import {
   effectiveTime,
   type ResolvedUserIntervention,
 } from '@/src/services/interventions/intervention-service-core';
+import { personalizeInterventionHow } from '@/src/services/dx/fitzpatrick-core';
+import { fetchSkinType } from '@/src/services/dx/fitzpatrick-service';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -48,18 +50,21 @@ export default function IntervencionesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [skinType, setSkinType] = useState<number | null>(null);
   const startedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    const [prot, sugg, done] = await Promise.all([
+    const [prot, sugg, done, skin] = await Promise.all([
       getMyProtocol(user.id),
       getSuggestedInterventions(user.id),
       getTodayCompletions(user.id),
+      fetchSkinType(user.id).catch(() => null),
     ]);
     setProtocol(prot);
     setSuggested(sugg);
     setDoneToday(done);
+    setSkinType(skin);
     setLoading(false);
   }, [user?.id]);
 
@@ -155,7 +160,7 @@ export default function IntervencionesScreen() {
                       <View style={{ flex: 1 }}>
                         <EliteText style={styles.rowName} numberOfLines={1}>{item.def.name}</EliteText>
                         <EliteText style={styles.rowMeta} numberOfLines={1}>
-                          {time ? `⏰ ${time} · ` : ''}{item.def.how}
+                          {time ? `⏰ ${time} · ` : ''}{personalizeInterventionHow(item.row.intervention_key, item.def.how, skinType)}
                         </EliteText>
                       </View>
                       <AnimatedPressable
