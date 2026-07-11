@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Text, TextInput,
   Dimensions, DeviceEventEmitter, ImageBackground,
-  LayoutAnimation, Platform, UIManager, ActivityIndicator, Alert, Linking,
+  LayoutAnimation, Platform, UIManager, ActivityIndicator, Alert,
 } from 'react-native';
 import { warn as logWarn } from '@/src/lib/logger';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -66,9 +66,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // #v13d 2.7: HoyDayCard legacy → HoyDayCardEditorial (imagen B/N + tipografía display).
 import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditorial';
 import { TopBanner } from '@/src/components/global/TopBanner';
+// hotfix-ux FIX 4: toast de reacción ARGOS + atribución al ganar electrones.
+import { ArgosReactionToast } from '@/src/components/economy/ArgosReactionToast';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { CARD, SEMANTIC, SURFACES, SKOOL_URL } from '@/src/constants/brand';
+import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
 // DX F4 (swap): items de intervención en la agenda de HOY → logCompletion (no daily_plans).
 import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import { INTERVENTION_ITEM_PREFIX } from '@/src/services/interventions/intervention-agenda-core';
@@ -1187,14 +1189,8 @@ export default function TodayScreen() {
         {/* #hoy-funcionalidad 4.9: SECCIÓN 6 "AGENDA" triple (MAÑANA/TARDE/NOCHE) eliminada
             — el próximo evento vive en HeroAgendaCard; la agenda completa irá a AGENDA V2. */}
 
-        {/* C5 COMUNIDAD: bridge discreto a la Tribu (Skool) al final del scroll */}
-        <AnimatedPressable
-          onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
-          style={s.tribeFooterBtn}
-        >
-          <Ionicons name="people-outline" size={15} color="#888" />
-          <Text style={s.tribeFooterText}>Únete a la Tribu ATP</Text>
-        </AnimatedPressable>
+        {/* hotfix-ux FIX 2: el bridge "Únete a la Tribu ATP" (C5) se retiró del footer del HOY.
+            Los demás bridge points de Skool (Settings, Meet ARGOS, RateLimitCard, check-in) siguen. */}
 
         {/* Espaciado inferior para tab bar */}
         <View style={{ height: 120 }} />
@@ -1248,6 +1244,10 @@ export default function TodayScreen() {
 
         {/* N1: ARGOS vive en el menú inferior, no como FAB. Mic FAB removido. */}
       </View>
+
+      {/* hotfix-ux FIX 4: reacción ARGOS (pool encouragement) + atribución "+X ⚡ Fuente"
+          tras cada award de electrón. Escucha 'electron_awarded' (electron-service). */}
+      <ArgosReactionToast />
     </View>
   );
 }
@@ -1996,23 +1996,6 @@ const s = StyleSheet.create({
     color: '#666',
     fontSize: 12,
     fontFamily: Fonts.semiBold,
-  },
-
-  // ── C5 COMUNIDAD: bridge a la Tribu (Skool), footer del scroll ──
-  tribeFooterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    marginHorizontal: 20,
-    marginTop: 8,
-  },
-  tribeFooterText: {
-    color: '#888',
-    fontSize: 12,
-    fontFamily: Fonts.semiBold,
-    letterSpacing: 0.5,
   },
 
   // ── Agenda ──
