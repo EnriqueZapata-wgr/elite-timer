@@ -39,7 +39,7 @@ export async function getMyPosition(): Promise<MyPosition | null> {
   if (!row) return null;
   const r = row as Record<string, unknown>;
   return {
-    position: Number(r.position ?? 0),
+    position: Number(r.rank_position ?? 0),   // ⚠️ RPC devuelve rank_position — 'position' es reservada Postgres
     total: Number(r.total ?? 0),
     lifetime_electrons: Number(r.lifetime_electrons ?? 0),
     current_rank: Number(r.current_rank ?? 1),

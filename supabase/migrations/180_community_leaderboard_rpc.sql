@@ -67,7 +67,7 @@ END; $$;
 
 CREATE OR REPLACE FUNCTION get_my_leaderboard_position()
 RETURNS TABLE (
-  position INT,
+  rank_position INT,   -- ⚠️ NO usar 'position' — palabra reservada Postgres (función POSITION)
   total INT,
   lifetime_electrons INT,
   current_rank INT,
@@ -90,7 +90,7 @@ BEGIN
   RETURN QUERY
     SELECT
       (1 + (SELECT COUNT(*)::INT FROM electron_balance e2
-              WHERE e2.lifetime_electrons > v_life))::INT AS position,
+              WHERE e2.lifetime_electrons > v_life))::INT AS rank_position,
       (SELECT COUNT(*)::INT FROM electron_balance)          AS total,
       v_life,
       v_rank,
