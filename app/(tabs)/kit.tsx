@@ -1,11 +1,12 @@
 /**
- * Mi ATP — portal de navegación con 2 frentes top-level (#tabs-redesign V1.3).
+ * Mi ATP — portal de navegación con 3 frentes top-level (#tabs-redesign V1.3 · +Comunidad 2026-07-11).
  *
  *   Mi ATP
  *   ├── HISTORIA CLÍNICA → /health-hub (expediente vivo)
- *   └── HÁBITOS          → /habits-portal (práctica diaria)
+ *   ├── HÁBITOS          → /habits-portal (práctica diaria)
+ *   └── COMUNIDAD        → /comunidad (Tribu ATP — amigos, ranking, Skool)
  *
- * Rediseño editorial: 2 cards FULL (EditorialCard size="pillar"). La 3ª card "ATP MI SALUD"
+ * Rediseño editorial: 3 cards FULL (EditorialCard size="pillar"). La 4ª card "ATP MI SALUD"
  * se retiró (su acceso vive dentro de Historia Clínica / health-hub). La ruta sigue siendo /kit.
  * Sin imágenes B/N aún → EditorialCard cae a placeholder de gradient (assets pendientes).
  */
@@ -38,6 +39,17 @@ const PILLARS = [
     gradient: ['#A8E02A', '#1ABC9C'] as [string, string],
     route: '/habits-portal',
     imageBn: require('@/assets/images/pillars/habitos.png'),
+  },
+  {
+    // Comunidad · agregada 2026-07-11 (bug #28 test Enrique: hub sin entry point)
+    cardKey: 'kit_comunidad',
+    icon: '🌐',
+    title: 'COMUNIDAD',
+    subtitle: 'Amigos · ranking · Tribu',
+    message: 'Tu gente en ATP',
+    gradient: ['#E67E22', '#D35400'] as [string, string],
+    route: '/comunidad',
+    imageBn: undefined,   // asset B/N pendiente — cae a gradient placeholder
   },
 ];
 

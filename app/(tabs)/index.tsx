@@ -68,7 +68,7 @@ import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditoria
 import { TopBanner } from '@/src/components/global/TopBanner';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { CARD, SEMANTIC, SURFACES, SKOOL_URL } from '@/src/constants/brand';
+import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
 // DX F4 (swap): items de intervención en la agenda de HOY → logCompletion (no daily_plans).
 import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import { INTERVENTION_ITEM_PREFIX } from '@/src/services/interventions/intervention-agenda-core';
@@ -1187,14 +1187,9 @@ export default function TodayScreen() {
         {/* #hoy-funcionalidad 4.9: SECCIÓN 6 "AGENDA" triple (MAÑANA/TARDE/NOCHE) eliminada
             — el próximo evento vive en HeroAgendaCard; la agenda completa irá a AGENDA V2. */}
 
-        {/* C5 COMUNIDAD: bridge discreto a la Tribu (Skool) al final del scroll */}
-        <AnimatedPressable
-          onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
-          style={s.tribeFooterBtn}
-        >
-          <Ionicons name="people-outline" size={15} color="#888" />
-          <Text style={s.tribeFooterText}>Únete a la Tribu ATP</Text>
-        </AnimatedPressable>
+        {/* C5 COMUNIDAD footer: removido por decisión Enrique (2026-07-11 post-beta test).
+            El bridge Skool vive en: Settings > Comunidad, Meet ARGOS pantalla 5, RateLimitCard.
+            El acceso a Comunidad Hub vive en tab Mi ATP como 3ra card. */}
 
         {/* Espaciado inferior para tab bar */}
         <View style={{ height: 120 }} />
