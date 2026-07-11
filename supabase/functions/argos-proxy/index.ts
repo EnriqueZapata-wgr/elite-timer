@@ -382,9 +382,38 @@ serve(async (req) => {
       }
     }
 
-    const { messages, max_tokens, model, system, userId, tier: clientTier, requestType, targetUserId, targetProfileId, idempotency_key } = body;
+    const { messages, max_tokens, model, system, userId, tier: clientTier, targetUserId, targetProfileId, idempotency_key } = body;
+    let requestType: string | undefined = body.requestType;
     const finalModel = model || PRIMARY_MODEL_DEFAULT;
     const finalMaxTokens = max_tokens || 4000;
+
+    // ─── HARDENING 1.1 (task #23): validar 'dx_generation_first' server-side ───
+    // El cliente elige el requestType, y 'dx_generation_first' cuesta 0 H+
+    // (regalo del 1er DX, migración 186). Un cliente malicioso/buggy podría
+    // mandarlo siempre y saltarse el cobro de 1000 H+. Regla server-side:
+    // el regalo solo aplica si el user NUNCA ha generado un functional_dx
+    // (append-only → CUALQUIER versión cuenta, misma semántica que el
+    // cliente en resolveDxGenerationAction). Si ya hay versiones → se fuerza
+    // 'dx_generation' regular para el cobro y el log.
+    // Fail-open ante error del query: el circuit breaker per-tier (más abajo,
+    // siempre corre antes del LLM) ya acota el abuso, y no queremos cobrarle
+    // 1000 H+ a un 1er DX legítimo por un hiccup de DB.
+    if (requestType === "dx_generation_first" && userId) {
+      try {
+        const { count, error: dxErr } = await supabase
+          .from("functional_dx")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId);
+        if (!dxErr && (count ?? 0) > 0) {
+          console.warn("[hardening] dx_generation_first con DX previo → forzado a dx_generation. user:", userId);
+          requestType = "dx_generation";
+        } else if (dxErr) {
+          console.error("[hardening] verify functional_dx falló (fail-open, queda _first):", dxErr);
+        }
+      } catch (e) {
+        console.error("[hardening] verify functional_dx exception (fail-open):", e);
+      }
+    }
 
     // Detectar tier real server-side (task #40 + task #133 boost H+).
     // El clientTier es informativo — el server es la fuente de verdad.
