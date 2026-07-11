@@ -19,6 +19,7 @@ import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import {
   getLeaderboard,
   getMyPosition,
+  type LeaderboardScope,
 } from '@/src/services/community/leaderboard-service';
 import {
   formatMyPosition,
@@ -33,6 +34,19 @@ import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 const TOP_SIZE = 20;
 
 const MEDALS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
+
+// V1.1 §2.3: scope temporal del board (get_leaderboard windowed, mig 192).
+const SCOPES: { key: LeaderboardScope; label: string }[] = [
+  { key: 'week', label: 'Semana' },
+  { key: 'month', label: 'Mes' },
+  { key: 'all_time', label: 'Histórico' },
+];
+
+const SCOPE_FOOTNOTES: Record<LeaderboardScope, string> = {
+  week: 'El ranking semanal usa tus electrones de los últimos 7 días. Los perfiles privados aparecen con datos ocultos.',
+  month: 'El ranking mensual usa tus electrones de los últimos 30 días. Los perfiles privados aparecen con datos ocultos.',
+  all_time: 'El ranking usa tus electrones de por vida. Los perfiles privados aparecen con datos ocultos.',
+};
 
 function LeaderRow({ row, highlight }: { row: RankedLeaderboardRow; highlight?: boolean }) {
   const name = row.display_name ?? row.username ?? 'Atleta ATP';
@@ -72,17 +86,19 @@ export default function CommunityRankingScreen() {
   const insets = useSafeAreaInsets();
   const [rows, setRows] = useState<RankedLeaderboardRow[]>([]);
   const [me, setMe] = useState<MyPosition | null>(null);
+  const [scope, setScope] = useState<LeaderboardScope>('all_time');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [board, pos] = await Promise.all([getLeaderboard('all_time'), getMyPosition()]);
+    // getMyPosition es all-time (la card "Tu posición" siempre habla de por vida).
+    const [board, pos] = await Promise.all([getLeaderboard(scope), getMyPosition()]);
     setRows(board);
     setMe(pos);
     setLoading(false);
-  }, []);
+  }, [scope]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { setLoading(true); load(); }, [load]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -130,6 +146,26 @@ export default function CommunityRankingScreen() {
         </View>
       </Animated.View>
 
+      {/* Selector de scope (V1.1 §2.3) */}
+      <Animated.View entering={FadeInUp.delay(115).springify()}>
+        <View style={s.scopeRow}>
+          {SCOPES.map((sc) => {
+            const active = scope === sc.key;
+            return (
+              <Pressable
+                key={sc.key}
+                onPress={() => setScope(sc.key)}
+                style={[s.scopeChip, active && s.scopeChipActive]}
+              >
+                <EliteText style={[s.scopeChipText, active && s.scopeChipTextActive]}>
+                  {sc.label}
+                </EliteText>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Animated.View>
+
       {/* Top 20 */}
       <Animated.View entering={FadeInUp.delay(140).springify()}>
         <EliteText style={s.sectionTitle}>TOP {TOP_SIZE}</EliteText>
@@ -142,15 +178,14 @@ export default function CommunityRankingScreen() {
             <LeaderRow
               key={row.user_id}
               row={row}
-              highlight={meInTop && me?.position === row.position}
+              // La posición propia es all-time — solo se resalta en ese scope.
+              highlight={scope === 'all_time' && meInTop && me?.position === row.position}
             />
           ))
         )}
       </Animated.View>
 
-      <EliteText style={s.footNote}>
-        El ranking usa tus electrones de por vida. Los perfiles privados aparecen con datos ocultos.
-      </EliteText>
+      <EliteText style={s.footNote}>{SCOPE_FOOTNOTES[scope]}</EliteText>
     </ScrollView>
   );
 }
@@ -160,6 +195,17 @@ const s = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 28, fontFamily: Fonts.bold, color: TEXT.primary, marginTop: Spacing.md },
   subtitle: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 4 },
+  scopeRow: { flexDirection: 'row', gap: 8, marginTop: Spacing.md },
+  scopeChip: {
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 16,
+    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+  },
+  scopeChipActive: {
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.12),
+    borderColor: withOpacity(ATP_BRAND.lime, 0.5),
+  },
+  scopeChipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: TEXT.secondary },
+  scopeChipTextActive: { color: ATP_BRAND.lime },
   sectionTitle: {
     fontSize: 11, letterSpacing: 2, fontFamily: Fonts.semiBold, color: TEXT.secondary,
     textTransform: 'uppercase', marginTop: Spacing.lg, marginBottom: 12,
