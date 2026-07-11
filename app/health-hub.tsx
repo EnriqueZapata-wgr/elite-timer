@@ -186,6 +186,11 @@ function HealthHubScreen() {
           <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Sistemas funcionales</SectionTitle>
         </Animated.View>
 
+        {/* hotfix-ux FIX 3 (regla Enrique: "todo dentro de cards, no widgets"): los 7 colapsables
+            ya no flotan como filas sueltas sobre el fondo — viven DENTRO de una card contenedora
+            ELEVATION[1] (mismo tratamiento que el resumen del expediente) y cada sistema sube a
+            ELEVATION[2] (card sobre card, según design system §1). */}
+        <Animated.View entering={FadeInUp.delay(140).springify()} style={s.systemsCard}>
         {FUNCTIONAL_SYSTEMS.map((sys, idx) => {
           const sysSymptoms = grouped[sys.key];
           const active = sysSymptoms.filter(x => x.status === 'active');
@@ -243,6 +248,7 @@ function HealthHubScreen() {
             </Animated.View>
           );
         })}
+        </Animated.View>
 
         {/* ── Módulos del ecosistema ── */}
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Módulos</SectionTitle>
@@ -354,10 +360,15 @@ const s = StyleSheet.create({
   },
   summaryCtaSecondaryText: { color: TEXT.primary, fontSize: 13, fontFamily: Fonts.semiBold },
 
-  // Sistemas funcionales colapsables
-  systemCard: {
+  // Sistemas funcionales colapsables — hotfix-ux FIX 3: card contenedora ELEVATION[1] +
+  // cada sistema como card interna ELEVATION[2] (antes flotaban sueltos sobre el fondo).
+  systemsCard: {
     backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
-    borderRadius: 14, marginBottom: 8, overflow: 'hidden',
+    borderRadius: 16, padding: Spacing.sm, paddingBottom: 0,
+  },
+  systemCard: {
+    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    borderRadius: 12, marginBottom: Spacing.sm, overflow: 'hidden',
   },
   systemHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 12, padding: Spacing.md,
@@ -371,7 +382,7 @@ const s = StyleSheet.create({
   countBadgeText: { fontSize: 12, fontFamily: Fonts.bold },
   systemBody: {
     paddingHorizontal: Spacing.md, paddingBottom: Spacing.md,
-    borderTopWidth: 1, borderTopColor: '#141414', paddingTop: Spacing.sm,
+    borderTopWidth: 1, borderTopColor: ELEVATION[2].border, paddingTop: Spacing.sm,
   },
   emptyText: { color: TEXT.muted, fontSize: 12, fontFamily: Fonts.regular, paddingVertical: 4 },
   symptomRow: {
