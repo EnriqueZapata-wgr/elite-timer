@@ -145,13 +145,15 @@ export default function DiagnosticoScreen() {
         .map(([k]) => SOURCE_LABELS[k] ?? k)
     : [];
 
+  // DX F4 / bug #6: el regalo del 1er DX (isFirstFree) va PRIMERO — antes el
+  // branch isPro tenía precedencia y un usuario Pro/clinician sin DX nunca veía
+  // el copy "Regalo" aunque el server sí aplicara costo 0.
   const ctaLabel = generating
     ? 'ARGOS sintetizando…'
-    : isPro
-      ? (dx ? 'Actualizar mi Diagnóstico' : 'Generar mi Diagnóstico')
-      : quote?.isFirstFree
-        // DX F4: la primera generación es un regalo (costo 0 server-side).
-        ? 'Generar mi Diagnóstico · Regalo'
+    : quote?.isFirstFree
+      ? 'Generar mi Diagnóstico · Regalo'
+      : isPro
+        ? (dx ? 'Actualizar mi Diagnóstico' : 'Generar mi Diagnóstico')
         : `Actualizar · ${formatFull(quote?.cost ?? 1000)} H+`;
 
   return (
@@ -263,10 +265,11 @@ export default function DiagnosticoScreen() {
                 {generating && <ActivityIndicator size="small" color="#000" style={{ marginRight: 8 }} />}
                 <EliteText style={styles.ctaText}>{ctaLabel}</EliteText>
               </AnimatedPressable>
-              {!isPro && (
+              {(quote?.isFirstFree || !isPro) && (
                 <EliteText style={styles.ctaHint}>
                   {quote?.isFirstFree
-                    ? 'Tu primer diagnóstico es un regalo — sin costo de H+.'
+                    // Bug #6: hint visible también para Pro cuando es el 1er DX.
+                    ? 'Regalo — tu primer diagnóstico es sin costo de H+.'
                     : `${quote?.balance == null ? '' : `Tu balance: ${formatFull(quote.balance)} H+ · `}Se cobra sólo si hay datos nuevos.`}
                 </EliteText>
               )}
