@@ -247,6 +247,28 @@ export async function logCompletion(
   return true;
 }
 
+/**
+ * DX F4: compleción por intervention_key (camino HOY/AGENDA → logCompletion).
+ * Los agenda_events de intervención guardan el key (migración 185); al
+ * completarlos, este wrapper resuelve la fila del user y corre logCompletion
+ * (electrón + emits — regla #5). Devuelve false si el user no tiene el key.
+ */
+export async function completeInterventionByKey(
+  userId: string,
+  interventionKey: string,
+  date: string = getLocalToday(),
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('user_interventions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('intervention_key', interventionKey)
+    .maybeSingle();
+  const id = (data as { id: string } | null)?.id;
+  if (!id) return false;
+  return logCompletion(userId, id, date);
+}
+
 /** IDs de user_interventions completadas HOY (para checks en UI). */
 export async function getTodayCompletions(userId: string): Promise<Set<string>> {
   const today = getLocalToday();

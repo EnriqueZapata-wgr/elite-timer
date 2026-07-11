@@ -17,8 +17,17 @@ import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import type { ElectronSource } from '@/src/constants/electrons';
 import { warn as logWarn } from '@/src/lib/logger';
+// ── DX F4 (swap HOY/AGENDA) — doble-lectura gateada por flag ──
+import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
+import {
+  selectAgendaDrivers, anchorTimes, desiredInterventionEvents, planInterventionEventSync,
+  INTERVENTION_NOTIFY_MINUTES_BEFORE, type AgendaEventRowLike,
+} from '@/src/services/interventions/intervention-agenda-core';
+import { getMyProtocol, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 
-export type AgendaSource = 'manual' | 'protocol' | 'chronotype' | 'manual_override';
+// 'intervention' (DX F4): eventos volcados desde intervenciones activas (columna
+// source es TEXT sin CHECK — migración 098 — así que no requiere ALTER).
+export type AgendaSource = 'manual' | 'protocol' | 'chronotype' | 'manual_override' | 'intervention';
 export type AgendaStatus = 'pending' | 'completed' | 'skipped' | 'snoozed';
 
 export interface AgendaEventInstance {
@@ -32,6 +41,8 @@ export interface AgendaEventInstance {
   scheduledAt: string;     // ISO (UTC)
   notifyMinutesBefore: number;
   source: AgendaSource;
+  /** DX F4: key del catálogo si el evento viene de una intervención (source 'intervention'). */
+  interventionKey?: string | null;
 }
 
 export interface CreateEventInput {
@@ -84,6 +95,9 @@ async function getDisabledKeys(userId: string): Promise<Set<string>> {
  */
 export async function generateAgendaEvents(userId: string, date?: string): Promise<void> {
   const targetDate = date || getLocalToday();
+  // DX F4: doble-lectura — flag ON las intervenciones vuelcan (swap), flag OFF
+  // el protocolo sigue volcando (status quo). Cronotipo vuelca SIEMPRE.
+  const drivers = selectAgendaDrivers(INTERVENTIONS_DRIVE_HOY);
   try {
     const { data: existing } = await supabase
       .from('agenda_events').select('name, time').eq('user_id', userId);
@@ -111,8 +125,8 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
       if (typeof sleep === 'string' && /^\d{1,2}:\d{2}/.test(sleep)) pushEvent('Dormir', sleep, 'sueño', 'chronotype');
     } catch (e) { logWarn('[agenda] chronotype gen failed', e); }
 
-    // Protocolo → acciones del plan del día (con hora)
-    try {
+    // Protocolo → acciones del plan del día (con hora). DX F4: solo con flag OFF.
+    if (drivers.protocols) try {
       const plan = await generateDailyPlan(userId, targetDate);
       for (const a of plan?.actions ?? []) {
         if (!a.scheduled_time || !a.name) continue;
@@ -126,7 +140,100 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
   } catch (e) {
     logWarn('[agenda] generateAgendaEvents failed', e);
   }
+  // DX F4: intervenciones activas → agenda_events (MISMO volcado/pipeline:
+  // ensureLogsForDate crea las instancias con notify_at → dispatch-agenda-
+  // notifications les manda push sin tocar el pipeline).
+  if (drivers.interventions) {
+    try {
+      await syncInterventionEvents(userId);
+    } catch (e) { logWarn('[agenda] syncInterventionEvents failed', e); }
+  }
   await ensureLogsForDate(userId, targetDate);
+}
+
+/**
+ * DX F4 — reconciliación idempotente agenda_events ↔ "Mi Protocolo" (activas).
+ * El plan es puro (planInterventionEventSync): inserts para intervenciones
+ * nuevas, updates si cambió la hora (custom_time F3), reactivación al
+ * des-pausar, desactivación (soft) al pausar/descartar. Respeta
+ * manual_override (el user editó el evento) y disabled_protocol_events
+ * (el user lo quitó de su agenda). Barato de re-llamar en cada entrada.
+ */
+async function syncInterventionEvents(userId: string): Promise<void> {
+  const [myProtocol, schedule, disabled] = await Promise.all([
+    getMyProtocol(userId),
+    getChronotypeSchedule(userId),
+    getDisabledKeys(userId),
+  ]);
+
+  let chronoType: string | null = null;
+  try {
+    const { data: chronoRow } = await supabase
+      .from('user_chronotype').select('chronotype')
+      .eq('user_id', userId).maybeSingle();
+    chronoType = (chronoRow as any)?.chronotype ?? null;
+  } catch { /* anchors caen al default del cronotipo normalizado */ }
+
+  const desired = desiredInterventionEvents(myProtocol, anchorTimes(schedule, chronoType));
+
+  // Filas existentes con las columnas que el planner necesita (incluye
+  // intervention_key — migración 185; requiere db push ANTES del OTA del flag).
+  const { data: existing, error } = await supabase
+    .from('agenda_events')
+    .select('id, name, time, source, is_active, intervention_key')
+    .eq('user_id', userId);
+  if (error) {
+    logWarn('[agenda] intervention events select failed (¿migración 185 aplicada?)', error);
+    return;
+  }
+
+  const plan = planInterventionEventSync(
+    ((existing ?? []) as any[]).map((e): AgendaEventRowLike => ({
+      id: e.id, name: e.name, time: hhmm(e.time), source: e.source,
+      is_active: e.is_active !== false, intervention_key: e.intervention_key ?? null,
+    })),
+    desired,
+    disabled,
+  );
+
+  if (plan.inserts.length > 0) {
+    await supabase.from('agenda_events').insert(plan.inserts.map((d) => ({
+      id: generateUUID(), user_id: userId, name: d.name, time: d.time,
+      category: d.category, source: 'intervention', duration_min: null,
+      notify_minutes_before: INTERVENTION_NOTIFY_MINUTES_BEFORE, is_active: true,
+      intervention_key: d.intervention_key,
+    })));
+  }
+  for (const u of plan.updates) {
+    await supabase.from('agenda_events')
+      .update({ name: u.name, time: u.time, updated_at: new Date().toISOString() })
+      .eq('id', u.id).eq('user_id', userId);
+  }
+  for (const r of plan.reactivations) {
+    await supabase.from('agenda_events')
+      .update({ name: r.name, time: r.time, is_active: true, updated_at: new Date().toISOString() })
+      .eq('id', r.id).eq('user_id', userId);
+  }
+  if (plan.deactivateIds.length > 0) {
+    await supabase.from('agenda_events')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .in('id', plan.deactivateIds).eq('user_id', userId);
+  }
+
+  // Si cambió la hora de un evento existente, re-armar el log de HOY para que
+  // la push salga a la hora nueva (mismo patrón que updateAgendaEvent).
+  const timeChanged = [...plan.updates, ...plan.reactivations];
+  if (timeChanged.length > 0) {
+    const today = getLocalToday();
+    for (const t of timeChanged) {
+      const scheduledAt = scheduledAtISO(today, t.time);
+      await supabase.from('agenda_event_logs').update({
+        scheduled_at: scheduledAt,
+        notify_at: notifyAtISO(scheduledAt, INTERVENTION_NOTIFY_MINUTES_BEFORE),
+        notified_at: null,
+      }).eq('user_id', userId).eq('event_id', t.id).eq('date', today);
+    }
+  }
 }
 
 /** Crea los logs (instancias) faltantes para los eventos activos del día. Idempotente. */
@@ -161,9 +268,14 @@ async function ensureLogsForDate(userId: string, date: string): Promise<void> {
 export async function getAgendaForDate(userId: string, date?: string): Promise<AgendaEventInstance[]> {
   const targetDate = date || getLocalToday();
   try {
+    // DX F4: intervention_key solo con flag ON (la columna llega en migración
+    // 185 — con flag OFF el select queda idéntico al previo, status quo).
+    const evCols = INTERVENTIONS_DRIVE_HOY
+      ? 'name, time, category, source, notify_minutes_before, is_active, intervention_key'
+      : 'name, time, category, source, notify_minutes_before, is_active';
     const { data: logs } = await supabase
       .from('agenda_event_logs')
-      .select('id, event_id, status, scheduled_at, agenda_events(name, time, category, source, notify_minutes_before, is_active)')
+      .select(`id, event_id, status, scheduled_at, agenda_events(${evCols})`)
       .eq('user_id', userId).eq('date', targetDate);
     const instances: AgendaEventInstance[] = [];
     for (const l of (logs ?? []) as any[]) {
@@ -173,6 +285,7 @@ export async function getAgendaForDate(userId: string, date?: string): Promise<A
         id: l.id, eventId: l.event_id, name: ev.name, time: hhmm(ev.time),
         category: ev.category, status: l.status, scheduledAt: l.scheduled_at,
         notifyMinutesBefore: ev.notify_minutes_before ?? 0, source: ev.source,
+        interventionKey: ev.intervention_key ?? null,
       });
     }
     instances.sort((a, b) => a.time.localeCompare(b.time));
@@ -251,7 +364,10 @@ export async function updateAgendaEvent(
   if (changes.time != null) patch.time = hhmm(changes.time);
   if (changes.category != null) patch.category = changes.category;
   if (changes.notifyMinutesBefore != null) patch.notify_minutes_before = changes.notifyMinutesBefore;
-  if (ev?.source === 'protocol' || ev?.source === 'chronotype') patch.source = 'manual_override';
+  // DX F4: 'intervention' también se promueve — si el user edita el evento en
+  // /agenda, la reconciliación (syncInterventionEvents) deja de pisarlo.
+  // La fila conserva intervention_key → completar sigue corriendo logCompletion.
+  if (ev?.source === 'protocol' || ev?.source === 'chronotype' || ev?.source === 'intervention') patch.source = 'manual_override';
   await supabase.from('agenda_events').update(patch).eq('id', eventId).eq('user_id', userId);
 
   if (changes.time != null || changes.notifyMinutesBefore != null) {
@@ -276,7 +392,9 @@ export async function deleteAgendaEvent(userId: string, eventId: string): Promis
   await supabase.from('agenda_events')
     .update({ is_active: false, updated_at: new Date().toISOString() })
     .eq('id', eventId).eq('user_id', userId);
-  if (ev && (ev.source === 'protocol' || ev.source === 'chronotype')) {
+  // DX F4: 'intervention' entra al mismo mecanismo — quitarlo de la agenda
+  // registra su key para que la reconciliación no lo recree.
+  if (ev && (ev.source === 'protocol' || ev.source === 'chronotype' || ev.source === 'intervention')) {
     const key = eventKey(ev.name, ev.time);
     const disabled = await getDisabledKeys(userId);
     disabled.add(key);

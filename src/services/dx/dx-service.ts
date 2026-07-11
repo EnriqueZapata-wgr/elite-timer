@@ -5,7 +5,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { getActionCost, getProtonBalance } from '@/src/services/economy/proton-service';
 import { DX_GENERATION_ACTION_KEY } from './dx-engine';
-import type { DxRoot } from './dx-engine-core';
+import { applyFirstFreeQuote, type DxRoot } from './dx-engine-core';
 
 export interface FunctionalDxRow {
   id: string;
@@ -47,18 +47,27 @@ export interface DxQuote {
   /** null = balance aún no disponible (cold start). */
   balance: number | null;
   hasCurrentDX: boolean;
+  /**
+   * DX F4: el user nunca ha generado un functional_dx → su primera generación
+   * es GRATIS (la UI muestra "Tu primer diagnóstico es un regalo").
+   */
+  isFirstFree: boolean;
 }
 
 /** Precio H+ + balance para el botón "Actualizar mi Diagnóstico" (usuarios Base). */
 export async function getDXQuote(userId: string): Promise<DxQuote> {
-  const [cost, balanceRow, current] = await Promise.all([
+  const [cost, balanceRow, current, history] = await Promise.all([
     getActionCost(DX_GENERATION_ACTION_KEY),
     getProtonBalance(userId).catch(() => null),
     getCurrentDX(userId),
+    // Append-only: cualquier fila (vigente o no) = ya generó alguna vez.
+    getDXHistory(userId, 1).catch(() => []),
   ]);
+  const firstFree = applyFirstFreeQuote(cost, history.length > 0);
   return {
-    cost,
+    cost: firstFree.cost,
     balance: balanceRow ? balanceRow.current_protons : null,
     hasCurrentDX: current !== null,
+    isFirstFree: firstFree.isFirstFree,
   };
 }

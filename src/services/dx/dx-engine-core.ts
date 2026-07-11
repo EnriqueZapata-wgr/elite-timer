@@ -208,6 +208,40 @@ export function presenceFromSnapshot(snapshot: unknown): DxSourcePresence {
   });
 }
 
+// ── Regalo del 1er DX (DX F4) ────────────────────────────────────────────────
+
+/**
+ * Regla de negocio del swap (F4): todo user que NUNCA ha generado un
+ * functional_dx recibe su primera generación GRATIS (regalo de bienvenida al
+ * modelo DX→Intervenciones). El cobro es server-side por requestType
+ * (argos-proxy lee proton_action_costs), así que la gratuidad se implementa
+ * con un action_key dedicado seedeado a 0 H+ (migración 186).
+ */
+export const DX_GENERATION_FIRST_ACTION_KEY = 'dx_generation_first';
+
+/**
+ * requestType a usar en la generación: primera vez (sin ningún functional_dx,
+ * vigente o histórico — la tabla es append-only) → action gratuito.
+ */
+export function resolveDxGenerationAction(
+  hasAnyDx: boolean,
+  paidActionKey: string,
+): string {
+  return hasAnyDx ? paidActionKey : DX_GENERATION_FIRST_ACTION_KEY;
+}
+
+/**
+ * Aplica la regla al quote de la UI: primera generación → costo 0 +
+ * isFirstFree (la Card A muestra "Tu primer diagnóstico es un regalo").
+ */
+export function applyFirstFreeQuote(
+  baseCost: number,
+  hasAnyDx: boolean,
+): { cost: number; isFirstFree: boolean } {
+  if (hasAnyDx) return { cost: baseCost, isFirstFree: false };
+  return { cost: 0, isFirstFree: true };
+}
+
 /** Máximo timestamp ISO de una lista (ignora null/inválidos). null si vacía. */
 export function maxTimestamp(timestamps: (string | null | undefined)[]): string | null {
   let best: number | null = null;

@@ -14,6 +14,10 @@ import { mealAgendaItems, sleepAgendaItem } from '@/src/utils/agenda-extras';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
+// ── DX F4 (swap HOY/AGENDA) — doble-lectura gateada por flag ──
+import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
+import { selectAgendaDrivers, anchorTimes, interventionAgendaItems } from '@/src/services/interventions/intervention-agenda-core';
+import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 
 /**
  * Electrones cuya `completed` se deriva de actividad real (no del blob).
@@ -614,8 +618,13 @@ async function buildAgenda(
     } catch { /* default 07:00 */ }
   }
 
+  // === DX F4: doble-lectura — exactamente UN driver alimenta la agenda ===
+  // Flag ON → intervenciones activas ("Mi Protocolo"); flag OFF → protocolos
+  // (status quo intacto). Ver src/constants/flags.ts.
+  const drivers = selectAgendaDrivers(INTERVENTIONS_DRIVE_HOY);
+
   // === PROTOCOLO → cargar plan del día (o generarlo si no existe) ===
-  try {
+  if (drivers.protocols) try {
     let planActions: any[] = [];
 
     // Paso 1: ¿ya hay un plan generado para hoy en daily_plans?
@@ -663,6 +672,34 @@ async function buildAgenda(
     }
   } catch (e) {
     console.warn('buildAgenda: daily_plans error', e);
+  }
+
+  // === DX F4: INTERVENCIONES ACTIVAS → agenda items (flag ON) ===
+  // Mismo shape/pipeline que el resto de items. Timing: effectiveTime (custom >
+  // computed, F3) > ancla por timeOfDay del catálogo según cronotipo (3 tipos;
+  // dolphin legacy → oso). completed = intervention_completions de hoy.
+  // Dedup por concepto contra lo ya presente (carrera protocolo/intervención).
+  if (drivers.interventions) try {
+    const [myProtocol, doneToday, chronoSchedule] = await Promise.all([
+      getMyProtocol(userId),
+      getTodayCompletions(userId),
+      getChronotypeSchedule(userId),
+    ]);
+    let chronoType: string | null = null;
+    try {
+      const { data: chronoRow } = await supabase
+        .from('user_chronotype').select('chronotype')
+        .eq('user_id', userId).maybeSingle();
+      chronoType = (chronoRow as any)?.chronotype ?? null;
+    } catch { /* anchors caen al default del cronotipo normalizado */ }
+    // wakeTime ya respeta prefs del user (F03.7) → gana sobre el schedule crudo.
+    const anchors = anchorTimes(
+      { wake_time: wakeTime, sleep_time: chronoSchedule.sleep_time },
+      chronoType,
+    );
+    items.push(...interventionAgendaItems(myProtocol, anchors, doneToday, items.map(i => i.name)));
+  } catch (e) {
+    console.warn('buildAgenda: interventions error (no fatal)', e);
   }
 
   // === SMART: romper ayuno ===
