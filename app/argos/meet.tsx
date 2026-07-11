@@ -11,7 +11,7 @@
  * (o vía MeetArgosGate para usuarios existentes con flag NULL).
  */
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -33,7 +33,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, SKOOL_URL } from '@/src/constants/brand';
 import {
   MEET_SCREENS,
   MEET_TYPING_MS_PER_CHAR,
@@ -173,6 +173,15 @@ export default function MeetArgosScreen() {
               <AnimatedPressable style={s.cta} onPress={begin} disabled={loading}>
                 <EliteText style={s.ctaText}>{loading ? 'Un momento…' : MEET_CTA_LABEL}</EliteText>
               </AnimatedPressable>
+              {/* C5 COMUNIDAD: bridge secundario a la Tribu (Skool) — solo pantalla 5,
+                  no toca el guion (argos-meet-copy, approval Mariana). */}
+              <AnimatedPressable
+                style={s.tribeLink}
+                onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
+                disabled={loading}
+              >
+                <EliteText style={s.tribeLinkText}>Únete a la Tribu ATP →</EliteText>
+              </AnimatedPressable>
             </Animated.View>
           ) : index === 0 && revealed ? (
             <Animated.View entering={FadeIn.duration(600)}>
@@ -203,6 +212,9 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   ctaText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
+  // C5 COMUNIDAD: link secundario a la Tribu (Skool)
+  tribeLink: { alignItems: 'center', paddingVertical: 14 },
+  tribeLinkText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#888', letterSpacing: 0.5 },
   tapHint: {
     fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#444',
     textAlign: 'center', letterSpacing: 1, paddingBottom: 8,

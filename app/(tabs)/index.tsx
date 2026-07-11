@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Text, TextInput,
   Dimensions, DeviceEventEmitter, ImageBackground,
-  LayoutAnimation, Platform, UIManager, ActivityIndicator, Alert,
+  LayoutAnimation, Platform, UIManager, ActivityIndicator, Alert, Linking,
 } from 'react-native';
 import { warn as logWarn } from '@/src/lib/logger';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -68,7 +68,7 @@ import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditoria
 import { TopBanner } from '@/src/components/global/TopBanner';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
+import { CARD, SEMANTIC, SURFACES, SKOOL_URL } from '@/src/constants/brand';
 
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
@@ -1149,6 +1149,15 @@ export default function TodayScreen() {
         {/* #hoy-funcionalidad 4.9: SECCIÓN 6 "AGENDA" triple (MAÑANA/TARDE/NOCHE) eliminada
             — el próximo evento vive en HeroAgendaCard; la agenda completa irá a AGENDA V2. */}
 
+        {/* C5 COMUNIDAD: bridge discreto a la Tribu (Skool) al final del scroll */}
+        <AnimatedPressable
+          onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
+          style={s.tribeFooterBtn}
+        >
+          <Ionicons name="people-outline" size={15} color="#888" />
+          <Text style={s.tribeFooterText}>Únete a la Tribu ATP</Text>
+        </AnimatedPressable>
+
         {/* Espaciado inferior para tab bar */}
         <View style={{ height: 120 }} />
       </ScrollView>
@@ -1949,6 +1958,23 @@ const s = StyleSheet.create({
     color: '#666',
     fontSize: 12,
     fontFamily: Fonts.semiBold,
+  },
+
+  // ── C5 COMUNIDAD: bridge a la Tribu (Skool), footer del scroll ──
+  tribeFooterBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginTop: 8,
+  },
+  tribeFooterText: {
+    color: '#888',
+    fontSize: 12,
+    fontFamily: Fonts.semiBold,
+    letterSpacing: 0.5,
   },
 
   // ── Agenda ──

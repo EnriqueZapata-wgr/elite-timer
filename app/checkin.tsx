@@ -3,7 +3,7 @@
  * 3 pasos: cuadrante → emociones (con descripciones) → contexto.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +14,7 @@ import {
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
 import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
+import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
 import { promptForDate, buildCheckinJournalEntry } from '@/src/data/checkin-prompts';
 import { computeJournalStreak } from '@/src/services/journal-logic';
 import { toLocalDateString } from '@/src/utils/date-helpers';
@@ -27,7 +28,7 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { warn as logWarn } from '@/src/lib/logger';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
 
 const { width: SW } = Dimensions.get('window');
@@ -51,11 +52,14 @@ export default function CheckinScreen() {
   const [pastCheckins, setPastCheckins] = useState<CheckinRecord[]>([]);
   // T4 MENTE: streak de días consecutivos con check-in (se calcula al guardar)
   const [checkinStreak, setCheckinStreak] = useState(0);
+  // C5 COMUNIDAD: puente a la Tribu (Skool) si hay mood bajo sostenido ~3 semanas.
+  const [showTribeBridge, setShowTribeBridge] = useState(false);
   const dailyPrompt = promptForDate(getLocalToday());
 
   useEffect(() => {
     getTodayCheckins().then(setRecent).catch(() => {});
-    getRecentCheckins(14).then(setPastCheckins).catch(() => {});
+    // 21 días: ventana del trigger de la Tribu (el historial visible solo usa 10).
+    getRecentCheckins(BRIDGE_WINDOW_DAYS).then(setPastCheckins).catch(() => {});
   }, []);
 
   const qd = quadrant ? QUADRANTS[quadrant] : null;
@@ -95,6 +99,15 @@ export default function CheckinScreen() {
       }
       // T5 HARDENING: funnel core — check-in completado (cuadrante, sin nota).
       analytics.track(ATP_EVENTS.CHECKIN_COMPLETED, { quadrant, emotions: selectedEmotions.length });
+
+      // C5 COMUNIDAD: ¿mood bajo sostenido ~3 semanas? → puente a la Tribu (Skool).
+      // Lógica pura (checkin-bridge-core); incluye el check-in recién guardado.
+      try {
+        setShowTribeBridge(shouldShowTribeBridge([
+          { created_at: new Date().toISOString(), quadrant },
+          ...pastCheckins,
+        ]));
+      } catch { /* el puente es best-effort */ }
 
       // Electrón por check-in emocional
       try {
@@ -163,6 +176,18 @@ export default function CheckinScreen() {
             <EliteText variant="caption" style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
               🔥 {checkinStreak} días seguidos escuchándote
             </EliteText>
+          )}
+          {/* C5 COMUNIDAD: mood bajo sostenido → puente cálido a la Tribu (Skool) */}
+          {showTribeBridge && (
+            <Animated.View entering={FadeIn.delay(600).duration(500)} style={styles.tribeCard}>
+              <EliteText variant="body" style={styles.tribeCopy}>{TRIBE_BRIDGE_COPY}</EliteText>
+              <Pressable
+                onPress={() => { haptic.light(); Linking.openURL(SKOOL_URL).catch(() => {}); }}
+                style={styles.tribeBtn}
+              >
+                <EliteText variant="body" style={styles.tribeBtnText}>Únete a la Tribu ATP</EliteText>
+              </Pressable>
+            </Animated.View>
           )}
           <Pressable onPress={() => { haptic.medium(); router.back(); }} style={[styles.doneBtn, { borderColor: qColor + '40' }]}>
             <EliteText variant="body" style={[styles.doneBtnText, { color: qColor }]}>Volver</EliteText>
@@ -561,4 +586,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, marginTop: Spacing.md,
   },
   doneBtnText: { fontFamily: Fonts.bold, letterSpacing: 2 },
+
+  // C5 COMUNIDAD: puente a la Tribu (mood bajo sostenido)
+  tribeCard: {
+    alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm,
+    marginHorizontal: Spacing.lg, padding: Spacing.md,
+    backgroundColor: SURFACES.card, borderRadius: Radius.md,
+    borderWidth: 0.5, borderColor: SURFACES.border,
+  },
+  tribeCopy: { color: TEXT_COLORS.primary, fontSize: FontSizes.md, textAlign: 'center', lineHeight: 22 },
+  tribeBtn: {
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.14), borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+  },
+  tribeBtnText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });
