@@ -97,13 +97,21 @@ export const DEFAULT_VISIBILITY: VisibilityFlags = {
  */
 export const REPORT_AUTOHIDE_THRESHOLD = 3;
 
+/**
+ * Razones de report. Las keys son EXACTAMENTE los valores del CHECK de
+ * user_reports.reason (mig 183) — el label es el copy visible en español.
+ * (Foto/nombre ofensivo del borrador original caen en 'inappropriate'.)
+ */
 export const REPORT_REASONS = [
-  { key: 'foto_ofensiva', label: 'Foto ofensiva' },
-  { key: 'nombre_ofensivo', label: 'Nombre ofensivo' },
-  { key: 'acoso', label: 'Acoso' },
   { key: 'spam', label: 'Spam' },
-  { key: 'otro', label: 'Otro' },
+  { key: 'harassment', label: 'Acoso' },
+  { key: 'impersonation', label: 'Suplantación de identidad' },
+  { key: 'inappropriate', label: 'Foto o nombre inapropiado' },
+  { key: 'other', label: 'Otro' },
 ] as const;
+
+export type ReportReasonKey = (typeof REPORT_REASONS)[number]['key'];
+export const REPORT_REASON_KEYS: ReportReasonKey[] = REPORT_REASONS.map(r => r.key);
 
 // ── Username (validación) ────────────────────────────────────────────────────
 
