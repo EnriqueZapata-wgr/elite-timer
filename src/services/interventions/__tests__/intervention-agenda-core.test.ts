@@ -24,6 +24,7 @@ import {
 } from '../intervention-agenda-core';
 import type { ResolvedUserIntervention, UserInterventionRow } from '../intervention-service-core';
 import type { ResolvedInterventionDef } from '../intervention-engine-core';
+import { INTERVENTIONS_CATALOG } from '@/src/constants/interventions-catalog';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -193,6 +194,14 @@ describe('resolveInterventionTime', () => {
   it('normaliza horas de un dígito (7:30 → 07:30)', () => {
     const iv = resolved('grounding', 'Grounding 10-15 min', { custom_time: '7:30' });
     expect(resolveInterventionTime(iv, anchors)).toBe('07:30');
+  });
+
+  it('catálogo v3 completo: TODA entrada activa resuelve a un HH:MM válido (timeOfDay/circadian nuevos incluidos)', () => {
+    for (const cat of INTERVENTIONS_CATALOG) {
+      const iv = resolved(cat.key, cat.name);
+      const time = resolveInterventionTime(iv, anchors);
+      expect(time, `${cat.key} sin hora resoluble`).toMatch(/^\d{2}:\d{2}$/);
+    }
   });
 });
 

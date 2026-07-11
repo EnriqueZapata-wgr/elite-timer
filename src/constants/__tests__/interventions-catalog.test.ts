@@ -3,14 +3,21 @@ import {
   INTERVENTIONS_CATALOG,
   INTERVENTION_BY_KEY,
   UNIVERSAL_INTERVENTIONS,
+  CLINICAL_VALIDATION_PENDING,
 } from '../interventions-catalog';
 import { ROOT_KEYS, CATEGORY_KEYS } from '../intervention-vocab';
 
 describe('interventions-catalog structure', () => {
-  it('keys únicos y no vacíos', () => {
+  it('catálogo v3 completo (85+ entradas)', () => {
+    expect(INTERVENTIONS_CATALOG.length).toBeGreaterThanOrEqual(85);
+  });
+
+  it('keys únicos, no vacíos y en snake_case', () => {
     const keys = INTERVENTIONS_CATALOG.map(i => i.key);
     expect(new Set(keys).size).toBe(keys.length);
-    for (const k of keys) expect(k.length).toBeGreaterThan(0);
+    for (const k of keys) {
+      expect(k, `key inválida: "${k}"`).toMatch(/^[a-z0-9]+(_[a-z0-9]+)*$/);
+    }
   });
 
   it('INTERVENTION_BY_KEY cubre todo el catálogo', () => {
@@ -44,6 +51,61 @@ describe('interventions-catalog structure', () => {
       expect(iv.how.length).toBeGreaterThan(0);
       expect(iv.benefit.length).toBeGreaterThan(0);
       expect(iv.assignRule.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('campos opcionales v3 en dominio válido (timeOfDay / evidenceLevel / circadian)', () => {
+    const TODS = ['morning', 'noon', 'afternoon', 'evening', 'night'];
+    const LEVELS = ['N1', 'N2', 'N3', 'N4'];
+    for (const iv of INTERVENTIONS_CATALOG) {
+      if (iv.timeOfDay !== undefined) {
+        expect(TODS, `${iv.key} timeOfDay inválido`).toContain(iv.timeOfDay);
+      }
+      if (iv.evidenceLevel !== undefined) {
+        expect(LEVELS, `${iv.key} evidenceLevel inválido`).toContain(iv.evidenceLevel);
+      }
+      if (iv.circadian !== undefined) {
+        expect(['sleep', 'eat'], `${iv.key} circadian inválido`).toContain(iv.circadian);
+        // circadiano y timeOfDay fijo son mutuamente excluyentes (el timing se calcula)
+        expect(iv.timeOfDay, `${iv.key} circadiano no lleva timeOfDay fijo`).toBeUndefined();
+      }
+    }
+  });
+
+  it('DOCTRINA: ninguna entrada es suplemento ni fármaco', () => {
+    // Suplementos/fármacos NO son intervención (doctrina ATP). Heurística por keywords
+    // en key/name/how — alimentos enteros (sardinas, hígado, BPC) sí son válidos.
+    const FORBIDDEN = /suplement|cápsula de|capsula de|tableta|pastilla|comprimido|fármaco|farmaco|melatonina exógena|ashwagandha|creatina|berberina|metformina|omeprazol|ibuprofeno|estatina/i;
+    for (const iv of INTERVENTIONS_CATALOG) {
+      const text = `${iv.key} ${iv.name} ${iv.how}`;
+      expect(FORBIDDEN.test(text), `${iv.key} parece suplemento/fármaco: revisar con Mariana`).toBe(false);
+    }
+  });
+});
+
+describe('gating clínico (CLINICAL_VALIDATION_PENDING)', () => {
+  it('la lista pendiente es EXACTAMENTE la firmada como pendiente (Mariana la reduce al firmar — task #9)', () => {
+    // Al firmar una, Mariana/Cowork quita `requiresClinicalValidation` del catálogo
+    // y su key de esta lista (edición consciente, nunca accidental).
+    expect(CLINICAL_VALIDATION_PENDING.map(i => i.key).sort()).toEqual([
+      'ayuno_20_4_omad',
+      'bulletproof_coffee',
+      'dive_reflex_cara_hielo',
+      'ejercicio_ayuno_fuerza',
+      'hiperventilacion_matutina',
+      'jawzercise',
+      'luz_roja_ojos',
+      'protocolo_ayuno_sardinas',
+      'tabla_co2',
+      'tabla_o2',
+      'wim_hof_basico',
+      'wim_hof_extendido',
+    ]);
+  });
+
+  it('ningún universal está pendiente de validación (el fallback garantizado siempre sale)', () => {
+    for (const u of UNIVERSAL_INTERVENTIONS) {
+      expect(u.requiresClinicalValidation, `${u.key} universal no puede estar pendiente`).toBeFalsy();
     }
   });
 });
