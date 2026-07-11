@@ -111,6 +111,10 @@ const PRIORITY_WEIGHT: Record<Priority, number> = { 1: 3, 2: 2, 3: 1 };
  *  - Sugeridas → curadas (no universales) con al menos una raíz en común con el DX.
  *  - Score = base por prioridad clínica + Σ (severidad × confianza) de raíces en común.
  *  - Orden: score desc, luego prioridad asc (🔴 antes que 🟢), luego nombre.
+ *  - GATING CLÍNICO: entradas con `requiresClinicalValidation` (pendientes de firma
+ *    de Mariana — task #9, ella quita el flag al firmar) NUNCA salen del motor:
+ *    ni en `suggestions` ni en `universals`. El user SÍ puede tenerlas/activarlas
+ *    manualmente (resolveInterventionDef las resuelve normal — data existente intacta).
  */
 export function matchInterventions(
   dxRoots: DxRoot[],
@@ -124,11 +128,12 @@ export function matchInterventions(
     rootSeverity.set(r.root_key, Math.max(rootSeverity.get(r.root_key) ?? 0, weighted));
   }
 
-  const universals = catalog.filter(i => i.isUniversal);
+  const universals = catalog.filter(i => i.isUniversal && !i.requiresClinicalValidation);
 
   const suggestions: ScoredIntervention[] = [];
   for (const iv of catalog) {
     if (iv.isUniversal) continue;
+    if (iv.requiresClinicalValidation) continue; // gating clínico: no se sugiere activamente
     const matchedRoots = iv.roots.filter(r => rootSeverity.has(r));
     if (matchedRoots.length === 0) continue;
     let score = PRIORITY_WEIGHT[iv.priority] * 10;
