@@ -67,6 +67,8 @@ export const ATP_EVENTS = {
   SUBSCRIPTION_STARTED: 'subscription_started',
   BOOST_ACTIVATED: 'boost_activated',
   BRAVERMAN_PREMIUM_PURCHASED: 'braverman_premium_purchased',
+  // Sprint SUPS+BHA — scanner Biohacker Approved
+  BHA_SCAN_COMPLETED: 'bha_scan_completed',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];

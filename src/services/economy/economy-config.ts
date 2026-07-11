@@ -26,7 +26,7 @@ export const REFERRED_BONUS_PROTONS = 5_000;
 export type ActionKey =
   | 'chat' | 'food_estimate_photo' | 'supplement_scan' | 'lab_interpretation'
   | 'routine' | 'food_estimate_text' | 'insight' | 'weekly_insight'
-  | 'braverman_premium_report' | 'dx_generation';
+  | 'braverman_premium_report' | 'dx_generation' | 'bha_scan';
 
 /** Fallback de costos si la tabla no respondió (mismos números que el seed 086, normalizados /10). */
 export const FALLBACK_ACTION_COSTS: Record<ActionKey, number> = {
@@ -42,4 +42,6 @@ export const FALLBACK_ACTION_COSTS: Record<ActionKey, number> = {
   braverman_premium_report: 1000,
   // DX+Intervenciones F2: síntesis "Mi Diagnóstico Funcional" (seed server-side)
   dx_generation: 1000,
+  // Sprint SUPS+BHA: sello Biohacker Approved (seed 189 — precio cerrado 500)
+  bha_scan: 500,
 };
