@@ -141,6 +141,13 @@ describe('formatVoiceLine — sustituye {nombre} y limpia vocativos huérfanos',
   it('nombre con espacios se recorta', () => {
     expect(formatVoiceLine('Hola {nombre}.', { nombre: '  Ana  ' })).toBe('Hola Ana.');
   });
+  it('sustituye {porcentaje} cuando se provee', () => {
+    expect(
+      formatVoiceLine('Solo {porcentaje}% de las personas logran algo así, sigue adelante.', {
+        porcentaje: 3,
+      }),
+    ).toBe('Solo 3% de las personas logran algo así, sigue adelante.');
+  });
 });
 
 describe('buildGreeting — saludo por hora + nombre', () => {
@@ -167,6 +174,17 @@ describe('ARGOS_VOICE — integridad del contenido', () => {
     expect(ARGOS_VOICE.encouragement.length).toBeGreaterThan(0);
     expect(ARGOS_VOICE.concern.length).toBeGreaterThan(0);
     expect(ARGOS_VOICE.celebration.length).toBeGreaterThan(0);
+  });
+
+  it('reacciones usan el copy aprobado por Mariana (doc 06, >>)', () => {
+    expect(ARGOS_VOICE.encouragement).toContain('Bien. Un paso más.');
+    expect(ARGOS_VOICE.encouragement).toContain('Confirmado. Te llevo la cuenta.');
+    expect(ARGOS_VOICE.concern).toContain(
+      'Se vale fallar, pero no se vale rendirse, retomemos el rumbo.',
+    );
+    expect(ARGOS_VOICE.concern).toContain('¿Todo bien?');
+    expect(ARGOS_VOICE.celebration).toContain('Récord roto. Vas con todo.');
+    expect(ARGOS_VOICE.celebration).toContain('Nuevo rango conseguido. Bien merecido.');
   });
 });
 

@@ -311,7 +311,8 @@ function ArgosChat() {
         const errored: ArgosMessage[] = [
           ...baseMessages,
           { ...userTurn, degraded: true },
-          { role: 'assistant', content: 'Lo siento, tuve un problema al procesar tu consulta. Intenta de nuevo.', degraded: true, ts: Date.now() },
+          // Copy aprobado por Mariana (doc 06, errores ARGOS >> "se cayó la red").
+          { role: 'assistant', content: 'Se me fue la señal. Reintenta en unos minutos.', degraded: true, ts: Date.now() },
         ];
         setMessages(errored);
         finalMessages = errored;
