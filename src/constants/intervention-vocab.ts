@@ -18,6 +18,8 @@ export const INTERVENTION_CATEGORIES = [
   'sueno', 'digestion', 'inflamacion', 'estres', 'metabolismo', 'movimiento',
   'hormonal', 'cognitivo', 'inmunologico', 'piel', 'energia', 'ansiedad',
   'hidratacion', 'cardiovascular', 'ritual',
+  // Extensión Cowork 2026-07-11 (catálogo v3 curado Enrique):
+  'circadiano', 'nutricion',
 ] as const;
 
 export type InterventionCategory = (typeof INTERVENTION_CATEGORIES)[number];
@@ -38,6 +40,8 @@ export const CATEGORY_LABELS: Record<InterventionCategory, string> = {
   hidratacion: 'Hidratación',
   cardiovascular: 'Cardiovascular',
   ritual: 'Ritual/Hábito',
+  circadiano: 'Circadiano',
+  nutricion: 'Nutrición',
 };
 
 // ── Raíces que ataca (causas raíz) ───────────────────────────────────────────
@@ -66,6 +70,10 @@ export const INTERVENTION_ROOTS = [
   'deficit_exposicion_solar',
   'toxicidad_ambiental',
   'sobrecarga_procesados',
+  // Extensión Cowork 2026-07-11 (catálogo v3 curado Enrique):
+  'reflujo_funcional',
+  'digestion_estres_autonomico',
+  'hrv_baja_cronica',
 ] as const;
 
 export type InterventionRoot = (typeof INTERVENTION_ROOTS)[number];
@@ -94,6 +102,9 @@ export const ROOT_LABELS: Record<InterventionRoot, string> = {
   deficit_exposicion_solar: 'Deficiencia de exposición solar',
   toxicidad_ambiental: 'Toxicidad ambiental',
   sobrecarga_procesados: 'Sobrecarga de procesados',
+  reflujo_funcional: 'Reflujo funcional',
+  digestion_estres_autonomico: 'Digestión pobre por estrés autonómico',
+  hrv_baja_cronica: 'HRV crónicamente baja',
 };
 
 // ── Sets para validación O(1) (usados por el motor DX) ───────────────────────
