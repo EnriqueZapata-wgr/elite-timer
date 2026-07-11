@@ -2,7 +2,7 @@
  * Lab Service — Upload, extracción IA, CRUD de resultados de laboratorio.
  */
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic, uploadFileToAnthropicViaProxy } from '@/src/services/anthropic-client';
+import { callAnthropic, extractResponseText, uploadFileToAnthropicViaProxy } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { insertLabValuesFromRaw, voidLabValuesByUpload, voidLabValuesByLabResult } from '@/src/services/edad-atp/lab-values-service';
@@ -271,7 +271,8 @@ Solo valores encontrados. No mapeados→other_values.`;
     // Capa 5: Files API (file_id cacheado) con fallback transparente a base64. Capa 2: retry.
     const result = await runParserOnUpload(upload, uploadId, contentType, mediaType, prompt, meta);
 
-    const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
+    // extractResponseText: solo bloques type==='text' (ignora thinking de Sonnet 5).
+    const rawText = extractResponseText(result);
 
     // Parse JSON con extracción bracket-balanced: ignora texto antes/después
     // del JSON, respeta strings y escapes. Bulletproof contra cualquier LLM.
@@ -506,7 +507,8 @@ export async function extractLabValuesForReview(uploadId: string): Promise<LabRe
     // Capa 5: Files API con fallback a base64. Capa 2: retry inteligente.
     const result = await runParserOnUpload(upload, uploadId, contentType, mediaType, PARSER_V2_PROMPT, meta);
 
-    const rawText = result.content?.map((c: any) => c.text || '').join('\n') || '';
+    // extractResponseText: solo bloques type==='text' (ignora thinking de Sonnet 5).
+    const rawText = extractResponseText(result);
     // Misma estrategia que el flujo v1: limpia backticks + extrae JSON balanceado.
     const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const jsonStr = extractJsonObject(cleaned) ?? cleaned;

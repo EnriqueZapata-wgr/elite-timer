@@ -10,7 +10,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
-import { callAnthropic } from './anthropic-client';
+import { callAnthropic, extractResponseText } from './anthropic-client';
+import { ATP_LLM } from '@/src/constants/llm-config';
 import { getArgosCallMetadata } from './argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { proteinTargetG } from './nutrition-score-core';
@@ -81,14 +82,16 @@ export async function maybeGeneratePostMealInsight(
     });
 
     const meta = await getArgosCallMetadata({ callerUserId: userId, requestType: 'insight' });
+    // MAX_TOKENS_ESTIMATE (antes 150): Sonnet 5 con adaptive thinking cuenta
+    // thinking + texto contra el cap → 150 dejaba el insight vacío/truncado.
     const data = await callAnthropic(
       [{ role: 'user', content: prompt.user }],
-      150,
+      ATP_LLM.MAX_TOKENS_ESTIMATE,
       undefined,
       prompt.system,
       meta,
     );
-    const text = sanitizeInsightText(data?.content?.[0]?.text);
+    const text = sanitizeInsightText(extractResponseText(data));
     if (!text) return;
 
     const cached: CachedInsight = { date: today, text, at: Date.now() };

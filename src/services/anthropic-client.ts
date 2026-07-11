@@ -4,6 +4,7 @@
  */
 import Constants from 'expo-constants';
 import { ATP_LLM } from '@/src/constants/llm-config';
+import { extractResponseText } from './anthropic-response-core';
 import {
   ArgosRateLimitError,
   ArgosStreamUnavailableError,
@@ -12,6 +13,10 @@ import {
   splitSSEBuffer,
   type ArgosStreamEvent,
 } from './argos-stream-core';
+
+// Re-export: helper puro para extraer texto de respuestas no-stream
+// (Sonnet 5 + adaptive thinking → content[0] puede ser un bloque thinking).
+export { extractResponseText } from './anthropic-response-core';
 
 const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
@@ -158,7 +163,7 @@ export async function* callAnthropicStream(
     if (data?._degraded || data?.error) {
       throw new ArgosStreamUnavailableError('proxy_degraded_or_error');
     }
-    const text = data?.content?.[0]?.text;
+    const text = extractResponseText(data);
     if (typeof text === 'string' && text) {
       yield { type: 'chunk', text };
       yield { type: 'done' };

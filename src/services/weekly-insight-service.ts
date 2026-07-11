@@ -12,7 +12,7 @@
  * llamada al LLM falla.
  */
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from './anthropic-client';
+import { callAnthropic, extractResponseText } from './anthropic-client';
 import { getArgosCallMetadata } from './argos-service';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
@@ -340,14 +340,16 @@ export async function getWeeklyInsight(userId: string): Promise<WeeklyInsightDat
     try {
       const prompt = buildPrompt({ pillars: current, prev: previous, compliance });
       const meta = await getArgosCallMetadata({ requestType: 'weekly_insight', callerUserId: userId });
+      // MAX_TOKENS_ESTIMATE (antes 400): thinking de Sonnet 5 cuenta contra el
+      // cap → 400 truncaba el JSON {insight, question}.
       const data = await callAnthropic(
         [{ role: 'user', content: prompt }],
-        400,
+        ATP_LLM.MAX_TOKENS_ESTIMATE,
         ATP_LLM.PRIMARY_MODEL,
         WEEKLY_INSIGHT_SYSTEM,
         meta,
       );
-      const text = data?.content?.[0]?.text || '';
+      const text = extractResponseText(data);
       const clean = text.replace(/```json|```/g, '').trim();
       const parsed = JSON.parse(clean);
       argosText = String(parsed?.insight || '').trim();

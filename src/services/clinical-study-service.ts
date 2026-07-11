@@ -2,7 +2,7 @@
  * Clinical Study Service — CRUD, upload, IA interpretation.
  */
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from './anthropic-client';
+import { callAnthropic, extractResponseText } from './anthropic-client';
 import { getStudyType } from '@/src/data/study-types';
 import { getArgosCallMetadata } from './argos-service';
 import { ATP_LLM } from '@/src/constants/llm-config';
@@ -264,15 +264,16 @@ Responde en español.`,
       requestType: 'clinical_interpretation',
     });
 
+    // MAX_TOKENS_DEFAULT (antes 3000): interpretación larga + thinking Sonnet 5.
     const aiResponse = await callAnthropic(
       [{ role: 'user', content }],
-      3000,
+      ATP_LLM.MAX_TOKENS_DEFAULT,
       ATP_LLM.PRIMARY_MODEL,
       undefined,
       meta,
     );
 
-    const responseText = aiResponse?.content?.[0]?.text ?? '';
+    const responseText = extractResponseText(aiResponse);
     const parsed = parseStudyInterpretation(responseText);
 
     await updateStudy(studyId, {

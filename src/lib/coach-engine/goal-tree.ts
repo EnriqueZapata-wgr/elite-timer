@@ -3,7 +3,8 @@
 // System prompt Bloque 4 (diferido). ÚNICO módulo del engine que llama al LLM.
 
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from '@/src/services/anthropic-client';
+import { callAnthropic, extractResponseText } from '@/src/services/anthropic-client';
+import { ATP_LLM } from '@/src/constants/llm-config';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import type { Principle, TrafficLight } from './types';
 
@@ -130,13 +131,14 @@ export async function decomposeGoal(params: {
 
   const llm = await callAnthropic(
     [{ role: 'user', content: `Objetivo: "${params.goalText}". Descompón en árbol de sub-habilidades.` }],
-    2048,
+    // MAX_TOKENS_DEFAULT (antes 2048): JSON de árbol + thinking de Sonnet 5.
+    ATP_LLM.MAX_TOKENS_DEFAULT,
     undefined,
     DECOMPOSE_SYSTEM,
     { userId: params.userId, requestType: 'goal_decomposition' },
   );
 
-  const rawText = llm?.content?.[0]?.text;
+  const rawText = extractResponseText(llm);
   if (!rawText) {
     throw new Error('goal-tree: decomposeGoal — LLM returned no content');
   }
