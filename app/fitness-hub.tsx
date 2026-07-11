@@ -10,6 +10,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { Screen } from '@/src/components/ui/Screen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
@@ -96,6 +97,9 @@ export default function FitnessHubScreen() {
   return (
     <Screen>
       <PillarHeader pillar="fitness" title="Fitness" />
+      <View style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
+        <CommunityPresence pillar="fitness" />
+      </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         {/* Resumen semanal */}

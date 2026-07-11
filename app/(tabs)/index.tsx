@@ -27,6 +27,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, type VerifiedElectronKey } from '@/src/services/day-compiler';
 import { SplashLoader } from '@/src/components/SplashLoader';
 import { NotificationBellIcon } from '@/src/components/hoy/NotificationBellIcon';
+import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { HoyEditorialSection } from '@/src/components/hoy/HoyEditorialSection';
 import { AgendaPreviewCard } from '@/src/components/agenda/AgendaPreviewCard';
 import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
@@ -934,6 +935,9 @@ export default function TodayScreen() {
               <Text style={s.heroGreeting}>{day.greeting}</Text>
               <Text style={s.heroName}>{day.userName}</Text>
               <Text style={s.heroDate}>{day.date}</Text>
+              <View style={{ marginTop: 10 }}>
+                <CommunityPresence pillar="hoy" />
+              </View>
             </Animated.View>
 
             {/* Protocol pill — tappable */}

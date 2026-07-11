@@ -15,6 +15,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { HelpButton } from '@/src/components/HelpButton';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
@@ -170,6 +171,9 @@ export default function NutritionScreen() {
           ]}
         />
       } />
+      <View style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
+        <CommunityPresence pillar="nutrition" />
+      </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
