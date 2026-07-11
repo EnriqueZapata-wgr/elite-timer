@@ -4,7 +4,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
-import { weeklyAdherencePct } from './supplements-adherence-core';
+import { weeklyAdherencePct, takenDaysBySupplement } from './supplements-adherence-core';
 
 /**
  * Adherencia de los últimos 7 días contra el dose_pattern de cada
@@ -28,12 +28,15 @@ export async function getWeeklyAdherence(userId: string): Promise<number | null>
     ]);
 
     const supps = (suppsRes.data ?? []) as { id: string; dose_pattern: string | null }[];
-    const logs = (logsRes.data ?? []) as { supplement_id: string; taken: boolean }[];
+    const logs = (logsRes.data ?? []) as { supplement_id: string; date: string; taken: boolean }[];
 
+    // Multi-dosis (188): puede haber N logs por día (dose_index) — la
+    // adherencia sigue siendo por DÍAS, dedupe por fecha.
+    const takenDays = takenDaysBySupplement(logs);
     return weeklyAdherencePct(
       supps.map((s) => ({
         dosePattern: s.dose_pattern,
-        takenDays: logs.filter((l) => l.supplement_id === s.id && l.taken).length,
+        takenDays: takenDays[s.id] ?? 0,
       })),
     );
   } catch (e) {

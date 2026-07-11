@@ -344,7 +344,8 @@ export default function TodayScreen() {
       ]);
       setSupplements(suppsRes.data ?? []);
       const taken: Record<string, boolean> = {};
-      (logsRes.data ?? []).forEach((l: any) => { taken[l.supplement_id] = !!l.taken; });
+      // Multi-dosis (188): puede haber N logs/día por suplemento — OR (≥1 toma = tomado en HOY).
+      (logsRes.data ?? []).forEach((l: any) => { taken[l.supplement_id] = taken[l.supplement_id] || !!l.taken; });
       // HOY-6: mantener el ref en sync con el estado canónico (DB).
       suppTakenRef.current = taken;
       setSuppTaken(taken);
@@ -801,15 +802,19 @@ export default function TodayScreen() {
 
     try {
       if (wasTaken) {
+        // Multi-dosis (188): borra TODAS las tomas del día (semántica binaria del HOY).
         await supabase.from('supplement_logs')
           .delete()
           .eq('user_id', user.id)
           .eq('supplement_id', supplementId)
           .eq('date', today);
       } else {
+        // Multi-dosis (188): el quick-toggle del HOY registra la PRIMERA toma
+        // (dose_index 0); las tomas 2..N se marcan en la pantalla Suplementos.
+        // El unique evolucionó a (user,supp,date,dose_index) — onConflict actualizado.
         await supabase.from('supplement_logs').upsert({
-          user_id: user.id, supplement_id: supplementId, date: today, taken: true,
-        }, { onConflict: 'user_id,supplement_id,date' });
+          user_id: user.id, supplement_id: supplementId, date: today, dose_index: 0, taken: true,
+        }, { onConflict: 'user_id,supplement_id,date,dose_index' });
         // Economía (fire-and-forget; no-op si flag OFF). Misma key que la pantalla Suplementos
         // → idempotente entre ambos paths (no doble award).
         fireElectronAward({

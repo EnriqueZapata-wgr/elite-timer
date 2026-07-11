@@ -7,26 +7,49 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { supplementsTodayProgress } from './supplements-adherence-core';
 
 export interface SupplementsToday {
-  /** Total de suplementos activos del protocolo del usuario. */
+  /** Total de TOMAS del día (multi-dosis 188: N tomas = N checks). */
   total: number;
-  /** Cuántos de esos activos se marcaron como tomados hoy. */
+  /** Cuántas de esas tomas se marcaron hoy. */
   taken: number;
 }
 
-/** Total de suplementos activos y cuántos tomó hoy (para el subtitle "X / Y tomados"). */
+/** Tomas del día y cuántas registró hoy (para el subtitle "X / Y tomados"). */
 export async function getSupplementsTodayCount(userId: string): Promise<SupplementsToday> {
   try {
     const today = getLocalToday();
     const [suppsRes, logsRes] = await Promise.all([
-      supabase.from('user_supplements').select('id').eq('user_id', userId).eq('is_active', true),
-      supabase.from('supplement_logs').select('supplement_id, taken').eq('user_id', userId).eq('date', today),
+      supabase.from('user_supplements').select('id, dose_times').eq('user_id', userId).eq('is_active', true),
+      supabase.from('supplement_logs').select('supplement_id, dose_index, taken').eq('user_id', userId).eq('date', today),
     ]);
-    const activeIds = new Set((suppsRes.data ?? []).map((s: any) => s.id));
-    const taken = (logsRes.data ?? []).filter((l: any) => l.taken && activeIds.has(l.supplement_id)).length;
-    return { total: activeIds.size, taken };
+    return supplementsTodayProgress(
+      (suppsRes.data ?? []) as { id: string; dose_times?: string[] | null }[],
+      (logsRes.data ?? []) as { supplement_id: string; dose_index?: number | null; taken: boolean }[],
+    );
   } catch {
     return { total: 0, taken: 0 };
+  }
+}
+
+/**
+ * Máscara EMBARAZO (Sprint SUPS+BHA 4.1.4) — el dato REAL existe en dos fuentes
+ * (investigado):
+ *  · cycle_settings.pregnancy_status JSONB { is_pregnant: true, ... } (migración 080)
+ *  · client_profiles.cycle_modality = 'pregnancy' (onboarding v2, task #111)
+ * Cualquiera activa la máscara. Fail-soft: sin dato / error → false.
+ */
+export async function isPregnancyActive(userId: string): Promise<boolean> {
+  try {
+    const [cycleRes, profileRes] = await Promise.all([
+      supabase.from('cycle_settings').select('pregnancy_status').eq('user_id', userId).maybeSingle(),
+      supabase.from('client_profiles').select('cycle_modality').eq('user_id', userId).maybeSingle(),
+    ]);
+    const status = (cycleRes.data as any)?.pregnancy_status;
+    if (status && typeof status === 'object' && status.is_pregnant === true) return true;
+    return (profileRes.data as any)?.cycle_modality === 'pregnancy';
+  } catch {
+    return false;
   }
 }
