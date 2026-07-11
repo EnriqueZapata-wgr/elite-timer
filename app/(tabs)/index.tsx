@@ -69,6 +69,10 @@ import { TopBanner } from '@/src/components/global/TopBanner';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
+// DX F4 (swap): items de intervención en la agenda de HOY → logCompletion (no daily_plans).
+import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
+import { INTERVENTION_ITEM_PREFIX } from '@/src/services/interventions/intervention-agenda-core';
+import { logCompletion } from '@/src/services/interventions/intervention-service';
 
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
@@ -670,6 +674,29 @@ export default function TodayScreen() {
     if (!day || !user?.id) return;
     haptic.light();
 
+    // DX F4: item de intervención (id 'iv-<user_intervention_id>') → compleción
+    // vía logCompletion (electrón 'intervention' + emit, regla #5). Solo completa
+    // (F3 no modela des-completar; tap sobre uno hecho = no-op). No toca daily_plans.
+    if (itemId.startsWith(INTERVENTION_ITEM_PREFIX)) {
+      const item = day.agendaItems.find(i => i.id === itemId);
+      if (!item || item.completed) return;
+      setDay(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          agendaItems: prev.agendaItems.map(i =>
+            i.id === itemId ? { ...i, completed: true } : i
+          ),
+        };
+      });
+      try {
+        await logCompletion(user.id, itemId.slice(INTERVENTION_ITEM_PREFIX.length));
+      } catch (e) {
+        logWarn('[HOY] Error completing intervention:', e);
+      }
+      return;
+    }
+
     // Optimistic update
     setDay(prev => {
       if (!prev) return prev;
@@ -940,13 +967,24 @@ export default function TodayScreen() {
               </View>
             </Animated.View>
 
-            {/* Protocol pill — tappable */}
+            {/* Protocol pill — tappable. DX F4 (flag ON): el protocolo deja de ser
+                driver → la pill se vuelve entrada a la biblioteca de referencia
+                (protocol-explorer), sin contador de día. Flag OFF: status quo. */}
             {day.protocol && (
               <Animated.View entering={FadeInUp.delay(100).springify()}>
-                <Pressable onPress={() => router.push('/protocol-config' as any)} style={s.protocolPill}>
-                  <Ionicons name="flask-outline" size={12} color="rgba(255,255,255,0.6)" />
+                <Pressable
+                  onPress={() => router.push((INTERVENTIONS_DRIVE_HOY ? '/protocol-explorer' : '/protocol-config') as any)}
+                  style={s.protocolPill}
+                >
+                  <Ionicons
+                    name={INTERVENTIONS_DRIVE_HOY ? 'library-outline' : 'flask-outline'}
+                    size={12}
+                    color="rgba(255,255,255,0.6)"
+                  />
                   <Text style={s.protocolPillText}>
-                    {day.protocol.name} · Día {day.protocol.dayNumber}/{day.protocol.totalDays}
+                    {INTERVENTIONS_DRIVE_HOY
+                      ? `${day.protocol.name} · Biblioteca de referencia`
+                      : `${day.protocol.name} · Día ${day.protocol.dayNumber}/${day.protocol.totalDays}`}
                   </Text>
                   <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.4)" />
                 </Pressable>

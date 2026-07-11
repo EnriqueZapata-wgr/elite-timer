@@ -26,6 +26,7 @@ import {
   generateAgendaEvents, getAgendaForDate, getRestrictionsForDate, createCustomEvent, updateAgendaEvent,
   deleteAgendaEvent, setEventStatus, snoozeEvent, syncElectronFromEvent, type AgendaEventInstance,
 } from '@/src/services/agenda-service';
+import { completeInterventionByKey } from '@/src/services/interventions/intervention-service';
 import { hasNotificationPermission, registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
 
 function formatToday(): string {
@@ -96,9 +97,17 @@ export default function AgendaScreen() {
     if (!userId || !selected) return;
     const ev = selected;
     await setEventStatus(userId, ev.id, 'completed');
-    // F1 (AGENDA-COMPLETE): reverso Agenda→HOY — si el evento matchea un electrón booleano
-    // no-verificado, lo otorga (la card de HOY se palomea). Guard: no rompe el completar.
-    await syncElectronFromEvent(userId, ev.name, true).catch(() => {});
+    if (ev.source === 'intervention' && ev.interventionKey) {
+      // DX F4: completar un evento de intervención corre logCompletion de F3
+      // (intervention_completions + electrón 'intervention' + emits). NO corre
+      // syncElectronFromEvent: evita doble electrón cuando el nombre matchea un
+      // booleano legacy (p.ej. grounding) — la convergencia la decide Cowork.
+      await completeInterventionByKey(userId, ev.interventionKey).catch(() => {});
+    } else {
+      // F1 (AGENDA-COMPLETE): reverso Agenda→HOY — si el evento matchea un electrón booleano
+      // no-verificado, lo otorga (la card de HOY se palomea). Guard: no rompe el completar.
+      await syncElectronFromEvent(userId, ev.name, true).catch(() => {});
+    }
     setSelected(null);
     DeviceEventEmitter.emit('day_changed');
     reload();
