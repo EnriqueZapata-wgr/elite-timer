@@ -154,8 +154,8 @@ export interface ChronotypeSchedule {
   sleep_time?: string | null; // 'HH:MM'
 }
 
-/** Minutos de preparación antes de dormir (apagar pantallas / rutina de sueño). */
-export const SLEEP_PREP_MINUTES = 30;
+/** Minutos de preparación antes de dormir (inicio de rutina de sueño). dx-f3: 30 → 60. */
+export const SLEEP_PREP_MINUTES = 60;
 
 /**
  * Calcula el HH:MM de un universal circadiano desde el horario del cronotipo.
