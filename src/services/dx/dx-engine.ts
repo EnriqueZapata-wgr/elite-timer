@@ -30,6 +30,7 @@ import {
   isDxFresh,
   maxTimestamp,
   countCompletedAreas,
+  resolveDxGenerationAction,
   type DxRoot,
 } from './dx-engine-core';
 import { buildDxPrompt, type DxPromptContext } from './dx-prompt';
@@ -240,9 +241,11 @@ export async function generateDX(
 ): Promise<GenerateDxResult> {
   const manual = !!opts?.manual;
 
-  const [current, harvest] = await Promise.all([
+  const [current, harvest, priorMaxVersion] = await Promise.all([
     getCurrentDxRow(userId),
     harvestSources(userId),
+    // DX F4 (regalo 1er DX): ¿ya generó alguna vez? (append-only → cualquier versión cuenta)
+    getMaxVersion(userId),
   ]);
 
   const quality = computeDxQuality(harvest.presence);
@@ -257,9 +260,12 @@ export async function generateDX(
 
   let rawText: string;
   try {
+    // DX F4 — regalo del 1er DX: si el user NUNCA ha generado un functional_dx,
+    // el requestType es 'dx_generation_first' (seed 0 H+ en migración 186) → el
+    // cobro server-side del argos-proxy no descuenta protones en la primera.
     const meta = await getArgosCallMetadata({
       callerUserId: userId,
-      requestType: DX_GENERATION_ACTION_KEY,
+      requestType: resolveDxGenerationAction(priorMaxVersion > 0, DX_GENERATION_ACTION_KEY),
       idempotencyKey,
     });
     const data = await callAnthropic(

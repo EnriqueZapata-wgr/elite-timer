@@ -149,7 +149,10 @@ export default function DiagnosticoScreen() {
     ? 'ARGOS sintetizando…'
     : isPro
       ? (dx ? 'Actualizar mi Diagnóstico' : 'Generar mi Diagnóstico')
-      : `Actualizar · ${formatFull(quote?.cost ?? 1000)} H+`;
+      : quote?.isFirstFree
+        // DX F4: la primera generación es un regalo (costo 0 server-side).
+        ? 'Generar mi Diagnóstico · Regalo'
+        : `Actualizar · ${formatFull(quote?.cost ?? 1000)} H+`;
 
   return (
     <MedicalDisclaimerGate>
@@ -262,8 +265,9 @@ export default function DiagnosticoScreen() {
               </AnimatedPressable>
               {!isPro && (
                 <EliteText style={styles.ctaHint}>
-                  {quote?.balance == null ? '' : `Tu balance: ${formatFull(quote.balance)} H+ · `}
-                  Se cobra sólo si hay datos nuevos.
+                  {quote?.isFirstFree
+                    ? 'Tu primer diagnóstico es un regalo — sin costo de H+.'
+                    : `${quote?.balance == null ? '' : `Tu balance: ${formatFull(quote.balance)} H+ · `}Se cobra sólo si hay datos nuevos.`}
                 </EliteText>
               )}
             </Animated.View>
