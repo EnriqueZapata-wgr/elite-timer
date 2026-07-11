@@ -1,6 +1,10 @@
 /**
- * Suplementos — Plan diario con tracking, agrupado por momento del día.
- * Recomendaciones de Braverman si aplican.
+ * Suplementos — REGISTRO personal con tracking, agrupado por momento del día.
+ *
+ * Doctrina (Sprint SUPS+BHA): suplementos son REGISTRO, no recomendación.
+ * ATP nunca sugiere suplementos — el usuario crea sus fichas desde cero
+ * (biblioteca vacía por default; el catálogo curado y las recomendaciones
+ * Braverman se degradaron en este sprint). Sello BHA por ficha vía scanner.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter } from 'react-native';
@@ -13,15 +17,10 @@ import { getLocalToday } from '../src/utils/date-helpers';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
-import { DOSE_PATTERNS } from '@/src/services/supplements-adherence-core';
+import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor } from '@/src/services/supplements-adherence-core';
 import { getWeeklyAdherence } from '@/src/services/supplements-adherence-service';
-import {
-  SUPPLEMENT_CATALOG,
-  OBJECTIVE_LABELS,
-  catalogByObjective,
-  type CatalogSupplement,
-  type SupplementObjective,
-} from '@/src/constants/supplement-catalog';
+import { isPregnancyActive } from '@/src/services/supplements-service';
+import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
 
 const TIMING_OPTIONS = [
   { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -31,22 +30,37 @@ const TIMING_OPTIONS = [
   { id: 'bedtime', label: 'Antes de dormir', icon: 'bed-outline' as const, color: '#c084fc' },
 ];
 
+// Ficha ampliada (187): presentación del suplemento
+const FORM_OPTIONS = [
+  { id: 'capsula', label: 'Cápsula' },
+  { id: 'polvo', label: 'Polvo' },
+  { id: 'gotas', label: 'Gotas' },
+  { id: 'tableta', label: 'Tableta' },
+  { id: 'gomita', label: 'Gomita' },
+] as const;
+
 export default function SupplementsScreen() {
   const insets = useSafeAreaInsets();
   const [userId, setUserId] = useState('');
   const [supplements, setSupplements] = useState<any[]>([]);
-  const [todayLogs, setTodayLogs] = useState<Record<string, boolean>>({});
+  // Multi-dosis (188): por suplemento, los dose_index tomados hoy.
+  const [todayLogs, setTodayLogs] = useState<Record<string, number[]>>({});
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDosage, setNewDosage] = useState('');
+  const [newBrand, setNewBrand] = useState('');
+  const [newForm, setNewForm] = useState<string | null>(null);
   const [newTiming, setNewTiming] = useState('morning');
   const [newReason, setNewReason] = useState('');
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  // T4 (#54): tabs Mis suplementos | Catálogo + dosis flexible + adherencia
-  const [tab, setTab] = useState<'mine' | 'catalog'>('mine');
+  // Multi-dosis (188): tomas del día (Vit C 3×día = 3 etiquetas seleccionadas)
+  const [newDoseTimes, setNewDoseTimes] = useState<string[]>([]);
   const [newPattern, setNewPattern] = useState<string>(DOSE_PATTERNS[0]);
-  const [catalogObjective, setCatalogObjective] = useState<SupplementObjective>('base');
   const [weeklyAdherence, setWeeklyAdherence] = useState<number | null>(null);
+  // Máscara EMBARAZO (4.1.4): dato real de cycle_settings / client_profiles
+  const [pregnancyActive, setPregnancyActive] = useState(false);
+  // Scanner BHA: ficha destino (null = cerrado; {id:''} = scan standalone)
+  const [bhaTarget, setBhaTarget] = useState<{ id: string; name: string; brand?: string | null } | null>(null);
+  const [bhaVisible, setBhaVisible] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -59,8 +73,8 @@ export default function SupplementsScreen() {
     if (userId) {
       loadSupplements();
       loadTodayLogs();
-      loadRecommendations();
       getWeeklyAdherence(userId).then(setWeeklyAdherence).catch(() => {});
+      isPregnancyActive(userId).then(setPregnancyActive).catch(() => {});
     }
   }, [userId]));
 
@@ -78,75 +92,65 @@ export default function SupplementsScreen() {
     const today = getLocalToday();
     const { data } = await supabase
       .from('supplement_logs')
-      .select('supplement_id, taken')
+      .select('supplement_id, dose_index, taken')
       .eq('user_id', userId)
       .eq('date', today);
-    const logs: Record<string, boolean> = {};
-    (data || []).forEach(l => { logs[l.supplement_id] = l.taken; });
+    const logs: Record<string, number[]> = {};
+    (data || []).forEach((l: any) => {
+      if (!l.taken) return;
+      const idx = Number.isFinite(Number(l.dose_index)) ? Number(l.dose_index) : 0;
+      (logs[l.supplement_id] ??= []).push(idx);
+    });
     setTodayLogs(logs);
   }
 
-  async function loadRecommendations() {
-    try {
-      const { data: braverman } = await supabase
-        .from('braverman_results')
-        .select('deficiency_dopamine, deficiency_acetylcholine, deficiency_gaba, deficiency_serotonin')
-        .eq('user_id', userId)
-        .eq('is_complete', true)
-        .order('completed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!braverman) return;
-
-      const recs: any[] = [];
-      const defs = [
-        { key: 'dopamine', score: braverman.deficiency_dopamine, name: 'Dopamina', color: '#ef4444' },
-        { key: 'acetylcholine', score: braverman.deficiency_acetylcholine, name: 'Acetilcolina', color: '#3b82f6' },
-        { key: 'gaba', score: braverman.deficiency_gaba, name: 'GABA', color: '#22c55e' },
-        { key: 'serotonin', score: braverman.deficiency_serotonin, name: 'Serotonina', color: '#f59e0b' },
-      ];
-      for (const d of defs) {
-        if (d.score > 5) {
-          recs.push({
-            source: `braverman_${d.key}`,
-            reason: `Déficit de ${d.name} ${d.score > 15 ? 'mayor' : 'moderado'} (Braverman)`,
-            color: d.color,
-          });
-        }
-      }
-      setRecommendations(recs);
-    } catch { /* opcional */ }
-  }
-
-  async function toggleSupplement(supplementId: string) {
+  /** Toggle de UNA toma (dose_index). N tomas = N checks (188). */
+  async function toggleDose(supplementId: string, doseIndex: number) {
     const today = getLocalToday();
-    const currentlyTaken = todayLogs[supplementId] || false;
+    const takenIdxs = todayLogs[supplementId] ?? [];
+    const currentlyTaken = takenIdxs.includes(doseIndex);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    setTodayLogs(prev => ({ ...prev, [supplementId]: !currentlyTaken }));
+    setTodayLogs(prev => ({
+      ...prev,
+      [supplementId]: currentlyTaken
+        ? (prev[supplementId] ?? []).filter(i => i !== doseIndex)
+        : [...(prev[supplementId] ?? []), doseIndex],
+    }));
 
     if (currentlyTaken) {
       await supabase.from('supplement_logs')
         .delete()
         .eq('user_id', userId)
         .eq('supplement_id', supplementId)
-        .eq('date', today);
+        .eq('date', today)
+        .eq('dose_index', doseIndex);
     } else {
       await supabase.from('supplement_logs').upsert({
         user_id: userId,
         supplement_id: supplementId,
         date: today,
+        dose_index: doseIndex,
         taken: true,
-      }, { onConflict: 'user_id,supplement_id,date' });
-      // Economía (fire-and-forget; no-op si flag OFF). Key por suplemento/día → idempotente
-      // (re-toggle no re-acredita). Cap 8/día, decay (doc: self-report bajo).
+      }, { onConflict: 'user_id,supplement_id,date,dose_index' });
+      // Economía (fire-and-forget; no-op si flag OFF). Key por suplemento/día
+      // SIN dose_index → DECISIÓN multi-dosis: máximo 1 electrón por suplemento
+      // al día (la 2ª/3ª toma no re-acredita; cap 8/día global se mantiene).
       fireElectronAward({
         habit_type: 'supplement_check', evidence_tier: 'self', local_date: today,
         idempotency_key: `supplement_check_${userId}_${today}_${supplementId}`,
-        metadata: { supplement_id: supplementId },
+        metadata: { supplement_id: supplementId, dose_index: doseIndex },
       });
     }
     DeviceEventEmitter.emit('electrons_changed');
+  }
+
+  function toggleDoseTimeLabel(label: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setNewDoseTimes(prev => prev.includes(label)
+      ? prev.filter(l => l !== label)
+      // Mantener el orden canónico mañana→noche
+      : DOSE_TIME_LABELS.filter(l => prev.includes(l) || l === label));
   }
 
   async function addSupplement() {
@@ -155,35 +159,27 @@ export default function SupplementsScreen() {
       user_id: userId,
       name: newName.trim(),
       dosage: newDosage.trim(),
+      brand: newBrand.trim() || null,        // ficha ampliada (187)
+      form: newForm,                          // ficha ampliada (187)
       timing: newTiming,
       reason: newReason.trim() || null,
       source: 'manual',
       dose_pattern: newPattern, // T4 (#54): patrón de toma (migración 167)
+      // Multi-dosis (188): solo persiste array con 2+ tomas (1 toma = legacy NULL)
+      dose_times: newDoseTimes.length >= 2 ? newDoseTimes : null,
     });
-    setNewName(''); setNewDosage(''); setNewTiming('morning'); setNewReason(''); setNewPattern(DOSE_PATTERNS[0]);
+    setNewName(''); setNewDosage(''); setNewBrand(''); setNewForm(null);
+    setNewTiming('morning'); setNewReason(''); setNewPattern(DOSE_PATTERNS[0]); setNewDoseTimes([]);
     setShowAdd(false);
     loadSupplements();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }
 
-  // T4 (#54): agregar desde el catálogo ATP a mi biblioteca
-  async function addFromCatalog(item: CatalogSupplement) {
+  function openBhaScan(supp: { id: string; name: string; brand?: string | null } | null) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await supabase.from('user_supplements').insert({
-      user_id: userId,
-      name: item.name,
-      dosage: item.dose,
-      timing: item.timing,
-      reason: item.benefit,
-      source: 'catalog',
-      dose_pattern: item.dosePattern,
-      notes: item.cautions ?? null,
-    });
-    loadSupplements();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setBhaTarget(supp);
+    setBhaVisible(true);
   }
-
-  const ownedNames = new Set(supplements.map(s => String(s.name).toLowerCase()));
 
   async function removeSupplement(id: string, name: string) {
     Alert.alert('Eliminar suplemento', `¿Eliminar "${name}" de tu plan?`, [
@@ -205,8 +201,10 @@ export default function SupplementsScreen() {
     items: supplements.filter(s => s.timing === t.id),
   })).filter(g => g.items.length > 0);
 
-  const takenCount = Object.values(todayLogs).filter(Boolean).length;
-  const totalCount = supplements.length;
+  // Multi-dosis (188): el progreso cuenta TOMAS, no suplementos (N tomas = N checks)
+  const totalCount = supplements.reduce((acc, s) => acc + doseCountFor(s.dose_times), 0);
+  const takenCount = supplements.reduce(
+    (acc, s) => acc + Math.min((todayLogs[s.id] ?? []).length, doseCountFor(s.dose_times)), 0);
   const completionPct = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 0;
 
   return (
@@ -221,33 +219,44 @@ export default function SupplementsScreen() {
             <Text style={{ color: '#1D9E75', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
             <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>SUPLEMENTOS</Text>
           </View>
+          {/* Punto de entrada del scanner BHA en la sección (scan standalone:
+              suplemento o comida empaquetada, sin persistir en ficha) */}
+          <Pressable onPress={() => openBhaScan(null)} hitSlop={12} style={{ marginRight: 14 }}>
+            <Ionicons name="scan-outline" size={24} color="#4ade80" />
+          </Pressable>
           <Pressable onPress={() => setShowAdd(true)} hitSlop={12}>
             <Ionicons name="add-circle-outline" size={26} color="#a8e02a" />
           </Pressable>
         </View>
       </View>
 
-      {/* T4 (#54): tabs Mis suplementos | Catálogo ATP */}
-      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 16 }}>
-        {([['mine', 'Mis suplementos'], ['catalog', 'Catálogo']] as const).map(([id, label]) => (
-          <Pressable
-            key={id}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setTab(id); }}
-            style={{
-              paddingHorizontal: 16, paddingVertical: 8, borderRadius: 17,
-              backgroundColor: tab === id ? '#a8e02a' : '#0a0a0a',
-              borderWidth: 0.5, borderColor: tab === id ? '#a8e02a' : '#1a1a1a',
-            }}
-          >
-            <Text style={{ color: tab === id ? '#000' : '#666', fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>
-              {label}
+      {/* Máscara EMBARAZO (4.1.4) — banner GRANDE si el dato real está activo */}
+      {pregnancyActive && (
+        <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+          <View style={{
+            backgroundColor: 'rgba(239,159,39,0.12)', borderRadius: 16, padding: 18,
+            borderWidth: 1.5, borderColor: '#EF9F27', flexDirection: 'row', gap: 12, alignItems: 'center',
+          }}>
+            <Ionicons name="warning-outline" size={28} color="#EF9F27" />
+            <Text style={{ color: '#EF9F27', fontSize: 14, fontWeight: '700', lineHeight: 20, flex: 1 }}>
+              Estás en embarazo: revisa TODO con tu nutriólogo clínico antes de tomar cualquier suplemento.
             </Text>
-          </Pressable>
-        ))}
+          </View>
+        </View>
+      )}
+
+      {/* Doctrina: registro, no recomendación (copy obligatorio del sprint) */}
+      <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
+        <View style={{
+          backgroundColor: '#121212', borderRadius: 12, padding: 12,
+          borderWidth: 1, borderColor: '#1F1F1F',
+        }}>
+          <Text style={{ color: '#888', fontSize: 11, lineHeight: 16 }}>
+            Esto es tu registro. No es recomendación. Es responsabilidad de quien te lo indicó.
+          </Text>
+        </View>
       </View>
 
-      {tab === 'mine' && (
-      <>
       {/* Progreso del día + adherencia semanal */}
       <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
         <View style={{
@@ -274,44 +283,24 @@ export default function SupplementsScreen() {
           )}
           {totalCount > 0 && takenCount === totalCount && (
             <Text style={{ color: '#1D9E75', fontSize: 12, fontWeight: '600', textAlign: 'center', marginTop: 8 }}>
-              ✓ Todos los suplementos tomados
+              ✓ Todas las tomas de hoy registradas
             </Text>
           )}
         </View>
       </View>
 
-      {/* Recomendaciones Braverman (si no tiene suplementos) */}
-      {supplements.length === 0 && recommendations.length > 0 && (
-        <View style={{ paddingHorizontal: 20, marginBottom: 20 }}>
-          <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>
-            ARGOS RECOMIENDA (basado en tu Braverman)
-          </Text>
-          {recommendations.map((rec, i) => (
-            <View key={i} style={{
-              backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14, marginBottom: 6,
-              borderLeftWidth: 3, borderLeftColor: rec.color,
-            }}>
-              <Text style={{ color: rec.color, fontSize: 13, fontWeight: '600' }}>{rec.reason}</Text>
-              <Text style={{ color: '#666', fontSize: 11, marginTop: 4 }}>
-                Ve a los resultados de tu test para ver suplementos específicos
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
-
-      {/* Estado vacío */}
-      {supplements.length === 0 && recommendations.length === 0 && (
+      {/* Estado vacío — biblioteca vacía por default (doctrina: el user crea sus fichas) */}
+      {supplements.length === 0 && (
         <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 40 }}>
           <Ionicons name="flask-outline" size={48} color="#333" />
-          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Tu plan de suplementos</Text>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 16 }}>Tu registro de suplementos</Text>
           <Text style={{ color: '#666', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
-            Agrega tus suplementos para trackear cuáles tomaste hoy. Completa el Test de Braverman para recomendaciones personalizadas.
+            Crea las fichas de los suplementos que ya tomas (indicados por tu profesional) para registrar tus tomas del día.
           </Text>
           <Pressable onPress={() => setShowAdd(true)} style={{
             backgroundColor: '#a8e02a', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 24, marginTop: 20,
           }}>
-            <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>AGREGAR SUPLEMENTO</Text>
+            <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>CREAR MI PRIMERA FICHA</Text>
           </Pressable>
         </View>
       )}
@@ -332,14 +321,23 @@ export default function SupplementsScreen() {
           </View>
 
           {group.items.map(supp => {
-            const taken = todayLogs[supp.id] || false;
+            const doseCount = doseCountFor(supp.dose_times);
+            const takenIdxs = todayLogs[supp.id] ?? [];
+            const taken = takenIdxs.length >= doseCount; // fila completa = todas las tomas
+            const doseLabels: string[] = Array.isArray(supp.dose_times) ? supp.dose_times : [];
             return (
               <SwipeToDeleteRow
                 key={supp.id}
                 onConfirmDelete={() => removeSupplement(supp.id, supp.name)}
               >
                 <Pressable
-                  onPress={() => toggleSupplement(supp.id)}
+                  onPress={() => toggleDose(supp.id, doseCount === 1 ? 0 : (
+                    // Multi-dosis: tap en la fila marca la SIGUIENTE toma pendiente
+                    // (o desmarca la última si ya están todas).
+                    taken
+                      ? takenIdxs[takenIdxs.length - 1]
+                      : Array.from({ length: doseCount }, (_, i) => i).find(i => !takenIdxs.includes(i)) ?? 0
+                  ))}
                   onLongPress={() => removeSupplement(supp.id, supp.name)}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -352,29 +350,84 @@ export default function SupplementsScreen() {
                   {taken ? (
                     <Ionicons name="checkmark-circle" size={26} color="#1D9E75" />
                   ) : (
-                    <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#333' }} />
+                    <View style={{ width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: '#333', alignItems: 'center', justifyContent: 'center' }}>
+                      {doseCount > 1 && takenIdxs.length > 0 && (
+                        <Text style={{ color: '#1D9E75', fontSize: 9, fontWeight: '800' }}>{takenIdxs.length}</Text>
+                      )}
+                    </View>
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={{
-                      color: taken ? '#1D9E75' : '#fff', fontSize: 14, fontWeight: '600',
-                      textDecorationLine: taken ? 'line-through' : 'none',
-                    }}>
-                      {supp.name}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text style={{
+                        color: taken ? '#1D9E75' : '#fff', fontSize: 14, fontWeight: '600',
+                        textDecorationLine: taken ? 'line-through' : 'none',
+                      }}>
+                        {supp.name}
+                      </Text>
+                      {/* Sello BHA (187): ✅ approved / ❌ rejected / nada = sin escanear */}
+                      {supp.bha_status === 'approved' && (
+                        <View style={{ backgroundColor: 'rgba(74,222,128,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: '#4ade80', fontSize: 8, fontWeight: '800' }}>✓ BHA</Text>
+                        </View>
+                      )}
+                      {supp.bha_status === 'rejected' && (
+                        <View style={{ backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: '#ef4444', fontSize: 8, fontWeight: '800' }}>✗ BHA</Text>
+                        </View>
+                      )}
+                    </View>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                       <Text style={{ color: '#666', fontSize: 11 }}>{supp.dosage}</Text>
+                      {supp.brand && <Text style={{ color: '#666', fontSize: 11 }}>· {supp.brand}</Text>}
+                      {supp.form && <Text style={{ color: '#666', fontSize: 11 }}>· {FORM_OPTIONS.find(f => f.id === supp.form)?.label ?? supp.form}</Text>}
                       {/* T4: patrón de toma visible (dosis flexible, 167) */}
                       {supp.dose_pattern && <Text style={{ color: '#1D9E75', fontSize: 11 }}>· {supp.dose_pattern}</Text>}
                       {supp.reason && <Text style={{ color: '#444', fontSize: 11 }}>· {supp.reason}</Text>}
                     </View>
-                  </View>
-                  {supp.source !== 'manual' && (
-                    <View style={{ backgroundColor: 'rgba(168,224,42,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                      <Text style={{ color: '#a8e02a', fontSize: 8, fontWeight: '700' }}>
-                        {supp.source.includes('braverman') ? 'BRAVERMAN' : 'QUIZ'}
+                    {/* Multi-dosis (188): N tomas = N checks individuales */}
+                    {doseCount > 1 && (
+                      <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                        {Array.from({ length: doseCount }, (_, i) => {
+                          const doseTaken = takenIdxs.includes(i);
+                          return (
+                            <Pressable
+                              key={i}
+                              onPress={() => toggleDose(supp.id, i)}
+                              hitSlop={6}
+                              style={{
+                                flexDirection: 'row', alignItems: 'center', gap: 4,
+                                paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
+                                backgroundColor: doseTaken ? 'rgba(29,158,117,0.15)' : '#111',
+                                borderWidth: 1, borderColor: doseTaken ? '#1D9E75' : '#222',
+                              }}
+                            >
+                              <Ionicons
+                                name={doseTaken ? 'checkmark-circle' : 'ellipse-outline'}
+                                size={12}
+                                color={doseTaken ? '#1D9E75' : '#555'}
+                              />
+                              <Text style={{ color: doseTaken ? '#1D9E75' : '#777', fontSize: 10, fontWeight: '600' }}>
+                                {doseLabels[i] ?? `Toma ${i + 1}`}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    )}
+                    {/* Razones del sello BHA en la ficha */}
+                    {supp.bha_status && supp.bha_scan_summary && (
+                      <Text style={{ color: '#555', fontSize: 10, marginTop: 6, lineHeight: 14 }} numberOfLines={2}>
+                        {String(supp.bha_scan_summary).split('\n')[0]}
                       </Text>
-                    </View>
-                  )}
+                    )}
+                  </View>
+                  {/* CTA "Escanear con BHA" de la ficha (re-escanear si ya tiene sello) */}
+                  <Pressable
+                    onPress={() => openBhaScan({ id: supp.id, name: supp.name, brand: supp.brand })}
+                    hitSlop={10}
+                  >
+                    <Ionicons name="scan-outline" size={20} color={supp.bha_status ? '#444' : '#4ade80'} />
+                  </Pressable>
                 </Pressable>
               </SwipeToDeleteRow>
             );
@@ -384,74 +437,8 @@ export default function SupplementsScreen() {
 
       {supplements.length > 0 && (
         <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 4 }}>
-          Toca para marcar · Desliza ← (o mantén presionado) para eliminar
+          Toca para marcar · Desliza ← (o mantén presionado) para eliminar · Escanea la etiqueta para el sello BHA
         </Text>
-      )}
-      </>
-      )}
-
-      {/* ══════════════ T4 (#54): CATÁLOGO ATP por objetivo ══════════════ */}
-      {tab === 'catalog' && (
-        <View style={{ paddingHorizontal: 20 }}>
-          {/* Pills de objetivo */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-            {(Object.keys(OBJECTIVE_LABELS) as SupplementObjective[]).map(obj => (
-              <Pressable
-                key={obj}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCatalogObjective(obj); }}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 6,
-                  paddingHorizontal: 14, paddingVertical: 8, borderRadius: 17, marginRight: 8,
-                  backgroundColor: catalogObjective === obj ? 'rgba(29,158,117,0.15)' : '#0a0a0a',
-                  borderWidth: 1, borderColor: catalogObjective === obj ? '#1D9E75' : '#1a1a1a',
-                }}
-              >
-                <Ionicons name={OBJECTIVE_LABELS[obj].icon as any} size={14} color={catalogObjective === obj ? '#1D9E75' : '#666'} />
-                <Text style={{ color: catalogObjective === obj ? '#1D9E75' : '#999', fontSize: 12, fontWeight: '600' }}>
-                  {OBJECTIVE_LABELS[obj].label}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-
-          {catalogByObjective(catalogObjective).map(item => {
-            const owned = ownedNames.has(item.name.toLowerCase());
-            return (
-              <View key={item.id} style={{
-                backgroundColor: '#0a0a0a', borderRadius: 14, padding: 16, marginBottom: 10,
-                borderWidth: 1, borderColor: '#1a1a1a',
-              }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', flex: 1 }}>{item.name}</Text>
-                  <Pressable
-                    onPress={() => !owned && addFromCatalog(item)}
-                    disabled={owned}
-                    style={{
-                      paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12,
-                      backgroundColor: owned ? '#1a1a1a' : '#a8e02a',
-                    }}
-                  >
-                    <Text style={{ color: owned ? '#666' : '#000', fontSize: 12, fontWeight: '800' }}>
-                      {owned ? 'EN TU PLAN' : '+ AGREGAR'}
-                    </Text>
-                  </Pressable>
-                </View>
-                <Text style={{ color: '#999', fontSize: 12, marginTop: 6 }}>
-                  {item.dose} · {item.dosePattern} · {item.benefit}
-                </Text>
-                <Text style={{ color: '#666', fontSize: 11, marginTop: 6, lineHeight: 16 }}>{item.evidence}</Text>
-                {item.cautions && (
-                  <Text style={{ color: '#EF9F27', fontSize: 11, marginTop: 6, lineHeight: 16 }}>
-                    ⚠ {item.cautions}
-                  </Text>
-                )}
-              </View>
-            );
-          })}
-          <Text style={{ color: '#444', fontSize: 10, textAlign: 'center', marginTop: 8, lineHeight: 15 }}>
-            Consulta con un experto. Esto no sustituye a un profesional de salud.
-          </Text>
-        </View>
       )}
 
       {/* ══════════════════════════════════════════
@@ -482,6 +469,34 @@ export default function SupplementsScreen() {
               }}
             />
 
+            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Marca (opcional)</Text>
+            <TextInput
+              value={newBrand} onChangeText={setNewBrand}
+              placeholder="Ej: Thorne, NOW Foods" placeholderTextColor="#444"
+              style={{
+                backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
+                padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
+              }}
+            />
+
+            {/* Ficha ampliada (187): presentación */}
+            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Forma</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {FORM_OPTIONS.map(f => (
+                <Pressable
+                  key={f.id}
+                  onPress={() => setNewForm(newForm === f.id ? null : f.id)}
+                  style={{
+                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
+                    backgroundColor: newForm === f.id ? 'rgba(168,224,42,0.15)' : '#111',
+                    borderWidth: 1.5, borderColor: newForm === f.id ? '#a8e02a' : '#1a1a1a',
+                  }}
+                >
+                  <Text style={{ color: newForm === f.id ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>{f.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Dosis</Text>
             <TextInput
               value={newDosage} onChangeText={setNewDosage}
@@ -491,6 +506,29 @@ export default function SupplementsScreen() {
                 padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
               }}
             />
+
+            {/* Multi-dosis (188): 2+ etiquetas = N tomas/día con N checks */}
+            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>
+              Tomas al día {newDoseTimes.length >= 2 ? `(${newDoseTimes.length} tomas)` : '(1 toma)'}
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {DOSE_TIME_LABELS.map(label => {
+                const sel = newDoseTimes.includes(label);
+                return (
+                  <Pressable
+                    key={label}
+                    onPress={() => toggleDoseTimeLabel(label)}
+                    style={{
+                      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
+                      backgroundColor: sel ? 'rgba(29,158,117,0.15)' : '#111',
+                      borderWidth: 1.5, borderColor: sel ? '#1D9E75' : '#1a1a1a',
+                    }}
+                  >
+                    <Text style={{ color: sel ? '#1D9E75' : '#999', fontSize: 12, fontWeight: '600' }}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
             {/* T4 (#54): patrón de toma — la adherencia se mide contra esto */}
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Frecuencia</Text>
@@ -560,6 +598,14 @@ export default function SupplementsScreen() {
           </View>
         </View>
       )}
+      {/* Scanner BHA — sello Biohacker Approved (decisión #5) */}
+      <BhaScanSheet
+        visible={bhaVisible}
+        userId={userId}
+        supplement={bhaTarget}
+        onClose={() => setBhaVisible(false)}
+        onSealPersisted={loadSupplements}
+      />
       <MedicalDisclaimer feature="supplements" />
     </ScrollView>
   );
