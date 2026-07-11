@@ -20,6 +20,8 @@ import {
 import { ArgosRateLimitError } from '../src/services/argos-stream-core';
 import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
 import { withPreflight, wasAborted } from '../src/services/economy/with-preflight';
+import { isOnline } from '../src/services/connectivity';
+import { buildOfflineArgosMessage } from '../src/services/argos-offline-core';
 import { VoiceButton } from '../src/components/VoiceButton';
 import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
@@ -112,6 +114,11 @@ function ArgosChat() {
   const [boostJustActivated, setBoostJustActivated] = useState(false);
   // T2 MAGIA 2.0: true mientras llegan chunks del stream — avatar 'speaking'.
   const [streaming, setStreaming] = useState(false);
+  // Bug #8: estado offline detectado en el último submit — botón send en modo
+  // warning (sigue tocable para reintentar; cada tap re-verifica la red).
+  const [offline, setOffline] = useState(false);
+  // Nombre para el copy offline ("Se me fue la señal, {nombre}").
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -127,6 +134,8 @@ function ArgosChat() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setUserId(user.id);
+        // Bug #8: nombre para el copy offline (metadata local, sin fetch extra).
+        setUserName((user.user_metadata as any)?.full_name ?? null);
         if (params.conversationId) {
           const msgs = await loadConversation(params.conversationId);
           setMessages(msgs);
@@ -209,10 +218,30 @@ function ArgosChat() {
     // Una sola idempotency_key para TODO este turno (incluye los retries internos de callAnthropic).
     const idempotencyKey = generateUUID();
 
-    // Economía: pre-flight H+ (no-op + byte-idéntico si LAB_ECONOMY_ENABLED=false). Si no
-    // alcanza, aborta ANTES del update optimista (ofrece ir a la tienda). El proxy igual
-    // responde 402 como guard real server-side.
-    const gate = await withPreflight('chat', async () => true);
+    // Bug #8: submit sin conexión no daba NINGÚN feedback. Ping fail-fast
+    // (2.5s, sin deps nativas) en paralelo con el preflight de economía.
+    // Si no hay red: feedback inmediato en el chat (copy aprobado) y ambos
+    // turnos degraded (no se persisten ni entran al contexto del LLM).
+    const [online, gate] = await Promise.all([
+      isOnline(),
+      // Economía: pre-flight H+ (no-op + byte-idéntico si LAB_ECONOMY_ENABLED=false). Si no
+      // alcanza, aborta ANTES del update optimista (ofrece ir a la tienda). El proxy igual
+      // responde 402 como guard real server-side.
+      withPreflight('chat', async () => true),
+    ]);
+    if (!online) {
+      sendingRef.current = false;
+      setOffline(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setInput('');
+      setMessages([
+        ...messages,
+        { role: 'user', content: messageText, degraded: true, ts: Date.now() },
+        { role: 'assistant', content: buildOfflineArgosMessage(userName), degraded: true, ts: Date.now() },
+      ]);
+      return;
+    }
+    if (offline) setOffline(false);
     if (wasAborted(gate)) { sendingRef.current = false; return; }
 
     // Detener si ARGOS estaba hablando
@@ -640,11 +669,17 @@ function ArgosChat() {
           disabled={!input.trim() || loading}
           style={{
             width: 44, height: 44, borderRadius: 22,
-            backgroundColor: input.trim() && !loading ? '#a8e02a' : '#1a1a1a',
+            // Bug #8: sin red el botón pasa a warning (ámbar). Sigue tocable:
+            // cada tap re-verifica la conexión y limpia el estado si volvió.
+            backgroundColor: input.trim() && !loading ? (offline ? '#e0a02a' : '#a8e02a') : '#1a1a1a',
             justifyContent: 'center', alignItems: 'center',
           }}
         >
-          <Ionicons name="arrow-up" size={22} color={input.trim() && !loading ? '#000' : '#444'} />
+          <Ionicons
+            name={offline ? 'cloud-offline-outline' : 'arrow-up'}
+            size={22}
+            color={input.trim() && !loading ? '#000' : '#444'}
+          />
         </Pressable>
       </View>
     </View>

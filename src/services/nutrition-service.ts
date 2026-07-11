@@ -3,7 +3,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from './anthropic-client';
+import { callAnthropic, extractResponseText } from './anthropic-client';
 import { generateAIReferencePrompt } from '@/src/constants/argos-food-library';
 import { getUserWaterGoal } from './hydration-service';
 import { getArgosCallMetadata } from './argos-service';
@@ -200,9 +200,10 @@ export async function analyzeFoodPhoto(
       { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: photoBase64 } },
       { type: 'text', text: `Analiza esta comida desde la foto.\n${prompt}` },
     ],
-  }], 2000, ATP_LLM.PRIMARY_MODEL, undefined, meta);
+    // MAX_TOKENS_DEFAULT (antes 2000): thinking Sonnet 5 cuenta contra el cap.
+  }], ATP_LLM.MAX_TOKENS_DEFAULT, ATP_LLM.PRIMARY_MODEL, undefined, meta);
 
-  return parseFoodResult(response?.content?.[0]?.text ?? '{}');
+  return parseFoodResult(extractResponseText(response) || '{}');
 }
 
 export async function analyzeFoodText(description: string): Promise<any> {
@@ -214,9 +215,10 @@ export async function analyzeFoodText(description: string): Promise<any> {
   const response = await callAnthropic([{
     role: 'user',
     content: `Analiza esta comida descrita por el usuario. NO hay foto — estima desde la descripción.\n${prompt}`,
-  }], 2000, ATP_LLM.PRIMARY_MODEL, undefined, meta);
+    // MAX_TOKENS_DEFAULT (antes 2000): thinking Sonnet 5 cuenta contra el cap.
+  }], ATP_LLM.MAX_TOKENS_DEFAULT, ATP_LLM.PRIMARY_MODEL, undefined, meta);
 
-  return parseFoodResult(response?.content?.[0]?.text ?? '{}');
+  return parseFoodResult(extractResponseText(response) || '{}');
 }
 
 /** Recalcular con IA después de editar ingredientes */
@@ -230,9 +232,10 @@ export async function reanalyzeFood(ingredients: any[], mealType?: string): Prom
   const response = await callAnthropic([{
     role: 'user',
     content: `El usuario editó los ingredientes. Recalcula score y feedback.\n${prompt}`,
-  }], 2000, ATP_LLM.PRIMARY_MODEL, undefined, meta);
+    // MAX_TOKENS_DEFAULT (antes 2000): thinking Sonnet 5 cuenta contra el cap.
+  }], ATP_LLM.MAX_TOKENS_DEFAULT, ATP_LLM.PRIMARY_MODEL, undefined, meta);
 
-  return parseFoodResult(response?.content?.[0]?.text ?? '{}');
+  return parseFoodResult(extractResponseText(response) || '{}');
 }
 
 // === HYDRATION ===
@@ -338,9 +341,10 @@ Un producto de 3 ingredientes naturales que cumple su función PUEDE sacar 95-10
 Responde SOLO con JSON válido (sin backticks ni markdown):
 {"product_name":"nombre del producto","cleanliness_score":75,"ingredients_count":12,"natural_ingredients":8,"additives":["E621","E150d"],"additive_alerts":[{"name":"Glutamato monosódico","code":"E621","risk":"medio","explanation":"Potenciador de sabor artificial"}],"sugar_g":12,"sodium_mg":450,"has_trans_fat":false,"ultra_processed":false,"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["sin_azucar","ingredientes_naturales"],"red_flags":["contiene colorantes artificiales"],"suggestions":"Alternativa más limpia concreta"}` }
     ],
-  }], 2000, ATP_LLM.PRIMARY_MODEL, undefined, meta);
+    // MAX_TOKENS_DEFAULT (antes 2000): thinking Sonnet 5 cuenta contra el cap.
+  }], ATP_LLM.MAX_TOKENS_DEFAULT, ATP_LLM.PRIMARY_MODEL, undefined, meta);
 
-  const text = response?.content?.[0]?.text ?? '{}';
+  const text = extractResponseText(response) || '{}';
   try {
     return JSON.parse(text.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
   } catch {
@@ -376,9 +380,10 @@ Magnesio bisglicinato puro con cápsula vegetal = 95-100.
 Responde SOLO con JSON válido (sin backticks ni markdown):
 {"supplement_name":"nombre","quality_score":75,"form":"cápsula","active_ingredients":[{"name":"Vitamina D3","amount":"2000 IU","form":"colecalciferol","bioavailability":"alta"}],"inactive_ingredients":["estearato de magnesio","dióxido de titanio"],"red_flags":["Contiene dióxido de titanio"],"feedback":"Evaluación en español coloquial, 1-2 oraciones.","tags":["buena_biodisponibilidad","formas_optimas"],"suggestions":"Sugerencia de mejora o alternativa","daily_dose":"1 cápsula","interactions":"Precauciones relevantes si las hay, o null"}` }
     ],
-  }], 2000, ATP_LLM.PRIMARY_MODEL, undefined, meta);
+    // MAX_TOKENS_DEFAULT (antes 2000): thinking Sonnet 5 cuenta contra el cap.
+  }], ATP_LLM.MAX_TOKENS_DEFAULT, ATP_LLM.PRIMARY_MODEL, undefined, meta);
 
-  const text = response?.content?.[0]?.text ?? '{}';
+  const text = extractResponseText(response) || '{}';
   try {
     return JSON.parse(text.replace(/```json?\n?/g, '').replace(/```/g, '').trim());
   } catch {
@@ -435,7 +440,8 @@ Le faltan: ~${Math.max(0, deficit.calories)}kcal, ~${Math.max(0, deficit.protein
 ${plan.foods_to_avoid?.length ? `Evitar: ${plan.foods_to_avoid.join(', ')}` : ''}
 ${plan.foods_to_prioritize?.length ? `Priorizar: ${plan.foods_to_prioritize.join(', ')}` : ''}
 Sugiere UNA comida concreta (alimentos y porciones) que cubra lo faltante. Sé específico. Responde en 2-3 oraciones en español coloquial.`,
-  }], 500, ATP_LLM.PRIMARY_MODEL, undefined, meta);
+    // MAX_TOKENS_ESTIMATE (antes 500): thinking Sonnet 5 cuenta contra el cap.
+  }], ATP_LLM.MAX_TOKENS_ESTIMATE, ATP_LLM.PRIMARY_MODEL, undefined, meta);
 
-  return response?.content?.[0]?.text ?? 'No se pudo generar sugerencia.';
+  return extractResponseText(response) || 'No se pudo generar sugerencia.';
 }

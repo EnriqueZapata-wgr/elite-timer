@@ -4,7 +4,7 @@
  * Usa callAnthropic (Supabase Edge Function proxy).
  */
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic, callAnthropicStream } from './anthropic-client';
+import { callAnthropic, callAnthropicStream, extractResponseText } from './anthropic-client';
 import { ArgosStreamUnavailableError } from './argos-stream-core';
 import { buildDemandingCoachInjection, DEMANDING_COACH_USER_HINT } from './routine-coach-logic';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
@@ -1412,7 +1412,9 @@ export async function chatWithArgosEx(
   try {
     data = await callAnthropic(
       messages.map(m => ({ role: m.role, content: m.content })),
-      1024,
+      // MAX_TOKENS_DEFAULT (antes 1024): Sonnet 5 con adaptive thinking cuenta
+      // thinking + texto contra el cap → 1024 truncaba respuestas de chat.
+      ATP_LLM.MAX_TOKENS_DEFAULT,
       model,
       systemPrompt,
       meta,
@@ -1438,7 +1440,7 @@ export async function chatWithArgosEx(
   const degraded = !!(data?._degraded || data?._rate_limited);
   // T5 MAGIA 2.0: payload enriquecido del rate limit → RateLimitCard en el caller.
   const rateLimit = parseRateLimitInfo(data) ?? undefined;
-  const rawText = data?.content?.[0]?.text;
+  const rawText = extractResponseText(data) || undefined;
   const text = rawText || 'Se me fue la señal. Reintenta en unos minutos.';
 
   // Post-LLM enforcement (Step COACH 7/N): si la respuesta es una recomendación
@@ -1519,7 +1521,9 @@ export async function* generateResponseStream(
   let full = '';
   for await (const evt of callAnthropicStream(
     messages.map(m => ({ role: m.role, content: m.content })),
-    1024,
+    // MAX_TOKENS_DEFAULT (antes 1024): mismo fix que chatWithArgosEx — el cap
+    // total incluye thinking; 1024 cortaba el stream a media frase.
+    ATP_LLM.MAX_TOKENS_DEFAULT,
     model,
     systemPrompt,
     meta,
@@ -1584,12 +1588,14 @@ No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${protocolGuard}$
     const meta = await getArgosCallMetadata({ requestType: 'insight' });
     const data = await callAnthropic(
       [{ role: 'user', content: 'Dame el insight más relevante para hoy.' }],
-      200,
+      // MAX_TOKENS_ESTIMATE (antes 200): el thinking de Sonnet 5 consume el cap
+      // → 200 dejaba el insight vacío/truncado. El output sigue siendo corto.
+      ATP_LLM.MAX_TOKENS_ESTIMATE,
       MODEL_ESTIMATE,
       insightSystem,
       meta,
     );
-    return data?.content?.[0]?.text || '';
+    return extractResponseText(data);
   } catch (e) {
     console.warn('ARGOS insight error:', e);
     return '';
@@ -1763,12 +1769,13 @@ ${request.focus ? `Enfoque: ${request.focus}` : ''}
 ${request.level ? `Nivel: ${request.level}` : ''}
 ${request.demandingCoach ? DEMANDING_COACH_USER_HINT : ''}`,
       }],
-      1500,
+      // MAX_TOKENS_DEFAULT (antes 1500): JSON largo + thinking de Sonnet 5.
+      ATP_LLM.MAX_TOKENS_DEFAULT,
       MODEL_CHAT,
       systemPrompt,
       meta,
     );
-    const text = data?.content?.[0]?.text || '';
+    const text = extractResponseText(data);
     const clean = text.replace(/```json|```/g, '').trim();
     return JSON.parse(clean) as GeneratedRoutine;
   } catch (e) {
@@ -1847,12 +1854,13 @@ ${request.maxMinutes ? `Máximo ${request.maxMinutes} minutos de preparación` :
 ${request.ingredients?.length ? `Ingredientes disponibles: ${request.ingredients.join(', ')}` : ''}
 ${request.restrictions?.length ? `Restricciones: ${request.restrictions.join(', ')}` : ''}`,
       }],
-      1500,
+      // MAX_TOKENS_DEFAULT (antes 1500): JSON largo + thinking de Sonnet 5.
+      ATP_LLM.MAX_TOKENS_DEFAULT,
       MODEL_CHAT,
       systemPrompt,
       meta,
     );
-    const text = data?.content?.[0]?.text || '';
+    const text = extractResponseText(data);
     const clean = text.replace(/```json|```/g, '').trim();
     return JSON.parse(clean) as GeneratedRecipe;
   } catch (e) {
@@ -1900,12 +1908,13 @@ Responde SOLO en JSON (sin markdown, sin backticks):
     const meta = await getArgosCallMetadata({ requestType: 'shopping_list' });
     const data = await callAnthropic(
       [{ role: 'user', content: `Genera lista de super para ${days} días.` }],
-      1500,
+      // MAX_TOKENS_DEFAULT (antes 1500): JSON largo + thinking de Sonnet 5.
+      ATP_LLM.MAX_TOKENS_DEFAULT,
       MODEL_CHAT,
       systemPrompt,
       meta,
     );
-    const text = data?.content?.[0]?.text || '';
+    const text = extractResponseText(data);
     const clean = text.replace(/```json|```/g, '').trim();
     return JSON.parse(clean) as ShoppingList;
   } catch (e) {

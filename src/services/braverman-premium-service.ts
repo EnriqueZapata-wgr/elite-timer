@@ -10,7 +10,7 @@
  *   volver a debitar, y el flujo continúa hasta cachear el reporte.
  */
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from './anthropic-client';
+import { callAnthropic, extractResponseText } from './anthropic-client';
 import { getArgosCallMetadata } from './argos-service';
 import { getClientProfile } from './client-profile-service';
 import { getActionCost, getProtonBalance, spendProtons } from './economy/proton-service';
@@ -171,15 +171,17 @@ export async function generateBravermanPremiumReport(userId: string): Promise<Pr
       requestType: BRAVERMAN_PREMIUM_ACTION_KEY,
       idempotencyKey,
     });
+    // 8000 (antes 3000): reporte markdown largo + thinking de Sonnet 5 cuentan
+    // ambos contra max_tokens (adaptive thinking on por default en el proxy).
     const data = await callAnthropic(
       [{ role: 'user', content: prompt.user }],
-      3000,
+      8000,
       ATP_LLM.PRIMARY_MODEL,
       prompt.system,
       meta,
     );
-    const markdown = data?.content?.[0]?.text;
-    if (!markdown || typeof markdown !== 'string') return { status: 'error' };
+    const markdown = extractResponseText(data);
+    if (!markdown) return { status: 'error' };
 
     // Cache best-effort (si falla el insert, el reporte igual se muestra)
     await supabase.from('braverman_premium_reports').insert({

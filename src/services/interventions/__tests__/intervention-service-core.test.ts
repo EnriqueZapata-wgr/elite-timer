@@ -152,10 +152,11 @@ describe('resolveRows + orden', () => {
     const list = resolveRows([
       row({ intervention_key: 'ayuno_18_6', priority: 3 }),
       row({ intervention_key: 'ayuno_16_8', priority: 2 }),
-      row({ intervention_key: 'grounding', priority: 1, is_universal: true }),
+      // Catálogo v3 (cc12ceb): key renombrada grounding → grounding_earthing.
+      row({ intervention_key: 'grounding_earthing', priority: 1, is_universal: true }),
     ], match);
     const sorted = sortSuggested(list);
-    expect(sorted[0].row.intervention_key).toBe('grounding'); // base universal primero
+    expect(sorted[0].row.intervention_key).toBe('grounding_earthing'); // base universal primero
     // curadas: 16:8 (P2, 2 raíces) sobre 18:6 (P3)
     expect(sorted[1].row.intervention_key).toBe('ayuno_16_8');
     expect(sorted[1].score).toBeGreaterThan(sorted[2].score);

@@ -53,7 +53,8 @@ describe('universales (fallback garantizado)', () => {
     expect(UNIVERSAL_INTERVENTIONS.map(u => u.key).sort()).toEqual([
       'apagar_pantallas_noche',
       'exposicion_solar_matutina',
-      'grounding',
+      // Catálogo v3 (cc12ceb, Cowork): key renombrada grounding → grounding_earthing.
+      'grounding_earthing',
       'hidratacion_matutina',
       'recordatorio_comer',
       'recordatorio_dormir',

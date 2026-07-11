@@ -13,7 +13,7 @@
  */
 import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from '@/src/services/anthropic-client';
+import { callAnthropic, extractResponseText } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { generateUUID } from '@/src/utils/uuid';
 import { ATP_LLM } from '@/src/constants/llm-config';
@@ -268,15 +268,22 @@ export async function generateDX(
       requestType: resolveDxGenerationAction(priorMaxVersion > 0, DX_GENERATION_ACTION_KEY),
       idempotencyKey,
     });
+    // 8000 (antes 2000): Sonnet 5 con adaptive thinking consume el budget de
+    // max_tokens también en thinking — 2000 truncaba el JSON (stop_reason max_tokens).
     const data = await callAnthropic(
       [{ role: 'user', content: prompt.user }],
-      2000,
+      8000,
       ATP_LLM.PRIMARY_MODEL,
       prompt.system,
       meta,
     );
-    rawText = data?.content?.[0]?.text;
-    if (!rawText || typeof rawText !== 'string') return { status: 'error', message: 'empty_response' };
+    rawText = extractResponseText(data);
+    if (!rawText) return { status: 'error', message: 'empty_response' };
+    // Truncado por cap total (thinking + texto): NO persistir JSON incompleto
+    // (evita versiones con roots vacíos por truncamiento).
+    if (data?.stop_reason === 'max_tokens') {
+      return { status: 'error', message: 'respuesta_incompleta_max_tokens' };
+    }
   } catch (err: any) {
     const msg = String(err?.message ?? err);
     // El proxy cobra server-side; 402 = balance insuficiente (doctrina H+).

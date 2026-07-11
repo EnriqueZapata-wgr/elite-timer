@@ -43,18 +43,23 @@ function emitChanged() {
 
 // ── Cronotipo (reuso de user_chronotype, mismo shape que day-compiler) ───────
 
-/** Lee el horario del cronotipo del user (schedule JSONB con fallback a columna). */
+/**
+ * Lee el horario del cronotipo del user.
+ * HOTFIX schema (verificado por SQL): user_chronotype tiene wake_time y
+ * sleep_time como columnas PLANAS — NO existe columna `schedule` (el select
+ * de `schedule` daba 400 silencioso → computed_time de universales
+ * circadianos caía siempre al default).
+ */
 export async function getChronotypeSchedule(userId: string): Promise<ChronotypeSchedule> {
   try {
     const { data } = await supabase
       .from('user_chronotype')
-      .select('schedule, sleep_time')
+      .select('wake_time, sleep_time')
       .eq('user_id', userId)
       .maybeSingle();
-    const schedule = (data as any)?.schedule ?? {};
     return {
-      wake_time: schedule?.wake_time ?? null,
-      sleep_time: schedule?.sleep_time ?? (data as any)?.sleep_time ?? null,
+      wake_time: (data as any)?.wake_time ?? null,
+      sleep_time: (data as any)?.sleep_time ?? null,
     };
   } catch {
     return { wake_time: null, sleep_time: null };

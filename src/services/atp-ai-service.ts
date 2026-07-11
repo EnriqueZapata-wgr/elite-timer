@@ -5,7 +5,7 @@
  * para Claude, que retorna un reporte clínico.
  */
 import { supabase } from '@/src/lib/supabase';
-import { callAnthropic } from '@/src/services/anthropic-client';
+import { callAnthropic, extractResponseText } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getCurrentStreak, getComplianceStats } from '@/src/services/adherence-service';
 import { warn as logWarn, error as logError } from '@/src/lib/logger';
@@ -108,7 +108,8 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
 
   const settled3 = await Promise.allSettled([
     supabase.from('profiles').select('full_name, email').eq('id', clientId).single(),
-    supabase.from('user_chronotype').select('schedule').eq('user_id', clientId).maybeSingle(),
+    // HOTFIX schema: wake_time/sleep_time son columnas PLANAS (no hay `schedule`).
+    supabase.from('user_chronotype').select('wake_time, sleep_time').eq('user_id', clientId).maybeSingle(),
   ]);
   const { data: profileBasic } = settledData('profiles', settled3[0] as any);
   const { data: chronoRow } = settledData('user_chronotype', settled3[1] as any);
@@ -131,7 +132,9 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     complianceStats,
     healthMeasurement: hmRes.data?.[0] || null,
     personalRecords: prRes.data || [],
-    chronotype: chronoRow ? { schedule: (chronoRow as any).schedule ?? null } : null,
+    chronotype: chronoRow
+      ? { schedule: { wake_time: (chronoRow as any).wake_time ?? null, sleep_time: (chronoRow as any).sleep_time ?? null } }
+      : null,
   };
 }
 
@@ -365,7 +368,8 @@ export async function askAtpAI(clientId: string, customQuestion?: string): Promi
       meta,
     );
 
-    return result.content?.map((c: any) => c.text || '').join('\n') || 'No se pudo generar el análisis.';
+    // extractResponseText: solo bloques type==='text' (ignora thinking de Sonnet 5).
+    return extractResponseText(result) || 'No se pudo generar el análisis.';
   } catch (e: any) {
     // ARG-5: degradar si callAnthropic (o cualquier query) falla — nunca tumbar la UI del coach.
     logError('askAtpAI error:', e?.message ?? String(e));

@@ -33,7 +33,12 @@ vi.mock('@/src/lib/supabase', () => ({
   },
 }));
 
-vi.mock('../anthropic-client', () => ({ callAnthropic: vi.fn() }));
+// HOTFIX Sonnet 5: el servicio ahora usa extractResponseText (helper puro) —
+// se re-exporta el real desde el core para que el parse siga siendo el de prod.
+vi.mock('../anthropic-client', async () => {
+  const { extractResponseText } = await import('../anthropic-response-core');
+  return { callAnthropic: vi.fn(), extractResponseText };
+});
 vi.mock('../argos-service', () => ({ getArgosCallMetadata: vi.fn(async () => ({})) }));
 vi.mock('../client-profile-service', () => ({ getClientProfile: vi.fn(async () => null) }));
 vi.mock('../economy/proton-service', () => ({
@@ -67,7 +72,13 @@ beforeEach(() => {
   state.cachedReport = null;
   state.inserted = [];
   spendMock.mockResolvedValue({ success: true, newBalance: 4000 });
-  llmMock.mockResolvedValue({ content: [{ text: '## Reporte generado' }] });
+  // Shape real de Anthropic (incluye bloque thinking de Sonnet 5 adaptive).
+  llmMock.mockResolvedValue({
+    content: [
+      { type: 'thinking', thinking: 'razonando…' },
+      { type: 'text', text: '## Reporte generado' },
+    ],
+  });
 });
 
 describe('#143 · generateBravermanPremiumReport — cobro H+', () => {
