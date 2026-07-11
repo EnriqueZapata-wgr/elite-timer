@@ -4,9 +4,26 @@
  * Los electrones booleanos de HOY se persisten en daily_electrons (JSONB).
  * El acumulado detallado va en electron_logs (para rangos).
  */
+import { DeviceEventEmitter } from 'react-native';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { ELECTRON_WEIGHTS, type ElectronSource, getRank, getNextRank } from '@/src/constants/electrons';
+
+/**
+ * hotfix-ux FIX 4: tras un award EXITOSO (insert nuevo, NO retry idempotente ni revoke) se emite
+ * 'electron_awarded' con { source, electrons } para el toast de atribución ARGOS
+ * (src/components/economy/ArgosReactionToast.tsx). Aditivo: no cambia firma ni flujo de retorno,
+ * y es independiente del 'electrons_changed' que cada caller ya emite (regla #5 CLAUDE.md).
+ */
+export const ELECTRON_AWARDED_EVENT = 'electron_awarded';
+
+function emitAwarded(source: string, electrons: number): void {
+  try {
+    DeviceEventEmitter.emit(ELECTRON_AWARDED_EVENT, { source, electrons });
+  } catch {
+    // fail-soft: el toast es cosmético, jamás debe romper el award
+  }
+}
 
 /**
  * Otorga un electrón booleano del día. Retorna true si el electrón quedó otorgado (nuevo o ya
@@ -35,7 +52,10 @@ export async function awardBooleanElectron(
     idempotency_key: idemKey,
   });
 
-  if (!error) return true;
+  if (!error) {
+    emitAwarded(source, cfg.weight); // FIX 4: solo en insert NUEVO (el retry 23505 no toastea)
+    return true;
+  }
   if (error.code === '23505') return true; // ya otorgado hoy → retry idempotente (no error)
 
   // Fallback defensivo: la columna idempotency_key aún no existe (migración 101 pendiente) →
@@ -56,6 +76,7 @@ async function awardBooleanElectronLegacy(userId: string, source: string, weight
   const { error } = await supabase.from('electron_logs').insert({
     user_id: userId, date: today, source, category: 'boolean_daily', electrons: weight,
   });
+  if (!error) emitAwarded(source, weight); // FIX 4: mismo toast en la ruta legacy
   return !error;
 }
 
