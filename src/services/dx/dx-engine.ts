@@ -309,36 +309,25 @@ export async function generateDX(
 
   const parsed = parseArgosDxResponse(rawText);
 
-  // ── Persistir versión nueva (append-only, respetando el índice parcial único) ──
+  // ── Persistir versión nueva (append-only) — RPC transaccional (mig 195).
+  // UPDATE is_current + MAX+1 + INSERT en UNA transacción server-side con
+  // advisory lock por usuario: el doble-tap simultáneo desde 2 devices ya no
+  // choca contra el índice parcial único (antes eran 2 statements sueltos).
   try {
-    const nextVersion = (await getMaxVersion(userId)) + 1;
-
-    // 1) baja la vigente (si existe) ANTES de insertar la nueva vigente.
-    await supabase
-      .from('functional_dx')
-      .update({ is_current: false })
-      .eq('user_id', userId)
-      .eq('is_current', true);
-
-    // 2) inserta la nueva vigente.
-    const { error: insErr } = await supabase.from('functional_dx').insert({
-      id: generateUUID(),
-      user_id: userId,
-      version: nextVersion,
-      quality_level: quality.level,
-      roots_detected: parsed.roots,
-      summary_text: parsed.summary_text,
-      sources_snapshot: harvest.snapshot,
-      generated_by: manual ? 'manual' : 'argos_auto',
-      model: ATP_LLM.PRIMARY_MODEL,
-      is_current: true,
+    const { data: newVersion, error: rpcErr } = await supabase.rpc('create_dx_version', {
+      p_quality_level: quality.level,
+      p_roots_detected: parsed.roots,
+      p_summary_text: parsed.summary_text,
+      p_sources_snapshot: harvest.snapshot,
+      p_generated_by: manual ? 'manual' : 'argos_auto',
+      p_model: ATP_LLM.PRIMARY_MODEL,
     });
-    if (insErr) return { status: 'error', message: insErr.message };
+    if (rpcErr) return { status: 'error', message: rpcErr.message };
 
     DeviceEventEmitter.emit('dx_changed');
     return {
       status: 'ok',
-      version: nextVersion,
+      version: Number(newVersion),
       qualityLevel: quality.level,
       roots: parsed.roots,
       summary: parsed.summary_text,
