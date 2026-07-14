@@ -152,28 +152,36 @@ export async function toggleMedication(medId: string, currentlyActive: boolean) 
 }
 
 // === SUPPLEMENTS ===
+// 194: fuente única user_supplements (supplement_protocols legacy consolidada).
+// El mapeo dose/frequency ↔ dosage/dose_pattern vive AQUÍ para no tocar
+// ClientDetailScreen (renderiza s.dose / s.frequency / s.brand).
 
 export async function getSupplements(userId: string) {
   const { data } = await supabase
-    .from('supplement_protocols')
+    .from('user_supplements')
     .select('*')
     .eq('user_id', userId)
     .order('is_active', { ascending: false })
     .order('name');
-  return data ?? [];
+  return (data ?? []).map((r: any) => ({ ...r, dose: r.dosage, frequency: r.dose_pattern }));
 }
 
 export async function addSupplement(userId: string, supp: Record<string, any>) {
-  const user = await getAuth();
-  const { error } = await supabase.from('supplement_protocols').insert({
-    user_id: userId, prescribed_by: user.id, ...supp,
+  const { error } = await supabase.from('user_supplements').insert({
+    user_id: userId,
+    name: supp.name,
+    dosage: String(supp.dose ?? '').trim() || '—',
+    dose_pattern: String(supp.frequency ?? '').trim() || null,
+    brand: supp.brand || null,
+    reason: supp.reason || null,
+    source: 'coach',
   });
   if (error) throw error;
 }
 
 export async function toggleSupplement(suppId: string, currentlyActive: boolean) {
   const { error } = await supabase
-    .from('supplement_protocols')
+    .from('user_supplements')
     .update({ is_active: !currentlyActive })
     .eq('id', suppId);
   if (error) throw error;
