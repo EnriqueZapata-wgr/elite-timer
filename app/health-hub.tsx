@@ -48,16 +48,16 @@ const HEALTH_HUB_IMAGES: Record<string, any> = {
   glucosa: require('@/assets/images/health-hub/glucosa.png'),
   cetonas: require('@/assets/images/health-hub/cetonas.png'),
   labs: require('@/assets/images/health-hub/laboratorios.png'),
-  // Sprint LABS GUÍA: reutiliza el B/N de laboratorios
-  labs_guide: require('@/assets/images/health-hub/laboratorios.png'),
+  labs_guide: require('@/assets/images/health-hub/labs-guide.png'),
   biomarcadores: require('@/assets/images/health-hub/biomarcadores.png'),
   tests: require('@/assets/images/health-hub/tests-evaluaciones.png'),
   cinematicas: require('@/assets/images/health-hub/pruebas-cinematicas.png'),
-  // #67 p5b: sin asset dedicado aún — reutiliza el B/N de tests
-  historia_clinica: require('@/assets/images/health-hub/tests-evaluaciones.png'),
-  // SALUD F5: sin assets dedicados aún — reutilizan B/N vecinos
-  sintomas: require('@/assets/images/health-hub/mi-salud.png'),
-  padecimientos: require('@/assets/images/health-hub/biomarcadores.png'),
+  historia_clinica: require('@/assets/images/health-hub/historia-clinica.png'),
+  sintomas: require('@/assets/images/health-hub/sintomas.png'),
+  padecimientos: require('@/assets/images/health-hub/padecimientos.png'),
+  // Card A DX + Card B Mi Protocolo (sección "Diagnóstico y protocolo")
+  diagnostico: require('@/assets/images/health-hub/diagnostico.png'),
+  mi_protocolo: require('@/assets/images/health-hub/mi-protocolo.png'),
 };
 
 const CARDS: Card[] = [
@@ -184,6 +184,7 @@ function HealthHubScreen() {
             title="MI DIAGNÓSTICO FUNCIONAL"
             subtitle="Raíces detectadas · nivel 1-5 · versionado"
             gradient={['#1D9E75', '#0EA5E9']}
+            imageBn={HEALTH_HUB_IMAGES.diagnostico}
             onTap={() => router.push('/salud/diagnostico' as any)}
           />
           <EditorialCard
@@ -192,6 +193,7 @@ function HealthHubScreen() {
             title="MI PROTOCOLO"
             subtitle="Tus intervenciones activas y seguimiento diario"
             gradient={['#A8E02A', '#1D9E75']}
+            imageBn={HEALTH_HUB_IMAGES.mi_protocolo}
             onTap={() => router.push('/salud/intervenciones' as any)}
           />
         </Animated.View>

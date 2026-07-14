@@ -42,7 +42,7 @@ const PILLARS = [
   },
   // hotfix-ux FIX 1: entry point del hub COMUNIDAD (bloqueador #3). No existe app/comunidad/index.tsx;
   // el hub de facto es /comunidad/ranking (desde ahí se llega a Amigos por el header y a perfiles por
-  // cada fila). Sin asset B/N aún → EditorialCard cae al placeholder de gradient (patrón documentado).
+  // cada fila).
   {
     cardKey: 'kit_comunidad',
     icon: '🤝',
@@ -51,7 +51,7 @@ const PILLARS = [
     message: 'Comunidad, no competencia',
     gradient: ['#7F77DD', '#5B9BD5'] as [string, string],
     route: '/comunidad/ranking',
-    imageBn: undefined,
+    imageBn: require('@/assets/images/pillars/comunidad.png'),
   },
 ];
 
