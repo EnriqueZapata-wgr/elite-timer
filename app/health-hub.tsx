@@ -173,7 +173,9 @@ function HealthHubScreen() {
           </View>
         </Animated.View>
 
-        {/* ── Diagnóstico + Protocolo (Card A + Card B — dx-f3) ── */}
+        {/* ── Diagnóstico + Protocolo (Card A + Card B — dx-f3) ──
+            hotfix 2da pasada (regla Enrique): Mi Protocolo tiene pantalla propia
+            (/salud/intervenciones) — aquí solo card-link, no widget con lista viva. */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
           <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Diagnóstico y protocolo</SectionTitle>
           <EditorialCard
@@ -184,7 +186,14 @@ function HealthHubScreen() {
             gradient={['#1D9E75', '#0EA5E9']}
             onTap={() => router.push('/salud/diagnostico' as any)}
           />
-          <MyProtocolCard />
+          <EditorialCard
+            cardKey="hh_mi_protocolo"
+            icon="💊"
+            title="MI PROTOCOLO"
+            subtitle="Tus intervenciones activas y seguimiento diario"
+            gradient={['#A8E02A', '#1D9E75']}
+            onTap={() => router.push('/salud/intervenciones' as any)}
+          />
         </Animated.View>
 
         {/* ── 7 sistemas funcionales ── */}

@@ -305,6 +305,23 @@ export default function Solar() {
             <View style={{ backgroundColor: '#0a0a0a', borderRadius: 20, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)' }}>
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Tu tipo de piel</Text>
               <Text style={{ color: '#999', fontSize: 12, marginBottom: 16 }}>Escala Fitzpatrick — determina tu tiempo de quemadura</Text>
+              {/* hotfix 2da pasada: entry point al cuestionario Fitzpatrick (antes solo
+                  alcanzable enterrado en Historia Clínica → Enrique no lo encontraba) */}
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/historia-clinica/fitzpatrick' as any); }}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12,
+                  marginBottom: 12, backgroundColor: 'rgba(251,191,36,0.1)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>🧬</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#fbbf24', fontSize: 14, fontWeight: '700' }}>Descúbrelo con el cuestionario</Text>
+                  <Text style={{ color: '#999', fontSize: 11 }}>6 preguntas · ATP calcula tu fototipo exacto</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#fbbf24" />
+              </Pressable>
+              <Text style={{ color: '#666', fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1 }}>O ELÍGELO MANUALMENTE</Text>
               {FITZPATRICK_TYPES.map(type => (
                 <Pressable key={type.type} onPress={() => saveSkin(type.type)}>
                   <View style={{

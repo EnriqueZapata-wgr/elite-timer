@@ -100,6 +100,7 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
   }
 
   // 2. Síntomas clínicos (por sistema)
+  let symptomsCount = 0;
   try {
     const { data } = await supabase
       .from('clinical_symptoms')
@@ -109,6 +110,7 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
     const rows = (data as any[]) ?? [];
     ctx.clinicalSymptoms = rows.map((r) => ({ name: r.name, system_key: r.system_key, severity: r.severity, status: r.status }));
     for (const r of rows) timestamps.push(r.updated_at);
+    symptomsCount += rows.length;
     snapshot.sintomas = { count: rows.length };
   } catch { /* fail-soft */ }
 
@@ -123,10 +125,12 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
     const rows = (data as any[]) ?? [];
     ctx.symptomsAislados = rows.map((r) => ({ tag: r.tag, severity: r.severity }));
     for (const r of rows) timestamps.push(r.logged_at);
+    symptomsCount += rows.length;
     snapshot.sintomas_aislados = { count: rows.length };
   } catch { /* fail-soft */ }
 
   // 4. Padecimientos (+ conteo de episodios)
+  let padecimientosCount = 0;
   try {
     const { data } = await supabase
       .from('padecimientos')
@@ -151,6 +155,7 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
       episodeCount: episodesByPed[r.id] ?? 0,
     }));
     for (const r of rows) timestamps.push(r.updated_at);
+    padecimientosCount = rows.length;
     snapshot.padecimientos = { count: rows.length };
   } catch { /* fail-soft */ }
 
@@ -172,6 +177,7 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
   } catch { /* fail-soft */ }
 
   // 6. Braverman (último completo)
+  let bravermanDone = false;
   try {
     const { data } = await supabase
       .from('braverman_results')
@@ -184,11 +190,13 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
     if (data) {
       ctx.braverman = { dominant_type: (data as any).dominant_type, primary_deficiency: (data as any).primary_deficiency };
       timestamps.push((data as any).completed_at);
+      bravermanDone = true;
       snapshot.braverman = { present: true };
     }
   } catch { /* fail-soft */ }
 
   // 7. Quizzes funcionales
+  let quizzesCount = 0;
   try {
     const { data } = await supabase
       .from('functional_quiz_results')
@@ -198,10 +206,12 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
     const rows = (data as any[]) ?? [];
     ctx.quizzes = rows.map((r) => ({ quiz_id: r.quiz_id, domain_scores: r.domain_scores }));
     for (const r of rows) timestamps.push(r.created_at);
+    quizzesCount = rows.length;
     snapshot.quizzes = { count: rows.length };
   } catch { /* fail-soft */ }
 
   // 8. Suplementos activos
+  let supplementsCount = 0;
   try {
     const { data } = await supabase
       .from('user_supplements')
@@ -211,6 +221,7 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
     const rows = (data as any[]) ?? [];
     ctx.supplements = rows.map((r) => ({ name: r.name }));
     for (const r of rows) timestamps.push(r.created_at);
+    supplementsCount = rows.length;
     snapshot.suplementos = { count: rows.length };
   } catch { /* fail-soft */ }
 
@@ -225,6 +236,11 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
     hasConsistentHabits: completedKeys.includes('habitos_nutricionales'),
     labsCount,
     geneticsCount: 0, // sin fuente de genéticos en F2 (nivel 5 llega después)
+    bravermanDone,
+    quizzesCount,
+    symptomsCount,
+    padecimientosCount,
+    supplementsCount,
   });
 
   return { presence, promptContext: ctx, maxSourceTs: maxTimestamp(timestamps), snapshot };
@@ -293,36 +309,25 @@ export async function generateDX(
 
   const parsed = parseArgosDxResponse(rawText);
 
-  // ── Persistir versión nueva (append-only, respetando el índice parcial único) ──
+  // ── Persistir versión nueva (append-only) — RPC transaccional (mig 195).
+  // UPDATE is_current + MAX+1 + INSERT en UNA transacción server-side con
+  // advisory lock por usuario: el doble-tap simultáneo desde 2 devices ya no
+  // choca contra el índice parcial único (antes eran 2 statements sueltos).
   try {
-    const nextVersion = (await getMaxVersion(userId)) + 1;
-
-    // 1) baja la vigente (si existe) ANTES de insertar la nueva vigente.
-    await supabase
-      .from('functional_dx')
-      .update({ is_current: false })
-      .eq('user_id', userId)
-      .eq('is_current', true);
-
-    // 2) inserta la nueva vigente.
-    const { error: insErr } = await supabase.from('functional_dx').insert({
-      id: generateUUID(),
-      user_id: userId,
-      version: nextVersion,
-      quality_level: quality.level,
-      roots_detected: parsed.roots,
-      summary_text: parsed.summary_text,
-      sources_snapshot: harvest.snapshot,
-      generated_by: manual ? 'manual' : 'argos_auto',
-      model: ATP_LLM.PRIMARY_MODEL,
-      is_current: true,
+    const { data: newVersion, error: rpcErr } = await supabase.rpc('create_dx_version', {
+      p_quality_level: quality.level,
+      p_roots_detected: parsed.roots,
+      p_summary_text: parsed.summary_text,
+      p_sources_snapshot: harvest.snapshot,
+      p_generated_by: manual ? 'manual' : 'argos_auto',
+      p_model: ATP_LLM.PRIMARY_MODEL,
     });
-    if (insErr) return { status: 'error', message: insErr.message };
+    if (rpcErr) return { status: 'error', message: rpcErr.message };
 
     DeviceEventEmitter.emit('dx_changed');
     return {
       status: 'ok',
-      version: nextVersion,
+      version: Number(newVersion),
       qualityLevel: quality.level,
       roots: parsed.roots,
       summary: parsed.summary_text,

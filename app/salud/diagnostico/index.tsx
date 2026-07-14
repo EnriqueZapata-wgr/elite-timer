@@ -27,28 +27,24 @@ import { haptic } from '@/src/utils/haptics';
 import { getCurrentDX, getDXHistory, getDXQuote, type FunctionalDxRow, type DxQuote } from '@/src/services/dx/dx-service';
 import { generateDX, type GenerateDxResult } from '@/src/services/dx/dx-engine';
 import { presenceFromSnapshot } from '@/src/services/dx/dx-engine-core';
-import { computeDxQuality } from '@/src/services/dx/dx-quality-core';
+import { computeDxQuality, DX_LEVEL_LABELS, type DxMissingKey } from '@/src/services/dx/dx-quality-core';
+import { activeSourcesFromSnapshot, generateAndShareDxPdf } from '@/src/services/dx/dx-pdf-service';
 import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention-vocab';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
-const LEVEL_LABELS: Record<number, string> = {
-  1: 'Historia básica',
-  2: 'Cuestionario integral',
-  3: 'Áreas + hábitos',
-  4: 'Con laboratorios',
-  5: 'Completo (genéticos)',
-};
+const LEVEL_LABELS: Record<number, string> = DX_LEVEL_LABELS;
 
-const SOURCE_LABELS: Record<string, string> = {
-  levantamientos: 'Levantamientos',
-  sintomas: 'Síntomas clínicos',
-  sintomas_aislados: 'Síntomas aislados',
-  padecimientos: 'Padecimientos',
-  labs: 'Laboratorios',
-  braverman: 'Test Braverman',
-  quizzes: 'Quizzes funcionales',
-  suplementos: 'Suplementos',
+/** hotfix 2da pasada: cada fuente faltante es un CTA navegable, no un chip muerto. */
+const MISSING_ROUTES: Partial<Record<DxMissingKey, string>> = {
+  historia_basica: '/historia-clinica',
+  integral: '/historia-clinica/integral',
+  areas: '/historia-clinica',
+  habitos: '/historia-clinica/habitos_nutricionales',
+  braverman: '/quizzes',
+  quizzes: '/quizzes',
+  labs: '/labs-guide',
+  // geneticos: sin fuente aún (nivel 5 post-beta) → chip informativo sin ruta
 };
 
 function LevelBadge({ level }: { level: number }) {
@@ -76,7 +72,10 @@ export default function DiagnosticoScreen() {
   const [quote, setQuote] = useState<DxQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const startedRef = useRef(false);
+
+  const firstName = ((user?.user_metadata?.full_name as string) || '').trim().split(' ')[0] || '';
 
   const load = useCallback(async () => {
     if (!user?.id) return;
@@ -99,6 +98,24 @@ export default function DiagnosticoScreen() {
     return () => sub.remove();
   }, [user?.id, load]);
 
+  /** Genera el PDF entregable de la versión vigente y abre el share sheet. */
+  const sharePdf = useCallback(async (row: FunctionalDxRow | null) => {
+    if (!row || sharing) return;
+    setSharing(true);
+    const share = await generateAndShareDxPdf(row, firstName);
+    setSharing(false);
+    if (share === 'shared') {
+      haptic.success();
+    } else if (share === 'unavailable') {
+      Alert.alert('Compartir no disponible', 'Tu dispositivo no permite compartir archivos desde la app.');
+    } else {
+      Alert.alert(
+        'No se pudo generar el PDF',
+        'Tu diagnóstico sigue disponible aquí en pantalla. Actualiza a la última versión de la app para descargar el PDF.',
+      );
+    }
+  }, [sharing, firstName]);
+
   const onUpdate = useCallback(async () => {
     if (!user?.id || generating) return;
     haptic.medium();
@@ -110,6 +127,10 @@ export default function DiagnosticoScreen() {
       haptic.success();
       DeviceEventEmitter.emit('balance_changed');
       load().catch(() => {});
+      // Doctrina Enrique: "Actualizar" regenera el análisis Y produce el
+      // entregable — el PDF se genera de la versión recién persistida.
+      const fresh = await getCurrentDX(user.id);
+      await sharePdf(fresh);
       return;
     }
     if (result.status === 'cache_hit') {
@@ -130,20 +151,11 @@ export default function DiagnosticoScreen() {
     }
     haptic.warning();
     Alert.alert('Algo no salió', 'ARGOS no pudo actualizar tu diagnóstico. Suele ser cosa de red — intenta de nuevo.');
-  }, [user?.id, generating, quote?.cost, load]);
+  }, [user?.id, generating, quote?.cost, load, sharePdf]);
 
   const quality = dx ? computeDxQuality(presenceFromSnapshot(dx.sources_snapshot)) : null;
   const roots = (dx?.roots_detected ?? []) as { root_key: InterventionRoot; severity: number; confidence: number }[];
-  const activeSources = dx
-    ? Object.entries(dx.sources_snapshot ?? {})
-        .filter(([, v]) => {
-          const count = (v as any)?.count;
-          const present = (v as any)?.present;
-          const completed = (v as any)?.completed;
-          return present === true || (typeof count === 'number' && count > 0) || (Array.isArray(completed) && completed.length > 0);
-        })
-        .map(([k]) => SOURCE_LABELS[k] ?? k)
-    : [];
+  const activeSources = dx ? activeSourcesFromSnapshot(dx.sources_snapshot) : [];
 
   // DX F4 / bug #6: el regalo del 1er DX (isFirstFree) va PRIMERO — antes el
   // branch isPro tenía precedencia y un usuario Pro/clinician sin DX nunca veía
@@ -190,11 +202,26 @@ export default function DiagnosticoScreen() {
                   <EliteText style={styles.hintText}>{quality.nextHint}</EliteText>
                   {quality.missing.length > 0 && (
                     <View style={styles.missingRow}>
-                      {quality.missing.map((m) => (
-                        <View key={m} style={styles.missingChip}>
-                          <EliteText style={styles.missingChipText}>{m}</EliteText>
-                        </View>
-                      ))}
+                      {quality.missing.map((m) => {
+                        const route = MISSING_ROUTES[m.key];
+                        if (!route) {
+                          return (
+                            <View key={m.key} style={styles.missingChip}>
+                              <EliteText style={styles.missingChipText}>{m.label} · próximamente</EliteText>
+                            </View>
+                          );
+                        }
+                        return (
+                          <AnimatedPressable
+                            key={m.key}
+                            onPress={() => { haptic.light(); router.push(route as any); }}
+                            style={styles.missingChipCta}
+                          >
+                            <EliteText style={styles.missingChipCtaText}>{m.label}</EliteText>
+                            <EliteText style={styles.missingChipArrow}>›</EliteText>
+                          </AnimatedPressable>
+                        );
+                      })}
                     </View>
                   )}
                 </Card>
@@ -259,12 +286,20 @@ export default function DiagnosticoScreen() {
               </Animated.View>
             )}
 
-            {/* ── CTA actualizar ── */}
+            {/* ── CTA actualizar (regenera análisis + produce PDF entregable) ── */}
             <Animated.View entering={FadeIn.delay(300)}>
-              <AnimatedPressable onPress={onUpdate} disabled={generating} style={[styles.cta, generating && { opacity: 0.6 }]}>
+              <AnimatedPressable onPress={onUpdate} disabled={generating || sharing} style={[styles.cta, (generating || sharing) && { opacity: 0.6 }]}>
                 {generating && <ActivityIndicator size="small" color="#000" style={{ marginRight: 8 }} />}
                 <EliteText style={styles.ctaText}>{ctaLabel}</EliteText>
               </AnimatedPressable>
+              {dx && (
+                <AnimatedPressable onPress={() => sharePdf(dx)} disabled={sharing || generating} style={[styles.ctaSecondary, (sharing || generating) && { opacity: 0.6 }]}>
+                  {sharing && <ActivityIndicator size="small" color={ATP_BRAND.lime} style={{ marginRight: 8 }} />}
+                  <EliteText style={styles.ctaSecondaryText}>
+                    {sharing ? 'Generando PDF…' : 'DESCARGAR / COMPARTIR PDF'}
+                  </EliteText>
+                </AnimatedPressable>
+              )}
               {(quote?.isFirstFree || !isPro) && (
                 <EliteText style={styles.ctaHint}>
                   {quote?.isFirstFree
@@ -305,6 +340,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4,
   },
   missingChipText: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary },
+  missingChipCta: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.1), borderWidth: 1,
+    borderColor: withOpacity(ATP_BRAND.lime, 0.25), borderRadius: Radius.xs,
+    paddingHorizontal: 8, paddingVertical: 5,
+  },
+  missingChipCtaText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  missingChipArrow: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: ATP_BRAND.lime, marginTop: -1 },
   rootRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
@@ -334,5 +377,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14, marginTop: Spacing.lg,
   },
   ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: '#000' },
+  ctaSecondary: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'transparent', borderWidth: 1, borderColor: withOpacity(ATP_BRAND.lime, 0.4),
+    borderRadius: Radius.md, paddingVertical: 12, marginTop: Spacing.sm,
+  },
+  ctaSecondaryText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: ATP_BRAND.lime, letterSpacing: 1 },
   ctaHint: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, textAlign: 'center', marginTop: 8 },
 });

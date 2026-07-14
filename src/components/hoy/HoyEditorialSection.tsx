@@ -400,7 +400,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             electronsValue={boolBySource.get('checkin')?.weight}
             showCheckCircle
             infoText={CARD_INFO['checkin']}
-            onTap={() => go('/checkin')}
+            onTap={() => go('/mente')}
           />
         );
       // #v13d post-smoke: journal navega a /journal (el award sucede al guardar entry dentro).
@@ -418,7 +418,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             electronsValue={el?.weight}
             showCheckCircle
             infoText={CARD_INFO['journal']}
-            onTap={() => go('/journal')}
+            onTap={() => go('/mente')}
           />
         );
       }
@@ -435,7 +435,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             progress={{ current: protein.current, target: protein.target, unit: 'g' }}
             showCheckCircle
             infoText={CARD_INFO['proteina']}
-            onTap={() => go('/food-register')}
+            onTap={() => go('/nutrition')}
           />
         );
       case 'agua': {
@@ -533,7 +533,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             electronsValue={el?.weight}
             showCheckCircle
             infoText={CARD_INFO['cardio']}
-            onTap={() => go('/log-cardio')}
+            onTap={() => go('/fitness-hub')}
           />
         );
       }
