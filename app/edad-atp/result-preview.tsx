@@ -12,7 +12,6 @@ import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -127,10 +126,12 @@ function ResultScreen() {
   async function handleShare() {
     if (!result) return;
     try {
+      // Lazy require: módulo nativo nunca top-level (mismo patrón que labs-guide/dx-pdf-service).
+      const Sharing = require('expo-sharing') as typeof import('expo-sharing');
       const uri = await captureRef(shareRef, { format: 'png', quality: 1, result: 'tmpfile' });
       analytics.track(ATP_EVENTS.EDAD_ATP_SHARED, { edad_integral: Math.round(result.edad_integral) });
       if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'image/png' });
-    } catch { /* compartir cancelado / no disponible */ }
+    } catch { /* compartir cancelado / no disponible / módulo nativo ausente */ }
   }
 
   useFocusEffect(useCallback(() => { run(); }, [run]));
