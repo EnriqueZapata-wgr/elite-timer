@@ -1,4 +1,4 @@
-# 🌙 Delivery Sprint Noche · A.1 + B.1 + B.2
+# 🌙 Delivery Sprint Noche · A.1 + B.1 + B.2 + B.3 + B.4
 
 **De:** Fable (CCF5)
 **Para:** Enrique + Cowork
@@ -45,20 +45,40 @@ Asumí que la decisión #39 apuntaba a esa tabla. Lo entregado:
 
 **❌ DROP de `supplement_protocols` NO incluido — gated a peloteo:** `handle_new_user()` (trigger de signup, mig 024) hace `UPDATE supplement_protocols` en cada registro. Dropearla sin reescribir ese trigger **rompería el signup en semana de beta**. Propuesta: migración futura (195+) que recree el trigger sin la referencia + DROP, después de validar en beta. También la referencian el trigger de invites (008) — misma limpieza.
 
+## ✅ B.3 · Persistencia DX transaccional (rama `feat/dx-transaccional`, mig 195)
+
+Commit `33fa51a`. RPC `create_dx_version()`:
+- `SECURITY INVOKER` → la RLS de la 170 aplica intacta; `user_id` sale de `auth.uid()`, no de parámetro (verificado: el único caller de `generateDX` pasa el `user.id` logueado — equivalente).
+- `pg_advisory_xact_lock` por usuario serializa el doble-tap desde 2 devices: UPDATE `is_current` + `MAX(version)+1` + INSERT ahora son atómicos. Ya no choca contra `idx_functional_dx_current` tras haber pagado el LLM.
+- `dx-engine.ts` usa el RPC; `getMaxVersion` sigue vivo (regalo 1er DX). `REVOKE` de anon/public + `GRANT` a authenticated.
+
+## ✅ B.4 · ARGOS intervention_rationale (rama `feat/argos-intervention-rationale`, mig 196)
+
+Commit `371941e`. **Hallazgo:** el backend ya estaba casi listo — el seed de 280 H+ existe desde la mig **175** y el proxy cobra cualquier requestType sin whitelist. Lo entregado:
+
+1. **Core puro** (`intervention-rationale-core.ts`, 9 tests): prompt con doctrina blindada en el system (no fármacos, no diagnóstico médico, match cerrado — ARGOS solo narra, nunca decide —, falta de data ≠ ausencia, 200-400 palabras markdown español) + `set_hash` FNV-1a de (dx.id vigente + keys activas ordenadas).
+2. **Servicio IO** patrón braverman-premium, con una diferencia deliberada: cobro **100% server-side** (como dx-engine, sin `spendProtons` cliente) para que el Pro nunca pague cliente-side. idempotencyKey estable por set_hash; 402 → `insufficient_h_plus`.
+3. **Mig 196:** tabla `intervention_rationales` (RLS own-row select+insert, `UNIQUE (user_id, set_hash)`, patrón 160). Releer gratis; cambia el set o el DX → hash nuevo → regenera.
+4. **⚠️ Proxy modificado** (`argos-proxy/index.ts`, +6 líneas en el bloque de cobro): `intervention_rationale` + tier Pro efectivo (incluye boost, lo resuelve `detectEffectiveTier` server-side) → costo 0. **Spec del buzón B.4** ("Pro gratis all-you-can-eat") — nota: la mig 189 lo dejaba como "decisión abierta"; el buzón lo cierra para ESTA acción, las demás siguen cobrando a todos. **Requiere deploy del proxy tras el merge.**
+5. **UI:** pantalla `/salud/intervenciones/rationale` (card previa con precio+balance o "Incluido en tu plan Pro", loading con frases, markdown, estados no_dx / no_protocol, disclaimer educativo) + botón "¿Por qué estas intervenciones?" en la pantalla Mi Protocolo + CTA en la Card B (`MyProtocolCard`). Evento PostHog `intervention_rationale_purchased` (solo cobros reales).
+
 ## 🔍 Verificación
 
-- `npx tsc --noEmit` → 0 errores (ambas ramas)
-- `npx vitest run` → **161 archivos / 1534 tests verdes** (incluye anti-leak comunidad)
-- DB remota solo consultada en LECTURA (information_schema + counts). **Cero SQL aplicado** — mig 194 espera audit Cowork + merge + `npx supabase db push` de Enrique.
+- `npx tsc --noEmit` → 0 errores (las 4 ramas)
+- `npx vitest run` → **162 archivos / 1541 tests verdes** (incluye anti-leak comunidad + 9 nuevos de rationale)
+- DB remota solo consultada en LECTURA (information_schema + counts). **Cero SQL aplicado** — migs 194/195/196 esperan audit Cowork + merge + `npx supabase db push` de Enrique.
 
-## 📋 Para Cowork (audit)
+## 📋 Para Cowork (audit) — 4 ramas, todas desde `fix/hotfix-2da-pasada`
 
-- `fix/routing-hoy-completo` (2 commits, solo TS/TSX, sin SQL) — validar decisión ayuno→`/fasting`.
-- `feat/consolidar-supplement-scan` (1 commit, mig 194 + 2 servicios) — foco: policy coach nueva en `user_supplements`, mapeo frequency→dose_pattern, y confirmar que el DROP diferido les cuadra.
-- Ambas ramas salen de `fix/hotfix-2da-pasada` (aún no mergeada a main cuando arranqué — incluyen el commit local de assets `b246c52` que estaba sin pushear).
+1. `fix/routing-hoy-completo` (A.1+B.1, solo TS/TSX, sin SQL) — validar decisión ayuno→`/fasting`.
+2. `feat/consolidar-supplement-scan` (B.2, mig 194 + 2 servicios) — foco: policy coach nueva en `user_supplements`, mapeo frequency→dose_pattern, DROP diferido.
+3. `feat/dx-transaccional` (B.3, mig 195 + dx-engine) — foco: advisory lock + SECURITY INVOKER.
+4. `feat/argos-intervention-rationale` (B.4, mig 196 + proxy + UI) — foco: Pro-gratis en el proxy (¿OK cerrar la "decisión abierta" de la 189 solo para esta acción?) + doctrina del prompt + **recordar deploy del proxy tras merge**.
 
-## ➡️ Siguiente (mañana, según buzón)
+Todas incluyen el commit local de assets `b246c52` que estaba sin pushear. El edit local sin commitear de `interventions-catalog.ts` (86 intervenciones + roots de separadores) quedó intacto en el working tree — es de Enrique/Cowork, no lo commiteé.
 
-B.3 RPC `create_dx_version()` transaccional (mig 195) → B.4 ARGOS `intervention_rationale`. C.1 N-Back con defaults si Enrique no responde las 5 preguntas.
+## ➡️ Siguiente
+
+C.1 N-Back: arranco core+migraciones con los defaults sancionados (N mín 2 · timeout 3s · auriculares sí · daltónico sí · free ilimitado) — Cowork+Enrique validan después. B.5 (hub Comunidad) y C.2 (imageBn) esperan insumos, B.6 (pg_cron) espera decisión de encendido.
 
 — Fable 🦊
