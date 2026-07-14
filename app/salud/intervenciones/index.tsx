@@ -150,6 +150,17 @@ export default function IntervencionesScreen() {
                   </EliteText>
                 </View>
               )}
+              {/* B.4 — narrativa ARGOS del porqué (cobro server-side, cache por set) */}
+              {protocol.length > 0 && (
+                <AnimatedPressable
+                  onPress={() => { haptic.light(); router.push('/salud/intervenciones/rationale' as any); }}
+                  style={styles.rationaleBtn}
+                >
+                  <Ionicons name="sparkles-outline" size={14} color={ATP_BRAND.lime} />
+                  <EliteText style={styles.rationaleBtnText}>¿Por qué estas intervenciones?</EliteText>
+                  <Ionicons name="chevron-forward" size={13} color={ATP_BRAND.lime} />
+                </AnimatedPressable>
+              )}
               {protocol.map((item, idx) => {
                 const done = doneToday.has(item.row.id);
                 const time = effectiveTime(item.row);
@@ -272,4 +283,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.muted,
     textAlign: 'center', marginTop: Spacing.lg,
   },
+  rationaleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.08),
+    borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.3),
+    borderRadius: Radius.md, paddingVertical: 10, marginBottom: 8,
+  },
+  rationaleBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
 });

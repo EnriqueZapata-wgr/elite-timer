@@ -470,6 +470,13 @@ serve(async (req) => {
         .from("proton_action_costs").select("cost_h_plus, enabled")
         .eq("action_key", requestType || "chat").maybeSingle();
       economyCost = costRow && costRow.enabled !== false ? Number(costRow.cost_h_plus) : 0;
+      // B.4 (megabuzón 2da pasada, spec Enrique): intervention_rationale es
+      // GRATIS para tier Pro efectivo (all-you-can-eat) — Base/free pagan el
+      // costo de la tabla (280 H+, seed 175). Server-side: el tier lo resuelve
+      // detectEffectiveTier (incluye boost H+ activo), no el cliente.
+      if (requestType === "intervention_rationale" && effectiveTier === "pro") {
+        economyCost = 0;
+      }
       if (economyCost > 0) {
         // Idempotencia (094): si el cliente manda idempotency_key, dos requests con la misma key
         // (doble tap / retry / re-render) cobran UNA sola vez — spend_protons v2 es atómico vía

@@ -104,6 +104,15 @@ export function MyProtocolCard() {
             </EliteText>
             <Ionicons name="chevron-forward" size={13} color={TEXT.tertiary} />
           </View>
+          {/* B.4 — narrativa ARGOS del porqué del protocolo */}
+          <AnimatedPressable
+            onPress={() => { haptic.light(); router.push('/salud/intervenciones/rationale' as any); }}
+            style={styles.rationaleRow}
+            hitSlop={4}
+          >
+            <Ionicons name="sparkles-outline" size={13} color={ATP_BRAND.lime} />
+            <EliteText style={styles.rationaleText}>¿Por qué estas intervenciones?</EliteText>
+          </AnimatedPressable>
         </>
       )}
     </AnimatedPressable>
@@ -136,4 +145,6 @@ const styles = StyleSheet.create({
   },
   emptyCta: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 10 },
   emptyCtaText: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  rationaleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  rationaleText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
 });
