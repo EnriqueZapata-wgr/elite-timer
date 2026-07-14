@@ -49,7 +49,7 @@ export default function LabsGuideScreen() {
     } else {
       Alert.alert(
         'No se pudo generar el PDF',
-        'La guía completa sigue disponible aquí en pantalla. Si acabas de actualizar la app, prueba reinstalarla.',
+        'La guía completa sigue disponible aquí en pantalla. Actualiza a la última versión de la app para descargar el PDF.',
       );
     }
   }
