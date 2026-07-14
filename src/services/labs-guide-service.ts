@@ -6,11 +6,10 @@
  *
  * ⚠️ expo-print es módulo NATIVO nuevo (instalado en este sprint): funciona a
  * partir del build del lunes; en binarios viejos vía OTA el módulo no existe
- * → por eso todo va en try/catch con mensaje amable (fail-soft, no crash).
+ * y requireNativeModule revienta AL IMPORTAR → los imports nativos van lazy
+ * (require dentro del try/catch), nunca a nivel de módulo. Import estático
+ * aquí = crash al abrir cualquier pantalla que importe este service.
  */
-import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
-import { File, Paths } from 'expo-file-system';
 import { buildLabsGuideHtml } from './labs-guide-html';
 import { warn as logWarn } from '@/src/lib/logger';
 
@@ -22,12 +21,16 @@ export type LabsGuideShareResult = 'shared' | 'unavailable' | 'error';
  */
 export async function generateAndShareLabsGuide(firstName = ''): Promise<LabsGuideShareResult> {
   try {
+    const Print = require('expo-print') as typeof import('expo-print');
+    const Sharing = require('expo-sharing') as typeof import('expo-sharing');
+
     const html = buildLabsGuideHtml(firstName);
     const { uri } = await Print.printToFileAsync({ html, base64: false });
 
     // Renombrar al nombre amable que verá el doctor en WhatsApp.
     let shareUri = uri;
     try {
+      const { File, Paths } = require('expo-file-system') as typeof import('expo-file-system');
       const pretty = new File(Paths.cache, 'Guia-Laboratorios-ATP.pdf');
       if (pretty.exists) pretty.delete();
       new File(uri).move(pretty);
