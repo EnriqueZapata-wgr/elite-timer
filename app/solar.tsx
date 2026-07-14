@@ -9,7 +9,7 @@
  *  - ARGOS integra UV con el resto de la salud.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, DeviceEventEmitter } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,20 +39,27 @@ export default function Solar() {
   // #v13d 2.3: distinguir el fallo de ubicación (permiso/timeout GPS) del fallo de red (UV API).
   const [errorState, setErrorState] = useState<null | 'location' | 'fetch'>(null);
 
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        const { data } = await supabase
-          .from('profiles')
-          .select('skin_type')
-          .eq('id', user.id)
-          .single();
-        if (data?.skin_type) setSkinType(data.skin_type);
-      }
-    })();
+  // A.1 megahotfix 3ra pasada: profiles.skin_type es la fuente única del fototipo,
+  // pero esta pantalla solo la leía al montar → quedaba stale (Tipo 4 vs Tipo 5)
+  // si el cuestionario Fitzpatrick escribía con SOL ya montada en el stack.
+  // Ahora relee en 'fototipo_changed' (mismo patrón que la card UV del HOY).
+  const loadSkinType = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setUserId(user.id);
+    const { data } = await supabase
+      .from('profiles')
+      .select('skin_type')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (data?.skin_type) setSkinType(data.skin_type);
   }, []);
+
+  useEffect(() => {
+    loadSkinType();
+    const sub = DeviceEventEmitter.addListener('fototipo_changed', loadSkinType);
+    return () => sub.remove();
+  }, [loadSkinType]);
 
   useFocusEffect(useCallback(() => { loadUV(); }, []));
 
@@ -98,7 +105,6 @@ export default function Solar() {
     if (userId) await supabase.from('profiles').update({ skin_type: type }).eq('id', userId);
     // #v13f 2.2: avisar a la card UV del HOY que el fototipo cambió → refresh inmediato del
     // tiempo de exposición segura (sin esperar a recompilar al volver).
-    const { DeviceEventEmitter } = require('react-native');
     DeviceEventEmitter.emit('fototipo_changed');
   }
 
