@@ -14,7 +14,7 @@
  *    (cronotipo = ajuste inicial, user manda final vía agenda). Delfín NO es
  *    cronotipo — es estado transitorio a sanar hacia León/Oso/Lobo.
  *
- * ✅ v3 CURADO ENRIQUE 2026-07-11: 59+ intervenciones aprobadas. Fuente:
+ * ✅ v3 CURADO ENRIQUE 2026-07-11: 86 intervenciones aprobadas. Fuente:
  *  `Business development/Beta_Launch_Kit/09b_SEEDS_CATALOGO_ARRANQUE_MARIANA.md`
  *
  * ⏳ PENDIENTE 2da sesión Mariana: validar ajustes v3 + agregar ciclo femenino,
@@ -837,7 +837,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     how: 'Separadores de silicona 15-30 min/día (con calcetín) o al dormir. Progresar tolerancia.',
     benefit: 'Corrige compresión digital por calzado moderno, mejora arco, propriocepción, previene juanetes.',
     categories: ['movimiento', 'ritual'],
-    roots: [],
+    roots: ['sedentarismo', 'sarcopenia'],
     assignRule: 'Calzado estrecho, juanetes incipientes, dolor plantar.',
     priority: 3,
   },
