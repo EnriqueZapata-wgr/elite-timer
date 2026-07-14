@@ -31,15 +31,17 @@ export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', '
   'cardio'] as const;
 export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 
-/** Ruta de la pantalla de actividad para cada electrón verificado. */
+/** Ruta de tap para cada electrón verificado.
+ * hotfix 2da pasada (regla Enrique): tap → HUB del pilar, no acción directa.
+ * Mente al hub nuevo /mente (nunca /mind-hub viejo); ejercicio a /fitness-hub. */
 export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, string> = {
-  meditation: '/meditation',
-  breathwork: '/breathing',
-  strength: '/log-exercise',
+  meditation: '/mente',
+  breathwork: '/mente',
+  strength: '/fitness-hub',
   supplements: '/supplements',
   period_log: '/cycle',
-  checkin: '/checkin', // H1: tap del hábito Check-in emocional → /checkin (no togglea)
-  cardio: '/log-cardio', // #v13e 3.A.3: tap de la card CARDIO → registrar sesión (no togglea)
+  checkin: '/mente',
+  cardio: '/fitness-hub',
 };
 
 /** Electrones que solo se ofrecen a un subconjunto de usuarios. */
@@ -172,9 +174,9 @@ const ELECTRON_DESCRIPTIONS: Record<string, string> = {
 };
 
 const ELECTRON_ROUTES: Record<string, string> = {
-  sunlight: '/my-health', meditation: '/mind-hub', supplements: '/my-health',
+  sunlight: '/my-health', meditation: '/mente', supplements: '/my-health',
   cold_shower: '/my-health', grounding: '/my-health', no_alcohol: '/nutrition',
-  strength: '/fitness-hub', breathwork: '/mind-hub', red_glasses: '/my-health',
+  strength: '/fitness-hub', breathwork: '/mente', red_glasses: '/my-health',
   period_log: '/cycle',
 };
 
