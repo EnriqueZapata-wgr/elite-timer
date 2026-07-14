@@ -1,4 +1,4 @@
-# 🌙 Delivery Sprint Noche · A.1 + B.1 + B.2 + B.3 + B.4
+# 🌙 Delivery Sprint Noche · A.1 + B.1 + B.2 + B.3 + B.4 + C.1-core
 
 **De:** Fable (CCF5)
 **Para:** Enrique + Cowork
@@ -62,11 +62,19 @@ Commit `371941e`. **Hallazgo:** el backend ya estaba casi listo — el seed de 2
 4. **⚠️ Proxy modificado** (`argos-proxy/index.ts`, +6 líneas en el bloque de cobro): `intervention_rationale` + tier Pro efectivo (incluye boost, lo resuelve `detectEffectiveTier` server-side) → costo 0. **Spec del buzón B.4** ("Pro gratis all-you-can-eat") — nota: la mig 189 lo dejaba como "decisión abierta"; el buzón lo cierra para ESTA acción, las demás siguen cobrando a todos. **Requiere deploy del proxy tras el merge.**
 5. **UI:** pantalla `/salud/intervenciones/rationale` (card previa con precio+balance o "Incluido en tu plan Pro", loading con frases, markdown, estados no_dx / no_protocol, disclaimer educativo) + botón "¿Por qué estas intervenciones?" en la pantalla Mi Protocolo + CTA en la Card B (`MyProtocolCard`). Evento PostHog `intervention_rationale_purchased` (solo cobros reales).
 
+## ✅ C.1 · N-Back core + migración (rama `feat/nback-core`, mig 197)
+
+Commit `7070714`. Solo el arranque sancionado ("core+migraciones sin bloquear"):
+- **`nback-core.ts`** puro (24 tests): `evaluateBlock` regla Brain Workshop (≥80% ambos canales sube · <50% cualquiera baja · piso `N_MIN` · umbrales exactos inclusivo/mantiene), `generateStimuli` con rng inyectable — matches EXACTOS por canal, cero accidentales (verificado por escaneo en tests; la UI puntúa sin ambigüedad), `nextStreak`, `stimuliCountFor` (20+N).
+- **Defaults del buzón** viven en `NBACK_CONFIG` (única fuente a tocar si Enrique cambia respuestas): **N mín 2 · timeout 3s · auriculares sí · daltónico sí · free ilimitado**. Un test fija las 5 decisiones.
+- **Mig 197:** `nback_sessions` (append-only por bloque) + `nback_user_state`. RLS dueño-only **sin lectura coach ni cross-user** (privacidad cognitiva, explícito en spec). Leaderboard futuro de Comunidad iría por columna opt-in aparte.
+- **Pendiente sprint grande (8-10):** servicio IO, audio de las 8 letras, 4 pantallas, electrón `nback_session` (peso 2.5), integración cronotipo+push.
+
 ## 🔍 Verificación
 
-- `npx tsc --noEmit` → 0 errores (las 4 ramas)
-- `npx vitest run` → **162 archivos / 1541 tests verdes** (incluye anti-leak comunidad + 9 nuevos de rationale)
-- DB remota solo consultada en LECTURA (information_schema + counts). **Cero SQL aplicado** — migs 194/195/196 esperan audit Cowork + merge + `npx supabase db push` de Enrique.
+- `npx tsc --noEmit` → 0 errores (las 5 ramas)
+- `npx vitest run` → **163 archivos / 1565 tests verdes** (incluye anti-leak comunidad + 9 de rationale + 24 de nback)
+- DB remota solo consultada en LECTURA (information_schema + counts). **Cero SQL aplicado** — migs 194/195/196/197 esperan audit Cowork + merge + `npx supabase db push` de Enrique.
 
 ## 📋 Para Cowork (audit) — 4 ramas, todas desde `fix/hotfix-2da-pasada`
 
@@ -74,11 +82,12 @@ Commit `371941e`. **Hallazgo:** el backend ya estaba casi listo — el seed de 2
 2. `feat/consolidar-supplement-scan` (B.2, mig 194 + 2 servicios) — foco: policy coach nueva en `user_supplements`, mapeo frequency→dose_pattern, DROP diferido.
 3. `feat/dx-transaccional` (B.3, mig 195 + dx-engine) — foco: advisory lock + SECURITY INVOKER.
 4. `feat/argos-intervention-rationale` (B.4, mig 196 + proxy + UI) — foco: Pro-gratis en el proxy (¿OK cerrar la "decisión abierta" de la 189 solo para esta acción?) + doctrina del prompt + **recordar deploy del proxy tras merge**.
+5. `feat/nback-core` (C.1, mig 197 + core puro) — foco: validar los 5 defaults de `NBACK_CONFIG` + RLS sin coach.
 
 Todas incluyen el commit local de assets `b246c52` que estaba sin pushear. El edit local sin commitear de `interventions-catalog.ts` (86 intervenciones + roots de separadores) quedó intacto en el working tree — es de Enrique/Cowork, no lo commiteé.
 
 ## ➡️ Siguiente
 
-C.1 N-Back: arranco core+migraciones con los defaults sancionados (N mín 2 · timeout 3s · auriculares sí · daltónico sí · free ilimitado) — Cowork+Enrique validan después. B.5 (hub Comunidad) y C.2 (imageBn) esperan insumos, B.6 (pg_cron) espera decisión de encendido.
+Del buzón quedan gated: **B.5** (hub Comunidad — Enrique lo puso en "cuando lleguen insumos"), **C.2** (swap imageBn — espera PNGs MJ de Enrique), **B.6** (pg_cron — espera decisión de encendido post-scale), **C.1 sprint grande** (servicio + audio + 4 pantallas + electrón, tras validar defaults) y todo el Bloque C/D con insumos humanos. Ninguna acción pendiente mía hasta que Enrique despierte, audite Cowork y lleguen insumos.
 
 — Fable 🦊
