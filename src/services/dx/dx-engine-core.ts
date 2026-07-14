@@ -143,6 +143,14 @@ export interface RawSourceSignals {
   hasConsistentHabits: boolean;
   labsCount: number;
   geneticsCount: number;
+  // Densidad real de data (hotfix 2da pasada): lo que el motor ya cosechaba
+  // para el prompt ahora también puntúa el nivel de calidad.
+  bravermanDone: boolean;
+  quizzesCount: number;
+  /** clinical_symptoms activos + síntomas aislados. */
+  symptomsCount: number;
+  padecimientosCount: number;
+  supplementsCount: number;
 }
 
 /** Traduce las señales crudas al shape que consume computeDxQuality. */
@@ -154,6 +162,11 @@ export function deriveSourcePresence(s: RawSourceSignals): DxSourcePresence {
     hasConsistentHabits: s.hasConsistentHabits,
     hasLabs: s.labsCount > 0,
     hasGenetics: s.geneticsCount > 0,
+    hasBraverman: s.bravermanDone,
+    quizzesCount: Math.max(0, s.quizzesCount | 0),
+    symptomsCount: Math.max(0, s.symptomsCount | 0),
+    padecimientosCount: Math.max(0, s.padecimientosCount | 0),
+    supplementsCount: Math.max(0, s.supplementsCount | 0),
   };
 }
 
@@ -198,13 +211,19 @@ export function presenceFromSnapshot(snapshot: unknown): DxSourcePresence {
     ? s.levantamientos.completed.filter((x: unknown) => typeof x === 'string')
     : [];
   const baseDone = (HC_BASE_IDS as readonly string[]).some((id) => completed.includes(id));
+  const count = (v: unknown): number => Number((v as any)?.count ?? 0) || 0;
   return deriveSourcePresence({
     hasBasicHistory: baseDone || completed.length > 0,
     hasIntegralQuestionnaire: completed.includes(HC_INTEGRAL_ID),
     areaQuestionnairesCount: countCompletedAreas(completed, HC_AREA_IDS),
     hasConsistentHabits: completed.includes('habitos_nutricionales'),
-    labsCount: Number(s?.labs?.count ?? 0) || 0,
+    labsCount: count(s?.labs),
     geneticsCount: 0,
+    bravermanDone: s?.braverman?.present === true,
+    quizzesCount: count(s?.quizzes),
+    symptomsCount: count(s?.sintomas) + count(s?.sintomas_aislados),
+    padecimientosCount: count(s?.padecimientos),
+    supplementsCount: count(s?.suplementos),
   });
 }
 

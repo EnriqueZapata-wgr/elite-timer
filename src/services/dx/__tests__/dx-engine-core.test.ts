@@ -95,32 +95,50 @@ describe('parseArgosDxResponse', () => {
   });
 });
 
+const RAW_DEFAULTS = {
+  hasBasicHistory: false,
+  hasIntegralQuestionnaire: false,
+  areaQuestionnairesCount: 0,
+  hasConsistentHabits: false,
+  labsCount: 0,
+  geneticsCount: 0,
+  bravermanDone: false,
+  quizzesCount: 0,
+  symptomsCount: 0,
+  padecimientosCount: 0,
+  supplementsCount: 0,
+};
+
 describe('deriveSourcePresence', () => {
   it('mapea conteos a booleans', () => {
     const p = deriveSourcePresence({
+      ...RAW_DEFAULTS,
       hasBasicHistory: true,
-      hasIntegralQuestionnaire: false,
       areaQuestionnairesCount: 2,
-      hasConsistentHabits: false,
       labsCount: 3,
-      geneticsCount: 0,
+      bravermanDone: true,
+      quizzesCount: 4,
+      symptomsCount: 7,
     });
     expect(p.hasLabs).toBe(true);
     expect(p.hasGenetics).toBe(false);
     expect(p.areaQuestionnairesCount).toBe(2);
+    expect(p.hasBraverman).toBe(true);
+    expect(p.quizzesCount).toBe(4);
+    expect(p.symptomsCount).toBe(7);
   });
 
   it('labsCount 0 → hasLabs false; negativos se saturan a 0', () => {
     const p = deriveSourcePresence({
-      hasBasicHistory: false,
-      hasIntegralQuestionnaire: false,
+      ...RAW_DEFAULTS,
       areaQuestionnairesCount: -5,
-      hasConsistentHabits: false,
-      labsCount: 0,
-      geneticsCount: 0,
+      quizzesCount: -2,
+      symptomsCount: -1,
     });
     expect(p.hasLabs).toBe(false);
     expect(p.areaQuestionnairesCount).toBe(0);
+    expect(p.quizzesCount).toBe(0);
+    expect(p.symptomsCount).toBe(0);
   });
 });
 
@@ -161,10 +179,29 @@ describe('presenceFromSnapshot', () => {
     expect(p.hasConsistentHabits).toBe(true);
     expect(p.hasLabs).toBe(true);
   });
+
+  it('reconstruye densidad (braverman, quizzes, síntomas sumados, sups, padecimientos)', () => {
+    const p = presenceFromSnapshot({
+      braverman: { present: true },
+      quizzes: { count: 3 },
+      sintomas: { count: 2 },
+      sintomas_aislados: { count: 4 },
+      padecimientos: { count: 1 },
+      suplementos: { count: 5 },
+    });
+    expect(p.hasBraverman).toBe(true);
+    expect(p.quizzesCount).toBe(3);
+    expect(p.symptomsCount).toBe(6);
+    expect(p.padecimientosCount).toBe(1);
+    expect(p.supplementsCount).toBe(5);
+  });
+
   it('snapshot vacío → presencia mínima sin lanzar', () => {
     const p = presenceFromSnapshot(undefined);
     expect(p.hasBasicHistory).toBe(false);
     expect(p.hasLabs).toBe(false);
     expect(p.areaQuestionnairesCount).toBe(0);
+    expect(p.hasBraverman).toBe(false);
+    expect(p.symptomsCount).toBe(0);
   });
 });
