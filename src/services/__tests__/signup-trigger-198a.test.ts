@@ -26,8 +26,8 @@ import { join } from 'node:path';
 const ROOT = join(__dirname, '..', '..', '..');
 const MIGRATIONS_DIR = join(ROOT, 'supabase', 'migrations');
 
-const MIG_198A = join(MIGRATIONS_DIR, '198a_rewrite_handle_new_user.sql');
-const MIG_198B = join(MIGRATIONS_DIR, '198b_drop_supplement_protocols.sql');
+const MIG_198A = join(MIGRATIONS_DIR, '198_rewrite_handle_new_user.sql');
+const MIG_198B = join(MIGRATIONS_DIR, '199_drop_supplement_protocols.sql');
 
 /**
  * Quita comentarios de línea (`--` SQL, `//` TS) y cuerpos de bloque JSDoc.
@@ -114,7 +114,7 @@ describe('cero referencias vivas a supplement_protocols', () => {
 
   it('ninguna migración posterior a 198b la reintroduce', () => {
     const offenders = readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith('.sql') && f > '198b_drop_supplement_protocols.sql')
+      .filter((f) => f.endsWith('.sql') && f > '199_drop_supplement_protocols.sql')
       .filter((f) => {
         const code = readFileSync(join(MIGRATIONS_DIR, f), 'utf8')
           .split('\n').map(stripComments).join('\n');
