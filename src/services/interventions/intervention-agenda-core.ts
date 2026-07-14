@@ -110,22 +110,86 @@ function isHHMM(v: string | null | undefined): boolean {
   return typeof v === 'string' && /^(\d{1,2}):(\d{2})$/.test(v.trim());
 }
 
+// ── Calibración de tiempos (A.2 megahotfix 3ra pasada) ──────────────────────
+
+/** Intervenciones de exposición solar: nunca antes del amanecer razonable. */
+export const SOLAR_INTERVENTION_KEYS = new Set(['exposicion_solar_matutina']);
+/** Piso para eventos solares sin hora del user (sin API sunrise: 06:30 doctrinal). */
+export const MIN_SOLAR_TIME = '06:30';
+/** Separación entre eventos máquina que caían simultáneos (agua+sol+sups a las 6). */
+export const STAGGER_MINUTES = 15;
+
 /**
- * Hora del item de una intervención:
- *  1. effectiveTime (custom_time > computed_time — F3),
- *  2. ancla por timeOfDay del catálogo,
- *  3. sin timeOfDay: circadian 'sleep' → night, 'eat' → morning; default morning.
+ * Hora del item de una intervención + si la fijó el user:
+ *  1. custom_time (user — SAGRADA, nunca se ajusta),
+ *  2. computed_time (máquina, F3), 3. ancla por timeOfDay del catálogo,
+ *  4. sin timeOfDay: circadian 'sleep' → night; default morning.
+ * A las horas de máquina se les aplica el piso solar (MIN_SOLAR_TIME).
  */
+export function resolveInterventionTimeEx(
+  iv: ResolvedUserIntervention,
+  anchors: Record<TimeOfDay, string>,
+): { time: string; userLocked: boolean } {
+  let time: string;
+  let userLocked = false;
+  const custom = iv.row.custom_time;
+  const computed = iv.row.computed_time;
+  if (custom && isHHMM(custom)) {
+    time = normalizeHHMM(custom);
+    userLocked = true;
+  } else if (computed && isHHMM(computed)) {
+    time = normalizeHHMM(computed);
+  } else {
+    const cat = INTERVENTION_BY_KEY[iv.row.intervention_key];
+    const tod: TimeOfDay = cat?.timeOfDay
+      ?? (cat?.circadian === 'sleep' ? 'night' : 'morning');
+    time = anchors[tod];
+  }
+  if (!userLocked && SOLAR_INTERVENTION_KEYS.has(iv.row.intervention_key) && time < MIN_SOLAR_TIME) {
+    time = MIN_SOLAR_TIME;
+  }
+  return { time, userLocked };
+}
+
+/** Compat: solo la hora (clamp solar incluido, sin stagger). */
 export function resolveInterventionTime(
   iv: ResolvedUserIntervention,
   anchors: Record<TimeOfDay, string>,
 ): string {
-  const explicit = effectiveTime(iv.row);
-  if (explicit && isHHMM(explicit)) return normalizeHHMM(explicit);
-  const cat = INTERVENTION_BY_KEY[iv.row.intervention_key];
-  const tod: TimeOfDay = cat?.timeOfDay
-    ?? (cat?.circadian === 'sleep' ? 'night' : 'morning');
-  return anchors[tod];
+  return resolveInterventionTimeEx(iv, anchors).time;
+}
+
+/**
+ * Asigna hora a cada intervención activa espaciando colisiones: los custom_time
+ * del user son slots fijos; las horas de máquina que caigan en un slot ocupado
+ * se corren +STAGGER_MINUTES hasta hueco libre. Determinístico: se procesa
+ * ordenado por (hora resuelta, key), así el mismo set activo produce siempre
+ * las mismas horas (idempotente contra agenda_events).
+ */
+export function assignInterventionTimes(
+  interventions: ResolvedUserIntervention[],
+  anchors: Record<TimeOfDay, string>,
+): Map<string, string> {
+  const resolved = interventions.map((iv) => ({ iv, ...resolveInterventionTimeEx(iv, anchors) }));
+  const out = new Map<string, string>();
+  const taken = new Set<string>();
+  for (const r of resolved) {
+    if (!r.userLocked) continue;
+    out.set(r.iv.row.id, r.time); // user manda: puede haber 2 custom iguales
+    taken.add(r.time);
+  }
+  const machine = resolved
+    .filter((r) => !r.userLocked)
+    .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : a.iv.row.intervention_key < b.iv.row.intervention_key ? -1 : 1));
+  for (const r of machine) {
+    let t = r.time;
+    for (let i = 0; taken.has(t) && i < 96; i++) {
+      t = shiftMinutes(t, STAGGER_MINUTES) ?? t;
+    }
+    taken.add(t);
+    out.set(r.iv.row.id, t);
+  }
+  return out;
 }
 
 /** '7:30' → '07:30' (comparable y ordenable). */
@@ -175,6 +239,7 @@ export function interventionAgendaItems(
   existingNames: string[] = [],
 ): InterventionAgendaItem[] {
   const taken = new Set(existingNames.map(normalizeConceptName));
+  const times = assignInterventionTimes(interventions, anchors);
   const items: InterventionAgendaItem[] = [];
   for (const iv of interventions) {
     const concept = normalizeConceptName(iv.def.name);
@@ -182,7 +247,7 @@ export function interventionAgendaItems(
     taken.add(concept);
     items.push({
       id: `${INTERVENTION_ITEM_PREFIX}${iv.row.id}`,
-      time: resolveInterventionTime(iv, anchors),
+      time: times.get(iv.row.id) ?? resolveInterventionTime(iv, anchors),
       name: iv.def.name,
       subtitle: 'Mi Protocolo',
       category: iv.def.categories[0] ?? 'intervencion',
@@ -228,6 +293,7 @@ export function desiredInterventionEvents(
   anchors: Record<TimeOfDay, string>,
 ): DesiredInterventionEvent[] {
   const seen = new Set<string>();
+  const times = assignInterventionTimes(interventions, anchors);
   const out: DesiredInterventionEvent[] = [];
   for (const iv of interventions) {
     const concept = normalizeConceptName(iv.def.name);
@@ -236,7 +302,7 @@ export function desiredInterventionEvents(
     out.push({
       intervention_key: iv.row.intervention_key,
       name: iv.def.name,
-      time: resolveInterventionTime(iv, anchors),
+      time: times.get(iv.row.id) ?? resolveInterventionTime(iv, anchors),
       category: iv.def.categories[0] ?? 'intervencion',
     });
   }
@@ -272,9 +338,13 @@ export function planInterventionEventSync(
   desired: DesiredInterventionEvent[],
   disabledKeys: Set<string>,
 ): InterventionEventSyncPlan {
+  // A.2: con filas duplicadas del mismo key (pre-cleanup) la fila ACTIVA gana el
+  // slot — las inactivas sobrantes quedan fuera del plan (nunca se reactivan).
   const byKey = new Map<string, AgendaEventRowLike>();
   for (const row of existing) {
-    if (row.intervention_key) byKey.set(row.intervention_key, row);
+    if (!row.intervention_key) continue;
+    const prev = byKey.get(row.intervention_key);
+    if (!prev || (row.is_active && !prev.is_active)) byKey.set(row.intervention_key, row);
   }
   const activeConceptNames = new Set(
     existing.filter((r) => r.is_active && !r.intervention_key).map((r) => normalizeConceptName(r.name)),
@@ -292,6 +362,9 @@ export function planInterventionEventSync(
       const nameChanged = row.name !== d.name;
       if (!row.is_active) {
         if (disabledKeys.has(agendaEventKey(d.name, d.time))) continue;
+        // A.2: mismo guard de concepto que los inserts — sin él, una fila
+        // desactivada por el cleanup (el viejo gana) reviviría en cada sync.
+        if (activeConceptNames.has(normalizeConceptName(d.name))) continue;
         plan.reactivations.push({ id: row.id, name: d.name, time: d.time });
       } else if (timeChanged || nameChanged) {
         plan.updates.push({ id: row.id, name: d.name, time: d.time });
@@ -310,4 +383,76 @@ export function planInterventionEventSync(
   }
 
   return plan;
+}
+
+// ── Limpieza de duplicados históricos (A.2 megahotfix 3ra pasada) ────────────
+
+/** Al deduplicar por concepto+hora gana la fila de mayor prioridad de fuente. */
+const SOURCE_PRIORITY: Record<string, number> = {
+  manual_override: 5, // el user la editó — sagrada
+  manual: 4,          // el user la creó
+  protocol: 3,        // pre-existente al swap ("el viejo gana", misma doctrina del sync)
+  chronotype: 2,
+  intervention: 1,    // re-generable por el sync
+};
+
+/**
+ * Duplicados ACTIVOS acumulados en agenda_events por versiones previas sin
+ * dedup ("sol 3× a las 6am"). Devuelve ids a desactivar (soft, reversible):
+ *  · mismo intervention_key → sobrevive 1 (mayor prioridad de fuente; empate:
+ *    primera en el orden de entrada — ordenar por created_at en el caller).
+ *  · mismo concepto (nombre normalizado) + misma hora HH:MM → sobrevive 1.
+ *  · concepto gestionado por Mi Protocolo (`desiredConcepts`) con fila zombie
+ *    del driver viejo (source 'protocol') → la intervención es la fuente
+ *    única, la fila de protocolo se desactiva (aunque esté a otra hora).
+ * Mismo concepto a horas DISTINTAS fuera de desiredConcepts no se toca
+ * (multi-dosis legítima del protocolo del user, p.ej. agua 3× espaciada).
+ * 'manual' y 'manual_override' JAMÁS se desactivan por el pase 3.
+ */
+export function planAgendaCleanup(
+  existing: AgendaEventRowLike[],
+  desiredConcepts: Set<string> = new Set(),
+): string[] {
+  const toDeactivate = new Set<string>();
+  const better = (a: AgendaEventRowLike, b: AgendaEventRowLike): AgendaEventRowLike =>
+    (SOURCE_PRIORITY[b.source] ?? 0) > (SOURCE_PRIORITY[a.source] ?? 0) ? b : a;
+  const isUserRow = (r: AgendaEventRowLike) => r.source === 'manual' || r.source === 'manual_override';
+  const dedupe = (rows: AgendaEventRowLike[], keyOf: (r: AgendaEventRowLike) => string | null) => {
+    const seen = new Map<string, AgendaEventRowLike>();
+    for (const row of rows) {
+      const k = keyOf(row);
+      if (!k) continue;
+      const prev = seen.get(k);
+      if (!prev) {
+        seen.set(k, row);
+        continue;
+      }
+      // Dos filas del USER duplicadas entre sí → no tocamos ninguna (su data
+      // es sagrada); solo las filas de máquina pierden contra lo que sea.
+      if (isUserRow(prev) && isUserRow(row)) continue;
+      const winner = better(prev, row);
+      toDeactivate.add(winner === prev ? row.id : prev.id);
+      seen.set(k, winner);
+    }
+  };
+
+  const active = existing.filter((r) => r.is_active);
+  // Pase 1: un solo evento por intervention_key.
+  dedupe(active, (r) => r.intervention_key);
+  // Pase 2: sobre lo que sigue vivo, un solo evento por concepto+hora.
+  dedupe(
+    active.filter((r) => !toDeactivate.has(r.id)),
+    (r) => `${normalizeConceptName(r.name)}|${(r.time ?? '').slice(0, 5)}`,
+  );
+  // Pase 3: zombies del driver viejo — filas 'protocol' cuyo concepto ahora lo
+  // gestiona Mi Protocolo. La intervención (con clamp solar + stagger) toma el
+  // control; sin este pase, el sol de protocolo a las 06:00 ganaría para
+  // siempre por el dedup de conceptos del sync.
+  if (desiredConcepts.size > 0) {
+    for (const r of active) {
+      if (toDeactivate.has(r.id) || r.source !== 'protocol') continue;
+      if (desiredConcepts.has(normalizeConceptName(r.name))) toDeactivate.add(r.id);
+    }
+  }
+  return [...toDeactivate];
 }

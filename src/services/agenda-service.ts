@@ -21,7 +21,8 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import {
   selectAgendaDrivers, anchorTimes, desiredInterventionEvents, planInterventionEventSync,
-  INTERVENTION_NOTIFY_MINUTES_BEFORE, type AgendaEventRowLike,
+  planAgendaCleanup, normalizeConceptName, INTERVENTION_NOTIFY_MINUTES_BEFORE,
+  type AgendaEventRowLike,
 } from '@/src/services/interventions/intervention-agenda-core';
 import { getMyProtocol, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 
@@ -180,23 +181,36 @@ async function syncInterventionEvents(userId: string): Promise<void> {
 
   // Filas existentes con las columnas que el planner necesita (incluye
   // intervention_key — migración 185; requiere db push ANTES del OTA del flag).
+  // Orden por created_at → el cleanup de duplicados es determinístico (en
+  // empate de fuente sobrevive la fila más vieja, que puede tener historial).
   const { data: existing, error } = await supabase
     .from('agenda_events')
     .select('id, name, time, source, is_active, intervention_key')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
   if (error) {
     logWarn('[agenda] intervention events select failed (¿migración 185 aplicada?)', error);
     return;
   }
 
-  const plan = planInterventionEventSync(
-    ((existing ?? []) as any[]).map((e): AgendaEventRowLike => ({
-      id: e.id, name: e.name, time: hhmm(e.time), source: e.source,
-      is_active: e.is_active !== false, intervention_key: e.intervention_key ?? null,
-    })),
-    desired,
-    disabled,
-  );
+  let rows = ((existing ?? []) as any[]).map((e): AgendaEventRowLike => ({
+    id: e.id, name: e.name, time: hhmm(e.time), source: e.source,
+    is_active: e.is_active !== false, intervention_key: e.intervention_key ?? null,
+  }));
+
+  // A.2 megahotfix 3ra pasada: barrer duplicados históricos ("sol 3× a las 6am")
+  // acumulados por versiones sin dedup + zombies del driver protocolo para
+  // conceptos que ya gestiona Mi Protocolo. Soft-deactivate, reversible.
+  const desiredConcepts = new Set(desired.map((d) => normalizeConceptName(d.name)));
+  const cleanupIds = planAgendaCleanup(rows, desiredConcepts);
+  if (cleanupIds.length > 0) {
+    await supabase.from('agenda_events')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .in('id', cleanupIds).eq('user_id', userId);
+    rows = rows.map((r) => (cleanupIds.includes(r.id) ? { ...r, is_active: false } : r));
+  }
+
+  const plan = planInterventionEventSync(rows, desired, disabled);
 
   if (plan.inserts.length > 0) {
     await supabase.from('agenda_events').insert(plan.inserts.map((d) => ({

@@ -13,12 +13,17 @@ import {
   anchorTimes,
   shiftMinutes,
   resolveInterventionTime,
+  resolveInterventionTimeEx,
+  assignInterventionTimes,
+  planAgendaCleanup,
   normalizeConceptName,
   interventionAgendaItems,
   desiredInterventionEvents,
   planInterventionEventSync,
   agendaEventKey,
   INTERVENTION_ITEM_PREFIX,
+  MIN_SOLAR_TIME,
+  STAGGER_MINUTES,
   type AgendaEventRowLike,
   type DesiredInterventionEvent,
 } from '../intervention-agenda-core';
@@ -356,5 +361,188 @@ describe('planInterventionEventSync', () => {
     expect(plan.inserts.map(i => i.intervention_key)).toContain('recordatorio_dormir');
     // y el evento de protocolo NO se desactiva (no es source intervention)
     expect(plan.deactivateIds).toHaveLength(0);
+  });
+
+  it('A.2: filas duplicadas del mismo key → la ACTIVA gana el slot, la inactiva no revive', () => {
+    const existing = [
+      evRow({ id: 'ev-dup-inactiva', name: 'Grounding 10-15 min', time: '06:00', intervention_key: 'grounding', is_active: false }),
+      evRow({ id: 'ev-viva', name: 'Grounding 10-15 min', time: anchors.morning, intervention_key: 'grounding' }),
+    ];
+    const plan = planInterventionEventSync(existing, desired.filter(d => d.intervention_key === 'grounding'), new Set());
+    expect(plan.reactivations).toHaveLength(0);
+    expect(plan.inserts).toHaveLength(0);
+    expect(plan.updates).toHaveLength(0);
+  });
+
+  it('A.2: guard de concepto en reactivations — desactivada por cleanup (el viejo gana) NO flapea', () => {
+    const existing = [
+      evRow({ id: 'ev-manual', name: 'Grounding 10-15 min', time: '09:00', source: 'manual', intervention_key: null }),
+      evRow({ id: 'ev-iv', name: 'Grounding 10-15 min', time: anchors.morning, intervention_key: 'grounding', is_active: false }),
+    ];
+    const plan = planInterventionEventSync(existing, desired.filter(d => d.intervention_key === 'grounding'), new Set());
+    expect(plan.reactivations).toHaveLength(0);
+    expect(plan.inserts).toHaveLength(0);
+  });
+});
+
+// ── A.2 megahotfix 3ra pasada: calibración de tiempos ────────────────────────
+
+describe('clamp solar (sol nunca antes del amanecer razonable)', () => {
+  // León: wake 05:30 → morning 06:00, ANTES del piso solar 06:30.
+  const lionAnchors = anchorTimes({ wake_time: null, sleep_time: null }, 'lion');
+
+  it('ancla de máquina antes de 06:30 → se clampa a 06:30', () => {
+    const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina');
+    expect(lionAnchors.morning).toBe('06:00');
+    expect(resolveInterventionTime(sol, lionAnchors)).toBe(MIN_SOLAR_TIME);
+  });
+
+  it('computed_time (máquina) antes de 06:30 → también se clampa', () => {
+    const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina', { computed_time: '05:45' });
+    expect(resolveInterventionTime(sol, lionAnchors)).toBe(MIN_SOLAR_TIME);
+  });
+
+  it('custom_time del user es SAGRADO: 05:45 explícito no se clampa', () => {
+    const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina', { custom_time: '05:45' });
+    const r = resolveInterventionTimeEx(sol, lionAnchors);
+    expect(r.time).toBe('05:45');
+    expect(r.userLocked).toBe(true);
+  });
+
+  it('el clamp no toca intervenciones no-solares madrugadoras', () => {
+    const iv = resolved('hidratacion_matutina', 'Hidratación matutina', { computed_time: '06:00' });
+    expect(resolveInterventionTime(iv, lionAnchors)).toBe('06:00');
+  });
+});
+
+describe('assignInterventionTimes (stagger de simultáneos)', () => {
+  const lionAnchors = anchorTimes({ wake_time: null, sleep_time: null }, 'lion');
+
+  it('agua+sol+sups cayendo juntos → se espacian a STAGGER_MINUTES, nunca simultáneos', () => {
+    const list = [
+      resolved('exposicion_solar_matutina', 'Exposición solar matutina'),
+      resolved('hidratacion_matutina', 'Hidratación matutina'),
+      resolved('suplementos_am', 'Suplementos AM'),
+    ];
+    const times = [...assignInterventionTimes(list, lionAnchors).values()];
+    expect(new Set(times).size).toBe(times.length); // sin colisiones
+    times.forEach(t => expect(t).toMatch(/^\d{2}:\d{2}$/));
+  });
+
+  it('determinístico: mismo set activo → mismas horas en cada corrida (idempotente)', () => {
+    const list = [
+      resolved('exposicion_solar_matutina', 'Exposición solar matutina'),
+      resolved('hidratacion_matutina', 'Hidratación matutina'),
+      resolved('suplementos_am', 'Suplementos AM'),
+    ];
+    const a = assignInterventionTimes(list, lionAnchors);
+    const b = assignInterventionTimes([...list].reverse(), lionAnchors);
+    expect(Object.fromEntries(a)).toEqual(Object.fromEntries(b));
+  });
+
+  it('custom_time del user ocupa slot fijo; las de máquina se corren alrededor', () => {
+    const list = [
+      resolved('hidratacion_matutina', 'Hidratación matutina', { custom_time: '06:00' }),
+      resolved('suplementos_am', 'Suplementos AM', { computed_time: '06:00' }),
+    ];
+    const times = assignInterventionTimes(list, lionAnchors);
+    expect(times.get('uid-hidratacion_matutina')).toBe('06:00');
+    expect(times.get('uid-suplementos_am')).toBe(shiftMinutes('06:00', STAGGER_MINUTES));
+  });
+
+  it('desiredInterventionEvents hereda el stagger (nunca 2 eventos a la misma hora de máquina)', () => {
+    const desired = desiredInterventionEvents(
+      [
+        resolved('exposicion_solar_matutina', 'Exposición solar matutina'),
+        resolved('hidratacion_matutina', 'Hidratación matutina'),
+        resolved('suplementos_am', 'Suplementos AM'),
+      ],
+      lionAnchors,
+    );
+    const times = desired.map(d => d.time);
+    expect(new Set(times).size).toBe(times.length);
+  });
+});
+
+// ── A.2: limpieza de duplicados históricos ───────────────────────────────────
+
+describe('planAgendaCleanup', () => {
+  it('sol 3× con el mismo intervention_key → sobreviven 0 duplicados (queda 1)', () => {
+    const rows = [
+      evRow({ id: 'sol-1', name: 'Exposición solar matutina', time: '06:00', intervention_key: 'exposicion_solar_matutina' }),
+      evRow({ id: 'sol-2', name: 'Exposición solar matutina', time: '06:00', intervention_key: 'exposicion_solar_matutina' }),
+      evRow({ id: 'sol-3', name: 'Exposición solar matutina', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    const out = planAgendaCleanup(rows);
+    expect(out).toHaveLength(2);
+    expect(out).not.toContain('sol-1'); // empate de fuente → primera (más vieja) gana
+  });
+
+  it('mismo concepto + misma hora entre fuentes → gana la de mayor prioridad (protocol > intervention)', () => {
+    const rows = [
+      evRow({ id: 'agua-iv', name: 'Hidratación matutina', time: '06:15', intervention_key: 'hidratacion_matutina' }),
+      evRow({ id: 'agua-prot', name: 'HIDRATACIÓN matutina', time: '06:15', source: 'protocol', intervention_key: null }),
+    ];
+    const out = planAgendaCleanup(rows);
+    expect(out).toEqual(['agua-iv']);
+  });
+
+  it('multi-dosis legítima: mismo concepto de protocolo a horas DISTINTAS no se toca', () => {
+    const rows = [
+      evRow({ id: 'agua-1', name: 'Agua', time: '08:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 'agua-2', name: 'Agua', time: '12:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 'agua-3', name: 'Agua', time: '16:00', source: 'protocol', intervention_key: null }),
+    ];
+    expect(planAgendaCleanup(rows)).toEqual([]);
+  });
+
+  it('pase 3: zombie de protocolo con concepto gestionado por Mi Protocolo → se desactiva aunque esté a otra hora', () => {
+    const rows = [
+      evRow({ id: 'sol-zombie', name: 'Exposición solar matutina', time: '06:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 'sol-iv', name: 'Exposición solar matutina', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    const out = planAgendaCleanup(rows, new Set([normalizeConceptName('Exposición solar matutina')]));
+    expect(out).toEqual(['sol-zombie']);
+  });
+
+  it('pase 3 sin desiredConcepts (flag OFF hipotético) → no toca protocolo', () => {
+    const rows = [
+      evRow({ id: 'sol-prot', name: 'Exposición solar matutina', time: '06:00', source: 'protocol', intervention_key: null }),
+    ];
+    expect(planAgendaCleanup(rows)).toEqual([]);
+  });
+
+  it('manual y manual_override JAMÁS se desactivan (ni por dupes ni por pase 3)', () => {
+    const rows = [
+      evRow({ id: 'm-1', name: 'Sol', time: '07:00', source: 'manual_override', intervention_key: 'exposicion_solar_matutina' }),
+      evRow({ id: 'm-2', name: 'Sol', time: '07:00', source: 'manual', intervention_key: null }),
+      evRow({ id: 'iv', name: 'Sol', time: '07:00', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    const out = planAgendaCleanup(rows, new Set([normalizeConceptName('Sol')]));
+    expect(out).not.toContain('m-1');
+    expect(out).not.toContain('m-2');
+    expect(out).toContain('iv'); // pierde por key contra el override y por concepto+hora
+  });
+
+  it('inactivas se ignoran (no compiten ni se re-desactivan)', () => {
+    const rows = [
+      evRow({ id: 'muerta', name: 'Sol', time: '06:00', intervention_key: 'exposicion_solar_matutina', is_active: false }),
+      evRow({ id: 'viva', name: 'Sol', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    expect(planAgendaCleanup(rows)).toEqual([]);
+  });
+
+  it('escenario device: 5 universales P1 duplicados 3× → quedan exactamente 5 activos', () => {
+    const keys = ['sol', 'agua', 'sups', 'lentes', 'grounding'];
+    const rows: AgendaEventRowLike[] = [];
+    for (const k of keys) {
+      for (let i = 0; i < 3; i++) {
+        rows.push(evRow({ id: `${k}-${i}`, name: `Intervención ${k}`, time: '06:00', intervention_key: k }));
+      }
+    }
+    const out = planAgendaCleanup(rows);
+    expect(out).toHaveLength(10); // 15 filas − 5 supervivientes
+    const vivos = rows.filter(r => !out.includes(r.id));
+    expect(new Set(vivos.map(r => r.intervention_key)).size).toBe(5);
   });
 });
