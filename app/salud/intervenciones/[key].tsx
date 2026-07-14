@@ -35,6 +35,8 @@ import {
   type ResolvedUserIntervention,
 } from '@/src/services/interventions/intervention-service-core';
 import { INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
+import { personalizeInterventionHow } from '@/src/services/dx/fitzpatrick-core';
+import { fetchSkinType } from '@/src/services/dx/fitzpatrick-service';
 import { CATEGORY_LABELS } from '@/src/constants/intervention-vocab';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -54,12 +56,17 @@ export default function IntervencionDetailScreen() {
   const [timeInput, setTimeInput] = useState('');
   const [notesInput, setNotesInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [skinType, setSkinType] = useState<number | null>(null);
   const startedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user?.id || !key) return;
-    const found = await getUserIntervention(user.id, key);
+    const [found, skin] = await Promise.all([
+      getUserIntervention(user.id, key),
+      fetchSkinType(user.id).catch(() => null),
+    ]);
     setItem(found);
+    setSkinType(skin);
     if (found) {
       setTimeInput(found.row.custom_time ?? '');
       setNotesInput(found.row.custom_notes ?? '');
@@ -183,7 +190,9 @@ export default function IntervencionDetailScreen() {
             <Animated.View entering={FadeInUp.delay(90).springify()}>
               <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>CÓMO SE HACE</SectionTitle>
               <Card variant="elevated">
-                <EliteText style={styles.body}>{item.def.how}</EliteText>
+                <EliteText style={styles.body}>
+                  {personalizeInterventionHow(item.row.intervention_key, item.def.how, skinType)}
+                </EliteText>
               </Card>
               <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>BENEFICIO</SectionTitle>
               <Card variant="elevated">
