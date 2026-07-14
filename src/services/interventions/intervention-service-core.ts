@@ -176,6 +176,34 @@ export function sortSuggested(list: ResolvedUserIntervention[]): ResolvedUserInt
   });
 }
 
+// ── A.3 megahotfix 3ra pasada: motor saturado → top acotado ──────────────────
+
+/** Tamaño del top de sugeridas visible por default (doctrina: 10-15). */
+export const SUGGESTED_TOP_COUNT = 12;
+
+/** Doctrina Humby: ~5 activas es el punto dulce; desde este umbral sugerimos (suave) enfocar. */
+export const PROTOCOL_HINT_THRESHOLD = 8;
+
+/**
+ * Parte las sugeridas en top visible + resto colapsado ("Ver todas (N más)").
+ * Las universales entran TODAS al top (jamás se pierden entre las curadas,
+ * aunque excedan topCount); las curadas llenan los slots restantes en el orden
+ * de sortSuggested (score desc, priority asc).
+ */
+export function partitionSuggested(
+  list: ResolvedUserIntervention[],
+  topCount: number = SUGGESTED_TOP_COUNT,
+): { top: ResolvedUserIntervention[]; rest: ResolvedUserIntervention[] } {
+  const sorted = sortSuggested(list);
+  const universals = sorted.filter((s) => s.row.is_universal);
+  const curated = sorted.filter((s) => !s.row.is_universal);
+  const slots = Math.max(0, topCount - universals.length);
+  return {
+    top: [...universals, ...curated.slice(0, slots)],
+    rest: curated.slice(slots),
+  };
+}
+
 /** Hora efectiva a mostrar/agendar: override del user gana al cálculo circadiano. */
 export function effectiveTime(row: Pick<UserInterventionRow, 'custom_time' | 'computed_time'>): string | null {
   return row.custom_time ?? row.computed_time ?? null;

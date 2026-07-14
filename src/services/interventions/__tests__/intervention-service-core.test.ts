@@ -5,9 +5,12 @@ import {
   resolveRows,
   sortProtocol,
   sortSuggested,
+  partitionSuggested,
   effectiveTime,
   isValidHHMM,
+  SUGGESTED_TOP_COUNT,
   type UserInterventionRow,
+  type ResolvedUserIntervention,
 } from '../intervention-service-core';
 import { matchInterventions } from '../intervention-engine-core';
 import type { DxRoot } from '../intervention-engine-core';
@@ -196,5 +199,62 @@ describe('helpers', () => {
     expect(isValidHHMM('24:00')).toBe(false);
     expect(isValidHHMM('21:75')).toBe(false);
     expect(isValidHHMM('nope')).toBe(false);
+  });
+});
+
+// ── A.3 megahotfix 3ra pasada: motor saturado → top acotado ──────────────────
+
+describe('partitionSuggested', () => {
+  const item = (key: string, opts: { universal?: boolean; score?: number; priority?: number } = {}): ResolvedUserIntervention => ({
+    row: row({
+      intervention_key: key,
+      is_universal: opts.universal ?? false,
+      priority: opts.priority ?? 2,
+    }),
+    def: { key, name: key, how: '', benefit: '', categories: ['sueno'] as any, roots: [], isCustom: false },
+    score: opts.score ?? 0,
+  });
+
+  it('lista corta → todo al top, sin resto', () => {
+    const list = [item('a'), item('b', { universal: true })];
+    const { top, rest } = partitionSuggested(list);
+    expect(top).toHaveLength(2);
+    expect(rest).toHaveLength(0);
+  });
+
+  it('satura a SUGGESTED_TOP_COUNT: 30 sugeridas → top 12, resto 18 colapsado', () => {
+    const list = Array.from({ length: 30 }, (_, i) => item(`iv-${i}`, { score: 30 - i }));
+    const { top, rest } = partitionSuggested(list);
+    expect(top).toHaveLength(SUGGESTED_TOP_COUNT);
+    expect(rest).toHaveLength(30 - SUGGESTED_TOP_COUNT);
+    // el top son las de mayor score (orden del motor intacto)
+    expect(top[0].row.intervention_key).toBe('iv-0');
+    expect(rest[0].score).toBeLessThanOrEqual(top[top.length - 1].score);
+  });
+
+  it('universales SIEMPRE en el top, aunque las curadas tengan más score', () => {
+    const list = [
+      ...Array.from({ length: 15 }, (_, i) => item(`curada-${i}`, { score: 100 - i })),
+      ...Array.from({ length: 7 }, (_, i) => item(`universal-${i}`, { universal: true, score: 0, priority: 1 })),
+    ];
+    const { top, rest } = partitionSuggested(list);
+    const topKeys = top.map(t => t.row.intervention_key);
+    for (let i = 0; i < 7; i++) expect(topKeys).toContain(`universal-${i}`);
+    expect(top).toHaveLength(SUGGESTED_TOP_COUNT); // 7 universales + 5 curadas top
+    expect(rest.every(r => !r.row.is_universal)).toBe(true);
+  });
+
+  it('más universales que topCount → entran todas igual (jamás se pierden)', () => {
+    const list = Array.from({ length: 5 }, (_, i) => item(`u-${i}`, { universal: true }));
+    const { top, rest } = partitionSuggested(list, 3);
+    expect(top).toHaveLength(5);
+    expect(rest).toHaveLength(0);
+  });
+
+  it('top + rest reconstruyen la lista completa sin perder ni duplicar', () => {
+    const list = Array.from({ length: 25 }, (_, i) => item(`iv-${i}`, { score: i % 7, universal: i % 5 === 0 }));
+    const { top, rest } = partitionSuggested(list);
+    const all = [...top, ...rest].map(t => t.row.intervention_key).sort();
+    expect(all).toEqual(list.map(t => t.row.intervention_key).sort());
   });
 });

@@ -35,6 +35,8 @@ import {
 } from '@/src/services/interventions/intervention-service';
 import {
   effectiveTime,
+  partitionSuggested,
+  PROTOCOL_HINT_THRESHOLD,
   type ResolvedUserIntervention,
 } from '@/src/services/interventions/intervention-service-core';
 import { personalizeInterventionHow } from '@/src/services/dx/fitzpatrick-core';
@@ -51,6 +53,8 @@ export default function IntervencionesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [skinType, setSkinType] = useState<number | null>(null);
+  // A.3 megahotfix 3ra pasada: motor saturado → top 10-15 visible, resto colapsado.
+  const [showAllSuggested, setShowAllSuggested] = useState(false);
   const startedRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -195,7 +199,15 @@ export default function IntervencionesScreen() {
               })}
             </Animated.View>
 
-            {/* ── SUGERIDAS PARA TI (motor) ── */}
+            {/* Doctrina Humby: ~5 activas ideal — sugerencia suave, sin límite duro. */}
+            {protocol.length >= PROTOCOL_HINT_THRESHOLD && (
+              <EliteText style={styles.humbyHint}>
+                Tip: alrededor de 5 intervenciones activas a la vez es el punto
+                dulce — mejor pocas bien hechas que muchas a medias.
+              </EliteText>
+            )}
+
+            {/* ── SUGERIDAS PARA TI (motor) — top acotado, resto colapsado ── */}
             <Animated.View entering={FadeInUp.delay(140).springify()}>
               <SectionTitle containerStyle={{ marginTop: Spacing.xl }}>SUGERIDAS PARA TI</SectionTitle>
               {suggested.length === 0 && (
@@ -206,32 +218,55 @@ export default function IntervencionesScreen() {
                   </EliteText>
                 </View>
               )}
-              {suggested.map((item, idx) => (
-                <Animated.View key={item.row.id} entering={FadeInUp.delay(160 + idx * 40).springify()}>
-                  <AnimatedPressable onPress={() => openDetail(item)} style={styles.rowCard}>
-                    <PrioritySemaphore priority={item.row.priority as SemaphorePriority} />
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.nameRow}>
-                        <EliteText style={styles.rowName} numberOfLines={1}>{item.def.name}</EliteText>
-                        {item.row.is_universal && (
-                          <View style={styles.baseBadge}>
-                            <EliteText style={styles.baseBadgeText}>BASE</EliteText>
+              {(() => {
+                const { top, rest } = partitionSuggested(suggested);
+                const visible = showAllSuggested ? [...top, ...rest] : top;
+                return (
+                  <>
+                    {visible.map((item, idx) => (
+                      <Animated.View key={item.row.id} entering={FadeInUp.delay(160 + Math.min(idx, 12) * 40).springify()}>
+                        <AnimatedPressable onPress={() => openDetail(item)} style={styles.rowCard}>
+                          <PrioritySemaphore priority={item.row.priority as SemaphorePriority} />
+                          <View style={{ flex: 1 }}>
+                            <View style={styles.nameRow}>
+                              <EliteText style={styles.rowName} numberOfLines={1}>{item.def.name}</EliteText>
+                              {item.row.is_universal && (
+                                <View style={styles.baseBadge}>
+                                  <EliteText style={styles.baseBadgeText}>BASE</EliteText>
+                                </View>
+                              )}
+                            </View>
+                            <EliteText style={styles.rowMeta} numberOfLines={2}>{item.def.benefit}</EliteText>
                           </View>
-                        )}
-                      </View>
-                      <EliteText style={styles.rowMeta} numberOfLines={2}>{item.def.benefit}</EliteText>
-                    </View>
-                    <AnimatedPressable
-                      onPress={() => onActivate(item)}
-                      disabled={busyKey === item.row.intervention_key}
-                      style={styles.activateBtn}
-                      hitSlop={4}
-                    >
-                      <EliteText style={styles.activateText}>Activar</EliteText>
-                    </AnimatedPressable>
-                  </AnimatedPressable>
-                </Animated.View>
-              ))}
+                          <AnimatedPressable
+                            onPress={() => onActivate(item)}
+                            disabled={busyKey === item.row.intervention_key}
+                            style={styles.activateBtn}
+                            hitSlop={4}
+                          >
+                            <EliteText style={styles.activateText}>Activar</EliteText>
+                          </AnimatedPressable>
+                        </AnimatedPressable>
+                      </Animated.View>
+                    ))}
+                    {rest.length > 0 && (
+                      <AnimatedPressable
+                        onPress={() => { haptic.light(); setShowAllSuggested(v => !v); }}
+                        style={styles.showAllBtn}
+                      >
+                        <EliteText style={styles.showAllText}>
+                          {showAllSuggested ? 'Ver menos' : `Ver todas las sugerencias (${rest.length} más)`}
+                        </EliteText>
+                        <Ionicons
+                          name={showAllSuggested ? 'chevron-up' : 'chevron-down'}
+                          size={14}
+                          color={TEXT.secondary}
+                        />
+                      </AnimatedPressable>
+                    )}
+                  </>
+                );
+              })()}
             </Animated.View>
 
             <EliteText style={styles.footHint}>
@@ -290,4 +325,14 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md, paddingVertical: 10, marginBottom: 8,
   },
   rationaleBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  humbyHint: {
+    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
+    lineHeight: 17, marginTop: Spacing.sm, paddingHorizontal: 2,
+  },
+  showAllBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.md, paddingVertical: 10, marginTop: 4,
+  },
+  showAllText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.secondary },
 });
