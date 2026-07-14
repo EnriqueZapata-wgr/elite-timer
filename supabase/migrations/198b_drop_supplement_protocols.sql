@@ -1,0 +1,34 @@
+-- ============================================================================
+-- 198b — DROP TABLE supplement_protocols. (Peloteo #80, decisión B.)
+--
+-- POR QUÉ SE DROPEA:
+--   Tabla legacy de la era coach (007). El buzón la llamaba "supplement_scan"
+--   pero esa tabla nunca existió (ver header de 194). Desde BHA, la fuente
+--   única de suplementos es user_supplements (055 + columnas scan en 187).
+--   Estado remoto verificado 2026-07-14: supplement_protocols = 0 filas,
+--   user_supplements = 55 filas, cero vistas/triggers/FKs entrantes.
+--
+-- QUÉ LA REEMPLAZA:
+--   user_supplements, con policy de coach espejada en 194 (el panel coach
+--   sigue viendo suplementos de sus clientes vía coach_clients activa).
+--
+-- QUÉ SE PRESERVÓ ANTES DE LLEGAR AQUÍ (orden del push: 194 → 198a → 198b):
+--   - 194: backfill legacy → user_supplements (dedup por user+name,
+--     huérfanos filtrados por FK a auth.users) + create_consultation_snapshot
+--     reescrita a user_supplements con las mismas keys JSON.
+--   - 198a: handle_new_user() reescrita sin referencias a esta tabla
+--     (verificada end-to-end con rollback contra remoto). Era el ÚLTIMO
+--     objeto del repo que la tocaba en runtime de signup.
+--   - Cliente (branch consolidar): atp-ai-service + client-profile-service
+--     migrados a user_supplements; grep de src/ + app/ + supabase/functions
+--     limpio (solo comentarios históricos).
+--   - Único objeto remoto restante que la referenciaba:
+--     create_consultation_snapshot — 194 lo reescribe en este mismo push.
+--
+-- Las policies de la tabla (007/038) mueren con ella — DROP TABLE las
+-- elimina en cascada. Idempotente vía IF EXISTS.
+-- ⚠️ NO aplicar al remoto desde la rama — Enrique corre `npx supabase db push`
+-- tras el merge + audit Cowork (regla #12).
+-- ============================================================================
+
+DROP TABLE IF EXISTS public.supplement_protocols;

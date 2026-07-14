@@ -56,7 +56,8 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     supabase.from('body_measurements').select('*').eq('user_id', clientId).order('measured_at', { ascending: false }).limit(1),
     supabase.from('lab_results').select('*').eq('user_id', clientId).order('lab_date', { ascending: false }).limit(1),
     supabase.from('medications').select('*').eq('user_id', clientId).eq('is_active', true),
-    supabase.from('supplement_protocols').select('*').eq('user_id', clientId).eq('is_active', true),
+    // 194: fuente única user_supplements (supplement_protocols legacy consolidada).
+    supabase.from('user_supplements').select('*').eq('user_id', clientId).eq('is_active', true),
     supabase.from('family_history').select('*').eq('user_id', clientId),
     supabase.from('emotional_checkins').select('*').eq('user_id', clientId).order('created_at', { ascending: false }).limit(10),
     supabase.from('consultations').select('consultation_number, consultation_date, status, chief_complaint, assessment, plan, changes_summary, body_snapshot, conditions_snapshot').eq('client_id', clientId).eq('status', 'completed').order('consultation_date', { ascending: false }).limit(5),
@@ -71,7 +72,7 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
     settledData('body_measurements', settled[2] as any),
     settledData('lab_results', settled[3] as any),
     settledData('medications', settled[4] as any),
-    settledData('supplement_protocols', settled[5] as any),
+    settledData('user_supplements', settled[5] as any),
     settledData('family_history', settled[6] as any),
     settledData('emotional_checkins', settled[7] as any),
     settledData('consultations', settled[8] as any),
@@ -222,7 +223,7 @@ Sueño (cronotipo): ${sleepTime}-${wakeTime}
 
   if (supplements.length > 0) {
     p += `\n## SUPLEMENTOS\n`;
-    supplements.forEach(s => { p += `- ${s.name}${s.dose ? ` ${s.dose}` : ''}${s.frequency ? ` (${s.frequency})` : ''}\n`; });
+    supplements.forEach(s => { p += `- ${s.name}${s.dosage ? ` ${s.dosage}` : ''}${s.dose_pattern ? ` (${s.dose_pattern})` : ''}\n`; });
   }
 
   if (familyHistory.length > 0) {

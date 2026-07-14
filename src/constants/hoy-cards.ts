@@ -29,7 +29,7 @@ export const HOY_CARD_SPECS: HoyCardSpec[] = [
   { cardKey: 'uv', category: 'metric', icon: '☀️', title: 'UV INDEX', gradient: ['#FFD700', '#FFA500'], route: '/solar' },
   { cardKey: 'checkin', category: 'mind', icon: '❤️', title: 'CHECK-IN EMOCIONAL', gradient: ['#1ABC9C', '#9B59B6'], route: '/mente' },
   { cardKey: 'proteina', category: 'meal', icon: '🍳', title: 'PROTEÍNA', gradient: ['#FF8C00', '#C0392B'], route: '/nutrition' },
-  { cardKey: 'agua', category: 'meal', icon: '💧', title: 'AGUA', gradient: ['#3498DB', '#1ABC9C'], route: '/hydration' },
+  { cardKey: 'agua', category: 'meal', icon: '💧', title: 'AGUA', gradient: ['#3498DB', '#1ABC9C'], route: '/nutrition' },
   { cardKey: 'luz_solar', category: 'rhythm', icon: '☀️', title: 'LUZ SOLAR', gradient: ['#FFD700', '#FFA500'] },
   { cardKey: 'meditacion', category: 'mind', icon: '🧘', title: 'MEDITACIÓN', gradient: ['#1ABC9C', '#16A085'], route: '/mente' },
   { cardKey: 'suplementos', category: 'supplement', icon: '💊', title: 'SUPLEMENTOS', gradient: ['#9B59B6', '#6C3483'], route: '/supplements' },
@@ -39,11 +39,11 @@ export const HOY_CARD_SPECS: HoyCardSpec[] = [
   { cardKey: 'breathwork', category: 'mind', icon: '🌬', title: 'BREATHWORK', gradient: ['#85C1E9', '#2E86C1'], route: '/mente' },
   { cardKey: 'lentes_rojos', category: 'rhythm', icon: '🔴', title: 'LENTES ROJOS', gradient: ['#FF7F50', '#8B0000'] },
   { cardKey: 'cardio', category: 'exercise', icon: '❤️‍🔥', title: 'CARDIO', gradient: ['#E74C3C', '#FFA500'], route: '/fitness-hub' },
-  { cardKey: 'pasos', category: 'exercise', icon: '🚶', title: 'PASOS', gradient: ['#27AE60', '#8B4513'] },
+  { cardKey: 'pasos', category: 'exercise', icon: '🚶', title: 'PASOS', gradient: ['#27AE60', '#8B4513'], route: '/fitness-hub' },
   // #cableado-final 3.2: 5 cards nuevas. Boolean (toggle desde card, sin route): no_alcohol,
-  // no_processed_foods, screen_time_cutoff. journal → /journal. sleep informativa → /reports.
+  // no_processed_foods, screen_time_cutoff. journal → /mente. sleep informativa → /health-hub.
   { cardKey: 'no_alcohol', category: 'recovery', icon: '🚫', title: 'NO ALCOHOL', gradient: ['#34495E', '#1A252F'] },
-  { cardKey: 'sleep', category: 'recovery', icon: '🌙', title: 'SUEÑO', gradient: ['#2C3E50', '#1A1A2E'], route: '/reports' },
+  { cardKey: 'sleep', category: 'recovery', icon: '🌙', title: 'SUEÑO', gradient: ['#2C3E50', '#1A1A2E'], route: '/health-hub' },
   { cardKey: 'journal', category: 'mind', icon: '📓', title: 'JOURNAL', gradient: ['#8B6F47', '#5D4E37'], route: '/mente' },
   { cardKey: 'no_processed_foods', category: 'meal', icon: '🥗', title: 'SIN PROCESADOS', gradient: ['#27AE60', '#16A085'] },
   { cardKey: 'screen_time_cutoff', category: 'rhythm', icon: '📵', title: 'OFF-PANTALLAS', gradient: ['#34495E', '#2C3E50'] },
