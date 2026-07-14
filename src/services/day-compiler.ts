@@ -174,7 +174,7 @@ const ELECTRON_DESCRIPTIONS: Record<string, string> = {
 };
 
 const ELECTRON_ROUTES: Record<string, string> = {
-  sunlight: '/my-health', meditation: '/mente', supplements: '/my-health',
+  sunlight: '/my-health', meditation: '/mente', supplements: '/supplements',
   cold_shower: '/my-health', grounding: '/my-health', no_alcohol: '/nutrition',
   strength: '/fitness-hub', breathwork: '/mente', red_glasses: '/my-health',
   period_log: '/cycle',

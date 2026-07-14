@@ -459,7 +459,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             ] : undefined}
             showCheckCircle
             infoText={CARD_INFO['agua']}
-            onTap={() => go('/hydration')}
+            onTap={() => go('/nutrition')}
           />
         );
       }
@@ -549,7 +549,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             imageBn={HOY_EXTRA_IMAGES.pasos}
             state={hasSteps && steps!.current >= steps!.target ? 'done' : 'pending'}
             progress={hasSteps ? { current: steps!.current, target: steps!.target, unit: 'pasos' } : undefined}
-            onTap={() => go('/settings')}
+            onTap={() => go('/fitness-hub')}
           />
         );
       }
@@ -571,7 +571,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             subtitle={subtitle} message={message}
             gradient={['#2C3E50', '#1A1A2E']}
             imageBn={HOY_EXTRA_IMAGES.sueno}
-            onTap={() => go('/reports')}
+            onTap={() => go('/health-hub')}
           />
         );
       }
