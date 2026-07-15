@@ -94,9 +94,9 @@ export function anchorTimes(
   schedule: ChronotypeSchedule,
   chronotype: string | null | undefined,
 ): Record<TimeOfDay, string> {
-  const defaults = CHRONO_ANCHOR_DEFAULTS[normalizeChronotype(chronotype)];
-  const wake = isHHMM(schedule.wake_time) ? (schedule.wake_time as string) : defaults.wake;
-  const sleep = isHHMM(schedule.sleep_time) ? (schedule.sleep_time as string) : defaults.sleep;
+  // 1.5-C: horario validado contra el cronotipo — un wake 05:30 almacenado en
+  // un oso es dato roto y snapea al default del tipo (no forzar madrugada).
+  const { wake_time: wake, sleep_time: sleep } = validatedSchedule(schedule, chronotype);
   return {
     morning: shiftMinutes(wake, 30) ?? wake,
     noon: shiftMinutes(wake, 5 * 60) ?? wake,
@@ -147,6 +147,12 @@ export function resolveInterventionTimeEx(
   }
   if (!userLocked && SOLAR_INTERVENTION_KEYS.has(iv.row.intervention_key) && time < MIN_SOLAR_TIME) {
     time = MIN_SOLAR_TIME;
+  }
+  // 1.5-C: hidratación matutina va a wake+15 (antes del sol/café), no al ancla
+  // morning genérica (wake+30). Solo horas de máquina.
+  if (!userLocked && iv.row.intervention_key === 'hidratacion_matutina') {
+    const custom = shiftMinutes(anchors.morning, -15);
+    if (custom) time = custom;
   }
   return { time, userLocked };
 }
@@ -209,6 +215,115 @@ export function normalizeConceptName(name: string): string {
     .trim();
 }
 
+// \u2500\u2500 1.5-C: familias de concepto cross-vocabulario \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// El device test tumb\u00f3 el dedup por nombre exacto: "Luz solar" (protocolo
+// legacy) \u2260 "Exposici\u00f3n solar matutina (Fitzpatrick)" (intervenci\u00f3n) aunque
+// son EL MISMO concepto. Reglas ordenadas sobre el nombre normalizado; la
+// primera que matchea gana. Sin match \u2192 el nombre normalizado es su familia.
+
+const FAMILY_RULES: [string, RegExp][] = [
+  ['pantallas', /pantalla/],                                   // antes que 'dormir' ("...antes de dormir")
+  ['lentes_rojos', /lentes/],                                  // \u00eddem
+  ['sol', /solar|(^|\s)sol($|\s)/],
+  ['hidratacion', /hidratacion|(^|\s)agua($|\s)/],
+  ['suplementos', /suplement/],
+  ['romper_ayuno', /romper.*ayuno|(^|\s)ayuno($|\s|\d)/],
+  ['ventana_alimentacion', /ventana de (alimentacion|comida)|recordatorio comer/],
+  ['dormir', /dormir/],
+  ['despertar', /despertar/],
+  ['grounding', /grounding|earthing|descalz/],
+];
+
+/** Familia can\u00f3nica de un nombre de evento/intervenci\u00f3n (para dedup sem\u00e1ntico). */
+export function canonicalConcept(name: string): string {
+  const n = normalizeConceptName(name);
+  for (const [family, rule] of FAMILY_RULES) {
+    if (rule.test(n)) return family;
+  }
+  return n;
+}
+
+/**
+ * Repeticiones por d\u00eda permitidas por familia (multi-dosis leg\u00edtima). Familias
+ * fuera de esta lista: 1 evento/d\u00eda \u2014 "nunca 2 eventos de la misma intervenci\u00f3n
+ * el mismo d\u00eda" (doc 1.5-C).
+ */
+export const FAMILY_REPEATS_PER_DAY: Record<string, number> = {
+  hidratacion: 5,   // spread wake\u2192sleep
+  suplementos: 3,   // batch matutino/tarde/noche
+};
+
+// \u2500\u2500 1.5-C: cronotipo validado (Despertar 05:30 en un oso = dato roto) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+/** Tolerancia contra el default del cronotipo antes de snapear al default. */
+export const CHRONO_TOLERANCE_MINUTES = 60;
+
+function minutesOf(hhmm: string): number {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim())!;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** Distancia circular en minutos entre dos HH:MM (wrap 24h, p.ej. 23:30\u219400:30 = 60). */
+function circularDiff(a: string, b: string): number {
+  const d = Math.abs(minutesOf(a) - minutesOf(b));
+  return Math.min(d, 1440 - d);
+}
+
+/**
+ * Horario validado contra el cronotipo: un wake/sleep almacenado que se aleja
+ * m\u00e1s de CHRONO_TOLERANCE_MINUTES del default del tipo normalizado (dolphin \u2192
+ * oso, doctrina) se considera dato roto y snapea al default. El custom_time de
+ * cada intervenci\u00f3n sigue siendo sagrado \u2014 esto solo gobierna horas de m\u00e1quina.
+ */
+export function validatedSchedule(
+  schedule: ChronotypeSchedule,
+  chronotype: string | null | undefined,
+): { wake_time: string; sleep_time: string } {
+  const defaults = CHRONO_ANCHOR_DEFAULTS[normalizeChronotype(chronotype)];
+  const wakeOk = isHHMM(schedule.wake_time)
+    && circularDiff(schedule.wake_time as string, defaults.wake) <= CHRONO_TOLERANCE_MINUTES;
+  const sleepOk = isHHMM(schedule.sleep_time)
+    && circularDiff(schedule.sleep_time as string, defaults.sleep) <= CHRONO_TOLERANCE_MINUTES;
+  return {
+    wake_time: wakeOk ? (schedule.wake_time as string) : defaults.wake,
+    sleep_time: sleepOk ? (schedule.sleep_time as string) : defaults.sleep,
+  };
+}
+
+// \u2500\u2500 1.5-C: romper ayuno din\u00e1mico (lee el fasting_log real, no hardcode) \u2500\u2500\u2500\u2500\u2500\u2500
+
+/** Cena default asumida cuando el user no tiene fasting_logs. */
+export const BREAKFAST_FALLBACK_DINNER = '20:00';
+
+/**
+ * Hora de "Romper ayuno" = inicio real del \u00faltimo ayuno + horas del protocolo.
+ * Sin fasting_logs \u2192 estimado: cena asumida 20:00 del d\u00eda previo + horas
+ * (16h \u2192 12:00), marcado `estimated` para etiquetarlo en el evento.
+ */
+export function computeBreakFastTime(
+  lastFastStartISO: string | null | undefined,
+  fastingHours: number,
+): { time: string; estimated: boolean } {
+  const hours = Number.isFinite(fastingHours) && fastingHours > 0 ? fastingHours : 16;
+  if (lastFastStartISO) {
+    const start = new Date(lastFastStartISO);
+    if (!isNaN(start.getTime())) {
+      const startHHMM = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
+      return { time: shiftMinutes(startHHMM, Math.round(hours * 60)) ?? startHHMM, estimated: false };
+    }
+  }
+  return {
+    time: shiftMinutes(BREAKFAST_FALLBACK_DINNER, Math.round(hours * 60)) ?? '12:00',
+    estimated: true,
+  };
+}
+
+/** Horas de ayuno codificadas en la key del cat\u00e1logo (ayuno_16_8 \u2192 16). */
+export function fastingHoursFromKey(interventionKey: string): number | null {
+  const m = /^ayuno_(\d{2})_/.exec(interventionKey);
+  return m ? Number(m[1]) : null;
+}
+
 // ── Intervenciones activas → AgendaItems (HOY) ───────────────────────────────
 
 /** Prefijo de id de los items de intervención en HOY (toggle → logCompletion). */
@@ -238,11 +353,11 @@ export function interventionAgendaItems(
   completedTodayIds: Set<string>,
   existingNames: string[] = [],
 ): InterventionAgendaItem[] {
-  const taken = new Set(existingNames.map(normalizeConceptName));
+  const taken = new Set(existingNames.map(canonicalConcept));
   const times = assignInterventionTimes(interventions, anchors);
   const items: InterventionAgendaItem[] = [];
   for (const iv of interventions) {
-    const concept = normalizeConceptName(iv.def.name);
+    const concept = canonicalConcept(iv.def.name);
     if (taken.has(concept)) continue; // carrera protocolo/intervención → no duplicar
     taken.add(concept);
     items.push({
@@ -287,26 +402,84 @@ export function agendaEventKey(name: string, time: string): string {
   return `${(time ?? '').slice(0, 5)}|${(name ?? '').trim().toLowerCase()}`;
 }
 
-/** Eventos deseados desde "Mi Protocolo" (dedup interno por concepto). */
+/** 1.5-C: techo de eventos de máquina por día (excluye manuales del user). */
+export const MAX_MACHINE_EVENTS_PER_DAY = 15;
+
+export interface DesiredEventsOptions {
+  /** Hora dinámica de "Romper ayuno" (computeBreakFastTime). */
+  breakFast?: { time: string; estimated: boolean };
+  /** Override del techo (default MAX_MACHINE_EVENTS_PER_DAY). */
+  maxEvents?: number;
+}
+
+/** Etiqueta legible de una key de ayuno (ayuno_16_8 → '16:8'). */
+function fastingLabelFromKey(key: string): string | null {
+  const m = /^ayuno_(\d+)_(\d+)/.exec(key);
+  return m ? `${m[1]}:${m[2]}` : null;
+}
+
+/**
+ * Eventos deseados desde "Mi Protocolo": dedup por familia canónica, timing
+ * dinámico para ayuno (romper ayuno real, no la ancla), y techo de eventos
+ * priorizando universales P1 → priority asc. Las descartadas se reportan para
+ * el warning de Sentry (nunca se descartan en silencio).
+ */
+export function buildDesiredInterventionEvents(
+  interventions: ResolvedUserIntervention[],
+  anchors: Record<TimeOfDay, string>,
+  opts: DesiredEventsOptions = {},
+): { events: DesiredInterventionEvent[]; discardedKeys: string[] } {
+  const max = opts.maxEvents ?? MAX_MACHINE_EVENTS_PER_DAY;
+  // Orden del cap: universales P1 primero (jamás se descartan por techo),
+  // luego prioridad del semáforo, luego nombre (determinístico).
+  const ordered = [...interventions].sort((a, b) => {
+    if (a.row.is_universal !== b.row.is_universal) return a.row.is_universal ? -1 : 1;
+    if (a.row.priority !== b.row.priority) return a.row.priority - b.row.priority;
+    return a.def.name.localeCompare(b.def.name);
+  });
+  const times = assignInterventionTimes(interventions, anchors);
+  const seen = new Set<string>();
+  const events: DesiredInterventionEvent[] = [];
+  const discardedKeys: string[] = [];
+
+  for (const iv of ordered) {
+    const key = iv.row.intervention_key;
+    const cat = INTERVENTION_BY_KEY[key];
+    let name = iv.def.name;
+    let time = times.get(iv.row.id) ?? resolveInterventionTime(iv, anchors);
+
+    // Familia ayuno → el evento agendable es ROMPER el ayuno, a la hora real
+    // (último fasting_log + horas del protocolo). custom_time sigue mandando.
+    if (cat?.family === 'ayuno' && opts.breakFast) {
+      const label = fastingLabelFromKey(key);
+      name = `Romper ayuno${label ? ` (${label})` : ''}${opts.breakFast.estimated ? ' · estimado' : ''}`;
+      const custom = iv.row.custom_time;
+      time = custom && isHHMM(custom) ? normalizeHHMM(custom) : opts.breakFast.time;
+    }
+
+    const concept = canonicalConcept(name);
+    if (seen.has(concept)) continue;
+    seen.add(concept);
+    if (events.length >= max) {
+      discardedKeys.push(key);
+      continue;
+    }
+    events.push({
+      intervention_key: key,
+      name,
+      time,
+      category: iv.def.categories[0] ?? 'intervencion',
+    });
+  }
+  return { events, discardedKeys };
+}
+
+/** Compat: solo la lista (sin timing dinámico de ayuno ni reporte de descartes). */
 export function desiredInterventionEvents(
   interventions: ResolvedUserIntervention[],
   anchors: Record<TimeOfDay, string>,
 ): DesiredInterventionEvent[] {
-  const seen = new Set<string>();
-  const times = assignInterventionTimes(interventions, anchors);
-  const out: DesiredInterventionEvent[] = [];
-  for (const iv of interventions) {
-    const concept = normalizeConceptName(iv.def.name);
-    if (seen.has(concept)) continue;
-    seen.add(concept);
-    out.push({
-      intervention_key: iv.row.intervention_key,
-      name: iv.def.name,
-      time: times.get(iv.row.id) ?? resolveInterventionTime(iv, anchors),
-      category: iv.def.categories[0] ?? 'intervencion',
-    });
-  }
-  return out;
+  return buildDesiredInterventionEvents(interventions, anchors).events;
 }
 
 export interface InterventionEventSyncPlan {
@@ -347,7 +520,7 @@ export function planInterventionEventSync(
     if (!prev || (row.is_active && !prev.is_active)) byKey.set(row.intervention_key, row);
   }
   const activeConceptNames = new Set(
-    existing.filter((r) => r.is_active && !r.intervention_key).map((r) => normalizeConceptName(r.name)),
+    existing.filter((r) => r.is_active && !r.intervention_key).map((r) => canonicalConcept(r.name)),
   );
 
   const plan: InterventionEventSyncPlan = { inserts: [], updates: [], reactivations: [], deactivateIds: [] };
@@ -364,7 +537,7 @@ export function planInterventionEventSync(
         if (disabledKeys.has(agendaEventKey(d.name, d.time))) continue;
         // A.2: mismo guard de concepto que los inserts — sin él, una fila
         // desactivada por el cleanup (el viejo gana) reviviría en cada sync.
-        if (activeConceptNames.has(normalizeConceptName(d.name))) continue;
+        if (activeConceptNames.has(canonicalConcept(d.name))) continue;
         plan.reactivations.push({ id: row.id, name: d.name, time: d.time });
       } else if (timeChanged || nameChanged) {
         plan.updates.push({ id: row.id, name: d.name, time: d.time });
@@ -372,7 +545,7 @@ export function planInterventionEventSync(
       continue;
     }
     if (disabledKeys.has(agendaEventKey(d.name, d.time))) continue;
-    if (activeConceptNames.has(normalizeConceptName(d.name))) continue; // dedup carrera
+    if (activeConceptNames.has(canonicalConcept(d.name))) continue; // dedup carrera
     plan.inserts.push(d);
   }
 
@@ -385,74 +558,106 @@ export function planInterventionEventSync(
   return plan;
 }
 
-// ── Limpieza de duplicados históricos (A.2 megahotfix 3ra pasada) ────────────
+// ── Limpieza de duplicados históricos (A.2 → upgrade 1.5-C con familias) ─────
 
-/** Al deduplicar por concepto+hora gana la fila de mayor prioridad de fuente. */
-const SOURCE_PRIORITY: Record<string, number> = {
-  manual_override: 5, // el user la editó — sagrada
-  manual: 4,          // el user la creó
-  protocol: 3,        // pre-existente al swap ("el viejo gana", misma doctrina del sync)
-  chronotype: 2,
-  intervention: 1,    // re-generable por el sync
-};
+const isUserRow = (r: AgendaEventRowLike) => r.source === 'manual' || r.source === 'manual_override';
 
 /**
- * Duplicados ACTIVOS acumulados en agenda_events por versiones previas sin
- * dedup ("sol 3× a las 6am"). Devuelve ids a desactivar (soft, reversible):
- *  · mismo intervention_key → sobrevive 1 (mayor prioridad de fuente; empate:
- *    primera en el orden de entrada — ordenar por created_at en el caller).
- *  · mismo concepto (nombre normalizado) + misma hora HH:MM → sobrevive 1.
- *  · concepto gestionado por Mi Protocolo (`desiredConcepts`) con fila zombie
- *    del driver viejo (source 'protocol') → la intervención es la fuente
- *    única, la fila de protocolo se desactiva (aunque esté a otra hora).
- * Mismo concepto a horas DISTINTAS fuera de desiredConcepts no se toca
- * (multi-dosis legítima del protocolo del user, p.ej. agua 3× espaciada).
- * 'manual' y 'manual_override' JAMÁS se desactivan por el pase 3.
+ * Rango de una fila de MÁQUINA dentro de su familia. Si la familia la gestiona
+ * Mi Protocolo (desired), la fila 'intervention' gana (trae el timing calibrado:
+ * clamp solar, stagger, romper-ayuno dinámico); si no, gana el driver viejo
+ * ("el viejo gana", doctrina del sync). Empate → primera en orden de entrada
+ * (created_at asc en el caller: la más vieja, que puede tener historial).
+ */
+function machineRank(r: AgendaEventRowLike, familyDesired: boolean): number {
+  if (familyDesired) return r.source === 'intervention' ? 3 : r.source === 'protocol' ? 2 : 1;
+  return r.source === 'protocol' ? 3 : r.source === 'chronotype' ? 2 : 1;
+}
+
+/**
+ * Duplicados ACTIVOS acumulados en agenda_events. Devuelve ids a desactivar
+ * (soft, reversible). Tres pases sobre familias CANÓNICAS (canonicalConcept —
+ * "Luz solar" y "Exposición solar matutina" son la misma familia 'sol'):
+ *  1. mismo intervention_key → sobrevive 1.
+ *  2. misma familia + misma hora exacta → sobrevive 1.
+ *  3. presupuesto por familia: FAMILY_REPEATS_PER_DAY (hidratación 5,
+ *     suplementos 3, resto 1). Las filas del USER (manual/manual_override)
+ *     jamás se desactivan y ocupan presupuesto primero — si el user creó su
+ *     propio "Sol", la versión de máquina muere (mismo criterio que el guard
+ *     de inserts del sync).
  */
 export function planAgendaCleanup(
   existing: AgendaEventRowLike[],
   desiredConcepts: Set<string> = new Set(),
 ): string[] {
   const toDeactivate = new Set<string>();
-  const better = (a: AgendaEventRowLike, b: AgendaEventRowLike): AgendaEventRowLike =>
-    (SOURCE_PRIORITY[b.source] ?? 0) > (SOURCE_PRIORITY[a.source] ?? 0) ? b : a;
-  const isUserRow = (r: AgendaEventRowLike) => r.source === 'manual' || r.source === 'manual_override';
-  const dedupe = (rows: AgendaEventRowLike[], keyOf: (r: AgendaEventRowLike) => string | null) => {
-    const seen = new Map<string, AgendaEventRowLike>();
-    for (const row of rows) {
-      const k = keyOf(row);
-      if (!k) continue;
-      const prev = seen.get(k);
-      if (!prev) {
-        seen.set(k, row);
-        continue;
-      }
-      // Dos filas del USER duplicadas entre sí → no tocamos ninguna (su data
-      // es sagrada); solo las filas de máquina pierden contra lo que sea.
-      if (isUserRow(prev) && isUserRow(row)) continue;
-      const winner = better(prev, row);
-      toDeactivate.add(winner === prev ? row.id : prev.id);
-      seen.set(k, winner);
-    }
-  };
-
   const active = existing.filter((r) => r.is_active);
-  // Pase 1: un solo evento por intervention_key.
-  dedupe(active, (r) => r.intervention_key);
-  // Pase 2: sobre lo que sigue vivo, un solo evento por concepto+hora.
-  dedupe(
-    active.filter((r) => !toDeactivate.has(r.id)),
-    (r) => `${normalizeConceptName(r.name)}|${(r.time ?? '').slice(0, 5)}`,
-  );
-  // Pase 3: zombies del driver viejo — filas 'protocol' cuyo concepto ahora lo
-  // gestiona Mi Protocolo. La intervención (con clamp solar + stagger) toma el
-  // control; sin este pase, el sol de protocolo a las 06:00 ganaría para
-  // siempre por el dedup de conceptos del sync.
-  if (desiredConcepts.size > 0) {
-    for (const r of active) {
-      if (toDeactivate.has(r.id) || r.source !== 'protocol') continue;
-      if (desiredConcepts.has(normalizeConceptName(r.name))) toDeactivate.add(r.id);
+
+  // Pase 1: un solo evento por intervention_key (el user gana; luego el 1ro).
+  const byKey = new Map<string, AgendaEventRowLike>();
+  for (const row of active) {
+    if (!row.intervention_key) continue;
+    const prev = byKey.get(row.intervention_key);
+    if (!prev) {
+      byKey.set(row.intervention_key, row);
+      continue;
     }
+    if (isUserRow(prev) && isUserRow(row)) continue; // data del user: intactas ambas
+    if (isUserRow(row)) {
+      toDeactivate.add(prev.id);
+      byKey.set(row.intervention_key, row);
+    } else {
+      toDeactivate.add(row.id);
+    }
+  }
+
+  // Pase 2: misma familia + misma hora exacta → 1 (dupes literales).
+  const byFamilyTime = new Map<string, AgendaEventRowLike>();
+  for (const row of active) {
+    if (toDeactivate.has(row.id)) continue;
+    const family = canonicalConcept(row.name);
+    const k = `${family}|${(row.time ?? '').slice(0, 5)}`;
+    const prev = byFamilyTime.get(k);
+    if (!prev) {
+      byFamilyTime.set(k, row);
+      continue;
+    }
+    if (isUserRow(prev) && isUserRow(row)) continue;
+    if (isUserRow(row)) {
+      toDeactivate.add(prev.id);
+      byFamilyTime.set(k, row);
+    } else if (isUserRow(prev)) {
+      toDeactivate.add(row.id);
+    } else {
+      const desired = desiredConcepts.has(family);
+      const winner = machineRank(row, desired) > machineRank(prev, desired) ? row : prev;
+      toDeactivate.add(winner === prev ? row.id : prev.id);
+      byFamilyTime.set(k, winner);
+    }
+  }
+
+  // Pase 3: presupuesto por familia (multi-dosis whitelist; resto 1/día).
+  const byFamily = new Map<string, AgendaEventRowLike[]>();
+  for (const row of active) {
+    if (toDeactivate.has(row.id)) continue;
+    const family = canonicalConcept(row.name);
+    const list = byFamily.get(family) ?? [];
+    list.push(row);
+    byFamily.set(family, list);
+  }
+  for (const [family, rows] of byFamily) {
+    const allowed = FAMILY_REPEATS_PER_DAY[family] ?? 1;
+    if (rows.length <= allowed) continue;
+    const userRows = rows.filter(isUserRow);
+    const machine = rows.filter((r) => !isUserRow(r));
+    const desired = desiredConcepts.has(family);
+    // sort estable: rango desc; empates conservan orden de entrada (más vieja 1ro)
+    const rankedMachine = machine
+      .map((r, i) => ({ r, i }))
+      .sort((a, b) => machineRank(b.r, desired) - machineRank(a.r, desired) || a.i - b.i)
+      .map((x) => x.r);
+    const slots = Math.max(0, allowed - userRows.length);
+    for (const r of rankedMachine.slice(slots)) toDeactivate.add(r.id);
   }
   return [...toDeactivate];
 }

@@ -20,10 +20,12 @@ import { warn as logWarn } from '@/src/lib/logger';
 // ── DX F4 (swap HOY/AGENDA) — doble-lectura gateada por flag ──
 import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import {
-  selectAgendaDrivers, anchorTimes, desiredInterventionEvents, planInterventionEventSync,
-  planAgendaCleanup, normalizeConceptName, INTERVENTION_NOTIFY_MINUTES_BEFORE,
+  selectAgendaDrivers, anchorTimes, buildDesiredInterventionEvents, planInterventionEventSync,
+  planAgendaCleanup, canonicalConcept, computeBreakFastTime, fastingHoursFromKey,
+  validatedSchedule, INTERVENTION_NOTIFY_MINUTES_BEFORE,
   type AgendaEventRowLike,
 } from '@/src/services/interventions/intervention-agenda-core';
+import { INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
 import { getMyProtocol, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 
 // 'intervention' (DX F4): eventos volcados desde intervenciones activas (columna
@@ -100,8 +102,10 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
   // el protocolo sigue volcando (status quo). Cronotipo vuelca SIEMPRE.
   const drivers = selectAgendaDrivers(INTERVENTIONS_DRIVE_HOY);
   try {
+    // 1.5-C: select ampliado — el reconcile de cronotipo necesita id/source/estado.
     const { data: existing } = await supabase
-      .from('agenda_events').select('name, time').eq('user_id', userId);
+      .from('agenda_events').select('id, name, time, source, is_active').eq('user_id', userId)
+      .order('created_at', { ascending: true });
     const existingKeys = new Set((existing ?? []).map((e: any) => eventKey(e.name, e.time)));
     const disabled = await getDisabledKeys(userId);
 
@@ -119,13 +123,43 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
     // Cronotipo → despertar + dormir
     // HOTFIX schema: wake_time/sleep_time son columnas PLANAS — NO existe
     // columna `schedule` (el select viejo daba 400 silencioso → sin eventos).
+    // 1.5-C: (a) horario VALIDADO contra el tipo (wake 05:30 en un oso = dato
+    // roto → default del tipo); (b) reconcile en vez de insert — si el wake
+    // cambia, se ACTUALIZA la fila existente (antes cada cambio de horario
+    // insertaba un "Despertar" nuevo y el viejo quedaba activo para siempre).
     try {
       const { data: chrono } = await supabase
-        .from('user_chronotype').select('wake_time, sleep_time').eq('user_id', userId).maybeSingle();
-      const wake = (chrono as any)?.wake_time;
-      const sleep = (chrono as any)?.sleep_time;
-      if (typeof wake === 'string' && /^\d{1,2}:\d{2}/.test(wake)) pushEvent('Despertar', wake, 'ritmo', 'chronotype');
-      if (typeof sleep === 'string' && /^\d{1,2}:\d{2}/.test(sleep)) pushEvent('Dormir', sleep, 'sueño', 'chronotype');
+        .from('user_chronotype').select('wake_time, sleep_time, chronotype')
+        .eq('user_id', userId).maybeSingle();
+      const sched = validatedSchedule(
+        { wake_time: (chrono as any)?.wake_time ?? null, sleep_time: (chrono as any)?.sleep_time ?? null },
+        (chrono as any)?.chronotype ?? null,
+      );
+      const reconcileChrono = async (name: string, time: string, category: string) => {
+        const fam = canonicalConcept(name);
+        const mine = ((existing ?? []) as any[]).filter(
+          (r) => r.source === 'chronotype' && canonicalConcept(r.name) === fam,
+        );
+        if (mine.length === 0) {
+          pushEvent(name, time, category, 'chronotype');
+          return;
+        }
+        const activeOnes = mine.filter((r) => r.is_active !== false);
+        if (activeOnes.length === 0) return; // el user (o el cleanup) lo quitó — respetar
+        const keep = activeOnes[0];
+        if (hhmm(keep.time) !== time) {
+          await supabase.from('agenda_events')
+            .update({ time, updated_at: new Date().toISOString() })
+            .eq('id', keep.id).eq('user_id', userId);
+        }
+        for (const extra of activeOnes.slice(1)) {
+          await supabase.from('agenda_events')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', extra.id).eq('user_id', userId);
+        }
+      };
+      await reconcileChrono('Despertar', sched.wake_time, 'ritmo');
+      await reconcileChrono('Dormir', sched.sleep_time, 'sueño');
     } catch (e) { logWarn('[agenda] chronotype gen failed', e); }
 
     // Protocolo → acciones del plan del día (con hora). DX F4: solo con flag OFF.
@@ -177,7 +211,38 @@ async function syncInterventionEvents(userId: string): Promise<void> {
     chronoType = (chronoRow as any)?.chronotype ?? null;
   } catch { /* anchors caen al default del cronotipo normalizado */ }
 
-  const desired = desiredInterventionEvents(myProtocol, anchorTimes(schedule, chronoType));
+  // 1.5-C: romper ayuno dinámico — último fasting_log real + horas del
+  // protocolo del user (key del ayuno activo > goals.fasting_hours > 16).
+  let breakFast: { time: string; estimated: boolean } | undefined;
+  const activeAyuno = myProtocol.find(
+    (iv) => INTERVENTION_BY_KEY[iv.row.intervention_key]?.family === 'ayuno',
+  );
+  if (activeAyuno) {
+    let lastStart: string | null = null;
+    let goalHours: number | null = null;
+    try {
+      const [{ data: lastFast }, { data: prefs }] = await Promise.all([
+        supabase.from('fasting_logs').select('fast_start').eq('user_id', userId)
+          .order('fast_start', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('user_day_preferences').select('goals').eq('user_id', userId).maybeSingle(),
+      ]);
+      lastStart = (lastFast as any)?.fast_start ?? null;
+      const gh = (prefs?.goals as any)?.fasting_hours;
+      goalHours = typeof gh === 'number' ? gh : null;
+    } catch { /* fallback estimado */ }
+    const hours = fastingHoursFromKey(activeAyuno.row.intervention_key) ?? goalHours ?? 16;
+    breakFast = computeBreakFastTime(lastStart, hours);
+  }
+
+  const { events: desired, discardedKeys } = buildDesiredInterventionEvents(
+    myProtocol,
+    anchorTimes(schedule, chronoType),
+    { breakFast },
+  );
+  if (discardedKeys.length > 0) {
+    // Umbral 1.5-C: nunca descartar en silencio (llega a Sentry vía logger).
+    logWarn('[agenda] eventos descartados por techo de 15/día', { discardedKeys });
+  }
 
   // Filas existentes con las columnas que el planner necesita (incluye
   // intervention_key — migración 185; requiere db push ANTES del OTA del flag).
@@ -198,10 +263,10 @@ async function syncInterventionEvents(userId: string): Promise<void> {
     is_active: e.is_active !== false, intervention_key: e.intervention_key ?? null,
   }));
 
-  // A.2 megahotfix 3ra pasada: barrer duplicados históricos ("sol 3× a las 6am")
-  // acumulados por versiones sin dedup + zombies del driver protocolo para
-  // conceptos que ya gestiona Mi Protocolo. Soft-deactivate, reversible.
-  const desiredConcepts = new Set(desired.map((d) => normalizeConceptName(d.name)));
+  // A.2 megahotfix 3ra pasada (upgrade 1.5-C): barrer duplicados históricos
+  // por FAMILIA canónica ("Luz solar" ≡ "Exposición solar matutina") +
+  // presupuesto multi-dosis + zombies del driver protocolo. Soft, reversible.
+  const desiredConcepts = new Set(desired.map((d) => canonicalConcept(d.name)));
   const cleanupIds = planAgendaCleanup(rows, desiredConcepts);
   if (cleanupIds.length > 0) {
     await supabase.from('agenda_events')

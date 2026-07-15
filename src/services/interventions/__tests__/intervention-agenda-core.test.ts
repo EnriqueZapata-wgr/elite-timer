@@ -17,6 +17,11 @@ import {
   assignInterventionTimes,
   planAgendaCleanup,
   normalizeConceptName,
+  canonicalConcept,
+  validatedSchedule,
+  computeBreakFastTime,
+  fastingHoursFromKey,
+  buildDesiredInterventionEvents,
   interventionAgendaItems,
   desiredInterventionEvents,
   planInterventionEventSync,
@@ -410,7 +415,7 @@ describe('clamp solar (sol nunca antes del amanecer razonable)', () => {
   });
 
   it('el clamp no toca intervenciones no-solares madrugadoras', () => {
-    const iv = resolved('hidratacion_matutina', 'Hidratación matutina', { computed_time: '06:00' });
+    const iv = resolved('suplementos_am', 'Suplementos AM', { computed_time: '06:00' });
     expect(resolveInterventionTime(iv, lionAnchors)).toBe('06:00');
   });
 });
@@ -501,8 +506,181 @@ describe('planAgendaCleanup', () => {
       evRow({ id: 'sol-zombie', name: 'Exposición solar matutina', time: '06:00', source: 'protocol', intervention_key: null }),
       evRow({ id: 'sol-iv', name: 'Exposición solar matutina', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
     ];
-    const out = planAgendaCleanup(rows, new Set([normalizeConceptName('Exposición solar matutina')]));
+    const out = planAgendaCleanup(rows, new Set([canonicalConcept('Exposición solar matutina')]));
     expect(out).toEqual(['sol-zombie']);
+  });
+
+  it('1.5-C cross-vocabulario: "Luz solar" (protocolo) y "Exposición solar matutina" (intervención) son la MISMA familia', () => {
+    const rows = [
+      evRow({ id: 'luz-prot', name: 'Luz solar', time: '06:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 'sol-iv', name: 'Exposición solar matutina (Fitzpatrick)', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    // familia gestionada por Mi Protocolo → la intervención (timing calibrado) gana
+    const out = planAgendaCleanup(rows, new Set(['sol']));
+    expect(out).toEqual(['luz-prot']);
+    // sin gestión → el viejo gana (doctrina sync)
+    const out2 = planAgendaCleanup(rows);
+    expect(out2).toEqual(['sol-iv']);
+  });
+
+  it('1.5-C suplementos ×3 a la misma hora → queda 1', () => {
+    const rows = [
+      evRow({ id: 's1', name: 'Suplementos', time: '06:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 's2', name: 'Suplementos', time: '06:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 's3', name: 'Tomar suplementos', time: '06:00', source: 'protocol', intervention_key: null }),
+    ];
+    const out = planAgendaCleanup(rows);
+    expect(out).toHaveLength(2);
+  });
+
+  it('1.5-C presupuesto de familia: hidratación permite hasta 5 dosis, romper ayuno solo 1', () => {
+    const agua = [1, 2, 3, 4].map((i) =>
+      evRow({ id: `agua-${i}`, name: 'Hidratación', time: `0${i + 6}:00`, source: 'protocol', intervention_key: null }));
+    const ayuno = [1, 2, 3].map((i) =>
+      evRow({ id: `ayuno-${i}`, name: 'Romper ayuno', time: `1${i}:00`, source: 'protocol', intervention_key: null }));
+    const out = planAgendaCleanup([...agua, ...ayuno]);
+    expect(out.filter(id => id.startsWith('agua'))).toHaveLength(0); // 4 ≤ 5
+    expect(out.filter(id => id.startsWith('ayuno'))).toHaveLength(2); // 3 → 1
+  });
+});
+
+// ── 1.5-C: motor inteligente ─────────────────────────────────────────────────
+
+describe('canonicalConcept (familias cross-vocabulario)', () => {
+  it('agrupa sinónimos reales del device test', () => {
+    expect(canonicalConcept('Luz solar')).toBe('sol');
+    expect(canonicalConcept('Exposición solar matutina (Fitzpatrick)')).toBe('sol');
+    expect(canonicalConcept('Suplementos AM')).toBe('suplementos');
+    expect(canonicalConcept('Tomar suplementos')).toBe('suplementos');
+    expect(canonicalConcept('Hidratación matutina 500 ml')).toBe('hidratacion');
+    expect(canonicalConcept('Agua')).toBe('hidratacion');
+    expect(canonicalConcept('Romper ayuno (16:8)')).toBe('romper_ayuno');
+    expect(canonicalConcept('Ayuno 16:8 con carbos densos en cena')).toBe('romper_ayuno');
+    expect(canonicalConcept('Hora de dormir')).toBe('dormir');
+    expect(canonicalConcept('Despertar')).toBe('despertar');
+  });
+
+  it('pantallas y lentes NO caen en la familia dormir aunque digan "antes de dormir"', () => {
+    expect(canonicalConcept('Pantallas off 30 min antes de dormir')).toBe('pantallas');
+    expect(canonicalConcept('Lentes rojos 2h antes de dormir')).toBe('lentes_rojos');
+  });
+
+  it('nombre sin familia → su propio normalizado (no colapsa con otros)', () => {
+    expect(canonicalConcept('Sauna 20 min')).toBe('sauna 20 min');
+  });
+});
+
+describe('validatedSchedule (cronotipo respetado)', () => {
+  it('guard doc: lobo con wake almacenado 05:30 (dato roto) → default del tipo, >= 07:30', () => {
+    const s = validatedSchedule({ wake_time: '05:30', sleep_time: '23:00' }, 'wolf');
+    expect(s.wake_time).toBe('08:00');
+    expect(s.wake_time >= '07:30').toBe(true);
+  });
+
+  it('oso con wake 05:30 (el bug del device) → 07:00, no se fuerza madrugada', () => {
+    const s = validatedSchedule({ wake_time: '05:30', sleep_time: '23:00' }, 'bear');
+    expect(s.wake_time).toBe('07:00');
+  });
+
+  it('valores dentro de tolerancia (±60) se respetan: oso 06:30 OK', () => {
+    const s = validatedSchedule({ wake_time: '06:30', sleep_time: '22:30' }, 'oso');
+    expect(s.wake_time).toBe('06:30');
+    expect(s.sleep_time).toBe('22:30');
+  });
+
+  it('lobo sleep 00:00 default con wrap: 23:30 almacenado está a 30 min → se respeta', () => {
+    const s = validatedSchedule({ wake_time: null, sleep_time: '23:30' }, 'lobo');
+    expect(s.sleep_time).toBe('23:30');
+  });
+
+  it('delfín NO es cronotipo → valida contra su madre (oso)', () => {
+    const s = validatedSchedule({ wake_time: '05:00', sleep_time: null }, 'dolphin');
+    expect(s.wake_time).toBe('07:00');
+  });
+});
+
+describe('computeBreakFastTime (romper ayuno dinámico)', () => {
+  it('con fasting_log real: start 20:30 + 16h → 12:30, no estimado', () => {
+    const r = computeBreakFastTime('2026-07-13T20:30:00', 16);
+    expect(r.time).toBe('12:30');
+    expect(r.estimated).toBe(false);
+  });
+
+  it('guard doc: sin fasting_logs → 12:00 (cena 20:00 + 16h) con estimated', () => {
+    const r = computeBreakFastTime(null, 16);
+    expect(r.time).toBe('12:00');
+    expect(r.estimated).toBe(true);
+  });
+
+  it('horas inválidas → default 16', () => {
+    expect(computeBreakFastTime(null, NaN).time).toBe('12:00');
+    expect(computeBreakFastTime(null, 0).time).toBe('12:00');
+  });
+
+  it('fastingHoursFromKey extrae del catálogo', () => {
+    expect(fastingHoursFromKey('ayuno_16_8')).toBe(16);
+    expect(fastingHoursFromKey('ayuno_20_4_omad')).toBe(20);
+    expect(fastingHoursFromKey('grounding')).toBeNull();
+  });
+});
+
+describe('buildDesiredInterventionEvents (1.5-C)', () => {
+  const anchors = anchorTimes({ wake_time: '07:00', sleep_time: '23:00' }, 'bear');
+
+  it('guard doc: misma intervención 3× → 1 solo evento deseado', () => {
+    const iv = resolved('grounding', 'Grounding 10-15 min');
+    const { events } = buildDesiredInterventionEvents([iv, iv, iv], anchors);
+    expect(events).toHaveLength(1);
+  });
+
+  it('ayuno activo + breakFast dinámico → evento "Romper ayuno (16:8)" a la hora real', () => {
+    const iv = resolved('ayuno_16_8', 'Ayuno 16:8 con carbos densos en cena');
+    const { events } = buildDesiredInterventionEvents([iv], anchors, {
+      breakFast: { time: '12:30', estimated: false },
+    });
+    expect(events[0].name).toBe('Romper ayuno (16:8)');
+    expect(events[0].time).toBe('12:30');
+  });
+
+  it('guard doc: sin fasting_logs → label estimado en el nombre', () => {
+    const iv = resolved('ayuno_16_8', 'Ayuno 16:8 con carbos densos en cena');
+    const { events } = buildDesiredInterventionEvents([iv], anchors, {
+      breakFast: { time: '12:00', estimated: true },
+    });
+    expect(events[0].name).toContain('estimado');
+  });
+
+  it('custom_time del user gana al cálculo dinámico del ayuno', () => {
+    const iv = resolved('ayuno_16_8', 'Ayuno 16:8', { custom_time: '13:15' });
+    const { events } = buildDesiredInterventionEvents([iv], anchors, {
+      breakFast: { time: '12:00', estimated: true },
+    });
+    expect(events[0].time).toBe('13:15');
+  });
+
+  it('techo 15: universales P1 nunca se descartan; el resto se reporta', () => {
+    const universals = Array.from({ length: 5 }, (_, i) =>
+      resolved(`uni-${i}`, `Universal ${i}`, { is_universal: true, priority: 1 }));
+    const extras = Array.from({ length: 15 }, (_, i) =>
+      resolved(`extra-${i}`, `Extra ${i}`, { priority: 2 }));
+    const { events, discardedKeys } = buildDesiredInterventionEvents([...extras, ...universals], anchors);
+    expect(events).toHaveLength(15);
+    expect(discardedKeys).toHaveLength(5);
+    const names = events.map(e => e.name);
+    for (let i = 0; i < 5; i++) expect(names).toContain(`Universal ${i}`);
+  });
+
+  it('hidratación matutina va a wake+15 (antes del ancla morning wake+30)', () => {
+    const iv = resolved('hidratacion_matutina', 'Hidratación matutina 500 ml');
+    const { events } = buildDesiredInterventionEvents([iv], anchors);
+    expect(events[0].time).toBe('07:15'); // wake 07:00 + 15
+  });
+
+  it('guard doc clamp: wake 05:00 (león) → sol nunca antes de 06:30', () => {
+    const lionAnchors = anchorTimes({ wake_time: '05:00', sleep_time: '21:30' }, 'lion');
+    const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina');
+    const { events } = buildDesiredInterventionEvents([sol], lionAnchors);
+    expect(events[0].time >= '06:30').toBe(true);
   });
 
   it('pase 3 sin desiredConcepts (flag OFF hipotético) → no toca protocolo', () => {
