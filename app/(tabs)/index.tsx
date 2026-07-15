@@ -72,7 +72,6 @@ import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
 // DX F4 (swap): items de intervención en la agenda de HOY → logCompletion (no daily_plans).
-import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import { INTERVENTION_ITEM_PREFIX } from '@/src/services/interventions/intervention-agenda-core';
 import { logCompletion } from '@/src/services/interventions/intervention-service';
 
@@ -411,7 +410,7 @@ export default function TodayScreen() {
     if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
   }, [loadDay, user?.id]));
 
-  // #tabs-redesign V1.3: re-cargar visibilidad cuando se togglea en /protocol-config.
+  // #tabs-redesign V1.3: re-cargar visibilidad cuando otra pantalla la togglea.
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('hoy_visibility_changed', () => {
       if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
@@ -974,29 +973,9 @@ export default function TodayScreen() {
               </View>
             </Animated.View>
 
-            {/* Protocol pill — tappable. DX F4 (flag ON): el protocolo deja de ser
-                driver → la pill se vuelve entrada a la biblioteca de referencia
-                (protocol-explorer), sin contador de día. Flag OFF: status quo. */}
-            {day.protocol && (
-              <Animated.View entering={FadeInUp.delay(100).springify()}>
-                <Pressable
-                  onPress={() => router.push((INTERVENTIONS_DRIVE_HOY ? '/protocol-explorer' : '/protocol-config') as any)}
-                  style={s.protocolPill}
-                >
-                  <Ionicons
-                    name={INTERVENTIONS_DRIVE_HOY ? 'library-outline' : 'flask-outline'}
-                    size={12}
-                    color="rgba(255,255,255,0.6)"
-                  />
-                  <Text style={s.protocolPillText}>
-                    {INTERVENTIONS_DRIVE_HOY
-                      ? `${day.protocol.name} · Biblioteca de referencia`
-                      : `${day.protocol.name} · Día ${day.protocol.dayNumber}/${day.protocol.totalDays}`}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={12} color="rgba(255,255,255,0.4)" />
-                </Pressable>
-              </Animated.View>
-            )}
+            {/* Sprint 1.5 B: protocol pill ELIMINADA del feed (doctrina DX
+                intervenciones core: los protocolos legacy no drivean HOY; la
+                biblioteca vive en Salud Funcional → protocol-explorer). */}
 
             {/* #68: recomendación HERO dinámica — la primera regla que matchea
                 (hora + hábitos + ciclo + ayuno + racha + Edad ATP) */}
@@ -1167,13 +1146,14 @@ export default function TodayScreen() {
         {/* #v13d 2.4: SECCIÓN 5 "SUGERENCIA INTELIGENTE" (IA recommended) eliminada — decisión
             Enrique: las cards editoriales contextuales (Hero/AYUNO/UV) ya cubren esto. */}
 
-        {/* Botón configurar protocolo */}
+        {/* Sprint 1.5 B: protocol-config murió — configurar el día ES activar
+            intervenciones (Mi Protocolo = HOY cards = Agenda, doctrina fusión). */}
         <AnimatedPressable
-          onPress={() => { haptic.light(); router.push('/protocol-config' as any); }}
+          onPress={() => { haptic.light(); router.push('/salud/intervenciones' as any); }}
           style={s.editDayBtn}
         >
           <Ionicons name="options-outline" size={16} color="#666" />
-          <Text style={s.editDayBtnText}>Configurar mi protocolo</Text>
+          <Text style={s.editDayBtnText}>Ajustar Mi Protocolo</Text>
         </AnimatedPressable>
 
         <EditDayModal

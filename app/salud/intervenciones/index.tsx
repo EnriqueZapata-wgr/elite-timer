@@ -41,6 +41,8 @@ import {
 } from '@/src/services/interventions/intervention-service-core';
 import { personalizeInterventionHow } from '@/src/services/dx/fitzpatrick-core';
 import { fetchSkinType } from '@/src/services/dx/fitzpatrick-service';
+import { getCurrentDX, type FunctionalDxRow } from '@/src/services/dx/dx-service';
+import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention-vocab';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -55,20 +57,24 @@ export default function IntervencionesScreen() {
   const [skinType, setSkinType] = useState<number | null>(null);
   // A.3 megahotfix 3ra pasada: motor saturado → top 10-15 visible, resto colapsado.
   const [showAllSuggested, setShowAllSuggested] = useState(false);
+  // Sprint 1.5 B (ninguna pantalla aislada): breadcrumb al DX que originó esto.
+  const [dx, setDx] = useState<FunctionalDxRow | null>(null);
   const startedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    const [prot, sugg, done, skin] = await Promise.all([
+    const [prot, sugg, done, skin, currentDx] = await Promise.all([
       getMyProtocol(user.id),
       getSuggestedInterventions(user.id),
       getTodayCompletions(user.id),
       fetchSkinType(user.id).catch(() => null),
+      getCurrentDX(user.id).catch(() => null),
     ]);
     setProtocol(prot);
     setSuggested(sugg);
     setDoneToday(done);
     setSkinType(skin);
+    setDx(currentDx);
     setLoading(false);
   }, [user?.id]);
 
@@ -143,6 +149,27 @@ export default function IntervencionesScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ATP_BRAND.lime} />
             }
           >
+            {/* Sprint 1.5 B (ninguna pantalla aislada): origen visible — estas
+                intervenciones no salen de la nada, vienen del DX. */}
+            {dx && (
+              <Animated.View entering={FadeInUp.delay(20).springify()}>
+                <AnimatedPressable
+                  onPress={() => { haptic.light(); router.push('/salud/diagnostico' as any); }}
+                  style={styles.dxBreadcrumb}
+                >
+                  <EliteText style={styles.dxBreadcrumbText} numberOfLines={2}>
+                    Estas intervenciones vienen de tu Diagnóstico Funcional (Nivel {dx.quality_level})
+                    {(() => {
+                      const top = [...(dx.roots_detected ?? [])].sort((a: any, b: any) => (b.severity ?? 0) - (a.severity ?? 0))[0] as any;
+                      const label = top ? (ROOT_LABELS[top.root_key as InterventionRoot] ?? top.root_key) : null;
+                      return label ? ` — raíz principal: ${label}` : '';
+                    })()}
+                  </EliteText>
+                  <EliteText style={styles.dxBreadcrumbLink}>Ver mi DX ↗</EliteText>
+                </AnimatedPressable>
+              </Animated.View>
+            )}
+
             {/* ── MI PROTOCOLO (activas) ── */}
             <Animated.View entering={FadeInUp.delay(40).springify()}>
               <SectionTitle>MI PROTOCOLO</SectionTitle>
@@ -325,6 +352,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md, paddingVertical: 10, marginBottom: 8,
   },
   rationaleBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  dxBreadcrumb: {
+    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.md, padding: Spacing.sm, marginBottom: Spacing.sm,
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+  },
+  dxBreadcrumbText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, lineHeight: 16 },
+  dxBreadcrumbLink: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
   humbyHint: {
     fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
     lineHeight: 17, marginTop: Spacing.sm, paddingHorizontal: 2,

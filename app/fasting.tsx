@@ -189,6 +189,36 @@ export default function FastingScreen() {
     })();
   }, []);
 
+  // Sprint 1.5 B/C: el timer arrancaba SIEMPRE 16:8 hardcoded. Ahora inicializa
+  // del goal del user (user_day_preferences.goals.fasting_hours). Con la muerte
+  // de protocol-config, el picker de ESTA pantalla es el writer del goal.
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('user_day_preferences').select('goals').eq('user_id', userId).maybeSingle();
+        const hours = (data?.goals as any)?.fasting_hours;
+        if (typeof hours === 'number') {
+          const match = FASTING_PROTOCOLS.find(p => p.hours === hours);
+          if (match) setSelectedProtocol(prev => (activeFast ? prev : match));
+        }
+      } catch { /* default 16:8 */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  /** Persiste el protocolo elegido como goal (merge sobre goals existentes). */
+  const persistFastingGoal = useCallback(async (hours: number) => {
+    if (!userId) return;
+    try {
+      const { data } = await supabase
+        .from('user_day_preferences').select('goals').eq('user_id', userId).maybeSingle();
+      const goals = { ...((data?.goals as any) ?? {}), fasting_hours: hours };
+      await supabase.from('user_day_preferences').upsert({ user_id: userId, goals });
+    } catch { /* opcional: el goal se re-intenta al próximo cambio */ }
+  }, [userId]);
+
   useFocusEffect(useCallback(() => {
     if (userId) {
       loadActiveFast();
@@ -1071,6 +1101,7 @@ export default function FastingScreen() {
                   onPress={() => {
                     setSelectedProtocol(p);
                     setShowProtocols(false);
+                    persistFastingGoal(p.hours); // Sprint 1.5: única config de ayuno post protocol-config
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   }}
                   style={{

@@ -167,6 +167,11 @@ export default function ProtocolExplorerScreen() {
     <Screen>
       {/* Header */}
       <PillarHeader pillar="optimization" title="Protocolos" />
+      {/* Sprint 1.5 B: etiqueta doctrinal — esta pantalla es consulta, no driver.
+          Lo que SÍ modifica tu día vive en Mi Protocolo (intervenciones). */}
+      <View style={styles.libraryTag}>
+        <EliteText style={styles.libraryTagText}>Biblioteca de referencia · No modifica tu día</EliteText>
+      </View>
 
       {/* Loading */}
       {loading ? (
@@ -349,6 +354,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: ATP_BRAND.black,
   },
+  libraryTag: {
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.sm,
+    backgroundColor: withOpacity('#ffffff', 0.04), borderRadius: Radius.sm,
+    paddingVertical: 6, paddingHorizontal: Spacing.sm, alignSelf: 'flex-start',
+  },
+  libraryTagText: { fontSize: FontSizes.xs, color: TEXT_COLORS.secondary, letterSpacing: 0.5 },
   loadingContainer: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
