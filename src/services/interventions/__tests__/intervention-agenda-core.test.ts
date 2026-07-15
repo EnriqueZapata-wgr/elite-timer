@@ -16,6 +16,7 @@ import {
   resolveInterventionTimeEx,
   assignInterventionTimes,
   planAgendaCleanup,
+  planChronotypeReconcile,
   normalizeConceptName,
   canonicalConcept,
   validatedSchedule,
@@ -134,9 +135,9 @@ describe('anchorTimes', () => {
     expect(a.night).toBe('22:00');     // sleep − 60min (SLEEP_PREP_MINUTES)
   });
 
-  it('león sin horario → defaults del cronotipo (05:30/21:30)', () => {
+  it('león sin horario → defaults del cronotipo (06:00/21:30, doctrina 1.5)', () => {
     const a = anchorTimes({ wake_time: null, sleep_time: null }, 'lion');
-    expect(a.morning).toBe('06:00');
+    expect(a.morning).toBe('06:30');
     expect(a.night).toBe('20:30');
   });
 
@@ -393,8 +394,9 @@ describe('planInterventionEventSync', () => {
 // ── A.2 megahotfix 3ra pasada: calibración de tiempos ────────────────────────
 
 describe('clamp solar (sol nunca antes del amanecer razonable)', () => {
-  // León: wake 05:30 → morning 06:00, ANTES del piso solar 06:30.
-  const lionAnchors = anchorTimes({ wake_time: null, sleep_time: null }, 'lion');
+  // León madrugador real: wake 05:30 almacenado (dentro de tolerancia del
+  // default 06:00) → morning 06:00, ANTES del piso solar 06:30.
+  const lionAnchors = anchorTimes({ wake_time: '05:30', sleep_time: null }, 'lion');
 
   it('ancla de máquina antes de 06:30 → se clampa a 06:30', () => {
     const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina');
@@ -724,3 +726,120 @@ describe('buildDesiredInterventionEvents (1.5-C)', () => {
     expect(new Set(vivos.map(r => r.intervention_key)).size).toBe(5);
   });
 });
+
+// ── HOTFIX 1.5: repro device test Enrique (S24 · 2026-07-14) ─────────────────
+// Snapshot REAL de agenda_events en prod (28 filas activas + 1 inactiva). El
+// motor sí corría: los 28 eran 10 zombies del driver protocolo (muerto en
+// Bloque B pero nunca retirado) + 13 filas del user + 4 intervenciones nuevas
+// + Despertar. Guard: el retiro del driver deja solo máquina viva legítima.
+
+const PROD_SNAPSHOT: AgendaEventRowLike[] = [
+  evRow({ id: 'p01', name: 'Despertar', time: '05:30', source: 'chronotype' }),
+  evRow({ id: 'p02', name: 'Eliminar aceites vegetales industriales', time: '06:00', source: 'intervention', intervention_key: 'eliminar_aceites_vegetales' }),
+  evRow({ id: 'p03', name: 'Hidratación con electrolitos', time: '06:15', source: 'protocol' }),
+  evRow({ id: 'p04', name: 'Grounding 10-15 min', time: '06:15', source: 'intervention', intervention_key: 'grounding_earthing' }),
+  evRow({ id: 'p05', name: 'Ventana de alimentación', time: '06:30', source: 'intervention', intervention_key: 'recordatorio_comer' }),
+  evRow({ id: 'p06', name: 'Caminata en ayunas 20 min', time: '06:30', source: 'protocol' }),
+  evRow({ id: 'p07', name: 'Zona 2 aeróbica 2-3×/semana', time: '06:45', source: 'intervention', intervention_key: 'zona_2_aerobica' }),
+  evRow({ id: 'p08', name: 'Suplementos AM', time: '07:15', source: 'protocol' }),
+  evRow({ id: 'p09', name: 'Luz solar + infrarroja', time: '07:30', source: 'manual_override' }),
+  evRow({ id: 'p10', name: 'Luz roja', time: '07:40', source: 'manual' }),
+  evRow({ id: 'p11', name: 'Suplementos AM', time: '08:00', source: 'manual_override' }),
+  evRow({ id: 'p12', name: 'Hidratación con electrolitos', time: '08:00', source: 'manual_override' }),
+  evRow({ id: 'p13', name: 'Running', time: '08:30', source: 'manual' }),
+  evRow({ id: 'p14', name: 'Suplementos post run', time: '10:15', source: 'manual' }),
+  evRow({ id: 'p15', name: 'Romper ayuno — comida limpia', time: '10:30', source: 'manual_override' }),
+  evRow({ id: 'p16', name: 'Desayuno proteico alto', time: '10:30', source: 'manual_override' }),
+  evRow({ id: 'p17', name: 'Caminata post-comida 15 min', time: '11:45', source: 'protocol' }),
+  evRow({ id: 'p18', name: 'Hidratación · vaso de agua', time: '13:00', source: 'manual_override' }),
+  evRow({ id: 'p19', name: 'Comida principal', time: '14:00', source: 'manual_override' }),
+  evRow({ id: 'p20', name: 'Hidratación · vaso de agua', time: '14:00', source: 'protocol' }),
+  evRow({ id: 'p21', name: 'Hidratación · vaso de agua', time: '16:07', source: 'protocol' }),
+  evRow({ id: 'p22', name: 'Cena — cierre ventana', time: '18:30', source: 'protocol' }),
+  evRow({ id: 'p23', name: 'Cena ligera', time: '18:30', source: 'manual_override' }),
+  evRow({ id: 'p24', name: 'Journal · descarga del día', time: '20:00', source: 'protocol' }),
+  evRow({ id: 'p25', name: 'Lentes rojos · bloqueo luz azul', time: '20:15', source: 'protocol' }),
+  evRow({ id: 'p26', name: 'Off-pantallas · transición al sueño', time: '20:50', source: 'manual_override' }),
+  evRow({ id: 'p27', name: 'Meditación · 10 min', time: '21:30', source: 'manual_override' }),
+  evRow({ id: 'p28', name: 'Dormir 8-9 horas', time: '22:00', source: 'protocol' }),
+  // La mató el cleanup A.2 (perdió contra 'Dormir 8-9 horas' del protocolo):
+  evRow({ id: 'p29', name: 'Dormir', time: '21:30', source: 'chronotype', is_active: false }),
+];
+
+describe('HOTFIX 1.5 · repro snapshot prod (28 eventos device test)', () => {
+  const activos = PROD_SNAPSHOT.filter((r) => r.is_active);
+
+  it('el snapshot reproduce el bug: 28 activos, 10 del driver protocolo muerto', () => {
+    expect(activos).toHaveLength(28);
+    expect(activos.filter((r) => r.source === 'protocol')).toHaveLength(10);
+  });
+
+  it('sin retiro (código pre-hotfix) los zombies del protocolo sobrevivían', () => {
+    const out = planAgendaCleanup(PROD_SNAPSHOT);
+    const vivos = activos.filter((r) => !out.includes(r.id));
+    expect(vivos.filter((r) => r.source === 'protocol').length).toBeGreaterThan(5);
+  });
+
+  it('retireProtocolDriver: mueren los 10 protocol; user + intervention + cronotipo intactos', () => {
+    const out = planAgendaCleanup(PROD_SNAPSHOT, new Set(), { retireProtocolDriver: true });
+    const vivos = activos.filter((r) => !out.includes(r.id));
+    expect(vivos.filter((r) => r.source === 'protocol')).toHaveLength(0);
+    expect(vivos.filter((r) => r.source === 'manual' || r.source === 'manual_override')).toHaveLength(13);
+    expect(vivos.filter((r) => r.source === 'intervention')).toHaveLength(4);
+    expect(vivos.filter((r) => r.source === 'chronotype')).toHaveLength(1);
+    // Total post-fix: 18 = 13 del user (sagradas) + 5 de máquina legítimas.
+    expect(vivos).toHaveLength(18);
+  });
+
+  it('idempotente: segunda pasada sobre el resultado no desactiva nada más', () => {
+    const out = planAgendaCleanup(PROD_SNAPSHOT, new Set(), { retireProtocolDriver: true });
+    const after = PROD_SNAPSHOT.map((r) => (out.includes(r.id) ? { ...r, is_active: false } : r));
+    expect(planAgendaCleanup(after, new Set(), { retireProtocolDriver: true })).toEqual([]);
+  });
+});
+
+describe('HOTFIX 1.5 · planChronotypeReconcile (revive Dormir matado por cleanup)', () => {
+  const disabledUser = new Set(['21:00|dormir 8-9 horas']); // lo que Enrique quitó (otro evento)
+
+  it('fila inactiva NO quitada por el user → revive con la hora validada', () => {
+    const mine = [evRow({ id: 'd1', name: 'Dormir', time: '21:30', source: 'chronotype', is_active: false })];
+    const a = planChronotypeReconcile(mine, 'Dormir', '21:30', disabledUser, true);
+    expect(a.reactivateId).toBe('d1');
+    expect(a.insert).toBe(false);
+  });
+
+  it('el removal del USER se respeta: key en disabled → no revive', () => {
+    const mine = [evRow({ id: 'd1', name: 'Dormir', time: '21:30', source: 'chronotype', is_active: false })];
+    const disabled = new Set(['21:30|dormir']);
+    const a = planChronotypeReconcile(mine, 'Dormir', '21:30', disabled, true);
+    expect(a.reactivateId).toBeNull();
+    expect(a.insert).toBe(false);
+  });
+
+  it('revive=false (flag OFF): fila inactiva se queda quieta (status quo)', () => {
+    const mine = [evRow({ id: 'd1', name: 'Dormir', time: '21:30', source: 'chronotype', is_active: false })];
+    const a = planChronotypeReconcile(mine, 'Dormir', '21:30', new Set(), false);
+    expect(a).toEqual({ insert: false, updateId: null, reactivateId: null, deactivateIds: [] });
+  });
+
+  it('sin filas de la familia → insert', () => {
+    expect(planChronotypeReconcile([], 'Despertar', '06:00', new Set(), true).insert).toBe(true);
+  });
+
+  it('activa con hora vieja → update quirúrgico (León 05:30 → 06:00 post data fix)', () => {
+    const mine = [evRow({ id: 'w1', name: 'Despertar', time: '05:30', source: 'chronotype' })];
+    const a = planChronotypeReconcile(mine, 'Despertar', '06:00', new Set(), true);
+    expect(a.updateId).toBe('w1');
+    expect(a.deactivateIds).toEqual([]);
+  });
+
+  it('múltiples activas históricas → sobrevive la primera, el resto se desactiva', () => {
+    const mine = [
+      evRow({ id: 'w1', name: 'Despertar', time: '06:00', source: 'chronotype' }),
+      evRow({ id: 'w2', name: 'Despertar', time: '07:00', source: 'chronotype' }),
+    ];
+    const a = planChronotypeReconcile(mine, 'Despertar', '06:00', new Set(), true);
+    expect(a.updateId).toBeNull();
+    expect(a.deactivateIds).toEqual(['w2']);
+  });
+}); 

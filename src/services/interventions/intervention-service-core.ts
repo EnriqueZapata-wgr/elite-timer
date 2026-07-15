@@ -198,25 +198,28 @@ export function orderProtocolForDisplay(list: ResolvedUserIntervention[]): Resol
 
 export type ProtocolLoadHint = 'none' | 'soft' | 'strong';
 
-/** Umbrales Humby sobre activas SIN contar universales (la base no cuenta). */
+/** Umbrales Humby sobre el TOTAL de activas (universales incluidas). */
 export const PROTOCOL_SOFT_MIN = 6;
 export const PROTOCOL_STRONG_MIN = 9;
 
 /**
  * UX progresiva de carga (doctrina Humby, sin límite duro):
- * 1-5 no-universales → sin hint · 6-8 → hint suave · 9+ → warning claro.
+ * 1-5 activas → sin hint · 6-8 → hint suave · 9+ → warning claro.
+ * HOTFIX 1.5: el umbral cuenta el TOTAL de activas — la carga real del día
+ * incluye a las universales (device test: 7 activas debían disparar el hint;
+ * la versión que excluía universales nunca lo mostraba).
  */
 export function protocolLoadHint(list: ResolvedUserIntervention[]): {
   hint: ProtocolLoadHint;
-  nonUniversalCount: number;
+  activeCount: number;
 } {
-  const nonUniversalCount = list.filter((iv) => !iv.row.is_universal).length;
-  const hint: ProtocolLoadHint = nonUniversalCount >= PROTOCOL_STRONG_MIN
+  const activeCount = list.length;
+  const hint: ProtocolLoadHint = activeCount >= PROTOCOL_STRONG_MIN
     ? 'strong'
-    : nonUniversalCount >= PROTOCOL_SOFT_MIN
+    : activeCount >= PROTOCOL_SOFT_MIN
       ? 'soft'
       : 'none';
-  return { hint, nonUniversalCount };
+  return { hint, activeCount };
 }
 
 /**

@@ -62,8 +62,10 @@ export function normalizeChronotype(raw: string | null | undefined): Chronotype3
 }
 
 /** Wake/sleep default por cronotipo (mismos valores que CHRONO_SCHEDULES v1/v2). */
+// HOTFIX 1.5: León despierta 06:00 (doctrina Sprint 1.5) — 05:30 era el default
+// v1 y mandaba madrugada; CHRONO_SCHEDULES (onboarding-v2-core) va en espejo.
 export const CHRONO_ANCHOR_DEFAULTS: Record<Chronotype3, { wake: string; sleep: string }> = {
-  lion: { wake: '05:30', sleep: '21:30' },
+  lion: { wake: '06:00', sleep: '21:30' },
   bear: { wake: '07:00', sleep: '23:00' },
   wolf: { wake: '08:00', sleep: '00:00' },
 };
@@ -566,6 +568,53 @@ export function planInterventionEventSync(
   return plan;
 }
 
+// ── Reconcile cronotipo (Despertar/Dormir) — decisión pura ───────────────────
+
+export interface ChronoReconcileAction {
+  /** No hay fila de la familia → insertar (el caller respeta disabled). */
+  insert: boolean;
+  /** Fila activa que sobrevive y cuya hora hay que actualizar. */
+  updateId: string | null;
+  /** Fila inactiva a revivir con la hora nueva (la mató el cleanup, no el user). */
+  reactivateId: string | null;
+  /** Filas activas sobrantes de la misma familia (histórico pre-reconcile). */
+  deactivateIds: string[];
+}
+
+/**
+ * HOTFIX 1.5: decisión pura del reconcile de un evento de cronotipo.
+ * Antes: fila inactiva == "el user lo quitó" y jamás se reinsertaba. FALSO —
+ * el cleanup por familia también desactiva (p.ej. 'Dormir' cronotipo perdió
+ * contra 'Dormir 8-9 horas' del protocolo, hoy retirado). El removal del USER
+ * queda registrado en disabled_protocol_events; si la key NO está ahí, la
+ * desactivación fue de máquina y el evento debe revivir con la hora validada.
+ * `revive` lo gatea el caller (solo con el swap activo, para no duplicar
+ * contra el driver protocolo aún vivo con flag OFF).
+ */
+export function planChronotypeReconcile(
+  familyRows: AgendaEventRowLike[],
+  desiredName: string,
+  desiredTime: string,
+  disabledKeys: Set<string>,
+  revive: boolean,
+): ChronoReconcileAction {
+  const none: ChronoReconcileAction = { insert: false, updateId: null, reactivateId: null, deactivateIds: [] };
+  if (familyRows.length === 0) return { ...none, insert: true };
+  const activeOnes = familyRows.filter((r) => r.is_active);
+  if (activeOnes.length > 0) {
+    const keep = activeOnes[0];
+    return {
+      ...none,
+      updateId: (keep.time ?? '').slice(0, 5) !== desiredTime ? keep.id : null,
+      deactivateIds: activeOnes.slice(1).map((r) => r.id),
+    };
+  }
+  if (!revive) return none;
+  if (disabledKeys.has(agendaEventKey(desiredName, desiredTime))) return none;
+  const candidate = familyRows.find((r) => !disabledKeys.has(agendaEventKey(r.name, r.time)));
+  return candidate ? { ...none, reactivateId: candidate.id } : none;
+}
+
 // ── Limpieza de duplicados históricos (A.2 → upgrade 1.5-C con familias) ─────
 
 const isUserRow = (r: AgendaEventRowLike) => r.source === 'manual' || r.source === 'manual_override';
@@ -593,17 +642,32 @@ function machineRank(r: AgendaEventRowLike, familyDesired: boolean): number {
  *     jamás se desactivan y ocupan presupuesto primero — si el user creó su
  *     propio "Sol", la versión de máquina muere (mismo criterio que el guard
  *     de inserts del sync).
+ *
+ * HOTFIX 1.5 `retireProtocolDriver` (pase 0): con el swap activo el driver
+ * protocolo está MUERTO (Bloque B) — toda fila activa source='protocol' se
+ * retira (soft, reversible), no solo las que chocan por familia. Sin este pase
+ * el device test veía 28 eventos: ~10 zombies del protocolo viejo conviviendo
+ * con las intervenciones nuevas. manual/manual_override (user) intactas.
  */
 export function planAgendaCleanup(
   existing: AgendaEventRowLike[],
   desiredConcepts: Set<string> = new Set(),
+  opts: { retireProtocolDriver?: boolean } = {},
 ): string[] {
   const toDeactivate = new Set<string>();
   const active = existing.filter((r) => r.is_active);
 
+  // Pase 0: retiro del driver muerto (protocolo ya no vuelca a HOY/AGENDA).
+  if (opts.retireProtocolDriver) {
+    for (const row of active) {
+      if (row.source === 'protocol') toDeactivate.add(row.id);
+    }
+  }
+
   // Pase 1: un solo evento por intervention_key (el user gana; luego el 1ro).
   const byKey = new Map<string, AgendaEventRowLike>();
   for (const row of active) {
+    if (toDeactivate.has(row.id)) continue; // retirada en pase 0
     if (!row.intervention_key) continue;
     const prev = byKey.get(row.intervention_key);
     if (!prev) {

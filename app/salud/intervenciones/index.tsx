@@ -235,13 +235,13 @@ export default function IntervencionesScreen() {
               })}
             </Animated.View>
 
-            {/* 1.5-D UX progresiva (Humby, sin límite duro): universales no cuentan. */}
+            {/* 1.5-D UX progresiva (Humby, sin límite duro): cuenta el TOTAL de activas. */}
             {(() => {
               const load = protocolLoadHint(protocol);
               if (load.hint === 'soft') {
                 return (
                   <EliteText style={styles.humbyHint}>
-                    Trabajas {load.nonUniversalCount} · Humby recomienda enfocarte
+                    Trabajas {load.activeCount} · Humby recomienda enfocarte
                     en 5-7 para lograr consistencia.
                   </EliteText>
                 );
@@ -249,7 +249,7 @@ export default function IntervencionesScreen() {
               if (load.hint === 'strong') {
                 return (
                   <EliteText style={[styles.humbyHint, styles.humbyWarn]}>
-                    Cargas {load.nonUniversalCount} intervenciones · considera
+                    Cargas {load.activeCount} intervenciones · considera
                     pausar algunas para lograr consistencia. Menos, mejor.
                   </EliteText>
                 );

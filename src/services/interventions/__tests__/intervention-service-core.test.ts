@@ -153,10 +153,19 @@ describe('resolveRows + orden', () => {
   });
 
   it('adjunta el score del motor a las sugeridas curadas', () => {
+    // v4 epigenético: ayuno_16_8 quedó gateado (requiresClinicalValidation) →
+    // el motor ya no lo puntúa; 18:6 (misma raíz, no gateado) toma su lugar.
     const match = matchInterventions([{ root_key: 'resistencia_insulina', severity: 5 }]);
-    const rows = [row({ intervention_key: 'ayuno_16_8' })];
+    const rows = [row({ intervention_key: 'ayuno_18_6' })];
     const resolved = resolveRows(rows, match);
     expect(resolved[0].score).toBeGreaterThan(0);
+  });
+
+  it('gating clínico v4: ayuno_16_8 resuelve (data del user intacta) pero score 0', () => {
+    const match = matchInterventions([{ root_key: 'resistencia_insulina', severity: 5 }]);
+    const resolved = resolveRows([row({ intervention_key: 'ayuno_16_8' })], match);
+    expect(resolved).toHaveLength(1); // el user SÍ puede tenerla activa
+    expect(resolved[0].score).toBe(0); // el motor no la sugiere hasta firma Mariana
   });
 
   it('sortProtocol: semáforo asc (🔴 antes que 🟢), luego nombre', () => {
@@ -176,14 +185,15 @@ describe('resolveRows + orden', () => {
     ]);
     const list = resolveRows([
       row({ intervention_key: 'ayuno_18_6', priority: 3 }),
+      // v4 epigenético: 16:8 gateado → score 0 → cae al final de las curadas.
       row({ intervention_key: 'ayuno_16_8', priority: 2 }),
       // Catálogo v3 (cc12ceb): key renombrada grounding → grounding_earthing.
       row({ intervention_key: 'grounding_earthing', priority: 1, is_universal: true }),
     ], match);
     const sorted = sortSuggested(list);
     expect(sorted[0].row.intervention_key).toBe('grounding_earthing'); // base universal primero
-    // curadas: 16:8 (P2, 2 raíces) sobre 18:6 (P3)
-    expect(sorted[1].row.intervention_key).toBe('ayuno_16_8');
+    // curadas: 18:6 (raíz matcheada, score real) sobre 16:8 (gateado, score 0)
+    expect(sorted[1].row.intervention_key).toBe('ayuno_18_6');
     expect(sorted[1].score).toBeGreaterThan(sorted[2].score);
   });
 });
@@ -304,10 +314,17 @@ describe('protocolLoadHint (guards doc: 5/8/10)', () => {
     expect(protocolLoadHint(actives(10)).hint).toBe('strong');
   });
 
-  it('universales NO cuentan al umbral: 5 activas + 7 universales → sin hint', () => {
-    const r = protocolLoadHint(actives(5, 7));
-    expect(r.hint).toBe('none');
-    expect(r.nonUniversalCount).toBe(5);
+  // HOTFIX 1.5: el umbral cuenta el TOTAL de activas (device test: 5 universales
+  // P1 + 2 curadas = 7 → hint). La versión que excluía universales dejaba el
+  // hint invisible en el caso real (todo user arranca con 5 universales activas).
+  it('universales SÍ cuentan: 2 curadas + 5 universales = 7 → hint suave', () => {
+    const r = protocolLoadHint(actives(2, 5));
+    expect(r.hint).toBe('soft');
+    expect(r.activeCount).toBe(7);
+  });
+
+  it('5 curadas + 5 universales = 10 → warning claro', () => {
+    expect(protocolLoadHint(actives(5, 5)).hint).toBe('strong');
   });
 
   it('bordes exactos: 6 → soft, 9 → strong', () => {

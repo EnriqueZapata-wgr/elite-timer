@@ -21,8 +21,8 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import {
   selectAgendaDrivers, anchorTimes, buildDesiredInterventionEvents, planInterventionEventSync,
-  planAgendaCleanup, canonicalConcept, computeBreakFastTime, fastingHoursFromKey,
-  validatedSchedule, INTERVENTION_NOTIFY_MINUTES_BEFORE,
+  planAgendaCleanup, planChronotypeReconcile, canonicalConcept, computeBreakFastTime,
+  fastingHoursFromKey, validatedSchedule, INTERVENTION_NOTIFY_MINUTES_BEFORE,
   type AgendaEventRowLike,
 } from '@/src/services/interventions/intervention-agenda-core';
 import { INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
@@ -135,27 +135,36 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
         { wake_time: (chrono as any)?.wake_time ?? null, sleep_time: (chrono as any)?.sleep_time ?? null },
         (chrono as any)?.chronotype ?? null,
       );
+      // HOTFIX 1.5: decisión pura (planChronotypeReconcile) — distingue removal
+      // del USER (disabled_protocol_events) de desactivación de MÁQUINA
+      // (cleanup por familia): la segunda revive con la hora validada.
       const reconcileChrono = async (name: string, time: string, category: string) => {
         const fam = canonicalConcept(name);
-        const mine = ((existing ?? []) as any[]).filter(
-          (r) => r.source === 'chronotype' && canonicalConcept(r.name) === fam,
-        );
-        if (mine.length === 0) {
+        const mine = ((existing ?? []) as any[])
+          .filter((r) => r.source === 'chronotype' && canonicalConcept(r.name) === fam)
+          .map((r): AgendaEventRowLike => ({
+            id: r.id, name: r.name, time: hhmm(r.time), source: r.source,
+            is_active: r.is_active !== false, intervention_key: null,
+          }));
+        const action = planChronotypeReconcile(mine, name, time, disabled, drivers.interventions);
+        if (action.insert) {
           pushEvent(name, time, category, 'chronotype');
           return;
         }
-        const activeOnes = mine.filter((r) => r.is_active !== false);
-        if (activeOnes.length === 0) return; // el user (o el cleanup) lo quitó — respetar
-        const keep = activeOnes[0];
-        if (hhmm(keep.time) !== time) {
+        if (action.updateId) {
           await supabase.from('agenda_events')
             .update({ time, updated_at: new Date().toISOString() })
-            .eq('id', keep.id).eq('user_id', userId);
+            .eq('id', action.updateId).eq('user_id', userId);
         }
-        for (const extra of activeOnes.slice(1)) {
+        if (action.reactivateId) {
+          await supabase.from('agenda_events')
+            .update({ name, time, is_active: true, updated_at: new Date().toISOString() })
+            .eq('id', action.reactivateId).eq('user_id', userId);
+        }
+        for (const extraId of action.deactivateIds) {
           await supabase.from('agenda_events')
             .update({ is_active: false, updated_at: new Date().toISOString() })
-            .eq('id', extra.id).eq('user_id', userId);
+            .eq('id', extraId).eq('user_id', userId);
         }
       };
       await reconcileChrono('Despertar', sched.wake_time, 'ritmo');
@@ -265,9 +274,13 @@ async function syncInterventionEvents(userId: string): Promise<void> {
 
   // A.2 megahotfix 3ra pasada (upgrade 1.5-C): barrer duplicados históricos
   // por FAMILIA canónica ("Luz solar" ≡ "Exposición solar matutina") +
-  // presupuesto multi-dosis + zombies del driver protocolo. Soft, reversible.
+  // presupuesto multi-dosis. HOTFIX 1.5 retireProtocolDriver: este sync solo
+  // corre con el swap activo → el driver protocolo está muerto (Bloque B) y
+  // TODAS sus filas activas se retiran (soft), no solo las duplicadas — sin
+  // esto el device test veía 28 eventos (10 zombies de protocolo + dupes vs
+  // eventos del user). manual/manual_override jamás se tocan.
   const desiredConcepts = new Set(desired.map((d) => canonicalConcept(d.name)));
-  const cleanupIds = planAgendaCleanup(rows, desiredConcepts);
+  const cleanupIds = planAgendaCleanup(rows, desiredConcepts, { retireProtocolDriver: true });
   if (cleanupIds.length > 0) {
     await supabase.from('agenda_events')
       .update({ is_active: false, updated_at: new Date().toISOString() })
