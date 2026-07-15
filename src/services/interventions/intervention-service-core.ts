@@ -181,8 +181,43 @@ export function sortSuggested(list: ResolvedUserIntervention[]): ResolvedUserInt
 /** Tamaño del top de sugeridas visible por default (doctrina: 10-15). */
 export const SUGGESTED_TOP_COUNT = 12;
 
-/** Doctrina Humby: ~5 activas es el punto dulce; desde este umbral sugerimos (suave) enfocar. */
-export const PROTOCOL_HINT_THRESHOLD = 8;
+// ── 1.5-D: universales P1 siempre visibles + umbrales UX progresiva ──────────
+
+/**
+ * Orden de "Mi Protocolo" para display: universales P1 SIEMPRE arriba (son la
+ * base no negociable — sol, hidratación, sueño, ventana, grounding...), luego
+ * el resto por semáforo (priority asc) y nombre.
+ */
+export function orderProtocolForDisplay(list: ResolvedUserIntervention[]): ResolvedUserIntervention[] {
+  return [...list].sort((a, b) => {
+    if (a.row.is_universal !== b.row.is_universal) return a.row.is_universal ? -1 : 1;
+    if (a.row.priority !== b.row.priority) return a.row.priority - b.row.priority;
+    return a.def.name.localeCompare(b.def.name);
+  });
+}
+
+export type ProtocolLoadHint = 'none' | 'soft' | 'strong';
+
+/** Umbrales Humby sobre activas SIN contar universales (la base no cuenta). */
+export const PROTOCOL_SOFT_MIN = 6;
+export const PROTOCOL_STRONG_MIN = 9;
+
+/**
+ * UX progresiva de carga (doctrina Humby, sin límite duro):
+ * 1-5 no-universales → sin hint · 6-8 → hint suave · 9+ → warning claro.
+ */
+export function protocolLoadHint(list: ResolvedUserIntervention[]): {
+  hint: ProtocolLoadHint;
+  nonUniversalCount: number;
+} {
+  const nonUniversalCount = list.filter((iv) => !iv.row.is_universal).length;
+  const hint: ProtocolLoadHint = nonUniversalCount >= PROTOCOL_STRONG_MIN
+    ? 'strong'
+    : nonUniversalCount >= PROTOCOL_SOFT_MIN
+      ? 'soft'
+      : 'none';
+  return { hint, nonUniversalCount };
+}
 
 /**
  * Parte las sugeridas en top visible + resto colapsado ("Ver todas (N más)").

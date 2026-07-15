@@ -36,7 +36,8 @@ import {
 import {
   effectiveTime,
   partitionSuggested,
-  PROTOCOL_HINT_THRESHOLD,
+  orderProtocolForDisplay,
+  protocolLoadHint,
   type ResolvedUserIntervention,
 } from '@/src/services/interventions/intervention-service-core';
 import { personalizeInterventionHow } from '@/src/services/dx/fitzpatrick-core';
@@ -192,15 +193,23 @@ export default function IntervencionesScreen() {
                   <Ionicons name="chevron-forward" size={13} color={ATP_BRAND.lime} />
                 </AnimatedPressable>
               )}
-              {protocol.map((item, idx) => {
+              {/* 1.5-D: universales P1 SIEMPRE arriba (base no negociable). */}
+              {orderProtocolForDisplay(protocol).map((item, idx) => {
                 const done = doneToday.has(item.row.id);
                 const time = effectiveTime(item.row);
                 return (
-                  <Animated.View key={item.row.id} entering={FadeInUp.delay(60 + idx * 40).springify()}>
+                  <Animated.View key={item.row.id} entering={FadeInUp.delay(60 + Math.min(idx, 10) * 40).springify()}>
                     <AnimatedPressable onPress={() => openDetail(item)} style={styles.rowCard}>
                       <PrioritySemaphore priority={item.row.priority as SemaphorePriority} />
                       <View style={{ flex: 1 }}>
-                        <EliteText style={styles.rowName} numberOfLines={1}>{item.def.name}</EliteText>
+                        <View style={styles.nameRow}>
+                          <EliteText style={styles.rowName} numberOfLines={1}>{item.def.name}</EliteText>
+                          {item.row.is_universal && (
+                            <View style={styles.baseBadge}>
+                              <EliteText style={styles.baseBadgeText}>BASE</EliteText>
+                            </View>
+                          )}
+                        </View>
                         <EliteText style={styles.rowMeta} numberOfLines={1}>
                           {time ? `⏰ ${time} · ` : ''}{personalizeInterventionHow(item.row.intervention_key, item.def.how, skinType)}
                         </EliteText>
@@ -226,13 +235,27 @@ export default function IntervencionesScreen() {
               })}
             </Animated.View>
 
-            {/* Doctrina Humby: ~5 activas ideal — sugerencia suave, sin límite duro. */}
-            {protocol.length >= PROTOCOL_HINT_THRESHOLD && (
-              <EliteText style={styles.humbyHint}>
-                Tip: alrededor de 5 intervenciones activas a la vez es el punto
-                dulce — mejor pocas bien hechas que muchas a medias.
-              </EliteText>
-            )}
+            {/* 1.5-D UX progresiva (Humby, sin límite duro): universales no cuentan. */}
+            {(() => {
+              const load = protocolLoadHint(protocol);
+              if (load.hint === 'soft') {
+                return (
+                  <EliteText style={styles.humbyHint}>
+                    Trabajas {load.nonUniversalCount} · Humby recomienda enfocarte
+                    en 5-7 para lograr consistencia.
+                  </EliteText>
+                );
+              }
+              if (load.hint === 'strong') {
+                return (
+                  <EliteText style={[styles.humbyHint, styles.humbyWarn]}>
+                    Cargas {load.nonUniversalCount} intervenciones · considera
+                    pausar algunas para lograr consistencia. Menos, mejor.
+                  </EliteText>
+                );
+              }
+              return null;
+            })()}
 
             {/* ── SUGERIDAS PARA TI (motor) — top acotado, resto colapsado ── */}
             <Animated.View entering={FadeInUp.delay(140).springify()}>
@@ -363,6 +386,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
     lineHeight: 17, marginTop: Spacing.sm, paddingHorizontal: 2,
   },
+  humbyWarn: { color: '#F59E0B', fontFamily: Fonts.semiBold },
   showAllBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,

@@ -6,6 +6,8 @@ import {
   sortProtocol,
   sortSuggested,
   partitionSuggested,
+  orderProtocolForDisplay,
+  protocolLoadHint,
   effectiveTime,
   isValidHHMM,
   SUGGESTED_TOP_COUNT,
@@ -256,5 +258,60 @@ describe('partitionSuggested', () => {
     const { top, rest } = partitionSuggested(list);
     const all = [...top, ...rest].map(t => t.row.intervention_key).sort();
     expect(all).toEqual(list.map(t => t.row.intervention_key).sort());
+  });
+});
+
+// ── 1.5-D: universales visibles + umbrales UX progresiva ─────────────────────
+
+describe('orderProtocolForDisplay', () => {
+  const item = (key: string, opts: { universal?: boolean; priority?: number } = {}): ResolvedUserIntervention => ({
+    row: row({ intervention_key: key, is_universal: opts.universal ?? false, priority: opts.priority ?? 2 }),
+    def: { key, name: key, how: '', benefit: '', categories: ['sueno'] as any, roots: [], isCustom: false },
+    score: 0,
+  });
+
+  it('universales SIEMPRE arriba aunque haya 20 activas con mejor prioridad', () => {
+    const list = [
+      ...Array.from({ length: 20 }, (_, i) => item(`activa-${i}`, { priority: 1 })),
+      ...Array.from({ length: 7 }, (_, i) => item(`uni-${i}`, { universal: true, priority: 1 })),
+    ];
+    const ordered = orderProtocolForDisplay(list);
+    for (let i = 0; i < 7; i++) expect(ordered[i].row.is_universal).toBe(true);
+    expect(ordered).toHaveLength(27); // nada se pierde
+  });
+});
+
+describe('protocolLoadHint (guards doc: 5/8/10)', () => {
+  const item = (key: string, universal = false): ResolvedUserIntervention => ({
+    row: row({ intervention_key: key, is_universal: universal, priority: 2 }),
+    def: { key, name: key, how: '', benefit: '', categories: ['sueno'] as any, roots: [], isCustom: false },
+    score: 0,
+  });
+  const actives = (n: number, universals = 0) => [
+    ...Array.from({ length: n }, (_, i) => item(`a-${i}`)),
+    ...Array.from({ length: universals }, (_, i) => item(`u-${i}`, true)),
+  ];
+
+  it('5 activas → sin hint', () => {
+    expect(protocolLoadHint(actives(5)).hint).toBe('none');
+  });
+
+  it('8 activas → hint suave', () => {
+    expect(protocolLoadHint(actives(8)).hint).toBe('soft');
+  });
+
+  it('10 activas → warning claro', () => {
+    expect(protocolLoadHint(actives(10)).hint).toBe('strong');
+  });
+
+  it('universales NO cuentan al umbral: 5 activas + 7 universales → sin hint', () => {
+    const r = protocolLoadHint(actives(5, 7));
+    expect(r.hint).toBe('none');
+    expect(r.nonUniversalCount).toBe(5);
+  });
+
+  it('bordes exactos: 6 → soft, 9 → strong', () => {
+    expect(protocolLoadHint(actives(6)).hint).toBe('soft');
+    expect(protocolLoadHint(actives(9)).hint).toBe('strong');
   });
 });

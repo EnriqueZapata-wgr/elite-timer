@@ -356,9 +356,17 @@ export function interventionAgendaItems(
   const taken = new Set(existingNames.map(canonicalConcept));
   const times = assignInterventionTimes(interventions, anchors);
   const items: InterventionAgendaItem[] = [];
-  for (const iv of interventions) {
+  // 1.5-D: mismo orden/techo que la agenda — universales P1 primero (exentas
+  // del techo, siempre presentes en HOY), no-universales hasta 15.
+  const ordered = [...interventions].sort((a, b) => {
+    if (a.row.is_universal !== b.row.is_universal) return a.row.is_universal ? -1 : 1;
+    if (a.row.priority !== b.row.priority) return a.row.priority - b.row.priority;
+    return a.def.name.localeCompare(b.def.name);
+  });
+  for (const iv of ordered) {
     const concept = canonicalConcept(iv.def.name);
     if (taken.has(concept)) continue; // carrera protocolo/intervención → no duplicar
+    if (!iv.row.is_universal && items.length >= MAX_MACHINE_EVENTS_PER_DAY) continue;
     taken.add(concept);
     items.push({
       id: `${INTERVENTION_ITEM_PREFIX}${iv.row.id}`,
