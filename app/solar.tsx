@@ -365,7 +365,7 @@ export default function Solar() {
               <Ionicons name="eye-outline" size={20} color="#a8e02a" />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: '#a8e02a', fontSize: 13, fontWeight: '600' }}>Pregunta a ARGOS sobre tu sol</Text>
-                <Text style={{ color: '#666', fontSize: 11 }}>"¿A qué hora debo tomar sol hoy para vitamina D?"</Text>
+                <Text style={{ color: '#666', fontSize: 11 }}>{'"¿A qué hora debo tomar sol hoy para vitamina D?"'}</Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color="#666" />
             </View>
