@@ -1550,6 +1550,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       'sequedad_via_aerea (con AC · usar humidificador)',
     ],
     contraindications: [
+      'fiebre_viral_activa_37_8_o_mas',
+      'infeccion_respiratoria_aguda_fase_temprana',
       'raynaud_severo (frío extremo empeora · usar 19-20°C)',
       'insuficiencia_termorregulatoria_geriatrica (>85 años · usar 18-20°C)',
       'artritis_reumatoide_severa_activa (rigidez matutina empeora con frío)',
@@ -2296,7 +2298,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     assignRule: 'Persona buscando saciedad matutina, extensión de ayuno metabólico, low-carb / cetogénico. Contraindicación clara: NO combinar con dieta alta en carbos (>20% cal o >100 g/día · doctrina Enrique 2026-07-11).',
     priority: 2,
     timeOfDay: 'morning',
-    scientificInfo: 'Doctrina Enrique 2026-07-11: TG suben por carbohidratos no por grasa dietética. Flag correcto es dieta alta en carbos, no perfil lipídico.',
+    scientificInfo: 'Doctrina ATP: los triglicéridos suben por los carbohidratos, no por la grasa dietética. El flag correcto es dieta alta en carbos, no el perfil lipídico.',
     evidenceLevel: 'N3',
     requiresClinicalValidation: true,
 
@@ -3711,6 +3713,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     ],
 
     contraindications: [
+      'fiebre_viral_activa_37_8_o_mas',
+      'infeccion_respiratoria_aguda_fase_temprana',
       'agua_o_cercania_agua',
       'epilepsia_o_historia_convulsiones',
       'embarazo',
@@ -3849,6 +3853,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     ],
 
     contraindications: [
+      'fiebre_viral_activa_37_8_o_mas',
+      'infeccion_respiratoria_aguda_fase_temprana',
       'agua_o_cercania_agua',
       'epilepsia_o_historia_convulsiones',
       'embarazo',
@@ -3982,6 +3988,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     ],
 
     contraindications: [
+      'fiebre_viral_activa_37_8_o_mas',
+      'infeccion_respiratoria_aguda_fase_temprana',
       'agua_sin_buddy_freediver_certificado',
       'embarazo',
       'epilepsia_o_historia_convulsiones',
@@ -4109,6 +4117,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     ],
 
     contraindications: [
+      'fiebre_viral_activa_37_8_o_mas',
+      'infeccion_respiratoria_aguda_fase_temprana',
       'agua_sin_buddy_freediver',
       'embarazo',
       'epilepsia_o_convulsiones',
@@ -5005,6 +5015,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     ],
 
     contraindications: [
+      'fiebre_viral_activa_37_8_o_mas',
+      'infeccion_respiratoria_aguda_fase_temprana',
       'embarazo (temperatura core >39°C posible)',
       'cardiopatia_isquemica_no_controlada',
       'insuficiencia_cardiaca_descompensada',
@@ -7802,8 +7814,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
   {
     key: 'zona_2_aerobica',
     name: 'Zona 2 aeróbica 2-3×/semana',
-    how: '30-45 min de ejercicio aeróbico a intensidad Zona 2 (60-70% FC máx · umbral "puedo conversar sin jadear · Talk Test") · lactato ~2 mmol/L. Trote suave, bici, remo, elíptica. Attia protocol: 3-4 sesiones/semana × 1h. Idealmente en ayuno para maximizar oxidación grasas.',
-    benefit: 'Densidad mitocondrial + capacidad oxidativa Tipo I muscular (Iñigo San Millán). Aclaramiento lactato mejorado. Base metabólica aeróbica y longevidad cardiovascular (Attia zona 2 doctrina). Fat-adaptation.',
+    how: '30-45 min de ejercicio aeróbico a intensidad Zona 2 (60-70% FC máx · umbral "puedo conversar sin jadear · Talk Test") · lactato ~2 mmol/L. Trote suave, bici, remo, elíptica. Protocolo recomendado: 3-4 sesiones/semana × 1h. Idealmente en ayuno para maximizar oxidación de grasas.',
+    benefit: 'Densidad mitocondrial + capacidad oxidativa Tipo I muscular. Aclaramiento de lactato mejorado. Base metabólica aeróbica y longevidad cardiovascular. Fat-adaptation.',
     categories: ['cardiovascular', 'metabolismo', 'energia', 'movimiento', 'mitocondrial'],
     roots: ['hiperinsulinemia', 'sedentarismo', 'baja_testosterona', 'sarcopenia', 'disfuncion_mitocondrial'],
     assignRule: 'Universal recomendado adulto ≥35. Flag P1 si sedentarismo + resistencia insulina + HbA1c ≥5.7 + VO2max bajo. Attia doctrina: 80% del volumen aeróbico en zona 2.',
@@ -7918,13 +7930,13 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     key: 'vo2max_training',
     name: 'VO2max training zona 5 (⚠️ solo entrenados)',
     how: 'Protocolo Noruego 4×4: 4 intervalos de 4 min al 90-95% FC máx + 3 min recuperación activa. ⚠️ CALENTAMIENTO 10-15 min zona 2 antes. 1-2×/semana MAX. Alternativas: Tabata (20s work × 10s rest × 8 rounds) para tren específico, 30-30 (30s ON 30s OFF ×20).',
-    benefit: 'VO2max = predictor #1 de mortalidad todas las causas (Mandsager 2018 JAMA · Attia). Aumenta 7-9% en 8 semanas (Helgerud 2007). Biogénesis mitocondrial + stroke volume + capilarización + expansión plasma.',
+    benefit: 'VO2max = predictor #1 de mortalidad por todas las causas. Aumenta 7-9% en 8 semanas. Biogénesis mitocondrial + stroke volume + capilarización + expansión plasma.',
     categories: ['cardiovascular', 'metabolismo', 'hormonal', 'energia', 'mitocondrial'],
     roots: ['sedentarismo', 'baja_testosterona', 'sarcopenia', 'disfuncion_mitocondrial'],
     assignRule: '⚠️ Solo adulto con base aeróbica ≥3 meses (idealmente 6). Sin patología CV. NUNCA sin calentamiento. Flag P1 si VO2max <percentil 25 + interesado, o atleta buscando plateau breakthrough.',
     priority: 2,
     evidenceLevel: 'N1',
-    scientificInfo: '99% de las personas se lesionan haciendo sprints de golpe sin base previa. La regla Attia: 20% del volumen aeróbico en zona 5, 80% en zona 2. Adaptación crece con tiempo total en zona (T@VO2max).',
+    scientificInfo: '99% de las personas se lesionan haciendo sprints de golpe sin base previa. La regla 80/20: 20% del volumen aeróbico en zona 5, 80% en zona 2. La adaptación crece con el tiempo total en zona (T@VO2max).',
     epigeneticImpact: {
       activates: [
         'stroke volume ventricular (aumento crónico documentado)',
@@ -8683,7 +8695,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
     assignRule: 'PENDIENTE spec Enrique. Adulto con base ayuno previa (16-18h tolerado ≥1 mes) + sin contraindicaciones metabólicas ni alimentarias. Flag P1 si: reset metabólico buscado + inflamación + insulino-resistencia.',
     priority: 2,
     family: 'sardinas',
-    scientificInfo: 'Placeholder — Enrique aporta detalles finales protocolo (duración exacta, cantidad sardinas/día, electrolitos, criterios exclusión finales).',
+    scientificInfo: 'Protocolo en validación — pendientes los detalles finales (duración exacta, cantidad de sardinas/día, electrolitos, criterios de exclusión finales).',
     requiresClinicalValidation: true,
     evidenceLevel: 'N3',
     epigeneticImpact: {
@@ -9183,7 +9195,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
   {
     key: 'nsdr_10min',
     name: 'NSDR 10 min (micro-descanso)',
-    how: 'Grabación guiada de Non-Sleep Deep Rest 10 min, acostado o reclinado, ojos cerrados. Escaneo corporal + respiración lenta guiada + relajación progresiva. Idealmente post-comida (rescata crash 14-16h), mid-afternoon, post-jetlag. Huberman recomienda 1-3×/día como toolkit.',
+    how: 'Grabación guiada de Non-Sleep Deep Rest 10 min, acostado o reclinado, ojos cerrados. Escaneo corporal + respiración lenta guiada + relajación progresiva. Idealmente post-comida (rescata crash 14-16h), mid-afternoon, post-jetlag. Se recomienda 1-3×/día como práctica.',
     benefit: 'Micro-siesta sin dormir: baja cortisol, restaura dopamina baseline (aumento documentado post-práctica), recupera fatiga cognitiva sin latencia post-siesta, mejora aprendizaje via consolidation.',
     categories: ['estres', 'ansiedad', 'cognitivo', 'ritual', 'sueno'],
     roots: ['estres_cronico', 'cortisol_elevado_sostenido', 'deficit_neurotransmisores', 'deficit_sueno_profundo'],

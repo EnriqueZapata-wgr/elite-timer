@@ -72,7 +72,7 @@ export default function TrainingMethods() {
           </View>
         </View>
         <Text style={{ color: '#999', fontSize: 13, marginTop: 12, lineHeight: 20 }}>
-          3 métodos propietarios de ATP diseñados por Enrique Zapata. Cada uno ataca un objetivo diferente con autoregulación inteligente.
+          3 métodos de entrenamiento propietarios de ATP. Cada uno ataca un objetivo diferente con autoregulación inteligente.
         </Text>
       </View>
 

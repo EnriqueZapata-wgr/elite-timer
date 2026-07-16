@@ -31,6 +31,7 @@ import {
   type Intervention,
   type RecommendationRule,
 } from '@/src/constants/interventions-catalog';
+import { displayLabel } from '@/src/constants/display-labels';
 import type {
   UserPhenotype,
   PrescribedIntervention,
@@ -154,6 +155,9 @@ export function computeScore(intervention: Intervention, phenotype: UserPhenotyp
 
   if (rules?.boostIf) {
     for (const rule of rules.boostIf) {
+      // TODO (Mega-Sprint A · task #130 · PENDIENTE validación Mariana): el
+      // multiplicador ×10 satura el score a 100 y el top 5 pierde discriminación.
+      // Code recomendó bajar a ×5. NO aplicar hasta que Enrique valide con Mariana.
       if (matchesRule(rule, phenotype)) score += boostWeight * 10;
     }
   }
@@ -459,9 +463,12 @@ export function buildEpigeneticImpactSentence(intervention: Intervention): strin
   const impact = intervention.epigeneticImpact;
   if (!impact) return '';
 
-  const activates = (impact.activates ?? []).slice(0, 2).map(shortMechanism).join(' + ');
-  const modulates = (impact.modulates ?? []).slice(0, 2).map(shortMechanism).join(' + ');
-  const tier1 = (impact.biomarkers ?? []).filter(isTier1Biomarker).slice(0, 3).join(', ');
+  // B1.2: legibiliza los términos técnicos (cortisol_ritmo → "ritmo de cortisol",
+  // presion_arterial_matutina → "presión arterial matutina") — el dato interno
+  // sigue snake_case, solo el texto que ve el user se legibiliza.
+  const activates = (impact.activates ?? []).slice(0, 2).map((m) => displayLabel(shortMechanism(m))).join(' + ');
+  const modulates = (impact.modulates ?? []).slice(0, 2).map((m) => displayLabel(shortMechanism(m))).join(' + ');
+  const tier1 = (impact.biomarkers ?? []).filter(isTier1Biomarker).slice(0, 3).map(displayLabel).join(', ');
 
   let s = '';
   if (activates) s += `Activa ${activates}. `;
@@ -551,7 +558,7 @@ export function categorizeBiomarkersByTier(biomarkers: string[]): SuggestedBioma
 export function buildContextNote(phenotype: UserPhenotype): string | undefined {
   const active = (phenotype.profile as any).activeInterventionCount as number | undefined;
   if (typeof active === 'number' && active >= 9) {
-    return `Trabajas ${active} intervenciones. Doctrina Humby: menos, mejor. Considera pausar algunas para lograr consistencia real antes de agregar más.`;
+    return `Trabajas ${active} intervenciones. ATP recomienda menos, mejor: considera pausar algunas para lograr consistencia real antes de agregar más.`;
   }
   return undefined;
 }

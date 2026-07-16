@@ -146,7 +146,7 @@ function HealthHubScreen() {
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-        <PillarHeader pillar="health" title="Historia Clínica" />
+        <PillarHeader pillar="health" title="Salud Funcional" />
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>Tu expediente vivo de salud funcional</EliteText>
