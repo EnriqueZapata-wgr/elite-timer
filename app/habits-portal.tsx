@@ -16,6 +16,8 @@ import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
+// Sprint 2 E: color por concepto desde la fuente única (audit §3 — un concepto = un color).
+import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
 
 type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string; femaleOnly?: boolean };
 
@@ -33,20 +35,20 @@ const HABIT_CARD_IMAGES: Record<string, any> = {
 };
 
 const PILARES: Card[] = [
-  { key: 'nutricion', title: 'NUTRICIÓN', subtitle: 'Comida · recetas · food scan', icon: '🥗', gradient: ['#5B9BD5', '#3B82F6'], route: '/nutrition' },
-  { key: 'suplementacion', title: 'SUPLEMENTACIÓN', subtitle: 'Tu plan diario · tracking', icon: '💊', gradient: ['#EF9F27', '#C0392B'], route: '/supplements' },
-  { key: 'fitness', title: 'FITNESS', subtitle: 'Fuerza · cardio · movilidad', icon: '🏋️', gradient: ['#A8E02A', '#27AE60'], route: '/fitness-hub' },
-  { key: 'ayuno', title: 'AYUNO', subtitle: 'Ventanas e historial', icon: '⏳', gradient: ['#6B46C1', '#1E3A8A'], route: '/fasting' },
-  { key: 'sueno', title: 'SUEÑO', subtitle: 'Descanso y recuperación', icon: '😴', gradient: ['#3B82F6', '#1E3A8A'], route: '/reports' }, // TODO: /sleep cuando exista
+  { key: 'nutricion', title: 'NUTRICIÓN', subtitle: 'Comida · recetas · food scan', icon: '🥗', gradient: CONCEPT_COLORS.nutricion.gradient, route: '/nutrition' },
+  { key: 'suplementacion', title: 'SUPLEMENTACIÓN', subtitle: 'Tu plan diario · tracking', icon: '💊', gradient: CONCEPT_COLORS.suplementos.gradient, route: '/supplements' },
+  { key: 'fitness', title: 'FITNESS', subtitle: 'Fuerza · cardio · movilidad', icon: '🏋️', gradient: CONCEPT_COLORS.fitness.gradient, route: '/fitness-hub' },
+  { key: 'ayuno', title: 'AYUNO', subtitle: 'Ventanas e historial', icon: '⏳', gradient: CONCEPT_COLORS.ayuno.gradient, route: '/fasting' },
+  { key: 'sueno', title: 'SUEÑO', subtitle: 'Descanso y recuperación', icon: '😴', gradient: CONCEPT_COLORS.sueno.gradient, route: '/reports' }, // TODO: /sleep cuando exista
 ];
 
 const DIARIOS: Card[] = [
   // Sprint MENTE Ecosystem: las 4 cards sueltas (meditación/respiración/
   // check-in/journal) se colapsan en el hub /mente — un pilar, una puerta.
-  { key: 'mente', title: 'MENTE', subtitle: 'Journal · respiración · meditación · check-in', icon: '🧠', gradient: ['#7F77DD', '#6C3483'], route: '/mente' },
+  { key: 'mente', title: 'MENTE', subtitle: 'Journal · respiración · meditación · check-in', icon: '🧠', gradient: CONCEPT_COLORS.mente.gradient, route: '/mente' },
   { key: 'ciclo', title: 'CICLO', subtitle: 'Tu ciclo y síntomas', icon: '🌙', gradient: ['#D4537E', '#9B59B6'], route: '/cycle', femaleOnly: true },
-  { key: 'hidratacion', title: 'HIDRATACIÓN', subtitle: 'Tu meta de agua', icon: '💧', gradient: ['#3498DB', '#1ABC9C'], route: '/hydration' },
-  { key: 'atp_sol', title: 'ATP SOL', subtitle: 'Luz solar y vitamina D', icon: '☀️', gradient: ['#FFD700', '#FFA500'], route: '/solar' },
+  { key: 'hidratacion', title: 'HIDRATACIÓN', subtitle: 'Tu meta de agua', icon: '💧', gradient: CONCEPT_COLORS.agua.gradient, route: '/hydration' },
+  { key: 'atp_sol', title: 'ATP SOL', subtitle: 'Luz solar y vitamina D', icon: '☀️', gradient: CONCEPT_COLORS.sol.gradient, route: '/solar' },
 ];
 
 export default function HabitsPortalScreen() {

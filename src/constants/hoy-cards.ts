@@ -7,6 +7,8 @@
  * a placeholder de gradient sólido. Cuando estén: `imageBn: require('@/assets/images/agenda/...')`.
  */
 import type { ImageSourcePropType } from 'react-native';
+// Sprint 2 E: color por concepto desde la fuente única (audit §3 — un concepto = un color).
+import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
 
 export type HoyCardCategory = 'meal' | 'exercise' | 'supplement' | 'rhythm' | 'mind' | 'recovery' | 'metric';
 
@@ -26,19 +28,19 @@ export interface HoyCardSpec {
  * (proteína → /nutrition, no /food-register). Mente SIEMPRE al hub nuevo /mente
  * (Journal + Respiración + Meditación + Check-in), nunca al viejo /mind-hub. */
 export const HOY_CARD_SPECS: HoyCardSpec[] = [
-  { cardKey: 'uv', category: 'metric', icon: '☀️', title: 'UV INDEX', gradient: ['#FFD700', '#FFA500'], route: '/solar' },
+  { cardKey: 'uv', category: 'metric', icon: '☀️', title: 'UV INDEX', gradient: CONCEPT_COLORS.sol.gradient, route: '/solar' },
   { cardKey: 'checkin', category: 'mind', icon: '❤️', title: 'CHECK-IN EMOCIONAL', gradient: ['#1ABC9C', '#9B59B6'], route: '/mente' },
-  { cardKey: 'proteina', category: 'meal', icon: '🍳', title: 'PROTEÍNA', gradient: ['#FF8C00', '#C0392B'], route: '/nutrition' },
-  { cardKey: 'agua', category: 'meal', icon: '💧', title: 'AGUA', gradient: ['#3498DB', '#1ABC9C'], route: '/nutrition' },
-  { cardKey: 'luz_solar', category: 'rhythm', icon: '☀️', title: 'LUZ SOLAR', gradient: ['#FFD700', '#FFA500'] },
+  { cardKey: 'proteina', category: 'meal', icon: '🍳', title: 'PROTEÍNA', gradient: CONCEPT_COLORS.nutricion.gradient, route: '/nutrition' },
+  { cardKey: 'agua', category: 'meal', icon: '💧', title: 'AGUA', gradient: CONCEPT_COLORS.agua.gradient, route: '/nutrition' },
+  { cardKey: 'luz_solar', category: 'rhythm', icon: '☀️', title: 'LUZ SOLAR', gradient: CONCEPT_COLORS.sol.gradient },
   { cardKey: 'meditacion', category: 'mind', icon: '🧘', title: 'MEDITACIÓN', gradient: ['#1ABC9C', '#16A085'], route: '/mente' },
-  { cardKey: 'suplementos', category: 'supplement', icon: '💊', title: 'SUPLEMENTOS', gradient: ['#9B59B6', '#6C3483'], route: '/supplements' },
+  { cardKey: 'suplementos', category: 'supplement', icon: '💊', title: 'SUPLEMENTOS', gradient: CONCEPT_COLORS.suplementos.gradient, route: '/supplements' },
   { cardKey: 'bano_frio', category: 'recovery', icon: '❄️', title: 'BAÑO FRÍO', gradient: ['#3498DB', '#2C3E50'] },
   { cardKey: 'grounding', category: 'rhythm', icon: '🌿', title: 'GROUNDING', gradient: ['#27AE60', '#8B4513'] },
-  { cardKey: 'fuerza', category: 'exercise', icon: '💪', title: 'FUERZA', gradient: ['#E74C3C', '#C0392B'], route: '/fitness-hub' },
+  { cardKey: 'fuerza', category: 'exercise', icon: '💪', title: 'FUERZA', gradient: CONCEPT_COLORS.fitness.gradient, route: '/fitness-hub' },
   { cardKey: 'breathwork', category: 'mind', icon: '🌬', title: 'BREATHWORK', gradient: ['#85C1E9', '#2E86C1'], route: '/mente' },
   { cardKey: 'lentes_rojos', category: 'rhythm', icon: '🔴', title: 'LENTES ROJOS', gradient: ['#FF7F50', '#8B0000'] },
-  { cardKey: 'cardio', category: 'exercise', icon: '❤️‍🔥', title: 'CARDIO', gradient: ['#E74C3C', '#FFA500'], route: '/fitness-hub' },
+  { cardKey: 'cardio', category: 'exercise', icon: '❤️‍🔥', title: 'CARDIO', gradient: CONCEPT_COLORS.cardio.gradient, route: '/fitness-hub' },
   { cardKey: 'pasos', category: 'exercise', icon: '🚶', title: 'PASOS', gradient: ['#27AE60', '#8B4513'], route: '/fitness-hub' },
   // #cableado-final 3.2: 5 cards nuevas. Boolean (toggle desde card, sin route): no_alcohol,
   // no_processed_foods, screen_time_cutoff. journal → /mente. sleep informativa → /health-hub.
