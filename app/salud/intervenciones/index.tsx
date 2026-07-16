@@ -43,6 +43,10 @@ import {
 import { personalizeInterventionHow } from '@/src/services/dx/fitzpatrick-core';
 import { fetchSkinType } from '@/src/services/dx/fitzpatrick-service';
 import { getCurrentDX, type FunctionalDxRow } from '@/src/services/dx/dx-service';
+// Motor Fase B: prescripción personalizada (top 5 "por qué a TI").
+import { PrescriptionCard } from '@/src/components/interventions/PrescriptionCard';
+import { getCurrentPrescription, generatePrescription } from '@/src/services/interventions/prescription-service';
+import type { PrescribedIntervention } from '@/src/services/interventions/personalize-types';
 import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention-vocab';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -60,24 +64,44 @@ export default function IntervencionesScreen() {
   const [showAllSuggested, setShowAllSuggested] = useState(false);
   // Sprint 1.5 B (ninguna pantalla aislada): breadcrumb al DX que originó esto.
   const [dx, setDx] = useState<FunctionalDxRow | null>(null);
+  // Motor Fase B: top 5 prescrito + estado del botón "Recalcular".
+  const [prescriptions, setPrescriptions] = useState<PrescribedIntervention[]>([]);
+  const [recalculating, setRecalculating] = useState(false);
+  const [showCatalog, setShowCatalog] = useState(false);
   const startedRef = useRef(false);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    const [prot, sugg, done, skin, currentDx] = await Promise.all([
+    const [prot, sugg, done, skin, currentDx, rx] = await Promise.all([
       getMyProtocol(user.id),
       getSuggestedInterventions(user.id),
       getTodayCompletions(user.id),
       fetchSkinType(user.id).catch(() => null),
       getCurrentDX(user.id).catch(() => null),
+      getCurrentPrescription(user.id).catch(() => [] as PrescribedIntervention[]),
     ]);
     setProtocol(prot);
     setSuggested(sugg);
     setDoneToday(done);
     setSkinType(skin);
     setDx(currentDx);
+    setPrescriptions(rx);
     setLoading(false);
   }, [user?.id]);
+
+  // Motor Fase B: "Recalcular mi protocolo" — corre el motor con los datos más
+  // recientes y refresca las 5 cards. NO se dispara solo en cada apertura
+  // (arquitectura §9.1: recalcular por trigger explícito, no por consistencia).
+  const onRecalculate = useCallback(async () => {
+    if (!user?.id || recalculating) return;
+    haptic.medium();
+    setRecalculating(true);
+    try {
+      const rx = await generatePrescription(user.id);
+      setPrescriptions(rx);
+    } catch { /* fail-soft: se queda la prescripción previa */ }
+    setRecalculating(false);
+  }, [user?.id, recalculating]);
 
   useEffect(() => {
     if (startedRef.current || !user?.id) return;
@@ -128,6 +152,16 @@ export default function IntervencionesScreen() {
     setBusyKey(null);
   }, [user?.id, busyKey]);
 
+  // Motor Fase B: activar una prescrita (misma vía que activar una sugerida —
+  // el motor SUGIERE, el user DECIDE · doctrina guiado no prisionero §9.2).
+  const onActivatePrescription = useCallback(async (key: string) => {
+    if (!user?.id || busyKey) return;
+    haptic.medium();
+    setBusyKey(key);
+    await activateIntervention(user.id, key).catch(() => {});
+    setBusyKey(null);
+  }, [user?.id, busyKey]);
+
   const openDetail = (item: ResolvedUserIntervention) => {
     haptic.light();
     router.push(`/salud/intervenciones/${item.row.intervention_key}` as any);
@@ -171,9 +205,74 @@ export default function IntervencionesScreen() {
               </Animated.View>
             )}
 
+            {/* ── TUS PRESCRITAS POR ATP · motor de personalización (Fase B) ── */}
+            {(() => {
+              const activeKeys = new Set(protocol.map((p) => p.row.intervention_key));
+              const contextNote = prescriptions.find((p) => p.contextNote)?.contextNote;
+              return (
+                <Animated.View entering={FadeInUp.delay(30).springify()}>
+                  <View style={styles.rxHeaderRow}>
+                    <SectionTitle containerStyle={{ marginBottom: 0 }}>
+                      {`TUS PRESCRITAS POR ATP${prescriptions.length ? ` · ${prescriptions.length}` : ''}`}
+                    </SectionTitle>
+                    <AnimatedPressable
+                      onPress={onRecalculate}
+                      disabled={recalculating}
+                      style={styles.recalcBtn}
+                      hitSlop={6}
+                    >
+                      {recalculating
+                        ? <ActivityIndicator size="small" color={ATP_BRAND.lime} />
+                        : <Ionicons name="refresh" size={13} color={ATP_BRAND.lime} />}
+                      <EliteText style={styles.recalcText}>
+                        {recalculating ? 'Calculando…' : 'Recalcular'}
+                      </EliteText>
+                    </AnimatedPressable>
+                  </View>
+
+                  {prescriptions.length === 0 ? (
+                    <View style={styles.emptyBox}>
+                      <EliteText style={styles.emptyText}>
+                        ATP aún no ha calculado tu prescripción. Toca “Recalcular” para que
+                        el motor lea tu fenotipo (DX, Braverman, labs, ciclo) y elija las 5
+                        que más mueven la aguja para ti.
+                      </EliteText>
+                    </View>
+                  ) : (
+                    <>
+                      {prescriptions.map((rx, idx) => (
+                        <PrescriptionCard
+                          key={`${rx.intervention.key}-${rx.rank}`}
+                          prescription={rx}
+                          index={idx}
+                          isActive={activeKeys.has(rx.intervention.key)}
+                          busy={busyKey === rx.intervention.key}
+                          onActivate={onActivatePrescription}
+                          onOpenDetail={(key) => { haptic.light(); router.push(`/salud/intervenciones/${key}` as any); }}
+                        />
+                      ))}
+                      {/* B.5 · warning del motor (doctrina Humby 9+ activas) */}
+                      {contextNote && (
+                        <View style={styles.contextNote}>
+                          <Ionicons name="alert-circle-outline" size={15} color="#F59E0B" />
+                          <EliteText style={styles.contextNoteText}>{contextNote}</EliteText>
+                        </View>
+                      )}
+                      {/* B.4 · copy de cierre "las otras 83 existen pero no mueven la aguja" */}
+                      <EliteText style={styles.rxClosing}>
+                        Estas son las {prescriptions.length} que ATP prioriza para tu perfil hoy.
+                        Las demás del catálogo existen y son válidas, pero para tu fenotipo actual
+                        no mueven la aguja tanto. Cuando subas de nivel o cambien tus datos, ATP recalcula.
+                      </EliteText>
+                    </>
+                  )}
+                </Animated.View>
+              );
+            })()}
+
             {/* ── MI PROTOCOLO (activas) ── */}
             <Animated.View entering={FadeInUp.delay(40).springify()}>
-              <SectionTitle>MI PROTOCOLO</SectionTitle>
+              <SectionTitle containerStyle={{ marginTop: Spacing.xl }}>MI PROTOCOLO</SectionTitle>
               {protocol.length === 0 && (
                 <View style={styles.emptyBox}>
                   <EliteText style={styles.emptyText}>
@@ -257,10 +356,19 @@ export default function IntervencionesScreen() {
               return null;
             })()}
 
-            {/* ── SUGERIDAS PARA TI (motor) — top acotado, resto colapsado ── */}
+            {/* ── EXPLORAR CATÁLOGO COMPLETO (colapsable) — el resto de sugeridas ── */}
             <Animated.View entering={FadeInUp.delay(140).springify()}>
-              <SectionTitle containerStyle={{ marginTop: Spacing.xl }}>SUGERIDAS PARA TI</SectionTitle>
-              {suggested.length === 0 && (
+              <AnimatedPressable
+                onPress={() => { haptic.light(); setShowCatalog((v) => !v); }}
+                style={styles.catalogToggle}
+              >
+                <Ionicons name="library-outline" size={15} color={TEXT.secondary} />
+                <EliteText style={styles.catalogToggleText}>
+                  Explorar catálogo completo{suggested.length ? ` (${suggested.length} sugeridas)` : ''}
+                </EliteText>
+                <Ionicons name={showCatalog ? 'chevron-up' : 'chevron-down'} size={15} color={TEXT.secondary} />
+              </AnimatedPressable>
+              {showCatalog && suggested.length === 0 && (
                 <View style={styles.emptyBox}>
                   <EliteText style={styles.emptyText}>
                     No hay sugerencias pendientes. Genera o actualiza tu Diagnóstico
@@ -268,7 +376,7 @@ export default function IntervencionesScreen() {
                   </EliteText>
                 </View>
               )}
-              {(() => {
+              {showCatalog && (() => {
                 const { top, rest } = partitionSuggested(suggested);
                 const visible = showAllSuggested ? [...top, ...rest] : top;
                 return (
@@ -387,6 +495,31 @@ const styles = StyleSheet.create({
     lineHeight: 17, marginTop: Spacing.sm, paddingHorizontal: 2,
   },
   humbyWarn: { color: '#F59E0B', fontFamily: Fonts.semiBold },
+  // Motor Fase B
+  rxHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.sm },
+  recalcBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.1),
+    borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.35),
+    borderRadius: Radius.pill, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  recalcText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  rxClosing: {
+    fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
+    lineHeight: 17, marginTop: Spacing.sm, marginBottom: Spacing.xs, fontStyle: 'italic',
+  },
+  contextNote: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    backgroundColor: withOpacity('#F59E0B', 0.08), borderWidth: 0.5, borderColor: withOpacity('#F59E0B', 0.3),
+    borderRadius: Radius.md, padding: Spacing.sm, marginTop: 4,
+  },
+  contextNoteText: { flex: 1, fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: '#F5C77E', lineHeight: 16 },
+  catalogToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: Spacing.xl, marginBottom: Spacing.sm,
+    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+  },
+  catalogToggleText: { flex: 1, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.secondary },
   showAllBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
