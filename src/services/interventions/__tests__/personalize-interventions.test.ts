@@ -122,15 +122,19 @@ describe('contraindicaciones · fiebre viral activa (Perfil F)', () => {
     for (const key of contraindicated) expect(keysOf(rx)).not.toContain(key);
   });
 
-  // GAP DE CATÁLOGO documentado (bonus finding): ducha_fria_nivel1/2/3, wim_hof y
-  // sauna_infrarrojo NO portan tag de fiebre_viral_activa → el motor no las excluye
-  // por fiebre. Clínicamente deberían. No enriquecemos el catálogo aquí (gotcha #5).
-  it('DOCUMENTA gap: hay intervenciones de frío/calor SIN tag de fiebre (para Mariana)', () => {
-    const coldWithoutFever = [...COLD_KEYS].filter((k) => {
-      const iv = INTERVENTIONS_CATALOG.find((i) => i.key === k)!;
-      return !isContraindicated(iv, PROFILE_F);
-    });
-    expect(coldWithoutFever.length).toBeGreaterThan(0); // gap real, esperado hasta firma
+  // Mega-Sprint A B3.1: gap cerrado — las 6 de frío/calor/apnea sistémicas que
+  // faltaban ahora portan tag de fiebre y quedan contraindicadas con fiebre viral.
+  // (compresa_fria_ojos queda fuera a propósito: es local/benigna, no sistémica.)
+  it('B3.1: las cold/heat sistémicas antes sin tag ahora SÍ se contraindican con fiebre', () => {
+    const nowTagged = [
+      'temperatura_cuarto_frio', 'wim_hof_basico', 'wim_hof_extendido',
+      'tabla_co2', 'tabla_o2', 'sauna_vapor',
+    ];
+    for (const key of nowTagged) {
+      const iv = INTERVENTIONS_CATALOG.find((i) => i.key === key)!;
+      expect(isContraindicated(iv, PROFILE_F), `${key} debe contraindicarse con fiebre`).toBe(true);
+      expect(keysOf(rx)).not.toContain(key);
+    }
   });
 });
 

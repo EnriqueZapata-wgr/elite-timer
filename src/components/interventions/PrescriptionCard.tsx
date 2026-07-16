@@ -16,6 +16,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { displayLabels } from '@/src/constants/display-labels';
 import type { PrescribedIntervention, RationaleSource } from '@/src/services/interventions/personalize-types';
 
 interface Props {
@@ -138,7 +139,7 @@ export function PrescriptionCard({ prescription, index, isActive, busy, onActiva
                     : 'Solo para diferencial crítico (costosos).'}
               </EliteText>
               <EliteText style={s.bioList}>
-                {tierList.length > 0 ? tierList.join(' · ') : 'Ninguno en este tier.'}
+                {tierList.length > 0 ? displayLabels(tierList).join(' · ') : 'Ninguno en este tier.'}
               </EliteText>
             </View>
           )}
