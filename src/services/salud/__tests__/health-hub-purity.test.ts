@@ -10,7 +10,9 @@ import { dirname, join } from 'path';
 
 describe('health-hub es menú puro (cero datos de consulta)', () => {
   const here = dirname(fileURLToPath(import.meta.url));
-  const hub = readFileSync(join(here, '..', '..', '..', '..', 'app', 'health-hub.tsx'), 'utf8');
+  const raw = readFileSync(join(here, '..', '..', '..', '..', 'app', 'health-hub.tsx'), 'utf8');
+  // Quita comentarios (el docstring MENCIONA lo que se removió) — solo el código real cuenta.
+  const hub = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
 
   it('NO importa ningún servicio de síntomas ni de expediente vivo', () => {
     const forbidden = [
