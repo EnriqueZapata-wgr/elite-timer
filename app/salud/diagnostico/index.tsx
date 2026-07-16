@@ -30,6 +30,10 @@ import { presenceFromSnapshot } from '@/src/services/dx/dx-engine-core';
 import { computeDxQuality, DX_LEVEL_LABELS, type DxMissingKey } from '@/src/services/dx/dx-quality-core';
 import { activeSourcesFromSnapshot, generateAndShareDxPdf } from '@/src/services/dx/dx-pdf-service';
 import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention-vocab';
+// Mega-Sprint B B2.3: Edad ATP como MÉTRICA aquí (no árbol paralelo). El motor
+// V7/V6 (edad-atp-v2-service) queda INTOCADO — solo se LEE el resultado.
+import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
+import { computeCE } from '@/src/services/edad-atp/ce-service';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -69,6 +73,8 @@ export default function DiagnosticoScreen() {
   const { isPro } = useSubscription();
   const [dx, setDx] = useState<FunctionalDxRow | null>(null);
   const [history, setHistory] = useState<FunctionalDxRow[]>([]);
+  // Edad ATP como métrica (B2.3): edad biológica + delta + CE. null = sin datos suficientes.
+  const [edadAtp, setEdadAtp] = useState<{ edad: number; delta: number; ce: number } | null>(null);
   const [quote, setQuote] = useState<DxQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -88,6 +94,15 @@ export default function DiagnosticoScreen() {
     setHistory(hist);
     setQuote(q);
     setLoading(false);
+    // Edad ATP como métrica (fail-soft · gate CE≥30 = evaluación suficiente).
+    try {
+      const [edad, ce] = await Promise.all([computeEdadAtpV2(user.id), computeCE(user.id)]);
+      if (ce.ce_integral >= 30 && Number.isFinite(edad.edad_integral)) {
+        setEdadAtp({ edad: edad.edad_integral, delta: edad.delta_anos, ce: ce.ce_integral });
+      } else {
+        setEdadAtp(null);
+      }
+    } catch { setEdadAtp(null); }
   }, [user?.id]);
 
   useEffect(() => {
@@ -225,6 +240,28 @@ export default function DiagnosticoScreen() {
                     </View>
                   )}
                 </Card>
+              </Animated.View>
+            )}
+
+            {/* ── Edad ATP como métrica (B2.3 · motor V7/V6 intocado, solo se lee) ── */}
+            {edadAtp && (
+              <Animated.View entering={FadeInUp.delay(130).springify()}>
+                <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>EDAD ATP</SectionTitle>
+                <AnimatedPressable
+                  onPress={() => { haptic.light(); router.push('/edad-atp/result-preview' as any); }}
+                  style={styles.edadCard}
+                >
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={styles.edadNum}>{edadAtp.edad.toFixed(1)} <EliteText style={styles.edadUnit}>años biológicos</EliteText></EliteText>
+                    <EliteText style={styles.edadMeta}>
+                      {edadAtp.delta <= 0
+                        ? `${Math.abs(edadAtp.delta).toFixed(1)} años más joven que tu edad real`
+                        : `${edadAtp.delta.toFixed(1)} años sobre tu edad real`}
+                      {'  ·  '}CE {Math.round(edadAtp.ce)}%
+                    </EliteText>
+                  </View>
+                  <EliteText style={styles.edadArrow}>→</EliteText>
+                </AnimatedPressable>
               </Animated.View>
             )}
 
@@ -389,6 +426,16 @@ const styles = StyleSheet.create({
     backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,
     borderRadius: Radius.md, padding: Spacing.md, marginBottom: 6,
   },
+  // Edad ATP métrica (B2.3)
+  edadCard: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.3),
+    borderRadius: Radius.md, padding: Spacing.md,
+  },
+  edadNum: { fontFamily: Fonts.extraBold, fontSize: 24, color: ATP_BRAND.lime },
+  edadUnit: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.tertiary },
+  edadMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.secondary, marginTop: 2 },
+  edadArrow: { fontFamily: Fonts.bold, fontSize: 20, color: ATP_BRAND.lime },
   rootName: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
   rootMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: 2 },
   sevBar: { flexDirection: 'row', gap: 3 },
