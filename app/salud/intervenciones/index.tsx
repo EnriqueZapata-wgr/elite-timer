@@ -334,13 +334,13 @@ export default function IntervencionesScreen() {
               })}
             </Animated.View>
 
-            {/* 1.5-D UX progresiva (Humby, sin límite duro): cuenta el TOTAL de activas. */}
+            {/* 1.5-D UX progresiva (sin límite duro): cuenta el TOTAL de activas. */}
             {(() => {
               const load = protocolLoadHint(protocol);
               if (load.hint === 'soft') {
                 return (
                   <EliteText style={styles.humbyHint}>
-                    Trabajas {load.activeCount} · Humby recomienda enfocarte
+                    Trabajas {load.activeCount} · ATP recomienda enfocarte
                     en 5-7 para lograr consistencia.
                   </EliteText>
                 );

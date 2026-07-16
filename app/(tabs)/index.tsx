@@ -369,10 +369,16 @@ export default function TodayScreen() {
     const sub2 = DeviceEventEmitter.addListener('electrons_changed', () => {
       if (isTogglingRef.current === 0) loadDay(true);
     });
+    // Mega-Sprint A B4.1: re-hacer el test de cronotipo cambia wake/sleep → HOY
+    // recompila su timing sin depender del re-focus del tab.
+    const sub3 = DeviceEventEmitter.addListener('chronotype_changed', () => {
+      if (isTogglingRef.current === 0) loadDay(true);
+    });
     return () => {
       clearInterval(interval);
       sub1.remove();
       sub2.remove();
+      sub3.remove();
       // HOY-5/HOY-9: limpiar timeouts pendientes al desmontar para no
       // hacer setState sobre componente desmontado.
       if (recompileTimeoutRef.current) clearTimeout(recompileTimeoutRef.current);

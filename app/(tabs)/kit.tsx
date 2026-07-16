@@ -23,8 +23,8 @@ const PILLARS = [
   {
     cardKey: 'kit_historia',
     icon: '📋',
-    title: 'HISTORIA CLÍNICA',
-    subtitle: 'Labs · biomarcadores · tests',
+    title: 'SALUD FUNCIONAL',
+    subtitle: 'Diagnóstico · datos · evaluaciones · síntomas',
     message: 'Tu expediente vivo',
     gradient: ['#1ABC9C', '#16A085'] as [string, string],
     route: '/health-hub',
@@ -33,8 +33,8 @@ const PILLARS = [
   {
     cardKey: 'kit_habitos',
     icon: '🌅',
-    title: 'HÁBITOS',
-    subtitle: 'Nutrición, fitness y más',
+    title: 'HÁBITOS FUNCIONALES',
+    subtitle: 'Nutrición, fitness, sueño, ayuno',
     message: 'Lo que defines a diario',
     gradient: ['#A8E02A', '#1ABC9C'] as [string, string],
     route: '/habits-portal',
@@ -46,7 +46,7 @@ const PILLARS = [
   {
     cardKey: 'kit_comunidad',
     icon: '🤝',
-    title: 'COMUNIDAD',
+    title: 'COMUNIDAD ATP',
     subtitle: 'Ranking · Amigos · Tribu',
     message: 'Comunidad, no competencia',
     gradient: ['#7F77DD', '#5B9BD5'] as [string, string],

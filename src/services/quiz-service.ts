@@ -1,6 +1,7 @@
 /**
  * Quiz Service — Gestión de quizzes y cronotipo.
  */
+import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
 
 // === TYPES ===
@@ -134,6 +135,9 @@ export async function saveUserChronotype(
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' });
   if (error) throw error;
+  // Mega-Sprint A B4.1: propagación push tras re-hacer el test (León→Oso) — YO,
+  // HOY y Agenda releen sin depender solo del re-focus del tab.
+  DeviceEventEmitter.emit('chronotype_changed');
 }
 
 // === SCORING ===

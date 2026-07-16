@@ -5,7 +5,7 @@
  * cronotipo al entrar, permite editar/completar/posponer/eliminar (EventActionModal) y crear custom
  * (FAB "+"). Atrás regresa a HOY. Sprint VISUAL: no toca agenda-service ni modales.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, DeviceEventEmitter, Alert, ActivityIndicator } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -88,6 +88,16 @@ export default function AgendaScreen() {
     })();
     return () => { active = false; };
   }, [userId, reload]));
+
+  // Mega-Sprint A B4.1: re-hacer el test de cronotipo cambia wake/sleep → la
+  // agenda reconcilia las horas de Despertar/Dormir aunque esté en background.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('chronotype_changed', () => {
+      if (!userId) return;
+      generateAgendaEvents(userId, getLocalToday()).then(() => reload()).catch(() => {});
+    });
+    return () => sub.remove();
+  }, [userId, reload]);
 
   const nowMs = Date.now();
   const upcoming = events.filter((e) => e.status === 'pending' && new Date(e.scheduledAt).getTime() >= nowMs).length;
