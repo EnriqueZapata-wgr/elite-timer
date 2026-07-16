@@ -45,7 +45,6 @@ type Card = { key: string; title: string; subtitle: string; icon: string; gradie
 // #cableado-final 3.7: imágenes B/N estáticas por card (require() estático — Metro).
 const HEALTH_HUB_IMAGES: Record<string, any> = {
   mi_salud: require('@/assets/images/health-hub/mi-salud.png'),
-  protocolos: require('@/assets/images/health-hub/protocolos.png'),
   glucosa: require('@/assets/images/health-hub/glucosa.png'),
   cetonas: require('@/assets/images/health-hub/cetonas.png'),
   labs: require('@/assets/images/health-hub/laboratorios.png'),
@@ -63,7 +62,8 @@ const HEALTH_HUB_IMAGES: Record<string, any> = {
 
 const CARDS: Card[] = [
   { key: 'mi_salud', title: 'ATP MI SALUD', subtitle: 'Tu panel funcional: corazón, glucosa, biomarcadores', icon: '🫀', gradient: ['#38BDF8', '#3B82F6'], route: '/my-health' },
-  { key: 'protocolos', title: 'PROTOCOLOS', subtitle: 'Configura electrones, metas y horarios', icon: '⚙️', gradient: ['#A8E02A', '#1ABC9C'], route: '/protocol-config' },
+  // Sprint 1.5 B: card PROTOCOLOS (→ protocol-config) eliminada — la pantalla
+  // murió; activar/configurar vive en Mi Protocolo (Card B de arriba).
   { key: 'glucosa', title: 'GLUCOSA', subtitle: 'Registro y rangos funcionales', icon: '🩸', gradient: ['#FB923C', '#EF4444'], route: '/glucose-log' },
   { key: 'cetonas', title: 'CETONAS EN SANGRE', subtitle: 'Monitoreo de cetosis (mmol/L)', icon: '💧', gradient: ['#C084FC', '#A855F7'], route: '/ketones-log' },
   { key: 'labs', title: 'LABORATORIOS', subtitle: 'Sube y consulta tus estudios', icon: '🧪', gradient: ['#60A5FA', '#3B82F6'], route: '/edad-atp/labs' },

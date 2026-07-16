@@ -20,6 +20,8 @@ export const INTERVENTION_CATEGORIES = [
   'hidratacion', 'cardiovascular', 'ritual',
   // Extensión Cowork 2026-07-11 (catálogo v3 curado Enrique):
   'circadiano', 'nutricion',
+  // Extensión Cowork 2026-07-14 (piloto mapeo epigenético · categorías target propias):
+  'mitocondrial', 'sarcopenia',
 ] as const;
 
 export type InterventionCategory = (typeof INTERVENTION_CATEGORIES)[number];
@@ -42,6 +44,8 @@ export const CATEGORY_LABELS: Record<InterventionCategory, string> = {
   ritual: 'Ritual/Hábito',
   circadiano: 'Circadiano',
   nutricion: 'Nutrición',
+  mitocondrial: 'Mitocondrial',
+  sarcopenia: 'Sarcopenia (preventivo)',
 };
 
 // ── Raíces que ataca (causas raíz) ───────────────────────────────────────────
@@ -74,6 +78,9 @@ export const INTERVENTION_ROOTS = [
   'reflujo_funcional',
   'digestion_estres_autonomico',
   'hrv_baja_cronica',
+  // Extensión Cowork 2026-07-14 (piloto mapeo epigenético · roots mitocondriales):
+  'disfuncion_mitocondrial',
+  'estres_oxidativo_mitocondrial',
 ] as const;
 
 export type InterventionRoot = (typeof INTERVENTION_ROOTS)[number];
@@ -105,6 +112,8 @@ export const ROOT_LABELS: Record<InterventionRoot, string> = {
   reflujo_funcional: 'Reflujo funcional',
   digestion_estres_autonomico: 'Digestión pobre por estrés autonómico',
   hrv_baja_cronica: 'HRV crónicamente baja',
+  disfuncion_mitocondrial: 'Disfunción mitocondrial',
+  estres_oxidativo_mitocondrial: 'Estrés oxidativo mitocondrial',
 };
 
 // ── Sets para validación O(1) (usados por el motor DX) ───────────────────────

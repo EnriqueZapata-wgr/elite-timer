@@ -176,6 +176,72 @@ export function sortSuggested(list: ResolvedUserIntervention[]): ResolvedUserInt
   });
 }
 
+// ── A.3 megahotfix 3ra pasada: motor saturado → top acotado ──────────────────
+
+/** Tamaño del top de sugeridas visible por default (doctrina: 10-15). */
+export const SUGGESTED_TOP_COUNT = 12;
+
+// ── 1.5-D: universales P1 siempre visibles + umbrales UX progresiva ──────────
+
+/**
+ * Orden de "Mi Protocolo" para display: universales P1 SIEMPRE arriba (son la
+ * base no negociable — sol, hidratación, sueño, ventana, grounding...), luego
+ * el resto por semáforo (priority asc) y nombre.
+ */
+export function orderProtocolForDisplay(list: ResolvedUserIntervention[]): ResolvedUserIntervention[] {
+  return [...list].sort((a, b) => {
+    if (a.row.is_universal !== b.row.is_universal) return a.row.is_universal ? -1 : 1;
+    if (a.row.priority !== b.row.priority) return a.row.priority - b.row.priority;
+    return a.def.name.localeCompare(b.def.name);
+  });
+}
+
+export type ProtocolLoadHint = 'none' | 'soft' | 'strong';
+
+/** Umbrales Humby sobre el TOTAL de activas (universales incluidas). */
+export const PROTOCOL_SOFT_MIN = 6;
+export const PROTOCOL_STRONG_MIN = 9;
+
+/**
+ * UX progresiva de carga (doctrina Humby, sin límite duro):
+ * 1-5 activas → sin hint · 6-8 → hint suave · 9+ → warning claro.
+ * HOTFIX 1.5: el umbral cuenta el TOTAL de activas — la carga real del día
+ * incluye a las universales (device test: 7 activas debían disparar el hint;
+ * la versión que excluía universales nunca lo mostraba).
+ */
+export function protocolLoadHint(list: ResolvedUserIntervention[]): {
+  hint: ProtocolLoadHint;
+  activeCount: number;
+} {
+  const activeCount = list.length;
+  const hint: ProtocolLoadHint = activeCount >= PROTOCOL_STRONG_MIN
+    ? 'strong'
+    : activeCount >= PROTOCOL_SOFT_MIN
+      ? 'soft'
+      : 'none';
+  return { hint, activeCount };
+}
+
+/**
+ * Parte las sugeridas en top visible + resto colapsado ("Ver todas (N más)").
+ * Las universales entran TODAS al top (jamás se pierden entre las curadas,
+ * aunque excedan topCount); las curadas llenan los slots restantes en el orden
+ * de sortSuggested (score desc, priority asc).
+ */
+export function partitionSuggested(
+  list: ResolvedUserIntervention[],
+  topCount: number = SUGGESTED_TOP_COUNT,
+): { top: ResolvedUserIntervention[]; rest: ResolvedUserIntervention[] } {
+  const sorted = sortSuggested(list);
+  const universals = sorted.filter((s) => s.row.is_universal);
+  const curated = sorted.filter((s) => !s.row.is_universal);
+  const slots = Math.max(0, topCount - universals.length);
+  return {
+    top: [...universals, ...curated.slice(0, slots)],
+    rest: curated.slice(slots),
+  };
+}
+
 /** Hora efectiva a mostrar/agendar: override del user gana al cálculo circadiano. */
 export function effectiveTime(row: Pick<UserInterventionRow, 'custom_time' | 'computed_time'>): string | null {
   return row.custom_time ?? row.computed_time ?? null;

@@ -250,6 +250,28 @@ export default function DiagnosticoScreen() {
               </Animated.View>
             )}
 
+            {/* Sprint 1.5 B (doctrina ninguna pantalla aislada): el DX no es un
+                reporte muerto — su destino en el journey es Mi Protocolo. */}
+            {dx && (
+              <Animated.View entering={FadeInUp.delay(165).springify()}>
+                <AnimatedPressable
+                  onPress={() => { haptic.medium(); router.push('/salud/intervenciones' as any); }}
+                  style={styles.protocolCta}
+                >
+                  <EliteText style={{ fontSize: 16 }}>🧭</EliteText>
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={styles.protocolCtaTitle}>
+                      Ver las intervenciones que ATP te sugiere
+                    </EliteText>
+                    <EliteText style={styles.protocolCtaSub}>
+                      Tu DX alimenta Mi Protocolo — de la raíz a la acción diaria
+                    </EliteText>
+                  </View>
+                  <EliteText style={styles.protocolCtaArrow}>→</EliteText>
+                </AnimatedPressable>
+              </Animated.View>
+            )}
+
             {/* ── Fuentes que lo alimentan ── */}
             {activeSources.length > 0 && (
               <Animated.View entering={FadeInUp.delay(190).springify()}>
@@ -319,6 +341,15 @@ export default function DiagnosticoScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: Spacing.md, paddingBottom: 60, gap: Spacing.xs },
+  protocolCta: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.08),
+    borderWidth: 0.5, borderColor: withOpacity(ATP_BRAND.lime, 0.3),
+    borderRadius: Radius.md, padding: Spacing.md, marginTop: Spacing.md,
+  },
+  protocolCtaTitle: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: ATP_BRAND.lime },
+  protocolCtaSub: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary, marginTop: 2 },
+  protocolCtaArrow: { fontFamily: Fonts.bold, fontSize: FontSizes.md, color: ATP_BRAND.lime },
   levelBadge: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   levelNum: {
     fontFamily: Fonts.extraBold, fontSize: 40, color: ATP_BRAND.lime,

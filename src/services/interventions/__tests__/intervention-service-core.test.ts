@@ -5,9 +5,14 @@ import {
   resolveRows,
   sortProtocol,
   sortSuggested,
+  partitionSuggested,
+  orderProtocolForDisplay,
+  protocolLoadHint,
   effectiveTime,
   isValidHHMM,
+  SUGGESTED_TOP_COUNT,
   type UserInterventionRow,
+  type ResolvedUserIntervention,
 } from '../intervention-service-core';
 import { matchInterventions } from '../intervention-engine-core';
 import type { DxRoot } from '../intervention-engine-core';
@@ -148,10 +153,19 @@ describe('resolveRows + orden', () => {
   });
 
   it('adjunta el score del motor a las sugeridas curadas', () => {
+    // v4 epigenético: ayuno_16_8 quedó gateado (requiresClinicalValidation) →
+    // el motor ya no lo puntúa; 18:6 (misma raíz, no gateado) toma su lugar.
     const match = matchInterventions([{ root_key: 'resistencia_insulina', severity: 5 }]);
-    const rows = [row({ intervention_key: 'ayuno_16_8' })];
+    const rows = [row({ intervention_key: 'ayuno_18_6' })];
     const resolved = resolveRows(rows, match);
     expect(resolved[0].score).toBeGreaterThan(0);
+  });
+
+  it('gating clínico v4: ayuno_16_8 resuelve (data del user intacta) pero score 0', () => {
+    const match = matchInterventions([{ root_key: 'resistencia_insulina', severity: 5 }]);
+    const resolved = resolveRows([row({ intervention_key: 'ayuno_16_8' })], match);
+    expect(resolved).toHaveLength(1); // el user SÍ puede tenerla activa
+    expect(resolved[0].score).toBe(0); // el motor no la sugiere hasta firma Mariana
   });
 
   it('sortProtocol: semáforo asc (🔴 antes que 🟢), luego nombre', () => {
@@ -171,14 +185,15 @@ describe('resolveRows + orden', () => {
     ]);
     const list = resolveRows([
       row({ intervention_key: 'ayuno_18_6', priority: 3 }),
+      // v4 epigenético: 16:8 gateado → score 0 → cae al final de las curadas.
       row({ intervention_key: 'ayuno_16_8', priority: 2 }),
       // Catálogo v3 (cc12ceb): key renombrada grounding → grounding_earthing.
       row({ intervention_key: 'grounding_earthing', priority: 1, is_universal: true }),
     ], match);
     const sorted = sortSuggested(list);
     expect(sorted[0].row.intervention_key).toBe('grounding_earthing'); // base universal primero
-    // curadas: 16:8 (P2, 2 raíces) sobre 18:6 (P3)
-    expect(sorted[1].row.intervention_key).toBe('ayuno_16_8');
+    // curadas: 18:6 (raíz matcheada, score real) sobre 16:8 (gateado, score 0)
+    expect(sorted[1].row.intervention_key).toBe('ayuno_18_6');
     expect(sorted[1].score).toBeGreaterThan(sorted[2].score);
   });
 });
@@ -196,5 +211,124 @@ describe('helpers', () => {
     expect(isValidHHMM('24:00')).toBe(false);
     expect(isValidHHMM('21:75')).toBe(false);
     expect(isValidHHMM('nope')).toBe(false);
+  });
+});
+
+// ── A.3 megahotfix 3ra pasada: motor saturado → top acotado ──────────────────
+
+describe('partitionSuggested', () => {
+  const item = (key: string, opts: { universal?: boolean; score?: number; priority?: number } = {}): ResolvedUserIntervention => ({
+    row: row({
+      intervention_key: key,
+      is_universal: opts.universal ?? false,
+      priority: opts.priority ?? 2,
+    }),
+    def: { key, name: key, how: '', benefit: '', categories: ['sueno'] as any, roots: [], isCustom: false },
+    score: opts.score ?? 0,
+  });
+
+  it('lista corta → todo al top, sin resto', () => {
+    const list = [item('a'), item('b', { universal: true })];
+    const { top, rest } = partitionSuggested(list);
+    expect(top).toHaveLength(2);
+    expect(rest).toHaveLength(0);
+  });
+
+  it('satura a SUGGESTED_TOP_COUNT: 30 sugeridas → top 12, resto 18 colapsado', () => {
+    const list = Array.from({ length: 30 }, (_, i) => item(`iv-${i}`, { score: 30 - i }));
+    const { top, rest } = partitionSuggested(list);
+    expect(top).toHaveLength(SUGGESTED_TOP_COUNT);
+    expect(rest).toHaveLength(30 - SUGGESTED_TOP_COUNT);
+    // el top son las de mayor score (orden del motor intacto)
+    expect(top[0].row.intervention_key).toBe('iv-0');
+    expect(rest[0].score).toBeLessThanOrEqual(top[top.length - 1].score);
+  });
+
+  it('universales SIEMPRE en el top, aunque las curadas tengan más score', () => {
+    const list = [
+      ...Array.from({ length: 15 }, (_, i) => item(`curada-${i}`, { score: 100 - i })),
+      ...Array.from({ length: 7 }, (_, i) => item(`universal-${i}`, { universal: true, score: 0, priority: 1 })),
+    ];
+    const { top, rest } = partitionSuggested(list);
+    const topKeys = top.map(t => t.row.intervention_key);
+    for (let i = 0; i < 7; i++) expect(topKeys).toContain(`universal-${i}`);
+    expect(top).toHaveLength(SUGGESTED_TOP_COUNT); // 7 universales + 5 curadas top
+    expect(rest.every(r => !r.row.is_universal)).toBe(true);
+  });
+
+  it('más universales que topCount → entran todas igual (jamás se pierden)', () => {
+    const list = Array.from({ length: 5 }, (_, i) => item(`u-${i}`, { universal: true }));
+    const { top, rest } = partitionSuggested(list, 3);
+    expect(top).toHaveLength(5);
+    expect(rest).toHaveLength(0);
+  });
+
+  it('top + rest reconstruyen la lista completa sin perder ni duplicar', () => {
+    const list = Array.from({ length: 25 }, (_, i) => item(`iv-${i}`, { score: i % 7, universal: i % 5 === 0 }));
+    const { top, rest } = partitionSuggested(list);
+    const all = [...top, ...rest].map(t => t.row.intervention_key).sort();
+    expect(all).toEqual(list.map(t => t.row.intervention_key).sort());
+  });
+});
+
+// ── 1.5-D: universales visibles + umbrales UX progresiva ─────────────────────
+
+describe('orderProtocolForDisplay', () => {
+  const item = (key: string, opts: { universal?: boolean; priority?: number } = {}): ResolvedUserIntervention => ({
+    row: row({ intervention_key: key, is_universal: opts.universal ?? false, priority: opts.priority ?? 2 }),
+    def: { key, name: key, how: '', benefit: '', categories: ['sueno'] as any, roots: [], isCustom: false },
+    score: 0,
+  });
+
+  it('universales SIEMPRE arriba aunque haya 20 activas con mejor prioridad', () => {
+    const list = [
+      ...Array.from({ length: 20 }, (_, i) => item(`activa-${i}`, { priority: 1 })),
+      ...Array.from({ length: 7 }, (_, i) => item(`uni-${i}`, { universal: true, priority: 1 })),
+    ];
+    const ordered = orderProtocolForDisplay(list);
+    for (let i = 0; i < 7; i++) expect(ordered[i].row.is_universal).toBe(true);
+    expect(ordered).toHaveLength(27); // nada se pierde
+  });
+});
+
+describe('protocolLoadHint (guards doc: 5/8/10)', () => {
+  const item = (key: string, universal = false): ResolvedUserIntervention => ({
+    row: row({ intervention_key: key, is_universal: universal, priority: 2 }),
+    def: { key, name: key, how: '', benefit: '', categories: ['sueno'] as any, roots: [], isCustom: false },
+    score: 0,
+  });
+  const actives = (n: number, universals = 0) => [
+    ...Array.from({ length: n }, (_, i) => item(`a-${i}`)),
+    ...Array.from({ length: universals }, (_, i) => item(`u-${i}`, true)),
+  ];
+
+  it('5 activas → sin hint', () => {
+    expect(protocolLoadHint(actives(5)).hint).toBe('none');
+  });
+
+  it('8 activas → hint suave', () => {
+    expect(protocolLoadHint(actives(8)).hint).toBe('soft');
+  });
+
+  it('10 activas → warning claro', () => {
+    expect(protocolLoadHint(actives(10)).hint).toBe('strong');
+  });
+
+  // HOTFIX 1.5: el umbral cuenta el TOTAL de activas (device test: 5 universales
+  // P1 + 2 curadas = 7 → hint). La versión que excluía universales dejaba el
+  // hint invisible en el caso real (todo user arranca con 5 universales activas).
+  it('universales SÍ cuentan: 2 curadas + 5 universales = 7 → hint suave', () => {
+    const r = protocolLoadHint(actives(2, 5));
+    expect(r.hint).toBe('soft');
+    expect(r.activeCount).toBe(7);
+  });
+
+  it('5 curadas + 5 universales = 10 → warning claro', () => {
+    expect(protocolLoadHint(actives(5, 5)).hint).toBe('strong');
+  });
+
+  it('bordes exactos: 6 → soft, 9 → strong', () => {
+    expect(protocolLoadHint(actives(6)).hint).toBe('soft');
+    expect(protocolLoadHint(actives(9)).hint).toBe('strong');
   });
 });

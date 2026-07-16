@@ -9,7 +9,7 @@
  *  - ARGOS integra UV con el resto de la salud.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, DeviceEventEmitter } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,20 +39,27 @@ export default function Solar() {
   // #v13d 2.3: distinguir el fallo de ubicación (permiso/timeout GPS) del fallo de red (UV API).
   const [errorState, setErrorState] = useState<null | 'location' | 'fetch'>(null);
 
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
-        const { data } = await supabase
-          .from('profiles')
-          .select('skin_type')
-          .eq('id', user.id)
-          .single();
-        if (data?.skin_type) setSkinType(data.skin_type);
-      }
-    })();
+  // A.1 megahotfix 3ra pasada: profiles.skin_type es la fuente única del fototipo,
+  // pero esta pantalla solo la leía al montar → quedaba stale (Tipo 4 vs Tipo 5)
+  // si el cuestionario Fitzpatrick escribía con SOL ya montada en el stack.
+  // Ahora relee en 'fototipo_changed' (mismo patrón que la card UV del HOY).
+  const loadSkinType = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setUserId(user.id);
+    const { data } = await supabase
+      .from('profiles')
+      .select('skin_type')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (data?.skin_type) setSkinType(data.skin_type);
   }, []);
+
+  useEffect(() => {
+    loadSkinType();
+    const sub = DeviceEventEmitter.addListener('fototipo_changed', loadSkinType);
+    return () => sub.remove();
+  }, [loadSkinType]);
 
   useFocusEffect(useCallback(() => { loadUV(); }, []));
 
@@ -98,7 +105,6 @@ export default function Solar() {
     if (userId) await supabase.from('profiles').update({ skin_type: type }).eq('id', userId);
     // #v13f 2.2: avisar a la card UV del HOY que el fototipo cambió → refresh inmediato del
     // tiempo de exposición segura (sin esperar a recompilar al volver).
-    const { DeviceEventEmitter } = require('react-native');
     DeviceEventEmitter.emit('fototipo_changed');
   }
 
@@ -126,7 +132,66 @@ export default function Solar() {
             <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700' }}>{fitz.emoji} Tipo {skinType}</Text>
           </Pressable>
         </View>
+        {/* Sprint 1.5 A: CTA SIEMPRE visible al tipo de piel (antes el selector vivía
+            dentro del branch uvData → sin GPS/red no había entry point al cuestionario). */}
+        {!showSkinPicker && (
+          <Pressable
+            onPress={() => { setShowSkinPicker(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10,
+              backgroundColor: 'rgba(251,191,36,0.06)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)',
+              borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
+            }}
+          >
+            <Text style={{ fontSize: 14 }}>🧬</Text>
+            <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700', flex: 1 }}>Actualizar tipo de piel</Text>
+            <Text style={{ color: '#666', fontSize: 11 }}>cuestionario o manual</Text>
+            <Ionicons name="chevron-down" size={14} color="#fbbf24" />
+          </Pressable>
+        )}
       </View>
+
+      {/* SELECTOR DE PIEL — Sprint 1.5 A: fuera del branch uvData, disponible siempre
+          (con UV cargando, sin GPS o sin red el cuestionario sigue accesible). */}
+      {showSkinPicker && (
+        <View style={{ paddingHorizontal: 20 }}>
+          <View style={{ backgroundColor: '#0a0a0a', borderRadius: 20, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)' }}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Tu tipo de piel</Text>
+            <Text style={{ color: '#999', fontSize: 12, marginBottom: 16 }}>Escala Fitzpatrick — determina tu tiempo de quemadura</Text>
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/historia-clinica/fitzpatrick' as any); }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12,
+                marginBottom: 12, backgroundColor: 'rgba(251,191,36,0.1)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
+              }}
+            >
+              <Text style={{ fontSize: 20 }}>🧬</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#fbbf24', fontSize: 14, fontWeight: '700' }}>Descúbrelo con el cuestionario</Text>
+                <Text style={{ color: '#999', fontSize: 11 }}>6 preguntas · ATP calcula tu fototipo exacto</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#fbbf24" />
+            </Pressable>
+            <Text style={{ color: '#666', fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1 }}>O ELÍGELO MANUALMENTE</Text>
+            {FITZPATRICK_TYPES.map(type => (
+              <Pressable key={type.type} onPress={() => saveSkin(type.type)}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, marginBottom: 4,
+                  backgroundColor: skinType === type.type ? 'rgba(251,191,36,0.08)' : 'transparent',
+                  borderWidth: skinType === type.type ? 1 : 0, borderColor: '#fbbf24',
+                }}>
+                  <Text style={{ fontSize: 24 }}>{type.emoji}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{type.label}</Text>
+                    <Text style={{ color: '#999', fontSize: 11 }}>{type.description}</Text>
+                  </View>
+                  {skinType === type.type && <Ionicons name="checkmark-circle" size={20} color="#fbbf24" />}
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
 
       {loading ? (
         <View style={{ alignItems: 'center', paddingVertical: 80 }}>
@@ -299,47 +364,6 @@ export default function Solar() {
               <Ionicons name="chevron-forward" size={16} color="#666" />
             </View>
           </Pressable>
-
-          {/* SELECTOR DE PIEL */}
-          {showSkinPicker && (
-            <View style={{ backgroundColor: '#0a0a0a', borderRadius: 20, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)' }}>
-              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Tu tipo de piel</Text>
-              <Text style={{ color: '#999', fontSize: 12, marginBottom: 16 }}>Escala Fitzpatrick — determina tu tiempo de quemadura</Text>
-              {/* hotfix 2da pasada: entry point al cuestionario Fitzpatrick (antes solo
-                  alcanzable enterrado en Historia Clínica → Enrique no lo encontraba) */}
-              <Pressable
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/historia-clinica/fitzpatrick' as any); }}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 12,
-                  marginBottom: 12, backgroundColor: 'rgba(251,191,36,0.1)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)',
-                }}
-              >
-                <Text style={{ fontSize: 20 }}>🧬</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#fbbf24', fontSize: 14, fontWeight: '700' }}>Descúbrelo con el cuestionario</Text>
-                  <Text style={{ color: '#999', fontSize: 11 }}>6 preguntas · ATP calcula tu fototipo exacto</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#fbbf24" />
-              </Pressable>
-              <Text style={{ color: '#666', fontSize: 11, fontWeight: '600', marginBottom: 8, letterSpacing: 1 }}>O ELÍGELO MANUALMENTE</Text>
-              {FITZPATRICK_TYPES.map(type => (
-                <Pressable key={type.type} onPress={() => saveSkin(type.type)}>
-                  <View style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, marginBottom: 4,
-                    backgroundColor: skinType === type.type ? 'rgba(251,191,36,0.08)' : 'transparent',
-                    borderWidth: skinType === type.type ? 1 : 0, borderColor: '#fbbf24',
-                  }}>
-                    <Text style={{ fontSize: 24 }}>{type.emoji}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{type.label}</Text>
-                      <Text style={{ color: '#999', fontSize: 11 }}>{type.description}</Text>
-                    </View>
-                    {skinType === type.type && <Ionicons name="checkmark-circle" size={20} color="#fbbf24" />}
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          )}
 
           <Pressable onPress={() => { loadUV(); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }} style={{ alignItems: 'center', paddingVertical: 12 }}>
             <Text style={{ color: '#444', fontSize: 11 }}>Toca para actualizar UV</Text>

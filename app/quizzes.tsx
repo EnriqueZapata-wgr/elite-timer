@@ -5,7 +5,7 @@
  * Sin quizzes legacy de DB.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -24,6 +24,7 @@ import { TEXT_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { supabase } from '@/src/lib/supabase';
 
 const BRAVERMAN_COLOR = '#c084fc';
+const FITZPATRICK_COLOR = '#fbbf24'; // ámbar de ATP SOL
 
 export default function QuizzesScreen() {
   const router = useRouter();
@@ -31,11 +32,27 @@ export default function QuizzesScreen() {
   const [functionalCompletedMap, setFunctionalCompletedMap] = useState<Record<string, string>>({});
   const [dbQuizzes, setDbQuizzes] = useState<QuizData[]>([]);
   const [dbCompletedMap, setDbCompletedMap] = useState<Record<string, string>>({});
+  // Sprint 1.5 A: entry point Fitzpatrick en Tests. Estado = fuente única
+  // profiles.skin_type (doctrina placeholder única), refresca en fototipo_changed.
+  const [skinType, setSkinType] = useState<number | null>(null);
 
   useEffect(() => {
     loadCompletionStatus();
     loadDbQuizzes();
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const loadSkin = async () => {
+      try {
+        const { data } = await supabase.from('profiles').select('skin_type').eq('id', user.id).maybeSingle();
+        setSkinType((data?.skin_type as number) ?? null);
+      } catch { /* opcional */ }
+    };
+    loadSkin();
+    const sub = DeviceEventEmitter.addListener('fototipo_changed', loadSkin);
+    return () => sub.remove();
+  }, [user?.id]);
 
   const loadCompletionStatus = async () => {
     if (!user?.id) return;
@@ -170,6 +187,42 @@ export default function QuizzesScreen() {
               </StaggerItem>
             );
           })}
+
+          {/* Sprint 1.5 A: cuestionario Fitzpatrick junto al resto de evaluaciones */}
+          <StaggerItem index={ALL_FUNCTIONAL_QUIZZES.length}>
+            <GradientCard
+              color={FITZPATRICK_COLOR}
+              onPress={() => { haptic.light(); router.push('/historia-clinica/fitzpatrick' as any); }}
+              style={s.quizCard}
+            >
+              <View style={s.quizCardContent}>
+                <View style={[s.quizIconWrap, { backgroundColor: withOpacity(FITZPATRICK_COLOR, 0.15) }]}>
+                  <EliteText style={{ fontSize: 22 }}>☀️</EliteText>
+                </View>
+                <View style={s.quizInfo}>
+                  <EliteText style={s.quizName}>Tipo de piel Fitzpatrick</EliteText>
+                  <EliteText variant="caption" style={[s.metaText, { marginBottom: 2 }]} numberOfLines={1}>
+                    Tu dosis de sol personalizada · alimenta ATP SOL y Mi Protocolo
+                  </EliteText>
+                  <View style={s.quizMeta}>
+                    <EliteText variant="caption" style={s.metaText}>6 preguntas</EliteText>
+                    <EliteText variant="caption" style={s.metaDot}> · </EliteText>
+                    <EliteText variant="caption" style={s.metaText}>~2 min</EliteText>
+                  </View>
+                </View>
+                {skinType ? (
+                  <View style={s.completedBadge}>
+                    <Ionicons name="checkmark-circle" size={18} color={FITZPATRICK_COLOR} />
+                    <EliteText variant="caption" style={[s.completedDate, { color: FITZPATRICK_COLOR }]}>
+                      Tipo {skinType}
+                    </EliteText>
+                  </View>
+                ) : (
+                  <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.secondary} />
+                )}
+              </View>
+            </GradientCard>
+          </StaggerItem>
         </View>
 
         {/* ── Quizzes Diagnósticos (DB) ── */}

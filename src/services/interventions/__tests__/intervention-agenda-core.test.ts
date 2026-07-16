@@ -13,12 +13,23 @@ import {
   anchorTimes,
   shiftMinutes,
   resolveInterventionTime,
+  resolveInterventionTimeEx,
+  assignInterventionTimes,
+  planAgendaCleanup,
+  planChronotypeReconcile,
   normalizeConceptName,
+  canonicalConcept,
+  validatedSchedule,
+  computeBreakFastTime,
+  fastingHoursFromKey,
+  buildDesiredInterventionEvents,
   interventionAgendaItems,
   desiredInterventionEvents,
   planInterventionEventSync,
   agendaEventKey,
   INTERVENTION_ITEM_PREFIX,
+  MIN_SOLAR_TIME,
+  STAGGER_MINUTES,
   type AgendaEventRowLike,
   type DesiredInterventionEvent,
 } from '../intervention-agenda-core';
@@ -124,9 +135,9 @@ describe('anchorTimes', () => {
     expect(a.night).toBe('22:00');     // sleep − 60min (SLEEP_PREP_MINUTES)
   });
 
-  it('león sin horario → defaults del cronotipo (05:30/21:30)', () => {
+  it('león sin horario → defaults del cronotipo (06:00/21:30, doctrina 1.5)', () => {
     const a = anchorTimes({ wake_time: null, sleep_time: null }, 'lion');
-    expect(a.morning).toBe('06:00');
+    expect(a.morning).toBe('06:30');
     expect(a.night).toBe('20:30');
   });
 
@@ -357,4 +368,478 @@ describe('planInterventionEventSync', () => {
     // y el evento de protocolo NO se desactiva (no es source intervention)
     expect(plan.deactivateIds).toHaveLength(0);
   });
+
+  it('A.2: filas duplicadas del mismo key → la ACTIVA gana el slot, la inactiva no revive', () => {
+    const existing = [
+      evRow({ id: 'ev-dup-inactiva', name: 'Grounding 10-15 min', time: '06:00', intervention_key: 'grounding', is_active: false }),
+      evRow({ id: 'ev-viva', name: 'Grounding 10-15 min', time: anchors.morning, intervention_key: 'grounding' }),
+    ];
+    const plan = planInterventionEventSync(existing, desired.filter(d => d.intervention_key === 'grounding'), new Set());
+    expect(plan.reactivations).toHaveLength(0);
+    expect(plan.inserts).toHaveLength(0);
+    expect(plan.updates).toHaveLength(0);
+  });
+
+  it('A.2: guard de concepto en reactivations — desactivada por cleanup (el viejo gana) NO flapea', () => {
+    const existing = [
+      evRow({ id: 'ev-manual', name: 'Grounding 10-15 min', time: '09:00', source: 'manual', intervention_key: null }),
+      evRow({ id: 'ev-iv', name: 'Grounding 10-15 min', time: anchors.morning, intervention_key: 'grounding', is_active: false }),
+    ];
+    const plan = planInterventionEventSync(existing, desired.filter(d => d.intervention_key === 'grounding'), new Set());
+    expect(plan.reactivations).toHaveLength(0);
+    expect(plan.inserts).toHaveLength(0);
+  });
 });
+
+// ── A.2 megahotfix 3ra pasada: calibración de tiempos ────────────────────────
+
+describe('clamp solar (sol nunca antes del amanecer razonable)', () => {
+  // León madrugador real: wake 05:30 almacenado (dentro de tolerancia del
+  // default 06:00) → morning 06:00, ANTES del piso solar 06:30.
+  const lionAnchors = anchorTimes({ wake_time: '05:30', sleep_time: null }, 'lion');
+
+  it('ancla de máquina antes de 06:30 → se clampa a 06:30', () => {
+    const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina');
+    expect(lionAnchors.morning).toBe('06:00');
+    expect(resolveInterventionTime(sol, lionAnchors)).toBe(MIN_SOLAR_TIME);
+  });
+
+  it('computed_time (máquina) antes de 06:30 → también se clampa', () => {
+    const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina', { computed_time: '05:45' });
+    expect(resolveInterventionTime(sol, lionAnchors)).toBe(MIN_SOLAR_TIME);
+  });
+
+  it('custom_time del user es SAGRADO: 05:45 explícito no se clampa', () => {
+    const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina', { custom_time: '05:45' });
+    const r = resolveInterventionTimeEx(sol, lionAnchors);
+    expect(r.time).toBe('05:45');
+    expect(r.userLocked).toBe(true);
+  });
+
+  it('el clamp no toca intervenciones no-solares madrugadoras', () => {
+    const iv = resolved('suplementos_am', 'Suplementos AM', { computed_time: '06:00' });
+    expect(resolveInterventionTime(iv, lionAnchors)).toBe('06:00');
+  });
+});
+
+describe('assignInterventionTimes (stagger de simultáneos)', () => {
+  const lionAnchors = anchorTimes({ wake_time: null, sleep_time: null }, 'lion');
+
+  it('agua+sol+sups cayendo juntos → se espacian a STAGGER_MINUTES, nunca simultáneos', () => {
+    const list = [
+      resolved('exposicion_solar_matutina', 'Exposición solar matutina'),
+      resolved('hidratacion_matutina', 'Hidratación matutina'),
+      resolved('suplementos_am', 'Suplementos AM'),
+    ];
+    const times = [...assignInterventionTimes(list, lionAnchors).values()];
+    expect(new Set(times).size).toBe(times.length); // sin colisiones
+    times.forEach(t => expect(t).toMatch(/^\d{2}:\d{2}$/));
+  });
+
+  it('determinístico: mismo set activo → mismas horas en cada corrida (idempotente)', () => {
+    const list = [
+      resolved('exposicion_solar_matutina', 'Exposición solar matutina'),
+      resolved('hidratacion_matutina', 'Hidratación matutina'),
+      resolved('suplementos_am', 'Suplementos AM'),
+    ];
+    const a = assignInterventionTimes(list, lionAnchors);
+    const b = assignInterventionTimes([...list].reverse(), lionAnchors);
+    expect(Object.fromEntries(a)).toEqual(Object.fromEntries(b));
+  });
+
+  it('custom_time del user ocupa slot fijo; las de máquina se corren alrededor', () => {
+    const list = [
+      resolved('hidratacion_matutina', 'Hidratación matutina', { custom_time: '06:00' }),
+      resolved('suplementos_am', 'Suplementos AM', { computed_time: '06:00' }),
+    ];
+    const times = assignInterventionTimes(list, lionAnchors);
+    expect(times.get('uid-hidratacion_matutina')).toBe('06:00');
+    expect(times.get('uid-suplementos_am')).toBe(shiftMinutes('06:00', STAGGER_MINUTES));
+  });
+
+  it('desiredInterventionEvents hereda el stagger (nunca 2 eventos a la misma hora de máquina)', () => {
+    const desired = desiredInterventionEvents(
+      [
+        resolved('exposicion_solar_matutina', 'Exposición solar matutina'),
+        resolved('hidratacion_matutina', 'Hidratación matutina'),
+        resolved('suplementos_am', 'Suplementos AM'),
+      ],
+      lionAnchors,
+    );
+    const times = desired.map(d => d.time);
+    expect(new Set(times).size).toBe(times.length);
+  });
+});
+
+// ── A.2: limpieza de duplicados históricos ───────────────────────────────────
+
+describe('planAgendaCleanup', () => {
+  it('sol 3× con el mismo intervention_key → sobreviven 0 duplicados (queda 1)', () => {
+    const rows = [
+      evRow({ id: 'sol-1', name: 'Exposición solar matutina', time: '06:00', intervention_key: 'exposicion_solar_matutina' }),
+      evRow({ id: 'sol-2', name: 'Exposición solar matutina', time: '06:00', intervention_key: 'exposicion_solar_matutina' }),
+      evRow({ id: 'sol-3', name: 'Exposición solar matutina', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    const out = planAgendaCleanup(rows);
+    expect(out).toHaveLength(2);
+    expect(out).not.toContain('sol-1'); // empate de fuente → primera (más vieja) gana
+  });
+
+  it('mismo concepto + misma hora entre fuentes → gana la de mayor prioridad (protocol > intervention)', () => {
+    const rows = [
+      evRow({ id: 'agua-iv', name: 'Hidratación matutina', time: '06:15', intervention_key: 'hidratacion_matutina' }),
+      evRow({ id: 'agua-prot', name: 'HIDRATACIÓN matutina', time: '06:15', source: 'protocol', intervention_key: null }),
+    ];
+    const out = planAgendaCleanup(rows);
+    expect(out).toEqual(['agua-iv']);
+  });
+
+  it('multi-dosis legítima: mismo concepto de protocolo a horas DISTINTAS no se toca', () => {
+    const rows = [
+      evRow({ id: 'agua-1', name: 'Agua', time: '08:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 'agua-2', name: 'Agua', time: '12:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 'agua-3', name: 'Agua', time: '16:00', source: 'protocol', intervention_key: null }),
+    ];
+    expect(planAgendaCleanup(rows)).toEqual([]);
+  });
+
+  it('pase 3: zombie de protocolo con concepto gestionado por Mi Protocolo → se desactiva aunque esté a otra hora', () => {
+    const rows = [
+      evRow({ id: 'sol-zombie', name: 'Exposición solar matutina', time: '06:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 'sol-iv', name: 'Exposición solar matutina', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    const out = planAgendaCleanup(rows, new Set([canonicalConcept('Exposición solar matutina')]));
+    expect(out).toEqual(['sol-zombie']);
+  });
+
+  it('1.5-C cross-vocabulario: "Luz solar" (protocolo) y "Exposición solar matutina" (intervención) son la MISMA familia', () => {
+    const rows = [
+      evRow({ id: 'luz-prot', name: 'Luz solar', time: '06:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 'sol-iv', name: 'Exposición solar matutina (Fitzpatrick)', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    // familia gestionada por Mi Protocolo → la intervención (timing calibrado) gana
+    const out = planAgendaCleanup(rows, new Set(['sol']));
+    expect(out).toEqual(['luz-prot']);
+    // sin gestión → el viejo gana (doctrina sync)
+    const out2 = planAgendaCleanup(rows);
+    expect(out2).toEqual(['sol-iv']);
+  });
+
+  it('1.5-C suplementos ×3 a la misma hora → queda 1', () => {
+    const rows = [
+      evRow({ id: 's1', name: 'Suplementos', time: '06:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 's2', name: 'Suplementos', time: '06:00', source: 'protocol', intervention_key: null }),
+      evRow({ id: 's3', name: 'Tomar suplementos', time: '06:00', source: 'protocol', intervention_key: null }),
+    ];
+    const out = planAgendaCleanup(rows);
+    expect(out).toHaveLength(2);
+  });
+
+  it('1.5-C presupuesto de familia: hidratación permite hasta 5 dosis, romper ayuno solo 1', () => {
+    const agua = [1, 2, 3, 4].map((i) =>
+      evRow({ id: `agua-${i}`, name: 'Hidratación', time: `0${i + 6}:00`, source: 'protocol', intervention_key: null }));
+    const ayuno = [1, 2, 3].map((i) =>
+      evRow({ id: `ayuno-${i}`, name: 'Romper ayuno', time: `1${i}:00`, source: 'protocol', intervention_key: null }));
+    const out = planAgendaCleanup([...agua, ...ayuno]);
+    expect(out.filter(id => id.startsWith('agua'))).toHaveLength(0); // 4 ≤ 5
+    expect(out.filter(id => id.startsWith('ayuno'))).toHaveLength(2); // 3 → 1
+  });
+});
+
+// ── 1.5-C: motor inteligente ─────────────────────────────────────────────────
+
+describe('canonicalConcept (familias cross-vocabulario)', () => {
+  it('agrupa sinónimos reales del device test', () => {
+    expect(canonicalConcept('Luz solar')).toBe('sol');
+    expect(canonicalConcept('Exposición solar matutina (Fitzpatrick)')).toBe('sol');
+    expect(canonicalConcept('Suplementos AM')).toBe('suplementos');
+    expect(canonicalConcept('Tomar suplementos')).toBe('suplementos');
+    expect(canonicalConcept('Hidratación matutina 500 ml')).toBe('hidratacion');
+    expect(canonicalConcept('Agua')).toBe('hidratacion');
+    expect(canonicalConcept('Romper ayuno (16:8)')).toBe('romper_ayuno');
+    expect(canonicalConcept('Ayuno 16:8 con carbos densos en cena')).toBe('romper_ayuno');
+    expect(canonicalConcept('Hora de dormir')).toBe('dormir');
+    expect(canonicalConcept('Despertar')).toBe('despertar');
+  });
+
+  it('pantallas y lentes NO caen en la familia dormir aunque digan "antes de dormir"', () => {
+    expect(canonicalConcept('Pantallas off 30 min antes de dormir')).toBe('pantallas');
+    expect(canonicalConcept('Lentes rojos 2h antes de dormir')).toBe('lentes_rojos');
+  });
+
+  it('nombre sin familia → su propio normalizado (no colapsa con otros)', () => {
+    expect(canonicalConcept('Sauna 20 min')).toBe('sauna 20 min');
+  });
+});
+
+describe('validatedSchedule (cronotipo respetado)', () => {
+  it('guard doc: lobo con wake almacenado 05:30 (dato roto) → default del tipo, >= 07:30', () => {
+    const s = validatedSchedule({ wake_time: '05:30', sleep_time: '23:00' }, 'wolf');
+    expect(s.wake_time).toBe('08:00');
+    expect(s.wake_time >= '07:30').toBe(true);
+  });
+
+  it('oso con wake 05:30 (el bug del device) → 07:00, no se fuerza madrugada', () => {
+    const s = validatedSchedule({ wake_time: '05:30', sleep_time: '23:00' }, 'bear');
+    expect(s.wake_time).toBe('07:00');
+  });
+
+  it('valores dentro de tolerancia (±60) se respetan: oso 06:30 OK', () => {
+    const s = validatedSchedule({ wake_time: '06:30', sleep_time: '22:30' }, 'oso');
+    expect(s.wake_time).toBe('06:30');
+    expect(s.sleep_time).toBe('22:30');
+  });
+
+  it('lobo sleep 00:00 default con wrap: 23:30 almacenado está a 30 min → se respeta', () => {
+    const s = validatedSchedule({ wake_time: null, sleep_time: '23:30' }, 'lobo');
+    expect(s.sleep_time).toBe('23:30');
+  });
+
+  it('delfín NO es cronotipo → valida contra su madre (oso)', () => {
+    const s = validatedSchedule({ wake_time: '05:00', sleep_time: null }, 'dolphin');
+    expect(s.wake_time).toBe('07:00');
+  });
+});
+
+describe('computeBreakFastTime (romper ayuno dinámico)', () => {
+  it('con fasting_log real: start 20:30 + 16h → 12:30, no estimado', () => {
+    const r = computeBreakFastTime('2026-07-13T20:30:00', 16);
+    expect(r.time).toBe('12:30');
+    expect(r.estimated).toBe(false);
+  });
+
+  it('guard doc: sin fasting_logs → 12:00 (cena 20:00 + 16h) con estimated', () => {
+    const r = computeBreakFastTime(null, 16);
+    expect(r.time).toBe('12:00');
+    expect(r.estimated).toBe(true);
+  });
+
+  it('horas inválidas → default 16', () => {
+    expect(computeBreakFastTime(null, NaN).time).toBe('12:00');
+    expect(computeBreakFastTime(null, 0).time).toBe('12:00');
+  });
+
+  it('fastingHoursFromKey extrae del catálogo', () => {
+    expect(fastingHoursFromKey('ayuno_16_8')).toBe(16);
+    expect(fastingHoursFromKey('ayuno_20_4_omad')).toBe(20);
+    expect(fastingHoursFromKey('grounding')).toBeNull();
+  });
+});
+
+describe('buildDesiredInterventionEvents (1.5-C)', () => {
+  const anchors = anchorTimes({ wake_time: '07:00', sleep_time: '23:00' }, 'bear');
+
+  it('guard doc: misma intervención 3× → 1 solo evento deseado', () => {
+    const iv = resolved('grounding', 'Grounding 10-15 min');
+    const { events } = buildDesiredInterventionEvents([iv, iv, iv], anchors);
+    expect(events).toHaveLength(1);
+  });
+
+  it('ayuno activo + breakFast dinámico → evento "Romper ayuno (16:8)" a la hora real', () => {
+    const iv = resolved('ayuno_16_8', 'Ayuno 16:8 con carbos densos en cena');
+    const { events } = buildDesiredInterventionEvents([iv], anchors, {
+      breakFast: { time: '12:30', estimated: false },
+    });
+    expect(events[0].name).toBe('Romper ayuno (16:8)');
+    expect(events[0].time).toBe('12:30');
+  });
+
+  it('guard doc: sin fasting_logs → label estimado en el nombre', () => {
+    const iv = resolved('ayuno_16_8', 'Ayuno 16:8 con carbos densos en cena');
+    const { events } = buildDesiredInterventionEvents([iv], anchors, {
+      breakFast: { time: '12:00', estimated: true },
+    });
+    expect(events[0].name).toContain('estimado');
+  });
+
+  it('custom_time del user gana al cálculo dinámico del ayuno', () => {
+    const iv = resolved('ayuno_16_8', 'Ayuno 16:8', { custom_time: '13:15' });
+    const { events } = buildDesiredInterventionEvents([iv], anchors, {
+      breakFast: { time: '12:00', estimated: true },
+    });
+    expect(events[0].time).toBe('13:15');
+  });
+
+  it('techo 15: universales P1 nunca se descartan; el resto se reporta', () => {
+    const universals = Array.from({ length: 5 }, (_, i) =>
+      resolved(`uni-${i}`, `Universal ${i}`, { is_universal: true, priority: 1 }));
+    const extras = Array.from({ length: 15 }, (_, i) =>
+      resolved(`extra-${i}`, `Extra ${i}`, { priority: 2 }));
+    const { events, discardedKeys } = buildDesiredInterventionEvents([...extras, ...universals], anchors);
+    expect(events).toHaveLength(15);
+    expect(discardedKeys).toHaveLength(5);
+    const names = events.map(e => e.name);
+    for (let i = 0; i < 5; i++) expect(names).toContain(`Universal ${i}`);
+  });
+
+  it('hidratación matutina va a wake+15 (antes del ancla morning wake+30)', () => {
+    const iv = resolved('hidratacion_matutina', 'Hidratación matutina 500 ml');
+    const { events } = buildDesiredInterventionEvents([iv], anchors);
+    expect(events[0].time).toBe('07:15'); // wake 07:00 + 15
+  });
+
+  it('guard doc clamp: wake 05:00 (león) → sol nunca antes de 06:30', () => {
+    const lionAnchors = anchorTimes({ wake_time: '05:00', sleep_time: '21:30' }, 'lion');
+    const sol = resolved('exposicion_solar_matutina', 'Exposición solar matutina');
+    const { events } = buildDesiredInterventionEvents([sol], lionAnchors);
+    expect(events[0].time >= '06:30').toBe(true);
+  });
+
+  it('pase 3 sin desiredConcepts (flag OFF hipotético) → no toca protocolo', () => {
+    const rows = [
+      evRow({ id: 'sol-prot', name: 'Exposición solar matutina', time: '06:00', source: 'protocol', intervention_key: null }),
+    ];
+    expect(planAgendaCleanup(rows)).toEqual([]);
+  });
+
+  it('manual y manual_override JAMÁS se desactivan (ni por dupes ni por pase 3)', () => {
+    const rows = [
+      evRow({ id: 'm-1', name: 'Sol', time: '07:00', source: 'manual_override', intervention_key: 'exposicion_solar_matutina' }),
+      evRow({ id: 'm-2', name: 'Sol', time: '07:00', source: 'manual', intervention_key: null }),
+      evRow({ id: 'iv', name: 'Sol', time: '07:00', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    const out = planAgendaCleanup(rows, new Set([normalizeConceptName('Sol')]));
+    expect(out).not.toContain('m-1');
+    expect(out).not.toContain('m-2');
+    expect(out).toContain('iv'); // pierde por key contra el override y por concepto+hora
+  });
+
+  it('inactivas se ignoran (no compiten ni se re-desactivan)', () => {
+    const rows = [
+      evRow({ id: 'muerta', name: 'Sol', time: '06:00', intervention_key: 'exposicion_solar_matutina', is_active: false }),
+      evRow({ id: 'viva', name: 'Sol', time: '06:30', intervention_key: 'exposicion_solar_matutina' }),
+    ];
+    expect(planAgendaCleanup(rows)).toEqual([]);
+  });
+
+  it('escenario device: 5 universales P1 duplicados 3× → quedan exactamente 5 activos', () => {
+    const keys = ['sol', 'agua', 'sups', 'lentes', 'grounding'];
+    const rows: AgendaEventRowLike[] = [];
+    for (const k of keys) {
+      for (let i = 0; i < 3; i++) {
+        rows.push(evRow({ id: `${k}-${i}`, name: `Intervención ${k}`, time: '06:00', intervention_key: k }));
+      }
+    }
+    const out = planAgendaCleanup(rows);
+    expect(out).toHaveLength(10); // 15 filas − 5 supervivientes
+    const vivos = rows.filter(r => !out.includes(r.id));
+    expect(new Set(vivos.map(r => r.intervention_key)).size).toBe(5);
+  });
+});
+
+// ── HOTFIX 1.5: repro device test Enrique (S24 · 2026-07-14) ─────────────────
+// Snapshot REAL de agenda_events en prod (28 filas activas + 1 inactiva). El
+// motor sí corría: los 28 eran 10 zombies del driver protocolo (muerto en
+// Bloque B pero nunca retirado) + 13 filas del user + 4 intervenciones nuevas
+// + Despertar. Guard: el retiro del driver deja solo máquina viva legítima.
+
+const PROD_SNAPSHOT: AgendaEventRowLike[] = [
+  evRow({ id: 'p01', name: 'Despertar', time: '05:30', source: 'chronotype' }),
+  evRow({ id: 'p02', name: 'Eliminar aceites vegetales industriales', time: '06:00', source: 'intervention', intervention_key: 'eliminar_aceites_vegetales' }),
+  evRow({ id: 'p03', name: 'Hidratación con electrolitos', time: '06:15', source: 'protocol' }),
+  evRow({ id: 'p04', name: 'Grounding 10-15 min', time: '06:15', source: 'intervention', intervention_key: 'grounding_earthing' }),
+  evRow({ id: 'p05', name: 'Ventana de alimentación', time: '06:30', source: 'intervention', intervention_key: 'recordatorio_comer' }),
+  evRow({ id: 'p06', name: 'Caminata en ayunas 20 min', time: '06:30', source: 'protocol' }),
+  evRow({ id: 'p07', name: 'Zona 2 aeróbica 2-3×/semana', time: '06:45', source: 'intervention', intervention_key: 'zona_2_aerobica' }),
+  evRow({ id: 'p08', name: 'Suplementos AM', time: '07:15', source: 'protocol' }),
+  evRow({ id: 'p09', name: 'Luz solar + infrarroja', time: '07:30', source: 'manual_override' }),
+  evRow({ id: 'p10', name: 'Luz roja', time: '07:40', source: 'manual' }),
+  evRow({ id: 'p11', name: 'Suplementos AM', time: '08:00', source: 'manual_override' }),
+  evRow({ id: 'p12', name: 'Hidratación con electrolitos', time: '08:00', source: 'manual_override' }),
+  evRow({ id: 'p13', name: 'Running', time: '08:30', source: 'manual' }),
+  evRow({ id: 'p14', name: 'Suplementos post run', time: '10:15', source: 'manual' }),
+  evRow({ id: 'p15', name: 'Romper ayuno — comida limpia', time: '10:30', source: 'manual_override' }),
+  evRow({ id: 'p16', name: 'Desayuno proteico alto', time: '10:30', source: 'manual_override' }),
+  evRow({ id: 'p17', name: 'Caminata post-comida 15 min', time: '11:45', source: 'protocol' }),
+  evRow({ id: 'p18', name: 'Hidratación · vaso de agua', time: '13:00', source: 'manual_override' }),
+  evRow({ id: 'p19', name: 'Comida principal', time: '14:00', source: 'manual_override' }),
+  evRow({ id: 'p20', name: 'Hidratación · vaso de agua', time: '14:00', source: 'protocol' }),
+  evRow({ id: 'p21', name: 'Hidratación · vaso de agua', time: '16:07', source: 'protocol' }),
+  evRow({ id: 'p22', name: 'Cena — cierre ventana', time: '18:30', source: 'protocol' }),
+  evRow({ id: 'p23', name: 'Cena ligera', time: '18:30', source: 'manual_override' }),
+  evRow({ id: 'p24', name: 'Journal · descarga del día', time: '20:00', source: 'protocol' }),
+  evRow({ id: 'p25', name: 'Lentes rojos · bloqueo luz azul', time: '20:15', source: 'protocol' }),
+  evRow({ id: 'p26', name: 'Off-pantallas · transición al sueño', time: '20:50', source: 'manual_override' }),
+  evRow({ id: 'p27', name: 'Meditación · 10 min', time: '21:30', source: 'manual_override' }),
+  evRow({ id: 'p28', name: 'Dormir 8-9 horas', time: '22:00', source: 'protocol' }),
+  // La mató el cleanup A.2 (perdió contra 'Dormir 8-9 horas' del protocolo):
+  evRow({ id: 'p29', name: 'Dormir', time: '21:30', source: 'chronotype', is_active: false }),
+];
+
+describe('HOTFIX 1.5 · repro snapshot prod (28 eventos device test)', () => {
+  const activos = PROD_SNAPSHOT.filter((r) => r.is_active);
+
+  it('el snapshot reproduce el bug: 28 activos, 10 del driver protocolo muerto', () => {
+    expect(activos).toHaveLength(28);
+    expect(activos.filter((r) => r.source === 'protocol')).toHaveLength(10);
+  });
+
+  it('sin retiro (código pre-hotfix) los zombies del protocolo sobrevivían', () => {
+    const out = planAgendaCleanup(PROD_SNAPSHOT);
+    const vivos = activos.filter((r) => !out.includes(r.id));
+    expect(vivos.filter((r) => r.source === 'protocol').length).toBeGreaterThan(5);
+  });
+
+  it('retireProtocolDriver: mueren los 10 protocol; user + intervention + cronotipo intactos', () => {
+    const out = planAgendaCleanup(PROD_SNAPSHOT, new Set(), { retireProtocolDriver: true });
+    const vivos = activos.filter((r) => !out.includes(r.id));
+    expect(vivos.filter((r) => r.source === 'protocol')).toHaveLength(0);
+    expect(vivos.filter((r) => r.source === 'manual' || r.source === 'manual_override')).toHaveLength(13);
+    expect(vivos.filter((r) => r.source === 'intervention')).toHaveLength(4);
+    expect(vivos.filter((r) => r.source === 'chronotype')).toHaveLength(1);
+    // Total post-fix: 18 = 13 del user (sagradas) + 5 de máquina legítimas.
+    expect(vivos).toHaveLength(18);
+  });
+
+  it('idempotente: segunda pasada sobre el resultado no desactiva nada más', () => {
+    const out = planAgendaCleanup(PROD_SNAPSHOT, new Set(), { retireProtocolDriver: true });
+    const after = PROD_SNAPSHOT.map((r) => (out.includes(r.id) ? { ...r, is_active: false } : r));
+    expect(planAgendaCleanup(after, new Set(), { retireProtocolDriver: true })).toEqual([]);
+  });
+});
+
+describe('HOTFIX 1.5 · planChronotypeReconcile (revive Dormir matado por cleanup)', () => {
+  const disabledUser = new Set(['21:00|dormir 8-9 horas']); // lo que Enrique quitó (otro evento)
+
+  it('fila inactiva NO quitada por el user → revive con la hora validada', () => {
+    const mine = [evRow({ id: 'd1', name: 'Dormir', time: '21:30', source: 'chronotype', is_active: false })];
+    const a = planChronotypeReconcile(mine, 'Dormir', '21:30', disabledUser, true);
+    expect(a.reactivateId).toBe('d1');
+    expect(a.insert).toBe(false);
+  });
+
+  it('el removal del USER se respeta: key en disabled → no revive', () => {
+    const mine = [evRow({ id: 'd1', name: 'Dormir', time: '21:30', source: 'chronotype', is_active: false })];
+    const disabled = new Set(['21:30|dormir']);
+    const a = planChronotypeReconcile(mine, 'Dormir', '21:30', disabled, true);
+    expect(a.reactivateId).toBeNull();
+    expect(a.insert).toBe(false);
+  });
+
+  it('revive=false (flag OFF): fila inactiva se queda quieta (status quo)', () => {
+    const mine = [evRow({ id: 'd1', name: 'Dormir', time: '21:30', source: 'chronotype', is_active: false })];
+    const a = planChronotypeReconcile(mine, 'Dormir', '21:30', new Set(), false);
+    expect(a).toEqual({ insert: false, updateId: null, reactivateId: null, deactivateIds: [] });
+  });
+
+  it('sin filas de la familia → insert', () => {
+    expect(planChronotypeReconcile([], 'Despertar', '06:00', new Set(), true).insert).toBe(true);
+  });
+
+  it('activa con hora vieja → update quirúrgico (León 05:30 → 06:00 post data fix)', () => {
+    const mine = [evRow({ id: 'w1', name: 'Despertar', time: '05:30', source: 'chronotype' })];
+    const a = planChronotypeReconcile(mine, 'Despertar', '06:00', new Set(), true);
+    expect(a.updateId).toBe('w1');
+    expect(a.deactivateIds).toEqual([]);
+  });
+
+  it('múltiples activas históricas → sobrevive la primera, el resto se desactiva', () => {
+    const mine = [
+      evRow({ id: 'w1', name: 'Despertar', time: '06:00', source: 'chronotype' }),
+      evRow({ id: 'w2', name: 'Despertar', time: '07:00', source: 'chronotype' }),
+    ];
+    const a = planChronotypeReconcile(mine, 'Despertar', '06:00', new Set(), true);
+    expect(a.updateId).toBeNull();
+    expect(a.deactivateIds).toEqual(['w2']);
+  });
+}); 

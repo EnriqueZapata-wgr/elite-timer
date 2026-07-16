@@ -236,8 +236,10 @@ export interface ChronoSchedule {
 }
 
 /** Horarios recomendados por cronotipo (idéntico al v1 — user_chronotype). */
+// HOTFIX 1.5: León wake 06:00 (doctrina Sprint 1.5, antes 05:30) — en espejo
+// con CHRONO_ANCHOR_DEFAULTS (agenda) + data fix de user_chronotype ya escritos.
 export const CHRONO_SCHEDULES: Record<Chronotype, ChronoSchedule> = {
-  lion:    { wake: '05:30', sleep: '21:30', peak_physical: '06:00', peak_focus_start: '08:00', peak_focus_end: '12:00', wind_down: '20:30' },
+  lion:    { wake: '06:00', sleep: '21:30', peak_physical: '06:30', peak_focus_start: '08:00', peak_focus_end: '12:00', wind_down: '20:30' },
   bear:    { wake: '07:00', sleep: '23:00', peak_physical: '07:30', peak_focus_start: '10:00', peak_focus_end: '14:00', wind_down: '22:00' },
   wolf:    { wake: '08:00', sleep: '00:00', peak_physical: '17:00', peak_focus_start: '17:00', peak_focus_end: '21:00', wind_down: '23:00' },
   dolphin: { wake: '06:30', sleep: '23:30', peak_physical: '15:00', peak_focus_start: '10:00', peak_focus_end: '12:00', wind_down: '22:00' },

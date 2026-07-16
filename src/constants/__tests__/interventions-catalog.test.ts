@@ -87,14 +87,23 @@ describe('gating clínico (CLINICAL_VALIDATION_PENDING)', () => {
   it('la lista pendiente es EXACTAMENTE la firmada como pendiente (Mariana la reduce al firmar — task #9)', () => {
     // Al firmar una, Mariana/Cowork quita `requiresClinicalValidation` del catálogo
     // y su key de esta lista (edición consciente, nunca accidental).
+    // Firma v4 epigenético (db206fd 2026-07-14): +agua_fuera_comidas, +ayuno_16_8
+    // (post investigación Longo/OMAD), +hidratacion_ushapan_avanzado, +lentes_rojos,
+    // +oil_pulling_oregano · jawzercise → omt_masticatorios (rename, sigue gateada).
+    // La lista solo CRECIÓ (dirección segura): cero fuga clínica.
     expect(CLINICAL_VALIDATION_PENDING.map(i => i.key).sort()).toEqual([
+      'agua_fuera_comidas',
+      'ayuno_16_8',
       'ayuno_20_4_omad',
       'bulletproof_coffee',
       'dive_reflex_cara_hielo',
       'ejercicio_ayuno_fuerza',
+      'hidratacion_ushapan_avanzado',
       'hiperventilacion_matutina',
-      'jawzercise',
+      'lentes_rojos',
       'luz_roja_ojos',
+      'oil_pulling_oregano',
+      'omt_masticatorios',
       'protocolo_ayuno_sardinas',
       'tabla_co2',
       'tabla_o2',
