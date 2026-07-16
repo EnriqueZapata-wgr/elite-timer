@@ -34,7 +34,7 @@ const CODE = stripComments(RAW).toLowerCase();
 
 /** Tablas clínicas / sensibles que JAMÁS deben aparecer en el código del RPC. */
 const CLINICAL_TABLES = [
-  'functional_dx', 'user_interventions', 'clinical_symptoms', 'padecimientos',
+  'functional_dx', 'user_interventions', 'clinical_symptoms', 'clinical_symptoms_aislados', 'user_symptoms', 'padecimientos',
   'lab_values', 'user_supplements', 'supplement_logs', 'journal', 'braverman',
   'quiz', 'cycle', 'menstrual', 'mood', 'symptom', 'glucose', 'ketones',
 ];

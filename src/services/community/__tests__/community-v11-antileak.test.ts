@@ -47,7 +47,7 @@ function tablesAfterFromJoin(code: string): Set<string> {
 }
 
 const CLINICAL_TABLES = [
-  'functional_dx', 'user_interventions', 'clinical_symptoms', 'padecimientos',
+  'functional_dx', 'user_interventions', 'clinical_symptoms', 'clinical_symptoms_aislados', 'user_symptoms', 'padecimientos',
   'lab_values', 'user_supplements', 'supplement_logs', 'journal', 'braverman',
   'quiz', 'cycle', 'menstrual', 'mood', 'symptom', 'glucose', 'ketones',
 ];
