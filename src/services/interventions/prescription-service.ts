@@ -23,6 +23,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { getCurrentDX } from '@/src/services/dx/dx-service';
 import { getLatestCompleteBravermanResult } from '@/src/services/braverman-premium-service';
 import { loadCanonicalLabValues } from '@/src/services/edad-atp/lab-values-service';
+import { INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
 import { personalizeInterventions } from './personalize-interventions';
 import {
   deriveDxLevelsFromRoots, deriveBraverman, deriveLabs, deriveChronotype,
@@ -170,7 +171,6 @@ export async function getCurrentPrescription(userId: string): Promise<Prescribed
 function hydratePrescriptionRow(row: any): PrescribedIntervention | null {
   // El intervention completo se resuelve por key desde el catálogo (la fila solo
   // guarda la key — el catálogo es la fuente de verdad del contenido).
-  const { INTERVENTION_BY_KEY } = require('@/src/constants/interventions-catalog');
   const intervention = INTERVENTION_BY_KEY[row.intervention_key];
   if (!intervention) return null;
   return {

@@ -16,7 +16,14 @@ export type SystemName =
   | 'cardiovascular' | 'composicion_corporal' | 'mitocondrial';
 
 export interface DXLevel {
-  system: SystemName;
+  /**
+   * Sistema en el vocabulario REAL del catálogo ('metabolismo','estres','sueno',
+   * 'circadiano','digestion','inflamacion','cardiovascular','cognitivo','hormonal',
+   * 'energia','inmunologico','movimiento','composicion_corporal','mitocondrial').
+   * Es `string` (no SystemName) porque el catálogo — fuente de verdad de las reglas
+   * dx_level — usa un vocabulario más amplio/distinto que el SystemName aspiracional.
+   */
+  system: string;
   level: 1 | 2 | 3 | 4 | 5; // 1=roto · 5=optimizado
   computedAt: Date;
   confidence: 'low' | 'medium' | 'high';
