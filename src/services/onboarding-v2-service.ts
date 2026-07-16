@@ -77,20 +77,27 @@ export async function saveMedicalConsent(userId: string): Promise<boolean> {
 /** Guarda cronotipo + horarios recomendados en user_chronotype (mismo shape que v1). */
 export async function saveChronotype(userId: string, chrono: Chronotype): Promise<boolean> {
   const schedule = CHRONO_SCHEDULES[chrono];
+  // Mega-Sprint A B4.1 (BUG): antes escribía a columnas inexistentes `peak_physical`
+  // y `wind_down` → el upsert de onboarding fallaba silencioso. Nombres reales de la
+  // tabla: peak_physical_start/end, wind_down_time. + onConflict + updated_at (que
+  // el motor de prescripción lee para detectar cambios de fenotipo).
   const { error } = await supabase.from('user_chronotype').upsert({
     user_id: userId,
     chronotype: chrono,
     wake_time: schedule.wake,
     sleep_time: schedule.sleep,
-    peak_physical: schedule.peak_physical,
+    peak_physical_start: schedule.peak_physical,
     peak_focus_start: schedule.peak_focus_start,
     peak_focus_end: schedule.peak_focus_end,
-    wind_down: schedule.wind_down,
-  });
+    wind_down_time: schedule.wind_down,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
   if (error) {
     console.warn('[onboarding-v2] saveChronotype:', error.message);
     return false;
   }
+  // Propagación push: HOY/Agenda/YO refrescan sin depender solo del re-focus.
+  DeviceEventEmitter.emit('chronotype_changed');
   return true;
 }
 
