@@ -26,9 +26,8 @@ const HABIT_CARD_IMAGES: Record<string, any> = {
   suplementacion: require('@/assets/images/habits-portal/suplementacion.png'),
   ayuno: require('@/assets/images/habits-portal/ayuno.png'),
   sueno: require('@/assets/images/habits-portal/sueno.png'),
-  // Sprint MENTE Ecosystem: la card MENTE reusa la imagen de meditación
-  // hasta que Enrique genere el asset editorial del pilar (MJ pendiente).
-  mente: require('@/assets/images/electrons/meditacion.png'),
+  // Sprint 2 A: asset editorial dedicado del pilar (estaba en disco sin cablear).
+  mente: require('@/assets/images/health-hub/mente-avanzado.png'),
   hidratacion: require('@/assets/images/hoy-extra/agua.png'),
   atp_sol: require('@/assets/images/electrons/luz-solar.png'),
 };
