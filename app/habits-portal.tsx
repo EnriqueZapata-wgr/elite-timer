@@ -30,8 +30,11 @@ const HABIT_CARD_IMAGES: Record<string, any> = {
   sueno: require('@/assets/images/habits-portal/sueno.png'),
   // Sprint 2 A: asset editorial dedicado del pilar (estaba en disco sin cablear).
   mente: require('@/assets/images/health-hub/mente-avanzado.png'),
-  hidratacion: require('@/assets/images/hoy-extra/agua.png'),
-  atp_sol: require('@/assets/images/electrons/luz-solar.png'),
+  // Sprint 2 C: HIDRATACIÓN y ATP SOL compartían PNG con las cards del HOY
+  // (agua.png / luz-solar.png) — se ve repetitivo al alternar hubs. Variantes
+  // editoriales del pool de agenda hasta que exista asset dedicado (MJ).
+  hidratacion: require('@/assets/images/agenda/hidratacion/hidratacion-02.png'),
+  atp_sol: require('@/assets/images/agenda/sol-am/sol-am-02.png'),
 };
 
 const PILARES: Card[] = [
