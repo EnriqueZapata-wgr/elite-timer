@@ -5,17 +5,20 @@
  * El total acumulado determina el rango del usuario.
  */
 
+// Sprint 2 E: color por concepto desde la fuente única (audit §3 — un concepto = un color).
+import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
+
 // === PESOS POR FUENTE ===
 
 export const ELECTRON_WEIGHTS = {
   // Booleanos diarios (1/día)
   cold_shower:  { weight: 3.0, name: 'Baño frío',       icon: 'snow-outline',          color: '#38bdf8' },
   meditation:   { weight: 2.5, name: 'Meditación',      icon: 'flower-outline',        color: '#c084fc' },
-  strength:     { weight: 3.0, name: 'Fuerza',          icon: 'barbell-outline',       color: '#a8e02a' },
+  strength:     { weight: 3.0, name: 'Fuerza',          icon: 'barbell-outline',       color: CONCEPT_COLORS.fitness.color },
   no_alcohol:   { weight: 1.0, name: 'Sin alcohol',     icon: 'wine-outline',          color: '#f87171' },
-  sunlight:     { weight: 1.5, name: 'Luz solar',       icon: 'sunny-outline',         color: '#fbbf24' },
+  sunlight:     { weight: 1.5, name: 'Luz solar',       icon: 'sunny-outline',         color: CONCEPT_COLORS.sol.color },
   grounding:    { weight: 1.5, name: 'Grounding',       icon: 'leaf-outline',          color: '#34d399' },
-  supplements:  { weight: 1.0, name: 'Suplementos',     icon: 'medical-outline',       color: '#a8e02a' },
+  supplements:  { weight: 1.0, name: 'Suplementos',     icon: 'medical-outline',       color: CONCEPT_COLORS.suplementos.color },
   breathwork:   { weight: 1.0, name: 'Breathwork',      icon: 'cloud-outline',         color: '#60a5fa' },
   red_glasses:  { weight: 1.0, name: 'Lentes rojos',    icon: 'glasses-outline',       color: '#f87171' },
   period_log:   { weight: 1.0, name: 'Registrar ciclo', icon: 'calendar-outline',      color: '#fb7185' },
@@ -32,9 +35,9 @@ export const ELECTRON_WEIGHTS = {
   intervention:        { weight: 1.5, name: 'Intervención',             icon: 'medkit-outline',          color: '#1D9E75' },
 
   // Cuantitativos diarios (proporcional al %)
-  protein:      { weight: 2.0, name: 'Proteína',        icon: 'restaurant-outline',    color: '#a6c8ff' },
+  protein:      { weight: 2.0, name: 'Proteína',        icon: 'restaurant-outline',    color: CONCEPT_COLORS.nutricion.color },
   steps:        { weight: 3.0, name: 'Pasos',           icon: 'footsteps-outline',     color: '#ffc54c' },
-  water:        { weight: 1.5, name: 'Agua',            icon: 'water-outline',         color: '#60a5fa' },
+  water:        { weight: 1.5, name: 'Agua',            icon: 'water-outline',         color: CONCEPT_COLORS.agua.color },
   sleep:        { weight: 3.0, name: 'Sueño',           icon: 'moon-outline',          color: '#818cf8' },
 
   // Por evento

@@ -287,24 +287,29 @@ export default function DiagnosticoScreen() {
             )}
 
             {/* ── Timeline de versiones ── */}
+            {/* Sprint 2 B (regla Enrique "todo dentro de cards, no widgets"): las filas
+                flotaban sueltas sobre el fondo — ahora viven en card contenedora
+                ELEVATION[1], mismo patrón #67 que los sistemas de Historia Clínica. */}
             {history.length > 0 && (
               <Animated.View entering={FadeInUp.delay(240).springify()}>
                 <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>HISTORIAL DE VERSIONES</SectionTitle>
-                {history.map((h) => (
-                  <View key={h.id} style={styles.versionRow}>
-                    <View style={[styles.versionDot, h.is_current && styles.versionDotOn]} />
-                    <View style={{ flex: 1 }}>
-                      <EliteText style={styles.versionTitle}>
-                        v{h.version} · Nivel {h.quality_level}
-                        {h.is_current ? '  · vigente' : ''}
-                      </EliteText>
-                      <EliteText style={styles.versionMeta}>
-                        {new Date(h.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                        {h.generated_by === 'manual' ? ' · manual' : h.generated_by === 'argos_auto' ? ' · auto' : ''}
-                      </EliteText>
+                <View style={styles.versionsCard}>
+                  {history.map((h) => (
+                    <View key={h.id} style={styles.versionRow}>
+                      <View style={[styles.versionDot, h.is_current && styles.versionDotOn]} />
+                      <View style={{ flex: 1 }}>
+                        <EliteText style={styles.versionTitle}>
+                          v{h.version} · Nivel {h.quality_level}
+                          {h.is_current ? '  · vigente' : ''}
+                        </EliteText>
+                        <EliteText style={styles.versionMeta}>
+                          {new Date(h.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {h.generated_by === 'manual' ? ' · manual' : h.generated_by === 'argos_auto' ? ' · auto' : ''}
+                        </EliteText>
+                      </View>
                     </View>
-                  </View>
-                ))}
+                  ))}
+                </View>
               </Animated.View>
             )}
 
@@ -394,9 +399,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 4,
   },
   sourceChipText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  // Sprint 2 B: contenedora ELEVATION[1] (patrón #67 — nada flota sobre el fondo).
+  versionsCard: {
+    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+    borderRadius: Radius.md, paddingVertical: 4, paddingHorizontal: Spacing.md,
+  },
   versionRow: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingVertical: 8, paddingHorizontal: 4,
+    paddingVertical: 8,
   },
   versionDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#333' },
   versionDotOn: { backgroundColor: ATP_BRAND.lime },

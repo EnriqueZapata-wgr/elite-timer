@@ -57,7 +57,7 @@ export function MenteHubCard({ title, subtitle, icon, onPress, ctaLabel, onCta, 
           style={s.cta}
         >
           <EliteText style={s.ctaText}>{ctaLabel}</EliteText>
-          <Ionicons name="arrow-forward" size={14} color="#000" />
+          <Ionicons name="arrow-forward" size={14} color={TEXT.primary} />
         </AnimatedPressable>
       )}
     </View>
@@ -107,11 +107,15 @@ const s = StyleSheet.create({
     paddingVertical: 4,
   },
   badgeText: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, color: ATP_BRAND.lime },
+  // Sprint 2 D: CTA al patrón pill de EditorialCard (Nutrición/Fitness) — antes
+  // era un bloque lima full-width por card (3 bloques lima en una pantalla viola
+  // la disciplina de acento del DS §1; el lima queda solo en badge/datos vivos).
   cta: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md, paddingVertical: 6,
   },
-  ctaText: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: '#000', letterSpacing: 1 },
+  ctaText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
 });
 
 export default MenteHubCard;

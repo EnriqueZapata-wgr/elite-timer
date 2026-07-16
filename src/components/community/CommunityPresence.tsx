@@ -38,6 +38,11 @@ export function CommunityPresence({ pillar }: Props) {
     return () => { alive = false; };
   }, [pillar]);
 
+  // Sprint 2 D: bajo el umbral honesto NO se muestra nada — el placeholder
+  // "En comunidad · verifica pronto" leía como copy roto en device. La regla
+  // honesta se mantiene: el badge aparece solo con conteo real (≥ umbral).
+  if (display.mode === 'placeholder') return null;
+
   const tint = PILLAR_TINT[pillar];
 
   return (
