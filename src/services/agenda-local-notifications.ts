@@ -14,6 +14,8 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAgendaForDate } from '@/src/services/agenda-service';
+import { getNotificationPrefs } from '@/src/services/notification-prefs-service';
+import { shouldNotify } from '@/src/services/notification-prefs-core';
 import { warn as logWarn } from '@/src/lib/logger';
 
 /** Mapa {logId → notificationIdentifier} de las notifs de agenda ya programadas. */
@@ -45,7 +47,12 @@ export async function syncAgendaLocalNotifications(userId: string, date?: string
     }
 
     // 2) Re-agendar lo vigente: pendientes con recordatorio > 0 y hora futura.
-    const events = await getAgendaForDate(userId, date);
+    // Respeta prefs del canal agenda (quiet hours / silent / toggle) evaluadas a
+    // la hora de DISPARO — misma decisión pura que usa el push server.
+    const [events, prefs] = await Promise.all([
+      getAgendaForDate(userId, date),
+      getNotificationPrefs(userId),
+    ]);
     const next: Record<string, string> = {};
     const now = Date.now();
     for (const ev of events) {
@@ -53,6 +60,8 @@ export async function syncAgendaLocalNotifications(userId: string, date?: string
       if (!ev.notifyMinutesBefore || ev.notifyMinutesBefore <= 0) continue;
       const fireAt = new Date(new Date(ev.scheduledAt).getTime() - ev.notifyMinutesBefore * 60000);
       if (fireAt.getTime() <= now) continue;
+      const fireMinutes = fireAt.getHours() * 60 + fireAt.getMinutes();
+      if (!shouldNotify(prefs, 'agenda', fireMinutes)) continue;
       const identifier = await Notifications.scheduleNotificationAsync({
         content: {
           title: `ATP — ${ev.name}`,

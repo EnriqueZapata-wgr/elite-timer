@@ -74,6 +74,9 @@ import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
 // DX F4 (swap): items de intervención en la agenda de HOY → logCompletion (no daily_plans).
 import { INTERVENTION_ITEM_PREFIX } from '@/src/services/interventions/intervention-agenda-core';
 import { logCompletion } from '@/src/services/interventions/intervention-service';
+// F1 Batch 4 (#30): writer único HOY↔AGENDA + cancel de recordatorio local al completar.
+import { markAgendaLogCompleted } from '@/src/services/agenda-service';
+import { syncAgendaLocalNotifications } from '@/src/services/agenda-local-notifications';
 
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
@@ -699,6 +702,11 @@ export default function TodayScreen() {
       });
       try {
         await logCompletion(user.id, itemId.slice(INTERVENTION_ITEM_PREFIX.length));
+        // F1 Batch 4 (#30): writer ÚNICO — la instancia de AGENDA del mismo
+        // concepto también se marca completed (HOY y AGENDA, un solo estado).
+        await markAgendaLogCompleted(user.id, { name: item.name });
+        // F4: hecho ⇒ sin recordatorio — re-sync cancela la notif local del ítem.
+        syncAgendaLocalNotifications(user.id).catch(() => {});
       } catch (e) {
         logWarn('[HOY] Error completing intervention:', e);
       }
@@ -715,6 +723,14 @@ export default function TodayScreen() {
         ),
       };
     });
+
+    // F1 Batch 4 (#30): si el toggle marca HECHO, converger la instancia de
+    // AGENDA del mismo concepto (writer único) y cancelar su recordatorio local.
+    const toggledItem = day.agendaItems.find(i => i.id === itemId);
+    if (toggledItem && !toggledItem.completed) {
+      markAgendaLogCompleted(user.id, { name: toggledItem.name }).catch(() => {});
+      syncAgendaLocalNotifications(user.id).catch(() => {});
+    }
 
     // Persist en daily_plans
     try {

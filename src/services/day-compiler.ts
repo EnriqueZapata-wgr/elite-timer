@@ -18,6 +18,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import { selectAgendaDrivers, anchorTimes, interventionAgendaItems } from '@/src/services/interventions/intervention-agenda-core';
 import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
+import { buildDoneIndex, applyDoneFromLogs } from '@/src/services/hoy/day-state-core';
 
 /**
  * Electrones cuya `completed` se deriva de actividad real (no del blob).
@@ -769,6 +770,25 @@ async function buildAgenda(
   // === DEDUPLICATE + SORT + MARK NEXT ===
   const seen = new Set<string>();
   const deduped = items.filter(i => { const k = `${i.time}-${i.name}`.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+
+  // F1 Batch 4 (#30) — UN estado del día: merge del status de agenda_event_logs
+  // (la instancia canónica que escribe AGENDA) sobre los items derivados aquí.
+  // OR determinístico vía day-state-core: hecho en AGENDA ⇒ tachado en HOY.
+  // Nunca des-marca (una compleción real no se pierde por un log pending).
+  try {
+    const { data: logRows } = await supabase
+      .from('agenda_event_logs')
+      .select('status, agenda_events(name, intervention_key)')
+      .eq('user_id', userId).eq('date', today);
+    const idx = buildDoneIndex(((logRows ?? []) as any[])
+      .filter((l) => l.agenda_events)
+      .map((l) => ({
+        name: l.agenda_events.name as string,
+        interventionKey: l.agenda_events.intervention_key ?? null,
+        status: l.status as string,
+      })));
+    applyDoneFromLogs(deduped, idx);
+  } catch { /* fail-soft: sin logs la agenda sigue con las fuentes locales */ }
 
   deduped.sort((a, b) => parseMinutes(a.time) - parseMinutes(b.time));
 

@@ -138,7 +138,10 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
       // HOTFIX 1.5: decisión pura (planChronotypeReconcile) — distingue removal
       // del USER (disabled_protocol_events) de desactivación de MÁQUINA
       // (cleanup por familia): la segunda revive con la hora validada.
-      const reconcileChrono = async (name: string, time: string, category: string) => {
+      // Batch 4 (#28/#30): notify por evento — 'Dormir' avisa 15 min antes
+      // (recordatorio útil); 'Despertar' queda en 0 (avisar antes de despertar
+      // despertaría al user — absurdo).
+      const reconcileChrono = async (name: string, time: string, category: string, notify = 0) => {
         const fam = canonicalConcept(name);
         const mine = ((existing ?? []) as any[])
           .filter((r) => r.source === 'chronotype' && canonicalConcept(r.name) === fam)
@@ -148,7 +151,7 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
           }));
         const action = planChronotypeReconcile(mine, name, time, disabled, drivers.interventions);
         if (action.insert) {
-          pushEvent(name, time, category, 'chronotype');
+          pushEvent(name, time, category, 'chronotype', null, notify);
           return;
         }
         if (action.updateId) {
@@ -168,7 +171,7 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
         }
       };
       await reconcileChrono('Despertar', sched.wake_time, 'ritmo');
-      await reconcileChrono('Dormir', sched.sleep_time, 'sueño');
+      await reconcileChrono('Dormir', sched.sleep_time, 'sueño', 15);
     } catch (e) { logWarn('[agenda] chronotype gen failed', e); }
 
     // Protocolo → acciones del plan del día (con hora). DX F4: solo con flag OFF.
@@ -502,6 +505,33 @@ export async function setEventStatus(userId: string, logId: string, status: Agen
   const patch: any = { status };
   if (status === 'completed') patch.completed_at = new Date().toISOString();
   await supabase.from('agenda_event_logs').update(patch).eq('id', logId).eq('user_id', userId);
+}
+
+/**
+ * F1 Batch 4 (#30) — writer ÚNICO de compleción: al hacer una acción en HOY,
+ * marca `completed` la instancia del día cuyo evento corresponde (por
+ * intervention_key o por concepto canónico del nombre). Así HOY y AGENDA
+ * convergen en el MISMO `agenda_event_logs.status` — sin drift. Idempotente:
+ * solo toca instancias pending/snoozed; fail-soft (nunca lanza).
+ */
+export async function markAgendaLogCompleted(
+  userId: string,
+  match: { interventionKey?: string | null; name?: string | null },
+  date?: string,
+): Promise<void> {
+  try {
+    const instances = await getAgendaForDate(userId, date);
+    const concept = match.name ? canonicalConcept(match.name) : null;
+    const target = instances.find((i) =>
+      (i.status === 'pending' || i.status === 'snoozed') &&
+      ((!!match.interventionKey && i.interventionKey === match.interventionKey) ||
+        (!!concept && canonicalConcept(i.name) === concept)),
+    );
+    if (!target) return;
+    await setEventStatus(userId, target.id, 'completed');
+  } catch (e) {
+    logWarn('[agenda] markAgendaLogCompleted failed', e);
+  }
 }
 
 // ═══ SYNC HOY ↔ AGENDA (AGENDA-COMPLETE F1) ═══
