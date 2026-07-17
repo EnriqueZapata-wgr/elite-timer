@@ -33,7 +33,10 @@ import { phaseIndexAt } from '@/src/services/meditation-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
-import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { MenteHero } from '@/src/components/mente/MenteHero';
+
+// #138: hero editorial del pilar (require estático · Metro). Reusa mente.jpg.
+const HERO_MENTE = require('@/assets/images/intervenciones/mente.jpg');
 
 const PURPLE = CATEGORY_COLORS.mind;
 
@@ -91,13 +94,16 @@ function LibraryScreen({ onSelect, onBack }: {
   }, []);
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <PillarHeader pillar="mind" title="Meditación" />
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <MenteHero
+        image={HERO_MENTE}
+        kicker="PILAR MENTE"
+        title="Meditación"
+        subtitle={`${MEDITATION_LIBRARY.length} sesiones guiadas`}
+        onBack={onBack}
+      />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.libContent}>
-        <EliteText variant="caption" style={styles.libSubtitle}>
-          {MEDITATION_LIBRARY.length} sesiones guiadas
-        </EliteText>
 
         {grouped.map(group => (
           <View key={group.type} style={styles.libGroup}>

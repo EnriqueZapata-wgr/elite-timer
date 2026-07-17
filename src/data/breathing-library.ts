@@ -41,7 +41,7 @@ export const BREATHING_LIBRARY: BreathingTemplate[] = [
   {
     id: 'box-4',
     title: 'Box Breathing',
-    description: 'Calma y enfoque. Usado por Navy SEALs.',
+    description: 'Calma y enfoque. El ritmo cuadrado ancla el sistema nervioso.',
     durationMinutes: 5,
     cycles: 18,
     phases: [
@@ -132,7 +132,7 @@ export const BREATHING_LIBRARY: BreathingTemplate[] = [
   {
     id: 'physiological-sigh',
     title: 'Suspiro fisiológico',
-    description: 'El reset más rápido del estrés. Respaldado por Stanford.',
+    description: 'El reset más rápido del estrés. Un doble inhalo reexpande los alvéolos y descarga CO₂.',
     durationMinutes: 3,
     cycles: 12,
     phases: [

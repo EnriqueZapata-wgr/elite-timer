@@ -109,7 +109,7 @@ function renderBreathing(a: ActionData) {
         {pattern.hold2 > 0 && <BreathStep label="Retén" seconds={pattern.hold2} color="#7F77DD" icon="pause-outline" />}
       </View>
       <EliteText style={s.breathReps}>~{cycles} ciclos · {a.duration_min || 5} min</EliteText>
-      <Tip text={is478 ? 'El exhalo largo activa el nervio vago → relajación profunda.' : 'Usado por Navy SEALs. Baja cortisol en minutos.'} />
+      <Tip text={is478 ? 'El exhalo largo activa el nervio vago → relajación profunda.' : 'Baja cortisol en minutos. El exhalo largo activa el nervio vago.'} />
     </View>
   );
 }
