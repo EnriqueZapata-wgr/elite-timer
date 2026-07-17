@@ -6,6 +6,15 @@
  * - Compresión PNG: palette quantization + compression level 9 (lossy controlado).
  * - Sobreescribe in-place.
  *
+ * FOTO → JPEG (Mega-Sprint C, lección #132): las imágenes FOTOGRÁFICAS (mucho
+ * detalle, degradados) comprimen PÉSIMO como PNG-palette (256 colores + dithering
+ * = alta entropía → 5-10MB). El síntoma: 20 MJ en PNG pesaban 117MB y el script
+ * "no ganaba"; en JPEG q85 bajaron a 7.2MB (94% menos) sin pérdida visible.
+ * Ahora, para un `.png` que sea (a) de una carpeta declarada FOTOGRÁFICA, o
+ * (b) donde el palette-PNG no gana >30%, el script GENERA un `.jpg` hermano q85 y
+ * AVISA al dev que recablee el `require()` a `.jpg` y borre el `.png`. NO auto-
+ * renombra (rompería los `require('.png')` del código) ni borra el original.
+ *
  * Uso: npm run optimize-images
  *
  * Para WebP en futuro: cambiar .png({...}) por .webp({ quality: 80, effort: 6 })
@@ -20,7 +29,21 @@ const glob = require('glob');
 const TARGET_DIR = 'assets/images';
 const MAX_WIDTH = 2048;       // resize si dimensión > esto
 const PNG_QUALITY = 85;       // 0-100 (sharp PNG palette quality)
+const JPEG_QUALITY = 85;      // q85 = sweet spot foto (94% menos que PNG-palette)
 const SKIP_IF_SMALLER_KB = 200; // skip si ya está bajo este tamaño
+const PNG_MIN_GAIN_PCT = 30;  // si el palette-PNG no gana esto → probar JPEG (foto)
+
+// Carpetas cuyas PNG son FOTOGRÁFICAS (MJ, degradados) → siempre proponer JPEG.
+// Añade aquí cualquier carpeta de imágenes generadas/fotográficas nuevas.
+const PHOTO_FOLDERS = [
+  'intervenciones', 'hoy-extra/tu-dia', 'salud-funcional', 'agenda', 'backgrounds',
+];
+
+/** ¿El archivo vive en una carpeta declarada fotográfica? */
+function isPhotoFolder(file) {
+  const norm = file.replace(/\\/g, '/');
+  return PHOTO_FOLDERS.some((f) => norm.includes(`/${f}/`) || norm.includes(`${TARGET_DIR}/${f}/`));
+}
 
 // ───────────────────────────────────────────────────────────────────
 
@@ -61,9 +84,31 @@ async function optimizeOne(file) {
     buffer = await pipeline
       .png({ quality: PNG_QUALITY, palette: true, compressionLevel: 9, effort: 10 })
       .toBuffer();
+
+    // FOTO → JPEG: si es carpeta fotográfica o el PNG no ganó lo suficiente,
+    // proponer un `.jpg` hermano (no renombramos: rompería los require('.png')).
+    const pngGainPct = ((origBytes - buffer.length) / origBytes) * 100;
+    if (isPhotoFolder(file) || pngGainPct < PNG_MIN_GAIN_PCT) {
+      const jpgBuffer = await sharp(file)
+        .resize(metadata.width > MAX_WIDTH ? { width: MAX_WIDTH, withoutEnlargement: true } : undefined)
+        .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
+        .toBuffer();
+      // Solo si el JPEG mejora claramente contra el mejor PNG posible.
+      if (jpgBuffer.length < buffer.length * 0.7) {
+        const jpgPath = file.replace(/\.png$/i, '.jpg');
+        if (!fs.existsSync(jpgPath)) fs.writeFileSync(jpgPath, jpgBuffer);
+        console.log(
+          `${YELLOW}⚑ FOTO→JPEG${RESET} ${file}  PNG ${fmtKB(buffer.length)}KB → JPEG ${fmtKB(jpgBuffer.length)}KB\n` +
+          `   ${DIM}Generé ${path.basename(jpgPath)}. Recablea el require() a '.jpg' y borra el '.png'.${RESET}`,
+        );
+        // Optimizamos el PNG in-place igual (por si el dev aún no recablea).
+        if (buffer.length < origBytes) fs.writeFileSync(file, buffer);
+        return { saved: origBytes - jpgBuffer.length, skipped: false, jpegProposed: true };
+      }
+    }
   } else if (ext === '.jpg' || ext === '.jpeg') {
     buffer = await pipeline
-      .jpeg({ quality: 85, mozjpeg: true })
+      .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
       .toBuffer();
   } else {
     console.log(`${YELLOW}⚠ unsupported${RESET} ${file}`);

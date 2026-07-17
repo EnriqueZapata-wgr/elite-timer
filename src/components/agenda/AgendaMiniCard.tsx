@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { pickAgendaImage } from '@/src/utils/agenda-image-picker';
+import { pickInterventionImage } from '@/src/utils/intervention-image-picker';
 import { agendaCategoryToFolder } from '@/src/utils/image-pick-core';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, TEXT } from '@/src/constants/brand';
@@ -60,7 +61,12 @@ interface Props {
 
 export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
   const folder = agendaCategoryToFolder(event.category, event.name);
-  const image: ImageSourcePropType | undefined = pickAgendaImage(folder, `${seedKey ?? ''}-${event.eventId}`);
+  // Mega-Sprint C (#132): si el evento viene de una intervención, intenta primero
+  // su imagen de concepto visual dedicada (grounding/frío/sauna/oral/...); si no
+  // matchea, cae limpio al sistema de carpetas por categoría (cero pantalla rota).
+  const image: ImageSourcePropType | undefined =
+    pickInterventionImage(event.interventionKey)
+    ?? pickAgendaImage(folder, `${seedKey ?? ''}-${event.eventId}`);
   const done = event.status === 'completed';
   const skipped = event.status === 'skipped';
   const snoozed = event.status === 'snoozed';

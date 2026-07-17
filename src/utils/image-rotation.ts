@@ -63,27 +63,33 @@ export function pickHabitImage(habitKey: string, seedKey?: string): ImageSourceP
  */
 const TU_DIA_IMAGES: Record<string, ImageSourcePropType[]> = {
   // 5–12h — usa amanecer-XX (no las despertar-XX de agenda/, que son para HeroAgendaCard)
+  // Mega-Sprint C (#132): -03/-04 son upgrades MJ estilo OURA (JPEG q85). Mezclar
+  // .png + .jpg en el mismo array es válido (Metro lo soporta).
   despertar: [
     require('@/assets/images/hoy-extra/tu-dia/amanecer-01.png'),
     require('@/assets/images/hoy-extra/tu-dia/amanecer-02.png'),
+    require('@/assets/images/hoy-extra/tu-dia/amanecer-03.jpg'),
   ],
   // 12–18h
   'medio-dia': [
     require('@/assets/images/hoy-extra/tu-dia/medio-dia-01.png'),
     require('@/assets/images/hoy-extra/tu-dia/medio-dia-02.png'),
     require('@/assets/images/hoy-extra/tu-dia/medio-dia-03.png'),
+    require('@/assets/images/hoy-extra/tu-dia/medio-dia-04.jpg'),
   ],
   // 18–22h
   atardecer: [
     require('@/assets/images/hoy-extra/tu-dia/atardecer-01.png'),
     require('@/assets/images/hoy-extra/tu-dia/atardecer-02.png'),
     require('@/assets/images/hoy-extra/tu-dia/atardecer-03.png'),
+    require('@/assets/images/hoy-extra/tu-dia/atardecer-04.jpg'),
   ],
   // 22–5h
   noche: [
     require('@/assets/images/hoy-extra/tu-dia/noche-01.png'),
     require('@/assets/images/hoy-extra/tu-dia/noche-02.png'),
     require('@/assets/images/hoy-extra/tu-dia/noche-03.png'),
+    require('@/assets/images/hoy-extra/tu-dia/noche-04.jpg'),
   ],
 };
 
