@@ -99,12 +99,13 @@ export default function SettingsSaludScreen() {
 
         <Animated.View entering={FadeInUp.delay(220).springify()}>
           <SectionLabel>EXPEDIENTE</SectionLabel>
+          {/* Mega-Sprint B B6: /clinical-system absorbida por Salud Funcional. */}
           <SettingRow
             icon="medkit-outline"
             iconColor={CATEGORY_COLORS.metrics}
-            label="Historia clínica"
-            sub="Tu expediente de salud funcional"
-            onPress={() => { haptic.medium(); router.push('/clinical-system' as any); }}
+            label="Salud Funcional"
+            sub="Diagnóstico, datos, síntomas y expediente"
+            onPress={() => { haptic.medium(); router.push('/health-hub' as any); }}
           />
         </Animated.View>
 

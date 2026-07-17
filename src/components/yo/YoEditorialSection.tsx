@@ -9,7 +9,7 @@
  */
 import { useRouter } from 'expo-router';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
-import { pickEdadAtpImage, pickComposicionImage, pickCronotipoImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
+import { pickCronotipoImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 
 /** Emoji + nombre/desc por cronotipo (EditorialCard renderiza el icono como texto → emoji, no Ionicons). */
@@ -27,44 +27,30 @@ interface CompositionLike {
 }
 
 interface Props {
+  // Mega-Sprint B B6: sex/edadResult/composition ya no se usan aquí (las cards de
+  // salud se movieron al pilar Salud Funcional). Se mantienen en el contrato para
+  // no romper el call site de yo.tsx; quedan aceptados e ignorados.
   sex?: string | null;
   chronotype?: string | null;
-  edadResult: EdadAtpV2Result | null;
+  edadResult?: EdadAtpV2Result | null;
   composition?: CompositionLike | null;
   /** Momentum semanal 0-100 (dailyScore.overall). */
   momentum: number;
 }
 
-export function YoEditorialSection({ sex, chronotype, edadResult, composition, momentum }: Props) {
+export function YoEditorialSection({ chronotype, momentum }: Props) {
   const router = useRouter();
   const go = (route: string) => router.push(route as any);
   const chrono = chronotype ? CHRONO_META[chronotype] : null;
 
   return (
     <>
-      {/* HERO — EDAD ATP */}
-      <EditorialCard
-        cardKey="yo_edad_atp" size="hero" icon="🎯" title="EDAD ATP"
-        subtitle={edadResult ? `${edadResult.edad_integral.toFixed(1)} · cronológica ${edadResult.chronological_age}` : 'Calcula tu Edad ATP'}
-        message={edadResult ? `Diferencia: ${edadResult.delta_anos > 0 ? '+' : ''}${edadResult.delta_anos.toFixed(1)} años` : 'Empieza tu evaluación'}
-        gradient={['#A8E02A', '#1ABC9C']}
-        imageBn={pickEdadAtpImage(sex)}
-        onTap={() => go('/edad-atp')}
-      />
+      {/* Mega-Sprint B B6: EDAD ATP + COMPOSICIÓN + LAB + TESTS FUNCIONALES se
+          quitaron de YO — duplicaban el dominio salud (ahora en el pilar SALUD
+          FUNCIONAL: Mi Diagnóstico / Mis Datos / Mis Evaluaciones). Tab YO ya no
+          es puerta paralela al dominio salud (doctrina un dato = un lugar). */}
 
-      {/* HERO — COMPOSICIÓN CORPORAL */}
-      <EditorialCard
-        cardKey="yo_composicion" size="hero" icon="💪" title="COMPOSICIÓN CORPORAL"
-        subtitle={composition?.body_fat_pct != null
-          ? `${composition.body_fat_pct}% grasa${composition.muscle_mass_pct != null ? ` · ${composition.muscle_mass_pct}% magra` : ''}`
-          : 'Sin datos · agrega tu composición'}
-        message={composition?.visceral_fat != null ? `Grasa visceral: ${composition.visceral_fat}` : undefined}
-        gradient={['#FF8C00', '#C0392B']}
-        imageBn={pickComposicionImage(sex)}
-        onTap={() => go('/my-health')}
-      />
-
-      {/* CRONOTIPO (dinámico) */}
+      {/* CRONOTIPO (dinámico · identidad del user, no dato de salud duplicado) */}
       <EditorialCard
         cardKey="yo_cronotipo" icon={chrono?.emoji ?? '🌙'}
         title={chrono ? `CRONOTIPO ${chrono.name.toUpperCase()}` : 'CRONOTIPO'}
@@ -86,15 +72,6 @@ export function YoEditorialSection({ sex, chronotype, edadResult, composition, m
         onTap={() => go('/reports')}
       />
 
-      {/* LAB MÁS RECIENTE — lastLab aún no disponible → CTA de setup */}
-      <EditorialCard
-        cardKey="yo_lab" icon="🩸" title="LAB MÁS RECIENTE"
-        subtitle="Sube tus primeros labs" message="PDF, foto o manual"
-        gradient={['#3498DB', '#9B59B6']}
-        imageBn={YO_STATIC_IMAGES.lab}
-        onTap={() => go('/my-health')}
-      />
-
       {/* TENDENCIAS DEL MES — monthTrend aún no disponible */}
       <EditorialCard
         cardKey="yo_tendencias" icon="📈" title="TENDENCIAS DEL MES"
@@ -111,15 +88,6 @@ export function YoEditorialSection({ sex, chronotype, edadResult, composition, m
         gradient={['#FFD700', '#8B4513']}
         imageBn={YO_STATIC_IMAGES.rank}
         onTap={() => go('/reports')}
-      />
-
-      {/* TESTS FUNCIONALES → hub /quizzes */}
-      <EditorialCard
-        cardKey="yo_tests" icon="🧠" title="TESTS FUNCIONALES"
-        subtitle="Braverman + 5 quizzes" message="Personaliza ATP a tu fisiología"
-        gradient={['#E74C3C', '#FFA500']}
-        imageBn={YO_STATIC_IMAGES.test}
-        onTap={() => go('/quizzes')}
       />
 
       {/* VER REPORTES */}

@@ -24,6 +24,7 @@ import {
   HC_AREA_IDS,
 } from '@/src/constants/historia-clinica-questionnaires';
 import { computeDxQuality, type DxSourcePresence } from './dx-quality-core';
+import { dxSystemSymptoms, dxAisladoSymptoms } from '@/src/services/salud/user-symptoms-core';
 import {
   deriveSourcePresence,
   parseArgosDxResponse,
@@ -99,34 +100,29 @@ async function harvestSources(userId: string): Promise<HarvestedSources> {
     ctx.historiaClinica = null;
   }
 
-  // 2. Síntomas clínicos (por sistema)
+  // 2+3. Síntomas — Mega-Sprint B B3: fuente unificada `user_symptoms` (migración
+  // 202). Reconstruye los MISMOS dos conjuntos que antes venían de dos tablas,
+  // para que el DX calcule IGUAL: por-sistema activos (peso medio) + aislados
+  // recientes (peso bajo). snapshot.sintomas / sintomas_aislados siguen separados.
   let symptomsCount = 0;
   try {
     const { data } = await supabase
-      .from('clinical_symptoms')
-      .select('name, system_key, severity, status, updated_at')
-      .eq('user_id', userId)
-      .eq('status', 'active');
-    const rows = (data as any[]) ?? [];
-    ctx.clinicalSymptoms = rows.map((r) => ({ name: r.name, system_key: r.system_key, severity: r.severity, status: r.status }));
-    for (const r of rows) timestamps.push(r.updated_at);
-    symptomsCount += rows.length;
-    snapshot.sintomas = { count: rows.length };
-  } catch { /* fail-soft */ }
-
-  // 3. Síntomas aislados (quick-tap)
-  try {
-    const { data } = await supabase
-      .from('clinical_symptoms_aislados')
-      .select('tag, severity, logged_at')
-      .eq('user_id', userId)
-      .order('logged_at', { ascending: false })
-      .limit(50);
-    const rows = (data as any[]) ?? [];
-    ctx.symptomsAislados = rows.map((r) => ({ tag: r.tag, severity: r.severity }));
-    for (const r of rows) timestamps.push(r.logged_at);
-    symptomsCount += rows.length;
-    snapshot.sintomas_aislados = { count: rows.length };
+      .from('user_symptoms')
+      .select('name, system_key, severity, is_active, source_kind, started_at, updated_at')
+      .eq('user_id', userId);
+    const all = ((data as any[]) ?? []).map((r) => ({
+      name: r.name, system_key: r.system_key, severity: r.severity,
+      is_active: r.is_active, source_kind: r.source_kind,
+      started_at: r.started_at, updated_at: r.updated_at,
+    }));
+    const systemActive = dxSystemSymptoms(all as any);
+    const aislados = dxAisladoSymptoms(all as any, 50);
+    ctx.clinicalSymptoms = systemActive.map((s) => ({ name: s.name, system_key: s.system_key, severity: s.severity, status: 'active' }));
+    ctx.symptomsAislados = aislados.map((s) => ({ tag: s.tag, severity: s.severity }));
+    for (const r of all) timestamps.push(r.updated_at ?? r.started_at);
+    symptomsCount += systemActive.length + aislados.length;
+    snapshot.sintomas = { count: systemActive.length };
+    snapshot.sintomas_aislados = { count: aislados.length };
   } catch { /* fail-soft */ }
 
   // 4. Padecimientos (+ conteo de episodios)
