@@ -28,6 +28,7 @@ import {
 } from '@/src/services/agenda-service';
 import { completeInterventionByKey } from '@/src/services/interventions/intervention-service';
 import { hasNotificationPermission, registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
+import { syncAgendaLocalNotifications } from '@/src/services/agenda-local-notifications';
 
 function formatToday(): string {
   const d = new Date(getLocalToday() + 'T12:00:00');
@@ -76,6 +77,9 @@ export default function AgendaScreen() {
     setEvents(list);
     setRestrictions(restr);
     setLoading(false);
+    // #28: (re)programar notificaciones LOCALES de los eventos con recordatorio.
+    // Fire-and-forget e idempotente — el push server queda como refuerzo.
+    syncAgendaLocalNotifications(userId, getLocalToday()).catch(() => {});
   }, [userId]);
 
   useFocusEffect(useCallback(() => {

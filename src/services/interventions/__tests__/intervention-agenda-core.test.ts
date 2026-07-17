@@ -389,6 +389,33 @@ describe('planInterventionEventSync', () => {
     expect(plan.reactivations).toHaveLength(0);
     expect(plan.inserts).toHaveLength(0);
   });
+
+  it('#29: evento MANUAL activo del mismo concepto (familia) → 0 inserts del motor, manual intacto', () => {
+    const existing = [evRow({
+      id: 'ev-manual', name: 'Caminar descalzo', time: '08:00', source: 'manual', intervention_key: null,
+    })];
+    const plan = planInterventionEventSync(
+      existing,
+      desired.filter(d => d.intervention_key === 'grounding'),
+      new Set(),
+    );
+    expect(plan.inserts).toHaveLength(0);
+    expect(plan.deactivateIds).toHaveLength(0); // el manual jamás se toca
+  });
+
+  it('#29: fila del motor YA insertada + manual activo del mismo concepto → se desactiva la del motor', () => {
+    const g = desired.find(d => d.intervention_key === 'grounding')!;
+    const existing = [
+      evRow({ id: 'ev-manual', name: 'Caminar descalzo', time: '08:00', source: 'manual', intervention_key: null }),
+      evRow({ id: 'ev-motor', name: g.name, time: g.time, intervention_key: 'grounding' }),
+    ];
+    const plan = planInterventionEventSync(existing, desired, new Set());
+    // muere el duplicado del MOTOR, se conserva el del user (dato user sagrado)
+    expect(plan.deactivateIds).toEqual(['ev-motor']);
+    expect(plan.inserts.map(i => i.intervention_key)).not.toContain('grounding');
+    // el resto del protocolo (dormir) no se ve afectado
+    expect(plan.inserts.map(i => i.intervention_key)).toContain('recordatorio_dormir');
+  });
 });
 
 // ── A.2 megahotfix 3ra pasada: calibración de tiempos ────────────────────────

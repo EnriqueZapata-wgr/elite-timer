@@ -3,7 +3,7 @@
  * 3 pasos: cuadrante → emociones (con descripciones) → contexto.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking, BackHandler } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -56,11 +56,48 @@ export default function CheckinScreen() {
   const [showTribeBridge, setShowTribeBridge] = useState(false);
   const dailyPrompt = promptForDate(getLocalToday());
 
+  // #21: racha viva visible AL ENTRAR (no solo tras guardar). Mismo query que handleSave (DRY).
+  const loadCheckinStreak = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: rows } = await supabase
+        .from('emotional_checkins')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(400);
+      const dates = (rows ?? []).map((r: any) => toLocalDateString(new Date(r.created_at)));
+      setCheckinStreak(computeJournalStreak(dates));
+    } catch { /* streak es decorativo */ }
+  };
+
   useEffect(() => {
     getTodayCheckins().then(setRecent).catch(() => {});
     // 21 días: ventana del trigger de la Tribu (el historial visible solo usa 10).
     getRecentCheckins(BRIDGE_WINDOW_DAYS).then(setPastCheckins).catch(() => {});
+    loadCheckinStreak();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // #20: back consciente del paso — en pasos intermedios regresa al paso anterior,
+  // nunca saca de la app. En paso 1 (o done) sale de la pantalla.
+  const handleBack = () => {
+    if (step > 1 && step < 4) setStep(step - 1);
+    else router.back();
+  };
+
+  // #20: hardware back de Android — consumir el evento en pasos intermedios.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (step > 1 && step < 4) {
+        setStep(step - 1);
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [step]);
 
   const qd = quadrant ? QUADRANTS[quadrant] : null;
   const qColor = qd?.color ?? TEXT_COLORS.secondary;
@@ -139,17 +176,8 @@ export default function CheckinScreen() {
             if (jErr) logWarn('[checkin] journal bridge failed', jErr.message);
           }
 
-          // T4 MENTE: streak de check-ins (días consecutivos, ancla hoy/ayer)
-          try {
-            const { data: rows } = await supabase
-              .from('emotional_checkins')
-              .select('created_at')
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false })
-              .limit(400);
-            const dates = (rows ?? []).map((r: any) => toLocalDateString(new Date(r.created_at)));
-            setCheckinStreak(computeJournalStreak(dates));
-          } catch { /* streak es decorativo */ }
+          // T4 MENTE: streak de check-ins (días consecutivos, ancla hoy/ayer) — #21: helper DRY.
+          await loadCheckinStreak();
         }
       } catch (e) { logWarn('[checkin] award electron failed', e); }
 
@@ -199,7 +227,7 @@ export default function CheckinScreen() {
 
   return (
     <Screen>
-      <PillarHeader pillar="mind" title="Check-in" />
+      <PillarHeader pillar="mind" title="Check-in" onBack={handleBack} />
 
       {/* Dots */}
       <View style={styles.dots}>
@@ -213,6 +241,13 @@ export default function CheckinScreen() {
         <Animated.View entering={FadeIn.duration(200)} style={styles.stepFlex}>
           <EliteText style={styles.mainTitle}>¿Cómo te sientes?</EliteText>
           <EliteText variant="caption" style={styles.mainSub}>Toca la zona que mejor describe tu estado</EliteText>
+
+          {/* #21: racha viva visible al entrar (antes solo aparecía tras guardar) */}
+          {checkinStreak > 1 && (
+            <EliteText variant="caption" style={styles.streakBadge}>
+              🔥 {checkinStreak} días seguidos escuchándote
+            </EliteText>
+          )}
 
           <View style={styles.mapGrid}>
             {(['high_pleasant', 'high_unpleasant', 'low_pleasant', 'low_unpleasant'] as QuadrantKey[]).map((q, i) => {
@@ -471,6 +506,8 @@ const styles = StyleSheet.create({
   stepFlex: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
   mainTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: Colors.textPrimary, textAlign: 'center' },
   mainSub: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs, marginBottom: Spacing.lg, fontSize: FontSizes.md },
+  // #21: racha visible al entrar (mismo tono que el done screen)
+  streakBadge: { color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md, textAlign: 'center', marginTop: -Spacing.sm, marginBottom: Spacing.md },
 
   // Map
   mapGrid: {

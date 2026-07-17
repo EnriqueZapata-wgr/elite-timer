@@ -75,7 +75,9 @@ export async function fetchUserPhenotype(userId: string): Promise<UserPhenotype>
   const profile: Profile = {
     age: ageFromDOB(clientProfile?.date_of_birth, now),
     gender,
-    pregnancy,
+    // Gate por sexo biológico: un dato residual de pregnancy_status NUNCA
+    // contraindica por embarazo a un usuario no-female (#4).
+    pregnancy: gender === 'female' ? pregnancy : false,
     lactancia: false,
     conditions,
     medications: meds,

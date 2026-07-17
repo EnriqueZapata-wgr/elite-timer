@@ -8,6 +8,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supplementsTodayProgress } from './supplements-adherence-core';
+import { resolvePregnancyActive } from './pregnancy-gate-core';
 
 export interface SupplementsToday {
   /** Total de TOMAS del día (multi-dosis 188: N tomas = N checks). */
@@ -44,11 +45,15 @@ export async function isPregnancyActive(userId: string): Promise<boolean> {
   try {
     const [cycleRes, profileRes] = await Promise.all([
       supabase.from('cycle_settings').select('pregnancy_status').eq('user_id', userId).maybeSingle(),
-      supabase.from('client_profiles').select('cycle_modality').eq('user_id', userId).maybeSingle(),
+      supabase.from('client_profiles').select('cycle_modality, biological_sex').eq('user_id', userId).maybeSingle(),
     ]);
-    const status = (cycleRes.data as any)?.pregnancy_status;
-    if (status && typeof status === 'object' && status.is_pregnant === true) return true;
-    return (profileRes.data as any)?.cycle_modality === 'pregnancy';
+    // Gate por sexo biológico dentro del core puro: la máscara embarazo/lactancia solo
+    // aplica a usuarias femeninas; un dato residual NUNCA la activa para male/null (#4).
+    return resolvePregnancyActive({
+      biologicalSex: (profileRes.data as any)?.biological_sex,
+      pregnancyStatus: (cycleRes.data as any)?.pregnancy_status,
+      cycleModality: (profileRes.data as any)?.cycle_modality,
+    });
   } catch {
     return false;
   }

@@ -24,13 +24,15 @@ interface Props {
   pillar: keyof typeof PILLAR_COLORS;
   title: string;
   rightContent?: React.ReactNode;
+  /** Override del back (flujos multi-paso que regresan al paso anterior, #20). */
+  onBack?: () => void;
 }
 
-export function PillarHeader({ pillar, title, rightContent }: Props) {
+export function PillarHeader({ pillar, title, rightContent, onBack }: Props) {
   const color = PILLAR_COLORS[pillar] || CATEGORY_COLORS.fitness;
   return (
     <View style={s.header}>
-      <BackButton color={color} />
+      <BackButton color={color} onPress={onBack} />
       <EliteText style={[s.atp, { color }]}>ATP</EliteText>
       <EliteText style={s.title}>{title.toUpperCase()}</EliteText>
       {rightContent ? <View style={{ marginLeft: 'auto' }}>{rightContent}</View> : null}

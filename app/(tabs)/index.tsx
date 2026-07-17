@@ -32,7 +32,7 @@ import { HoyEditorialSection } from '@/src/components/hoy/HoyEditorialSection';
 import { AgendaPreviewCard } from '@/src/components/agenda/AgendaPreviewCard';
 import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
 import { HPlusExplainerCard } from '@/src/components/economy/HPlusExplainerCard';
-import { getCardsVisible } from '@/src/services/hoy/visibility-service';
+import { getEffectiveCardsVisible } from '@/src/services/hoy/visibility-service';
 import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
@@ -412,14 +412,14 @@ export default function TodayScreen() {
   // toggle de electrón en config, edición de wake_time.
   useFocusEffect(useCallback(() => {
     if (isTogglingRef.current === 0) loadDay();
-    // #tabs-redesign V1.3: refrescar visibilidad de cards al enfocar.
-    if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
+    // #tabs-redesign V1.3: refrescar visibilidad al enfocar (#3b: efectiva = protocolo si flag ON).
+    if (user?.id) getEffectiveCardsVisible(user.id).then(setCardsVisible).catch(() => {});
   }, [loadDay, user?.id]));
 
   // #tabs-redesign V1.3: re-cargar visibilidad cuando otra pantalla la togglea.
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener('hoy_visibility_changed', () => {
-      if (user?.id) getCardsVisible(user.id).then(setCardsVisible).catch(() => {});
+      if (user?.id) getEffectiveCardsVisible(user.id).then(setCardsVisible).catch(() => {});
     });
     return () => sub.remove();
   }, [user?.id]);

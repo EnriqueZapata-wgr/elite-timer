@@ -25,6 +25,18 @@ describe('HOY card registry', () => {
     }
   });
 
+  // #1/#90: routing granular — cada card navega a su pantalla específica, no al hub.
+  // Excepción aprobada (#70): proteína → /nutrition.
+  it('las cards navegan a su ruta granular (no al hub del pilar)', () => {
+    const routes = Object.fromEntries(HOY_CARD_SPECS.map((s) => [s.cardKey, s.route]));
+    expect(routes.checkin).toBe('/checkin');
+    expect(routes.meditacion).toBe('/meditation');
+    expect(routes.breathwork).toBe('/breathing');
+    expect(routes.journal).toBe('/journal');
+    expect(routes.agua).toBe('/hydration');
+    expect(routes.proteina).toBe('/nutrition'); // decisión #70: se queda en el hub
+  });
+
   it('el orden default arranca en uv + incluye ayuno/suplementos + cards del registro', () => {
     // #v13f 2.5: 'hero_agenda' eliminado → la primera card es UV (sub-sección DESPERTAR).
     expect(HOY_CARD_ORDER_DEFAULT[0]).toBe('uv');

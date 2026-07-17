@@ -7,6 +7,8 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
+import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
+import { deriveProtocolDrivenVisible } from '@/src/services/hoy/protocol-cards-core';
 
 /** PURO: normaliza el valor crudo de la columna a un Set de cardKeys visibles. */
 export function parseVisible(raw: unknown): Set<string> {
@@ -38,6 +40,25 @@ export async function getCardsVisible(userId: string): Promise<Set<string>> {
     logWarn('[hoy-visibility] getCardsVisible threw:', err);
     return new Set(HOY_CARD_ORDER_DEFAULT);
   }
+}
+
+/**
+ * Visibilidad EFECTIVA de las cards del HOY (#3b): con `INTERVENTIONS_DRIVE_HOY`
+ * ON, las cards responden a Mi Protocolo (baseline universal ∪ prescritas) en vez
+ * de a la config manual. Fail-soft en cascada: protocolo vacío / error → config
+ * manual (getCardsVisible) → default todas, para nunca dejar el HOY vacío.
+ */
+export async function getEffectiveCardsVisible(userId: string): Promise<Set<string>> {
+  if (!INTERVENTIONS_DRIVE_HOY) return getCardsVisible(userId);
+  try {
+    const { getMyProtocol } = await import('@/src/services/interventions/intervention-service');
+    const protocol = await getMyProtocol(userId);
+    const derived = deriveProtocolDrivenVisible(protocol.map((p) => p.def?.name ?? ''));
+    if (derived) return derived;
+  } catch (err) {
+    logWarn('[hoy-visibility] getEffectiveCardsVisible fallback a manual:', err);
+  }
+  return getCardsVisible(userId);
 }
 
 /** Prende/apaga una card y persiste el array completo. */

@@ -107,9 +107,19 @@ export default function JournalScreen() {
     });
   }, []);
 
+  // #28: cancelar SOLO el recordatorio propio (identifier namespaced). cancelAll
+  // borraría las notificaciones locales de agenda (@atp/agenda_notif_ids) y viceversa.
+  async function cancelJournalReminder() {
+    const prevId = await AsyncStorage.getItem('@atp/journal_notif_id');
+    if (prevId) {
+      try { await Notifications.cancelScheduledNotificationAsync(prevId); } catch { /* ya no existe */ }
+      await AsyncStorage.removeItem('@atp/journal_notif_id');
+    }
+  }
+
   async function scheduleReminder(timeStr: string) {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    await Notifications.scheduleNotificationAsync({
+    await cancelJournalReminder();
+    const identifier = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'ATP — Descarga mental',
         body: '¿Cómo estuvo tu día? Tómate 5 minutos para escribir.',
@@ -121,6 +131,7 @@ export default function JournalScreen() {
         minute: parseInt(timeStr.split(':')[1]),
       },
     });
+    await AsyncStorage.setItem('@atp/journal_notif_id', identifier);
   }
 
   async function toggleReminder(enabled: boolean) {
@@ -136,7 +147,7 @@ export default function JournalScreen() {
       await scheduleReminder(reminderTime);
       haptic.success();
     } else {
-      await Notifications.cancelAllScheduledNotificationsAsync();
+      await cancelJournalReminder();
     }
   }
 

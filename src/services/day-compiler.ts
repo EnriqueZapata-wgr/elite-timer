@@ -28,20 +28,23 @@ import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src
  */
 export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements', 'period_log', 'checkin',
   // #v13e 3.A.3: cardio verificado — completed = ≥1 sesión en cardio_sessions hoy.
-  'cardio'] as const;
+  'cardio',
+  // #17: journal verificado — completed = ≥1 entrada en journal_entries hoy (espejo de checkin).
+  'journal'] as const;
 export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 
 /** Ruta de tap para cada electrón verificado.
- * hotfix 2da pasada (regla Enrique): tap → HUB del pilar, no acción directa.
- * Mente al hub nuevo /mente (/mind-hub eliminado #139); ejercicio a /fitness-hub. */
+ * Routing GRANULAR (#1/#90): tap → pantalla específica de la actividad
+ * (meditación → /meditation, checkin → /checkin); ejercicio sigue a /fitness-hub. */
 export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, string> = {
-  meditation: '/mente',
-  breathwork: '/mente',
+  meditation: '/meditation',
+  breathwork: '/breathing',
   strength: '/fitness-hub',
   supplements: '/supplements',
   period_log: '/cycle',
-  checkin: '/mente',
+  checkin: '/checkin',
   cardio: '/fitness-hub',
+  journal: '/journal',
 };
 
 /** Electrones que solo se ofrecen a un subconjunto de usuarios. */
@@ -174,10 +177,10 @@ const ELECTRON_DESCRIPTIONS: Record<string, string> = {
 };
 
 const ELECTRON_ROUTES: Record<string, string> = {
-  sunlight: '/my-health', meditation: '/mente', supplements: '/supplements',
+  sunlight: '/my-health', meditation: '/meditation', supplements: '/supplements',
   cold_shower: '/my-health', grounding: '/my-health', no_alcohol: '/nutrition',
-  strength: '/fitness-hub', breathwork: '/mente', red_glasses: '/my-health',
-  period_log: '/cycle',
+  strength: '/fitness-hub', breathwork: '/breathing', red_glasses: '/my-health',
+  period_log: '/cycle', checkin: '/checkin', journal: '/journal',
 };
 
 const TIME_WINDOWS: Record<string, [number, number]> = {
@@ -208,7 +211,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, exerciseCountRes, supplementCountRes, cycleLogCountRes,
-    cardioCountRes,
+    cardioCountRes, journalCountRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -234,6 +237,9 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // #v13e 3.A.3: ¿hubo ≥1 sesión de cardio hoy? → card CARDIO verificada palomea.
     supabase.from('cardio_sessions').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today),
+    // #17: ¿hubo ≥1 entrada de journal hoy? → card JOURNAL verificada palomea.
+    supabase.from('journal_entries').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
@@ -251,6 +257,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     period_log: (cycleLogCountRes.count ?? 0) >= 1,
     checkin: lastCheckinDate === today,
     cardio: (cardioCountRes.count ?? 0) >= 1, // #v13e 3.A.3
+    journal: (journalCountRes.count ?? 0) >= 1, // #17: derivado de journal_entries, no del blob
   };
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;

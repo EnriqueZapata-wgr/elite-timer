@@ -533,10 +533,21 @@ export function planInterventionEventSync(
     existing.filter((r) => r.is_active && !r.intervention_key).map((r) => canonicalConcept(r.name)),
   );
 
+  // #29: dato user sagrado — si el concepto ya existe como evento MANUAL activo,
+  // el motor no compite: la intervención duplicada se excluye de `desired`. Al no
+  // entrar a desiredKeys, una fila del motor ya insertada para ese concepto cae
+  // en el loop de desactivación de abajo (se conserva la del user, muere la del motor).
+  const manualConcepts = new Set(
+    existing
+      .filter((r) => r.is_active && (r.source === 'manual' || r.source === 'manual_override'))
+      .map((r) => canonicalConcept(r.name)),
+  );
+  const dedupedDesired = desired.filter((d) => !manualConcepts.has(canonicalConcept(d.name)));
+
   const plan: InterventionEventSyncPlan = { inserts: [], updates: [], reactivations: [], deactivateIds: [] };
   const desiredKeys = new Set<string>();
 
-  for (const d of desired) {
+  for (const d of dedupedDesired) {
     desiredKeys.add(d.intervention_key);
     const row = byKey.get(d.intervention_key);
     if (row) {

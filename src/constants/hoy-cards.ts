@@ -23,22 +23,22 @@ export interface HoyCardSpec {
   imageBn?: ImageSourcePropType;
 }
 
-/** Las 14 cards editoriales, en el orden de render del HOY (el hero va aparte).
- * hotfix 2da pasada (regla Enrique): tap de card → HUB del pilar, no acción directa
- * (proteína → /nutrition, no /food-register). Mente SIEMPRE al hub nuevo /mente
- * (Journal + Respiración + Meditación + Check-in), nunca al viejo /mind-hub. */
+/** Las cards editoriales, en el orden de render del HOY (el hero va aparte).
+ * Routing GRANULAR (#1/#90): cada card navega a su pantalla específica
+ * (checkin → /checkin, meditación → /meditation, journal → /journal, agua → /hydration).
+ * Excepción aprobada (#70): proteína → /nutrition (hub), no /food-register. */
 export const HOY_CARD_SPECS: HoyCardSpec[] = [
   { cardKey: 'uv', category: 'metric', icon: '☀️', title: 'UV INDEX', gradient: CONCEPT_COLORS.sol.gradient, route: '/solar' },
-  { cardKey: 'checkin', category: 'mind', icon: '❤️', title: 'CHECK-IN EMOCIONAL', gradient: ['#1ABC9C', '#9B59B6'], route: '/mente' },
+  { cardKey: 'checkin', category: 'mind', icon: '❤️', title: 'CHECK-IN EMOCIONAL', gradient: ['#1ABC9C', '#9B59B6'], route: '/checkin' },
   { cardKey: 'proteina', category: 'meal', icon: '🍳', title: 'PROTEÍNA', gradient: CONCEPT_COLORS.nutricion.gradient, route: '/nutrition' },
-  { cardKey: 'agua', category: 'meal', icon: '💧', title: 'AGUA', gradient: CONCEPT_COLORS.agua.gradient, route: '/nutrition' },
+  { cardKey: 'agua', category: 'meal', icon: '💧', title: 'AGUA', gradient: CONCEPT_COLORS.agua.gradient, route: '/hydration' },
   { cardKey: 'luz_solar', category: 'rhythm', icon: '☀️', title: 'LUZ SOLAR', gradient: CONCEPT_COLORS.sol.gradient },
-  { cardKey: 'meditacion', category: 'mind', icon: '🧘', title: 'MEDITACIÓN', gradient: ['#1ABC9C', '#16A085'], route: '/mente' },
+  { cardKey: 'meditacion', category: 'mind', icon: '🧘', title: 'MEDITACIÓN', gradient: ['#1ABC9C', '#16A085'], route: '/meditation' },
   { cardKey: 'suplementos', category: 'supplement', icon: '💊', title: 'SUPLEMENTOS', gradient: CONCEPT_COLORS.suplementos.gradient, route: '/supplements' },
   { cardKey: 'bano_frio', category: 'recovery', icon: '❄️', title: 'BAÑO FRÍO', gradient: ['#3498DB', '#2C3E50'] },
   { cardKey: 'grounding', category: 'rhythm', icon: '🌿', title: 'GROUNDING', gradient: ['#27AE60', '#8B4513'] },
   { cardKey: 'fuerza', category: 'exercise', icon: '💪', title: 'FUERZA', gradient: CONCEPT_COLORS.fitness.gradient, route: '/fitness-hub' },
-  { cardKey: 'breathwork', category: 'mind', icon: '🌬', title: 'BREATHWORK', gradient: ['#85C1E9', '#2E86C1'], route: '/mente' },
+  { cardKey: 'breathwork', category: 'mind', icon: '🌬', title: 'BREATHWORK', gradient: ['#85C1E9', '#2E86C1'], route: '/breathing' },
   { cardKey: 'lentes_rojos', category: 'rhythm', icon: '🔴', title: 'LENTES ROJOS', gradient: ['#FF7F50', '#8B0000'] },
   { cardKey: 'cardio', category: 'exercise', icon: '❤️‍🔥', title: 'CARDIO', gradient: CONCEPT_COLORS.cardio.gradient, route: '/fitness-hub' },
   { cardKey: 'pasos', category: 'exercise', icon: '🚶', title: 'PASOS', gradient: ['#27AE60', '#8B4513'], route: '/fitness-hub' },
@@ -46,7 +46,7 @@ export const HOY_CARD_SPECS: HoyCardSpec[] = [
   // no_processed_foods, screen_time_cutoff. journal → /mente. sleep informativa → /health-hub.
   { cardKey: 'no_alcohol', category: 'recovery', icon: '🚫', title: 'NO ALCOHOL', gradient: ['#34495E', '#1A252F'] },
   { cardKey: 'sleep', category: 'recovery', icon: '🌙', title: 'SUEÑO', gradient: ['#2C3E50', '#1A1A2E'], route: '/health-hub' },
-  { cardKey: 'journal', category: 'mind', icon: '📓', title: 'JOURNAL', gradient: ['#8B6F47', '#5D4E37'], route: '/mente' },
+  { cardKey: 'journal', category: 'mind', icon: '📓', title: 'JOURNAL', gradient: ['#8B6F47', '#5D4E37'], route: '/journal' },
   { cardKey: 'no_processed_foods', category: 'meal', icon: '🥗', title: 'SIN PROCESADOS', gradient: ['#27AE60', '#16A085'] },
   { cardKey: 'screen_time_cutoff', category: 'rhythm', icon: '📵', title: 'OFF-PANTALLAS', gradient: ['#34495E', '#2C3E50'] },
 ];
