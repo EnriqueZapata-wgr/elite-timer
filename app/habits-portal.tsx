@@ -42,7 +42,7 @@ const PILARES: Card[] = [
   { key: 'suplementacion', title: 'SUPLEMENTACIÓN', subtitle: 'Tu plan diario · tracking', icon: '💊', gradient: CONCEPT_COLORS.suplementos.gradient, route: '/supplements' },
   { key: 'fitness', title: 'FITNESS', subtitle: 'Fuerza · cardio · movilidad', icon: '🏋️', gradient: CONCEPT_COLORS.fitness.gradient, route: '/fitness-hub' },
   { key: 'ayuno', title: 'AYUNO', subtitle: 'Ventanas e historial', icon: '⏳', gradient: CONCEPT_COLORS.ayuno.gradient, route: '/fasting' },
-  { key: 'sueno', title: 'SUEÑO', subtitle: 'Descanso y recuperación', icon: '😴', gradient: CONCEPT_COLORS.sueno.gradient, route: '/reports' }, // TODO: /sleep cuando exista
+  { key: 'sueno', title: 'SUEÑO', subtitle: 'Descanso y recuperación', icon: '😴', gradient: CONCEPT_COLORS.sueno.gradient, route: '/sleep' },
 ];
 
 const DIARIOS: Card[] = [

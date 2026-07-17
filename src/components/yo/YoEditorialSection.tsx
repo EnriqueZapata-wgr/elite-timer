@@ -1,24 +1,38 @@
 /**
- * YoEditorialSection (#yo-editorial V1.3) — feed editorial del tab YO. Mismo patrón modular que
- * HoyEditorialSection: aísla las 9 EditorialCards fuera de yo.tsx. Imágenes sex-aware (edad-atp,
- * composición el/ella) y por cronotipo vía yo-image-picker; el resto estáticas (YO_STATIC_IMAGES).
+ * YoEditorialSection (#8 Batch 2) — YO deja de ser menú muerto: espejo de
+ * identidad + estado + progreso. Regla de oro: cada card muestra un DATO tuyo en
+ * su superficie ANTES de ser un link; si no puede, no gana su lugar en YO.
  *
- * Defensivo: optional chaining + fallbacks "Sin datos" en cada card → nunca crashea por dato
- * faltante. lastLab/monthTrend aún no vienen de dashboard-service → cards caen a CTA de setup
- * (TODO sprint futuro, ver doc 4.4).
+ * Rediseño (antes 5 cards, 4 → /reports):
+ *  1. DISCIPLINA ATP (hero de estado): momentum semanal + etiqueta no punitiva → /reports?period=week
+ *  2. CRONOTIPO: tu tipo si ya lo tienes → /my-chronotype (vista de TU cronotipo);
+ *     sin cronotipo → test. Distinguir los dos estados es la clave.
+ *  3. PROGRESIÓN: tu rank tier real (Explorer→Inmortal) + siguiente meta → /economy/admin
+ *  4. VER REPORTES: LA puerta al hub de análisis (única card que va a /reports crudo)
+ *  · TENDENCIAS DEL MES podada: no tenía dato en superficie ("Ver tu progreso" = link
+ *    pelón) y duplicaba la promesa de VER REPORTES. El período Mes vive en /reports.
  */
 import { useRouter } from 'expo-router';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { pickCronotipoImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
+import { tierFromLifetime, nextTierInfo } from '@/src/services/economy/rank-tiers';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 
-/** Emoji + nombre/desc por cronotipo (EditorialCard renderiza el icono como texto → emoji, no Ionicons). */
+/** Emoji + nombre/desc por cronotipo (EditorialCard renderiza el icono como texto → emoji). */
 const CHRONO_META: Record<string, { emoji: string; name: string; desc: string }> = {
   lion: { emoji: '🦁', name: 'León', desc: 'Madrugador natural' },
   bear: { emoji: '🐻', name: 'Oso', desc: 'Ritmo solar' },
   wolf: { emoji: '🐺', name: 'Lobo', desc: 'Noctámbulo creativo' },
   dolphin: { emoji: '🐬', name: 'Delfín', desc: 'Mente activa' },
 };
+
+/** Etiqueta cualitativa NO punitiva del momentum (misma escala que yo.tsx). */
+function momentumLabel(v: number): string {
+  if (v >= 80) return 'En racha';
+  if (v >= 60) return 'Constante';
+  if (v >= 40) return 'Retomando el ritmo';
+  return 'Arrancando';
+}
 
 interface CompositionLike {
   body_fat_pct: number | null;
@@ -36,61 +50,55 @@ interface Props {
   composition?: CompositionLike | null;
   /** Momentum semanal 0-100 (dailyScore.overall). */
   momentum: number;
+  /** Electrones históricos → rank tier real en la card PROGRESIÓN (#8). */
+  lifetimeElectrons?: number | null;
 }
 
-export function YoEditorialSection({ chronotype, momentum }: Props) {
+export function YoEditorialSection({ chronotype, momentum, lifetimeElectrons }: Props) {
   const router = useRouter();
   const go = (route: string) => router.push(route as any);
   const chrono = chronotype ? CHRONO_META[chronotype] : null;
 
+  // Rank tier real (nombres v2, #100). Sin balance cargado aún → Explorer (min 0).
+  const lifetime = lifetimeElectrons ?? 0;
+  const tier = tierFromLifetime(lifetime);
+  const { next, remaining } = nextTierInfo(lifetime);
+
   return (
     <>
-      {/* Mega-Sprint B B6: EDAD ATP + COMPOSICIÓN + LAB + TESTS FUNCIONALES se
-          quitaron de YO — duplicaban el dominio salud (ahora en el pilar SALUD
-          FUNCIONAL: Mi Diagnóstico / Mis Datos / Mis Evaluaciones). Tab YO ya no
-          es puerta paralela al dominio salud (doctrina un dato = un lugar). */}
+      {/* 1. HERO DE ESTADO — tu momentum semanal, editorial (dato antes que link) */}
+      <EditorialCard
+        cardKey="yo_disciplina" icon="🔥" title="DISCIPLINA ATP"
+        subtitle={momentumLabel(momentum)}
+        message={`Momentum semanal: ${Math.round(momentum)}%`}
+        gradient={['#9B59B6', '#3498DB']}
+        imageBn={YO_STATIC_IMAGES.disciplina}
+        progress={{ current: momentum, target: 100, unit: '%' }}
+        onTap={() => go('/reports?period=week')}
+      />
 
-      {/* CRONOTIPO (dinámico · identidad del user, no dato de salud duplicado) */}
+      {/* 2. CRONOTIPO — con resultado: TU tipo → vista de tu cronotipo; sin: test */}
       <EditorialCard
         cardKey="yo_cronotipo" icon={chrono?.emoji ?? '🌙'}
         title={chrono ? `CRONOTIPO ${chrono.name.toUpperCase()}` : 'CRONOTIPO'}
         subtitle={chrono ? chrono.desc : 'Descubre tu cronotipo'}
-        message={chrono ? 'Optimiza tu día según tu ritmo' : 'Test de 5 minutos'}
+        message={chrono ? 'Qué significa y cómo aprovecharlo' : 'Test de 5 minutos'}
         gradient={['#FFD700', '#FFA500']}
         imageBn={pickCronotipoImage(chronotype)}
-        onTap={() => go('/quiz/chronotype')}
+        onTap={() => go(chrono ? '/my-chronotype' : '/quiz/chronotype')}
       />
 
-      {/* DISCIPLINA ATP (con barra de progreso) */}
+      {/* 3. PROGRESIÓN — tu rank tier real + siguiente meta → Mi Progreso */}
       <EditorialCard
-        cardKey="yo_disciplina" icon="🔥" title="DISCIPLINA ATP"
-        subtitle={`Momentum semanal: ${Math.round(momentum)}%`}
-        message={momentum >= 80 ? 'Estás en racha' : momentum >= 50 ? 'Vas al ritmo' : 'Retomando el ritmo'}
-        gradient={['#9B59B6', '#3498DB']}
-        imageBn={YO_STATIC_IMAGES.disciplina}
-        progress={{ current: momentum, target: 100, unit: '%' }}
-        onTap={() => go('/reports')}
-      />
-
-      {/* TENDENCIAS DEL MES — monthTrend aún no disponible */}
-      <EditorialCard
-        cardKey="yo_tendencias" icon="📈" title="TENDENCIAS DEL MES"
-        subtitle="Ver tu progreso"
-        gradient={['#1ABC9C', '#A8E02A']}
-        imageBn={YO_STATIC_IMAGES.tendencias}
-        onTap={() => go('/reports')}
-      />
-
-      {/* RANK + LOGROS — /achievements no existe → /reports */}
-      <EditorialCard
-        cardKey="yo_rank" icon="🏆" title="RANK + LOGROS"
-        subtitle="Tu progresión en ATP" message="Logros desbloqueados + ranking"
+        cardKey="yo_rank" icon={tier.emoji} title="PROGRESIÓN"
+        subtitle={`Eres ${tier.name}`}
+        message={next ? `Faltan ${remaining} E- para ${next.name}` : 'Rank, retos y logros'}
         gradient={['#FFD700', '#8B4513']}
         imageBn={YO_STATIC_IMAGES.rank}
-        onTap={() => go('/reports')}
+        onTap={() => go('/economy/admin')}
       />
 
-      {/* VER REPORTES */}
+      {/* 4. VER REPORTES — la única puerta al hub crudo de análisis */}
       <EditorialCard
         cardKey="yo_reportes" icon="📊" title="VER REPORTES"
         subtitle="Análisis profundo de tu data" message="Gráficas + correlaciones + insights"

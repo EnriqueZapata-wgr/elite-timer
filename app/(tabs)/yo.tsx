@@ -31,6 +31,7 @@ import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { isAdmin } from '@/src/constants/admin-config';
 import { YoEditorialSection } from '@/src/components/yo/YoEditorialSection';
+import { getElectronBalance } from '@/src/services/economy/electron-service';
 import { supabase } from '@/src/lib/supabase';
 
 /** Disciplina ATP — etiqueta cualitativa motivacional por tramo (nunca "reprobado"). */
@@ -70,6 +71,8 @@ export default function YoScreen() {
   const [wearableData, setWearableData] = useState<WearableData | null>(null);
   // #yo-editorial: sexo biológico para las variantes -el/-ella (DashboardData no lo trae).
   const [bioSex, setBioSex] = useState<string | null>(null);
+  // #8 Batch 2: electrones históricos → rank tier real en la card PROGRESIÓN.
+  const [lifetimeElectrons, setLifetimeElectrons] = useState<number | null>(null);
 
   const loadData = useCallback(async () => {
     try { setData(await getDashboardData()); } catch { /* silenciar */ }
@@ -98,6 +101,13 @@ export default function YoScreen() {
         setBioSex((cp as any)?.biological_sex ?? null);
       }
     } catch { /* sin perfil — el picker cae a male */ }
+    // #8 Batch 2: balance de electrones → tier de la card PROGRESIÓN.
+    try {
+      if (user?.id) {
+        const balance = await getElectronBalance(user.id);
+        setLifetimeElectrons((balance as any)?.lifetime_electrons ?? 0);
+      }
+    } catch { /* la card cae a Explorer */ }
     // Cargar Edad ATP v2 (número estrella) — solo calcula si hay evaluación suficiente.
     try {
       if (user?.id) {
@@ -216,6 +226,7 @@ export default function YoScreen() {
             edadResult={edadResult}
             composition={comp}
             momentum={momentum}
+            lifetimeElectrons={lifetimeElectrons}
           />
         </Animated.View>
 

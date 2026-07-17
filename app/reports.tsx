@@ -4,7 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -36,8 +36,17 @@ const LABEL_TO_KEY: Record<PeriodLabel, ReportPeriod> = {
   'Semana': 'week', 'Mes': 'month', '3 Meses': '3month', 'Todo': 'all',
 };
 
+// #5 Batch 2: las cards de YO llegan con foco (?period=month) en vez de aterrizar
+// genérico. Param → PeriodLabel inicial (inválido/ausente → Semana).
+const KEY_TO_LABEL: Record<string, PeriodLabel> = {
+  week: 'Semana', month: 'Mes', '3month': '3 Meses', all: 'Todo',
+};
+
 export default function ReportsScreen() {
-  const [periodLabel, setPeriodLabel] = useState<PeriodLabel>('Semana');
+  const params = useLocalSearchParams<{ period?: string }>();
+  const [periodLabel, setPeriodLabel] = useState<PeriodLabel>(
+    KEY_TO_LABEL[params.period ?? ''] ?? 'Semana',
+  );
   const period = LABEL_TO_KEY[periodLabel];
 
   const [electrons, setElectrons] = useState<ElectronReport>({ daily: [], avgPerDay: 0, total: 0, bestDay: 0 });

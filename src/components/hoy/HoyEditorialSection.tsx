@@ -571,7 +571,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             subtitle={subtitle} message={message}
             gradient={['#2C3E50', '#1A1A2E']}
             imageBn={HOY_EXTRA_IMAGES.sueno}
-            onTap={() => go('/health-hub')}
+            onTap={() => go('/sleep')}
           />
         );
       }

@@ -37,6 +37,7 @@ import { parseResetPasswordUrl, isResetPasswordLink } from '@/src/utils/reset-pa
 import { RevenueCatSync } from '@/src/components/RevenueCatSync';
 import { ArgosPresenceProvider } from '@/src/components/argos/ArgosPresenceContext';
 import { ArgosFloatingButton } from '@/src/components/argos/ArgosFloatingButton';
+import { HomeFloatingButton } from '@/src/components/ui/HomeFloatingButton';
 import { MeetArgosGate } from '@/src/components/argos/MeetArgosGate';
 import { AtpSplash } from '@/src/components/AtpSplash';
 import { OnboardingCompletion } from '@/src/components/onboarding/OnboardingCompletion';
@@ -238,6 +239,9 @@ function RootLayout() {
                 <Stack.Screen name="fitness-hiit" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="log-cardio" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* Batch 2 (#15/#8): pantalla propia de Sueño + vista Mi Cronotipo */}
+                <Stack.Screen name="sleep" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="my-chronotype" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Suscripciones RevenueCat (sprint IAP V1.3) */}
                 <Stack.Screen name="paywall" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings/subscription" options={{ headerShown: false, animation: 'slide_from_right' }} />
@@ -255,6 +259,8 @@ function RootLayout() {
               <ProcessingMiniBanner />
               {/* MAGIA ARGOS T2: acceso flotante cross-app (auto-hide contextual). */}
               <ArgosFloatingButton />
+              {/* #26 Batch 2: Home en un tap desde pantallas profundas (bottom-left). */}
+              <HomeFloatingButton />
               {/* MAGIA 2.0 T3: Meet ARGOS para usuarios existentes con flag NULL
                   (antes solo se alcanzaba al terminar onboarding v2). */}
               <MeetArgosGate />
