@@ -31,7 +31,10 @@ import {
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
-import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { MenteHero } from '@/src/components/mente/MenteHero';
+
+// #138: hero editorial del pilar (require estático · Metro).
+const HERO_RESPIRACION = require('@/assets/images/intervenciones/respiracion.jpg');
 
 const PURPLE = CATEGORY_COLORS.mind;
 const BLUE = '#60a5fa';
@@ -131,12 +134,15 @@ function SelectorScreen({ onSelect, onBack }: {
   }, []));
 
   return (
-    <SafeAreaView style={styles.screen}>
-      <PillarHeader pillar="mind" title="Respiración" />
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <MenteHero
+        image={HERO_RESPIRACION}
+        kicker="PILAR MENTE"
+        title="Respiración"
+        subtitle={`${BREATHING_LIBRARY.length} ejercicios · calma, foco y energía`}
+        onBack={onBack}
+      />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.selectorContent}>
-        <EliteText variant="caption" style={styles.selectorSub}>
-          {BREATHING_LIBRARY.length} ejercicios de respiración
-        </EliteText>
 
         {BREATHING_LIBRARY.map((t, idx) => (
           <AnimatedRN.View key={t.id} entering={FadeInUp.delay(50 + idx * 40).springify()}>

@@ -186,7 +186,7 @@ function RootLayout() {
                 <Stack.Screen name="checkin" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="my-health" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="clinical-system" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="mind-hub" options={{ animation: 'slide_from_right' }} />
+                {/* #139: /mind-hub legacy eliminado — el hub del pilar es /mente. */}
                 {/* Sprint MENTE Ecosystem: hub del pilar + progreso (streaks/medallas) */}
                 <Stack.Screen name="mente" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="mente/progreso" options={{ headerShown: false, animation: 'slide_from_right' }} />

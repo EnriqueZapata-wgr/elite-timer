@@ -11,6 +11,7 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { MenteHero } from '@/src/components/mente/MenteHero';
 import { HelpButton } from '@/src/components/HelpButton';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
@@ -30,6 +31,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ═══ CONSTANTES ═══
 
 const PURPLE = '#7F77DD';
+// #138: hero editorial del pilar (require estático · Metro). Journal reusa mente.jpg.
+const HERO_MENTE = require('@/assets/images/intervenciones/mente.jpg');
 
 const JOURNAL_TYPES = [
   { key: 'gratitude', label: 'Gratitud', icon: 'heart-outline' as const, color: '#D4537E', description: '9 preguntas de agradecimiento' },
@@ -361,27 +364,33 @@ export default function JournalScreen() {
   // ═══ SELECTOR DE TIPO ═══
 
   return (
-    <Screen>
-      <PillarHeader pillar="mind" title="Journal" rightContent={
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          {/* #39: historial dedicado con filtros/búsqueda/edición */}
-          <Pressable onPress={() => { haptic.light(); router.push('/journal-history' as any); }} hitSlop={8}>
-            <Ionicons name="time-outline" size={22} color="#c084fc" />
-          </Pressable>
-          <HelpButton
-            title="Tu diario ATP"
-            color="#c084fc"
-            tips={[
-              'Elige entre 4 tipos: Gratitud, Visión, Estoico o Descarga',
-              'Escribe libremente — no hay longitud mínima',
-              'El reloj (arriba) abre tu historial completo con filtros',
-              'Activa el recordatorio diario para no olvidar tu descarga mental',
-            ]}
-          />
-        </View>
-      } />
+    <Screen edges={['top']}>
+      {/* #138: hero editorial del pilar (reusa mente.jpg); conserva historial + ayuda. */}
+      <MenteHero
+        image={HERO_MENTE}
+        kicker="PILAR MENTE"
+        title="Journal"
+        subtitle="Elige tu práctica de hoy"
+        rightContent={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {/* #39: historial dedicado con filtros/búsqueda/edición */}
+            <Pressable onPress={() => { haptic.light(); router.push('/journal-history' as any); }} hitSlop={8}>
+              <Ionicons name="time-outline" size={22} color="#fff" />
+            </Pressable>
+            <HelpButton
+              title="Tu diario ATP"
+              color="#fff"
+              tips={[
+                'Elige entre 4 tipos: Gratitud, Visión, Estoico o Descarga',
+                'Escribe libremente — no hay longitud mínima',
+                'El reloj (arriba) abre tu historial completo con filtros',
+                'Activa el recordatorio diario para no olvidar tu descarga mental',
+              ]}
+            />
+          </View>
+        }
+      />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        <EliteText variant="caption" style={s.subtitle}>Elige tu práctica de hoy</EliteText>
 
         {JOURNAL_TYPES.map((type, idx) => (
           <StaggerItem key={type.key} index={idx}>

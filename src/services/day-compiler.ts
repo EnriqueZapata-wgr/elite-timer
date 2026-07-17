@@ -33,7 +33,7 @@ export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 
 /** Ruta de tap para cada electrón verificado.
  * hotfix 2da pasada (regla Enrique): tap → HUB del pilar, no acción directa.
- * Mente al hub nuevo /mente (nunca /mind-hub viejo); ejercicio a /fitness-hub. */
+ * Mente al hub nuevo /mente (/mind-hub eliminado #139); ejercicio a /fitness-hub. */
 export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, string> = {
   meditation: '/mente',
   breathwork: '/mente',
@@ -497,7 +497,9 @@ function buildSuggestion(
     return {
       text: 'Notamos un check-in con energía baja. Una respiración guiada puede ayudar.',
       action: 'Respiración 5 min',
-      route: '/mind-hub',
+      // #139: la acción es respiración → routing granular directo a /breathing
+      // (doctrina #90), no al hub legacy /mind-hub (eliminado).
+      route: '/breathing',
     };
   }
 
