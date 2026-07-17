@@ -24,16 +24,18 @@ import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerG
 
 type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string };
 
-// Imágenes editoriales B/N (require estático — Metro). Reusa el pool health-hub.
+// Imágenes editoriales (require estático — Metro). Mega-Sprint C: los 5 destinos
+// nuevos estrenan sus MJ dedicadas (salud-funcional/*.jpg); Diagnóstico, Protocolo
+// y Guía de Labs conservan su tratamiento editorial previo (health-hub/*.png).
 const IMAGES: Record<string, any> = {
   diagnostico: require('@/assets/images/health-hub/diagnostico.png'),
   mi_protocolo: require('@/assets/images/health-hub/mi-protocolo.png'),
-  mis_datos: require('@/assets/images/health-hub/biomarcadores.png'),
-  mis_evaluaciones: require('@/assets/images/health-hub/tests-evaluaciones.png'),
-  mis_sintomas: require('@/assets/images/health-hub/sintomas.png'),
-  padecimientos: require('@/assets/images/health-hub/padecimientos.png'),
+  mis_datos: require('@/assets/images/salud-funcional/mis-datos.jpg'),
+  mis_evaluaciones: require('@/assets/images/salud-funcional/mis-evaluaciones.jpg'),
+  mis_sintomas: require('@/assets/images/salud-funcional/mis-sintomas.jpg'),
+  padecimientos: require('@/assets/images/salud-funcional/mis-padecimientos.jpg'),
   labs_guide: require('@/assets/images/health-hub/labs-guide.png'),
-  mi_expediente: require('@/assets/images/health-hub/historia-clinica.png'),
+  mi_expediente: require('@/assets/images/salud-funcional/mi-expediente.jpg'),
 };
 
 // Los 8 destinos · SOLO navegación (doctrina menú puro).

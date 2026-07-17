@@ -84,3 +84,68 @@ export function cronotipoKey(chronotype: string | undefined | null): CronotipoKe
     default: return 'leon';
   }
 }
+
+// ── Mapeo intervención → imagen (Mega-Sprint C · el fix real de #132) ─────────
+//
+// Problema: la card de una intervención tomaba su imagen de `categories[0]`, que
+// son ejes de DX (circadiano/ritual/estrés...), NO conceptos visuales → grounding,
+// frío, sauna, oil-pulling salían con la MISMA imagen. Fix: mapeo dedicado keyed en
+// `family` (específico) primero, luego `key` por patrón. Doctrina simple>inteligente:
+// mapeo EXPLÍCITO y legible; si no matchea → undefined → cae al sistema de carpetas
+// actual (cero pantalla rota).
+
+/** Las 11 claves de imagen de concepto visual disponibles (JPEG MJ · #132). */
+export type InterventionImageKey =
+  | 'grounding' | 'frio' | 'calor' | 'respiracion' | 'oral' | 'lentes'
+  | 'luz-roja' | 'audio' | 'naturaleza' | 'mente' | 'cognitivo';
+
+/** family del catálogo → clave de imagen (match exacto, es lo más específico). */
+const FAMILY_TO_IMAGE: Record<string, InterventionImageKey> = {
+  grounding: 'grounding',
+  ducha_fria: 'frio',
+  wim_hof: 'frio',
+  bano_frio: 'frio',
+  sauna: 'calor',
+  box_breathing: 'respiracion',
+  apnea_tables: 'respiracion',
+  respiracion_nocturna: 'respiracion',
+  oil_pulling: 'oral',
+  lentes_azul: 'lentes',
+  panel_luz_roja: 'luz-roja',
+  binaurales: 'audio',
+  nsdr_yoga_nidra: 'audio',
+  journal: 'mente',
+};
+
+/** Reglas por patrón sobre la `key` (para intervenciones SIN family que apliquen). */
+const KEY_PATTERNS: [RegExp, InterventionImageKey][] = [
+  [/luz_roja|red_light|fotobiomod/, 'luz-roja'],
+  [/nsdr|binaural|audio|sonido/, 'audio'],
+  [/grounding|earthing|descalz/, 'grounding'],
+  [/n_back|cognit|atencion|nback/, 'cognitivo'],
+  [/green_time|naturaleza|bosque|forest|aire_libre/, 'naturaleza'],
+  [/oil_pulling|omt_mastica|masticat|oral|bucal/, 'oral'],
+  [/coherencia_cardiaca|physiological_sigh|hiperventilacion|respiracion|breath/, 'respiracion'],
+  [/dive_reflex|compresa_fria|wim_hof|ducha_fria|bano_frio|cold|crio|hielo|frio/, 'frio'],
+  [/sauna|termoterapia/, 'calor'],
+  [/lentes/, 'lentes'],
+  [/silencio|digital_minimalism|meditac|mindful|journal/, 'mente'],
+];
+
+/**
+ * Clave de imagen de concepto visual para una intervención, o `undefined` si no
+ * matchea (el caller cae al sistema de carpetas por categoría). `family` gana
+ * sobre `key` porque es lo más específico.
+ */
+export function interventionImageKey(
+  intervention: { family?: string | null; key: string },
+): InterventionImageKey | undefined {
+  const fam = (intervention.family ?? '').toLowerCase();
+  if (fam && FAMILY_TO_IMAGE[fam]) return FAMILY_TO_IMAGE[fam];
+
+  const key = (intervention.key ?? '').toLowerCase();
+  for (const [rx, img] of KEY_PATTERNS) {
+    if (rx.test(key)) return img;
+  }
+  return undefined;
+}

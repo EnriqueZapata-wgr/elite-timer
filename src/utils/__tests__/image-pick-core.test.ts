@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { seededIndex, categoryToFolder, sexKey, cronotipoKey, tuDiaImageGroup, agendaCategoryToFolder } from '@/src/utils/image-pick-core';
+import { seededIndex, categoryToFolder, sexKey, cronotipoKey, tuDiaImageGroup, agendaCategoryToFolder, interventionImageKey } from '@/src/utils/image-pick-core';
 
 /**
  * #asset-swap — lógica pura de selección de imágenes. (Los pickers con require('.png') no se
@@ -100,5 +100,46 @@ describe('cronotipoKey', () => {
   it('desconocido / vacío → leon (fallback)', () => {
     expect(cronotipoKey(undefined)).toBe('leon');
     expect(cronotipoKey('xyz')).toBe('leon');
+  });
+});
+
+// ── Mega-Sprint C (#132): mapeo intervención → imagen ────────────────────────
+describe('interventionImageKey (fix #132)', () => {
+  it('family gana: grounding→grounding, ducha_fria/wim_hof/bano_frio→frio, sauna→calor', () => {
+    expect(interventionImageKey({ family: 'grounding', key: 'grounding_earthing' })).toBe('grounding');
+    expect(interventionImageKey({ family: 'ducha_fria', key: 'ducha_fria_nivel1' })).toBe('frio');
+    expect(interventionImageKey({ family: 'wim_hof', key: 'wim_hof_basico' })).toBe('frio');
+    expect(interventionImageKey({ family: 'bano_frio', key: 'cold_plunge_cns' })).toBe('frio');
+    expect(interventionImageKey({ family: 'sauna', key: 'sauna_finlandesa' })).toBe('calor');
+  });
+
+  it('respiración: box_breathing/apnea_tables/respiracion_nocturna → respiracion', () => {
+    expect(interventionImageKey({ family: 'box_breathing', key: 'box_breathing_4444' })).toBe('respiracion');
+    expect(interventionImageKey({ family: 'apnea_tables', key: 'tabla_co2' })).toBe('respiracion');
+    expect(interventionImageKey({ family: 'respiracion_nocturna', key: 'respiracion_478' })).toBe('respiracion');
+  });
+
+  it('oral: oil_pulling→oral; lentes_azul→lentes; panel_luz_roja→luz-roja; binaurales/nsdr→audio; journal→mente', () => {
+    expect(interventionImageKey({ family: 'oil_pulling', key: 'oil_pulling_coco' })).toBe('oral');
+    expect(interventionImageKey({ family: 'lentes_azul', key: 'lentes_rojos' })).toBe('lentes');
+    expect(interventionImageKey({ family: 'panel_luz_roja', key: 'panel_rojo_cara' })).toBe('luz-roja');
+    expect(interventionImageKey({ family: 'binaurales', key: 'binaurales_delta' })).toBe('audio');
+    expect(interventionImageKey({ family: 'nsdr_yoga_nidra', key: 'nsdr_10min' })).toBe('audio');
+    expect(interventionImageKey({ family: 'journal', key: 'journal_am' })).toBe('mente');
+  });
+
+  it('sin family: patrón por key (luz_roja_ojos, n_back, green_time, omt_masticatorios, coherencia)', () => {
+    expect(interventionImageKey({ key: 'luz_roja_ojos' })).toBe('luz-roja');
+    expect(interventionImageKey({ key: 'n_back_challenge' })).toBe('cognitivo');
+    expect(interventionImageKey({ key: 'green_time_30min' })).toBe('naturaleza');
+    expect(interventionImageKey({ key: 'omt_masticatorios' })).toBe('oral');
+    expect(interventionImageKey({ key: 'coherencia_cardiaca_5_5' })).toBe('respiracion');
+    expect(interventionImageKey({ key: 'dive_reflex_cara_hielo' })).toBe('frio');
+  });
+
+  it('sin match → undefined (cae limpio al sistema de carpetas)', () => {
+    expect(interventionImageKey({ key: 'hidratacion_matutina' })).toBeUndefined();
+    expect(interventionImageKey({ key: 'exposicion_solar_matutina' })).toBeUndefined();
+    expect(interventionImageKey({ family: 'ayuno', key: 'ayuno_16_8' })).toBeUndefined();
   });
 });
