@@ -10,7 +10,8 @@
     "lint": "expo lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "optimize-images": "node scripts/optimize-images.js"
+    "optimize-images": "node scripts/optimize-images.js",
+    "sourcemaps:ota": "node scripts/upload-ota-sourcemaps.mjs"
   },
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",
