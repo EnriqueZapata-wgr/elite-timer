@@ -17,7 +17,6 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Screen } from '@/src/components/ui/Screen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
-import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { TEXT_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
@@ -48,6 +47,24 @@ export default function MisEvaluacionesScreen() {
           </EliteText>
         </Animated.View>
 
+        {/* Mega-Sprint D: Cuestionario Maestro destacado (mapa y brújula de ATP). */}
+        <Animated.View entering={FadeInUp.delay(60).springify()}>
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/salud/cuestionario-maestro' as any); }} style={s.masterCard}>
+            <View style={s.cardRow}>
+              <View style={[s.iconWrap, { backgroundColor: withOpacity('#A8E02A', 0.15) }]}>
+                <Ionicons name="sparkles" size={22} color="#A8E02A" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <EliteText style={s.masterTitle}>Cuestionario Maestro ATP</EliteText>
+                <EliteText variant="caption" style={s.cardBlurb}>
+                  Tu mapa y brújula: levanta tu fenotipo epigenético completo y prescribe tus 5 intervenciones.
+                </EliteText>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#A8E02A" />
+            </View>
+          </AnimatedPressable>
+        </Animated.View>
+
         {EVALUACIONES.map((e, idx) => (
           <Animated.View key={e.key} entering={FadeInUp.delay(80 + idx * 45).springify()}>
             <AnimatedPressable onPress={() => { haptic.medium(); router.push(e.route as any); }}>
@@ -67,25 +84,6 @@ export default function MisEvaluacionesScreen() {
           </Animated.View>
         ))}
 
-        {/* Cuestionario Maestro — llega en su propio sprint (task #107). */}
-        <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Próximamente</SectionTitle>
-        <Animated.View entering={FadeInUp.delay(80 + EVALUACIONES.length * 45).springify()} style={s.soonCard}>
-          <View style={s.cardRow}>
-            <View style={[s.iconWrap, { backgroundColor: withOpacity('#A8E02A', 0.12) }]}>
-              <Ionicons name="sparkles-outline" size={22} color="#A8E02A" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <EliteText style={s.cardTitle}>Cuestionario Maestro ATP</EliteText>
-              <EliteText variant="caption" style={s.cardBlurb}>
-                13 dimensiones en una evaluación integral — reemplazará los cuestionarios sueltos.
-              </EliteText>
-            </View>
-            <View style={s.soonBadge}>
-              <EliteText style={s.soonBadgeText}>PRONTO</EliteText>
-            </View>
-          </View>
-        </Animated.View>
-
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
     </Screen>
@@ -100,10 +98,10 @@ const s = StyleSheet.create({
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   cardTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary, marginBottom: 2 },
   cardBlurb: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, lineHeight: 16 },
-  soonCard: {
-    backgroundColor: withOpacity('#A8E02A', 0.05), borderWidth: 0.5, borderColor: withOpacity('#A8E02A', 0.25),
-    borderRadius: Radius.lg, padding: Spacing.md, opacity: 0.85,
+  // Mega-Sprint D: Cuestionario Maestro destacado (lime-acentuado).
+  masterCard: {
+    backgroundColor: withOpacity('#A8E02A', 0.06), borderWidth: 1, borderColor: withOpacity('#A8E02A', 0.35),
+    borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.md,
   },
-  soonBadge: { backgroundColor: withOpacity('#A8E02A', 0.15), borderRadius: Radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
-  soonBadgeText: { fontFamily: Fonts.bold, fontSize: 9, color: '#A8E02A', letterSpacing: 1 },
+  masterTitle: { fontSize: FontSizes.md, fontFamily: Fonts.extraBold, color: '#A8E02A', marginBottom: 2 },
 });
