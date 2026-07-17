@@ -7,6 +7,20 @@ import { fileURLToPath } from 'node:url';
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  // Batch 3: stub de imágenes — permite testear módulos con require() de assets
+  // (p.ej. brand.ts BG_IMAGES) sin transform nativo de Metro.
+  plugins: [
+    {
+      name: 'stub-image-assets',
+      enforce: 'pre' as const,
+      resolveId(source: string) {
+        if (/\.(png|jpe?g|gif|webp)$/.test(source)) return '\0stub-image';
+      },
+      load(id: string) {
+        if (id === '\0stub-image' || /\.(png|jpe?g|gif|webp)$/.test(id)) return 'export default 0;';
+      },
+    },
+  ],
   resolve: {
     alias: {
       '@': projectRoot,

@@ -9,8 +9,9 @@
  * "próximamente". NO se rediseña el contenido de los cuestionarios todavía.
  */
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, ImageBackground } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -20,6 +21,9 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { TEXT_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
+
+// Batch 3 (#11): imagen editorial del hero (require estático · Metro).
+const HERO_EVALUACIONES = require('@/assets/images/health-hub/tests-evaluaciones.png');
 
 type Eval = { key: string; title: string; blurb: string; icon: string; color: string; route: string };
 
@@ -41,10 +45,20 @@ export default function MisEvaluacionesScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <PillarHeader pillar="health" title="Mis Evaluaciones" />
 
+        {/* Batch 3 (#11): hero editorial — imagen + overlay, molde del design system. */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <EliteText variant="caption" style={s.subtitle}>
-            Todos tus cuestionarios y pruebas en un solo lugar. Alimentan tu diagnóstico funcional.
-          </EliteText>
+          <ImageBackground source={HERO_EVALUACIONES} style={s.hero} imageStyle={s.heroImg}>
+            <LinearGradient
+              colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.5)', 'rgba(10,10,10,0.95)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={s.heroContent}>
+              <EliteText style={s.heroKicker}>SALUD FUNCIONAL</EliteText>
+              <EliteText variant="caption" style={s.subtitle}>
+                Todos tus cuestionarios y pruebas en un solo lugar. Alimentan tu diagnóstico funcional.
+              </EliteText>
+            </View>
+          </ImageBackground>
         </Animated.View>
 
         {/* Mega-Sprint D: Cuestionario Maestro destacado (mapa y brújula de ATP). */}
@@ -92,7 +106,12 @@ export default function MisEvaluacionesScreen() {
 
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
-  subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.lg, marginTop: Spacing.xs, fontFamily: Fonts.regular },
+  // Batch 3 (#11): hero editorial
+  hero: { height: 120, justifyContent: 'flex-end', borderRadius: Radius.lg, overflow: 'hidden', marginBottom: Spacing.md },
+  heroImg: { resizeMode: 'cover' },
+  heroContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+  heroKicker: { color: '#1D9E75', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 3, marginBottom: 2 },
+  subtitle: { color: 'rgba(255,255,255,0.8)', fontSize: FontSizes.sm, fontFamily: Fonts.regular },
   card: { padding: Spacing.md, marginBottom: Spacing.sm },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   iconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },

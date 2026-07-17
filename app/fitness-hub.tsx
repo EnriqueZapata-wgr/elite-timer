@@ -3,9 +3,10 @@
  * Resumen semanal compacto arriba.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, ImageBackground } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
@@ -13,10 +14,10 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { Screen } from '@/src/components/ui/Screen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
+import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { PILLAR_GRADIENTS, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { supabase } from '@/src/lib/supabase';
 
 const SECTIONS = [
@@ -47,10 +48,17 @@ export default function FitnessHubScreen() {
   const router = useRouter();
   const [stats, setStats] = useState({ sessions: 0, volume: 0, prs: 0 });
   const [dynamicSubs, setDynamicSubs] = useState<Record<string, string>>({});
+  // Batch 3 (#22): hero editorial sex-aware (fitness-el/ella).
+  const [bioSex, setBioSex] = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     loadWeekStats();
     loadDynamicSubtitles();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => setBioSex((data as any)?.biological_sex ?? null), () => {});
+    });
   }, []));
 
   async function loadWeekStats() {
@@ -109,29 +117,35 @@ export default function FitnessHubScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {/* Resumen semanal */}
+        {/* Resumen semanal — Batch 3 (#22): hero editorial (imagen + overlay), no card plana */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <GradientCard gradient={PILLAR_GRADIENTS.fitness} padding={20}>
-            <EliteText style={s.statsLabel}>ESTA SEMANA</EliteText>
-            <View style={s.statsRow}>
-              <View style={s.statItem}>
-                <EliteText style={s.statValue}>{stats.sessions}</EliteText>
-                <EliteText style={s.statLabel}>Sesiones</EliteText>
-              </View>
-              <View style={s.statDivider} />
-              <View style={s.statItem}>
-                <EliteText style={s.statValue}>
-                  {stats.volume > 1000 ? `${(stats.volume / 1000).toFixed(1)}k` : stats.volume}
-                </EliteText>
-                <EliteText style={s.statLabel}>Kg movidos</EliteText>
-              </View>
-              <View style={s.statDivider} />
-              <View style={s.statItem}>
-                <EliteText style={[s.statValue, { color: '#fbbf24' }]}>{stats.prs}</EliteText>
-                <EliteText style={s.statLabel}>PRs nuevos</EliteText>
+          <ImageBackground source={pickFitnessImage(bioSex)} style={s.heroCard} imageStyle={s.heroImg}>
+            <LinearGradient
+              colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.55)', 'rgba(10,10,10,0.95)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={s.heroInner}>
+              <EliteText style={s.statsLabel}>ESTA SEMANA</EliteText>
+              <View style={s.statsRow}>
+                <View style={s.statItem}>
+                  <EliteText style={s.statValue}>{stats.sessions}</EliteText>
+                  <EliteText style={s.statLabel}>Sesiones</EliteText>
+                </View>
+                <View style={s.statDivider} />
+                <View style={s.statItem}>
+                  <EliteText style={s.statValue}>
+                    {stats.volume > 1000 ? `${(stats.volume / 1000).toFixed(1)}k` : stats.volume}
+                  </EliteText>
+                  <EliteText style={s.statLabel}>Kg movidos</EliteText>
+                </View>
+                <View style={s.statDivider} />
+                <View style={s.statItem}>
+                  <EliteText style={[s.statValue, { color: SEMANTIC.acceptable }]}>{stats.prs}</EliteText>
+                  <EliteText style={s.statLabel}>PRs nuevos</EliteText>
+                </View>
               </View>
             </View>
-          </GradientCard>
+          </ImageBackground>
         </Animated.View>
 
         {/* 3 botones grandes */}
@@ -166,9 +180,14 @@ export default function FitnessHubScreen() {
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
+  // Hero editorial (Batch 3 #22)
+  heroCard: { borderRadius: 20, overflow: 'hidden', justifyContent: 'flex-end', minHeight: 150 },
+  heroImg: { resizeMode: 'cover' },
+  heroInner: { padding: 20 },
+
   // Stats
   statsLabel: {
-    fontSize: 9, fontFamily: Fonts.bold, color: '#999',
+    fontSize: 9, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.7)',
     letterSpacing: 2, marginBottom: Spacing.md,
   },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },

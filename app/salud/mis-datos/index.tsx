@@ -13,7 +13,8 @@
  * sigue escribiendo la MISMA tabla canónica que antes.
  */
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View, ImageBackground } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -31,11 +32,14 @@ import {
   type MisDatosSummary,
 } from '@/src/services/salud/mis-datos-core';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
-import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
+// Batch 3 (#10): imagen editorial del hero (require estático · Metro).
+const HERO_MIS_DATOS = require('@/assets/images/health-hub/biomarcadores.png');
+
 const LEVEL_COLOR: Record<'ok' | 'warn' | 'high', string> = {
-  ok: '#4ade80', warn: '#fbbf24', high: '#ef4444',
+  ok: '#4ade80', warn: SEMANTIC.acceptable, high: '#ef4444',
 };
 
 function MisDatosScreen() {
@@ -84,10 +88,20 @@ function MisDatosScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
         <PillarHeader pillar="health" title="Mis Datos" />
 
+        {/* Batch 3 (#10): hero editorial — imagen + overlay, molde del design system. */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <EliteText variant="caption" style={s.subtitle}>
-            Todos tus números de salud en un solo lugar. Cada dato se guarda una sola vez.
-          </EliteText>
+          <ImageBackground source={HERO_MIS_DATOS} style={s.hero} imageStyle={s.heroImg}>
+            <LinearGradient
+              colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.5)', 'rgba(10,10,10,0.95)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={s.heroContent}>
+              <EliteText style={s.heroKicker}>SALUD FUNCIONAL</EliteText>
+              <EliteText variant="caption" style={s.subtitle}>
+                Todos tus números de salud en un solo lugar. Cada dato se guarda una sola vez.
+              </EliteText>
+            </View>
+          </ImageBackground>
         </Animated.View>
 
         {/* Labs de sangre */}
@@ -168,7 +182,12 @@ function Section({ idx, icon, color, title, value, meta, metaColor, onPress, onC
 
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
-  subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.lg, marginTop: Spacing.xs, fontFamily: Fonts.regular },
+  // Batch 3 (#10): hero editorial
+  hero: { height: 120, justifyContent: 'flex-end', borderRadius: Radius.lg, overflow: 'hidden', marginBottom: Spacing.md },
+  heroImg: { resizeMode: 'cover' },
+  heroContent: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+  heroKicker: { color: '#1D9E75', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 3, marginBottom: 2 },
+  subtitle: { color: 'rgba(255,255,255,0.8)', fontSize: FontSizes.sm, fontFamily: Fonts.regular },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
     backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border,

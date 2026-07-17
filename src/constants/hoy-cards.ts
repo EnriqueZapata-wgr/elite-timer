@@ -3,8 +3,9 @@
  * estáticos de cada card: categoría, icono, título, gradient y ruta de tap. Los DATOS (estado
  * completado, progreso, mensaje contextual) se resuelven en runtime desde day-compiler / servicios.
  *
- * `imageBn` queda undefined hasta que lleguen los assets B/N (sprint paralelo) → EditorialCard cae
- * a placeholder de gradient sólido. Cuando estén: `imageBn: require('@/assets/images/agenda/...')`.
+ * `imageBn` queda undefined AQUÍ a propósito (#91 aclarado, Batch 3): este archivo lo importan
+ * los tests node (vitest sin transform de assets) → cero require() de imágenes. El cableado real
+ * de imágenes vive en la capa de render: HoyEditorialSection (ELECTRON_IMAGES / HOY_EXTRA_IMAGES).
  */
 import type { ImageSourcePropType } from 'react-native';
 // Sprint 2 E: color por concepto desde la fuente única (audit §3 — un concepto = un color).

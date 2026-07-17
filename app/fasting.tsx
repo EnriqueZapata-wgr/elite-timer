@@ -20,6 +20,7 @@ import { getFastingTier } from '../src/constants/electrons';
 import * as fastingService from '../src/services/fasting-service';
 import { useAnalytics, ATP_EVENTS } from '../src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 
 // Presets rápidos para los wheel pickers (reemplazan mode="datetime").
@@ -885,7 +886,7 @@ export default function FastingScreen() {
                 </Pressable>
                 <Pressable
                   onPress={savePastFast}
-                  style={{ flex: 1, backgroundColor: '#a8e02a', borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}
+                  style={{ flex: 1, backgroundColor: ATP_BRAND.lime, borderRadius: 14, paddingVertical: 12, alignItems: 'center' }}
                 >
                   <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>GUARDAR</Text>
                 </Pressable>
@@ -1025,7 +1026,7 @@ export default function FastingScreen() {
           <Pressable
             onPress={handleBreakFast}
             style={{
-              backgroundColor: '#a8e02a', borderRadius: 18, paddingVertical: 18,
+              backgroundColor: ATP_BRAND.lime, borderRadius: 18, paddingVertical: 18,
               width: '100%', alignItems: 'center', marginBottom: 8,
             }}
           >

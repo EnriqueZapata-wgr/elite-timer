@@ -1,8 +1,10 @@
 /**
- * Sistema de diseño ELITE — Colores, tipografía y espaciado.
+ * Sistema de diseño ATP — Colores, tipografía y espaciado (aliases legacy).
  *
  * Todos los componentes importan de aquí en vez de hardcodear valores.
- * Los colores vienen de brand.ts (única fuente de verdad).
+ * Los colores vienen de brand.ts (única fuente de verdad). Doctrina Batch 3:
+ * lime + teal principales, amber secundario; superficies heroicas = degradados
+ * (brandGradient / PILLAR_GRADIENTS), lime plano solo micro-acento.
  */
 import { ATP_BRAND, SURFACES, TEXT_COLORS, BLOCK_COLORS, SEMANTIC } from '@/src/constants/brand';
 
@@ -11,6 +13,7 @@ import { ATP_BRAND, SURFACES, TEXT_COLORS, BLOCK_COLORS, SEMANTIC } from '@/src/
 export const Colors = {
   // Primarios
   black: ATP_BRAND.black,
+  /** @deprecated alias ELITE — código nuevo usa ATP_BRAND.lime con disciplina ACCENT_ROLES. */
   neonGreen: ATP_BRAND.lime,
 
   // Superficies

@@ -17,8 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
+import { MenteHero } from '@/src/components/mente/MenteHero';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import {
   ACTIVITY_META,
@@ -46,6 +46,9 @@ interface HubState {
   checkinsToday: number;
   recent: MenteActivity[];
 }
+
+// Batch 3 (#7): asset editorial del pilar (require estático · Metro).
+const HERO_MENTE = require('@/assets/images/health-hub/mente-avanzado.png');
 
 const EMPTY: HubState = {
   journalStreak: 0,
@@ -127,21 +130,23 @@ export default function MenteHubScreen() {
   return (
     <SafeAreaView style={s.screen}>
       <StatusBar style="light" />
-      <View style={s.header}>
-        <BackButton onPress={() => router.back()} />
-        <View style={{ flex: 1 }}>
-          <EliteText style={s.kicker}>TU PILAR</EliteText>
-          <EliteText style={s.title}>MENTE</EliteText>
-        </View>
-        {/* Progreso (streaks + medallas) */}
-        <AnimatedPressable
-          onPress={() => { haptic.light(); router.push('/mente/progreso' as any); }}
-          style={s.progressBtn}
-        >
-          <Ionicons name="trophy-outline" size={18} color={ATP_BRAND.lime} />
-        </AnimatedPressable>
-      </View>
-      <View style={{ paddingHorizontal: Spacing.md, marginBottom: Spacing.sm }}>
+      {/* Batch 3 (#7): hero editorial del hub (molde MenteHero, imagen + overlay). */}
+      <MenteHero
+        image={HERO_MENTE}
+        kicker="TU PILAR"
+        title="Mente"
+        subtitle="Journal · respiración · meditación · check-in"
+        onBack={() => router.back()}
+        rightContent={
+          <AnimatedPressable
+            onPress={() => { haptic.light(); router.push('/mente/progreso' as any); }}
+            style={s.progressBtn}
+          >
+            <Ionicons name="trophy-outline" size={18} color={ATP_BRAND.lime} />
+          </AnimatedPressable>
+        }
+      />
+      <View style={{ paddingHorizontal: Spacing.md, marginVertical: Spacing.sm }}>
         <CommunityPresence pillar="mente" />
       </View>
 
@@ -228,12 +233,6 @@ export default function MenteHubScreen() {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#000' },
-  header: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.md,
-  },
-  kicker: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: ATP_BRAND.lime, letterSpacing: 3 },
-  title: { fontSize: 28, fontFamily: Fonts.extraBold, color: '#fff', letterSpacing: 2, marginTop: 2 },
   progressBtn: {
     width: 40, height: 40, borderRadius: 20,
     borderWidth: 1, borderColor: withOpacity(ATP_BRAND.lime, 0.35),

@@ -8,14 +8,22 @@ import { hoyBgBucket } from '@/src/utils/time-of-day';
 
 // ═══ PALETA PRINCIPAL ═══
 
+// DOCTRINA DE MARCA (Batch 3 · #23): 3 colores — lime + teal PRINCIPALES,
+// amarillo (amber) SECUNDARIO. Nada de 4º color de marca. Las superficies
+// heroicas usan DEGRADADOS (moleculeGradient / PILLAR_GRADIENTS / brandGradient),
+// NUNCA lime plano como fondo — el color plano es solo micro-acento
+// (ver ACCENT_ROLES: >3 elementos lima en una pantalla = sobra acento).
 export const ATP_BRAND = {
   black: '#000000',
-  lime: '#A8E02A',       // Lima ELITE — color primario, CTAs, accents
+  lime: '#A8E02A',       // Lima ATP — acento primario (CTAs, dato heroico; máx 1-2 por vista)
   green1: '#6DCC48',     // Verde intermedio claro
   green2: '#3DBF6E',     // Verde medio
   teal1: '#2EC28A',      // Teal intermedio
   teal2: '#1ABC9C',      // Teal profundo
   teal: '#1ABC9C',       // Teal de acento (= el más bajo del molecule gradient) — acentos auth/UI
+  // Amarillo secundario ATP — acento terciario, NUNCA principal (lime+teal mandan).
+  // ÚNICO amarillo de marca: SEMANTIC.acceptable y SCORE_COLORS.stable apuntan aquí.
+  amber: '#EFD54F',
   white: '#FFFFFF',
 
   // Gradiente de la molécula (de lima a teal)
@@ -62,7 +70,7 @@ export const CATEGORY_COLORS = {
 
 export const SEMANTIC = {
   success: '#A8E02A',    // Éxito, óptimo
-  acceptable: '#EFD54F', // Aceptable, en rango
+  acceptable: ATP_BRAND.amber, // Aceptable, en rango (el único amarillo de marca)
   warning: '#EF9F27',    // Advertencia, riesgo
   error: '#fb7185',      // Error/crítico — rose-400, legible en fondo oscuro
   info: '#5B9BD5',       // Información
@@ -91,6 +99,9 @@ export const CARD_STYLE = {
 // ═══ ESTILOS DE BOTONES ═══
 
 export const BUTTON_STYLES = {
+  // primary = ACCENT_ROLES.primary: MÁXIMO 1 CTA heroico lima por pantalla.
+  // Para superficies grandes, preferir brandGradient() (LinearGradient) sobre
+  // el lime plano — el sólido es para botones compactos, no fondos.
   primary: {
     background: ATP_BRAND.lime,
     text: TEXT_COLORS.onAccent,
@@ -269,7 +280,7 @@ export const ACCENT_ROLES = {
 export const SCORE_COLORS = {
   optimal:  '#4ade80',   // 85+ verde brillante
   charged:  '#a8e02a',   // 70-84 lime ATP
-  stable:   '#fbbf24',   // 55-69 amarillo
+  stable:   ATP_BRAND.amber, // 55-69 amarillo (único amarillo de marca)
   low:      '#f97316',   // 40-54 naranja
   critical: '#ef4444',   // 0-39 rojo
 } as const;
@@ -319,6 +330,20 @@ export function getScoreMessage(score: number, hour: number): string {
   return 'Prioriza sueño profundo. Mañana será otro día.';
 }
 
+/**
+ * Degradado de marca correcto para una superficie heroica (Batch 3 · #23):
+ * con pilar → PILLAR_GRADIENTS[pilar] como tupla [start, end] lista para
+ * LinearGradient; sin pilar → la molécula lime→teal. Fondos/cards heroicas
+ * usan ESTO; el lime plano queda solo para micro-acentos (ACCENT_ROLES).
+ */
+export function brandGradient(pillar?: keyof typeof PILLAR_GRADIENTS): readonly [string, string, ...string[]] {
+  if (pillar && PILLAR_GRADIENTS[pillar]) {
+    const g = PILLAR_GRADIENTS[pillar];
+    return [g.start, g.end] as const;
+  }
+  return ATP_BRAND.moleculeGradient;
+}
+
 /** Gradientes por pilar/categoria — start (color tinted) -> end (oscuro). */
 export const PILLAR_GRADIENTS = {
   fitness:    { start: 'rgba(168,224,42,0.25)', end: 'rgba(10,10,10,0.95)' },
@@ -340,19 +365,14 @@ export const PILLAR_GRADIENTS = {
 // requires estaticos (Metro bundler los analiza en tiempo de compilacion).
 // 4 imagenes en assets/backgrounds/ cubren los 4 momentos del dia.
 
-const BG_IMAGES = {
-  sleep:        require('../../assets/backgrounds/bg-sleep.jpg'),
-  morning:      require('../../assets/backgrounds/bg-morning.jpg'),
-  middayMedium: require('../../assets/backgrounds/bg-midday-medium.jpg'),
-  nightLow:     require('../../assets/backgrounds/bg-night-low.jpg'),
-} as const;
-
-/** Devuelve la imagen de fondo apropiada segun la hora (franja pura en time-of-day). */
+/** Devuelve la imagen de fondo apropiada segun la hora (franja pura en time-of-day).
+ * requires LAZY dentro de la funcion (Batch 3): Metro los sigue resolviendo estatico,
+ * pero importar brand.ts en tests node ya no toca assets binarios. */
 export function getHoyBackgroundRequire(hour: number, _score: number) {
   switch (hoyBgBucket(hour)) {
-    case 'sleep': return BG_IMAGES.sleep;
-    case 'morning': return BG_IMAGES.morning;
-    case 'midday': return BG_IMAGES.middayMedium;
-    default: return BG_IMAGES.nightLow;
+    case 'sleep': return require('../../assets/backgrounds/bg-sleep.jpg');
+    case 'morning': return require('../../assets/backgrounds/bg-morning.jpg');
+    case 'midday': return require('../../assets/backgrounds/bg-midday-medium.jpg');
+    default: return require('../../assets/backgrounds/bg-night-low.jpg');
   }
 }

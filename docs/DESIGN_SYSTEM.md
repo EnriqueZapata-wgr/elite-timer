@@ -29,6 +29,19 @@ está solo donde debe? ¿las cards se despegan del fondo?** Si no, falta trabajo
 `BG` / `BORDER` / `TEXT`, no los aliases viejos (`SURFACES`/`TEXT_COLORS`/`Colors.*`, marcados
 para deprecación).
 
+### Doctrina de 3 colores (Batch 3 · #23 — ATP ≠ ELITE)
+- **Lime (`ATP_BRAND.lime`) + teal (`ATP_BRAND.teal`) son los PRINCIPALES; amber
+  (`ATP_BRAND.amber = #EFD54F`) es el SECUNDARIO.** No existe 4º color de marca.
+- **Un solo amarillo:** `SEMANTIC.acceptable` y `SCORE_COLORS.stable` son alias de
+  `ATP_BRAND.amber`. Cualquier otro amarillo/ámbar en pantallas es deuda.
+- **Superficies heroicas = DEGRADADOS, nunca lime plano.** Usar `brandGradient()`
+  (molécula lime→teal sin pilar; `[start, end]` del pilar con él) o
+  `PILLAR_GRADIENTS`. El lime sólido queda para micro-acentos (pills, checks, CTA
+  compacto) bajo la disciplina de `ACCENT_ROLES`.
+- **El molde ATP es "Mis Datos" + `EditorialCard`:** imagen editorial de fondo +
+  gradient overlay + jerarquía. Todo lo que no se sienta como esa pantalla, está mal
+  (lime-brutalist heredado de ELITE = borrador).
+
 ### Elevación — da profundidad (no usar bg/borde sueltos)
 ```ts
 ELEVATION[0] = { bg: '#000000', border: 'transparent' }  // fondo de pantalla
