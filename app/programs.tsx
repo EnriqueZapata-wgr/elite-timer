@@ -69,9 +69,9 @@ export default function ProgramsScreen() {
 
   const playRoutine = (routine: Routine) => {
     haptic.light();
-    const target = routine.mode === 'routine' ? '/routine-execution' : '/execution';
+    const target = routine.mode === 'routine' ? ('/routine-execution' as const) : ('/execution' as const);
     router.push({
-      pathname: target as any,
+      pathname: target,
       params: { routine: JSON.stringify(routine) },
     });
   };

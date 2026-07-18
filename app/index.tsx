@@ -72,8 +72,8 @@ export default function IndexRedirect() {
   }
 
   // Sin sesión → login. El onboarding post-signup vive en /onboarding/v2/*.
-  if (!session) return <Redirect href={'/login' as any} />;
-  if (onboardingDone === false && onboardingRoute) return <Redirect href={onboardingRoute as any} />;
+  if (!session) return <Redirect href="/login" />;
+  if (onboardingDone === false && onboardingRoute) return <Redirect href={onboardingRoute} />;
   return <Redirect href="/(tabs)" />;
 }
 
