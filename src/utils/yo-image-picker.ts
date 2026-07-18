@@ -8,26 +8,26 @@ import type { ImageSourcePropType } from 'react-native';
 import { sexKey, cronotipoKey, type CronotipoKey } from '@/src/utils/image-pick-core';
 
 const EDAD_ATP_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
-  male: require('@/assets/images/yo/edad-atp-el.png'),
-  female: require('@/assets/images/yo/edad-atp-ella.png'),
+  male: require('@/assets/images/yo/edad-atp-el.jpg'),
+  female: require('@/assets/images/yo/edad-atp-ella.jpg'),
 };
 
 const COMPOSICION_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
-  male: require('@/assets/images/yo/composicion-el.png'),
-  female: require('@/assets/images/yo/composicion-ella.png'),
+  male: require('@/assets/images/yo/composicion-el.jpg'),
+  female: require('@/assets/images/yo/composicion-ella.jpg'),
 };
 
 const CRONOTIPO_IMAGES: Record<CronotipoKey, ImageSourcePropType> = {
-  leon: require('@/assets/images/yo/cronotipo-leon.png'),
-  lobo: require('@/assets/images/yo/cronotipo-lobo.png'),
-  oso: require('@/assets/images/yo/cronotipo-oso.png'),
-  delfin: require('@/assets/images/yo/cronotipo-delfin.png'),
+  leon: require('@/assets/images/yo/cronotipo-leon.jpg'),
+  lobo: require('@/assets/images/yo/cronotipo-lobo.jpg'),
+  oso: require('@/assets/images/yo/cronotipo-oso.jpg'),
+  delfin: require('@/assets/images/yo/cronotipo-delfin.jpg'),
 };
 
 // #cableado-final 3.6: variantes sex-aware nuevas.
 const FITNESS_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
-  male: require('@/assets/images/habits-portal/fitness-el.png'),
-  female: require('@/assets/images/habits-portal/fitness-ella.png'),
+  male: require('@/assets/images/habits-portal/fitness-el.jpg'),
+  female: require('@/assets/images/habits-portal/fitness-ella.jpg'),
 };
 const EMBARAZO_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
   male: require('@/assets/images/cycle/embarazo/embarazo-el.png'),
@@ -36,12 +36,12 @@ const EMBARAZO_IMAGES: Record<'male' | 'female', ImageSourcePropType> = {
 
 /** Imágenes estáticas restantes del YO (no sex-aware). */
 export const YO_STATIC_IMAGES = {
-  rank: require('@/assets/images/yo/rank-logros.png'),
-  disciplina: require('@/assets/images/yo/disciplina-semanal.png'),
-  reports: require('@/assets/images/yo/reports.png'),
-  lab: require('@/assets/images/yo/lab-preview.png'),
-  test: require('@/assets/images/yo/test-preview.png'),
-  tendencias: require('@/assets/images/yo/tendencias.png'),
+  rank: require('@/assets/images/yo/rank-logros.jpg'),
+  disciplina: require('@/assets/images/yo/disciplina-semanal.jpg'),
+  reports: require('@/assets/images/yo/reports.jpg'),
+  lab: require('@/assets/images/yo/lab-preview.jpg'),
+  test: require('@/assets/images/yo/test-preview.jpg'),
+  tendencias: require('@/assets/images/yo/tendencias.jpg'),
 } as const;
 
 export function pickEdadAtpImage(sex?: string | null): ImageSourcePropType {

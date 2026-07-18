@@ -5,7 +5,9 @@
  * Estados: pending (full) · completed (veil + check lima + tachado) · skipped (opacity 0.4) ·
  * snoozed (clock amarillo "Pospuesto"). Reusa pickAgendaImage + agendaCategoryToFolder.
  */
-import { View, Image, StyleSheet, type ImageSourcePropType } from 'react-native';
+import { View, StyleSheet, type ImageSourcePropType } from 'react-native';
+// P2.8 triple-audit: expo-image (caché + transition) — mismo fix que EditorialCard.
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
@@ -88,7 +90,7 @@ export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
       {/* Foto B/N lateral (o placeholder oscuro con icono si no hay imagen). */}
       <View style={[styles.photo, compact && styles.photoCompact]}>
         {image ? (
-          <Image source={image} style={styles.photoImg} resizeMode="cover" />
+          <Image source={image} style={styles.photoImg} contentFit="cover" transition={150} cachePolicy="memory-disk" />
         ) : (
           <View style={styles.photoPlaceholder}>
             <Ionicons name={icon} size={compact ? 20 : 26} color={`${tint[0]}66`} />

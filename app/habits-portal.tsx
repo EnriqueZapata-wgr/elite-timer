@@ -24,10 +24,10 @@ type Card = { key: string; title: string; subtitle: string; icon: string; gradie
 // #cableado-final 3.4: imágenes estáticas por card. fitness es sex-aware (pickFitnessImage) y ciclo
 // rota (pickHabitImage) → se resuelven aparte en renderCard.
 const HABIT_CARD_IMAGES: Record<string, any> = {
-  nutricion: require('@/assets/images/habits-portal/nutricion.png'),
-  suplementacion: require('@/assets/images/habits-portal/suplementacion.png'),
-  ayuno: require('@/assets/images/habits-portal/ayuno.png'),
-  sueno: require('@/assets/images/habits-portal/sueno.png'),
+  nutricion: require('@/assets/images/habits-portal/nutricion.jpg'),
+  suplementacion: require('@/assets/images/habits-portal/suplementacion.jpg'),
+  ayuno: require('@/assets/images/habits-portal/ayuno.jpg'),
+  sueno: require('@/assets/images/habits-portal/sueno.jpg'),
   // Sprint 2 A: asset editorial dedicado del pilar (estaba en disco sin cablear).
   mente: require('@/assets/images/health-hub/mente-avanzado.png'),
   // Sprint 2 C: HIDRATACIÓN y ATP SOL compartían PNG con las cards del HOY

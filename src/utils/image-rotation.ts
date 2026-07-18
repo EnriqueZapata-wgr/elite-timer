@@ -33,9 +33,9 @@ const HABIT_IMAGES: Record<string, ImageSourcePropType[]> = {
   atp_sol: [require('@/assets/images/electrons/luz-solar.png')],
   suplementacion: [require('@/assets/images/electrons/suplementos.png')],
   // #post-tu-dia: assets ya generados — cableados.
-  nutricion: [require('@/assets/images/habits-portal/nutricion.png')],
-  ayuno: [require('@/assets/images/habits-portal/ayuno.png')],
-  sueno: [require('@/assets/images/habits-portal/sueno.png')],
+  nutricion: [require('@/assets/images/habits-portal/nutricion.jpg')],
+  ayuno: [require('@/assets/images/habits-portal/ayuno.jpg')],
+  sueno: [require('@/assets/images/habits-portal/sueno.jpg')],
   journal: [require('@/assets/images/hoy-extra/journal.png')],
   // fitness: queda fuera de este Record porque es SEX-AWARE → usar pickFitnessImage(sex)
   // de yo-image-picker.ts (devuelve fitness-el.png | fitness-ella.png según biological_sex).

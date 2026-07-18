@@ -6,7 +6,10 @@
  * Estados: pending (vivo) · in_window (glow lima + badge "AHORA") · done (overlay + "Hecho hoy ✓")
  * · out_of_hour (mensaje contextual). Tokens canónicos + haptic + PressableScale (AnimatedPressable).
  */
-import { View, StyleSheet, Image, Pressable, Alert, type ImageSourcePropType } from 'react-native';
+import { View, StyleSheet, Pressable, Alert, type ImageSourcePropType } from 'react-native';
+// P2.8 triple-audit: expo-image en vez de RN Image — decode con caché
+// memoria+disco y transition, mata el flash negro de 1-3s en los hubs.
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
@@ -92,18 +95,22 @@ export function EditorialCard({
           usa aspectRatio, y la Image renderiza a su tamaño natural (2048x1146) — solo se ve
           el crop sup-izq porque la card tiene overflow:hidden. Con width/height '100%' fuerza
           la escala correcta y resizeMode='cover' funciona como se espera. */}
+      {/* P2.8: el placeholder de gradient se pinta SIEMPRE debajo — antes solo
+          existía en la rama sin imagen, y mientras la Image decodificaba la
+          card era un hueco negro (RN Image transparente + overlay alpha). */}
+      <View style={StyleSheet.absoluteFill}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: gradient[0], opacity: 0.25 }]} />
+        {!imageBn && <EliteText style={styles.placeholderIcon}>{icon}</EliteText>}
+      </View>
       {imageBn ? (
         <Image
           source={imageBn}
           style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
-          resizeMode="cover"
+          contentFit="cover"
+          transition={180}
+          cachePolicy="memory-disk"
         />
-      ) : (
-        <View style={StyleSheet.absoluteFill}>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: gradient[0], opacity: 0.25 }]} />
-          <EliteText style={styles.placeholderIcon}>{icon}</EliteText>
-        </View>
-      )}
+      ) : null}
       {/* Overlay de gradient de categoría (diagonal).
           - SIN imagen: gradient sólido (placeholder) con opacity 0.9.
           - CON imagen: gradient diagonal de color fuerte (alpha 80% = CC hex) a casi transparente
