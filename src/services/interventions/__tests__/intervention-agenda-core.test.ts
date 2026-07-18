@@ -812,10 +812,14 @@ describe('HOTFIX 1.5 · repro snapshot prod (28 eventos device test)', () => {
     const vivos = activos.filter((r) => !out.includes(r.id));
     expect(vivos.filter((r) => r.source === 'protocol')).toHaveLength(0);
     expect(vivos.filter((r) => r.source === 'manual' || r.source === 'manual_override')).toHaveLength(13);
-    expect(vivos.filter((r) => r.source === 'intervention')).toHaveLength(4);
+    // MB-1 P3-3: con la familia 'cardio', "Zona 2 aeróbica" (máquina) pierde
+    // contra "Running" (manual del user, sagrado) — era el dupe 08:30 del audit.
+    expect(vivos.filter((r) => r.source === 'intervention')).toHaveLength(3);
+    expect(vivos.map((r) => r.id)).not.toContain('p07');
+    expect(vivos.map((r) => r.id)).toContain('p13');
     expect(vivos.filter((r) => r.source === 'chronotype')).toHaveLength(1);
-    // Total post-fix: 18 = 13 del user (sagradas) + 5 de máquina legítimas.
-    expect(vivos).toHaveLength(18);
+    // Total post-fix: 17 = 13 del user (sagradas) + 4 de máquina legítimas.
+    expect(vivos).toHaveLength(17);
   });
 
   it('idempotente: segunda pasada sobre el resultado no desactiva nada más', () => {

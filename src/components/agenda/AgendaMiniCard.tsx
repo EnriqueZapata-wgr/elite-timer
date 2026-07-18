@@ -70,13 +70,17 @@ export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
   const done = event.status === 'completed';
   const skipped = event.status === 'skipped';
   const snoozed = event.status === 'snoozed';
+  // MB-1 P3-4: un evento pendiente cuya hora ya pasó se atenúa y deja de
+  // anunciar su recordatorio ("10 min antes" a media tarde = ruido).
+  const past = !done && !skipped && !snoozed &&
+    new Date(event.scheduledAt).getTime() < Date.now();
   const tint = getCategoryTint(folder);
   const icon = CATEGORY_ICON[folder] ?? CATEGORY_ICON.otros;
 
   return (
     <AnimatedPressable
       onPress={onTap ? () => { haptic.light(); onTap(); } : undefined}
-      style={[styles.card, compact && styles.cardCompact, skipped && styles.cardSkipped]}
+      style={[styles.card, compact && styles.cardCompact, skipped && styles.cardSkipped, past && styles.cardPast]}
     >
       {/* Fondo de la card: gradient sutil de profundidad (#151515 → #0E0E0E). */}
       <LinearGradient colors={['#151515', '#0E0E0E']} style={StyleSheet.absoluteFill} />
@@ -118,6 +122,11 @@ export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
                 <Ionicons name="time-outline" size={12} color="#fbbf24" />
                 <EliteText style={[styles.statusText, styles.statusSnoozed]}>Pospuesto</EliteText>
               </View>
+            ) : past ? (
+              <View style={styles.statusRow}>
+                <Ionicons name="time-outline" size={11} color="rgba(255,255,255,0.4)" />
+                <EliteText style={styles.statusText}>Pasado</EliteText>
+              </View>
             ) : event.notifyMinutesBefore > 0 && !done && !skipped ? (
               <View style={styles.statusRow}>
                 <Ionicons name="notifications-outline" size={11} color="rgba(255,255,255,0.55)" />
@@ -145,6 +154,7 @@ const styles = StyleSheet.create({
   },
   cardCompact: { height: 80, marginBottom: Spacing.xs },
   cardSkipped: { opacity: 0.4 },
+  cardPast: { opacity: 0.55 },
   // Foto lateral: 30% default / 25% compact. overflow:hidden de la card recorta las esquinas izq.
   photo: { width: '30%', backgroundColor: '#000' },
   photoCompact: { width: '25%' },

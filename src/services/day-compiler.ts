@@ -17,7 +17,7 @@ import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/elec
 import { warn as logWarn } from '@/src/lib/logger';
 // ── DX F4 (swap HOY/AGENDA) — doble-lectura gateada por flag ──
 import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
-import { selectAgendaDrivers, anchorTimes, interventionAgendaItems } from '@/src/services/interventions/intervention-agenda-core';
+import { selectAgendaDrivers, anchorTimes, interventionAgendaItems, canonicalConcept } from '@/src/services/interventions/intervention-agenda-core';
 import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 import { buildDoneIndex, applyDoneFromLogs } from '@/src/services/hoy/day-state-core';
 
@@ -769,8 +769,12 @@ async function buildAgenda(
   } catch { /* sin cronotipo → sin item de sueño */ }
 
   // === DEDUPLICATE + SORT + MARK NEXT ===
+  // MB-1 P3-3: dedup SEMÁNTICO (hora + familia canónica), no solo nombre exacto.
+  // "Desayuno proteico alto" 10:30 (meal) y "Romper ayuno — comida limpia" 10:30
+  // (intervención) son el mismo momento; ídem "Running"/"Zona 2 aeróbica" 08:30.
+  // Distintas horas de la misma familia siguen siendo legítimas (agua ×5).
   const seen = new Set<string>();
-  const deduped = items.filter(i => { const k = `${i.time}-${i.name}`.toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+  const deduped = items.filter(i => { const k = `${i.time}-${canonicalConcept(i.name)}`; if (seen.has(k)) return false; seen.add(k); return true; });
 
   // F1 Batch 4 (#30) — UN estado del día: merge del status de agenda_event_logs
   // (la instancia canónica que escribe AGENDA) sobre los items derivados aquí.

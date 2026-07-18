@@ -229,11 +229,15 @@ const FAMILY_RULES: [string, RegExp][] = [
   ['sol', /solar|(^|\s)sol($|\s)/],
   ['hidratacion', /hidratacion|(^|\s)agua($|\s)/],
   ['suplementos', /suplement/],
-  ['romper_ayuno', /romper.*ayuno|(^|\s)ayuno($|\s|\d)/],
+  // MB-1 P3-3: "Desayuno proteico alto" y "Romper ayuno \u2014 comida limpia" son el
+  // mismo momento (la primera comida del d\u00eda) \u2192 misma familia, se dedup-ean.
+  ['romper_ayuno', /romper.*ayuno|desayuno|(^|\s)ayuno($|\s|\d)/],
   ['ventana_alimentacion', /ventana de (alimentacion|comida)|recordatorio comer/],
   ['dormir', /dormir/],
   ['despertar', /despertar/],
   ['grounding', /grounding|earthing|descalz/],
+  // MB-1 P3-3: "Running" 08:30 y "Zona 2 aer\u00f3bica" 08:30 son la misma sesi\u00f3n.
+  ['cardio', /zona 2|running|(^|\s)cardio($|\s)|trote|correr|aerobic/],
 ];
 
 /** Familia can\u00f3nica de un nombre de evento/intervenci\u00f3n (para dedup sem\u00e1ntico). */
