@@ -72,13 +72,13 @@ const CHRONO_INFO: Record<string, ChronoInfo> = {
   },
   dolphin: {
     emoji: '🐬', name: 'Delfín', color: '#5B9BD5',
-    headline: 'Mente activa',
+    headline: 'Estado temporal · sueño ligero',
     meaning:
-      'Duermes ligero y tu mente tarda en apagarse — como los delfines, que descansan con medio cerebro alerta. Sueles rendir en ráfagas, con picos a media mañana.',
+      'Duermes ligero y tu mente tarda en apagarse — como los delfines, que descansan con medio cerebro alerta. Delfín NO es tu cronotipo de raíz: es un estado transitorio de sueño irregular que se resuelve. Debajo hay un León, un Oso o un Lobo esperando.',
     tips: [
-      'Tu mejor foco es de 10 de la mañana a 12 — aprovecha esa ráfaga.',
       'Un ritual de cierre (respiración, journal) le da a tu mente la señal de apagado que le falta.',
       'Evita cafeína después de mediodía: tu sueño ligero la resiente doble.',
+      'Horarios CONSISTENTES de dormir y despertar son tu palanca #1 — más que cualquier suplemento.',
     ],
   },
 };
@@ -203,6 +203,19 @@ export default function MyChronotypeScreen() {
             <EliteText style={[s.blockKicker, { color: info.color }]}>QUÉ SIGNIFICA</EliteText>
             <EliteText style={s.blockBody}>{info.meaning}</EliteText>
           </Animated.View>
+
+          {/* Doctrina #12 (MB-1): Delfín = estado TEMPORAL. No se esconde — se
+              avisa y se da el ancla (Oso, la misma que usa el motor del plan). */}
+          {chrono === 'dolphin' && (
+            <Animated.View entering={FadeInUp.delay(170).springify()} style={s.blockCard}>
+              <EliteText style={[s.blockKicker, { color: '#EF9F27' }]}>MIENTRAS LO RESUELVES</EliteText>
+              <EliteText style={s.blockBody}>
+                Tu plan usa el ancla del Oso 🐻 (ritmo solar): horarios estables de sueño,
+                luz solar temprano y rutina de cierre. Cuando lleves 2-3 semanas durmiendo
+                mejor, repite el test — tu cronotipo madre va a emerger.
+              </EliteText>
+            </Animated.View>
+          )}
 
           {/* Cómo aprovecharlo (ejemplos concretos) */}
           <Animated.View entering={FadeInUp.delay(200).springify()} style={s.blockCard}>

@@ -259,6 +259,30 @@ export default function ChronotypeQuizScreen() {
           </EliteText>
         </Animated.View>
 
+        {/* Doctrina #12 (MB-1): Delfín = estado TEMPORAL, no cronotipo de raíz.
+            Aquí tenemos los scores reales → se le dice su cronotipo madre
+            (mejor tendencia no-delfín) y el ancla que usará su plan. */}
+        {result === 'dolphin' && (() => {
+          const mother = (['bear', 'lion', 'wolf'] as Chronotype[])
+            .reduce((a, b) => ((scores[b] ?? 0) > (scores[a] ?? 0) ? b : a));
+          return (
+            <Animated.View entering={FadeInUp.delay(500).springify()} style={{
+              backgroundColor: 'rgba(239,159,39,0.08)', borderRadius: 14, padding: Spacing.md,
+              borderWidth: 1, borderColor: 'rgba(239,159,39,0.25)', marginTop: Spacing.md,
+            }}>
+              <EliteText variant="caption" style={{ color: '#EF9F27', letterSpacing: 2, fontSize: 10, marginBottom: 6 }}>
+                DELFÍN ES UN ESTADO TEMPORAL
+              </EliteText>
+              <EliteText variant="body" style={{ fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,0.85)' }}>
+                No es tu cronotipo de raíz: es sueño irregular por resolver. Debajo, tu
+                tendencia más fuerte es {ANIMAL_EMOJIS[mother]} {ANIMAL_NAMES[mother]}. Mientras
+                estabilizas horarios, tu plan usa el ancla del Oso; en 2-3 semanas de dormir
+                mejor, repite el test.
+              </EliteText>
+            </Animated.View>
+          );
+        })()}
+
         {/* Score bars */}
         <Animated.View entering={FadeInUp.delay(600).springify()} style={styles.scoresSection}>
           {animals.map(animal => {

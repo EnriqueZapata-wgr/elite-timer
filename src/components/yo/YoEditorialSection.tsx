@@ -23,7 +23,8 @@ const CHRONO_META: Record<string, { emoji: string; name: string; desc: string }>
   lion: { emoji: '🦁', name: 'León', desc: 'Madrugador natural' },
   bear: { emoji: '🐻', name: 'Oso', desc: 'Ritmo solar' },
   wolf: { emoji: '🐺', name: 'Lobo', desc: 'Noctámbulo creativo' },
-  dolphin: { emoji: '🐬', name: 'Delfín', desc: 'Mente activa' },
+  // Doctrina #12: Delfín = estado transitorio, no cronotipo de raíz — se dice.
+  dolphin: { emoji: '🐬', name: 'Delfín', desc: 'Estado temporal · ancla Oso' },
 };
 
 /** Etiqueta cualitativa NO punitiva del momentum (misma escala que yo.tsx). */
