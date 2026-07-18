@@ -6,10 +6,14 @@ const visible = (pathname: string) =>
   !shouldHideHomeButton({ pathname, keyboardVisible: false });
 
 describe('shouldHideHomeButton (#26)', () => {
-  it('oculto en HOY y tabs (el tab bar ya da Home)', () => {
+  it('oculto SOLO en HOY (HOME-1: persistente en el resto de la app)', () => {
     expect(visible('/')).toBe(false);
-    expect(visible('/yo')).toBe(false);
-    expect(visible('/kit')).toBe(false);
+    expect(visible('/index')).toBe(false);
+  });
+
+  it('visible en los tabs hermanos /yo y /kit (HOME-1)', () => {
+    expect(visible('/yo')).toBe(true);
+    expect(visible('/kit')).toBe(true);
   });
 
   it('visible en pantallas profundas del Stack', () => {
