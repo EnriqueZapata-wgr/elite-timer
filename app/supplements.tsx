@@ -7,7 +7,7 @@
  * Braverman se degradaron en este sprint). Sello BHA por ficha vía scanner.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -483,21 +483,25 @@ export default function SupplementsScreen() {
       {/* ══════════════════════════════════════════
           MODAL — Agregar suplemento
       ══════════════════════════════════════════ */}
-      {showAdd && (
-        <View style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end',
-        }}>
+      {/* Triple-audit P1.3: el sheet era un overlay absolute INLINE dentro del
+          ScrollView raíz — en web se posicionaba contra el contenido scrolleado
+          (invisible) y Escape no cerraba. Modal lo saca del árbol del scroll y
+          onRequestClose da Escape (web) + back (Android) gratis. */}
+      <Modal
+        visible={showAdd}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { resetForm(); setShowAdd(false); }}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' }}>
           <Pressable style={{ flex: 1 }} onPress={() => { resetForm(); setShowAdd(false); }} />
-          {/* SUP-2 (MB-2): el sheet era un View fijo con 8 secciones — el timing,
-              la razón y el botón AGREGAR quedaban bajo el fold sin scroll posible
-              ("dropdown hasta abajo / trabado"). Ahora: KAV + ScrollView con tope
-              de altura, y los campos de horario suben junto a la dosis. */}
+          {/* SUP-2 (MB-2): KAV + ScrollView con tope de altura RELATIVO (el 620
+              fijo excedía el viewport en pantallas chicas con teclado abierto). */}
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={{
               backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24,
               paddingHorizontal: 24, paddingTop: 24, paddingBottom: insets.bottom + 24,
-              maxHeight: 620,
+              maxHeight: '88%',
             }}>
               <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
               <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 20 }}>
@@ -645,7 +649,7 @@ export default function SupplementsScreen() {
             </View>
           </KeyboardAvoidingView>
         </View>
-      )}
+      </Modal>
       {/* Scanner BHA — sello Biohacker Approved (decisión #5) */}
       <BhaScanSheet
         visible={bhaVisible}
