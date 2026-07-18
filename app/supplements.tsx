@@ -7,7 +7,7 @@
  * Braverman se degradaron en este sprint). Sello BHA por ficha vía scanner.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter } from 'react-native';
+import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,6 +46,9 @@ export default function SupplementsScreen() {
   // Multi-dosis (188): por suplemento, los dose_index tomados hoy.
   const [todayLogs, setTodayLogs] = useState<Record<string, number[]>>({});
   const [showAdd, setShowAdd] = useState(false);
+  // SUP-3 (MB-2): edición de ficha existente — sin esto, un suplemento creado
+  // con 1 toma jamás podía ganar la 2ª (AM+PM); solo quedaba borrar y recrear.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newDosage, setNewDosage] = useState('');
   const [newBrand, setNewBrand] = useState('');
@@ -153,23 +156,46 @@ export default function SupplementsScreen() {
       : DOSE_TIME_LABELS.filter(l => prev.includes(l) || l === label));
   }
 
-  async function addSupplement() {
+  function resetForm() {
+    setNewName(''); setNewDosage(''); setNewBrand(''); setNewForm(null);
+    setNewTiming('morning'); setNewReason(''); setNewPattern(DOSE_PATTERNS[0]); setNewDoseTimes([]);
+    setEditingId(null);
+  }
+
+  /** SUP-3: abre el mismo sheet en modo edición, prellenado desde la ficha. */
+  function openEdit(supp: any) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditingId(supp.id);
+    setNewName(supp.name ?? '');
+    setNewDosage(supp.dosage ?? '');
+    setNewBrand(supp.brand ?? '');
+    setNewForm(supp.form ?? null);
+    setNewTiming(supp.timing ?? 'morning');
+    setNewReason(supp.reason ?? '');
+    setNewPattern(supp.dose_pattern ?? DOSE_PATTERNS[0]);
+    setNewDoseTimes(Array.isArray(supp.dose_times) ? supp.dose_times : []);
+    setShowAdd(true);
+  }
+
+  async function saveSupplement() {
     if (!newName.trim() || !newDosage.trim()) return;
-    await supabase.from('user_supplements').insert({
-      user_id: userId,
+    const payload = {
       name: newName.trim(),
       dosage: newDosage.trim(),
       brand: newBrand.trim() || null,        // ficha ampliada (187)
       form: newForm,                          // ficha ampliada (187)
       timing: newTiming,
       reason: newReason.trim() || null,
-      source: 'manual',
       dose_pattern: newPattern, // T4 (#54): patrón de toma (migración 167)
       // Multi-dosis (188): solo persiste array con 2+ tomas (1 toma = legacy NULL)
       dose_times: newDoseTimes.length >= 2 ? newDoseTimes : null,
-    });
-    setNewName(''); setNewDosage(''); setNewBrand(''); setNewForm(null);
-    setNewTiming('morning'); setNewReason(''); setNewPattern(DOSE_PATTERNS[0]); setNewDoseTimes([]);
+    };
+    if (editingId) {
+      await supabase.from('user_supplements').update(payload).eq('id', editingId);
+    } else {
+      await supabase.from('user_supplements').insert({ user_id: userId, source: 'manual', ...payload });
+    }
+    resetForm();
     setShowAdd(false);
     loadSupplements();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -308,7 +334,7 @@ export default function SupplementsScreen() {
       {/* Suplementos agrupados por timing */}
       {grouped.length > 0 && (
         <Text style={{ color: '#666', fontSize: 11, paddingHorizontal: 20, marginBottom: 8 }}>
-          Desliza ← o mantén presionado para eliminar
+          Toca ✏️ para editar tomas y dosis · desliza ← para eliminar
         </Text>
       )}
       {grouped.map(group => (
@@ -421,6 +447,10 @@ export default function SupplementsScreen() {
                       </Text>
                     )}
                   </View>
+                  {/* SUP-3: editar la ficha (tomas, dosis, timing) sin borrar/recrear */}
+                  <Pressable onPress={() => openEdit(supp)} hitSlop={10}>
+                    <Ionicons name="pencil-outline" size={18} color="#666" />
+                  </Pressable>
                   {/* CTA "Escanear con BHA" de la ficha (re-escanear si ya tiene sello) */}
                   <Pressable
                     onPress={() => openBhaScan({ id: supp.id, name: supp.name, brand: supp.brand })}
@@ -449,15 +479,22 @@ export default function SupplementsScreen() {
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end',
         }}>
-          <Pressable style={{ flex: 1 }} onPress={() => setShowAdd(false)} />
-          <View style={{
-            backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24,
-            padding: 24, paddingBottom: insets.bottom + 24,
-          }}>
-            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
-            <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 20 }}>
-              Agregar suplemento
-            </Text>
+          <Pressable style={{ flex: 1 }} onPress={() => { resetForm(); setShowAdd(false); }} />
+          {/* SUP-2 (MB-2): el sheet era un View fijo con 8 secciones — el timing,
+              la razón y el botón AGREGAR quedaban bajo el fold sin scroll posible
+              ("dropdown hasta abajo / trabado"). Ahora: KAV + ScrollView con tope
+              de altura, y los campos de horario suben junto a la dosis. */}
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <View style={{
+              backgroundColor: '#0a0a0a', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+              paddingHorizontal: 24, paddingTop: 24, paddingBottom: insets.bottom + 24,
+              maxHeight: 620,
+            }}>
+              <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800', marginBottom: 20 }}>
+                {editingId ? 'Editar suplemento' : 'Agregar suplemento'}
+              </Text>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Nombre</Text>
             <TextInput
@@ -468,34 +505,6 @@ export default function SupplementsScreen() {
                 padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
               }}
             />
-
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Marca (opcional)</Text>
-            <TextInput
-              value={newBrand} onChangeText={setNewBrand}
-              placeholder="Ej: Thorne, NOW Foods" placeholderTextColor="#444"
-              style={{
-                backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
-                padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
-              }}
-            />
-
-            {/* Ficha ampliada (187): presentación */}
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Forma</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-              {FORM_OPTIONS.map(f => (
-                <Pressable
-                  key={f.id}
-                  onPress={() => setNewForm(newForm === f.id ? null : f.id)}
-                  style={{
-                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
-                    backgroundColor: newForm === f.id ? 'rgba(168,224,42,0.15)' : '#111',
-                    borderWidth: 1.5, borderColor: newForm === f.id ? '#a8e02a' : '#1a1a1a',
-                  }}
-                >
-                  <Text style={{ color: newForm === f.id ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>{f.label}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
 
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Dosis</Text>
             <TextInput
@@ -570,6 +579,34 @@ export default function SupplementsScreen() {
               ))}
             </ScrollView>
 
+            {/* Ficha ampliada (187): presentación */}
+            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Forma</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+              {FORM_OPTIONS.map(f => (
+                <Pressable
+                  key={f.id}
+                  onPress={() => setNewForm(newForm === f.id ? null : f.id)}
+                  style={{
+                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
+                    backgroundColor: newForm === f.id ? 'rgba(168,224,42,0.15)' : '#111',
+                    borderWidth: 1.5, borderColor: newForm === f.id ? '#a8e02a' : '#1a1a1a',
+                  }}
+                >
+                  <Text style={{ color: newForm === f.id ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>{f.label}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Marca (opcional)</Text>
+            <TextInput
+              value={newBrand} onChangeText={setNewBrand}
+              placeholder="Ej: Thorne, NOW Foods" placeholderTextColor="#444"
+              style={{
+                backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
+                padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
+              }}
+            />
+
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Razón (opcional)</Text>
             <TextInput
               value={newReason} onChangeText={setNewReason}
@@ -581,7 +618,7 @@ export default function SupplementsScreen() {
             />
 
             <Pressable
-              onPress={addSupplement}
+              onPress={saveSupplement}
               disabled={!newName.trim() || !newDosage.trim()}
               style={{
                 backgroundColor: newName.trim() && newDosage.trim() ? '#a8e02a' : '#333',
@@ -592,10 +629,12 @@ export default function SupplementsScreen() {
                 color: newName.trim() && newDosage.trim() ? '#000' : '#666',
                 fontSize: 16, fontWeight: '800',
               }}>
-                AGREGAR
+                {editingId ? 'GUARDAR CAMBIOS' : 'AGREGAR'}
               </Text>
             </Pressable>
-          </View>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       )}
       {/* Scanner BHA — sello Biohacker Approved (decisión #5) */}
