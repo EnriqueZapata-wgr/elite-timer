@@ -5,7 +5,6 @@
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, ImageBackground } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -13,33 +12,38 @@ import { EliteText } from '@/components/elite-text';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { Screen } from '@/src/components/ui/Screen';
-import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { haptic } from '@/src/utils/haptics';
 import { pickFitnessImage } from '@/src/utils/yo-image-picker';
-import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { Spacing, Fonts } from '@/constants/theme';
+import { SEMANTIC } from '@/src/constants/brand';
 import { supabase } from '@/src/lib/supabase';
 
+// MB-3 3C: molde editorial (audit P2-2 — filas planas + vacío negro abajo).
+// Imágenes B/N ya existentes de agenda/entrenar + cardio; gradient por sección.
 const SECTIONS = [
   {
-    name: 'Mi Fitness',
-    subtitle: 'Tu estado actual de fuerza, cardio y movilidad. Benchmarks, récords personales y progreso.',
-    icon: 'trophy-outline' as const,
-    color: '#fbbf24',
+    name: 'MI FITNESS',
+    emoji: '🏆',
+    subtitle: 'Fuerza · cardio · movilidad · récords',
+    gradient: ['#fbbf24', '#8B4513'] as [string, string],
+    image: require('@/assets/images/agenda/entrenar/entrenar-01.png'),
     route: '/fitness-my' as const,
   },
   {
-    name: 'Entrenar',
-    subtitle: 'ARGOS genera tu rutina, crea la tuya con el builder, timers HIIT, o registra ejercicios sueltos.',
-    icon: 'flash-outline' as const,
-    color: '#a8e02a',
+    name: 'ENTRENAR',
+    emoji: '⚡',
+    subtitle: 'Rutinas · builder · timers · registro',
+    gradient: ['#a8e02a', '#1D9E75'] as [string, string],
+    image: require('@/assets/images/agenda/entrenar/entrenar-02.png'),
     route: '/fitness-train' as const,
   },
   {
-    name: 'Explorar',
-    subtitle: 'Biblioteca de ejercicios, planes de entrenamiento, métodos ATP y rutinas Follow Me.',
-    icon: 'compass-outline' as const,
-    color: '#60a5fa',
+    name: 'EXPLORAR',
+    emoji: '🧭',
+    subtitle: 'Biblioteca · métodos ATP · planes',
+    gradient: ['#60a5fa', '#312E81'] as [string, string],
+    image: require('@/assets/images/agenda/cardio/cardio-02.png'),
     route: '/fitness-explore' as const,
   },
 ];
@@ -103,8 +107,8 @@ export default function FitnessHubScreen() {
       const { data: routines } = await supabase.from('routines').select('id').eq('creator_id', user.id);
 
       setDynamicSubs({
-        'Mi Fitness': `${prs?.length || 0} récords personales registrados`,
-        'Entrenar': `${routines?.length || 0} rutinas creadas`,
+        'MI FITNESS': `${prs?.length || 0} récords personales registrados`,
+        'ENTRENAR': `${routines?.length || 0} rutinas creadas`,
       });
     } catch { /* opcional */ }
   }
@@ -148,25 +152,24 @@ export default function FitnessHubScreen() {
           </ImageBackground>
         </Animated.View>
 
-        {/* 3 botones grandes */}
+        {/* MB-3 3C: 3 destinos con el molde editorial (imagen B/N + gradient),
+            mismo lenguaje que health-hub/HOY — mata las filas planas y el
+            vacío negro (cada card pillar llena pantalla). El dato dinámico
+            (PRs / rutinas creadas) va en message: dato antes que link. */}
         <View style={s.sections}>
           {SECTIONS.map((section, idx) => (
             <Animated.View key={section.name} entering={FadeInUp.delay(100 + idx * 60).springify()}>
-              <AnimatedPressable onPress={() => { haptic.medium(); router.push(section.route); }}>
-                <View style={[s.sectionCard, { borderColor: withOpacity(section.color, 0.08) }]}>
-                  <View style={s.sectionHeader}>
-                    <View style={[s.sectionIcon, { backgroundColor: withOpacity(section.color, 0.12) }]}>
-                      <Ionicons name={section.icon} size={24} color={section.color} />
-                    </View>
-                    <EliteText style={s.sectionName}>{section.name}</EliteText>
-                    <Ionicons name="chevron-forward" size={20} color={TEXT_COLORS.muted} />
-                  </View>
-                  <EliteText style={s.sectionSub}>{section.subtitle}</EliteText>
-                  {dynamicSubs[section.name] && (
-                    <EliteText style={s.sectionDynamic}>{dynamicSubs[section.name]}</EliteText>
-                  )}
-                </View>
-              </AnimatedPressable>
+              <EditorialCard
+                cardKey={`fit_${section.route}`}
+                icon={section.emoji}
+                title={section.name}
+                subtitle={section.subtitle}
+                message={dynamicSubs[section.name]}
+                gradient={section.gradient}
+                imageBn={section.image}
+                size="pillar"
+                onTap={() => { haptic.medium(); router.push(section.route); }}
+              />
             </Animated.View>
           ))}
         </View>
@@ -196,26 +199,6 @@ const s = StyleSheet.create({
   statLabel: { fontSize: 10, fontFamily: Fonts.semiBold, color: '#666', marginTop: 2 },
   statDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.06)' },
 
-  // Sections
-  sections: { marginTop: Spacing.lg, gap: 12 },
-  sectionCard: {
-    backgroundColor: '#0a0a0a', borderRadius: 20, padding: 24,
-    borderWidth: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10,
-  },
-  sectionIcon: {
-    width: 48, height: 48, borderRadius: 24,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  sectionName: {
-    color: '#fff', fontSize: 20, fontFamily: Fonts.extraBold, flex: 1,
-  },
-  sectionSub: {
-    color: '#999', fontSize: 13, lineHeight: 20,
-  },
-  sectionDynamic: {
-    color: '#a8e02a', fontSize: 11, fontFamily: Fonts.semiBold, marginTop: 6,
-  },
+  // Sections (MB-3 3C: cards = EditorialCard; solo queda el contenedor)
+  sections: { marginTop: Spacing.lg },
 });
