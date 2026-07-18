@@ -51,4 +51,36 @@
 
 ---
 
-*(MB-2 y MB-3 se anexan abajo conforme cierren.)*
+## ✅ MB-2 · SUPLEMENTOS USABLE END-TO-END (COMPLETO — 4 commits)
+
+### Hallazgo que redefine SUP-3 (raíz)
+El brief pedía "reactivar Sprint SUPS_DOSIS_MULTIPLES". Realidad verificada:
+- El sprint viejo (doc 2026-07-10, tabla `user_supplement_doses`) **nunca se construyó** — lo sustituyó el diseño ligero del Sprint SUPS+BHA: `user_supplements.dose_times TEXT[]` + `supplement_logs.dose_index` (migración 188).
+- **Verifiqué el remoto por SQL:** 188 SÍ está aplicada (columnas presentes, índice único nuevo `(user,supp,date,dose_index)` creado, constraint viejo dropeado). El backend está sano.
+- **La raíz UX real:** NO existía flujo de EDICIÓN — una ficha creada con 1 toma jamás podía ganar la 2ª (AM+PM); solo quedaba borrar y recrear. Eso es "2 tomas no jala".
+
+### SUP-2 + SUP-3 · `73a21ba`
+- Sheet "Agregar" era un View fijo con 8 secciones — timing/razón/botón AGREGAR quedaban bajo el fold sin scroll ("dropdown hasta abajo, trabado"). Ahora: KeyboardAvoidingView (iOS) + ScrollView con tope + `keyboardShouldPersistTaps`; Nombre/Dosis/Tomas en el primer pantallazo, Forma/Marca abajo.
+- **Edición de ficha** (✏️ por fila): mismo sheet en modo edición prellenado → UPDATE de tomas, dosis, timing, forma, marca, razón. Hint de lista actualizado.
+
+### SUP-1 · `0659bf5`
+Scan de suplemento (food-scan modo supplement) era solo informativo y se descartaba. Ahora **"Agregar a mi plan"**: crea la ficha prellenada (nombre, dosis diaria, forma, `source='scan'`). **Sello BHA automático SOLO con scan claramente limpio** (calidad ≥80 y cero red flags); un scan sucio NO auto-rechaza — eso lo decide el escáner BHA real desde la ficha (decisión clínica conservadora, documentada en código). CTA "Ver mi plan".
+
+### SUP-4 · `e1d1a49`
+Driver `supplement` en `generateAgendaEvents`: un evento de agenda por (suplemento × toma) — `dose_times[]` o el timing legacy — con hora mapeada (mañana 08:00 · comida 14:00 · tarde 17:00 · noche 21:00), categoría `suplementos` (imagen/tint ya existían) y recordatorio 10 min antes. La etiqueta va en el NOMBRE del evento para que 2 tomas del mismo suplemento no colapsen como una familia canónica. Reconcile de huérfanos (ficha editada/borrada → evento se desactiva; evento tocado por el user muta a `manual_override` y es sagrado). Notifs locales gratis vía `syncAgendaLocalNotifications` (sin `cancelAll`). **Sin migración:** `agenda_events.source` no tiene CHECK (verificado por SQL).
+
+### #35 perf · `64b01f1`
+4-5 round-trips por focus → 2 queries en paralelo (adherencia semanal y logs de hoy derivados de la misma lectura con los cores puros) + `useMemo` en agrupado y contadores.
+
+### Verificación MB-2
+tsc 0 · vitest **1790/1790** · remoto verificado por SQL (188 aplicada, sin CHECK en agenda_events).
+
+### Pendiente device (gate MB-2 al regreso)
+- [ ] Crear suplemento con 2 tomas AM+PM · editar ficha existente para añadir 2ª toma (✏️).
+- [ ] Scan → "Agregar a mi plan" → card con datos + sello BHA si limpio.
+- [ ] Sheet fluido con teclado abierto (botón AGREGAR alcanzable).
+- [ ] Tomas aparecen como cards de agenda y el recordatorio dispara en background.
+
+---
+
+*(MB-3 se anexa abajo conforme cierre.)*
