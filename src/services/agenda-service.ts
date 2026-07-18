@@ -30,7 +30,7 @@ import { getMyProtocol, getChronotypeSchedule } from '@/src/services/interventio
 
 // 'intervention' (DX F4): eventos volcados desde intervenciones activas (columna
 // source es TEXT sin CHECK — migración 098 — así que no requiere ALTER).
-export type AgendaSource = 'manual' | 'protocol' | 'chronotype' | 'manual_override' | 'intervention';
+export type AgendaSource = 'manual' | 'protocol' | 'chronotype' | 'manual_override' | 'intervention' | 'supplement';
 export type AgendaStatus = 'pending' | 'completed' | 'skipped' | 'snoozed';
 
 export interface AgendaEventInstance {
@@ -182,6 +182,46 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
         pushEvent(a.name, a.scheduled_time, a.category || 'custom', 'protocol', a.duration_min, a.notify_minutes_before);
       }
     } catch (e) { logWarn('[agenda] generateDailyPlan failed', e); }
+
+    // SUP-4 (MB-2): tomas de suplementos → eventos de agenda con recordatorio.
+    // Un evento por (suplemento × toma). Multi-dosis (188): dose_times[] trae
+    // las etiquetas; sin array → 1 toma en su timing. La etiqueta va en el
+    // nombre ("Omega 3 · noche") para que 2 tomas del mismo suplemento NO sean
+    // la misma familia canónica (el cleanup 1/día las colapsaría). Reconcile:
+    // eventos 'supplement' que ya no correspondan (ficha editada/borrada) se
+    // desactivan — un evento editado por el user muta a manual_override y es
+    // sagrado. Recordatorios locales: syncAgendaLocalNotifications los recoge.
+    try {
+      const DOSE_LABEL_TIME: Record<string, string> = {
+        'mañana': '08:00', 'comida': '14:00', 'tarde': '17:00', 'noche': '21:00',
+      };
+      const TIMING_LABEL: Record<string, string> = {
+        morning: 'mañana', with_food: 'comida', afternoon: 'tarde', evening: 'noche', bedtime: 'noche',
+      };
+      const { data: supps } = await supabase
+        .from('user_supplements').select('name, timing, dose_times')
+        .eq('user_id', userId).eq('is_active', true);
+      const desiredSuppKeys = new Set<string>();
+      for (const s of (supps ?? []) as any[]) {
+        if (!s?.name) continue;
+        const labels: string[] = Array.isArray(s.dose_times) && s.dose_times.length >= 2
+          ? s.dose_times
+          : [TIMING_LABEL[s.timing] ?? 'mañana'];
+        for (const label of labels) {
+          const time = DOSE_LABEL_TIME[label] ?? (/^\d{1,2}:\d{2}$/.test(label) ? label : '08:00');
+          const name = `${s.name} · ${DOSE_LABEL_TIME[label] ? label : 'toma'}`;
+          desiredSuppKeys.add(eventKey(name, time));
+          pushEvent(name, time, 'suplementos', 'supplement', null, 10);
+        }
+      }
+      const staleSupp = ((existing ?? []) as any[]).filter((r) =>
+        r.source === 'supplement' && r.is_active !== false && !desiredSuppKeys.has(eventKey(r.name, r.time)));
+      for (const r of staleSupp) {
+        await supabase.from('agenda_events')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('id', r.id).eq('user_id', userId);
+      }
+    } catch (e) { logWarn('[agenda] supplements gen failed', e); }
 
     if (toInsert.length > 0) {
       await supabase.from('agenda_events').insert(toInsert);
