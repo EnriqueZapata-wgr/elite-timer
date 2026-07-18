@@ -26,7 +26,8 @@ import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 const COPY = ONBOARDING_COPY.chronotype;
 
-const PURPLE = '#7c3aed';
+// Off-brand morado eliminado (MB-0 P2): acento desde brand.ts (doctrina 3 colores).
+const ACCENT = ATP_BRAND.teal;
 
 export default function V2ChronotypeScreen() {
   const router = useRouter();
@@ -118,7 +119,7 @@ export default function V2ChronotypeScreen() {
                 { icon: 'bed-outline', label: COPY.scheduleSleep, time: schedule.sleep },
               ].map(row => (
                 <View key={row.label} style={s.scheduleRow}>
-                  <Ionicons name={row.icon as any} size={16} color={PURPLE} />
+                  <Ionicons name={row.icon as any} size={16} color={ACCENT} />
                   <EliteText style={s.scheduleLabel}>{row.label}</EliteText>
                   <EliteText style={s.scheduleTime}>{row.time}</EliteText>
                 </View>
@@ -169,11 +170,11 @@ const s = StyleSheet.create({
   },
   title: { fontSize: 24, fontFamily: Fonts.bold, color: '#fff', marginTop: 8, lineHeight: 32 },
   insightCard: {
-    backgroundColor: withOpacity(PURPLE, 0.06), borderRadius: 20, padding: Spacing.lg,
-    borderWidth: 1, borderColor: withOpacity(PURPLE, 0.2), marginTop: 32,
+    backgroundColor: withOpacity(ACCENT, 0.06), borderRadius: 20, padding: Spacing.lg,
+    borderWidth: 1, borderColor: withOpacity(ACCENT, 0.2), marginTop: 32,
   },
   insightKicker: {
-    fontSize: 10, fontFamily: Fonts.semiBold, color: PURPLE,
+    fontSize: 10, fontFamily: Fonts.semiBold, color: ACCENT,
     letterSpacing: 2, textAlign: 'center', marginTop: 12,
   },
   insightTitle: { fontSize: 26, fontFamily: Fonts.bold, color: '#fff', textAlign: 'center', marginTop: 4 },
