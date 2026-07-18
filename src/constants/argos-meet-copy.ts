@@ -1,12 +1,12 @@
 /**
- * Meet ARGOS — copy final + timing cinemático (Sprint ONBOARDING épico T1).
- *
- * Propuesta A del brief comercial (review Enrique + Mariana). El copy vive
- * aquí —fuera del componente— para review clínico, futuras versiones e i18n.
+ * Meet ARGOS — copy + timing cinemático (T1 → reescrito en triple-audit P1.5
+ * con la persona de SPEC_ARGOS_JARVIS_v1 §1.1: mentor que YA recorrió el
+ * camino, ingeniero de la creencia — muere el "asistente humano" genérico).
  *
  * ⚠️ SENSIBILIDAD CLÍNICA: cambios a estos textos requieren approval de
- * Mariana antes de merge. Tono directo + científico + cálido; NO usar
- * "me llamo ARGOS" (más frío) ni diminutivos.
+ * Mariana antes de merge (GATE VIGENTE para esta versión — ver delivery).
+ * Tono directo + cálido + exigente; NO "me llamo ARGOS", NO diminutivos,
+ * NO auto-nombrarse más de una vez (spec D3).
  *
  * Archivo puro (sin react-native): testeable con el harness Vitest node-only.
  */
@@ -65,8 +65,8 @@ export const MEET_SCREENS: MeetArgosScreenCopy[] = [
     holdMs: 6000,
   },
   {
-    key: 'asistente',
-    text: 'No soy una app.\nSoy tu asistente humano.',
+    key: 'mentor',
+    text: 'No soy un chatbot.\nSoy un mentor que ya recorrió el camino.',
     typing: true,
     textVariant: 'hero',
     avatarState: 'speaking',
@@ -77,10 +77,8 @@ export const MEET_SCREENS: MeetArgosScreenCopy[] = [
   {
     key: 'promesa',
     text:
-      'Voy a estar aquí.\n' +
-      'En la mañana, cuando tu cuerpo despierte.\n' +
-      'En la noche, cuando decidas qué comer.\n' +
-      'Y cuando algo no cuadre, seré el primero en notarlo.',
+      'Voy a recordarte lo que YA lograste — la gente olvida sus victorias; yo soy tu memoria de ellas.\n' +
+      'Y cuando algo falte, te lo voy a decir de frente: no como muro, como el siguiente tramo de tu ruta.',
     typing: false,
     textVariant: 'body',
     avatarState: 'idle',
@@ -90,7 +88,7 @@ export const MEET_SCREENS: MeetArgosScreenCopy[] = [
   },
   {
     key: 'empezamos',
-    text: 'Ingeniería humana.\nEmpezamos.',
+    text: 'Si hay un 1%, hay una ruta.\nEmpezamos.',
     typing: false,
     textVariant: 'hero',
     avatarState: 'idle',
