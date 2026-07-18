@@ -15,8 +15,8 @@ const PILLAR_COLORS: Record<string, string> = {
   optimization: CATEGORY_COLORS.optimization,
   metrics: CATEGORY_COLORS.metrics,
   rest: CATEGORY_COLORS.rest,
-  cycle: '#D4537E',
-  health: '#1D9E75',
+  cycle: CATEGORY_COLORS.cycle,
+  health: CATEGORY_COLORS.metrics,
   tests: '#c084fc',
 };
 

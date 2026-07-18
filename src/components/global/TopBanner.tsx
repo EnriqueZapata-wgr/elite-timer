@@ -37,7 +37,8 @@ const UNREAD_CRITICAL = 5;
 
 interface BannerVariant {
   id: string;
-  icon: string;
+  // P3.13: tipado real del glyph — muere el `icon as any` del render.
+  icon: keyof typeof Ionicons.glyphMap;
   text: string;
   cta?: string;
   route?: Href;
@@ -179,7 +180,7 @@ export function TopBanner({ offset = 0 }: Props) {
       pointerEvents="box-none"
     >
       <View style={s.pill}>
-        <Ionicons name={v.icon as any} size={14} color={v.critical ? '#fbbf24' : ATP_BRAND.lime} />
+        <Ionicons name={v.icon} size={14} color={v.critical ? '#fbbf24' : ATP_BRAND.lime} />
         <Text style={s.text} numberOfLines={1}>{v.text}</Text>
         {v.route && (
           <Pressable

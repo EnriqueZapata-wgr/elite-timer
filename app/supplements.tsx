@@ -456,14 +456,17 @@ export default function SupplementsScreen() {
                       </Text>
                     )}
                   </View>
-                  {/* SUP-3: editar la ficha (tomas, dosis, timing) sin borrar/recrear */}
-                  <Pressable onPress={() => openEdit(supp)} hitSlop={10}>
+                  {/* SUP-3: editar la ficha. P3.14: targets con padding propio y
+                      hitSlop corto — los hitSlop 10 se traslapaban entre sí y con
+                      el tap de la fila (marcar toma) → mis-taps en device. */}
+                  <Pressable onPress={() => openEdit(supp)} hitSlop={4} style={{ padding: 8 }}>
                     <Ionicons name="pencil-outline" size={18} color="#666" />
                   </Pressable>
                   {/* CTA "Escanear con BHA" de la ficha (re-escanear si ya tiene sello) */}
                   <Pressable
                     onPress={() => openBhaScan({ id: supp.id, name: supp.name, brand: supp.brand })}
-                    hitSlop={10}
+                    hitSlop={4}
+                    style={{ padding: 8 }}
                   >
                     <Ionicons name="scan-outline" size={20} color={supp.bha_status ? '#444' : '#4ade80'} />
                   </Pressable>

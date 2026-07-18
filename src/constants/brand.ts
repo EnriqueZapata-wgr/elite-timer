@@ -64,6 +64,7 @@ export const CATEGORY_COLORS = {
   optimization: '#EF9F27', // Amber
   metrics: '#1D9E75',    // Teal
   rest: '#E0E0E0',       // Gris
+  cycle: '#D4537E',      // Rosa ciclo (P3.12: antes hardcodeado en PillarHeader/pantallas)
 } as const;
 
 // ═══ COLORES SEMÁNTICOS ═══
