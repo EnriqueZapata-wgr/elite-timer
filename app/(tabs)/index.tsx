@@ -1219,7 +1219,7 @@ export default function TodayScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
           <Text style={{ color: '#ddd', fontSize: 15, lineHeight: 23 }}>{voiceResponse}</Text>
         </ScrollView>
-        <Pressable
+        <AnimatedPressable
           onPress={() => {
             haptic.medium();
             const convId = voiceConversationId;
@@ -1234,7 +1234,7 @@ export default function TodayScreen() {
           }}
         >
           <Text style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: 14 }}>Ver conversación completa →</Text>
-        </Pressable>
+        </AnimatedPressable>
       </ExpandableSheet>
 
       {/* ARGOS dual FAB: mic + chat */}

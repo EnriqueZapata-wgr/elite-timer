@@ -6,7 +6,8 @@
  * (FAB "+"). Atrás regresa a HOY. Sprint VISUAL: no toca agenda-service ni modales.
  */
 import { useState, useCallback, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, DeviceEventEmitter, Alert, ActivityIndicator } from 'react-native';
+import { View, ScrollView, StyleSheet, DeviceEventEmitter, Alert, ActivityIndicator } from 'react-native';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -221,9 +222,9 @@ export default function AgendaScreen() {
       )}
 
       {/* FAB crear — glow lima real. */}
-      <Pressable style={styles.fab} onPress={() => { haptic.medium(); setSelected(null); setFormMode('create'); }}>
+      <AnimatedPressable style={styles.fab} onPress={() => { haptic.medium(); setSelected(null); setFormMode('create'); }}>
         <Ionicons name="add" size={28} color="#000" />
-      </Pressable>
+      </AnimatedPressable>
 
       {/* Modal de acciones al tocar una card */}
       <EventActionModal

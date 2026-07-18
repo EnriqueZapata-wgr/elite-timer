@@ -8,7 +8,8 @@
  * domain_scores siguen placeholder neutral hasta Sprint 5.
  */
 import { useState, useCallback, useRef } from 'react';
-import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { router, useFocusEffect , type Href } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureRef } from 'react-native-view-shot';
@@ -152,7 +153,7 @@ function ResultScreen() {
             {prevIntegral != null ? <RecalculateDiff from={prevIntegral} to={result.edad_integral} /> : null}
 
             {/* CTA explícito de recálculo (#14) con estado y gating sin-cambios (#15). */}
-            <Pressable
+            <AnimatedPressable
               onPress={() => { if (calcState === 'idle') run(); }}
               style={[styles.recalcBtn, calcState === 'calculating' && styles.recalcBtnBusy]}
               disabled={calcState === 'calculating'}
@@ -160,7 +161,7 @@ function ResultScreen() {
               <EliteText variant="body" style={styles.recalcText}>
                 {calcState === 'calculating' ? 'Calculando…' : 'Recalcular Edad ATP'}
               </EliteText>
-            </Pressable>
+            </AnimatedPressable>
             {unchanged ? (
               <EliteText variant="caption" style={styles.unchanged}>
                 Sin cambios desde tu último cálculo ({ddmm(unchanged.at)}).
@@ -169,17 +170,17 @@ function ResultScreen() {
 
             <EliteText variant="caption" style={styles.sourcesTitle}>📊 Fuentes que alimentaron el cálculo</EliteText>
             {sources.map((s) => (
-              <Pressable key={s.label} onPress={() => router.push(s.route)} style={styles.sourceRow}>
+              <AnimatedPressable key={s.label} onPress={() => router.push(s.route)} style={styles.sourceRow}>
                 <EliteText variant="body" style={styles.sourceLabel}>{s.label}</EliteText>
                 <EliteText variant="caption" style={[styles.sourceDetail, s.done && { color: Colors.neonGreen }]}>
                   {s.detail} {s.done ? '✓' : '⚠'}
                 </EliteText>
-              </Pressable>
+              </AnimatedPressable>
             ))}
 
-            <Pressable onPress={handleShare} style={styles.shareBtn}>
+            <AnimatedPressable onPress={handleShare} style={styles.shareBtn}>
               <EliteText variant="body" style={styles.shareBtnText}>Compartir mi Edad ATP</EliteText>
-            </Pressable>
+            </AnimatedPressable>
 
             <EliteText variant="caption" style={styles.note}>
               Toca una sub-edad para el desglose, o una fuente pendiente para completarla.
@@ -187,9 +188,9 @@ function ResultScreen() {
             </EliteText>
           </>
         )}
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <AnimatedPressable onPress={() => router.back()} style={styles.backBtn}>
           <EliteText variant="body" style={styles.backText}>Volver</EliteText>
-        </Pressable>
+        </AnimatedPressable>
       </ScrollView>
 
       {/* Tarjeta off-screen para captura de imagen al compartir. */}

@@ -3,7 +3,8 @@
  * Muestra la CE actual + 5 cards navegables a las pantallas de captura.
  */
 import { useState, useCallback, useRef } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
@@ -129,28 +130,28 @@ export default function EdadAtpHub() {
         <DatosNuevosBadge visible={hasNewData} onPress={() => { haptic.medium(); router.push('/edad-atp/result-preview'); }} />
 
         {/* ATP Labs — vista canónica con historial y gráficas */}
-        <Pressable onPress={() => { haptic.medium(); router.push('/edad-atp/labs'); }} style={styles.card}>
+        <AnimatedPressable onPress={() => { haptic.medium(); router.push('/edad-atp/labs'); }} style={styles.card}>
           <View style={styles.cardIcon}><Ionicons name="flask-outline" size={22} color={Colors.neonGreen} /></View>
           <View style={{ flex: 1 }}>
             <EliteText variant="body" style={styles.cardTitle}>ATP Labs</EliteText>
             <EliteText variant="caption" style={styles.cardDesc}>Tus laboratorios con historial y gráficas de continuum</EliteText>
           </View>
           <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-        </Pressable>
+        </AnimatedPressable>
 
         {/* Estado "result": Integral ya calculada → hero con CTA a ver/recalcular. */}
         {edadResult && (
-          <Pressable onPress={() => { haptic.success(); router.push('/edad-atp/result-preview'); }} style={styles.heroCard}>
+          <AnimatedPressable onPress={() => { haptic.success(); router.push('/edad-atp/result-preview'); }} style={styles.heroCard}>
             <EliteText variant="caption" style={styles.heroLabel}>TU EDAD ATP</EliteText>
             <EliteText style={styles.heroValue}>{edadResult.edad_integral.toFixed(1)}</EliteText>
             <EliteText variant="caption" style={styles.heroSub}>cronológica {edadResult.chronological_age} · toca para ver el detalle</EliteText>
-          </Pressable>
+          </AnimatedPressable>
         )}
 
         {CARDS.map((c) => {
           const status = cardStatus(c);
           return (
-            <Pressable
+            <AnimatedPressable
               key={c.key}
               onPress={() => { haptic.medium(); router.push(c.route); }}
               style={styles.card}
@@ -166,24 +167,24 @@ export default function EdadAtpHub() {
                 <EliteText variant="caption" style={[styles.cardPct, status.done && { color: Colors.neonGreen }]}>{status.text}</EliteText>
               )}
               <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-            </Pressable>
+            </AnimatedPressable>
           );
         })}
 
         {ceValue >= CALC_THRESHOLD ? (
-          <Pressable
+          <AnimatedPressable
             onPress={() => { haptic.success(); router.push('/edad-atp/result-preview'); }}
             style={styles.calcBtn}
           >
             <EliteText variant="body" style={styles.calcBtnText}>{edadResult ? 'Recalcular mi Edad' : 'Calcular mi Edad'}</EliteText>
-          </Pressable>
+          </AnimatedPressable>
         ) : (
           <>
             <EliteText variant="caption" style={styles.needMore}>
               Necesitas más datos para calcular tu Edad ATP (mínimo {CALC_THRESHOLD}% de evaluación).
             </EliteText>
             {/* Sprint LABS GUÍA: el bloqueo más común es "no sé qué labs hacerme" */}
-            <Pressable
+            <AnimatedPressable
               onPress={() => { haptic.medium(); router.push('/labs-guide'); }}
               style={styles.guideBtn}
             >
@@ -192,7 +193,7 @@ export default function EdadAtpHub() {
                 ¿No sabes qué labs hacerte? Descarga la guía
               </EliteText>
               <Ionicons name="chevron-forward" size={14} color={Colors.neonGreen} />
-            </Pressable>
+            </AnimatedPressable>
           </>
         )}
       </ScrollView>
