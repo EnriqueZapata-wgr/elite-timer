@@ -101,6 +101,11 @@ export default function MyChronotypeScreen() {
   const [chrono, setChrono] = useState<string | null>(null);
   const [wake, setWake] = useState<string | null>(null);
   const [sleep, setSleep] = useState<string | null>(null);
+  // P2.11 triple-audit: peak windows — las columnas YA existían en
+  // user_chronotype, la pantalla simplemente no las leía.
+  const [focusStart, setFocusStart] = useState<string | null>(null);
+  const [focusEnd, setFocusEnd] = useState<string | null>(null);
+  const [physicalStart, setPhysicalStart] = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -109,13 +114,16 @@ export default function MyChronotypeScreen() {
       try {
         const { data } = await supabase
           .from('user_chronotype')
-          .select('chronotype, wake_time, sleep_time')
+          .select('chronotype, wake_time, sleep_time, peak_focus_start, peak_focus_end, peak_physical_start')
           .eq('user_id', user.id)
           .maybeSingle();
         if (!active) return;
         setChrono((data as any)?.chronotype ?? null);
         setWake((data as any)?.wake_time ?? null);
         setSleep((data as any)?.sleep_time ?? null);
+        setFocusStart((data as any)?.peak_focus_start ?? null);
+        setFocusEnd((data as any)?.peak_focus_end ?? null);
+        setPhysicalStart((data as any)?.peak_physical_start ?? null);
       } catch { /* sin dato → CTA al test */ }
       if (active) setLoading(false);
     })();
@@ -195,6 +203,30 @@ export default function MyChronotypeScreen() {
                 <EliteText style={s.scheduleLabel}>DUERMES</EliteText>
                 <EliteText style={s.scheduleValue}>{sleepLabel ?? '—'}</EliteText>
               </View>
+            </Animated.View>
+          )}
+
+          {/* P2.11: TUS VENTANAS — dato real del user (peak_focus/physical de
+              user_chronotype), no genérico. Solo se pinta si hay dato. */}
+          {(focusStart || physicalStart) && (
+            <Animated.View entering={FadeInUp.delay(110).springify()} style={s.blockCard}>
+              <EliteText style={[s.blockKicker, { color: info.color }]}>TUS VENTANAS</EliteText>
+              {focusStart && (
+                <View style={s.tipRow}>
+                  <View style={[s.tipDot, { backgroundColor: info.color }]} />
+                  <EliteText style={s.tipText}>
+                    Foco profundo: {fmtHora(focusStart)}{focusEnd ? ` – ${fmtHora(focusEnd)}` : ''} — agenda ahí lo importante.
+                  </EliteText>
+                </View>
+              )}
+              {physicalStart && (
+                <View style={s.tipRow}>
+                  <View style={[s.tipDot, { backgroundColor: info.color }]} />
+                  <EliteText style={s.tipText}>
+                    Pico físico: {fmtHora(physicalStart)} — tu mejor hora para entrenar.
+                  </EliteText>
+                </View>
+              )}
             </Animated.View>
           )}
 
