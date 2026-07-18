@@ -30,6 +30,7 @@ import {
   INTERVENTION_ITEM_PREFIX,
   MIN_SOLAR_TIME,
   STAGGER_MINUTES,
+  findUserDuplicateGroups,
   type AgendaEventRowLike,
   type DesiredInterventionEvent,
 } from '../intervention-agenda-core';
@@ -874,3 +875,40 @@ describe('HOTFIX 1.5 · planChronotypeReconcile (revive Dormir matado por cleanu
     expect(a.deactivateIds).toEqual(['w2']);
   });
 }); 
+
+// ── Triple-audit P2.10: merge asistido — detección de duplicados del user ────
+describe('findUserDuplicateGroups (P2.10)', () => {
+  it('agrupa el caso real: Romper ayuno + Desayuno proteico, ambos user, 10:30', () => {
+    const groups = findUserDuplicateGroups([
+      { eventId: 'a', name: 'Romper ayuno — comida limpia', time: '10:30', source: 'manual_override' },
+      { eventId: 'b', name: 'Desayuno proteico alto', time: '10:30', source: 'manual_override' },
+      { eventId: 'c', name: 'Suplementos post run', time: '10:15', source: 'manual' },
+    ]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].map((e) => e.eventId).sort()).toEqual(['a', 'b']);
+  });
+
+  it('las filas de MÁQUINA nunca entran al merge (eso lo resuelve el cleanup)', () => {
+    const groups = findUserDuplicateGroups([
+      { eventId: 'a', name: 'Running', time: '08:30', source: 'manual' },
+      { eventId: 'b', name: 'Zona 2 aeróbica', time: '08:30', source: 'intervention' },
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it('misma familia a horas distintas NO es duplicado', () => {
+    const groups = findUserDuplicateGroups([
+      { eventId: 'a', name: 'Hidratación · vaso de agua', time: '13:00', source: 'manual' },
+      { eventId: 'b', name: 'Hidratación · vaso de agua', time: '16:00', source: 'manual' },
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+
+  it('mismo eventId repetido (multi-instancia) no infla el grupo', () => {
+    const groups = findUserDuplicateGroups([
+      { eventId: 'a', name: 'Cena ligera', time: '18:30', source: 'manual_override' },
+      { eventId: 'a', name: 'Cena ligera', time: '18:30', source: 'manual_override' },
+    ]);
+    expect(groups).toHaveLength(0);
+  });
+});

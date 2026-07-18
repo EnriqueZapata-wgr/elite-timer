@@ -249,6 +249,35 @@ export function canonicalConcept(name: string): string {
   return n;
 }
 
+// \u2500\u2500 Triple-audit P2.10: duplicados ENTRE filas del user \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// El cleanup jam\u00e1s toca filas manual/manual_override (dato sagrado), as\u00ed que
+// "Romper ayuno" + "Desayuno proteico" del user a las 10:30 conviven para
+// siempre. Esta pura DETECTA los grupos (misma hora + misma familia can\u00f3nica)
+// para que la UI ofrezca un merge ASISTIDO: el user elige cu\u00e1l queda \u2014 la
+// m\u00e1quina nunca decide ni borra sola.
+
+export interface UserDupCandidate {
+  eventId: string;
+  name: string;
+  time: string;
+  source: string;
+}
+
+/** Grupos de 2+ eventos del USER con misma hora (HH:MM) y familia can\u00f3nica. */
+export function findUserDuplicateGroups(events: UserDupCandidate[]): UserDupCandidate[][] {
+  const userSources = new Set(['manual', 'manual_override']);
+  const seen = new Set<string>();
+  const groups = new Map<string, UserDupCandidate[]>();
+  for (const e of events) {
+    if (!userSources.has(e.source) || seen.has(e.eventId)) continue;
+    seen.add(e.eventId);
+    const key = `${(e.time ?? '').slice(0, 5)}|${canonicalConcept(e.name)}`;
+    const g = groups.get(key);
+    if (g) g.push(e); else groups.set(key, [e]);
+  }
+  return [...groups.values()].filter((g) => g.length >= 2);
+}
+
 /**
  * Repeticiones por d\u00eda permitidas por familia (multi-dosis leg\u00edtima). Familias
  * fuera de esta lista: 1 evento/d\u00eda \u2014 "nunca 2 eventos de la misma intervenci\u00f3n

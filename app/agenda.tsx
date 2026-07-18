@@ -28,6 +28,7 @@ import {
   deleteAgendaEvent, setEventStatus, snoozeEvent, syncElectronFromEvent, type AgendaEventInstance,
 } from '@/src/services/agenda-service';
 import { completeInterventionByKey } from '@/src/services/interventions/intervention-service';
+import { findUserDuplicateGroups, type UserDupCandidate } from '@/src/services/interventions/intervention-agenda-core';
 import { hasNotificationPermission, registerForPushNotificationsAsync } from '@/src/services/push-notification-service';
 import { syncAgendaLocalNotifications } from '@/src/services/agenda-local-notifications';
 
@@ -106,6 +107,35 @@ export default function AgendaScreen() {
 
   const nowMs = Date.now();
   const upcoming = events.filter((e) => e.status === 'pending' && new Date(e.scheduledAt).getTime() >= nowMs).length;
+
+  // P2.10 triple-audit: duplicados ENTRE filas del user (misma hora + familia).
+  // La máquina no puede borrarlos (dato sagrado) → merge ASISTIDO: el user
+  // elige cuál conserva; los demás se desactivan (soft, reversible).
+  const dupGroups = findUserDuplicateGroups(
+    events.filter((e) => e.status !== 'completed')
+      .map((e) => ({ eventId: e.eventId, name: e.name, time: e.time, source: e.source })),
+  );
+  const askMerge = (group: UserDupCandidate[]) => {
+    haptic.light();
+    Alert.alert(
+      'Eventos duplicados',
+      `Tienes ${group.length} eventos a las ${group[0].time} que son el mismo momento. ¿Cuál conservas?`,
+      [
+        ...group.map((ev) => ({
+          text: `Conservar «${ev.name}»`,
+          onPress: async () => {
+            if (!userId) return;
+            for (const other of group.filter((o) => o.eventId !== ev.eventId)) {
+              await deleteAgendaEvent(userId, other.eventId);
+            }
+            haptic.success();
+            reload();
+          },
+        })),
+        { text: 'Dejar ambos', style: 'cancel' as const },
+      ],
+    );
+  };
 
   // ── acciones ──
   const handleComplete = async () => {
@@ -197,6 +227,19 @@ export default function AgendaScreen() {
         </View>
       ) : null}
 
+      {/* P2.10: merge asistido de duplicados del user — 1 tap, el user decide. */}
+      {dupGroups.map((g) => (
+        <View key={`dup-${g[0].time}-${g[0].eventId}`} style={styles.bannerWrap}>
+          <AnimatedPressable onPress={() => askMerge(g)} style={styles.dupBanner}>
+            <Ionicons name="git-merge-outline" size={15} color={ATP_BRAND.amber} />
+            <EliteText style={styles.dupBannerText} numberOfLines={1}>
+              {g.length} eventos a las {g[0].time} parecen el mismo momento
+            </EliteText>
+            <EliteText style={styles.dupBannerCta}>Unificar</EliteText>
+          </AnimatedPressable>
+        </View>
+      ))}
+
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={ATP_BRAND.lime} /></View>
       ) : events.length === 0 ? (
@@ -263,6 +306,13 @@ const styles = StyleSheet.create({
   chipText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   titleBlock: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs, paddingBottom: Spacing.md },
   bannerWrap: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+  dupBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(239,213,79,0.08)', borderWidth: 1, borderColor: 'rgba(239,213,79,0.25)',
+    borderRadius: Radius.md, paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.sm,
+  },
+  dupBannerText: { flex: 1, color: 'rgba(255,255,255,0.85)', fontSize: FontSizes.sm },
+  dupBannerCta: { color: ATP_BRAND.amber, fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1 },
   title: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 2 },
   date: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 3, marginTop: 3 },
   list: { paddingHorizontal: Spacing.md, paddingTop: Spacing.xs },
