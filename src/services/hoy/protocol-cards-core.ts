@@ -14,10 +14,12 @@ import { canonicalConcept } from '@/src/services/interventions/intervention-agen
 /**
  * Baseline universal: cards que se muestran SIEMPRE aunque el protocolo no las
  * prescriba — métricas/cuantitativas siempre-relevantes (uv, proteína, agua,
- * sueño) + el pulso emocional diario (checkin). El resto se gana su lugar vía
- * Mi Protocolo.
+ * sueño) + el pulso emocional diario (checkin) + los dos hábitos verificados
+ * universales de Mente (meditación, journal — HOY-1 MB-1: batch-1 los dejó
+ * fuera del baseline y desaparecían del HOY salvo protocolo que los prescriba).
+ * El resto se gana su lugar vía Mi Protocolo.
  */
-export const HOY_BASELINE_CARDS: readonly string[] = ['uv', 'checkin', 'proteina', 'agua', 'sleep'];
+export const HOY_BASELINE_CARDS: readonly string[] = ['uv', 'checkin', 'proteina', 'agua', 'sleep', 'meditacion', 'journal'];
 
 /** Familia canónica (intervention-agenda-core) → cardKey del HOY. */
 const FAMILY_TO_CARD: Record<string, string> = {

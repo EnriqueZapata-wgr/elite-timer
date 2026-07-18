@@ -47,4 +47,13 @@ describe('deriveProtocolDrivenVisible', () => {
     expect(visible.has('grounding')).toBe(false);
     expect(visible.has('lentes_rojos')).toBe(false);
   });
+
+  it('HOY-1 (MB-1): meditación y journal son baseline — visibles SIN protocolo que los prescriba', () => {
+    // Regresión del P0: batch-1 los dejó fuera del baseline y desaparecían del HOY.
+    expect(HOY_BASELINE_CARDS).toContain('meditacion');
+    expect(HOY_BASELINE_CARDS).toContain('journal');
+    const visible = deriveProtocolDrivenVisible(['Oil pulling'])!;
+    expect(visible.has('meditacion')).toBe(true);
+    expect(visible.has('journal')).toBe(true);
+  });
 });
