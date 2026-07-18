@@ -190,7 +190,7 @@ export default function CheckinScreen() {
   // === DONE ===
   if (step === 4) {
     return (
-      <Screen>
+      <Screen keyboard>
         <Animated.View entering={FadeIn.duration(400)} style={styles.doneContainer}>
           <View style={[styles.donePulse, { backgroundColor: qColor + '20' }]}>
             <View style={[styles.doneDot, { backgroundColor: qColor }]} />
@@ -226,7 +226,7 @@ export default function CheckinScreen() {
   }
 
   return (
-    <Screen>
+    <Screen keyboard>
       <PillarHeader pillar="mind" title="Check-in" onBack={handleBack} />
 
       {/* Dots */}

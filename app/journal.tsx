@@ -323,7 +323,7 @@ export default function JournalScreen() {
   if (selectedType) {
     const typeInfo = JOURNAL_TYPES.find(t => t.key === selectedType)!;
     return (
-      <Screen>
+      <Screen keyboard>
         <PillarHeader pillar="mind" title="Journal" />
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           {/* Botón volver */}
@@ -375,7 +375,7 @@ export default function JournalScreen() {
   // ═══ SELECTOR DE TIPO ═══
 
   return (
-    <Screen edges={['top']}>
+    <Screen keyboard edges={['top']}>
       {/* #138: hero editorial del pilar (reusa mente.jpg); conserva historial + ayuda. */}
       <MenteHero
         image={HERO_MENTE}

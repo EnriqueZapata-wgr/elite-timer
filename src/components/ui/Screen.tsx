@@ -13,19 +13,35 @@
  *   - Modales bottom-sheet: <Screen edges={['bottom']}>...</Screen>
  */
 import type { ReactNode } from 'react';
-import { StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { BG } from '@/src/constants/brand';
 
 interface ScreenProps {
   children: ReactNode;
   edges?: readonly Edge[];
+  /**
+   * KEY-1 (MB-0): pantallas con inputs en la parte baja — el contenido se
+   * desplaza con la curva nativa del teclado en vez de quedar tapado.
+   * iOS: behavior 'padding' (animación interrumpible del sistema).
+   * Android: no-op — softwareKeyboardLayoutMode 'resize' ya redimensiona.
+   * El blindaje definitivo (react-native-keyboard-controller) entra en el
+   * build único post-MB-1 (spike e) sin cambiar esta API.
+   */
+  keyboard?: boolean;
 }
 
-export function Screen({ children, edges = ['top'] }: ScreenProps) {
+export function Screen({ children, edges = ['top'], keyboard = false }: ScreenProps) {
   return (
     <SafeAreaView style={styles.container} edges={edges}>
-      {children}
+      {keyboard ? (
+        <KeyboardAvoidingView
+          style={styles.container}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          {children}
+        </KeyboardAvoidingView>
+      ) : children}
     </SafeAreaView>
   );
 }

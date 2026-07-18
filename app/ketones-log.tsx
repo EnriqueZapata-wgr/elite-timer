@@ -102,7 +102,7 @@ export default function KetonesLogScreen() {
   const previewStatus = numVal > 0 ? getKetoStatus(numVal) : null;
 
   return (
-    <Screen>
+    <Screen keyboard>
       <PillarHeader pillar="metrics" title="Cetonas" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">

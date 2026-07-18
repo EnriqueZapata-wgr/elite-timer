@@ -87,7 +87,7 @@ export default function CycleSettingsScreen() {
   };
 
   return (
-    <Screen>
+    <Screen keyboard>
       <PillarHeader pillar="cycle" title="Configuración" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>

@@ -3,7 +3,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Screen } from '@/src/components/ui/Screen';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -231,7 +231,7 @@ export default function HealthInputScreen() {
   };
 
   return (
-    <SafeAreaView style={st.screen}>
+    <Screen keyboard>
       <PillarHeader pillar="metrics" title="Evaluación" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={st.content}>
@@ -336,7 +336,7 @@ export default function HealthInputScreen() {
         <View style={{ height: Spacing.xxl * 2 }} />
         <MedicalDisclaimer feature="health" />
       </ScrollView>
-    </SafeAreaView>
+    </Screen>
   );
 }
 

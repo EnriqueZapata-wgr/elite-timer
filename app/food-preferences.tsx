@@ -80,7 +80,7 @@ export default function FoodPreferencesScreen() {
   };
 
   return (
-    <Screen>
+    <Screen keyboard>
       <PillarHeader pillar="nutrition" title="Preferencias" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
         {/* Dieta */}

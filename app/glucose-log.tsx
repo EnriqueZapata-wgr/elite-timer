@@ -115,7 +115,7 @@ export default function GlucoseLogScreen() {
   const previewStatus = numVal > 0 ? getGlucoseStatus(numVal, context) : null;
 
   return (
-    <Screen>
+    <Screen keyboard>
       <PillarHeader pillar="nutrition" title="Glucosa" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">

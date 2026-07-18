@@ -171,7 +171,7 @@ export default function FoodRegisterScreen() {
     const logsForType = todayLogs.filter(l => l.meal_type === directMealType.id);
 
     return (
-      <Screen>
+      <Screen keyboard>
         <PillarHeader pillar="nutrition" title={directMealType.name} />
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           {/* Opciones de registro */}
@@ -250,7 +250,7 @@ export default function FoodRegisterScreen() {
 
   // Vista principal: selección de tipo de comida
   return (
-    <Screen>
+    <Screen keyboard>
       <PillarHeader pillar="nutrition" title="Registrar" />
 
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>

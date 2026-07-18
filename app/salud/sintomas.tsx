@@ -131,7 +131,7 @@ export default function SintomasScreen() {
 
   return (
     <MedicalDisclaimerGate>
-      <Screen edges={[]}>
+      <Screen keyboard edges={[]}>
         <ScreenHeader title="Síntomas" onBack={() => router.back()} />
 
         {loading ? (

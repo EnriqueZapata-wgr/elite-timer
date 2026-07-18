@@ -99,7 +99,7 @@ export default function LabConfirmationScreen() {
   if (!review) {
     if (loadingReview) {
       return (
-        <Screen>
+        <Screen keyboard>
           <PillarHeader pillar="metrics" title="Confirmar laboratorio" />
           <View style={styles.emptyWrap}>
             <Ionicons name="hourglass-outline" size={40} color={Colors.textMuted} />
@@ -109,7 +109,7 @@ export default function LabConfirmationScreen() {
       );
     }
     return (
-      <Screen>
+      <Screen keyboard>
         <PillarHeader pillar="metrics" title="Confirmar laboratorio" />
         <View style={styles.emptyWrap}>
           <Ionicons name="document-outline" size={40} color={Colors.textMuted} />
@@ -203,7 +203,7 @@ export default function LabConfirmationScreen() {
   };
 
   return (
-    <Screen>
+    <Screen keyboard>
       <PillarHeader pillar="metrics" title="Confirmar laboratorio" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.intro}>
