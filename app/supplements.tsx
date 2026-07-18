@@ -6,19 +6,18 @@
  * (biblioteca vacía por default; el catálogo curado y las recomendaciones
  * Braverman se degradaron en este sprint). Sello BHA por ficha vía scanner.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Alert, DeviceEventEmitter, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
-import { getLocalToday } from '../src/utils/date-helpers';
+import { getLocalToday, parseLocalDate, toLocalDateString } from '../src/utils/date-helpers';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
-import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor } from '@/src/services/supplements-adherence-core';
-import { getWeeklyAdherence } from '@/src/services/supplements-adherence-service';
+import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor, takenDaysBySupplement, weeklyAdherencePct } from '@/src/services/supplements-adherence-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
 
@@ -72,40 +71,47 @@ export default function SupplementsScreen() {
     })();
   }, []);
 
+  // #35 perf (MB-2): UNA pasada — antes eran 4-5 round-trips (fichas, logs de
+  // hoy, y getWeeklyAdherence RE-leyendo fichas + logs de 7 días). Ahora: 2
+  // queries en paralelo; logs de hoy y adherencia semanal se derivan de la
+  // misma lectura con los cores puros.
+  const loadAll = useCallback(async () => {
+    if (!userId) return;
+    const today = getLocalToday();
+    const cursor = parseLocalDate(today);
+    cursor.setDate(cursor.getDate() - 6);
+    const weekAgo = toLocalDateString(cursor);
+    const [suppsRes, logsRes] = await Promise.all([
+      supabase.from('user_supplements').select('*')
+        .eq('user_id', userId).eq('is_active', true).order('timing'),
+      supabase.from('supplement_logs').select('supplement_id, date, taken, dose_index')
+        .eq('user_id', userId).gte('date', weekAgo),
+    ]);
+    const supps = (suppsRes.data ?? []) as any[];
+    const logs = (logsRes.data ?? []) as any[];
+    setSupplements(supps);
+    const tl: Record<string, number[]> = {};
+    logs.forEach((l) => {
+      if (!l.taken || l.date !== today) return;
+      const idx = Number.isFinite(Number(l.dose_index)) ? Number(l.dose_index) : 0;
+      (tl[l.supplement_id] ??= []).push(idx);
+    });
+    setTodayLogs(tl);
+    const takenDays = takenDaysBySupplement(logs);
+    setWeeklyAdherence(weeklyAdherencePct(
+      supps.map((s) => ({ dosePattern: s.dose_pattern, takenDays: takenDays[s.id] ?? 0 })),
+    ));
+  }, [userId]);
+
   useFocusEffect(useCallback(() => {
     if (userId) {
-      loadSupplements();
-      loadTodayLogs();
-      getWeeklyAdherence(userId).then(setWeeklyAdherence).catch(() => {});
+      loadAll();
       isPregnancyActive(userId).then(setPregnancyActive).catch(() => {});
     }
-  }, [userId]));
+  }, [userId, loadAll]));
 
-  async function loadSupplements() {
-    const { data } = await supabase
-      .from('user_supplements')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .order('timing');
-    setSupplements(data || []);
-  }
-
-  async function loadTodayLogs() {
-    const today = getLocalToday();
-    const { data } = await supabase
-      .from('supplement_logs')
-      .select('supplement_id, dose_index, taken')
-      .eq('user_id', userId)
-      .eq('date', today);
-    const logs: Record<string, number[]> = {};
-    (data || []).forEach((l: any) => {
-      if (!l.taken) return;
-      const idx = Number.isFinite(Number(l.dose_index)) ? Number(l.dose_index) : 0;
-      (logs[l.supplement_id] ??= []).push(idx);
-    });
-    setTodayLogs(logs);
-  }
+  /** Compat: los callsites post-guardado refrescan todo de una pasada. */
+  function loadSupplements() { return loadAll(); }
 
   /** Toggle de UNA toma (dose_index). N tomas = N checks (188). */
   async function toggleDose(supplementId: string, doseIndex: number) {
@@ -221,17 +227,20 @@ export default function SupplementsScreen() {
     ]);
   }
 
-  // Agrupar por timing
-  const grouped = TIMING_OPTIONS.map(t => ({
+  // Agrupar por timing (#35: memoizado — cada toggle re-renderizaba y recalculaba)
+  const grouped = useMemo(() => TIMING_OPTIONS.map(t => ({
     ...t,
     items: supplements.filter(s => s.timing === t.id),
-  })).filter(g => g.items.length > 0);
+  })).filter(g => g.items.length > 0), [supplements]);
 
   // Multi-dosis (188): el progreso cuenta TOMAS, no suplementos (N tomas = N checks)
-  const totalCount = supplements.reduce((acc, s) => acc + doseCountFor(s.dose_times), 0);
-  const takenCount = supplements.reduce(
-    (acc, s) => acc + Math.min((todayLogs[s.id] ?? []).length, doseCountFor(s.dose_times)), 0);
-  const completionPct = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 0;
+  // #35: memoizado junto con grouped.
+  const { totalCount, takenCount, completionPct } = useMemo(() => {
+    const total = supplements.reduce((acc, s) => acc + doseCountFor(s.dose_times), 0);
+    const taken = supplements.reduce(
+      (acc, s) => acc + Math.min((todayLogs[s.id] ?? []).length, doseCountFor(s.dose_times)), 0);
+    return { totalCount: total, takenCount: taken, completionPct: total > 0 ? Math.round((taken / total) * 100) : 0 };
+  }, [supplements, todayLogs]);
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
