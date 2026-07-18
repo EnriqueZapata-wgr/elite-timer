@@ -23,6 +23,7 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
+import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import {
   analyzeFoodPhoto, analyzeLabelPhoto, analyzeSupplementPhoto,
@@ -312,6 +313,9 @@ export default function FoodScanScreen() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  // SUP-1 (MB-2): scan de suplemento → "Agregar a mi plan" (antes era solo informativo).
+  const [addingToPlan, setAddingToPlan] = useState(false);
+  const [addedToPlan, setAddedToPlan] = useState(false);
 
   // Nuevos estados para modo food editable
   const [textInput, setTextInput] = useState('');
@@ -429,6 +433,45 @@ export default function FoodScanScreen() {
   // === GUARDAR ===
 
   // Paso 1: abrir editor de revisión
+  /** SUP-1 (MB-2): crea la ficha en user_supplements desde el JSON del scan.
+   * Sello BHA automático SOLO si el scan es claramente limpio (calidad ≥80 y
+   * cero red flags) — un scan sucio NO auto-rechaza: eso lo decide el BHA real
+   * desde la ficha. Tomas/horario se editan después con el lápiz (SUP-3). */
+  const handleAddToPlan = async () => {
+    if (!user?.id || !result || addingToPlan || addedToPlan) return;
+    setAddingToPlan(true);
+    try {
+      const quality = Number(result.quality_score ?? 0);
+      const clean = quality >= 80 && !(result.red_flags?.length);
+      const { error: insErr } = await supabase.from('user_supplements').insert({
+        user_id: user.id,
+        name: String(result.supplement_name ?? productName ?? 'Suplemento').slice(0, 120),
+        dosage: String(result.daily_dose ?? 'Según etiqueta').slice(0, 120),
+        form: result.form ? String(result.form).slice(0, 40) : null,
+        timing: 'morning',
+        source: 'scan',
+        bha_status: clean ? 'approved' : null,
+        bha_scan_summary: clean
+          ? `Sello derivado del escaneo de etiqueta · calidad ${quality}/100`
+          : null,
+      });
+      if (insErr) throw insErr;
+      setAddedToPlan(true);
+      haptic.success();
+      Alert.alert(
+        'En tu plan ✓',
+        'Ficha creada con los datos del escaneo. Edita tomas (AM/PM), dosis y horario desde Suplementos con el ✏️.',
+        [
+          { text: 'Ver mi plan', onPress: () => router.replace('/supplements') },
+          { text: 'Seguir aquí', style: 'cancel' },
+        ],
+      );
+    } catch {
+      Alert.alert('No se pudo agregar', 'Revisa tu conexión e intenta de nuevo.');
+    }
+    setAddingToPlan(false);
+  };
+
   const handleSaveFood = () => {
     if (!result) return;
     setShowReview(true);
@@ -592,6 +635,7 @@ export default function FoodScanScreen() {
   const resetAndScan = () => {
     setResult(null); setPhotoUri(null); setPhotoBase64(null);
     setSaved(false); setDescription(''); setProductName(''); setUseCtx(null);
+    setAddedToPlan(false); setAddingToPlan(false);
     setHungerKey(null); setMealType(autoMealType()); setStep('capture');
     // Reset nuevos estados de food editable
     setTextInput(''); setInputType('photo'); setIngredients([]);
@@ -1316,6 +1360,29 @@ export default function FoodScanScreen() {
                   {saving ? 'Guardando...' : 'Guardar \u2713'}
                 </EliteText>
               </AnimatedPressable>
+            )}
+
+            {/* SUP-1: scan de suplemento → ficha en mi plan (con sello BHA si limpio) */}
+            {mode === 'supplement' && !addedToPlan && (
+              <AnimatedPressable onPress={handleAddToPlan} disabled={addingToPlan} scaleDown={0.96}
+                style={[st.ctaBtn, { backgroundColor: cfg.color }]}>
+                <Ionicons name={addingToPlan ? 'hourglass-outline' : 'add-circle'} size={20} color={TEXT_COLORS.onAccent} />
+                <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+                  {addingToPlan ? 'Agregando...' : 'Agregar a mi plan'}
+                </EliteText>
+              </AnimatedPressable>
+            )}
+            {mode === 'supplement' && addedToPlan && (
+              <Animated.View entering={FadeIn.springify()}>
+                <View style={st.savedRow}>
+                  <View style={st.savedCheck}>
+                    <Ionicons name="checkmark" size={20} color={TEXT_COLORS.onAccent} />
+                  </View>
+                  <EliteText style={{ color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+                    En tu plan
+                  </EliteText>
+                </View>
+              </Animated.View>
             )}
 
             {/* Recalcular con IA (solo si editó ingredientes) */}
