@@ -360,6 +360,45 @@ export const PILLAR_GRADIENTS = {
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════
+// CAPA SEMÁNTICA (MB-0a — habilita LIGHT en v2.1 sin repintar)
+// ═══════════════════════════════════════════════════════════════════
+// Alias sobre los tokens canónicos dark (BG/BORDER/TEXT/SURFACES/ATP_BRAND).
+// NO cambia ningún valor; da el punto único de indirección donde v2.1
+// introducirá el set light. Los consumidores migran a esta capa en v2.1;
+// en V2 basta con que exista.
+
+export const SEMANTIC_THEME = {
+  bg: {
+    screen: BG.screen,
+    card: BG.card,
+    elevated: BG.cardElevated,
+    input: BG.input,
+  },
+  surface: {
+    base: SURFACES.base,
+    card: SURFACES.card,
+    border: BORDER.card,
+    borderInput: BORDER.input,
+    borderSubtle: BORDER.subtle,
+    disabled: SURFACES.disabled,
+  },
+  text: {
+    primary: TEXT.primary,
+    secondary: TEXT.secondary,
+    tertiary: TEXT.tertiary,
+    muted: TEXT.muted,
+    onAccent: TEXT_COLORS.onAccent,
+  },
+  accent: {
+    primary: ATP_BRAND.lime,
+    teal: ATP_BRAND.teal,
+    amber: ATP_BRAND.amber,
+  },
+} as const;
+
+export type SemanticTheme = typeof SEMANTIC_THEME;
+
+// ═══════════════════════════════════════════════════════════════════
 // HOY BACKGROUNDS — Imagenes de fondo dinamicas por hora
 // ═══════════════════════════════════════════════════════════════════
 // requires estaticos (Metro bundler los analiza en tiempo de compilacion).
