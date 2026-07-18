@@ -13,6 +13,12 @@
  */
 import type { DxRoot } from '@/src/services/dx/dx-engine-core';
 import type { ResolvedInterventionDef } from './intervention-engine-core';
+// Triple-audit P1.4: el prompt mandaba claves snake_case crudas (root_key,
+// roots, y PCR_hs/presion_* embebidos en benefit/how del catálogo) y ARGOS
+// las eco-eaba en la narrativa. Se legibiliza TODO antes del stringify.
+import { displayLabel, legibilizeKeysInText } from '@/src/constants/display-labels';
+import { ROOT_LABELS } from '@/src/constants/intervention-vocab';
+import type { InterventionRoot } from '@/src/constants/intervention-vocab';
 
 /** action_key registrado en proton_action_costs (migración 175, 280 H+). */
 export const INTERVENTION_RATIONALE_ACTION_KEY = 'intervention_rationale';
@@ -77,7 +83,7 @@ Formato de salida (markdown, español, 200-400 palabras):
 2. Grupos por raíz o tema con encabezados "##" cortos o bullets, conectando intervenciones → raíz → beneficio esperado.
 3. Una línea final de refuerzo (tú tienes el control, consistencia gana).
 
-Tono: cercano, segunda persona, energizante, cero tecnicismos innecesarios. Solo devuelve el markdown, sin preámbulos.`;
+Tono: cercano, segunda persona, energizante, cero tecnicismos innecesarios. NUNCA escribas claves técnicas con guiones bajos (p.ej. "PCR_hs", "presion_arterial_sistolica") — usa siempre el nombre legible en español. Solo devuelve el markdown, sin preámbulos.`;
 
   const user = JSON.stringify(
     {
@@ -86,17 +92,17 @@ Tono: cercano, segunda persona, energizante, cero tecnicismos innecesarios. Solo
         nivel_calidad: input.dx.qualityLevel,
         resumen: input.dx.summary,
         raices: input.dx.roots.map((r) => ({
-          raiz: r.root_key,
+          raiz: ROOT_LABELS[r.root_key as InterventionRoot] ?? displayLabel(r.root_key),
           severidad: r.severity,
           confianza: r.confidence,
         })),
       },
       intervenciones_activas: input.interventions.map((i) => ({
         nombre: i.name,
-        como: i.how,
-        beneficio: i.benefit,
+        como: legibilizeKeysInText(i.how),
+        beneficio: legibilizeKeysInText(i.benefit),
         categorias: i.categories,
-        raices_que_ataca: i.roots,
+        raices_que_ataca: (i.roots ?? []).map((rk) => ROOT_LABELS[rk as InterventionRoot] ?? displayLabel(rk)),
       })),
     },
     null,

@@ -33,6 +33,7 @@ export const DISPLAY_LABELS: Record<string, string> = {
   vitamina_d: 'vitamina D',
   '25_oh_vitamina_d': 'vitamina D (25-OH)',
   presion_arterial_matutina: 'presión arterial matutina',
+  presion_arterial_sistolica: 'presión arterial sistólica',
   presion_arterial: 'presión arterial',
   cortisol_matutino: 'cortisol matutino',
   cortisol_matutino_salival: 'cortisol matutino (salival)',
@@ -122,4 +123,17 @@ export function displayLabel(raw: string): string {
 /** Legibiliza una lista (biomarcadores por tier, etc.). */
 export function displayLabels(raws: string[]): string[] {
   return raws.map(displayLabel);
+}
+
+/**
+ * Triple-audit P1.4: legibiliza claves snake_case EMBEBIDAS en texto libre
+ * ("mejora PCR_hs y presion_arterial_sistolica" → "mejora PCR (alta
+ * sensibilidad) y presión arterial sistólica"). Detecta tokens palabra_palabra
+ * (2+ segmentos unidos por guion bajo) y los pasa por displayLabel — mapa
+ * curado o beautify. Pensada para sanear textos del catálogo ANTES de entrar
+ * a un prompt de LLM (el eco de claves crudas era la fuente del leak).
+ */
+export function legibilizeKeysInText(text: string): string {
+  if (!text) return text ?? '';
+  return text.replace(/[A-Za-zÁÉÍÓÚÑáéíóúñ0-9]+(?:_[A-Za-zÁÉÍÓÚÑáéíóúñ0-9]+)+/g, (m) => displayLabel(m));
 }

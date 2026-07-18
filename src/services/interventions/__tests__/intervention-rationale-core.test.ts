@@ -75,12 +75,25 @@ describe('buildRationalePrompt', () => {
     const parsed = JSON.parse(user);
     expect(parsed.diagnostico_funcional.version).toBe(3);
     expect(parsed.diagnostico_funcional.raices).toHaveLength(2);
-    expect(parsed.diagnostico_funcional.raices[0]).toEqual({
-      raiz: 'inflamacion_cronica', severidad: 4, confianza: 0.8,
-    });
+    // Triple-audit P1.4: las raíces van LEGIBILIZADAS al LLM (nunca snake_case).
+    expect(parsed.diagnostico_funcional.raices[0].raiz).not.toMatch(/_/);
+    expect(parsed.diagnostico_funcional.raices[0].severidad).toBe(4);
     expect(parsed.intervenciones_activas).toHaveLength(1);
     expect(parsed.intervenciones_activas[0].nombre).toBe('Caminata matutina con luz solar');
-    expect(parsed.intervenciones_activas[0].raices_que_ataca).toEqual(['sedentarismo']);
+    expect(parsed.intervenciones_activas[0].raices_que_ataca).toEqual(['Sedentarismo']);
+  });
+
+  it('P1.4: claves snake_case embebidas en benefit/how se legibilizan antes del prompt', () => {
+    const input = promptInput();
+    input.interventions[0].benefit = 'Mejora PCR_hs y presion_arterial_sistolica en 8 semanas.';
+    input.interventions[0].how = 'Monitorea glucosa_ayunas al despertar.';
+    const { user, system } = buildRationalePrompt(input);
+    const parsed = JSON.parse(user);
+    expect(parsed.intervenciones_activas[0].beneficio).toBe(
+      'Mejora PCR (alta sensibilidad) y presión arterial sistólica en 8 semanas.');
+    expect(parsed.intervenciones_activas[0].como).toBe('Monitorea glucosa en ayuno al despertar.');
+    // Y el system blinda contra el eco de claves crudas.
+    expect(system).toMatch(/guiones bajos/);
   });
 
   it('action key coincide con el seed de la migración 175', () => {
