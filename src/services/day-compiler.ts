@@ -45,7 +45,7 @@ export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, Href> = {
   supplements: '/supplements',
   period_log: '/cycle',
   checkin: '/checkin',
-  cardio: '/fitness-hub',
+  cardio: '/log-cardio', // FIT-3 (MB-3): directo a registrar sesión
   journal: '/journal',
 };
 

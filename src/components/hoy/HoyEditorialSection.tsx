@@ -533,7 +533,8 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             electronsValue={el?.weight}
             showCheckCircle
             infoText={CARD_INFO['cardio']}
-            onTap={() => go('/fitness-hub')}
+            // FIT-3 (MB-3): directo a REGISTRAR la sesión, no al hub.
+            onTap={() => go('/log-cardio')}
           />
         );
       }

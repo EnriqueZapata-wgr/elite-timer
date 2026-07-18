@@ -19,7 +19,9 @@ import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 const ITEMS = [
   { name: 'Mis rutinas', subtitle: 'Rutinas guardadas listas para ejecutar', icon: 'list-outline' as const, color: '#a8e02a', route: '/my-routines' as const },
   { name: 'Construir rutina', subtitle: 'Crea tu rutina desde cero', icon: 'construct-outline' as const, color: '#60a5fa', route: '/builder' as const, params: { mode: 'routine' } },
-  { name: 'Timer rápido', subtitle: 'Tabata · HIIT · EMOM — configura y GO', icon: 'timer-outline' as const, color: '#fb923c', route: '/builder' as const, params: { mode: 'timer' } },
+  // FIT-2 (MB-3): abría el BUILDER (construir desde cero) — ahora abre la
+  // pantalla de timers estándar existente. Subtítulo honesto con sus presets.
+  { name: 'Timer rápido', subtitle: '30s · 60s · 90s · Tabata — elige y GO', icon: 'timer-outline' as const, color: '#fb923c', route: '/timer' as const },
   { name: 'Registrar ejercicio', subtitle: 'Loguea sets, reps y peso', icon: 'add-circle-outline' as const, color: '#34d399', route: '/log-exercise' as const },
 ];
 

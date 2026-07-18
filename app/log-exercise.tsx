@@ -374,6 +374,15 @@ export default function LogExerciseScreen() {
       await checkForPR(selectedVariant.id, validSets);
 
       haptic.success();
+      // MB-3 3B: award EAGER de strength (como cardio en log-cardio) — antes el
+      // electrón llegaba diferido vía reconcile del siguiente compileDay y la
+      // card de HOY no palomeaba al instante. exercise_logs ya respalda el
+      // verificado, así que el award es idempotente y consistente.
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) await awardBooleanElectron(user.id, 'strength');
+      } catch { /* fail-soft: el reconcile lo recoge */ }
+      DeviceEventEmitter.emit('electrons_changed');
       DeviceEventEmitter.emit('day_changed');
 
       Alert.alert(

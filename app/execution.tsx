@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef } from 'react';
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, DeviceEventEmitter } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,8 @@ import { useRoutineEngine } from '@/hooks/use-routine-engine';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
+import { generateUUID } from '@/src/utils/uuid';
+import { awardBooleanElectron } from '@/src/services/electron-service';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius, BlockColors } from '@/constants/theme';
@@ -132,16 +134,27 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     savedRef.current = true;
     // T5 HARDENING: funnel core — workout completado.
     analytics.track(ATP_EVENTS.WORKOUT_COMPLETED, { mode: 'timer', duration_s: stats.actualDurationSeconds });
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    // MB-3 3B: una rutina-timer completada es un WORKOUT — antes caía en
+    // mind_sessions type 'breathing' (tabla equivocada) y no otorgaba electrón
+    // de fitness. Ahora: cardio_sessions discipline 'other' (conditioning) +
+    // electrón cardio (verificado contra esa misma tabla) + refresh del HOY.
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      supabase.from('mind_sessions').insert({
-        user_id: user.id,
-        type: 'breathing', // Reusar tipo genérico para timers
-        template_name: routine.name || 'Timer',
-        duration_seconds: stats.actualDurationSeconds,
-        date: getLocalToday(),
-        notes: `${stats.stepsCompleted} steps, ${stats.workSeconds}s trabajo`,
-      });
+      try {
+        await supabase.from('cardio_sessions').insert({
+          id: generateUUID(),
+          user_id: user.id,
+          date: getLocalToday(),
+          discipline: 'other',
+          duration_seconds: stats.actualDurationSeconds,
+          distance_meters: null,
+          notes: `${routine.name || 'Timer'} · ${stats.stepsCompleted} steps · ${stats.workSeconds}s trabajo`,
+          source: 'manual',
+        });
+        await awardBooleanElectron(user.id, 'cardio');
+        DeviceEventEmitter.emit('electrons_changed');
+        DeviceEventEmitter.emit('day_changed');
+      } catch { /* fail-soft: la sesión terminó; el reconcile del día lo recoge */ }
     });
   }, [engineState]);
 
