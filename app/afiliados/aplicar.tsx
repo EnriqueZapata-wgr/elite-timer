@@ -113,7 +113,7 @@ export default function AfiliadosAplicarScreen() {
           {existing.status === 'approved' && (
             <AnimatedPressable
               style={s.submitBtn}
-              onPress={() => { haptic.medium(); router.push('/afiliados/dashboard' as any); }}
+              onPress={() => { haptic.medium(); router.push('/afiliados/dashboard'); }}
             >
               <EliteText style={s.submitText}>IR A MI DASHBOARD</EliteText>
               <Ionicons name="arrow-forward" size={18} color="#000" />

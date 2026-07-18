@@ -6,7 +6,9 @@
  * la ruta de captura con `?focus=<columna>`. La pantalla destino lee `focus` y
  * resalta/abre el campo correspondiente (NumberInputRow `highlight`).
  */
-export const DATA_CAPTURE_ROUTES: Record<string, string> = {
+import type { Href } from 'expo-router';
+
+export const DATA_CAPTURE_ROUTES: Record<string, Href> = {
   grip_strength_kg: '/edad-atp/composition?focus=grip_strength_kg',
   body_fat_pct: '/edad-atp/composition?focus=body_fat_pct',
   waist_cm: '/edad-atp/composition?focus=waist_cm',
@@ -15,6 +17,6 @@ export const DATA_CAPTURE_ROUTES: Record<string, string> = {
 };
 
 /** Ruta para un parámetro pendiente, con fallback al formulario general de salud. */
-export function captureRouteFor(key: string): string {
+export function captureRouteFor(key: string): Href {
   return DATA_CAPTURE_ROUTES[key] ?? '/health-input';
 }

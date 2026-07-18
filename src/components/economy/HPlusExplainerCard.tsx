@@ -30,7 +30,7 @@ export function HPlusExplainerCard() {
 
   function open() {
     haptic.light();
-    router.push('/economy/how-to-earn' as any);
+    router.push('/economy/how-to-earn');
   }
 
   function dismiss() {

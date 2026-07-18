@@ -60,7 +60,7 @@ export function RateLimitCard({ info, onBoostActivated }: Props) {
         `Necesitas ${formatFull(boost.costHPlus)} H+ y tienes ${formatFull(result.hPlusRemaining)}. Convierte tus E- o completa tu día para ganar más.`,
         [
           { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/convert' as any) },
+          { text: 'Conseguir H+', onPress: () => router.push('/economy/convert') },
         ],
       );
     } else if (result.error === 'rate_limit_exceeded') {
@@ -69,7 +69,7 @@ export function RateLimitCard({ info, onBoostActivated }: Props) {
         result.message ?? 'Máximo 3 boosts por semana. Considera ATP Pro para acceso ilimitado.',
         [
           { text: 'Entendido', style: 'cancel' },
-          { text: 'Ver ATP Pro', onPress: () => router.push('/paywall' as any) },
+          { text: 'Ver ATP Pro', onPress: () => router.push('/paywall') },
         ],
       );
     } else if (result.error === 'already_active') {
@@ -123,7 +123,7 @@ export function RateLimitCard({ info, onBoostActivated }: Props) {
             </EliteText>
           </AnimatedPressable>
           <AnimatedPressable
-            onPress={() => { haptic.light(); router.push('/paywall' as any); }}
+            onPress={() => { haptic.light(); router.push('/paywall'); }}
             style={s.secondaryBtn}
           >
             <EliteText style={s.secondaryText}>O suscríbete para acceso permanente →</EliteText>

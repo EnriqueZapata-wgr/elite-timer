@@ -194,7 +194,7 @@ export default function HealthInputScreen() {
       try { await calculateAndSaveScore(userId); } catch (e) { logWarn('[health-input] calculateAndSaveScore failed', e); }
       haptic.success();
       Alert.alert('Guardado', 'Tus datos se han guardado y tus scores actualizados.', [
-        { text: 'Ver scores', onPress: () => router.push('/my-health' as any) },
+        { text: 'Ver scores', onPress: () => router.push('/my-health') },
         { text: 'OK' },
       ]);
     } catch (err: any) {

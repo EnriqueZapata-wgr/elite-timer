@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 // Módulos nativos — importar con try/catch para OTA compat
 let ImagePicker: any = null;
@@ -188,7 +188,7 @@ function MyHealthScreen() {
     setReview(review);
     setResult(null);
     setProcessing(false);
-    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId } } as any);
+    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId } });
   };
 
   const processUpload = async (base64: string, fileType: 'image' | 'pdf', type?: UploadType) => {
@@ -288,7 +288,7 @@ function MyHealthScreen() {
     setReview(merged);
     setResult(null);
     setProcessing(false);
-    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId: merged.uploadId } } as any);
+    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId: merged.uploadId } });
   };
 
   // Reintento manual de extracción (#5): re-procesa un upload ya subido (fallido por red u
@@ -309,7 +309,7 @@ function MyHealthScreen() {
   const impactColor = (impact: string) => impact === 'muy alto' ? SEMANTIC.error : impact === 'alto' ? SEMANTIC.warning : CATEGORY_COLORS.nutrition;
 
   const getRecommendations = (hm: HealthMeasurement | null, labList: LabResult[]) => {
-    const recs: { icon: string; title: string; desc: string; impact: string; route: string }[] = [];
+    const recs: { icon: string; title: string; desc: string; impact: string; route: Href }[] = [];
     if (!labList.length) recs.push({ icon: 'flask-outline', title: 'Sube laboratorios', desc: 'La IA calcula tu edad biológica con PhenoAge', impact: 'muy alto', route: '/my-health' });
     if (!hm?.grip_strength_kg) recs.push({ icon: 'hand-left-outline', title: 'Fuerza de agarre', desc: 'Predictor #1 de longevidad', impact: 'alto', route: captureRouteFor('grip_strength_kg') });
     if (!hm?.body_fat_pct) recs.push({ icon: 'body-outline', title: '% Grasa corporal', desc: 'Báscula de bioimpedancia mejora tu score', impact: 'alto', route: captureRouteFor('body_fat_pct') });
@@ -424,7 +424,7 @@ function MyHealthScreen() {
           <Animated.View entering={FadeInUp.delay(250).springify()}>
             <SectionTitle style={s.sectionLabelSpacing}>DATOS POR CAPTURAR</SectionTitle>
             {recs.map((rec, i) => (
-              <AnimatedPressable key={rec.title} onPress={() => { haptic.light(); router.push(rec.route as any); }} style={s.recCard}>
+              <AnimatedPressable key={rec.title} onPress={() => { haptic.light(); router.push(rec.route); }} style={s.recCard}>
                 <Ionicons name={rec.icon as any} size={20} color={impactColor(rec.impact)} />
                 <View style={{ flex: 1 }}>
                   <EliteText variant="body" style={{ color: TEXT_COLORS.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md }}>{rec.title}</EliteText>
@@ -459,7 +459,7 @@ function MyHealthScreen() {
                       poder operarse aunque otro upload esté en curso. */}
                   {u.status === 'failed' && (
                     <Pressable
-                      onPress={() => { haptic.light(); router.push({ pathname: '/edad-atp/biomarkers', params: { sourceUploadId: u.id, sourceFileName: u.file_name ?? 'lab' } } as any); }}
+                      onPress={() => { haptic.light(); router.push({ pathname: '/edad-atp/biomarkers', params: { sourceUploadId: u.id, sourceFileName: u.file_name ?? 'lab' } }); }}
                       style={{ padding: 6 }}
                     >
                       <Ionicons name="create-outline" size={18} color={Colors.neonGreen} />

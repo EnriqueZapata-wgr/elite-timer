@@ -139,7 +139,7 @@ export default function MenteHubScreen() {
         onBack={() => router.back()}
         rightContent={
           <AnimatedPressable
-            onPress={() => { haptic.light(); router.push('/mente/progreso' as any); }}
+            onPress={() => { haptic.light(); router.push('/mente/progreso'); }}
             style={s.progressBtn}
           >
             <Ionicons name="trophy-outline" size={18} color={ATP_BRAND.lime} />
@@ -159,9 +159,9 @@ export default function MenteHubScreen() {
               : 'Escribe tu primera entrada'}
             icon="journal-outline"
             badge={hub.journalStreak > 0 ? `🔥 ${hub.journalStreak} ${hub.journalStreak === 1 ? 'día' : 'días'}` : undefined}
-            onPress={() => router.push('/journal-history' as any)}
+            onPress={() => router.push('/journal-history')}
             ctaLabel="Nueva entrada"
-            onCta={() => router.push('/journal' as any)}
+            onCta={() => router.push('/journal')}
           />
         </Animated.View>
 
@@ -170,9 +170,9 @@ export default function MenteHubScreen() {
             title="Respiración"
             subtitle={lastActivitySubtitle(`${BREATHING_LIBRARY.length} técnicas`, hub.lastBreathingAt)}
             icon="leaf-outline"
-            onPress={() => router.push('/breathing' as any)}
+            onPress={() => router.push('/breathing')}
             ctaLabel="Empezar sesión"
-            onCta={() => router.push('/breathing' as any)}
+            onCta={() => router.push('/breathing')}
           />
         </Animated.View>
 
@@ -181,16 +181,16 @@ export default function MenteHubScreen() {
             title="Meditación"
             subtitle={lastActivitySubtitle(`${MEDITATION_LIBRARY.length} sesiones`, hub.lastMeditationAt)}
             icon="sparkles-outline"
-            onPress={() => router.push('/meditation' as any)}
+            onPress={() => router.push('/meditation')}
             ctaLabel="Sesión guiada"
-            onCta={() => router.push('/meditation' as any)}
+            onCta={() => router.push('/meditation')}
           />
         </Animated.View>
 
         {/* Check-in compacto */}
         <Animated.View entering={FadeInUp.delay(190).springify()}>
           <AnimatedPressable
-            onPress={() => { haptic.light(); router.push('/checkin' as any); }}
+            onPress={() => { haptic.light(); router.push('/checkin'); }}
             style={s.checkinCard}
           >
             <View style={s.checkinLeft}>

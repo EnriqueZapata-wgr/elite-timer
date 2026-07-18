@@ -55,12 +55,12 @@ export function LabProcessingSheet() {
   const goConfirm = () => {
     haptic.medium();
     closeSheet();
-    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId: upload.uploadId } } as any);
+    router.push({ pathname: '/edad-atp/lab-confirmation', params: { uploadId: upload.uploadId } });
   };
   const goManual = () => {
     haptic.light();
     closeSheet();
-    router.push({ pathname: '/edad-atp/biomarkers', params: { sourceUploadId: upload.uploadId, sourceFileName: upload.fileName } } as any);
+    router.push({ pathname: '/edad-atp/biomarkers', params: { sourceUploadId: upload.uploadId, sourceFileName: upload.fileName } });
   };
 
   return (

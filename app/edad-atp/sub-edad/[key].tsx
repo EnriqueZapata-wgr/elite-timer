@@ -13,7 +13,7 @@
  */
 import { useState, useCallback } from 'react';
 import { ScrollView, StyleSheet, Pressable, View, Modal, Alert } from 'react-native';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams , type Href } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
@@ -33,7 +33,7 @@ import { COMPONENT_META, getComponentMeta, componentToParamKey, type ComponentMe
 import { CeStars } from '@/src/components/edad-atp/CeStars';
 import { LabInfoPopup } from '@/src/components/edad-atp/LabInfoPopup';
 
-const META: Record<string, { icon: string; label: string; action: string; route: string }> = {
+const META: Record<string, { icon: string; label: string; action: string; route: Href }> = {
   labs: { icon: '🩸', label: 'Edad Labs', action: 'Optimiza biomarcadores: inflamación, glucosa y micronutrientes (Vit D, B12).', route: '/edad-atp/biomarkers' },
   composicion: { icon: '💪', label: 'Edad Composición', action: 'Trabaja composición: fuerza progresiva + proteína suficiente.', route: '/edad-atp/composition' },
   fitness: { icon: '🏃', label: 'Edad Fitness', action: 'Protocolo cardio ATP: 3x por semana de intervalos + fuerza.', route: '/edad-atp/tests' },
@@ -119,7 +119,7 @@ export default function SubEdadDrillDown() {
       setEditor({ kind: 'subjetivos' });
       return;
     }
-    router.push(m.capture.route as any);
+    router.push(m.capture.route);
   }
 
   async function saveInlineHm() {
@@ -228,7 +228,7 @@ export default function SubEdadDrillDown() {
               <View style={styles.actionCard}>
                 <EliteText variant="body" style={styles.actionTitle}>💡 Acción ATP</EliteText>
                 <EliteText variant="caption" style={styles.actionText}>{meta.action}</EliteText>
-                <Pressable onPress={() => { haptic.medium(); router.push(meta.route as any); }} style={styles.actionBtn}>
+                <Pressable onPress={() => { haptic.medium(); router.push(meta.route); }} style={styles.actionBtn}>
                   <EliteText variant="body" style={styles.actionBtnText}>Agregar datos</EliteText>
                 </Pressable>
               </View>

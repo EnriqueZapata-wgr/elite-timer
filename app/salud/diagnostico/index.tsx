@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { router , type Href } from 'expo-router';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { Screen } from '@/src/components/ui/Screen';
@@ -40,7 +40,7 @@ import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 const LEVEL_LABELS: Record<number, string> = DX_LEVEL_LABELS;
 
 /** hotfix 2da pasada: cada fuente faltante es un CTA navegable, no un chip muerto. */
-const MISSING_ROUTES: Partial<Record<DxMissingKey, string>> = {
+const MISSING_ROUTES: Partial<Record<DxMissingKey, Href>> = {
   historia_basica: '/historia-clinica',
   integral: '/historia-clinica/integral',
   areas: '/historia-clinica',
@@ -159,7 +159,7 @@ export default function DiagnosticoScreen() {
         `Actualizar tu diagnóstico usa ${formatFull(quote?.cost ?? 0)} H+. Recarga o gánalos completando tu día.`,
         [
           { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop' as any) },
+          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop') },
         ],
       );
       return;
@@ -229,7 +229,7 @@ export default function DiagnosticoScreen() {
                         return (
                           <AnimatedPressable
                             key={m.key}
-                            onPress={() => { haptic.light(); router.push(route as any); }}
+                            onPress={() => { haptic.light(); router.push(route); }}
                             style={styles.missingChipCta}
                           >
                             <EliteText style={styles.missingChipCtaText}>{m.label}</EliteText>
@@ -248,7 +248,7 @@ export default function DiagnosticoScreen() {
               <Animated.View entering={FadeInUp.delay(130).springify()}>
                 <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>EDAD ATP</SectionTitle>
                 <AnimatedPressable
-                  onPress={() => { haptic.light(); router.push('/edad-atp/result-preview' as any); }}
+                  onPress={() => { haptic.light(); router.push('/edad-atp/result-preview'); }}
                   style={styles.edadCard}
                 >
                   <View style={{ flex: 1 }}>
@@ -292,7 +292,7 @@ export default function DiagnosticoScreen() {
             {dx && (
               <Animated.View entering={FadeInUp.delay(165).springify()}>
                 <AnimatedPressable
-                  onPress={() => { haptic.medium(); router.push('/salud/intervenciones' as any); }}
+                  onPress={() => { haptic.medium(); router.push('/salud/intervenciones'); }}
                   style={styles.protocolCta}
                 >
                   <EliteText style={{ fontSize: 16 }}>🧭</EliteText>

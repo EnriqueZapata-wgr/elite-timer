@@ -45,7 +45,7 @@ export function ArgosFloatingButton() {
 
   function openArgos() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    router.push(`/argos-chat?from=${from}` as any);
+    router.push(`/argos-chat?from=${from}`);
   }
 
   return (

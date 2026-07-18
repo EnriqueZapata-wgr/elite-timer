@@ -259,7 +259,7 @@ export default function SettingsConexionesScreen() {
             icon="briefcase-outline"
             label="Programa de afiliados"
             sub="Clínicos, coaches, centros y creadores"
-            onPress={() => { haptic.medium(); router.push('/afiliados/aplicar' as any); }}
+            onPress={() => { haptic.medium(); router.push('/afiliados/aplicar'); }}
           />
         </Animated.View>
 

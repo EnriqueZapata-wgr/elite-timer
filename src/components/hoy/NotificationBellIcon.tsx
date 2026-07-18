@@ -38,7 +38,7 @@ export function NotificationBellIcon() {
 
   return (
     <AnimatedPressable
-      onPress={() => { haptic.light(); router.push('/notifications' as any); }}
+      onPress={() => { haptic.light(); router.push('/notifications'); }}
       style={styles.icon}
     >
       <Ionicons name="notifications-outline" size={20} color={Colors.textSecondary} />

@@ -610,7 +610,7 @@ function BravermanTest() {
           {/* #90: Reporte PREMIUM ARGOS — análisis profundo generado por IA */}
           <Animated.View entering={FadeInDown.delay(160).springify()}>
             <AnimatedPressable
-              onPress={() => { haptic.medium(); router.push('/braverman-premium' as any); }}
+              onPress={() => { haptic.medium(); router.push('/braverman-premium'); }}
               style={{
                 flexDirection: 'row', alignItems: 'center', gap: 12,
                 backgroundColor: withOpacity('#A8E02A', 0.08), borderRadius: 16,

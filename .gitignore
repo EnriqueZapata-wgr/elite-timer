@@ -4,10 +4,13 @@
 node_modules/
 
 # Expo
-.expo/
+# MB-0(c): .expo/types (typed routes) y expo-env.d.ts SÍ se versionan — el CI
+# typechequea sin dev server y los necesita. Regenerados por `expo start`;
+# si cambian rutas, commitear el router.d.ts actualizado.
+.expo/*
+!.expo/types/
 dist/
 web-build/
-expo-env.d.ts
 
 # Native
 .kotlin/

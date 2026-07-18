@@ -8,6 +8,8 @@
  * de imágenes vive en la capa de render: HoyEditorialSection (ELECTRON_IMAGES / HOY_EXTRA_IMAGES).
  */
 import type { ImageSourcePropType } from 'react-native';
+// Type-only: se borra en compilación — el archivo sigue importable por tests node.
+import type { Href } from 'expo-router';
 // Sprint 2 E: color por concepto desde la fuente única (audit §3 — un concepto = un color).
 import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
 
@@ -20,7 +22,7 @@ export interface HoyCardSpec {
   title: string;
   gradient: [string, string];
   /** Ruta de tap por default (algunas cards abren modal en su lugar — lo decide el HOY). */
-  route?: string;
+  route?: Href;
   imageBn?: ImageSourcePropType;
 }
 

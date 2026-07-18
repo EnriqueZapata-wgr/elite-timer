@@ -69,7 +69,7 @@ export default function InterventionRationaleScreen() {
         `Esta explicación usa ${formatFull(quote?.cost ?? 280)} H+. Recarga o gana más completando tu día.`,
         [
           { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop' as any) },
+          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop') },
         ],
       );
       return;
@@ -138,7 +138,7 @@ export default function InterventionRationaleScreen() {
             </AnimatedPressable>
             {!canAfford && (
               <AnimatedPressable
-                onPress={() => { haptic.light(); router.push('/economy/shop' as any); }}
+                onPress={() => { haptic.light(); router.push('/economy/shop'); }}
                 style={styles.shopLink}
               >
                 <EliteText style={styles.shopLinkText}>Te faltan H+ — conseguir más →</EliteText>
@@ -169,7 +169,7 @@ export default function InterventionRationaleScreen() {
             La explicación se construye sobre tu Diagnóstico Funcional vigente.
           </EliteText>
           <AnimatedPressable
-            onPress={() => { haptic.medium(); router.push('/salud/diagnostico' as any); }}
+            onPress={() => { haptic.medium(); router.push('/salud/diagnostico'); }}
             style={styles.lockCtaPrimary}
           >
             <EliteText style={styles.lockCtaPrimaryText}>Generar mi diagnóstico</EliteText>

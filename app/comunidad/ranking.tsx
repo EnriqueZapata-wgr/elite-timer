@@ -54,7 +54,7 @@ function LeaderRow({ row, highlight }: { row: RankedLeaderboardRow; highlight?: 
   return (
     <Pressable
       style={[s.row, highlight && s.rowHighlight]}
-      onPress={() => router.push(`/comunidad/perfil/${row.user_id}` as any)}
+      onPress={() => router.push(`/comunidad/perfil/${row.user_id}`)}
     >
       <View style={s.posWrap}>
         {medal
@@ -120,7 +120,7 @@ export default function CommunityRankingScreen() {
             <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
           </Pressable>
           {/* C2: acceso a Amigos desde el header de comunidad */}
-          <Pressable onPress={() => router.push('/comunidad/amigos' as any)} hitSlop={12}>
+          <Pressable onPress={() => router.push('/comunidad/amigos')} hitSlop={12}>
             <Ionicons name="people-outline" size={22} color={TEXT.primary} />
           </Pressable>
         </View>

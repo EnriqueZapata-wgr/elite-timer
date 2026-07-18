@@ -62,7 +62,7 @@ export default function ResetPasswordScreen() {
     }
     haptic.success();
     Alert.alert('Contraseña actualizada', 'Ya puedes iniciar sesión con tu nueva contraseña.', [
-      { text: 'OK', onPress: () => router.replace('/login' as any) },
+      { text: 'OK', onPress: () => router.replace('/login') },
     ]);
   };
 
@@ -71,7 +71,7 @@ export default function ResetPasswordScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.replace('/login' as any)} style={styles.backButton} hitSlop={8}>
+            <Pressable onPress={() => router.replace('/login')} style={styles.backButton} hitSlop={8}>
               <Ionicons name="chevron-back" size={28} color={ATP_BRAND.teal} />
             </Pressable>
             <EliteText variant="title" style={styles.title}>NUEVA CONTRASEÑA</EliteText>
@@ -88,7 +88,7 @@ export default function ResetPasswordScreen() {
               <EliteText variant="body" style={styles.muted}>
                 El enlace expiró o no es válido. Solicita uno nuevo.
               </EliteText>
-              <EliteButton label="VOLVER A SOLICITAR" onPress={() => router.replace('/forgot-password' as any)} variant="outline" style={styles.cta} />
+              <EliteButton label="VOLVER A SOLICITAR" onPress={() => router.replace('/forgot-password')} variant="outline" style={styles.cta} />
             </View>
           ) : (
             <View style={styles.form}>

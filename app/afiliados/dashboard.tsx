@@ -77,7 +77,7 @@ export default function AfiliadosDashboardScreen() {
           </EliteText>
           <AnimatedPressable
             style={st.guardBtn}
-            onPress={() => { haptic.medium(); router.replace('/afiliados/aplicar' as any); }}
+            onPress={() => { haptic.medium(); router.replace('/afiliados/aplicar'); }}
           >
             <EliteText style={st.guardBtnText}>
               {affiliate ? 'VER MI APLICACIÓN' : 'APLICAR COMO AFILIADO'}
@@ -173,7 +173,7 @@ export default function AfiliadosDashboardScreen() {
           </AnimatedPressable>
         </View>
         <Pressable
-          onPress={() => { haptic.light(); router.push('/afiliados/mi-codigo' as any); }}
+          onPress={() => { haptic.light(); router.push('/afiliados/mi-codigo'); }}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 }}
           hitSlop={6}
         >

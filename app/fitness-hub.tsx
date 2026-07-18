@@ -26,21 +26,21 @@ const SECTIONS = [
     subtitle: 'Tu estado actual de fuerza, cardio y movilidad. Benchmarks, récords personales y progreso.',
     icon: 'trophy-outline' as const,
     color: '#fbbf24',
-    route: '/fitness-my',
+    route: '/fitness-my' as const,
   },
   {
     name: 'Entrenar',
     subtitle: 'ARGOS genera tu rutina, crea la tuya con el builder, timers HIIT, o registra ejercicios sueltos.',
     icon: 'flash-outline' as const,
     color: '#a8e02a',
-    route: '/fitness-train',
+    route: '/fitness-train' as const,
   },
   {
     name: 'Explorar',
     subtitle: 'Biblioteca de ejercicios, planes de entrenamiento, métodos ATP y rutinas Follow Me.',
     icon: 'compass-outline' as const,
     color: '#60a5fa',
-    route: '/fitness-explore',
+    route: '/fitness-explore' as const,
   },
 ];
 
@@ -152,7 +152,7 @@ export default function FitnessHubScreen() {
         <View style={s.sections}>
           {SECTIONS.map((section, idx) => (
             <Animated.View key={section.name} entering={FadeInUp.delay(100 + idx * 60).springify()}>
-              <AnimatedPressable onPress={() => { haptic.medium(); router.push(section.route as any); }}>
+              <AnimatedPressable onPress={() => { haptic.medium(); router.push(section.route); }}>
                 <View style={[s.sectionCard, { borderColor: withOpacity(section.color, 0.08) }]}>
                   <View style={s.sectionHeader}>
                     <View style={[s.sectionIcon, { backgroundColor: withOpacity(section.color, 0.12) }]}>

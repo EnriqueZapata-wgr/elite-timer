@@ -15,7 +15,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,7 +40,7 @@ interface BannerVariant {
   icon: string;
   text: string;
   cta?: string;
-  route?: string;
+  route?: Href;
   critical?: boolean;
 }
 
@@ -183,7 +183,7 @@ export function TopBanner({ offset = 0 }: Props) {
         <Text style={s.text} numberOfLines={1}>{v.text}</Text>
         {v.route && (
           <Pressable
-            onPress={() => { haptic.light(); router.push(v.route as any); }}
+            onPress={() => { haptic.light(); router.push(v.route!); }}
             hitSlop={8}
             style={s.cta}
           >

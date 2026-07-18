@@ -37,7 +37,7 @@ export async function withPreflight<T>(
       `Esta acción cuesta ${check.required.toLocaleString()} H+. Tienes ${check.current.toLocaleString()} H+.`,
       [
         { text: 'Cancelar', style: 'cancel', onPress: () => resolve({ aborted: true, reason: 'insufficient_protons' }) },
-        { text: 'Ir a la Tienda', onPress: () => { router.push('/economy/shop' as any); resolve({ aborted: true, reason: 'insufficient_protons' }); } },
+        { text: 'Ir a la Tienda', onPress: () => { router.push('/economy/shop'); resolve({ aborted: true, reason: 'insufficient_protons' }); } },
       ],
     );
   });

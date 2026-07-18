@@ -11,7 +11,7 @@ import { View, ScrollView, Pressable, Platform, StyleSheet } from 'react-native'
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 
@@ -30,7 +30,7 @@ interface SettingsGroup {
   iconColor: string;
   title: string;
   subtitle: string;
-  route: string;
+  route: Href;
 }
 
 const GROUPS: SettingsGroup[] = [
@@ -39,56 +39,56 @@ const GROUPS: SettingsGroup[] = [
     iconColor: Colors.neonGreen,
     title: 'Perfil y cuenta',
     subtitle: 'Foto, datos, plan y sesión',
-    route: '/settings/cuenta',
+    route: '/settings/cuenta' as const,
   },
   {
     icon: 'pulse-outline',
     iconColor: CATEGORY_COLORS.metrics,
     title: 'Salud y protocolo',
     subtitle: 'Cronotipo, protocolos, ciclo y nutrición',
-    route: '/settings/salud',
+    route: '/settings/salud' as const,
   },
   {
     icon: 'options-outline',
     iconColor: CATEGORY_COLORS.optimization,
     title: 'Experiencia',
     subtitle: 'Tema, voz, sonidos, vibración y pantalla',
-    route: '/settings/experiencia',
+    route: '/settings/experiencia' as const,
   },
   {
     icon: 'notifications-outline',
     iconColor: CATEGORY_COLORS.mind,
     title: 'Notificaciones',
     subtitle: 'Modos, tipos y horas de silencio',
-    route: '/settings/notifications',
+    route: '/settings/notifications' as const,
   },
   {
     icon: 'shield-checkmark-outline',
     iconColor: CATEGORY_COLORS.nutrition,
     title: 'Privacidad y seguridad',
     subtitle: 'Consentimientos, tus datos y eliminación',
-    route: '/settings/privacy',
+    route: '/settings/privacy' as const,
   },
   {
     icon: 'people-outline',
     iconColor: CATEGORY_COLORS.metrics,
     title: 'Conexiones',
     subtitle: 'Coach, atletas, wearables y afiliados',
-    route: '/settings/conexiones',
+    route: '/settings/conexiones' as const,
   },
   {
     icon: 'earth-outline',
     iconColor: CATEGORY_COLORS.optimization,
     title: 'Comunidad',
     subtitle: 'Perfil público, visibilidad y Tribu ATP',
-    route: '/settings/comunidad',
+    route: '/settings/comunidad' as const,
   },
   {
     icon: 'document-text-outline',
     iconColor: Colors.textSecondary,
     title: 'Legal y soporte',
     subtitle: 'Términos, avisos médicos y disclaimers',
-    route: '/settings/legal',
+    route: '/settings/legal' as const,
   },
 ];
 
@@ -108,7 +108,7 @@ export default function SettingsScreen() {
         {/* Header de cuenta → Perfil y cuenta */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
           <Pressable
-            onPress={() => { haptic.medium(); router.push('/settings/cuenta' as any); }}
+            onPress={() => { haptic.medium(); router.push('/settings/cuenta'); }}
             style={styles.accountBox}
           >
             <UserAvatar uri={user?.user_metadata?.avatar_url} name={displayName} size={44} />
@@ -123,9 +123,9 @@ export default function SettingsScreen() {
         {/* Grupos navegables */}
         <View style={styles.groupList}>
           {GROUPS.map((group, i) => (
-            <Animated.View key={group.route} entering={FadeInUp.delay(150 + i * 40).springify()}>
+            <Animated.View key={String(group.route)} entering={FadeInUp.delay(150 + i * 40).springify()}>
               <Pressable
-                onPress={() => { haptic.medium(); router.push(group.route as any); }}
+                onPress={() => { haptic.medium(); router.push(group.route); }}
                 style={styles.groupCard}
               >
                 <View style={[styles.groupIcon, { backgroundColor: group.iconColor + '15' }]}>
@@ -143,7 +143,7 @@ export default function SettingsScreen() {
           {showDev && (
             <Animated.View entering={FadeInUp.delay(150 + GROUPS.length * 40).springify()}>
               <Pressable
-                onPress={() => { haptic.medium(); router.push('/settings/dev' as any); }}
+                onPress={() => { haptic.medium(); router.push('/settings/dev'); }}
                 style={[styles.groupCard, { opacity: 0.75 }]}
               >
                 <View style={[styles.groupIcon, { backgroundColor: Colors.textSecondary + '15' }]}>

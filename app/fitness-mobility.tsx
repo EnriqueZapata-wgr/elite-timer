@@ -60,7 +60,7 @@ export default function FitnessMobilityScreen() {
           </View>
           <AnimatedPressable
             style={s.ctaButton}
-            onPress={() => { haptic.medium(); router.push('/mobility-assessment' as any); }}
+            onPress={() => { haptic.medium(); router.push('/mobility-assessment'); }}
           >
             <Ionicons name="clipboard-outline" size={20} color="#000" />
             <EliteText style={s.ctaText}>HACER EVALUACIÓN</EliteText>
@@ -112,7 +112,7 @@ export default function FitnessMobilityScreen() {
 
         <AnimatedPressable
           style={s.ctaButton}
-          onPress={() => { haptic.medium(); router.push('/mobility-assessment' as any); }}
+          onPress={() => { haptic.medium(); router.push('/mobility-assessment'); }}
         >
           <Ionicons name="clipboard-outline" size={20} color="#000" />
           <EliteText style={s.ctaText}>NUEVA EVALUACIÓN</EliteText>

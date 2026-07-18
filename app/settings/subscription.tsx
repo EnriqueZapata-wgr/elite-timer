@@ -168,7 +168,7 @@ export default function SubscriptionSettingsScreen() {
           )}
           {!hasPaidPlan && !boost.active && (
             <AnimatedPressable
-              onPress={() => { haptic.medium(); router.push('/paywall' as any); }}
+              onPress={() => { haptic.medium(); router.push('/paywall'); }}
               style={styles.upgradeCta}
             >
               <EliteText style={styles.upgradeCtaText}>Ver planes</EliteText>

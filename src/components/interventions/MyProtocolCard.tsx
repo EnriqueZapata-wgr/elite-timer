@@ -53,7 +53,7 @@ export function MyProtocolCard() {
 
   const open = () => {
     haptic.light();
-    router.push('/salud/intervenciones' as any);
+    router.push('/salud/intervenciones');
   };
 
   if (!loaded) return null;
@@ -106,7 +106,7 @@ export function MyProtocolCard() {
           </View>
           {/* B.4 — narrativa ARGOS del porqué del protocolo */}
           <AnimatedPressable
-            onPress={() => { haptic.light(); router.push('/salud/intervenciones/rationale' as any); }}
+            onPress={() => { haptic.light(); router.push('/salud/intervenciones/rationale'); }}
             style={styles.rationaleRow}
             hitSlop={4}
           >

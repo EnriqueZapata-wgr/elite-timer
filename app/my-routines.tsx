@@ -71,7 +71,7 @@ export default function MyRoutinesScreen() {
     // no se pueden ejecutar. Redirigir al builder para editar/eliminar en
     // lugar de abrir una pantalla vacía.
     if (countLeafBlocks(routine.blocks) === 0) {
-      router.push({ pathname: '/builder', params: { routineId: routine.id } } as any);
+      router.push({ pathname: '/builder', params: { routineId: routine.id } });
       return;
     }
     // Timer mode → countdown engine, Routine mode → exercise engine

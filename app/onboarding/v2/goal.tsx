@@ -35,7 +35,7 @@ export default function V2GoalScreen() {
       await supabase.from('client_profiles').update({ primary_goal: goal }).eq('user_id', user.id);
       haptic.success();
       const next = await completeV2Step(user.id, 'goal');
-      router.replace(next as any);
+      router.replace(next);
     } finally {
       setLoading(false);
     }
@@ -53,7 +53,7 @@ export default function V2GoalScreen() {
           setLoading(true);
           try {
             const next = await completeV2Step(user.id!, 'goal');
-            router.replace(next as any);
+            router.replace(next);
           } finally {
             setLoading(false);
           }
@@ -66,7 +66,7 @@ export default function V2GoalScreen() {
     <OnboardingShell
       step={v2StepNumber('goal')}
       totalSteps={V2_STEPS.length}
-      onBack={() => router.replace(v2Route('profile') as any)}
+      onBack={() => router.replace(v2Route('profile'))}
       onSkip={handleSkip}
     >
       <ScrollView contentContainerStyle={s.scroll}>

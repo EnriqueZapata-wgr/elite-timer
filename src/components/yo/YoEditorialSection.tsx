@@ -12,7 +12,7 @@
  *  · TENDENCIAS DEL MES podada: no tenía dato en superficie ("Ver tu progreso" = link
  *    pelón) y duplicaba la promesa de VER REPORTES. El período Mes vive en /reports.
  */
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { pickCronotipoImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
 import { tierFromLifetime, nextTierInfo } from '@/src/services/economy/rank-tiers';
@@ -56,7 +56,7 @@ interface Props {
 
 export function YoEditorialSection({ chronotype, momentum, lifetimeElectrons }: Props) {
   const router = useRouter();
-  const go = (route: string) => router.push(route as any);
+  const go = (route: Href) => router.push(route);
   const chrono = chronotype ? CHRONO_META[chronotype] : null;
 
   // Rank tier real (nombres v2, #100). Sin balance cargado aún → Explorer (min 0).

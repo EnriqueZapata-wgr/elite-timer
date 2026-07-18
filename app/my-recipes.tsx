@@ -156,7 +156,7 @@ export default function MyRecipesScreen() {
           ))}
           <View style={{ flex: 1 }} />
           <Pressable
-            onPress={() => { haptic.light(); router.push('/lista-compra' as any); }}
+            onPress={() => { haptic.light(); router.push('/lista-compra'); }}
             style={s.shoppingBtn}
           >
             <Ionicons name="cart-outline" size={14} color="#a8e02a" />

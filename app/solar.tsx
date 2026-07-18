@@ -161,7 +161,7 @@ export default function Solar() {
             {/* Sprint 2 A: CTA del cuestionario como banner editorial B/N (fitzpatrick.png
                 estaba en disco sin cablear). Overlay fuerte para legibilidad (DS §3). */}
             <Pressable
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/historia-clinica/fitzpatrick' as any); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/historia-clinica/fitzpatrick'); }}
               style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' }}
             >
               <ImageBackground

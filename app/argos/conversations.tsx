@@ -51,7 +51,7 @@ export default function ArgosConversationsScreen() {
 
   const openConv = (id: string) => {
     haptic.light();
-    router.replace({ pathname: '/argos-chat', params: { conversationId: id } } as any);
+    router.replace({ pathname: '/argos-chat', params: { conversationId: id } });
   };
 
   const confirmDelete = (conv: ConvRow) => {
@@ -91,7 +91,7 @@ export default function ArgosConversationsScreen() {
           style={s.newBtn}
           onPress={() => {
             haptic.medium();
-            router.replace({ pathname: '/argos-chat', params: { new: '1' } } as any);
+            router.replace({ pathname: '/argos-chat', params: { new: '1' } });
           }}
         >
           <Ionicons name="add" size={18} color="#000" />

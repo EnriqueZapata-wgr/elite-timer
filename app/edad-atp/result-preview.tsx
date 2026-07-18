@@ -9,7 +9,7 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect , type Href } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureRef } from 'react-native-view-shot';
 import ConfettiCannon from 'react-native-confetti-cannon';
@@ -40,7 +40,7 @@ function ddmm(iso: string): string { const [, m, d] = iso.split('-'); return d &
 const CINEMATIC_FLAG = 'edad_atp_cinematic_seen';
 const LAST_INTEGRAL = 'edad_atp_last_integral';
 
-type SourceRow = { label: string; detail: string; done: boolean; route: string };
+type SourceRow = { label: string; detail: string; done: boolean; route: Href };
 
 function buildSources(d: UnifiedUserData): SourceRow[] {
   const used = new Set(d.data_sources_used);
@@ -169,7 +169,7 @@ function ResultScreen() {
 
             <EliteText variant="caption" style={styles.sourcesTitle}>📊 Fuentes que alimentaron el cálculo</EliteText>
             {sources.map((s) => (
-              <Pressable key={s.label} onPress={() => router.push(s.route as any)} style={styles.sourceRow}>
+              <Pressable key={s.label} onPress={() => router.push(s.route)} style={styles.sourceRow}>
                 <EliteText variant="body" style={styles.sourceLabel}>{s.label}</EliteText>
                 <EliteText variant="caption" style={[styles.sourceDetail, s.done && { color: Colors.neonGreen }]}>
                   {s.detail} {s.done ? '✓' : '⚠'}

@@ -29,7 +29,7 @@ export function MeetArgosGate() {
       alreadyTriggered: triggeredRef.current,
     })) {
       triggeredRef.current = true;
-      router.push('/argos/meet' as any);
+      router.push('/argos/meet');
     }
   }, [user?.id, introduced, pathname]);
 

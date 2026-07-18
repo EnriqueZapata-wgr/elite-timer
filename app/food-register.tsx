@@ -158,12 +158,12 @@ export default function FoodRegisterScreen() {
 
   const goToScan = (mealType: string) => {
     haptic.medium();
-    router.push({ pathname: '/food-scan', params: { mode: 'food', mealType } } as any);
+    router.push({ pathname: '/food-scan', params: { mode: 'food', mealType } });
   };
 
   const goToManual = (mealType: string) => {
     haptic.light();
-    router.push({ pathname: '/food-text', params: { mealType } } as any);
+    router.push({ pathname: '/food-text', params: { mealType } });
   };
 
   // Si tiene mealType directo, mostrar las opciones de registro
@@ -272,7 +272,7 @@ export default function FoodRegisterScreen() {
               <AnimatedPressable
                 onPress={() => {
                   haptic.light();
-                  router.push({ pathname: '/food-register', params: { mealType: meal.id } } as any);
+                  router.push({ pathname: '/food-register', params: { mealType: meal.id } });
                 }}
                 style={s.mealCardWrap}
               >

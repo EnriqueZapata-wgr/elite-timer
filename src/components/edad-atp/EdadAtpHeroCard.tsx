@@ -43,7 +43,7 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
   }
   if (!result) {
     return (
-      <Pressable style={styles.card} onPress={() => router.push('/edad-atp' as any)}>
+      <Pressable style={styles.card} onPress={() => router.push('/edad-atp')}>
         <EliteText style={styles.title}>Edad ATP</EliteText>
         <EliteText variant="caption" style={styles.muted}>Captura datos o sube labs para calcular tu Edad ATP.</EliteText>
       </Pressable>
@@ -56,7 +56,7 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
 
   return (
     <View style={styles.card}>
-      <Pressable onPress={() => router.push('/edad-atp/result-preview' as any)} style={styles.heroRow}>
+      <Pressable onPress={() => router.push('/edad-atp/result-preview')} style={styles.heroRow}>
         <View>
           <EliteText variant="caption" style={styles.kicker}>TU EDAD ATP</EliteText>
           <EliteText style={[styles.hero, { color: integralColor }]}>{result.edad_integral.toFixed(1)}</EliteText>
@@ -84,7 +84,7 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
           // Magnitud de barra: cercanía a cronológica (más joven → más llena, tope visual).
           const ratio = pending ? 0.15 : Math.max(0.08, Math.min(1, chrono > 0 ? (2 * chrono - sub.age_years) / (2 * chrono) : 0.5));
           return (
-            <Pressable key={d.key} style={styles.barRow} onPress={() => router.push(`/edad-atp/sub-edad/${d.key}` as any)}>
+            <Pressable key={d.key} style={styles.barRow} onPress={() => router.push(`/edad-atp/sub-edad/${d.key}`)}>
               <EliteText style={styles.barIcon}>{d.icon}</EliteText>
               <View style={styles.barTrack}>
                 <View style={[styles.barFill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
@@ -98,10 +98,10 @@ export function EdadAtpHeroCard({ userId }: { userId: string }) {
       </View>
 
       <View style={styles.ctaRow}>
-        <Pressable style={styles.cta} onPress={() => router.push('/edad-atp/labs' as any)}>
+        <Pressable style={styles.cta} onPress={() => router.push('/edad-atp/labs')}>
           <EliteText style={styles.ctaText}>Ver ATP Labs</EliteText>
         </Pressable>
-        <Pressable style={styles.cta} onPress={() => router.push('/edad-atp/result-preview' as any)}>
+        <Pressable style={styles.cta} onPress={() => router.push('/edad-atp/result-preview')}>
           <EliteText style={styles.ctaText}>Detalle y recalcular</EliteText>
         </Pressable>
       </View>

@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -19,7 +19,7 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 // Sprint 2 E: color por concepto desde la fuente única (audit §3 — un concepto = un color).
 import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
 
-type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string; femaleOnly?: boolean };
+type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: Href; femaleOnly?: boolean };
 
 // #cableado-final 3.4: imágenes estáticas por card. fitness es sex-aware (pickFitnessImage) y ciclo
 // rota (pickHabitImage) → se resuelven aparte en renderCard.
@@ -49,7 +49,7 @@ const DIARIOS: Card[] = [
   // Sprint MENTE Ecosystem: las 4 cards sueltas (meditación/respiración/
   // check-in/journal) se colapsan en el hub /mente — un pilar, una puerta.
   { key: 'mente', title: 'MENTE', subtitle: 'Journal · respiración · meditación · check-in', icon: '🧠', gradient: CONCEPT_COLORS.mente.gradient, route: '/mente' },
-  { key: 'ciclo', title: 'CICLO', subtitle: 'Tu ciclo y síntomas', icon: '🌙', gradient: ['#D4537E', '#9B59B6'], route: '/cycle', femaleOnly: true },
+  { key: 'ciclo', title: 'CICLO', subtitle: 'Tu ciclo y síntomas', icon: '🌙', gradient: ['#D4537E', '#9B59B6'], route: '/cycle' as const, femaleOnly: true },
   { key: 'hidratacion', title: 'HIDRATACIÓN', subtitle: 'Tu meta de agua', icon: '💧', gradient: CONCEPT_COLORS.agua.gradient, route: '/hydration' },
   { key: 'atp_sol', title: 'ATP SOL', subtitle: 'Luz solar y vitamina D', icon: '☀️', gradient: CONCEPT_COLORS.sol.gradient, route: '/solar' },
 ];
@@ -79,7 +79,7 @@ export default function HabitsPortalScreen() {
       <EditorialCard
         cardKey={`habit_${c.key}`} icon={c.icon} title={c.title} subtitle={c.subtitle}
         gradient={c.gradient} imageBn={imageFor(c.key)}
-        onTap={() => router.push(c.route as any)}
+        onTap={() => router.push(c.route)}
       />
     </Animated.View>
   );

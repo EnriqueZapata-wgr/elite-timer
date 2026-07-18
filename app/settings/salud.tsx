@@ -56,14 +56,14 @@ export default function SettingsSaludScreen() {
             iconColor={CATEGORY_COLORS.optimization}
             label="Mi cronotipo"
             sub="Toca para cambiar"
-            onPress={() => { haptic.medium(); router.push('/quiz/chronotype' as any); }}
+            onPress={() => { haptic.medium(); router.push('/quiz/chronotype'); }}
           />
           <SettingRow
             icon="flask-outline"
             iconColor={CATEGORY_COLORS.metrics}
             label="Protocolos activos"
             sub="Explorar y gestionar"
-            onPress={() => { haptic.medium(); router.push('/protocol-explorer' as any); }}
+            onPress={() => { haptic.medium(); router.push('/protocol-explorer'); }}
           />
           <Divider />
         </Animated.View>
@@ -92,7 +92,7 @@ export default function SettingsSaludScreen() {
             iconColor={CYCLE_PINK}
             label="Modalidad de ciclo"
             sub="Regular, irregular o sin seguimiento"
-            onPress={() => { haptic.medium(); router.push('/cycle-settings' as any); }}
+            onPress={() => { haptic.medium(); router.push('/cycle-settings'); }}
           />
           <Divider />
         </Animated.View>
@@ -105,7 +105,7 @@ export default function SettingsSaludScreen() {
             iconColor={CATEGORY_COLORS.metrics}
             label="Salud Funcional"
             sub="Diagnóstico, datos, síntomas y expediente"
-            onPress={() => { haptic.medium(); router.push('/health-hub' as any); }}
+            onPress={() => { haptic.medium(); router.push('/health-hub'); }}
           />
         </Animated.View>
 

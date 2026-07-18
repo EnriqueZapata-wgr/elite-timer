@@ -330,7 +330,7 @@ export default function ClinicalSystemScreen() {
           </View>
         ))}
         <Pressable
-          onPress={() => router.push('/edad-atp/labs' as any)}
+          onPress={() => router.push('/edad-atp/labs')}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8 }}
           hitSlop={6}
         >

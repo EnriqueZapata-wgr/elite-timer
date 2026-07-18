@@ -129,7 +129,7 @@ export default function ChronotypeQuizScreen() {
       }
       // If from onboarding, continue to quiz integral
       if (fromOnboarding) {
-        router.replace('/quiz-take?quiz_id=lifestyle_assessment&from=onboarding' as any);
+        router.replace('/quiz-take?quiz_id=lifestyle_assessment&from=onboarding');
       } else {
         router.replace('/(tabs)');
       }

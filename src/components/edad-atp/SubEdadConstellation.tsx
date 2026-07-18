@@ -34,7 +34,7 @@ export function SubEdadConstellation({ result, onPressCenter }: { result: EdadAt
         return (
           <Animated.View key={d.key} entering={FadeIn.delay(EDAD_TIMING.constellationBaseDelay + i * EDAD_TIMING.staggerMs).duration(350)} style={[styles.mini, { left, top, borderColor: color }]}>
             <Pressable
-              onPress={() => { haptic.light(); router.push(`/edad-atp/sub-edad/${d.key}` as any); }}
+              onPress={() => { haptic.light(); router.push(`/edad-atp/sub-edad/${d.key}`); }}
               style={styles.miniInner}
             >
               <EliteText style={styles.miniIcon}>{d.icon}</EliteText>

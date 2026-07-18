@@ -48,7 +48,7 @@ export default function HistoriaClinicaIndex() {
           const isDone = done.has(q.id);
           return (
             <Animated.View key={q.id} entering={FadeInUp.delay(100 + idx * 50).springify()}>
-              <AnimatedPressable onPress={() => { haptic.medium(); router.push(`/historia-clinica/${q.id}` as any); }}>
+              <AnimatedPressable onPress={() => { haptic.medium(); router.push(`/historia-clinica/${q.id}`); }}>
                 <GradientCard color={q.color} style={s.card}>
                   <View style={s.cardContent}>
                     <View style={[s.iconWrap, { backgroundColor: withOpacity(q.color, 0.15) }]}>

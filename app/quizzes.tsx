@@ -116,7 +116,7 @@ export default function QuizzesScreen() {
         <Animated.View entering={FadeInUp.delay(100).springify()}>
           <GradientCard
             color={BRAVERMAN_COLOR}
-            onPress={() => { haptic.medium(); router.push('/braverman' as any); }}
+            onPress={() => { haptic.medium(); router.push('/braverman'); }}
             style={s.heroCard}
           >
             <View style={s.heroContent}>
@@ -149,7 +149,7 @@ export default function QuizzesScreen() {
                   color={fq.color}
                   onPress={() => {
                     haptic.light();
-                    router.push({ pathname: '/functional-quiz' as any, params: { quiz_id: fq.id } });
+                    router.push({ pathname: '/functional-quiz', params: { quiz_id: fq.id } });
                   }}
                   style={s.quizCard}
                 >
@@ -192,7 +192,7 @@ export default function QuizzesScreen() {
           <StaggerItem index={ALL_FUNCTIONAL_QUIZZES.length}>
             <GradientCard
               color={FITZPATRICK_COLOR}
-              onPress={() => { haptic.light(); router.push('/historia-clinica/fitzpatrick' as any); }}
+              onPress={() => { haptic.light(); router.push('/historia-clinica/fitzpatrick'); }}
               style={s.quizCard}
             >
               <View style={s.quizCardContent}>
@@ -240,7 +240,7 @@ export default function QuizzesScreen() {
                     color="#1D9E75"
                     onPress={() => {
                       haptic.light();
-                      router.push({ pathname: '/quiz-take' as any, params: { quiz_id: q.quiz_id } });
+                      router.push({ pathname: '/quiz-take', params: { quiz_id: q.quiz_id } });
                     }}
                     style={s.quizCard}
                   >

@@ -13,7 +13,7 @@
  */
 import { useState, useEffect, useCallback, Fragment, cloneElement, isValidElement } from 'react';
 import { DeviceEventEmitter, View, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
@@ -141,7 +141,7 @@ interface Props {
 export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey }: Props) {
   const router = useRouter();
   const show = (k: string) => cardsVisible.has(k);
-  const go = (route: string) => router.push(route as any);
+  const go = (route: Href) => router.push(route);
 
   const boolBySource = new Map((day.booleanElectrons ?? []).map((e) => [e.source, e]));
   const quant = (src: string) => (day.quantitativeElectrons ?? []).find((q) => q.source === src);

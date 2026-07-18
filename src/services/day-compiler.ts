@@ -4,6 +4,7 @@
  * compileDay() recopila todos los datos del día (protocolos, electrones,
  * nutrición, ayuno, etc.) y devuelve un objeto unificado listo para renderizar.
  */
+import type { Href } from 'expo-router';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, getLocalHour, toLocalDateString } from '@/src/utils/date-helpers';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
@@ -37,7 +38,7 @@ export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 /** Ruta de tap para cada electrón verificado.
  * Routing GRANULAR (#1/#90): tap → pantalla específica de la actividad
  * (meditación → /meditation, checkin → /checkin); ejercicio sigue a /fitness-hub. */
-export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, string> = {
+export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, Href> = {
   meditation: '/meditation',
   breathwork: '/breathing',
   strength: '/fitness-hub',
@@ -74,7 +75,7 @@ export interface BoolElectronState {
   weight: number;
   completed: boolean;
   description: string;
-  pillarRoute: string;
+  pillarRoute: Href;
 }
 
 export interface QuantElectronState {
@@ -177,7 +178,7 @@ const ELECTRON_DESCRIPTIONS: Record<string, string> = {
   period_log: 'Registrar tu ciclo ayuda a entender patrones.',
 };
 
-const ELECTRON_ROUTES: Record<string, string> = {
+const ELECTRON_ROUTES: Record<string, Href> = {
   sunlight: '/my-health', meditation: '/meditation', supplements: '/supplements',
   cold_shower: '/my-health', grounding: '/my-health', no_alcohol: '/nutrition',
   strength: '/fitness-hub', breathwork: '/breathing', red_glasses: '/my-health',

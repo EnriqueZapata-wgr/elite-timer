@@ -17,10 +17,10 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
 const ITEMS = [
-  { name: 'Mis rutinas', subtitle: 'Rutinas guardadas listas para ejecutar', icon: 'list-outline' as const, color: '#a8e02a', route: '/my-routines' },
-  { name: 'Construir rutina', subtitle: 'Crea tu rutina desde cero', icon: 'construct-outline' as const, color: '#60a5fa', route: '/builder', params: { mode: 'routine' } },
-  { name: 'Timer rápido', subtitle: 'Tabata · HIIT · EMOM — configura y GO', icon: 'timer-outline' as const, color: '#fb923c', route: '/builder', params: { mode: 'timer' } },
-  { name: 'Registrar ejercicio', subtitle: 'Loguea sets, reps y peso', icon: 'add-circle-outline' as const, color: '#34d399', route: '/log-exercise' },
+  { name: 'Mis rutinas', subtitle: 'Rutinas guardadas listas para ejecutar', icon: 'list-outline' as const, color: '#a8e02a', route: '/my-routines' as const },
+  { name: 'Construir rutina', subtitle: 'Crea tu rutina desde cero', icon: 'construct-outline' as const, color: '#60a5fa', route: '/builder' as const, params: { mode: 'routine' } },
+  { name: 'Timer rápido', subtitle: 'Tabata · HIIT · EMOM — configura y GO', icon: 'timer-outline' as const, color: '#fb923c', route: '/builder' as const, params: { mode: 'timer' } },
+  { name: 'Registrar ejercicio', subtitle: 'Loguea sets, reps y peso', icon: 'add-circle-outline' as const, color: '#34d399', route: '/log-exercise' as const },
 ];
 
 export default function FitnessTrainScreen() {
@@ -29,9 +29,9 @@ export default function FitnessTrainScreen() {
   function nav(item: typeof ITEMS[number]) {
     haptic.medium();
     if (item.params) {
-      router.push({ pathname: item.route, params: item.params } as any);
+      router.push({ pathname: item.route, params: item.params });
     } else {
-      router.push(item.route as any);
+      router.push(item.route);
     }
   }
 

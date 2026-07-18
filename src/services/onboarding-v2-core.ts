@@ -10,6 +10,8 @@
  * El tour post-onboarding NO es un step: AppTour se auto-dispara en la primera
  * visita a HOY (AsyncStorage @atp/tour_completed), igual que antes.
  */
+// Type-only: se borra en compilación — el núcleo sigue siendo puro para vitest.
+import type { Href } from 'expo-router';
 
 export const V2_STEPS = [
   'welcome',
@@ -28,7 +30,7 @@ export function isV2Step(s: string): s is V2Step {
 }
 
 /** Ruta de la pantalla de un step. */
-export function v2Route(step: V2Step): string {
+export function v2Route(step: V2Step): Href {
   return `/onboarding/v2/${step}`;
 }
 
@@ -60,7 +62,7 @@ export function v2StepNumber(step: V2Step): number {
  *   reiniciar en v2 welcome. Los datos ya capturados en v1 persisten en
  *   profiles/client_profiles y las pantallas v2 los prefillan.
  */
-export function resolveOnboardingRoute(step: string | null | undefined): string | null {
+export function resolveOnboardingRoute(step: string | null | undefined): Href | null {
   if (step === 'completed') return null;
   if (step && step.startsWith('v2_')) {
     const s = step.slice(3);

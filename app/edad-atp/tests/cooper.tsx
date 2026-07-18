@@ -64,7 +64,7 @@ export default function CooperTest() {
     haptic.success();
     // Si vino desde Mediciones, regresar con el valor pre-llenado para confirmar (FIX 3).
     if (returnTo === 'vitals') {
-      router.replace(`/edad-atp/vitals?focus=vo2max_estimate&prefill=${finalVo2}` as any);
+      router.replace(`/edad-atp/vitals?focus=vo2max_estimate&prefill=${finalVo2}`);
       return;
     }
     Alert.alert('VO2max guardado', `${finalVo2} ml/kg/min`, [{ text: 'OK', onPress: () => router.back() }]);

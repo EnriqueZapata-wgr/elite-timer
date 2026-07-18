@@ -72,7 +72,7 @@ export function HoyDayCard({ percentage }: Props) {
 
   return (
     <AnimatedPressable
-      onPress={() => { haptic.light(); router.push('/economy/admin' as any); }}
+      onPress={() => { haptic.light(); router.push('/economy/admin'); }}
       style={styles.card}
     >
       <View style={styles.headerRow}>

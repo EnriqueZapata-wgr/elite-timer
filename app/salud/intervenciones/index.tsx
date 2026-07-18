@@ -164,7 +164,7 @@ export default function IntervencionesScreen() {
 
   const openDetail = (item: ResolvedUserIntervention) => {
     haptic.light();
-    router.push(`/salud/intervenciones/${item.row.intervention_key}` as any);
+    router.push(`/salud/intervenciones/${item.row.intervention_key}`);
   };
 
   return (
@@ -189,7 +189,7 @@ export default function IntervencionesScreen() {
             {dx && (
               <Animated.View entering={FadeInUp.delay(20).springify()}>
                 <AnimatedPressable
-                  onPress={() => { haptic.light(); router.push('/salud/diagnostico' as any); }}
+                  onPress={() => { haptic.light(); router.push('/salud/diagnostico'); }}
                   style={styles.dxBreadcrumb}
                 >
                   <EliteText style={styles.dxBreadcrumbText} numberOfLines={2}>
@@ -248,7 +248,7 @@ export default function IntervencionesScreen() {
                           isActive={activeKeys.has(rx.intervention.key)}
                           busy={busyKey === rx.intervention.key}
                           onActivate={onActivatePrescription}
-                          onOpenDetail={(key) => { haptic.light(); router.push(`/salud/intervenciones/${key}` as any); }}
+                          onOpenDetail={(key) => { haptic.light(); router.push(`/salud/intervenciones/${key}`); }}
                         />
                       ))}
                       {/* B.5 · warning del motor (doctrina Humby 9+ activas) */}
@@ -284,7 +284,7 @@ export default function IntervencionesScreen() {
               {/* B.4 — narrativa ARGOS del porqué (cobro server-side, cache por set) */}
               {protocol.length > 0 && (
                 <AnimatedPressable
-                  onPress={() => { haptic.light(); router.push('/salud/intervenciones/rationale' as any); }}
+                  onPress={() => { haptic.light(); router.push('/salud/intervenciones/rationale'); }}
                   style={styles.rationaleBtn}
                 >
                   <Ionicons name="sparkles-outline" size={14} color={ATP_BRAND.lime} />

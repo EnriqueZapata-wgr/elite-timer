@@ -7,7 +7,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Screen } from '@/src/components/ui/Screen';
@@ -82,7 +82,9 @@ export default function NotificationsScreen() {
     const rawRoute = typeof n.data?.route === 'string' ? n.data.route : null;
     const eventId = typeof n.data?.eventId === 'string' ? n.data.eventId : null;
 
-    let target: string | null = rawRoute;
+    // Deep link dinámico desde el payload (no tipable estático); el try/catch
+    // de abajo cubre rutas inválidas en runtime.
+    let target: Href | null = rawRoute as Href | null;
     if (!target) {
       // Fallback por tipo (futuros tipos: lab_ready → /(tabs)/mi-atp, insight → /argos-chat, etc.)
       if (n.type === 'agenda_reminder') target = '/agenda';
@@ -93,9 +95,9 @@ export default function NotificationsScreen() {
     try {
       // Object form de expo-router: navega correcto con params opcionales
       if (eventId && target === '/agenda') {
-        router.push({ pathname: '/agenda', params: { event: eventId } } as any);
+        router.push({ pathname: '/agenda', params: { event: eventId } });
       } else {
-        router.push(target as any);
+        router.push(target);
       }
     } catch (err) {
       // Falla de navegación → quedarse en /notifications (no caer silencioso a HOY)
@@ -135,7 +137,7 @@ export default function NotificationsScreen() {
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {/* INSIGHT ARGOS del día — fijado arriba (preservado del modal viejo de la campana). */}
           {insight ? (
-            <Pressable style={styles.insightCard} onPress={() => { haptic.light(); router.push('/argos-chat' as any); }}>
+            <Pressable style={styles.insightCard} onPress={() => { haptic.light(); router.push('/argos-chat'); }}>
               <View style={styles.insightIcon}>
                 <Ionicons name="eye" size={14} color={ATP_BRAND.lime} />
               </View>

@@ -133,7 +133,7 @@ export default function SettingsComunidadScreen() {
 
       {/* ── Amigos (C2) ── */}
       <Animated.View entering={FadeInUp.delay(115).springify()}>
-        <Pressable style={s.friendsLink} onPress={() => router.push('/comunidad/amigos' as any)}>
+        <Pressable style={s.friendsLink} onPress={() => router.push('/comunidad/amigos')}>
           <Ionicons name="people-outline" size={20} color={ATP_BRAND.lime} />
           <View style={{ flex: 1 }}>
             <EliteText style={s.rowTitle}>Mis amigos</EliteText>

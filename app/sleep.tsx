@@ -115,7 +115,7 @@ export default function SleepScreen() {
                   <EliteText style={s.windowValue}>{wakeLabel ?? '—'}</EliteText>
                 </View>
               </View>
-              <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-chronotype' as any); }}>
+              <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-chronotype'); }}>
                 <EliteText style={s.windowLink}>Ver mi cronotipo →</EliteText>
               </AnimatedPressable>
             </Animated.View>

@@ -3,7 +3,7 @@
  * Mientras verifica, muestra logo vertical ATP con loader.
  */
 import { useState, useEffect } from 'react';
-import { Redirect } from 'expo-router';
+import { Redirect, type Href } from 'expo-router';
 import { View, StyleSheet, ActivityIndicator, Image } from 'react-native';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
@@ -17,7 +17,7 @@ export default function IndexRedirect() {
   const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
   const [checkingOnboarding, setCheckingOnboarding] = useState(false);
 
-  const [onboardingRoute, setOnboardingRoute] = useState<string | null>(null);
+  const [onboardingRoute, setOnboardingRoute] = useState<Href | null>(null);
 
   useEffect(() => {
     if (!session?.user?.id || loading) return;

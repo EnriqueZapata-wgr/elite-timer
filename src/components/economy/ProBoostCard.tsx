@@ -74,7 +74,7 @@ export function ProBoostCard() {
         `Necesitas ${formatFull(PRO_BOOST_COST_H_PLUS)} H+ y tienes ${formatFull(result.hPlusRemaining)}. Convierte tus E- o completa tu día para ganar más.`,
         [
           { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/convert' as any) },
+          { text: 'Conseguir H+', onPress: () => router.push('/economy/convert') },
         ],
       );
     } else if (result.error === 'rate_limit_exceeded') {
@@ -83,7 +83,7 @@ export function ProBoostCard() {
         result.message ?? 'Máximo 3 boosts por semana. Considera ATP Pro para acceso ilimitado.',
         [
           { text: 'Entendido', style: 'cancel' },
-          { text: 'Ver ATP Pro', onPress: () => router.push('/paywall' as any) },
+          { text: 'Ver ATP Pro', onPress: () => router.push('/paywall') },
         ],
       );
     } else if (result.error === 'already_active') {
@@ -103,7 +103,7 @@ export function ProBoostCard() {
         `Necesitas ${formatFull(PRO_BOOST_COST_H_PLUS)} H+ y tienes ${formatFull(balance)}. Convierte tus E- o completa tu día para ganar más.`,
         [
           { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/convert' as any) },
+          { text: 'Conseguir H+', onPress: () => router.push('/economy/convert') },
         ],
       );
       return;

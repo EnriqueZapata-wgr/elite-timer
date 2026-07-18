@@ -62,7 +62,7 @@ export default function V2ChronotypeScreen() {
       setCurrentQ(prev => prev - 1);
       setAnimKey(prev => prev + 1);
     } else {
-      router.replace(v2Route('cycle') as any);
+      router.replace(v2Route('cycle'));
     }
   }
 
@@ -71,7 +71,7 @@ export default function V2ChronotypeScreen() {
     setLoading(true);
     try {
       const next = await completeV2Step(user.id, 'chronotype');
-      router.replace(next as any);
+      router.replace(next);
     } finally {
       setLoading(false);
     }
@@ -89,7 +89,7 @@ export default function V2ChronotypeScreen() {
           setLoading(true);
           try {
             const next = await completeV2Step(user.id!, 'chronotype');
-            router.replace(next as any);
+            router.replace(next);
           } finally {
             setLoading(false);
           }

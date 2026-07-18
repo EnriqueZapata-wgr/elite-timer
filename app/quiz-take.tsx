@@ -430,7 +430,7 @@ export default function QuizTakeScreen() {
         </AnimatedPressable>
 
         <Pressable
-          onPress={() => { haptic.light(); router.push('/protocol-explorer' as any); }}
+          onPress={() => { haptic.light(); router.push('/protocol-explorer'); }}
           style={styles.textLink}
         >
           <EliteText variant="label" style={{ color: TEAL }}>

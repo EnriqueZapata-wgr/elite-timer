@@ -37,7 +37,7 @@ export function MedicalDisclaimerGate({ children }: { children: ReactNode }) {
         }}
         onDecline={() => {
           if (router.canGoBack()) router.back();
-          else router.replace('/(tabs)' as any);
+          else router.replace('/(tabs)');
         }}
       />
     </>

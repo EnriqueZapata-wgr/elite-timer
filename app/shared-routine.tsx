@@ -62,7 +62,7 @@ export default function SharedRoutineScreen() {
 
   const handleGoToLibrary = () => {
     haptic.medium();
-    router.replace('/(tabs)/biblioteca' as any);
+    router.replace('/(tabs)/biblioteca');
   };
 
   const isTimer = info?.routine_mode === 'timer';

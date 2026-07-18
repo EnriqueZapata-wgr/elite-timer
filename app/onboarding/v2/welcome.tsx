@@ -44,7 +44,7 @@ export default function V2WelcomeScreen() {
       await supabase.from('profiles').update({ full_name: name.trim() }).eq('id', user.id);
       haptic.success();
       const next = await completeV2Step(user.id, 'welcome');
-      router.replace(next as any);
+      router.replace(next);
     } finally {
       setLoading(false);
     }

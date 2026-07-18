@@ -10,7 +10,7 @@
  *   Mi Diagnóstico · Mi Protocolo · Mis Datos · Mis Evaluaciones · Mis Síntomas
  *   · Mis Padecimientos · Guía de Labs · Mi Expediente.
  */
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -22,7 +22,7 @@ import { TEXT_COLORS } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
-type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: string };
+type Card = { key: string; title: string; subtitle: string; icon: string; gradient: [string, string]; route: Href };
 
 // Imágenes editoriales (require estático — Metro). Mega-Sprint C: los 5 destinos
 // nuevos estrenan sus MJ dedicadas (salud-funcional/*.jpg); Diagnóstico, Protocolo
@@ -73,7 +73,7 @@ function SaludFuncionalHub() {
               subtitle={c.subtitle}
               gradient={c.gradient}
               imageBn={IMAGES[c.key]}
-              onTap={() => { haptic.medium(); router.push(c.route as any); }}
+              onTap={() => { haptic.medium(); router.push(c.route); }}
             />
           </Animated.View>
         ))}

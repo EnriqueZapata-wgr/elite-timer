@@ -11,6 +11,7 @@
  *  - route: deep-link directo al formulario que captura ese param.
  *  - derived: calculado (FFMI, ratio TG/HDL) — el tap lleva al formulario de sus bases.
  */
+import type { Href } from 'expo-router';
 import type { SubEdadKey } from '@/src/types/edad-atp-v2';
 import type { HealthMeasurementInput } from '@/src/services/edad-atp/capture-service';
 import { EXTRACTED_KEY_ALIASES } from '@/src/constants/lab-canonical-map';
@@ -18,7 +19,7 @@ import { EXTRACTED_KEY_ALIASES } from '@/src/constants/lab-canonical-map';
 export type ComponentCapture =
   | { type: 'hm'; field: keyof HealthMeasurementInput }
   | { type: 'subjetivos' }
-  | { type: 'route'; route: string };
+  | { type: 'route'; route: Href };
 
 export type ComponentMeta = {
   label: string;

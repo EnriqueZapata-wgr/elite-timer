@@ -70,7 +70,7 @@ export default function SettingsCuentaScreen() {
             icon="person-outline"
             label="Editar perfil"
             sub="Foto, nombre, fecha de nacimiento y sexo"
-            onPress={() => { haptic.medium(); router.push('/profile' as any); }}
+            onPress={() => { haptic.medium(); router.push('/profile'); }}
           />
           <Divider />
         </Animated.View>
@@ -81,7 +81,7 @@ export default function SettingsCuentaScreen() {
             icon="diamond-outline"
             label="Suscripción"
             sub="Tu plan, renovación e historial"
-            onPress={() => { haptic.medium(); router.push('/settings/subscription' as any); }}
+            onPress={() => { haptic.medium(); router.push('/settings/subscription'); }}
           />
           <Divider />
         </Animated.View>
@@ -99,7 +99,7 @@ export default function SettingsCuentaScreen() {
             iconColor={Colors.error}
             label="Eliminar cuenta"
             sub="Se gestiona en Privacidad y datos"
-            onPress={() => { haptic.medium(); router.push('/settings/privacy' as any); }}
+            onPress={() => { haptic.medium(); router.push('/settings/privacy'); }}
           />
         </Animated.View>
 

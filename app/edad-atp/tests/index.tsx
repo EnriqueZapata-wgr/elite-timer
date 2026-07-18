@@ -42,13 +42,13 @@ export default function TestsHub() {
   };
 
   const ROWS = [
-    { icon: '🧠', title: 'Reaction Time', sub: ftLast(['reaction_time_choice'], 'ms'), route: '/edad-atp/tests/reaction-time' },
-    { icon: '🏃', title: 'Cooper 12 min · VO2max', sub: vo2 != null ? `VO2max ${vo2} ml/kg/min` : 'Pendiente — captura tu resultado', route: '/edad-atp/tests/cooper' },
-    { icon: '🦾', title: 'Push-ups máximas', sub: ftLast(['push_ups_max'], ' reps'), route: '/edad-atp/tests/push-ups' },
-    { icon: '⚖️', title: 'Balance · Plank · Old Man · BOLT · Sentadilla · Recovery HR', sub: ftLast(['test_de_equilibrio_en_un_pie', 'one_leg_balance'], 's'), route: '/edad-atp/tests/balance' },
-    { icon: '💪', title: 'Grip (dinamómetro)', sub: 'Se captura en Composición', route: '/edad-atp/composition' },
+    { icon: '🧠', title: 'Reaction Time', sub: ftLast(['reaction_time_choice'], 'ms'), route: '/edad-atp/tests/reaction-time' as const },
+    { icon: '🏃', title: 'Cooper 12 min · VO2max', sub: vo2 != null ? `VO2max ${vo2} ml/kg/min` : 'Pendiente — captura tu resultado', route: '/edad-atp/tests/cooper' as const },
+    { icon: '🦾', title: 'Push-ups máximas', sub: ftLast(['push_ups_max'], ' reps'), route: '/edad-atp/tests/push-ups' as const },
+    { icon: '⚖️', title: 'Balance · Plank · Old Man · BOLT · Sentadilla · Recovery HR', sub: ftLast(['test_de_equilibrio_en_un_pie', 'one_leg_balance'], 's'), route: '/edad-atp/tests/balance' as const },
+    { icon: '💪', title: 'Grip (dinamómetro)', sub: 'Se captura en Composición', route: '/edad-atp/composition' as const },
     // T1: Cronotipos ahora accesible desde Tests (wrapper que re-exporta el quiz existente).
-    { icon: '🌙', title: 'Cronotipo', sub: 'Tu ritmo circadiano: ¿alondra o búho?', route: '/edad-atp/tests/chronotype' },
+    { icon: '🌙', title: 'Cronotipo', sub: 'Tu ritmo circadiano: ¿alondra o búho?', route: '/edad-atp/tests/chronotype' as const },
   ];
 
   return (
@@ -56,7 +56,7 @@ export default function TestsHub() {
       <PillarHeader pillar="fitness" title="Tests funcionales" />
       <ScrollView contentContainerStyle={styles.content}>
         {ROWS.map((r) => (
-          <Pressable key={r.title} onPress={() => { haptic.medium(); router.push(r.route as any); }} style={styles.row}>
+          <Pressable key={r.title} onPress={() => { haptic.medium(); router.push(r.route); }} style={styles.row}>
             <EliteText style={styles.emoji}>{r.icon}</EliteText>
             <View style={{ flex: 1 }}>
               <EliteText variant="body" style={styles.title}>{r.title}</EliteText>

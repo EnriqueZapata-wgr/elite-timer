@@ -64,7 +64,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
       `El escaneo BHA usa ${required} H+ y tienes ${balance}. Recarga o gana más completando tu día.`,
       [
         { text: 'Ahora no', style: 'cancel' },
-        { text: 'Conseguir H+', onPress: () => { onClose(); router.push('/economy/shop' as any); } },
+        { text: 'Conseguir H+', onPress: () => { onClose(); router.push('/economy/shop'); } },
       ],
     );
   }, [onClose]);

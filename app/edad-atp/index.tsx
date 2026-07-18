@@ -4,7 +4,7 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -29,7 +29,7 @@ type Card = {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   desc: string;
-  route: string;
+  route: Href;
 };
 
 const CARDS: Card[] = [
@@ -126,10 +126,10 @@ export default function EdadAtpHub() {
           <CeStars ce={ceValue} label="Calidad de tu evaluación" size={22} showLegend />
         </View>
 
-        <DatosNuevosBadge visible={hasNewData} onPress={() => { haptic.medium(); router.push('/edad-atp/result-preview' as any); }} />
+        <DatosNuevosBadge visible={hasNewData} onPress={() => { haptic.medium(); router.push('/edad-atp/result-preview'); }} />
 
         {/* ATP Labs — vista canónica con historial y gráficas */}
-        <Pressable onPress={() => { haptic.medium(); router.push('/edad-atp/labs' as any); }} style={styles.card}>
+        <Pressable onPress={() => { haptic.medium(); router.push('/edad-atp/labs'); }} style={styles.card}>
           <View style={styles.cardIcon}><Ionicons name="flask-outline" size={22} color={Colors.neonGreen} /></View>
           <View style={{ flex: 1 }}>
             <EliteText variant="body" style={styles.cardTitle}>ATP Labs</EliteText>
@@ -140,7 +140,7 @@ export default function EdadAtpHub() {
 
         {/* Estado "result": Integral ya calculada → hero con CTA a ver/recalcular. */}
         {edadResult && (
-          <Pressable onPress={() => { haptic.success(); router.push('/edad-atp/result-preview' as any); }} style={styles.heroCard}>
+          <Pressable onPress={() => { haptic.success(); router.push('/edad-atp/result-preview'); }} style={styles.heroCard}>
             <EliteText variant="caption" style={styles.heroLabel}>TU EDAD ATP</EliteText>
             <EliteText style={styles.heroValue}>{edadResult.edad_integral.toFixed(1)}</EliteText>
             <EliteText variant="caption" style={styles.heroSub}>cronológica {edadResult.chronological_age} · toca para ver el detalle</EliteText>
@@ -152,7 +152,7 @@ export default function EdadAtpHub() {
           return (
             <Pressable
               key={c.key}
-              onPress={() => { haptic.medium(); router.push(c.route as any); }}
+              onPress={() => { haptic.medium(); router.push(c.route); }}
               style={styles.card}
             >
               <View style={styles.cardIcon}>
@@ -172,7 +172,7 @@ export default function EdadAtpHub() {
 
         {ceValue >= CALC_THRESHOLD ? (
           <Pressable
-            onPress={() => { haptic.success(); router.push('/edad-atp/result-preview' as any); }}
+            onPress={() => { haptic.success(); router.push('/edad-atp/result-preview'); }}
             style={styles.calcBtn}
           >
             <EliteText variant="body" style={styles.calcBtnText}>{edadResult ? 'Recalcular mi Edad' : 'Calcular mi Edad'}</EliteText>
@@ -184,7 +184,7 @@ export default function EdadAtpHub() {
             </EliteText>
             {/* Sprint LABS GUÍA: el bloqueo más común es "no sé qué labs hacerme" */}
             <Pressable
-              onPress={() => { haptic.medium(); router.push('/labs-guide' as any); }}
+              onPress={() => { haptic.medium(); router.push('/labs-guide'); }}
               style={styles.guideBtn}
             >
               <Ionicons name="document-text-outline" size={16} color={Colors.neonGreen} />

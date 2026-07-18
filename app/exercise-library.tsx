@@ -126,7 +126,7 @@ export default function ExerciseLibrary() {
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push({ pathname: '/log-exercise', params: { exerciseId: item.id } } as any);
+              router.push({ pathname: '/log-exercise', params: { exerciseId: item.id } });
             }}
             style={{
               backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, marginBottom: 6,

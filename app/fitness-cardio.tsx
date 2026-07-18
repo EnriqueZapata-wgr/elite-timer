@@ -69,7 +69,7 @@ export default function FitnessCardioScreen() {
           return (
             <Animated.View key={d.key} entering={FadeInUp.delay(50 + i * 40).springify()}>
               <AnimatedPressable
-                onPress={() => { haptic.light(); router.push({ pathname: '/log-cardio', params: { discipline: d.key } } as any); }}
+                onPress={() => { haptic.light(); router.push({ pathname: '/log-cardio', params: { discipline: d.key } }); }}
                 style={s.cardWrap}
               >
                 <GradientCard gradient={CARDIO_GRADIENT} accentColor={CARDIO_BLUE} accentPosition="left">
@@ -105,7 +105,7 @@ export default function FitnessCardioScreen() {
 
         <AnimatedPressable
           style={s.ctaButton}
-          onPress={() => { haptic.medium(); router.push('/log-cardio' as any); }}
+          onPress={() => { haptic.medium(); router.push('/log-cardio'); }}
         >
           <Ionicons name="add-circle-outline" size={20} color="#000" />
           <EliteText style={s.ctaText}>REGISTRAR SESIÓN CARDIO</EliteText>

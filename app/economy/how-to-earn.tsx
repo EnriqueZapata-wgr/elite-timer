@@ -7,7 +7,7 @@
  * se ve en /economy/convert (hay mismatch config/server pendiente de audit).
  */
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router , type Href } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -25,7 +25,7 @@ interface Step {
   kicker: string;
   title: string;
   body: string;
-  cta?: { label: string; route: string };
+  cta?: { label: string; route: Href };
 }
 
 const STEPS: Step[] = [
@@ -91,7 +91,7 @@ export default function HowToEarnScreen() {
               <EliteText style={styles.stepBody}>{step.body}</EliteText>
               {step.cta && (
                 <AnimatedPressable
-                  onPress={() => { haptic.light(); router.push(step.cta!.route as any); }}
+                  onPress={() => { haptic.light(); router.push(step.cta!.route); }}
                   style={styles.stepCta}
                 >
                   <EliteText style={styles.stepCtaText}>{step.cta.label}</EliteText>

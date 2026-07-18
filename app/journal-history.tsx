@@ -289,7 +289,7 @@ export default function JournalHistoryScreen() {
 
       {/* FAB → composer */}
       <AnimatedPressable
-        onPress={() => { haptic.medium(); router.push('/journal' as any); }}
+        onPress={() => { haptic.medium(); router.push('/journal'); }}
         style={styles.fab}
       >
         <Ionicons name="add" size={28} color="#000" />

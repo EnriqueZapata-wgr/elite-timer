@@ -121,7 +121,7 @@ export default function V2ProfileScreen() {
       haptic.success();
       setGate(null);
       const next = await completeV2Step(user.id, 'profile');
-      router.replace(next as any);
+      router.replace(next);
     } catch {
       Alert.alert(COPY.errorTitle, COPY.errorBody);
     } finally {
@@ -133,14 +133,14 @@ export default function V2ProfileScreen() {
   async function handleBlockedExit() {
     setGate(null);
     try { await signOut(); } catch { /* igual navegamos */ }
-    router.replace('/login' as any);
+    router.replace('/login');
   }
 
   return (
     <OnboardingShell
       step={v2StepNumber('profile')}
       totalSteps={V2_STEPS.length}
-      onBack={() => router.replace(v2Route('welcome') as any)}
+      onBack={() => router.replace(v2Route('welcome'))}
     >
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">

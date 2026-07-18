@@ -35,7 +35,7 @@ export default function V2ConsentScreen() {
       await saveMedicalConsent(user.id);
       haptic.success();
       const next = await completeV2Step(user.id, 'consent');
-      router.replace(next as any);
+      router.replace(next);
     } finally {
       setLoading(false);
     }
@@ -45,7 +45,7 @@ export default function V2ConsentScreen() {
     <OnboardingShell
       step={v2StepNumber('consent')}
       totalSteps={V2_STEPS.length}
-      onBack={() => router.replace(v2Route('chronotype') as any)}
+      onBack={() => router.replace(v2Route('chronotype'))}
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>

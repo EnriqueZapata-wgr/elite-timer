@@ -75,7 +75,7 @@ export function EconomyHeaderPill() {
   if (!LAB_ECONOMY_ENABLED || !data) return null;
 
   return (
-    <AnimatedPressable onPress={() => { haptic.light(); router.push('/economy/admin' as any); }} style={styles.pill}>
+    <AnimatedPressable onPress={() => { haptic.light(); router.push('/economy/admin'); }} style={styles.pill}>
       <Stat icon="flash" color={ATP_BRAND.lime} text={formatCompact(data.e)} />
       <View style={styles.sep} />
       <Stat icon="diamond" color="#7fd4ff" text={formatCompact(data.h)} />

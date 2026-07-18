@@ -196,7 +196,7 @@ export default function YoScreen() {
           <View style={s.topBar}>
             {/* Avatar + "YO" → Perfil (Mariana #1: nombre/edad/sexo no se encontraban). */}
             <AnimatedPressable
-              onPress={() => { haptic.light(); router.push('/profile' as any); }}
+              onPress={() => { haptic.light(); router.push('/profile'); }}
               style={s.identityTap}
             >
               <UserAvatar
@@ -275,7 +275,7 @@ export default function YoScreen() {
         {/* Admin: Feedback Dashboard */}
         {isAdmin(user?.id) && (
           <Animated.View entering={FadeInUp.delay(600).springify()} style={{ paddingHorizontal: Spacing.md }}>
-            <AnimatedPressable onPress={() => { haptic.light(); router.push('/feedback-dashboard' as any); }}>
+            <AnimatedPressable onPress={() => { haptic.light(); router.push('/feedback-dashboard'); }}>
               <View style={{
                 flexDirection: 'row', alignItems: 'center', gap: 10,
                 padding: 14, backgroundColor: '#0a0a0a', borderRadius: 14, marginTop: Spacing.md,

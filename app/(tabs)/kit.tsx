@@ -27,7 +27,7 @@ const PILLARS = [
     subtitle: 'Diagnóstico · datos · evaluaciones · síntomas',
     message: 'Tu expediente vivo',
     gradient: ['#1ABC9C', '#16A085'] as [string, string],
-    route: '/health-hub',
+    route: '/health-hub' as const,
     imageBn: require('@/assets/images/pillars/historia-clinica.png'),
   },
   {
@@ -37,7 +37,7 @@ const PILLARS = [
     subtitle: 'Nutrición, fitness, sueño, ayuno',
     message: 'Lo que defines a diario',
     gradient: ['#A8E02A', '#1ABC9C'] as [string, string],
-    route: '/habits-portal',
+    route: '/habits-portal' as const,
     imageBn: require('@/assets/images/pillars/habitos.png'),
   },
   // hotfix-ux FIX 1: entry point del hub COMUNIDAD (bloqueador #3). No existe app/comunidad/index.tsx;
@@ -50,7 +50,7 @@ const PILLARS = [
     subtitle: 'Ranking · Amigos · Tribu',
     message: 'Comunidad, no competencia',
     gradient: ['#7F77DD', '#5B9BD5'] as [string, string],
-    route: '/comunidad/ranking',
+    route: '/comunidad/ranking' as const,
     imageBn: require('@/assets/images/pillars/comunidad.png'),
   },
 ];
@@ -80,7 +80,7 @@ export default function KitScreen() {
               message={p.message}
               gradient={p.gradient}
               imageBn={p.imageBn}
-              onTap={() => { haptic.medium(); router.push(p.route as any); }}
+              onTap={() => { haptic.medium(); router.push(p.route); }}
             />
           </Animated.View>
         ))}

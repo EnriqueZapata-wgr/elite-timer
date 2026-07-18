@@ -208,7 +208,7 @@ export default function SettingsPrivacyScreen() {
       <Animated.View entering={FadeInUp.delay(140).springify()}>
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Documentos legales</SectionTitle>
         <Pressable
-          onPress={() => { haptic.light(); router.push('/settings/legal' as any); }}
+          onPress={() => { haptic.light(); router.push('/settings/legal'); }}
           style={s.legalRow}
         >
           <Ionicons name="document-text-outline" size={20} color={TEXT.secondary} />

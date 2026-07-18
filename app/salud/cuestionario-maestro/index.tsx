@@ -123,7 +123,7 @@ function MasterQuizScreen() {
   }
 
   if (done) {
-    return <SummaryView answers={answers} ctx={ctx} userId={user?.id ?? ''} onGoProtocol={() => router.push('/salud/intervenciones' as any)} onBack={() => router.back()} />;
+    return <SummaryView answers={answers} ctx={ctx} userId={user?.id ?? ''} onGoProtocol={() => router.push('/salud/intervenciones')} onBack={() => router.back()} />;
   }
 
   // Preview de sección (transición).

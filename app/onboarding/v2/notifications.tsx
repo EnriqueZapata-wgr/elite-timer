@@ -41,7 +41,7 @@ export default function V2NotificationsScreen() {
       // T5 HARDENING: último paso completado → funnel core. notifications es el
       // paso final del flow v2 (completeV2Step marcó 'completed' y enruta a meet).
       analytics.track(ATP_EVENTS.ONBOARDING_COMPLETED, { notifications_enabled: withPrompt });
-      router.replace(next as any);
+      router.replace(next);
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export default function V2NotificationsScreen() {
     <OnboardingShell
       step={v2StepNumber('notifications')}
       totalSteps={V2_STEPS.length}
-      onBack={() => router.replace(v2Route('consent') as any)}
+      onBack={() => router.replace(v2Route('consent'))}
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>

@@ -133,7 +133,7 @@ export default function VitalsCapture() {
                   label={f.label}
                   unit={f.unit}
                   helper={isVo2 ? 'Si no lo sabes, haz el test Cooper de 12 min →' : f.helper}
-                  onHelperPress={isVo2 ? () => { haptic.light(); router.push('/edad-atp/tests/cooper?return=vitals' as any); } : undefined}
+                  onHelperPress={isVo2 ? () => { haptic.light(); router.push('/edad-atp/tests/cooper?return=vitals'); } : undefined}
                   badge={prefilled[f.key] ? badge ?? 'Salud' : undefined}
                   value={v[f.key] ?? ''}
                   onChangeText={(x) => set(f.key, x)}

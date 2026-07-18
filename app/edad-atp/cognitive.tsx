@@ -69,7 +69,7 @@ export default function CognitiveCapture() {
           </View>
         ) : null}
 
-        <Pressable onPress={() => { haptic.medium(); router.push('/edad-atp/tests/reaction-time' as any); }} style={styles.testBtn}>
+        <Pressable onPress={() => { haptic.medium(); router.push('/edad-atp/tests/reaction-time'); }} style={styles.testBtn}>
           <EliteText variant="body" style={styles.testBtnText}>{last ? 'Volver a hacer test interactivo' : 'Hacer test interactivo'}</EliteText>
         </Pressable>
 

@@ -109,8 +109,8 @@ function MisDatosScreen() {
           idx={0} icon="flask-outline" color="#60A5FA" title="Labs de sangre"
           value={sum.labsCount > 0 ? `${sum.labsCount} parámetros` : 'Sin datos'}
           meta={sum.labsLatestDate ? `Último: ${relativeDays(sum.labsLatestDate, now)}` : 'Sube tu primer estudio'}
-          onPress={() => { haptic.medium(); router.push('/edad-atp/labs' as any); }}
-          onCapture={() => { haptic.medium(); router.push('/edad-atp/biomarkers' as any); }}
+          onPress={() => { haptic.medium(); router.push('/edad-atp/labs'); }}
+          onCapture={() => { haptic.medium(); router.push('/edad-atp/biomarkers'); }}
         />
 
         {/* Composición corporal */}
@@ -118,7 +118,7 @@ function MisDatosScreen() {
           idx={1} icon="body-outline" color="#22C55E" title="Composición corporal"
           value={sum.weightKg != null ? `${fmt(sum.weightKg, 'kg', 1)} · ${fmt(sum.bodyFatPct, '%', 1)} grasa` : 'Sin datos'}
           meta="Peso · grasa · músculo · medidas"
-          onPress={() => { haptic.medium(); router.push('/edad-atp/composition' as any); }}
+          onPress={() => { haptic.medium(); router.push('/edad-atp/composition'); }}
         />
 
         {/* Signos vitales */}
@@ -126,7 +126,7 @@ function MisDatosScreen() {
           idx={2} icon="pulse-outline" color="#EF4444" title="Signos vitales"
           value={sum.systolicBp != null ? `${fmtBp(sum.systolicBp, sum.diastolicBp)} mmHg · ${fmt(sum.restingHr, 'lpm')} reposo` : 'Sin datos'}
           meta={sum.vo2max != null ? `VO2max ${fmt(sum.vo2max, '', 1)}` : 'Presión · FC · VO2max'}
-          onPress={() => { haptic.medium(); router.push('/edad-atp/vitals' as any); }}
+          onPress={() => { haptic.medium(); router.push('/edad-atp/vitals'); }}
         />
 
         {/* Glucosa */}
@@ -135,7 +135,7 @@ function MisDatosScreen() {
           value={sum.glucoseMgDl != null ? `${fmt(sum.glucoseMgDl, 'mg/dL')}` : 'Sin registros'}
           meta={gStatus ? gStatus.label : 'Registra tu glucosa'}
           metaColor={gStatus ? LEVEL_COLOR[gStatus.level] : undefined}
-          onPress={() => { haptic.medium(); router.push('/glucose-log' as any); }}
+          onPress={() => { haptic.medium(); router.push('/glucose-log'); }}
         />
 
         {/* Cetonas */}
@@ -144,7 +144,7 @@ function MisDatosScreen() {
           value={sum.ketonesMmol != null ? `${fmt(sum.ketonesMmol, 'mmol/L', 1)}` : 'Sin registros'}
           meta={kStatus ? kStatus.label : 'Registra tus cetonas'}
           metaColor={kStatus ? LEVEL_COLOR[kStatus.level] : undefined}
-          onPress={() => { haptic.medium(); router.push('/ketones-log' as any); }}
+          onPress={() => { haptic.medium(); router.push('/ketones-log'); }}
         />
 
         <View style={{ height: Spacing.xxl }} />

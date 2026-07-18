@@ -33,20 +33,20 @@ export default function SettingsDevScreen() {
             icon="construct-outline"
             label="DEV Tools"
             sub="Herramientas internas de validación"
-            onPress={() => { haptic.medium(); router.push('/dev' as any); }}
+            onPress={() => { haptic.medium(); router.push('/dev'); }}
           />
           <SettingRow
             icon="analytics-outline"
             label="Edad ATP (preview)"
             sub="Captura de datos del modelo v2"
-            onPress={() => { haptic.medium(); router.push('/edad-atp' as any); }}
+            onPress={() => { haptic.medium(); router.push('/edad-atp'); }}
           />
           {/* T3 MAGIA 2.0: test aid — reproducir la cinemática sin resetear el flag en DB */}
           <SettingRow
             icon="eye-outline"
             label="Ver Meet ARGOS de nuevo"
             sub="Reproduce la cinemática de primer contacto"
-            onPress={() => { haptic.medium(); router.push('/argos/meet' as any); }}
+            onPress={() => { haptic.medium(); router.push('/argos/meet'); }}
           />
           {/* T6 HARDENING: verificación Sentry end-to-end. Sentry corre con
               enabled: !__DEV__ (app/_layout.tsx) → este botón solo REPORTA en

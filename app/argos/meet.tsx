@@ -142,7 +142,7 @@ export default function MeetArgosScreen() {
     setIntroduced(true);
     // T5: el overlay global la consume al aterrizar en HOY.
     queueOnboardingCelebration(firstName);
-    router.replace('/(tabs)' as any);
+    router.replace('/(tabs)');
   }
 
   const visibleText = screen.typing ? fullText.slice(0, typedChars) : fullText;

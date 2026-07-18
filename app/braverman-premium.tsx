@@ -68,7 +68,7 @@ export default function BravermanPremiumScreen() {
         `Este reporte usa ${formatFull(result.required)} H+ y tienes ${formatFull(result.balance)}. Recarga o gana más completando tu día.`,
         [
           { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop' as any) },
+          { text: 'Conseguir H+', onPress: () => router.push('/economy/shop') },
         ],
       );
       return;
@@ -131,7 +131,7 @@ export default function BravermanPremiumScreen() {
             </AnimatedPressable>
             {!canAfford && (
               <AnimatedPressable
-                onPress={() => { haptic.light(); router.push('/economy/shop' as any); }}
+                onPress={() => { haptic.light(); router.push('/economy/shop'); }}
                 style={styles.shopLink}
               >
                 <EliteText style={styles.shopLinkText}>Te faltan H+ — conseguir más →</EliteText>
@@ -162,7 +162,7 @@ export default function BravermanPremiumScreen() {
             El reporte premium se construye sobre tu test de Braverman completo.
           </EliteText>
           <AnimatedPressable
-            onPress={() => { haptic.medium(); router.push('/braverman' as any); }}
+            onPress={() => { haptic.medium(); router.push('/braverman'); }}
             style={styles.lockCtaPrimary}
           >
             <EliteText style={styles.lockCtaPrimaryText}>Hacer el test</EliteText>

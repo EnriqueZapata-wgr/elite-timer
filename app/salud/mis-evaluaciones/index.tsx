@@ -8,7 +8,7 @@
  * task #107) se implementa en su propio mega-sprint — aquí solo un slot
  * "próximamente". NO se rediseña el contenido de los cuestionarios todavía.
  */
-import { useRouter } from 'expo-router';
+import { useRouter , type Href } from 'expo-router';
 import { ScrollView, StyleSheet, View, ImageBackground } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -25,7 +25,7 @@ import { TEXT_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
 // Batch 3 (#11): imagen editorial del hero (require estático · Metro).
 const HERO_EVALUACIONES = require('@/assets/images/health-hub/tests-evaluaciones.png');
 
-type Eval = { key: string; title: string; blurb: string; icon: string; color: string; route: string };
+type Eval = { key: string; title: string; blurb: string; icon: string; color: string; route: Href };
 
 // Evaluaciones que YA existen (intocadas · B4 solo las agrupa).
 const EVALUACIONES: Eval[] = [
@@ -63,7 +63,7 @@ export default function MisEvaluacionesScreen() {
 
         {/* Mega-Sprint D: Cuestionario Maestro destacado (mapa y brújula de ATP). */}
         <Animated.View entering={FadeInUp.delay(60).springify()}>
-          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/salud/cuestionario-maestro' as any); }} style={s.masterCard}>
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/salud/cuestionario-maestro'); }} style={s.masterCard}>
             <View style={s.cardRow}>
               <View style={[s.iconWrap, { backgroundColor: withOpacity('#A8E02A', 0.15) }]}>
                 <Ionicons name="sparkles" size={22} color="#A8E02A" />
@@ -81,7 +81,7 @@ export default function MisEvaluacionesScreen() {
 
         {EVALUACIONES.map((e, idx) => (
           <Animated.View key={e.key} entering={FadeInUp.delay(80 + idx * 45).springify()}>
-            <AnimatedPressable onPress={() => { haptic.medium(); router.push(e.route as any); }}>
+            <AnimatedPressable onPress={() => { haptic.medium(); router.push(e.route); }}>
               <GradientCard color={e.color} style={s.card}>
                 <View style={s.cardRow}>
                   <View style={[s.iconWrap, { backgroundColor: withOpacity(e.color, 0.15) }]}>

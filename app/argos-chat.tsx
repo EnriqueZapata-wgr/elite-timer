@@ -461,7 +461,7 @@ function ArgosChat() {
             />
           </Pressable>
           {/* F2.2: historial → pantalla dedicada */}
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/argos/conversations' as any); }} hitSlop={12}>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/argos/conversations'); }} hitSlop={12}>
             <Ionicons name="time-outline" size={22} color="#999" />
           </Pressable>
           <Pressable onPress={startNewConversation} hitSlop={12}>

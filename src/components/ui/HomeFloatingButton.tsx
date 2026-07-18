@@ -31,7 +31,7 @@ export function HomeFloatingButton() {
   function goHome() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     // navigate (no push): vuelve al tab HOY sin apilar otra instancia.
-    router.navigate('/(tabs)' as any);
+    router.navigate('/(tabs)');
   }
 
   return (

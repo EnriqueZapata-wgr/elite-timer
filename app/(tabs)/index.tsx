@@ -583,7 +583,7 @@ export default function TodayScreen() {
   function onElectronTap(source: string) {
     if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) {
       haptic.light();
-      router.push(VERIFIED_ELECTRON_ROUTES[source as VerifiedElectronKey] as any);
+      router.push(VERIFIED_ELECTRON_ROUTES[source as VerifiedElectronKey]);
       return;
     }
     toggleBoolean(source);
@@ -1016,7 +1016,7 @@ export default function TodayScreen() {
                       // #136: al volver de la pantalla destino el próximo
                       // loadDay recomputa sin esperar los 15 min de cache
                       heroRecAtRef.current = 0;
-                      router.push(heroRec.route as any);
+                      router.push(heroRec.route);
                     }
                   }}
                   disabled={heroResolved || (!heroRec.route && !heroRec.quickAction)}
@@ -1171,7 +1171,7 @@ export default function TodayScreen() {
         {/* Sprint 1.5 B: protocol-config murió — configurar el día ES activar
             intervenciones (Mi Protocolo = HOY cards = Agenda, doctrina fusión). */}
         <AnimatedPressable
-          onPress={() => { haptic.light(); router.push('/salud/intervenciones' as any); }}
+          onPress={() => { haptic.light(); router.push('/salud/intervenciones'); }}
           style={s.editDayBtn}
         >
           <Ionicons name="options-outline" size={16} color="#666" />

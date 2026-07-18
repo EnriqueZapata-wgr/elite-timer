@@ -132,7 +132,7 @@ export default function TrainingMethods() {
             <Pressable
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                router.push('/log-exercise' as any);
+                router.push('/log-exercise');
               }}
               style={{
                 backgroundColor: method.color, borderRadius: 14, padding: 14,

@@ -53,7 +53,7 @@ export function AgendaPreviewCard({ userId }: Props) {
   const nowMs = Date.now();
   const upcoming = events.filter((e) => e.status === 'pending' && new Date(e.scheduledAt).getTime() >= nowMs);
   const preview = (upcoming.length > 0 ? upcoming : events).slice(0, 3);
-  const go = () => { haptic.light(); router.push('/agenda' as any); };
+  const go = () => { haptic.light(); router.push('/agenda'); };
 
   // No renderizar nada hasta el primer load (evita parpadeo del estado vacío).
   if (!loaded) return null;

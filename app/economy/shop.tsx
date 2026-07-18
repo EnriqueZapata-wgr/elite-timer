@@ -101,7 +101,7 @@ export default function ShopScreen() {
         `Necesitas ${formatFull(item.cost)} H+ y tienes ${formatFull(balance)}. Convierte tus E- o completa tu día para ganar más.`,
         [
           { text: 'Ahora no', style: 'cancel' },
-          { text: 'Conseguir H+', onPress: () => router.push('/economy/convert' as any) },
+          { text: 'Conseguir H+', onPress: () => router.push('/economy/convert') },
         ],
       );
       return;
@@ -208,7 +208,7 @@ export default function ShopScreen() {
         <SectionKicker delay={260} label="ANÁLISIS ARGOS" />
         <Animated.View entering={FadeInDown.delay(300).springify()}>
           <AnimatedPressable
-            onPress={() => { haptic.light(); router.push('/braverman-premium' as any); }}
+            onPress={() => { haptic.light(); router.push('/braverman-premium'); }}
             style={styles.galleryCard}
           >
             <View style={styles.boltCircle}>

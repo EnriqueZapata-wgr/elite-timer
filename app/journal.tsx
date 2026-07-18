@@ -385,7 +385,7 @@ export default function JournalScreen() {
         rightContent={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             {/* #39: historial dedicado con filtros/búsqueda/edición */}
-            <Pressable onPress={() => { haptic.light(); router.push('/journal-history' as any); }} hitSlop={8}>
+            <Pressable onPress={() => { haptic.light(); router.push('/journal-history'); }} hitSlop={8}>
               <Ionicons name="time-outline" size={22} color="#fff" />
             </Pressable>
             <HelpButton

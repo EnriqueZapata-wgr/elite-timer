@@ -13,7 +13,7 @@ const DEV_TOOLS = [
     id: 'goal-tree-smoke',
     title: 'Goal Tree Smoke Test',
     description: 'Valida que el LLM descomponga objetivos en árbol JSON parseable.',
-    route: '/dev/goal-tree-smoke',
+    route: '/dev/goal-tree-smoke' as const,
     icon: 'git-branch-outline',
   },
 ];
@@ -26,7 +26,7 @@ export default function DevToolsIndex() {
         <Text style={styles.subtitle}>Herramientas internas para validación y debugging.</Text>
       </View>
       {DEV_TOOLS.map((tool) => (
-        <Pressable key={tool.id} style={styles.toolCard} onPress={() => router.push(tool.route as any)}>
+        <Pressable key={tool.id} style={styles.toolCard} onPress={() => router.push(tool.route)}>
           <Ionicons name={tool.icon as any} size={24} color="#a3e635" />
           <View style={styles.toolText}>
             <Text style={styles.toolTitle}>{tool.title}</Text>

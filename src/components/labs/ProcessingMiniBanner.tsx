@@ -82,7 +82,7 @@ export function ProcessingMiniBanner() {
               <Text style={styles.failBtnText}>Reintentar</Text>
             </Pressable>
             <Pressable
-              onPress={() => { haptic.light(); router.push({ pathname: '/edad-atp/biomarkers', params: { sourceUploadId: uploadId, sourceFileName: upload.fileName } } as any); dismiss(uploadId); }}
+              onPress={() => { haptic.light(); router.push({ pathname: '/edad-atp/biomarkers', params: { sourceUploadId: uploadId, sourceFileName: upload.fileName } }); dismiss(uploadId); }}
               hitSlop={8} style={styles.failBtn}
             >
               <Text style={styles.failBtnText}>Manual</Text>

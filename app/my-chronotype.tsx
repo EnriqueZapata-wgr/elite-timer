@@ -153,7 +153,7 @@ export default function MyChronotypeScreen() {
             </EliteText>
             <AnimatedPressable
               style={s.ctaBtn}
-              onPress={() => { haptic.light(); router.push('/quiz/chronotype' as any); }}
+              onPress={() => { haptic.light(); router.push('/quiz/chronotype'); }}
             >
               <EliteText style={s.ctaBtnText}>HACER EL TEST</EliteText>
             </AnimatedPressable>
@@ -227,7 +227,7 @@ export default function MyChronotypeScreen() {
           {/* Repetir test */}
           <AnimatedPressable
             style={s.retakeBtn}
-            onPress={() => { haptic.light(); router.push('/quiz/chronotype' as any); }}
+            onPress={() => { haptic.light(); router.push('/quiz/chronotype'); }}
           >
             <Ionicons name="refresh-outline" size={16} color={TEXT_COLORS.secondary} />
             <EliteText style={s.retakeText}>Repetir el test (5 min)</EliteText>

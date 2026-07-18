@@ -16,10 +16,10 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
 const ITEMS = [
-  { name: 'Fuerza', subtitle: 'Benchmarks · Variantes · PRs', icon: 'barbell-outline' as const, color: '#a8e02a', route: '/fitness-strength' },
-  { name: 'Cardio', subtitle: 'Sesiones · Distancias · Tiempos', icon: 'pulse-outline' as const, color: '#ef4444', route: '/fitness-cardio' },
-  { name: 'Movilidad', subtitle: 'Evaluaciones · Rango de movimiento', icon: 'body-outline' as const, color: '#c084fc', route: '/mobility-assessment' },
-  { name: 'Récords personales', subtitle: 'Todos tus PRs en un lugar', icon: 'trophy-outline' as const, color: '#fbbf24', route: '/personal-records' },
+  { name: 'Fuerza', subtitle: 'Benchmarks · Variantes · PRs', icon: 'barbell-outline' as const, color: '#a8e02a', route: '/fitness-strength' as const },
+  { name: 'Cardio', subtitle: 'Sesiones · Distancias · Tiempos', icon: 'pulse-outline' as const, color: '#ef4444', route: '/fitness-cardio' as const },
+  { name: 'Movilidad', subtitle: 'Evaluaciones · Rango de movimiento', icon: 'body-outline' as const, color: '#c084fc', route: '/mobility-assessment' as const },
+  { name: 'Récords personales', subtitle: 'Todos tus PRs en un lugar', icon: 'trophy-outline' as const, color: '#fbbf24', route: '/personal-records' as const },
 ];
 
 export default function FitnessMyScreen() {
@@ -32,7 +32,7 @@ export default function FitnessMyScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         {ITEMS.map((item, idx) => (
           <Animated.View key={item.name} entering={FadeInUp.delay(50 + idx * 50).springify()}>
-            <AnimatedPressable onPress={() => { haptic.medium(); router.push(item.route as any); }}>
+            <AnimatedPressable onPress={() => { haptic.medium(); router.push(item.route); }}>
               <GradientCard color={item.color} style={s.card}>
                 <View style={s.row}>
                   <View style={[s.icon, { backgroundColor: withOpacity(item.color, 0.15) }]}>

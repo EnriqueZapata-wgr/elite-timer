@@ -91,7 +91,7 @@ export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCoun
 
   return (
     <AnimatedPressable
-      onPress={() => { haptic.light(); router.push('/economy/admin' as any); }}
+      onPress={() => { haptic.light(); router.push('/economy/admin'); }}
       style={styles.card}
     >
       {/* Fondo B/N (despertar) o placeholder gradient. width/height explícitos por el bug de

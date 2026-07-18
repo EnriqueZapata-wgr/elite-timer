@@ -57,7 +57,7 @@ export default function V2CycleScreen() {
       await saveCycleModality(user.id, modality);
       haptic.success();
       const next = await completeV2Step(user.id, 'cycle');
-      router.replace(next as any);
+      router.replace(next);
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ export default function V2CycleScreen() {
     <OnboardingShell
       step={v2StepNumber('cycle')}
       totalSteps={V2_STEPS.length}
-      onBack={() => router.replace(v2Route('goal') as any)}
+      onBack={() => router.replace(v2Route('goal'))}
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>

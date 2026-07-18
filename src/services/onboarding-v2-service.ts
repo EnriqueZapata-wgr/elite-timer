@@ -6,6 +6,7 @@
  * onboarding-v2-core.ts. Aquí: persistencia en Supabase + emisión de eventos.
  */
 import { DeviceEventEmitter } from 'react-native';
+import type { Href } from 'expo-router';
 import { supabase } from '@/src/lib/supabase';
 import {
   type V2Step,
@@ -21,7 +22,7 @@ import {
  * profiles.onboarding_step ('v2_<next>') o 'completed' al terminar.
  * Devuelve la ruta a la que navegar.
  */
-export async function completeV2Step(userId: string, step: V2Step): Promise<string> {
+export async function completeV2Step(userId: string, step: V2Step): Promise<Href> {
   const next = nextV2Step(step);
   if (next) {
     await supabase.from('profiles').update({ onboarding_step: `v2_${next}` }).eq('id', userId);

@@ -6,6 +6,8 @@
  * Reglas declarativas en orden de prioridad: la PRIMERA que matchea gana.
  * Fallback editorial garantizado al final (nunca devuelve null).
  */
+// Type-only: se borra en compilación — el motor sigue siendo puro para vitest.
+import type { Href } from 'expo-router';
 
 export type CyclePhase = 'menstrual' | 'follicular' | 'ovulation' | 'luteal';
 
@@ -32,7 +34,7 @@ export interface HeroRecommendation {
   title: string;
   subtitle: string;
   cta?: string;
-  route?: string;
+  route?: Href;
   /**
    * #136: acción resoluble inline desde la card (optimistic update en HOY)
    * en vez de navegar — p. ej. registrar un vaso de agua con un tap.

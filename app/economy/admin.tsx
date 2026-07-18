@@ -6,7 +6,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, DeviceEventEmitter } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Screen } from '@/src/components/ui/Screen';
@@ -25,7 +25,7 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 interface NavItem {
   icon: keyof typeof Ionicons.glyphMap; label: string; sublabel?: string;
-  route?: string; soon?: boolean;
+  route?: Href; soon?: boolean;
 }
 
 export default function EconomyAdminScreen() {
@@ -67,7 +67,7 @@ export default function EconomyAdminScreen() {
         <Animated.View entering={FadeInDown.delay(90).springify()}>
           <BalanceCard
             protons={protons?.current_protons ?? 0}
-            onPressShop={() => { haptic.medium(); router.push('/economy/shop' as any); }}
+            onPressShop={() => { haptic.medium(); router.push('/economy/shop'); }}
           />
         </Animated.View>
 
@@ -82,7 +82,7 @@ export default function EconomyAdminScreen() {
           <Animated.View key={item.label} entering={FadeInDown.delay(180 + i * 40).springify()}>
             <AnimatedPressable
               disabled={item.soon}
-              onPress={() => { if (item.route) { haptic.light(); router.push(item.route as any); } }}
+              onPress={() => { if (item.route) { haptic.light(); router.push(item.route); } }}
               style={[styles.navRow, item.soon && styles.navSoon]}
             >
               <View style={styles.navIcon}><Ionicons name={item.icon} size={20} color={ATP_BRAND.lime} /></View>

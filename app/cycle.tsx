@@ -628,7 +628,7 @@ export default function CycleScreen() {
             ] as const).map(n => (
               <AnimatedPressable
                 key={n.route}
-                onPress={() => { haptic.medium(); router.push(n.route as any); }}
+                onPress={() => { haptic.medium(); router.push(n.route); }}
                 style={st.navCard}
               >
                 <Ionicons name={n.icon as any} size={24} color={ROSE} />

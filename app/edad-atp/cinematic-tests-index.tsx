@@ -4,7 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { Screen } from '@/src/components/ui/Screen';
@@ -16,7 +16,7 @@ import { haptic } from '@/src/utils/haptics';
 import { getLatestKinematicTests, type KinematicTestKey } from '@/src/services/edad-atp/kinematic-tests-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
-type Row = { key: KinematicTestKey; label: string; subtitle: string; unit: string; icon: any; route: string };
+type Row = { key: KinematicTestKey; label: string; subtitle: string; unit: string; icon: any; route: Href };
 
 const TESTS: Row[] = [
   { key: 'plank', label: 'Plank', subtitle: 'Plancha isométrica', unit: 's', icon: 'body-outline', route: '/edad-atp/test-plank' },
@@ -55,7 +55,7 @@ export default function CinematicTestsIndex() {
           const v = latest[t.key];
           return (
             <Animated.View key={t.key} entering={FadeInUp.delay(60 + i * 50).springify()}>
-              <AnimatedPressable onPress={() => { haptic.light(); router.push(t.route as any); }} style={styles.row}>
+              <AnimatedPressable onPress={() => { haptic.light(); router.push(t.route); }} style={styles.row}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(168,224,42,0.12)' }]}>
                   <Ionicons name={t.icon} size={22} color={Colors.neonGreen} />
                 </View>

@@ -16,10 +16,10 @@ import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
 const ITEMS = [
-  { name: 'Biblioteca de ejercicios', subtitle: 'GYM · Calistenia · Kettlebell · Biomecánica', icon: 'book-outline' as const, color: '#38bdf8', route: '/exercise-library' },
-  { name: 'Métodos ATP', subtitle: '3-5 · EMOM Auto · Myo Reps', icon: 'flash-outline' as const, color: '#a8e02a', route: '/training-methods' },
-  { name: 'Planes de entrenamiento', subtitle: '5K · 10K · 21K · Maratón · Ultra', icon: 'map-outline' as const, color: '#f59e0b', route: '', comingSoon: true },
-  { name: 'Rutinas Follow Me', subtitle: 'Cardio · Core · Animal Motion · KB Flows', icon: 'play-circle-outline' as const, color: '#fb7185', route: '', comingSoon: true },
+  { name: 'Biblioteca de ejercicios', subtitle: 'GYM · Calistenia · Kettlebell · Biomecánica', icon: 'book-outline' as const, color: '#38bdf8', route: '/exercise-library' as const },
+  { name: 'Métodos ATP', subtitle: '3-5 · EMOM Auto · Myo Reps', icon: 'flash-outline' as const, color: '#a8e02a', route: '/training-methods' as const },
+  { name: 'Planes de entrenamiento', subtitle: '5K · 10K · 21K · Maratón · Ultra', icon: 'map-outline' as const, color: '#f59e0b', route: '' as const, comingSoon: true },
+  { name: 'Rutinas Follow Me', subtitle: 'Cardio · Core · Animal Motion · KB Flows', icon: 'play-circle-outline' as const, color: '#fb7185', route: '' as const, comingSoon: true },
 ];
 
 export default function FitnessExploreScreen() {
@@ -34,9 +34,9 @@ export default function FitnessExploreScreen() {
           <Animated.View key={item.name} entering={FadeInUp.delay(50 + idx * 50).springify()}>
             <AnimatedPressable
               onPress={() => {
-                if (item.comingSoon) { Alert.alert('', 'Pronto disponible'); return; }
+                if (item.comingSoon || !item.route) { Alert.alert('', 'Pronto disponible'); return; }
                 haptic.medium();
-                router.push(item.route as any);
+                router.push(item.route);
               }}
             >
               <GradientCard color={item.color} style={[s.card, item.comingSoon && s.cardDisabled]}>

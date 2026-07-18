@@ -3,7 +3,7 @@
  */
 import { useState, useCallback } from 'react';
 import { ScrollView, StyleSheet, Pressable, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -13,7 +13,7 @@ import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
-const DOMAINS: { domain: string; icon: string; title: string; route: string }[] = [
+const DOMAINS: { domain: string; icon: string; title: string; route: Href }[] = [
   { domain: 'metabolismo', icon: '🥗', title: 'Metabolismo', route: '/edad-atp/questionnaires/metabolismo' },
   { domain: 'habitos', icon: '📅', title: 'Hábitos', route: '/edad-atp/questionnaires/habitos' },
   { domain: 'cardiovascular', icon: '❤️', title: 'Cardiovascular', route: '/edad-atp/questionnaires/cardiovascular' },
@@ -46,7 +46,7 @@ export default function QuestionnairesHub() {
           return (
             <Pressable
               key={d.domain}
-              onPress={() => { haptic.medium(); router.push(d.route as any); }}
+              onPress={() => { haptic.medium(); router.push(d.route); }}
               style={[styles.row, isDone && styles.rowDone]}
             >
               <EliteText style={styles.emoji}>{d.icon}</EliteText>

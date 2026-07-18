@@ -263,13 +263,13 @@ export default function NutritionScreen() {
         <Animated.View entering={FadeInUp.delay(70).springify()} style={{ marginTop: Spacing.md }}>
           <View style={s.registerRow}>
             {[
-              { label: 'Foto', icon: 'camera-outline' as const, route: '/food-scan' },
-              { label: 'Texto', icon: 'create-outline' as const, route: '/food-text' },
-              { label: 'Guardados', icon: 'bookmark-outline' as const, route: '/food-register' },
+              { label: 'Foto', icon: 'camera-outline' as const, route: '/food-scan' as const },
+              { label: 'Texto', icon: 'create-outline' as const, route: '/food-text' as const },
+              { label: 'Guardados', icon: 'bookmark-outline' as const, route: '/food-register' as const },
             ].map((cta) => (
               <AnimatedPressable
                 key={cta.label}
-                onPress={() => { haptic.light(); router.push(cta.route as any); }}
+                onPress={() => { haptic.light(); router.push(cta.route); }}
                 style={s.registerBtn}
               >
                 <Ionicons name={cta.icon} size={18} color={BLUE} />
@@ -285,7 +285,7 @@ export default function NutritionScreen() {
           <Animated.View entering={FadeInUp.delay(75).springify()} style={{ marginTop: Spacing.sm }}>
             <NavCard icon="timer-outline" color="#fbbf24" title="Ayuno activo"
               subtitle={`${summary.fastHours}h en curso · toca para ver detalle`}
-              onPress={() => { haptic.light(); router.push('/fasting' as any); }} />
+              onPress={() => { haptic.light(); router.push('/fasting'); }} />
           </Animated.View>
         )}
 
@@ -303,7 +303,7 @@ export default function NutritionScreen() {
         <Animated.View entering={FadeInUp.delay(85).springify()} style={{ marginTop: Spacing.sm }}>
           <NavCard icon="eye-outline" color="#a8e02a" title="Hablar con ARGOS"
             subtitle="Sobre tu nutrición de hoy — conoce tus datos"
-            onPress={() => { haptic.light(); router.push('/argos-chat?from=nutrition' as any); }} />
+            onPress={() => { haptic.light(); router.push('/argos-chat?from=nutrition'); }} />
         </Animated.View>
 
         {/* ARGOS recetas */}
@@ -336,14 +336,14 @@ export default function NutritionScreen() {
           {isFeatureVisible('supplements', mode) && (
           <Animated.View entering={FadeInUp.delay(110).springify()}>
             <NavCard icon="flask-outline" color="#1D9E75" title="Suplementos" subtitle="Tu plan diario personalizado"
-              onPress={() => { haptic.light(); router.push('/supplements' as any); }} />
+              onPress={() => { haptic.light(); router.push('/supplements'); }} />
           </Animated.View>
           )}
 
           {isFeatureVisible('recipes', mode) && (
           <Animated.View entering={FadeInUp.delay(120).springify()}>
             <NavCard icon="bookmark-outline" color="#fbbf24" title="Mis recetas" subtitle="Guarda comidas frecuentes para reusar"
-              onPress={() => { haptic.light(); router.push('/my-recipes' as any); }} />
+              onPress={() => { haptic.light(); router.push('/my-recipes'); }} />
           </Animated.View>
           )}
 
@@ -355,7 +355,7 @@ export default function NutritionScreen() {
           <Animated.View entering={FadeInUp.delay(180).springify()}>
             <NavCard icon="analytics-outline" color="#fb923c" title="Glucosa"
               subtitle={summary.lastGlucose ? `Último: ${summary.lastGlucose} mg/dL` : 'Registrar medición'}
-              onPress={() => { haptic.light(); router.push('/glucose-log' as any); }} />
+              onPress={() => { haptic.light(); router.push('/glucose-log'); }} />
           </Animated.View>
           )}
 
@@ -363,12 +363,12 @@ export default function NutritionScreen() {
           <>
           <Animated.View entering={FadeInUp.delay(200).springify()}>
             <NavCard icon="barcode-outline" color="#a8e02a" title="Escanear etiqueta" subtitle="Foto de producto → aditivos y calidad"
-              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } } as any); }} />
+              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'label' } }); }} />
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(220).springify()}>
             <NavCard icon="medical-outline" color="#fbbf24" title="Evaluar suplemento" subtitle="Evalúa calidad y dosis"
-              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } } as any); }} />
+              onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } }); }} />
           </Animated.View>
           </>
           )}
