@@ -83,4 +83,48 @@ tsc 0 · vitest **1790/1790** · remoto verificado por SQL (188 aplicada, sin CH
 
 ---
 
-*(MB-3 se anexa abajo conforme cierre.)*
+## ✅ MB-3 · FITNESS (3A completo + roturas 3B + 3C hub — time-box aplicado, 2 commits)
+
+### Fase 3A · quirúrgico · `8766fc6`
+- **FIT-1 = NO-OP verificado:** el hub YA dice "ATP FITNESS" (PillarHeader `title="Fitness"`) desde abril — el brief estaba desactualizado (`fitness-hub.tsx:39` era la card "Explorar", no el título). Si en device se ve "ATP EXPLORAR" es la subpantalla `/fitness-explore`, que es correcta.
+- **FIT-2:** "Timer rápido" abría el BUILDER (construir desde cero) → ahora `/timer` (presets 30s/60s/90s/Tabata) con subtítulo honesto. Nota: `timer.tsx` NO tiene HIIT/EMOM estructurados — esos viven en el builder; el subtítulo viejo sobreprometía.
+- **FIT-3:** card CARDIO de HOY → directo a `/log-cardio` (HoyEditorialSection + `VERIFIED_ELECTRON_ROUTES`), no al hub.
+
+### Fase 3B · las 2 roturas reales del journey entrenar · `8766fc6`
+- **`execution.tsx` (rutinas-timer):** al completar guardaba en `mind_sessions` type `'breathing'` (tabla equivocada) y NO otorgaba electrón → el workout no contaba para el pilar. Ahora: `cardio_sessions` con `discipline='other'` (**CHECK verificado por SQL en remoto** — 'other' está permitido) + electrón cardio + emits. Consistente con el verificado (misma tabla que respalda el reconcile).
+- **`log-exercise.tsx` (registro estándar de fuerza):** no otorgaba strength eager (llegaba diferido por reconcile del siguiente compileDay; la card no palomeaba al instante) → award eager + `electrons_changed`, espejo del path de cardio.
+- Verificado OK sin tocar: cardio award (`03ae527`), métodos 3-5/EMOM/Myo, routine-execution (fuerza con PRs), biblioteca (`exercises` table), timer.tsx. `ELECTRON_WEIGHTS`: strength 3.0 · cardio 2.5 — sin anomalías.
+
+### Fase 3C · capa editorial del hub · `c01e3c5`
+Las 3 secciones (Mi Fitness/Entrenar/Explorar) pasan de filas planas a `EditorialCard size="pillar"` (imagen B/N + gradient, mismo molde que health-hub/HOY) con imágenes existentes de `agenda/entrenar` + `cardio`; dato dinámico (PRs/rutinas) en `message`. Hero semanal sex-aware intacto. Cero vacío negro (P2-2/P2-4).
+
+### Time-box (doctrina del plan, aplicada)
+El rebuild profundo 3B restante (arquitectura de info completa, polish de biblioteca, Follow Me, subpantallas my/train/explore a EditorialCard) **se recorta a deuda v2.1** — el plan lo permite explícitamente ("se recorta la biblioteca, NO se extiende el batch") y hacerlo a ciegas sin device test (sin OTA en el away run) sería apostar. **El journey entrenar (rutina→timer→registro→electrones) quedó funcional y honesto — eso era lo no recortable.**
+- Deuda marcada: imágenes dedicadas movilidad/biblioteca no existen (`assets/images/fitness/` vacía) — pedir a MJ; subpantallas fitness-my/train/explore siguen con GradientCard (aceptable, no roto).
+
+### Verificación MB-3
+tsc 0 · vitest **1790/1790** · CHECK de cardio_sessions verificado por SQL.
+
+### Pendiente device (gate MB-3 al regreso)
+- [ ] Fitness → rutina → ejecutar con timer → el workout aparece en cardio_sessions y palomea CARDIO en HOY.
+- [ ] Registrar fuerza → card FUERZA palomea AL INSTANTE.
+- [ ] "Timer rápido" abre timers estándar (no builder).
+- [ ] Card cardio HOY → registro directo.
+- [ ] Hub editorial sin vacío negro.
+- [ ] Rolling smoke 10 min (Fitness no rompió HOY/agenda).
+
+---
+
+# CIERRE DEL AWAY RUN (2026-07-18)
+
+**Los 3 batches pactados COMPLETOS** en `fix/mb0-cimiento` (continuación de MB-0), pusheados por batch, CI verde en cada push. **Cero merge, cero OTA, cero db push** — como se pidió. MB-4 ARGOS y build nativo intactos.
+
+| Batch | Commits | Estado |
+|---|---|---|
+| MB-1 Corazón | 7 (HOY-1, EDAD-ATP+YO-1, agenda P3, Delfín, HOY-2, polish, delivery) | ✅ tsc 0 · 1790 tests |
+| MB-2 Suplementos | 5 (SUP-2+3, SUP-1, SUP-4, #35, delivery) | ✅ tsc 0 · 1790 tests |
+| MB-3 Fitness | 2+cierre (3A+3B, 3C) | ✅ tsc 0 · 1790 tests |
+
+**Al regreso de Enrique, en orden:** (1) device test de los 3 gates con ambas cuentas (la femenina está en `.env.test.local`) · (2) merge a main + `eas update --branch preview` · (3) planear el **BUILD NATIVO ÚNICO** post-MB-1 con `SPIKE_NATIVO_MB0.md` · (4) ninguna migración pendiente de push en este run (todo verificado contra el remoto por SQL).
+
+**Deudas anotadas en este run:** cronotipo madre real sin persistir (columna nueva → post-away-run) · imágenes fitness movilidad/biblioteca (MJ) · subpantallas fitness a EditorialCard (v2.1) · reporte PDF suplementación (T4 del sprint viejo, nunca construido).
