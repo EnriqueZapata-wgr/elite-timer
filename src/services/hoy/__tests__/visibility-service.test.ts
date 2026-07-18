@@ -13,7 +13,7 @@ vi.mock('@/src/lib/supabase', () => ({
 }));
 vi.mock('@/src/lib/logger', () => ({ warn: vi.fn(), error: vi.fn(), log: vi.fn() }));
 
-import { parseVisible, applyToggle, getCardsVisible } from '@/src/services/hoy/visibility-service';
+import { parseVisible, applyToggle, applyManualOverride, getCardsVisible } from '@/src/services/hoy/visibility-service';
 import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
 
 beforeEach(() => { maybeSingle.mockReset(); });
@@ -51,6 +51,37 @@ describe('applyToggle', () => {
     const next = applyToggle(new Set(['uv']), 'fuerza', true);
     expect(next).toContain('fuerza');
     expect(next).toContain('uv');
+  });
+});
+
+describe('applyManualOverride (ítem 1 triple-audit — override aprobado)', () => {
+  const derived = new Set(['uv', 'checkin', 'agua', 'meditacion', 'journal']);
+
+  it('sin config manual (null / no-array) → el motor manda tal cual', () => {
+    expect(applyManualOverride(derived, null)).toEqual(derived);
+    expect(applyManualOverride(derived, undefined)).toEqual(derived);
+    expect(applyManualOverride(derived, 'nope')).toEqual(derived);
+  });
+
+  it('hide explícito del user RESTA una card aunque sea baseline/prescrita', () => {
+    // El user persistió todas MENOS meditacion → meditacion se oculta.
+    const manual = HOY_CARD_ORDER_DEFAULT.filter((k) => k !== 'meditacion');
+    const out = applyManualOverride(derived, manual);
+    expect(out.has('meditacion')).toBe(false);
+    expect(out.has('journal')).toBe(true);
+    expect(out.has('uv')).toBe(true);
+  });
+
+  it('guard anti-vacío: si el override dejara 0 cards, gana el derivado', () => {
+    expect(applyManualOverride(derived, [])).toEqual(derived);
+  });
+
+  it('cards derivadas fuera del catálogo HOY no se ven afectadas por el array manual', () => {
+    const withExtra = new Set([...derived, 'card_futura']);
+    const manual = HOY_CARD_ORDER_DEFAULT.filter((k) => k !== 'uv');
+    const out = applyManualOverride(withExtra, manual);
+    expect(out.has('card_futura')).toBe(true);
+    expect(out.has('uv')).toBe(false);
   });
 });
 

@@ -18,6 +18,24 @@ export function parseVisible(raw: unknown): Set<string> {
   return new Set(keys);
 }
 
+/**
+ * PURO — ítem 1 triple-audit (override aprobado): la config manual es una CAPA
+ * DE OVERRIDE que el motor respeta. Con protocolo activo, la visibilidad parte
+ * del set derivado (baseline ∪ prescritas) y se le RESTAN los hides EXPLÍCITOS
+ * del user (cards del catálogo HOY ausentes de su array persistido). Guiado,
+ * no prisionero: puedes ocultar una card aunque el motor la prescriba.
+ * - Sin config manual persistida (null/no-array) → el motor manda tal cual.
+ * - Guard anti-vacío: si el override dejara 0 cards, gana el derivado.
+ */
+export function applyManualOverride(derived: Set<string>, manualRaw: unknown): Set<string> {
+  if (!Array.isArray(manualRaw)) return derived;
+  const manualVisible = new Set(manualRaw.filter((k): k is string => typeof k === 'string'));
+  const out = new Set(
+    [...derived].filter((k) => !HOY_CARD_ORDER_DEFAULT.includes(k) || manualVisible.has(k)),
+  );
+  return out.size > 0 ? out : derived;
+}
+
 /** PURO: aplica un toggle a un array de visibles y devuelve el nuevo array (en orden canónico). */
 export function applyToggle(current: Set<string>, cardKey: string, visible: boolean): string[] {
   const next = new Set(current);
@@ -26,16 +44,21 @@ export function applyToggle(current: Set<string>, cardKey: string, visible: bool
   return HOY_CARD_ORDER_DEFAULT.filter((k) => next.has(k));
 }
 
+/** Lee el valor CRUDO de la config manual (undefined si falla — fail-soft). */
+async function readManualRaw(userId: string): Promise<unknown> {
+  const { data, error } = await supabase
+    .from('client_profiles')
+    .select('hoy_cards_visible')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) { logWarn('[hoy-visibility] readManualRaw failed:', error); return undefined; }
+  return (data as any)?.hoy_cards_visible;
+}
+
 /** Lee el set de cards visibles del usuario. Default (todas) si falla / no hay fila. */
 export async function getCardsVisible(userId: string): Promise<Set<string>> {
   try {
-    const { data, error } = await supabase
-      .from('client_profiles')
-      .select('hoy_cards_visible')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (error) { logWarn('[hoy-visibility] getCardsVisible failed:', error); return new Set(HOY_CARD_ORDER_DEFAULT); }
-    return parseVisible((data as any)?.hoy_cards_visible);
+    return parseVisible(await readManualRaw(userId));
   } catch (err) {
     logWarn('[hoy-visibility] getCardsVisible threw:', err);
     return new Set(HOY_CARD_ORDER_DEFAULT);
@@ -54,7 +77,13 @@ export async function getEffectiveCardsVisible(userId: string): Promise<Set<stri
     const { getMyProtocol } = await import('@/src/services/interventions/intervention-service');
     const protocol = await getMyProtocol(userId);
     const derived = deriveProtocolDrivenVisible(protocol.map((p) => p.def?.name ?? ''));
-    if (derived) return derived;
+    if (derived) {
+      // Ítem 1 triple-audit: los toggles de "Configura HOY" vuelven a significar
+      // algo — el set del motor respeta los hides manuales del user.
+      let manualRaw: unknown;
+      try { manualRaw = await readManualRaw(userId); } catch { manualRaw = undefined; }
+      return applyManualOverride(derived, manualRaw);
+    }
   } catch (err) {
     logWarn('[hoy-visibility] getEffectiveCardsVisible fallback a manual:', err);
   }
