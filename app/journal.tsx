@@ -22,7 +22,7 @@ import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG, ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
 import { router, useFocusEffect } from 'expo-router';
 import * as Notifications from 'expo-notifications';
@@ -30,7 +30,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ═══ CONSTANTES ═══
 
-const PURPLE = '#7F77DD';
+const PURPLE = CATEGORY_COLORS.mind;
 // #138: hero editorial del pilar (require estático · Metro). Journal reusa mente.jpg.
 const HERO_MENTE = require('@/assets/images/intervenciones/mente.jpg');
 
@@ -430,13 +430,13 @@ export default function JournalScreen() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Pressable onPress={() => setReminderPickerOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <EliteText variant="caption" style={{ color: PURPLE, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{reminderTime}</EliteText>
-              <Ionicons name="pencil-outline" size={12} color={PURPLE} />
+              <EliteText variant="caption" style={{ color: ATP_BRAND.teal, fontSize: FontSizes.sm, fontFamily: Fonts.bold }}>{reminderTime}</EliteText>
+              <Ionicons name="pencil-outline" size={12} color={ATP_BRAND.teal} />
             </Pressable>
             <Switch
               value={reminderEnabled}
               onValueChange={toggleReminder}
-              trackColor={{ true: PURPLE, false: '#333' }}
+              trackColor={{ true: ATP_BRAND.teal, false: '#333' }}
               thumbColor="#fff"
             />
           </View>

@@ -46,7 +46,6 @@ type ScanMode = 'food' | 'label' | 'supplement';
 type Step = 'capture' | 'preview' | 'analyzing' | 'result';
 
 const BLUE = CATEGORY_COLORS.nutrition;
-const PURPLE = CATEGORY_COLORS.mind;
 const { width: SW } = Dimensions.get('window');
 const PHOTO_SIZE = SW - Spacing.lg * 2;
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -71,7 +70,7 @@ const HUNGER_OPTIONS = [
 const MODE_CFG = {
   food: { title: 'Escanear Comida', icon: 'camera-outline' as const, color: BLUE },
   label: { title: 'Escanear Etiqueta', icon: 'barcode-outline' as const, color: SEMANTIC.warning },
-  supplement: { title: 'Escanear Suplemento', icon: 'medkit-outline' as const, color: PURPLE },
+  supplement: { title: 'Escanear Suplemento', icon: 'medkit-outline' as const, color: ATP_BRAND.teal },
 };
 
 const LABEL_CONTEXT = [

@@ -31,7 +31,7 @@ import {
 } from '@/src/data/meditation-library';
 import { phaseIndexAt } from '@/src/services/meditation-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, ATP_BRAND } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
@@ -258,7 +258,7 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
     return (
       <SafeAreaView style={styles.screen}>
         <View style={styles.completedContainer}>
-          <Ionicons name="checkmark-circle" size={64} color={PURPLE} />
+          <Ionicons name="checkmark-circle" size={64} color={ATP_BRAND.lime} />
           <EliteText style={styles.completedTitle}>Meditación completada</EliteText>
           <EliteText variant="caption" style={styles.completedSub}>
             {meditation.title} · {m > 0 ? `${m}m ${s}s` : `${s}s`}
@@ -423,12 +423,12 @@ const styles = StyleSheet.create({
   // Controles
   controls: { alignItems: 'center', gap: Spacing.md },
   mainBtn: {
-    backgroundColor: PURPLE, paddingHorizontal: Spacing.xl + Spacing.lg,
+    backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.xl + Spacing.lg,
     paddingVertical: Spacing.md, borderRadius: Radius.pill,
-    shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
+    shadowColor: ATP_BRAND.lime, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  mainBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
+  mainBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
   endBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
   endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, letterSpacing: 2 },
 
@@ -443,8 +443,8 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.lg, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
   },
   doneBtn: {
-    borderWidth: 1, borderColor: PURPLE + '40', borderRadius: Radius.pill,
+    borderWidth: 1, borderColor: ATP_BRAND.teal + '55', borderRadius: Radius.pill,
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2,
   },
-  doneBtnText: { color: PURPLE, fontFamily: Fonts.bold, letterSpacing: 2 },
+  doneBtnText: { color: ATP_BRAND.teal, fontFamily: Fonts.bold, letterSpacing: 2 },
 });

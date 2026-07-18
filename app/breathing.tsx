@@ -29,7 +29,7 @@ import {
   type BreathStep,
 } from '@/src/services/breath-timer-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, ATP_BRAND } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
@@ -184,7 +184,7 @@ function SelectorScreen({ onSelect, onBack }: {
                     )}
                   </View>
                 </View>
-                <Ionicons name="play-circle-outline" size={28} color={PURPLE} />
+                <Ionicons name="play-circle-outline" size={28} color={ATP_BRAND.teal} />
               </View>
             </AnimatedPressable>
           </AnimatedRN.View>
@@ -306,7 +306,7 @@ function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
           disabled={value <= min}
           style={[styles.configStepBtn, value <= min && { opacity: 0.3 }]}
         >
-          <Ionicons name="remove" size={18} color={PURPLE} />
+          <Ionicons name="remove" size={18} color={ATP_BRAND.teal} />
         </Pressable>
         <EliteText style={styles.configStepValue}>{value}<EliteText style={styles.configStepUnit}>s</EliteText></EliteText>
         <Pressable
@@ -314,7 +314,7 @@ function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
           disabled={value >= max}
           style={[styles.configStepBtn, value >= max && { opacity: 0.3 }]}
         >
-          <Ionicons name="add" size={18} color={PURPLE} />
+          <Ionicons name="add" size={18} color={ATP_BRAND.teal} />
         </Pressable>
       </View>
     </View>
@@ -692,12 +692,12 @@ const styles = StyleSheet.create({
   // Controles
   controls: { alignItems: 'center', gap: Spacing.md },
   mainBtn: {
-    backgroundColor: PURPLE, paddingHorizontal: Spacing.xl + Spacing.lg,
+    backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.xl + Spacing.lg,
     paddingVertical: Spacing.md, borderRadius: Radius.pill,
-    shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
+    shadowColor: ATP_BRAND.lime, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  mainBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
+  mainBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
   endBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
   endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, letterSpacing: 2 },
 
@@ -712,10 +712,10 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.lg, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
   },
   doneBtn: {
-    borderWidth: 1, borderColor: PURPLE + '40', borderRadius: Radius.pill,
+    borderWidth: 1, borderColor: ATP_BRAND.teal + '55', borderRadius: Radius.pill,
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2,
   },
-  doneBtnText: { color: PURPLE, fontFamily: Fonts.bold, letterSpacing: 2 },
+  doneBtnText: { color: ATP_BRAND.teal, fontFamily: Fonts.bold, letterSpacing: 2 },
 
   // Config
   configContainer: {
@@ -736,7 +736,7 @@ const styles = StyleSheet.create({
   configRowLabel: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: Colors.textPrimary },
   configStepper: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   configStepBtn: {
-    width: 44, height: 44, borderRadius: Radius.lg, borderWidth: 1, borderColor: PURPLE + '40',
+    width: 44, height: 44, borderRadius: Radius.lg, borderWidth: 1, borderColor: ATP_BRAND.teal + '55',
     alignItems: 'center', justifyContent: 'center',
   },
   configStepValue: {
@@ -749,10 +749,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
   },
   configStartBtn: {
-    backgroundColor: PURPLE, paddingHorizontal: Spacing.xl + Spacing.lg,
+    backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.xl + Spacing.lg,
     paddingVertical: Spacing.md, borderRadius: Radius.pill,
-    shadowColor: PURPLE, shadowOffset: { width: 0, height: 4 },
+    shadowColor: ATP_BRAND.lime, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
   },
-  configStartBtnText: { color: TEXT_COLORS.primary, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
+  configStartBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
 });
