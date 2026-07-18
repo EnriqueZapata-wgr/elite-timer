@@ -34,6 +34,7 @@ import { ROOT_LABELS, type InterventionRoot } from '@/src/constants/intervention
 // V7/V6 (edad-atp-v2-service) queda INTOCADO — solo se LEE el resultado.
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
+import { formatEdadDeltaValue } from '@/src/services/edad-atp/edad-delta-core';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
@@ -254,14 +255,9 @@ export default function DiagnosticoScreen() {
                   <View style={{ flex: 1 }}>
                     <EliteText style={styles.edadNum}>{edadAtp.edad.toFixed(1)} <EliteText style={styles.edadUnit}>años biológicos</EliteText></EliteText>
                     <EliteText style={styles.edadMeta}>
-                      {/* delta_anos = cron − integral: POSITIVO = más joven (motor V2).
-                          MB-1 EDAD-ATP: el signo estaba leído al revés y le decía
-                          "sobre tu edad real" a quien está más joven. */}
-                      {Math.abs(edadAtp.delta) < 0.05
-                        ? 'en línea con tu edad real'
-                        : edadAtp.delta > 0
-                          ? `${edadAtp.delta.toFixed(1)} años más joven que tu edad real`
-                          : `${Math.abs(edadAtp.delta).toFixed(1)} años sobre tu edad real`}
+                      {/* P1.6: el signo del delta vive en edad-delta-core (aquí se
+                          mostró invertido una vez — nunca más se calcula a mano). */}
+                      {formatEdadDeltaValue(edadAtp.delta)}
                       {'  ·  '}CE {Math.round(edadAtp.ce)}%
                     </EliteText>
                   </View>

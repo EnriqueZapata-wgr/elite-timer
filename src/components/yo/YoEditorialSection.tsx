@@ -16,6 +16,7 @@ import { useRouter , type Href } from 'expo-router';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { pickCronotipoImage, pickEdadAtpImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
 import { tierFromLifetime, nextTierInfo } from '@/src/services/economy/rank-tiers';
+import { formatEdadDelta } from '@/src/services/edad-atp/edad-delta-core';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 
 /** Emoji + nombre/desc por cronotipo (EditorialCard renderiza el icono como texto → emoji). */
@@ -65,9 +66,9 @@ export function YoEditorialSection({ sex, chronotype, edadResult, momentum, life
   const tier = tierFromLifetime(lifetime);
   const { next, remaining } = nextTierInfo(lifetime);
 
-  // Delta con la convención del motor V2: cron − integral, POSITIVO = más joven.
-  const edadDelta = edadResult
-    ? Math.round((edadResult.chronological_age - edadResult.edad_integral) * 10) / 10
+  // P1.6: signo y copy del delta viven en edad-delta-core (anti-reinversión).
+  const edadDeltaMsg = edadResult
+    ? formatEdadDelta(edadResult.chronological_age, edadResult.edad_integral)
     : null;
 
   return (
@@ -78,13 +79,7 @@ export function YoEditorialSection({ sex, chronotype, edadResult, momentum, life
       <EditorialCard
         cardKey="yo_edad_atp" icon="🧬" title="EDAD ATP"
         subtitle={edadResult ? `${edadResult.edad_integral.toFixed(1)} años biológicos` : '¿Cuántos años tiene tu cuerpo?'}
-        message={edadResult
-          ? (edadDelta! > 0.05
-            ? `${edadDelta!.toFixed(1)} años más joven que tu edad real`
-            : edadDelta! < -0.05
-              ? `${Math.abs(edadDelta!).toFixed(1)} años sobre tu edad real`
-              : 'En línea con tu edad real')
-          : 'Calcula tu edad biológica integral'}
+        message={edadDeltaMsg ?? 'Calcula tu edad biológica integral'}
         gradient={['#1ABC9C', '#16A085']}
         imageBn={pickEdadAtpImage(sex)}
         onTap={() => go(edadResult ? '/edad-atp/result-preview' : '/edad-atp')}

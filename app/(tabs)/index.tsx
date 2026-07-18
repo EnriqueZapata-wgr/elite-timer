@@ -55,6 +55,7 @@ import {
   getHeroRecommendation, HERO_CACHE_MS,
   type HeroContext, type HeroRecommendation, type CyclePhase,
 } from '@/src/services/hero-recommendation-service';
+import { edadDeltaYears } from '@/src/services/edad-atp/edad-delta-core';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { getActiveFast } from '@/src/services/fasting-service';
 import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
@@ -269,7 +270,11 @@ export default function TodayScreen() {
     }
     if (fastRes.status === 'fulfilled') fastingActive = !!fastRes.value;
     if (edadRes.status === 'fulfilled' && edadRes.value?.data?.edad_integral != null) {
-      edadAtpDelta = Number(edadRes.value.data.chronological_age) - Number(edadRes.value.data.edad_integral);
+      // P1.6: signo del delta desde el core (anti-reinversión del número estrella).
+      edadAtpDelta = edadDeltaYears(
+        Number(edadRes.value.data.chronological_age),
+        Number(edadRes.value.data.edad_integral),
+      );
     }
 
     const quant = (k: string) => compiled.quantitativeElectrons.find(e => e.source === k);

@@ -4,6 +4,7 @@
  */
 import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
+import { edadDeltaYears, classifyEdadDelta } from '@/src/services/edad-atp/edad-delta-core';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
 
@@ -16,10 +17,14 @@ const DIMS = [
 ] as const;
 
 export function EdadAtpShareCard({ result, format = 'story' }: { result: EdadAtpV2Result; format?: 'story' | 'square' }) {
-  const delta = Math.round((result.edad_integral - result.chronological_age) * 10) / 10;
-  const highlight = delta < 0
+  // P1.6: signo desde edad-delta-core (aquí el delta local estaba con la
+  // convención OPUESTA al motor — correcto de chiripa). El copy celebratorio
+  // del share se conserva; solo la clasificación viene del core.
+  const delta = edadDeltaYears(result.chronological_age, result.edad_integral);
+  const cls = classifyEdadDelta(delta);
+  const highlight = cls === 'younger'
     ? `${Math.abs(delta)} años más joven que tu edad real`
-    : delta > 0 ? `Trabajemos: ${delta} años por mejorar` : 'En línea con tu edad real';
+    : cls === 'older' ? `Trabajemos: ${Math.abs(delta)} años por mejorar` : 'En línea con tu edad real';
 
   return (
     <View style={[styles.card, format === 'story' ? styles.story : styles.square]}>
