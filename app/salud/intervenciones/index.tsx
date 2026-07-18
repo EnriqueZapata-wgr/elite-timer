@@ -205,79 +205,19 @@ export default function IntervencionesScreen() {
               </Animated.View>
             )}
 
-            {/* ── TUS PRESCRITAS POR ATP · motor de personalización (Fase B) ── */}
-            {(() => {
-              const activeKeys = new Set(protocol.map((p) => p.row.intervention_key));
-              const contextNote = prescriptions.find((p) => p.contextNote)?.contextNote;
-              return (
-                <Animated.View entering={FadeInUp.delay(30).springify()}>
-                  <View style={styles.rxHeaderRow}>
-                    <SectionTitle containerStyle={{ marginBottom: 0 }}>
-                      {`TUS PRESCRITAS POR ATP${prescriptions.length ? ` · ${prescriptions.length}` : ''}`}
-                    </SectionTitle>
-                    <AnimatedPressable
-                      onPress={onRecalculate}
-                      disabled={recalculating}
-                      style={styles.recalcBtn}
-                      hitSlop={6}
-                    >
-                      {recalculating
-                        ? <ActivityIndicator size="small" color={ATP_BRAND.lime} />
-                        : <Ionicons name="refresh" size={13} color={ATP_BRAND.lime} />}
-                      <EliteText style={styles.recalcText}>
-                        {recalculating ? 'Calculando…' : 'Recalcular'}
-                      </EliteText>
-                    </AnimatedPressable>
-                  </View>
+            {/* ── HOY-2 (MB-1): journey primero — la pregunta al entrar es "¿qué es
+                MI protocolo?", así que LO TUYO va arriba. Las propuestas del motor
+                van después, sin duplicar lo que ya activaste, y el copy acompaña
+                en vez de regañar. Misma lógica de datos; rediseño presentacional. ── */}
 
-                  {prescriptions.length === 0 ? (
-                    <View style={styles.emptyBox}>
-                      <EliteText style={styles.emptyText}>
-                        ATP aún no ha calculado tu prescripción. Toca “Recalcular” para que
-                        el motor lea tu fenotipo (DX, Braverman, labs, ciclo) y elija las 5
-                        que más mueven la aguja para ti.
-                      </EliteText>
-                    </View>
-                  ) : (
-                    <>
-                      {prescriptions.map((rx, idx) => (
-                        <PrescriptionCard
-                          key={`${rx.intervention.key}-${rx.rank}`}
-                          prescription={rx}
-                          index={idx}
-                          isActive={activeKeys.has(rx.intervention.key)}
-                          busy={busyKey === rx.intervention.key}
-                          onActivate={onActivatePrescription}
-                          onOpenDetail={(key) => { haptic.light(); router.push(`/salud/intervenciones/${key}`); }}
-                        />
-                      ))}
-                      {/* B.5 · warning del motor (doctrina Humby 9+ activas) */}
-                      {contextNote && (
-                        <View style={styles.contextNote}>
-                          <Ionicons name="alert-circle-outline" size={15} color="#F59E0B" />
-                          <EliteText style={styles.contextNoteText}>{contextNote}</EliteText>
-                        </View>
-                      )}
-                      {/* B.4 · copy de cierre "las otras 83 existen pero no mueven la aguja" */}
-                      <EliteText style={styles.rxClosing}>
-                        Estas son las {prescriptions.length} que ATP prioriza para tu perfil hoy.
-                        Las demás del catálogo existen y son válidas, pero para tu fenotipo actual
-                        no mueven la aguja tanto. Cuando subas de nivel o cambien tus datos, ATP recalcula.
-                      </EliteText>
-                    </>
-                  )}
-                </Animated.View>
-              );
-            })()}
-
-            {/* ── MI PROTOCOLO (activas) ── */}
-            <Animated.View entering={FadeInUp.delay(40).springify()}>
-              <SectionTitle containerStyle={{ marginTop: Spacing.xl }}>MI PROTOCOLO</SectionTitle>
+            {/* ── MI PROTOCOLO (activas) — lo tuyo, primero ── */}
+            <Animated.View entering={FadeInUp.delay(30).springify()}>
+              <SectionTitle>{`MI PROTOCOLO${protocol.length ? ` · ${protocol.length}` : ''}`}</SectionTitle>
               {protocol.length === 0 && (
                 <View style={styles.emptyBox}>
                   <EliteText style={styles.emptyText}>
-                    Aún no tienes intervenciones activas. Activa las sugeridas de abajo
-                    para armar tu protocolo — sin límite.
+                    Aún no tienes intervenciones activas. Abajo están las que ATP
+                    propone para tu perfil — actívalas con un tap y tu día se arma solo.
                   </EliteText>
                 </View>
               )}
@@ -334,26 +274,104 @@ export default function IntervencionesScreen() {
               })}
             </Animated.View>
 
-            {/* 1.5-D UX progresiva (sin límite duro): cuenta el TOTAL de activas. */}
+            {/* 1.5-D UX progresiva (sin límite duro): cuenta el TOTAL de activas.
+                HOY-2: tono aliado — se acompaña, no se regaña. */}
             {(() => {
               const load = protocolLoadHint(protocol);
               if (load.hint === 'soft') {
                 return (
                   <EliteText style={styles.humbyHint}>
-                    Trabajas {load.activeCount} · ATP recomienda enfocarte
-                    en 5-7 para lograr consistencia.
+                    Trabajas {load.activeCount} a la vez. Un protocolo de 5-7 se
+                    cumple más — la consistencia gana a la cantidad.
                   </EliteText>
                 );
               }
               if (load.hint === 'strong') {
                 return (
                   <EliteText style={[styles.humbyHint, styles.humbyWarn]}>
-                    Cargas {load.activeCount} intervenciones · considera
-                    pausar algunas para lograr consistencia. Menos, mejor.
+                    Trabajas {load.activeCount} a la vez. Si esta semana alguna no
+                    va contigo, páusala sin culpa — sigue aquí para cuando toque.
+                    Enfocarte en 5-7 hace que se cumplan.
                   </EliteText>
                 );
               }
               return null;
+            })()}
+
+            {/* ── ATP TE PROPONE · motor de personalización (Fase B) — solo las
+                que aún NO están en tu protocolo (cero duplicados con la lista
+                de arriba). ── */}
+            {(() => {
+              const activeKeys = new Set(protocol.map((p) => p.row.intervention_key));
+              const pending = prescriptions.filter((rx) => !activeKeys.has(rx.intervention.key));
+              const activeRxCount = prescriptions.length - pending.length;
+              const contextNote = prescriptions.find((p) => p.contextNote)?.contextNote;
+              return (
+                <Animated.View entering={FadeInUp.delay(40).springify()}>
+                  <View style={[styles.rxHeaderRow, { marginTop: Spacing.xl }]}>
+                    <SectionTitle containerStyle={{ marginBottom: 0 }}>
+                      {`ATP TE PROPONE${pending.length ? ` · ${pending.length}` : ''}`}
+                    </SectionTitle>
+                    <AnimatedPressable
+                      onPress={onRecalculate}
+                      disabled={recalculating}
+                      style={styles.recalcBtn}
+                      hitSlop={6}
+                    >
+                      {recalculating
+                        ? <ActivityIndicator size="small" color={ATP_BRAND.lime} />
+                        : <Ionicons name="refresh" size={13} color={ATP_BRAND.lime} />}
+                      <EliteText style={styles.recalcText}>
+                        {recalculating ? 'Leyendo tus datos…' : 'Actualizar'}
+                      </EliteText>
+                    </AnimatedPressable>
+                  </View>
+
+                  {prescriptions.length === 0 ? (
+                    <View style={styles.emptyBox}>
+                      <EliteText style={styles.emptyText}>
+                        ATP aún no ha calculado tu propuesta. Toca “Actualizar” para que
+                        el motor lea tu fenotipo (DX, Braverman, labs, ciclo) y elija las 5
+                        que más mueven TU aguja.
+                      </EliteText>
+                    </View>
+                  ) : (
+                    <>
+                      {activeRxCount > 0 && (
+                        <EliteText style={styles.rxActiveNote}>
+                          ✓ {activeRxCount === prescriptions.length
+                            ? `Tus ${activeRxCount} propuestas ya están en tu protocolo`
+                            : `${activeRxCount} de ${prescriptions.length} ya en tu protocolo`}
+                        </EliteText>
+                      )}
+                      {pending.map((rx, idx) => (
+                        <PrescriptionCard
+                          key={`${rx.intervention.key}-${rx.rank}`}
+                          prescription={rx}
+                          index={idx}
+                          isActive={false}
+                          busy={busyKey === rx.intervention.key}
+                          onActivate={onActivatePrescription}
+                          onOpenDetail={(key) => { haptic.light(); router.push(`/salud/intervenciones/${key}`); }}
+                        />
+                      ))}
+                      {/* B.5 · warning del motor (doctrina Humby 9+ activas) */}
+                      {contextNote && (
+                        <View style={styles.contextNote}>
+                          <Ionicons name="alert-circle-outline" size={15} color="#F59E0B" />
+                          <EliteText style={styles.contextNoteText}>{contextNote}</EliteText>
+                        </View>
+                      )}
+                      {/* B.4 · cierre en positivo: por qué ESTAS y no las otras 83 */}
+                      <EliteText style={styles.rxClosing}>
+                        Estas son las {prescriptions.length} que más mueven TU aguja hoy, según
+                        tus datos. El resto del catálogo sigue disponible abajo — y cuando tus
+                        datos cambien, ATP actualiza la selección.
+                      </EliteText>
+                    </>
+                  )}
+                </Animated.View>
+              );
             })()}
 
             {/* ── EXPLORAR CATÁLOGO COMPLETO (colapsable) — el resto de sugeridas ── */}
@@ -507,6 +525,10 @@ const styles = StyleSheet.create({
   rxClosing: {
     fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary,
     lineHeight: 17, marginTop: Spacing.sm, marginBottom: Spacing.xs, fontStyle: 'italic',
+  },
+  rxActiveNote: {
+    fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: ATP_BRAND.lime,
+    marginBottom: Spacing.xs,
   },
   contextNote: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
