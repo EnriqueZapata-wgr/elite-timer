@@ -14,7 +14,7 @@
  */
 import { useRouter , type Href } from 'expo-router';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
-import { pickCronotipoImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
+import { pickCronotipoImage, pickEdadAtpImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
 import { tierFromLifetime, nextTierInfo } from '@/src/services/economy/rank-tiers';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 
@@ -41,9 +41,9 @@ interface CompositionLike {
 }
 
 interface Props {
-  // Mega-Sprint B B6: sex/edadResult/composition ya no se usan aquí (las cards de
-  // salud se movieron al pilar Salud Funcional). Se mantienen en el contrato para
-  // no romper el call site de yo.tsx; quedan aceptados e ignorados.
+  // YO-1 (MB-1): sex y edadResult vuelven a usarse — la card EDAD ATP regresa a YO
+  // como PRIMER dato desplegado (el número estrella vive donde vive la identidad).
+  // composition sigue aceptada e ignorada (las cards de salud quedaron en Salud Funcional).
   sex?: string | null;
   chronotype?: string | null;
   edadResult?: EdadAtpV2Result | null;
@@ -54,7 +54,7 @@ interface Props {
   lifetimeElectrons?: number | null;
 }
 
-export function YoEditorialSection({ chronotype, momentum, lifetimeElectrons }: Props) {
+export function YoEditorialSection({ sex, chronotype, edadResult, momentum, lifetimeElectrons }: Props) {
   const router = useRouter();
   const go = (route: Href) => router.push(route);
   const chrono = chronotype ? CHRONO_META[chronotype] : null;
@@ -64,8 +64,31 @@ export function YoEditorialSection({ chronotype, momentum, lifetimeElectrons }: 
   const tier = tierFromLifetime(lifetime);
   const { next, remaining } = nextTierInfo(lifetime);
 
+  // Delta con la convención del motor V2: cron − integral, POSITIVO = más joven.
+  const edadDelta = edadResult
+    ? Math.round((edadResult.chronological_age - edadResult.edad_integral) * 10) / 10
+    : null;
+
   return (
     <>
+      {/* 0. EDAD ATP — el número estrella, PRIMER dato de YO (YO-1 MB-1).
+          Con resultado: edad biológica + delta → result-preview. Sin CE suficiente:
+          CTA de cálculo → hub edad-atp. */}
+      <EditorialCard
+        cardKey="yo_edad_atp" icon="🧬" title="EDAD ATP"
+        subtitle={edadResult ? `${edadResult.edad_integral.toFixed(1)} años biológicos` : '¿Cuántos años tiene tu cuerpo?'}
+        message={edadResult
+          ? (edadDelta! > 0.05
+            ? `${edadDelta!.toFixed(1)} años más joven que tu edad real`
+            : edadDelta! < -0.05
+              ? `${Math.abs(edadDelta!).toFixed(1)} años sobre tu edad real`
+              : 'En línea con tu edad real')
+          : 'Calcula tu edad biológica integral'}
+        gradient={['#1ABC9C', '#16A085']}
+        imageBn={pickEdadAtpImage(sex)}
+        onTap={() => go(edadResult ? '/edad-atp/result-preview' : '/edad-atp')}
+      />
+
       {/* 1. HERO DE ESTADO — tu momentum semanal, editorial (dato antes que link) */}
       <EditorialCard
         cardKey="yo_disciplina" icon="🔥" title="DISCIPLINA ATP"

@@ -254,9 +254,14 @@ export default function DiagnosticoScreen() {
                   <View style={{ flex: 1 }}>
                     <EliteText style={styles.edadNum}>{edadAtp.edad.toFixed(1)} <EliteText style={styles.edadUnit}>años biológicos</EliteText></EliteText>
                     <EliteText style={styles.edadMeta}>
-                      {edadAtp.delta <= 0
-                        ? `${Math.abs(edadAtp.delta).toFixed(1)} años más joven que tu edad real`
-                        : `${edadAtp.delta.toFixed(1)} años sobre tu edad real`}
+                      {/* delta_anos = cron − integral: POSITIVO = más joven (motor V2).
+                          MB-1 EDAD-ATP: el signo estaba leído al revés y le decía
+                          "sobre tu edad real" a quien está más joven. */}
+                      {Math.abs(edadAtp.delta) < 0.05
+                        ? 'en línea con tu edad real'
+                        : edadAtp.delta > 0
+                          ? `${edadAtp.delta.toFixed(1)} años más joven que tu edad real`
+                          : `${Math.abs(edadAtp.delta).toFixed(1)} años sobre tu edad real`}
                       {'  ·  '}CE {Math.round(edadAtp.ce)}%
                     </EliteText>
                   </View>
