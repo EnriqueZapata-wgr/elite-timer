@@ -5,9 +5,12 @@
  */
 import { isOnboardingPath } from '@/src/components/argos/argos-floating-core';
 
-/** HOME-1 (MB-0): el botón solo sobra donde YA estás en HOY. En /yo y /kit
- * (tabs hermanos) SÍ se muestra — persistente en toda la app menos HOY. */
-const HOY_PATHS = new Set(['/', '/index']);
+/** Triple-audit P1.2: el botón se oculta en TODOS los tabs — en /yo y /kit el
+ * tab bar ya da Home y la casita (top-left, insets.top+52) tapaba los headers
+ * propios de esos tabs ("TU ECOSISTEMA" en kit → se leía "OSISTEMA"). El
+ * top-left queda solo para pantallas profundas del Stack, que era el problema
+ * original de navegación. */
+const TAB_PATHS = new Set(['/', '/index', '/yo', '/kit']);
 
 export interface HomeVisibilityInput {
   pathname: string | null | undefined;
@@ -16,14 +19,14 @@ export interface HomeVisibilityInput {
 
 /**
  * Decide si el botón Home debe ocultarse:
- *  1. En HOY → ya estás en Home (único tab exento — HOME-1).
+ *  1. En tabs (HOY/yo/kit) → el tab bar ya resuelve Home y la casita tapa headers.
  *  2. Onboarding / auth / Meet ARGOS → no estorbar el funnel (mismo criterio que ARGOS).
  *  3. Chat ARGOS → el input vive abajo; no taparlo.
  *  4. Teclado abierto → no tapar inputs.
  */
 export function shouldHideHomeButton(input: HomeVisibilityInput): boolean {
   const p = (input.pathname ?? '/').toLowerCase();
-  if (HOY_PATHS.has(p)) return true;
+  if (TAB_PATHS.has(p)) return true;
   if (isOnboardingPath(p)) return true;
   if (p.includes('argos-chat')) return true;
   if (input.keyboardVisible) return true;
