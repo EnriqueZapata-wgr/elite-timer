@@ -8,11 +8,12 @@
  */
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { Screen } from '@/src/components/ui/Screen';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { loadUserSymptoms } from '@/src/services/salud/user-symptoms-service';
@@ -30,6 +31,7 @@ const EMPTY: TimelineSources = { symptoms: [], interventionsActivated: [], labs:
 
 function MiExpedienteScreen() {
   const { user } = useAuth();
+  const router = useRouter();
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -72,12 +74,14 @@ function MiExpedienteScreen() {
         </Animated.View>
 
         {loaded && events.length === 0 && (
-          <View style={s.emptyBox}>
-            <EliteText style={s.emptyText}>
-              Tu expediente está vacío. Registra síntomas, activa intervenciones o sube labs —
-              cada acción queda aquí, en orden.
-            </EliteText>
-          </View>
+          <EmptyState
+            icon="document-text-outline"
+            title="Tu expediente está vacío"
+            subtitle="Registra síntomas, activa intervenciones o sube labs — cada acción queda aquí, en orden cronológico."
+            actionLabel="Registrar un síntoma"
+            onAction={() => router.push('/salud/sintomas')}
+            color="#1D9E75"
+          />
         )}
 
         {groups.map((g, gi) => (
@@ -107,8 +111,6 @@ function MiExpedienteScreen() {
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md },
   subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.lg, marginTop: Spacing.xs, fontFamily: Fonts.regular },
-  emptyBox: { backgroundColor: ELEVATION[1].bg, borderWidth: 0.5, borderColor: ELEVATION[1].border, borderRadius: Radius.md, padding: Spacing.md },
-  emptyText: { color: TEXT.tertiary, fontSize: FontSizes.sm, fontFamily: Fonts.regular, lineHeight: 20 },
   monthLabel: { color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 2, marginTop: Spacing.lg, marginBottom: Spacing.sm },
   eventRow: { flexDirection: 'row', gap: Spacing.sm },
   eventLeft: { alignItems: 'center', width: 28 },
