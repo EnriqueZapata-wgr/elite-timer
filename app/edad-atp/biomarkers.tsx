@@ -23,6 +23,8 @@ import { loadCanonicalLabValues } from '@/src/services/edad-atp/lab-values-servi
 import { canonicalParameterKey, CANONICAL_PCT_KEYS, decimalToPct } from '@/src/constants/lab-canonical-map';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
+import { getCycleInfo } from '@/src/services/cycle-service';
+import { deriveLabCycleContext, type CyclePhase } from '@/src/services/salud/lab-cycle-context-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // key = biomarker_key (edad_atp_biomarkers). labCol = columna en lab_results si difiere.
@@ -83,6 +85,20 @@ export default function BiomarkersCapture() {
   // Edición inline de UN toque (#16): qué fila disponible se está editando + cuál guardando.
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+  // MB-7: fase del ciclo para contextualizar labs hormonales. isFemale se lee
+  // DIRECTO de biological_sex (no de getCycleInfo, que devuelve null también
+  // para una mujer SIN periodos registrados — justo el caso donde queremos
+  // mostrar "fase desconocida"). La fase viene de getCycleInfo (ya gateado).
+  const [cyclePhase, setCyclePhase] = useState<CyclePhase | null>(null);
+  const [isFemale, setIsFemale] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => setIsFemale((data as any)?.biological_sex === 'female'));
+    getCycleInfo(user.id)
+      .then((info) => setCyclePhase((info?.currentPhase as CyclePhase) ?? null))
+      .catch(() => { /* fail-soft: sin contexto de ciclo */ });
+  }, [user?.id]);
 
   // Capa 7: captura manual desde un upload fallido — muestra de qué archivo y permite verlo.
   const { sourceUploadId, sourceFileName } = useLocalSearchParams<{ sourceUploadId?: string; sourceFileName?: string }>();
@@ -255,19 +271,30 @@ export default function BiomarkersCapture() {
                 );
               }
               // Read-only tappable: un toque abre el input inline (sin navegar a otra pantalla).
+              // MB-7: labs hormonales de mujer llevan su fase del ciclo (o el aviso de que falta).
+              const cycleCtx = deriveLabCycleContext(f.key, isFemale, cyclePhase);
               return (
-                <Pressable
-                  key={f.key}
-                  onPress={() => { haptic.light(); setField(f.key, String(current[f.key]!.value)); setEditingKey(f.key); }}
-                  style={styles.availRow}
-                >
-                  <EliteText variant="body" style={styles.availLabel}>{f.label}</EliteText>
-                  <View style={styles.availRight}>
-                    <EliteText variant="body" style={styles.availValue}>{current[f.key]!.value} {f.unit}</EliteText>
-                    <EliteText variant="caption" style={styles.availSrc}>{current[f.key]!.source}</EliteText>
-                  </View>
-                  <Ionicons name="create-outline" size={14} color={Colors.textSecondary} style={{ marginLeft: 6 }} />
-                </Pressable>
+                <View key={f.key}>
+                  <Pressable
+                    onPress={() => { haptic.light(); setField(f.key, String(current[f.key]!.value)); setEditingKey(f.key); }}
+                    style={styles.availRow}
+                  >
+                    <EliteText variant="body" style={styles.availLabel}>{f.label}</EliteText>
+                    <View style={styles.availRight}>
+                      <EliteText variant="body" style={styles.availValue}>{current[f.key]!.value} {f.unit}</EliteText>
+                      <EliteText variant="caption" style={styles.availSrc}>{current[f.key]!.source}</EliteText>
+                    </View>
+                    <Ionicons name="create-outline" size={14} color={Colors.textSecondary} style={{ marginLeft: 6 }} />
+                  </Pressable>
+                  {cycleCtx.show && (
+                    <EliteText
+                      variant="caption"
+                      style={[styles.cyclePhaseNote, !cycleCtx.phaseKnown && styles.cyclePhaseNoteWarn]}
+                    >
+                      {cycleCtx.phaseKnown ? '🌙 ' : '⚠ '}{cycleCtx.note}
+                    </EliteText>
+                  )}
+                </View>
               );
             })}
             <Pressable onPress={() => { haptic.light(); setEditMode((e) => !e); }} style={styles.editBtn}>
@@ -332,6 +359,9 @@ const styles = StyleSheet.create({
   availRight: { alignItems: 'flex-end' },
   availValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
   availSrc: { color: Colors.neonGreen, fontSize: FontSizes.xs },
+  // MB-7: nota de fase del ciclo bajo labs hormonales de mujer.
+  cyclePhaseNote: { color: '#D4537E', fontSize: FontSizes.xs, marginTop: -2, marginBottom: Spacing.xs, paddingHorizontal: 2 },
+  cyclePhaseNoteWarn: { color: '#EF9F27' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.sm, alignSelf: 'flex-start' },
   editBtnText: { color: Colors.neonGreen },
   allDone: { color: Colors.neonGreen, textAlign: 'center', marginVertical: Spacing.sm },
