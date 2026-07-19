@@ -5360,8 +5360,11 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
   },
   {
     key: 'bano_caliente_vespertino',
-    name: 'Baño caliente vespertino (40-42°C · 90 min pre-sueño)',
-    how: '20-40 min en tina a 40-42°C, terminando 60-120 min antes de dormir. Opcional sales de Epsom (2-3 tazas · Mg sulfato) + aceites esenciales (lavanda, valeriana). Iluminación tenue. Post-baño: dejar cuerpo enfriarse pasivamente sin ropa gruesa.',
+    // #117 (MB-6): 90 min es la ANTELACIÓN (Haghayegh: optimal timing 90 min
+    // pre-sueño), no la duración del baño. El name viejo "90 min pre-sueño"
+    // se leía como baño de 90 minutos — absurdo y agresivo con la piel.
+    name: 'Baño caliente vespertino (40-42°C · termina ~90 min antes de dormir)',
+    how: 'Baño de 20-40 min en tina a 40-42°C (no más — baños más largos resecan la piel), terminando 60-120 min antes de dormir (óptimo ~90 min). Opcional sales de Epsom (2-3 tazas · Mg sulfato) + aceites esenciales (lavanda, valeriana). Iluminación tenue. Post-baño: dejar cuerpo enfriarse pasivamente sin ropa gruesa.',
     benefit: 'Meta-análisis Haghayegh 2019 · reduce latencia sueño 36% y mejora eficiencia sueño · mecanismo: vasodilatación cutánea + posterior drop térmico core acelerado que sincroniza señal circadiana de sueño. Ideal para insomnio de conciliación por estrés vespertino o tensión muscular.',
     categories: ['sueno', 'cardiovascular', 'ritual', 'estres'],
     roots: ['cortisol_elevado_sostenido', 'deficit_sueno_profundo', 'estres_cronico', 'adrenalina_nocturna'],
