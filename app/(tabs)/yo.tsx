@@ -223,6 +223,7 @@ export default function YoScreen() {
           <YoEditorialSection
             sex={bioSex}
             chronotype={chrono?.chronotype}
+            chronotypeRawScores={chrono?.raw_scores}
             edadResult={edadResult}
             composition={comp}
             momentum={momentum}

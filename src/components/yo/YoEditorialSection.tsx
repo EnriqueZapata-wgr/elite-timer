@@ -17,6 +17,7 @@ import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { pickCronotipoImage, pickEdadAtpImage, YO_STATIC_IMAGES } from '@/src/utils/yo-image-picker';
 import { tierFromLifetime, nextTierInfo } from '@/src/services/economy/rank-tiers';
 import { formatEdadDelta } from '@/src/services/edad-atp/edad-delta-core';
+import { motherChronotype, type ChronoRawScores } from '@/src/services/interventions/intervention-agenda-core';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 
 /** Emoji + nombre/desc por cronotipo (EditorialCard renderiza el icono como texto → emoji). */
@@ -24,8 +25,9 @@ const CHRONO_META: Record<string, { emoji: string; name: string; desc: string }>
   lion: { emoji: '🦁', name: 'León', desc: 'Madrugador natural' },
   bear: { emoji: '🐻', name: 'Oso', desc: 'Ritmo solar' },
   wolf: { emoji: '🐺', name: 'Lobo', desc: 'Noctámbulo creativo' },
-  // Doctrina #12: Delfín = estado transitorio, no cronotipo de raíz — se dice.
-  dolphin: { emoji: '🐬', name: 'Delfín', desc: 'Estado temporal · ancla Oso' },
+  // Doctrina #12 + MB-6: Delfín = estado transitorio; el desc del madre real
+  // se arma en runtime (motherChronotype), no se hardcodea "ancla Oso".
+  dolphin: { emoji: '🐬', name: 'Delfín', desc: 'Estado temporal' },
 };
 
 /** Etiqueta cualitativa NO punitiva del momentum (misma escala que yo.tsx). */
@@ -48,6 +50,8 @@ interface Props {
   // composition sigue aceptada e ignorada (las cards de salud quedaron en Salud Funcional).
   sex?: string | null;
   chronotype?: string | null;
+  /** raw_scores del quiz — MB-6: cronotipo MADRE real de un Delfín. */
+  chronotypeRawScores?: ChronoRawScores;
   edadResult?: EdadAtpV2Result | null;
   composition?: CompositionLike | null;
   /** Momentum semanal 0-100 (dailyScore.overall). */
@@ -56,10 +60,18 @@ interface Props {
   lifetimeElectrons?: number | null;
 }
 
-export function YoEditorialSection({ sex, chronotype, edadResult, momentum, lifetimeElectrons }: Props) {
+export function YoEditorialSection({ sex, chronotype, chronotypeRawScores, edadResult, momentum, lifetimeElectrons }: Props) {
   const router = useRouter();
   const go = (route: Href) => router.push(route);
   const chrono = chronotype ? CHRONO_META[chronotype] : null;
+
+  // MB-6 fix heredado: un Delfín muestra su cronotipo MADRE real (raw_scores),
+  // no el "ancla Oso" hardcodeado. Espejo de agenda/motor/Mi Cronotipo.
+  const chronoDesc = chrono
+    ? (chronotype === 'dolphin'
+        ? `Estado temporal · base ${CHRONO_META[motherChronotype(chronotypeRawScores)].name}`
+        : chrono.desc)
+    : null;
 
   // Rank tier real (nombres v2, #100). Sin balance cargado aún → Explorer (min 0).
   const lifetime = lifetimeElectrons ?? 0;
@@ -100,7 +112,7 @@ export function YoEditorialSection({ sex, chronotype, edadResult, momentum, life
       <EditorialCard
         cardKey="yo_cronotipo" icon={chrono?.emoji ?? '🌙'}
         title={chrono ? `CRONOTIPO ${chrono.name.toUpperCase()}` : 'CRONOTIPO'}
-        subtitle={chrono ? chrono.desc : 'Descubre tu cronotipo'}
+        subtitle={chronoDesc ?? 'Descubre tu cronotipo'}
         message={chrono ? 'Qué significa y cómo aprovecharlo' : 'Test de 5 minutos'}
         gradient={['#FFD700', '#FFA500']}
         imageBn={pickCronotipoImage(chronotype)}
