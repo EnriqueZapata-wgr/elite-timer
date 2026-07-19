@@ -22,6 +22,12 @@ export const INTERVENTION_CATEGORIES = [
   'circadiano', 'nutricion',
   // Extensión Cowork 2026-07-14 (piloto mapeo epigenético · categorías target propias):
   'mitocondrial', 'sarcopenia',
+  // #114 (MB-8): +5 categorías funcionales. Dedup semántico: son FAMILIAS nuevas,
+  // no sinónimos de las existentes — 'respiracion' (mecánica ventilatoria) ≠
+  // 'vagal' (tono parasimpático) ≠ 'contemplativo' (práctica atencional sostenida);
+  // 'ocular' (salud visual/luz) y 'atencion' (foco ejecutivo, distinto de 'cognitivo'
+  // que es cognición amplia) tampoco colapsan a ninguna previa.
+  'ocular', 'vagal', 'respiracion', 'atencion', 'contemplativo',
 ] as const;
 
 export type InterventionCategory = (typeof INTERVENTION_CATEGORIES)[number];
@@ -46,6 +52,12 @@ export const CATEGORY_LABELS: Record<InterventionCategory, string> = {
   nutricion: 'Nutrición',
   mitocondrial: 'Mitocondrial',
   sarcopenia: 'Sarcopenia (preventivo)',
+  // #114 (MB-8):
+  ocular: 'Salud ocular',
+  vagal: 'Tono vagal',
+  respiracion: 'Respiración',
+  atencion: 'Atención/Foco',
+  contemplativo: 'Contemplativo',
 };
 
 // ── Raíces que ataca (causas raíz) ───────────────────────────────────────────

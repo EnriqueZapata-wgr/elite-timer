@@ -4722,7 +4722,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       'infarto_miocardio_reciente_<3meses',
       'hipotension_severa_sintomática_<90/60',
       'deshidratacion_severa_activa',
-      'fiebre_activa_infecciosa_>38.5',
+      'fiebre_viral_activa_37_8_o_mas', // #130 (MB-8): string canónico único (era 'fiebre_activa_infecciosa_>38.5')
       'intoxicacion_etilica_o_estupefacientes',
       'implantes_metálicos_extensos (calentamiento potencial · relativo)',
       'epilepsia_no_controlada',
@@ -4870,7 +4870,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       'hipotension_severa_sintomatica',
       'estenosis_aortica_severa',
       'deshidratacion_severa_activa',
-      'fiebre_activa_infecciosa_mayor_38_5',
+      'fiebre_viral_activa_37_8_o_mas', // #130 (MB-8): string canónico único (era 'fiebre_activa_infecciosa_mayor_38_5')
       'intoxicacion_etilica_o_estupefacientes',
       'epilepsia_no_controlada',
       'infarto_cerebral_reciente_menor_3_meses',

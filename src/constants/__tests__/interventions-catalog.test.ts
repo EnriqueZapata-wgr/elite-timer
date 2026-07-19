@@ -72,6 +72,24 @@ describe('interventions-catalog structure', () => {
     }
   });
 
+  it('DOCTRINA #130: frío/calor contraindican fiebre con string canónico único', () => {
+    // No suprimir fiebre (project_doctrina_promover_fiebre_no_antipireticos):
+    // toda intervención que sube/baja la temperatura corporal debe contraindicar
+    // fiebre activa, y con UN solo string (dedup semántico — antes había 3 variantes).
+    const CANONICAL_FEVER = 'fiebre_viral_activa_37_8_o_mas';
+    const THERMAL = /ducha_fria|bano_frio|cold_plunge|wim_hof|sauna|cuarto_frio|hormesis/;
+    const thermal = INTERVENTIONS_CATALOG.filter((iv) => THERMAL.test(iv.key));
+    expect(thermal.length).toBeGreaterThan(5); // sanity: sí encontramos térmicas
+    for (const iv of thermal) {
+      const contra = (iv as any).contraindications ?? [];
+      const fever = contra.filter((c: string) => /fiebre/i.test(c));
+      expect(fever.length, `${iv.key} sin contraindicación de fiebre`).toBeGreaterThan(0);
+      for (const f of fever) {
+        expect(f, `${iv.key} usa variante no canónica de fiebre: ${f}`).toBe(CANONICAL_FEVER);
+      }
+    }
+  });
+
   it('DOCTRINA: ninguna entrada es suplemento ni fármaco', () => {
     // Suplementos/fármacos NO son intervención (doctrina ATP). Heurística por keywords
     // en key/name/how — alimentos enteros (sardinas, hígado, BPC) sí son válidos.

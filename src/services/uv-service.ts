@@ -17,13 +17,16 @@ export interface UVData {
   sunset: string;
 }
 
+// #86 (MB-8): los 6 fototipos tenían el mismo emoji en pares (I=II 👩🏻, III=IV 👩🏽)
+// → al usuario dos opciones se veían idénticas. Un tono distinto por tipo, en
+// gradiente claro→oscuro coherente con la escala Fitzpatrick.
 export const FITZPATRICK_TYPES = [
-  { type: 1 as const, label: 'Tipo I', description: 'Piel muy clara — siempre se quema, nunca broncea', emoji: '👩🏻', burnBase: 67 },
-  { type: 2 as const, label: 'Tipo II', description: 'Piel clara — se quema fácilmente, broncea mínimo', emoji: '👩🏻', burnBase: 100 },
-  { type: 3 as const, label: 'Tipo III', description: 'Piel media — se quema moderado, broncea gradual', emoji: '👩🏽', burnBase: 200 },
+  { type: 1 as const, label: 'Tipo I', description: 'Piel muy clara — siempre se quema, nunca broncea', emoji: '🧑🏻', burnBase: 67 },
+  { type: 2 as const, label: 'Tipo II', description: 'Piel clara — se quema fácilmente, broncea mínimo', emoji: '👩🏼', burnBase: 100 },
+  { type: 3 as const, label: 'Tipo III', description: 'Piel media — se quema moderado, broncea gradual', emoji: '🧑🏽', burnBase: 200 },
   { type: 4 as const, label: 'Tipo IV', description: 'Piel oliva — se quema poco, broncea fácilmente', emoji: '👩🏽', burnBase: 300 },
-  { type: 5 as const, label: 'Tipo V', description: 'Piel morena — rara vez se quema', emoji: '👩🏾', burnBase: 400 },
-  { type: 6 as const, label: 'Tipo VI', description: 'Piel muy oscura — nunca se quema', emoji: '👩🏿', burnBase: 500 },
+  { type: 5 as const, label: 'Tipo V', description: 'Piel morena — rara vez se quema', emoji: '🧑🏾', burnBase: 400 },
+  { type: 6 as const, label: 'Tipo VI', description: 'Piel muy oscura — nunca se quema', emoji: '🧑🏿', burnBase: 500 },
 ];
 
 export function getBurnTimeMinutes(uvIndex: number, fitzpatrick: number): number {
