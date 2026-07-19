@@ -26,6 +26,7 @@ import Animated, {
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
+import { ArgosVoicePicker } from '@/src/components/argos/ArgosVoicePicker';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { markArgosIntroduced } from '@/src/services/argos-intro-service';
 import { queueOnboardingCelebration } from '@/src/components/onboarding/onboarding-completion-core';
@@ -58,6 +59,8 @@ export default function MeetArgosScreen() {
   const [typedChars, setTypedChars] = useState(0);
   const [ctaVisible, setCtaVisible] = useState(false);
   const [loading, setLoading] = useState(false);
+  // MB-10: tras la cinemática (copy #141 intacto), paso de selección de voz.
+  const [showVoice, setShowVoice] = useState(false);
 
   const firstName = ((user?.user_metadata?.full_name as string) || '').trim().split(' ')[0] || '';
 
@@ -131,18 +134,29 @@ export default function MeetArgosScreen() {
     }
   }
 
-  async function begin() {
+  // MB-10: el CTA de la cinemática ya no salta a tabs — abre la selección de voz.
+  function begin() {
+    if (loading) return;
+    haptic.success();
+    setShowVoice(true);
+  }
+
+  /** Cierra el onboarding tras elegir (o saltar) la voz → HOY. */
+  async function finish() {
     if (loading) return;
     setLoading(true);
     haptic.success();
-    // Marca la intro (best-effort) y libera el floating de inmediato.
     if (user?.id) {
       try { await markArgosIntroduced(user.id); } catch { /* fail-open */ }
     }
     setIntroduced(true);
-    // T5: el overlay global la consume al aterrizar en HOY.
     queueOnboardingCelebration(firstName);
     router.replace('/(tabs)');
+  }
+
+  // MB-10: pantalla de selección de voz (guiado, no prisionero: tiene "Saltar").
+  if (showVoice) {
+    return <ArgosVoicePicker userId={user?.id} onDone={finish} loading={loading} />;
   }
 
   const visibleText = screen.typing ? fullText.slice(0, typedChars) : fullText;
