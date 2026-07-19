@@ -182,9 +182,9 @@ function ResultScreen() {
               <EliteText variant="body" style={styles.shareBtnText}>Compartir mi Edad ATP</EliteText>
             </AnimatedPressable>
 
+            {/* MB-5: fuera la frase dev "domain_scores usan placeholder neutral" — era copy interno visible al usuario. */}
             <EliteText variant="caption" style={styles.note}>
               Toca una sub-edad para el desglose, o una fuente pendiente para completarla.
-              domain_scores usan placeholder neutral (Sprint 5).
             </EliteText>
           </>
         )}
