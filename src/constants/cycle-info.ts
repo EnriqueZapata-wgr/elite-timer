@@ -4,22 +4,24 @@
  */
 
 export const CYCLE_INFO = {
+  // MB-7: copy BIDIRECCIONAL — folicular/ovulatoria empujan, lútea/menstrual
+  // se ajustan (nunca "descanso"/limitación). El ciclo es una ventaja, no una lista de límites.
   phases: {
     menstrual: {
       title: 'Fase menstrual',
-      text: 'Días 1-5 del ciclo. Tu cuerpo elimina el revestimiento uterino. Es normal sentir fatiga, cólicos y menor energía. Ideal para descanso activo, yoga suave y alimentos ricos en hierro.',
+      text: 'Días 1-5. Empieza tu ciclo nuevo. Tu cuerpo te da señales muy claras — es la fase para afinar: entrena con lo que tienes hoy (fuerza técnica, movilidad, hierro en el plato) y baja el ego, no la ambición.',
     },
     follicular: {
       title: 'Fase folicular',
-      text: 'Días 6-13. Los estrógenos suben y te sientes con más energía. Buen momento para entrenamientos intensos, proyectos nuevos y socializar. Tu metabolismo es más eficiente.',
+      text: 'Días 6-13. Los estrógenos suben: tu ventana de construir. El cuerpo responde mejor al estímulo — mete los bloques duros, lo nuevo, la progresión. Metabolismo eficiente y energía en subida.',
     },
     ovulation: {
       title: 'Ovulación',
-      text: 'Días 13-15. Pico de estrógenos y LH. Máxima energía, libido y capacidad verbal. Mejor momento para entrenamientos de fuerza máxima.',
+      text: 'Días 13-15. Pico de estrógenos y LH: fuerza, potencia y confianza al máximo. Es LA ventana para ir por un récord. Aprovéchala.',
     },
     luteal: {
       title: 'Fase lútea',
-      text: 'Días 16-28. La progesterona sube. La energía desciende gradualmente. Pueden aparecer síntomas premenstruales. Enfócate en cardio suave, flexibilidad y alimentación antiinflamatoria.',
+      text: 'Días 16-28. La progesterona toma el mando: fase de sostener y consolidar. Sigues fuerte, con otra marcha — ajusta el volumen si un día lo pide, no la intención. Los antojos son hormonales, no falta de carácter.',
     },
   },
   fertileWindow: {

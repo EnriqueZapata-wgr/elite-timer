@@ -14,6 +14,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
+import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 
 const ROSE = '#fb7185';
@@ -29,6 +30,8 @@ interface CyclePeriod {
 
 export default function CycleHistoryScreen() {
   const { user } = useAuth();
+  // MB-7: gate biological_sex — cierra el deep-link a /cycle-history.
+  const gate = useCycleGate();
   const [cycles, setCycles] = useState<CyclePeriod[]>([]);
 
   useFocusEffect(useCallback(() => {
@@ -53,6 +56,15 @@ export default function CycleHistoryScreen() {
     const dt = new Date(d + 'T00:00:00');
     return dt.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
   };
+
+  // MB-7: no renderizar historial de ciclo hasta confirmar acceso (female).
+  if (gate !== 'allowed') {
+    return (
+      <Screen>
+        <PillarHeader pillar="cycle" title="Historial" />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>

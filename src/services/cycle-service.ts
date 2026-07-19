@@ -21,22 +21,26 @@ export interface PhaseInfo {
   labsAvoid: string[];
 }
 
+// MB-7: copy BIDIRECCIONAL (doctrina). Folicular + ovulatoria = INTENSIFICAR
+// (la app empuja: PRs, bloques duros, aprovechar la ventana). Lútea + menstrual
+// = ESCUCHAR (ajustar y afinar, NUNCA prohibir ni "descansar"). Una mujer lo
+// lee y se siente PODEROSA — su fisiología tiene ventanas que un hombre no tiene.
 export const PHASES: Record<string, PhaseInfo> = {
   menstrual: {
     phase: 'menstrual', label: 'Menstrual', dayRange: 'Días 1-5', color: '#E24B4A', icon: 'water-outline',
-    description: 'Tu cuerpo se renueva. Es normal sentir menos energía.',
-    energy: 'Baja — no fuerces entrenamientos intensos.',
-    exercise: 'Yoga suave, caminata, stretching. Reduce intensidad 40%.',
-    nutrition: ['Hierro: carne roja, espinacas, lentejas', 'Magnesio: chocolate negro 85%+', 'Omega 3 anti-inflamatorio', 'Reduce cafeína'],
+    description: 'Empieza un ciclo nuevo. Tu cuerpo te habla más claro que nunca — es la fase para afinar y escuchar señales.',
+    energy: 'Sensibilidad alta. Muévete con lo que tienes hoy: hay días fuertes y días de calibrar.',
+    exercise: 'Fuerza técnica, movilidad, zona 2. Si tu energía está, entrena — solo baja el ego, no la ambición.',
+    nutrition: ['Hierro: carne roja, espinacas, lentejas', 'Magnesio: chocolate negro 85%+', 'Omega 3 anti-inflamatorio', 'Cafeína con criterio'],
     supplements: ['Hierro bisglicinato 25mg', 'Magnesio glicinato 400mg', 'Omega 3 2g', 'Vitamina C 500mg'],
-    labsBest: ['Química sanguínea general', 'Perfil lipídico'],
-    labsAvoid: ['Estradiol', 'Progesterona', 'LH (excepto día 3)'],
+    labsBest: ['Química sanguínea general', 'Perfil lipídico', 'FSH/LH/estradiol (día 2-4, valores basales)'],
+    labsAvoid: ['Progesterona (será baja — normal aquí)'],
   },
   follicular: {
     phase: 'follicular', label: 'Folicular', dayRange: 'Días 6-13', color: '#a8e02a', icon: 'leaf-outline',
-    description: 'Energía en ascenso. Tu momento para brillar.',
-    energy: 'Alta. Mejor momento para entrenar fuerte.',
-    exercise: 'Fuerza pesada. HIIT. Cardio intenso. Full power.',
+    description: 'Estrógenos en ascenso: tu ventana de construir. Es cuando el cuerpo responde mejor al estímulo — aprovéchala.',
+    energy: 'Alta y en subida. Métele a los bloques duros y a lo nuevo.',
+    exercise: 'Fuerza pesada. HIIT. Cardio intenso. Full power — busca progresión.',
     nutrition: ['Carbos complejos para energía', 'Proteína alta para músculo', 'Crucíferas: brócoli, coliflor, kale'],
     supplements: ['Creatina 5g', 'Vitamina D 5000IU', 'DIM 200mg', 'Proteína whey post-entreno'],
     labsBest: ['Biometría hemática', 'Tiroides', 'FSH/LH día 3'],
@@ -44,9 +48,9 @@ export const PHASES: Record<string, PhaseInfo> = {
   },
   ovulation: {
     phase: 'ovulation', label: 'Ovulación', dayRange: 'Días 14-16', color: '#EF9F27', icon: 'sunny-outline',
-    description: 'Pico de energía y confianza. Máximo rendimiento.',
-    energy: 'Máxima. Intenta PRs.',
-    exercise: 'Tu mejor momento para PRs y competir.',
+    description: 'Tu pico. Fuerza, potencia y confianza al máximo — es LA ventana para ir por un récord.',
+    energy: 'Máxima. Ve por tus PRs.',
+    exercise: 'Tu mejor momento para PRs y competir. No lo desperdicies.',
     nutrition: ['Antioxidantes: berries, vegetales coloridos', 'Zinc para ovulación', 'Hidratación extra'],
     supplements: ['Zinc 30mg', 'Vitamina E 400IU', 'NAC 600mg', 'Selenio 200mcg'],
     labsBest: ['Test de ovulación (pico LH)'],
@@ -54,10 +58,10 @@ export const PHASES: Record<string, PhaseInfo> = {
   },
   luteal: {
     phase: 'luteal', label: 'Lútea', dayRange: 'Días 17-28', color: '#7F77DD', icon: 'moon-outline',
-    description: 'Tu cuerpo se prepara. Los antojos son hormonales, no de carácter.',
-    energy: 'Variable, tiende a bajar. Antojos normales.',
-    exercise: 'Fuerza moderada, yoga, pilates. -25% volumen.',
-    nutrition: ['Carbos complejos calman antojos', 'Magnesio extra', 'Calcio reduce PMS', 'Chocolate negro 85%+ válido'],
+    description: 'Progesterona al mando: fase de sostener y consolidar. Menos picos, más constancia — sigues fuerte, con otra marcha.',
+    energy: 'Alta al inicio, más pareja al final. Ajusta el volumen, no la intención.',
+    exercise: 'Fuerza sólida, tempo, resistencia. Si un día pide bajar intensidad, baja volumen — no pares.',
+    nutrition: ['Carbos complejos sostienen energía', 'Magnesio extra', 'Calcio reduce PMS', 'Chocolate negro 85%+ válido'],
     supplements: ['Magnesio glicinato 600mg', 'Calcio 500mg', 'Vitamina B6 50mg', 'Vitex 400mg'],
     labsBest: ['Progesterona día 19-22', 'Ratio estrógeno/progesterona'],
     labsAvoid: ['Peso (retención líquidos)', 'FSH/LH (no representativo)'],
@@ -95,6 +99,14 @@ export function predictNext(periods: { start_date: string }[]): { date: Date; da
 // ═══ CRUD ═══
 
 export async function getCycleInfo(userId: string) {
+  // MB-7 — AUTO-GATE por biological_sex. El bug "estás embarazada a un hombre"
+  // nació de una fuente de datos de ciclo que NO se auto-protegía y confiaba
+  // en que cada caller gateara. Aquí se cierra en la raíz: sin 'female' → null,
+  // pase lo que pase aguas arriba. (Los callers gateados no pagan la query.)
+  const { data: prof } = await supabase
+    .from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle();
+  if ((prof as any)?.biological_sex !== 'female') return null;
+
   const [periodsRes, settingsRes] = await Promise.all([
     supabase.from('cycle_periods').select('*').eq('user_id', userId).order('start_date', { ascending: false }).limit(6),
     supabase.from('cycle_settings').select('*').eq('user_id', userId).single(),

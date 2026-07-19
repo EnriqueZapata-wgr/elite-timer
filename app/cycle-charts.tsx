@@ -20,6 +20,7 @@ import { haptic } from '@/src/utils/haptics';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
+import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 
 const ROSE = '#fb7185';
@@ -49,6 +50,8 @@ const PERIOD_LABELS: readonly PeriodLabel[] = ['Último ciclo', '3 meses', '6 me
 
 export default function CycleChartsScreen() {
   const { user } = useAuth();
+  // MB-7: gate biological_sex — cierra el deep-link a /cycle-charts.
+  const gate = useCycleGate();
   const [params, setParams] = useState(DEFAULT_PARAMS);
   const [periodLabel, setPeriodLabel] = useState<PeriodLabel>('Último ciclo');
   const [data, setData] = useState<any[]>([]);
@@ -98,6 +101,15 @@ export default function CycleChartsScreen() {
     }
     return bands;
   }, []);
+
+  // MB-7: no renderizar gráficas de ciclo hasta confirmar acceso (female).
+  if (gate !== 'allowed') {
+    return (
+      <Screen>
+        <PillarHeader pillar="cycle" title="Gráficas" />
+      </Screen>
+    );
+  }
 
   return (
     <Screen>

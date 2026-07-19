@@ -30,6 +30,7 @@ import { CYCLE_INFO } from '@/src/constants/cycle-info';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { PILLAR_GRADIENTS, SURFACES, TEXT_COLORS, CARD, withOpacity } from '@/src/constants/brand';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 
 // ═══ CONSTANTES ═══
 
@@ -131,31 +132,32 @@ function calcPhase(day: number, cycleLen: number, periodLen: number): PhaseInfo 
   const ovDay = Math.round(cycleLen / 2);
   const until = Math.max(0, cycleLen - day + 1);
 
+  // MB-7: copy BIDIRECCIONAL — el ciclo es una ventaja que un hombre no tiene.
   if (day <= periodLen) {
     return {
       phase: 'menstrual', label: 'Menstrual', icon: 'water', color: RED,
       cycleDay: day, daysUntilPeriod: until,
-      description: 'Tu cuerpo se renueva. Prioriza descanso y alimentos ricos en hierro.',
+      description: 'Empieza tu ciclo nuevo. Afina y escucha señales — entrena con lo de hoy, baja el ego no la ambición.',
     };
   }
   if (day < ovDay - 2) {
     return {
       phase: 'follicular', label: 'Folicular', icon: 'leaf-outline', color: GREEN,
       cycleDay: day, daysUntilPeriod: until,
-      description: 'Energía en ascenso. Ideal para entrenamientos de fuerza e intensidad.',
+      description: 'Estrógenos en ascenso: tu ventana de construir. Métele a los bloques duros y a lo nuevo.',
     };
   }
   if (day <= ovDay + 1) {
     return {
       phase: 'ovulation', label: 'Ovulación', icon: 'sunny-outline', color: YELLOW,
       cycleDay: day, daysUntilPeriod: until,
-      description: 'Pico de energía y confianza. Máximo rendimiento físico.',
+      description: 'Tu pico: fuerza, potencia y confianza al máximo. LA ventana para ir por un récord.',
     };
   }
   return {
     phase: 'luteal', label: 'Lútea', icon: 'moon-outline', color: VIOLET,
     cycleDay: day, daysUntilPeriod: until,
-    description: 'Energía desciende gradualmente. Enfócate en cardio suave y flexibilidad.',
+    description: 'Progesterona al mando: sostener y consolidar. Sigues fuerte, con otra marcha — ajusta volumen, no intención.',
   };
 }
 
@@ -175,6 +177,8 @@ function findLastPeriodStart(logs: DayLog[]): string | null {
 export default function CycleScreen() {
   const { user } = useAuth();
   const router = useRouter();
+  // MB-7: gate biological_sex — cierra el deep-link a /cycle para no-female.
+  const gate = useCycleGate();
   const userId = user?.id ?? '';
   const today = getLocalToday();
 
@@ -415,8 +419,9 @@ export default function CycleScreen() {
   };
 
   // ═══ RENDER: LOADING ═══
-
-  if (loading) {
+  // MB-7: mientras el gate verifica o bloquea (no-female), no renderizar
+  // contenido de ciclo — solo el loader neutro.
+  if (loading || gate !== 'allowed') {
     return (
       <Screen>
         <PillarHeader pillar="cycle" title="Ciclo" />
