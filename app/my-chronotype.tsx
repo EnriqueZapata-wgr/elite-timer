@@ -20,6 +20,7 @@ import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { pickCronotipoImage } from '@/src/utils/yo-image-picker';
+import { motherChronotype } from '@/src/services/interventions/intervention-agenda-core';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, TEXT_COLORS, SURFACES, withOpacity } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -106,6 +107,8 @@ export default function MyChronotypeScreen() {
   const [focusStart, setFocusStart] = useState<string | null>(null);
   const [focusEnd, setFocusEnd] = useState<string | null>(null);
   const [physicalStart, setPhysicalStart] = useState<string | null>(null);
+  // MB-6: raw_scores del quiz → cronotipo MADRE real del Delfín (no Oso fijo).
+  const [rawScores, setRawScores] = useState<any>(null);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -114,7 +117,7 @@ export default function MyChronotypeScreen() {
       try {
         const { data } = await supabase
           .from('user_chronotype')
-          .select('chronotype, wake_time, sleep_time, peak_focus_start, peak_focus_end, peak_physical_start')
+          .select('chronotype, wake_time, sleep_time, peak_focus_start, peak_focus_end, peak_physical_start, raw_scores')
           .eq('user_id', user.id)
           .maybeSingle();
         if (!active) return;
@@ -124,6 +127,7 @@ export default function MyChronotypeScreen() {
         setFocusStart((data as any)?.peak_focus_start ?? null);
         setFocusEnd((data as any)?.peak_focus_end ?? null);
         setPhysicalStart((data as any)?.peak_physical_start ?? null);
+        setRawScores((data as any)?.raw_scores ?? null);
       } catch { /* sin dato → CTA al test */ }
       if (active) setLoading(false);
     })();
@@ -236,18 +240,24 @@ export default function MyChronotypeScreen() {
             <EliteText style={s.blockBody}>{info.meaning}</EliteText>
           </Animated.View>
 
-          {/* Doctrina #12 (MB-1): Delfín = estado TEMPORAL. No se esconde — se
-              avisa y se da el ancla (Oso, la misma que usa el motor del plan). */}
-          {chrono === 'dolphin' && (
-            <Animated.View entering={FadeInUp.delay(170).springify()} style={s.blockCard}>
-              <EliteText style={[s.blockKicker, { color: '#EF9F27' }]}>MIENTRAS LO RESUELVES</EliteText>
-              <EliteText style={s.blockBody}>
-                Tu plan usa el ancla del Oso 🐻 (ritmo solar): horarios estables de sueño,
-                luz solar temprano y rutina de cierre. Cuando lleves 2-3 semanas durmiendo
-                mejor, repite el test — tu cronotipo madre va a emerger.
-              </EliteText>
-            </Animated.View>
-          )}
+          {/* Doctrina #12 (MB-1) + MB-6: Delfín = estado TEMPORAL. No se esconde —
+              se nombra, y el ancla es el cronotipo MADRE real (raw_scores del
+              quiz — la misma que ahora usa el motor del plan y la agenda). */}
+          {chrono === 'dolphin' && (() => {
+            const mother = CHRONO_INFO[motherChronotype(rawScores)];
+            return (
+              <Animated.View entering={FadeInUp.delay(170).springify()} style={s.blockCard}>
+                <EliteText style={[s.blockKicker, { color: '#EF9F27' }]}>TU CRONOTIPO DE BASE</EliteText>
+                <EliteText style={s.blockBody}>
+                  Hoy estás en patrón Delfín — es un estado, no lo que eres. Tu cronotipo
+                  de base es {mother.name} {mother.emoji}. Vamos hacia allá: tu plan ya usa
+                  el ancla del {mother.name} — horarios estables de sueño, luz solar temprano
+                  y rutina de cierre. Cuando lleves 2-3 semanas durmiendo mejor, repite el
+                  test para confirmarlo.
+                </EliteText>
+              </Animated.View>
+            );
+          })()}
 
           {/* Cómo aprovecharlo (ejemplos concretos) */}
           <Animated.View entering={FadeInUp.delay(200).springify()} style={s.blockCard}>

@@ -128,12 +128,14 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
     // cambia, se ACTUALIZA la fila existente (antes cada cambio de horario
     // insertaba un "Despertar" nuevo y el viejo quedaba activo para siempre).
     try {
+      // MB-6: raw_scores → un Delfín valida contra su cronotipo MADRE, no oso fijo.
       const { data: chrono } = await supabase
-        .from('user_chronotype').select('wake_time, sleep_time, chronotype')
+        .from('user_chronotype').select('wake_time, sleep_time, chronotype, raw_scores')
         .eq('user_id', userId).maybeSingle();
       const sched = validatedSchedule(
         { wake_time: (chrono as any)?.wake_time ?? null, sleep_time: (chrono as any)?.sleep_time ?? null },
         (chrono as any)?.chronotype ?? null,
+        (chrono as any)?.raw_scores ?? null,
       );
       // HOTFIX 1.5: decisión pura (planChronotypeReconcile) — distingue removal
       // del USER (disabled_protocol_events) de desactivación de MÁQUINA
@@ -256,11 +258,14 @@ async function syncInterventionEvents(userId: string): Promise<void> {
   ]);
 
   let chronoType: string | null = null;
+  let chronoScores: any = null;
   try {
+    // MB-6: raw_scores → un Delfín ancla al cronotipo MADRE, no a oso fijo.
     const { data: chronoRow } = await supabase
-      .from('user_chronotype').select('chronotype')
+      .from('user_chronotype').select('chronotype, raw_scores')
       .eq('user_id', userId).maybeSingle();
     chronoType = (chronoRow as any)?.chronotype ?? null;
+    chronoScores = (chronoRow as any)?.raw_scores ?? null;
   } catch { /* anchors caen al default del cronotipo normalizado */ }
 
   // 1.5-C: romper ayuno dinámico — último fasting_log real + horas del
@@ -288,7 +293,7 @@ async function syncInterventionEvents(userId: string): Promise<void> {
 
   const { events: desired, discardedKeys } = buildDesiredInterventionEvents(
     myProtocol,
-    anchorTimes(schedule, chronoType),
+    anchorTimes(schedule, chronoType, chronoScores),
     { breakFast },
   );
   if (discardedKeys.length > 0) {

@@ -48,16 +48,38 @@ export function selectAgendaDrivers(interventionsDriveHoy: boolean): AgendaDrive
 
 export type Chronotype3 = 'lion' | 'bear' | 'wolf';
 
+/** raw_scores JSONB de user_chronotype (los 4 scores del quiz). */
+export type ChronoRawScores = Partial<Record<'lion' | 'bear' | 'wolf' | 'dolphin', number>> | null | undefined;
+
+/**
+ * Cronotipo MADRE de un Delfín (doctrina MB-6: Delfín es un ESTADO transitorio
+ * — insomnio/desregulación — no un destino): la tendencia no-delfín más fuerte
+ * de raw_scores. El plan y el copy se anclan al madre para que el usuario se
+ * apegue a él y resuelva el estado. Sin scores / empate → bear (mismo desempate
+ * doctrinal bear > lion > wolf de quiz-service).
+ */
+export function motherChronotype(rawScores: ChronoRawScores): Chronotype3 {
+  const s = rawScores ?? {};
+  let best: Chronotype3 = 'bear';
+  let bestScore = -Infinity;
+  for (const c of ['bear', 'lion', 'wolf'] as const) {
+    const v = Number(s[c]);
+    if (Number.isFinite(v) && v > bestScore) { best = c; bestScore = v; }
+  }
+  return best;
+}
+
 /**
  * Normaliza el valor crudo de user_chronotype.chronotype a los 3 cronotipos
- * doctrinales. 'dolphin' (legacy del quiz v1, sigue persistido en algunas
- * cuentas) → 'bear' (equivalente más cercano). Desconocido/null → 'bear'.
+ * doctrinales. 'dolphin' → su cronotipo MADRE si hay raw_scores (MB-6); sin
+ * scores conserva el fallback histórico 'bear'. Desconocido/null → 'bear'.
  */
-export function normalizeChronotype(raw: string | null | undefined): Chronotype3 {
+export function normalizeChronotype(raw: string | null | undefined, rawScores?: ChronoRawScores): Chronotype3 {
   const v = (raw ?? '').trim().toLowerCase();
   if (v === 'lion' || v === 'leon' || v === 'león') return 'lion';
   if (v === 'wolf' || v === 'lobo') return 'wolf';
-  // 'bear', 'oso', 'dolphin' (legacy→oso), y cualquier otro → bear.
+  if (v === 'dolphin' || v === 'delfin' || v === 'delfín') return motherChronotype(rawScores);
+  // 'bear', 'oso' y cualquier otro → bear.
   return 'bear';
 }
 
@@ -95,10 +117,11 @@ export function shiftMinutes(hhmm: string, delta: number): string | null {
 export function anchorTimes(
   schedule: ChronotypeSchedule,
   chronotype: string | null | undefined,
+  rawScores?: ChronoRawScores,
 ): Record<TimeOfDay, string> {
   // 1.5-C: horario validado contra el cronotipo — un wake 05:30 almacenado en
   // un oso es dato roto y snapea al default del tipo (no forzar madrugada).
-  const { wake_time: wake, sleep_time: sleep } = validatedSchedule(schedule, chronotype);
+  const { wake_time: wake, sleep_time: sleep } = validatedSchedule(schedule, chronotype, rawScores);
   return {
     morning: shiftMinutes(wake, 30) ?? wake,
     noon: shiftMinutes(wake, 5 * 60) ?? wake,
@@ -307,14 +330,16 @@ function circularDiff(a: string, b: string): number {
 /**
  * Horario validado contra el cronotipo: un wake/sleep almacenado que se aleja
  * m\u00e1s de CHRONO_TOLERANCE_MINUTES del default del tipo normalizado (dolphin \u2192
- * oso, doctrina) se considera dato roto y snapea al default. El custom_time de
- * cada intervenci\u00f3n sigue siendo sagrado \u2014 esto solo gobierna horas de m\u00e1quina.
+ * su cronotipo MADRE v\u00eda raw_scores, MB-6; sin scores \u2192 oso) se considera dato
+ * roto y snapea al default. El custom_time de cada intervenci\u00f3n sigue siendo
+ * sagrado \u2014 esto solo gobierna horas de m\u00e1quina.
  */
 export function validatedSchedule(
   schedule: ChronotypeSchedule,
   chronotype: string | null | undefined,
+  rawScores?: ChronoRawScores,
 ): { wake_time: string; sleep_time: string } {
-  const defaults = CHRONO_ANCHOR_DEFAULTS[normalizeChronotype(chronotype)];
+  const defaults = CHRONO_ANCHOR_DEFAULTS[normalizeChronotype(chronotype, rawScores)];
   const wakeOk = isHHMM(schedule.wake_time)
     && circularDiff(schedule.wake_time as string, defaults.wake) <= CHRONO_TOLERANCE_MINUTES;
   const sleepOk = isHHMM(schedule.sleep_time)

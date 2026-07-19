@@ -31,9 +31,12 @@ import {
   MIN_SOLAR_TIME,
   STAGGER_MINUTES,
   findUserDuplicateGroups,
+  motherChronotype,
+  CHRONO_ANCHOR_DEFAULTS,
   type AgendaEventRowLike,
   type DesiredInterventionEvent,
 } from '../intervention-agenda-core';
+import { CHRONO_SCHEDULES } from '@/src/services/onboarding-v2-core';
 import type { ResolvedUserIntervention, UserInterventionRow } from '../intervention-service-core';
 import type { ResolvedInterventionDef } from '../intervention-engine-core';
 import { INTERVENTIONS_CATALOG } from '@/src/constants/interventions-catalog';
@@ -115,14 +118,55 @@ describe('normalizeChronotype', () => {
     expect(normalizeChronotype('oso')).toBe('bear');
   });
 
-  it('dolphin (legacy 4to tipo del quiz v1) → bear (equivalente más cercano)', () => {
+  it('dolphin sin raw_scores → bear (fallback histórico)', () => {
     expect(normalizeChronotype('dolphin')).toBe('bear');
+  });
+
+  // MB-6: Delfín es un ESTADO — con raw_scores ancla a su cronotipo MADRE.
+  it('dolphin con raw_scores → cronotipo madre real', () => {
+    expect(normalizeChronotype('dolphin', { dolphin: 9, wolf: 7, bear: 4, lion: 2 })).toBe('wolf');
+    expect(normalizeChronotype('dolphin', { dolphin: 8, lion: 6, bear: 3, wolf: 1 })).toBe('lion');
+    expect(normalizeChronotype('dolphin', { dolphin: 8, bear: 6, lion: 3, wolf: 3 })).toBe('bear');
+  });
+
+  it('raw_scores NO afecta a cronotipos no-delfín', () => {
+    expect(normalizeChronotype('lion', { wolf: 99 })).toBe('lion');
   });
 
   it('null/desconocido → bear (default seguro)', () => {
     expect(normalizeChronotype(null)).toBe('bear');
     expect(normalizeChronotype(undefined)).toBe('bear');
     expect(normalizeChronotype('unicornio')).toBe('bear');
+  });
+});
+
+describe('motherChronotype (MB-6: madre del Delfín)', () => {
+  it('gana la tendencia no-delfín más fuerte (el score dolphin se ignora)', () => {
+    expect(motherChronotype({ dolphin: 10, wolf: 7, bear: 4, lion: 2 })).toBe('wolf');
+    expect(motherChronotype({ dolphin: 10, lion: 8, bear: 5, wolf: 2 })).toBe('lion');
+  });
+  it('empate → bear (mismo desempate doctrinal bear > lion > wolf del quiz)', () => {
+    expect(motherChronotype({ bear: 5, lion: 5, wolf: 5 })).toBe('bear');
+  });
+  it('sin scores / scores inválidos → bear', () => {
+    expect(motherChronotype(null)).toBe('bear');
+    expect(motherChronotype(undefined)).toBe('bear');
+    expect(motherChronotype({})).toBe('bear');
+  });
+});
+
+// MB-6: regresión anti León→Oso — las definiciones paralelas de horarios por
+// cronotipo (agenda vs onboarding v2) DEBEN mantenerse en espejo. El template
+// SQL del quiz (025 + data fix 200) no es importable, pero estos dos sí.
+describe('espejo CHRONO_ANCHOR_DEFAULTS ↔ CHRONO_SCHEDULES', () => {
+  it('wake y sleep idénticos para lion/bear/wolf', () => {
+    for (const c of ['lion', 'bear', 'wolf'] as const) {
+      expect(CHRONO_ANCHOR_DEFAULTS[c].wake, `${c}.wake`).toBe(CHRONO_SCHEDULES[c].wake);
+      expect(CHRONO_ANCHOR_DEFAULTS[c].sleep, `${c}.sleep`).toBe(CHRONO_SCHEDULES[c].sleep);
+    }
+  });
+  it('León despierta 06:00 (doctrina Sprint 1.5 / data fix 200)', () => {
+    expect(CHRONO_ANCHOR_DEFAULTS.lion.wake).toBe('06:00');
   });
 });
 

@@ -69,9 +69,25 @@ describe('deriveLabs', () => {
 });
 
 describe('deriveChronotype', () => {
-  it('dolphin → oso con transitionalState delfín', () => {
+  it('dolphin sin raw_scores → oso (histórico) con transitionalState delfín', () => {
     const c = deriveChronotype({ chronotype: 'dolphin', wake_time: '06:30:00', sleep_time: '23:30:00' });
     expect(c?.type).toBe('oso');
+    expect(c?.transitionalState).toBe('delfin');
+  });
+  // MB-6: Delfín es estado transitorio — el type del fenotipo es su MADRE real.
+  it('dolphin con raw_scores → cronotipo madre (lobo) + transitionalState delfín', () => {
+    const c = deriveChronotype({
+      chronotype: 'dolphin', wake_time: '06:30:00', sleep_time: '23:30:00',
+      raw_scores: { dolphin: 9, wolf: 7, bear: 4, lion: 2 },
+    });
+    expect(c?.type).toBe('lobo');
+    expect(c?.transitionalState).toBe('delfin');
+  });
+  it('dolphin con madre león → leon', () => {
+    const c = deriveChronotype({
+      chronotype: 'dolphin', raw_scores: { dolphin: 8, lion: 6, bear: 3, wolf: 1 },
+    });
+    expect(c?.type).toBe('leon');
     expect(c?.transitionalState).toBe('delfin');
   });
   it('lion → leon; wake_time se recorta a HH:MM', () => {

@@ -15,6 +15,8 @@ import type {
   DXLevel, BravermanResult, UserLab, UserChronotype,
   NeurotransmitterLevel, CyclePhaseName, UserPhenotype,
 } from './personalize-types';
+// MB-6: cronotipo madre del Delfín — helper puro compartido con la agenda.
+import { motherChronotype, type ChronoRawScores } from './intervention-agenda-core';
 
 // ── DX: raíces → niveles por sistema ────────────────────────────────────────
 
@@ -126,12 +128,20 @@ export function deriveLabs(canonical: Record<string, { value: number; measured_a
 export function deriveChronotype(row: {
   chronotype?: string | null; wake_time?: string | null; sleep_time?: string | null;
   peak_focus_start?: string | null; peak_focus_end?: string | null; updated_at?: string | null;
+  raw_scores?: ChronoRawScores;
 } | null): UserChronotype | null {
   if (!row?.chronotype) return null;
   const raw = row.chronotype.toLowerCase();
+  // MB-6: Delfín es estado transitorio — el TYPE del fenotipo es su cronotipo
+  // MADRE (raw_scores; sin scores → oso, comportamiento histórico). El estado
+  // Delfín viaja aparte en transitionalState.
+  const mother = motherChronotype(row.raw_scores);
   const type: UserChronotype['type'] =
     raw === 'lion' || raw === 'leon' ? 'leon'
-      : raw === 'wolf' || raw === 'lobo' ? 'lobo' : 'oso';
+      : raw === 'wolf' || raw === 'lobo' ? 'lobo'
+        : raw === 'dolphin' || raw === 'delfin'
+          ? (mother === 'lion' ? 'leon' : mother === 'wolf' ? 'lobo' : 'oso')
+          : 'oso';
   return {
     type,
     transitionalState: raw === 'dolphin' || raw === 'delfin' ? 'delfin' : null,

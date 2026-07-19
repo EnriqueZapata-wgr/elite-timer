@@ -659,16 +659,20 @@ async function buildAgenda(
       getChronotypeSchedule(userId),
     ]);
     let chronoType: string | null = null;
+    let chronoScores: any = null;
     try {
+      // MB-6: raw_scores → un Delfín ancla al cronotipo MADRE, no a oso fijo.
       const { data: chronoRow } = await supabase
-        .from('user_chronotype').select('chronotype')
+        .from('user_chronotype').select('chronotype, raw_scores')
         .eq('user_id', userId).maybeSingle();
       chronoType = (chronoRow as any)?.chronotype ?? null;
+      chronoScores = (chronoRow as any)?.raw_scores ?? null;
     } catch { /* anchors caen al default del cronotipo normalizado */ }
     // wakeTime ya respeta prefs del user (F03.7) → gana sobre el schedule crudo.
     const anchors = anchorTimes(
       { wake_time: wakeTime, sleep_time: chronoSchedule.sleep_time },
       chronoType,
+      chronoScores,
     );
     items.push(...interventionAgendaItems(myProtocol, anchors, doneToday, items.map(i => i.name)));
   } catch (e) {

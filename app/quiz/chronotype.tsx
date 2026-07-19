@@ -14,6 +14,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { Colors, Spacing, Fonts, Radius } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS } from '@/src/constants/brand';
 import { supabase } from '@/src/lib/supabase';
+import { motherChronotype } from '@/src/services/interventions/intervention-agenda-core';
 import {
   getQuizTemplate, submitQuizResult, saveUserChronotype,
   calculateChronotypeScores, determineChronotype,
@@ -259,12 +260,11 @@ export default function ChronotypeQuizScreen() {
           </EliteText>
         </Animated.View>
 
-        {/* Doctrina #12 (MB-1): Delfín = estado TEMPORAL, no cronotipo de raíz.
-            Aquí tenemos los scores reales → se le dice su cronotipo madre
-            (mejor tendencia no-delfín) y el ancla que usará su plan. */}
+        {/* Doctrina #12 (MB-1) + MB-6: Delfín = estado TEMPORAL, no cronotipo de
+            raíz. Se nombra el cronotipo MADRE (helper compartido motherChronotype
+            — el MISMO que ahora ancla el plan y la agenda) y hacia dónde vamos. */}
         {result === 'dolphin' && (() => {
-          const mother = (['bear', 'lion', 'wolf'] as Chronotype[])
-            .reduce((a, b) => ((scores[b] ?? 0) > (scores[a] ?? 0) ? b : a));
+          const mother = motherChronotype(scores);
           return (
             <Animated.View entering={FadeInUp.delay(500).springify()} style={{
               backgroundColor: 'rgba(239,159,39,0.08)', borderRadius: 14, padding: Spacing.md,
@@ -274,10 +274,10 @@ export default function ChronotypeQuizScreen() {
                 DELFÍN ES UN ESTADO TEMPORAL
               </EliteText>
               <EliteText variant="body" style={{ fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,0.85)' }}>
-                No es tu cronotipo de raíz: es sueño irregular por resolver. Debajo, tu
-                tendencia más fuerte es {ANIMAL_EMOJIS[mother]} {ANIMAL_NAMES[mother]}. Mientras
-                estabilizas horarios, tu plan usa el ancla del Oso; en 2-3 semanas de dormir
-                mejor, repite el test.
+                Hoy estás en patrón Delfín — es un estado, no lo que eres. Tu cronotipo
+                de base es {ANIMAL_EMOJIS[mother]} {ANIMAL_NAMES[mother]}: tu plan usa esa
+                ancla mientras estabilizas horarios. En 2-3 semanas de dormir mejor,
+                repite el test para confirmarlo.
               </EliteText>
             </Animated.View>
           );

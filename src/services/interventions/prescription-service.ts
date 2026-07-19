@@ -198,7 +198,8 @@ async function readChronotypeRow(userId: string) {
   try {
     const { data } = await supabase
       .from('user_chronotype')
-      .select('chronotype, wake_time, sleep_time, peak_focus_start, peak_focus_end, updated_at')
+      // MB-6: raw_scores para derivar el cronotipo MADRE de un Delfín.
+      .select('chronotype, wake_time, sleep_time, peak_focus_start, peak_focus_end, updated_at, raw_scores')
       .eq('user_id', userId).maybeSingle();
     return data as any;
   } catch { return null; }
