@@ -13,7 +13,8 @@
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.atpperformance.app",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"]
+        "UIBackgroundModes": ["audio"],
+        "NSMicrophoneUsageDescription": "ATP usa el micrófono para que puedas hablar con ARGOS."
       }
     },
     "android": {
