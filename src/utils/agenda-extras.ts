@@ -23,6 +23,31 @@ export function mealAgendaItems(mealTimes: MealTimes): AgendaItem[] {
   return out;
 }
 
+/**
+ * MB-6: ventana de foco pico del cronotipo → item informativo de agenda.
+ * user_chronotype YA tenía peak_focus_start/end sin usar; esto la conecta con
+ * la agenda para que lo cognitivamente pesado se agende dentro de la ventana.
+ * Acepta "10:00" o "10:00:00". null si no hay dato (no inventar ventanas).
+ */
+export function focusWindowAgendaItem(
+  focusStartRaw: string | null | undefined,
+  focusEndRaw: string | null | undefined,
+): AgendaItem | null {
+  if (!focusStartRaw) return null;
+  const start = String(focusStartRaw).slice(0, 5);
+  if (!/^\d{1,2}:\d{2}$/.test(start)) return null;
+  const end = focusEndRaw ? String(focusEndRaw).slice(0, 5) : null;
+  const endOk = end && /^\d{1,2}:\d{2}$/.test(end) ? end : null;
+  return {
+    id: 'focus-window',
+    time: start,
+    name: 'Ventana de foco profundo',
+    subtitle: endOk ? `Hasta ${endOk} — agenda aquí lo pesado` : 'Agenda aquí lo pesado',
+    category: 'mind',
+    completed: false, isNext: false, isSmart: false, informational: true,
+  };
+}
+
 /** Item de objetivo de sueño desde el cronotipo (acepta "23:00" o "23:00:00"). null si no hay. */
 export function sleepAgendaItem(sleepRaw: string | null | undefined): AgendaItem | null {
   if (!sleepRaw) return null;

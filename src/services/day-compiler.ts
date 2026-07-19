@@ -11,7 +11,7 @@ import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons
 import { generateDailyPlan } from '@/src/services/protocol-builder-service';
 import { getUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
 import { getMealTimes } from '@/src/services/meal-times-service';
-import { mealAgendaItems, sleepAgendaItem } from '@/src/utils/agenda-extras';
+import { mealAgendaItems, sleepAgendaItem, focusWindowAgendaItem } from '@/src/utils/agenda-extras';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -722,13 +722,19 @@ async function buildAgenda(
   // HOTFIX schema: sleep_time es columna PLANA — el select de `schedule`
   // daba 400 silencioso y el item de sueño nunca aparecía en la agenda.
   try {
+    // MB-6: peak_focus_* — ventana de foco pico como item informativo (dato
+    // que user_chronotype ya tenía y la agenda no usaba).
     const { data: chrono } = await supabase
-      .from('user_chronotype').select('sleep_time')
+      .from('user_chronotype').select('sleep_time, peak_focus_start, peak_focus_end')
       .eq('user_id', userId).maybeSingle();
     const sleepRaw = (chrono as any)?.sleep_time;
     const sleepItem = sleepAgendaItem(sleepRaw);
     if (sleepItem) items.push(sleepItem);
-  } catch { /* sin cronotipo → sin item de sueño */ }
+    const focusItem = focusWindowAgendaItem(
+      (chrono as any)?.peak_focus_start, (chrono as any)?.peak_focus_end,
+    );
+    if (focusItem) items.push(focusItem);
+  } catch { /* sin cronotipo → sin item de sueño/foco */ }
 
   // === DEDUPLICATE + SORT + MARK NEXT ===
   // MB-1 P3-3: dedup SEMÁNTICO (hora + familia canónica), no solo nombre exacto.
