@@ -36,6 +36,8 @@ export default function CycleSettingsScreen() {
   // F2.1 (task #111): modalidad de ciclo — misma opción que en onboarding v2 paso 4
   const [sex, setSex] = useState<'male' | 'female'>('female');
   const [modality, setModality] = useState<CycleModality | null>(null);
+  // MB-7: fecha probable de parto para la máscara embarazo (cycle_settings.pregnancy_status).
+  const [dueDate, setDueDate] = useState('');
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -45,6 +47,7 @@ export default function CycleSettingsScreen() {
           setAvgCycle(String(data.avg_cycle_length ?? 28));
           setAvgPeriod(String(data.avg_period_length ?? 5));
           setMode(data.mode ?? 'full');
+          setDueDate((data.pregnancy_status as any)?.due_date ?? '');
         }
       });
     // Cargar estado de compañero
@@ -66,6 +69,22 @@ export default function CycleSettingsScreen() {
     haptic.light();
     setModality(value);
     await saveCycleModality(user.id, value);
+  };
+
+  // MB-7: guarda la FPP → activa la máscara embarazo. Escribe el JSONB completo
+  // (is_pregnant + due_date). Al salir del modo embarazo se limpia a null.
+  const saveDueDate = async (iso: string) => {
+    if (!user?.id) return;
+    const valid = /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(iso);
+    const status = valid ? { is_pregnant: true, due_date: iso } : null;
+    try {
+      await supabase.from('cycle_settings').upsert(
+        { user_id: user.id, pregnancy_status: status },
+        { onConflict: 'user_id' },
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'No se pudo guardar la fecha.');
+    }
   };
 
   const handleSave = async () => {
@@ -141,6 +160,31 @@ export default function CycleSettingsScreen() {
             })}
           </GradientCard>
         </Animated.View>
+
+        {/* MB-7: máscara embarazo — captura de la FPP (solo si modalidad = embarazo) */}
+        {modality === 'pregnancy' && (
+          <Animated.View entering={FadeInUp.delay(90).springify()} style={{ marginTop: Spacing.md }}>
+            <GradientCard gradient={GRADIENT} padding={20}>
+              <SectionTitle>EMBARAZO</SectionTitle>
+              <EliteText style={s.modeSub}>
+                Tu fecha probable de parto activa la vista de embarazo (semana y trimestre,
+                sin predicción de menstruación).
+              </EliteText>
+              <View style={[s.fieldRow, { marginTop: Spacing.md }]}>
+                <EliteText style={s.fieldLabel}>Fecha probable (AAAA-MM-DD)</EliteText>
+                <TextInput
+                  style={[s.fieldInput, { minWidth: 130 }]}
+                  value={dueDate}
+                  onChangeText={setDueDate}
+                  onBlur={() => saveDueDate(dueDate)}
+                  placeholder="2026-12-01"
+                  placeholderTextColor="#444"
+                  maxLength={10}
+                />
+              </View>
+            </GradientCard>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInUp.delay(100).springify()} style={{ marginTop: Spacing.md }}>
           <GradientCard gradient={GRADIENT} padding={20}>

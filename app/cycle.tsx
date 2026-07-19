@@ -31,6 +31,7 @@ import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { PILLAR_GRADIENTS, SURFACES, TEXT_COLORS, CARD, withOpacity } from '@/src/constants/brand';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
+import { derivePregnancyProgress, type PregnancyStatus } from '@/src/utils/pregnancy';
 
 // ═══ CONSTANTES ═══
 
@@ -186,6 +187,8 @@ export default function CycleScreen() {
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<DayLog[]>([]);
   const [settings, setSettings] = useState({ avg_cycle_length: 28, avg_period_length: 5 });
+  // MB-7: máscara ATP Embarazo — estado desde cycle_settings.pregnancy_status.
+  const [pregnancyStatus, setPregnancyStatus] = useState<PregnancyStatus | null>(null);
   const [calMonth, setCalMonth] = useState(() => {
     const d = new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
@@ -213,7 +216,7 @@ export default function CycleScreen() {
           .order('date', { ascending: true }),
         supabase
           .from('cycle_settings')
-          .select('avg_cycle_length,avg_period_length')
+          .select('avg_cycle_length,avg_period_length,pregnancy_status')
           .eq('user_id', userId)
           .maybeSingle(),
       ]);
@@ -223,6 +226,7 @@ export default function CycleScreen() {
           avg_cycle_length: settingsRes.data.avg_cycle_length ?? 28,
           avg_period_length: settingsRes.data.avg_period_length ?? 5,
         });
+        setPregnancyStatus((settingsRes.data as any).pregnancy_status ?? null);
       }
     } catch (e) { logWarn('[cycle] loadData failed', e); }
     setLoading(false);
@@ -240,6 +244,14 @@ export default function CycleScreen() {
 
   const lastPeriodStart = useMemo(() => findLastPeriodStart(logs), [logs]);
 
+  // MB-7: máscara embarazo — si está activo, el pilar muestra semana gestacional
+  // + trimestre, NUNCA predicción de menstruación (doctrina 080). Sensibilidad
+  // extra: cero lenguaje de riesgo, solo la etapa.
+  const pregnancy = useMemo(
+    () => derivePregnancyProgress(pregnancyStatus, new Date()),
+    [pregnancyStatus],
+  );
+
   const phaseInfo = useMemo<PhaseInfo | null>(() => {
     if (!lastPeriodStart) return null;
     const day = diffDays(lastPeriodStart, today) + 1;
@@ -249,6 +261,8 @@ export default function CycleScreen() {
 
   // Predicciones: próximo período, ovulación y ventana fértil
   const predictions = useMemo(() => {
+    // MB-7: en modo embarazo NO se predice menstruación (doctrina 080).
+    if (pregnancy) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
     if (!lastPeriodStart) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
     const { avg_cycle_length: cl, avg_period_length: pl } = settings;
     // Próximo período predicho
@@ -444,9 +458,32 @@ export default function CycleScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl * 2 }}
       >
-        {/* ── 1. Card de fase actual ── */}
+        {/* ── 1. Card de fase actual (o máscara embarazo) ── */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          {phaseInfo ? (
+          {pregnancy ? (
+            // MB-7: máscara ATP Embarazo — semana + trimestre, sin predicción de
+            // menstruación. Copy cálido y sin alarmismo.
+            <GradientCard gradient={PILLAR_GRADIENTS.cycle} style={{ marginBottom: Spacing.sm }} padding={Spacing.lg}>
+              <View style={st.phaseNameRow}>
+                <Ionicons name="heart-circle-outline" size={24} color={ROSE} />
+                <EliteText style={[st.phaseName, { color: ROSE }]}>Embarazo</EliteText>
+              </View>
+              <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: FontSizes.xxl, marginTop: Spacing.sm }}>
+                {pregnancy.label}
+              </EliteText>
+              <EliteText style={st.phaseDesc}>
+                {pregnancy.daysToDue > 0
+                  ? `Faltan ~${pregnancy.daysToDue} días para tu fecha probable. Estás acompañada en cada etapa.`
+                  : 'Estás en la recta final. Estás acompañada en cada etapa.'}
+              </EliteText>
+              <View style={[st.bar, { marginTop: Spacing.md }]}>
+                <View style={[st.barFill, {
+                  width: `${Math.min(100, (pregnancy.week / 40) * 100)}%`,
+                  backgroundColor: ROSE,
+                }]} />
+              </View>
+            </GradientCard>
+          ) : phaseInfo ? (
             <GradientCard gradient={PILLAR_GRADIENTS.cycle} style={{ marginBottom: Spacing.sm }} padding={Spacing.lg}>
               <View style={st.phaseRow}>
                 <View style={{ flex: 1 }}>
