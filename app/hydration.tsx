@@ -2,9 +2,10 @@
  * Hidratación — Registro de agua con meta diaria, botones rápidos y barra de progreso.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, ImageBackground } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { EliteText } from '@/components/elite-text';
@@ -19,9 +20,11 @@ import { haptic } from '@/src/utils/haptics';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { getUserWaterGoal, addWater as addWaterEntry } from '@/src/services/hydration-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, PILLAR_GRADIENTS } from '@/src/constants/brand';
+import { TEXT_COLORS } from '@/src/constants/brand';
 
 const WATER_COLOR = '#38bdf8';
+// P2-3 (MB-8): hero editorial — la pantalla estaba pelona (una card sola sobre negro).
+const HERO_HIDRATACION = require('@/assets/images/agenda/hidratacion/hidratacion-01.png');
 
 export default function HydrationScreen() {
   const { user } = useAuth();
@@ -64,12 +67,32 @@ export default function HydrationScreen() {
   }
 
   const pct = waterGoal > 0 ? Math.min(100, Math.round((waterMl / waterGoal) * 100)) : 0;
+  // P2-3: contexto epigenético — por qué importa el agua (mecanismo, no autoridad).
+  const epigeneticHint = pct >= 100
+    ? 'Meta cumplida. La hidratación sostiene el volumen plasmático y el transporte de nutrientes a la célula.'
+    : pct >= 50
+      ? 'Vas a la mitad. El agua es el medio de casi toda reacción metabólica — la deshidratación leve ya sube el cortisol.'
+      : 'El agua regula temperatura, presión y detox hepática. Empezar temprano evita el pico de cortisol por deshidratación.';
 
   return (
     <Screen>
       <PillarHeader pillar="nutrition" title="Hidratación" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        {/* P2-3: hero editorial (imagen + overlay, molde del design system) */}
+        <Animated.View entering={FadeInUp.delay(40).springify()}>
+          <ImageBackground source={HERO_HIDRATACION} style={s.hero} imageStyle={s.heroImg}>
+            <LinearGradient
+              colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.5)', 'rgba(10,10,10,0.95)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={s.heroContent}>
+              <EliteText style={s.heroKicker}>NUTRICIÓN</EliteText>
+              <EliteText variant="caption" style={s.heroSub}>{epigeneticHint}</EliteText>
+            </View>
+          </ImageBackground>
+        </Animated.View>
+
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <GradientCard gradient={{ start: 'rgba(56,189,248,0.10)', end: 'rgba(56,189,248,0.03)' }} padding={24}>
             {/* Progreso circular visual */}
@@ -120,6 +143,12 @@ export default function HydrationScreen() {
 
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
+  // P2-3: hero editorial
+  hero: { height: 150, borderRadius: Radius.lg, overflow: 'hidden', justifyContent: 'flex-end', marginBottom: Spacing.md },
+  heroImg: { resizeMode: 'cover' },
+  heroContent: { padding: Spacing.md },
+  heroKicker: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: WATER_COLOR, letterSpacing: 2, marginBottom: 4 },
+  heroSub: { color: '#ddd', fontSize: FontSizes.sm, lineHeight: 18 },
   center: { alignItems: 'center', marginBottom: Spacing.lg },
   bigValue: { fontSize: 48, fontFamily: Fonts.extraBold, color: WATER_COLOR },
   goalText: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary },

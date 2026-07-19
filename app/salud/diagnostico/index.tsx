@@ -9,8 +9,9 @@
  * comunica el precio y se maneja el 402 (insufficient).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, DeviceEventEmitter, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, DeviceEventEmitter, ImageBackground, ScrollView, StyleSheet, View } from 'react-native';
 import { router , type Href } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 
 import { Screen } from '@/src/components/ui/Screen';
@@ -39,6 +40,8 @@ import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const LEVEL_LABELS: Record<number, string> = DX_LEVEL_LABELS;
+// #71 (MB-8): imagen editorial de la Card A (antes sin imagen, card pelona).
+const HERO_DIAGNOSTICO = require('@/assets/images/health-hub/diagnostico.png');
 
 /** hotfix 2da pasada: cada fuente faltante es un CTA navegable, no un chip muerto. */
 const MISSING_ROUTES: Partial<Record<DxMissingKey, Href>> = {
@@ -195,19 +198,25 @@ export default function DiagnosticoScreen() {
           </View>
         ) : (
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-            {/* ── Nivel + estado ── */}
+            {/* ── Card A: Nivel + estado, sobre imagen editorial (#71) ── */}
             <Animated.View entering={FadeInUp.delay(40).springify()}>
-              <Card variant="accent" accentColor={ATP_BRAND.lime}>
-                <LevelBadge level={dx?.quality_level ?? 1} />
-                {dx?.summary_text ? (
-                  <EliteText style={styles.summary}>{dx.summary_text}</EliteText>
-                ) : (
-                  <EliteText style={styles.summaryEmpty}>
-                    Aún no tienes un diagnóstico. Genera el primero para que ARGOS
-                    sintetice tus raíces funcionales desde tus datos.
-                  </EliteText>
-                )}
-              </Card>
+              <ImageBackground source={HERO_DIAGNOSTICO} style={styles.heroCard} imageStyle={styles.heroImg}>
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.7)', 'rgba(10,10,10,0.96)']}
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={styles.heroInner}>
+                  <LevelBadge level={dx?.quality_level ?? 1} />
+                  {dx?.summary_text ? (
+                    <EliteText style={styles.summary}>{dx.summary_text}</EliteText>
+                  ) : (
+                    <EliteText style={styles.summaryEmpty}>
+                      Aún no tienes un diagnóstico. Genera el primero para que ARGOS
+                      sintetice tus raíces funcionales desde tus datos.
+                    </EliteText>
+                  )}
+                </View>
+              </ImageBackground>
             </Animated.View>
 
             {/* ── Qué te falta ── */}
@@ -403,6 +412,10 @@ const styles = StyleSheet.create({
   levelDots: { flexDirection: 'row', gap: 4, marginLeft: 'auto' },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333' },
   dotOn: { backgroundColor: ATP_BRAND.lime },
+  // #71: Card A editorial (imagen + overlay)
+  heroCard: { borderRadius: Radius.lg, overflow: 'hidden', minHeight: 150, justifyContent: 'flex-end' },
+  heroImg: { resizeMode: 'cover' },
+  heroInner: { padding: Spacing.md },
   summary: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, lineHeight: 20, marginTop: Spacing.sm },
   summaryEmpty: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.tertiary, lineHeight: 20, marginTop: Spacing.sm },
   hintCard: { marginTop: Spacing.sm },
