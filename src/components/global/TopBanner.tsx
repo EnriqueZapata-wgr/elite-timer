@@ -34,6 +34,12 @@ const ROTATE_MS = 15_000;
 const RELOAD_MS = 60_000;
 // Umbral de criticidad para el inbox: con >=5 sin leer, la variante gana y no rota.
 const UNREAD_CRITICAL = 5;
+// P3-2 (MB-8): auto-dismiss tipo toast — tras mostrarse este tiempo se desvanece
+// SOLO por esta sesión (no persiste como el tap en X, que lo oculta el día entero).
+// El banner de "N sin leer" ya no se queda fijo tapando el header.
+const AUTO_DISMISS_MS = 8_000;
+// Gap mínimo bajo el safe-area para no encimar el header aunque el caller no pase offset.
+const MIN_TOP_GAP = 8;
 
 interface BannerVariant {
   id: string;
@@ -56,6 +62,8 @@ export function TopBanner({ offset = 0 }: Props) {
   const [variants, setVariants] = useState<BannerVariant[]>([]);
   const [index, setIndex] = useState(0);
   const [dismissed, setDismissed] = useState(true); // arranca oculto hasta verificar
+  // P3-2: ocultamiento suave de sesión (auto-dismiss), independiente del dismiss del día.
+  const [autoHidden, setAutoHidden] = useState(false);
   const lastLoadRef = useRef(0);
 
   const load = useCallback(async () => {
@@ -148,10 +156,18 @@ export function TopBanner({ offset = 0 }: Props) {
 
     setVariants(next);
     setIndex(0);
+    setAutoHidden(false); // nueva carga → el toast vuelve a mostrarse su ventana
   }, [user?.id]);
 
   // Cargar al enfocar la pantalla que lo hospeda
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // P3-2: auto-dismiss — tras AUTO_DISMISS_MS visible, se desvanece por la sesión.
+  useEffect(() => {
+    if (dismissed || autoHidden || variants.length === 0) return;
+    const t = setTimeout(() => setAutoHidden(true), AUTO_DISMISS_MS);
+    return () => clearTimeout(t);
+  }, [dismissed, autoHidden, variants]);
 
   // Rotación cada 15s — si hay una variante CRÍTICA, esa gana y NO rota.
   useEffect(() => {
@@ -168,7 +184,7 @@ export function TopBanner({ offset = 0 }: Props) {
     await AsyncStorage.setItem(DISMISS_KEY, getLocalToday()).catch(() => {});
   };
 
-  if (dismissed || variants.length === 0) return null;
+  if (dismissed || autoHidden || variants.length === 0) return null;
   const v = variants[Math.min(index, variants.length - 1)];
 
   return (
@@ -176,7 +192,7 @@ export function TopBanner({ offset = 0 }: Props) {
       key={v.id}
       entering={FadeInDown.duration(300)}
       exiting={FadeOut.duration(200)}
-      style={[s.wrap, { top: insets.top + offset }]}
+      style={[s.wrap, { top: insets.top + Math.max(offset, MIN_TOP_GAP) }]}
       pointerEvents="box-none"
     >
       <View style={s.pill}>

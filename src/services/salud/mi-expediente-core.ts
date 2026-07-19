@@ -6,6 +6,7 @@
  * cruza síntomas (inicio/fin), intervenciones activadas, labs y mediciones. ARGOS
  * puede leerlo para correlacionar ("en tu mes previo a PCR elevada, 40% días sin sol").
  */
+import { displayLabel } from '@/src/constants/display-labels';
 
 export type TimelineKind =
   | 'symptom_start' | 'symptom_resolved' | 'intervention_activated'
@@ -57,7 +58,9 @@ export function buildTimeline(src: TimelineSources): TimelineEvent[] {
   }
   for (const l of src.labs) {
     if (l.measured_at) {
-      events.push({ id: `lab-${l.marker}-${l.measured_at}`, kind: 'lab', at: l.measured_at, title: `Lab: ${l.marker}` });
+      // #P2-1 (MB-8): legibilizar el marcador — antes mostraba la clave snake_case
+      // cruda (p.ej. "vitamin_d_25oh" → "Vitamina D (25-OH)").
+      events.push({ id: `lab-${l.marker}-${l.measured_at}`, kind: 'lab', at: l.measured_at, title: `Lab: ${displayLabel(l.marker)}` });
     }
   }
   for (const m of src.measurements) {

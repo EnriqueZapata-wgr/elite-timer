@@ -29,6 +29,13 @@ describe('buildTimeline', () => {
     const t = buildTimeline({ ...EMPTY, glucose: [{ value: 90, at: 'no-date' }] });
     expect(t).toHaveLength(0);
   });
+
+  it('#P2-1 (MB-8): legibiliza el marcador de lab (nunca snake_case crudo)', () => {
+    const t = buildTimeline({ ...EMPTY, labs: [{ marker: 'vitamin_d_25oh', measured_at: '2026-07-01T10:00:00Z' }] });
+    expect(t[0].title).not.toContain('vitamin_d_25oh');
+    expect(t[0].title).not.toContain('_'); // sin ningún guion bajo crudo
+    expect(t[0].title.startsWith('Lab: ')).toBe(true);
+  });
 });
 
 describe('groupByMonth', () => {
