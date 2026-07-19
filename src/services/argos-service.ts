@@ -1361,6 +1361,8 @@ interface ArgosChatOptions {
   idempotencyKey?: string;
   /** T4 MAGIA ARGOS: pantalla desde la que se abrió el chat (contexto). */
   screenContext?: ArgosScreen;
+  /** MB-4 J5: action_key de cobro H+ (default 'chat'; el modo voz manda 'voice_turn'). */
+  requestType?: string;
 }
 
 /**
@@ -1531,7 +1533,8 @@ export async function* generateResponseStream(
 ): AsyncGenerator<string, void, void> {
   const { systemPrompt, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
   const model = options?.model || MODEL_CHAT;
-  const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });
+  // MB-4 J5: el modo voz factura como 'voice_turn' (más caro); default 'chat'.
+  const meta = await getArgosCallMetadata({ requestType: options?.requestType ?? 'chat', idempotencyKey: options?.idempotencyKey });
 
   let full = '';
   for await (const evt of callAnthropicStream(

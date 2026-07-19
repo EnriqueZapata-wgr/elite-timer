@@ -26,7 +26,7 @@ export const REFERRED_BONUS_PROTONS = 5_000;
 export type ActionKey =
   | 'chat' | 'food_estimate_photo' | 'supplement_scan' | 'lab_interpretation'
   | 'routine' | 'food_estimate_text' | 'insight' | 'weekly_insight'
-  | 'braverman_premium_report' | 'dx_generation' | 'bha_scan';
+  | 'braverman_premium_report' | 'dx_generation' | 'bha_scan' | 'voice_turn';
 
 /** Fallback de costos si la tabla no respondió (mismos números que el seed 086, normalizados /10). */
 export const FALLBACK_ACTION_COSTS: Record<ActionKey, number> = {
@@ -44,4 +44,8 @@ export const FALLBACK_ACTION_COSTS: Record<ActionKey, number> = {
   dx_generation: 1000,
   // Sprint SUPS+BHA: sello Biohacker Approved (seed 189 — precio cerrado 500)
   bha_scan: 500,
+  // MB-4 J5: un turno de VOZ (STT Gemini + LLM + TTS ElevenLabs) es la interacción
+  // más cara. Precio inicial = chat + prima de voz; Enrique calibra con la
+  // telemetría (argos_logs) del día 1. Seed en migración 206.
+  voice_turn: 400,
 };
