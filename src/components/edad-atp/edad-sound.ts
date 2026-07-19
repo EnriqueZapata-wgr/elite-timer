@@ -9,13 +9,28 @@
  *   improve.wav (~650ms) — dos tonos ascendentes si tu Edad ATP mejoró
  *
  * Cada función combina haptic + sonido (si el toggle está ON). Playback
- * con expo-av siguiendo el patrón de src/utils/sounds.ts (cache de
- * Audio.Sound precargados, replay con setPositionAsync).
+ * con expo-audio (MB-5: migrado de expo-av, deprecado en SDK 54) siguiendo
+ * el patrón de src/utils/sounds.ts (cache de AudioPlayer precargados,
+ * replay con seekTo(0); import perezoso — sin módulo nativo degrada a
+ * silencio, nunca crashea).
  * Toggle "Sonidos Edad ATP" en Settings > Sonidos (default ON).
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
 import { haptic } from '@/src/utils/haptics';
+
+type ExpoAudio = typeof import('expo-audio');
+type AudioPlayer = import('expo-audio').AudioPlayer;
+
+let audioMod: ExpoAudio | null = null;
+async function getAudioMod(): Promise<ExpoAudio | null> {
+  if (audioMod) return audioMod;
+  try {
+    audioMod = await import('expo-audio');
+    return audioMod;
+  } catch {
+    return null; // sin audio no se rompe la cinemática
+  }
+}
 
 const KEY = 'edad_atp_sound_enabled';
 let enabled = true;
@@ -28,15 +43,17 @@ const ASSETS = {
 
 type EdadSoundName = keyof typeof ASSETS;
 
-const cache = new Map<EdadSoundName, Audio.Sound>();
+const cache = new Map<EdadSoundName, AudioPlayer>();
 
-async function getSound(name: EdadSoundName): Promise<Audio.Sound | null> {
+async function getSound(name: EdadSoundName): Promise<AudioPlayer | null> {
   try {
     const cached = cache.get(name);
     if (cached) return cached;
-    const { sound } = await Audio.Sound.createAsync(ASSETS[name], { shouldPlay: false });
-    cache.set(name, sound);
-    return sound;
+    const audio = await getAudioMod();
+    if (!audio) return null;
+    const player = audio.createAudioPlayer(ASSETS[name]);
+    cache.set(name, player);
+    return player;
   } catch {
     return null; // sin audio no se rompe la cinemática
   }
@@ -47,12 +64,13 @@ function play(name: EdadSoundName, volume = 0.6): void {
   if (!enabled) return;
   (async () => {
     try {
-      await Audio.setAudioModeAsync({ playsInSilentModeIOS: true });
-      const sound = await getSound(name);
-      if (!sound) return;
-      await sound.setPositionAsync(0);
-      await sound.setVolumeAsync(volume);
-      await sound.playAsync();
+      const audio = await getAudioMod();
+      await audio?.setAudioModeAsync({ playsInSilentMode: true });
+      const player = await getSound(name);
+      if (!player) return;
+      await player.seekTo(0);
+      player.volume = volume;
+      player.play();
     } catch { /* silencioso */ }
   })();
 }
@@ -72,8 +90,8 @@ export function isSoundEnabled(): boolean {
 
 /** Libera los sonidos cacheados (llamar al desmontar la cinemática si se desea). */
 export async function unloadEdadSounds(): Promise<void> {
-  for (const s of cache.values()) {
-    try { await s.unloadAsync(); } catch { /* */ }
+  for (const p of cache.values()) {
+    try { p.remove(); } catch { /* */ }
   }
   cache.clear();
 }

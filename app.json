@@ -11,7 +11,10 @@
     "ios": {
       "supportsTablet": true,
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.atpperformance.app"
+      "bundleIdentifier": "com.atpperformance.app",
+      "infoPlist": {
+        "UIBackgroundModes": ["audio"]
+      }
     },
     "android": {
       "adaptiveIcon": {

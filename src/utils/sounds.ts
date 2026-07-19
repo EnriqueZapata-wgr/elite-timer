@@ -8,7 +8,24 @@
  *   - Completar rutina: complete.mp3 (sin importar estilo)
  *   - Silencioso: no reproduce nada
  */
-import { Audio } from 'expo-av';
+// MB-5: migrado de expo-av (deprecado en SDK 54) a expo-audio. Import PEREZOSO
+// (regla "nativos nuevos SIEMPRE lazy require"): si el binario instalado no
+// trae el módulo nativo, el catch degrada a silencio y los hápticos de los
+// call sites cubren el feedback — jamás crashea por OTA.
+type ExpoAudio = typeof import('expo-audio');
+type AudioPlayer = import('expo-audio').AudioPlayer;
+
+let audioMod: ExpoAudio | null = null;
+async function getAudioMod(): Promise<ExpoAudio | null> {
+  if (audioMod) return audioMod;
+  try {
+    audioMod = await import('expo-audio');
+    return audioMod;
+  } catch (e) {
+    if (__DEV__) console.warn('[sounds] expo-audio no disponible:', e);
+    return null;
+  }
+}
 
 // === ASSETS (1 archivo por estilo + complete) ===
 
@@ -31,17 +48,19 @@ const STYLE_MAP: Record<string, keyof typeof ASSETS> = {
 
 // === CACHE DE SONIDOS PRECARGADOS ===
 
-const cache: Map<string, Audio.Sound> = new Map();
+const cache: Map<string, AudioPlayer> = new Map();
 let isInitialized = false;
 let currentStyle = 'digital';
 
-/** Precarga un asset en Audio.Sound listo para reproducción instantánea */
+/** Precarga un asset en AudioPlayer listo para reproducción instantánea */
 async function preload(key: string, asset: number): Promise<void> {
+  const audio = await getAudioMod();
+  if (!audio) return;
   try {
     const existing = cache.get(key);
-    if (existing) { try { await existing.unloadAsync(); } catch {} }
-    const { sound } = await Audio.Sound.createAsync(asset, { shouldPlay: false });
-    cache.set(key, sound);
+    if (existing) { try { existing.remove(); } catch {} }
+    const player = audio.createAudioPlayer(asset);
+    cache.set(key, player);
   } catch (e) {
     if (__DEV__) console.warn(`[sounds] preload "${key}" falló:`, e);
   }
@@ -49,12 +68,12 @@ async function preload(key: string, asset: number): Promise<void> {
 
 /** Reproduce un sonido del cache */
 async function play(key: string, volume: number): Promise<void> {
-  const sound = cache.get(key);
-  if (!sound) return;
+  const player = cache.get(key);
+  if (!player) return;
   try {
-    await sound.setPositionAsync(0);
-    await sound.setVolumeAsync(Math.max(0, Math.min(1, volume)));
-    await sound.playAsync();
+    await player.seekTo(0);
+    player.volume = Math.max(0, Math.min(1, volume));
+    player.play();
   } catch (e) {
     if (__DEV__) console.warn(`[sounds] play "${key}" falló:`, e);
   }
@@ -71,9 +90,12 @@ export function setSoundStyle(style: string): void {
 export async function initAudio(): Promise<void> {
   if (isInitialized) return;
   try {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,
-      staysActiveInBackground: true,
+    const audio = await getAudioMod();
+    // Background + silent switch: los timers de Mente/Fitness siguen sonando
+    // con la pantalla bloqueada (UIBackgroundModes: audio en app.json).
+    await audio?.setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
     });
   } catch {}
 
@@ -142,8 +164,8 @@ export function playBeep(volume: number = 0.7): void {
 
 /** Limpiar cache al desmontar */
 export async function cleanupAudio(): Promise<void> {
-  for (const [, sound] of cache) {
-    try { await sound.unloadAsync(); } catch {}
+  for (const [, player] of cache) {
+    try { player.remove(); } catch {}
   }
   cache.clear();
   isInitialized = false;
