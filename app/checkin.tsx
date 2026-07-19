@@ -3,7 +3,7 @@
  * 3 pasos: cuadrante → emociones (con descripciones) → contexto.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking, BackHandler } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,6 +14,7 @@ import {
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
 import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
+import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
 import { promptForDate, buildCheckinJournalEntry } from '@/src/data/checkin-prompts';
 import { computeJournalStreak } from '@/src/services/journal-logic';
@@ -123,9 +124,20 @@ export default function CheckinScreen() {
     haptic.heavy();
     setSaving(true);
     try {
+      // MB-5: pleasantness/energy_level derivados del RULER (cuadrante + emociones).
+      // Antes nunca se escribían → day-compiler leía null y perdía la señal de mood.
+      const axes = deriveCheckinAxes(
+        quadrant,
+        selectedEmotions
+          .map(id => EMOTIONS.find(e => e.id === id))
+          .filter((e): e is Emotion => !!e)
+          .map(e => ({ energy: e.energy, intensity: e.intensity })),
+      );
       await saveCheckin({
         quadrant,
         emotions: selectedEmotions,
+        energy_level: axes.energy_level,
+        pleasantness: axes.pleasantness,
         context_where: ctxWhere ?? undefined,
         context_who: ctxWho ?? undefined,
         context_doing: ctxDoing ?? undefined,
@@ -183,7 +195,16 @@ export default function CheckinScreen() {
 
       vibrateMedium();
       setStep(4);
-    } catch (e) { logWarn('[checkin] save flow threw', e); }
+    } catch (e) {
+      // MB-5: el fallo era invisible (solo logWarn) — el usuario se quedaba en
+      // el paso 3 sin feedback y creía que guardó. Sus selecciones siguen en
+      // memoria: puede reintentar con el mismo botón.
+      logWarn('[checkin] save flow threw', e);
+      Alert.alert(
+        'No se pudo guardar',
+        'Tu check-in no se registró. Revisa tu conexión e intenta de nuevo — tus respuestas siguen aquí.',
+      );
+    }
     setSaving(false);
   };
 
