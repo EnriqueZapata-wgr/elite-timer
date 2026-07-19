@@ -27,6 +27,8 @@ import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { TopBanner } from '@/src/components/global/TopBanner';
 import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
+import { ArgosVoiceMode } from '@/src/components/argos/ArgosVoiceMode';
+import { getArgosVoice } from '@/src/services/argos-voice-service';
 import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
 import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
@@ -119,6 +121,9 @@ function ArgosChat() {
   const [offline, setOffline] = useState(false);
   // Nombre para el copy offline ("Se me fue la señal, {nombre}").
   const [userName, setUserName] = useState<string | null>(null);
+  // MB-4 J5: modo voz (full-screen) + voz elegida por el user.
+  const [voiceMode, setVoiceMode] = useState(false);
+  const [argosVoice, setArgosVoice] = useState<string | null>(null);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -136,6 +141,8 @@ function ArgosChat() {
         setUserId(user.id);
         // Bug #8: nombre para el copy offline (metadata local, sin fetch extra).
         setUserName((user.user_metadata as any)?.full_name ?? null);
+        // MB-4 J5: voz elegida por el user (para el modo voz).
+        getArgosVoice(user.id).then(setArgosVoice).catch(() => {});
         if (params.conversationId) {
           const msgs = await loadConversation(params.conversationId);
           setMessages(msgs);
@@ -445,6 +452,13 @@ function ArgosChat() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 12 }}>
+          {/* MB-4 J5: modo voz full-screen (hablar con ARGOS) */}
+          <Pressable
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); stopSpeaking(); setVoiceMode(true); }}
+            hitSlop={12}
+          >
+            <Ionicons name="mic-circle-outline" size={24} color="#a8e02a" />
+          </Pressable>
           {/* Toggle auto-speak */}
           <Pressable
             onPress={() => {
@@ -682,6 +696,22 @@ function ArgosChat() {
           />
         </Pressable>
       </View>
+
+      {/* MB-4 J5: modo voz full-screen */}
+      <ArgosVoiceMode
+        visible={voiceMode}
+        onClose={() => setVoiceMode(false)}
+        userId={userId ?? undefined}
+        voice={argosVoice}
+        history={messages.map(m => ({ role: m.role, content: m.content }))}
+        onTurnComplete={(userText, argosText) => {
+          setMessages(prev => [
+            ...prev,
+            { role: 'user', content: userText, ts: Date.now() },
+            { role: 'assistant', content: argosText, ts: Date.now() },
+          ]);
+        }}
+      />
     </View>
   );
 }
