@@ -13,8 +13,10 @@ import AnimatedRN, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
+import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import { supabase } from '@/src/lib/supabase';
@@ -286,9 +288,7 @@ function BoxConfigScreen({ template, onStart, onBack }: {
           {' '}({inhale}-{holdFull}-{exhale}-{holdEmpty} × {cycles})
         </EliteText>
 
-        <Pressable onPress={handleStart} style={styles.configStartBtn}>
-          <EliteText style={styles.configStartBtnText}>COMENZAR</EliteText>
-        </Pressable>
+        <GradientCTA label="COMENZAR" onPress={handleStart} />
       </View>
     </SafeAreaView>
   );
@@ -336,7 +336,9 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   const cycleSeconds = template.phases.reduce((sum, p) => sum + p.seconds, 0);
   const totalSeconds = template.cycles * cycleSeconds;
 
-  const [status, setStatus] = useState<'idle' | 'running' | 'paused' | 'completed'>('idle');
+  // MB-5: 'preparing' = cuenta 3-2-1 antes de la primera inhalación (estado explícito).
+  const [status, setStatus] = useState<'idle' | 'preparing' | 'running' | 'paused' | 'completed'>('idle');
+  const [prepLeft, setPrepLeft] = useState(3);
   const [currentCycle, setCurrentCycle] = useState(0);
   const [currentPhaseIdx, setCurrentPhaseIdx] = useState(0);
   const [secondsInPhase, setSecondsInPhase] = useState(0);
@@ -345,6 +347,9 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   // T2 MENTE: la verdad del avance vive en el ref (síncrono) y la máquina de
   // estados pura (breath-timer-core, testeada). Los useState solo pintan.
   const stepRef = useRef<BreathStep>(INITIAL_STEP);
+  // MB-5: guard — handleComplete puede dispararse por el tick final Y por
+  // "TERMINAR" casi simultáneos; solo el primero registra la sesión.
+  const completedRef = useRef(false);
 
   // Animación del círculo
   const scaleAnim = useRef(new RNAnimated.Value(1)).current;
@@ -354,7 +359,9 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   const totalRemaining = totalSeconds - totalElapsed;
   // T2 MENTE: color por fase (requisito Enrique — verde inhala / azul retén /
   // naranja exhala). En idle el anillo queda en el morado del pilar.
-  const ringColor = status === 'idle' || !currentPhase ? PURPLE : phaseColor(currentPhase.action);
+  const ringColor = status === 'idle' || status === 'preparing' || !currentPhase ? PURPLE : phaseColor(currentPhase.action);
+  // MB-5: idle y preparing comparten el layout de "aún no corre".
+  const preSession = status === 'idle' || status === 'preparing';
 
   // Animar círculo según fase: crece en inhala, decrece en exhala, se
   // mantiene en retención (phaseTargetScale del core).
@@ -402,12 +409,29 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
 
+  // MB-5: primera vez pasa por 'preparing' (3-2-1); reanudar va directo.
   const handleStart = () => {
     if (status === 'idle') {
-      try { initAudio(); playBeep(0.5); } catch { vibrateMedium(); }
+      try { initAudio(); } catch { /* fail-soft */ }
+      setPrepLeft(3);
+      setStatus('preparing');
+      return;
     }
     setStatus('running');
   };
+
+  // Cuenta regresiva de preparación: 3-2-1 con háptico, luego arranca.
+  useEffect(() => {
+    if (status !== 'preparing') return;
+    haptic.light();
+    const t = setTimeout(() => {
+      if (prepLeft > 1) { setPrepLeft(p => p - 1); return; }
+      try { playBeep(0.5); } catch { vibrateMedium(); }
+      setStatus('running');
+    }, 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, prepLeft]);
 
   const handlePause = () => {
     scaleAnim.stopAnimation();
@@ -415,6 +439,8 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   };
 
   const handleComplete = async () => {
+    if (completedRef.current) return;
+    completedRef.current = true;
     setStatus('completed');
     try { initAudio(); playBeep(0.5); } catch { /* */ }
     vibrateMedium();
@@ -464,10 +490,24 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   const handleEnd = () => {
     const m = Math.floor(totalElapsed / 60);
     const s = totalElapsed % 60;
-    Alert.alert('¿Terminar sesión?', `Llevas ${m > 0 ? `${m}m ${s}s` : `${s}s`}.`, [
-      { text: 'Continuar', style: 'cancel' },
-      { text: 'Terminar', onPress: handleComplete },
-    ]);
+    Alert.alert(
+      '¿Terminar sesión?',
+      `Llevas ${m > 0 ? `${m}m ${s}s` : `${s}s`} — se registra tu tiempo real.`,
+      [
+        { text: 'Continuar', style: 'cancel' },
+        { text: 'Terminar', onPress: handleComplete },
+      ],
+    );
+  };
+
+  // MB-5: salida sin castigo — el back durante sesión activa NO descarta en
+  // silencio: confirma y registra el tiempo real (mismo camino que TERMINAR).
+  const handleBack = () => {
+    if ((status === 'running' || status === 'paused') && totalElapsed > 0) {
+      handleEnd();
+      return;
+    }
+    onBack();
   };
 
   const formatMmSs = (secs: number) => {
@@ -503,16 +543,13 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             backgroundColor: 'rgba(168,224,42,0.1)', borderRadius: 16,
             padding: 16, marginVertical: 16, width: '80%', alignItems: 'center',
           }}>
-            <Text style={{ color: '#a8e02a', fontSize: 18, fontFamily: Fonts.extraBold }}>+1.0 electrón</Text>
+            <Text style={{ color: '#a8e02a', fontSize: 18, fontFamily: Fonts.extraBold }}>
+              +{ELECTRON_WEIGHTS.breathwork.weight.toFixed(1)} {ELECTRON_WEIGHTS.breathwork.weight === 1 ? 'electrón' : 'electrones'}
+            </Text>
             <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 4 }}>Breathwork completado</Text>
           </View>
 
-          <Pressable onPress={onComplete} style={{
-            backgroundColor: '#a8e02a', borderRadius: 16,
-            paddingVertical: 16, paddingHorizontal: 40,
-          }}>
-            <Text style={{ color: '#000', fontSize: 16, fontFamily: Fonts.extraBold }}>CONTINUAR</Text>
-          </Pressable>
+          <GradientCTA label="CONTINUAR" onPress={onComplete} />
         </View>
       </SafeAreaView>
     );
@@ -522,7 +559,7 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.backBtn}>
-        <BackButton onPress={onBack} color={PURPLE} />
+        <BackButton onPress={handleBack} color={PURPLE} />
       </View>
 
       <View style={styles.timerContainer}>
@@ -541,9 +578,14 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             },
           ]}>
             <EliteText style={styles.actionText}>
-              {status === 'idle' ? 'Listo' : currentPhase?.label ?? ''}
+              {status === 'idle' ? 'Listo' : status === 'preparing' ? 'Prepárate' : currentPhase?.label ?? ''}
             </EliteText>
-            {status !== 'idle' && (
+            {status === 'preparing' && (
+              <EliteText style={[styles.phaseCountdown, { color: ringColor }]}>
+                {prepLeft}
+              </EliteText>
+            )}
+            {!preSession && (
               <EliteText style={[styles.phaseCountdown, { color: ringColor }]}>
                 {currentPhase ? currentPhase.seconds - secondsInPhase : 0}
               </EliteText>
@@ -552,7 +594,7 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
         </View>
 
         {/* Info */}
-        {status !== 'idle' && (
+        {!preSession && (
           <AnimatedRN.View entering={FadeIn.duration(300)} style={styles.infoSection}>
             <EliteText variant="caption" style={styles.cycleText}>
               Ciclo {currentCycle + 1} de {template.cycles}
@@ -566,7 +608,7 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
           </AnimatedRN.View>
         )}
 
-        {status === 'idle' && (
+        {preSession && (
           <>
             <EliteText variant="caption" style={styles.idleInfo}>
               {template.durationMinutes} min · {template.cycles} ciclos · {template.phases.map(p => p.seconds + 's').join('-')}
@@ -584,29 +626,21 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
           </>
         )}
 
-        {/* Controles */}
+        {/* Controles — GradientCTA del design system (MB-5) */}
         <View style={styles.controls}>
           {status === 'idle' ? (
-            <Pressable onPress={handleStart} style={styles.mainBtn}>
-              <EliteText style={styles.mainBtnText}>COMENZAR</EliteText>
-            </Pressable>
+            <GradientCTA label="COMENZAR" onPress={handleStart} />
+          ) : status === 'preparing' ? (
+            <GradientCTA label="CANCELAR" variant="quiet" onPress={() => setStatus('idle')} />
           ) : status === 'running' ? (
             <>
-              <Pressable onPress={handlePause} style={styles.mainBtn}>
-                <EliteText style={styles.mainBtnText}>PAUSAR</EliteText>
-              </Pressable>
-              <Pressable onPress={handleEnd} style={styles.endBtn}>
-                <EliteText variant="caption" style={styles.endBtnText}>TERMINAR</EliteText>
-              </Pressable>
+              <GradientCTA label="PAUSAR" onPress={handlePause} />
+              <GradientCTA label="TERMINAR" variant="quiet" onPress={handleEnd} />
             </>
           ) : (
             <>
-              <Pressable onPress={handleStart} style={styles.mainBtn}>
-                <EliteText style={styles.mainBtnText}>REANUDAR</EliteText>
-              </Pressable>
-              <Pressable onPress={handleEnd} style={styles.endBtn}>
-                <EliteText variant="caption" style={styles.endBtnText}>TERMINAR</EliteText>
-              </Pressable>
+              <GradientCTA label="REANUDAR" onPress={handleStart} />
+              <GradientCTA label="TERMINAR" variant="quiet" onPress={handleEnd} />
             </>
           )}
         </View>
@@ -689,17 +723,8 @@ const styles = StyleSheet.create({
   },
   contraText: { flex: 1, color: '#EF9F27', fontSize: FontSizes.sm, lineHeight: 18 },
 
-  // Controles
+  // Controles (botones = GradientCTA del design system)
   controls: { alignItems: 'center', gap: Spacing.md },
-  mainBtn: {
-    backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.xl + Spacing.lg,
-    paddingVertical: Spacing.md, borderRadius: Radius.pill,
-    shadowColor: ATP_BRAND.lime, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
-  },
-  mainBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
-  endBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
-  endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, letterSpacing: 2 },
 
   // Completado
   completedContainer: {
@@ -711,12 +736,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary, fontStyle: 'italic', textAlign: 'center',
     fontSize: FontSizes.lg, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
   },
-  doneBtn: {
-    borderWidth: 1, borderColor: ATP_BRAND.teal + '55', borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2,
-  },
-  doneBtnText: { color: ATP_BRAND.teal, fontFamily: Fonts.bold, letterSpacing: 2 },
-
   // Config
   configContainer: {
     flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.lg,
@@ -748,11 +767,4 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary, marginTop: Spacing.lg, marginBottom: Spacing.xl, fontSize: FontSizes.md,
     fontFamily: Fonts.semiBold,
   },
-  configStartBtn: {
-    backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.xl + Spacing.lg,
-    paddingVertical: Spacing.md, borderRadius: Radius.pill,
-    shadowColor: ATP_BRAND.lime, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
-  },
-  configStartBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
 });

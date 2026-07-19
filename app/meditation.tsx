@@ -5,7 +5,7 @@
  * Si no → muestra la biblioteca para elegir.
  */
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
+import { View, StyleSheet, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,9 +14,11 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useTimer } from '@/hooks/use-timer';
 import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
+import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
@@ -31,7 +33,7 @@ import {
 } from '@/src/data/meditation-library';
 import { phaseIndexAt } from '@/src/services/meditation-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, ATP_BRAND } from '@/src/constants/brand';
+import { CATEGORY_COLORS, ATP_BRAND } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
@@ -151,6 +153,9 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
   const [currentPhaseIdx, setCurrentPhaseIdx] = useState(0);
   const prevPhaseIdx = useRef(0);
   const soundInit = useRef(false);
+  // MB-5: guard síncrono — el fin natural del timer y "TERMINAR" pueden
+  // dispararse casi juntos; solo el primero registra la sesión.
+  const completedRef = useRef(false);
 
   const phases = meditation.phases;
   const elapsed = totalSeconds - timeLeft;
@@ -192,6 +197,11 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
   };
 
   const handleComplete = async () => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    // MB-5: congelar el reloj — sin esto, al terminar antes de tiempo el
+    // useTimer seguía corriendo y `elapsed` crecía en la pantalla de completado.
+    pause();
     setCompleted(true);
     // 3 "campanas"
     playBowl(0.5);
@@ -243,10 +253,20 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
     const m = Math.floor(elapsed / 60);
     const s = elapsed % 60;
     const timeStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
-    Alert.alert('¿Terminar meditación?', `Llevas ${timeStr}.`, [
+    Alert.alert('¿Terminar meditación?', `Llevas ${timeStr} — se registra tu tiempo real.`, [
       { text: 'Continuar', style: 'cancel' },
       { text: 'Terminar', onPress: handleComplete },
     ]);
+  };
+
+  // MB-5: salida sin castigo — el back durante sesión activa NO descarta en
+  // silencio: confirma y registra el tiempo real (mismo camino que TERMINAR).
+  const handleBack = () => {
+    if ((status === 'running' || status === 'paused') && elapsed > 0) {
+      handleEnd();
+      return;
+    }
+    onBack();
   };
 
   const currentPhase = phases[currentPhaseIdx];
@@ -266,9 +286,16 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
           <EliteText variant="body" style={styles.completedMessage}>
             {meditation.closingMessage}
           </EliteText>
-          <Pressable onPress={onComplete} style={styles.doneBtn}>
-            <EliteText variant="body" style={styles.doneBtnText}>Volver</EliteText>
-          </Pressable>
+
+          {/* MB-5: el electrón ganado se muestra (antes se otorgaba en silencio). */}
+          <View style={styles.electronCard}>
+            <EliteText style={styles.electronValue}>
+              +{ELECTRON_WEIGHTS.meditation.weight.toFixed(1)} electrones
+            </EliteText>
+            <EliteText variant="caption" style={styles.electronLabel}>Meditación completada</EliteText>
+          </View>
+
+          <GradientCTA label="CONTINUAR" onPress={onComplete} />
         </View>
       </SafeAreaView>
     );
@@ -278,7 +305,7 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.backBtn}>
-        <BackButton onPress={onBack} color={PURPLE} />
+        <BackButton onPress={handleBack} color={PURPLE} />
       </View>
 
       <View style={styles.timerContainer}>
@@ -326,29 +353,19 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
           </View>
         )}
 
-        {/* Controles */}
+        {/* Controles — GradientCTA del design system (MB-5) */}
         <View style={styles.controls}>
           {status === 'idle' ? (
-            <Pressable onPress={() => { haptic.medium(); start(); }} style={styles.mainBtn}>
-              <EliteText style={styles.mainBtnText}>COMENZAR</EliteText>
-            </Pressable>
+            <GradientCTA label="COMENZAR" onPress={start} />
           ) : status === 'running' ? (
             <>
-              <Pressable onPress={() => { haptic.medium(); pause(); }} style={styles.mainBtn}>
-                <EliteText style={styles.mainBtnText}>PAUSAR</EliteText>
-              </Pressable>
-              <Pressable onPress={handleEnd} style={styles.endBtn}>
-                <EliteText variant="caption" style={styles.endBtnText}>TERMINAR</EliteText>
-              </Pressable>
+              <GradientCTA label="PAUSAR" onPress={pause} />
+              <GradientCTA label="TERMINAR" variant="quiet" onPress={handleEnd} />
             </>
           ) : status === 'paused' ? (
             <>
-              <Pressable onPress={() => { haptic.medium(); start(); }} style={styles.mainBtn}>
-                <EliteText style={styles.mainBtnText}>REANUDAR</EliteText>
-              </Pressable>
-              <Pressable onPress={handleEnd} style={styles.endBtn}>
-                <EliteText variant="caption" style={styles.endBtnText}>TERMINAR</EliteText>
-              </Pressable>
+              <GradientCTA label="REANUDAR" onPress={start} />
+              <GradientCTA label="TERMINAR" variant="quiet" onPress={handleEnd} />
             </>
           ) : null}
         </View>
@@ -420,17 +437,8 @@ const styles = StyleSheet.create({
   phaseDotDone: { backgroundColor: PURPLE },
   phaseDotCurrent: { backgroundColor: PURPLE, width: 16, borderRadius: 3 },
 
-  // Controles
+  // Controles (botones = GradientCTA del design system)
   controls: { alignItems: 'center', gap: Spacing.md },
-  mainBtn: {
-    backgroundColor: ATP_BRAND.lime, paddingHorizontal: Spacing.xl + Spacing.lg,
-    paddingVertical: Spacing.md, borderRadius: Radius.pill,
-    shadowColor: ATP_BRAND.lime, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
-  },
-  mainBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 3 },
-  endBtn: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
-  endBtnText: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, letterSpacing: 2 },
 
   // Completado
   completedContainer: {
@@ -442,9 +450,10 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary, fontStyle: 'italic', textAlign: 'center',
     fontSize: FontSizes.lg, paddingHorizontal: Spacing.xl, marginVertical: Spacing.md,
   },
-  doneBtn: {
-    borderWidth: 1, borderColor: ATP_BRAND.teal + '55', borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2,
+  electronCard: {
+    backgroundColor: 'rgba(168,224,42,0.1)', borderRadius: Radius.lg,
+    padding: Spacing.md, marginVertical: Spacing.md, width: '80%', alignItems: 'center',
   },
-  doneBtnText: { color: ATP_BRAND.teal, fontFamily: Fonts.bold, letterSpacing: 2 },
+  electronValue: { color: ATP_BRAND.lime, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
+  electronLabel: { color: Colors.textSecondary, marginTop: 4 },
 });
