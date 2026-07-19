@@ -13,13 +13,14 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
-export interface ElectronOption {
-  key: string;
-  name: string;
-  icon: string;
-  color: string;
-  weight: number;
-}
+// MB-5: opciones y tipo movidos a day-booleans.ts (módulo puro, testeable).
+// Re-export para no romper consumidores.
+import {
+  ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS, type ElectronOption,
+} from '@/src/services/hoy/day-booleans';
+
+export { ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS };
+export type { ElectronOption };
 
 export interface AgendaAction {
   id: string;
@@ -28,27 +29,6 @@ export interface AgendaAction {
   category?: string;
   completed?: boolean;
 }
-
-// Todos los electrones disponibles (el usuario elige cuáles trackear)
-export const ALL_BOOLEAN_OPTIONS: ElectronOption[] = [
-  { key: 'sunlight',     name: 'Luz solar',     icon: 'sunny-outline',   color: '#fbbf24', weight: 1.5 },
-  { key: 'meditation',   name: 'Meditación',    icon: 'flower-outline',  color: '#c084fc', weight: 2.5 },
-  { key: 'supplements',  name: 'Suplementos',   icon: 'medical-outline', color: '#a8e02a', weight: 1.0 },
-  { key: 'cold_shower',  name: 'Baño frío',     icon: 'snow-outline',    color: '#38bdf8', weight: 3.0 },
-  { key: 'grounding',    name: 'Grounding',     icon: 'leaf-outline',    color: '#34d399', weight: 1.5 },
-  { key: 'no_alcohol',   name: 'Sin alcohol',   icon: 'wine-outline',    color: '#f87171', weight: 1.0 },
-  { key: 'strength',     name: 'Fuerza',        icon: 'barbell-outline', color: '#a8e02a', weight: 3.0 },
-  { key: 'breathwork',   name: 'Breathwork',    icon: 'cloud-outline',   color: '#60a5fa', weight: 1.0 },
-  { key: 'red_glasses',  name: 'Lentes rojos',  icon: 'glasses-outline', color: '#f87171', weight: 1.0 },
-  { key: 'period_log',   name: 'Registrar ciclo', icon: 'calendar-outline', color: '#fb7185', weight: 1.0 },
-];
-
-export const ALL_QUANT_OPTIONS: ElectronOption[] = [
-  { key: 'protein', name: 'Proteína', icon: 'restaurant-outline', color: '#a6c8ff', weight: 2.0 },
-  { key: 'steps',   name: 'Pasos',    icon: 'footsteps-outline',  color: '#ffc54c', weight: 3.0 },
-  { key: 'water',   name: 'Agua',     icon: 'water-outline',      color: '#60a5fa', weight: 1.5 },
-  { key: 'sleep',   name: 'Sueño',    icon: 'moon-outline',       color: '#818cf8', weight: 3.0 },
-];
 
 interface Props {
   visible: boolean;

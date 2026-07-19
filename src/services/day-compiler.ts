@@ -21,36 +21,17 @@ import { selectAgendaDrivers, anchorTimes, interventionAgendaItems, canonicalCon
 import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 import { buildDoneIndex, applyDoneFromLogs } from '@/src/services/hoy/day-state-core';
 
-/**
- * Electrones cuya `completed` se deriva de actividad real (no del blob).
- * Tap en HOY sobre uno NO los prende — lleva a la pantalla de actividad.
- * El compilador los enciende solos cuando hay un registro real ese día.
- *
- * `period_log` solo se ofrece a usuarias con `biological_sex === 'female'`.
- */
-export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', 'supplements', 'period_log', 'checkin',
-  // #v13e 3.A.3: cardio verificado — completed = ≥1 sesión en cardio_sessions hoy.
-  'cardio',
-  // #17: journal verificado — completed = ≥1 entrada en journal_entries hoy (espejo de checkin).
-  'journal'] as const;
-export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
+// MB-5: listas de booleanos/verificados extraídas a módulo PURO (testeable sin
+// supabase) — el patrón "3 lugares" tiene regresión en day-booleans.test.ts.
+// Se re-exportan aquí para no tocar a los consumidores existentes.
+import {
+  DEFAULT_BOOLEANS, MANDATORY_BOOLEANS,
+  VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, FEMALE_ONLY_ELECTRONS,
+  type VerifiedElectronKey,
+} from '@/src/services/hoy/day-booleans';
 
-/** Ruta de tap para cada electrón verificado.
- * Routing GRANULAR (#1/#90): tap → pantalla específica de la actividad
- * (meditación → /meditation, checkin → /checkin); ejercicio sigue a /fitness-hub. */
-export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, Href> = {
-  meditation: '/meditation',
-  breathwork: '/breathing',
-  strength: '/fitness-hub',
-  supplements: '/supplements',
-  period_log: '/cycle',
-  checkin: '/checkin',
-  cardio: '/log-cardio', // FIT-3 (MB-3): directo a registrar sesión
-  journal: '/journal',
-};
-
-/** Electrones que solo se ofrecen a un subconjunto de usuarios. */
-export const FEMALE_ONLY_ELECTRONS = new Set<string>(['period_log']);
+export { VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, FEMALE_ONLY_ELECTRONS };
+export type { VerifiedElectronKey };
 
 // ═══ TIPOS ═══
 
@@ -131,31 +112,8 @@ interface CrossPillar {
 }
 
 // ═══ DEFAULTS ═══
+// DEFAULT_BOOLEANS y MANDATORY_BOOLEANS viven en day-booleans.ts (ver arriba).
 
-const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower', 'grounding', 'no_alcohol',
-  // #cableado-final 3.1: nuevos hábitos booleanos para que sus cards reflejen estado (completed/weight).
-  'journal', 'no_processed_foods', 'screen_time_cutoff',
-  // #v13d 2.2: checkin verificado entra a booleanElectrons → su card refleja `Hecho hoy ✓`.
-  // `completed` se deriva de actividad real (emotional_checkins de hoy), no del blob — ver verifiedCompleted.
-  'checkin'];
-
-/**
- * #v13e 3.A.1 — CAUSA RAÍZ del "toggle silencioso" (SIN PROCESADOS / OFF-PANTALLAS no palomeaban).
- *
- * `activeBoolKeys = prefs.active_boolean_electrons ?? DEFAULT_BOOLEANS` usa la lista PERSISTIDA del
- * usuario cuando existe. Pero el DEFAULT de la columna (migración 043_day_preferences.sql) es solo
- * los 6 originales ['sunlight','meditation','supplements','cold_shower','grounding','no_alcohol'], y
- * protocol-config (ALL_ELECTRONS) NO ofrece journal/no_processed_foods/screen_time_cutoff como
- * toggleables. Así que esos keys NUNCA entran a la lista persistida → nunca entran a booleanElectrons
- * → al tocar la card, el toggle escribe un electron_log huérfano + un blob sin el key, y al recompilar
- * la card no tiene estado (`completed` undefined) → se queda en "pending" para siempre. (no_alcohol y
- * checkin SÍ palomean porque ambos sí son seleccionables / viven en la lista persistida.)
- *
- * FIX sin migración: estos hábitos son "core" (no deseleccionables) → viven en código, no en prefs.
- * Se fuerzan SIEMPRE en activeBoolKeys vía unión, respetando la (de)selección de los seleccionables.
- * `cardio` (#v13e 3.A.3) es verificado y tampoco es seleccionable → también va aquí.
- */
-const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio'];
 const DEFAULT_QUANTS = ['protein', 'water'];
 
 const DEFAULT_QUANT_CONFIG: Record<string, { target: number; unit: string }> = {
