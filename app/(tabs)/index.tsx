@@ -1209,8 +1209,8 @@ export default function TodayScreen() {
         <View style={{ height: 120 }} />
       </ScrollView>
 
-      {/* Tour de onboarding */}
-      {showTour && <AppTour onComplete={() => setShowTour(false)} />}
+      {/* Tour de onboarding (MB-10: editorial, sex decide la pantalla de Ciclo) */}
+      {showTour && <AppTour onComplete={() => setShowTour(false)} sex={userSex} />}
 
       {/* F3 (AGENDA-COMPLETE): el modal de la campana se retiró — el inbox vive en /notifications
           (el INSIGHT ARGOS del día se muestra ahí, fijado arriba). */}

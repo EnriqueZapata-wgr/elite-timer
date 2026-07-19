@@ -1,140 +1,115 @@
 /**
- * AppTour — Overlay de onboarding con 7 pasos para nuevos usuarios.
- * Se muestra una sola vez; el estado se guarda en AsyncStorage.
+ * AppTour (MB-10) — welcome tour EDITORIAL post-pago, 7 pantallas (una por pilar).
+ *
+ * Doctrina: apetito, no manual de usuario. Una idea + una imagen por pantalla.
+ * Guiado-no-prisionero: "Saltar" siempre visible, sin culpa. Cero venta.
+ *
+ * Se muestra una vez (AsyncStorage @atp/tour_completed), al aterrizar en HOY tras
+ * el onboarding. Firma estable (onComplete) para no tocar el disparador de HOY;
+ * `sex` decide la 6ª pantalla (Ciclo para female, Comunidad para el resto — nunca
+ * se le muestra contenido de ciclo a un hombre).
  */
 import { useState } from 'react';
-import { View, Text, Pressable, Dimensions, Modal } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { View, StyleSheet, Modal, ImageBackground, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EliteText } from '@/components/elite-text';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
+import { haptic } from '@/src/utils/haptics';
+import { TEXT } from '@/src/constants/brand';
+import { buildTourSteps, type TourImageKey } from '@/src/components/tour/app-tour-core';
+import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
-const TOUR_STEPS = [
-  {
-    title: 'Bienvenido a ATP',
-    description: 'Tu sistema operativo de rendimiento. Aquí tienes todo para optimizar tu salud.',
-    icon: 'flash-outline' as const,
-    color: '#a8e02a',
-  },
-  {
-    title: 'Electrones',
-    description: 'Cada acción saludable carga electrones. Completa tu tablero diario y sube de rango.',
-    icon: 'battery-charging-outline' as const,
-    color: '#a8e02a',
-  },
-  {
-    title: 'Agenda del día',
-    description: 'Tu protocolo activo genera acciones programadas. Márcalas como hechas conforme avanzas.',
-    icon: 'calendar-outline' as const,
-    color: '#60a5fa',
-  },
-  {
-    title: 'ARGOS',
-    description: 'Tu IA de salud funcional. Pregúntale lo que quieras — conoce tus datos y te da consejos integrativos.',
-    icon: 'eye-outline' as const,
-    color: '#a8e02a',
-  },
-  {
-    title: 'Mi ATP',
-    description: 'Tu historia clínica y tus hábitos diarios (nutrición, fitness, suplementación y más), todo en un lugar. Explóralos en Mi ATP.',
-    icon: 'grid-outline' as const,
-    color: '#c084fc',
-  },
-  {
-    title: 'Reportes',
-    description: 'Todo lo que registras se puede consultar después. Tus tendencias, tu progreso, tus récords.',
-    icon: 'bar-chart-outline' as const,
-    color: '#38bdf8',
-  },
-  {
-    title: '¡Listo para empezar!',
-    description: 'Activa un protocolo desde Mi ATP y empieza a cargar electrones. Tu salud es un juego que vale la pena jugar.',
-    icon: 'rocket-outline' as const,
-    color: '#a8e02a',
-  },
-];
+// Imágenes editoriales por pilar (require estático · Metro). El core puro no las
+// referencia (rompería vitest); aquí se mapea imageKey → asset.
+const IMG: Record<TourImageKey, any> = {
+  hoy: require('@/assets/images/yo/disciplina-semanal.jpg'),
+  fitness: require('@/assets/images/hoy-extra/cardio-01.png'),
+  nutricion: require('@/assets/images/hoy-extra/proteina.png'),
+  mente: require('@/assets/images/intervenciones/mente.jpg'),
+  salud: require('@/assets/images/health-hub/mi-salud.png'),
+  ciclo: require('@/assets/images/cycle/ciclo-01.png'),
+  comunidad: require('@/assets/images/pillars/comunidad.png'),
+  tests: require('@/assets/images/health-hub/tests-evaluaciones.png'),
+};
 
 interface Props {
   onComplete: () => void;
+  sex?: string | null;
 }
 
-export function AppTour({ onComplete }: Props) {
+export function AppTour({ onComplete, sex }: Props) {
   const [step, setStep] = useState(0);
-  const current = TOUR_STEPS[step];
-  const isLast = step === TOUR_STEPS.length - 1;
+  const steps = buildTourSteps(sex);
+  const current = steps[step];
+  const isLast = step === steps.length - 1;
 
-  async function handleNext() {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (isLast) {
-      await AsyncStorage.setItem('@atp/tour_completed', 'true');
-      onComplete();
-    } else {
-      setStep(step + 1);
-    }
+  async function finish() {
+    await AsyncStorage.setItem('@atp/tour_completed', 'true').catch(() => {});
+    onComplete();
   }
 
-  function handleSkip() {
-    AsyncStorage.setItem('@atp/tour_completed', 'true');
-    onComplete();
+  function next() {
+    haptic.light();
+    if (isLast) finish();
+    else setStep((s) => s + 1);
   }
 
   return (
     <Modal visible transparent animationType="fade">
-      <View style={{
-        flex: 1, backgroundColor: 'rgba(0,0,0,0.95)',
-        justifyContent: 'center', alignItems: 'center', padding: 40,
-      }}>
-        {/* Progress dots */}
-        <View style={{ flexDirection: 'row', gap: 6, marginBottom: 40 }}>
-          {TOUR_STEPS.map((_, i) => (
-            <View key={i} style={{
-              width: i === step ? 24 : 8, height: 8, borderRadius: 4,
-              backgroundColor: i === step ? '#a8e02a' : i < step ? '#a8e02a' : '#333',
-            }} />
-          ))}
-        </View>
+      <View style={s.container}>
+        <ImageBackground key={current.kicker} source={IMG[current.imageKey]} style={s.image} imageStyle={s.imageInner}>
+          <LinearGradient
+            colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.97)']}
+            style={StyleSheet.absoluteFill}
+          />
 
-        {/* Icon */}
-        <View style={{
-          width: 100, height: 100, borderRadius: 50,
-          backgroundColor: `${current.color}15`,
-          justifyContent: 'center', alignItems: 'center', marginBottom: 24,
-        }}>
-          <Ionicons name={current.icon} size={48} color={current.color} />
-        </View>
+          {/* Skip siempre visible (guiado-no-prisionero) */}
+          <AnimatedPressable onPress={finish} style={s.skip} hitSlop={10}>
+            <EliteText style={s.skipText}>Saltar</EliteText>
+          </AnimatedPressable>
 
-        {/* Content */}
-        <Text style={{
-          color: '#fff', fontSize: 24, fontWeight: '800',
-          textAlign: 'center', marginBottom: 12,
-        }}>
-          {current.title}
-        </Text>
-        <Text style={{
-          color: '#999', fontSize: 15, lineHeight: 24,
-          textAlign: 'center', marginBottom: 40,
-        }}>
-          {current.description}
-        </Text>
+          <View style={s.bottom}>
+            <Animated.View key={`t-${step}`} entering={FadeInUp.duration(450)}>
+              <EliteText style={[s.kicker, { color: current.color }]}>{current.kicker}</EliteText>
+              <EliteText style={s.title}>{current.title}</EliteText>
+            </Animated.View>
 
-        {/* Buttons */}
-        <Pressable onPress={handleNext} style={{
-          backgroundColor: '#a8e02a', borderRadius: 16,
-          paddingVertical: 16, paddingHorizontal: 48,
-          width: '100%', alignItems: 'center',
-        }}>
-          <Text style={{ color: '#000', fontSize: 16, fontWeight: '800' }}>
-            {isLast ? 'COMENZAR' : 'SIGUIENTE'}
-          </Text>
-        </Pressable>
+            {/* Dots */}
+            <Animated.View entering={FadeIn.duration(400)} style={s.dots}>
+              {steps.map((_, i) => (
+                <View
+                  key={i}
+                  style={[
+                    s.dot,
+                    i === step && { width: 22, backgroundColor: current.color },
+                    i < step && { backgroundColor: current.color },
+                  ]}
+                />
+              ))}
+            </Animated.View>
 
-        {!isLast && (
-          <Pressable onPress={handleSkip} style={{ marginTop: 16 }}>
-            <Text style={{ color: '#666', fontSize: 13 }}>Saltar tour</Text>
-          </Pressable>
-        )}
+            <GradientCTA label={isLast ? 'EMPEZAR' : 'SIGUIENTE'} onPress={next} />
+          </View>
+        </ImageBackground>
       </View>
     </Modal>
   );
 }
+
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000' },
+  image: { flex: 1, justifyContent: 'flex-end' },
+  imageInner: { resizeMode: 'cover' },
+  skip: { position: 'absolute', top: 54, right: Spacing.lg, paddingVertical: 6, paddingHorizontal: 12 },
+  skipText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, letterSpacing: 0.5 },
+  bottom: { paddingHorizontal: Spacing.lg, paddingBottom: 48, gap: Spacing.lg, minHeight: height * 0.42, justifyContent: 'flex-end' },
+  kicker: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 3, marginBottom: Spacing.sm },
+  title: { fontSize: 26, fontFamily: Fonts.bold, color: '#fff', lineHeight: 34 },
+  dots: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333' },
+});
