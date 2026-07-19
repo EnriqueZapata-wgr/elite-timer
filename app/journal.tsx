@@ -34,11 +34,12 @@ const PURPLE = CATEGORY_COLORS.mind;
 // #138: hero editorial del pilar (require estático · Metro). Journal reusa mente.jpg.
 const HERO_MENTE = require('@/assets/images/intervenciones/mente.jpg');
 
+// MB-8 higiene: colores por token (CATEGORY_COLORS), no hex hardcodeado.
 const JOURNAL_TYPES = [
-  { key: 'gratitude', label: 'Gratitud', icon: 'heart-outline' as const, color: '#D4537E', description: '9 preguntas de agradecimiento' },
-  { key: 'vision', label: 'Visión', icon: 'telescope-outline' as const, color: '#1D9E75', description: 'Tu futuro en 1, 3 y 5 años' },
+  { key: 'gratitude', label: 'Gratitud', icon: 'heart-outline' as const, color: CATEGORY_COLORS.cycle, description: '9 preguntas de agradecimiento' },
+  { key: 'vision', label: 'Visión', icon: 'telescope-outline' as const, color: CATEGORY_COLORS.metrics, description: 'Tu futuro en 1, 3 y 5 años' },
   { key: 'stoic', label: 'Estoico', icon: 'library-outline' as const, color: PURPLE, description: 'Reflexión al estilo Séneca' },
-  { key: 'work_dump', label: 'Descarga', icon: 'briefcase-outline' as const, color: '#EF9F27', description: 'Vacía pendientes de tu cabeza' },
+  { key: 'work_dump', label: 'Descarga', icon: 'briefcase-outline' as const, color: CATEGORY_COLORS.optimization, description: 'Vacía pendientes de tu cabeza' },
 ] as const;
 
 const STOIC_QUESTIONS = [
@@ -511,7 +512,7 @@ function GratitudeForm({ personal, setPersonal, professional, setProfessional, s
     <View>
       {sections.map(sec => (
         <View key={sec.title} style={s.formSection}>
-          <EliteText variant="caption" style={[s.sectionTitle, { color: '#D4537E' }]}>{sec.title}</EliteText>
+          <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.cycle }]}>{sec.title}</EliteText>
           {sec.data.map((val, i) => (
             <TextInput key={i} style={s.input} value={val} onChangeText={v => updateArr(sec.data, sec.setter, i, v)}
               placeholder={`${i + 1}. ${sec.placeholder}`} placeholderTextColor={TEXT_COLORS.muted} />
@@ -534,7 +535,7 @@ function VisionForm({ v1, setV1, v3, setV3, v5, setV5 }: {
     <View>
       {fields.map(f => (
         <View key={f.label} style={s.formSection}>
-          <EliteText variant="caption" style={[s.sectionTitle, { color: '#1D9E75' }]}>{f.label}</EliteText>
+          <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.metrics }]}>{f.label}</EliteText>
           <TextInput style={[s.input, { minHeight: 100 }]} value={f.value} onChangeText={f.setter}
             placeholder={f.placeholder} placeholderTextColor={TEXT_COLORS.muted} multiline textAlignVertical="top" />
         </View>
@@ -572,7 +573,7 @@ function WorkDumpForm({ tasks, setTasks, freeform, setFreeform }: {
   const addTask = () => { haptic.light(); setTasks([...tasks, '']); };
   return (
     <View>
-      <EliteText variant="caption" style={[s.sectionTitle, { color: '#EF9F27' }]}>Pendientes</EliteText>
+      <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.optimization }]}>Pendientes</EliteText>
       {tasks.map((t, i) => (
         <View key={i} style={s.taskRow}>
           <TextInput style={[s.input, { flex: 1 }]} value={t} onChangeText={v => updateTask(i, v)}
@@ -583,11 +584,11 @@ function WorkDumpForm({ tasks, setTasks, freeform, setFreeform }: {
         </View>
       ))}
       <Pressable onPress={addTask} style={s.addTaskBtn}>
-        <Ionicons name="add-circle-outline" size={18} color="#EF9F27" />
-        <EliteText variant="caption" style={{ color: '#EF9F27', fontSize: FontSizes.sm }}>Agregar pendiente</EliteText>
+        <Ionicons name="add-circle-outline" size={18} color={CATEGORY_COLORS.optimization} />
+        <EliteText variant="caption" style={{ color: CATEGORY_COLORS.optimization, fontSize: FontSizes.sm }}>Agregar pendiente</EliteText>
       </Pressable>
 
-      <EliteText variant="caption" style={[s.sectionTitle, { color: '#EF9F27', marginTop: Spacing.lg }]}>Descarga libre</EliteText>
+      <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.optimization, marginTop: Spacing.lg }]}>Descarga libre</EliteText>
       <TextInput style={[s.input, { minHeight: 120 }]} value={freeform} onChangeText={setFreeform}
         placeholder="Escribe todo lo que tengas en la cabeza..." placeholderTextColor={TEXT_COLORS.muted} multiline textAlignVertical="top" />
     </View>
