@@ -1,9 +1,9 @@
 /**
- * Ketones Log — Registro de cetonas en sangre (β-hidroxibutirato, mmol/L).
+ * Ketones Log — Registro de cetonas de 3 fuentes (#113, MB-8):
+ * sangre (β-hidroxibutirato mmol/L) · aliento (acetona ppm) · orina (cualitativa).
  *
- * Espejo de glucose-log: valor mmol/L, contexto, historial de hoy con rangos de cetosis.
- * Cetonas son decimales (0.0–8.0) → parseFloat + NUMERIC en DB. No otorga electrón (no hay
- * key en el catálogo de electrones; ver COWORK_REPORT si se quiere sumar uno).
+ * Espejo de glucose-log: valor + contexto + historial de hoy. El modelo de
+ * fuentes/rangos/validación vive en ketones-source-core (puro, testeado).
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
@@ -21,6 +21,10 @@ import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
+import {
+  KETONE_SOURCES, URINE_LEVELS, type KetoneSource,
+  isValidKetoneReading, ketoStatusFor, formatKetoneReading,
+} from '@/src/services/salud/ketones-source-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const KETO_ACCENT = '#c084fc';
@@ -33,23 +37,18 @@ const CONTEXTS = [
   { id: 'bedtime',       name: 'Antes dormir',   icon: 'bed-outline' as const },
 ];
 
-/** Rangos de cetosis nutricional (β-hidroxibutirato en sangre, mmol/L). */
-function getKetoStatus(value: number) {
-  if (value < 0.5)  return { label: 'Sin cetosis', color: 'rgba(255,255,255,0.5)' };
-  if (value <= 1.5) return { label: 'Cetosis ligera', color: '#a8e02a' };
-  if (value <= 3.0) return { label: 'Cetosis óptima', color: '#22d3ee' };
-  if (value <= 5.0) return { label: 'Cetosis alta', color: '#fbbf24' };
-  return { label: 'Muy alta', color: '#ef4444' };
-}
-
 export default function KetonesLogScreen() {
   const { user } = useAuth();
 
+  const [source, setSource] = useState<KetoneSource>('blood');
   const [value, setValue] = useState('');
+  const [urineLevel, setUrineLevel] = useState('moderate');
   const [context, setContext] = useState('fasting');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
+
+  const sourceMeta = KETONE_SOURCES.find((s) => s.id === source)!;
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -61,9 +60,15 @@ export default function KetonesLogScreen() {
   }, [user?.id]));
 
   const handleSave = async () => {
-    const numValue = parseFloat(value);
-    if (!Number.isFinite(numValue) || numValue < 0 || numValue > 10) {
-      Alert.alert('Valor inválido', 'Ingresa un valor entre 0 y 10 mmol/L');
+    const numeric = source === 'urine' ? null : parseFloat(value);
+    const reading = { source, numeric, urineLevel: source === 'urine' ? urineLevel : null };
+    if (!isValidKetoneReading(reading)) {
+      Alert.alert(
+        'Lectura inválida',
+        source === 'urine'
+          ? 'Elige un nivel de la tira.'
+          : `Ingresa un valor válido en ${sourceMeta.unit}.`,
+      );
       return;
     }
     if (!user?.id) return;
@@ -77,7 +82,10 @@ export default function KetonesLogScreen() {
         user_id: user.id,
         date: today,
         time: now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        value_mmol: numValue,
+        source,
+        value_mmol: source === 'blood' ? numeric : null,
+        value_ppm: source === 'breath' ? numeric : null,
+        urine_level: source === 'urine' ? urineLevel : null,
         context,
         notes: notes || null,
       });
@@ -99,32 +107,65 @@ export default function KetonesLogScreen() {
   };
 
   const numVal = parseFloat(value) || 0;
-  const previewStatus = numVal > 0 ? getKetoStatus(numVal) : null;
+  const previewStatus = source === 'urine'
+    ? ketoStatusFor({ source, urineLevel })
+    : numVal > 0 ? ketoStatusFor({ source, numeric: numVal }) : null;
 
   return (
     <Screen keyboard>
       <PillarHeader pillar="metrics" title="Cetonas" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        {/* Valor */}
-        <Animated.View entering={FadeInUp.delay(50).springify()} style={s.card}>
-          <EliteText style={s.label}>VALOR (mmol/L)</EliteText>
-          <View style={s.valueRow}>
-            <TextInput
-              style={s.valueInput}
-              value={value}
-              onChangeText={setValue}
-              keyboardType="decimal-pad"
-              placeholder="1.5"
-              placeholderTextColor="rgba(255,255,255,0.2)"
-              maxLength={4}
-            />
-            {previewStatus && (
-              <View style={[s.statusBadge, { backgroundColor: `${previewStatus.color}20`, borderColor: `${previewStatus.color}40` }]}>
-                <EliteText style={[s.statusText, { color: previewStatus.color }]}>{previewStatus.label}</EliteText>
-              </View>
-            )}
+        {/* #113: Fuente de medición */}
+        <Animated.View entering={FadeInUp.delay(30).springify()} style={s.card}>
+          <EliteText style={s.label}>FUENTE</EliteText>
+          <View style={s.contextRow}>
+            {KETONE_SOURCES.map(src => (
+              <AnimatedPressable
+                key={src.id}
+                onPress={() => { haptic.light(); setSource(src.id); }}
+                style={[s.contextPill, source === src.id && s.contextPillActive]}
+              >
+                <Ionicons name={src.icon as any} size={14} color={source === src.id ? '#000' : 'rgba(255,255,255,0.5)'} />
+                <EliteText style={[s.contextText, source === src.id && s.contextTextActive]}>{src.name}</EliteText>
+              </AnimatedPressable>
+            ))}
           </View>
+        </Animated.View>
+
+        {/* Valor — numérico (sangre/aliento) o cualitativo (orina) */}
+        <Animated.View entering={FadeInUp.delay(50).springify()} style={s.card}>
+          <EliteText style={s.label}>{source === 'urine' ? 'NIVEL DE LA TIRA' : `VALOR (${sourceMeta.unit})`}</EliteText>
+          {source === 'urine' ? (
+            <View style={s.contextRow}>
+              {URINE_LEVELS.map(lvl => (
+                <AnimatedPressable
+                  key={lvl.id}
+                  onPress={() => { haptic.light(); setUrineLevel(lvl.id); }}
+                  style={[s.contextPill, urineLevel === lvl.id && s.contextPillActive]}
+                >
+                  <EliteText style={[s.contextText, urineLevel === lvl.id && s.contextTextActive]}>{lvl.name}</EliteText>
+                </AnimatedPressable>
+              ))}
+            </View>
+          ) : (
+            <View style={s.valueRow}>
+              <TextInput
+                style={s.valueInput}
+                value={value}
+                onChangeText={setValue}
+                keyboardType="decimal-pad"
+                placeholder={source === 'breath' ? '12' : '1.5'}
+                placeholderTextColor="rgba(255,255,255,0.2)"
+                maxLength={5}
+              />
+              {previewStatus && (
+                <View style={[s.statusBadge, { backgroundColor: `${previewStatus.color}20`, borderColor: `${previewStatus.color}40` }]}>
+                  <EliteText style={[s.statusText, { color: previewStatus.color }]}>{previewStatus.label}</EliteText>
+                </View>
+              )}
+            </View>
+          )}
         </Animated.View>
 
         {/* Contexto */}
@@ -167,13 +208,21 @@ export default function KetonesLogScreen() {
           <Animated.View entering={FadeInUp.delay(200).springify()} style={{ marginTop: Spacing.lg }}>
             <SectionTitle>HISTORIAL DE HOY</SectionTitle>
             {todayLogs.map((log: any) => {
-              const st = getKetoStatus(Number(log.value_mmol));
+              // #113: reconstruir la lectura desde la fuente (fallback 'blood' para
+              // filas viejas sin columna source).
+              const reading = {
+                source: (log.source ?? 'blood') as KetoneSource,
+                numeric: log.source === 'breath' ? Number(log.value_ppm) : Number(log.value_mmol),
+                urineLevel: log.urine_level ?? null,
+              };
+              const st = ketoStatusFor(reading);
+              const srcName = KETONE_SOURCES.find(sr => sr.id === reading.source)?.name ?? '';
               const ctxName = CONTEXTS.find(c => c.id === log.context)?.name ?? log.context;
               return (
                 <View key={log.id} style={s.logRow}>
                   <EliteText style={s.logTime}>{log.time?.substring(0, 5)}</EliteText>
-                  <EliteText style={s.logCtx}>{ctxName}</EliteText>
-                  <EliteText style={[s.logValue, { color: st.color }]}>{Number(log.value_mmol).toFixed(1)} mmol/L</EliteText>
+                  <EliteText style={s.logCtx}>{srcName} · {ctxName}</EliteText>
+                  <EliteText style={[s.logValue, { color: st.color }]}>{formatKetoneReading(reading)}</EliteText>
                   <View style={[s.logDot, { backgroundColor: st.color }]} />
                 </View>
               );
