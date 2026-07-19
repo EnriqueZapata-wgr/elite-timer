@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
-import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
+import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import { haptic } from '@/src/utils/haptics';
 import {
   saveArgosVoice, previewArgosVoice, stopArgosVoicePreview, type ArgosVoice,
@@ -67,7 +67,8 @@ export function ArgosVoicePicker({ userId, onDone, loading }: Props) {
     <View style={[s.container, { paddingTop: insets.top + Spacing.xl, paddingBottom: insets.bottom + Spacing.lg }]}>
       <View style={s.top}>
         <Animated.View entering={FadeIn.duration(500)}>
-          <ArgosAvatar state={previewing ? 'speaking' : 'idle'} size={130} variant="full" />
+          {/* MB-4 J2: orb glass — 'hablando' mientras suena la muestra de voz. */}
+          <ArgosOrb state={previewing ? 'hablando' : 'idle'} size={130} />
         </Animated.View>
         <Animated.View entering={FadeInUp.duration(500).delay(120)}>
           <EliteText style={s.title}>¿Cómo quieres que suene ARGOS?</EliteText>

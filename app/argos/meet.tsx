@@ -25,7 +25,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
+import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
+import { orbStateFromAvatar } from '@/src/components/argos/argos-orb-core';
 import { ArgosVoicePicker } from '@/src/components/argos/ArgosVoicePicker';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { markArgosIntroduced } from '@/src/services/argos-intro-service';
@@ -166,7 +167,8 @@ export default function MeetArgosScreen() {
       <View style={[s.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={s.center}>
           <Animated.View entering={FadeIn.duration(600)} style={avatarStyle}>
-            <ArgosAvatar state={screen.avatarState} size={AVATAR_BASE} variant="full" />
+            {/* MB-4 J2: orb glass lime→teal (reemplaza el avatar SVG en Meet ARGOS). */}
+            <ArgosOrb state={orbStateFromAvatar(screen.avatarState)} size={AVATAR_BASE} />
           </Animated.View>
 
           <Animated.View
