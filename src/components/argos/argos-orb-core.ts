@@ -52,8 +52,13 @@ export const ORB_TRANSITION_MS = 260;
  */
 export function orbSpecForState(state: ArgosOrbState, reducedMotion = false): OrbSpec {
   if (reducedMotion) {
-    // Pulso mínimo por opacidad: el orb sigue "presente" pero quieto.
-    const glow = state === 'hablando' || state === 'escuchando' ? 0.6 : 0.4;
+    // Presencia quieta con 4 glows DISTINTOS — el brief pide estados
+    // distinguibles sin animación (antes idle=pensando y escuchando=hablando
+    // compartían valor y eran indistinguibles).
+    const REDUCED_GLOW: Record<ArgosOrbState, number> = {
+      idle: 0.3, pensando: 0.45, escuchando: 0.6, hablando: 0.75,
+    };
+    const glow = REDUCED_GLOW[state] ?? 0.3;
     return {
       scaleMin: 1, scaleMax: 1, breathMs: 0,
       glowMin: glow, glowMax: glow, waveform: false, rotate: false, rotateMs: 0,
@@ -86,6 +91,10 @@ export function orbSpecForState(state: ArgosOrbState, reducedMotion = false): Or
  * @param phase 0..1 fase del ciclo de animación
  */
 export function waveformBars(count: number, phase: number): number[] {
+  // Fix B3: se llama desde useDerivedValue (UI thread). Reanimated exige la
+  // directiva en funciones cross-módulo llamadas desde worklets — sin ella,
+  // ReanimatedError al entrar a 'hablando'. Inerte en Vitest/JS thread.
+  'worklet';
   const bars: number[] = [];
   for (let i = 0; i < count; i++) {
     // Dos senoides desfasadas por barra → movimiento orgánico, simétrico al centro.

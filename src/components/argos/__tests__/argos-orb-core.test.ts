@@ -52,6 +52,12 @@ describe('orbSpecForState', () => {
       expect(s.glowMin, st).toBeGreaterThan(0); // presente, no apagado
     }
   });
+
+  it('reduced-motion: los 4 estados son DISTINGUIBLES sin animación (auditoría MB-4)', () => {
+    // Antes idle=pensando (0.4) y escuchando=hablando (0.6) — indistinguibles.
+    const glows = ORB_STATES.map((st) => orbSpecForState(st, true).glowMin);
+    expect(new Set(glows).size).toBe(ORB_STATES.length);
+  });
 });
 
 describe('waveformBars', () => {
@@ -66,6 +72,17 @@ describe('waveformBars', () => {
 
   it('determinístico (misma fase → mismo resultado, sin random)', () => {
     expect(waveformBars(5, 0.5)).toEqual(waveformBars(5, 0.5));
+  });
+
+  it("B3: lleva directiva 'worklet' (se llama desde useDerivedValue en el UI thread)", async () => {
+    // Se verifica sobre el FUENTE (el transform de Vitest podría comerse la
+    // directiva del function.toString) — sin ella, ReanimatedError en 'hablando'.
+    const { readFileSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const { dirname, resolve } = await import('node:path');
+    const here = dirname(fileURLToPath(import.meta.url));
+    const src = readFileSync(resolve(here, '..', 'argos-orb-core.ts'), 'utf8');
+    expect(src).toMatch(/export function waveformBars[^{]*\{[\s\S]{0,400}?'worklet';/);
   });
 
   it('el centro pesa más que los extremos (forma de voz)', () => {

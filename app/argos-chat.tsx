@@ -19,6 +19,7 @@ import {
 } from '../src/services/argos-service';
 import { ArgosRateLimitError } from '../src/services/argos-stream-core';
 import { speakArgos, stopSpeaking, getIsSpeaking } from '../src/services/argos-voice';
+import { stopPlayback } from '../src/services/argos-tts';
 import { withPreflight, wasAborted } from '../src/services/economy/with-preflight';
 import { isOnline } from '../src/services/connectivity';
 import { buildOfflineArgosMessage } from '../src/services/argos-offline-core';
@@ -155,7 +156,9 @@ function ArgosChat() {
   // Detener TTS al salir de la pantalla
   useFocusEffect(useCallback(() => {
     if (userId) autoLoadRecent();
-    return () => { stopSpeaking(); };
+    // Leak fix (auditoría MB-4): stopSpeaking solo corta el TTS legacy del SO;
+    // la voz nueva (expo-audio vía argos-tts) seguía sonando al salir.
+    return () => { stopSpeaking(); stopPlayback().catch(() => {}); };
   }, [userId]));
 
   // Auto-cargar la conversación más reciente si no hay una activa

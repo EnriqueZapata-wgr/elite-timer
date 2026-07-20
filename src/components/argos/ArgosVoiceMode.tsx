@@ -12,6 +12,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Modal, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -39,6 +40,8 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
   const [orbState, setOrbState] = useState<VoiceTurnState>('idle');
   const [transcript, setTranscript] = useState('');
   const [hint, setHint] = useState('Toca para hablar');
+  // H4: sin H+ para voz → mensaje honesto + CTA a la tienda (no "te respondo por texto").
+  const [noProtons, setNoProtons] = useState(false);
   const turnRef = useRef<VoiceTurnHandle | null>(null);
   const recordingRef = useRef(false);
 
@@ -46,6 +49,7 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
     setOrbState('idle');
     setTranscript('');
     setHint('Toca para hablar');
+    setNoProtons(false);
   }, []);
 
   const onOrbTap = useCallback(async () => {
@@ -85,16 +89,26 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
       voice,
       callbacks: {
         onState: setOrbState,
+        // B2: primero se muestra lo que dijo el user; onText lo reemplaza con
+        // la respuesta de ARGOS conforme streamea.
+        onUserTranscript: setTranscript,
         onText: setTranscript,
         onFallbackToText: () => setHint('Sin voz ahora — te respondo por texto.'),
+        onNoProtons: () => {
+          setNoProtons(true);
+          setHint('Te quedaste sin H+ para el modo voz.');
+        },
       },
     });
     turnRef.current = handle;
-    const argosText = await handle.done;
+    // Fix B2: el turno devuelve AMBOS textos con su rol — nada de leer state
+    // (closure stale: `transcript` valía '' en el primer turno y en los
+    // siguientes contenía la respuesta previa de ARGOS como si fuera del user).
+    const { userText, argosText } = await handle.done;
     turnRef.current = null;
-    if (argosText && transcript) onTurnComplete?.(transcript, argosText);
+    if (userText && argosText) onTurnComplete?.(userText, argosText);
     setHint('Toca para hablar');
-  }, [history, userId, voice, transcript, onTurnComplete, reset]);
+  }, [history, userId, voice, onTurnComplete, reset]);
 
   const close = useCallback(() => {
     if (turnRef.current) { turnRef.current.abort(); turnRef.current = null; }
@@ -117,6 +131,11 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
           <Animated.View entering={FadeIn.duration(400)}>
             <EliteText style={s.hint}>{hint}</EliteText>
           </Animated.View>
+          {noProtons && (
+            <AnimatedPressable onPress={() => { close(); router.push('/economy/shop'); }}>
+              <EliteText style={s.shopCta}>Recargar H+ en la Tienda</EliteText>
+            </AnimatedPressable>
+          )}
           {!!transcript && (
             <Animated.View entering={FadeIn.duration(300)} style={s.transcriptWrap}>
               <EliteText style={s.transcript}>{transcript}</EliteText>
@@ -137,6 +156,10 @@ const s = StyleSheet.create({
   close: { position: 'absolute', top: 54, right: Spacing.lg, zIndex: 2, padding: 6 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.xl },
   hint: { color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold, textAlign: 'center' },
+  shopCta: {
+    color: ATP_BRAND.lime, fontSize: FontSizes.sm, fontFamily: Fonts.bold,
+    textAlign: 'center', paddingVertical: Spacing.sm, letterSpacing: 0.5,
+  },
   transcriptWrap: { maxWidth: '90%', paddingHorizontal: Spacing.md },
   transcript: { color: '#fff', fontSize: FontSizes.lg, fontFamily: Fonts.regular, textAlign: 'center', lineHeight: 28 },
   footer: { color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2, textAlign: 'center' },
