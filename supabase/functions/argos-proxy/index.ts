@@ -466,9 +466,22 @@ serve(async (req) => {
     // Sin H+ suficientes → 402, NO llamamos al LLM (el cliente hace pre-flight y guía a la
     // tienda). Si el LLM falla luego, refundEconomy() reembolsa. Costo desde la tabla.
     if (ECONOMY_ON && userId) {
-      const { data: costRow } = await supabase
+      const actionKey = requestType || "chat";
+      let { data: costRow } = await supabase
         .from("proton_action_costs").select("cost_h_plus, enabled")
-        .eq("action_key", requestType || "chat").maybeSingle();
+        .eq("action_key", actionKey).maybeSingle();
+      // Auditoría MB-4 (H1 parcial): un action_key DESCONOCIDO ya no cuesta 0 —
+      // cae al costo de 'chat' en vez de regalar el LLM a un requestType inventado.
+      // Pendiente como hardening aparte del proxy (NO de este batch): whitelist
+      // completa de action_keys + verificar userId contra el JWT (hoy viene del
+      // body sin verificar) + requestType client-declarado (un cliente modificado
+      // puede mandar 'chat' en un turno de voz para evadir la prima de voice_turn).
+      if (!costRow && actionKey !== "chat") {
+        const { data: chatRow } = await supabase
+          .from("proton_action_costs").select("cost_h_plus, enabled")
+          .eq("action_key", "chat").maybeSingle();
+        costRow = chatRow;
+      }
       economyCost = costRow && costRow.enabled !== false ? Number(costRow.cost_h_plus) : 0;
       // B.4 (megabuzón 2da pasada, spec Enrique): intervention_rationale es
       // GRATIS para tier Pro efectivo (all-you-can-eat) — Base/free pagan el

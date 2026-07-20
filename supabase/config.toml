@@ -7,3 +7,8 @@ verify_jwt = true
 
 [functions.settle-challenge]
 verify_jwt = true
+
+# MB-4 (fix B1): la protección real es getUser() dentro de la función (la anon key
+# ES un JWT válido y pasaría verify_jwt); esto solo corta requests sin JWT alguno.
+[functions.argos-voice]
+verify_jwt = true

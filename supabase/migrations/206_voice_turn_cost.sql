@@ -13,3 +13,17 @@ VALUES
   ('voice_turn', 400,
    'Turno de voz con ARGOS (STT + LLM + TTS)', true, NOW())
 ON CONFLICT (action_key) DO NOTHING;
+
+-- Fix B1 (auditoría pre-merge MB-4): costos de COMPONENTE que cobra argos-voice
+-- server-side por llamada — cierran el hoyo "TTS/STT gratis con cliente modificado".
+-- Un turno legítimo paga 400 (voice_turn en argos-proxy) + ~15 STT + ~5×chunks TTS;
+-- Enrique calibra los tres precios con la telemetría de argos_logs (puede bajar
+-- voice_turn para compensar). Si la fila no existe, la función usa un default
+-- duro equivalente (nunca gratis).
+INSERT INTO proton_action_costs (action_key, cost_h_plus, description, enabled, updated_at)
+VALUES
+  ('voice_tts', 5,
+   'Síntesis de voz ElevenLabs (por chunk, cobrado en argos-voice)', true, NOW()),
+  ('voice_stt', 15,
+   'Transcripción de audio Gemini (por turno, cobrado en argos-voice)', true, NOW())
+ON CONFLICT (action_key) DO NOTHING;
