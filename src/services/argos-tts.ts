@@ -37,8 +37,14 @@ export interface SynthesizedClip {
 /**
  * Sintetiza `text` con la voz elegida. Devuelve el URI local del mp3, o null si
  * la voz no está disponible (el caller cae a texto).
+ * `opts.signal` (M4): el barge-in aborta el fetch en vuelo — sin él, la síntesis
+ * de un chunk ya interrumpido se completaba y se tiraba.
  */
-export async function synthesizeSpeech(text: string, voice: ArgosVoice): Promise<SynthesizedClip | null> {
+export async function synthesizeSpeech(
+  text: string,
+  voice: ArgosVoice,
+  opts?: { signal?: AbortSignal },
+): Promise<SynthesizedClip | null> {
   const clean = (text ?? '').trim();
   if (!clean) return null;
   try {
@@ -63,8 +69,10 @@ export async function synthesizeSpeech(text: string, voice: ArgosVoice): Promise
         'Content-Type': 'application/json',
         Authorization: `Bearer ${jwt}`,
       },
-      // idempotency_key: el server cobra voice_tts una sola vez aunque haya retry.
+      // idempotency_key informativa: desde el fix M1 el server deriva la suya
+      // (userId+acción+hash del payload) e ignora esta para el cobro.
       body: JSON.stringify({ action: 'tts', text: clean, voice, idempotency_key: generateUUID() }),
+      signal: opts?.signal,
     });
     if (!resp.ok) return null; // 401/402/429/503/502 → fallback a texto
     const data = await resp.json();
@@ -79,11 +87,13 @@ export async function synthesizeSpeech(text: string, voice: ArgosVoice): Promise
   }
 }
 
-/** ID estable-ish del clip por su texto (sin Date.now/random — determinístico). */
+/** ID estable-ish del clip por su texto (sin Date.now/random — determinístico).
+ *  M6: incluye length — un hash de 32 bits solo puede colisionar entre textos,
+ *  y con la longitud en la key la colisión exige además misma longitud. */
 function clipId(text: string): string {
   let h = 0;
   for (let i = 0; i < text.length; i++) { h = (h * 31 + text.charCodeAt(i)) | 0; }
-  return Math.abs(h).toString(36);
+  return `${Math.abs(h).toString(36)}-${text.length}`;
 }
 
 /** Transcribe audio (base64) a texto vía Gemini (edge function). null si falla. */

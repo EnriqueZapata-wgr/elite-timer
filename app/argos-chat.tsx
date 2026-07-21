@@ -708,11 +708,20 @@ function ArgosChat() {
         voice={argosVoice}
         history={messages.map(m => ({ role: m.role, content: m.content }))}
         onTurnComplete={(userText, argosText) => {
-          setMessages(prev => [
-            ...prev,
+          const next: ArgosMessage[] = [
+            ...messages,
             { role: 'user', content: userText, ts: Date.now() },
             { role: 'assistant', content: argosText, ts: Date.now() },
-          ]);
+          ];
+          setMessages(next);
+          // M5 (re-auditoría MB-4): los turnos de voz también se persisten —
+          // antes solo el flujo de texto llamaba saveConversation y una
+          // conversación 100% de voz se perdía al salir de la pantalla.
+          if (userId) {
+            saveConversation(userId, next.filter(m => !m.degraded), conversationId)
+              .then((id) => { if (id) setConversationId(id); })
+              .catch((e) => console.warn('ARGOS saveConversation (voz) error:', e));
+          }
         }}
       />
     </View>

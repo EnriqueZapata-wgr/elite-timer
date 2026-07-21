@@ -162,6 +162,28 @@ describe('B4 — cola de playback secuencial (fin real, no timers)', () => {
     await handle.done;
   });
 
+  it('M4: el barge-in aborta la síntesis TTS en vuelo (la señal llega abortada)', async () => {
+    streamOf(FRASE_1);
+    let seenSignal: AbortSignal | undefined;
+    let releaseSynth: (() => void) | null = null;
+    mocks.synthesizeSpeech.mockImplementation(
+      (_t: string, _v: string, opts?: { signal?: AbortSignal }) => {
+        seenSignal = opts?.signal;
+        return new Promise((res) => { releaseSynth = () => res(null); });
+      },
+    );
+
+    const handle = runVoiceTurn({ userId: 'u1', history: [], userText: 'hola' });
+    await vi.waitFor(() => expect(mocks.synthesizeSpeech).toHaveBeenCalledTimes(1));
+    expect(seenSignal?.aborted).toBe(false);
+
+    handle.abort();
+    expect(seenSignal?.aborted).toBe(true); // el fetch en vuelo se cancela
+
+    releaseSynth!();
+    await handle.done;
+  });
+
   it('abort corta el playback y el turno termina', async () => {
     streamOf(FRASE_1, FRASE_2);
     const resolvers: Array<(ok: boolean) => void> = [];

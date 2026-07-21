@@ -67,9 +67,13 @@ export function runVoiceTurn(params: {
   const { userId, history, callbacks } = params;
   const voice: ArgosVoice = resolveArgosVoice(params.voice);
   let aborted = false;
+  // M4: el barge-in también cancela el fetch de TTS en vuelo (antes el chunk
+  // interrumpido se terminaba de sintetizar —y de cobrar— para tirarse).
+  const ttsAbort = new AbortController();
 
   const abort = () => {
     aborted = true;
+    ttsAbort.abort();
     stopPlayback().catch(() => {});
     callbacks?.onState?.('idle');
   };
@@ -131,7 +135,7 @@ export function runVoiceTurn(params: {
 
     const speakChunk = async (chunk: string) => {
       if (aborted || audioBroken) return;
-      const clip = await synthesizeSpeech(chunk, voice);
+      const clip = await synthesizeSpeech(chunk, voice, { signal: ttsAbort.signal });
       if (aborted) return;
       if (clip) { audioQueue.push(clip.uri); pump(); }
     };
