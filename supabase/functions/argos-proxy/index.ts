@@ -491,18 +491,28 @@ serve(async (req) => {
         economyCost = 0;
       }
       if (economyCost > 0) {
-        // Idempotencia (094): si el cliente manda idempotency_key, dos requests con la misma key
-        // (doble tap / retry / re-render) cobran UNA sola vez — spend_protons v2 es atómico vía
-        // UNIQUE index. Bw compat: sin key, cobra como antes (apps viejas) y logueamos el warning
-        // para medir la adopción del fix.
-        economyIdemKey = typeof idempotency_key === "string" && idempotency_key ? idempotency_key : null;
-        if (!economyIdemKey) {
-          console.warn("[economy] spend sin idempotency_key (app vieja?) action=", requestType || "chat", "user=", userId);
-        }
+        // Idempotencia (094 + M1 re-auditoría MB-4): la key se deriva SERVER-SIDE
+        // y la del body se IGNORA — una key client-declarada permitía replay
+        // infinito (misma key → idempotent:true → Claude gratis; el índice de
+        // proton_transactions es global y sin caducidad). userId + acción +
+        // hash(messages) + ventana de 10 min: el doble tap / retry / re-render
+        // manda los MISMOS messages → un solo cobro; el mismo payload fuera de
+        // la ventana SÍ cobra. Se hashea SOLO messages (no system: el retry
+        // stream→no-stream lo reconstruye con contexto volátil — hora del día,
+        // stats — y rompería la idempotencia del retry legítimo).
+        // (body.idempotency_key se sigue ecoando en el evento SSE "start" por
+        // compat de UI, pero ya no es autoridad de cobro.)
+        const idemBucket = Math.floor(Date.now() / 600_000);
+        const idemDigest = new Uint8Array(await crypto.subtle.digest(
+          "SHA-256",
+          new TextEncoder().encode(`${idemBucket}|${requestType || "chat"}|${JSON.stringify(messages)}`),
+        ));
+        economyIdemKey = `${userId}:${requestType || "chat"}:` +
+          Array.from(idemDigest, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
         const { data: debit } = await supabase.rpc("spend_protons", {
           p_user_id: userId, p_amount: economyCost,
           p_action_key: requestType || "chat",
-          p_metadata: economyIdemKey ? { idempotency_key: economyIdemKey } : null,
+          p_metadata: { idempotency_key: economyIdemKey },
         });
         if (debit?.idempotent) {
           console.log("[economy] idempotent retry — sin doble cobro", economyIdemKey);

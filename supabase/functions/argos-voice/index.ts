@@ -105,8 +105,11 @@ async function handleTts(body: any): Promise<Response> {
   });
 
   if (!resp.ok) {
+    // El detail del provider va a logs, NO al cliente (re-auditoría: podría
+    // ecoar URLs con key en query string; al cliente no le sirve de nada).
     const detail = await resp.text().catch(() => "");
-    return json({ error: "tts_failed", status: resp.status, detail: detail.slice(0, 200), fallback: "text" }, 502);
+    console.error("tts provider failed:", resp.status, detail.slice(0, 300));
+    return json({ error: "tts_failed", status: resp.status, fallback: "text" }, 502);
   }
 
   const audio = new Uint8Array(await resp.arrayBuffer());
@@ -137,8 +140,10 @@ async function handleStt(body: any): Promise<Response> {
   });
 
   if (!resp.ok) {
+    // Detail a logs, no al cliente (la URL de Gemini lleva la key en query).
     const detail = await resp.text().catch(() => "");
-    return json({ error: "stt_failed", status: resp.status, detail: detail.slice(0, 200) }, 502);
+    console.error("stt provider failed:", resp.status, detail.slice(0, 300));
+    return json({ error: "stt_failed", status: resp.status }, 502);
   }
 
   const data = await resp.json();
@@ -240,11 +245,24 @@ serve(async (req) => {
       if (costRow) cost = costRow.enabled !== false ? Number(costRow.cost_h_plus) : 0;
     } catch (_) { /* sin lectura → default duro, nunca gratis */ }
     if (cost > 0) {
-      const idemKey = typeof body.idempotency_key === "string" && body.idempotency_key
-        ? body.idempotency_key : null;
+      // M1 (re-auditoría): la idempotency key se deriva SERVER-SIDE y la del body
+      // se IGNORA — una key client-declarada permitía replay infinito (misma key
+      // → idempotent:true → debitedCost 0 → provider gratis, índice global sin
+      // caducidad). userId + acción + hash(payload) + ventana de 10 min: un retry
+      // real manda el mismo payload y no re-cobra; el mismo payload fuera de la
+      // ventana SÍ cobra; el replay deja de existir.
+      const idemPayload = action === "tts"
+        ? `${body.voice ?? ""}|${body.text ?? ""}`
+        : String(body.audio_base64 ?? "");
+      const idemBucket = Math.floor(Date.now() / 600_000);
+      const idemDigest = new Uint8Array(await crypto.subtle.digest(
+        "SHA-256", new TextEncoder().encode(`${idemBucket}|${idemPayload}`),
+      ));
+      const idemKey = `${userId}:${requestType}:` +
+        Array.from(idemDigest, (b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
       const { data: debit } = await supabase.rpc("spend_protons", {
         p_user_id: userId, p_amount: cost, p_action_key: requestType,
-        p_metadata: idemKey ? { idempotency_key: idemKey } : null,
+        p_metadata: { idempotency_key: idemKey },
       });
       if (!debit || debit.success !== true) {
         return json({
@@ -259,12 +277,23 @@ serve(async (req) => {
   try {
     const resp = action === "tts" ? await handleTts(body) : await handleStt(body);
 
-    // Provider falló → refund del componente (mismo patrón award_protons del proxy).
-    if (!resp.ok && debitedCost > 0) {
+    // M3: un STT 200 con transcripción vacía tampoco se cobra — el user no
+    // recibió nada útil (silencio/ruido). Se detecta sobre un clone para no
+    // consumir el body que va al cliente.
+    let sttEmpty = false;
+    if (action === "stt" && resp.ok) {
+      try {
+        sttEmpty = !String((await resp.clone().json())?.text ?? "").trim();
+      } catch { /* body ilegible → tratar como éxito normal */ }
+    }
+
+    // Provider falló (o STT vacío) → refund del componente (patrón award_protons del proxy).
+    if ((!resp.ok || sttEmpty) && debitedCost > 0) {
       try {
         await supabase.rpc("award_protons", {
           p_user_id: userId, p_amount: debitedCost, p_type: "refund",
-          p_action_key: null, p_metadata: { reason: `${requestType}_failed` },
+          p_action_key: null,
+          p_metadata: { reason: sttEmpty ? "voice_stt_empty" : `${requestType}_failed` },
         });
       } catch (e) { console.error("voice refund failed:", e); }
     }
@@ -284,7 +313,7 @@ serve(async (req) => {
       chars,
       latency_ms: Date.now() - startTime,
       success: resp.ok,
-      error_message: resp.ok ? undefined : `status_${resp.status}`,
+      error_message: !resp.ok ? `status_${resp.status}` : sttEmpty ? "empty_transcript" : undefined,
       estimated_cost_usd: Math.round(estUsd * 1e6) / 1e6,
     });
 
