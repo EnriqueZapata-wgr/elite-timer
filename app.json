@@ -62,7 +62,8 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "ATP SOL necesita tu ubicación para mostrar el índice UV de tu zona y calcular tu ventana de vitamina D."
+          "locationWhenInUsePermission": "ATP SOL necesita tu ubicación mientras usas la app para mostrar el índice UV de tu zona y calcular tu ventana de vitamina D.",
+          "isAndroidBackgroundLocationEnabled": false
         }
       ],
       [
