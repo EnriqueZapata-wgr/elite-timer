@@ -32,6 +32,8 @@ import { detectCrisisContent } from '@/src/services/crisis-detection-core';
 import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
 import { ArgosVoiceMode } from '@/src/components/argos/ArgosVoiceMode';
 import { getArgosVoice } from '@/src/services/argos-voice-service';
+import { ContextualConsentModal } from '@/src/components/legal/ContextualConsentModal';
+import { logConsent, getConsentStatus } from '@/src/services/consent-log-service';
 import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
 import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
@@ -127,6 +129,10 @@ function ArgosChat() {
   // MB-4 J5: modo voz (full-screen) + voz elegida por el user.
   const [voiceMode, setVoiceMode] = useState(false);
   const [argosVoice, setArgosVoice] = useState<string | null>(null);
+  // CB-6 (Sprint Compliance 2): consentimiento de voz — gate antes del modo voz.
+  const [voiceConsented, setVoiceConsented] = useState(false);
+  const [voiceConsentModal, setVoiceConsentModal] = useState(false);
+  const [voiceConsentSaving, setVoiceConsentSaving] = useState(false);
   // C5-002: guardarraíl determinístico — al detectar tema de crisis en un
   // mensaje del usuario, el banner Línea de la Vida queda fijo en la sesión
   // (no depende de lo que responda el LLM).
@@ -150,6 +156,10 @@ function ArgosChat() {
         setUserName((user.user_metadata as any)?.full_name ?? null);
         // MB-4 J5: voz elegida por el user (para el modo voz).
         getArgosVoice(user.id).then(setArgosVoice).catch(() => {});
+        // CB-6: ¿ya consintió el tratamiento de voz?
+        getConsentStatus(user.id)
+          .then(st => setVoiceConsented(st['CB-6']?.action === 'accepted'))
+          .catch(() => {});
         if (params.conversationId) {
           const msgs = await loadConversation(params.conversationId);
           setMessages(msgs);
@@ -463,9 +473,15 @@ function ArgosChat() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          {/* MB-4 J5: modo voz full-screen (hablar con ARGOS) */}
+          {/* MB-4 J5: modo voz full-screen (hablar con ARGOS).
+              CB-6: la primera vez pide consentimiento contextual de voz. */}
           <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); stopSpeaking(); setVoiceMode(true); }}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              stopSpeaking();
+              if (voiceConsented) setVoiceMode(true);
+              else setVoiceConsentModal(true);
+            }}
             hitSlop={12}
           >
             <Ionicons name="mic-circle-outline" size={24} color="#a8e02a" />
@@ -739,6 +755,27 @@ function ArgosChat() {
               .catch((e) => console.warn('ARGOS saveConversation (voz) error:', e));
           }
         }}
+      />
+
+      {/* CB-6 · consentimiento contextual de voz (primera activación) */}
+      <ContextualConsentModal
+        visible={voiceConsentModal}
+        checkboxId="CB-6"
+        title="Tu voz, bajo tu control"
+        saving={voiceConsentSaving}
+        onAccept={async () => {
+          if (!userId) { setVoiceConsentModal(false); return; }
+          setVoiceConsentSaving(true);
+          try {
+            await logConsent(userId, ['CB-6'], 'accepted');
+            setVoiceConsented(true);
+            setVoiceConsentModal(false);
+            setVoiceMode(true);
+          } finally {
+            setVoiceConsentSaving(false);
+          }
+        }}
+        onDecline={() => setVoiceConsentModal(false)}
       />
     </View>
   );

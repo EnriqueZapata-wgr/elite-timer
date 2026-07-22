@@ -25,6 +25,8 @@ import {
   getConsent, updateConsent, CONSENT_META,
   type UserConsent, type ConsentKey,
 } from '@/src/services/consent-service';
+import { logConsent, getConsentStatus, type ConsentStatus } from '@/src/services/consent-log-service';
+import { CONSENT_SHORT_TITLES, REVOKE_CORE_WARNING, type ConsentCheckboxId } from '@/src/constants/consent-copy';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, SEMANTIC, withOpacity } from '@/src/constants/brand';
 
@@ -64,6 +66,8 @@ export default function SettingsPrivacyScreen() {
   const posthog = usePostHog();
 
   const [consent, setConsent] = useState<UserConsent | null>(null);
+  // Sprint Compliance 2: último estado por checkbox CB-1..CB-7 (user_consent_log)
+  const [cbStatus, setCbStatus] = useState<Partial<Record<ConsentCheckboxId, ConsentStatus>>>({});
   const [hasClinician, setHasClinician] = useState(false);
   const [exports, setExports] = useState<ExportRow[]>([]);
   const [deletion, setDeletion] = useState<DeletionRow | null>(null);
@@ -74,13 +78,15 @@ export default function SettingsPrivacyScreen() {
 
   const reload = useCallback(async () => {
     if (!user?.id) return;
-    const [c, clinRes, expRes, delRes] = await Promise.all([
+    const [c, cbs, clinRes, expRes, delRes] = await Promise.all([
       getConsent(user.id),
+      getConsentStatus(user.id),
       supabase.from('coach_clients').select('id').eq('client_id', user.id).eq('status', 'active').limit(1),
       supabase.from('user_data_exports').select('id, requested_at, status, download_url, expires_at, file_size_bytes').eq('user_id', user.id).order('requested_at', { ascending: false }).limit(5),
       supabase.from('user_deletion_requests').select('id, scheduled_delete_at, status').eq('user_id', user.id).eq('status', 'pending').maybeSingle(),
     ]);
     setConsent(c);
+    setCbStatus(cbs);
     setHasClinician((clinRes.data ?? []).length > 0);
     setExports((expRes.data as ExportRow[]) ?? []);
     setDeletion((delRes.data as DeletionRow) ?? null);
@@ -162,6 +168,36 @@ export default function SettingsPrivacyScreen() {
     }
   };
 
+  // Sprint Compliance 2: revocar/otorgar consentimientos del Aviso (CB-2..CB-7).
+  // Cada cambio agrega una fila al log inmutable (evidencia), no borra nada.
+  const CB_CORE: ConsentCheckboxId[] = ['CB-2', 'CB-3'];
+  const CB_OPTIONAL: ConsentCheckboxId[] = ['CB-5', 'CB-6', 'CB-7'];
+
+  const toggleCb = async (id: ConsentCheckboxId) => {
+    if (!user?.id || busy) return;
+    const isAccepted = cbStatus[id]?.action === 'accepted';
+    const doLog = async (action: 'accepted' | 'revoked') => {
+      setBusy(true);
+      const ok = await logConsent(user.id!, [id], action);
+      setBusy(false);
+      if (ok) {
+        haptic.success();
+        reload();
+      } else {
+        Alert.alert('Error', 'No se pudo registrar el cambio. Intenta de nuevo.');
+      }
+    };
+    if (isAccepted && CB_CORE.includes(id)) {
+      // Revocar CB-2/CB-3 apaga el core — advertir antes (nota Parte 3).
+      Alert.alert('Revocar consentimiento', REVOKE_CORE_WARNING, [
+        { text: 'Conservar', style: 'cancel' },
+        { text: 'Revocar', style: 'destructive', onPress: () => doLog('revoked') },
+      ]);
+      return;
+    }
+    await doLog(isAccepted ? 'revoked' : 'accepted');
+  };
+
   const clinicianDisabled = !hasClinician;
 
   return (
@@ -204,6 +240,36 @@ export default function SettingsPrivacyScreen() {
         })}
       </Animated.View>
 
+      {/* ── A-bis: Consentimientos del Aviso (Sprint Compliance 2) ── */}
+      <Animated.View entering={FadeInUp.delay(115).springify()}>
+        <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Consentimientos del Aviso</SectionTitle>
+        {([...CB_CORE, ...CB_OPTIONAL] as ConsentCheckboxId[]).map(id => {
+          const st = cbStatus[id];
+          const accepted = st?.action === 'accepted';
+          return (
+            <View key={id} style={s.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <EliteText style={s.toggleTitle}>{CONSENT_SHORT_TITLES[id]}</EliteText>
+                <EliteText style={s.toggleDesc}>
+                  {accepted
+                    ? `Otorgado el ${fmtDate(st!.accepted_at)}`
+                    : st?.action === 'revoked' ? 'Revocado' : 'Sin otorgar'}
+                </EliteText>
+              </View>
+              <Pressable onPress={() => toggleCb(id)} style={s.consentChip} hitSlop={6} disabled={busy}>
+                <EliteText style={[s.consentChipText, accepted && { color: SEMANTIC.error }]}>
+                  {accepted ? 'Revocar' : 'Otorgar'}
+                </EliteText>
+              </Pressable>
+            </View>
+          );
+        })}
+        <EliteText style={s.exportHint}>
+          Cada cambio queda registrado con fecha y versión del Aviso. Revocar los consentimientos
+          de datos sensibles o transferencia internacional detiene el núcleo de ATP.
+        </EliteText>
+      </Animated.View>
+
       {/* ── B: Documentos legales ── */}
       <Animated.View entering={FadeInUp.delay(140).springify()}>
         <SectionTitle containerStyle={{ marginTop: Spacing.lg }}>Documentos legales</SectionTitle>
@@ -230,6 +296,19 @@ export default function SettingsPrivacyScreen() {
         <EliteText style={s.exportHint}>
           Recibes un archivo JSON con todo tu expediente (GDPR/LFPDPP). Tarda hasta 24h.
         </EliteText>
+
+        {/* ARCO · Rectificar: editar los datos del perfil */}
+        <Pressable
+          onPress={() => { haptic.light(); router.push('/profile'); }}
+          style={[s.legalRow, { marginBottom: 8 }]}
+        >
+          <Ionicons name="create-outline" size={20} color={TEXT.secondary} />
+          <View style={{ flex: 1 }}>
+            <EliteText style={s.toggleTitle}>Rectificar mis datos</EliteText>
+            <EliteText style={s.toggleDesc}>Corrige tu información de perfil y salud</EliteText>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+        </Pressable>
 
         {exports.map(e => {
           const downloadable = e.status === 'completed' && e.download_url
@@ -380,6 +459,11 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6,
   },
   downloadChipText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: ATP_BRAND.lime },
+  consentChip: {
+    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+    borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6,
+  },
+  consentChipText: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: ATP_BRAND.lime },
   deleteBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderWidth: 1, borderColor: withOpacity(SEMANTIC.error, 0.5),

@@ -1,13 +1,17 @@
 /**
- * Age gate (#41, compliance stores) — lógica PURA, testeable.
+ * Age gate (#41 → Sprint Compliance 2) — lógica PURA, testeable.
  *
- * Reglas:
- *   <13  → blocked  (COPPA/stores: ATP no disponible)
- *   13-17 → parental (requiere consentimiento parental documentado)
- *   ≥18  → passed
+ * Decisión cerrada de compliance (DECISIONES_ENRIQUE_COMPLIANCE_2026-07-21,
+ * fila 5): edad mínima 18 DURO. Fecha de nacimiento obligatoria + CB-4;
+ * <18 bloquea la cuenta ("no disponible para menores"). El tier 'parental'
+ * (13-17 con consentimiento de padre/madre) se eliminó — ATP trata datos
+ * sensibles de salud y el Aviso de Privacidad declara la app solo-adultos.
  */
 
-export type AgeGateTier = 'blocked' | 'parental' | 'passed';
+export type AgeGateTier = 'blocked' | 'passed';
+
+/** Edad mínima para usar ATP (Aviso de Privacidad §7 + T&C §3). */
+export const MIN_AGE = 18;
 
 /**
  * Edad en años cumplidos entre dos fechas YYYY-MM-DD (dob, hoy).
@@ -23,15 +27,8 @@ export function ageFromDob(dobISO: string, todayISO: string): number {
   return age;
 }
 
-/** Tier del gate según edad en años cumplidos. */
+/** Tier del gate según edad en años cumplidos: <18 bloquea, ≥18 pasa. */
 export function ageGateTier(age: number): AgeGateTier {
-  if (!Number.isFinite(age) || age < 13) return 'blocked';
-  if (age < 18) return 'parental';
+  if (!Number.isFinite(age) || age < MIN_AGE) return 'blocked';
   return 'passed';
-}
-
-/** Validación mínima del email del padre/madre (parental consent). */
-export function isValidParentalEmail(email: string): boolean {
-  const e = email.trim();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 }

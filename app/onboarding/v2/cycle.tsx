@@ -20,6 +20,8 @@ import {
   v2StepNumber, v2Route, V2_STEPS,
   cycleModalityOptions, defaultCycleModality, type CycleModality,
 } from '@/src/services/onboarding-v2-core';
+import { ContextualConsentModal } from '@/src/components/legal/ContextualConsentModal';
+import { logConsent } from '@/src/services/consent-log-service';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
@@ -35,6 +37,8 @@ export default function V2CycleScreen() {
   const [sex, setSex] = useState<'male' | 'female'>('female');
   const [modality, setModality] = useState<CycleModality | null>(null);
   const [loading, setLoading] = useState(false);
+  // CB-7 (Sprint Compliance 2): consentimiento contextual de datos de ciclo
+  const [consentVisible, setConsentVisible] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -50,12 +54,28 @@ export default function V2CycleScreen() {
 
   const options = cycleModalityOptions(sex);
 
+  /** Modalidades que tratan datos de ciclo/embarazo/lactancia → requieren CB-7. */
+  const requiresCycleConsent = (m: CycleModality) =>
+    m === 'regular' || m === 'pregnancy' || m === 'menopause' || m === 'no_cycle';
+
   async function handleContinue() {
     if (!user?.id || !modality || loading) return;
+    // CB-7: al activar el módulo Ciclo, consentimiento contextual (Aviso Parte 3)
+    if (requiresCycleConsent(modality) && !consentVisible) {
+      setConsentVisible(true);
+      return;
+    }
+    await persistAndContinue(false);
+  }
+
+  async function persistAndContinue(withConsent: boolean) {
+    if (!user?.id || !modality) return;
     setLoading(true);
     try {
+      if (withConsent) await logConsent(user.id, ['CB-7'], 'accepted');
       await saveCycleModality(user.id, modality);
       haptic.success();
+      setConsentVisible(false);
       const next = await completeV2Step(user.id, 'cycle');
       router.replace(next);
     } finally {
@@ -117,6 +137,16 @@ export default function V2CycleScreen() {
           {!loading && <Ionicons name="arrow-forward" size={18} color={modality ? '#000' : '#666'} />}
         </AnimatedPressable>
       </View>
+
+      {/* CB-7 · consentimiento contextual del módulo Ciclo */}
+      <ContextualConsentModal
+        visible={consentVisible}
+        checkboxId="CB-7"
+        title="Tus datos de ciclo, bajo tu control"
+        saving={loading}
+        onAccept={() => persistAndContinue(true)}
+        onDecline={() => setConsentVisible(false)}
+      />
     </OnboardingShell>
   );
 }

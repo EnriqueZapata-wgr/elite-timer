@@ -168,6 +168,9 @@ function RootLayout() {
                 <Stack.Screen name="builder" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings/legal" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* Sprint Compliance 2: documentos legales in-app (staging, placeholder [RAZÓN SOCIAL]) */}
+                <Stack.Screen name="legal/aviso" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
+                <Stack.Screen name="legal/terminos" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 {/* #137: sub-pantallas del hub de Ajustes reorganizado */}
                 <Stack.Screen name="settings/cuenta" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/salud" options={{ headerShown: false, animation: 'slide_from_right' }} />
@@ -217,6 +220,8 @@ function RootLayout() {
                 <Stack.Screen name="braverman-premium" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Onboarding v2 (F2 sprint UX blockers) — motor v1 eliminado */}
                 <Stack.Screen name="onboarding/v2/welcome" options={{ headerShown: false, animation: 'fade' }} />
+                {/* Sprint Compliance 2: muro de consentimiento (Aviso Parte 3) antes de capturar datos */}
+                <Stack.Screen name="onboarding/v2/privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding/v2/profile" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding/v2/goal" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding/v2/cycle" options={{ headerShown: false, animation: 'slide_from_right' }} />

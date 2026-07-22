@@ -41,8 +41,8 @@ export default function V2ProfileScreen() {
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [loading, setLoading] = useState(false);
-  // Age gate (#41): modal según edad calculada al submitir
-  const [gate, setGate] = useState<{ variant: 'blocked' | 'parental'; age: number; dateStr: string } | null>(null);
+  // Age gate (Sprint Compliance 2): <18 bloquea duro al submitir
+  const [gateBlocked, setGateBlocked] = useState(false);
 
   // Prefill (usuario que venía de v1 con datos ya capturados)
   useEffect(() => {
@@ -88,38 +88,30 @@ export default function V2ProfileScreen() {
       Alert.alert(COPY.invalidDateTitle, COPY.invalidDateBody);
       return;
     }
-    // Age gate (#41): <13 bloquea, 13-17 requiere consentimiento parental
+    // Age gate (Sprint Compliance 2): <18 bloquea duro — DOB obligatoria + CB-4
     const age = ageFromDob(dateStr, getLocalToday());
     const tier = ageGateTier(age);
     analytics.track(ATP_EVENTS.AGE_GATE_TRIGGERED, { tier, age });
     if (tier === 'blocked') {
       haptic.error();
-      setGate({ variant: 'blocked', age, dateStr });
+      setGateBlocked(true);
       return;
     }
-    if (tier === 'parental') {
-      haptic.warning();
-      setGate({ variant: 'parental', age, dateStr });
-      return;
-    }
-    await persistAndContinue(dateStr, null);
+    await persistAndContinue(dateStr);
   }
 
-  /** Guarda perfil + verificación de edad (y consentimiento parental si aplica). */
-  async function persistAndContinue(dateStr: string, parentEmail: string | null) {
+  /** Guarda perfil + verificación de edad. */
+  async function persistAndContinue(dateStr: string) {
     if (!user?.id) return;
     setLoading(true);
     try {
       await ensureClientProfile(user.id, dateStr, sex!);
       await supabase.from('client_profiles').update({ height_cm: heightNum }).eq('user_id', user.id);
       await saveHealthMeasurement(user.id, { weight_kg: weightNum!, height_cm: heightNum! });
-      const now = new Date().toISOString();
       await supabase.from('profiles').update({
-        age_verified_at: now,
-        ...(parentEmail ? { parental_consent_email: parentEmail, parental_consent_at: now } : {}),
+        age_verified_at: new Date().toISOString(),
       }).eq('id', user.id);
       haptic.success();
-      setGate(null);
       const next = await completeV2Step(user.id, 'profile');
       router.replace(next);
     } catch {
@@ -129,9 +121,9 @@ export default function V2ProfileScreen() {
     }
   }
 
-  /** <13: salir de la app — cierra sesión y regresa a login. */
+  /** <18: salir de la app — cierra sesión y regresa a login. */
   async function handleBlockedExit() {
-    setGate(null);
+    setGateBlocked(false);
     try { await signOut(); } catch { /* igual navegamos */ }
     router.replace('/login');
   }
@@ -140,7 +132,7 @@ export default function V2ProfileScreen() {
     <OnboardingShell
       step={v2StepNumber('profile')}
       totalSteps={V2_STEPS.length}
-      onBack={() => router.replace(v2Route('welcome'))}
+      onBack={() => router.replace(v2Route('privacy'))}
     >
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
@@ -230,16 +222,12 @@ export default function V2ProfileScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Age gate (#41): <13 bloquea, 13-17 pide consentimiento parental */}
-      {gate && (
+      {/* Age gate (Sprint Compliance 2): <18 bloquea duro */}
+      {gateBlocked && (
         <AgeGateModal
           visible
-          variant={gate.variant}
-          age={gate.age}
-          saving={loading}
           onExit={handleBlockedExit}
-          onParentalConfirm={(email) => persistAndContinue(gate.dateStr, email)}
-          onDismiss={() => setGate(null)}
+          onDismiss={() => setGateBlocked(false)}
         />
       )}
     </OnboardingShell>

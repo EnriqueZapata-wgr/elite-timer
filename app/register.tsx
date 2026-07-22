@@ -3,6 +3,11 @@
  *
  * Campos: nombre completo, email, password, confirmar password.
  * Validaciones client-side antes de enviar a Supabase.
+ *
+ * Sprint Compliance 2: CB-1 (Términos + Aviso de Privacidad) OBLIGATORIO,
+ * NO pre-marcado — bloquea la creación de cuenta. La aceptación se loguea
+ * en user_consent_log; si la sesión aún no está lista, queda encolada y se
+ * reintenta en el muro de consentimiento del onboarding.
  */
 import { useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
@@ -13,6 +18,8 @@ import { EliteText } from '@/components/elite-text';
 import { EliteInput } from '@/components/elite-input';
 import { EliteButton } from '@/components/elite-button';
 import { useAuth } from '@/src/contexts/auth-context';
+import { supabase } from '@/src/lib/supabase';
+import { logConsent } from '@/src/services/consent-log-service';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { ATP_BRAND } from '@/src/constants/brand';
@@ -29,6 +36,8 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  // CB-1: NUNCA pre-marcado (consentimiento = acción afirmativa del usuario)
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +47,7 @@ export default function RegisterScreen() {
     if (!/\S+@\S+\.\S+/.test(email.trim())) return 'Formato de email inválido';
     if (password.length < 6) return 'La contraseña debe tener al menos 6 caracteres';
     if (password !== confirmPassword) return 'Las contraseñas no coinciden';
+    if (!termsAccepted) return 'Debes aceptar los Términos y el Aviso de Privacidad';
     return null;
   };
 
@@ -58,6 +68,10 @@ export default function RegisterScreen() {
     if (result.error) {
       setError(result.error);
     } else {
+      // CB-1 aceptado → log de auditoría (si la sesión no está lista, el
+      // servicio lo encola y el muro del onboarding lo reintenta).
+      const { data: { user: newUser } } = await supabase.auth.getUser();
+      if (newUser?.id) await logConsent(newUser.id, ['CB-1'], 'accepted');
       // T5 HARDENING: funnel core — cuenta creada (sin PII en props).
       analytics.track(ATP_EVENTS.USER_SIGNED_UP, { method: 'email' });
       haptic.success();
@@ -146,6 +160,37 @@ export default function RegisterScreen() {
               accentColor={ATP_BRAND.teal}
             />
 
+            {/* CB-1 · Términos + Aviso de Privacidad (obligatorio, NO pre-marcado) */}
+            <Pressable
+              onPress={() => { haptic.light(); setTermsAccepted(a => !a); }}
+              style={styles.consentRow}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: termsAccepted }}
+            >
+              <View style={[styles.checkbox, termsAccepted && styles.checkboxOn]}>
+                {termsAccepted && <Ionicons name="checkmark" size={14} color="#000" />}
+              </View>
+              <EliteText variant="caption" style={styles.consentText}>
+                He leído y acepto los{' '}
+                <EliteText
+                  variant="caption"
+                  style={styles.consentLink}
+                  onPress={() => router.push('/legal/terminos')}
+                >
+                  Términos y Condiciones
+                </EliteText>
+                {' '}y el{' '}
+                <EliteText
+                  variant="caption"
+                  style={styles.consentLink}
+                  onPress={() => router.push('/legal/aviso')}
+                >
+                  Aviso de Privacidad
+                </EliteText>
+                .
+              </EliteText>
+            </Pressable>
+
             {error && (
               <EliteText variant="caption" style={styles.error}>
                 {error}
@@ -207,6 +252,37 @@ const styles = StyleSheet.create({
     right: Spacing.md,
     top: 38,
     padding: Spacing.xs,
+  },
+  consentRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+    alignSelf: 'stretch',
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.xs,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#333',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  checkboxOn: {
+    backgroundColor: ATP_BRAND.lime,
+    borderColor: ATP_BRAND.lime,
+  },
+  consentText: {
+    flex: 1,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
+  consentLink: {
+    color: ATP_BRAND.teal,
+    fontFamily: Fonts.semiBold,
   },
   error: {
     color: Colors.error,

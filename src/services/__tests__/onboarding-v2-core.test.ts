@@ -13,14 +13,17 @@ import {
 } from '../onboarding-v2-core';
 
 describe('flujo de steps v2', () => {
-  it('7 steps en orden welcome → notifications', () => {
-    expect(V2_STEPS).toHaveLength(7);
+  it('8 steps en orden welcome → notifications (privacy = muro de consentimiento)', () => {
+    expect(V2_STEPS).toHaveLength(8);
     expect(V2_STEPS[0]).toBe('welcome');
-    expect(V2_STEPS[6]).toBe('notifications');
+    expect(V2_STEPS[1]).toBe('privacy');
+    expect(V2_STEPS[2]).toBe('profile');
+    expect(V2_STEPS[7]).toBe('notifications');
   });
 
   it('nextV2Step encadena y termina en null', () => {
-    expect(nextV2Step('welcome')).toBe('profile');
+    expect(nextV2Step('welcome')).toBe('privacy');
+    expect(nextV2Step('privacy')).toBe('profile');
     expect(nextV2Step('consent')).toBe('notifications');
     expect(nextV2Step('notifications')).toBeNull();
   });
@@ -35,7 +38,8 @@ describe('flujo de steps v2', () => {
   it('v2Route y v2StepNumber', () => {
     expect(v2Route('cycle')).toBe('/onboarding/v2/cycle');
     expect(v2StepNumber('welcome')).toBe(1);
-    expect(v2StepNumber('notifications')).toBe(7);
+    expect(v2StepNumber('privacy')).toBe(2);
+    expect(v2StepNumber('notifications')).toBe(8);
   });
 });
 
@@ -45,6 +49,7 @@ describe('resolveOnboardingRoute (gate de app/index)', () => {
   });
 
   it('v2_<step> → su pantalla', () => {
+    expect(resolveOnboardingRoute('v2_privacy')).toBe('/onboarding/v2/privacy');
     expect(resolveOnboardingRoute('v2_profile')).toBe('/onboarding/v2/profile');
     expect(resolveOnboardingRoute('v2_notifications')).toBe('/onboarding/v2/notifications');
   });

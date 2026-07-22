@@ -5,7 +5,11 @@
  * de 9 bloques. El step persiste en profiles.onboarding_step con valores
  * 'v2_<step>' (columna TEXT sin CHECK — no requiere migración para el step).
  *
- *   welcome → profile → goal → cycle → chronotype → consent → notifications → completed
+ *   welcome → privacy → profile → goal → cycle → chronotype → consent → notifications → completed
+ *
+ * Sprint Compliance 2: 'privacy' es el muro de consentimiento (Aviso de
+ * Privacidad Parte 3: CB-2/3/4 obligatorios + CB-5 opcional), ANTES de
+ * capturar datos sensibles. CB-1 vive en register.tsx (bloquea la cuenta).
  *
  * El tour post-onboarding NO es un step: AppTour se auto-dispara en la primera
  * visita a HOY (AsyncStorage @atp/tour_completed), igual que antes.
@@ -15,6 +19,7 @@ import type { Href } from 'expo-router';
 
 export const V2_STEPS = [
   'welcome',
+  'privacy',
   'profile',
   'goal',
   'cycle',

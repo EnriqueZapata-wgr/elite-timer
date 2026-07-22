@@ -4,7 +4,7 @@
  * disclaimers + estado de aceptación (user_consent).
  */
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Linking } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,9 +19,9 @@ import { MEDICAL_DISCLAIMER_VERSION } from '@/src/constants/medical-disclaimers'
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ELEVATION, TEXT } from '@/src/constants/brand';
 
-// TODO(#42): URLs definitivas cuando el sitio publique las páginas.
-const PRIVACY_URL = 'https://somosatp.com/privacidad';
-const TERMS_URL = 'https://somosatp.com/terminos';
+// Sprint Compliance 2: los documentos viven in-app (/legal/*) en staging con
+// placeholder [RAZÓN SOCIAL]. Al publicarse en somosatp.com (cuando llegue la
+// razón social de la SAS), estas pantallas siguen como espejo in-app.
 
 type ConsentRow = {
   terms_accepted_at: string | null;
@@ -58,7 +58,9 @@ export default function SettingsLegalScreen() {
       status: consent?.terms_accepted_at
         ? `Aceptados: v${consent.terms_version ?? '1.0'} · ${fmtDate(consent.terms_accepted_at)}`
         : 'Ver documento',
-      onPress: () => Linking.openURL(TERMS_URL),
+      // Sprint Compliance 2: mientras la web no publica (espera razón social
+      // de la SAS), el documento vive in-app en staging.
+      onPress: () => router.push('/legal/terminos'),
     },
     {
       icon: 'lock-closed-outline' as const,
@@ -66,7 +68,7 @@ export default function SettingsLegalScreen() {
       status: consent?.privacy_accepted_at
         ? `Aceptada: v${consent.privacy_version ?? '1.0'} · ${fmtDate(consent.privacy_accepted_at)}`
         : 'Ver documento',
-      onPress: () => Linking.openURL(PRIVACY_URL),
+      onPress: () => router.push('/legal/aviso'),
     },
     {
       icon: 'medkit-outline' as const,
