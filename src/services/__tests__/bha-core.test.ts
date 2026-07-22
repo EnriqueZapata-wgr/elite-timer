@@ -1,110 +1,136 @@
 import { describe, it, expect } from 'vitest';
 import {
-  BHA_CRITERIA_PROMPT,
-  buildBhaUserText,
-  buildBhaSummaryText,
-  parseBhaResponse,
-  isIllegibleLabel,
+  FUNCTIONAL_SCORE_PROMPT,
+  SCORE_ATTRIBUTES,
+  buildScanUserText,
+  buildScoreSummaryText,
+  parseFunctionalScoreResponse,
 } from '@/src/services/bha-core';
 
-describe('parseBhaResponse — JSON defensivo (patrón dx-engine)', () => {
-  it('parsea respuesta limpia approved', () => {
-    const r = parseBhaResponse(JSON.stringify({
-      verdict: 'approved',
-      reasons: ['Magnesio bisglicinato (forma quelatada)', 'Excipientes mínimos'],
-      flagged_ingredients: [],
-      summary: 'Formulación limpia con forma premium.',
-    }));
+const FULL = JSON.stringify({
+  attributes: [
+    { key: 'formas', score: 80, note: 'Magnesio como bisglicinato.' },
+    { key: 'aditivos', score: 100, note: 'Sin colorantes ni endulzantes artificiales.' },
+    { key: 'excipientes', score: 90, note: 'Cápsula vegetal y celulosa.' },
+    { key: 'transparencia', score: 70, note: 'Un blend sin desglose por ingrediente.' },
+  ],
+  flagged_ingredients: [],
+  summary: 'Formulación con formas quelatadas y etiqueta parcialmente desglosada.',
+});
+
+describe('parseFunctionalScoreResponse — JSON defensivo (Sprint Compliance 4)', () => {
+  it('parsea respuesta completa y calcula el total determinístico (promedio)', () => {
+    const r = parseFunctionalScoreResponse(FULL);
     expect(r).not.toBeNull();
-    expect(r!.verdict).toBe('approved');
-    expect(r!.reasons).toHaveLength(2);
-    expect(r!.summary).toContain('premium');
+    expect(r!.illegible).toBe(false);
+    expect(r!.attributes).toHaveLength(4);
+    expect(r!.score).toBe(85); // (80+100+90+70)/4
+    expect(r!.attributes[0].label).toBe('Formas y biodisponibilidad');
+  });
+
+  it('NO confía en un total del modelo: lo ignora y promedia', () => {
+    const withBogusTotal = JSON.parse(FULL);
+    withBogusTotal.score = 12;
+    const r = parseFunctionalScoreResponse(JSON.stringify(withBogusTotal));
+    expect(r!.score).toBe(85);
   });
 
   it('tolera fences ```json y prosa alrededor (extractJsonBlock)', () => {
-    const raw = 'Claro, aquí está el análisis:\n```json\n{"verdict":"rejected","reasons":["contiene sucralosa"],"flagged_ingredients":["sucralosa"],"summary":"Endulzante artificial presente."}\n```\nEspero que ayude.';
-    const r = parseBhaResponse(raw);
-    expect(r!.verdict).toBe('rejected');
-    expect(r!.flagged_ingredients).toEqual(['sucralosa']);
+    const raw = `Claro, aquí está el análisis:\n\`\`\`json\n${FULL}\n\`\`\`\nEspero que ayude.`;
+    expect(parseFunctionalScoreResponse(raw)!.score).toBe(85);
   });
 
-  it('veredicto BINARIO: valores fuera de approved/rejected → null (no confía en el modelo)', () => {
-    expect(parseBhaResponse('{"verdict":"maybe","reasons":[],"flagged_ingredients":[],"summary":"x"}')).toBeNull();
-    expect(parseBhaResponse('{"verdict":"APPROVED","reasons":[]}')).toBeNull();
-    expect(parseBhaResponse('{"reasons":["sin verdict"]}')).toBeNull();
+  it('clampa scores fuera de rango (0-100) y redondea', () => {
+    const dirty = JSON.parse(FULL);
+    dirty.attributes[0].score = 150;
+    dirty.attributes[1].score = -20;
+    dirty.attributes[2].score = 90.6;
+    const r = parseFunctionalScoreResponse(JSON.stringify(dirty));
+    expect(r!.attributes[0].score).toBe(100);
+    expect(r!.attributes[1].score).toBe(0);
+    expect(r!.attributes[2].score).toBe(91);
+  });
+
+  it('falta un atributo obligatorio o score no numérico → null', () => {
+    const missing = JSON.parse(FULL);
+    missing.attributes = missing.attributes.slice(0, 3);
+    expect(parseFunctionalScoreResponse(JSON.stringify(missing))).toBeNull();
+
+    const nonNumeric = JSON.parse(FULL);
+    nonNumeric.attributes[0].score = 'alto';
+    expect(parseFunctionalScoreResponse(JSON.stringify(nonNumeric))).toBeNull();
+  });
+
+  it('{"illegible":true} → resultado ilegible sin score', () => {
+    const r = parseFunctionalScoreResponse('{"illegible":true}');
+    expect(r!.illegible).toBe(true);
+    expect(r!.attributes).toHaveLength(0);
   });
 
   it('inputs rotos → null, nunca lanza', () => {
-    expect(parseBhaResponse('')).toBeNull();
-    expect(parseBhaResponse('sin json aquí')).toBeNull();
-    expect(parseBhaResponse('{"verdict":"approved", TRUNCADO')).toBeNull();
-    expect(parseBhaResponse('[1,2,3]')).toBeNull();
+    expect(parseFunctionalScoreResponse('')).toBeNull();
+    expect(parseFunctionalScoreResponse('sin json aquí')).toBeNull();
+    expect(parseFunctionalScoreResponse('{"attributes":[{"key":"formas"')).toBeNull();
+    expect(parseFunctionalScoreResponse('[1,2,3]')).toBeNull();
   });
 
-  it('normaliza campos sucios: reasons no-array, summary faltante → fallback a primera reason', () => {
-    const r = parseBhaResponse('{"verdict":"rejected","reasons":["colorante Rojo 40", 42, ""],"flagged_ingredients":"no-array"}');
-    expect(r!.reasons).toEqual(['colorante Rojo 40']);
-    expect(r!.flagged_ingredients).toEqual([]);
-    expect(r!.summary).toBe('colorante Rojo 40');
+  it('normaliza flagged_ingredients sucios', () => {
+    const dirty = JSON.parse(FULL);
+    dirty.flagged_ingredients = ['sucralosa', 42, ''];
+    const r = parseFunctionalScoreResponse(JSON.stringify(dirty));
+    expect(r!.flagged_ingredients).toEqual(['sucralosa']);
   });
 });
 
-describe('isIllegibleLabel — duda razonable → rejected re-escaneable', () => {
-  it('detecta la reason de etiqueta ilegible', () => {
-    const r = parseBhaResponse('{"verdict":"rejected","reasons":["etiqueta ilegible, re-escanea"],"flagged_ingredients":[],"summary":"No se pudo leer."}');
-    expect(isIllegibleLabel(r!)).toBe(true);
+describe('FUNCTIONAL_SCORE_PROMPT — criterios + compliance §4.2', () => {
+  it('conserva los criterios de formulación de Mariana (decisión #5)', () => {
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('sucralosa');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('aspartame');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('acesulfame-K');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('óxido de magnesio');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('cianocobalamina');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('ácido fólico sintético');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('quelatadas');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('conservantes naturales');
   });
-  it('rejected por ingredientes NO es ilegible; approved nunca es ilegible', () => {
-    const rej = parseBhaResponse('{"verdict":"rejected","reasons":["sucralosa"],"flagged_ingredients":["sucralosa"],"summary":"x"}');
-    expect(isIllegibleLabel(rej!)).toBe(false);
-    const ok = parseBhaResponse('{"verdict":"approved","reasons":["ilegible no aplica"],"flagged_ingredients":[],"summary":"x"}');
-    expect(isIllegibleLabel(ok!)).toBe(false);
-  });
-});
 
-describe('BHA_CRITERIA_PROMPT — criterios de Mariana (decisión #5)', () => {
-  it('contiene los criterios que RECHAZAN', () => {
-    expect(BHA_CRITERIA_PROMPT).toContain('sucralosa');
-    expect(BHA_CRITERIA_PROMPT).toContain('aspartame');
-    expect(BHA_CRITERIA_PROMPT).toContain('acesulfame-K');
-    expect(BHA_CRITERIA_PROMPT).toContain('óxido de magnesio');
-    expect(BHA_CRITERIA_PROMPT).toContain('cianocobalamina');
-    expect(BHA_CRITERIA_PROMPT).toContain('ácido fólico sintético');
-    expect(BHA_CRITERIA_PROMPT).toContain('Colorantes artificiales');
+  it('salida numérica por atributos, sin veredicto binario ni marca vieja', () => {
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('ATP Functional Score');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('"attributes"');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('"illegible":true');
+    expect(FUNCTIONAL_SCORE_PROMPT).not.toContain('Biohacker Approved');
+    expect(FUNCTIONAL_SCORE_PROMPT).not.toMatch(/"verdict"/);
   });
-  it('contiene los criterios que APRUEBAN y la regla de ilegible', () => {
-    expect(BHA_CRITERIA_PROMPT).toContain('quelatadas');
-    expect(BHA_CRITERIA_PROMPT).toContain('Conservantes naturales');
-    expect(BHA_CRITERIA_PROMPT).toContain('etiqueta ilegible, re-escanea');
+
+  it('lenguaje objetivo y cero marcas de terceros (reglas duras §4.2)', () => {
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('NUNCA menciones marcas de terceros');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('sin adjetivos valorativos');
   });
+
   it('doctrina: registro no recomendación + BPC no rompe ayuno metabólico', () => {
-    expect(BHA_CRITERIA_PROMPT).toContain('NUNCA recomiendes comprar');
-    expect(BHA_CRITERIA_PROMPT).toContain('NO opines sobre dosis');
-    expect(BHA_CRITERIA_PROMPT).toContain('NO rompe el ayuno metabólico');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('NUNCA recomiendes comprar');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('NO des consejo médico');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('NO rompe el ayuno metabólico');
   });
-  it('exige JSON con el shape estricto', () => {
-    expect(BHA_CRITERIA_PROMPT).toContain('"verdict"');
-    expect(BHA_CRITERIA_PROMPT).toContain('"reasons"');
-    expect(BHA_CRITERIA_PROMPT).toContain('"flagged_ingredients"');
-    expect(BHA_CRITERIA_PROMPT).toContain('"summary"');
+
+  it('los 4 atributos definidos con labels', () => {
+    expect(SCORE_ATTRIBUTES.map(a => a.key)).toEqual(['formas', 'aditivos', 'excipientes', 'transparencia']);
   });
 });
 
-describe('buildBhaUserText / buildBhaSummaryText', () => {
+describe('buildScanUserText / buildScoreSummaryText', () => {
   it('incluye nombre y marca solo si vienen', () => {
-    expect(buildBhaUserText('Vitamina C', 'NOW')).toContain('Vitamina C');
-    expect(buildBhaUserText('Vitamina C', 'NOW')).toContain('NOW');
-    expect(buildBhaUserText(null, '  ')).not.toContain('Marca');
+    expect(buildScanUserText('Vitamina C', 'NOW')).toContain('Vitamina C');
+    expect(buildScanUserText('Vitamina C', 'NOW')).toContain('NOW');
+    expect(buildScanUserText(null, '  ')).not.toContain('Marca');
   });
-  it('summary persistible = summary + bullets de reasons', () => {
-    const text = buildBhaSummaryText({
-      verdict: 'rejected',
-      reasons: ['sucralosa', 'colorante'],
-      flagged_ingredients: ['sucralosa'],
-      summary: 'Dos flags.',
-    });
-    expect(text).toContain('Dos flags.');
-    expect(text).toContain('• sucralosa');
-    expect(text).toContain('• colorante');
+
+  it('summary persistible = summary + desglose por atributo, capado a 2000', () => {
+    const r = parseFunctionalScoreResponse(FULL)!;
+    const text = buildScoreSummaryText(r);
+    expect(text).toContain('Formulación con formas quelatadas');
+    expect(text).toContain('• Formas y biodisponibilidad: 80 — Magnesio como bisglicinato.');
+    expect(text).toContain('• Transparencia de etiqueta: 70');
+    expect(text.length).toBeLessThanOrEqual(2000);
   });
 });

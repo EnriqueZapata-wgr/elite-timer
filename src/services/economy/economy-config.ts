@@ -40,9 +40,10 @@ export const FALLBACK_ACTION_COSTS: Record<ActionKey, number> = {
   weekly_insight: 40,
   // #143: reportes premium — ancla doctrina H+ (seed en migración 162)
   braverman_premium_report: 1000,
-  // DX+Intervenciones F2: síntesis "Mi Diagnóstico Funcional" (seed server-side)
+  // DX+Intervenciones F2: síntesis "Mi Mapa Funcional" (seed server-side)
   dx_generation: 1000,
-  // Sprint SUPS+BHA: sello Biohacker Approved (seed 189 — precio cerrado 500)
+  // Compliance S4: ATP Functional Score (antes sello BHA; action_key se mantiene
+  // 'bha_scan' — seed 189, precio cerrado 500)
   bha_scan: 500,
   // MB-4 J5: un turno de VOZ (STT Gemini + LLM + TTS ElevenLabs) es la interacción
   // más cara. Precio inicial = chat + prima de voz; Enrique calibra con la

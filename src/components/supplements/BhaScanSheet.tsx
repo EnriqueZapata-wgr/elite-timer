@@ -1,14 +1,15 @@
 /**
- * BhaScanSheet — flujo del scanner BHA (Biohacker Approved).
- * Sprint SUPS+BHA, Bloque 4.
+ * BhaScanSheet — flujo del scanner ATP Functional Score (Sprint Compliance 4;
+ * antes sello BHA binario).
  *
  * Fases: quote (pre-flight H+) → picking foto → scanning (LLM) → result
- * (sello grande ✅/❌ + reasons + summary). Si viene con `supplement`, persiste
- * el sello en la ficha (bha_status/bha_scan_summary); standalone (entrada de
- * sección) solo muestra el resultado — sirve también para comida empaquetada.
+ * (score numérico 0-100 + desglose por atributos + summary objetivo). Si viene
+ * con `supplement`, persiste el score en la ficha (functional_score +
+ * bha_scan_summary); standalone (entrada de sección) solo muestra el
+ * resultado — sirve también para comida empaquetada.
  *
- * Doctrina: registro, no recomendación — el sello evalúa formulación, nunca
- * sugiere comprar/tomar nada.
+ * Doctrina: registro, no recomendación — el score evalúa formulación (cero
+ * marcas, cero adjetivos, privado al usuario); nunca sugiere comprar/tomar nada.
  */
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
@@ -17,12 +18,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from '@/src/utils/haptics';
-import { ELEVATION, TEXT } from '@/src/constants/brand';
+import { ELEVATION, TEXT, getScoreColor } from '@/src/constants/brand';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { getBhaScanQuote, persistBhaSeal, runBhaScan } from '@/src/services/bha-service';
-import type { BhaScanResult } from '@/src/services/bha-core';
+import { getBhaScanQuote, persistFunctionalScore, runBhaScan } from '@/src/services/bha-service';
+import type { FunctionalScoreResult } from '@/src/services/bha-core';
 
-const GREEN = '#4ade80';
 const RED = '#ef4444';
 
 interface BhaTarget {
@@ -48,7 +48,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
   const { track } = useAnalytics();
   const [phase, setPhase] = useState<Phase>('quote');
   const [quote, setQuote] = useState<{ cost: number; balance: number } | null>(null);
-  const [result, setResult] = useState<BhaScanResult | null>(null);
+  const [result, setResult] = useState<FunctionalScoreResult | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -61,7 +61,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
   const insufficientAlert = useCallback((required: number, balance: number) => {
     Alert.alert(
       'Te faltan H+',
-      `El escaneo BHA usa ${required} H+ y tienes ${balance}. Recarga o gana más completando tu día.`,
+      `El ATP Functional Score usa ${required} H+ y tienes ${balance}. Recarga o gana más completando tu día.`,
       [
         { text: 'Ahora no', style: 'cancel' },
         { text: 'Conseguir H+', onPress: () => { onClose(); router.push('/economy/shop'); } },
@@ -81,7 +81,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
       insufficientAlert(quote?.cost ?? 500, quote?.balance ?? 0);
       return;
     }
-    if (outcome.status === 'error') {
+    if (outcome.status === 'illegible' || outcome.status === 'error') {
       haptic.warning();
       setPhase('quote');
       Alert.alert('No se pudo escanear', 'La etiqueta no se pudo interpretar. Intenta con una foto más clara y con buena luz.');
@@ -91,12 +91,12 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
     setPhase('result');
     haptic.success();
     track(ATP_EVENTS.BHA_SCAN_COMPLETED, {
-      verdict: outcome.result.verdict,
+      score: outcome.result.score,
       has_supplement: !!supplement,
       flagged_count: outcome.result.flagged_ingredients.length,
     });
     if (supplement) {
-      const persisted = await persistBhaSeal(supplement.id, outcome.result);
+      const persisted = await persistFunctionalScore(supplement.id, outcome.result);
       if (persisted.success) onSealPersisted?.();
     }
   }, [userId, supplement, quote, insufficientAlert, track, onSealPersisted]);
@@ -128,7 +128,7 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
     }
   }, [quote, insufficientAlert, scan]);
 
-  const approved = result?.verdict === 'approved';
+  const scoreColor = result ? getScoreColor(result.score) : TEXT.secondary;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -145,15 +145,16 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
           {phase === 'quote' && (
             <View>
               <Text style={{ color: TEXT.primary, fontSize: 18, fontWeight: '800' }}>
-                Escanear con BHA
+                ATP Functional Score
               </Text>
               <Text style={{ color: TEXT.secondary, fontSize: 13, marginTop: 6, lineHeight: 19 }}>
                 Toma una foto de la etiqueta{supplement ? ` de ${supplement.name}` : ' (suplemento o comida empaquetada)'} y
-                el sello Biohacker Approved evalúa la formulación: colorantes, endulzantes
-                artificiales, formas baratas vs biodisponibles y rellenos innecesarios.
+                obtén un score de 0 a 100 de la formulación por atributos: formas y
+                biodisponibilidad, colorantes y endulzantes, excipientes y transparencia.
               </Text>
               <Text style={{ color: TEXT.tertiary, fontSize: 11, marginTop: 10, lineHeight: 16 }}>
-                El sello evalúa calidad de formulación. No es recomendación de compra ni consejo médico.
+                Evaluación educativa de la formulación, privada para ti. No evalúa marcas,
+                no es recomendación de compra ni consejo médico.
               </Text>
 
               <View style={{
@@ -209,23 +210,23 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
             </View>
           )}
 
-          {/* ── Fase 3: resultado ── */}
+          {/* ── Fase 3: resultado (score numérico por atributos) ── */}
           {phase === 'result' && result && (
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={{ alignItems: 'center', marginBottom: 16 }}>
                 <View style={{
-                  width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: approved ? 'rgba(74,222,128,0.12)' : 'rgba(239,68,68,0.12)',
-                  borderWidth: 2, borderColor: approved ? GREEN : RED,
+                  width: 96, height: 96, borderRadius: 48, alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: `${scoreColor}1F`,
+                  borderWidth: 2, borderColor: scoreColor,
                 }}>
-                  <Ionicons name={approved ? 'checkmark' : 'close'} size={48} color={approved ? GREEN : RED} />
+                  <Text style={{ color: scoreColor, fontSize: 34, fontWeight: '800' }}>{result.score}</Text>
                 </View>
-                <Text style={{ color: approved ? GREEN : RED, fontSize: 20, fontWeight: '800', marginTop: 12 }}>
-                  {approved ? 'BIOHACKER APPROVED' : 'NO APROBADO'}
+                <Text style={{ color: TEXT.primary, fontSize: 16, fontWeight: '800', marginTop: 12, letterSpacing: 0.5 }}>
+                  ATP FUNCTIONAL SCORE
                 </Text>
                 {supplement && (
                   <Text style={{ color: TEXT.tertiary, fontSize: 12, marginTop: 4 }}>
-                    Sello guardado en la ficha de {supplement.name}
+                    Score guardado en la ficha de {supplement.name}
                   </Text>
                 )}
               </View>
@@ -236,18 +237,32 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                 </Text>
               )}
 
-              {result.reasons.length > 0 && (
+              {result.attributes.length > 0 && (
                 <View style={{
                   backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14, marginBottom: 10,
                   borderWidth: 1, borderColor: ELEVATION[1].border,
                 }}>
-                  <Text style={{ color: TEXT.secondary, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 8 }}>
-                    RAZONES
+                  <Text style={{ color: TEXT.secondary, fontSize: 10, fontWeight: '700', letterSpacing: 1.5, marginBottom: 10 }}>
+                    ATRIBUTOS
                   </Text>
-                  {result.reasons.map((r, i) => (
-                    <Text key={i} style={{ color: TEXT.secondary, fontSize: 13, lineHeight: 19, marginBottom: 4 }}>
-                      •  {r}
-                    </Text>
+                  {result.attributes.map((a) => (
+                    <View key={a.key} style={{ marginBottom: 12 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <Text style={{ color: TEXT.secondary, fontSize: 12, fontWeight: '600' }}>{a.label}</Text>
+                        <Text style={{ color: getScoreColor(a.score), fontSize: 12, fontWeight: '800' }}>{a.score}</Text>
+                      </View>
+                      <View style={{ height: 5, borderRadius: 3, backgroundColor: '#1a1a1a', overflow: 'hidden' }}>
+                        <View style={{
+                          width: `${a.score}%`, height: '100%', borderRadius: 3,
+                          backgroundColor: getScoreColor(a.score),
+                        }} />
+                      </View>
+                      {!!a.note && (
+                        <Text style={{ color: TEXT.tertiary, fontSize: 11, lineHeight: 15, marginTop: 3 }}>
+                          {a.note}
+                        </Text>
+                      )}
+                    </View>
                   ))}
                 </View>
               )}

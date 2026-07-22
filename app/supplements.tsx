@@ -20,6 +20,7 @@ import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor, takenDaysBySupplement, weeklyAdherencePct } from '@/src/services/supplements-adherence-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
+import { getScoreColor } from '@/src/constants/brand';
 
 const TIMING_OPTIONS = [
   { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -343,7 +344,7 @@ export default function SupplementsScreen() {
       {/* Suplementos agrupados por timing */}
       {grouped.length > 0 && (
         <Text style={{ color: '#666', fontSize: 11, paddingHorizontal: 20, marginBottom: 8 }}>
-          Toca ✏️ para editar tomas y dosis · desliza ← para eliminar
+          Toca ✏️ para editar tomas y cantidades · desliza ← para eliminar
         </Text>
       )}
       {grouped.map(group => (
@@ -399,17 +400,20 @@ export default function SupplementsScreen() {
                       }}>
                         {supp.name}
                       </Text>
-                      {/* Sello BHA (187): ✅ approved / ❌ rejected / nada = sin escanear */}
-                      {supp.bha_status === 'approved' && (
-                        <View style={{ backgroundColor: 'rgba(74,222,128,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                          <Text style={{ color: '#4ade80', fontSize: 8, fontWeight: '800' }}>✓ BHA</Text>
+                      {/* ATP Functional Score (211): chip numérico 0-100.
+                          Scans legados (solo bha_status binario) muestran chip
+                          neutro "Evaluado" hasta re-escanear — cero adjetivos. */}
+                      {supp.functional_score != null ? (
+                        <View style={{ backgroundColor: `${getScoreColor(supp.functional_score)}1F`, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: getScoreColor(supp.functional_score), fontSize: 8, fontWeight: '800' }}>
+                            SCORE {supp.functional_score}
+                          </Text>
                         </View>
-                      )}
-                      {supp.bha_status === 'rejected' && (
-                        <View style={{ backgroundColor: 'rgba(239,68,68,0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                          <Text style={{ color: '#ef4444', fontSize: 8, fontWeight: '800' }}>✗ BHA</Text>
+                      ) : supp.bha_status ? (
+                        <View style={{ backgroundColor: 'rgba(255,255,255,0.08)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ color: '#999', fontSize: 8, fontWeight: '800' }}>EVALUADO · RE-ESCANEA</Text>
                         </View>
-                      )}
+                      ) : null}
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                       <Text style={{ color: '#666', fontSize: 11 }}>{supp.dosage}</Text>
@@ -449,8 +453,8 @@ export default function SupplementsScreen() {
                         })}
                       </View>
                     )}
-                    {/* Razones del sello BHA en la ficha */}
-                    {supp.bha_status && supp.bha_scan_summary && (
+                    {/* Resumen del ATP Functional Score en la ficha */}
+                    {(supp.functional_score != null || supp.bha_status) && supp.bha_scan_summary && (
                       <Text style={{ color: '#555', fontSize: 10, marginTop: 6, lineHeight: 14 }} numberOfLines={2}>
                         {String(supp.bha_scan_summary).split('\n')[0]}
                       </Text>
@@ -462,13 +466,13 @@ export default function SupplementsScreen() {
                   <Pressable onPress={() => openEdit(supp)} hitSlop={4} style={{ padding: 8 }}>
                     <Ionicons name="pencil-outline" size={18} color="#666" />
                   </Pressable>
-                  {/* CTA "Escanear con BHA" de la ficha (re-escanear si ya tiene sello) */}
+                  {/* CTA de escaneo ATP Functional Score (re-escanear si ya tiene score) */}
                   <Pressable
                     onPress={() => openBhaScan({ id: supp.id, name: supp.name, brand: supp.brand })}
                     hitSlop={4}
                     style={{ padding: 8 }}
                   >
-                    <Ionicons name="scan-outline" size={20} color={supp.bha_status ? '#444' : '#4ade80'} />
+                    <Ionicons name="scan-outline" size={20} color={supp.functional_score != null || supp.bha_status ? '#444' : '#4ade80'} />
                   </Pressable>
                 </Pressable>
               </SwipeToDeleteRow>
@@ -479,7 +483,7 @@ export default function SupplementsScreen() {
 
       {supplements.length > 0 && (
         <Text style={{ color: '#444', fontSize: 9, textAlign: 'center', marginTop: 4 }}>
-          Toca para marcar · Desliza ← (o mantén presionado) para eliminar · Escanea la etiqueta para el sello BHA
+          Toca para marcar · Desliza ← (o mantén presionado) para eliminar · Escanea la etiqueta para tu ATP Functional Score
         </Text>
       )}
 
@@ -522,7 +526,8 @@ export default function SupplementsScreen() {
               }}
             />
 
-            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Dosis</Text>
+            {/* Sweep §4: "Dosis" → "Cantidad" (registro del usuario, no pauta de ATP) */}
+            <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Cantidad</Text>
             <TextInput
               value={newDosage} onChangeText={setNewDosage}
               placeholder="Ej: 400 mg" placeholderTextColor="#444"
@@ -653,7 +658,7 @@ export default function SupplementsScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-      {/* Scanner BHA — sello Biohacker Approved (decisión #5) */}
+      {/* Scanner ATP Functional Score (Compliance S4; antes sello BHA) */}
       <BhaScanSheet
         visible={bhaVisible}
         userId={userId}

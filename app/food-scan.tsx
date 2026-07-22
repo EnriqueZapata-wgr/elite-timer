@@ -433,15 +433,13 @@ export default function FoodScanScreen() {
 
   // Paso 1: abrir editor de revisión
   /** SUP-1 (MB-2): crea la ficha en user_supplements desde el JSON del scan.
-   * Sello BHA automático SOLO si el scan es claramente limpio (calidad ≥80 y
-   * cero red flags) — un scan sucio NO auto-rechaza: eso lo decide el BHA real
-   * desde la ficha. Tomas/horario se editan después con el lápiz (SUP-3). */
+   * Compliance S4: sin score automático — el ATP Functional Score numérico
+   * solo sale del scanner dedicado desde la ficha (un scan nutricional no
+   * sustituye la evaluación por atributos). Tomas/horario con el lápiz (SUP-3). */
   const handleAddToPlan = async () => {
     if (!user?.id || !result || addingToPlan || addedToPlan) return;
     setAddingToPlan(true);
     try {
-      const quality = Number(result.quality_score ?? 0);
-      const clean = quality >= 80 && !(result.red_flags?.length);
       const { error: insErr } = await supabase.from('user_supplements').insert({
         user_id: user.id,
         name: String(result.supplement_name ?? productName ?? 'Suplemento').slice(0, 120),
@@ -449,17 +447,13 @@ export default function FoodScanScreen() {
         form: result.form ? String(result.form).slice(0, 40) : null,
         timing: 'morning',
         source: 'scan',
-        bha_status: clean ? 'approved' : null,
-        bha_scan_summary: clean
-          ? `Sello derivado del escaneo de etiqueta · calidad ${quality}/100`
-          : null,
       });
       if (insErr) throw insErr;
       setAddedToPlan(true);
       haptic.success();
       Alert.alert(
         'En tu plan ✓',
-        'Ficha creada con los datos del escaneo. Edita tomas (AM/PM), dosis y horario desde Suplementos con el ✏️.',
+        'Ficha creada con los datos del escaneo. Edita tomas (AM/PM), cantidades y horario desde Suplementos con el ✏️.',
         [
           { text: 'Ver mi plan', onPress: () => router.replace('/supplements') },
           { text: 'Seguir aquí', style: 'cancel' },
@@ -1361,7 +1355,7 @@ export default function FoodScanScreen() {
               </AnimatedPressable>
             )}
 
-            {/* SUP-1: scan de suplemento → ficha en mi plan (con sello BHA si limpio) */}
+            {/* SUP-1: scan de suplemento → ficha en mi plan */}
             {mode === 'supplement' && !addedToPlan && (
               <AnimatedPressable onPress={handleAddToPlan} disabled={addingToPlan} scaleDown={0.96}
                 style={[st.ctaBtn, { backgroundColor: cfg.color }]}>

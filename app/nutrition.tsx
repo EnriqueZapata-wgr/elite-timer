@@ -367,7 +367,7 @@ export default function NutritionScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(220).springify()}>
-            <NavCard icon="medical-outline" color="#fbbf24" title="Evaluar suplemento" subtitle="Evalúa calidad y dosis"
+            <NavCard icon="medical-outline" color="#fbbf24" title="Evaluar suplemento" subtitle="Evalúa calidad de formulación"
               onPress={() => { haptic.light(); router.push({ pathname: '/food-scan', params: { mode: 'supplement' } }); }} />
           </Animated.View>
           </>
