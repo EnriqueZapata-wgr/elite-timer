@@ -1,7 +1,8 @@
 /**
  * CÓMO GANAR H+ (#99, marathon F2) — explica visualmente la economía:
  * Electrones (esfuerzo verificado, rank permanente) → conversión →
- * Protones H+ (moneda transable) → gasto con criterio.
+ * Protones H+ (puntos de energía para features premium in-app) → gasto con criterio.
+ * Compliance C10-001: H+ NUNCA se describe como moneda/cripto/activo/convertible.
  *
  * Editorial B/N + lima. Sin números de tasa hardcodeados: la tasa viva
  * se ve en /economy/convert (hay mismatch config/server pendiente de audit).
@@ -40,7 +41,7 @@ const STEPS: Step[] = [
     key: 'convierte',
     emoji: '🔁',
     kicker: 'PASO 2 · CONVIERTE',
-    title: 'Tu esfuerzo se vuelve moneda',
+    title: 'Tu esfuerzo se vuelve energía',
     body: 'Convierte electrones en Protones H+ cuando quieras. La conversión no toca tu rango — el rango se calcula sobre lo ganado históricamente, no sobre lo que tienes.',
     cta: { label: 'Ver conversión', route: '/economy/convert' },
   },
@@ -49,7 +50,7 @@ const STEPS: Step[] = [
     emoji: '💎',
     kicker: 'PASO 3 · USA',
     title: 'Protones H+',
-    body: 'La moneda transable de ATP. Paga consultas a ARGOS, análisis de comida por foto, interpretación de labs y desbloqueos premium. También puedes recargar con packs.',
+    body: 'Los puntos de energía de ATP. Úsalos dentro de la app en consultas a ARGOS, análisis de comida por foto, lectura de labs y desbloqueos premium. También puedes recargar con packs.',
   },
   {
     key: 'gasta',
