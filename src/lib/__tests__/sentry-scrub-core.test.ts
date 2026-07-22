@@ -57,6 +57,28 @@ describe('scrubSentryEvent (C9-003)', () => {
     expect(b.data!.status_code).toBe(200);
   });
 
+  it('exception.values[].value y message salen redactados (B3)', () => {
+    const out = scrubSentryEvent({
+      message: 'fallo al sincronizar ez@example.com',
+      exception: {
+        values: [
+          {
+            type: 'FetchError',
+            value:
+              'GET https://x.supabase.co/rest/v1/labs?glucosa=gt.120&email=eq.ez@example.com failed para ez@example.com',
+          },
+          { type: 'Error' }, // sin value string — debe pasar intacto
+        ],
+      },
+    });
+    expect(out.message).not.toContain('ez@example.com');
+    const v = out.exception!.values![0].value as string;
+    expect(v).not.toContain('glucosa=gt.120');
+    expect(v).not.toContain('ez@example.com');
+    expect(v).toContain('https://x.supabase.co/rest/v1/labs');
+    expect(out.exception!.values![1]).toEqual({ type: 'Error' });
+  });
+
   it('scrubValue acota profundidad y respeta valores no sensibles', () => {
     expect(scrubValue({ count: 3, tags: ['a', 'b'] })).toEqual({ count: 3, tags: ['a', 'b'] });
     expect(scrubString('sin cambios')).toBe('sin cambios');

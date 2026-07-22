@@ -21,13 +21,15 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-/** Redacta emails embebidos y corta query strings de URLs. */
+/**
+ * Redacta emails embebidos y corta query strings de URLs en CUALQUIER
+ * posición del string (B3: los mensajes de excepción de fetch/PostgREST
+ * llevan la URL embebida, ej. "GET https://…?glucosa=gt.120 failed").
+ */
 export function scrubString(value: string): string {
-  let out = value.replace(EMAIL_PATTERN, REDACTED);
-  // URLs con query string: los filtros PostgREST pueden llevar valores.
-  const qIndex = out.indexOf('?');
-  if (/^https?:\/\//.test(out) && qIndex > -1) out = out.slice(0, qIndex);
-  return out;
+  return value
+    .replace(EMAIL_PATTERN, REDACTED)
+    .replace(/(https?:\/\/[^\s?"']+)\?[^\s"']*/g, '$1');
 }
 
 /**
@@ -52,6 +54,11 @@ export function scrubValue(value: unknown, depth = 0): unknown {
 interface SentryEventLike {
   user?: Record<string, unknown>;
   request?: unknown;
+  message?: unknown;
+  exception?: {
+    values?: { value?: unknown; [k: string]: unknown }[];
+    [k: string]: unknown;
+  };
   extra?: Record<string, unknown>;
   contexts?: Record<string, unknown>;
   tags?: Record<string, unknown>;
@@ -67,6 +74,9 @@ interface SentryEventLike {
  * Scrub principal para beforeSend. Muta una COPIA superficial del evento:
  * - user → solo queda id (nunca email/nombre/IP).
  * - request → se elimina completo (headers/cookies/body).
+ * - message y exception.values[].value → emails/query strings redactados
+ *   (B3 auditoría S1: errores de PostgREST/fetch traen la URL con filtros
+ *   de valores tipo ?glucosa=gt.120 dentro del mensaje de la excepción).
  * - extra/contexts/tags → redacción recursiva por llave sensible.
  * - breadcrumbs → misma redacción en data + emails/query strings en message.
  *
@@ -81,6 +91,17 @@ export function scrubSentryEvent<T>(event: T): T {
     out.user = out.user.id != null ? { id: out.user.id } : {};
   }
   delete out.request;
+
+  if (typeof out.message === 'string') out.message = scrubString(out.message);
+  if (out.exception?.values) {
+    out.exception = {
+      ...out.exception,
+      values: out.exception.values.map((v) => ({
+        ...v,
+        ...(typeof v.value === 'string' ? { value: scrubString(v.value) } : {}),
+      })),
+    };
+  }
 
   if (out.extra) out.extra = scrubValue(out.extra) as Record<string, unknown>;
   if (out.contexts) out.contexts = scrubValue(out.contexts) as Record<string, unknown>;

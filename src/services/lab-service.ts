@@ -13,7 +13,10 @@ import * as Sentry from '@sentry/react-native';
 
 /** Capa 6 — logging granular a Sentry cuando el JSON del LLM no parsea (con preview del raw). */
 function reportLabParseFailure(uploadId: string, flow: 'v1' | 'v2', rawText: string, jsonStr: string, e: unknown): void {
-  logWarn(`[lab-parser ${flow}] JSON.parse falló. rawText:`, rawText.substring(0, 500));
+  // B3 auditoría S1: el rawText es el OCR crudo del laboratorio (biomarcadores
+  // + nombre del paciente) — NUNCA a logWarn/breadcrumb. Solo metadata segura;
+  // el preview vive en contexts.labParser, que el scrub redacta por llave.
+  logWarn(`[lab-parser ${flow}] JSON.parse falló. rawTextLength=${rawText.length} jsonStrLength=${jsonStr.length}`);
   try {
     Sentry.captureMessage('lab-parser JSON parse failed', {
       level: 'warning',
