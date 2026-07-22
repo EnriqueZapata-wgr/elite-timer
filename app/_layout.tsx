@@ -25,6 +25,7 @@ import {
   Poppins_800ExtraBold,
 } from '@expo-google-fonts/poppins';
 
+import { scrubSentryEvent } from '@/src/lib/sentry-scrub-core';
 import { AuthProvider } from '@/src/contexts/auth-context';
 import { ProgramsProvider } from '@/src/contexts/programs-context';
 import { SessionsProvider } from '@/src/contexts/sessions-context';
@@ -48,6 +49,10 @@ Sentry.init({
   sessionTrackingIntervalMillis: 30000,
   tracesSampleRate: 0.2,
   enabled: !__DEV__,
+  // C9-003: a Sentry (EE.UU.) nunca viajan datos de salud, labs, ciclo,
+  // mensajes de ARGOS ni email/nombre. Scrubbing determinístico en cliente.
+  sendDefaultPii: false,
+  beforeSend: (event) => scrubSentryEvent(event),
 });
 
 // Mantenemos la splash screen visible mientras cargan las fuentes.
