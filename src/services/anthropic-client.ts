@@ -18,6 +18,13 @@ import {
 // (Sonnet 5 + adaptive thinking → content[0] puede ser un bloque thinking).
 export { extractResponseText } from './anthropic-response-core';
 
+/**
+ * Bloque de system estilo Anthropic. El cliente NUNCA pone cache_control —
+ * el split cerebro-cacheado/dinámico y sus breakpoints los arma el proxy
+ * (BRAIN_ENABLED). El tipo existe para el passthrough del contrato.
+ */
+export type SystemBlock = { type: 'text'; text: string; cache_control?: { type: 'ephemeral' } };
+
 const SUPABASE_URL = Constants.expoConfig?.extra?.supabaseUrl || process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const SUPABASE_ANON_KEY = Constants.expoConfig?.extra?.supabaseAnonKey || process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 const PROXY_URL = `${SUPABASE_URL}/functions/v1/argos-proxy`;
@@ -26,7 +33,7 @@ export async function callAnthropic(
   messages: any[],
   maxTokens: number = ATP_LLM.MAX_TOKENS_DEFAULT,
   model: string = ATP_LLM.PRIMARY_MODEL,
-  system?: string,
+  system?: string | SystemBlock[],
   metadata?: {
     userId?: string;
     tier?: string;
@@ -34,6 +41,9 @@ export async function callAnthropic(
     targetUserId?: string | null;
     targetProfileId?: string | null;
     idempotencyKey?: string;
+    /** Cerebro servido: SOLO la parte dinámica del system (guards+contexto).
+     * El proxy la ensambla tras el cerebro cacheado cuando BRAIN_ENABLED. */
+    dynamicSystem?: string;
   },
 ): Promise<any> {
   const body: Record<string, unknown> = {
@@ -47,6 +57,7 @@ export async function callAnthropic(
     ...(metadata?.targetProfileId && { targetProfileId: metadata.targetProfileId }),
     // #71: el server (spend_protons v2) cobra H+ una sola vez por idempotency_key.
     ...(metadata?.idempotencyKey && { idempotency_key: metadata.idempotencyKey }),
+    ...(metadata?.dynamicSystem && { dynamicSystem: metadata.dynamicSystem }),
   };
   if (system) body.system = system;
 
@@ -100,7 +111,7 @@ export async function* callAnthropicStream(
   messages: any[],
   maxTokens: number = ATP_LLM.MAX_TOKENS_DEFAULT,
   model: string = ATP_LLM.PRIMARY_MODEL,
-  system?: string,
+  system?: string | SystemBlock[],
   metadata?: {
     userId?: string;
     tier?: string;
@@ -108,6 +119,8 @@ export async function* callAnthropicStream(
     targetUserId?: string | null;
     targetProfileId?: string | null;
     idempotencyKey?: string;
+    /** Cerebro servido: SOLO la parte dinámica del system (ver callAnthropic). */
+    dynamicSystem?: string;
   },
 ): AsyncGenerator<ArgosStreamEvent, void, void> {
   const body: Record<string, unknown> = {
@@ -121,6 +134,7 @@ export async function* callAnthropicStream(
     ...(metadata?.targetUserId && { targetUserId: metadata.targetUserId }),
     ...(metadata?.targetProfileId && { targetProfileId: metadata.targetProfileId }),
     ...(metadata?.idempotencyKey && { idempotency_key: metadata.idempotencyKey }),
+    ...(metadata?.dynamicSystem && { dynamicSystem: metadata.dynamicSystem }),
   };
   if (system) body.system = system;
 

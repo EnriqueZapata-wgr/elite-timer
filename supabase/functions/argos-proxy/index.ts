@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+// Cerebro ARGOS — fallback compilado (sync-brain-app.mjs, SIN domains/dx).
+// Solo se usa si el store central (tabla argos_brain) no responde.
+import {
+  SHARED_BRAIN as BRAIN_FALLBACK,
+  BRAIN_VERSION as BRAIN_FALLBACK_VERSION,
+} from "./brain.generated.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +38,45 @@ const PRICING: Record<string, { input: number; output: number; cache_read: numbe
   "gemini-2.5-flash": { input: 0.30, output: 2.50, cache_read: 0, cache_write: 0 },
 };
 
+// ─── CEREBRO ARGOS (store central) ──────────────────────────────
+// La tabla argos_brain es privada; se lee vía la RPC SECURITY DEFINER
+// get_argos_brain(product, read_key) con ANON key + read_key scoped —
+// mínimo privilegio, NUNCA service_role (la read_key filtrada solo expone
+// el cerebro, jamás la base). La app SOLO pide product='atp'; 'dx' es IP
+// clínica que no debe tocar la app.
+const BRAIN_TTL_MS = 5 * 60 * 1000;
+let _brainCache: { text: string; version: string; source: "store" | "embedded"; expires: number } | null = null;
+
+// Cliente anon dedicado a la RPC del cerebro (el handler usa service_role
+// para logs/economía — no se comparte aquí a propósito).
+const supabaseBrainAnon = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_ANON_KEY")!,
+);
+
+async function getSharedBrain(): Promise<{ text: string; version: string; source: "store" | "embedded" }> {
+  const now = Date.now();
+  if (_brainCache && _brainCache.expires > now) return _brainCache;
+  try {
+    const { data, error } = await supabaseBrainAnon.rpc("get_argos_brain", {
+      p_product: "atp",
+      p_key: Deno.env.get("ARGOS_BRAIN_READ_KEY"),
+    });
+    if (error) throw error;
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.shared_text) {
+      _brainCache = { text: row.shared_text, version: row.version, source: "store", expires: now + BRAIN_TTL_MS };
+      return _brainCache;
+    }
+    console.error("brain store rpc: fila vacía o sin shared_text");
+  } catch (e) {
+    console.error("brain store rpc:", e);
+  }
+  // Fallback compilado. Cache corto para reintentar el store pronto.
+  _brainCache = { text: BRAIN_FALLBACK, version: BRAIN_FALLBACK_VERSION, source: "embedded", expires: now + 60 * 1000 };
+  return _brainCache;
+}
+
 function computeCost(model: string, inTok: number, outTok: number, cacheRead = 0, cacheWrite = 0): number {
   const p = PRICING[model];
   if (!p) return 0;
@@ -54,6 +99,7 @@ async function logArgosCall(supabase: any, params: {
   fallback_used?: boolean,
   target_user_id?: string | null,
   target_profile_id?: string | null,
+  brain_version?: string | null,
 }) {
   try {
     const cost = computeCost(
@@ -80,6 +126,7 @@ async function logArgosCall(supabase: any, params: {
       estimated_cost_usd: cost,
       target_user_id: params.target_user_id ?? null,
       target_profile_id: params.target_profile_id ?? null,
+      brain_version: params.brain_version ?? null,
     });
   } catch (e) {
     console.error("argos_logs insert failed:", e);
@@ -96,7 +143,7 @@ async function logArgosCall(supabase: any, params: {
 function buildAnthropicHttp(args: {
   model: string;
   messages: any[];
-  system?: string;
+  system?: string | any[];
   max_tokens: number;
   stream?: boolean;
 }): { requestBody: Record<string, unknown>; headers: Record<string, string> } {
@@ -107,12 +154,16 @@ function buildAnthropicHttp(args: {
   };
   if (args.stream) requestBody.stream = true;
   if (args.system) {
-    // Prompt caching: system como array con cache_control ephemeral
-    requestBody.system = [{
-      type: "text",
-      text: args.system,
-      cache_control: { type: "ephemeral" },
-    }];
+    // Array = bloques ya armados (cerebro cacheado + dinámico sin cache) →
+    // passthrough con sus cache_control (máx 4 breakpoints; usamos 1).
+    // String = legacy: un solo bloque con cache_control ephemeral.
+    requestBody.system = Array.isArray(args.system)
+      ? args.system
+      : [{
+        type: "text",
+        text: args.system,
+        cache_control: { type: "ephemeral" },
+      }];
   }
 
   // Capa 5: si el documento referencia un file_id (Files API), añadir su beta header.
@@ -138,7 +189,7 @@ function buildAnthropicHttp(args: {
 async function callAnthropicProvider(args: {
   model: string;
   messages: any[];
-  system?: string;
+  system?: string | any[];
   max_tokens: number;
 }): Promise<{
   ok: boolean;
@@ -192,7 +243,7 @@ function flattenContentForOpenAI(content: any): string {
 async function callGeminiProvider(args: {
   model: string;
   messages: any[];
-  system?: string;
+  system?: string | any[];
   max_tokens: number;
 }): Promise<{
   ok: boolean;
@@ -203,7 +254,8 @@ async function callGeminiProvider(args: {
   output_tokens: number;
 }> {
   const openaiMessages: any[] = [];
-  if (args.system) openaiMessages.push({ role: "system", content: args.system });
+  // system puede venir como array de bloques (cerebro activo) → aplanar a texto.
+  if (args.system) openaiMessages.push({ role: "system", content: flattenContentForOpenAI(args.system) });
   for (const m of args.messages) {
     openaiMessages.push({ role: m.role, content: flattenContentForOpenAI(m.content) });
   }
@@ -537,6 +589,29 @@ serve(async (req) => {
       }
     }
 
+    // ─── Cerebro ARGOS servido (gated por BRAIN_ENABLED) ─────────────
+    // Split estático/dinámico para que el prompt-cache de Anthropic pegue:
+    // [ cerebro (cacheado) ][ dinámico: guards+contexto (sin cache) ].
+    // Solo se activa si el cliente mandó dynamicSystem (bundle nuevo, turno
+    // de chat). Bundles viejos sin OTA y callers no-chat (insight diario,
+    // DX, nutrición — system propio que NO empieza con ARGOS_SYSTEM_PROMPT)
+    // siguen por la ruta legacy idéntica a hoy; compartirles el bloque
+    // cacheado es Fase 2. Rollback: BRAIN_ENABLED=false + redeploy.
+    const BRAIN_ON = Deno.env.get("BRAIN_ENABLED") === "true";
+    let systemForCall: string | any[] | undefined = system;
+    let brainVersion: string | null = null;
+    let brainSource: "store" | "embedded" | null = null;
+    if (BRAIN_ON && typeof body.dynamicSystem === "string" && body.dynamicSystem.length > 0) {
+      const brain = await getSharedBrain();
+      brainVersion = brain.version;
+      brainSource = brain.source;
+      systemForCall = [
+        { type: "text", text: brain.text, cache_control: { type: "ephemeral" } }, // ESTÁTICO → cacheado
+        { type: "text", text: body.dynamicSystem },                               // DINÁMICO → sin cache
+      ];
+    }
+    const brainEcho = brainVersion ? { _brain: brainVersion, _brain_source: brainSource } : {};
+
     // Detectar si el request incluye PDFs. Para PDFs grandes evitamos el
     // fallback Gemini porque (a) Gemini no soporta type:"document" tipo Anthropic
     // y (b) consume tiempo del Edge Function (60s cap) que Anthropic puede usar.
@@ -551,7 +626,7 @@ serve(async (req) => {
     if (wantsStream && !hasPdfRequest) {
       try {
         const { requestBody, headers } = buildAnthropicHttp({
-          model: finalModel, messages, system, max_tokens: finalMaxTokens, stream: true,
+          model: finalModel, messages, system: systemForCall, max_tokens: finalMaxTokens, stream: true,
         });
         const upstream = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST", headers, body: JSON.stringify(requestBody),
@@ -567,7 +642,7 @@ serve(async (req) => {
               const send = (obj: unknown) =>
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(obj)}\n\n`));
               // Metadata en el primer evento (idempotency key del turno).
-              send({ type: "start", model: finalModel, idempotency_key: idempotency_key ?? null });
+              send({ type: "start", model: finalModel, idempotency_key: idempotency_key ?? null, ...brainEcho });
               try {
                 while (true) {
                   const { done, value } = await reader.read();
@@ -600,6 +675,7 @@ serve(async (req) => {
                   cache_read_tokens: cacheRead, cache_write_tokens: cacheWrite,
                   latency_ms: Date.now() - startTime, success: true, fallback_used: false,
                   target_user_id: targetUserId ?? null, target_profile_id: targetProfileId ?? null,
+                  brain_version: brainVersion,
                 });
               } catch (e: any) {
                 // Murió a mitad del stream → evento de error + refund H+.
@@ -640,7 +716,7 @@ serve(async (req) => {
       const ant = await callAnthropicProvider({
         model: finalModel,
         messages,
-        system,
+        system: systemForCall,
         max_tokens: finalMaxTokens,
       });
       const latencyMs = Date.now() - startTime;
@@ -661,8 +737,9 @@ serve(async (req) => {
           fallback_used: false,
           target_user_id: targetUserId ?? null,
           target_profile_id: targetProfileId ?? null,
+          brain_version: brainVersion,
         });
-        return new Response(JSON.stringify(ant.data), {
+        return new Response(JSON.stringify({ ...ant.data, ...brainEcho }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -694,7 +771,7 @@ serve(async (req) => {
       const gem = await callGeminiProvider({
         model: FALLBACK_MODEL,
         messages,
-        system,
+        system: systemForCall,
         max_tokens: finalMaxTokens,
       });
       const latencyMs = Date.now() - startTime;
@@ -714,11 +791,13 @@ serve(async (req) => {
           fallback_used: true,
           target_user_id: targetUserId ?? null,
           target_profile_id: targetProfileId ?? null,
+          brain_version: brainVersion,
         });
         return new Response(JSON.stringify({
           content: [{ type: "text", text: gem.text }],
           model: FALLBACK_MODEL,
           _fallback: true,
+          ...brainEcho,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 

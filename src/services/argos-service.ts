@@ -1374,7 +1374,7 @@ async function prepareChatTurn(
   userId: string,
   messages: ArgosMessage[],
   options?: ArgosChatOptions,
-): Promise<{ systemPrompt: string; gateResult: CoachGateResult | null; conversationId: string | null }> {
+): Promise<{ systemPrompt: string; dynamicSystem: string; gateResult: CoachGateResult | null; conversationId: string | null }> {
   // Coach-engine gate (Step COACH 7/N): corre ANTES del LLM. Defensa graceful —
   // si el gate revienta, el chat continúa con un system prompt sin gate.
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
@@ -1409,11 +1409,17 @@ async function prepareChatTurn(
   const timeInjection = buildTimeContextInjection();
   // Capa de CONTEXTO DE PANTALLA (T4 MAGIA ARGOS): desde dónde se abrió el chat.
   const screenInjection = buildScreenContextInjection(options?.screenContext);
-  const systemPrompt =
-    ARGOS_SYSTEM_PROMPT + cycleGuard + protocolGuard + voiceInjection +
+  // Cerebro servido (BRAIN_ENABLED en el proxy): dynamicSystem = SOLO la parte
+  // dinámica (guards + contexto), SIN ARGOS_SYSTEM_PROMPT. El proxy la ensambla
+  // como bloque sin cache detrás del cerebro cacheado. El systemPrompt legacy
+  // completo se sigue mandando ≥1 release (cinturón y tirantes: bundles viejos
+  // y proxy con flag OFF lo usan tal cual).
+  const dynamicSystem =
+    cycleGuard + protocolGuard + voiceInjection +
     coachGateInjection + presenceInjection + timeInjection + screenInjection + contextPrompt;
+  const systemPrompt = ARGOS_SYSTEM_PROMPT + dynamicSystem;
 
-  return { systemPrompt, gateResult, conversationId };
+  return { systemPrompt, dynamicSystem, gateResult, conversationId };
 }
 
 export async function chatWithArgosEx(
@@ -1421,7 +1427,7 @@ export async function chatWithArgosEx(
   messages: ArgosMessage[],
   options?: ArgosChatOptions,
 ): Promise<ArgosChatResult> {
-  const { systemPrompt, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
+  const { systemPrompt, dynamicSystem, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });
@@ -1434,7 +1440,7 @@ export async function chatWithArgosEx(
       ATP_LLM.MAX_TOKENS_DEFAULT,
       model,
       systemPrompt,
-      meta,
+      { ...meta, dynamicSystem },
     );
   } catch (e: any) {
     if (e?.message === 'ARGOS_TIMEOUT') {
@@ -1531,7 +1537,7 @@ export async function* generateResponseStream(
   messages: ArgosMessage[],
   options?: ArgosChatOptions,
 ): AsyncGenerator<string, void, void> {
-  const { systemPrompt, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
+  const { systemPrompt, dynamicSystem, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
   const model = options?.model || MODEL_CHAT;
   // MB-4 J5: el modo voz factura como 'voice_turn' (más caro); default 'chat'.
   const meta = await getArgosCallMetadata({ requestType: options?.requestType ?? 'chat', idempotencyKey: options?.idempotencyKey });
@@ -1544,7 +1550,7 @@ export async function* generateResponseStream(
     ATP_LLM.MAX_TOKENS_DEFAULT,
     model,
     systemPrompt,
-    meta,
+    { ...meta, dynamicSystem },
   )) {
     if (evt.type === 'chunk' && evt.text) {
       full += evt.text;
