@@ -251,7 +251,7 @@ export function resolveDxGenerationAction(
 
 /**
  * Aplica la regla al quote de la UI: primera generación → costo 0 +
- * isFirstFree (la Card A muestra "Tu primer diagnóstico es un regalo").
+ * isFirstFree (la Card A muestra "Tu primer mapa funcional es un regalo").
  */
 export function applyFirstFreeQuote(
   baseCost: number,

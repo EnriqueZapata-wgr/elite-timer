@@ -104,7 +104,7 @@ export default function SettingsSaludScreen() {
             icon="medkit-outline"
             iconColor={CATEGORY_COLORS.metrics}
             label="Salud Funcional"
-            sub="Diagnóstico, datos, síntomas y expediente"
+            sub="Mapa funcional, datos, síntomas y expediente"
             onPress={() => { haptic.medium(); router.push('/health-hub'); }}
           />
         </Animated.View>

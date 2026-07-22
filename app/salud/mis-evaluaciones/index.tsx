@@ -55,7 +55,7 @@ export default function MisEvaluacionesScreen() {
             <View style={s.heroContent}>
               <EliteText style={s.heroKicker}>SALUD FUNCIONAL</EliteText>
               <EliteText variant="caption" style={s.subtitle}>
-                Todos tus cuestionarios y pruebas en un solo lugar. Alimentan tu diagnóstico funcional.
+                Todos tus cuestionarios y pruebas en un solo lugar. Alimentan tu mapa funcional.
               </EliteText>
             </View>
           </ImageBackground>
@@ -71,7 +71,7 @@ export default function MisEvaluacionesScreen() {
               <View style={{ flex: 1 }}>
                 <EliteText style={s.masterTitle}>Cuestionario Maestro ATP</EliteText>
                 <EliteText variant="caption" style={s.cardBlurb}>
-                  Tu mapa y brújula: levanta tu fenotipo epigenético completo y prescribe tus 5 intervenciones.
+                  Tu mapa y brújula: levanta tu fenotipo epigenético completo y sugiere tus 5 intervenciones.
                 </EliteText>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#A8E02A" />

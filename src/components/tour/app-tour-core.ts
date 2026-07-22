@@ -33,7 +33,7 @@ export function buildTourSteps(sex?: string | null): TourStepData[] {
     { kicker: 'FITNESS', title: 'Rutinas y métodos propietarios que se ajustan a ti, no al revés.', imageKey: 'fitness', color: FITNESS },
     { kicker: 'NUTRICIÓN', title: 'Registra por foto o texto. Ayuno, hidratación y suplementos con criterio funcional.', imageKey: 'nutricion', color: NUTRITION },
     { kicker: 'MENTE', title: 'Respira, medita, escribe. Tu sistema nervioso también entrena.', imageKey: 'mente', color: MIND },
-    { kicker: 'SALUD', title: 'Tus labs, tu Edad ATP y tu diagnóstico funcional — la raíz, no el síntoma.', imageKey: 'salud', color: METRICS },
+    { kicker: 'SALUD', title: 'Tus labs, tu Edad ATP y tu mapa funcional — la raíz, no el síntoma.', imageKey: 'salud', color: METRICS },
     isFemale
       ? { kicker: 'CICLO', title: 'Tu fisiología tiene ventanas que un hombre no tiene. Aprende a aprovecharlas.', imageKey: 'ciclo', color: CYCLE }
       : { kicker: 'COMUNIDAD', title: 'No lo haces solo. La Tribu ATP avanza contigo.', imageKey: 'comunidad', color: MIND },

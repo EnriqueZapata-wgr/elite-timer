@@ -49,12 +49,12 @@ export interface DxQuote {
   hasCurrentDX: boolean;
   /**
    * DX F4: el user nunca ha generado un functional_dx → su primera generación
-   * es GRATIS (la UI muestra "Tu primer diagnóstico es un regalo").
+   * es GRATIS (la UI muestra "Tu primer mapa funcional es un regalo").
    */
   isFirstFree: boolean;
 }
 
-/** Precio H+ + balance para el botón "Actualizar mi Diagnóstico" (usuarios Base). */
+/** Precio H+ + balance para el botón "Actualizar mi Mapa Funcional" (usuarios Base). */
 export async function getDXQuote(userId: string): Promise<DxQuote> {
   const [cost, balanceRow, current, history] = await Promise.all([
     getActionCost(DX_GENERATION_ACTION_KEY),

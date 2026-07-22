@@ -71,7 +71,7 @@ function severityPips(severity: number): string {
 
 function rootsSection(roots: DxPdfRoot[]): string {
   if (roots.length === 0) {
-    return '<p class="empty">ARGOS aún no detecta raíces funcionales con la data disponible. Agrega más fuentes y actualiza tu diagnóstico.</p>';
+    return '<p class="empty">ARGOS aún no detecta raíces funcionales con la data disponible. Agrega más fuentes y actualiza tu mapa funcional.</p>';
   }
   return roots
     .map(
@@ -137,7 +137,7 @@ export function buildDxHtml(input: DxPdfInput): string {
 </head>
 <body>
   <div class="kicker">ATP · Sistema operativo de rendimiento humano</div>
-  <h1>Mi Diagnóstico Funcional</h1>
+  <h1>Mi Mapa Funcional</h1>
   <div class="subtitle">Síntesis de raíces funcionales por ARGOS</div>
   <div class="version">Versión ${input.version}${dateStr ? ` · ${dateStr}` : ''}</div>
 
@@ -146,7 +146,7 @@ export function buildDxHtml(input: DxPdfInput): string {
   <div class="level-card">
     <span class="level-num">${input.level}</span>
     <span>
-      <div class="level-caption">Nivel de diagnóstico</div>
+      <div class="level-caption">Nivel de evaluación</div>
       <div class="level-label">${escapeHtml(input.levelLabel)}</div>
     </span>
     <span class="lvl-blocks">${levelBlocks(input.level)}</span>

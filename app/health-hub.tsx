@@ -40,8 +40,8 @@ const IMAGES: Record<string, any> = {
 
 // Los 8 destinos · SOLO navegación (doctrina menú puro).
 const DESTINOS: Card[] = [
-  { key: 'diagnostico', title: 'MI DIAGNÓSTICO', subtitle: 'Raíces detectadas · nivel 1-5 · Edad ATP', icon: '🧬', gradient: ['#1D9E75', '#0EA5E9'], route: '/salud/diagnostico' },
-  { key: 'mi_protocolo', title: 'MI PROTOCOLO', subtitle: 'Tus 5 prescritas + intervenciones activas', icon: '💊', gradient: ['#A8E02A', '#1D9E75'], route: '/salud/intervenciones' },
+  { key: 'diagnostico', title: 'MI MAPA FUNCIONAL', subtitle: 'Raíces detectadas · nivel 1-5 · Edad ATP', icon: '🧬', gradient: ['#1D9E75', '#0EA5E9'], route: '/salud/diagnostico' },
+  { key: 'mi_protocolo', title: 'MI PROTOCOLO', subtitle: 'Tus 5 sugeridas + intervenciones activas', icon: '💊', gradient: ['#A8E02A', '#1D9E75'], route: '/salud/intervenciones' },
   { key: 'mis_datos', title: 'MIS DATOS', subtitle: 'Labs · composición · vitals · glucosa · cetonas', icon: '📊', gradient: ['#22C55E', '#16A34A'], route: '/salud/mis-datos' },
   { key: 'mis_evaluaciones', title: 'MIS EVALUACIONES', subtitle: 'Braverman · cronotipo · Fitzpatrick · tests', icon: '📝', gradient: ['#C084FC', '#8B5CF6'], route: '/salud/mis-evaluaciones' },
   { key: 'mis_sintomas', title: 'MIS SÍNTOMAS', subtitle: 'Registro con inicio/fin y duración', icon: '🩺', gradient: ['#1D9E75', '#0EA5E9'], route: '/salud/mis-sintomas' },
@@ -60,7 +60,7 @@ function SaludFuncionalHub() {
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>
-            Tu dominio de salud funcional — diagnóstico, datos, evaluaciones y expediente.
+            Tu dominio de salud funcional — mapa funcional, datos, evaluaciones y expediente.
           </EliteText>
         </Animated.View>
 

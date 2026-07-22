@@ -148,7 +148,7 @@ function buildPrompt(data: ClientFullData, customQuestion?: string): string {
 
 IMPORTANTE: Herramienta de apoyo para el profesional, NO sustituto. Usa rangos funcionales (medicina funcional), no solo convencionales. Responde en español.
 
-## PACIENTE
+## USUARIO
 Nombre: ${profile?.full_name || profile?.email || 'No registrado'}
 Nacimiento: ${profile?.date_of_birth || 'No registrada'}
 Sexo biológico: ${profile?.biological_sex || 'No registrado'}

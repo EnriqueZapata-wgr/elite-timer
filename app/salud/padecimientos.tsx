@@ -49,7 +49,7 @@ import {
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
-const DX_NOTE = 'Esto alimenta tu Diagnóstico Funcional. No sustituye la valoración de tu profesional de salud.';
+const DX_NOTE = 'Esto alimenta tu Mapa Funcional. No sustituye la valoración de tu profesional de salud.';
 
 export default function PadecimientosScreen() {
   const { user } = useAuth();
@@ -184,7 +184,7 @@ export default function PadecimientosScreen() {
                 <EliteText style={styles.introText}>
                   Registra las condiciones que has vivido — desde una gripe hasta algo
                   crónico. La frecuencia y duración de los episodios le dan mucha señal
-                  a tu Diagnóstico Funcional.
+                  a tu Mapa Funcional.
                 </EliteText>
                 <AnimatedPressable onPress={openForm} style={styles.cta}>
                   <Ionicons name="add" size={18} color="#000" />
@@ -361,7 +361,7 @@ export default function PadecimientosScreen() {
                 <TextInput
                   value={fNotes}
                   onChangeText={setFNotes}
-                  placeholder="Notas opcionales (tratamiento, contexto)…"
+                  placeholder="Notas opcionales (manejo, contexto)…"
                   placeholderTextColor={TEXT.muted}
                   style={[styles.input, { minHeight: 60 }]}
                   maxLength={500}

@@ -193,7 +193,7 @@ export default function IntervencionesScreen() {
                   style={styles.dxBreadcrumb}
                 >
                   <EliteText style={styles.dxBreadcrumbText} numberOfLines={2}>
-                    Estas intervenciones vienen de tu Diagnóstico Funcional (Nivel {dx.quality_level})
+                    Estas intervenciones vienen de tu Mapa Funcional (Nivel {dx.quality_level})
                     {(() => {
                       const top = [...(dx.roots_detected ?? [])].sort((a: any, b: any) => (b.severity ?? 0) - (a.severity ?? 0))[0] as any;
                       const label = top ? (ROOT_LABELS[top.root_key as InterventionRoot] ?? top.root_key) : null;
@@ -389,7 +389,7 @@ export default function IntervencionesScreen() {
               {showCatalog && suggested.length === 0 && (
                 <View style={styles.emptyBox}>
                   <EliteText style={styles.emptyText}>
-                    No hay sugerencias pendientes. Genera o actualiza tu Diagnóstico
+                    No hay sugerencias pendientes. Genera o actualiza tu Mapa
                     Funcional para que el motor detecte nuevas raíces.
                   </EliteText>
                 </View>

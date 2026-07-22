@@ -24,7 +24,7 @@ const PILLARS = [
     cardKey: 'kit_historia',
     icon: '📋',
     title: 'SALUD FUNCIONAL',
-    subtitle: 'Diagnóstico · datos · evaluaciones · síntomas',
+    subtitle: 'Mapa funcional · datos · evaluaciones · síntomas',
     message: 'Tu expediente vivo',
     gradient: ['#1ABC9C', '#16A085'] as [string, string],
     route: '/health-hub' as const,

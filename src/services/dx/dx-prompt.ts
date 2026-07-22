@@ -41,7 +41,7 @@ function rootVocabList(): string {
 /** System + user prompt del motor DX. Español es-MX. Salida JSON estricto. */
 export function buildDxPrompt(context: DxPromptContext): { system: string; user: string } {
   const system = `Eres ARGOS, el sistema de inteligencia en salud funcional de ATP, con formación en medicina funcional.
-Tu tarea: sintetizar "Mi Diagnóstico Funcional" del usuario a partir de sus fuentes (levantamientos, síntomas, padecimientos, laboratorios, Braverman, quizzes y suplementos).
+Tu tarea: sintetizar "Mi Mapa Funcional" del usuario a partir de sus fuentes (levantamientos, síntomas, padecimientos, laboratorios, Braverman, quizzes y suplementos).
 
 ## FORMATO DE SALIDA (OBLIGATORIO)
 Devuelve ÚNICAMENTE un objeto JSON válido, sin texto antes ni después, sin \`\`\` fences. Estructura EXACTA:
@@ -114,7 +114,7 @@ BRAVERMAN: ${braverman}
 QUIZZES FUNCIONALES: ${quizzes}
 SUPLEMENTOS ACTIVOS: ${supplements}
 
-Sintetiza mi Diagnóstico Funcional siguiendo las reglas. Devuelve SOLO el JSON.`;
+Sintetiza mi Mapa Funcional siguiendo las reglas. Devuelve SOLO el JSON.`;
 
   return { system, user };
 }

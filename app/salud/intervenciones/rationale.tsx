@@ -29,7 +29,7 @@ import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const LOADING_PHRASES = [
-  'ARGOS está leyendo tu diagnóstico funcional…',
+  'ARGOS está leyendo tu mapa funcional…',
   'Cruzando tus raíces con tu protocolo…',
   'Conectando cada intervención con su porqué…',
   'Redactando tu explicación personalizada…',
@@ -113,7 +113,7 @@ export default function InterventionRationaleScreen() {
             <EliteText style={{ fontSize: 44 }}>🧭</EliteText>
             <EliteText style={styles.lockTitle}>¿Por qué estas intervenciones?</EliteText>
             <EliteText style={styles.lockBody}>
-              ARGOS conecta las raíces de tu Diagnóstico Funcional con cada
+              ARGOS conecta las raíces de tu Mapa Funcional con cada
               intervención de tu protocolo: qué ataca cada una y qué esperar.
             </EliteText>
             <View style={styles.priceRow}>
@@ -145,7 +145,7 @@ export default function InterventionRationaleScreen() {
               </AnimatedPressable>
             )}
             <EliteText style={styles.lockHint}>
-              Queda tuya mientras no cambie tu protocolo ni tu diagnóstico — releer es gratis.
+              Queda tuya mientras no cambie tu protocolo ni tu mapa funcional — releer es gratis.
             </EliteText>
           </Animated.View>
         </View>
@@ -164,15 +164,15 @@ export default function InterventionRationaleScreen() {
       {state === 'no_dx' && (
         <View style={styles.loadingContainer}>
           <EliteText style={{ fontSize: 40 }}>🧬</EliteText>
-          <EliteText style={styles.lockTitle}>Primero tu diagnóstico</EliteText>
+          <EliteText style={styles.lockTitle}>Primero tu mapa funcional</EliteText>
           <EliteText style={styles.lockBody}>
-            La explicación se construye sobre tu Diagnóstico Funcional vigente.
+            La explicación se construye sobre tu Mapa Funcional vigente.
           </EliteText>
           <AnimatedPressable
             onPress={() => { haptic.medium(); router.push('/salud/diagnostico'); }}
             style={styles.lockCtaPrimary}
           >
-            <EliteText style={styles.lockCtaPrimaryText}>Generar mi diagnóstico</EliteText>
+            <EliteText style={styles.lockCtaPrimaryText}>Generar mi mapa funcional</EliteText>
           </AnimatedPressable>
         </View>
       )}

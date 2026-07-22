@@ -21,7 +21,7 @@ describe('buildDxHtml', () => {
   it('documento completo con identidad ATP, versión y nivel', () => {
     const html = buildDxHtml(input());
     expect(html).toContain('<!DOCTYPE html>');
-    expect(html).toContain('Mi Diagnóstico Funcional');
+    expect(html).toContain('Mi Mapa Funcional');
     expect(html).toContain('ATP · Sistema operativo de rendimiento humano');
     expect(html).toContain('Versión 3');
     expect(html).toContain('Preparado para Enrique.');

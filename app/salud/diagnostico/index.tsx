@@ -20,6 +20,7 @@ import { Card } from '@/src/components/ui/Card';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useSubscription } from '@/src/hooks/useSubscription';
@@ -130,7 +131,7 @@ export default function DiagnosticoScreen() {
     } else {
       Alert.alert(
         'No se pudo generar el PDF',
-        'Tu diagnóstico sigue disponible aquí en pantalla. Actualiza a la última versión de la app para descargar el PDF.',
+        'Tu mapa funcional sigue disponible aquí en pantalla. Actualiza a la última versión de la app para descargar el PDF.',
       );
     }
   }, [sharing, firstName]);
@@ -153,14 +154,14 @@ export default function DiagnosticoScreen() {
       return;
     }
     if (result.status === 'cache_hit') {
-      Alert.alert('Sin cambios', 'Tu diagnóstico ya está al día: no hay datos nuevos que sintetizar.');
+      Alert.alert('Sin cambios', 'Tu mapa funcional ya está al día: no hay datos nuevos que sintetizar.');
       return;
     }
     if (result.status === 'insufficient_h_plus') {
       haptic.warning();
       Alert.alert(
         'Te faltan H+',
-        `Actualizar tu diagnóstico usa ${formatFull(quote?.cost ?? 0)} H+. Recarga o gánalos completando tu día.`,
+        `Actualizar tu mapa funcional usa ${formatFull(quote?.cost ?? 0)} H+. Recarga o gánalos completando tu día.`,
         [
           { text: 'Ahora no', style: 'cancel' },
           { text: 'Conseguir H+', onPress: () => router.push('/economy/shop') },
@@ -169,7 +170,7 @@ export default function DiagnosticoScreen() {
       return;
     }
     haptic.warning();
-    Alert.alert('Algo no salió', 'ARGOS no pudo actualizar tu diagnóstico. Suele ser cosa de red — intenta de nuevo.');
+    Alert.alert('Algo no salió', 'ARGOS no pudo actualizar tu mapa funcional. Suele ser cosa de red — intenta de nuevo.');
   }, [user?.id, generating, quote?.cost, load, sharePdf]);
 
   const quality = dx ? computeDxQuality(presenceFromSnapshot(dx.sources_snapshot)) : null;
@@ -182,15 +183,15 @@ export default function DiagnosticoScreen() {
   const ctaLabel = generating
     ? 'ARGOS sintetizando…'
     : quote?.isFirstFree
-      ? 'Generar mi Diagnóstico · Regalo'
+      ? 'Generar mi Mapa Funcional · Regalo'
       : isPro
-        ? (dx ? 'Actualizar mi Diagnóstico' : 'Generar mi Diagnóstico')
+        ? (dx ? 'Actualizar mi Mapa Funcional' : 'Generar mi Mapa Funcional')
         : `Actualizar · ${formatFull(quote?.cost ?? 1000)} H+`;
 
   return (
     <MedicalDisclaimerGate>
       <Screen edges={[]}>
-        <ScreenHeader title="Mi Diagnóstico" onBack={() => router.back()} />
+        <ScreenHeader title="Mi Mapa Funcional" onBack={() => router.back()} />
 
         {loading ? (
           <View style={styles.center}>
@@ -211,7 +212,7 @@ export default function DiagnosticoScreen() {
                     <EliteText style={styles.summary}>{dx.summary_text}</EliteText>
                   ) : (
                     <EliteText style={styles.summaryEmpty}>
-                      Aún no tienes un diagnóstico. Genera el primero para que ARGOS
+                      Aún no tienes un mapa funcional. Genera el primero para que ARGOS
                       sintetice tus raíces funcionales desde tus datos.
                     </EliteText>
                   )}
@@ -378,11 +379,13 @@ export default function DiagnosticoScreen() {
                 <EliteText style={styles.ctaHint}>
                   {quote?.isFirstFree
                     // Bug #6: hint visible también para Pro cuando es el 1er DX.
-                    ? 'Regalo — tu primer diagnóstico es sin costo de H+.'
+                    ? 'Regalo — tu primer mapa funcional es sin costo de H+.'
                     : `${quote?.balance == null ? '' : `Tu balance: ${formatFull(quote.balance)} H+ · `}Se cobra sólo si hay datos nuevos.`}
                 </EliteText>
               )}
             </Animated.View>
+            {/* Compliance S4: footer de resultados (posicionamiento §2) */}
+            <ResultDisclaimerFooter />
           </ScrollView>
         )}
       </Screen>

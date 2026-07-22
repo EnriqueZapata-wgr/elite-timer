@@ -203,7 +203,7 @@ export default function SintomasScreen() {
                 </AnimatedPressable>
 
                 <EliteText style={styles.dxNote}>
-                  Esto alimenta tu Diagnóstico Funcional. No sustituye la valoración de tu profesional de salud.
+                  Esto alimenta tu Mapa Funcional. No sustituye la valoración de tu profesional de salud.
                 </EliteText>
               </Card>
             </Animated.View>

@@ -150,11 +150,11 @@ export function computeDxQuality(s: DxSourcePresence): DxQualityResult {
 /** El siguiente paso de MAYOR impacto en densidad (orden = puntos que aporta). */
 function computeNextHint(level: DxQualityLevel, s: DxSourcePresence): string | null {
   if (!s.hasBasicHistory) {
-    return 'Completa tu historia clínica básica para arrancar tu diagnóstico.';
+    return 'Completa tu historia clínica básica para arrancar tu mapa funcional.';
   }
   if (level < 3) {
     if (!s.hasIntegralQuestionnaire) {
-      return 'Responde el cuestionario integral — es el paso que más sube tu diagnóstico.';
+      return 'Responde el cuestionario integral — es el paso que más sube tu mapa funcional.';
     }
     if (s.areaQuestionnairesCount < AREA_QUESTIONNAIRES_FOR_L3) {
       return `Completa ${AREA_QUESTIONNAIRES_FOR_L3} cuestionarios por área para subir de nivel.`;

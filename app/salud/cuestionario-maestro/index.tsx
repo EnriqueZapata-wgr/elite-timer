@@ -250,7 +250,7 @@ function SummaryView({ answers, ctx, userId, onGoProtocol, onBack }: {
 
           {top5.length > 0 && (
             <View style={s.rxBox}>
-              <EliteText style={s.rxTitle}>ATP te prescribe estas {top5.length} para TU perfil</EliteText>
+              <EliteText style={s.rxTitle}>ATP te sugiere estas {top5.length} para TU perfil</EliteText>
               {top5.map((r) => (
                 <View key={r.intervention.key} style={s.rxRow}>
                   <Text style={s.rxRank}>{r.rank}</Text>

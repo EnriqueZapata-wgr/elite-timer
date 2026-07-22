@@ -70,7 +70,7 @@ export async function generateAndShareDxPdf(dx: FunctionalDxRow, firstName = '')
     let shareUri = uri;
     try {
       const { File, Paths } = require('expo-file-system') as typeof import('expo-file-system');
-      const pretty = new File(Paths.cache, `Diagnostico-Funcional-ATP-v${dx.version}.pdf`);
+      const pretty = new File(Paths.cache, `Mapa-Funcional-ATP-v${dx.version}.pdf`);
       if (pretty.exists) pretty.delete();
       new File(uri).move(pretty);
       shareUri = pretty.uri;
@@ -79,7 +79,7 @@ export async function generateAndShareDxPdf(dx: FunctionalDxRow, firstName = '')
     if (!(await Sharing.isAvailableAsync())) return 'unavailable';
     await Sharing.shareAsync(shareUri, {
       mimeType: 'application/pdf',
-      dialogTitle: 'Compartir Mi Diagnóstico Funcional',
+      dialogTitle: 'Compartir Mi Mapa Funcional',
       UTI: 'com.adobe.pdf',
     });
     return 'shared';

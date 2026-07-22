@@ -93,7 +93,7 @@ function MisSintomasScreen() {
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>
-            Registra lo que sientes con su inicio. Al resolverlo verás cuánto duró — todo alimenta tu diagnóstico.
+            Registra lo que sientes con su inicio. Al resolverlo verás cuánto duró — todo alimenta tu mapa funcional.
           </EliteText>
         </Animated.View>
 
