@@ -51,10 +51,17 @@ const CRISIS_PATTERNS: RegExp[] = [
   /estarian mejor sin mi/,
   /mejor estarian sin mi/,                  // ambos órdenes
   /(acabar|terminar) con (mi vida|todo)/,
-  /(ya )?no aguanto mas/,
   /ojala (no despertar|me murier)/,
   /no le veo sentido a (la vida|nada)/,
   /nada tiene sentido/,
+  // ── Refuerzo B2 (fix final S1): variantes reflexivas que se escapaban ──
+  /me matare/,                              // futuro sin "voy a" ("me mataré")
+  /me cort\w* las venas/,                   // me corto/corté/cortaré las venas
+  /(acabar|terminar) conmigo/,
+  /me (quiero hacer|voy a hacer|hare) dano/,
+  // "no aguanto mas" a secas disparaba con habla de gimnasio ("no aguanto
+  // más con estas sentadillas") — se exige contexto de crisis explícito.
+  /no aguanto mas (con (la|mi|esta) vida|de esto|seguir asi|esta vida)/,
 ];
 
 /** Normaliza para matching robusto: minúsculas, sin acentos (NFD), ñ→n. */

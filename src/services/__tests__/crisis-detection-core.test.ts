@@ -75,9 +75,32 @@ describe('detectCrisisContent (C5-002)', () => {
     expect(detectCrisisContent('acabar con todo de una vez')).toBe(true);
   });
 
-  it('detecta "ya no aguanto más"', () => {
-    expect(detectCrisisContent('ya no aguanto más')).toBe(true);
-    expect(detectCrisisContent('no aguanto más')).toBe(true);
+  it('detecta "no aguanto más" SOLO en contexto de crisis (fix final S1)', () => {
+    expect(detectCrisisContent('ya no aguanto más con mi vida')).toBe(true);
+    expect(detectCrisisContent('no aguanto más con la vida')).toBe(true);
+    expect(detectCrisisContent('no aguanto más de esto')).toBe(true);
+    expect(detectCrisisContent('no aguanto más seguir así')).toBe(true);
+  });
+
+  // ── Refuerzo B2 (fix final S1): variantes reflexivas ──
+  it('detecta "me mataré" (futuro sin "voy a")', () => {
+    expect(detectCrisisContent('un día de estos me mataré')).toBe(true);
+  });
+
+  it('detecta "me corto/corté las venas"', () => {
+    expect(detectCrisisContent('me corto las venas')).toBe(true);
+    expect(detectCrisisContent('ayer casi me corté las venas')).toBe(true);
+  });
+
+  it('detecta "acabar/terminar conmigo"', () => {
+    expect(detectCrisisContent('quiero acabar conmigo')).toBe(true);
+    expect(detectCrisisContent('voy a terminar conmigo')).toBe(true);
+  });
+
+  it('detecta "me quiero hacer daño" / "me haré daño"', () => {
+    expect(detectCrisisContent('me quiero hacer daño')).toBe(true);
+    expect(detectCrisisContent('me haré daño')).toBe(true);
+    expect(detectCrisisContent('me voy a hacer daño')).toBe(true);
   });
 
   it('detecta "prefiero morir / prefiero estar muerto"', () => {
@@ -111,5 +134,8 @@ describe('detectCrisisContent (C5-002)', () => {
     expect(detectCrisisContent('voy a cortar el ayuno mañana')).toBe(false);
     expect(detectCrisisContent('voy a matar el hambre con esta comida')).toBe(false);
     expect(detectCrisisContent('quiero cortar los carbohidratos')).toBe(false);
+    // "no aguanto más" en habla de gimnasio no es crisis (fix final S1).
+    expect(detectCrisisContent('no aguanto más con estas sentadillas')).toBe(false);
+    expect(detectCrisisContent('ya no aguanto más el ardor en las piernas')).toBe(false);
   });
 });

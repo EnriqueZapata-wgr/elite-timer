@@ -4,7 +4,9 @@
  * Guardarraíl determinístico (NO generado por IA) para toda superficie de
  * crisis: ARGOS chat (al detectar temas de crisis), la intervención de
  * rescate (physiological_sigh) y el check-in cuando se marca "En pánico".
- * Tap → llama directo al 800-290-0024 (24 h, gratuito).
+ * Tap → llama directo a LINEA_DE_LA_VIDA_PHONE (24 h, gratuito).
+ * El número NUNCA se hardcodea aquí (B1-bis): copy, tel: URL y
+ * accessibilityLabel se derivan todos de crisis-detection-core.
  */
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import {
   CRISIS_BANNER_TEXT,
+  LINEA_DE_LA_VIDA_PHONE,
   LINEA_DE_LA_VIDA_TEL_URL,
 } from '@/src/services/crisis-detection-core';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -23,7 +26,9 @@ export function CrisisSupportBanner({ style }: { style?: object }) {
     <Pressable
       onPress={() => { Linking.openURL(LINEA_DE_LA_VIDA_TEL_URL).catch(() => {}); }}
       accessibilityRole="button"
-      accessibilityLabel="Llamar a la Línea de la Vida, 800 290 0024, 24 horas, gratuito"
+      // B1-bis: derivado de la constante — VoiceOver/TalkBack debe leer SIEMPRE
+      // el mismo número que marca el tel: URL, nunca uno hardcodeado aparte.
+      accessibilityLabel={`Llamar a la Línea de la Vida, ${LINEA_DE_LA_VIDA_PHONE}, 24 horas, gratuito`}
       style={[styles.container, style]}
     >
       <View style={styles.iconCircle}>
