@@ -27,6 +27,8 @@ import { VoiceButton } from '../src/components/VoiceButton';
 import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { TopBanner } from '@/src/components/global/TopBanner';
+import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
+import { detectCrisisContent } from '@/src/services/crisis-detection-core';
 import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
 import { ArgosVoiceMode } from '@/src/components/argos/ArgosVoiceMode';
 import { getArgosVoice } from '@/src/services/argos-voice-service';
@@ -125,6 +127,10 @@ function ArgosChat() {
   // MB-4 J5: modo voz (full-screen) + voz elegida por el user.
   const [voiceMode, setVoiceMode] = useState(false);
   const [argosVoice, setArgosVoice] = useState<string | null>(null);
+  // C5-002: guardarraíl determinístico — al detectar tema de crisis en un
+  // mensaje del usuario, el banner Línea de la Vida queda fijo en la sesión
+  // (no depende de lo que responda el LLM).
+  const [crisisDetected, setCrisisDetected] = useState(false);
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -225,6 +231,8 @@ function ArgosChat() {
     // #71: atrapar doble-tap/re-render de forma SÍNCRONA (antes del primer await).
     if (sendingRef.current) return;
     sendingRef.current = true;
+    // C5-002: se evalúa ANTES de cualquier red/LLM — funciona incluso offline.
+    if (detectCrisisContent(messageText)) setCrisisDetected(true);
     // Una sola idempotency_key para TODO este turno (incluye los retries internos de callAnthropic).
     const idempotencyKey = generateUUID();
 
@@ -487,6 +495,12 @@ function ArgosChat() {
         </View>
       </View>
 
+      {/* C5-002: banner fijo Línea de la Vida al detectar tema de crisis —
+          guardarraíl determinístico, siempre visible sobre la conversación */}
+      {crisisDetected && (
+        <CrisisSupportBanner style={{ marginHorizontal: 16, marginTop: 8 }} />
+      )}
+
       {/* Área de mensajes — F2.1: auto-scroll al crecer el contenido (mensaje
           nuevo, indicador de typing o conversación cargada del historial) */}
       <ScrollView
@@ -708,6 +722,8 @@ function ArgosChat() {
         voice={argosVoice}
         history={messages.map(m => ({ role: m.role, content: m.content }))}
         onTurnComplete={(userText, argosText) => {
+          // C5-002: los turnos de voz también pasan por el guardarraíl.
+          if (detectCrisisContent(userText)) setCrisisDetected(true);
           const next: ArgosMessage[] = [
             ...messages,
             { role: 'user', content: userText, ts: Date.now() },

@@ -17,6 +17,7 @@ import { Card } from '@/src/components/ui/Card';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
 import { PrioritySemaphore, PRIORITY_COLORS, type SemaphorePriority } from '@/src/components/interventions/PrioritySemaphore';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -185,6 +186,14 @@ export default function IntervencionDetailScreen() {
                 )}
               </Card>
             </Animated.View>
+
+            {/* C5-002: la intervención de rescate es superficie de crisis —
+                banner fijo Línea de la Vida (guardarraíl determinístico) */}
+            {key === 'physiological_sigh' && (
+              <Animated.View entering={FadeInUp.delay(70).springify()}>
+                <CrisisSupportBanner style={{ marginTop: Spacing.md }} />
+              </Animated.View>
+            )}
 
             {/* ── Cómo + beneficio ── */}
             <Animated.View entering={FadeInUp.delay(90).springify()}>

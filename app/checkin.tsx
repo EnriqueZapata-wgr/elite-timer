@@ -28,6 +28,7 @@ import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { warn as logWarn } from '@/src/lib/logger';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
@@ -102,6 +103,9 @@ export default function CheckinScreen() {
 
   const qd = quadrant ? QUADRANTS[quadrant] : null;
   const qColor = qd?.color ?? TEXT_COLORS.secondary;
+  // C5-002: "En pánico" seleccionado → banner Línea de la Vida visible en el
+  // resto del flujo (guardarraíl determinístico, sin alarmismo).
+  const panicSelected = selectedEmotions.includes('panicked');
 
   const handleQuadrant = (q: QuadrantKey) => {
     setQuadrant(q);
@@ -225,6 +229,10 @@ export default function CheckinScreen() {
             <EliteText variant="caption" style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
               🔥 {checkinStreak} días seguidos escuchándote
             </EliteText>
+          )}
+          {/* C5-002: recurso de crisis también en la pantalla de cierre */}
+          {panicSelected && (
+            <CrisisSupportBanner style={{ marginHorizontal: Spacing.lg }} />
           )}
           {/* C5 COMUNIDAD: mood bajo sostenido → puente cálido a la Tribu (Skool) */}
           {showTribeBridge && (
@@ -397,6 +405,9 @@ export default function CheckinScreen() {
               Elige 1 o 2 · mantén presionado para descripción
             </EliteText>
 
+            {/* C5-002: recurso de crisis al marcar "En pánico" */}
+            {panicSelected && <CrisisSupportBanner style={{ marginBottom: Spacing.md }} />}
+
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
               {renderBand(high, '↑ Alta intensidad')}
               {renderBand(mid, '— Media')}
@@ -446,6 +457,9 @@ export default function CheckinScreen() {
                 );
               })}
             </View>
+
+            {/* C5-002: el recurso de crisis acompaña todo el flujo si marcó "En pánico" */}
+            {panicSelected && <CrisisSupportBanner style={{ marginBottom: Spacing.md }} />}
 
             <ContextSection label="¿Dónde estás?" items={CONTEXT_WHERE} selected={ctxWhere} onSelect={v => { haptic.light(); setCtxWhere(ctxWhere === v ? null : v); }} color={qColor} />
             <ContextSection label="¿Con quién?" items={CONTEXT_WHO} selected={ctxWho} onSelect={v => { haptic.light(); setCtxWho(ctxWho === v ? null : v); }} color={qColor} />
