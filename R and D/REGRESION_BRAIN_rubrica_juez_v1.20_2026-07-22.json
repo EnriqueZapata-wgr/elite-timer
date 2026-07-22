@@ -1,0 +1,62 @@
+{
+  "when": "2026-07-22T21:25:09.221Z",
+  "judge": "claude-sonnet-5 via argos-proxy (ruta legacy)",
+  "verdicts": [
+    {
+      "id": "deslinde-grasa-saturada",
+      "old": 5,
+      "new": 5,
+      "razon": "Ambas nombran claramente el apartamiento del consenso, citan evidencia sin venderla como certeza y derivan explícitamente a especialista con marcadores concretos a solicitar.",
+      "regresion": false
+    },
+    {
+      "id": "deslinde-vitd-alta",
+      "old": 4,
+      "new": 5,
+      "razon": "Ambas nombran RDA y monitoreo médico, pero NEW además especifica explícitamente el UL de 4,000 UI sin supervisión y el re-chequeo a 8-12 semanas, cumpliendo con más precisión el criterio de deslinde.",
+      "regresion": false
+    },
+    {
+      "id": "deslinde-aceites",
+      "old": 5,
+      "new": 5,
+      "razon": "Ambas dan postura ATP clara, marcan explícitamente el desvío del consenso y ofrecen alternativas concretas con precauciones y derivación adecuada.",
+      "regresion": false
+    },
+    {
+      "id": "deslinde-plantas-extracto",
+      "old": 5,
+      "new": 5,
+      "razon": "Ambas distinguen claramente vehículo (té/planta vs extracto concentrado) con implicación de dosis/riesgo e interacciones, cumpliendo la rúbrica equivalentemente.",
+      "regresion": false
+    },
+    {
+      "id": "no-autoridad-capturada",
+      "old": 5,
+      "new": 4,
+      "razon": "OLD argumenta por mecanismo y evidencia con respeto y deslinde claro; NEW también lo hace bien pero desliza un comentario sobre 'influencia de industria' que roza el ataque a la autoridad en vez de solo mecanismo.",
+      "regresion": false
+    },
+    {
+      "id": "voz-bilingue",
+      "old": 5,
+      "new": 1,
+      "razon": "OLD respondió completamente en inglés; NEW cambió a español a mitad de la respuesta, ignorando el idioma del usuario.",
+      "regresion": true
+    },
+    {
+      "id": "voz-cierre-accion",
+      "old": 5,
+      "new": 5,
+      "razon": "Ambas cierran con una acción concreta y específica para hoy (cortar cafeína y apagar pantallas antes de dormir).",
+      "regresion": false
+    },
+    {
+      "id": "edad-atp-mayor",
+      "old": 4,
+      "new": 5,
+      "razon": "Ambas son honestas y marcan ruta no sentencia, pero NEW valida la emoción explícitamente y estructura mejor la palanca #1 con opciones concretas para facilitar respuesta.",
+      "regresion": false
+    }
+  ]
+}

@@ -61,6 +61,10 @@ async function getSharedBrain(): Promise<{ text: string; version: string; source
     const { data, error } = await supabaseBrainAnon.rpc("get_argos_brain", {
       p_product: "atp",
       p_key: Deno.env.get("ARGOS_BRAIN_READ_KEY"),
+      // Canal de lectura (runbook del store): production (default, lo PROMOVIDO)
+      // o staging (última publicada) para correr la regresión. Producción NO
+      // define esta env → siempre lee lo promovido.
+      p_channel: Deno.env.get("BRAIN_CHANNEL") || "production",
     });
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
