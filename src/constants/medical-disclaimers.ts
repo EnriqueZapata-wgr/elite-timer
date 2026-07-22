@@ -2,10 +2,11 @@
  * Disclaimers médicos — fuente única de copy + versión (#42).
  *
  * Source: Business development/Legal/04_Disclaimers_Medicos_por_Pantalla.md
- * TODO(#42): el doc físico no existe en el repo; este copy vivía en
- * MedicalDisclaimer.tsx con nota "pendiente firma final por Dra. Mariana
- * Zapata, PhD". Cuando Mariana firme la versión final, actualizar aquí y
- * hacer bump de MEDICAL_DISCLAIMER_VERSION (re-solicita aceptación a todos).
+ * El contenido científico lo valida Mariana como CONTENIDO educativo; la
+ * redacción legal la cierra Cowork Legal. Ninguna persona figura como
+ * avaladora/responsable médica del servicio (PRIME DIRECTIVE compliance).
+ * Al actualizar el copy, hacer bump de MEDICAL_DISCLAIMER_VERSION
+ * (re-solicita aceptación a todos).
  */
 
 export const MEDICAL_DISCLAIMER_VERSION = '1.0';
@@ -27,7 +28,7 @@ export const DISCLAIMERS: Record<DisclaimerFeature, string> = {
   cycle: 'Las predicciones de ciclo son estimaciones basadas en tu historial. No son método anticonceptivo. Tus datos están encriptados y nunca se comparten.',
   genetics: 'ATP Genética interpreta tu RAW de pruebas comerciales. Es educativa, no diagnóstico, no predice enfermedades específicas, ni reemplaza asesoramiento genético profesional.',
   argos: 'ARGOS es un asistente educativo basado en IA. No es médico. Para preocupaciones de salud, consulta a un profesional. En emergencia, contacta servicios médicos.',
-  interpretation: 'Esta interpretación es preparada por la Dra. Mariana Zapata, PhD. Es educativa y orientativa. No constituye diagnóstico, tratamiento, ni reemplaza consulta con genetista clínico.',
+  interpretation: 'Esta interpretación es material educativo de ATP, elaborado con criterios de medicina funcional. Es orientativa: no constituye diagnóstico ni tratamiento, ni reemplaza consulta con un profesional de la salud.',
   nutrition: 'ATP estima macros y orienta tu nutrición. No sustituye atención de nutriólogo profesional. Para condiciones específicas (diabetes, enfermedad renal, trastornos alimentarios), consulta especialista.',
 };
 
