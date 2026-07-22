@@ -29,6 +29,7 @@ import {
 } from '@/src/constants/labs-guide-content';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 
 export default function LabsGuideScreen() {
   const { user } = useAuth();
@@ -142,6 +143,8 @@ export default function LabsGuideScreen() {
         </Animated.View>
 
         <EliteText style={s.disclaimer}>{LABS_GUIDE_META.disclaimer}</EliteText>
+        {/* Compliance S4: footer de resultados (posicionamiento §2) */}
+        <ResultDisclaimerFooter />
         <View style={{ height: 110 }} />
       </ScrollView>
 

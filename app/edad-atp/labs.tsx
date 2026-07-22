@@ -30,6 +30,7 @@ import { ParameterChart } from '@/src/components/edad-atp/ParameterChart';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { Sex } from '@/src/types/edad-atp-v2';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 
 
 type Row = {
@@ -238,6 +239,8 @@ function AtpLabsScreen() {
             </View>
           ))
         )}
+        {/* Compliance S4: footer de resultados (posicionamiento §2) */}
+        <ResultDisclaimerFooter />
       </ScrollView>
 
       <LabInfoPopup

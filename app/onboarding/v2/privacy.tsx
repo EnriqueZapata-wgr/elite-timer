@@ -61,7 +61,7 @@ export default function V2PrivacyScreen() {
     <OnboardingShell
       step={v2StepNumber('privacy')}
       totalSteps={V2_STEPS.length}
-      onBack={() => router.replace(v2Route('welcome'))}
+      onBack={() => router.replace(v2Route('positioning'))}
     >
       <ScrollView contentContainerStyle={s.scroll}>
         <Animated.View entering={FadeInUp.duration(400)}>

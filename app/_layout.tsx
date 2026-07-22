@@ -220,6 +220,8 @@ function RootLayout() {
                 <Stack.Screen name="braverman-premium" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Onboarding v2 (F2 sprint UX blockers) — motor v1 eliminado */}
                 <Stack.Screen name="onboarding/v2/welcome" options={{ headerShown: false, animation: 'fade' }} />
+                {/* Sprint Compliance 4: posicionamiento "optimizar sanos" antes del consentimiento */}
+                <Stack.Screen name="onboarding/v2/positioning" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Sprint Compliance 2: muro de consentimiento (Aviso Parte 3) antes de capturar datos */}
                 <Stack.Screen name="onboarding/v2/privacy" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="onboarding/v2/profile" options={{ headerShown: false, animation: 'slide_from_right' }} />

@@ -13,16 +13,18 @@ import {
 } from '../onboarding-v2-core';
 
 describe('flujo de steps v2', () => {
-  it('8 steps en orden welcome → notifications (privacy = muro de consentimiento)', () => {
-    expect(V2_STEPS).toHaveLength(8);
+  it('9 steps: posicionamiento → consentimiento antes de capturar datos', () => {
+    expect(V2_STEPS).toHaveLength(9);
     expect(V2_STEPS[0]).toBe('welcome');
-    expect(V2_STEPS[1]).toBe('privacy');
-    expect(V2_STEPS[2]).toBe('profile');
-    expect(V2_STEPS[7]).toBe('notifications');
+    expect(V2_STEPS[1]).toBe('positioning');
+    expect(V2_STEPS[2]).toBe('privacy');
+    expect(V2_STEPS[3]).toBe('profile');
+    expect(V2_STEPS[8]).toBe('notifications');
   });
 
   it('nextV2Step encadena y termina en null', () => {
-    expect(nextV2Step('welcome')).toBe('privacy');
+    expect(nextV2Step('welcome')).toBe('positioning');
+    expect(nextV2Step('positioning')).toBe('privacy');
     expect(nextV2Step('privacy')).toBe('profile');
     expect(nextV2Step('consent')).toBe('notifications');
     expect(nextV2Step('notifications')).toBeNull();
@@ -38,8 +40,9 @@ describe('flujo de steps v2', () => {
   it('v2Route y v2StepNumber', () => {
     expect(v2Route('cycle')).toBe('/onboarding/v2/cycle');
     expect(v2StepNumber('welcome')).toBe(1);
-    expect(v2StepNumber('privacy')).toBe(2);
-    expect(v2StepNumber('notifications')).toBe(8);
+    expect(v2StepNumber('positioning')).toBe(2);
+    expect(v2StepNumber('privacy')).toBe(3);
+    expect(v2StepNumber('notifications')).toBe(9);
   });
 });
 

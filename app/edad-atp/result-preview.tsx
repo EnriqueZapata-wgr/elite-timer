@@ -34,6 +34,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
 
 /** DD/MM desde YYYY-MM-DD para el copy de "sin cambios". */
 function ddmm(iso: string): string { const [, m, d] = iso.split('-'); return d && m ? `${d}/${m}` : iso; }
@@ -191,6 +192,8 @@ function ResultScreen() {
         <AnimatedPressable onPress={() => router.back()} style={styles.backBtn}>
           <EliteText variant="body" style={styles.backText}>Volver</EliteText>
         </AnimatedPressable>
+        {/* Compliance S4: footer de resultados (posicionamiento §2) */}
+        <ResultDisclaimerFooter />
       </ScrollView>
 
       {/* Tarjeta off-screen para captura de imagen al compartir. */}
