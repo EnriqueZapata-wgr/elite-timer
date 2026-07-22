@@ -41,6 +41,12 @@ import { fetchSkinType } from '@/src/services/dx/fitzpatrick-service';
 import { CATEGORY_LABELS } from '@/src/constants/intervention-vocab';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
+import {
+  familyForInterventionKey, gateDecisionForFamily, type GateDecision,
+} from '@/src/services/safety/protocol-gate-core';
+import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
+import { getSafetyParams } from '@/src/services/safety/safety-params-service';
 
 const STATUS_LABELS: Record<string, string> = {
   suggested: 'Sugerida',
@@ -87,11 +93,34 @@ export default function IntervencionDetailScreen() {
 
   const status = item?.row.status;
 
-  const onActivate = useCallback(async () => {
+  // Sprint Compliance 3: gate de la ruta PULL — hasta hoy solo la ruta PUSH
+  // (motor) filtraba requiresClinicalValidation; el usuario podía auto-activar
+  // cualquier protocolo sin chequeo. Capa 1 (hard-block por condición
+  // declarada / embarazo) + capa 2 (atestación) antes de activar.
+  const [gate, setGate] = useState<Exclude<GateDecision, { result: 'allowed' }> | null>(null);
+
+  const doActivate = useCallback(async () => {
     if (!user?.id || !key) return;
     haptic.medium();
     await activateIntervention(user.id, key);
   }, [user?.id, key]);
+
+  const onActivate = useCallback(async () => {
+    if (!user?.id || !key) return;
+    try {
+      const safetyParams = await getSafetyParams();
+      const family = familyForInterventionKey(key, safetyParams.protocol_gate);
+      if (family) {
+        const state = await getSafetyState(user.id);
+        const decision = gateDecisionForFamily(family, state, safetyParams.protocol_gate);
+        if (decision.result !== 'allowed') {
+          setGate(decision);
+          return;
+        }
+      }
+    } catch { /* fail-soft: sin red no bloqueamos la activación de no-riesgo */ }
+    await doActivate();
+  }, [user?.id, key, doActivate]);
 
   const onPause = useCallback(async () => {
     if (!user?.id || !key) return;
@@ -293,6 +322,16 @@ export default function IntervencionDetailScreen() {
             </Animated.View>
           </ScrollView>
         )}
+
+        {/* Sprint Compliance 3: gate PULL (atestación / hard-block capa 1) */}
+        <AttestationGateModal
+          visible={!!gate}
+          decision={gate}
+          userId={user?.id ?? null}
+          protocolKey={key}
+          onProceed={() => { setGate(null); doActivate(); }}
+          onClose={() => setGate(null)}
+        />
       </Screen>
     </MedicalDisclaimerGate>
   );

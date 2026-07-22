@@ -18,6 +18,13 @@ import { toggleCompletion } from '@/src/services/protocol-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
+import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
+import {
+  familyForBreathingTemplate, gateDecisionForFamily, capBreathingTemplate,
+  type GateDecision,
+} from '@/src/services/safety/protocol-gate-core';
+import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
+import { getSafetyParams, DEFAULT_SAFETY_PARAMS } from '@/src/services/safety/safety-params-service';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
@@ -83,6 +90,53 @@ export default function BreathingScreen() {
   // Para box breathing: muestra config antes del timer
   const [configuring, setConfiguring] = useState(false);
 
+  // Sprint Compliance 3: gate de atestación para respiración intensa
+  // (wim hof / hiperventilación). Corre CADA VEZ — clearedId autoriza SOLO la
+  // sesión actual y se limpia al salir del timer. Hard-block por condición
+  // declarada / embarazo (capa 1). Límites técnicos: máx 3 rondas guiadas +
+  // retención con tope (capBreathingTemplate).
+  const [clearedId, setClearedId] = useState<string | null>(null);
+  const [gate, setGate] = useState<Exclude<GateDecision, { result: 'allowed' }> | null>(null);
+  const [gateUserId, setGateUserId] = useState<string | null>(null);
+  const gateRequestedRef = useRef<string | null>(null);
+
+  const riskFamily = selected
+    ? familyForBreathingTemplate(selected.id, DEFAULT_SAFETY_PARAMS.protocol_gate)
+    : null;
+  const needsGate = !!selected && !!riskFamily && clearedId !== selected.id && !(configuring && selected.id === 'box-4');
+
+  useEffect(() => {
+    if (!needsGate || !selected || gateRequestedRef.current === selected.id) return;
+    gateRequestedRef.current = selected.id;
+    (async () => {
+      try {
+        const [{ data: { user } }, safetyParams] = await Promise.all([
+          supabase.auth.getUser(),
+          getSafetyParams(),
+        ]);
+        setGateUserId(user?.id ?? null);
+        const family = familyForBreathingTemplate(selected.id, safetyParams.protocol_gate);
+        if (!family) { setClearedId(selected.id); return; }
+        const state = user?.id
+          ? await getSafetyState(user.id)
+          : { conditions: [], pregnancy: false, lactancia: false };
+        const decision = gateDecisionForFamily(family, state, safetyParams.protocol_gate);
+        if (decision.result === 'allowed') setClearedId(selected.id);
+        else setGate(decision);
+      } catch {
+        // Fail-safe conservador: sin datos, pedir la atestación estándar.
+        setGate({ result: 'attest', attestationId: 'wim_hof' });
+      }
+    })();
+  }, [needsGate, selected?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const closeGate = () => {
+    setGate(null);
+    gateRequestedRef.current = null;
+    if (params.breathingId) router.back();
+    else setSelected(null);
+  };
+
   const handleSelect = (t: BreathingTemplate) => {
     setSelected(t);
     if (t.id === 'box-4') setConfiguring(true);
@@ -102,15 +156,37 @@ export default function BreathingScreen() {
     );
   }
 
+  if (needsGate) {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <AttestationGateModal
+          visible={!!gate}
+          decision={gate}
+          userId={gateUserId}
+          protocolKey={selected.id}
+          onProceed={() => { setGate(null); setClearedId(selected.id); }}
+          onClose={closeGate}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  // Límites técnicos solo en plantillas de riesgo (las suaves no se tocan).
+  const runTemplate = riskFamily
+    ? capBreathingTemplate(selected, DEFAULT_SAFETY_PARAMS.breath_limits)
+    : selected;
+
   return (
     <BreathingTimerScreen
-      template={selected}
+      template={runTemplate}
       protocolItemId={params.protocolItemId}
       onBack={() => {
+        setClearedId(null); // la próxima sesión vuelve a atestar
+        gateRequestedRef.current = null;
         if (params.breathingId) router.back();
         else setSelected(null);
       }}
-      onComplete={() => router.back()}
+      onComplete={() => { setClearedId(null); router.back(); }}
     />
   );
 }

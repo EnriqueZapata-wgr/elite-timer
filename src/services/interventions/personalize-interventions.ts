@@ -32,6 +32,7 @@ import {
   type RecommendationRule,
 } from '@/src/constants/interventions-catalog';
 import { displayLabel } from '@/src/constants/display-labels';
+import { PULL_ONLY_INTERVENTION_KEYS } from '@/src/services/safety/safety-params-defaults';
 import type {
   UserPhenotype,
   PrescribedIntervention,
@@ -50,9 +51,14 @@ export function personalizeInterventions(
   phenotype: UserPhenotype,
   catalog: Intervention[] = INTERVENTIONS_CATALOG,
 ): PrescribedIntervention[] {
-  // 1. Elegibles: fuera las gateadas clínicamente + las contraindicadas.
+  // 1. Elegibles: fuera las gateadas clínicamente + las contraindicadas +
+  // las PULL-only (Sprint Compliance 3, condición del sign-off legal: el
+  // sistema NUNCA empuja wim hof / frío / sauna / ayuno prolongado — el
+  // usuario las busca en la biblioteca y pasa el gate de atestación).
   const eligible = catalog.filter(
-    (i) => !i.requiresClinicalValidation && !isContraindicated(i, phenotype),
+    (i) => !i.requiresClinicalValidation
+      && !PULL_ONLY_INTERVENTION_KEYS.has(i.key)
+      && !isContraindicated(i, phenotype),
   );
 
   // 2. Score + razones por intervención.

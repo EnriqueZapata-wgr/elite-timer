@@ -22,6 +22,11 @@ import { useAnalytics, ATP_EVENTS } from '../src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
+import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
+import { FASTING_ALERTS } from '@/src/constants/attestation-copy';
+import { fastingGateDecision, fastingAlertForHours, type GateDecision } from '@/src/services/safety/protocol-gate-core';
+import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
+import { getSafetyParams, DEFAULT_SAFETY_PARAMS, type FastingSafetyParams } from '@/src/services/safety/safety-params-service';
 
 // Presets rápidos para los wheel pickers (reemplazan mode="datetime").
 const START_PRESETS = [
@@ -59,6 +64,9 @@ const MAX_FAST_HOURS = 120;
 const FAST_CORRUPT_THRESHOLD_HOURS = MAX_FAST_HOURS + 24;
 
 // CONTENIDO MÉDICO — pendiente validación de Mariana antes de Founders M1
+// Sprint Compliance 3: los hitos de CELEBRACIÓN terminan en 48h. A partir de
+// 36h corren las ALERTAS DE SEGURIDAD escalantes del sign-off legal
+// (FASTING_ALERTS §2.5), no celebraciones — 72h/96h se eliminaron.
 const FAST_MILESTONES: { hours: number; title: string; message: string }[] = [
   {
     hours: 24,
@@ -70,17 +78,7 @@ const FAST_MILESTONES: { hours: number; title: string; message: string }[] = [
     title: '48 horas de ayuno',
     message: 'La autofagia (reciclaje celular) se intensifica. Asegura electrolitos: sodio, potasio, magnesio.',
   },
-  {
-    hours: 72,
-    title: '72 horas — ayuno prolongado',
-    message: 'Los beneficios son profundos, pero a partir de aquí escucha tu cuerpo de cerca. Si sientes mareo, debilidad extrema o palpitaciones, rompe el ayuno.',
-  },
-  {
-    hours: 96,
-    title: '96 horas — ayuno extendido',
-    message: 'Cómo rompes el ayuno (refeeding) es tan importante como el ayuno: hazlo gradual. Considera el acompañamiento de un profesional.',
-  },
-  // Hito 120h se maneja vía cierre automático (ver autoCloseAtLimit).
+  // 120h se maneja vía cierre automático (ver autoCloseAtLimit).
 ];
 
 const { width } = Dimensions.get('window');
@@ -169,6 +167,15 @@ export default function FastingScreen() {
   // Break-fast end picker: showEndPicker = modal del wheel abierto.
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [customEndTime, setCustomEndTime] = useState(new Date());
+
+  // Sprint Compliance 3: gate de ayuno prolongado (atestación >48h + hard
+  // blocks embarazo/TCA/diabetes) + parámetros de seguridad server-driven.
+  const [fastingGate, setFastingGate] = useState<Exclude<GateDecision, { result: 'allowed' }> | null>(null);
+  const [gateVisible, setGateVisible] = useState(false);
+  const fastingParamsRef = useRef<FastingSafetyParams>(DEFAULT_SAFETY_PARAMS.fasting_safety);
+  useEffect(() => {
+    getSafetyParams().then(p => { fastingParamsRef.current = p.fasting_safety; }).catch(() => {});
+  }, []);
 
   // Registro de ayuno pasado
   const [showPastFast, setShowPastFast] = useState(false);
@@ -275,19 +282,32 @@ export default function FastingScreen() {
       return;
     }
 
-    // Avisos progresivos (24/48/72/96).
+    // Hitos de celebración (24/48).
     for (const m of FAST_MILESTONES) {
       if (hours >= m.hours && !shownMilestonesRef.current.has(m.hours)) {
         shownMilestonesRef.current.add(m.hours);
-        if (activeFast?.id) {
-          AsyncStorage.setItem(
-            milestoneStorageKey(activeFast.id),
-            JSON.stringify(Array.from(shownMilestonesRef.current)),
-          ).catch(() => {});
-        }
+        persistShownMilestones();
         Alert.alert(m.title, m.message);
       }
     }
+
+    // Sprint Compliance 3: alertas de seguridad ESCALANTES (§2.5 del sign-off)
+    // desde las 36h. Comparten el storage de hitos (marcan su hora).
+    const safetyAlert = fastingAlertForHours(hours, shownMilestonesRef.current, fastingParamsRef.current);
+    if (safetyAlert) {
+      shownMilestonesRef.current.add(safetyAlert.markHour);
+      persistShownMilestones();
+      const copy = FASTING_ALERTS[safetyAlert.key];
+      Alert.alert(copy.title, copy.message);
+    }
+  }
+
+  function persistShownMilestones() {
+    if (!activeFast?.id) return;
+    AsyncStorage.setItem(
+      milestoneStorageKey(activeFast.id),
+      JSON.stringify(Array.from(shownMilestonesRef.current)),
+    ).catch(() => {});
   }
 
   async function autoCloseAtLimit(start: Date) {
@@ -314,10 +334,8 @@ export default function FastingScreen() {
     setElapsed(0);
     DeviceEventEmitter.emit('day_changed');
     loadHistory();
-    Alert.alert(
-      'Alcanzaste 120 horas',
-      'Alcanzaste 120 horas, el límite de los protocolos de ATP. Tu ayuno se cierra aquí. Rompe de forma gradual y cuidadosa — ayunos más largos requieren supervisión médica.'
-    );
+    // Texto EXACTO §2.5 del sign-off (auto-cierre obligatorio a 120h).
+    Alert.alert(FASTING_ALERTS.autoClose120h.title, FASTING_ALERTS.autoClose120h.message);
   }
 
   async function loadActiveFast() {
@@ -383,10 +401,8 @@ export default function FastingScreen() {
           }
         } catch { /* opcional */ }
         DeviceEventEmitter.emit('day_changed');
-        Alert.alert(
-          'Límite de 120h alcanzado',
-          'Tu ayuno alcanzó el límite de 120h y se cerró automáticamente.'
-        );
+        // Texto EXACTO §2.5 del sign-off (auto-cierre obligatorio a 120h).
+        Alert.alert(FASTING_ALERTS.autoClose120h.title, FASTING_ALERTS.autoClose120h.message);
         setActiveFast(null);
         loadHistory();
         return;
@@ -418,6 +434,20 @@ export default function FastingScreen() {
       return;
     }
 
+    // Sprint Compliance 3: gate del ayuno — hard block embarazo/lactancia
+    // (>12h) y TCA/diabetes declarados (>48h); atestación §2.4 en objetivo >48h.
+    const safetyState = await getSafetyState(userId);
+    const decision = fastingGateDecision(selectedProtocol.hours, safetyState, fastingParamsRef.current);
+    if (decision.result !== 'allowed') {
+      setFastingGate(decision);
+      setGateVisible(true);
+      return;
+    }
+    await doStartFast();
+  }
+
+  /** Arranque real del contador (post-gate). */
+  async function doStartFast() {
     const startTime = customStartSet ? customStartTime : new Date();
     analytics.track(ATP_EVENTS.FAST_START_ATTEMPTED, { targetHours: selectedProtocol.hours, customStart: customStartSet });
     const result = await fastingService.startFast({
@@ -1296,6 +1326,16 @@ export default function FastingScreen() {
           onCancel={() => setActiveStartEditOpen(false)}
         />
       )}
+
+      {/* Sprint Compliance 3: gate de ayuno prolongado (atestación §2.4 / hard block) */}
+      <AttestationGateModal
+        visible={gateVisible}
+        decision={fastingGate}
+        userId={userId || null}
+        protocolKey={`fasting_${selectedProtocol.hours}h`}
+        onProceed={() => { setGateVisible(false); setFastingGate(null); doStartFast(); }}
+        onClose={() => { setGateVisible(false); setFastingGate(null); }}
+      />
 
       <MedicalDisclaimer feature="fasting" />
     </ScrollView>

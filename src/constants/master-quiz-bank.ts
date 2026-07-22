@@ -107,6 +107,13 @@ export const PADECIMIENTOS_PEND_MARIANA: QuizOption[] = [
   { value: 'ansiedad', label: 'Trastorno de ansiedad' },
   { value: 'tdah', label: 'TDAH' },
   { value: 'cancer', label: 'Cáncer (cualquier tipo)' },
+  // Sprint Compliance 3 [PEND-MARIANA]: condiciones que alimentan el hard-block
+  // automático (capa 1) de los gates de protocolos de riesgo (safety_params).
+  // Sin fuente declarable, la capa 1 no puede disparar y solo queda la atestación.
+  { value: 'epilepsia', label: 'Epilepsia' },
+  { value: 'cardiopatia', label: 'Enfermedad cardiaca (arritmia, insuficiencia, coronaria…)' },
+  { value: 'sincopes', label: 'Desmayos o síncopes recurrentes' },
+  { value: 'tca', label: 'Trastorno de la conducta alimentaria (actual o en recuperación)' },
 ];
 
 /** [PEND-MARIANA #2] Contraindicaciones extra que Mariana puede sumar a padecimientos. */

@@ -40,6 +40,12 @@ import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { haptic } from '@/src/utils/haptics';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
+import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
+import {
+  familyForTemplateName, gateDecisionForFamily, type GateDecision,
+} from '@/src/services/safety/protocol-gate-core';
+import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
+import { getSafetyParams } from '@/src/services/safety/safety-params-service';
 
 // === COMPONENTES AUXILIARES ===
 
@@ -113,6 +119,11 @@ export default function ProtocolExplorerScreen() {
     setLoading(false);
   };
 
+  // Sprint Compliance 3: gate PULL para plantillas de riesgo (wim hof / frío /
+  // sauna / ayuno detectados por nombre) — atestación o hard-block capa 1.
+  const [gate, setGate] = useState<Exclude<GateDecision, { result: 'allowed' }> | null>(null);
+  const [gatePending, setGatePending] = useState<{ id: string; name: string } | null>(null);
+
   // Activar protocolo con confirmación
   const handleActivate = async (templateId: string, templateName: string) => {
     if (!user?.id) return;
@@ -124,6 +135,28 @@ export default function ProtocolExplorerScreen() {
     );
     if (!confirmed) return;
 
+    try {
+      const family = familyForTemplateName(templateName);
+      if (family) {
+        const [state, safetyParams] = await Promise.all([
+          getSafetyState(user.id),
+          getSafetyParams(),
+        ]);
+        const decision = gateDecisionForFamily(family, state, safetyParams.protocol_gate);
+        if (decision.result !== 'allowed') {
+          setGatePending({ id: templateId, name: templateName });
+          setGate(decision);
+          return;
+        }
+      }
+    } catch { /* fail-soft */ }
+
+    await doActivate(templateId, templateName);
+  };
+
+  const doActivate = async (templateId: string, templateName: string) => {
+    if (!user?.id) return;
+    void templateName; // etiqueta para el log del gate; el assign usa el id
     setActivating(templateId);
     try {
       await assignProtocol(user.id, templateId, null, 'self');
@@ -343,6 +376,20 @@ export default function ProtocolExplorerScreen() {
           )}
         </ScrollView>
       )}
+      {/* Sprint Compliance 3: gate PULL de plantillas de riesgo */}
+      <AttestationGateModal
+        visible={!!gate}
+        decision={gate}
+        userId={user?.id ?? null}
+        protocolKey={gatePending ? `template:${gatePending.name}` : undefined}
+        onProceed={() => {
+          const pending = gatePending;
+          setGate(null);
+          setGatePending(null);
+          if (pending) doActivate(pending.id, pending.name);
+        }}
+        onClose={() => { setGate(null); setGatePending(null); }}
+      />
     </Screen>
   );
 }
