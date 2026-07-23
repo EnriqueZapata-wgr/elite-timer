@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  isMentePillarPath,
   isOnboardingPath,
   shouldHideFloatingButton,
 } from '@/src/components/argos/argos-floating-core';
@@ -23,6 +24,23 @@ describe('isOnboardingPath', () => {
     expect(isOnboardingPath('/nutrition')).toBe(false);
     expect(isOnboardingPath('/')).toBe(false);
     expect(isOnboardingPath(null)).toBe(false);
+  });
+});
+
+describe('isMentePillarPath (Overhaul Mente A3/A4)', () => {
+  it('detecta el hub, sub-rutas y las pantallas de práctica del pilar', () => {
+    expect(isMentePillarPath('/mente')).toBe(true);
+    expect(isMentePillarPath('/mente/player')).toBe(true);
+    expect(isMentePillarPath('/mente/descanso')).toBe(true);
+    expect(isMentePillarPath('/mente/progreso')).toBe(true);
+    expect(isMentePillarPath('/meditation')).toBe(true);
+    expect(isMentePillarPath('/breathing')).toBe(true);
+  });
+  it('journal/check-in y rutas ajenas conservan los flotantes', () => {
+    expect(isMentePillarPath('/journal')).toBe(false);
+    expect(isMentePillarPath('/checkin')).toBe(false);
+    expect(isMentePillarPath('/nutrition')).toBe(false);
+    expect(isMentePillarPath(null)).toBe(false);
   });
 });
 
@@ -50,6 +68,13 @@ describe('shouldHideFloatingButton', () => {
 
   it('oculto con el teclado abierto (no tapar inputs)', () => {
     expect(shouldHideFloatingButton({ ...base, keyboardVisible: true })).toBe(true);
+  });
+
+  it('oculto en el pilar Mente (banner fijo) y en el player (full focus, A4)', () => {
+    expect(shouldHideFloatingButton({ ...base, pathname: '/mente' })).toBe(true);
+    expect(shouldHideFloatingButton({ ...base, pathname: '/mente/player' })).toBe(true);
+    expect(shouldHideFloatingButton({ ...base, pathname: '/meditation' })).toBe(true);
+    expect(shouldHideFloatingButton({ ...base, pathname: '/breathing' })).toBe(true);
   });
 
   it('prioridad: introduced=false gana incluso sobre pantalla válida', () => {

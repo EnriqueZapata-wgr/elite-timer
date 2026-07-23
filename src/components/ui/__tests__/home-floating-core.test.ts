@@ -36,4 +36,13 @@ describe('shouldHideHomeButton (#26)', () => {
   it('pathname null → tratado como HOY (oculto, fail-safe)', () => {
     expect(shouldHideHomeButton({ pathname: null, keyboardVisible: false })).toBe(true);
   });
+
+  it('oculto en el pilar Mente — el banner fijo ya trae home (Overhaul A3)', () => {
+    expect(visible('/mente')).toBe(false);
+    expect(visible('/mente/player')).toBe(false);
+    expect(visible('/mente/descanso')).toBe(false);
+    expect(visible('/meditation')).toBe(false);
+    expect(visible('/breathing')).toBe(false);
+    expect(visible('/journal')).toBe(true); // journal conserva el flotante
+  });
 });
