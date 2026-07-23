@@ -1,10 +1,16 @@
 /**
- * Meditación — Timer guiado por fases con biblioteca de meditaciones.
+ * Meditación — destino consolidado del pilar (Overhaul Mente A2).
  *
- * Si recibe meditationId como param → carga esa meditación.
- * Si no → muestra la biblioteca para elegir.
+ * La biblioteca vieja hardcodeada (morado legacy) murió: la pantalla lista el
+ * catálogo real `audio_pieces` (categoría meditacion, cero hardcode) + la
+ * sección "Sin guía" (timer de Silencio 5/10/15/20, que se conserva). Wim Hof
+ * vive en Respiración (wim-hof-lite, con su gate de seguridad).
+ *
+ * El timer por fases (PhasedTimerScreen) se conserva: lo usan el Silencio y
+ * los deep links con meditationId (protocolos) — MEDITATION_LIBRARY sigue
+ * intacta como datos para no romper esos links.
  */
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -27,10 +33,13 @@ import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { playBeep, initAudio } from '@/src/utils/sounds';
 import {
   MEDITATION_LIBRARY,
-  MEDITATION_TYPES,
   type MeditationTemplate,
   type MeditationPhase,
 } from '@/src/data/meditation-library';
+import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-service';
+import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { phaseIndexAt } from '@/src/services/meditation-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, ATP_BRAND } from '@/src/constants/brand';
@@ -83,55 +92,86 @@ function LibraryScreen({ onSelect, onBack }: {
   onSelect: (m: MeditationTemplate) => void;
   onBack: () => void;
 }) {
-  // Agrupar por tipo
-  const grouped = useMemo(() => {
-    const map = new Map<string, MeditationTemplate[]>();
-    for (const m of MEDITATION_LIBRARY) {
-      if (!map.has(m.type)) map.set(m.type, []);
-      map.get(m.type)!.push(m);
-    }
-    return MEDITATION_TYPES
-      .filter(t => map.has(t.type))
-      .map(t => ({ ...t, meditations: map.get(t.type)! }));
+  const router = useRouter();
+  const [pieces, setPieces] = useState<AudioPiece[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const { isPro } = useSubscription();
+
+  // Catálogo real (A2): solo categoría meditacion — cero hardcode.
+  useEffect(() => {
+    let alive = true;
+    fetchAudioPieces().then(all => {
+      if (!alive) return;
+      setPieces(all.filter(p => p.categoria === 'meditacion'));
+      setLoaded(true);
+    });
+    return () => { alive = false; };
   }, []);
 
+  const openPiece = useCallback((piece: AudioPiece) => {
+    haptic.light();
+    if (piece.tier === 'pro' && !isPro) {
+      // Upsell: la card se ve, Base no reproduce (espejo del 403 server-side).
+      router.push('/paywall');
+      return;
+    }
+    router.push({ pathname: '/mente/player', params: { slug: piece.slug } });
+  }, [isPro, router]);
+
+  // Sin guía: el timer de Silencio 5/10/15/20 se conserva (A2).
+  const silence = useMemo(() => MEDITATION_LIBRARY.filter(m => m.type === 'silence'), []);
+
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <MenteHero
-        image={HERO_MENTE}
-        kicker="PILAR MENTE"
-        title="Meditación"
-        subtitle={`${MEDITATION_LIBRARY.length} sesiones guiadas`}
-        onBack={onBack}
-      />
+    <View style={styles.screen}>
+      <StickyPillarBanner scrolled={scrolled} onBack={onBack} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.y > 24)}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.libContent}
+      >
+        <MenteHero
+          image={HERO_MENTE}
+          kicker="PILAR MENTE"
+          title="Meditación"
+          subtitle={loaded ? `${pieces.length} guiadas · silencio sin guía` : 'Guiadas y en silencio'}
+        />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.libContent}>
-
-        {grouped.map(group => (
-          <View key={group.type} style={styles.libGroup}>
-            <View style={styles.libGroupHeader}>
-              <Ionicons name={group.icon as any} size={18} color={PURPLE} />
-              <EliteText variant="body" style={styles.libGroupLabel}>{group.label}</EliteText>
+        <View style={styles.libBody}>
+          <EliteText style={styles.libSection}>GUIADAS</EliteText>
+          {pieces.length > 0 ? (
+            <View style={styles.libGrid}>
+              {pieces.map(piece => (
+                <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
+              ))}
             </View>
+          ) : (
+            <EliteText variant="caption" style={styles.libEmpty}>
+              {loaded
+                ? 'El catálogo no cargó — revisa tu conexión e intenta de nuevo.'
+                : 'Cargando catálogo…'}
+            </EliteText>
+          )}
 
-            {group.meditations.map(m => (
-              <GradientCard key={m.id} color={PURPLE} onPress={() => { haptic.light(); onSelect(m); }} style={styles.libCard}>
-                <View style={styles.libCardBody}>
-                  <View style={styles.libCardInfo}>
-                    <EliteText variant="body" style={styles.libCardTitle}>{m.title}</EliteText>
-                    <EliteText variant="caption" style={styles.libCardDesc}>{m.description}</EliteText>
-                  </View>
-                  <View style={styles.libCardRight}>
-                    <EliteText style={styles.libCardDuration}>{m.durationMinutes}</EliteText>
-                    <EliteText variant="caption" style={styles.libCardMin}>min</EliteText>
-                  </View>
+          <EliteText style={styles.libSection}>SIN GUÍA · SILENCIO</EliteText>
+          {silence.map(m => (
+            <GradientCard key={m.id} color={PURPLE} onPress={() => { haptic.light(); onSelect(m); }} style={styles.libCard}>
+              <View style={styles.libCardBody}>
+                <View style={styles.libCardInfo}>
+                  <EliteText variant="body" style={styles.libCardTitle}>{m.title}</EliteText>
+                  <EliteText variant="caption" style={styles.libCardDesc}>{m.description}</EliteText>
                 </View>
-              </GradientCard>
-            ))}
-          </View>
-        ))}
+                <View style={styles.libCardRight}>
+                  <EliteText style={styles.libCardDuration}>{m.durationMinutes}</EliteText>
+                  <EliteText variant="caption" style={styles.libCardMin}>min</EliteText>
+                </View>
+              </View>
+            </GradientCard>
+          ))}
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -402,17 +442,15 @@ const styles = StyleSheet.create({
     position: 'absolute', top: Spacing.xxl, left: Spacing.md, zIndex: 10, padding: Spacing.sm,
   },
 
-  // Biblioteca
-  libContent: {
-    paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.xxl,
+  // Biblioteca (A2: hero full-bleed — el padding vive en libBody)
+  libContent: { paddingBottom: Spacing.xxl },
+  libBody: { paddingHorizontal: Spacing.md },
+  libSection: {
+    fontSize: 11, letterSpacing: 2, fontFamily: Fonts.semiBold, color: Colors.textSecondary,
+    textTransform: 'uppercase', marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
-  libSubtitle: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
-  libGroup: { marginBottom: Spacing.lg },
-  libGroupHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm,
-  },
-  libGroupLabel: { fontFamily: Fonts.bold, color: PURPLE, fontSize: FontSizes.lg },
+  libGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Spacing.sm },
+  libEmpty: { color: Colors.textSecondary, fontSize: FontSizes.sm },
   libCard: { marginBottom: Spacing.xs },
   libCardBody: {
     flexDirection: 'row', alignItems: 'center', padding: Spacing.md,

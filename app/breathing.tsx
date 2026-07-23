@@ -31,6 +31,10 @@ import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
+import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-service';
+import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
+import { useSubscription } from '@/src/hooks/useSubscription';
+import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import {
   advanceBreathSecond,
   phaseColor,
@@ -201,28 +205,66 @@ function SelectorScreen({ onSelect, onBack }: {
   onSelect: (t: BreathingTemplate) => void;
   onBack: () => void;
 }) {
+  const router = useRouter();
   const [recentSessions, setRecentSessions] = useState<any[]>([]);
+  // Overhaul A2: breathwork narrado del catálogo (pranayama_guiado y las que
+  // se sumen) — la sección "Con guía" arriba del timer visual.
+  const [pieces, setPieces] = useState<AudioPiece[]>([]);
+  const [scrolled, setScrolled] = useState(false);
+  const { isPro } = useSubscription();
 
   useFocusEffect(useCallback(() => {
+    let alive = true;
+    fetchAudioPieces().then(all => {
+      if (alive) setPieces(all.filter(p => p.categoria === 'respiracion'));
+    });
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       supabase.from('mind_sessions').select('*')
         .eq('user_id', user.id).eq('type', 'breathing')
         .order('created_at', { ascending: false }).limit(5)
-        .then(({ data }) => setRecentSessions(data ?? []));
+        .then(({ data }) => { if (alive) setRecentSessions(data ?? []); });
     });
+    return () => { alive = false; };
   }, []));
 
+  const openPiece = useCallback((piece: AudioPiece) => {
+    haptic.light();
+    if (piece.tier === 'pro' && !isPro) {
+      router.push('/paywall');
+      return;
+    }
+    router.push({ pathname: '/mente/player', params: { slug: piece.slug } });
+  }, [isPro, router]);
+
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <MenteHero
-        image={HERO_RESPIRACION}
-        kicker="PILAR MENTE"
-        title="Respiración"
-        subtitle={`${BREATHING_LIBRARY.length} ejercicios · calma, foco y energía`}
-        onBack={onBack}
-      />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.selectorContent}>
+    <View style={styles.screen}>
+      <StickyPillarBanner scrolled={scrolled} onBack={onBack} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.y > 24)}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.selectorScroll}
+      >
+        <MenteHero
+          image={HERO_RESPIRACION}
+          kicker="PILAR MENTE"
+          title="Respiración"
+          subtitle={`${BREATHING_LIBRARY.length} ejercicios · calma, foco y energía`}
+        />
+        <View style={styles.selectorContent}>
+
+        {pieces.length > 0 && (
+          <>
+            <Text style={styles.selectorSection}>CON GUÍA</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: 10, marginBottom: 14 }}>
+              {pieces.map(piece => (
+                <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
+              ))}
+            </View>
+            <Text style={styles.selectorSection}>TIMER VISUAL</Text>
+          </>
+        )}
 
         {BREATHING_LIBRARY.map((t, idx) => (
           <AnimatedRN.View key={t.id} entering={FadeInUp.delay(50 + idx * 40).springify()}>
@@ -300,8 +342,9 @@ function SelectorScreen({ onSelect, onBack }: {
         )}
 
         <View style={{ height: 40 }} />
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -756,9 +799,14 @@ const styles = StyleSheet.create({
     position: 'absolute', top: Spacing.xxl, left: Spacing.md, zIndex: 10, padding: Spacing.sm,
   },
 
-  // Selector
+  // Selector (A2/A3: hero full-bleed dentro del scroll; el padding vive en el body)
+  selectorScroll: { paddingBottom: Spacing.xxl },
   selectorContent: {
-    paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl,
+    paddingHorizontal: Spacing.md, paddingTop: Spacing.sm,
+  },
+  selectorSection: {
+    color: '#666', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1,
+    marginTop: Spacing.sm, marginBottom: 12,
   },
   selectorSub: { color: Colors.textSecondary, marginBottom: Spacing.lg, fontSize: FontSizes.md },
   selectorCard: { marginBottom: Spacing.sm },

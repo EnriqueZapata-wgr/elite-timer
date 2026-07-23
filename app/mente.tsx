@@ -1,18 +1,16 @@
 /**
- * MENTE — hub del pilar (T1 Sprint MENTE Ecosystem + Sprint Audio Mente).
+ * MENTE — hub del pilar (Overhaul Mente A1: doctrina menú-vs-datos).
  *
- * Junta todo el ecosistema en una pantalla editorial:
- *   Audioteca (catálogo audio_pieces por categoría) · Journal · Respiración ·
- *   Meditación · Check-in · Últimas sesiones
- * más el acceso a Progreso (streaks + medallas, T5).
+ * El hub es SOLO navegación editorial a los destinos del pilar:
+ *   Meditación · Respiración · Descanso · Journal · Check-in
+ * más el acceso a Progreso (trofeo en el banner). Cero piezas de audio
+ * sueltas aquí — el catálogo vive DENTRO de cada destino.
  *
- * Audioteca: cards editoriales dinámicas desde el catálogo (cero hardcode).
- * Piezas Pro visibles para todos; si el usuario es Base, abrir → upsell
- * (/paywall), consistente con el 403 de mente-audio-url.
+ * A3: banner superior fijo (back + home + electrones) con blur al scrollear
+ * (StickyPillarBanner); los flotantes home/ARGOS se auto-ocultan en el pilar.
  */
 import { useCallback, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,13 +30,10 @@ import {
 } from '@/src/components/mente/mente-hub-core';
 import { supabase } from '@/src/lib/supabase';
 import { fetchJournalDates, computeJournalStreak } from '@/src/services/journal-service';
-import { fetchAudioPieces, type AudioPiece, type AudioCategoria } from '@/src/services/mente-audio-service';
-import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
-import { useSubscription } from '@/src/hooks/useSubscription';
+import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { promptForDate } from '@/src/data/checkin-prompts';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
-import { MEDITATION_LIBRARY } from '@/src/data/meditation-library';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -64,33 +59,13 @@ const EMPTY: HubState = {
   recent: [],
 };
 
-/** Secciones de la Audioteca en orden editorial. */
-const AUDIO_SECTIONS: { categoria: AudioCategoria; label: string }[] = [
-  { categoria: 'meditacion', label: 'MEDITACIÓN' },
-  { categoria: 'respiracion', label: 'RESPIRACIÓN' },
-  { categoria: 'descanso', label: 'DESCANSO' },
-];
-
 export default function MenteHubScreen() {
   const router = useRouter();
   const [hub, setHub] = useState<HubState>(EMPTY);
-  const [audioPieces, setAudioPieces] = useState<AudioPiece[]>([]);
-  const { isPro } = useSubscription();
-
-  const openPiece = useCallback((piece: AudioPiece) => {
-    haptic.light();
-    if (piece.tier === 'pro' && !isPro) {
-      // Upsell: la card se ve, pero Base no reproduce (espejo del 403 server-side).
-      router.push('/paywall');
-      return;
-    }
-    router.push({ pathname: '/mente/player', params: { slug: piece.slug } });
-  }, [isPro, router]);
+  const [scrolled, setScrolled] = useState(false);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
-    // Audioteca: catálogo dinámico (RLS: solo publicadas).
-    fetchAudioPieces().then(pieces => { if (alive) setAudioPieces(pieces); });
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -154,16 +129,14 @@ export default function MenteHubScreen() {
   }, []));
 
   return (
-    <SafeAreaView style={s.screen}>
+    <View style={s.screen}>
       <StatusBar style="light" />
-      {/* Batch 3 (#7): hero editorial del hub (molde MenteHero, imagen + overlay). */}
-      <MenteHero
-        image={HERO_MENTE}
-        kicker="TU PILAR"
-        title="Mente"
-        subtitle="Audioteca · journal · respiración · check-in"
+      {/* A3: banner fijo del pilar (back + home + electrones) con blur al
+          scrollear. El trofeo de Progreso viaja aquí como acción extra. */}
+      <StickyPillarBanner
+        scrolled={scrolled}
         onBack={() => router.back()}
-        rightContent={
+        rightExtra={
           <AnimatedPressable
             onPress={() => { haptic.light(); router.push('/mente/progreso'); }}
             style={s.progressBtn}
@@ -172,39 +145,32 @@ export default function MenteHubScreen() {
           </AnimatedPressable>
         }
       />
-      <View style={{ paddingHorizontal: Spacing.md, marginVertical: Spacing.sm }}>
-        <CommunityPresence pillar="mente" />
-      </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {/* ── Audioteca (Sprint Audio Mente): cards por categoría desde el catálogo ── */}
-        {AUDIO_SECTIONS.map(({ categoria, label }) => {
-          const pieces = audioPieces.filter(p => p.categoria === categoria);
-          if (pieces.length === 0) return null;
-          return (
-            <Animated.View key={categoria} entering={FadeInUp.delay(30).springify()}>
-              <EliteText style={s.sectionLabel}>{label}</EliteText>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: Spacing.md }}>
-                {pieces.map(piece => (
-                  <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
-                ))}
-              </ScrollView>
-            </Animated.View>
-          );
-        })}
-        {audioPieces.length > 0 && <View style={{ height: Spacing.sm }} />}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.y > 24)}
+        scrollEventThrottle={16}
+      >
+        {/* Hero editorial full-bleed — pasa por debajo del banner transparente. */}
+        <MenteHero
+          image={HERO_MENTE}
+          kicker="TU PILAR"
+          title="Mente"
+          subtitle="Meditación · respiración · descanso · journal · check-in"
+        />
+        <View style={{ paddingHorizontal: Spacing.md, marginVertical: Spacing.sm }}>
+          <CommunityPresence pillar="mente" />
+        </View>
 
+        <View style={s.content}>
         <Animated.View entering={FadeInUp.delay(40).springify()}>
           <MenteHubCard
-            title="Journal"
-            subtitle={hub.lastJournalAt
-              ? `Última entrada ${formatRelativeTime(hub.lastJournalAt).toLowerCase()}`
-              : 'Escribe tu primera entrada'}
-            icon="journal-outline"
-            badge={hub.journalStreak > 0 ? `🔥 ${hub.journalStreak} ${hub.journalStreak === 1 ? 'día' : 'días'}` : undefined}
-            onPress={() => router.push('/journal-history')}
-            ctaLabel="Nueva entrada"
-            onCta={() => router.push('/journal')}
+            title="Meditación"
+            subtitle={lastActivitySubtitle('Guiadas y en silencio', hub.lastMeditationAt)}
+            icon="sparkles-outline"
+            onPress={() => router.push('/meditation')}
+            ctaLabel="Empezar"
+            onCta={() => router.push('/meditation')}
           />
         </Animated.View>
 
@@ -221,17 +187,31 @@ export default function MenteHubScreen() {
 
         <Animated.View entering={FadeInUp.delay(140).springify()}>
           <MenteHubCard
-            title="Meditación"
-            subtitle={lastActivitySubtitle(`${MEDITATION_LIBRARY.length} sesiones`, hub.lastMeditationAt)}
-            icon="sparkles-outline"
-            onPress={() => router.push('/meditation')}
-            ctaLabel="Sesión guiada"
-            onCta={() => router.push('/meditation')}
+            title="Descanso"
+            subtitle="NSDR · pausas · sueño profundo"
+            icon="moon-outline"
+            onPress={() => router.push('/mente/descanso')}
+            ctaLabel="Explorar"
+            onCta={() => router.push('/mente/descanso')}
+          />
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(190).springify()}>
+          <MenteHubCard
+            title="Journal"
+            subtitle={hub.lastJournalAt
+              ? `Última entrada ${formatRelativeTime(hub.lastJournalAt).toLowerCase()}`
+              : 'Escribe tu primera entrada'}
+            icon="journal-outline"
+            badge={hub.journalStreak > 0 ? `🔥 ${hub.journalStreak} ${hub.journalStreak === 1 ? 'día' : 'días'}` : undefined}
+            onPress={() => router.push('/journal-history')}
+            ctaLabel="Nueva entrada"
+            onCta={() => router.push('/journal')}
           />
         </Animated.View>
 
         {/* Check-in compacto */}
-        <Animated.View entering={FadeInUp.delay(190).springify()}>
+        <Animated.View entering={FadeInUp.delay(240).springify()}>
           <AnimatedPressable
             onPress={() => { haptic.light(); router.push('/checkin'); }}
             style={s.checkinCard}
@@ -252,7 +232,7 @@ export default function MenteHubScreen() {
 
         {/* Últimas sesiones */}
         {hub.recent.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(240).springify()}>
+          <Animated.View entering={FadeInUp.delay(290).springify()}>
             <EliteText style={s.sectionLabel}>ÚLTIMAS SESIONES</EliteText>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.timeline}>
               {hub.recent.map((a, i) => (
@@ -269,8 +249,9 @@ export default function MenteHubScreen() {
         )}
 
         <View style={{ height: Spacing.xxl }} />
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
