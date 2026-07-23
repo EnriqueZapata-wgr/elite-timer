@@ -1,12 +1,14 @@
 /**
- * MENTE — hub del pilar (T1 Sprint MENTE Ecosystem).
+ * MENTE — hub del pilar (T1 Sprint MENTE Ecosystem + Sprint Audio Mente).
  *
  * Junta todo el ecosistema en una pantalla editorial:
- *   Journal · Respiración · Meditación · Check-in · Últimas sesiones
+ *   Audioteca (catálogo audio_pieces por categoría) · Journal · Respiración ·
+ *   Meditación · Check-in · Últimas sesiones
  * más el acceso a Progreso (streaks + medallas, T5).
  *
- * Cada card muestra estado vivo (streak, última sesión). Estética editorial
- * ATP: B/N + acento lima, sensibilidad emocional.
+ * Audioteca: cards editoriales dinámicas desde el catálogo (cero hardcode).
+ * Piezas Pro visibles para todos; si el usuario es Base, abrir → upsell
+ * (/paywall), consistente con el 403 de mente-audio-url.
  */
 import { useCallback, useState } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
@@ -30,6 +32,9 @@ import {
 } from '@/src/components/mente/mente-hub-core';
 import { supabase } from '@/src/lib/supabase';
 import { fetchJournalDates, computeJournalStreak } from '@/src/services/journal-service';
+import { fetchAudioPieces, type AudioPiece, type AudioCategoria } from '@/src/services/mente-audio-service';
+import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
+import { useSubscription } from '@/src/hooks/useSubscription';
 import { promptForDate } from '@/src/data/checkin-prompts';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
@@ -59,12 +64,33 @@ const EMPTY: HubState = {
   recent: [],
 };
 
+/** Secciones de la Audioteca en orden editorial. */
+const AUDIO_SECTIONS: { categoria: AudioCategoria; label: string }[] = [
+  { categoria: 'meditacion', label: 'MEDITACIÓN' },
+  { categoria: 'respiracion', label: 'RESPIRACIÓN' },
+  { categoria: 'descanso', label: 'DESCANSO' },
+];
+
 export default function MenteHubScreen() {
   const router = useRouter();
   const [hub, setHub] = useState<HubState>(EMPTY);
+  const [audioPieces, setAudioPieces] = useState<AudioPiece[]>([]);
+  const { isPro } = useSubscription();
+
+  const openPiece = useCallback((piece: AudioPiece) => {
+    haptic.light();
+    if (piece.tier === 'pro' && !isPro) {
+      // Upsell: la card se ve, pero Base no reproduce (espejo del 403 server-side).
+      router.push('/paywall');
+      return;
+    }
+    router.push({ pathname: '/mente/player', params: { slug: piece.slug } });
+  }, [isPro, router]);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
+    // Audioteca: catálogo dinámico (RLS: solo publicadas).
+    fetchAudioPieces().then(pieces => { if (alive) setAudioPieces(pieces); });
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -135,7 +161,7 @@ export default function MenteHubScreen() {
         image={HERO_MENTE}
         kicker="TU PILAR"
         title="Mente"
-        subtitle="Journal · respiración · meditación · check-in"
+        subtitle="Audioteca · journal · respiración · check-in"
         onBack={() => router.back()}
         rightContent={
           <AnimatedPressable
@@ -151,6 +177,23 @@ export default function MenteHubScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        {/* ── Audioteca (Sprint Audio Mente): cards por categoría desde el catálogo ── */}
+        {AUDIO_SECTIONS.map(({ categoria, label }) => {
+          const pieces = audioPieces.filter(p => p.categoria === categoria);
+          if (pieces.length === 0) return null;
+          return (
+            <Animated.View key={categoria} entering={FadeInUp.delay(30).springify()}>
+              <EliteText style={s.sectionLabel}>{label}</EliteText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: Spacing.md }}>
+                {pieces.map(piece => (
+                  <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
+                ))}
+              </ScrollView>
+            </Animated.View>
+          );
+        })}
+        {audioPieces.length > 0 && <View style={{ height: Spacing.sm }} />}
+
         <Animated.View entering={FadeInUp.delay(40).springify()}>
           <MenteHubCard
             title="Journal"
