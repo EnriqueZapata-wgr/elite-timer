@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   shouldClearPosition, sessionTypeFor, electronSourceFor,
-  effectiveListenDelta, parseProgressEntry, serializeProgressEntry,
+  applySeekToSkip, effectiveListenedAt, parseProgressEntry, serializeProgressEntry,
 } from '../mente-audio-core';
 
 describe('shouldClearPosition (retomar donde quedó)', () => {
@@ -36,37 +36,59 @@ describe('sessionTypeFor / electronSourceFor (CHECK mig 049 + espejo pantallas)'
   });
 });
 
-describe('effectiveListenDelta (delta economía: seeks no cuentan)', () => {
-  it('avance normal de reproducción suma (ticks de ~0.5s)', () => {
-    expect(effectiveListenDelta(10, 10.5)).toBeCloseTo(0.5);
-    expect(effectiveListenDelta(10, 12)).toBeCloseTo(2); // tope exacto
+describe('applySeekToSkip (A0: neto de saltos-forward)', () => {
+  it('seek adelante suma el brinco; seek atrás lo descuenta con clamp en 0', () => {
+    let net = applySeekToSkip(0, 60, 160);   // +100
+    expect(net).toBe(100);
+    net = applySeekToSkip(net, 160, 60);     // −100 → 0
+    expect(net).toBe(0);
+    expect(applySeekToSkip(0, 300, 100)).toBe(0); // retroceder nunca regala crédito
   });
 
-  it('seek hacia adelante NO suma (brincar al final no cuenta)', () => {
-    expect(effectiveListenDelta(10, 13)).toBe(0);   // salto >2s
-    expect(effectiveListenDelta(5, 590)).toBe(0);   // brinco al final
+  it('scrubbing continuo encadena deltas (neto = destino final − origen)', () => {
+    let net = 0;
+    let pos = 100;
+    for (const target of [140, 180, 220, 200]) { // drag adelante y ajusta atrás
+      net = applySeekToSkip(net, pos, target);
+      pos = target;
+    }
+    expect(net).toBe(100); // 200 − 100
   });
 
-  it('seek hacia atrás / pausa / sin avance NO suman', () => {
-    expect(effectiveListenDelta(60, 45)).toBe(0);
-    expect(effectiveListenDelta(60, 60)).toBe(0);
+  it('valores no finitos no corrompen el neto', () => {
+    expect(applySeekToSkip(50, NaN, 100)).toBe(50);
+    expect(applySeekToSkip(NaN, 10, 60)).toBe(50);
+  });
+});
+
+describe('effectiveListenedAt (A0: escucha efectiva por posición)', () => {
+  it('BACKGROUND (bug P0): pieza terminada con JS dormido cuenta completa', () => {
+    // Cero ticks JS llegaron — solo importa la posición final natural (didJustFinish).
+    expect(effectiveListenedAt(600, 0, 0, 0)).toBe(600); // ≥80% de 600 ✓
   });
 
-  it('valores no finitos no suman', () => {
-    expect(effectiveListenDelta(NaN, 10)).toBe(0);
-    expect(effectiveListenDelta(10, NaN)).toBe(0);
+  it('brincar al final NO cuenta (anti-seek)', () => {
+    // Escuchó 60s y saltó de 60→590: netSkip 530; termina en 600.
+    expect(effectiveListenedAt(600, 0, 530, 0)).toBe(70); // <80% → sin e-
   });
 
-  it('acumulando ticks reales se alcanza el 80%; con seek no', () => {
-    // 600s de pieza: 960 ticks de 0.5s = 480s efectivos = 80%.
-    let listened = 0;
-    for (let t = 0; t < 480; t += 0.5) listened += effectiveListenDelta(t, t + 0.5);
-    expect(listened).toBeCloseTo(480);
-    // Mismo punto pero saltando de 60s a 590s: solo suma lo reproducido.
-    let cheated = 0;
-    for (let t = 0; t < 60; t += 0.5) cheated += effectiveListenDelta(t, t + 0.5);
-    cheated += effectiveListenDelta(60, 590); // seek → 0
-    expect(cheated).toBeCloseTo(60);
+  it('retomar a la mitad acumula con el crédito persistido', () => {
+    // Sesión previa: 300s escuchados, salió en 300. Retoma (start=300) y termina.
+    expect(effectiveListenedAt(600, 300, 0, 300)).toBe(600);
+    // Retoma y salta 290 hacia adelante: solo 10 nuevos + 300 previos.
+    expect(effectiveListenedAt(600, 300, 290, 300)).toBe(310);
+  });
+
+  it('seek atrás y re-escucha no duplica ni castiga', () => {
+    // En 500 regresa a 400 (net −100 → clamp 0) y reproduce hasta 600.
+    const net = applySeekToSkip(0, 500, 400);
+    expect(effectiveListenedAt(600, 0, net, 0)).toBe(600);
+  });
+
+  it('guards: no finitos degradan al crédito previo', () => {
+    expect(effectiveListenedAt(NaN, 0, 0, 120)).toBe(120);
+    expect(effectiveListenedAt(600, NaN, 0, 0)).toBe(0);
+    expect(effectiveListenedAt(600, 0, 0, -5)).toBe(600);
   });
 });
 

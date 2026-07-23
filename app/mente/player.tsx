@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, ImageBackground, PanResponder, StyleSheet, View,
+  ActivityIndicator, Alert, Image, ImageBackground, PanResponder, StyleSheet, View,
   type ImageSourcePropType,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -34,7 +34,7 @@ import {
   fetchAudioPieces, getAudioUrl, getSavedProgress, savePosition, clearPosition,
   logAudioSession, type AudioPiece, type AudioElectronOutcome,
 } from '@/src/services/mente-audio-service';
-import { effectiveListenDelta } from '@/src/services/mente-audio-core';
+import { applySeekToSkip, effectiveListenedAt } from '@/src/services/mente-audio-core';
 import { localCoverFor, resolveCoverSource } from '@/src/components/mente/audio-cover';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
@@ -74,17 +74,28 @@ export default function MenteAudioPlayerScreen() {
 
   const playerRef = useRef<AudioPlayer | null>(null);
   const audioModRef = useRef<ExpoAudio | null>(null);
+  // A5: metadata del lockscreen (con artwork) para re-asertar sobre los tags
+  // embebidos del .m4a una vez que Android arma la MediaSession.
+  const lockScreenMetaRef = useRef<import('expo-audio').AudioMetadata | null>(null);
+  const metadataAssertedRef = useRef(false);
   const pieceRef = useRef<AudioPiece | null>(null);
   const finishedRef = useRef(false);
   const lastSaveRef = useRef(0);
   const positionRef = useRef(0);
   const scrubberWidthRef = useRef(1);
   const scrubbingRef = useRef(false);
-  // Delta economía: segundos EFECTIVAMENTE reproducidos (los seeks no suman —
-  // brincar al final no cuenta). Persiste junto al progreso para que retomar
-  // una pieza siga acumulando hacia el 80% comprobado.
-  const listenedRef = useRef(0);
-  const lastDeltaPosRef = useRef(0);
+  // A0 (bug P0): la escucha efectiva se deriva de la POSICIÓN, no de ticks JS
+  // (en background/lockscreen el hilo JS se pausa y los ticks no llegan).
+  // efectiva = posición − arranque − neto de saltos-forward + crédito previo.
+  const startPosRef = useRef(0);      // posición donde arrancó esta escucha
+  const netSkipRef = useRef(0);       // neto de segundos saltados con seeks
+  const priorListenedRef = useRef(0); // crédito persistido de escuchas previas
+
+  const effectiveListened = useCallback(
+    (positionSeg: number) =>
+      effectiveListenedAt(positionSeg, startPosRef.current, netSkipRef.current, priorListenedRef.current),
+    [],
+  );
 
   // ── Carga: pieza → URL firmada (gate server-side) → player ──
   useEffect(() => {
@@ -140,18 +151,24 @@ export default function MenteAudioPlayerScreen() {
       playerRef.current = player;
       player.addListener('playbackStatusUpdate', (st) => {
         if (finishedRef.current) return;
-        // Escucha efectiva: solo avances normales de reproducción (≤2s por
-        // tick con updateInterval 500ms) — un salto mayor es seek y no suma.
-        listenedRef.current += effectiveListenDelta(lastDeltaPosRef.current, st.currentTime);
-        lastDeltaPosRef.current = st.currentTime;
         if (!scrubbingRef.current) setCurrentTime(st.currentTime);
         positionRef.current = st.currentTime;
         if (st.duration > 0) setDuration(st.duration);
         setPlaying(st.playing);
-        // Persistir progreso ~cada 5s de reproducción.
+        // A5: re-asertar la metadata del lockscreen ya reproduciendo — Android
+        // puede pintar tags embebidos del .m4a al cargar el media item; esto
+        // los sobrescribe con la metadata ATP (+artwork).
+        if (st.playing && !metadataAssertedRef.current) {
+          metadataAssertedRef.current = true;
+          try { player.updateLockScreenMetadata?.(lockScreenMetaRef.current ?? {}); } catch { /* no-op */ }
+        }
+        // Persistir progreso ~cada 5s de reproducción (posición + efectiva).
         if (st.playing && Date.now() - lastSaveRef.current > 5000) {
           lastSaveRef.current = Date.now();
-          savePosition(found.slug, st.currentTime, st.duration || found.duracion_seg, listenedRef.current);
+          savePosition(
+            found.slug, st.currentTime, st.duration || found.duracion_seg,
+            effectiveListened(st.currentTime),
+          );
         }
         if (st.didJustFinish) {
           finishedRef.current = true;
@@ -159,22 +176,39 @@ export default function MenteAudioPlayerScreen() {
         }
       });
 
-      // Retomar donde quedó (posición + escucha efectiva acumulada) +
-      // controles de pantalla bloqueada.
+      // Retomar donde quedó: el seek de restauración NO cuenta como salto —
+      // define el punto de ARRANQUE de esta escucha; el crédito previo
+      // persistido entra como priorListened.
       const saved = await getSavedProgress(found.slug);
       if (saved.position > 0) {
         try { await player.seekTo(saved.position); } catch { /* desde 0 */ }
         setCurrentTime(saved.position);
         positionRef.current = saved.position;
-        lastDeltaPosRef.current = saved.position;
-        listenedRef.current = saved.listened;
+        startPosRef.current = saved.position;
+        priorListenedRef.current = saved.listened;
       }
+
+      // A5: artwork en la notificación/lockscreen — cover de la pieza (firmada
+      // si existe imagen_path; si no, el fallback editorial local resuelto a
+      // URI de asset) con el ícono ATP como último sello.
+      let artworkUrl: string | undefined;
       try {
-        player.setActiveForLockScreen(true, {
-          title: found.titulo,
-          artist: 'ATP · Mente',
-          albumTitle: CATEGORY_LABEL[found.categoria],
-        });
+        const src = await resolveCoverSource(found);
+        artworkUrl = typeof src === 'object' && src !== null && 'uri' in (src as any)
+          ? (src as { uri?: string }).uri
+          : Image.resolveAssetSource(src as any)?.uri;
+        if (!artworkUrl) {
+          artworkUrl = Image.resolveAssetSource(require('@/assets/images/icon.png'))?.uri;
+        }
+      } catch { /* sin artwork: la metadata de texto va igual */ }
+      lockScreenMetaRef.current = {
+        title: found.titulo,
+        artist: 'ATP · Mente',
+        albumTitle: CATEGORY_LABEL[found.categoria],
+        ...(artworkUrl ? { artworkUrl } : {}),
+      };
+      try {
+        player.setActiveForLockScreen(true, lockScreenMetaRef.current);
       } catch { /* binarios sin NowPlaying: sigue sonando igual */ }
 
       player.play();
@@ -188,7 +222,10 @@ export default function MenteAudioPlayerScreen() {
       if (player) {
         // Guardar posición de salida (si no terminó) y liberar.
         if (!finishedRef.current && p) {
-          savePosition(p.slug, positionRef.current, p.duracion_seg, listenedRef.current);
+          savePosition(
+            p.slug, positionRef.current, p.duracion_seg,
+            effectiveListenedAt(positionRef.current, startPosRef.current, netSkipRef.current, priorListenedRef.current),
+          );
         }
         try { player.clearLockScreenControls(); } catch { /* no-op */ }
         try { player.remove(); } catch { /* no-op */ }
@@ -207,12 +244,14 @@ export default function MenteAudioPlayerScreen() {
     if (!p) return;
     await clearPosition(p.slug);
     // El e- lo decide la escucha EFECTIVA (≥80% real) + cap server-side; la
-    // sesión se registra siempre.
+    // sesión se registra siempre. `didJustFinish` garantiza fin por
+    // reproducción natural: la efectiva sale de la duración total menos los
+    // saltos-forward — el background playback SÍ cuenta (A0).
     if (user?.id) {
-      const outcome = await logAudioSession(user.id, p, listenedRef.current);
+      const outcome = await logAudioSession(user.id, p, effectiveListened(totalSeconds));
       setElectronOutcome(outcome);
     }
-  }, [user?.id]);
+  }, [user?.id, effectiveListened]);
 
   const togglePlay = useCallback(() => {
     const player = playerRef.current;
@@ -225,8 +264,10 @@ export default function MenteAudioPlayerScreen() {
         setCompleted(false);
         setElectronOutcome(null);
         // Re-escucha desde cero: la acumulación efectiva también reinicia.
-        listenedRef.current = 0;
-        lastDeltaPosRef.current = 0;
+        startPosRef.current = 0;
+        netSkipRef.current = 0;
+        priorListenedRef.current = 0;
+        positionRef.current = 0;
         player.seekTo(0).catch(() => {});
       }
       player.play();
@@ -238,6 +279,9 @@ export default function MenteAudioPlayerScreen() {
     if (!player) return;
     haptic.light();
     const target = Math.min(Math.max(0, positionRef.current + delta), duration);
+    // A0: los saltos explícitos alimentan el neto anti-seek (adelante suma,
+    // atrás descuenta) — brincar al final no cuenta como escucha.
+    netSkipRef.current = applySeekToSkip(netSkipRef.current, positionRef.current, target);
     player.seekTo(target).catch(() => {});
     setCurrentTime(target);
     positionRef.current = target;
@@ -246,6 +290,7 @@ export default function MenteAudioPlayerScreen() {
   const seekToRatio = useCallback((ratio: number) => {
     const player = playerRef.current;
     const target = Math.min(Math.max(0, ratio), 1) * duration;
+    netSkipRef.current = applySeekToSkip(netSkipRef.current, positionRef.current, target);
     setCurrentTime(target);
     positionRef.current = target;
     if (player) player.seekTo(target).catch(() => {});
