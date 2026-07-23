@@ -31,7 +31,6 @@ describe('isMentePillarPath (Overhaul Mente A3/A4)', () => {
   it('detecta el hub, sub-rutas y las pantallas de práctica del pilar', () => {
     expect(isMentePillarPath('/mente')).toBe(true);
     expect(isMentePillarPath('/mente/player')).toBe(true);
-    expect(isMentePillarPath('/mente/descanso')).toBe(true);
     expect(isMentePillarPath('/mente/progreso')).toBe(true);
     expect(isMentePillarPath('/meditation')).toBe(true);
     expect(isMentePillarPath('/breathing')).toBe(true);

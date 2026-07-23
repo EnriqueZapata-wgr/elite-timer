@@ -1,10 +1,11 @@
 /**
- * Meditación — destino consolidado del pilar (Overhaul Mente A2).
+ * Meditación — destino consolidado del pilar (Overhaul A2 + Ajuste 2).
  *
- * La biblioteca vieja hardcodeada (morado legacy) murió: la pantalla lista el
- * catálogo real `audio_pieces` (categoría meditacion, cero hardcode) + la
- * sección "Sin guía" (timer de Silencio 5/10/15/20, que se conserva). Wim Hof
- * vive en Respiración (wim-hof-lite, con su gate de seguridad).
+ * Un solo destino con secciones internas del catálogo `audio_pieces`:
+ * GUIADAS (`meditacion`) · PARA DORMIR Y DESCANSAR (`descanso` — Descanso ES
+ * meditación, ya no es destino propio) · SIN GUÍA (timer de Silencio
+ * 5/10/15/20). Wim Hof vive en Respiración (wim-hof-lite, con su gate).
+ * Abajo: "Tus últimas sesiones" (mind_sessions type meditation — Ajuste 1).
  *
  * El timer por fases (PhasedTimerScreen) se conserva: lo usan el Silencio y
  * los deep links con meditationId (protocolos) — MEDITATION_LIBRARY sigue
@@ -38,6 +39,7 @@ import {
 } from '@/src/data/meditation-library';
 import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-service';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
+import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { phaseIndexAt } from '@/src/services/meditation-core';
@@ -98,12 +100,13 @@ function LibraryScreen({ onSelect, onBack }: {
   const [scrolled, setScrolled] = useState(false);
   const { isPro } = useSubscription();
 
-  // Catálogo real (A2): solo categoría meditacion — cero hardcode.
+  // Catálogo real (A2 + Ajuste 2): meditacion Y descanso — Descanso ya no es
+  // destino propio, es la sección "Para dormir y descansar" de esta pantalla.
   useEffect(() => {
     let alive = true;
     fetchAudioPieces().then(all => {
       if (!alive) return;
-      setPieces(all.filter(p => p.categoria === 'meditacion'));
+      setPieces(all.filter(p => p.categoria === 'meditacion' || p.categoria === 'descanso'));
       setLoaded(true);
     });
     return () => { alive = false; };
@@ -121,6 +124,8 @@ function LibraryScreen({ onSelect, onBack }: {
 
   // Sin guía: el timer de Silencio 5/10/15/20 se conserva (A2).
   const silence = useMemo(() => MEDITATION_LIBRARY.filter(m => m.type === 'silence'), []);
+  const guiadas = pieces.filter(p => p.categoria === 'meditacion');
+  const descanso = pieces.filter(p => p.categoria === 'descanso');
 
   return (
     <View style={styles.screen}>
@@ -135,14 +140,14 @@ function LibraryScreen({ onSelect, onBack }: {
           image={HERO_MENTE}
           kicker="PILAR MENTE"
           title="Meditación"
-          subtitle={loaded ? `${pieces.length} guiadas · silencio sin guía` : 'Guiadas y en silencio'}
+          subtitle={loaded ? `${pieces.length} guiadas · descanso · silencio` : 'Guiadas · descanso · silencio'}
         />
 
         <View style={styles.libBody}>
           <EliteText style={styles.libSection}>GUIADAS</EliteText>
-          {pieces.length > 0 ? (
+          {guiadas.length > 0 ? (
             <View style={styles.libGrid}>
-              {pieces.map(piece => (
+              {guiadas.map(piece => (
                 <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
               ))}
             </View>
@@ -152,6 +157,18 @@ function LibraryScreen({ onSelect, onBack }: {
                 ? 'El catálogo no cargó — revisa tu conexión e intenta de nuevo.'
                 : 'Cargando catálogo…'}
             </EliteText>
+          )}
+
+          {/* Ajuste 2: Descanso ES meditación — sección interna, no destino. */}
+          {descanso.length > 0 && (
+            <>
+              <EliteText style={styles.libSection}>PARA DORMIR Y DESCANSAR</EliteText>
+              <View style={styles.libGrid}>
+                {descanso.map(piece => (
+                  <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
+                ))}
+              </View>
+            </>
           )}
 
           <EliteText style={styles.libSection}>SIN GUÍA · SILENCIO</EliteText>
@@ -169,6 +186,9 @@ function LibraryScreen({ onSelect, onBack }: {
               </View>
             </GradientCard>
           ))}
+
+          {/* Ajuste 1: las últimas sesiones viven DENTRO de la sección. */}
+          <MenteRecentSessions type="meditation" fallbackLabel="Meditación" />
         </View>
       </ScrollView>
     </View>

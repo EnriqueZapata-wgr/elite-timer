@@ -33,6 +33,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-service';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
+import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import {
@@ -65,17 +66,6 @@ const BREATH_ICONS: Record<string, string> = {
 
 function getBreathIcon(id: string): string {
   return BREATH_ICONS[id] || 'cloud-outline';
-}
-
-function formatRelativeDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const diffH = Math.floor((Date.now() - d.getTime()) / 3600000);
-  if (diffH < 1) return 'Hace poco';
-  if (diffH < 24) return `Hace ${diffH}h`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD === 1) return 'Ayer';
-  if (diffD < 7) return `Hace ${diffD} días`;
-  return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 }
 
 // === COMPONENTE PRINCIPAL ===
@@ -206,9 +196,9 @@ function SelectorScreen({ onSelect, onBack }: {
   onBack: () => void;
 }) {
   const router = useRouter();
-  const [recentSessions, setRecentSessions] = useState<any[]>([]);
   // Overhaul A2: breathwork narrado del catálogo (pranayama_guiado y las que
-  // se sumen) — la sección "Con guía" arriba del timer visual.
+  // se sumen) — la sección "Con guía" arriba del timer visual. El historial
+  // vive en MenteRecentSessions (Ajuste 1).
   const [pieces, setPieces] = useState<AudioPiece[]>([]);
   const [scrolled, setScrolled] = useState(false);
   const { isPro } = useSubscription();
@@ -217,13 +207,6 @@ function SelectorScreen({ onSelect, onBack }: {
     let alive = true;
     fetchAudioPieces().then(all => {
       if (alive) setPieces(all.filter(p => p.categoria === 'respiracion'));
-    });
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return;
-      supabase.from('mind_sessions').select('*')
-        .eq('user_id', user.id).eq('type', 'breathing')
-        .order('created_at', { ascending: false }).limit(5)
-        .then(({ data }) => { if (alive) setRecentSessions(data ?? []); });
     });
     return () => { alive = false; };
   }, []));
@@ -312,34 +295,8 @@ function SelectorScreen({ onSelect, onBack }: {
           </AnimatedRN.View>
         ))}
 
-        {/* Historial reciente */}
-        {recentSessions.length > 0 && (
-          <View style={{ marginTop: 24 }}>
-            <Text style={{ color: '#666', fontSize: 10, fontFamily: Fonts.bold, letterSpacing: 1, marginBottom: 12 }}>
-              HISTORIAL RECIENTE
-            </Text>
-            {recentSessions.map(session => (
-              <View key={session.id} style={{
-                flexDirection: 'row', alignItems: 'center', gap: 12,
-                paddingVertical: 10,
-                borderBottomWidth: 0.5, borderBottomColor: 'rgba(255,255,255,0.05)',
-              }}>
-                <Ionicons name="checkmark-circle" size={18} color="#a8e02a" />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: '#fff', fontSize: 13, fontFamily: Fonts.semiBold }}>
-                    {session.template_name || 'Respiración'}
-                  </Text>
-                  <Text style={{ color: '#666', fontSize: 11, fontFamily: Fonts.regular }}>
-                    {Math.round((session.duration_seconds || 0) / 60)} min · {session.rounds_completed || 0} rondas
-                  </Text>
-                </View>
-                <Text style={{ color: '#666', fontSize: 11, fontFamily: Fonts.regular }}>
-                  {formatRelativeDate(session.created_at)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        )}
+        {/* Ajuste 1: las últimas sesiones viven DENTRO de la sección. */}
+        <MenteRecentSessions type="breathing" fallbackLabel="Respiración" />
 
         <View style={{ height: 40 }} />
         </View>

@@ -199,8 +199,6 @@ function RootLayout() {
                 {/* Sprint MENTE Ecosystem: hub del pilar + progreso (streaks/medallas) */}
                 <Stack.Screen name="mente" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="mente/progreso" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                {/* Overhaul Mente A1: Descanso (NSDR/pausas/sueño) — destino propio */}
-                <Stack.Screen name="mente/descanso" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Sprint Audio Mente: player full-screen (portada full-bleed) */}
                 <Stack.Screen name="mente/player" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="habits-portal" options={{ animation: 'slide_from_right' }} />

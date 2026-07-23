@@ -1,10 +1,12 @@
 /**
- * MENTE — hub del pilar (Overhaul Mente A1: doctrina menú-vs-datos).
+ * MENTE — hub del pilar (Overhaul A1 + Ajuste post-overhaul).
  *
- * El hub es SOLO navegación editorial a los destinos del pilar:
- *   Meditación · Respiración · Descanso · Journal · Check-in
- * más el acceso a Progreso (trofeo en el banner). Cero piezas de audio
- * sueltas aquí — el catálogo vive DENTRO de cada destino.
+ * Doctrina DURA menú-vs-datos: el hub es SOLO navegación editorial a
+ *   Meditación · Respiración · Journal · Check-in
+ * más el acceso a Progreso (trofeo en el banner). Cero datos sueltos: las
+ * piezas viven en cada destino y las "últimas sesiones" también (bloque
+ * MenteRecentSessions dentro de Meditación/Respiración). Descanso no es
+ * destino: sus piezas son una sección dentro de Meditación (Ajuste 2).
  *
  * A3: banner superior fijo (back + home + electrones) con blur al scrollear
  * (StickyPillarBanner); los flotantes home/ARGOS se auto-ocultan en el pilar.
@@ -21,12 +23,8 @@ import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import {
-  ACTIVITY_META,
-  formatDuration,
   formatRelativeTime,
   lastActivitySubtitle,
-  mergeRecentActivity,
-  type MenteActivity,
 } from '@/src/components/mente/mente-hub-core';
 import { supabase } from '@/src/lib/supabase';
 import { fetchJournalDates, computeJournalStreak } from '@/src/services/journal-service';
@@ -44,7 +42,6 @@ interface HubState {
   lastBreathingAt: string | null;
   lastMeditationAt: string | null;
   checkinsToday: number;
-  recent: MenteActivity[];
 }
 
 // Batch 3 (#7): asset editorial del pilar (require estático · Metro).
@@ -56,7 +53,6 @@ const EMPTY: HubState = {
   lastBreathingAt: null,
   lastMeditationAt: null,
   checkinsToday: 0,
-  recent: [],
 };
 
 export default function MenteHubScreen() {
@@ -96,25 +92,10 @@ export default function MenteHubScreen() {
       ]);
       if (!alive) return;
 
+      // Ajuste 1: el hub solo necesita el "último" por tipo para los subtítulos
+      // de las cards — el historial vive dentro de cada sección.
       const breathing = sessions.filter((s: any) => s.type === 'breathing');
       const meditation = sessions.filter((s: any) => s.type === 'meditation');
-
-      const recent = mergeRecentActivity([
-        ...sessions
-          .filter((s: any) => s.type === 'breathing' || s.type === 'meditation')
-          .map((s: any): MenteActivity => ({
-            kind: s.type,
-            label: s.template_name || ACTIVITY_META[s.type as 'breathing' | 'meditation'].label,
-            at: s.created_at,
-            durationSeconds: s.duration_seconds ?? undefined,
-          })),
-        ...journalRows.map((j: any): MenteActivity => ({
-          kind: 'journal', label: 'Journal', at: j.created_at,
-        })),
-        ...checkins.map((c: any): MenteActivity => ({
-          kind: 'checkin', label: 'Check-in', at: c.created_at,
-        })),
-      ]);
 
       setHub({
         journalStreak: computeJournalStreak(journalDates),
@@ -122,7 +103,6 @@ export default function MenteHubScreen() {
         lastBreathingAt: (breathing[0] as any)?.created_at ?? null,
         lastMeditationAt: (meditation[0] as any)?.created_at ?? null,
         checkinsToday: checkins.filter((c: any) => new Date(c.created_at) >= todayStart).length,
-        recent,
       });
     })();
     return () => { alive = false; };
@@ -156,7 +136,7 @@ export default function MenteHubScreen() {
           image={HERO_MENTE}
           kicker="TU PILAR"
           title="Mente"
-          subtitle="Meditación · respiración · descanso · journal · check-in"
+          subtitle="Meditación · respiración · journal · check-in"
         />
         <View style={{ paddingHorizontal: Spacing.md, marginVertical: Spacing.sm }}>
           <CommunityPresence pillar="mente" />
@@ -166,7 +146,7 @@ export default function MenteHubScreen() {
         <Animated.View entering={FadeInUp.delay(40).springify()}>
           <MenteHubCard
             title="Meditación"
-            subtitle={lastActivitySubtitle('Guiadas y en silencio', hub.lastMeditationAt)}
+            subtitle={lastActivitySubtitle('Guiadas · descanso · silencio', hub.lastMeditationAt)}
             icon="sparkles-outline"
             onPress={() => router.push('/meditation')}
             ctaLabel="Empezar"
@@ -187,17 +167,6 @@ export default function MenteHubScreen() {
 
         <Animated.View entering={FadeInUp.delay(140).springify()}>
           <MenteHubCard
-            title="Descanso"
-            subtitle="NSDR · pausas · sueño profundo"
-            icon="moon-outline"
-            onPress={() => router.push('/mente/descanso')}
-            ctaLabel="Explorar"
-            onCta={() => router.push('/mente/descanso')}
-          />
-        </Animated.View>
-
-        <Animated.View entering={FadeInUp.delay(190).springify()}>
-          <MenteHubCard
             title="Journal"
             subtitle={hub.lastJournalAt
               ? `Última entrada ${formatRelativeTime(hub.lastJournalAt).toLowerCase()}`
@@ -211,7 +180,7 @@ export default function MenteHubScreen() {
         </Animated.View>
 
         {/* Check-in compacto */}
-        <Animated.View entering={FadeInUp.delay(240).springify()}>
+        <Animated.View entering={FadeInUp.delay(190).springify()}>
           <AnimatedPressable
             onPress={() => { haptic.light(); router.push('/checkin'); }}
             style={s.checkinCard}
@@ -229,24 +198,6 @@ export default function MenteHubScreen() {
             </View>
           </AnimatedPressable>
         </Animated.View>
-
-        {/* Últimas sesiones */}
-        {hub.recent.length > 0 && (
-          <Animated.View entering={FadeInUp.delay(290).springify()}>
-            <EliteText style={s.sectionLabel}>ÚLTIMAS SESIONES</EliteText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.timeline}>
-              {hub.recent.map((a, i) => (
-                <View key={`${a.kind}-${a.at}-${i}`} style={s.miniCard}>
-                  <Ionicons name={ACTIVITY_META[a.kind].icon as any} size={16} color={ATP_BRAND.lime} />
-                  <EliteText style={s.miniKind}>{ACTIVITY_META[a.kind].label}</EliteText>
-                  <EliteText style={s.miniMeta} numberOfLines={1}>
-                    {[formatRelativeTime(a.at), formatDuration(a.durationSeconds)].filter(Boolean).join(' · ')}
-                  </EliteText>
-                </View>
-              ))}
-            </ScrollView>
-          </Animated.View>
-        )}
 
         <View style={{ height: Spacing.xxl }} />
         </View>
@@ -279,15 +230,4 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  sectionLabel: {
-    fontSize: 11, letterSpacing: 2, fontFamily: Fonts.semiBold, color: TEXT.secondary,
-    textTransform: 'uppercase', marginTop: Spacing.md, marginBottom: Spacing.sm,
-  },
-  timeline: { gap: Spacing.sm, paddingRight: Spacing.md },
-  miniCard: {
-    width: 128, backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border,
-    borderWidth: 0.5, borderRadius: Radius.md, padding: Spacing.sm, gap: 4,
-  },
-  miniKind: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm, color: TEXT.primary },
-  miniMeta: { fontFamily: Fonts.regular, fontSize: FontSizes.xs, color: TEXT.tertiary },
 });
