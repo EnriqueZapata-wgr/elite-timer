@@ -1,5 +1,11 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# Andamiaje local de agentes/skills (Cowork/Claude Code) — NUNCA al repo ni al
+# build nativo. Contienen symlinks (ej. .agents/skills/mediabunny) que rompen
+# el tarball de EAS en Windows (EPERM symlink).
+.agents/
+.claude/
+
 # dependencies
 node_modules/
 
