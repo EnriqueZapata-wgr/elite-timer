@@ -31,9 +31,10 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import {
-  fetchAudioPieces, getAudioUrl, getSavedPosition, savePosition, clearPosition,
-  logAudioSession, type AudioPiece,
+  fetchAudioPieces, getAudioUrl, getSavedProgress, savePosition, clearPosition,
+  logAudioSession, type AudioPiece, type AudioElectronOutcome,
 } from '@/src/services/mente-audio-service';
+import { effectiveListenDelta } from '@/src/services/mente-audio-core';
 import { localCoverFor, resolveCoverSource } from '@/src/components/mente/audio-cover';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
@@ -69,6 +70,7 @@ export default function MenteAudioPlayerScreen() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [completed, setCompleted] = useState(false);
+  const [electronOutcome, setElectronOutcome] = useState<AudioElectronOutcome | null>(null);
 
   const playerRef = useRef<AudioPlayer | null>(null);
   const audioModRef = useRef<ExpoAudio | null>(null);
@@ -78,6 +80,11 @@ export default function MenteAudioPlayerScreen() {
   const positionRef = useRef(0);
   const scrubberWidthRef = useRef(1);
   const scrubbingRef = useRef(false);
+  // Delta economía: segundos EFECTIVAMENTE reproducidos (los seeks no suman —
+  // brincar al final no cuenta). Persiste junto al progreso para que retomar
+  // una pieza siga acumulando hacia el 80% comprobado.
+  const listenedRef = useRef(0);
+  const lastDeltaPosRef = useRef(0);
 
   // ── Carga: pieza → URL firmada (gate server-side) → player ──
   useEffect(() => {
@@ -133,6 +140,10 @@ export default function MenteAudioPlayerScreen() {
       playerRef.current = player;
       player.addListener('playbackStatusUpdate', (st) => {
         if (finishedRef.current) return;
+        // Escucha efectiva: solo avances normales de reproducción (≤2s por
+        // tick con updateInterval 500ms) — un salto mayor es seek y no suma.
+        listenedRef.current += effectiveListenDelta(lastDeltaPosRef.current, st.currentTime);
+        lastDeltaPosRef.current = st.currentTime;
         if (!scrubbingRef.current) setCurrentTime(st.currentTime);
         positionRef.current = st.currentTime;
         if (st.duration > 0) setDuration(st.duration);
@@ -140,7 +151,7 @@ export default function MenteAudioPlayerScreen() {
         // Persistir progreso ~cada 5s de reproducción.
         if (st.playing && Date.now() - lastSaveRef.current > 5000) {
           lastSaveRef.current = Date.now();
-          savePosition(found.slug, st.currentTime, st.duration || found.duracion_seg);
+          savePosition(found.slug, st.currentTime, st.duration || found.duracion_seg, listenedRef.current);
         }
         if (st.didJustFinish) {
           finishedRef.current = true;
@@ -148,12 +159,15 @@ export default function MenteAudioPlayerScreen() {
         }
       });
 
-      // Retomar donde quedó + controles de pantalla bloqueada.
-      const saved = await getSavedPosition(found.slug);
-      if (saved > 0) {
-        try { await player.seekTo(saved); } catch { /* desde 0 */ }
-        setCurrentTime(saved);
-        positionRef.current = saved;
+      // Retomar donde quedó (posición + escucha efectiva acumulada) +
+      // controles de pantalla bloqueada.
+      const saved = await getSavedProgress(found.slug);
+      if (saved.position > 0) {
+        try { await player.seekTo(saved.position); } catch { /* desde 0 */ }
+        setCurrentTime(saved.position);
+        positionRef.current = saved.position;
+        lastDeltaPosRef.current = saved.position;
+        listenedRef.current = saved.listened;
       }
       try {
         player.setActiveForLockScreen(true, {
@@ -174,7 +188,7 @@ export default function MenteAudioPlayerScreen() {
       if (player) {
         // Guardar posición de salida (si no terminó) y liberar.
         if (!finishedRef.current && p) {
-          savePosition(p.slug, positionRef.current, p.duracion_seg);
+          savePosition(p.slug, positionRef.current, p.duracion_seg, listenedRef.current);
         }
         try { player.clearLockScreenControls(); } catch { /* no-op */ }
         try { player.remove(); } catch { /* no-op */ }
@@ -192,7 +206,12 @@ export default function MenteAudioPlayerScreen() {
     const p = pieceRef.current;
     if (!p) return;
     await clearPosition(p.slug);
-    if (user?.id) await logAudioSession(user.id, p, totalSeconds);
+    // El e- lo decide la escucha EFECTIVA (≥80% real) + cap server-side; la
+    // sesión se registra siempre.
+    if (user?.id) {
+      const outcome = await logAudioSession(user.id, p, listenedRef.current);
+      setElectronOutcome(outcome);
+    }
   }, [user?.id]);
 
   const togglePlay = useCallback(() => {
@@ -204,6 +223,10 @@ export default function MenteAudioPlayerScreen() {
       if (completed) {
         finishedRef.current = false;
         setCompleted(false);
+        setElectronOutcome(null);
+        // Re-escucha desde cero: la acumulación efectiva también reinicia.
+        listenedRef.current = 0;
+        lastDeltaPosRef.current = 0;
         player.seekTo(0).catch(() => {});
       }
       player.play();
@@ -326,7 +349,15 @@ export default function MenteAudioPlayerScreen() {
             </View>
 
             {completed && (
-              <EliteText style={s.completedText}>Sesión completada · registrada en tu día ✓</EliteText>
+              <EliteText style={s.completedText}>
+                {electronOutcome === 'awarded_first' || electronOutcome === 'awarded_extra'
+                  ? 'Sesión completada · registrada en tu día ✓'
+                  : electronOutcome === 'cap_reached' || electronOutcome === 'spacing'
+                    ? 'Sesión registrada · ya sumaste tu práctica, vuelve en un rato ✓'
+                    : electronOutcome === 'not_eligible'
+                      ? 'Sesión registrada · escúchala completa para sumar tu electrón'
+                      : 'Sesión completada ✓'}
+              </EliteText>
             )}
           </Animated.View>
         )}

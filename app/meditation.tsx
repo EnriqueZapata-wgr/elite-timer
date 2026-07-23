@@ -17,9 +17,9 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useTimer } from '@/hooks/use-timer';
 import { toggleCompletion } from '@/src/services/protocol-service';
-import { awardBooleanElectron } from '@/src/services/electron-service';
+import { awardPracticeElectron, type PracticeAwardStatus } from '@/src/services/electron-service';
 import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
-import { fireElectronAward } from '@/src/services/economy/electron-award-client';
+import { qualifiesForPracticeElectron } from '@/src/services/practice-electron-core';
 import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -150,6 +150,8 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
   const totalSeconds = meditation.durationMinutes * 60;
   const { timeLeft, progress, status, start, pause } = useTimer(totalSeconds);
   const [completed, setCompleted] = useState(false);
+  // Delta economía: qué pasó con el e- (≥80% real + cap 3/día + 3h server-side).
+  const [electronStatus, setElectronStatus] = useState<PracticeAwardStatus | 'not_eligible' | null>(null);
   const [currentPhaseIdx, setCurrentPhaseIdx] = useState(0);
   const prevPhaseIdx = useRef(0);
   const soundInit = useRef(false);
@@ -229,15 +231,16 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
             'Completaste la meditación, pero no pudimos registrarla. Revisa tu conexión.'
           );
         } else {
-          await awardBooleanElectron(user.id, 'meditation');
+          // Delta economía 2026-07-23: solo e- (cero Economía/H+), y solo si el
+          // tiempo real cubre ≥80% de la sesión. Cap 3/día + espaciado 3h los
+          // decide el trigger server-side (213) — aquí se falla-suave.
+          if (qualifiesForPracticeElectron(elapsed, totalSeconds)) {
+            setElectronStatus(await awardPracticeElectron(user.id, 'meditation'));
+          } else {
+            setElectronStatus('not_eligible');
+          }
           DeviceEventEmitter.emit('electrons_changed');
           DeviceEventEmitter.emit('day_changed');
-          // Economía (fire-and-forget; no-op si flag OFF). Cap 3/día; key por sesión.
-          fireElectronAward({
-            habit_type: 'meditation_in_app', evidence_tier: 'evidence', local_date: getLocalToday(),
-            idempotency_key: `meditation_in_app_${user.id}_${getLocalToday()}_${meditation.id}_${elapsed}`,
-            metadata: { template_id: meditation.id, duration_seconds: elapsed },
-          });
         }
       }
     } catch (e: any) {
@@ -287,13 +290,30 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
             {meditation.closingMessage}
           </EliteText>
 
-          {/* MB-5: el electrón ganado se muestra (antes se otorgaba en silencio). */}
-          <View style={styles.electronCard}>
-            <EliteText style={styles.electronValue}>
-              +{ELECTRON_WEIGHTS.meditation.weight.toFixed(1)} electrones
-            </EliteText>
-            <EliteText variant="caption" style={styles.electronLabel}>Meditación completada</EliteText>
-          </View>
+          {/* MB-5: el electrón ganado se muestra (antes se otorgaba en silencio).
+              Delta economía: solo si de verdad se otorgó (≥80% + cap/espaciado). */}
+          {(electronStatus === 'awarded_first' || electronStatus === 'awarded_extra') && (
+            <View style={styles.electronCard}>
+              <EliteText style={styles.electronValue}>
+                +{ELECTRON_WEIGHTS.meditation.weight.toFixed(1)} electrones
+              </EliteText>
+              <EliteText variant="caption" style={styles.electronLabel}>Meditación completada</EliteText>
+            </View>
+          )}
+          {(electronStatus === 'cap_reached' || electronStatus === 'spacing') && (
+            <View style={styles.electronCard}>
+              <EliteText variant="caption" style={styles.electronLabel}>
+                Ya registraste tu práctica — vuelve en un rato para sumar otro electrón.
+              </EliteText>
+            </View>
+          )}
+          {electronStatus === 'not_eligible' && (
+            <View style={styles.electronCard}>
+              <EliteText variant="caption" style={styles.electronLabel}>
+                Registramos tu tiempo real. Completa al menos el 80% para sumar tu electrón.
+              </EliteText>
+            </View>
+          )}
 
           <GradientCTA label="CONTINUAR" onPress={onComplete} />
         </View>

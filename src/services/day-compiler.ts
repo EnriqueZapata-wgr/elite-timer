@@ -183,11 +183,15 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     supabase.from('emotional_checkins').select('pleasantness, quadrant, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('glucose_logs').select('value_mg_dl, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
-    // Conteo de actividad real del día para los electrones verificados:
-    supabase.from('mind_sessions').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today).eq('type', 'meditation'),
-    supabase.from('mind_sessions').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today).eq('type', 'breathing'),
+    // Conteo de actividad real del día para los electrones verificados.
+    // Delta economía 2026-07-23: meditación/breathwork ya NO cuentan
+    // mind_sessions (una sesión <80% se registra pero no palomea) — la card se
+    // marca con el 1er e- del día en electron_logs (award gateado por ≥80% en
+    // cliente + cap 3/día + espaciado 3h en el trigger 213).
+    supabase.from('electron_logs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today).eq('source', 'meditation').eq('category', 'boolean_daily'),
+    supabase.from('electron_logs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today).eq('source', 'breathwork').eq('category', 'boolean_daily'),
     supabase.from('exercise_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today),
     supabase.from('supplement_logs').select('id', { count: 'exact', head: true })
@@ -314,8 +318,13 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   // Reconciliar electron_logs para los verificados: si hay drift entre lo
   // derivado y el ledger (raro), corregirlo idempotentemente. Esto mantiene
   // honestos tanto el score del día como el rank acumulado.
+  // Delta economía: meditación/breathwork se EXCLUYEN — su `completed` ya se
+  // deriva del propio ledger (circular: nunca hay drift que corregir) y un
+  // award del reconcile brincaría el gate de ≥80%; además el revoke borraría
+  // los 3 e- del día de un source capeado.
   // Fire-and-forget: no bloquea el compile si la reconciliación falla.
-  reconcileVerifiedLedger(userId, today, verifiedCompleted).catch(e => {
+  const { meditation: _m, breathwork: _b, ...reconcilable } = verifiedCompleted;
+  reconcileVerifiedLedger(userId, today, reconcilable).catch(e => {
     logWarn('[compileDay] reconcileVerifiedLedger failed', e);
   });
 

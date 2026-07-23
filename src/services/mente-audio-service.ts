@@ -15,12 +15,14 @@ import { DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { supabase } from '@/src/lib/supabase';
-import { awardBooleanElectron } from '@/src/services/electron-service';
-import { fireElectronAward } from '@/src/services/economy/electron-award-client';
+import { awardPracticeElectron, type PracticeAwardStatus } from '@/src/services/electron-service';
+import { qualifiesForPracticeElectron } from '@/src/services/practice-electron-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { generateUUID } from '@/src/utils/uuid';
 
-import { shouldClearPosition, sessionTypeFor, electronSourceFor } from './mente-audio-core';
+import {
+  shouldClearPosition, sessionTypeFor, electronSourceFor,
+  parseProgressEntry, serializeProgressEntry, type StoredAudioProgress,
+} from './mente-audio-core';
 import type { AudioPiece, AudioCategoria } from './mente-audio-service-types';
 
 export type { AudioPiece, AudioCategoria };
@@ -70,7 +72,8 @@ export async function getAudioUrl(slug: string): Promise<AudioUrlResult> {
 
 const PROGRESS_KEY = '@atp/mente_audio_progress';
 
-type ProgressMap = Record<string, number>; // slug → segundos
+// slug → número (formato viejo: posición) | { p, l } (posición + escucha efectiva)
+type ProgressMap = Record<string, unknown>;
 
 async function readProgressMap(): Promise<ProgressMap> {
   try {
@@ -82,22 +85,29 @@ async function readProgressMap(): Promise<ProgressMap> {
   }
 }
 
-/** Posición guardada (segundos) o 0. */
-export async function getSavedPosition(slug: string): Promise<number> {
+/**
+ * Progreso guardado: posición para retomar + segundos EFECTIVOS ya escuchados
+ * (delta economía: la acumulación hacia el 80% sobrevive salir del player).
+ */
+export async function getSavedProgress(slug: string): Promise<StoredAudioProgress> {
   const map = await readProgressMap();
-  const v = map[slug];
-  return typeof v === 'number' && isFinite(v) && v > 0 ? v : 0;
+  return parseProgressEntry(map[slug]) ?? { position: 0, listened: 0 };
 }
 
 /**
- * Guarda posición. Cerca del final (<30s restantes) o al inicio (<10s) se
- * limpia: la próxima escucha empieza de cero.
+ * Guarda posición + escucha efectiva. Cerca del final (<30s restantes) o al
+ * inicio (<10s) se limpia: la próxima escucha empieza de cero.
  */
-export async function savePosition(slug: string, positionSeg: number, duracionSeg: number): Promise<void> {
+export async function savePosition(
+  slug: string,
+  positionSeg: number,
+  duracionSeg: number,
+  listenedSeg = 0,
+): Promise<void> {
   try {
     const map = await readProgressMap();
     if (shouldClearPosition(positionSeg, duracionSeg)) delete map[slug];
-    else map[slug] = Math.floor(positionSeg);
+    else map[slug] = serializeProgressEntry(positionSeg, listenedSeg);
     await AsyncStorage.setItem(PROGRESS_KEY, JSON.stringify(map));
   } catch { /* fail-soft */ }
 }
@@ -112,12 +122,23 @@ export async function clearPosition(slug: string): Promise<void> {
 
 // ── Registro de sesión completada ───────────────────────────────────────────
 
+export type AudioElectronOutcome = PracticeAwardStatus | 'not_eligible' | 'session_error';
+
 /**
  * Loguea la sesión en mind_sessions + electrón. Llamar al COMPLETAR la pieza
  * (didJustFinish) — no en pausas. type respeta el CHECK de la migración 049:
  * respiracion → 'breathing'; meditacion/descanso → 'meditation'.
+ *
+ * Delta economía 2026-07-23: `effectiveSeconds` son los segundos REALMENTE
+ * reproducidos (los seeks no cuentan). El e- solo se otorga si cubren ≥80%
+ * de la pieza; la sesión se registra igual. Cero Economía/H+ aquí — las
+ * prácticas dan solo e- (cap 3/día + 3h server-side, trigger 213).
  */
-export async function logAudioSession(userId: string, piece: AudioPiece, secondsListened: number): Promise<void> {
+export async function logAudioSession(
+  userId: string,
+  piece: AudioPiece,
+  effectiveSeconds: number,
+): Promise<AudioElectronOutcome> {
   const type = sessionTypeFor(piece.categoria);
   try {
     const { error } = await supabase.from('mind_sessions').insert({
@@ -125,24 +146,20 @@ export async function logAudioSession(userId: string, piece: AudioPiece, seconds
       type,
       template_id: `audio_${piece.slug}`,
       template_name: piece.titulo,
-      duration_seconds: Math.round(secondsListened),
+      duration_seconds: Math.round(effectiveSeconds),
       date: getLocalToday(),
     });
-    if (error) return;
-    // Espejo de meditation.tsx / breathing.tsx: fuente de electrón por tipo.
-    const source = electronSourceFor(type);
-    await awardBooleanElectron(userId, source).catch(() => {});
+    if (error) return 'session_error';
+    let outcome: AudioElectronOutcome = 'not_eligible';
+    if (qualifiesForPracticeElectron(effectiveSeconds, piece.duracion_seg)) {
+      // Espejo de meditation.tsx / breathing.tsx: fuente de electrón por tipo.
+      const source = electronSourceFor(type);
+      outcome = await awardPracticeElectron(userId, source).catch(() => 'error' as const);
+    }
     DeviceEventEmitter.emit('electrons_changed');
     DeviceEventEmitter.emit('day_changed');
-    if (source === 'meditation') {
-      // Economía (fire-and-forget, cap diario) — mismo habit_type que el timer.
-      fireElectronAward({
-        habit_type: 'meditation_in_app',
-        evidence_tier: 'evidence',
-        local_date: getLocalToday(),
-        idempotency_key: `meditation_in_app_${userId}_${getLocalToday()}_audio_${piece.slug}_${generateUUID().slice(0, 8)}`,
-        metadata: { source: 'mente_audio', slug: piece.slug, duration_seconds: Math.round(secondsListened) },
-      });
-    }
-  } catch { /* fail-soft */ }
+    return outcome;
+  } catch {
+    return 'session_error';
+  }
 }

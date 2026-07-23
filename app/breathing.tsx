@@ -15,8 +15,9 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { toggleCompletion } from '@/src/services/protocol-service';
-import { awardBooleanElectron } from '@/src/services/electron-service';
+import { awardPracticeElectron, type PracticeAwardStatus } from '@/src/services/electron-service';
 import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
+import { qualifiesForPracticeElectron } from '@/src/services/practice-electron-core';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
 import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
 import {
@@ -34,6 +35,7 @@ import {
   advanceBreathSecond,
   phaseColor,
   phaseTargetScale,
+  templateTotalSeconds,
   INITIAL_STEP,
   type BreathStep,
 } from '@/src/services/breath-timer-core';
@@ -409,11 +411,12 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
 }) {
   useKeepAwake();
 
-  const cycleSeconds = template.phases.reduce((sum, p) => sum + p.seconds, 0);
-  const totalSeconds = template.cycles * cycleSeconds;
+  const totalSeconds = templateTotalSeconds(template);
 
   // MB-5: 'preparing' = cuenta 3-2-1 antes de la primera inhalación (estado explícito).
   const [status, setStatus] = useState<'idle' | 'preparing' | 'running' | 'paused' | 'completed'>('idle');
+  // Delta economía: qué pasó con el e- (≥80% real + cap 3/día + 3h server-side).
+  const [electronStatus, setElectronStatus] = useState<PracticeAwardStatus | 'not_eligible' | null>(null);
   const [prepLeft, setPrepLeft] = useState(3);
   const [currentCycle, setCurrentCycle] = useState(0);
   const [currentPhaseIdx, setCurrentPhaseIdx] = useState(0);
@@ -548,8 +551,13 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             'Completaste la respiración, pero no pudimos registrarla. Revisa tu conexión.'
           );
         } else {
-          // Electrón breathwork
-          await awardBooleanElectron(user.id, 'breathwork');
+          // Delta economía 2026-07-23: e- solo con ≥80% del tiempo real; cap
+          // 3/día + espaciado 3h los decide el trigger server-side (213).
+          if (qualifiesForPracticeElectron(totalElapsed, totalSeconds)) {
+            setElectronStatus(await awardPracticeElectron(user.id, 'breathwork'));
+          } else {
+            setElectronStatus('not_eligible');
+          }
           DeviceEventEmitter.emit('electrons_changed');
           DeviceEventEmitter.emit('day_changed');
         }
@@ -614,15 +622,28 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             {template.closingMessage}
           </EliteText>
 
-          {/* Electrón ganado */}
+          {/* Electrón ganado — Delta economía: solo si de verdad se otorgó
+              (≥80% real + cap/espaciado server-side); si no, mensaje suave. */}
           <View style={{
             backgroundColor: 'rgba(168,224,42,0.1)', borderRadius: 16,
             padding: 16, marginVertical: 16, width: '80%', alignItems: 'center',
           }}>
-            <Text style={{ color: '#a8e02a', fontSize: 18, fontFamily: Fonts.extraBold }}>
-              +{ELECTRON_WEIGHTS.breathwork.weight.toFixed(1)} {ELECTRON_WEIGHTS.breathwork.weight === 1 ? 'electrón' : 'electrones'}
-            </Text>
-            <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 4 }}>Breathwork completado</Text>
+            {electronStatus === 'awarded_first' || electronStatus === 'awarded_extra' ? (
+              <>
+                <Text style={{ color: '#a8e02a', fontSize: 18, fontFamily: Fonts.extraBold }}>
+                  +{ELECTRON_WEIGHTS.breathwork.weight.toFixed(1)} {ELECTRON_WEIGHTS.breathwork.weight === 1 ? 'electrón' : 'electrones'}
+                </Text>
+                <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 4 }}>Breathwork completado</Text>
+              </>
+            ) : (
+              <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center' }}>
+                {electronStatus === 'cap_reached' || electronStatus === 'spacing'
+                  ? 'Ya registraste tu práctica — vuelve en un rato para sumar otro electrón.'
+                  : electronStatus === 'not_eligible'
+                    ? 'Registramos tu tiempo real. Completa al menos el 80% para sumar tu electrón.'
+                    : 'Sesión registrada.'}
+              </Text>
+            )}
           </View>
 
           <GradientCTA label="CONTINUAR" onPress={onComplete} />
