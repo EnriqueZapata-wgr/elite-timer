@@ -51,6 +51,7 @@ const CATEGORY_LABEL: Record<AudioPiece['categoria'], string> = {
   descanso: 'DESCANSO',
   mantra: 'MANTRA',
   visualizacion: 'VISUALIZACIÓN',
+  binaural: 'BINAURAL',
 };
 
 // Texto del hard gate (Ajuste v2 · 5) — copy aprobado en el brief, verbatim.
@@ -273,6 +274,9 @@ export default function MenteAudioPlayerScreen() {
     const p = pieceRef.current;
     if (!p) return;
     await clearPosition(p.slug);
+    // Binaurales (219): audio-utilidad de fondo, NO sesión — cero
+    // mind_sessions/e-. Solo se marca completado en pantalla.
+    if (p.categoria === 'binaural') return;
     // El e- lo decide la escucha EFECTIVA (≥80% real) + cap server-side; la
     // sesión se registra siempre. `didJustFinish` garantiza fin por
     // reproducción natural: la efectiva sale de la duración total menos los
@@ -490,7 +494,9 @@ export default function MenteAudioPlayerScreen() {
 
             {completed && (
               <EliteText style={s.completedText}>
-                {electronOutcome === 'awarded_first' || electronOutcome === 'awarded_extra'
+                {piece?.categoria === 'binaural'
+                  ? 'Audio completado ✓'
+                  : electronOutcome === 'awarded_first' || electronOutcome === 'awarded_extra'
                   ? 'Sesión completada · registrada en tu día ✓'
                   : electronOutcome === 'cap_reached' || electronOutcome === 'spacing'
                     ? 'Sesión registrada · ya sumaste tu práctica, vuelve en un rato ✓'

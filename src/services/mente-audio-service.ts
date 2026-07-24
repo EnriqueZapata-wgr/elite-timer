@@ -184,6 +184,9 @@ export async function logAudioSession(
   piece: AudioPiece,
   effectiveSeconds: number,
 ): Promise<AudioElectronOutcome> {
+  // Binaurales (219): audio-utilidad, no sesión — jamás mind_sessions ni e-.
+  // El player ya no llama aquí para binaural; esta guardia blinda call-sites futuros.
+  if (piece.categoria === 'binaural') return 'not_eligible';
   const type = sessionTypeFor(piece.categoria);
   try {
     const { error } = await supabase.from('mind_sessions').insert({

@@ -141,6 +141,7 @@ function LibraryScreen({ onSelect, onBack }: {
   const visualizacion = pieces.filter(p => p.categoria === 'visualizacion');
   const mantras = pieces.filter(p => p.categoria === 'mantra');
   const descanso = pieces.filter(p => p.categoria === 'descanso');
+  const binaurales = pieces.filter(p => p.categoria === 'binaural');
 
   return (
     <View style={styles.screen}>
@@ -216,6 +217,22 @@ function LibraryScreen({ onSelect, onBack }: {
               <EliteText style={styles.libSection}>PARA DORMIR Y DESCANSAR</EliteText>
               <View style={styles.libGrid}>
                 {descanso.map(piece => (
+                  <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {/* Binaurales (219): audio-utilidad de fondo — sin voz, sin e-.
+              Copy honesto: ondas + estado, cero claim curativo. */}
+          {binaurales.length > 0 && (
+            <>
+              <EliteText style={styles.libSection}>BINAURALES</EliteText>
+              <EliteText variant="caption" style={styles.libHint}>
+                Mejor con auriculares — el efecto binaural los necesita.
+              </EliteText>
+              <View style={styles.libGrid}>
+                {binaurales.map(piece => (
                   <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
                 ))}
               </View>
@@ -521,6 +538,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
   libGrid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Spacing.sm },
+  libHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: -4, marginBottom: Spacing.sm },
   libEmpty: { color: Colors.textSecondary, fontSize: FontSizes.sm },
   libCard: { marginBottom: Spacing.xs },
   libCardBody: {
