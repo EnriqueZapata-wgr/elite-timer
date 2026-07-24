@@ -167,6 +167,17 @@ export default function MenteHubScreen() {
 
         <Animated.View entering={FadeInUp.delay(140).springify()}>
           <MenteHubCard
+            title="N-Back"
+            subtitle="Entrena tu memoria de trabajo · reto 20 días"
+            icon="grid-outline"
+            onPress={() => router.push('/mente/nback')}
+            ctaLabel="Entrenar"
+            onCta={() => router.push('/mente/nback')}
+          />
+        </Animated.View>
+
+        <Animated.View entering={FadeInUp.delay(190).springify()}>
+          <MenteHubCard
             title="Journal"
             subtitle={hub.lastJournalAt
               ? `Última entrada ${formatRelativeTime(hub.lastJournalAt).toLowerCase()}`
@@ -180,7 +191,7 @@ export default function MenteHubScreen() {
         </Animated.View>
 
         {/* Check-in compacto */}
-        <Animated.View entering={FadeInUp.delay(190).springify()}>
+        <Animated.View entering={FadeInUp.delay(240).springify()}>
           <AnimatedPressable
             onPress={() => { haptic.light(); router.push('/checkin'); }}
             style={s.checkinCard}

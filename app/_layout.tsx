@@ -201,6 +201,11 @@ function RootLayout() {
                 <Stack.Screen name="mente/progreso" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Sprint Audio Mente: player full-screen (portada full-bleed) */}
                 <Stack.Screen name="mente/player" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
+                {/* N-Back (spec 2026-07-23): módulo cognitivo del pilar Mente */}
+                <Stack.Screen name="mente/nback/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="mente/nback/sesion" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
+                <Stack.Screen name="mente/nback/stats" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="mente/nback/como-jugar" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="habits-portal" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz/chronotype" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
