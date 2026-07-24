@@ -29,20 +29,15 @@ import {
 import { parseLocalDate } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, ELEVATION, SEMANTIC, TEXT, withOpacity } from '@/src/constants/brand';
+import { JOURNAL_TYPE_META as TYPE_META } from '@/src/constants/journal-types';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/** Mismos tipos/colores que el composer (app/journal.tsx). */
-const TYPE_META: Record<string, { label: string; color: string }> = {
-  free: { label: 'Libre', color: '#8a8a8a' },
-  gratitude: { label: 'Gratitud', color: '#D4537E' },
-  vision: { label: 'Visión', color: '#1D9E75' },
-  stoic: { label: 'Estoico', color: '#7F77DD' },
-  work_dump: { label: 'Descarga', color: '#EF9F27' },
-};
+// V1.5 (3.3): TYPE_META ahora es JOURNAL_TYPE_META (fuente única con el
+// composer, deriva de CATEGORY_COLORS) — el hardcode local podía driftear.
 
 const RANGES: { label: string; days: number | null }[] = [
   { label: '7 días', days: 7 },

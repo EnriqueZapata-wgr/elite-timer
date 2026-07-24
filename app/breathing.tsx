@@ -26,7 +26,8 @@ import {
 } from '@/src/services/safety/protocol-gate-core';
 import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
 import { getSafetyParams, DEFAULT_SAFETY_PARAMS } from '@/src/services/safety/safety-params-service';
-import { playBeep, initAudio } from '@/src/utils/sounds';
+import { playChime, initAudio } from '@/src/utils/sounds';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -45,7 +46,7 @@ import {
   type BreathStep,
 } from '@/src/services/breath-timer-core';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, ATP_BRAND } from '@/src/constants/brand';
+import { CATEGORY_COLORS, ATP_BRAND } from '@/src/constants/brand';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
@@ -505,7 +506,8 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     haptic.light();
     const t = setTimeout(() => {
       if (prepLeft > 1) { setPrepLeft(p => p - 1); return; }
-      try { playBeep(0.5); } catch { vibrateMedium(); }
+      // G14 (V1.5): cuenco suave — fuera el beep 8-bits del timer de Fitness.
+      try { playChime(0.6); } catch { vibrateMedium(); }
       setStatus('running');
     }, 1000);
     return () => clearTimeout(t);
@@ -521,9 +523,9 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     if (completedRef.current) return;
     completedRef.current = true;
     setStatus('completed');
-    try { initAudio(); playBeep(0.5); } catch { /* */ }
+    try { initAudio(); playChime(0.6); } catch { /* */ }
     vibrateMedium();
-    setTimeout(() => { try { playBeep(0.5); } catch { /* */ } vibrateMedium(); }, 1500);
+    setTimeout(() => { try { playChime(0.6); } catch { /* */ } vibrateMedium(); }, 1500);
 
     // Protocolo
     if (protocolItemId) {
@@ -663,27 +665,35 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
         {/* Header */}
         <EliteText style={styles.timerTitle}>{template.title}</EliteText>
 
-        {/* Círculo animado — color por fase (T2 MENTE) */}
+        {/* G15 (V1.5): la palabra de fase vive FUERA de la esfera — solo la
+            esfera respira; el texto no se estira con la escala. */}
+        <EliteText style={[styles.actionText, { color: ringColor }]}>
+          {status === 'idle' ? 'Listo' : status === 'preparing' ? 'Prepárate' : currentPhase?.label ?? ''}
+        </EliteText>
+
+        {/* Esfera animada — color por fase (T2 MENTE), gradiente de profundidad
+            (highlight arriba-izq → sombra abajo-der) + glow del color de fase.
+            Antes: rectángulo redondeado con relleno translúcido ("caja negra"). */}
         <View style={styles.circleContainer}>
           <RNAnimated.View style={[
-            styles.breathCircle,
+            styles.breathSphere,
             {
               transform: [{ scale: scaleAnim }],
-              borderColor: ringColor,
-              backgroundColor: `${ringColor}15`,
+              backgroundColor: ringColor,
               shadowColor: ringColor,
             },
           ]}>
-            <EliteText style={styles.actionText}>
-              {status === 'idle' ? 'Listo' : status === 'preparing' ? 'Prepárate' : currentPhase?.label ?? ''}
-            </EliteText>
+            <LinearGradient
+              colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0.05)', 'rgba(0,0,0,0.45)']}
+              start={{ x: 0.15, y: 0.08 }}
+              end={{ x: 0.85, y: 0.95 }}
+              style={styles.sphereShade}
+            />
             {status === 'preparing' && (
-              <EliteText style={[styles.phaseCountdown, { color: ringColor }]}>
-                {prepLeft}
-              </EliteText>
+              <EliteText style={styles.sphereCount}>{prepLeft}</EliteText>
             )}
             {!preSession && (
-              <EliteText style={[styles.phaseCountdown, { color: ringColor }]}>
+              <EliteText style={styles.sphereCount}>
                 {currentPhase ? currentPhase.seconds - secondsInPhase : 0}
               </EliteText>
             )}
@@ -788,19 +798,23 @@ const styles = StyleSheet.create({
     width: CIRCLE_SIZE * 1.6, height: CIRCLE_SIZE * 1.6,
     alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg,
   },
-  breathCircle: {
-    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: Radius.pill,
-    backgroundColor: PURPLE + '15', borderWidth: 3, borderColor: PURPLE,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: PURPLE, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3, shadowRadius: 25, elevation: 8,
+  // G15 (V1.5): esfera real (borderRadius = mitad exacta; antes Radius.pill=50
+  // sobre 200px → ni cuadrado ni círculo) con gradiente de profundidad y glow.
+  breathSphere: {
+    width: CIRCLE_SIZE, height: CIRCLE_SIZE, borderRadius: CIRCLE_SIZE / 2,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45, shadowRadius: 30, elevation: 10,
+  },
+  sphereShade: { ...StyleSheet.absoluteFillObject, borderRadius: CIRCLE_SIZE / 2 },
+  // Número flotando sobre la esfera — sombra de texto, sin caja (G15).
+  sphereCount: {
+    fontSize: 54, fontFamily: Fonts.extraBold, color: '#fff', fontVariant: ['tabular-nums'],
+    textShadowColor: 'rgba(0,0,0,0.55)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10,
   },
   actionText: {
-    fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: TEXT_COLORS.primary, letterSpacing: 2,
-  },
-  phaseCountdown: {
-    fontSize: 40, fontFamily: Fonts.extraBold, color: PURPLE, fontVariant: ['tabular-nums'],
-    marginTop: Spacing.xs,
+    fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, letterSpacing: 3,
+    marginBottom: Spacing.md, textTransform: 'uppercase',
   },
 
   // Info

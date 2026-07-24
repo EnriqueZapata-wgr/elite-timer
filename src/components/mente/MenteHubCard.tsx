@@ -29,14 +29,16 @@ interface Props {
   badge?: string;
   /** Placeholder para imagen editorial B/N (MJ pendiente). */
   imageBn?: ImageSourcePropType;
+  /** Acento del icono (V1.5 · cards de práctica del Journal). Default: blanco. */
+  iconColor?: string;
 }
 
-export function MenteHubCard({ title, subtitle, icon, onPress, ctaLabel, onCta, badge, imageBn }: Props) {
+export function MenteHubCard({ title, subtitle, icon, onPress, ctaLabel, onCta, badge, imageBn, iconColor }: Props) {
   const inner = (
     <View style={s.body}>
       <View style={s.topRow}>
         <View style={s.iconCircle}>
-          <Ionicons name={icon} size={20} color={TEXT.primary} />
+          <Ionicons name={icon} size={20} color={iconColor ?? TEXT.primary} />
         </View>
         <View style={{ flex: 1 }}>
           <EliteText style={s.title}>{title}</EliteText>

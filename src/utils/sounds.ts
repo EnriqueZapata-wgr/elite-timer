@@ -35,6 +35,9 @@ const ASSETS = {
   whistle: require('@/assets/sounds/whistle.mp3'),
   military: require('@/assets/sounds/millitary.mp3'),
   complete: require('@/assets/sounds/complete.mp3'),
+  // V1.5 (G14): cuenco suave para Respiración — independiente del estilo del
+  // timer de Fitness (currentStyle NO aplica; 'silent' tampoco lo muda).
+  chime: require('@/assets/sounds/chime.wav'),
 };
 
 // === MAPEO DE ESTILOS ===
@@ -106,6 +109,7 @@ export async function initAudio(): Promise<void> {
     preload('whistle', ASSETS.whistle),
     preload('military', ASSETS.military),
     preload('complete', ASSETS.complete),
+    preload('chime', ASSETS.chime),
   ]);
   isInitialized = true;
 }
@@ -160,6 +164,13 @@ export function playSound(name: string, volume: number = 0.7): void {
 // Mantener export para compatibilidad con settings "Probar sonido"
 export function playBeep(volume: number = 0.7): void {
   playStepStart(volume);
+}
+
+/** V1.5 (G14): cue de Respiración — cuenco suave SIEMPRE (no pasa por
+ * STYLE_MAP ni por currentStyle: el estilo del timer de Fitness no debe
+ * filtrarse a Mente). */
+export function playChime(volume: number = 0.6): void {
+  play('chime', volume);
 }
 
 /** Limpiar cache al desmontar */

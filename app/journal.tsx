@@ -4,13 +4,12 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert, DeviceEventEmitter, Switch } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert, DeviceEventEmitter, Switch, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
-import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 import { HelpButton } from '@/src/components/HelpButton';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
@@ -23,6 +22,8 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG, ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
+import { JOURNAL_TYPES } from '@/src/constants/journal-types';
+import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
 import { Screen } from '@/src/components/ui/Screen';
 import { router, useFocusEffect } from 'expo-router';
 import * as Notifications from 'expo-notifications';
@@ -34,13 +35,8 @@ const PURPLE = CATEGORY_COLORS.mind;
 // #138: hero editorial del pilar (require estático · Metro). Journal reusa mente.jpg.
 const HERO_MENTE = require('@/assets/images/intervenciones/mente.jpg');
 
-// MB-8 higiene: colores por token (CATEGORY_COLORS), no hex hardcodeado.
-const JOURNAL_TYPES = [
-  { key: 'gratitude', label: 'Gratitud', icon: 'heart-outline' as const, color: CATEGORY_COLORS.cycle, description: '9 preguntas de agradecimiento' },
-  { key: 'vision', label: 'Visión', icon: 'telescope-outline' as const, color: CATEGORY_COLORS.metrics, description: 'Tu futuro en 1, 3 y 5 años' },
-  { key: 'stoic', label: 'Estoico', icon: 'library-outline' as const, color: PURPLE, description: 'Reflexión al estilo Séneca' },
-  { key: 'work_dump', label: 'Descarga', icon: 'briefcase-outline' as const, color: CATEGORY_COLORS.optimization, description: 'Vacía pendientes de tu cabeza' },
-] as const;
+// V1.5 (3.3): JOURNAL_TYPES vive en src/constants/journal-types.ts — fuente
+// única compartida con journal-history (mata el TYPE_META duplicado).
 
 const STOIC_QUESTIONS = [
   '¿Qué hice bien hoy?',
@@ -324,8 +320,17 @@ export default function JournalScreen() {
   if (selectedType) {
     const typeInfo = JOURNAL_TYPES.find(t => t.key === selectedType)!;
     return (
-      <Screen>
-        <PillarHeader pillar="mind" title="Journal" />
+      <Screen edges={['top']}>
+        {/* 3.3 (V1.5): el editor también carga hero editorial — antes caía del
+            hero del home a un header de texto pelón (nivel-down). El back del
+            hero regresa al selector. */}
+        <MenteHero
+          image={HERO_MENTE}
+          kicker="PILAR MENTE · JOURNAL"
+          title={typeInfo.label}
+          subtitle={typeInfo.description}
+          onBack={() => { haptic.light(); setSelectedType(null); resetForm(); }}
+        />
         {/* I18 (V1.5): insets nativos del teclado en vez del KAV de Screen —
             scrollea al input enfocado Y restaura al cerrar (iOS). Android:
             softwareKeyboardLayoutMode resize (app.json). */}
@@ -336,18 +341,6 @@ export default function JournalScreen() {
           automaticallyAdjustKeyboardInsets
           keyboardDismissMode="interactive"
         >
-          {/* Botón volver */}
-          <Pressable onPress={() => { haptic.light(); setSelectedType(null); resetForm(); }} style={s.backBtn}>
-            <Ionicons name="arrow-back" size={18} color={TEXT_COLORS.secondary} />
-            <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm }}>Volver</EliteText>
-          </Pressable>
-
-          {/* Título del tipo */}
-          <Animated.View entering={FadeInUp.delay(50).springify()} style={s.formHeader}>
-            <Ionicons name={typeInfo.icon} size={24} color={typeInfo.color} />
-            <EliteText style={[s.formTitle, { color: typeInfo.color }]}>{typeInfo.label}</EliteText>
-          </Animated.View>
-
           {/* Mood antes */}
           <Animated.View entering={FadeInUp.delay(100).springify()}>
             <EliteText variant="caption" style={s.label}>¿Cómo te sientes ahora?</EliteText>
@@ -413,18 +406,17 @@ export default function JournalScreen() {
       />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
 
+        {/* 3.3 (V1.5): cards de práctica al vocabulario de MenteHubCard —
+            antes eran renglones planos con borde de color a la izquierda. */}
         {JOURNAL_TYPES.map((type, idx) => (
           <StaggerItem key={type.key} index={idx}>
-            <AnimatedPressable onPress={() => { haptic.light(); setSelectedType(type.key); }}>
-              <View style={[s.typeCard, { borderLeftColor: type.color }]}>
-                <Ionicons name={type.icon} size={22} color={type.color} />
-                <View style={s.typeInfo}>
-                  <EliteText style={s.typeLabel}>{type.label}</EliteText>
-                  <EliteText variant="caption" style={s.typeDesc}>{type.description}</EliteText>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.muted} />
-              </View>
-            </AnimatedPressable>
+            <MenteHubCard
+              title={type.label}
+              subtitle={type.description}
+              icon={type.icon}
+              iconColor={type.color}
+              onPress={() => { haptic.light(); setSelectedType(type.key); }}
+            />
           </StaggerItem>
         ))}
 
@@ -502,6 +494,20 @@ export default function JournalScreen() {
 
 // ═══ FORMULARIOS ═══
 
+/** 3.3 (V1.5): input con focus state — borde del pilar al enfocar, sin brincos
+ * de layout (el borde transparente ya está reservado en s.input). */
+function JournalInput({ style, onFocus, onBlur, ...rest }: TextInputProps) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <TextInput
+      {...rest}
+      style={[s.input, focused && s.inputFocused, style]}
+      onFocus={(e) => { setFocused(true); onFocus?.(e); }}
+      onBlur={(e) => { setFocused(false); onBlur?.(e); }}
+    />
+  );
+}
+
 function GratitudeForm({ personal, setPersonal, professional, setProfessional, self, setSelf, sex }: {
   personal: string[]; setPersonal: (v: string[]) => void;
   professional: string[]; setProfessional: (v: string[]) => void;
@@ -523,7 +529,7 @@ function GratitudeForm({ personal, setPersonal, professional, setProfessional, s
         <View key={sec.title} style={s.formSection}>
           <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.cycle }]}>{sec.title}</EliteText>
           {sec.data.map((val, i) => (
-            <TextInput key={i} style={s.input} value={val} onChangeText={v => updateArr(sec.data, sec.setter, i, v)}
+            <JournalInput key={i} value={val} onChangeText={v => updateArr(sec.data, sec.setter, i, v)}
               placeholder={`${i + 1}. ${sec.placeholder}`} placeholderTextColor={TEXT_COLORS.muted} />
           ))}
         </View>
@@ -545,7 +551,7 @@ function VisionForm({ v1, setV1, v3, setV3, v5, setV5 }: {
       {fields.map(f => (
         <View key={f.label} style={s.formSection}>
           <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.metrics }]}>{f.label}</EliteText>
-          <TextInput style={[s.input, { minHeight: 100 }]} value={f.value} onChangeText={f.setter}
+          <JournalInput style={{ minHeight: 100 }} value={f.value} onChangeText={f.setter}
             placeholder={f.placeholder} placeholderTextColor={TEXT_COLORS.muted} multiline textAlignVertical="top" />
         </View>
       ))}
@@ -566,7 +572,7 @@ function StoicForm({ answers, setAnswers }: { answers: string[]; setAnswers: (v:
       {STOIC_QUESTIONS.map((q, i) => (
         <View key={i} style={s.formSection}>
           <EliteText variant="caption" style={[s.sectionTitle, { color: PURPLE }]}>{q}</EliteText>
-          <TextInput style={s.input} value={answers[i]} onChangeText={v => update(i, v)}
+          <JournalInput value={answers[i]} onChangeText={v => update(i, v)}
             placeholder="Tu reflexión..." placeholderTextColor={TEXT_COLORS.muted} multiline />
         </View>
       ))}
@@ -585,7 +591,7 @@ function WorkDumpForm({ tasks, setTasks, freeform, setFreeform }: {
       <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.optimization }]}>Pendientes</EliteText>
       {tasks.map((t, i) => (
         <View key={i} style={s.taskRow}>
-          <TextInput style={[s.input, { flex: 1 }]} value={t} onChangeText={v => updateTask(i, v)}
+          <JournalInput style={{ flex: 1 }} value={t} onChangeText={v => updateTask(i, v)}
             placeholder={`Pendiente ${i + 1}...`} placeholderTextColor={TEXT_COLORS.muted} />
           <Pressable onPress={() => removeTask(i)} hitSlop={8} style={s.removeBtn}>
             <Ionicons name="close-circle" size={20} color={SEMANTIC.error} />
@@ -598,7 +604,7 @@ function WorkDumpForm({ tasks, setTasks, freeform, setFreeform }: {
       </Pressable>
 
       <EliteText variant="caption" style={[s.sectionTitle, { color: CATEGORY_COLORS.optimization, marginTop: Spacing.lg }]}>Descarga libre</EliteText>
-      <TextInput style={[s.input, { minHeight: 120 }]} value={freeform} onChangeText={setFreeform}
+      <JournalInput style={{ minHeight: 120 }} value={freeform} onChangeText={setFreeform}
         placeholder="Escribe todo lo que tengas en la cabeza..." placeholderTextColor={TEXT_COLORS.muted} multiline textAlignVertical="top" />
     </View>
   );
@@ -628,18 +634,8 @@ function MoodSelector({ value, onChange }: { value: number | null; onChange: (v:
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: BG.screen },
-  scroll: { paddingHorizontal: Spacing.md },
+  scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.md },
   subtitle: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginBottom: Spacing.md, marginTop: Spacing.xs },
-
-  // Selector de tipo
-  typeCard: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: SURFACES.card, borderRadius: Radius.card,
-    borderLeftWidth: 3, padding: Spacing.md, marginBottom: Spacing.sm,
-  },
-  typeInfo: { flex: 1 },
-  typeLabel: { color: TEXT_COLORS.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-  typeDesc: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginTop: 2 },
 
   // Entradas recientes
   recentSection: { marginTop: Spacing.xl },
@@ -653,16 +649,17 @@ const s = StyleSheet.create({
   entryPreview: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, lineHeight: 18 },
 
   // Formulario
-  backBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginBottom: Spacing.md, marginTop: Spacing.xs },
-  formHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.lg },
-  formTitle: { fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl, letterSpacing: 1 },
   formSection: { marginBottom: Spacing.md },
-  sectionTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, letterSpacing: 1, marginBottom: Spacing.xs },
+  // 3.3 (V1.5): las preguntas/labels pasan de caption a header editorial.
+  sectionTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.md, letterSpacing: 0.3, marginBottom: Spacing.xs },
   input: {
     backgroundColor: SURFACES.card, borderRadius: Radius.card,
     color: TEXT_COLORS.primary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
     padding: Spacing.md, marginBottom: Spacing.xs, lineHeight: 22,
+    // 3.3 (V1.5): borde transparente reservado — el focus lo pinta sin brincos.
+    borderWidth: 1, borderColor: 'transparent',
   },
+  inputFocused: { borderColor: withOpacity(PURPLE, 0.6), backgroundColor: '#161616' },
 
   // Mood
   label: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs, marginTop: Spacing.md },

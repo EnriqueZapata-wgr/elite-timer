@@ -17,7 +17,6 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
 import { MenteHero } from '@/src/components/mente/MenteHero';
@@ -33,8 +32,8 @@ import { promptForDate } from '@/src/data/checkin-prompts';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY } from '@/src/data/breathing-library';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
-import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { Spacing } from '@/constants/theme';
 
 interface HubState {
   journalStreak: number;
@@ -46,6 +45,17 @@ interface HubState {
 
 // Batch 3 (#7): asset editorial del pilar (require estático · Metro).
 const HERO_MENTE = require('@/assets/images/health-hub/mente-avanzado.png');
+
+// F12 (V1.5): imageBn de MenteHubCard despierta — portadas editoriales B/N del
+// set intervenciones (mismo lenguaje que el hero). Swappables 1:1 cuando
+// lleguen las portadas MJ dedicadas (Cowork entrega prompts).
+const CARD_ART = {
+  meditacion: require('@/assets/images/intervenciones/audio.jpg'),
+  respiracion: require('@/assets/images/intervenciones/respiracion.jpg'),
+  nback: require('@/assets/images/intervenciones/cognitivo.jpg'),
+  journal: require('@/assets/images/intervenciones/mente.jpg'),
+  checkin: require('@/assets/images/intervenciones/grounding.jpg'),
+} as const;
 
 const EMPTY: HubState = {
   journalStreak: 0,
@@ -148,6 +158,7 @@ export default function MenteHubScreen() {
             title="Meditación"
             subtitle={lastActivitySubtitle('Guiadas · mantras · descanso', hub.lastMeditationAt)}
             icon="sparkles-outline"
+            imageBn={CARD_ART.meditacion}
             onPress={() => router.push('/meditation')}
             ctaLabel="Empezar"
             onCta={() => router.push('/meditation')}
@@ -159,6 +170,7 @@ export default function MenteHubScreen() {
             title="Respiración"
             subtitle={lastActivitySubtitle(`${BREATHING_LIBRARY.length} técnicas`, hub.lastBreathingAt)}
             icon="leaf-outline"
+            imageBn={CARD_ART.respiracion}
             onPress={() => router.push('/breathing')}
             ctaLabel="Empezar sesión"
             onCta={() => router.push('/breathing')}
@@ -170,6 +182,7 @@ export default function MenteHubScreen() {
             title="N-Back"
             subtitle="Entrena tu memoria de trabajo · reto 20 días"
             icon="grid-outline"
+            imageBn={CARD_ART.nback}
             onPress={() => router.push('/mente/nback')}
             ctaLabel="Entrenar"
             onCta={() => router.push('/mente/nback')}
@@ -183,6 +196,7 @@ export default function MenteHubScreen() {
               ? `Última entrada ${formatRelativeTime(hub.lastJournalAt).toLowerCase()}`
               : 'Escribe tu primera entrada'}
             icon="journal-outline"
+            imageBn={CARD_ART.journal}
             badge={hub.journalStreak > 0 ? `🔥 ${hub.journalStreak} ${hub.journalStreak === 1 ? 'día' : 'días'}` : undefined}
             onPress={() => router.push('/journal-history')}
             ctaLabel="Nueva entrada"
@@ -190,24 +204,21 @@ export default function MenteHubScreen() {
           />
         </Animated.View>
 
-        {/* Check-in compacto */}
+        {/* F12 (V1.5): Check-in al MISMO molde que el resto — era la única
+            card bespoke del hub y rompía el vocabulario. */}
         <Animated.View entering={FadeInUp.delay(240).springify()}>
-          <AnimatedPressable
-            onPress={() => { haptic.light(); router.push('/checkin'); }}
-            style={s.checkinCard}
-          >
-            <View style={s.checkinLeft}>
-              <EliteText style={s.checkinTitle}>¿Cómo estás hoy?</EliteText>
-              <EliteText style={s.checkinSub}>
-                {hub.checkinsToday > 0
-                  ? `${hub.checkinsToday} check-in${hub.checkinsToday > 1 ? 's' : ''} hoy · registra otro momento`
-                  : promptForDate(getLocalToday())}
-              </EliteText>
-            </View>
-            <View style={s.checkinDot}>
-              <Ionicons name="heart" size={18} color="#000" />
-            </View>
-          </AnimatedPressable>
+          <MenteHubCard
+            title="Check-in"
+            subtitle={hub.checkinsToday > 0
+              ? `${hub.checkinsToday} check-in${hub.checkinsToday > 1 ? 's' : ''} hoy · registra otro momento`
+              : promptForDate(getLocalToday())}
+            icon="heart-outline"
+            imageBn={CARD_ART.checkin}
+            badge={hub.checkinsToday > 0 ? `${hub.checkinsToday} hoy` : undefined}
+            onPress={() => router.push('/checkin')}
+            ctaLabel="¿Cómo estás hoy?"
+            onCta={() => router.push('/checkin')}
+          />
         </Animated.View>
 
         <View style={{ height: Spacing.xxl }} />
@@ -225,20 +236,4 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   content: { paddingHorizontal: Spacing.md },
-
-  checkinCard: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-    backgroundColor: ELEVATION[1].bg,
-    borderColor: withOpacity(ATP_BRAND.lime, 0.25),
-    borderWidth: 1, borderRadius: Radius.lg,
-    padding: Spacing.md, marginBottom: Spacing.sm,
-  },
-  checkinLeft: { flex: 1 },
-  checkinTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.lg, color: TEXT.primary },
-  checkinSub: { fontFamily: Fonts.regular, fontSize: FontSizes.sm, color: TEXT.secondary, marginTop: 2 },
-  checkinDot: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: ATP_BRAND.lime,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
 });
