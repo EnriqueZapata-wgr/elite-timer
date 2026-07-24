@@ -17,7 +17,8 @@ import { getLocalToday, parseLocalDate, toLocalDateString } from '../src/utils/d
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
-import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor, takenDaysBySupplement, weeklyAdherencePct } from '@/src/services/supplements-adherence-core';
+import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor, isCustomDoseTime, normalizeDoseTimeInput, sortDoseTimes, takenDosesBySupplement, weeklyAdherencePct } from '@/src/services/supplements-adherence-core';
+import { normalizeSupplementName } from '@/src/services/supplements-plan-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
 import { getScoreColor } from '@/src/constants/brand';
@@ -58,6 +59,12 @@ export default function SupplementsScreen() {
   // Multi-dosis (188): tomas del día (Vit C 3×día = 3 etiquetas seleccionadas)
   const [newDoseTimes, setNewDoseTimes] = useState<string[]>([]);
   const [newPattern, setNewPattern] = useState<string>(DOSE_PATTERNS[0]);
+  // MB-2 §4: hora custom HH:MM además de las 4 etiquetas fijas
+  const [showCustomTime, setShowCustomTime] = useState(false);
+  const [customTimeInput, setCustomTimeInput] = useState('');
+  // MB-2 §3: autocomplete sobre el historial del PROPIO usuario (incl. fichas
+  // desactivadas) — doctrina "sin catálogo": solo lo que el user ya tecleó.
+  const [nameHistory, setNameHistory] = useState<any[]>([]);
   const [weeklyAdherence, setWeeklyAdherence] = useState<number | null>(null);
   // Máscara EMBARAZO (4.1.4): dato real de cycle_settings / client_profiles
   const [pregnancyActive, setPregnancyActive] = useState(false);
@@ -82,15 +89,20 @@ export default function SupplementsScreen() {
     const cursor = parseLocalDate(today);
     cursor.setDate(cursor.getDate() - 6);
     const weekAgo = toLocalDateString(cursor);
-    const [suppsRes, logsRes] = await Promise.all([
+    const [suppsRes, logsRes, historyRes] = await Promise.all([
       supabase.from('user_supplements').select('*')
         .eq('user_id', userId).eq('is_active', true).order('timing'),
       supabase.from('supplement_logs').select('supplement_id, date, taken, dose_index')
         .eq('user_id', userId).gte('date', weekAgo),
+      // MB-2 §3: historial propio (incl. inactivos) para el autocomplete del alta
+      supabase.from('user_supplements')
+        .select('name, dosage, brand, form, timing, reason, dose_pattern, dose_times, created_at')
+        .eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
     ]);
     const supps = (suppsRes.data ?? []) as any[];
     const logs = (logsRes.data ?? []) as any[];
     setSupplements(supps);
+    setNameHistory((historyRes.data ?? []) as any[]);
     const tl: Record<string, number[]> = {};
     logs.forEach((l) => {
       if (!l.taken || l.date !== today) return;
@@ -98,9 +110,15 @@ export default function SupplementsScreen() {
       (tl[l.supplement_id] ??= []).push(idx);
     });
     setTodayLogs(tl);
-    const takenDays = takenDaysBySupplement(logs);
+    // MB-2: adherencia por TOMA (Σ tomadas / Σ esperadas del patrón × tomas/día)
+    const doseCounts = Object.fromEntries(supps.map((s) => [s.id, doseCountFor(s.dose_times)]));
+    const takenDoses = takenDosesBySupplement(logs, doseCounts);
     setWeeklyAdherence(weeklyAdherencePct(
-      supps.map((s) => ({ dosePattern: s.dose_pattern, takenDays: takenDays[s.id] ?? 0 })),
+      supps.map((s) => ({
+        dosePattern: s.dose_pattern,
+        doseCount: doseCounts[s.id],
+        takenDoses: takenDoses[s.id] ?? 0,
+      })),
     ));
   }, [userId]);
 
@@ -157,16 +175,62 @@ export default function SupplementsScreen() {
 
   function toggleDoseTimeLabel(label: string) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // MB-2 §4: orden cronológico mezclando etiquetas y horas custom (antes el
+    // filtro por DOSE_TIME_LABELS descartaba cualquier HH:MM al seleccionar)
     setNewDoseTimes(prev => prev.includes(label)
       ? prev.filter(l => l !== label)
-      // Mantener el orden canónico mañana→noche
-      : DOSE_TIME_LABELS.filter(l => prev.includes(l) || l === label));
+      : sortDoseTimes([...prev, label]));
+  }
+
+  /** MB-2 §4: agrega la hora custom validada (HH:MM) como toma. */
+  function addCustomDoseTime() {
+    const t = normalizeDoseTimeInput(customTimeInput);
+    if (!t) {
+      Alert.alert('Hora inválida', 'Usa formato de 24 horas, por ejemplo 08:30 o 21:15.');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setNewDoseTimes(prev => prev.includes(t) ? prev : sortDoseTimes([...prev, t]));
+    setCustomTimeInput('');
+    setShowCustomTime(false);
   }
 
   function resetForm() {
     setNewName(''); setNewDosage(''); setNewBrand(''); setNewForm(null);
     setNewTiming('morning'); setNewReason(''); setNewPattern(DOSE_PATTERNS[0]); setNewDoseTimes([]);
+    setShowCustomTime(false); setCustomTimeInput('');
     setEditingId(null);
+  }
+
+  // MB-2 §3: sugerencias del historial propio — match por nombre normalizado,
+  // dedupe, excluye el match exacto (ya está escrito). Solo en alta nueva.
+  const nameSuggestions = useMemo(() => {
+    if (editingId) return [];
+    const q = normalizeSupplementName(newName);
+    if (q.length < 2) return [];
+    const seen = new Set<string>();
+    const out: any[] = [];
+    for (const h of nameHistory) {
+      const n = normalizeSupplementName(h.name);
+      if (!n || n === q || !n.includes(q) || seen.has(n)) continue;
+      seen.add(n);
+      out.push(h);
+      if (out.length >= 4) break;
+    }
+    return out;
+  }, [editingId, newName, nameHistory]);
+
+  /** Toca una sugerencia → prellena la ficha completa desde el historial. */
+  function applySuggestion(h: any) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setNewName(h.name ?? '');
+    setNewDosage(h.dosage ?? '');
+    setNewBrand(h.brand ?? '');
+    setNewForm(h.form ?? null);
+    setNewTiming(h.timing ?? 'morning');
+    setNewReason(h.reason ?? '');
+    setNewPattern(h.dose_pattern ?? DOSE_PATTERNS[0]);
+    setNewDoseTimes(Array.isArray(h.dose_times) ? h.dose_times : []);
   }
 
   /** SUP-3: abre el mismo sheet en modo edición, prellenado desde la ficha. */
@@ -194,8 +258,12 @@ export default function SupplementsScreen() {
       timing: newTiming,
       reason: newReason.trim() || null,
       dose_pattern: newPattern, // T4 (#54): patrón de toma (migración 167)
-      // Multi-dosis (188): solo persiste array con 2+ tomas (1 toma = legacy NULL)
-      dose_times: newDoseTimes.length >= 2 ? newDoseTimes : null,
+      // Multi-dosis (188): 2+ tomas persiste array (1 toma = legacy NULL).
+      // MB-2 §4: una sola toma con hora custom TAMBIÉN persiste — la hora
+      // elegida debe llegar a la agenda (si fuera NULL caería al default 08:00).
+      dose_times: newDoseTimes.length >= 2 || newDoseTimes.some(isCustomDoseTime)
+        ? newDoseTimes
+        : null,
     };
     if (editingId) {
       await supabase.from('user_supplements').update(payload).eq('id', editingId);
@@ -421,6 +489,11 @@ export default function SupplementsScreen() {
                       {supp.form && <Text style={{ color: '#666', fontSize: 11 }}>· {FORM_OPTIONS.find(f => f.id === supp.form)?.label ?? supp.form}</Text>}
                       {/* T4: patrón de toma visible (dosis flexible, 167) */}
                       {supp.dose_pattern && <Text style={{ color: '#1D9E75', fontSize: 11 }}>· {supp.dose_pattern}</Text>}
+                      {/* MB-2 §4: toma única con hora custom — visible en la fila
+                          (con 2+ tomas ya salen los chips por dosis) */}
+                      {doseCount === 1 && doseLabels[0] && isCustomDoseTime(doseLabels[0]) && (
+                        <Text style={{ color: '#1D9E75', fontSize: 11 }}>· {doseLabels[0]}</Text>
+                      )}
                       {supp.reason && <Text style={{ color: '#444', fontSize: 11 }}>· {supp.reason}</Text>}
                     </View>
                     {/* Multi-dosis (188): N tomas = N checks individuales */}
@@ -522,9 +595,31 @@ export default function SupplementsScreen() {
               placeholder="Ej: Magnesio glicinato" placeholderTextColor="#444"
               style={{
                 backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
-                padding: 14, marginBottom: 14, borderWidth: 1, borderColor: '#1a1a1a',
+                padding: 14, marginBottom: nameSuggestions.length > 0 ? 8 : 14,
+                borderWidth: 1, borderColor: '#1a1a1a',
               }}
             />
+            {/* MB-2 §3: autocomplete del historial PROPIO (sin catálogo) —
+                tocar prellena la ficha completa para re-agregar sin re-teclear */}
+            {nameSuggestions.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+                {nameSuggestions.map((h, i) => (
+                  <Pressable
+                    key={`${h.name}-${i}`}
+                    onPress={() => applySuggestion(h)}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: 5,
+                      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16,
+                      backgroundColor: 'rgba(29,158,117,0.1)',
+                      borderWidth: 1, borderColor: 'rgba(29,158,117,0.3)',
+                    }}
+                  >
+                    <Ionicons name="time-outline" size={12} color="#1D9E75" />
+                    <Text style={{ color: '#1D9E75', fontSize: 12, fontWeight: '600' }}>{h.name}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
 
             {/* Sweep §4: "Dosis" → "Cantidad" (registro del usuario, no pauta de ATP) */}
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Cantidad</Text>
@@ -537,11 +632,13 @@ export default function SupplementsScreen() {
               }}
             />
 
-            {/* Multi-dosis (188): 2+ etiquetas = N tomas/día con N checks */}
+            {/* Multi-dosis (188): 2+ etiquetas = N tomas/día con N checks.
+                MB-2 §3: wrap (los chips horizontales se salían de pantalla).
+                MB-2 §4: horas custom HH:MM además de las 4 etiquetas. */}
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>
               Tomas al día {newDoseTimes.length >= 2 ? `(${newDoseTimes.length} tomas)` : '(1 toma)'}
             </Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: showCustomTime ? 8 : 14 }}>
               {DOSE_TIME_LABELS.map(label => {
                 const sel = newDoseTimes.includes(label);
                 return (
@@ -549,7 +646,7 @@ export default function SupplementsScreen() {
                     key={label}
                     onPress={() => toggleDoseTimeLabel(label)}
                     style={{
-                      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
+                      paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
                       backgroundColor: sel ? 'rgba(29,158,117,0.15)' : '#111',
                       borderWidth: 1.5, borderColor: sel ? '#1D9E75' : '#1a1a1a',
                     }}
@@ -558,17 +655,71 @@ export default function SupplementsScreen() {
                   </Pressable>
                 );
               })}
-            </ScrollView>
+              {/* Horas custom ya agregadas — tocar quita la toma */}
+              {newDoseTimes.filter(isCustomDoseTime).map(t => (
+                <Pressable
+                  key={t}
+                  onPress={() => toggleDoseTimeLabel(t)}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 5,
+                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
+                    backgroundColor: 'rgba(29,158,117,0.15)',
+                    borderWidth: 1.5, borderColor: '#1D9E75',
+                  }}
+                >
+                  <Text style={{ color: '#1D9E75', fontSize: 12, fontWeight: '600' }}>{t}</Text>
+                  <Ionicons name="close-circle" size={14} color="#1D9E75" />
+                </Pressable>
+              ))}
+              <Pressable
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowCustomTime(v => !v); }}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                  paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
+                  backgroundColor: '#111', borderWidth: 1.5, borderStyle: 'dashed',
+                  borderColor: showCustomTime ? '#a8e02a' : '#333',
+                }}
+              >
+                <Ionicons name="alarm-outline" size={14} color={showCustomTime ? '#a8e02a' : '#999'} />
+                <Text style={{ color: showCustomTime ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>+ hora</Text>
+              </Pressable>
+            </View>
+            {showCustomTime && (
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                <TextInput
+                  value={customTimeInput}
+                  onChangeText={setCustomTimeInput}
+                  placeholder="08:30" placeholderTextColor="#444"
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                  autoFocus
+                  onSubmitEditing={addCustomDoseTime}
+                  style={{
+                    flex: 1, backgroundColor: '#111', color: '#fff', fontSize: 15, borderRadius: 12,
+                    padding: 12, borderWidth: 1, borderColor: '#1a1a1a',
+                  }}
+                />
+                <Pressable
+                  onPress={addCustomDoseTime}
+                  style={{
+                    backgroundColor: '#a8e02a', borderRadius: 12, paddingHorizontal: 18,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#000', fontSize: 13, fontWeight: '800' }}>AGREGAR</Text>
+                </Pressable>
+              </View>
+            )}
 
             {/* T4 (#54): patrón de toma — la adherencia se mide contra esto */}
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Frecuencia</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               {DOSE_PATTERNS.map(p => (
                 <Pressable
                   key={p}
                   onPress={() => setNewPattern(p)}
                   style={{
-                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
+                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
                     backgroundColor: newPattern === p ? 'rgba(168,224,42,0.15)' : '#111',
                     borderWidth: 1.5, borderColor: newPattern === p ? '#a8e02a' : '#1a1a1a',
                   }}
@@ -576,17 +727,17 @@ export default function SupplementsScreen() {
                   <Text style={{ color: newPattern === p ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>{p}</Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
 
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>¿Cuándo tomarlo?</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               {TIMING_OPTIONS.map(t => (
                 <Pressable
                   key={t.id}
                   onPress={() => setNewTiming(t.id)}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 6,
-                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
+                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
                     backgroundColor: newTiming === t.id ? `${t.color}20` : '#111',
                     borderWidth: 1.5,
                     borderColor: newTiming === t.id ? t.color : '#1a1a1a',
@@ -598,17 +749,17 @@ export default function SupplementsScreen() {
                   </Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
 
             {/* Ficha ampliada (187): presentación */}
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Forma</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
               {FORM_OPTIONS.map(f => (
                 <Pressable
                   key={f.id}
                   onPress={() => setNewForm(newForm === f.id ? null : f.id)}
                   style={{
-                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20, marginRight: 8,
+                    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 20,
                     backgroundColor: newForm === f.id ? 'rgba(168,224,42,0.15)' : '#111',
                     borderWidth: 1.5, borderColor: newForm === f.id ? '#a8e02a' : '#1a1a1a',
                   }}
@@ -616,7 +767,7 @@ export default function SupplementsScreen() {
                   <Text style={{ color: newForm === f.id ? '#a8e02a' : '#999', fontSize: 12, fontWeight: '600' }}>{f.label}</Text>
                 </Pressable>
               ))}
-            </ScrollView>
+            </View>
 
             <Text style={{ color: '#999', fontSize: 11, fontWeight: '600', marginBottom: 6 }}>Marca (opcional)</Text>
             <TextInput

@@ -8,6 +8,7 @@ import {
 } from '@/src/services/bha-core';
 
 const FULL = JSON.stringify({
+  product_name: 'Magnesio Bisglicinato 400',
   attributes: [
     { key: 'formas', score: 80, note: 'Magnesio como bisglicinato.' },
     { key: 'aditivos', score: 100, note: 'Sin colorantes ni endulzantes artificiales.' },
@@ -26,6 +27,17 @@ describe('parseFunctionalScoreResponse — JSON defensivo (Sprint Compliance 4)'
     expect(r!.attributes).toHaveLength(4);
     expect(r!.score).toBe(85); // (80+100+90+70)/4
     expect(r!.attributes[0].label).toBe('Formas y biodisponibilidad');
+    expect(r!.product_name).toBe('Magnesio Bisglicinato 400'); // MB-2: alta desde standalone
+  });
+
+  it('product_name ausente/no-string/vacío → null (no rompe el parse)', () => {
+    const noName = JSON.parse(FULL);
+    delete noName.product_name;
+    expect(parseFunctionalScoreResponse(JSON.stringify(noName))!.product_name).toBeNull();
+    noName.product_name = 42;
+    expect(parseFunctionalScoreResponse(JSON.stringify(noName))!.product_name).toBeNull();
+    noName.product_name = '  ';
+    expect(parseFunctionalScoreResponse(JSON.stringify(noName))!.product_name).toBeNull();
   });
 
   it('NO confía en un total del modelo: lo ignora y promedia', () => {
@@ -97,6 +109,7 @@ describe('FUNCTIONAL_SCORE_PROMPT — criterios + compliance §4.2', () => {
   it('salida numérica por atributos, sin veredicto binario ni marca vieja', () => {
     expect(FUNCTIONAL_SCORE_PROMPT).toContain('ATP Functional Score');
     expect(FUNCTIONAL_SCORE_PROMPT).toContain('"attributes"');
+    expect(FUNCTIONAL_SCORE_PROMPT).toContain('"product_name"'); // MB-2: alta desde standalone
     expect(FUNCTIONAL_SCORE_PROMPT).toContain('"illegible":true');
     expect(FUNCTIONAL_SCORE_PROMPT).not.toContain('Biohacker Approved');
     expect(FUNCTIONAL_SCORE_PROMPT).not.toMatch(/"verdict"/);

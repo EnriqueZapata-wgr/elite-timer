@@ -5,8 +5,9 @@
  * Fases: quote (pre-flight H+) → picking foto → scanning (LLM) → result
  * (score numérico 0-100 + desglose por atributos + summary objetivo). Si viene
  * con `supplement`, persiste el score en la ficha (functional_score +
- * bha_scan_summary); standalone (entrada de sección) solo muestra el
- * resultado — sirve también para comida empaquetada.
+ * bha_scan_summary); standalone (entrada de sección) muestra el resultado y
+ * ofrece "Agregar a mi plan" (MB-2: crea la ficha CON su score de una, dedupe
+ * por nombre contra fichas activas) — sirve también para comida empaquetada.
  *
  * Doctrina: registro, no recomendación — el score evalúa formulación (cero
  * marcas, cero adjetivos, privado al usuario); nunca sugiere comprar/tomar nada.
@@ -21,6 +22,7 @@ import { haptic } from '@/src/utils/haptics';
 import { ELEVATION, TEXT, getScoreColor } from '@/src/constants/brand';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { getBhaScanQuote, persistFunctionalScore, runBhaScan } from '@/src/services/bha-service';
+import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
 import type { FunctionalScoreResult } from '@/src/services/bha-core';
 
 const RED = '#ef4444';
@@ -34,10 +36,10 @@ interface BhaTarget {
 interface Props {
   visible: boolean;
   userId: string;
-  /** Ficha destino del sello. null = scan standalone (no persiste). */
+  /** Ficha destino del sello. null = scan standalone (ofrece agregar al plan). */
   supplement: BhaTarget | null;
   onClose: () => void;
-  /** Se llamó persistBhaSeal con éxito → el caller recarga la lista. */
+  /** Se persistió score o se creó/actualizó ficha → el caller recarga la lista. */
   onSealPersisted?: () => void;
 }
 
@@ -49,12 +51,17 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
   const [phase, setPhase] = useState<Phase>('quote');
   const [quote, setQuote] = useState<{ cost: number; balance: number } | null>(null);
   const [result, setResult] = useState<FunctionalScoreResult | null>(null);
+  // MB-2 standalone: alta al plan desde el resultado (evalúa + agrega en uno)
+  const [addingToPlan, setAddingToPlan] = useState(false);
+  const [addedName, setAddedName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible) return;
     setPhase('quote');
     setResult(null);
     setQuote(null);
+    setAddingToPlan(false);
+    setAddedName(null);
     getBhaScanQuote(userId).then(setQuote).catch(() => setQuote(null));
   }, [visible, userId]);
 
@@ -100,6 +107,48 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
       if (persisted.success) onSealPersisted?.();
     }
   }, [userId, supplement, quote, insufficientAlert, track, onSealPersisted]);
+
+  /** MB-2: "Agregar al plan" desde el scan standalone — crea la ficha con su
+   * functional_score de una; si ya existe (dedupe por nombre normalizado)
+   * ofrece actualizar el score de la ficha existente. */
+  const addToPlan = useCallback(async () => {
+    if (!result || result.illegible || addingToPlan) return;
+    haptic.light();
+    setAddingToPlan(true);
+    const name = result.product_name?.trim() || 'Suplemento escaneado';
+    const outcome = await addSupplementToPlan(userId, { name }, result);
+    setAddingToPlan(false);
+    if (outcome.status === 'created') {
+      setAddedName(name);
+      haptic.success();
+      onSealPersisted?.();
+      return;
+    }
+    if (outcome.status === 'duplicate') {
+      Alert.alert(
+        'Ya está en tu plan',
+        `Ya tienes una ficha de ${outcome.existingName}. ¿Actualizar su ATP Functional Score con este escaneo?`,
+        [
+          { text: 'Ahora no', style: 'cancel' },
+          {
+            text: 'Actualizar score',
+            onPress: async () => {
+              const persisted = await persistFunctionalScore(outcome.existingId, result);
+              if (persisted.success) {
+                setAddedName(outcome.existingName);
+                haptic.success();
+                onSealPersisted?.();
+              } else {
+                Alert.alert('No se pudo actualizar', 'Revisa tu conexión e intenta de nuevo.');
+              }
+            },
+          },
+        ],
+      );
+      return;
+    }
+    Alert.alert('No se pudo agregar', 'Revisa tu conexión e intenta de nuevo.');
+  }, [result, addingToPlan, userId, onSealPersisted]);
 
   const pick = useCallback(async (source: 'camera' | 'library') => {
     // Pre-flight H+ (patrón DX): no dejar llegar al 402 con foto ya tomada.
@@ -229,6 +278,11 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                     Score guardado en la ficha de {supplement.name}
                   </Text>
                 )}
+                {!supplement && !!result.product_name && (
+                  <Text style={{ color: TEXT.tertiary, fontSize: 12, marginTop: 4 }}>
+                    {result.product_name}
+                  </Text>
+                )}
               </View>
 
               {!!result.summary && (
@@ -287,11 +341,48 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                 Esto es tu registro. No es recomendación. Es responsabilidad de quien te lo indicó.
               </Text>
 
+              {/* MB-2: standalone → agregar al plan con el score de una (dedupe
+                  por nombre). Con ficha destino el score ya se persistió. */}
+              {!supplement && (addedName ? (
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  backgroundColor: 'rgba(29,158,117,0.1)', borderRadius: 14, padding: 14, marginBottom: 10,
+                  borderWidth: 1, borderColor: 'rgba(29,158,117,0.3)',
+                }}>
+                  <Ionicons name="checkmark-circle" size={18} color="#1D9E75" />
+                  <Text style={{ color: '#1D9E75', fontSize: 13, fontWeight: '700', flexShrink: 1 }}>
+                    {addedName} está en tu plan con este score
+                  </Text>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={addToPlan}
+                  disabled={addingToPlan}
+                  style={{
+                    backgroundColor: '#a8e02a', borderRadius: 14, padding: 15, alignItems: 'center',
+                    marginBottom: 10, opacity: addingToPlan ? 0.6 : 1,
+                    flexDirection: 'row', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  {addingToPlan
+                    ? <ActivityIndicator size="small" color="#000" />
+                    : <Ionicons name="add-circle-outline" size={18} color="#000" />}
+                  <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>AGREGAR A MI PLAN</Text>
+                </Pressable>
+              ))}
               <Pressable
                 onPress={() => { haptic.light(); onClose(); }}
-                style={{ backgroundColor: '#a8e02a', borderRadius: 14, padding: 15, alignItems: 'center' }}
+                style={{
+                  backgroundColor: !supplement && !addedName ? '#0a0a0a' : '#a8e02a',
+                  borderWidth: !supplement && !addedName ? 1 : 0,
+                  borderColor: ELEVATION[2].border,
+                  borderRadius: 14, padding: 15, alignItems: 'center',
+                }}
               >
-                <Text style={{ color: '#000', fontSize: 14, fontWeight: '800' }}>LISTO</Text>
+                <Text style={{
+                  color: !supplement && !addedName ? TEXT.secondary : '#000',
+                  fontSize: 14, fontWeight: '800',
+                }}>LISTO</Text>
               </Pressable>
             </ScrollView>
           )}

@@ -4,7 +4,7 @@
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
-import { weeklyAdherencePct, takenDaysBySupplement } from './supplements-adherence-core';
+import { weeklyAdherencePct, takenDosesBySupplement, doseCountFor } from './supplements-adherence-core';
 
 /**
  * Adherencia de los últimos 7 días contra el dose_pattern de cada
@@ -18,25 +18,27 @@ export async function getWeeklyAdherence(userId: string): Promise<number | null>
 
     const [suppsRes, logsRes] = await Promise.all([
       supabase.from('user_supplements')
-        .select('id, dose_pattern')
+        .select('id, dose_pattern, dose_times')
         .eq('user_id', userId)
         .eq('is_active', true),
       supabase.from('supplement_logs')
-        .select('supplement_id, date, taken')
+        .select('supplement_id, date, taken, dose_index')
         .eq('user_id', userId)
         .gte('date', weekAgo),
     ]);
 
-    const supps = (suppsRes.data ?? []) as { id: string; dose_pattern: string | null }[];
-    const logs = (logsRes.data ?? []) as { supplement_id: string; date: string; taken: boolean }[];
+    const supps = (suppsRes.data ?? []) as { id: string; dose_pattern: string | null; dose_times: string[] | null }[];
+    const logs = (logsRes.data ?? []) as { supplement_id: string; date: string; dose_index?: number | null; taken: boolean }[];
 
-    // Multi-dosis (188): puede haber N logs por día (dose_index) — la
-    // adherencia sigue siendo por DÍAS, dedupe por fecha.
-    const takenDays = takenDaysBySupplement(logs);
+    // MB-2: adherencia por TOMA — Σ tomas tomadas / Σ tomas esperadas,
+    // consistente con supplementsTodayProgress.
+    const doseCounts = Object.fromEntries(supps.map((s) => [s.id, doseCountFor(s.dose_times)]));
+    const takenDoses = takenDosesBySupplement(logs, doseCounts);
     return weeklyAdherencePct(
       supps.map((s) => ({
         dosePattern: s.dose_pattern,
-        takenDays: takenDays[s.id] ?? 0,
+        doseCount: doseCounts[s.id],
+        takenDoses: takenDoses[s.id] ?? 0,
       })),
     );
   } catch (e) {

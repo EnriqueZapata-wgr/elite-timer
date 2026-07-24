@@ -46,6 +46,9 @@ export interface FunctionalScoreResult {
   summary: string;
   /** true = etiqueta ilegible/incompleta → re-escanear (sin score). */
   illegible: boolean;
+  /** Nombre del producto leído de la etiqueta (MB-2: permite "Agregar al
+   * plan" desde el scan standalone + dedupe por nombre). null si no visible. */
+  product_name: string | null;
 }
 
 /**
@@ -86,7 +89,7 @@ PROHIBICIONES (doctrina ATP — registro, no recomendación):
 - Si mencionas ayuno: el café bulletproof (BPC) NO rompe el ayuno metabólico según la doctrina ATP — no lo contradigas.
 
 Responde SOLO con JSON válido (sin backticks ni markdown, en español):
-{"attributes":[{"key":"formas","score":80,"note":"observación objetiva"},{"key":"aditivos","score":100,"note":"..."},{"key":"excipientes","score":90,"note":"..."},{"key":"transparencia","score":70,"note":"..."}],"flagged_ingredients":["ingrediente exacto"],"summary":"1-3 oraciones objetivas sobre la formulación."}`;
+{"product_name":"nombre del producto tal como aparece en la etiqueta (null si no es visible)","attributes":[{"key":"formas","score":80,"note":"observación objetiva"},{"key":"aditivos","score":100,"note":"..."},{"key":"excipientes","score":90,"note":"..."},{"key":"transparencia","score":70,"note":"..."}],"flagged_ingredients":["ingrediente exacto"],"summary":"1-3 oraciones objetivas sobre la formulación."}`;
 
 /** Instrucción user del scan (acompaña a la imagen). */
 export function buildScanUserText(productName?: string | null, brand?: string | null): string {
@@ -130,7 +133,7 @@ export function parseFunctionalScoreResponse(raw: string): FunctionalScoreResult
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
 
   if (parsed.illegible === true) {
-    return { score: 0, attributes: [], flagged_ingredients: [], summary: '', illegible: true };
+    return { score: 0, attributes: [], flagged_ingredients: [], summary: '', illegible: true, product_name: null };
   }
 
   if (!Array.isArray(parsed.attributes)) return null;
@@ -155,8 +158,11 @@ export function parseFunctionalScoreResponse(raw: string): FunctionalScoreResult
   const total = Math.round(attributes.reduce((sum, a) => sum + a.score, 0) / attributes.length);
   const flagged = normalizeStringArray(parsed.flagged_ingredients);
   const summary = typeof parsed.summary === 'string' ? parsed.summary.trim() : '';
+  const productName = typeof parsed.product_name === 'string' && parsed.product_name.trim()
+    ? parsed.product_name.trim().slice(0, 120)
+    : null;
 
-  return { score: total, attributes, flagged_ingredients: flagged, summary, illegible: false };
+  return { score: total, attributes, flagged_ingredients: flagged, summary, illegible: false, product_name: productName };
 }
 
 /**

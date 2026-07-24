@@ -206,7 +206,10 @@ export async function generateAgendaEvents(userId: string, date?: string): Promi
       const desiredSuppKeys = new Set<string>();
       for (const s of (supps ?? []) as any[]) {
         if (!s?.name) continue;
-        const labels: string[] = Array.isArray(s.dose_times) && s.dose_times.length >= 2
+        // MB-2 §4: umbral >=1 (antes >=2) — una sola toma con hora custom
+        // también manda su HH:MM a la agenda. Legacy intacto: la UI nunca
+        // persistió arrays de 1 (1 toma = dose_times NULL → cae al timing).
+        const labels: string[] = Array.isArray(s.dose_times) && s.dose_times.length >= 1
           ? s.dose_times
           : [TIMING_LABEL[s.timing] ?? 'mañana'];
         for (const label of labels) {

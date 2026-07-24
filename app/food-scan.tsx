@@ -23,7 +23,6 @@ import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { haptic } from '@/src/utils/haptics';
-import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import {
   analyzeFoodPhoto, analyzeLabelPhoto, analyzeSupplementPhoto,
@@ -35,6 +34,7 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
 import { FoodReviewEditor, parseAIToReview, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
+import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
 import { useAuth } from '@/src/contexts/auth-context';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -432,23 +432,22 @@ export default function FoodScanScreen() {
   // === GUARDAR ===
 
   // Paso 1: abrir editor de revisión
-  /** SUP-1 (MB-2): crea la ficha en user_supplements desde el JSON del scan.
-   * Compliance S4: sin score automático — el ATP Functional Score numérico
-   * solo sale del scanner dedicado desde la ficha (un scan nutricional no
-   * sustituye la evaluación por atributos). Tomas/horario con el lápiz (SUP-3). */
+  /** SUP-1 (MB-2): crea la ficha en user_supplements desde el JSON del scan,
+   * por la MISMA vía que el scanner del header (addSupplementToPlan → dedupe
+   * por nombre normalizado, no crea duplicados). Compliance S4: sin score
+   * automático — el ATP Functional Score numérico solo sale del scanner
+   * dedicado (un scan nutricional no sustituye la evaluación por atributos).
+   * Tomas/horario con el lápiz (SUP-3). */
   const handleAddToPlan = async () => {
     if (!user?.id || !result || addingToPlan || addedToPlan) return;
     setAddingToPlan(true);
-    try {
-      const { error: insErr } = await supabase.from('user_supplements').insert({
-        user_id: user.id,
-        name: String(result.supplement_name ?? productName ?? 'Suplemento').slice(0, 120),
-        dosage: String(result.daily_dose ?? 'Según etiqueta').slice(0, 120),
-        form: result.form ? String(result.form).slice(0, 40) : null,
-        timing: 'morning',
-        source: 'scan',
-      });
-      if (insErr) throw insErr;
+    const outcome = await addSupplementToPlan(user.id, {
+      name: String(result.supplement_name ?? productName ?? 'Suplemento'),
+      dosage: result.daily_dose ? String(result.daily_dose) : null,
+      form: result.form ? String(result.form) : null,
+    });
+    setAddingToPlan(false);
+    if (outcome.status === 'created') {
       setAddedToPlan(true);
       haptic.success();
       Alert.alert(
@@ -459,10 +458,19 @@ export default function FoodScanScreen() {
           { text: 'Seguir aquí', style: 'cancel' },
         ],
       );
-    } catch {
+    } else if (outcome.status === 'duplicate') {
+      setAddedToPlan(true);
+      Alert.alert(
+        'Ya está en tu plan',
+        `Ya tienes una ficha de ${outcome.existingName} — no se creó un duplicado. Edítala desde Suplementos con el ✏️.`,
+        [
+          { text: 'Ver mi plan', onPress: () => router.replace('/supplements') },
+          { text: 'Seguir aquí', style: 'cancel' },
+        ],
+      );
+    } else {
       Alert.alert('No se pudo agregar', 'Revisa tu conexión e intenta de nuevo.');
     }
-    setAddingToPlan(false);
   };
 
   const handleSaveFood = () => {
