@@ -28,5 +28,6 @@ VALUES
   ('mantra_ser_mejor_no_tener_razon', 'Ser mejor, no tener razón',     'Suelta el ego, crece',             'meditacion', 240,  'm', 'audio/mantra_ser_mejor_no_tener_razon.m4a', 'covers/mantra_ser_mejor_no_tener_razon.jpg', 27, 'base', true),
   ('mantra_presente_perfecto',        'El presente es perfecto',       'Este momento basta',               'meditacion', 240,  'f', 'audio/mantra_presente_perfecto.m4a',        'covers/mantra_presente_perfecto.jpg',        28, 'base', true),
   ('mantra_amante_del_proceso',       'Amante del proceso',            'Quiere el camino, no solo la meta', 'meditacion', 240, 'm', 'audio/mantra_amante_del_proceso.m4a',       'covers/mantra_amante_del_proceso.jpg',       29, 'base', true),
-  ('sueno_induccion',                 'Meditación para dormir',        'La voz se disuelve mientras duermes', 'descanso', 1200, 'f', 'audio/sueno_induccion.m4a',                'covers/sueno_induccion.jpg',                 30, 'base', true)
+  ('sueno_induccion',                 'Meditación para dormir',        'La voz se disuelve mientras duermes', 'descanso', 1200, 'f', 'audio/sueno_induccion.m4a',                'covers/sueno_induccion.jpg',                 30, 'base', true),
+  ('navegar_ataque_panico',           'Navegar un ataque de pánico',   'Te acompaña a respirar hasta que baje', 'meditacion', 300, 'f', 'audio/navegar_ataque_panico.m4a',          'covers/navegar_ataque_panico.jpg',           31, 'base', true)
 ON CONFLICT (slug) DO NOTHING;
