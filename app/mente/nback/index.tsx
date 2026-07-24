@@ -2,8 +2,9 @@
  * N-Back — home del módulo (norte UX: referencia de Enrique, piel ATP).
  *
  * Week-strip · card Reto 20 días · card Hoy 0/12 con EMPEZAR SESIÓN ·
- * settings (speed / feedback / resume_mode — decisión #44-1) · accesos a
- * Cómo jugar y Estadísticas. Primera vez (0 sesiones) → tutorial N=1.
+ * accesos a Cómo jugar, Estadísticas y Personalizar (V1.5 #C7: los ajustes
+ * viven en /mente/nback/personalizar — la home queda de foco).
+ * Primera vez (0 sesiones) → tutorial N=1.
  */
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -17,13 +18,10 @@ import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
-import {
-  NBACK_CONFIG, badgeForBestN, challengeDay, type NBackResumeMode,
-} from '@/src/services/nback-core';
+import { NBACK_CONFIG, badgeForBestN, challengeDay } from '@/src/services/nback-core';
 import {
   fetchNBackState, countRoundsOnDate, fetchRoundsByDate,
-  getNBackSettings, saveNBackSettings, DEFAULT_NBACK_SETTINGS,
-  type NBackSettings, type NBackUserState,
+  type NBackUserState,
 } from '@/src/services/nback-service';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
@@ -47,14 +45,12 @@ export default function NBackHomeScreen() {
   const [state, setState] = useState<NBackUserState | null>(null);
   const [roundsToday, setRoundsToday] = useState(0);
   const [weekMap, setWeekMap] = useState<Record<string, number>>({});
-  const [settings, setSettings] = useState<NBackSettings>(DEFAULT_NBACK_SETTINGS);
   const [challengeDays, setChallengeDays] = useState(0);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
     const today = getLocalToday();
     const week = lastNDates(7);
-    getNBackSettings().then(s => { if (alive) setSettings(s); });
     if (user?.id) {
       fetchNBackState(user.id).then(st => {
         if (!alive) return;
@@ -73,15 +69,6 @@ export default function NBackHomeScreen() {
     }
     return () => { alive = false; };
   }, [user?.id]));
-
-  const updateSettings = useCallback((patch: Partial<NBackSettings>) => {
-    haptic.light();
-    setSettings(prev => {
-      const next = { ...prev, ...patch };
-      saveNBackSettings(next);
-      return next;
-    });
-  }, []);
 
   const startSession = useCallback(() => {
     haptic.medium();
@@ -193,7 +180,7 @@ export default function NBackHomeScreen() {
             </View>
           </Animated.View>
 
-          {/* Accesos */}
+          {/* Accesos (V1.5 #C7: los ajustes viven en Personalizar) */}
           <Animated.View entering={FadeInUp.delay(180).springify()} style={s.linksRow}>
             <AnimatedPressable
               style={s.linkBtn}
@@ -209,57 +196,13 @@ export default function NBackHomeScreen() {
               <Ionicons name="help-circle-outline" size={16} color={TEXT.primary} />
               <EliteText style={s.linkText}>Cómo jugar</EliteText>
             </AnimatedPressable>
-          </Animated.View>
-
-          {/* Settings */}
-          <Animated.View entering={FadeInUp.delay(230).springify()}>
-            <EliteText style={s.sectionLabel}>AJUSTES</EliteText>
-
-            <View style={s.settingRow}>
-              <EliteText style={s.settingLabel}>Velocidad</EliteText>
-              <View style={s.pillGroup}>
-                {NBACK_CONFIG.SPEEDS.map(sp => (
-                  <AnimatedPressable
-                    key={sp}
-                    style={[s.pill, settings.speed === sp && s.pillActive]}
-                    onPress={() => updateSettings({ speed: sp })}
-                  >
-                    <EliteText style={[s.pillText, settings.speed === sp && s.pillTextActive]}>{sp}x</EliteText>
-                  </AnimatedPressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={s.settingRow}>
-              <EliteText style={s.settingLabel}>Feedback al responder</EliteText>
-              <AnimatedPressable
-                style={[s.pill, settings.feedbackSound && s.pillActive]}
-                onPress={() => updateSettings({ feedbackSound: !settings.feedbackSound })}
-              >
-                <EliteText style={[s.pillText, settings.feedbackSound && s.pillTextActive]}>
-                  {settings.feedbackSound ? 'ON' : 'OFF'}
-                </EliteText>
-              </AnimatedPressable>
-            </View>
-
-            <View style={s.settingRowColumn}>
-              <EliteText style={s.settingLabel}>Arrancar sesión en</EliteText>
-              <View style={[s.pillGroup, { marginTop: 8 }]}>
-                {([
-                  { mode: 'last', label: 'Último N' },
-                  { mode: 'best', label: 'Mi mejor N' },
-                  { mode: 'restart', label: 'Desde 1' },
-                ] as { mode: NBackResumeMode; label: string }[]).map(({ mode, label }) => (
-                  <AnimatedPressable
-                    key={mode}
-                    style={[s.pill, settings.resumeMode === mode && s.pillActive]}
-                    onPress={() => updateSettings({ resumeMode: mode })}
-                  >
-                    <EliteText style={[s.pillText, settings.resumeMode === mode && s.pillTextActive]}>{label}</EliteText>
-                  </AnimatedPressable>
-                ))}
-              </View>
-            </View>
+            <AnimatedPressable
+              style={s.linkBtn}
+              onPress={() => { haptic.light(); router.push('/mente/nback/personalizar'); }}
+            >
+              <Ionicons name="options-outline" size={16} color={TEXT.primary} />
+              <EliteText style={s.linkText}>Personalizar</EliteText>
+            </AnimatedPressable>
           </Animated.View>
 
           <View style={{ height: Spacing.xxl }} />
@@ -330,25 +273,4 @@ const s = StyleSheet.create({
     borderRadius: Radius.lg, paddingVertical: 12,
   },
   linkText: { color: TEXT.primary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-
-  sectionLabel: {
-    color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 2,
-    marginTop: Spacing.md, marginBottom: Spacing.sm,
-  },
-  settingRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(255,255,255,0.08)',
-  },
-  settingRowColumn: { paddingVertical: 10 },
-  settingLabel: { color: TEXT.primary, fontSize: FontSizes.md, fontFamily: Fonts.regular },
-  pillGroup: { flexDirection: 'row', gap: 8 },
-  pill: {
-    borderRadius: Radius.pill, paddingHorizontal: 14, paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1, borderColor: 'transparent',
-  },
-  pillActive: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.15), borderColor: withOpacity(ATP_BRAND.lime, 0.5) },
-  pillText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
-  pillTextActive: { color: ATP_BRAND.lime },
 });

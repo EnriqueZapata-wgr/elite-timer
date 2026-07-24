@@ -21,13 +21,17 @@ import {
 
 export interface NBackSettings {
   speed: number;                 // 1 | 1.5 | 2
-  feedbackSound: boolean;        // chime/haptic de feedback (las LETRAS nunca se apagan — #44-3)
+  feedbackSound: boolean;        // haptic acierto/error (las LETRAS nunca se apagan — #44-3)
+  feedbackFlash: boolean;        // V1.5 (#C8): flash visual verde/rojo — separado del háptico
+  showTurnNumber: boolean;       // V1.5 (#C9): contador i/total arriba-derecha
   resumeMode: NBackResumeMode;   // 'last' (default) | 'best' | 'restart'
 }
 
 export const DEFAULT_NBACK_SETTINGS: NBackSettings = {
   speed: 1,
   feedbackSound: true,
+  feedbackFlash: true,
+  showTurnNumber: true,
   resumeMode: 'last',
 };
 
@@ -41,6 +45,9 @@ export async function getNBackSettings(): Promise<NBackSettings> {
     return {
       speed: (NBACK_CONFIG.SPEEDS as readonly number[]).includes(parsed.speed) ? parsed.speed : 1,
       feedbackSound: parsed.feedbackSound !== false,
+      // Migración V1.5: settings guardados antes del split heredan feedbackSound.
+      feedbackFlash: parsed.feedbackFlash !== undefined ? parsed.feedbackFlash !== false : parsed.feedbackSound !== false,
+      showTurnNumber: parsed.showTurnNumber !== false,
       resumeMode: ['last', 'best', 'restart'].includes(parsed.resumeMode) ? parsed.resumeMode : 'last',
     };
   } catch {

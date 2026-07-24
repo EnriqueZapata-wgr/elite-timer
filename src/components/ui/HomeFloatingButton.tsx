@@ -31,9 +31,10 @@ export function HomeFloatingButton() {
 
   function goHome() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    // navigate (no push/replace): vuelve al tab HOY sin apilar otra instancia
-    // ni remontar el árbol (HOME-1: replace reiniciaba la app).
-    router.navigate('/(tabs)');
+    // I17 (V1.5): dismissTo desapila hasta los tabs YA montados sin remontar.
+    // navigate (intento HOME-1) podía no matchear el entry del historial y
+    // pushear un (tabs) nuevo → HOY remontaba con loader ("se reinició").
+    router.dismissTo('/(tabs)');
   }
 
   return (

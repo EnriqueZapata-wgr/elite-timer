@@ -1,12 +1,17 @@
 /**
  * N-Back — cómo jugar (tutorial; primera vez es la puerta obligada a la
  * sesión con N=1 forzado — decisión #44-1).
+ *
+ * V1.5 (D10): paginado — una idea por pantalla con "ENTENDIDO", indicador de
+ * progreso y "EMPEZAR" al final (antes era una lista corrida poco amigable).
+ * La primera ronda además trae coach on-the-fly (sesion.tsx).
  */
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInRight } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
@@ -46,6 +51,20 @@ const STEPS: { icon: string; title: string; body: string }[] = [
 export default function NBackComoJugarScreen() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+  const [idx, setIdx] = useState(0);
+
+  const last = idx === STEPS.length - 1;
+  const step = STEPS[idx];
+
+  const advance = useCallback(() => {
+    if (idx < STEPS.length - 1) {
+      haptic.light();
+      setIdx(i => i + 1);
+    } else {
+      haptic.medium();
+      router.replace('/mente/nback/sesion');
+    }
+  }, [idx, router]);
 
   return (
     <View style={s.screen}>
@@ -67,28 +86,39 @@ export default function NBackComoJugarScreen() {
         </View>
 
         <View style={s.body}>
-          {STEPS.map((step, i) => (
-            <View key={i} style={s.stepCard}>
-              <View style={s.stepIcon}>
-                <Ionicons name={step.icon as any} size={20} color={ATP_BRAND.lime} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <EliteText style={s.stepTitle}>{step.title}</EliteText>
-                <EliteText style={s.stepBody}>{step.body}</EliteText>
-              </View>
+          {/* Una idea por pantalla (D10) — la card re-entra al avanzar. */}
+          <Animated.View key={idx} entering={FadeInRight.duration(220)} style={s.stepCardBig}>
+            <View style={s.stepIconBig}>
+              <Ionicons name={step.icon as any} size={28} color={ATP_BRAND.lime} />
             </View>
-          ))}
+            <EliteText style={s.stepTitleBig}>{step.title}</EliteText>
+            <EliteText style={s.stepBodyBig}>{step.body}</EliteText>
+          </Animated.View>
 
-          <AnimatedPressable
-            style={s.startBtn}
-            onPress={() => { haptic.medium(); router.replace('/mente/nback/sesion'); }}
-          >
-            <Ionicons name="play" size={18} color="#000" />
-            <EliteText style={s.startText}>EMPEZAR</EliteText>
+          {/* Progreso */}
+          <View style={s.dotsRow}>
+            {STEPS.map((_, i) => (
+              <View key={i} style={[s.dot, i === idx && s.dotActive]} />
+            ))}
+          </View>
+
+          <AnimatedPressable style={s.startBtn} onPress={advance}>
+            {last && <Ionicons name="play" size={18} color="#000" />}
+            <EliteText style={s.startText}>{last ? 'EMPEZAR' : 'ENTENDIDO'}</EliteText>
           </AnimatedPressable>
-          <EliteText style={s.startHint}>
-            Tu primera sesión arranca en N=1 para que aprendas la mecánica sin presión.
-          </EliteText>
+          {idx > 0 && (
+            <AnimatedPressable
+              style={s.backStepBtn}
+              onPress={() => { haptic.light(); setIdx(i => Math.max(0, i - 1)); }}
+            >
+              <EliteText style={s.backStepText}>Anterior</EliteText>
+            </AnimatedPressable>
+          )}
+          {last && (
+            <EliteText style={s.startHint}>
+              Tu primera sesión arranca en N=1 para que aprendas la mecánica sin presión.
+            </EliteText>
+          )}
 
           <View style={{ height: Spacing.xxl }} />
         </View>
@@ -106,18 +136,25 @@ const s = StyleSheet.create({
   subtitle: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 20 },
   body: { paddingHorizontal: Spacing.md },
 
-  stepCard: {
-    flexDirection: 'row', gap: Spacing.sm,
+  stepCardBig: {
     backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
-    borderRadius: Radius.lg, padding: Spacing.md, marginBottom: Spacing.sm,
+    borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md,
+    minHeight: 230,
   },
-  stepIcon: {
-    width: 40, height: 40, borderRadius: 20,
+  stepIconBig: {
+    width: 56, height: 56, borderRadius: 28,
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.1),
-    alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.md,
   },
-  stepTitle: { color: '#fff', fontSize: FontSizes.md, fontFamily: Fonts.bold },
-  stepBody: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.regular, marginTop: 3, lineHeight: 19 },
+  stepTitleBig: { color: '#fff', fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, letterSpacing: 0.5 },
+  stepBodyBig: { color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.regular, marginTop: 8, lineHeight: 23 },
+
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: Spacing.md },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.18)' },
+  dotActive: { backgroundColor: ATP_BRAND.lime, width: 18 },
+
+  backStepBtn: { alignItems: 'center', paddingVertical: 12 },
+  backStepText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
   startBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,

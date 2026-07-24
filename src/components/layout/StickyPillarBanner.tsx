@@ -73,7 +73,10 @@ export function StickyPillarBanner({ scrolled, onBack, hideBack, rightExtra }: P
           </Pressable>
         )}
         <Pressable
-          onPress={() => { haptic.light(); router.navigate('/(tabs)'); }}
+          // I17 (V1.5): dismissTo desapila hasta los tabs YA montados. navigate
+          // podía no matchear el entry del historial y PUSHEAR un (tabs) nuevo
+          // → HOY remontaba con loader full-screen ("se reinició la app").
+          onPress={() => { haptic.light(); router.dismissTo('/(tabs)'); }}
           accessibilityRole="button"
           accessibilityLabel="Volver a HOY"
           hitSlop={8}

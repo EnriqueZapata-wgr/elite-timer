@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   NBACK_CONFIG, cellToRowCol, stimuliCountFor, trialDurationMs,
   generateRound, scoreChannel, evaluateRound, startingN, nextStreak,
-  badgeForBestN, challengeDay,
+  badgeForBestN, challengeDay, resolvePressIndex,
 } from '../nback-core';
 
 /** RNG determinista (LCG) para tests reproducibles. */
@@ -136,6 +136,33 @@ describe('nextStreak (días con ≥1 round)', () => {
   it('cruza fin de mes/año sin desfase', () => {
     expect(nextStreak('2026-07-31', '2026-08-01', 2)).toBe(3);
     expect(nextStreak('2026-12-31', '2027-01-01', 6)).toBe(7);
+  });
+});
+
+describe('resolvePressIndex (V1.5: gracia de press tardío)', () => {
+  const G = NBACK_CONFIG.GRACE_PRESS_MS;
+
+  it('press dentro de la gracia se acredita al trial anterior si estaba libre', () => {
+    expect(resolvePressIndex(5, 100, G, false)).toBe(4);
+    expect(resolvePressIndex(5, G, G, false)).toBe(4); // límite inclusive
+  });
+
+  it('press después de la gracia se queda en el trial actual', () => {
+    expect(resolvePressIndex(5, G + 1, G, false)).toBe(5);
+    expect(resolvePressIndex(5, 2000, G, false)).toBe(5);
+  });
+
+  it('si el trial anterior ya registró press, no roba el crédito', () => {
+    expect(resolvePressIndex(5, 100, G, true)).toBe(5);
+  });
+
+  it('el trial 0 nunca redirige (no hay anterior)', () => {
+    expect(resolvePressIndex(0, 10, G, false)).toBe(0);
+  });
+
+  it('elapsed no-finito degrada al trial actual', () => {
+    expect(resolvePressIndex(3, Number.NaN, G, false)).toBe(3);
+    expect(resolvePressIndex(3, Number.POSITIVE_INFINITY, G, false)).toBe(3);
   });
 });
 

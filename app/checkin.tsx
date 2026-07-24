@@ -255,7 +255,10 @@ export default function CheckinScreen() {
   }
 
   return (
-    <Screen keyboard>
+    <Screen>
+      {/* I18 (V1.5): el teclado se maneja con insets nativos en el ScrollView
+          del step 3 (el único con input) — scrollea al campo y restaura al
+          cerrar; el KAV de Screen solo encogía sin scroll. */}
       <PillarHeader pillar="mind" title="Check-in" onBack={handleBack} />
 
       {/* Dots */}
@@ -443,7 +446,12 @@ export default function CheckinScreen() {
       {/* ═══ STEP 3: CONTEXTO ═══ */}
       {step === 3 && quadrant && (
         <Animated.View entering={SlideInRight.duration(250)} style={styles.stepFlex}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+            keyboardDismissMode="interactive"
+          >
             {/* Emociones seleccionadas como recordatorio */}
             <View style={styles.selectedRow}>
               {selectedEmotions.map(id => {

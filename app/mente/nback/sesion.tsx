@@ -11,7 +11,7 @@
  * nback_sessions + estado + e- (1er round del día) + claim H+ (mig 218).
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, AppState, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,7 +24,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import {
   NBACK_CONFIG, generateRound, scoreChannel, evaluateRound, startingN,
-  trialDurationMs, stimuliCountFor, type NBackRound, type NBackRoundResult,
+  trialDurationMs, stimuliCountFor, resolvePressIndex,
+  type NBackRound, type NBackRoundResult,
 } from '@/src/services/nback-core';
 import { createNBackAudio, type NBackAudioHandle } from '@/src/services/nback-audio';
 import {
@@ -34,9 +35,15 @@ import {
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
-type Phase = 'loading' | 'countdown' | 'playing' | 'saving' | 'results';
+type Phase = 'loading' | 'countdown' | 'playing' | 'paused' | 'saving' | 'results';
+
+/** Mensaje del coach del tutorial (primera sesión) — pausa el juego hasta "ENTENDIDO". */
+interface CoachMsg { title: string; body: string }
 
 const COUNTDOWN_STEPS = ['¿Listo?', 'En posición.', '¡Va!'];
+// V1.5 (A3): "¡Va!" aguanta ~2.8s antes del primer trial (antes 800ms — el
+// usuario no alcanzaba a ubicar la vista).
+const COUNTDOWN_TOTAL_MS = 4600;
 const RAISE_PCT = NBACK_CONFIG.RAISE_THRESHOLD * 100;
 const DROP_PCT = NBACK_CONFIG.DROP_THRESHOLD * 100;
 
@@ -61,6 +68,10 @@ export default function NBackSessionScreen() {
   const [pressedThisTrial, setPressedThisTrial] = useState<{ v: boolean; a: boolean }>({ v: false, a: false });
   const [flash, setFlash] = useState<{ channel: 'v' | 'a'; ok: boolean } | null>(null);
   const [results, setResults] = useState<ResultsView | null>(null);
+  // V1.5: settings espejados a estado para lo que pinta (contador de turno).
+  const [showTurnNumber, setShowTurnNumber] = useState(true);
+  // V1.5 (D10): coach del tutorial — pausa on-the-fly con "ENTENDIDO".
+  const [coach, setCoach] = useState<CoachMsg | null>(null);
 
   const settingsRef = useRef<NBackSettings>(DEFAULT_NBACK_SETTINGS);
   const audioRef = useRef<NBackAudioHandle | null>(null);
@@ -71,6 +82,16 @@ export default function NBackSessionScreen() {
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const startedAtRef = useRef(new Date());
   const aliveRef = useRef(true);
+  // V1.5: timing absoluto — base del round (se re-ancla al reanudar/coach) y
+  // arranque del trial visible (para la gracia de press tardío).
+  const roundBaseRef = useRef(0);
+  const trialStartRef = useRef(0);
+  const phaseRef = useRef<Phase>('loading');
+  const nRef = useRef<number>(NBACK_CONFIG.N_START);
+  const tutorialRef = useRef(false);
+  const coachShownRef = useRef({ intro: false, v: false, a: false });
+  const pendingTrialRef = useRef<number | null>(null);
+  const pausedFromRef = useRef<'playing' | 'countdown'>('playing');
 
   const clearTimers = useCallback(() => {
     for (const t of timersRef.current) clearTimeout(t);
@@ -82,6 +103,10 @@ export default function NBackSessionScreen() {
     timersRef.current.push(t);
   }, []);
 
+  // Espejos síncronos para handlers fuera del ciclo de render (AppState/press).
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { nRef.current = n; }, [n]);
+
   // ── Carga inicial: settings + estado + audio ──
   useEffect(() => {
     aliveRef.current = true;
@@ -89,6 +114,7 @@ export default function NBackSessionScreen() {
       const [settings, audio] = await Promise.all([getNBackSettings(), createNBackAudio()]);
       if (!aliveRef.current) { audio.dispose(); return; }
       settingsRef.current = settings;
+      setShowTurnNumber(settings.showTurnNumber);
       audioRef.current = audio;
       let startN: number = NBACK_CONFIG.N_START;
       let tutorial = false;
@@ -98,6 +124,7 @@ export default function NBackSessionScreen() {
         startN = startingN(st.sessions_total, st.current_n, st.best_n, settings.resumeMode);
       }
       if (!aliveRef.current) return;
+      tutorialRef.current = tutorial;
       setIsTutorial(tutorial);
       setN(startN);
       startCountdown(startN);
@@ -117,7 +144,7 @@ export default function NBackSessionScreen() {
     setCountdownIdx(0);
     later(() => setCountdownIdx(1), 900);
     later(() => setCountdownIdx(2), 1800);
-    later(() => startRound(forN), 2600);
+    later(() => startRound(forN), COUNTDOWN_TOTAL_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -129,17 +156,57 @@ export default function NBackSessionScreen() {
     pressedVRef.current = new Array(round.positions.length).fill(false);
     pressedARef.current = new Array(round.positions.length).fill(false);
     startedAtRef.current = new Date();
+    roundBaseRef.current = Date.now();
     setN(forN);
     setPhase('playing');
     runTrial(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Re-ancla la base del round para que el trial `i` "empiece" ahora (tras
+   * coach del tutorial o pausa por background — timing absoluto sin deuda). */
+  const reanchorAt = useCallback((i: number) => {
+    roundBaseRef.current = Date.now() - i * trialDurationMs(settingsRef.current.speed);
+  }, []);
+
   const runTrial = useCallback((i: number) => {
     const round = roundRef.current;
     if (!round) return;
     if (i >= round.positions.length) { finishRound(); return; }
+
+    // D10: tutorial on-the-fly — antes del primer match de cada canal, pausa
+    // con instrucción; el trial corre al tocar ENTENDIDO.
+    if (tutorialRef.current) {
+      if (!coachShownRef.current.intro) {
+        coachShownRef.current.intro = true;
+        pendingTrialRef.current = i;
+        setCoach({
+          title: `Nivel N=${round.n}`,
+          body: `Cada turno: se ilumina una celda Y suena una letra. Con N=${round.n} comparas contra hace ${round.n} turno${round.n > 1 ? 's' : ''}: si la celda se repite → POSICIÓN; si la letra se repite → SONIDO. Te aviso en los primeros matches.`,
+        });
+        return;
+      }
+      const needV = round.visualMatches[i] && !coachShownRef.current.v;
+      const needA = round.audioMatches[i] && !coachShownRef.current.a;
+      if (needV || needA) {
+        if (needV) coachShownRef.current.v = true;
+        if (needA) coachShownRef.current.a = true;
+        pendingTrialRef.current = i;
+        clearTimers();
+        setLitCell(null);
+        setCoach(
+          needV && needA
+            ? { title: 'Doble match', body: `La celda Y la letra que vienen se repiten respecto a hace ${round.n}. Presiona POSICIÓN y SONIDO — los dos cuentan.` }
+            : needV
+              ? { title: 'Match de posición', body: `La celda que se va a iluminar es la MISMA de hace ${round.n}. Cuando la veas, presiona POSICIÓN.` }
+              : { title: 'Match de sonido', body: `La letra que vas a escuchar es la MISMA de hace ${round.n}. Cuando la oigas, presiona SONIDO.` }
+        );
+        return;
+      }
+    }
+
     trialRef.current = i;
+    trialStartRef.current = Date.now();
     setTrialIdx(i);
     setPressedThisTrial({ v: false, a: false });
     setFlash(null);
@@ -147,28 +214,48 @@ export default function NBackSessionScreen() {
     audioRef.current?.play(round.letters[i]);
     const trialMs = trialDurationMs(settingsRef.current.speed);
     later(() => setLitCell(null), NBACK_CONFIG.STIMULUS_VISIBLE_MS);
-    later(() => runTrial(i + 1), trialMs);
+    // Timing absoluto (V1.5): deadline contra la base del round — el drift de
+    // setTimeout no se acumula a velocidades altas.
+    const deadline = roundBaseRef.current + (i + 1) * trialMs;
+    later(() => runTrial(i + 1), Math.max(50, deadline - Date.now()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Cierra el coach del tutorial y corre el trial pendiente. */
+  const dismissCoach = useCallback(() => {
+    const i = pendingTrialRef.current;
+    setCoach(null);
+    haptic.light();
+    if (i === null) return;
+    pendingTrialRef.current = null;
+    reanchorAt(i);
+    runTrial(i);
+  }, [reanchorAt, runTrial]);
+
   const press = useCallback((channel: 'v' | 'a') => {
     const round = roundRef.current;
-    if (!round || phase !== 'playing') return;
-    const i = trialRef.current;
+    if (!round || phaseRef.current !== 'playing' || coach) return;
     const pressedArr = channel === 'v' ? pressedVRef.current : pressedARef.current;
+    // Gracia (V1.5): un press en los primeros ms del trial se acredita al
+    // estímulo anterior si ese canal no registró press ahí (lógica pura, testeada).
+    const cur = trialRef.current;
+    const elapsed = Date.now() - trialStartRef.current;
+    const i = resolvePressIndex(cur, elapsed, NBACK_CONFIG.GRACE_PRESS_MS, pressedArr[cur - 1] === true);
     if (pressedArr[i]) return; // un press por canal por trial
     pressedArr[i] = true;
-    setPressedThisTrial(prev => ({ ...prev, [channel]: true }));
+    if (i === cur) setPressedThisTrial(prev => ({ ...prev, [channel]: true }));
     const isMatch = channel === 'v' ? round.visualMatches[i] : round.audioMatches[i];
-    if (settingsRef.current.feedbackSound) {
-      // Feedback suave (spec #6): verde acierto / rojo error — degradable en settings.
+    // V1.5 (#C8): flash visual y háptico acierto/error separados en settings.
+    if (settingsRef.current.feedbackFlash) {
       setFlash({ channel, ok: isMatch });
-      if (isMatch) haptic.light(); else haptic.warning();
       later(() => setFlash(null), 350);
+    }
+    if (settingsRef.current.feedbackSound) {
+      if (isMatch) haptic.light(); else haptic.warning();
     } else {
       haptic.light();
     }
-  }, [phase, later]);
+  }, [coach, later]);
 
   // ── Fin del round: score → persistir → resultados ──
   const finishRound = useCallback(async () => {
@@ -212,9 +299,36 @@ export default function NBackSessionScreen() {
     startCountdown(results.result.nextN);
   }, [results, startCountdown]);
 
+  // ── Background (V1.5 · 2.7): los timers JS se pausan y el timing se
+  // descompone — pausamos el round y ofrecemos reanudar o salir. ──
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') return;
+      const ph = phaseRef.current;
+      if (ph !== 'playing' && ph !== 'countdown') return;
+      pausedFromRef.current = ph;
+      clearTimers();
+      setLitCell(null);
+      setFlash(null);
+      setPhase('paused');
+    });
+    return () => sub.remove();
+  }, [clearTimers]);
+
+  const resumeFromPause = useCallback(() => {
+    haptic.medium();
+    if (pausedFromRef.current === 'countdown') { startCountdown(nRef.current); return; }
+    setPhase('playing');
+    // Si el coach del tutorial estaba abierto, su ENTENDIDO reanuda.
+    if (pendingTrialRef.current !== null) return;
+    const i = trialRef.current;
+    reanchorAt(i);
+    runTrial(i);
+  }, [startCountdown, reanchorAt, runTrial]);
+
   // ── Salida con confirmación durante el juego (el round en curso se pierde) ──
   const handleExit = useCallback(() => {
-    if (phase === 'playing' || phase === 'countdown') {
+    if (phase === 'playing' || phase === 'countdown' || phase === 'paused') {
       Alert.alert('¿Salir de la sesión?', 'El round en curso no se guardará.', [
         { text: 'Seguir jugando', style: 'cancel' },
         {
@@ -244,7 +358,8 @@ export default function NBackSessionScreen() {
           Nivel {n}{isTutorial ? ' · Tutorial' : ''}
         </EliteText>
         <View style={s.headerBtn}>
-          {phase === 'playing' && (
+          {/* V1.5 (#C9): contador apagable desde Personalizar. */}
+          {phase === 'playing' && showTurnNumber && (
             <EliteText style={s.trialCounter}>{Math.min(trialIdx + 1, totalTrials)}/{totalTrials}</EliteText>
           )}
         </View>
@@ -259,23 +374,23 @@ export default function NBackSessionScreen() {
           <Animated.View key={countdownIdx} entering={FadeIn.duration(200)}>
             <EliteText style={s.countdownText}>{COUNTDOWN_STEPS[countdownIdx]}</EliteText>
           </Animated.View>
-          {countdownIdx === 0 && (
-            <EliteText style={s.countdownHint}>
-              POSICIÓN si la celda se repite de hace {n} · SONIDO si la letra se repite de hace {n}
-            </EliteText>
-          )}
+          {/* V1.5 (A3): el hint acompaña TODO el countdown (antes solo 900ms). */}
+          <EliteText style={s.countdownHint}>
+            POSICIÓN si la celda se repite de hace {n} · SONIDO si la letra se repite de hace {n}
+          </EliteText>
         </View>
       )}
 
-      {(phase === 'playing' || phase === 'saving') && (
+      {(phase === 'playing' || phase === 'saving' || phase === 'paused') && (
         <>
           <View style={s.center}>
             {/* Grid 3×3 con crosshair al centro */}
             <View style={s.grid}>
               {Array.from({ length: 9 }, (_, gi) => {
                 if (gi === 4) {
+                  // V1.5 (B4): centro transparente — solo la cruz, mismo footprint.
                   return (
-                    <View key={gi} style={s.gridCell}>
+                    <View key={gi} style={s.gridCellCenter}>
                       <EliteText style={s.crosshair}>+</EliteText>
                     </View>
                   );
@@ -290,32 +405,65 @@ export default function NBackSessionScreen() {
             </View>
           </View>
 
-          {/* Botones POSICIÓN / SONIDO */}
+          {/* Botones POSICIÓN / SONIDO — V1.5: registran en onPressIn (touch-
+              down): el responder único de RN cancelaba el onPress de un botón
+              al presionar los dos a la vez (bug A2 → conteo N≥2). El relleno
+              pasa a sólido al presionar (B5) con contenido en negro. */}
           <View style={s.buttonsRow}>
-            <AnimatedPressable
-              style={[
-                s.matchBtn,
-                pressedThisTrial.v && s.matchBtnPressed,
-                flash?.channel === 'v' && (flash.ok ? s.matchBtnOk : s.matchBtnBad),
-              ]}
-              onPress={() => press('v')}
-            >
-              <Ionicons name="apps-outline" size={26} color="#fff" />
-              <EliteText style={s.matchBtnText}>POSICIÓN</EliteText>
-            </AnimatedPressable>
-            <AnimatedPressable
-              style={[
-                s.matchBtn,
-                pressedThisTrial.a && s.matchBtnPressed,
-                flash?.channel === 'a' && (flash.ok ? s.matchBtnOk : s.matchBtnBad),
-              ]}
-              onPress={() => press('a')}
-            >
-              <Ionicons name="volume-high-outline" size={26} color="#fff" />
-              <EliteText style={s.matchBtnText}>SONIDO</EliteText>
-            </AnimatedPressable>
+            {([
+              { channel: 'v' as const, icon: 'apps-outline' as const, label: 'POSICIÓN', pressed: pressedThisTrial.v },
+              { channel: 'a' as const, icon: 'volume-high-outline' as const, label: 'SONIDO', pressed: pressedThisTrial.a },
+            ]).map(btn => {
+              const flashing = flash?.channel === btn.channel;
+              const solid = btn.pressed || flashing;
+              return (
+                <AnimatedPressable
+                  key={btn.channel}
+                  style={[
+                    s.matchBtn,
+                    btn.pressed && s.matchBtnPressed,
+                    flashing && (flash!.ok ? s.matchBtnOk : s.matchBtnBad),
+                  ]}
+                  onPressIn={() => press(btn.channel)}
+                >
+                  <Ionicons name={btn.icon} size={26} color={solid ? '#000' : '#fff'} />
+                  <EliteText style={[s.matchBtnText, solid && { color: '#000' }]}>{btn.label}</EliteText>
+                </AnimatedPressable>
+              );
+            })}
           </View>
         </>
+      )}
+
+      {/* Coach del tutorial (D10): pausa on-the-fly hasta ENTENDIDO. */}
+      {coach && phase === 'playing' && (
+        <View style={s.overlay}>
+          <Animated.View entering={FadeIn.duration(200)} style={s.coachCard}>
+            <EliteText style={s.coachTitle}>{coach.title}</EliteText>
+            <EliteText style={s.coachBody}>{coach.body}</EliteText>
+            <AnimatedPressable style={s.coachBtn} onPress={dismissCoach}>
+              <EliteText style={s.coachBtnText}>ENTENDIDO</EliteText>
+            </AnimatedPressable>
+          </Animated.View>
+        </View>
+      )}
+
+      {/* Pausa por background (2.7): reanudar o salir. */}
+      {phase === 'paused' && (
+        <View style={s.overlay}>
+          <Animated.View entering={FadeIn.duration(200)} style={s.coachCard}>
+            <EliteText style={s.coachTitle}>Sesión en pausa</EliteText>
+            <EliteText style={s.coachBody}>
+              La app pasó a segundo plano y el round se detuvo para no ensuciar tu score.
+            </EliteText>
+            <AnimatedPressable style={s.coachBtn} onPress={resumeFromPause}>
+              <EliteText style={s.coachBtnText}>REANUDAR</EliteText>
+            </AnimatedPressable>
+            <AnimatedPressable style={s.endBtn} onPress={() => { haptic.light(); clearTimers(); router.back(); }}>
+              <EliteText style={s.endText}>Salir (el round se pierde)</EliteText>
+            </AnimatedPressable>
+          </Animated.View>
+        </View>
       )}
 
       {phase === 'results' && results && (
@@ -411,6 +559,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   gridCellLit: { backgroundColor: '#fff', borderColor: '#fff' },
+  // V1.5 (B4): mismo footprint que gridCell pero sin fondo ni borde.
+  gridCellCenter: { width: 94, height: 94, alignItems: 'center', justifyContent: 'center' },
   crosshair: { color: TEXT.tertiary, fontSize: 26, fontFamily: Fonts.regular },
 
   buttonsRow: { flexDirection: 'row', justifyContent: 'space-evenly', paddingBottom: Spacing.md },
@@ -419,10 +569,34 @@ const s = StyleSheet.create({
     backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  matchBtnPressed: { borderColor: withOpacity(ATP_BRAND.lime, 0.6) },
-  matchBtnOk: { borderColor: ATP_BRAND.lime, backgroundColor: withOpacity(ATP_BRAND.lime, 0.12) },
-  matchBtnBad: { borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.12)' },
+  // V1.5 (B5): presionado = relleno SÓLIDO (el contorno delgado no se distinguía).
+  matchBtnPressed: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  matchBtnOk: { borderColor: ATP_BRAND.lime, backgroundColor: ATP_BRAND.lime },
+  matchBtnBad: { borderColor: '#f87171', backgroundColor: '#f87171' },
   matchBtnText: { color: '#fff', fontSize: 12, fontFamily: Fonts.bold, letterSpacing: 2 },
+
+  // V1.5: overlay compartido coach tutorial / pausa background.
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.82)',
+    alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: Spacing.lg, zIndex: 10,
+  },
+  coachCard: {
+    width: '100%',
+    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderRadius: Radius.lg, padding: Spacing.lg,
+  },
+  coachTitle: { color: ATP_BRAND.lime, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, letterSpacing: 0.5 },
+  coachBody: {
+    color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.regular,
+    lineHeight: 22, marginTop: Spacing.sm,
+  },
+  coachBtn: {
+    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.pill,
+    alignItems: 'center', paddingVertical: 13, marginTop: Spacing.lg,
+  },
+  coachBtnText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
 
   resultsWrap: { flex: 1, justifyContent: 'center' },
   resultsTitle: {

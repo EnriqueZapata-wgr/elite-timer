@@ -14,6 +14,10 @@ const AnimatedPressableBase = Animated.createAnimatedComponent(Pressable);
 
 interface Props {
   onPress?: () => void;
+  /** Dispara al touch-down (antes de que el responder pueda cancelar el press).
+   * Úsalo cuando el gesto debe registrar aunque haya otro dedo presionando
+   * otro Pressable (multitouch — fix N-Back V1.5). */
+  onPressIn?: () => void;
   onLongPress?: () => void;
   delayLongPress?: number;
   disabled?: boolean;
@@ -25,6 +29,7 @@ interface Props {
 
 export function AnimatedPressable({
   onPress,
+  onPressIn,
   onLongPress,
   delayLongPress,
   disabled,
@@ -48,6 +53,7 @@ export function AnimatedPressable({
       hitSlop={hitSlop}
       onPressIn={() => {
         scale.value = withSpring(scaleDown, { damping: 15, stiffness: 400 });
+        onPressIn?.();
       }}
       onPressOut={() => {
         scale.value = withSpring(1, { damping: 12, stiffness: 300 });

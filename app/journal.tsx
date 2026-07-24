@@ -324,9 +324,18 @@ export default function JournalScreen() {
   if (selectedType) {
     const typeInfo = JOURNAL_TYPES.find(t => t.key === selectedType)!;
     return (
-      <Screen keyboard>
+      <Screen>
         <PillarHeader pillar="mind" title="Journal" />
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+        {/* I18 (V1.5): insets nativos del teclado en vez del KAV de Screen —
+            scrollea al input enfocado Y restaura al cerrar (iOS). Android:
+            softwareKeyboardLayoutMode resize (app.json). */}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scroll}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+          keyboardDismissMode="interactive"
+        >
           {/* Botón volver */}
           <Pressable onPress={() => { haptic.light(); setSelectedType(null); resetForm(); }} style={s.backBtn}>
             <Ionicons name="arrow-back" size={18} color={TEXT_COLORS.secondary} />
@@ -376,7 +385,7 @@ export default function JournalScreen() {
   // ═══ SELECTOR DE TIPO ═══
 
   return (
-    <Screen keyboard edges={['top']}>
+    <Screen edges={['top']}>
       {/* #138: hero editorial del pilar (reusa mente.jpg); conserva historial + ayuda. */}
       <MenteHero
         image={HERO_MENTE}

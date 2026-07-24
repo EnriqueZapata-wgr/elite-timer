@@ -33,6 +33,10 @@ export const NBACK_CONFIG = {
   SPEEDS: [1, 1.5, 2] as const,
   POSITION_COUNT: 8,     // grid 3×3 sin el centro (crosshair)
   LETTERS: ['a', 'o', 'f', 'l', 'r', 'z', 'h', 'j'] as const,
+  // V1.5: gracia de press tardío — un press en los primeros ms de un trial es
+  // reacción humana al estímulo ANTERIOR (RT no escala con la velocidad del
+  // juego, por eso es fijo y no se divide por speed).
+  GRACE_PRESS_MS: 450,
 } as const;
 
 export type NBackLetter = (typeof NBACK_CONFIG.LETTERS)[number];
@@ -119,6 +123,24 @@ export function generateRound(n: number, rng: Rng = Math.random): NBackRound {
     visualMatches: matchesOf(positions, n),
     audioMatches: matchesOf(letters, n),
   };
+}
+
+/**
+ * Atribución de un press con gracia (V1.5): un press que aterriza en los
+ * primeros `graceMs` del trial `trialIdx` se acredita al trial anterior si ese
+ * canal NO registró press ahí — antes castigaba doble (miss en i−1 + false
+ * alarm en i). No usa los matches reales: la regla es puramente temporal.
+ */
+export function resolvePressIndex(
+  trialIdx: number,
+  elapsedInTrialMs: number,
+  graceMs: number,
+  pressedPrev: boolean,
+): number {
+  if (trialIdx <= 0) return trialIdx;
+  if (!Number.isFinite(elapsedInTrialMs) || elapsedInTrialMs > graceMs) return trialIdx;
+  if (pressedPrev) return trialIdx;
+  return trialIdx - 1;
 }
 
 export interface ChannelScore {
