@@ -11,8 +11,8 @@
  *  - Decisión #44-1: primera vez = tutorial N=1 forzado; después resume_mode
  *    ('last' default | 'best' | 'restart').
  *  - Decisión #44-2: timeout 3s por trial (base 1x; speed lo divide).
- *  - Letras: set fónico MX del spec nuevo (A O U F L M R S) — Enrique las
- *    graba; TTS es-MX como fallback mientras llegan (nback-audio.ts).
+ *  - Letras: set grabado 2026-07-23 (A O F L R Z H J — supersede el A O U F L
+ *    M R S del spec); TTS es-MX queda solo como fallback (nback-audio.ts).
  *  - Round = 20 trials evaluables (+N de arranque). 12 rounds/día. Reto 20 días.
  */
 
@@ -32,14 +32,14 @@ export const NBACK_CONFIG = {
   DROP_THRESHOLD: 0.75,  // cualquier canal <75% → N−1
   SPEEDS: [1, 1.5, 2] as const,
   POSITION_COUNT: 8,     // grid 3×3 sin el centro (crosshair)
-  LETTERS: ['a', 'o', 'u', 'f', 'l', 'm', 'r', 's'] as const,
+  LETTERS: ['a', 'o', 'f', 'l', 'r', 'z', 'h', 'j'] as const,
 } as const;
 
 export type NBackLetter = (typeof NBACK_CONFIG.LETTERS)[number];
 
 /** Cómo se pronuncia cada letra para el fallback TTS es-MX. */
 export const LETTER_SPOKEN: Record<NBackLetter, string> = {
-  a: 'a', o: 'o', u: 'u', f: 'efe', l: 'ele', m: 'eme', r: 'erre', s: 'ese',
+  a: 'a', o: 'o', f: 'efe', l: 'ele', r: 'erre', z: 'zeta', h: 'hache', j: 'jota',
 };
 
 /** Celda 0..7 → [row, col] del grid 3×3 (centro [1,1] excluido = crosshair). */

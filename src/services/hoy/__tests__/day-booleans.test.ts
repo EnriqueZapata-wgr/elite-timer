@@ -46,9 +46,13 @@ describe('patrón 3 lugares — electrones booleanos', () => {
     }
   });
 
-  it('nback está en los 3 lugares (spec N-Back 2026-07-23 §5)', () => {
+  it('nback es opt-in: seleccionable + verificado, NUNCA mandatory (decisión 2026-07-23)', () => {
     expect(ELECTRON_WEIGHTS.nback?.weight).toBe(2.5);
-    expect(MANDATORY_BOOLEANS).toContain('nback');
+    // Opt-in: no suma al denominador de todos…
+    expect(MANDATORY_BOOLEANS).not.toContain('nback');
+    // …pero sigue siendo activable en EditDayModal (lugar 3a vía prefs)…
+    expect(ALL_BOOLEAN_OPTIONS.map((o) => o.key)).toContain('nback');
+    // …y conserva conteo real + ruta de tap (lugar 3b).
     expect(VERIFIED_ELECTRON_KEYS).toContain('nback');
     expect(VERIFIED_ELECTRON_ROUTES.nback).toBe('/mente/nback');
   });

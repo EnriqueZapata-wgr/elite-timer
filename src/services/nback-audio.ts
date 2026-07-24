@@ -1,12 +1,11 @@
 /**
  * N-Back — canal auditivo (8 letras habladas).
  *
- * Las grabaciones de Enrique (spec §6: nback_a/o/u/f/l/m/r/s) aún no llegan al
- * repo. CABLEADO LISTO PARA EL SWAP: cuando estén, van a
- * `assets/audio/nback/nback_<letra>.m4a` y se llena LETTER_ASSETS con
- * require() — el pool de players las usa automáticamente. Mientras tanto el
- * fallback habla la letra con expo-speech (es-MX, ya en el binario) — mismo
- * contrato, cero cambio en el juego.
+ * Default: las grabaciones reales (assets/audio/nback/nback_<letra>.wav,
+ * ~0.5s mono nivel parejo, set A·O·F·L·R·Z·H·J — 2026-07-23). El fallback a
+ * expo-speech (es-MX) se conserva como defensa: si un asset faltara o
+ * expo-audio no cargara, el canal habla la letra — mismo contrato, cero
+ * cambio en el juego. ⚠️ Assets nuevos empaquetados → requieren build nativo.
  *
  * Nativos SIEMPRE lazy (doctrina): expo-audio y expo-speech se importan
  * dinámico; sin módulo → el canal degrada a silencio sin crashear (y la UI
@@ -14,11 +13,16 @@
  */
 import { NBACK_CONFIG, LETTER_SPOKEN, type NBackLetter } from './nback-core';
 
-// Cuando lleguen los archivos: descomentar/llenar con require() estático.
-// const LETTER_ASSETS: Partial<Record<NBackLetter, number>> = {
-//   a: require('@/assets/audio/nback/nback_a.m4a'), ...
-// };
-const LETTER_ASSETS: Partial<Record<NBackLetter, number>> = {};
+const LETTER_ASSETS: Partial<Record<NBackLetter, number>> = {
+  a: require('@/assets/audio/nback/nback_a.wav'),
+  o: require('@/assets/audio/nback/nback_o.wav'),
+  f: require('@/assets/audio/nback/nback_f.wav'),
+  l: require('@/assets/audio/nback/nback_l.wav'),
+  r: require('@/assets/audio/nback/nback_r.wav'),
+  z: require('@/assets/audio/nback/nback_z.wav'),
+  h: require('@/assets/audio/nback/nback_h.wav'),
+  j: require('@/assets/audio/nback/nback_j.wav'),
+};
 
 type ExpoAudio = typeof import('expo-audio');
 type AudioPlayer = import('expo-audio').AudioPlayer;

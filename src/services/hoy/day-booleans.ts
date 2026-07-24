@@ -36,11 +36,11 @@ export const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_
  * Se fuerzan SIEMPRE en activeBoolKeys vía unión, respetando la (de)selección de los seleccionables.
  * `cardio` (#v13e 3.A.3) es verificado y tampoco es seleccionable → también va aquí.
  */
-export const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio',
-  // N-Back (spec 2026-07-23 §5): card de HOY para todos, verificada — el spec
-  // manda integrarlo al HOY con el mismo patrón que meditación, y los
-  // verificados no-seleccionables viven aquí (no en prefs).
-  'nback'];
+export const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio'];
+// N-Back (decisión Enrique 2026-07-23): NO es hábito universal — es opt-in.
+// Salió de MANDATORY (ya no suma 2.5 al denominador de todos) y entró a
+// ALL_BOOLEAN_OPTIONS: quien lo activa en sus hábitos conserva card verificada
+// (VERIFIED_ELECTRON_KEYS) y e- como siempre.
 
 /**
  * Electrones cuya `completed` se deriva de actividad real (no del blob).
@@ -98,6 +98,7 @@ export const ALL_BOOLEAN_OPTIONS: ElectronOption[] = [
   { key: 'breathwork',   name: 'Breathwork',    icon: 'cloud-outline',   color: '#60a5fa', weight: 1.0 },
   { key: 'red_glasses',  name: 'Lentes rojos',  icon: 'glasses-outline', color: '#f87171', weight: 1.0 },
   { key: 'period_log',   name: 'Registrar ciclo', icon: 'calendar-outline', color: '#fb7185', weight: 1.0 },
+  { key: 'nback',        name: 'N-Back',        icon: 'grid-outline',    color: '#7F77DD', weight: 2.5 },
 ];
 
 export const ALL_QUANT_OPTIONS: ElectronOption[] = [
