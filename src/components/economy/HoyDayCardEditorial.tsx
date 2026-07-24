@@ -6,7 +6,10 @@
  * que empieza", rotación seed-determinística por día/usuario), gradient overlay + velo, y tipografía
  * display grande para el número. Si no hay imagen → cae a gradient sólido (mismo patrón EditorialCard).
  *
- * Tap → /economy/admin (igual que el legacy). Self-gated por LAB_ECONOMY_ENABLED.
+ * Tap (MB-1.5 §3, patrón Whoop "score = coaching"): si viene `coaching` (la acción
+ * pendiente que más mueve el score hoy, de topScoreMover) navega a ESA acción y
+ * muestra el hint "Siguiente: …"; sin pendientes → /economy/admin (progreso, legacy).
+ * Self-gated por LAB_ECONOMY_ENABLED.
  *
  * El legacy `HoyDayCard` se conserva hasta confirmar que el editorial pega (se borra en follow-up).
  */
@@ -36,11 +39,14 @@ interface Props {
   streak?: number | null;
   completedCount?: number;
   totalCount?: number;
+  /** MB-1.5 §3: acción pendiente que más mueve el score hoy (score-coaching-core).
+   * null/undefined = día completo → tap cae a /economy/admin. */
+  coaching?: { name: string; route: string; remainingWeight: number } | null;
 }
 
 const DAWN_GRADIENT: [string, string] = ['#F59E0B', '#312E81'];
 
-export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCount, totalCount }: Props) {
+export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCount, totalCount, coaching }: Props) {
   const { user } = useAuth();
   const [earnedToday, setEarnedToday] = useState<number>(0);
   const barWidth = useSharedValue(0);
@@ -91,7 +97,11 @@ export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCoun
 
   return (
     <AnimatedPressable
-      onPress={() => { haptic.light(); router.push('/economy/admin'); }}
+      onPress={() => {
+        haptic.light();
+        // MB-1.5 §3: el score no es decorativo — lleva a la acción que más lo mueve hoy.
+        router.push((coaching?.route ?? '/economy/admin') as any);
+      }}
       style={styles.card}
     >
       {/* Fondo B/N (despertar) o placeholder gradient. width/height explícitos por el bug de
@@ -141,6 +151,15 @@ export function HoyDayCardEditorial({ percentage, seedKey, streak, completedCoun
               ) : null}
             </View>
           ) : null}
+          {/* MB-1.5 §3: coaching visible — qué acción mueve más el score ahora. */}
+          {coaching ? (
+            <View style={styles.coachRow}>
+              <Ionicons name="arrow-forward-circle" size={13} color={ATP_BRAND.lime} />
+              <EliteText style={styles.coachText}>
+                Siguiente: {coaching.name}  ·  +{coaching.remainingWeight} E-
+              </EliteText>
+            </View>
+          ) : null}
         </View>
       </View>
     </AnimatedPressable>
@@ -182,6 +201,8 @@ const styles = StyleSheet.create({
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 },
   statRow: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.xs },
   statText: { color: 'rgba(255,255,255,0.85)', fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  coachRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Spacing.xs },
+  coachText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   pctText: { fontFamily: Fonts.bold, fontSize: FontSizes.md },
   loadLabel: { fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 1.2 },
 });

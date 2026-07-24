@@ -253,7 +253,12 @@ export default function NutritionScreen() {
             <EliteText style={s.macroBannerText}>
               Aquí no contamos calorías. Te enseñamos a elegir mejor.
             </EliteText>
-            <Pressable onPress={dismissMacroBanner} hitSlop={8}>
+            {/* MB-1.5 §1: pressed visible */}
+            <Pressable
+              onPress={dismissMacroBanner}
+              hitSlop={8}
+              style={({ pressed }) => pressed && { opacity: 0.5, transform: [{ scale: 0.9 }] }}
+            >
               <Ionicons name="close" size={18} color="#888" />
             </Pressable>
           </Animated.View>

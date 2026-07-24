@@ -18,9 +18,11 @@ import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 const ITEMS = [
   { name: 'Biblioteca de ejercicios', subtitle: 'GYM · Calistenia · Kettlebell · Biomecánica', icon: 'book-outline' as const, color: '#38bdf8', route: '/exercise-library' as const },
   { name: 'Métodos ATP', subtitle: '3-5 · EMOM Auto · Myo Reps', icon: 'flash-outline' as const, color: '#a8e02a', route: '/training-methods' as const },
+  // MB-1.5 §4: Planes y Follow Me OCULTOS (comingSoon → Alert vacío = botón muerto).
+  // No borrar — reaparecen quitando el filter cuando exista el destino (MB-3).
   { name: 'Planes de entrenamiento', subtitle: '5K · 10K · 21K · Maratón · Ultra', icon: 'map-outline' as const, color: '#f59e0b', route: '' as const, comingSoon: true },
   { name: 'Rutinas Follow Me', subtitle: 'Cardio · Core · Animal Motion · KB Flows', icon: 'play-circle-outline' as const, color: '#fb7185', route: '' as const, comingSoon: true },
-];
+].filter((i) => !('comingSoon' in i) || !i.comingSoon);
 
 export default function FitnessExploreScreen() {
   const router = useRouter();

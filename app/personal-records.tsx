@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import {
-  View, ScrollView, StyleSheet, Pressable, FlatList,
+  View, ScrollView, StyleSheet, FlatList,
   ActivityIndicator, RefreshControl, Dimensions, Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -255,13 +255,13 @@ function ProgressionLineChart({ data, color }: { data: ProgressionPoint[]; color
           const active = activeLines.has(rr);
           const c = REP_RANGE_COLORS[rr];
           return (
-            <Pressable key={rr} onPress={() => toggleLine(rr)}
+            <AnimatedPressable key={rr} onPress={() => toggleLine(rr)}
               style={[styles.togglePill, active && { borderColor: c, backgroundColor: c + '15' }]}>
               <View style={[styles.toggleDot, { backgroundColor: active ? c : Colors.disabled }]} />
               <EliteText variant="caption" style={[styles.toggleText, active && { color: c }]}>
                 {REP_RANGE_LABELS[rr]}
               </EliteText>
-            </Pressable>
+            </AnimatedPressable>
           );
         })}
       </View>
@@ -452,7 +452,8 @@ export default function PersonalRecordsScreen() {
           const color = item ? MUSCLE_GROUP_COLORS[item] : Colors.neonGreen;
 
           return (
-            <Pressable
+            // MB-1.5 §1: spring en pointer-down (antes Pressable sin feedback)
+            <AnimatedPressable
               onPress={() => { haptic.light(); setSelectedGroup(item); }}
               style={[
                 styles.filterPill,
@@ -469,7 +470,7 @@ export default function PersonalRecordsScreen() {
               >
                 {label}
               </EliteText>
-            </Pressable>
+            </AnimatedPressable>
           );
         }}
       />
@@ -534,7 +535,8 @@ export default function PersonalRecordsScreen() {
                   ).rep_range;
 
                   return (
-                    <Pressable
+                    // MB-1.5 §1: spring en pointer-down (antes Pressable sin feedback)
+                    <AnimatedPressable
                       key={entry.exerciseId}
                       onPress={() => { haptic.light(); setSelectedExerciseId(
                         selectedExerciseId === entry.exerciseId ? null : entry.exerciseId
@@ -691,7 +693,7 @@ export default function PersonalRecordsScreen() {
                       <EliteText variant="caption" style={{ color: '#333', fontSize: 9, textAlign: 'center', marginTop: 2, marginBottom: 4 }}>
                         Mantén presionado para eliminar
                       </EliteText>
-                    </Pressable>
+                    </AnimatedPressable>
                   );
                 })}
               </View>

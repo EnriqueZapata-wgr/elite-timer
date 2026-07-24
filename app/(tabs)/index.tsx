@@ -42,8 +42,8 @@ import { EditDayModal } from '@/src/components/hoy/EditDayModal';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ExpandableSheet } from '@/src/components/ui/ExpandableSheet';
 import { getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
-import { WearableMetricCard } from '@/src/components/hoy/WearableMetricCard';
 import { getHoyBackgroundRequire } from '@/src/constants/brand';
+import { topScoreMover } from '@/src/services/hoy/score-coaching-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { nowDividerIndex, minutesOfDay, formatNowLabel } from '@/src/utils/agenda-now';
 import { supabase } from '@/src/lib/supabase';
@@ -1057,7 +1057,9 @@ export default function TodayScreen() {
               </Animated.View>
             )}
 
-            {/* TU DÍA — #v13d 2.7: card editorial (imagen B/N despertar + número display + barra). */}
+            {/* TU DÍA — #v13d 2.7: card editorial (imagen B/N despertar + número display + barra).
+                MB-1.5 §3 (patrón Whoop): el tap lleva a la acción pendiente que MÁS mueve el
+                score hoy (topScoreMover); con el día completo cae a /economy/admin (progreso). */}
             <Animated.View entering={FadeInUp.delay(120).springify()}>
               <HoyDayCardEditorial
                 percentage={pct}
@@ -1065,6 +1067,7 @@ export default function TodayScreen() {
                 streak={streak}
                 completedCount={day.booleanElectrons.filter(e => e.completed).length}
                 totalCount={day.booleanElectrons.length}
+                coaching={topScoreMover(day.booleanElectrons, day.quantitativeElectrons)}
               />
             </Animated.View>
           </LinearGradient>
@@ -1104,7 +1107,12 @@ export default function TodayScreen() {
                   <Ionicons name="eye" size={14} color="#a8e02a" />
                   <Text style={s.weeklyLabel}>LECTURA DE LA SEMANA</Text>
                 </View>
-                <Pressable onPress={dismissWeeklyInsight} hitSlop={10}>
+                {/* MB-1.5 §1: pressed visible (antes Pressable sin feedback) */}
+                <Pressable
+                  onPress={dismissWeeklyInsight}
+                  hitSlop={10}
+                  style={({ pressed }) => pressed && { opacity: 0.5, transform: [{ scale: 0.9 }] }}
+                >
                   <Ionicons name="close" size={16} color="#666" />
                 </Pressable>
               </View>

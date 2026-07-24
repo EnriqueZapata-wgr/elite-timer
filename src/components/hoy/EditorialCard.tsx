@@ -151,7 +151,8 @@ export function EditorialCard({
                   else Alert.alert(title, infoText);
                 }}
                 hitSlop={10}
-                style={styles.infoBtn}
+                // MB-1.5 §1: pressed visible en pointer-down (antes sin feedback)
+                style={({ pressed }) => [styles.infoBtn, pressed && { opacity: 0.5, transform: [{ scale: 0.88 }] }]}
               >
                 <Ionicons name="information-circle-outline" size={18} color="rgba(255,255,255,0.7)" />
               </Pressable>

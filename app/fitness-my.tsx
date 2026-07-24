@@ -18,9 +18,11 @@ import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 const ITEMS = [
   { name: 'Fuerza', subtitle: 'Benchmarks · Variantes · PRs', icon: 'barbell-outline' as const, color: '#a8e02a', route: '/fitness-strength' as const },
   { name: 'Cardio', subtitle: 'Sesiones · Distancias · Tiempos', icon: 'pulse-outline' as const, color: '#ef4444', route: '/fitness-cardio' as const },
-  { name: 'Movilidad', subtitle: 'Evaluaciones · Rango de movimiento', icon: 'body-outline' as const, color: '#c084fc', route: '/mobility-assessment' as const },
+  // MB-1.5 §4: Movilidad OCULTA — /mobility-assessment es placeholder "Próximamente"
+  // sin contenido (callejón sin salida). Reaparece quitando `hidden` cuando exista (MB-3).
+  { name: 'Movilidad', subtitle: 'Evaluaciones · Rango de movimiento', icon: 'body-outline' as const, color: '#c084fc', route: '/mobility-assessment' as const, hidden: true },
   { name: 'Récords personales', subtitle: 'Todos tus PRs en un lugar', icon: 'trophy-outline' as const, color: '#fbbf24', route: '/personal-records' as const },
-];
+].filter((i) => !('hidden' in i) || !i.hidden);
 
 export default function FitnessMyScreen() {
   const router = useRouter();

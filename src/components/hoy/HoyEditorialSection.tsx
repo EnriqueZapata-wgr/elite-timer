@@ -435,7 +435,9 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
             progress={{ current: protein.current, target: protein.target, unit: 'g' }}
             showCheckCircle
             infoText={CARD_INFO['proteina']}
-            onTap={() => go('/nutrition')}
+            // MB-1.5 §3: directo a REGISTRAR comida (donde se resuelve el dato),
+            // no al hub — mismo destino que ya usa el hero (hero-recommendation).
+            onTap={() => go('/food-register')}
           />
         );
       case 'agua': {

@@ -228,7 +228,8 @@ export default function ProgramsScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.filterRow}
             >
-              <Pressable
+              {/* MB-1.5 §1: pills con spring en pointer-down (antes Pressable sin feedback) */}
+              <AnimatedPressable
                 onPress={() => { haptic.light(); setFilter('all'); }}
                 style={[styles.filterPill, filter === 'all' && styles.filterPillActive]}
               >
@@ -238,9 +239,9 @@ export default function ProgramsScreen() {
                 ]}>
                   Todas
                 </EliteText>
-              </Pressable>
+              </AnimatedPressable>
 
-              <Pressable
+              <AnimatedPressable
                 onPress={() => { haptic.light(); setFilter('timer'); }}
                 style={[
                   styles.filterPill,
@@ -254,9 +255,9 @@ export default function ProgramsScreen() {
                 ]}>
                   Timers
                 </EliteText>
-              </Pressable>
+              </AnimatedPressable>
 
-              <Pressable
+              <AnimatedPressable
                 onPress={() => { haptic.light(); setFilter('routine'); }}
                 style={[
                   styles.filterPill,
@@ -270,7 +271,7 @@ export default function ProgramsScreen() {
                 ]}>
                   Rutinas
                 </EliteText>
-              </Pressable>
+              </AnimatedPressable>
             </ScrollView>
           </Animated.View>
 
@@ -302,11 +303,11 @@ export default function ProgramsScreen() {
                       </EliteText>
                     </View>
 
-                    {/* Menú ⋮ */}
+                    {/* Menú ⋮ — MB-1.5 §1: pressed visible */}
                     <Pressable
                       onPress={() => setMenuRoutine(routine)}
                       hitSlop={12}
-                      style={styles.menuBtn}
+                      style={({ pressed }) => [styles.menuBtn, pressed && { opacity: 0.5, transform: [{ scale: 0.9 }] }]}
                     >
                       <Ionicons name="ellipsis-vertical" size={18} color={Colors.textSecondary} />
                     </Pressable>
@@ -334,16 +335,16 @@ export default function ProgramsScreen() {
                       )}
                     </View>
 
-                    {/* Botón play */}
+                    {/* Botón play — MB-1.5 §1: pressed visible en pointer-down */}
                     <Pressable
                       onPress={() => playRoutine(routine)}
                       hitSlop={8}
-                      style={[styles.playBtn, {
+                      style={({ pressed }) => [styles.playBtn, {
                         shadowColor: accentColor,
                         shadowOffset: { width: 0, height: 2 },
                         shadowOpacity: 0.3,
                         shadowRadius: 8,
-                      }]}
+                      }, pressed && { transform: [{ scale: 0.9 }] }]}
                     >
                       <View style={[styles.playBtnCircle, { backgroundColor: accentColor }]}>
                         <Ionicons name="play" size={22} color={Colors.black} />
@@ -359,13 +360,14 @@ export default function ProgramsScreen() {
         </ScrollView>
       )}
 
-      {/* ── FAB ── */}
-      <Pressable
+      {/* ── FAB — MB-1.5 §1: spring scale (design system: fuera opacity 0.7 plano) ── */}
+      <AnimatedPressable
         onPress={() => { haptic.light(); router.push('/builder'); }}
-        style={({ pressed }) => [styles.fab, pressed && { opacity: 0.7 }]}
+        scaleDown={0.92}
+        style={styles.fab}
       >
         <Ionicons name="add" size={28} color={Colors.textOnGreen} />
-      </Pressable>
+      </AnimatedPressable>
 
       {/* ── Menú de acciones ── */}
       <Modal

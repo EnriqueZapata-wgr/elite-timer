@@ -7,7 +7,7 @@
  *   cuenta · salud · experiencia · notifications · privacy · conexiones ·
  *   legal · dev (kit compartido en src/components/settings/settings-ui).
  */
-import { View, ScrollView, Pressable, Platform, StyleSheet } from 'react-native';
+import { View, ScrollView, Platform, StyleSheet } from 'react-native';
 import Constants from 'expo-constants';
 import * as Updates from 'expo-updates';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -107,7 +108,8 @@ export default function SettingsScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header de cuenta → Perfil y cuenta */}
         <Animated.View entering={FadeInUp.delay(100).springify()}>
-          <Pressable
+          {/* MB-1.5 §1: spring en pointer-down (antes Pressable sin feedback) */}
+          <AnimatedPressable
             onPress={() => { haptic.medium(); router.push('/settings/cuenta'); }}
             style={styles.accountBox}
           >
@@ -117,14 +119,14 @@ export default function SettingsScreen() {
               <EliteText variant="caption" style={styles.accountEmail}>{user?.email}</EliteText>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-          </Pressable>
+          </AnimatedPressable>
         </Animated.View>
 
         {/* Grupos navegables */}
         <View style={styles.groupList}>
           {GROUPS.map((group, i) => (
             <Animated.View key={String(group.route)} entering={FadeInUp.delay(150 + i * 40).springify()}>
-              <Pressable
+              <AnimatedPressable
                 onPress={() => { haptic.medium(); router.push(group.route); }}
                 style={styles.groupCard}
               >
@@ -136,13 +138,13 @@ export default function SettingsScreen() {
                   <EliteText variant="caption" style={styles.groupSubtitle}>{group.subtitle}</EliteText>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-              </Pressable>
+              </AnimatedPressable>
             </Animated.View>
           ))}
 
           {showDev && (
             <Animated.View entering={FadeInUp.delay(150 + GROUPS.length * 40).springify()}>
-              <Pressable
+              <AnimatedPressable
                 onPress={() => { haptic.medium(); router.push('/settings/dev'); }}
                 style={[styles.groupCard, { opacity: 0.75 }]}
               >
@@ -154,7 +156,7 @@ export default function SettingsScreen() {
                   <EliteText variant="caption" style={styles.groupSubtitle}>Herramientas internas</EliteText>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-              </Pressable>
+              </AnimatedPressable>
             </Animated.View>
           )}
         </View>
