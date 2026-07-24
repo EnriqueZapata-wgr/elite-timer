@@ -16,7 +16,7 @@ export function shouldClearPosition(positionSeg: number, duracionSeg: number): b
 /**
  * Tipo de mind_sessions por categoría — respeta el CHECK de la migración 049
  * ('breathing' | 'meditation' | 'checkin'): respiración → breathing; el resto
- * (meditación/descanso) → meditation.
+ * (meditación/descanso/mantra/visualización) → meditation.
  */
 export function sessionTypeFor(categoria: AudioCategoria): 'breathing' | 'meditation' {
   return categoria === 'respiracion' ? 'breathing' : 'meditation';

@@ -146,7 +146,7 @@ export default function MenteHubScreen() {
         <Animated.View entering={FadeInUp.delay(40).springify()}>
           <MenteHubCard
             title="Meditación"
-            subtitle={lastActivitySubtitle('Guiadas · descanso · silencio', hub.lastMeditationAt)}
+            subtitle={lastActivitySubtitle('Guiadas · mantras · descanso', hub.lastMeditationAt)}
             icon="sparkles-outline"
             onPress={() => router.push('/meditation')}
             ctaLabel="Empezar"

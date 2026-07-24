@@ -14,7 +14,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { View, StyleSheet, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useKeepAwake } from 'expo-keep-awake';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
@@ -37,7 +37,7 @@ import {
   type MeditationTemplate,
   type MeditationPhase,
 } from '@/src/data/meditation-library';
-import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-service';
+import { fetchAudioPieces, fetchFavoriteSlugs, type AudioPiece } from '@/src/services/mente-audio-service';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
 import { useSubscription } from '@/src/hooks/useSubscription';
@@ -100,17 +100,29 @@ function LibraryScreen({ onSelect, onBack }: {
   const [scrolled, setScrolled] = useState(false);
   const { isPro } = useSubscription();
 
-  // Catálogo real (A2 + Ajuste 2): meditacion Y descanso — Descanso ya no es
-  // destino propio, es la sección "Para dormir y descansar" de esta pantalla.
+  // Catálogo real (Ajuste v2): TODO el catálogo — las secciones agrupan por
+  // categoría (Guiadas/Visualización/Mantras/Para dormir) y Favoritas puede
+  // incluir cualquier pieza (también respiración).
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   useEffect(() => {
     let alive = true;
     fetchAudioPieces().then(all => {
       if (!alive) return;
-      setPieces(all.filter(p => p.categoria === 'meditacion' || p.categoria === 'descanso'));
+      setPieces(all);
       setLoaded(true);
     });
     return () => { alive = false; };
   }, []);
+
+  // Favoritas se refrescan al volver (el corazón vive en el player).
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      fetchFavoriteSlugs(user.id).then(f => { if (alive) setFavorites(f); });
+    });
+    return () => { alive = false; };
+  }, []));
 
   const openPiece = useCallback((piece: AudioPiece) => {
     haptic.light();
@@ -124,7 +136,10 @@ function LibraryScreen({ onSelect, onBack }: {
 
   // Sin guía: el timer de Silencio 5/10/15/20 se conserva (A2).
   const silence = useMemo(() => MEDITATION_LIBRARY.filter(m => m.type === 'silence'), []);
+  const favoritas = pieces.filter(p => favorites.has(p.slug));
   const guiadas = pieces.filter(p => p.categoria === 'meditacion');
+  const visualizacion = pieces.filter(p => p.categoria === 'visualizacion');
+  const mantras = pieces.filter(p => p.categoria === 'mantra');
   const descanso = pieces.filter(p => p.categoria === 'descanso');
 
   return (
@@ -140,10 +155,23 @@ function LibraryScreen({ onSelect, onBack }: {
           image={HERO_MENTE}
           kicker="PILAR MENTE"
           title="Meditación"
-          subtitle={loaded ? `${pieces.length} guiadas · descanso · silencio` : 'Guiadas · descanso · silencio'}
+          subtitle="Guiadas · visualización · mantras · descanso · silencio"
         />
 
         <View style={styles.libBody}>
+          {/* Ajuste v2: Favoritas arriba (join audio_favorites × catálogo).
+              Vacía → no se muestra. */}
+          {favoritas.length > 0 && (
+            <>
+              <EliteText style={styles.libSection}>FAVORITAS</EliteText>
+              <View style={styles.libGrid}>
+                {favoritas.map(piece => (
+                  <AudioPieceCard key={`fav-${piece.slug}`} piece={piece} onPress={openPiece} />
+                ))}
+              </View>
+            </>
+          )}
+
           <EliteText style={styles.libSection}>GUIADAS</EliteText>
           {guiadas.length > 0 ? (
             <View style={styles.libGrid}>
@@ -157,6 +185,29 @@ function LibraryScreen({ onSelect, onBack }: {
                 ? 'El catálogo no cargó — revisa tu conexión e intenta de nuevo.'
                 : 'Cargando catálogo…'}
             </EliteText>
+          )}
+
+          {/* Ajuste v2: Visualización y Mantras con sección propia (mig 215). */}
+          {visualizacion.length > 0 && (
+            <>
+              <EliteText style={styles.libSection}>VISUALIZACIÓN</EliteText>
+              <View style={styles.libGrid}>
+                {visualizacion.map(piece => (
+                  <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
+                ))}
+              </View>
+            </>
+          )}
+
+          {mantras.length > 0 && (
+            <>
+              <EliteText style={styles.libSection}>MANTRAS</EliteText>
+              <View style={styles.libGrid}>
+                {mantras.map(piece => (
+                  <AudioPieceCard key={piece.slug} piece={piece} onPress={openPiece} />
+                ))}
+              </View>
+            </>
           )}
 
           {/* Ajuste 2: Descanso ES meditación — sección interna, no destino. */}
