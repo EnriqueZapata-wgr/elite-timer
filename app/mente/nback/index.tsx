@@ -205,6 +205,18 @@ export default function NBackHomeScreen() {
             </AnimatedPressable>
           </Animated.View>
 
+          {/* Artículo "Saber más" — la ciencia del N-Back sin marketing. */}
+          <Animated.View entering={FadeInUp.delay(230).springify()}>
+            <AnimatedPressable
+              style={s.learnMoreBtn}
+              onPress={() => { haptic.light(); router.push('/mente/nback/saber-mas'); }}
+            >
+              <Ionicons name="book-outline" size={16} color={TEXT.secondary} />
+              <EliteText style={s.learnMoreText}>Saber más sobre N-Back</EliteText>
+              <Ionicons name="chevron-forward" size={14} color={TEXT.tertiary} />
+            </AnimatedPressable>
+          </Animated.View>
+
           <View style={{ height: Spacing.xxl }} />
         </View>
       </ScrollView>
@@ -273,4 +285,11 @@ const s = StyleSheet.create({
     borderRadius: Radius.lg, paddingVertical: 12,
   },
   linkText: { color: TEXT.primary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
+
+  learnMoreBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border, borderWidth: 0.5,
+    borderRadius: Radius.lg, paddingVertical: 12,
+  },
+  learnMoreText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 });

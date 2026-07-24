@@ -4,7 +4,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert, DeviceEventEmitter, Switch, type TextInputProps } from 'react-native';
+import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert, DeviceEventEmitter, Switch, type TextInputProps, type ImageSourcePropType } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -37,6 +37,14 @@ const HERO_MENTE = require('@/assets/images/intervenciones/mente.jpg');
 
 // V1.5 (3.3): JOURNAL_TYPES vive en src/constants/journal-types.ts — fuente
 // única compartida con journal-history (mata el TYPE_META duplicado).
+
+// Portadas MJ dedicadas por práctica (assets/images/mente/cards).
+const JOURNAL_CARD_ART: Record<string, ImageSourcePropType> = {
+  gratitude: require('@/assets/images/mente/cards/journal_gratitud.jpg'),
+  vision: require('@/assets/images/mente/cards/journal_vision.jpg'),
+  stoic: require('@/assets/images/mente/cards/journal_estoico.jpg'),
+  work_dump: require('@/assets/images/mente/cards/journal_descarga.jpg'),
+};
 
 const STOIC_QUESTIONS = [
   '¿Qué hice bien hoy?',
@@ -415,6 +423,7 @@ export default function JournalScreen() {
               subtitle={type.description}
               icon={type.icon}
               iconColor={type.color}
+              imageBn={JOURNAL_CARD_ART[type.key]}
               onPress={() => { haptic.light(); setSelectedType(type.key); }}
             />
           </StaggerItem>

@@ -46,15 +46,14 @@ interface HubState {
 // Batch 3 (#7): asset editorial del pilar (require estático · Metro).
 const HERO_MENTE = require('@/assets/images/health-hub/mente-avanzado.png');
 
-// F12 (V1.5): imageBn de MenteHubCard despierta — portadas editoriales B/N del
-// set intervenciones (mismo lenguaje que el hero). Swappables 1:1 cuando
-// lleguen las portadas MJ dedicadas (Cowork entrega prompts).
+// F12 (V1.5): imageBn de MenteHubCard con las portadas MJ dedicadas del pilar
+// (assets/images/mente/cards — reemplazan los placeholders de intervenciones).
 const CARD_ART = {
-  meditacion: require('@/assets/images/intervenciones/audio.jpg'),
-  respiracion: require('@/assets/images/intervenciones/respiracion.jpg'),
-  nback: require('@/assets/images/intervenciones/cognitivo.jpg'),
-  journal: require('@/assets/images/intervenciones/mente.jpg'),
-  checkin: require('@/assets/images/intervenciones/grounding.jpg'),
+  meditacion: require('@/assets/images/mente/cards/card_meditacion.jpg'),
+  respiracion: require('@/assets/images/mente/cards/card_respiracion.jpg'),
+  nback: require('@/assets/images/mente/cards/card_nback.jpg'),
+  journal: require('@/assets/images/mente/cards/card_journal.jpg'),
+  checkin: require('@/assets/images/mente/cards/card_checkin.jpg'),
 } as const;
 
 const EMPTY: HubState = {
