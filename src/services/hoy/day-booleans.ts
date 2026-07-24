@@ -36,7 +36,11 @@ export const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_
  * Se fuerzan SIEMPRE en activeBoolKeys vía unión, respetando la (de)selección de los seleccionables.
  * `cardio` (#v13e 3.A.3) es verificado y tampoco es seleccionable → también va aquí.
  */
-export const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio'];
+export const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio',
+  // N-Back (spec 2026-07-23 §5): card de HOY para todos, verificada — el spec
+  // manda integrarlo al HOY con el mismo patrón que meditación, y los
+  // verificados no-seleccionables viven aquí (no en prefs).
+  'nback'];
 
 /**
  * Electrones cuya `completed` se deriva de actividad real (no del blob).
@@ -49,7 +53,9 @@ export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', '
   // #v13e 3.A.3: cardio verificado — completed = ≥1 sesión en cardio_sessions hoy.
   'cardio',
   // #17: journal verificado — completed = ≥1 entrada en journal_entries hoy (espejo de checkin).
-  'journal'] as const;
+  'journal',
+  // N-Back: completed = ≥1 round completado hoy (nback_sessions.date).
+  'nback'] as const;
 export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 
 /** Ruta de tap para cada electrón verificado.
@@ -64,6 +70,7 @@ export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, Href> = {
   checkin: '/checkin',
   cardio: '/log-cardio', // FIT-3 (MB-3): directo a registrar sesión
   journal: '/journal',
+  nback: '/mente/nback', // home del módulo (desde ahí Start session)
 };
 
 /** Electrones que solo se ofrecen a un subconjunto de usuarios. */

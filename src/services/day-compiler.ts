@@ -141,6 +141,7 @@ const ELECTRON_ROUTES: Record<string, Href> = {
   cold_shower: '/my-health', grounding: '/my-health', no_alcohol: '/nutrition',
   strength: '/fitness-hub', breathwork: '/breathing', red_glasses: '/my-health',
   period_log: '/cycle', checkin: '/checkin', journal: '/journal',
+  nback: '/mente/nback',
 };
 
 const TIME_WINDOWS: Record<string, [number, number]> = {
@@ -171,7 +172,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, exerciseCountRes, supplementCountRes, cycleLogCountRes,
-    cardioCountRes, journalCountRes,
+    cardioCountRes, journalCountRes, nbackCountRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -204,6 +205,9 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // #17: ¿hubo ≥1 entrada de journal hoy? → card JOURNAL verificada palomea.
     supabase.from('journal_entries').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today),
+    // N-Back: ¿≥1 round completado hoy? → card N-BACK verificada palomea.
+    supabase.from('nback_sessions').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today).not('completed_at', 'is', null),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
@@ -222,6 +226,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     checkin: lastCheckinDate === today,
     cardio: (cardioCountRes.count ?? 0) >= 1, // #v13e 3.A.3
     journal: (journalCountRes.count ?? 0) >= 1, // #17: derivado de journal_entries, no del blob
+    nback: (nbackCountRes.count ?? 0) >= 1, // ≥1 round completado hoy
   };
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;

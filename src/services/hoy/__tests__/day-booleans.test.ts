@@ -46,6 +46,13 @@ describe('patrón 3 lugares — electrones booleanos', () => {
     }
   });
 
+  it('nback está en los 3 lugares (spec N-Back 2026-07-23 §5)', () => {
+    expect(ELECTRON_WEIGHTS.nback?.weight).toBe(2.5);
+    expect(MANDATORY_BOOLEANS).toContain('nback');
+    expect(VERIFIED_ELECTRON_KEYS).toContain('nback');
+    expect(VERIFIED_ELECTRON_ROUTES.nback).toBe('/mente/nback');
+  });
+
   it('todo electrón verificado tiene definición, ruta y entrada al universo', () => {
     for (const key of VERIFIED_ELECTRON_KEYS) {
       expect(ELECTRON_WEIGHTS[key]?.weight, key).toBeGreaterThan(0);

@@ -33,6 +33,10 @@ export const ELECTRON_WEIGHTS = {
   // dx-f3: compleción diaria de una intervención de Mi Protocolo. NO es toggle del HOY (no va en
   // MANDATORY_BOOLEANS): el award sale de logCompletion con idempotencyKey por intervención+día.
   intervention:        { weight: 1.5, name: 'Intervención',             icon: 'medkit-outline',          color: '#1D9E75' },
+  // N-Back (spec 2026-07-23): verificado — completed = ≥1 round completado hoy
+  // (nback_sessions). Peso 2.5 = mismo esfuerzo cognitivo que meditación
+  // (spec #6). El award sale de completeNBackRound con key determinística.
+  nback:               { weight: 2.5, name: 'N-Back',                   icon: 'grid-outline',            color: '#7F77DD' },
 
   // Cuantitativos diarios (proporcional al %)
   protein:      { weight: 2.0, name: 'Proteína',        icon: 'restaurant-outline',    color: CONCEPT_COLORS.nutricion.color },
