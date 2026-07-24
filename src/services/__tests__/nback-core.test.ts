@@ -27,13 +27,13 @@ describe('cellToRowCol (grid 3×3 sin centro)', () => {
   });
 });
 
-describe('timing (decisión #44-2: 3s por trial a 1x)', () => {
-  it('3000ms a 1x; speed divide', () => {
-    expect(trialDurationMs(1)).toBe(3000);
-    expect(trialDurationMs(1.5)).toBe(2000);
-    expect(trialDurationMs(2)).toBe(1500);
-    expect(trialDurationMs(0)).toBe(3000);  // guard
-    expect(trialDurationMs(NaN)).toBe(3000);
+describe('timing (V1.5.1 #3: 3.3s por trial a 1x — #44-2 era 3s, Enrique la sintió rápida)', () => {
+  it('3300ms a 1x; speed divide', () => {
+    expect(trialDurationMs(1)).toBe(3300);
+    expect(trialDurationMs(1.5)).toBe(2200);
+    expect(trialDurationMs(2)).toBe(1650);
+    expect(trialDurationMs(0)).toBe(3300);  // guard
+    expect(trialDurationMs(NaN)).toBe(3300);
   });
 });
 

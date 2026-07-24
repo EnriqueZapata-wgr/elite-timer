@@ -29,18 +29,40 @@ export function localCoverFor(piece: Pick<AudioPiece, 'categoria' | 'orden'>): I
   return MEDITACION_COVERS[piece.orden % MEDITACION_COVERS.length];
 }
 
+// V1.5.1 (#7): caché en memoria de signed URLs por imagen_path — misma URL
+// para toda la sesión (la Audioteca y el player/lockscreen la comparten) y la
+// caché de disco de expo-image no se invalida por re-firmar en cada mount.
+// Margen de 1h sobre el TTL de 24h para no entregar URLs a punto de vencer.
+const SIGNED_TTL_S = 86400;
+const signedUrlCache = new Map<string, { url: string; expiresAt: number }>();
+
+/** URL remota firmada de la cover, o null (sin imagen_path / error de firma). */
+export async function resolveRemoteCoverUrl(piece: Pick<AudioPiece, 'imagen_path'>): Promise<string | null> {
+  if (!piece.imagen_path) return null;
+  const hit = signedUrlCache.get(piece.imagen_path);
+  if (hit && hit.expiresAt > Date.now()) return hit.url;
+  try {
+    const { data } = await supabase.storage
+      .from('mente-audio')
+      .createSignedUrl(piece.imagen_path, SIGNED_TTL_S);
+    if (data?.signedUrl) {
+      signedUrlCache.set(piece.imagen_path, {
+        url: data.signedUrl,
+        expiresAt: Date.now() + (SIGNED_TTL_S - 3600) * 1000,
+      });
+      return data.signedUrl;
+    }
+  } catch { /* fallback local */ }
+  return null;
+}
+
 /**
  * Source final de la cover: remota firmada si existe imagen_path, local si no.
- * TTL 24h — las covers no son el activo caro (el gate real es el audio).
+ * OJO (#7): para UI usa el patrón local-de-base + overlay remoto (AudioPieceCard/
+ * player) — swapear el source deja blank mientras el remoto baja. Esto queda
+ * para consumidores no visuales (artwork del lockscreen).
  */
 export async function resolveCoverSource(piece: AudioPiece): Promise<ImageSourcePropType> {
-  if (piece.imagen_path) {
-    try {
-      const { data } = await supabase.storage
-        .from('mente-audio')
-        .createSignedUrl(piece.imagen_path, 86400);
-      if (data?.signedUrl) return { uri: data.signedUrl };
-    } catch { /* fallback local */ }
-  }
-  return localCoverFor(piece);
+  const url = await resolveRemoteCoverUrl(piece);
+  return url ? { uri: url } : localCoverFor(piece);
 }

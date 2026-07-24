@@ -24,7 +24,9 @@ export const NBACK_CONFIG = {
   TUTORIAL_N: 1,       // decisión #44-1: primera sesión SIEMPRE N=1
   SCOREABLE_TRIALS: 20, // trials evaluables → estímulos por round = 20 + N
   FORCED_MATCHES_PER_CHANNEL: 6,
-  TRIAL_MS: 3000,      // decisión #44-2: 3s por trial a velocidad 1x
+  // V1.5.1 (#3): 3300ms — base 1x ~10% más lenta que la decisión #44-2 (3s);
+  // Enrique la sintió rápida en device. Speed sigue dividiendo.
+  TRIAL_MS: 3300,
   STIMULUS_VISIBLE_MS: 500,
   ROUNDS_PER_DAY: 12,
   CHALLENGE_DAYS: 20,
@@ -56,7 +58,7 @@ export function stimuliCountFor(n: number): number {
   return NBACK_CONFIG.SCOREABLE_TRIALS + Math.max(0, n);
 }
 
-/** Duración de un trial según speed (3000ms a 1x; 2x = 1500ms). */
+/** Duración de un trial según speed (3300ms a 1x; 2x = 1650ms). */
 export function trialDurationMs(speed: number): number {
   const s = Number.isFinite(speed) && speed > 0 ? speed : 1;
   return Math.round(NBACK_CONFIG.TRIAL_MS / s);

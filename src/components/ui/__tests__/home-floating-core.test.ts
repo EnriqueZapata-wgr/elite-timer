@@ -37,6 +37,12 @@ describe('shouldHideHomeButton (#26)', () => {
     expect(shouldHideHomeButton({ pathname: null, keyboardVisible: false })).toBe(true);
   });
 
+  it('oculto cuando la pantalla trae casita propia (V1.5.1 #8: nav-presence)', () => {
+    expect(shouldHideHomeButton({ pathname: '/supplements', keyboardVisible: false, screenHasOwnNav: true })).toBe(true);
+    // Sin header estándar el flotante sigue (fallback legacy).
+    expect(shouldHideHomeButton({ pathname: '/supplements', keyboardVisible: false, screenHasOwnNav: false })).toBe(false);
+  });
+
   it('oculto en el pilar Mente — el banner fijo ya trae home (Overhaul A3)', () => {
     expect(visible('/mente')).toBe(false);
     expect(visible('/mente/player')).toBe(false);

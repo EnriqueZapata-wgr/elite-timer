@@ -36,7 +36,8 @@ import {
   type AudioPiece, type AudioElectronOutcome,
 } from '@/src/services/mente-audio-service';
 import { applySeekToSkip, effectiveListenedAt } from '@/src/services/mente-audio-core';
-import { localCoverFor, resolveCoverSource } from '@/src/components/mente/audio-cover';
+import { Image as ExpoImage } from 'expo-image';
+import { localCoverFor, resolveCoverSource, resolveRemoteCoverUrl } from '@/src/components/mente/audio-cover';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 
@@ -77,6 +78,9 @@ export default function MenteAudioPlayerScreen() {
 
   const [piece, setPiece] = useState<AudioPiece | null>(null);
   const [cover, setCover] = useState<ImageSourcePropType | null>(null);
+  // V1.5.1 (#7): la remota entra como overlay con fade sobre el fallback local
+  // (swapear el source dejaba un flash negro fullscreen mientras bajaba).
+  const [remoteCover, setRemoteCover] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -134,7 +138,7 @@ export default function MenteAudioPlayerScreen() {
       pieceRef.current = found;
       setDuration(found.duracion_seg);
       setCover(localCoverFor(found));
-      resolveCoverSource(found).then(src => { if (!cancelled) setCover(src); });
+      resolveRemoteCoverUrl(found).then(url => { if (!cancelled && url) setRemoteCover(url); });
       if (user?.id) {
         fetchFavoriteSlugs(user.id).then(favs => { if (!cancelled) setIsFav(favs.has(found.slug)); });
       }
@@ -387,6 +391,16 @@ export default function MenteAudioPlayerScreen() {
     <View style={s.screen}>
       {cover && (
         <ImageBackground source={cover} style={StyleSheet.absoluteFill} resizeMode="cover">
+          {remoteCover && (
+            <ExpoImage
+              source={{ uri: remoteCover }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              transition={250}
+              cachePolicy="disk"
+              onError={() => setRemoteCover(null)}
+            />
+          )}
           <LinearGradient
             colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.92)']}
             locations={[0, 0.45, 1]}

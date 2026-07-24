@@ -2,7 +2,7 @@
   "expo": {
     "name": "ATP",
     "slug": "EliteTimer",
-    "version": "1.2.1",
+    "version": "1.5.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "atp",
@@ -12,6 +12,7 @@
       "supportsTablet": true,
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.atpperformance.app",
+      "buildNumber": "1.5.0",
       "infoPlist": {
         "UIBackgroundModes": ["audio"],
         "NSMicrophoneUsageDescription": "ATP necesita acceso al micrófono para que puedas hablar con ARGOS",
@@ -20,6 +21,7 @@
       }
     },
     "android": {
+      "versionCode": 15,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"

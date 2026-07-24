@@ -17,6 +17,7 @@ import * as Updates from 'expo-updates';
 import { StatusBar } from 'expo-status-bar';
 import { PostHogProvider } from 'posthog-react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import 'react-native-reanimated';
 import {
   Poppins_400Regular,
@@ -128,6 +129,11 @@ function RootLayout() {
     {/* F12/F14/F15/F19/F31: GestureHandlerRootView habilita Swipeable de
         react-native-gesture-handler. Requerido en la raíz. */}
     <GestureHandlerRootView style={{ flex: 1 }}>
+    {/* V1.5.1 (#5): KeyboardProvider habilita react-native-keyboard-controller
+        (KeyboardAwareScrollView en journal/checkin) — el input enfocado queda
+        SIEMPRE visible; los insets nativos no bastaron en device. Dep NATIVA →
+        requiere build. */}
+    <KeyboardProvider>
     <ThemeProvider value={EliteTheme}>
       <PostHogProvider
         apiKey={Constants.expoConfig?.extra?.posthogKey}
@@ -296,6 +302,7 @@ function RootLayout() {
         </AuthProvider>
       </PostHogProvider>
     </ThemeProvider>
+    </KeyboardProvider>
     </GestureHandlerRootView>
     </ErrorBoundary>
   );

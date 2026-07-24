@@ -5,6 +5,8 @@
 import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { BackButton } from '@/src/components/ui/BackButton';
+import { HomeChip } from '@/src/components/ui/HomeChip';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 
@@ -30,9 +32,13 @@ interface Props {
 
 export function PillarHeader({ pillar, title, rightContent, onBack }: Props) {
   const color = PILLAR_COLORS[pillar] || CATEGORY_COLORS.fitness;
+  // V1.5.1 (#8): casita fija en el header + registro de nav propia (el
+  // flotante global se auto-oculta en pantallas con este header).
+  useRegisterOwnNav();
   return (
     <View style={s.header}>
       <BackButton color={color} onPress={onBack} />
+      <HomeChip style={{ marginRight: Spacing.xs }} />
       <EliteText style={[s.atp, { color }]}>ATP</EliteText>
       <EliteText style={s.title}>{title.toUpperCase()}</EliteText>
       {rightContent ? <View style={{ marginLeft: 'auto' }}>{rightContent}</View> : null}

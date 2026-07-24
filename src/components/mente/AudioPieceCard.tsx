@@ -6,12 +6,13 @@
  * resuelve async con fallback editorial local por categoría.
  */
 import { useEffect, useState } from 'react';
-import { ImageBackground, StyleSheet, View, type ImageSourcePropType } from 'react-native';
+import { ImageBackground, StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { localCoverFor, resolveCoverSource } from '@/src/components/mente/audio-cover';
+import { localCoverFor, resolveRemoteCoverUrl } from '@/src/components/mente/audio-cover';
 import type { AudioPiece } from '@/src/services/mente-audio-service';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
@@ -27,17 +28,31 @@ function fmtMin(seconds: number): string {
 }
 
 export function AudioPieceCard({ piece, onPress }: Props) {
-  const [cover, setCover] = useState<ImageSourcePropType>(() => localCoverFor(piece));
+  // V1.5.1 (#7): el fallback local es la BASE permanente; la remota entra
+  // encima con fade solo cuando cargó (antes se swapeaba el source y quedaba
+  // blank mientras bajaba; y sin onError las que fallan quedaban vacías).
+  const [remoteUri, setRemoteUri] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    resolveCoverSource(piece).then(src => { if (alive) setCover(src); });
+    setRemoteUri(null);
+    resolveRemoteCoverUrl(piece).then(url => { if (alive && url) setRemoteUri(url); });
     return () => { alive = false; };
   }, [piece.slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <AnimatedPressable onPress={() => onPress(piece)} style={s.card}>
-      <ImageBackground source={cover} style={s.image} imageStyle={{ borderRadius: Radius.lg }}>
+      <ImageBackground source={localCoverFor(piece)} style={s.image} imageStyle={{ borderRadius: Radius.lg }}>
+        {remoteUri && (
+          <ExpoImage
+            source={{ uri: remoteUri }}
+            style={[StyleSheet.absoluteFill, { borderRadius: Radius.lg }]}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="disk"
+            onError={() => setRemoteUri(null)}
+          />
+        )}
         <LinearGradient
           colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.78)']}
           locations={[0.35, 1]}

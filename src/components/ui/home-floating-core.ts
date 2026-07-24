@@ -15,6 +15,8 @@ const TAB_PATHS = new Set(['/', '/index', '/yo', '/kit']);
 export interface HomeVisibilityInput {
   pathname: string | null | undefined;
   keyboardVisible: boolean;
+  /** V1.5.1 (#8): la pantalla enfocada pinta su propia casita (nav-presence). */
+  screenHasOwnNav?: boolean;
 }
 
 /**
@@ -24,6 +26,8 @@ export interface HomeVisibilityInput {
  *  3. Pilar Mente → el banner fijo del pilar ya trae home (Overhaul A3).
  *  4. Chat ARGOS → el input vive abajo; no taparlo.
  *  5. Teclado abierto → no tapar inputs.
+ *  6. V1.5.1 (#8): header estándar con casita propia (ScreenHeader/PillarHeader/
+ *     StickyPillarBanner) → el flotante sobra y estorba.
  */
 export function shouldHideHomeButton(input: HomeVisibilityInput): boolean {
   const p = (input.pathname ?? '/').toLowerCase();
@@ -32,5 +36,6 @@ export function shouldHideHomeButton(input: HomeVisibilityInput): boolean {
   if (isMentePillarPath(p)) return true;
   if (p.includes('argos-chat')) return true;
   if (input.keyboardVisible) return true;
+  if (input.screenHasOwnNav) return true;
   return false;
 }

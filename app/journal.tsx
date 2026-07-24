@@ -5,6 +5,7 @@
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert, DeviceEventEmitter, Switch, type TextInputProps, type ImageSourcePropType } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -339,15 +340,16 @@ export default function JournalScreen() {
           subtitle={typeInfo.description}
           onBack={() => { haptic.light(); setSelectedType(null); resetForm(); }}
         />
-        {/* I18 (V1.5): insets nativos del teclado en vez del KAV de Screen —
-            scrollea al input enfocado Y restaura al cerrar (iOS). Android:
-            softwareKeyboardLayoutMode resize (app.json). */}
-        <ScrollView
+        {/* V1.5.1 (#5): KeyboardAwareScrollView (keyboard-controller) — el
+            input enfocado queda SIEMPRE visible al escribir y el scroll se
+            restaura al cerrar; los insets nativos (I18) no bastaron en device.
+            También captura el pan que empieza sobre un input (#4). */}
+        <KeyboardAwareScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={s.scroll}
           keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets
           keyboardDismissMode="interactive"
+          bottomOffset={24}
         >
           {/* Mood antes */}
           <Animated.View entering={FadeInUp.delay(100).springify()}>
@@ -378,7 +380,7 @@ export default function JournalScreen() {
           </AnimatedPressable>
 
           <View style={{ height: Spacing.xxl * 2 }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </Screen>
     );
   }
@@ -504,12 +506,16 @@ export default function JournalScreen() {
 // ═══ FORMULARIOS ═══
 
 /** 3.3 (V1.5): input con focus state — borde del pilar al enfocar, sin brincos
- * de layout (el borde transparente ya está reservado en s.input). */
-function JournalInput({ style, onFocus, onBlur, ...rest }: TextInputProps) {
+ * de layout (el borde transparente ya está reservado en s.input).
+ * V1.5.1 (#4): multiline sin scroll interno — crecen con minHeight, así el
+ * drag vertical que empieza sobre el input siempre scrollea la página. */
+function JournalInput({ style, onFocus, onBlur, multiline, ...rest }: TextInputProps) {
   const [focused, setFocused] = useState(false);
   return (
     <TextInput
       {...rest}
+      multiline={multiline}
+      scrollEnabled={multiline ? false : undefined}
       style={[s.input, focused && s.inputFocused, style]}
       onFocus={(e) => { setFocused(true); onFocus?.(e); }}
       onBlur={(e) => { setFocused(false); onBlur?.(e); }}

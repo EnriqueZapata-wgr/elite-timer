@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing } from '@/constants/theme';
 
@@ -46,6 +47,9 @@ export function StickyPillarBanner({ scrolled, onBack, hideBack, rightExtra }: P
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const blur = useSharedValue(0);
+  // V1.5.1 (#8): registra nav propia — cubre a los adoptantes fuera de Mente
+  // (dentro del pilar isMentePillarPath ya ocultaba los flotantes).
+  useRegisterOwnNav();
 
   useEffect(() => {
     blur.value = withTiming(scrolled ? 1 : 0, { duration: 180 });

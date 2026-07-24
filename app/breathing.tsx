@@ -27,7 +27,10 @@ import {
 import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
 import { getSafetyParams, DEFAULT_SAFETY_PARAMS } from '@/src/services/safety/safety-params-service';
 import { playChime, initAudio } from '@/src/utils/sounds';
-import { LinearGradient } from 'expo-linear-gradient';
+// V1.5.1 (#6): radial real con SVG — el LinearGradient diagonal seguía leyendo
+// plano en device; el radial (highlight arriba-izq → color → borde oscuro) da
+// volumen de esfera de verdad.
+import Svg, { Circle, Defs, RadialGradient as SvgRadialGradient, Stop } from 'react-native-svg';
 import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -671,10 +674,25 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
           {status === 'idle' ? 'Listo' : status === 'preparing' ? 'Prepárate' : currentPhase?.label ?? ''}
         </EliteText>
 
-        {/* Esfera animada — color por fase (T2 MENTE), gradiente de profundidad
-            (highlight arriba-izq → sombra abajo-der) + glow del color de fase.
-            Antes: rectángulo redondeado con relleno translúcido ("caja negra"). */}
+        {/* Esfera animada — color por fase (T2 MENTE). V1.5.1 (#6): gradiente
+            RADIAL de profundidad (highlight arriba-izq → color de fase → borde
+            oscuro) + glow suave detrás que respira con la misma escala (el
+            shadow de iOS moría bajo overflow:hidden; el SVG no). */}
         <View style={styles.circleContainer}>
+          <RNAnimated.View
+            pointerEvents="none"
+            style={[styles.sphereGlow, { transform: [{ scale: scaleAnim }] }]}
+          >
+            <Svg width={GLOW_SIZE} height={GLOW_SIZE}>
+              <Defs>
+                <SvgRadialGradient id="breathGlow" cx="50%" cy="50%" r="50%">
+                  <Stop offset="55%" stopColor={ringColor} stopOpacity={0.30} />
+                  <Stop offset="100%" stopColor={ringColor} stopOpacity={0} />
+                </SvgRadialGradient>
+              </Defs>
+              <Circle cx={GLOW_SIZE / 2} cy={GLOW_SIZE / 2} r={GLOW_SIZE / 2} fill="url(#breathGlow)" />
+            </Svg>
+          </RNAnimated.View>
           <RNAnimated.View style={[
             styles.breathSphere,
             {
@@ -683,12 +701,17 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
               shadowColor: ringColor,
             },
           ]}>
-            <LinearGradient
-              colors={['rgba(255,255,255,0.38)', 'rgba(255,255,255,0.05)', 'rgba(0,0,0,0.45)']}
-              start={{ x: 0.15, y: 0.08 }}
-              end={{ x: 0.85, y: 0.95 }}
-              style={styles.sphereShade}
-            />
+            <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.sphereShade} pointerEvents="none">
+              <Defs>
+                <SvgRadialGradient id="breathDepth" cx="35%" cy="28%" r="85%">
+                  <Stop offset="0%" stopColor="#fff" stopOpacity={0.5} />
+                  <Stop offset="38%" stopColor="#fff" stopOpacity={0.12} />
+                  <Stop offset="75%" stopColor="#000" stopOpacity={0.16} />
+                  <Stop offset="100%" stopColor="#000" stopOpacity={0.55} />
+                </SvgRadialGradient>
+              </Defs>
+              <Circle cx={CIRCLE_SIZE / 2} cy={CIRCLE_SIZE / 2} r={CIRCLE_SIZE / 2} fill="url(#breathDepth)" />
+            </Svg>
             {status === 'preparing' && (
               <EliteText style={styles.sphereCount}>{prepLeft}</EliteText>
             )}
@@ -759,6 +782,9 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
 // === ESTILOS ===
 
 const CIRCLE_SIZE = 200;
+// V1.5.1 (#6): halo detrás de la esfera — cabe en el contenedor en reposo y
+// respira con la misma escala (borde 100% transparente, el overflow no se nota).
+const GLOW_SIZE = CIRCLE_SIZE * 1.5;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.black },
@@ -807,6 +833,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45, shadowRadius: 30, elevation: 10,
   },
   sphereShade: { ...StyleSheet.absoluteFillObject, borderRadius: CIRCLE_SIZE / 2 },
+  sphereGlow: { position: 'absolute', width: GLOW_SIZE, height: GLOW_SIZE },
   // Número flotando sobre la esfera — sombra de texto, sin caja (G15).
   sphereCount: {
     fontSize: 54, fontFamily: Fonts.extraBold, color: '#fff', fontVariant: ['tabular-nums'],

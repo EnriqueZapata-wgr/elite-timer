@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -446,11 +447,13 @@ export default function CheckinScreen() {
       {/* ═══ STEP 3: CONTEXTO ═══ */}
       {step === 3 && quadrant && (
         <Animated.View entering={SlideInRight.duration(250)} style={styles.stepFlex}>
-          <ScrollView
+          {/* V1.5.1 (#5): KeyboardAwareScrollView (keyboard-controller) — el
+              input queda visible al escribir; insets nativos no bastaron. */}
+          <KeyboardAwareScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets
             keyboardDismissMode="interactive"
+            bottomOffset={24}
           >
             {/* Emociones seleccionadas como recordatorio */}
             <View style={styles.selectedRow}>
@@ -480,6 +483,7 @@ export default function CheckinScreen() {
               <EliteText variant="body" style={styles.promptText}>{dailyPrompt}</EliteText>
             </View>
 
+            {/* V1.5.1 (#4): sin scroll interno — el drag sobre el input scrollea la página. */}
             <TextInput
               style={styles.noteInput}
               value={note}
@@ -487,6 +491,7 @@ export default function CheckinScreen() {
               placeholder="Respóndelo aquí si quieres — se guarda en tu journal"
               placeholderTextColor={Colors.textSecondary + '50'}
               multiline
+              scrollEnabled={false}
               maxLength={500}
             />
 
@@ -501,7 +506,7 @@ export default function CheckinScreen() {
             </Pressable>
 
             <View style={{ height: Spacing.xxl }} />
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </Animated.View>
       )}
     </Screen>

@@ -12,12 +12,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { shouldHideHomeButton } from './home-floating-core';
+import { useHasOwnNav } from './useOwnNavPresence';
 import { ATP_BRAND } from '@/src/constants/brand';
 
 export function HomeFloatingButton() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  // V1.5.1 (#8): headers estándar traen casita propia → el flotante se oculta.
+  const screenHasOwnNav = useHasOwnNav();
 
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -27,7 +30,7 @@ export function HomeFloatingButton() {
     return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
-  if (shouldHideHomeButton({ pathname, keyboardVisible })) return null;
+  if (shouldHideHomeButton({ pathname, keyboardVisible, screenHasOwnNav })) return null;
 
   function goHome() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});

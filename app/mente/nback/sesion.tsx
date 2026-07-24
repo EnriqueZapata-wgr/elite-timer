@@ -6,12 +6,13 @@
  * y SONIDO) → resultados (barras con umbrales 75/90, cambio de nivel, rounds
  * restantes, economía). FULL FOCUS: cero ARGOS/nav flotante (isMentePillarPath).
  *
- * Timing: 3s por trial a 1x (decisión #44-2), speed divide. Primera sesión:
+ * Timing: 3.3s por trial a 1x (V1.5.1 #3), speed divide. Primera sesión:
  * N=1 forzado (tutorial, #44-1); después resume_mode. Al completar round:
  * nback_sessions + estado + e- (1er round del día) + claim H+ (mig 218).
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, AppState, StyleSheet, View } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,6 +45,9 @@ const COUNTDOWN_STEPS = ['¿Listo?', 'En posición.', '¡Va!'];
 // V1.5 (A3): "¡Va!" aguanta ~2.8s antes del primer trial (antes 800ms — el
 // usuario no alcanzaba a ubicar la vista).
 const COUNTDOWN_TOTAL_MS = 4600;
+// V1.5.1 (#2): el grid respira este tiempo ANTES del primer estímulo — que el
+// usuario ubique la vista con el tablero ya visible (el countdown no basta).
+const FIRST_TRIAL_GRACE_MS = 2000;
 const RAISE_PCT = NBACK_CONFIG.RAISE_THRESHOLD * 100;
 const DROP_PCT = NBACK_CONFIG.DROP_THRESHOLD * 100;
 
@@ -156,10 +160,15 @@ export default function NBackSessionScreen() {
     pressedVRef.current = new Array(round.positions.length).fill(false);
     pressedARef.current = new Array(round.positions.length).fill(false);
     startedAtRef.current = new Date();
-    roundBaseRef.current = Date.now();
+    // V1.5.1 (#2): trialStart en 0 = aún no corre el primer trial — press()
+    // lo usa de guardia para ignorar toques durante la gracia del tablero.
+    trialStartRef.current = 0;
     setN(forN);
     setPhase('playing');
-    runTrial(0);
+    later(() => {
+      roundBaseRef.current = Date.now();
+      runTrial(0);
+    }, FIRST_TRIAL_GRACE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -235,6 +244,9 @@ export default function NBackSessionScreen() {
   const press = useCallback((channel: 'v' | 'a') => {
     const round = roundRef.current;
     if (!round || phaseRef.current !== 'playing' || coach) return;
+    // Gracia del tablero (#2): antes del primer trial no hay estímulo que
+    // responder — un toque aquí ensuciaría el score del trial 0.
+    if (trialStartRef.current === 0) return;
     const pressedArr = channel === 'v' ? pressedVRef.current : pressedARef.current;
     // Gracia (V1.5): un press en los primeros ms del trial se acredita al
     // estímulo anterior si ese canal no registró press ahí (lógica pura, testeada).
@@ -256,6 +268,19 @@ export default function NBackSessionScreen() {
       haptic.light();
     }
   }, [coach, later]);
+
+  // V1.5.1 (#1): un detector RNGH por botón (nativo, fuera del responder único
+  // de RN) — dos dedos simultáneos registran ambos canales. onPressIn de
+  // Pressable no bastó en device: el JSResponder sigue siendo global y el
+  // segundo touch-down simultáneo se perdía. Registramos en onTouchesDown
+  // (equivalente touch-down) y marcamos ambos taps como simultáneos entre sí.
+  const [tapV, tapA] = useMemo(() => {
+    const v = Gesture.Tap().runOnJS(true).maxDuration(10000).onTouchesDown(() => press('v'));
+    const a = Gesture.Tap().runOnJS(true).maxDuration(10000).onTouchesDown(() => press('a'));
+    v.simultaneousWithExternalGesture(a);
+    a.simultaneousWithExternalGesture(v);
+    return [v, a] as const;
+  }, [press]);
 
   // ── Fin del round: score → persistir → resultados ──
   const finishRound = useCallback(async () => {
@@ -405,30 +430,30 @@ export default function NBackSessionScreen() {
             </View>
           </View>
 
-          {/* Botones POSICIÓN / SONIDO — V1.5: registran en onPressIn (touch-
-              down): el responder único de RN cancelaba el onPress de un botón
-              al presionar los dos a la vez (bug A2 → conteo N≥2). El relleno
-              pasa a sólido al presionar (B5) con contenido en negro. */}
+          {/* Botones POSICIÓN / SONIDO — V1.5.1 (#1): GestureDetector RNGH por
+              botón (multitouch real; onPressIn de RN seguía perdiendo el 2º
+              dedo simultáneo en device). El relleno pasa a sólido al presionar
+              (B5) con contenido en negro. */}
           <View style={s.buttonsRow}>
             {([
-              { channel: 'v' as const, icon: 'apps-outline' as const, label: 'POSICIÓN', pressed: pressedThisTrial.v },
-              { channel: 'a' as const, icon: 'volume-high-outline' as const, label: 'SONIDO', pressed: pressedThisTrial.a },
+              { channel: 'v' as const, icon: 'apps-outline' as const, label: 'POSICIÓN', pressed: pressedThisTrial.v, tap: tapV },
+              { channel: 'a' as const, icon: 'volume-high-outline' as const, label: 'SONIDO', pressed: pressedThisTrial.a, tap: tapA },
             ]).map(btn => {
               const flashing = flash?.channel === btn.channel;
               const solid = btn.pressed || flashing;
               return (
-                <AnimatedPressable
-                  key={btn.channel}
-                  style={[
-                    s.matchBtn,
-                    btn.pressed && s.matchBtnPressed,
-                    flashing && (flash!.ok ? s.matchBtnOk : s.matchBtnBad),
-                  ]}
-                  onPressIn={() => press(btn.channel)}
-                >
-                  <Ionicons name={btn.icon} size={26} color={solid ? '#000' : '#fff'} />
-                  <EliteText style={[s.matchBtnText, solid && { color: '#000' }]}>{btn.label}</EliteText>
-                </AnimatedPressable>
+                <GestureDetector key={btn.channel} gesture={btn.tap}>
+                  <View
+                    style={[
+                      s.matchBtn,
+                      btn.pressed && s.matchBtnPressed,
+                      flashing && (flash!.ok ? s.matchBtnOk : s.matchBtnBad),
+                    ]}
+                  >
+                    <Ionicons name={btn.icon} size={26} color={solid ? '#000' : '#fff'} />
+                    <EliteText style={[s.matchBtnText, solid && { color: '#000' }]}>{btn.label}</EliteText>
+                  </View>
+                </GestureDetector>
               );
             })}
           </View>
