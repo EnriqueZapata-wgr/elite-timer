@@ -35,11 +35,21 @@ const AUDIO_URL_FN = `${SUPABASE_URL}/functions/v1/mente-audio-url`;
 export async function fetchAudioPieces(): Promise<AudioPiece[]> {
   const { data, error } = await supabase
     .from('audio_pieces')
+    .select('id, slug, titulo, subtitulo, categoria, duracion_seg, voz, imagen_path, orden, tier, hard_gate')
+    .eq('publicado', true)
+    .order('orden', { ascending: true });
+  if (!error && data) return data as AudioPiece[];
+  // Fallback pre-migración 217: si hard_gate aún no existe en la DB (OTA antes
+  // del db push), el select explícito daría 400 — degradar sin la columna para
+  // no dejar el catálogo vacío. hard_gate=false es el default seguro visible
+  // (la pieza gateada aún no existe en ese escenario).
+  const retry = await supabase
+    .from('audio_pieces')
     .select('id, slug, titulo, subtitulo, categoria, duracion_seg, voz, imagen_path, orden, tier')
     .eq('publicado', true)
     .order('orden', { ascending: true });
-  if (error || !data) return [];
-  return data as AudioPiece[];
+  if (retry.error || !retry.data) return [];
+  return (retry.data as Omit<AudioPiece, 'hard_gate'>[]).map(p => ({ ...p, hard_gate: false }));
 }
 
 export type AudioUrlResult =
@@ -65,6 +75,41 @@ export async function getAudioUrl(slug: string): Promise<AudioUrlResult> {
     return { status: 'ok', url: json.url };
   } catch (e: any) {
     return { status: 'error', message: String(e?.message ?? e) };
+  }
+}
+
+// ── Favoritas (Ajuste v2 · 4) ───────────────────────────────────────────────
+
+/** Slugs favoritos del usuario (RLS: solo los suyos). Fail-soft → set vacío. */
+export async function fetchFavoriteSlugs(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('audio_favorites')
+    .select('slug')
+    .eq('user_id', userId);
+  if (error || !data) return new Set();
+  return new Set(data.map((r: { slug: string }) => r.slug));
+}
+
+/**
+ * Marca/desmarca favorita. Devuelve true si la operación quedó en la DB
+ * (la UI hace update optimista y revierte si esto regresa false).
+ */
+export async function setFavorite(userId: string, slug: string, fav: boolean): Promise<boolean> {
+  try {
+    if (fav) {
+      const { error } = await supabase
+        .from('audio_favorites')
+        .upsert({ user_id: userId, slug }, { onConflict: 'user_id,slug', ignoreDuplicates: true });
+      return !error;
+    }
+    const { error } = await supabase
+      .from('audio_favorites')
+      .delete()
+      .eq('user_id', userId)
+      .eq('slug', slug);
+    return !error;
+  } catch {
+    return false;
   }
 }
 

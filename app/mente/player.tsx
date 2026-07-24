@@ -17,7 +17,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Image, ImageBackground, PanResponder, StyleSheet, View,
+  ActivityIndicator, Alert, Image, ImageBackground, Linking, PanResponder, StyleSheet, View,
   type ImageSourcePropType,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -32,7 +32,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import {
   fetchAudioPieces, getAudioUrl, getSavedProgress, savePosition, clearPosition,
-  logAudioSession, type AudioPiece, type AudioElectronOutcome,
+  logAudioSession, fetchFavoriteSlugs, setFavorite,
+  type AudioPiece, type AudioElectronOutcome,
 } from '@/src/services/mente-audio-service';
 import { applySeekToSkip, effectiveListenedAt } from '@/src/services/mente-audio-core';
 import { localCoverFor, resolveCoverSource } from '@/src/components/mente/audio-cover';
@@ -48,7 +49,17 @@ const CATEGORY_LABEL: Record<AudioPiece['categoria'], string> = {
   meditacion: 'MEDITACIÓN',
   respiracion: 'RESPIRACIÓN',
   descanso: 'DESCANSO',
+  mantra: 'MANTRA',
+  visualizacion: 'VISUALIZACIÓN',
 };
+
+// Texto del hard gate (Ajuste v2 · 5) — copy aprobado en el brief, verbatim.
+const HARD_GATE_TEXT =
+  'Esto es un apoyo para acompañarte a respirar; no sustituye atención médica. ' +
+  'Si sientes dolor o presión en el pecho, dolor que baja al brazo o la mandíbula, ' +
+  'dificultad grave para respirar, o crees que es una emergencia, busca atención ' +
+  'médica de inmediato o llama a servicios de emergencia. Si estás en crisis ' +
+  'emocional, puedes llamar a la Línea de la Vida 800-911-2000.';
 
 function fmt(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
@@ -71,6 +82,14 @@ export default function MenteAudioPlayerScreen() {
   const [duration, setDuration] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [electronOutcome, setElectronOutcome] = useState<AudioElectronOutcome | null>(null);
+  // Ajuste v2: favorita (corazón, optimista + fail-soft).
+  const [isFav, setIsFav] = useState(false);
+  // Ajuste v2: hard gate — reconocimiento explícito ANTES de reproducir.
+  // Corre CADA VEZ que se abre la pieza (mismo criterio que el gate de
+  // respiración intensa): el estado vive en el mount del player.
+  const [gateNeeded, setGateNeeded] = useState(false);
+  const [gateAck, setGateAck] = useState(false);
+  const [gateAccepted, setGateAccepted] = useState(false);
 
   const playerRef = useRef<AudioPlayer | null>(null);
   const audioModRef = useRef<ExpoAudio | null>(null);
@@ -115,6 +134,17 @@ export default function MenteAudioPlayerScreen() {
       setDuration(found.duracion_seg);
       setCover(localCoverFor(found));
       resolveCoverSource(found).then(src => { if (!cancelled) setCover(src); });
+      if (user?.id) {
+        fetchFavoriteSlugs(user.id).then(favs => { if (!cancelled) setIsFav(favs.has(found.slug)); });
+      }
+
+      // Hard gate (Ajuste v2): piezas sensibles exigen reconocimiento explícito
+      // antes de pedir el audio — nada se carga ni reproduce sin "Entiendo".
+      if (found.hard_gate && !gateAccepted) {
+        setGateNeeded(true);
+        setLoading(false);
+        return;
+      }
 
       const urlResult = await getAudioUrl(found.slug);
       if (cancelled) return;
@@ -233,7 +263,7 @@ export default function MenteAudioPlayerScreen() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slug]);
+  }, [slug, gateAccepted]);
 
   const handleFinished = useCallback(async (totalSeconds: number) => {
     haptic.success();
@@ -252,6 +282,38 @@ export default function MenteAudioPlayerScreen() {
       setElectronOutcome(outcome);
     }
   }, [user?.id, effectiveListened]);
+
+  // Ajuste v2: "Entiendo" → recién ahí se carga y reproduce (re-corre el load).
+  const acceptGate = useCallback(() => {
+    haptic.medium();
+    setGateNeeded(false);
+    setLoading(true);
+    setGateAccepted(true);
+  }, []);
+
+  const openEmergencyHelp = useCallback(() => {
+    haptic.light();
+    Alert.alert(
+      'Buscar ayuda',
+      'Si es una emergencia médica, llama a servicios de emergencia. Si estás en crisis emocional, la Línea de la Vida atiende 24/7.',
+      [
+        { text: 'Llamar a emergencias (911)', onPress: () => { Linking.openURL('tel:911').catch(() => {}); } },
+        { text: 'Línea de la Vida 800-911-2000', onPress: () => { Linking.openURL('tel:8009112000').catch(() => {}); } },
+        { text: 'Cerrar', style: 'cancel' },
+      ],
+    );
+  }, []);
+
+  // Favorita: update optimista, revierte si la DB no lo tomó (fail-soft).
+  const toggleFav = useCallback(async () => {
+    const p = pieceRef.current;
+    if (!p || !user?.id) return;
+    haptic.light();
+    const next = !isFav;
+    setIsFav(next);
+    const ok = await setFavorite(user.id, p.slug, next);
+    if (!ok) setIsFav(!next);
+  }, [isFav, user?.id]);
 
   const togglePlay = useCallback(() => {
     const player = playerRef.current;
@@ -334,6 +396,13 @@ export default function MenteAudioPlayerScreen() {
         <AnimatedPressable style={s.backBtn} onPress={() => { haptic.light(); router.back(); }}>
           <Ionicons name="chevron-down" size={26} color="#fff" />
         </AnimatedPressable>
+        <View style={{ flex: 1 }} />
+        {/* Ajuste v2: favorita (no aparece mientras el hard gate está activo). */}
+        {piece && !gateNeeded && (
+          <AnimatedPressable style={s.backBtn} onPress={toggleFav}>
+            <Ionicons name={isFav ? 'heart' : 'heart-outline'} size={24} color={isFav ? ATP_BRAND.lime : '#fff'} />
+          </AnimatedPressable>
+        )}
       </View>
 
       <View style={{ flex: 1 }} />
@@ -350,7 +419,33 @@ export default function MenteAudioPlayerScreen() {
           </>
         )}
 
-        {loading ? (
+        {gateNeeded ? (
+          /* Hard gate: reconocimiento explícito antes de reproducir (v2 · 5). */
+          <Animated.View entering={FadeIn.duration(300)} style={s.gateBox}>
+            <EliteText style={s.gateText}>{HARD_GATE_TEXT}</EliteText>
+
+            <AnimatedPressable style={s.gateCheckRow} onPress={() => { haptic.light(); setGateAck(v => !v); }}>
+              <Ionicons
+                name={gateAck ? 'checkbox' : 'square-outline'}
+                size={22}
+                color={gateAck ? ATP_BRAND.lime : 'rgba(255,255,255,0.7)'}
+              />
+              <EliteText style={s.gateCheckText}>Entiendo</EliteText>
+            </AnimatedPressable>
+
+            <AnimatedPressable style={s.gateHelpBtn} onPress={openEmergencyHelp}>
+              <Ionicons name="call-outline" size={16} color="#fff" />
+              <EliteText style={s.gateHelpText}>Buscar ayuda / emergencia</EliteText>
+            </AnimatedPressable>
+
+            <AnimatedPressable
+              style={[s.gateContinueBtn, !gateAck && { opacity: 0.35 }]}
+              onPress={() => { if (gateAck) acceptGate(); }}
+            >
+              <EliteText style={s.gateContinueText}>CONTINUAR</EliteText>
+            </AnimatedPressable>
+          </Animated.View>
+        ) : loading ? (
           <View style={{ alignItems: 'center', paddingVertical: 40 }}>
             <ActivityIndicator size="large" color={MIND_PURPLE} />
             <EliteText style={s.loadingText}>Preparando tu sesión…</EliteText>
@@ -447,4 +542,28 @@ const s = StyleSheet.create({
     fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime,
     textAlign: 'center', marginTop: Spacing.md,
   },
+
+  // Hard gate (Ajuste v2 · 5)
+  gateBox: {
+    backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
+    padding: Spacing.md, marginTop: Spacing.md, gap: Spacing.sm,
+  },
+  gateText: {
+    fontSize: FontSizes.sm, fontFamily: Fonts.regular,
+    color: 'rgba(255,255,255,0.92)', lineHeight: 20,
+  },
+  gateCheckRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+  gateCheckText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#fff' },
+  gateHelpBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)', borderRadius: 24,
+    paddingVertical: 10,
+  },
+  gateHelpText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#fff' },
+  gateContinueBtn: {
+    backgroundColor: ATP_BRAND.lime, borderRadius: 24,
+    alignItems: 'center', paddingVertical: 12,
+  },
+  gateContinueText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: '#000', letterSpacing: 2 },
 });

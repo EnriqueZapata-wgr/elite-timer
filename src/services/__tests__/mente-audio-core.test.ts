@@ -34,6 +34,11 @@ describe('sessionTypeFor / electronSourceFor (CHECK mig 049 + espejo pantallas)'
     expect(sessionTypeFor('descanso')).toBe('meditation');
     expect(electronSourceFor('meditation')).toBe('meditation');
   });
+
+  it('mantra y visualización (Ajuste v2, mig 215) → meditation', () => {
+    expect(sessionTypeFor('mantra')).toBe('meditation');
+    expect(sessionTypeFor('visualizacion')).toBe('meditation');
+  });
 });
 
 describe('applySeekToSkip (A0: neto de saltos-forward)', () => {
