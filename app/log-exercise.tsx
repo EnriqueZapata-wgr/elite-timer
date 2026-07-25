@@ -30,6 +30,8 @@ import { TRAINING_METHODS, type TrainingMethodId } from '@/src/constants/trainin
 import { Method35 } from '@/src/components/training/Method35';
 import { EMOMAuto } from '@/src/components/training/EMOMAuto';
 import { MyoReps } from '@/src/components/training/MyoReps';
+import { KeepAwakeActive } from '@/src/components/training/KeepAwakeActive';
+import { useMethodVoice } from '@/src/hooks/useMethodVoice';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 
 // === TIPOS LOCALES ===
@@ -77,6 +79,8 @@ export default function LogExerciseScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ exerciseId?: string }>();
   const { user } = useAuth();
+  // MB-3 Track E: los métodos heredan voz (+ keep-awake) también por este camino.
+  const { cue } = useMethodVoice();
 
   // --- Estado de flujo ---
   const [step, setStep] = useState<Step>('benchmark');
@@ -659,7 +663,7 @@ export default function LogExerciseScreen() {
               {!searchError && searchQuery.trim().length >= 2 && searchResults.length === 0 && !searching && (
                 <Pressable onPress={handleCreateCustomExercise} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: Spacing.md, marginTop: Spacing.xs }}>
                   <Ionicons name="add-circle-outline" size={20} color="#a8e02a" />
-                  <Text style={{ color: '#a8e02a', fontSize: 14 }}>Crear "{searchQuery.trim()}"</Text>
+                  <Text style={{ color: '#a8e02a', fontSize: 14 }}>Crear &quot;{searchQuery.trim()}&quot;</Text>
                 </Pressable>
               )}
             </View>
@@ -977,6 +981,9 @@ export default function LogExerciseScreen() {
 
             </>)}
 
+            {/* Métodos activos: pantalla despierta (mismo trato que el runner) */}
+            {selectedMethod !== 'standard' && <KeepAwakeActive />}
+
             {/* === MÉTODO 3-5 === */}
             {selectedMethod === 'method_3_5' && (
               <Method35
@@ -984,6 +991,7 @@ export default function LogExerciseScreen() {
                 userLevel="intermediate"
                 lastWeight={activePR?.weight_kg}
                 onComplete={(sets) => handleMethodComplete({ sets })}
+                onCue={cue}
               />
             )}
 
@@ -993,6 +1001,7 @@ export default function LogExerciseScreen() {
                 exerciseName={activeExercise.name_es}
                 userLevel="intermediate"
                 onComplete={handleMethodComplete}
+                onCue={cue}
               />
             )}
 
@@ -1001,6 +1010,7 @@ export default function LogExerciseScreen() {
               <MyoReps
                 exerciseName={activeExercise.name_es}
                 onComplete={handleMethodComplete}
+                onCue={cue}
               />
             )}
 

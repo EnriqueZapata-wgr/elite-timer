@@ -13,9 +13,11 @@ interface Props {
   exerciseName: string;
   userLevel: 'beginner' | 'intermediate';
   onComplete: (result: { rounds: number[]; debt: number; weightFeedback: string }) => void;
+  /** MB-3 Track E: cue de voz opcional (el host decide si habla). Aditivo — no toca la regla. */
+  onCue?: (text: string) => void;
 }
 
-export function EMOMAuto({ exerciseName, userLevel, onComplete }: Props) {
+export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) {
   const config = userLevel === 'beginner' ? { rounds: 8, targetReps: 8 } : { rounds: 10, targetReps: 10 };
   const [phase, setPhase] = useState<'ready' | 'active' | 'debt' | 'done'>('ready');
   const [currentRound, setCurrentRound] = useState(0);
@@ -40,6 +42,13 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete }: Props) {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [phase, currentRound]);
 
+  // Cuenta regresiva hablada del minuto (3-2-1) — cue aditivo, la regla no cambia.
+  useEffect(() => {
+    if (phase !== 'active') return;
+    if (timer === 3 || timer === 2 || timer === 1) onCue?.(String(timer));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer, phase]);
+
   function handleRoundTimeout() {
     if (roundResults.length <= currentRound) {
       logReps(0);
@@ -59,13 +68,16 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete }: Props) {
       const finalDebt = totalDebt + debt;
       if (finalDebt === 0) {
         setPhase('done');
+        onCue?.('Peso bajo. Sube el peso la próxima sesión.');
         onComplete({ rounds: newResults, debt: 0, weightFeedback: 'Peso bajo. Sube el peso la próxima sesión.' });
       } else {
         setPhase('debt');
+        onCue?.(`Serie de paga: ${finalDebt} repeticiones.`);
       }
     } else {
       setCurrentRound(prev => prev + 1);
       setTimer(60);
+      onCue?.(`Ronda ${newResults.length + 1}.`);
     }
   }
 
@@ -79,6 +91,7 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete }: Props) {
       weightFeedback = 'Deuda pagada. Peso OK.';
     }
     setPhase('done');
+    onCue?.(weightFeedback);
     onComplete({ rounds: roundResults, debt: totalDebt, weightFeedback });
   }
 
@@ -106,7 +119,7 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete }: Props) {
             {exerciseName}
           </Text>
           <Pressable
-            onPress={() => { setPhase('active'); setTimer(60); }}
+            onPress={() => { setPhase('active'); setTimer(60); onCue?.('EMOM iniciado. Ronda 1.'); }}
             style={{ backgroundColor: '#fb923c', borderRadius: 16, padding: 18, paddingHorizontal: 48, alignItems: 'center' }}
           >
             <Text style={{ color: '#000', fontSize: 18, fontWeight: '800' }}>INICIAR EMOM</Text>

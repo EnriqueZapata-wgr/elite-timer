@@ -15,9 +15,11 @@ interface Props {
   userLevel: 'beginner' | 'intermediate' | 'advanced';
   lastWeight?: number;
   onComplete: (sets: { weight: number; reps: number; feedback: string }[]) => void;
+  /** MB-3 Track E: cue de voz opcional (el host decide si habla). Aditivo — no toca la regla. */
+  onCue?: (text: string) => void;
 }
 
-export function Method35({ exerciseName, userLevel, lastWeight, onComplete }: Props) {
+export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCue }: Props) {
   const config = TRAINING_METHODS.method_3_5.rules[userLevel];
   const targetReps = config.targetReps;
   const [currentWeight, setCurrentWeight] = useState(lastWeight || 20);
@@ -29,10 +31,13 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete }: Pr
     let feedback = '';
     if (reps > targetReps) {
       feedback = `${reps} reps → Sube peso`;
+      onCue?.('Sube peso.');
     } else if (reps < targetReps) {
       feedback = `${reps} reps → Baja peso`;
+      onCue?.('Baja peso.');
     } else {
       feedback = `${reps} reps → Peso perfecto`;
+      onCue?.('Peso perfecto.');
     }
 
     const newSet = { weight: currentWeight, reps, feedback };

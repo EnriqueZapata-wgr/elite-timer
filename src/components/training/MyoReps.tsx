@@ -12,9 +12,11 @@ import * as Haptics from 'expo-haptics';
 interface Props {
   exerciseName: string;
   onComplete: (result: { activationReps: number; overloadSets: number[]; failedAt: number; weightFeedback: string }) => void;
+  /** MB-3 Track E: cue de voz opcional (el host decide si habla). Aditivo — no toca la regla. */
+  onCue?: (text: string) => void;
 }
 
-export function MyoReps({ exerciseName, onComplete }: Props) {
+export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
   const [phase, setPhase] = useState<'activation' | 'rest' | 'overload' | 'done'>('activation');
   const [overloadSets, setOverloadSets] = useState<number[]>([]);
   const [restTimer, setRestTimer] = useState(5);
@@ -25,6 +27,7 @@ export function MyoReps({ exerciseName, onComplete }: Props) {
     if (restTimer <= 0) {
       setPhase('overload');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      onCue?.(`Sobrecarga ${overloadSets.length + 1}. 5 repeticiones.`);
       return;
     }
     const t = setTimeout(() => setRestTimer(prev => prev - 1), 1000);
@@ -35,6 +38,7 @@ export function MyoReps({ exerciseName, onComplete }: Props) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setPhase('rest');
     setRestTimer(5);
+    onCue?.('Activación completa. 5 segundos de descanso.');
   }
 
   function completeOverload(reps: number) {
@@ -44,17 +48,21 @@ export function MyoReps({ exerciseName, onComplete }: Props) {
     setOverloadSets(updated);
 
     if (reps < 5) {
-      // FALLO — feedback basado en cuántas sobrecargas logró
+      // FALLO — feedback basado en cuántas sobrecargas logró.
+      // Fallo en 10+ = llegó más allá de la ventana ideal (6-9) ⇒ peso bajo
+      // (fix P3 METODOS_ATP_AUTOAJUSTABLES.md — antes decía "Peso OK").
       let weightFeedback = '';
       if (setNumber <= 5) weightFeedback = 'Peso alto. Baja la próxima sesión.';
       else if (setNumber <= 9) weightFeedback = 'Peso perfecto. Mantén este peso.';
-      else weightFeedback = 'Peso OK.';
+      else weightFeedback = 'Peso bajo. Sube la próxima sesión.';
 
       setPhase('done');
+      onCue?.(weightFeedback);
       onComplete({ activationReps: 20, overloadSets: updated, failedAt: setNumber, weightFeedback });
     } else if (setNumber >= 10) {
       // Llegó a 10 sin fallar
       setPhase('done');
+      onCue?.('Peso bajo. Sube la próxima sesión.');
       onComplete({
         activationReps: 20, overloadSets: updated, failedAt: 0,
         weightFeedback: 'Peso bajo. Sube la próxima sesión.',
