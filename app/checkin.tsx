@@ -407,9 +407,17 @@ export default function CheckinScreen() {
           {/* Historial reciente */}
           {pastCheckins.length > 0 && (
             <ScrollView style={{ maxHeight: 200, marginTop: Spacing.md }} showsVerticalScrollIndicator={false}>
-              <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs, marginBottom: Spacing.xs }}>
-                CHECK-INS RECIENTES
-              </EliteText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xs }}>
+                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>
+                  CHECK-INS RECIENTES
+                </EliteText>
+                {/* MB-4 Bloque 3: acceso al historial completo con correlaciones */}
+                <Pressable onPress={() => { haptic.light(); router.push('/emotion-history'); }} hitSlop={8}>
+                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>
+                    Ver todo →
+                  </EliteText>
+                </Pressable>
+              </View>
               {pastCheckins.slice(0, 10).map(ci => {
                 const qInfo = QUADRANTS[ci.quadrant];
                 const emotionLabels = ci.emotions
