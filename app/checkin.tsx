@@ -2,18 +2,21 @@
  * Check-in emocional RULER — Reconocer → Etiquetar → Entender.
  * 3 pasos: cuadrante → emociones (con descripciones) → contexto.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import Animated, { FadeIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
+import Animated, { FadeIn, SlideInDown, SlideOutDown, SlideInRight } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import {
   QUADRANTS, EMOTIONS, CONTEXT_WHERE, CONTEXT_WHO, CONTEXT_DOING,
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
+import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/EmotionMap2D';
+import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
 import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
@@ -45,7 +48,11 @@ export default function CheckinScreen() {
   const [step, setStep] = useState(1);
   const [quadrant, setQuadrant] = useState<QuadrantKey | null>(null);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
-  const [tooltip, setTooltip] = useState<Emotion | null>(null);
+  // MB-4 Bloque 1: hoja de definición (reemplaza el tooltip de long-press) + buscador.
+  const [sheetEmotion, setSheetEmotion] = useState<Emotion | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const mapRef = useRef<EmotionMapHandle>(null);
   const [ctxWhere, setCtxWhere] = useState<string | null>(null);
   const [ctxWho, setCtxWho] = useState<string | null>(null);
   const [ctxDoing, setCtxDoing] = useState<string | null>(null);
@@ -115,14 +122,48 @@ export default function CheckinScreen() {
     setStep(2);
   };
 
-  const toggleEmotion = (id: string) => {
+  // MB-4 Bloque 1: tocar una emoción en el plano la selecciona (máx 2 — la
+  // tercera reemplaza a la segunda) y abre su definición. El cuadrante efectivo
+  // sigue a la PRIMERA emoción elegida: el plano es libre, el usuario puede
+  // cruzar de zona y el dato guardado refleja dónde terminó, no dónde entró.
+  const handleMapEmotionPress = (e: Emotion) => {
+    setSelectedEmotions(prev => {
+      const next = prev.includes(e.id)
+        ? prev
+        : prev.length >= 2 ? [prev[0], e.id] : [...prev, e.id];
+      const first = EMOTIONS.find(em => em.id === next[0]);
+      if (first) setQuadrant(first.quadrant);
+      return next;
+    });
+    setSheetEmotion(e);
+  };
+
+  const removeEmotion = (id: string) => {
     haptic.light();
     setSelectedEmotions(prev => {
-      if (prev.includes(id)) return prev.filter(e => e !== id);
-      if (prev.length >= 2) return [prev[1], id];
-      return [...prev, id];
+      const next = prev.filter(e => e !== id);
+      const first = EMOTIONS.find(em => em.id === next[0]);
+      if (first) setQuadrant(first.quadrant);
+      return next;
     });
+    setSheetEmotion(null);
   };
+
+  const handleSearchPick = (e: Emotion) => {
+    haptic.light();
+    setSearchOpen(false);
+    setSearchQuery('');
+    mapRef.current?.centerOnEmotion(e.id);
+    handleMapEmotionPress(e);
+  };
+
+  // Glow ambiental: el color de la emoción activa tiñe el fondo de la pantalla.
+  const activeEmotion = selectedEmotions.length > 0
+    ? EMOTIONS.find(e => e.id === selectedEmotions[selectedEmotions.length - 1])
+    : null;
+  const ambientColor = activeEmotion
+    ? colorAtPoint(normX(activeEmotion.quadrant, activeEmotion.intensity), normY(activeEmotion.energy))
+    : null;
 
   const handleSave = async () => {
     if (!quadrant || selectedEmotions.length === 0) return;
@@ -257,6 +298,18 @@ export default function CheckinScreen() {
 
   return (
     <Screen>
+      {/* MB-4 Bloque 1: glow ambiental — el color de la emoción activa tiñe
+          el fondo de la pantalla, detrás de todo. */}
+      {ambientColor && (
+        <Animated.View
+          key={ambientColor}
+          entering={FadeIn.duration(500)}
+          style={styles.ambientGlow}
+          pointerEvents="none"
+        >
+          <LinearGradient colors={[withOpacity(ambientColor, 0.24), 'transparent']} style={{ flex: 1 }} />
+        </Animated.View>
+      )}
       {/* I18 (V1.5): el teclado se maneja con insets nativos en el ScrollView
           del step 3 (el único con input) — scrollea al campo y restaura al
           cerrar; el KAV de Screen solo encogía sin scroll. */}
@@ -360,89 +413,107 @@ export default function CheckinScreen() {
         </Animated.View>
       )}
 
-      {/* ═══ STEP 2: EMOCIONES ═══ */}
-      {step === 2 && quadrant && (() => {
-        const all = EMOTIONS.filter(e => e.quadrant === quadrant);
-        // Agrupar por terciles de intensidad RELATIVOS al cuadrante
-        const sorted = [...all].sort((a, b) => b.intensity - a.intensity);
-        const third = Math.ceil(sorted.length / 3);
-        const high = sorted.slice(0, third);
-        const mid = sorted.slice(third, third * 2);
-        const low = sorted.slice(third * 2);
-
-        const renderBand = (emotions: typeof all, label: string) => (
-          <View style={styles.emotionBand}>
-            <EliteText variant="caption" style={[styles.bandLabel, { color: qColor + '50' }]}>{label}</EliteText>
-            <View style={styles.bandWrap}>
-              {emotions.map(e => {
-                const sel = selectedEmotions.includes(e.id);
-                return (
-                  <AnimatedPressable
-                    key={e.id}
-                    onPress={() => toggleEmotion(e.id)}
-                    onLongPress={() => setTooltip(e)}
-                    delayLongPress={400}
-                    style={[
-                      styles.emotionPill,
-                      { borderColor: sel ? qColor + 'AA' : qColor + '25' },
-                      sel && { backgroundColor: qColor + '30' },
-                    ]}
-                  >
-                    <EliteText variant="caption" style={[
-                      styles.emotionText,
-                      { color: sel ? qColor : Colors.textSecondary },
-                      sel && { fontFamily: Fonts.bold },
-                    ]}>
-                      {e.label}
-                    </EliteText>
-                  </AnimatedPressable>
-                );
-              })}
+      {/* ═══ STEP 2: EL PLANO — mapa 2D continuo con las 144 emociones ═══ */}
+      {step === 2 && quadrant && (
+        <Animated.View entering={FadeIn.duration(250)} style={styles.mapFlex}>
+          <View style={styles.mapHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <EliteText style={[styles.mapTitle, { color: qColor }]}>{qd!.label}</EliteText>
+              <EliteText variant="caption" style={styles.mapHint}>
+                Desliza el plano · toca una emoción · elige 1 o 2
+              </EliteText>
             </View>
+            <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={styles.mapTool} hitSlop={8}>
+              <Ionicons name="search" size={18} color={TEXT_COLORS.secondary} />
+            </Pressable>
+            <Pressable onPress={() => { haptic.light(); setSearchOpen(false); mapRef.current?.zoomOut(); }} style={styles.mapTool} hitSlop={8}>
+              <Ionicons name="contract-outline" size={18} color={TEXT_COLORS.secondary} />
+            </Pressable>
           </View>
-        );
 
-        return (
-          <Animated.View entering={SlideInRight.duration(250)} exiting={SlideOutLeft.duration(200)} style={styles.stepFlex}>
-            <EliteText style={[styles.mainTitle, { color: qColor }]}>{qd!.label}</EliteText>
-            <EliteText variant="caption" style={styles.mainSub}>
-              Elige 1 o 2 · mantén presionado para descripción
-            </EliteText>
+          {/* C5-002: recurso de crisis al marcar "En pánico" */}
+          {panicSelected && <CrisisSupportBanner style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }} />}
 
-            {/* C5-002: recurso de crisis al marcar "En pánico" */}
-            {panicSelected && <CrisisSupportBanner style={{ marginBottom: Spacing.md }} />}
+          <View style={styles.mapCanvas}>
+            <EmotionMap2D
+              ref={mapRef}
+              initialQuadrant={quadrant}
+              selectedIds={selectedEmotions}
+              onEmotionPress={handleMapEmotionPress}
+            />
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 80 }}>
-              {renderBand(high, '↑ Alta intensidad')}
-              {renderBand(mid, '— Media')}
-              {renderBand(low, '↓ Más sutil')}
-            </ScrollView>
+            {/* Buscador por nombre */}
+            {searchOpen && (
+              <Animated.View entering={FadeIn.duration(180)} style={styles.searchOverlay}>
+                <TextInput
+                  style={styles.searchInput}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="Busca una emoción…"
+                  placeholderTextColor={TEXT_COLORS.muted}
+                  autoFocus
+                  autoCorrect={false}
+                />
+                {searchEmotions(EMOTIONS, searchQuery).map(e => (
+                  <Pressable key={e.id} onPress={() => handleSearchPick(e)} style={styles.searchRow}>
+                    <View style={[styles.searchDot, { backgroundColor: QUADRANTS[e.quadrant].color }]} />
+                    <EliteText variant="body" style={styles.searchLabel}>{e.label}</EliteText>
+                    <EliteText variant="caption" style={styles.searchQuadrant} numberOfLines={1}>
+                      {QUADRANTS[e.quadrant].label}
+                    </EliteText>
+                  </Pressable>
+                ))}
+              </Animated.View>
+            )}
+          </View>
 
-            {/* Tooltip */}
-            {tooltip && (
-              <Pressable style={styles.tooltipOverlay} onPress={() => setTooltip(null)}>
-                <View style={[styles.tooltip, { borderColor: qColor + '40' }]}>
-                  <EliteText variant="body" style={[styles.tooltipTitle, { color: qColor }]}>
-                    {tooltip.label}
-                  </EliteText>
-                  <EliteText variant="caption" style={styles.tooltipDesc}>
-                    {tooltip.description}
-                  </EliteText>
-                  <EliteText variant="caption" style={styles.tooltipHint}>
-                    Toca para cerrar
-                  </EliteText>
+          {/* Hoja de definición: nombre en el color de su zona + descripción */}
+          {sheetEmotion && (() => {
+            const sheetColor = colorAtPoint(
+              normX(sheetEmotion.quadrant, sheetEmotion.intensity),
+              normY(sheetEmotion.energy),
+            );
+            return (
+              <Animated.View
+                entering={SlideInDown.duration(260)}
+                exiting={SlideOutDown.duration(200)}
+                style={styles.defSheet}
+              >
+                <View style={styles.defHeader}>
+                  <EliteText style={[styles.defName, { color: sheetColor }]}>{sheetEmotion.label}</EliteText>
+                  <Pressable onPress={() => removeEmotion(sheetEmotion.id)} hitSlop={8}>
+                    <EliteText variant="caption" style={styles.defRemove}>Quitar</EliteText>
+                  </Pressable>
                 </View>
-              </Pressable>
-            )}
+                <EliteText variant="body" style={styles.defDesc}>{sheetEmotion.description}</EliteText>
+                <View style={styles.defActions}>
+                  {selectedEmotions.length < 2 && (
+                    <Pressable
+                      onPress={() => { haptic.light(); setSheetEmotion(null); }}
+                      style={styles.defSecondary}
+                    >
+                      <EliteText variant="caption" style={styles.defSecondaryText}>Sumar otra</EliteText>
+                    </Pressable>
+                  )}
+                  <Pressable
+                    onPress={() => { haptic.medium(); setSheetEmotion(null); setStep(3); }}
+                    style={[styles.defContinue, { backgroundColor: sheetColor }]}
+                  >
+                    <EliteText style={styles.defContinueText}>CONTINUAR</EliteText>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            );
+          })()}
 
-            {selectedEmotions.length > 0 && !tooltip && (
-              <Pressable onPress={() => { haptic.medium(); setStep(3); }} style={[styles.nextBtn, { backgroundColor: qColor }]}>
-                <EliteText style={styles.nextBtnText}>Siguiente</EliteText>
-              </Pressable>
-            )}
-          </Animated.View>
-        );
-      })()}
+          {/* Sin hoja abierta pero con selección: CTA para seguir */}
+          {!sheetEmotion && selectedEmotions.length > 0 && (
+            <Pressable onPress={() => { haptic.medium(); setStep(3); }} style={[styles.nextBtn, { backgroundColor: qColor }]}>
+              <EliteText style={styles.nextBtnText}>Siguiente</EliteText>
+            </Pressable>
+          )}
+        </Animated.View>
+      )}
 
       {/* ═══ STEP 3: CONTEXTO ═══ */}
       {step === 3 && quadrant && (
@@ -576,34 +647,65 @@ const styles = StyleSheet.create({
   recentLabel: { color: Colors.textSecondary, fontSize: FontSizes.sm },
   recentCircle: { width: 14, height: 14, borderRadius: 7 },
 
-  // Emotion bands
-  emotionBand: { marginBottom: Spacing.md },
-  bandLabel: {
-    fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2,
-    marginBottom: Spacing.xs, paddingLeft: 2,
+  // MB-4 Bloque 1: glow ambiental (detrás de todo, tercio superior)
+  ambientGlow: {
+    position: 'absolute', top: 0, left: 0, right: 0, height: 320, zIndex: 0,
   },
-  bandWrap: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs,
-  },
-  emotionPill: {
-    paddingHorizontal: Spacing.sm + 2, paddingVertical: Spacing.xs + 3,
-    borderRadius: Radius.pill, borderWidth: 1,
-  },
-  emotionText: { fontSize: FontSizes.md },
 
-  // Tooltip
-  tooltipOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center',
-    zIndex: 30, padding: Spacing.lg,
+  // MB-4 Bloque 1: el plano
+  mapFlex: { flex: 1 },
+  mapHeaderRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.sm,
   },
-  tooltip: {
-    backgroundColor: SURFACES.cardLight, borderRadius: Radius.card, borderWidth: 1,
-    padding: Spacing.md, maxWidth: 320,
+  mapTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
+  mapHint: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 2 },
+  mapTool: {
+    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: SURFACES.card, borderWidth: 0.5, borderColor: SURFACES.border,
   },
-  tooltipTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.xl, marginBottom: Spacing.xs },
-  tooltipDesc: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 22 },
-  tooltipHint: { color: Colors.textSecondary + '60', fontSize: FontSizes.sm, textAlign: 'center', marginTop: Spacing.sm },
+  // Full-bleed: los círculos se salen de los bordes (sensación de infinito).
+  mapCanvas: { flex: 1 },
+
+  // Buscador
+  searchOverlay: {
+    position: 'absolute', top: 0, left: Spacing.md, right: Spacing.md, zIndex: 20,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    borderWidth: 0.5, borderColor: SURFACES.border, padding: Spacing.sm,
+  },
+  searchInput: {
+    backgroundColor: Colors.black, borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
+    color: Colors.textPrimary, fontFamily: Fonts.regular, fontSize: FontSizes.md,
+  },
+  searchRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.xs,
+  },
+  searchDot: { width: 10, height: 10, borderRadius: 5 },
+  searchLabel: { color: Colors.textPrimary, fontSize: FontSizes.md, flexShrink: 0 },
+  searchQuadrant: { color: Colors.textSecondary, fontSize: FontSizes.xs, flex: 1, textAlign: 'right' },
+
+  // Hoja de definición
+  defSheet: {
+    backgroundColor: SURFACES.card, borderTopLeftRadius: Radius.lg, borderTopRightRadius: Radius.lg,
+    borderWidth: 0.5, borderColor: SURFACES.border,
+    paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.lg,
+  },
+  defHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  defName: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
+  defRemove: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  defDesc: { color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 22, marginTop: Spacing.xs },
+  defActions: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
+    gap: Spacing.md, marginTop: Spacing.md,
+  },
+  defSecondary: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm },
+  defSecondaryText: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  defContinue: {
+    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, borderRadius: Radius.pill,
+  },
+  defContinueText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.md, letterSpacing: 2 },
 
   nextBtn: {
     alignSelf: 'center', position: 'absolute', bottom: Spacing.lg,
