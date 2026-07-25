@@ -61,36 +61,34 @@ function buildPresetRoutine(name: string, p: Record<string, string>): Routine {
   };
 }
 
+// §4.4 caza de redundancia: metaText RETIRADO — repetía la descripción (y a
+// veces el nombre) dentro de la MISMA card. Un dato = un lugar: la descripción
+// lleva el formato completo incluida la duración total.
 interface HIITPreset {
   name: string;
   description: string;
-  metaText: string;
   params: Record<string, string>;
 }
 
 const HIIT_PRESETS: HIITPreset[] = [
   {
     name: 'Tabata clásico',
-    description: '20s máximo esfuerzo / 10s descanso x 8 rondas',
-    metaText: '20/10 x 8 · 4 min',
+    description: '20s máximo esfuerzo / 10s descanso × 8 rondas · 4 min',
     params: { mode: 'tabata', work: '20', rest: '10', rounds: '8' },
   },
   {
     name: 'EMOM 10 min',
     description: 'Every Minute On the Minute — 1 ejercicio cada minuto',
-    metaText: '10 min',
     params: { mode: 'emom', work: '60', rest: '0', rounds: '10' },
   },
   {
     name: 'AMRAP 15 min',
-    description: 'As Many Rounds As Possible en 15 minutos',
-    metaText: '15 min',
+    description: 'As Many Rounds As Possible — tantas rondas como puedas',
     params: { mode: 'amrap', duration: '900' },
   },
   {
-    name: '30/30 x 10',
-    description: '30s trabajo / 30s descanso x 10 rondas',
-    metaText: '30/30 x 10 · 10 min',
+    name: '30/30 × 10',
+    description: '30s trabajo / 30s descanso × 10 rondas · 10 min',
     params: { mode: 'intervals', work: '30', rest: '30', rounds: '10' },
   },
 ];
@@ -122,7 +120,6 @@ export default function FitnessHIITScreen() {
                   <View style={{ flex: 1 }}>
                     <EliteText style={s.name}>{preset.name}</EliteText>
                     <EliteText style={s.desc}>{preset.description}</EliteText>
-                    <EliteText style={s.meta}>{preset.metaText}</EliteText>
                   </View>
                   <View style={s.playBtn}>
                     <Ionicons name="play" size={14} color={TEXT_COLORS.onAccent} />
@@ -168,13 +165,6 @@ const s = StyleSheet.create({
     fontFamily: Fonts.regular,
     color: TEXT_COLORS.secondary,
     marginTop: 2,
-  },
-  meta: {
-    fontSize: 10,
-    fontFamily: Fonts.semiBold,
-    color: ORANGE,
-    letterSpacing: 1,
-    marginTop: 4,
   },
   playBtn: {
     width: 36,
