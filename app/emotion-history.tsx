@@ -99,6 +99,21 @@ export default function EmotionHistoryScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
+        {/* MB-4 Bloque 5: acceso al perfil emocional del periodo */}
+        <Pressable
+          onPress={() => { haptic.light(); router.push('/emotion-profile'); }}
+          style={styles.profileLink}
+        >
+          <Ionicons name="planet-outline" size={16} color={SEMANTIC.info} />
+          <View style={{ flex: 1 }}>
+            <EliteText variant="body" style={styles.profileLinkTitle}>Tu clima emocional</EliteText>
+            <EliteText variant="caption" style={styles.profileLinkSub}>
+              El perfil de tus últimos 30 días — foto del periodo, no etiqueta
+            </EliteText>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.secondary} />
+        </Pressable>
+
         {!loading && rangeCheckins.length === 0 && (
           <EmptyState
             icon="pulse-outline"
@@ -286,6 +301,16 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold,
     letterSpacing: 2, marginBottom: Spacing.sm, paddingHorizontal: Spacing.md,
   },
+
+  // MB-4 Bloque 5: acceso al perfil
+  profileLink: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: SURFACES.card, borderRadius: Radius.card,
+    borderWidth: 0.5, borderColor: SURFACES.border,
+    padding: Spacing.md, marginHorizontal: Spacing.md, marginBottom: Spacing.md,
+  },
+  profileLinkTitle: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  profileLinkSub: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 1 },
   sectionSub: {
     color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: -Spacing.xs,
     marginBottom: Spacing.sm, paddingHorizontal: Spacing.md,
