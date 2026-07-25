@@ -37,8 +37,12 @@ import { saveWorkoutSession, type SaveSessionResult } from '@/src/services/fitne
 import type { SessionSet } from '@/src/services/fitness/workout-session-core';
 import type { GeneratedRoutine, RoutineBlock } from '@/src/services/fitness/routine-generator-core';
 import { clipDe, posterDe } from '@/src/constants/exercise-matrix';
-import { ATP_BRAND, TEXT, ELEVATION, PILLAR_GRADIENTS, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, ELEVATION, PILLAR_GRADIENTS, SEMANTIC, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
+
+const CARDIO_LABELS: Record<string, string> = {
+  running: 'Correr', cycling: 'Ciclismo', swimming: 'Natación', rowing: 'Remo', other: 'Cardio',
+};
 
 // ── Runner de bloque estándar (registro inline + descanso hablado) ──
 
@@ -300,7 +304,7 @@ export default function StrengthSessionScreen() {
 
   // ── Cierre de sesión (Track F: resumen + celebración + señal de edad) ──
   if (resultado?.ok && resultado.summary) {
-    const { summary, prs = [], edadSignal } = resultado;
+    const { summary, prs = [], edadSignal, cardioHoy = [] } = resultado;
     const celebrar = prs.some((p) => p.celebrar);
     return (
       <Screen edges={[]}>
@@ -330,6 +334,25 @@ export default function StrengthSessionScreen() {
               </View>
             </LinearGradient>
           </Animated.View>
+
+          {/* Cardio del día (MB-3.6 §3.3: la sesión unifica fuerza + cardio) */}
+          {cardioHoy.length > 0 && (
+            <Animated.View entering={FadeInDown.delay(60).duration(300)} style={s.sectionCard}>
+              <View style={s.sectionHeader}>
+                <Ionicons name="pulse" size={16} color={SEMANTIC.info} />
+                <Text style={s.sectionTitle}>CARDIO DE HOY · TAMBIÉN CUENTA</Text>
+              </View>
+              {cardioHoy.map((c, i) => (
+                <View key={`${c.discipline}-${i}`} style={s.prRow}>
+                  <Text style={s.prName}>{CARDIO_LABELS[c.discipline] ?? c.discipline}</Text>
+                  <Text style={s.cardioValue}>
+                    {Math.round(c.durationSeconds / 60)} min
+                    {c.distanceMeters ? ` · ${(c.distanceMeters / 1000).toFixed(1)} km` : ''}
+                  </Text>
+                </View>
+              ))}
+            </Animated.View>
+          )}
 
           {/* PRs */}
           {prs.length > 0 && (
@@ -579,6 +602,7 @@ const s = StyleSheet.create({
   prRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: Spacing.sm },
   prName: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 14, flex: 1 },
   prValue: { color: '#fbbf24', fontFamily: Fonts.bold, fontSize: 13 },
+  cardioValue: { color: SEMANTIC.info, fontFamily: Fonts.bold, fontSize: 13, fontVariant: ['tabular-nums'] },
   prCelebrate: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: 13, marginTop: Spacing.xs },
   edadRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },
   edadText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },

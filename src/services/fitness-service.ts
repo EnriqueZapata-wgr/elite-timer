@@ -122,7 +122,9 @@ export interface CardioRecord {
 export interface LogCardioInput {
   discipline: CardioDiscipline;
   duration_seconds: number;
-  distance_meters: number;
+  /** Opcional (MB-3.6 §3.1): el caso común es disciplina + duración; sin
+   *  distancia no hay pace ni chequeo de PRs, y eso está bien. */
+  distance_meters?: number | null;
   avg_heart_rate?: number | null;
   perceived_effort?: number | null;
   notes?: string | null;
@@ -167,8 +169,9 @@ export async function logCardioSession(input: LogCardioInput): Promise<CardioSav
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('No autenticado');
 
-  const paceSecondsPerKm = input.distance_meters > 0
-    ? Math.round(input.duration_seconds / (input.distance_meters / 1000))
+  const distanceMeters = input.distance_meters ?? null;
+  const paceSecondsPerKm = distanceMeters != null && distanceMeters > 0
+    ? Math.round(input.duration_seconds / (distanceMeters / 1000))
     : null;
 
   const row = {
@@ -177,7 +180,7 @@ export async function logCardioSession(input: LogCardioInput): Promise<CardioSav
     date: getLocalToday(),
     discipline: input.discipline,
     duration_seconds: input.duration_seconds,
-    distance_meters: input.distance_meters,
+    distance_meters: distanceMeters,
     avg_pace_seconds_per_km: paceSecondsPerKm,
     avg_heart_rate: input.avg_heart_rate ?? null,
     perceived_effort: input.perceived_effort ?? null,

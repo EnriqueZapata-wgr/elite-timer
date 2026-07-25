@@ -17,6 +17,8 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
+import { useAuth } from '@/src/contexts/auth-context';
+import { autoSyncSiActiva } from '@/src/services/fitness/health-import-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   getLastCardioSessions,
@@ -40,6 +42,7 @@ const DISCIPLINES: { key: CardioDiscipline; name: string; icon: keyof typeof Ion
 
 export default function FitnessCardioScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [lastByDiscipline, setLastByDiscipline] = useState<Record<CardioDiscipline, CardioSession | null>>({
     running: null, cycling: null, swimming: null, rowing: null, other: null,
   });
@@ -47,13 +50,21 @@ export default function FitnessCardioScreen() {
     running: [], cycling: [], swimming: [], rowing: [], other: [],
   });
 
-  useFocusEffect(useCallback(() => {
+  const cargar = useCallback(() => {
     Promise.all([getLastCardioSessions(), getCardioRecordsByDiscipline()])
       .then(([last, recs]) => {
         setLastByDiscipline(last);
         setRecordsByDiscipline(recs);
       });
-  }, []));
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    cargar();
+    // MB-3.6 §3.2: auto-sync SOLO si el usuario activó el opt-in en Importar.
+    if (user) {
+      autoSyncSiActiva(user.id).then((n) => { if (n > 0) cargar(); }).catch(() => {});
+    }
+  }, [cargar, user]));
 
   return (
     <Screen>
@@ -109,6 +120,16 @@ export default function FitnessCardioScreen() {
         >
           <Ionicons name="add-circle-outline" size={20} color="#000" />
           <EliteText style={s.ctaText}>REGISTRAR SESIÓN CARDIO</EliteText>
+        </AnimatedPressable>
+
+        {/* MB-3.6 §3.2: import desde Health Connect / HealthKit (Strava, Garmin,
+            Samsung y Google Fit escriben ahí — una integración, todas las fuentes). */}
+        <AnimatedPressable
+          style={s.ctaButtonGhost}
+          onPress={() => { haptic.light(); router.push('/cardio-import'); }}
+        >
+          <Ionicons name="download-outline" size={18} color={CARDIO_BLUE} />
+          <EliteText style={s.ctaTextGhost}>IMPORTAR DE TU APP DE SALUD</EliteText>
         </AnimatedPressable>
 
         <View style={{ height: 80 }} />
@@ -182,6 +203,23 @@ const s = StyleSheet.create({
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
     color: '#000',
+    letterSpacing: 1.5,
+  },
+  ctaButtonGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(56,189,248,0.35)',
+    paddingVertical: 12,
+    borderRadius: Radius.md,
+    marginTop: Spacing.sm,
+  },
+  ctaTextGhost: {
+    fontSize: FontSizes.sm,
+    fontFamily: Fonts.bold,
+    color: CARDIO_BLUE,
     letterSpacing: 1.5,
   },
 });

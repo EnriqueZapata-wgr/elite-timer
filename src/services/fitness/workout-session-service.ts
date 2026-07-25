@@ -36,6 +36,8 @@ export interface SaveSessionResult {
   summary?: { exercisesCount: number; setsCount: number; volumeKg: number; durationSeconds: number };
   prs?: PRUpdate[];
   edadSignal?: EdadSignal;
+  /** MB-3.6 §3.3: cardio de HOY adoptado por esta sesión (fuerza+cardio = un día). */
+  cardioHoy?: { discipline: string; durationSeconds: number; distanceMeters: number | null }[];
   error?: string;
 }
 
@@ -205,12 +207,43 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
       if (prErr) logWarn('[workout-session] PR upsert failed:', prErr.message);
     }
 
+    // MB-3.6 §3.3: la sesión del día ADOPTA el cardio de hoy (link aditivo,
+    // mig 225 workout_session_id) — fuerza + cardio son UN día de entrenamiento.
+    // Fail-soft: si la columna aún no existe en el remoto, el cierre solo omite
+    // la sección de cardio.
+    let cardioHoy: SaveSessionResult['cardioHoy'];
+    try {
+      const { data: cardios } = await supabase
+        .from('cardio_sessions')
+        .select('id, discipline, duration_seconds, distance_meters')
+        .eq('user_id', input.userId)
+        .eq('date', today);
+      if (cardios && cardios.length > 0) {
+        cardioHoy = (cardios as { id: string; discipline: string; duration_seconds: number | null; distance_meters: number | null }[])
+          .map((c) => ({
+            discipline: c.discipline,
+            durationSeconds: c.duration_seconds ?? 0,
+            distanceMeters: c.distance_meters,
+          }));
+        const { error: linkErr } = await supabase
+          .from('cardio_sessions')
+          .update({ workout_session_id: sessionId })
+          .eq('user_id', input.userId)
+          .eq('date', today)
+          .is('workout_session_id', null);
+        if (linkErr) logWarn('[workout-session] link cardio (¿mig 225 sin aplicar?):', linkErr.message);
+      }
+    } catch (e) {
+      logWarn('[workout-session] cardio del día:', e);
+    }
+
     return {
       ok: true,
       sessionId,
       summary: { ...summary, durationSeconds },
       prs,
       edadSignal,
+      cardioHoy,
     };
   } catch (err) {
     logWarn('[workout-session] saveWorkoutSession failed:', err);
