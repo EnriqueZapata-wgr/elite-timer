@@ -17,6 +17,7 @@ import {
 } from '@/src/data/emotions-library';
 import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/EmotionMap2D';
 import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
+import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
@@ -64,6 +65,8 @@ export default function CheckinScreen() {
   const [checkinStreak, setCheckinStreak] = useState(0);
   // C5 COMUNIDAD: puente a la Tribu (Skool) si hay mood bajo sostenido ~3 semanas.
   const [showTribeBridge, setShowTribeBridge] = useState(false);
+  // MB-4 Bloque 2: invitación a navegar tras el cierre. Un "no" la quita y no se insiste.
+  const [navDeclined, setNavDeclined] = useState(false);
   const dailyPrompt = promptForDate(getLocalToday());
 
   // #21: racha viva visible AL ENTRAR (no solo tras guardar). Mismo query que handleSave (DRY).
@@ -275,6 +278,29 @@ export default function CheckinScreen() {
           {/* C5-002: recurso de crisis también en la pantalla de cierre */}
           {panicSelected && (
             <CrisisSupportBanner style={{ marginHorizontal: Spacing.lg }} />
+          )}
+          {/* MB-4 Bloque 2: el check-in TERMINÓ (completo, con su electrón).
+              Recién ahora la invitación a navegar — opcional, y un "no" se
+              respeta. En crisis no se ofrece reframing (el banner acompaña). */}
+          {!panicSelected && !navDeclined && selectedEmotions.length > 0 && (
+            <Animated.View entering={FadeIn.delay(400).duration(400)} style={styles.navInviteCard}>
+              <EliteText variant="body" style={styles.navInviteTitle}>{INVITE_TITLE}</EliteText>
+              <EliteText variant="caption" style={styles.navInviteSub}>{INVITE_SUBTEXT}</EliteText>
+              <View style={styles.navInviteRow}>
+                <Pressable onPress={() => { haptic.light(); setNavDeclined(true); }} style={styles.navInviteNo}>
+                  <EliteText variant="caption" style={styles.navInviteNoText}>{INVITE_NO}</EliteText>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    haptic.medium();
+                    router.push({ pathname: '/emotion-navigation', params: { emotionId: selectedEmotions[0] } });
+                  }}
+                  style={[styles.navInviteYes, { backgroundColor: qColor }]}
+                >
+                  <EliteText style={styles.navInviteYesText}>{INVITE_YES}</EliteText>
+                </Pressable>
+              </View>
+            </Animated.View>
           )}
           {/* C5 COMUNIDAD: mood bajo sostenido → puente cálido a la Tribu (Skool) */}
           {showTribeBridge && (
@@ -773,6 +799,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, marginTop: Spacing.md,
   },
   doneBtnText: { fontFamily: Fonts.bold, letterSpacing: 2 },
+
+  // MB-4 Bloque 2: invitación a navegar (post-cierre)
+  navInviteCard: {
+    alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.sm,
+    marginHorizontal: Spacing.lg, padding: Spacing.md,
+    backgroundColor: SURFACES.card, borderRadius: Radius.md,
+    borderWidth: 0.5, borderColor: SURFACES.border,
+  },
+  navInviteTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg, textAlign: 'center' },
+  navInviteSub: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 19, textAlign: 'center' },
+  navInviteRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.sm },
+  navInviteNo: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm },
+  navInviteNoText: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  navInviteYes: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
+  navInviteYesText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.md, letterSpacing: 1 },
 
   // C5 COMUNIDAD: puente a la Tribu (mood bajo sostenido)
   tribeCard: {
