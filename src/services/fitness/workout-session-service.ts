@@ -152,7 +152,7 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
     // persistir el snapshot en edad_signal (fail-soft: si truena, va null).
     const edadSignal = await processEdadSignal(
       input.userId,
-      validSets.map((s) => ({ slug: s.slug, reps: s.reps, weightKg: s.weightKg })),
+      validSets.map((s) => ({ slug: s.slug, reps: s.reps, weightKg: s.weightKg, distanceCm: s.distanceCm ?? null })),
     );
 
     const { error: sesErr } = await supabase.from('workout_sessions').insert({
@@ -189,7 +189,13 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
       rpe: null,
       logged_at: nowIso,
       date: today,
-      metadata: { method: s.metodo, slot: s.slot ?? null, isometric: s.esIsometrico },
+      metadata: {
+        method: s.metodo,
+        slot: s.slot ?? null,
+        isometric: s.esIsometrico,
+        // MB-3.6 Bloque 5: benchmarks de distancia (broad jump) guardan cm.
+        ...(s.distanceCm != null ? { distance_cm: s.distanceCm } : {}),
+      },
     }));
     const { error: logsErr } = await supabase.from('exercise_logs').insert(rows);
     if (logsErr) throw new Error(`exercise_logs insert: ${logsErr.message}`);

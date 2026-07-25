@@ -37,6 +37,7 @@ import { saveWorkoutSession, type SaveSessionResult } from '@/src/services/fitne
 import type { SessionSet } from '@/src/services/fitness/workout-session-core';
 import type { GeneratedRoutine, RoutineBlock } from '@/src/services/fitness/routine-generator-core';
 import { clipDe, posterDe } from '@/src/constants/exercise-matrix';
+import { esBenchmarkDistancia } from '@/src/services/fitness/edad-bridge-core';
 import { ATP_BRAND, TEXT, TEXT_COLORS, BG, ELEVATION, PILLAR_GRADIENTS, SEMANTIC, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
@@ -55,28 +56,54 @@ function StandardBlockRunner({ block, onCue, onDone }: {
   const [resting, setResting] = useState(false);
   const [peso, setPeso] = useState('');
   const [reps, setReps] = useState(String(block.reps));
+  const [distancia, setDistancia] = useState('');
   const [logged, setLogged] = useState<SessionSet[]>([]);
+  // MB-3.6 Bloque 5: broad jump es benchmark de DISTANCIA — se captura en cm
+  // (activa su nudge de Edad ATP; reps no significaban nada aquí).
+  const esDistancia = esBenchmarkDistancia(block.slug);
 
   function logSerie() {
-    const r = parseInt(reps, 10);
-    if (!(r > 0)) {
-      Alert.alert('Falta el dato', block.esIsometrico ? 'Registra los segundos del hold.' : 'Registra las repeticiones.');
-      return;
+    let nuevo: SessionSet;
+    if (esDistancia) {
+      const cm = parseFloat(distancia.replace(',', '.'));
+      if (!(cm > 0) || cm > 500) {
+        Alert.alert('Falta el dato', 'Registra la distancia del salto en centímetros.');
+        return;
+      }
+      haptic.medium();
+      nuevo = {
+        slug: block.slug,
+        nombre: block.nombre,
+        setNumber: serie,
+        reps: 1, // un intento por serie — el dato real es la distancia
+        weightKg: null,
+        esIsometrico: false,
+        metodo: 'Estándar',
+        slot: block.slot,
+        distanceCm: Math.round(cm),
+      };
+    } else {
+      const r = parseInt(reps, 10);
+      if (!(r > 0)) {
+        Alert.alert('Falta el dato', block.esIsometrico ? 'Registra los segundos del hold.' : 'Registra las repeticiones.');
+        return;
+      }
+      haptic.medium();
+      const w = parseFloat(peso);
+      nuevo = {
+        slug: block.slug,
+        nombre: block.nombre,
+        setNumber: serie,
+        reps: r,
+        weightKg: Number.isFinite(w) && w > 0 && w <= 1000 ? w : null,
+        esIsometrico: block.esIsometrico,
+        metodo: 'Estándar',
+        slot: block.slot,
+      };
     }
-    haptic.medium();
-    const w = parseFloat(peso);
-    const nuevo: SessionSet = {
-      slug: block.slug,
-      nombre: block.nombre,
-      setNumber: serie,
-      reps: r,
-      weightKg: Number.isFinite(w) && w > 0 && w <= 1000 ? w : null,
-      esIsometrico: block.esIsometrico,
-      metodo: 'Estándar',
-      slot: block.slot,
-    };
     const todos = [...logged, nuevo];
     setLogged(todos);
+    setDistancia('');
     if (serie >= block.series) {
       onDone(todos);
     } else {
@@ -89,38 +116,57 @@ function StandardBlockRunner({ block, onCue, onDone }: {
       {/* Serie actual */}
       {!resting && (
         <Animated.View entering={FadeInUp.duration(250)} style={s.serieCard}>
-          <Text style={s.serieLabel}>SERIE {serie} DE {block.series}</Text>
+          <Text style={s.serieLabel}>{esDistancia ? `INTENTO ${serie} DE ${block.series}` : `SERIE ${serie} DE ${block.series}`}</Text>
           <Text style={s.serieMeta}>
-            {block.esIsometrico ? `Hold objetivo: ${block.reps} s` : `Objetivo: ${block.reps} reps`}
-            {block.esUnilateral ? ' · por lado' : ''}
+            {esDistancia
+              ? 'Salto horizontal máximo — mide la distancia talón a talón'
+              : block.esIsometrico ? `Hold objetivo: ${block.reps} s` : `Objetivo: ${block.reps} reps`}
+            {!esDistancia && block.esUnilateral ? ' · por lado' : ''}
           </Text>
-          <View style={s.inputsRow}>
-            <View style={s.inputCol}>
-              <Text style={s.inputLabel}>KG</Text>
-              <TextInput
-                style={s.input}
-                value={peso}
-                onChangeText={setPeso}
-                keyboardType="decimal-pad"
-                placeholder="0"
-                placeholderTextColor={TEXT.muted}
-                maxLength={6}
-              />
+          {esDistancia ? (
+            <View style={s.inputsRow}>
+              <View style={s.inputCol}>
+                <Text style={s.inputLabel}>DISTANCIA (CM)</Text>
+                <TextInput
+                  style={s.input}
+                  value={distancia}
+                  onChangeText={setDistancia}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={TEXT.muted}
+                  maxLength={5}
+                />
+              </View>
             </View>
-            <View style={s.inputCol}>
-              <Text style={s.inputLabel}>{block.esIsometrico ? 'SEG' : 'REPS'}</Text>
-              <TextInput
-                style={s.input}
-                value={reps}
-                onChangeText={setReps}
-                keyboardType="number-pad"
-                placeholder="0"
-                placeholderTextColor={TEXT.muted}
-                maxLength={3}
-              />
+          ) : (
+            <View style={s.inputsRow}>
+              <View style={s.inputCol}>
+                <Text style={s.inputLabel}>KG</Text>
+                <TextInput
+                  style={s.input}
+                  value={peso}
+                  onChangeText={setPeso}
+                  keyboardType="decimal-pad"
+                  placeholder="0"
+                  placeholderTextColor={TEXT.muted}
+                  maxLength={6}
+                />
+              </View>
+              <View style={s.inputCol}>
+                <Text style={s.inputLabel}>{block.esIsometrico ? 'SEG' : 'REPS'}</Text>
+                <TextInput
+                  style={s.input}
+                  value={reps}
+                  onChangeText={setReps}
+                  keyboardType="number-pad"
+                  placeholder="0"
+                  placeholderTextColor={TEXT.muted}
+                  maxLength={3}
+                />
+              </View>
             </View>
-          </View>
-          <GradientCTA label="SERIE HECHA" pillar="fitness" onPress={logSerie} />
+          )}
+          <GradientCTA label={esDistancia ? 'INTENTO HECHO' : 'SERIE HECHA'} pillar="fitness" onPress={logSerie} />
         </Animated.View>
       )}
 
@@ -141,7 +187,9 @@ function StandardBlockRunner({ block, onCue, onDone }: {
             <View key={l.setNumber} style={s.loggedRow}>
               <View style={s.loggedDot}><Text style={s.loggedDotText}>{l.setNumber}</Text></View>
               <Text style={s.loggedText}>
-                {l.weightKg ? `${l.weightKg} kg × ` : ''}{l.reps}{l.esIsometrico ? ' s' : ' reps'}
+                {l.distanceCm != null
+                  ? `${l.distanceCm} cm`
+                  : `${l.weightKg ? `${l.weightKg} kg × ` : ''}${l.reps}${l.esIsometrico ? ' s' : ' reps'}`}
               </Text>
             </View>
           ))}

@@ -12,6 +12,8 @@ export interface SessionSet {
   esIsometrico: boolean;
   metodo: string;             // 'Estándar' | '3-5' | 'EMOM Auto' | 'Myo-reps'
   slot?: string;
+  /** MB-3.6 Bloque 5: benchmarks de distancia (broad jump) — cm del intento. */
+  distanceCm?: number | null;
 }
 
 export interface SessionSummary {

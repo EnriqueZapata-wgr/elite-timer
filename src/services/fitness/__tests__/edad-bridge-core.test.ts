@@ -149,3 +149,52 @@ describe('benchmarkInfo', () => {
     expect(benchmarkInfo({ slug: 'pull-ups', benchmark: { tier: 'B', variante: 'max' } }).alimentaDirecto).toBe(false);
   });
 });
+
+// ── MB-3.6 Bloque 5: broad jump (distancia) + dead hang (segundos) ──
+
+describe('broad jump activado (distancia ×estatura)', () => {
+  const jump = (cm: number | null): SessionSetLike => ({ slug: 'broad-jump', reps: 1, weightKg: null, distanceCm: cm });
+
+  it('con distancia y estatura: progreso = cm/estatura (target 1×estatura)', () => {
+    const p = computeTierBProjection([jump(175)], 80, 'male', 175);
+    const d = p.detalle.find((x) => x.key === 'broad_jump');
+    expect(d).toBeDefined();
+    expect(d!.progreso).toBe(1);
+    expect(d!.years).toBeCloseTo(-NUDGE_MAX_POR_BENCHMARK, 5);
+  });
+
+  it('mejor intento de la sesión manda', () => {
+    const p = computeTierBProjection([jump(120), jump(160), jump(140)], 80, 'male', 200);
+    const d = p.detalle.find((x) => x.key === 'broad_jump')!;
+    expect(d.progreso).toBeCloseTo(0.8, 5);
+  });
+
+  it('sin estatura declarada se OMITE (relativo o nada — mejor omitir que mentir)', () => {
+    const p = computeTierBProjection([jump(180)], 80, 'male', null);
+    expect(p.detalle.find((x) => x.key === 'broad_jump')).toBeUndefined();
+  });
+
+  it('sin distancia capturada (reps viejas) se omite', () => {
+    const p = computeTierBProjection([set('broad-jump', 5)], 80, 'male', 175);
+    expect(p.detalle.find((x) => x.key === 'broad_jump')).toBeUndefined();
+  });
+});
+
+describe('dead hang desde el runner (isométrico: reps = segundos)', () => {
+  it('120 s (hombre) llega al target; 60 s = progreso 0.5', () => {
+    const full = computeTierBProjection([set('dead-hang', 120)], null, 'male');
+    expect(full.detalle.find((x) => x.key === 'dead_hang')!.progreso).toBe(1);
+    const half = computeTierBProjection([set('dead-hang', 60)], null, 'male');
+    expect(half.detalle.find((x) => x.key === 'dead_hang')!.progreso).toBe(0.5);
+  });
+
+  it('mujer: target 90 s', () => {
+    const p = computeTierBProjection([set('dead-hang', 90)], null, 'female');
+    expect(p.detalle.find((x) => x.key === 'dead_hang')!.progreso).toBe(1);
+  });
+
+  it('no requiere peso corporal (es hold, no ×BW)', () => {
+    const p = computeTierBProjection([set('dead-hang', 45)], null, 'male');
+    expect(p.detalle).toHaveLength(1);
+  });
+});

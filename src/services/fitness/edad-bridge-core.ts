@@ -43,6 +43,8 @@ export interface SessionSetLike {
   /** Reps del set; para isométricos son SEGUNDOS de hold. */
   reps: number;
   weightKg: number | null;
+  /** MB-3.6 Bloque 5: distancia en cm (benchmarks de distancia — broad jump). */
+  distanceCm?: number | null;
 }
 
 export interface FunctionalEntry {
@@ -108,7 +110,12 @@ interface TierBSpec {
   /** Fuente de la banda (etiquetado honesto: heurística, no clínica). */
   fuente: string;
   /** Progreso 0-1 hacia el target de experto (SIEMPRE relativo). */
-  progreso: (mejor: { reps: number; weightKg: number | null }, bodyweightKg: number, sexo: Sexo) => number | null;
+  progreso: (
+    mejor: { reps: number; weightKg: number | null; distanceCm?: number | null },
+    bodyweightKg: number,
+    sexo: Sexo,
+    estaturaCm: number | null,
+  ) => number | null;
 }
 
 /** Epley (mismo criterio que el resto del pilar). */
@@ -162,12 +169,16 @@ const TIER_B_SPECS: Record<string, TierBSpec> = {
     key: 'dead_hang', label: 'Dead hang (s)', fuente: 'Attia (heurística)',
     progreso: (m, _bw, sexo) => (m.reps > 0 ? Math.min(1, m.reps / (sexo === 'male' ? 120 : 90)) : null),
   },
-  // Broad jump: el benchmark es DISTANCIA (≈ tu estatura) y el runner registra
-  // reps — sin captura de distancia el nudge se omite (mejor omitir que mentir).
-  // Mapeado para que el badge Tier B exista; se activa cuando haya captura en cm.
+  // Broad jump (MB-3.6 Bloque 5 — ACTIVADO): el benchmark es DISTANCIA
+  // relativa a tu ESTATURA (target ≈ 1× estatura, Estándares prácticos). El
+  // runner ya captura cm para este ejercicio; sin estatura declarada o sin
+  // distancia capturada, se omite (relativo o nada — mejor omitir que mentir).
   'broad-jump': {
-    key: 'broad_jump', label: 'Broad jump (distancia)', fuente: 'Estándares prácticos',
-    progreso: () => null,
+    key: 'broad_jump', label: 'Broad jump ×estatura', fuente: 'Estándares prácticos',
+    progreso: (m, _bw, _sexo, estaturaCm) => {
+      if (!m.distanceCm || m.distanceCm <= 0 || !estaturaCm || estaturaCm <= 0) return null;
+      return Math.min(1, m.distanceCm / estaturaCm);
+    },
   },
 };
 
@@ -181,13 +192,14 @@ export interface TierBProjection {
 
 /**
  * Proyección Tier B desde los mejores sets por slug. `bodyweightKg` es
- * obligatorio para los relativos ×BW (sin peso corporal, esos se omiten —
- * relativo o nada, nunca kg absolutos).
+ * obligatorio para los relativos ×BW y `estaturaCm` para los de distancia
+ * (sin ellos, esos benchmarks se omiten — relativo o nada, nunca absolutos).
  */
 export function computeTierBProjection(
   sets: SessionSetLike[],
   bodyweightKg: number | null,
   sexo: Sexo,
+  estaturaCm: number | null = null,
 ): TierBProjection {
   const bw = bodyweightKg ?? 0;
   const porKey = new Map<TierBKey, { label: string; progreso: number; fuente: string }>();
@@ -196,7 +208,7 @@ export function computeTierBProjection(
     if (propios.length === 0) continue;
     let mejorProgreso: number | null = null;
     for (const s of propios) {
-      const p = spec.progreso({ reps: s.reps, weightKg: s.weightKg }, bw, sexo);
+      const p = spec.progreso({ reps: s.reps, weightKg: s.weightKg, distanceCm: s.distanceCm }, bw, sexo, estaturaCm);
       if (p != null && (mejorProgreso == null || p > mejorProgreso)) mejorProgreso = p;
     }
     if (mejorProgreso == null) continue;
@@ -219,6 +231,11 @@ export function computeTierBProjection(
     ? `Vas en camino a bajar ~${Math.abs(years).toFixed(1)} años (referencia de experto). Confírmalo con tu benchmark medido.`
     : null;
   return { years, detalle, texto };
+}
+
+/** ¿Este slug es un benchmark de DISTANCIA? (el runner captura cm, no reps). */
+export function esBenchmarkDistancia(slug: string): boolean {
+  return slug === 'broad-jump';
 }
 
 // ── Helpers para UI (badge de benchmark en biblioteca/detalle) ──

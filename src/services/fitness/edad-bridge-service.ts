@@ -52,6 +52,34 @@ async function getBodyweightKg(userId: string): Promise<number | null> {
 }
 
 /**
+ * Estatura (MB-3.6 Bloque 5 — broad jump es distancia ×estatura):
+ * health_measurements más reciente, con client_profiles como fallback.
+ */
+async function getEstaturaCm(userId: string): Promise<number | null> {
+  try {
+    const { data } = await supabase
+      .from('health_measurements')
+      .select('height_cm, date')
+      .eq('user_id', userId)
+      .not('height_cm', 'is', null)
+      .order('date', { ascending: false })
+      .limit(1);
+    const h = (data ?? [])[0]?.height_cm;
+    if (typeof h === 'number' && Number.isFinite(h) && h > 0) return h;
+  } catch { /* sigue el fallback */ }
+  try {
+    const { data } = await supabase
+      .from('client_profiles')
+      .select('height_cm')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const h = (data as { height_cm?: number } | null)?.height_cm;
+    if (typeof h === 'number' && Number.isFinite(h) && h > 0) return h;
+  } catch { /* sin estatura */ }
+  return null;
+}
+
+/**
  * Procesa la señal Edad ATP de una sesión de fuerza terminada:
  * Tier A → edad_atp_functional_tests (fail-soft: la sesión ya está guardada);
  * Tier B → proyección acotada para el cierre. Sin sexo declarado, push-ups
@@ -59,7 +87,11 @@ async function getBodyweightKg(userId: string): Promise<number | null> {
  */
 export async function processEdadSignal(userId: string, sets: SessionSetLike[]): Promise<EdadSignal> {
   try {
-    const [sexo, bw] = await Promise.all([getSexo(userId), getBodyweightKg(userId)]);
+    const [sexo, bw, estatura] = await Promise.all([
+      getSexo(userId),
+      getBodyweightKg(userId),
+      getEstaturaCm(userId),
+    ]);
     // Sin sexo declarado tratamos push-ups como no-aplicable (norma por sexo):
     // 'female' toma el camino conservador de omitir. plank es unisex y sí entra.
     const tierA = tierAFunctionalEntries(sets, sexo ?? 'female');
@@ -71,7 +103,7 @@ export async function processEdadSignal(userId: string, sets: SessionSetLike[]):
         tierA.avisos.push('No se pudo registrar el benchmark en tu Edad ATP — se reintenta en tu próxima sesión.');
       }
     }
-    const proyeccion = computeTierBProjection(sets, bw, sexo ?? 'male');
+    const proyeccion = computeTierBProjection(sets, bw, sexo ?? 'male', estatura);
     return {
       alimentado: tierA.alimentado,
       proyeccion: proyeccion.detalle.length > 0 ? proyeccion : null,
