@@ -260,8 +260,11 @@ function RootLayout() {
                 <Stack.Screen name="fitness-hub" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="fitness-strength" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="fitness-cardio" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="fitness-mobility" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="fitness-hiit" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* MB-3: generador determinista + biblioteca matriceada + runner de sesión */}
+                <Stack.Screen name="routine-generator" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="exercise-detail" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="strength-session" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
                 <Stack.Screen name="log-cardio" options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }} />
                 <Stack.Screen name="reports" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* Batch 2 (#15/#8): pantalla propia de Sueño + vista Mi Cronotipo */}

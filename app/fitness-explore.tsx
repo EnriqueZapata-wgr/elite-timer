@@ -1,7 +1,7 @@
 /**
- * Explorar — Biblioteca, Métodos ATP, Planes (PRONTO), Follow Me (PRONTO).
+ * Explorar — Biblioteca matriceada + Métodos ATP.
  */
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -15,14 +15,12 @@ import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
+// MB-3 limpieza: Planes/Follow Me (coming-soons muertos) RETIRADOS del código
+// — cuando exista el destino se agregan como items reales, no como stubs.
 const ITEMS = [
-  { name: 'Biblioteca de ejercicios', subtitle: 'GYM · Calistenia · Kettlebell · Biomecánica', icon: 'book-outline' as const, color: '#38bdf8', route: '/exercise-library' as const },
+  { name: 'Biblioteca de ejercicios', subtitle: '212 ejercicios matriceados · filtra por músculo, patrón y nivel', icon: 'book-outline' as const, color: '#38bdf8', route: '/exercise-library' as const },
   { name: 'Métodos ATP', subtitle: '3-5 · EMOM Auto · Myo Reps', icon: 'flash-outline' as const, color: '#a8e02a', route: '/training-methods' as const },
-  // MB-1.5 §4: Planes y Follow Me OCULTOS (comingSoon → Alert vacío = botón muerto).
-  // No borrar — reaparecen quitando el filter cuando exista el destino (MB-3).
-  { name: 'Planes de entrenamiento', subtitle: '5K · 10K · 21K · Maratón · Ultra', icon: 'map-outline' as const, color: '#f59e0b', route: '' as const, comingSoon: true },
-  { name: 'Rutinas Follow Me', subtitle: 'Cardio · Core · Animal Motion · KB Flows', icon: 'play-circle-outline' as const, color: '#fb7185', route: '' as const, comingSoon: true },
-].filter((i) => !('comingSoon' in i) || !i.comingSoon);
+];
 
 export default function FitnessExploreScreen() {
   const router = useRouter();
@@ -36,18 +34,17 @@ export default function FitnessExploreScreen() {
           <Animated.View key={item.name} entering={FadeInUp.delay(50 + idx * 50).springify()}>
             <AnimatedPressable
               onPress={() => {
-                if (item.comingSoon || !item.route) { Alert.alert('', 'Pronto disponible'); return; }
                 haptic.medium();
                 router.push(item.route);
               }}
             >
-              <GradientCard color={item.color} style={[s.card, item.comingSoon && s.cardDisabled]}>
+              <GradientCard color={item.color} style={s.card}>
                 <View style={s.row}>
                   <View style={[s.icon, { backgroundColor: withOpacity(item.color, 0.15) }]}>
                     <Ionicons name={item.icon} size={22} color={item.color} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <EliteText style={[s.name, item.comingSoon && { color: TEXT_COLORS.muted }]}>{item.name}</EliteText>
+                    <EliteText style={s.name}>{item.name}</EliteText>
                     <EliteText style={s.sub}>{item.subtitle}</EliteText>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={TEXT_COLORS.muted} />
@@ -65,7 +62,6 @@ export default function FitnessExploreScreen() {
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
   card: { padding: Spacing.md, marginBottom: Spacing.sm },
-  cardDisabled: { opacity: 0.45 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   icon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   name: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginBottom: 2 },

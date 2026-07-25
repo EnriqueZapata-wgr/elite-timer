@@ -1,169 +1,173 @@
 /**
- * Biblioteca de ejercicios — Explorar, buscar y navegar a log.
+ * Exercise Library — biblioteca MATRICEADA (MB-3 Track F).
+ *
+ * 212 ejercicios del catálogo exercise_matrix con buscador + filtros por los
+ * ejes (músculo, patrón, nivel) y card editorial con poster. Tap → detalle.
+ * Reemplaza la biblioteca de juguete (~26 filas de `exercises`); el registro
+ * sigue viviendo en exercises/exercise_logs vía el runner de sesión.
  */
-import { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, TextInput, FlatList } from 'react-native';
-import { router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, TextInput, FlatList } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { supabase } from '../src/lib/supabase';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const CATEGORIES = [
-  { id: 'all', label: 'Todos', icon: 'grid-outline' as const },
-  { id: 'benchmark', label: 'Benchmarks', icon: 'star-outline' as const },
-  { id: 'variant', label: 'Variantes', icon: 'git-branch-outline' as const },
-];
+import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { FilterPills } from '@/src/components/ui/FilterPills';
+import { EmptyState } from '@/src/components/ui/EmptyState';
+import { haptic } from '@/src/utils/haptics';
+import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
+import { GRUPOS_MUSCULARES, PATRONES, type MatrixExercise } from '@/src/constants/exercise-matrix';
+import { ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { Fonts, Radius, Spacing } from '@/constants/theme';
 
-export default function ExerciseLibrary() {
-  const insets = useSafeAreaInsets();
-  const [exercises, setExercises] = useState<any[]>([]);
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [loading, setLoading] = useState(true);
+const GRUPOS = ['Todos', ...Object.keys(GRUPOS_MUSCULARES)];
+const PATRONES_FILTRO = ['Todos', ...PATRONES];
+const NIVELES_FILTRO = ['Todos', 'Principiante', 'Intermedio', 'Avanzado'];
 
-  useEffect(() => { loadExercises(); }, []);
+function normaliza(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
 
-  async function loadExercises() {
-    setLoading(true);
-    const { data } = await supabase
-      .from('exercises')
-      .select('*')
-      .order('name_es');
-    setExercises(data || []);
-    setLoading(false);
-  }
+export default function ExerciseLibraryScreen() {
+  const router = useRouter();
+  const [catalogo, setCatalogo] = useState<MatrixExercise[] | null>(null);
+  const [busqueda, setBusqueda] = useState('');
+  const [grupo, setGrupo] = useState('Todos');
+  const [patron, setPatron] = useState('Todos');
+  const [nivel, setNivel] = useState('Todos');
 
-  const filtered = exercises.filter(ex => {
-    const matchSearch = !search ||
-      (ex.name_es || ex.name || '').toLowerCase().includes(search.toLowerCase());
-    const matchCat = selectedCategory === 'all' ||
-      (selectedCategory === 'benchmark' && ex.is_benchmark) ||
-      (selectedCategory === 'variant' && !ex.is_benchmark);
-    return matchSearch && matchCat;
-  });
+  useEffect(() => {
+    getExerciseMatrix().then(setCatalogo);
+  }, []);
+
+  const filtrados = useMemo(() => {
+    if (!catalogo) return [];
+    const q = normaliza(busqueda.trim());
+    return catalogo.filter((e) => {
+      if (grupo !== 'Todos') {
+        const miembros = GRUPOS_MUSCULARES[grupo] ?? [];
+        const enGrupo = miembros.includes(e.musculoPrincipal)
+          || e.secundarios.some((sec) => miembros.some((m) => sec.startsWith(m)));
+        if (!enGrupo) return false;
+      }
+      if (patron !== 'Todos' && e.patron !== patron) return false;
+      if (nivel !== 'Todos' && e.nivel !== nivel) return false;
+      if (q.length >= 2) {
+        const hay = normaliza(`${e.nombre} ${e.musculoPrincipal} ${e.familia} ${e.equipo}`);
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [catalogo, busqueda, grupo, patron, nivel]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
-      {/* Header */}
-      <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </Pressable>
-          <View>
-            <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>EXPLORAR</Text>
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>Biblioteca de ejercicios</Text>
-          </View>
-        </View>
+    <Screen edges={[]}>
+      <ScreenHeader title="Biblioteca" />
 
-        {/* Search */}
-        <View style={{
-          flexDirection: 'row', alignItems: 'center', gap: 10,
-          backgroundColor: '#0a0a0a', borderRadius: 14, paddingHorizontal: 14,
-          marginTop: 16, borderWidth: 1, borderColor: '#1a1a1a',
-        }}>
-          <Ionicons name="search" size={18} color="#666" />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Buscar ejercicio..."
-            placeholderTextColor="#444"
-            style={{ flex: 1, color: '#fff', fontSize: 15, paddingVertical: 12 }}
-          />
-          {search.length > 0 && (
-            <Pressable onPress={() => setSearch('')}>
-              <Ionicons name="close-circle" size={18} color="#666" />
-            </Pressable>
-          )}
-        </View>
-
-        {/* Category pills */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 12 }}>
-          {CATEGORIES.map(cat => (
-            <Pressable
-              key={cat.id}
-              onPress={() => { setSelectedCategory(cat.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 6,
-                paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, marginRight: 8,
-                backgroundColor: selectedCategory === cat.id ? 'rgba(168,224,42,0.15)' : '#0a0a0a',
-                borderWidth: 1,
-                borderColor: selectedCategory === cat.id ? '#a8e02a' : '#1a1a1a',
-              }}
-            >
-              <Ionicons name={cat.icon} size={14} color={selectedCategory === cat.id ? '#a8e02a' : '#666'} />
-              <Text style={{
-                color: selectedCategory === cat.id ? '#a8e02a' : '#999',
-                fontSize: 12, fontWeight: '600',
-              }}>
-                {cat.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+      {/* Buscador */}
+      <View style={s.searchWrap}>
+        <Ionicons name="search" size={16} color={TEXT.tertiary} />
+        <TextInput
+          style={s.searchInput}
+          value={busqueda}
+          onChangeText={setBusqueda}
+          placeholder="Buscar ejercicio, músculo, equipo…"
+          placeholderTextColor={TEXT.tertiary}
+          returnKeyType="search"
+        />
+        {busqueda.length > 0 && (
+          <AnimatedPressable onPress={() => setBusqueda('')}>
+            <Ionicons name="close-circle" size={16} color={TEXT.tertiary} />
+          </AnimatedPressable>
+        )}
       </View>
 
-      {/* Exercise list */}
-      <FlatList
-        data={filtered}
-        keyExtractor={item => item.id}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }}
-        ListHeaderComponent={() => (
-          <Text style={{ color: '#666', fontSize: 11, marginBottom: 8 }}>
-            {filtered.length} ejercicios
-          </Text>
-        )}
-        ListEmptyComponent={() => (
-          <View style={{ alignItems: 'center', paddingTop: 60 }}>
-            <Ionicons name="search-outline" size={48} color="#333" />
-            <Text style={{ color: '#666', fontSize: 14, marginTop: 12 }}>
-              {loading ? 'Cargando...' : 'No se encontraron ejercicios'}
-            </Text>
-          </View>
-        )}
-        renderItem={({ item }) => (
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push({ pathname: '/log-exercise', params: { exerciseId: item.id } });
-            }}
-            style={{
-              backgroundColor: '#0a0a0a', borderRadius: 14, padding: 14, marginBottom: 6,
-              borderWidth: 1, borderColor: '#1a1a1a',
-              flexDirection: 'row', alignItems: 'center', gap: 12,
-            }}
-          >
-            <View style={{
-              width: 36, height: 36, borderRadius: 18,
-              backgroundColor: item.is_benchmark ? 'rgba(251,191,36,0.1)' : 'rgba(168,224,42,0.06)',
-              justifyContent: 'center', alignItems: 'center',
-            }}>
-              <Ionicons
-                name={item.is_benchmark ? 'star' : 'barbell-outline'}
-                size={18}
-                color={item.is_benchmark ? '#fbbf24' : '#a8e02a'}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>
-                {item.name_es || item.name}
-              </Text>
-              {item.muscle_groups && Array.isArray(item.muscle_groups) && item.muscle_groups.length > 0 && (
-                <Text style={{ color: '#666', fontSize: 11, marginTop: 2 }}>
-                  {item.muscle_groups.join(' · ')}
-                </Text>
+      {/* Filtros por ejes de la matriz */}
+      <FilterPills options={GRUPOS} selected={grupo} onSelect={setGrupo} style={s.pillsRow} />
+      <FilterPills options={PATRONES_FILTRO} selected={patron} onSelect={setPatron} style={s.pillsRow} />
+      <FilterPills options={NIVELES_FILTRO} selected={nivel} onSelect={setNivel} style={s.pillsRow} />
+
+      {/* Grid de cards con poster */}
+      {catalogo === null ? (
+        <View style={s.center}><Text style={s.metaText}>Cargando catálogo…</Text></View>
+      ) : filtrados.length === 0 ? (
+        <EmptyState
+          icon="barbell-outline"
+          title="Nada con esos filtros"
+          subtitle="Suelta un filtro o busca con otra palabra."
+        />
+      ) : (
+        <FlatList
+          data={filtrados}
+          keyExtractor={(e) => e.slug}
+          numColumns={2}
+          columnWrapperStyle={{ gap: Spacing.sm, paddingHorizontal: Spacing.md }}
+          contentContainerStyle={{ gap: Spacing.sm, paddingTop: Spacing.sm, paddingBottom: 120 }}
+          ListHeaderComponent={<Text style={s.countText}>{filtrados.length} ejercicios</Text>}
+          renderItem={({ item }) => (
+            <AnimatedPressable
+              style={s.card}
+              onPress={() => {
+                haptic.light();
+                router.push({ pathname: '/exercise-detail', params: { slug: item.slug } });
+              }}
+            >
+              {item.mediaUrl ? (
+                <Image source={{ uri: item.mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+              ) : null}
+              <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.88)']} style={StyleSheet.absoluteFill} />
+              {item.benchmark.tier && (
+                <View style={[s.tierBadge, item.benchmark.tier === 'A' ? s.tierA : s.tierB]}>
+                  <Ionicons name="pulse" size={10} color={item.benchmark.tier === 'A' ? '#000' : '#fff'} />
+                  <Text style={[s.tierText, item.benchmark.tier === 'A' && { color: '#000' }]}>EDAD ATP</Text>
+                </View>
               )}
-            </View>
-            {item.is_benchmark && (
-              <View style={{ backgroundColor: 'rgba(251,191,36,0.15)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ color: '#fbbf24', fontSize: 8, fontWeight: '800' }}>BENCHMARK</Text>
+              <View style={s.cardBody}>
+                <Text style={s.cardName} numberOfLines={2}>{item.nombre}</Text>
+                <Text style={s.cardMeta} numberOfLines={1}>{item.musculoPrincipal} · {item.nivel}</Text>
               </View>
-            )}
-            <Ionicons name="chevron-forward" size={16} color="#333" />
-          </Pressable>
-        )}
-      />
-    </View>
+            </AnimatedPressable>
+          )}
+        />
+      )}
+    </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  metaText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 14 },
+  countText: {
+    color: TEXT.tertiary, fontFamily: Fonts.semiBold, fontSize: 11, letterSpacing: 1,
+    paddingHorizontal: Spacing.md, marginBottom: 2,
+  },
+
+  searchWrap: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: Spacing.md, marginBottom: Spacing.sm,
+    backgroundColor: '#0a0a0a', borderRadius: Radius.card,
+    paddingHorizontal: Spacing.md, paddingVertical: 10,
+    borderWidth: 1, borderColor: ELEVATION[1].border,
+  },
+  searchInput: { flex: 1, color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 14, padding: 0 },
+  pillsRow: { marginBottom: Spacing.xs },
+
+  card: {
+    flex: 1, height: 150, borderRadius: Radius.card, overflow: 'hidden',
+    backgroundColor: ELEVATION[1].bg, justifyContent: 'flex-end',
+  },
+  cardBody: { padding: Spacing.sm },
+  cardName: { color: '#fff', fontFamily: Fonts.bold, fontSize: 13, lineHeight: 17 },
+  cardMeta: { color: 'rgba(255,255,255,0.65)', fontFamily: Fonts.regular, fontSize: 10, marginTop: 2 },
+  tierBadge: {
+    position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 6, paddingVertical: 3, borderRadius: Radius.pill,
+  },
+  tierA: { backgroundColor: ATP_BRAND.lime },
+  tierB: { backgroundColor: withOpacity(ATP_BRAND.teal, 0.85) },
+  tierText: { color: '#fff', fontFamily: Fonts.bold, fontSize: 8, letterSpacing: 0.5 },
+});
