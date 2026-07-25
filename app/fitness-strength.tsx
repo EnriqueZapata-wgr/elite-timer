@@ -306,11 +306,6 @@ export default function FitnessStrengthScreen() {
   const groupedEntries = Array.from(exerciseGroups.values());
   const totalPRs = records.length;
 
-  const mostRecentPR = records.length > 0
-    ? records.reduce((latest, pr) =>
-        new Date(pr.achieved_at) > new Date(latest.achieved_at) ? pr : latest)
-    : null;
-
   // Nivel de rendimiento (por # de PRs registrados — criterio existente).
   const getLevel = (count: number): string => {
     if (count >= 26) return 'ELITE';
@@ -359,19 +354,9 @@ export default function FitnessStrengthScreen() {
                 <EliteText style={styles.heroMiniStatValue}>{best1RM > 0 ? `${best1RM}kg` : '—'}</EliteText>
                 <EliteText variant="caption" style={styles.heroMiniStatLabel}>Mejor 1RM est.</EliteText>
               </View>
-              {mostRecentPR && (
-                <>
-                  <View style={styles.heroMiniStatDivider} />
-                  <View style={styles.heroMiniStatItem}>
-                    <EliteText style={styles.heroMiniStatValue} numberOfLines={1}>
-                      {mostRecentPR.weight_kg}kg
-                    </EliteText>
-                    <EliteText variant="caption" style={styles.heroMiniStatLabel} numberOfLines={1}>
-                      Último · {mostRecentPR.exercise_name}
-                    </EliteText>
-                  </View>
-                </>
-              )}
+              {/* §4.4 caza de redundancia: el "último PR" NO va aquí — ese dato
+                  vive en la tabla de marcas con sus badges HOY/PR! (un dato =
+                  un lugar). El hero se queda con los 2 agregados. */}
             </View>
           </LinearGradient>
         </Animated.View>

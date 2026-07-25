@@ -37,7 +37,7 @@ import { saveWorkoutSession, type SaveSessionResult } from '@/src/services/fitne
 import type { SessionSet } from '@/src/services/fitness/workout-session-core';
 import type { GeneratedRoutine, RoutineBlock } from '@/src/services/fitness/routine-generator-core';
 import { clipDe, posterDe } from '@/src/constants/exercise-matrix';
-import { ATP_BRAND, TEXT, ELEVATION, PILLAR_GRADIENTS, SEMANTIC, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, TEXT_COLORS, BG, ELEVATION, PILLAR_GRADIENTS, SEMANTIC, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
 const CARDIO_LABELS: Record<string, string> = {
@@ -103,7 +103,7 @@ function StandardBlockRunner({ block, onCue, onDone }: {
                 onChangeText={setPeso}
                 keyboardType="decimal-pad"
                 placeholder="0"
-                placeholderTextColor="#444"
+                placeholderTextColor={TEXT.muted}
                 maxLength={6}
               />
             </View>
@@ -115,7 +115,7 @@ function StandardBlockRunner({ block, onCue, onDone }: {
                 onChangeText={setReps}
                 keyboardType="number-pad"
                 placeholder="0"
-                placeholderTextColor="#444"
+                placeholderTextColor={TEXT.muted}
                 maxLength={3}
               />
             </View>
@@ -358,7 +358,7 @@ export default function StrengthSessionScreen() {
           {prs.length > 0 && (
             <Animated.View entering={FadeInDown.delay(80).duration(300)} style={s.sectionCard}>
               <View style={s.sectionHeader}>
-                <Ionicons name="trophy" size={16} color="#fbbf24" />
+                <Ionicons name="trophy" size={16} color={SEMANTIC.acceptable} />
                 <Text style={s.sectionTitle}>RÉCORDS NUEVOS</Text>
               </View>
               {prs.map((pr) => (
@@ -538,7 +538,7 @@ const s = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   heroContent: { padding: Spacing.md },
-  heroName: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 22 },
+  heroName: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 22 },
   heroPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   heroPill: {
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: Radius.pill,
@@ -560,7 +560,7 @@ const s = StyleSheet.create({
   inputCol: { flex: 1 },
   inputLabel: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 10, letterSpacing: 1, marginBottom: 6, textAlign: 'center' },
   input: {
-    fontFamily: Fonts.bold, fontSize: 22, color: '#fff', backgroundColor: '#0a0a0a',
+    fontFamily: Fonts.bold, fontSize: 22, color: TEXT.primary, backgroundColor: BG.input,
     borderRadius: Radius.sm, paddingVertical: Spacing.sm, textAlign: 'center',
   },
 
@@ -569,7 +569,7 @@ const s = StyleSheet.create({
     width: 22, height: 22, borderRadius: 11, backgroundColor: ATP_BRAND.lime,
     alignItems: 'center', justifyContent: 'center',
   },
-  loggedDotText: { color: '#000', fontFamily: Fonts.bold, fontSize: 11 },
+  loggedDotText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: 11 },
   loggedText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13 },
 
   actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xl },
@@ -587,10 +587,10 @@ const s = StyleSheet.create({
   },
 
   summaryHero: { borderRadius: Radius.card, padding: Spacing.lg, marginBottom: Spacing.md },
-  summaryTitle: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 1, marginBottom: Spacing.md },
+  summaryTitle: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 1, marginBottom: Spacing.md },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   statCell: { width: '47%', paddingVertical: Spacing.sm },
-  statValue: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 30, fontVariant: ['tabular-nums'] },
+  statValue: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 30, fontVariant: ['tabular-nums'] },
   statLabel: { color: 'rgba(255,255,255,0.7)', fontFamily: Fonts.semiBold, fontSize: 10, letterSpacing: 1.5 },
 
   sectionCard: {
@@ -601,7 +601,7 @@ const s = StyleSheet.create({
   sectionTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 2 },
   prRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: Spacing.sm },
   prName: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 14, flex: 1 },
-  prValue: { color: '#fbbf24', fontFamily: Fonts.bold, fontSize: 13 },
+  prValue: { color: SEMANTIC.acceptable, fontFamily: Fonts.bold, fontSize: 13 },
   cardioValue: { color: SEMANTIC.info, fontFamily: Fonts.bold, fontSize: 13, fontVariant: ['tabular-nums'] },
   prCelebrate: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: 13, marginTop: Spacing.xs },
   edadRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 },

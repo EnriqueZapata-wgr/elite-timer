@@ -26,6 +26,9 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { generateUUID } from '@/src/services/routine-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import {
+  ATP_BRAND, TEXT, TEXT_COLORS, BG, BORDER, ELEVATION, SEMANTIC, CATEGORY_COLORS, withOpacity,
+} from '@/src/constants/brand';
 import { TRAINING_METHODS, type TrainingMethodId } from '@/src/constants/training-methods';
 import { Method35 } from '@/src/components/training/Method35';
 import { EMOMAuto } from '@/src/components/training/EMOMAuto';
@@ -606,10 +609,10 @@ export default function LogExerciseScreen() {
         title="Registrar"
         rightAction={
           (step === 'variant' || step === 'log') ? (
-            <Pressable onPress={goBack} hitSlop={8} style={s.backStep}>
-              <Ionicons name="arrow-back" size={16} color="#a8e02a" />
+            <AnimatedPressable onPress={goBack} hitSlop={8} style={s.backStep}>
+              <Ionicons name="arrow-back" size={16} color={ATP_BRAND.lime} />
               <Text style={s.backStepText}>Cambiar</Text>
-            </Pressable>
+            </AnimatedPressable>
           ) : <View style={{ width: 44 }} />
         }
       />
@@ -634,7 +637,7 @@ export default function LogExerciseScreen() {
                 value={searchQuery}
                 onChangeText={searchExercises}
                 placeholder="Buscar ejercicio..."
-                placeholderTextColor="#555"
+                placeholderTextColor={TEXT.tertiary}
                 returnKeyType="search"
               />
               {searchResults.length > 0 && (
@@ -649,7 +652,7 @@ export default function LogExerciseScreen() {
                             {ex.is_benchmark ? '' : ' · Variante'}
                           </EliteText>
                         </View>
-                        <Ionicons name="chevron-forward" size={18} color="#555" />
+                        <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
                       </View>
                     </AnimatedPressable>
                   ))}
@@ -661,10 +664,10 @@ export default function LogExerciseScreen() {
                 </EliteText>
               )}
               {!searchError && searchQuery.trim().length >= 2 && searchResults.length === 0 && !searching && (
-                <Pressable onPress={handleCreateCustomExercise} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: Spacing.md, marginTop: Spacing.xs }}>
-                  <Ionicons name="add-circle-outline" size={20} color="#a8e02a" />
-                  <Text style={{ color: '#a8e02a', fontSize: 14 }}>Crear &quot;{searchQuery.trim()}&quot;</Text>
-                </Pressable>
+                <AnimatedPressable onPress={handleCreateCustomExercise} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, padding: Spacing.md, marginTop: Spacing.xs }}>
+                  <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.lime} />
+                  <Text style={{ color: ATP_BRAND.lime, fontSize: 14 }}>Crear &quot;{searchQuery.trim()}&quot;</Text>
+                </AnimatedPressable>
               )}
             </View>
 
@@ -675,9 +678,9 @@ export default function LogExerciseScreen() {
                 <EliteText variant="body" style={s.emptyText}>
                   {loadError}
                 </EliteText>
-                <Pressable onPress={loadBenchmarks} style={{ paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}>
-                  <Text style={{ color: '#a8e02a', fontFamily: Fonts.semiBold }}>Reintentar</Text>
-                </Pressable>
+                <AnimatedPressable onPress={loadBenchmarks} style={{ paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}>
+                  <Text style={{ color: ATP_BRAND.lime, fontFamily: Fonts.semiBold }}>Reintentar</Text>
+                </AnimatedPressable>
               </View>
             ) : benchmarks.length === 0 ? (
               <EliteText variant="body" style={s.emptyText}>
@@ -703,11 +706,11 @@ export default function LogExerciseScreen() {
                       </View>
                       {pr && (
                         <View style={s.prBadge}>
-                          <Ionicons name="trophy" size={14} color="#fbbf24" />
+                          <Ionicons name="trophy" size={14} color={SEMANTIC.acceptable} />
                           <Text style={s.prText}>{pr.estimated_1rm.toFixed(0)} kg</Text>
                         </View>
                       )}
-                      <Ionicons name="chevron-forward" size={18} color="#555" />
+                      <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />
                     </View>
                   </AnimatedPressable>
                 );
@@ -729,7 +732,7 @@ export default function LogExerciseScreen() {
               style={s.officialCard}
             >
               <View style={s.officialRow}>
-                <Ionicons name="star" size={18} color="#fbbf24" />
+                <Ionicons name="star" size={18} color={SEMANTIC.acceptable} />
                 <View style={s.officialInfo}>
                   <View style={s.officialNameRow}>
                     <EliteText variant="subtitle" style={s.officialName}>
@@ -745,7 +748,7 @@ export default function LogExerciseScreen() {
                 </View>
                 {prs[selectedBenchmark.id] && (
                   <View style={s.prBadge}>
-                    <Ionicons name="trophy" size={14} color="#fbbf24" />
+                    <Ionicons name="trophy" size={14} color={SEMANTIC.acceptable} />
                     <Text style={s.prText}>
                       {prs[selectedBenchmark.id].estimated_1rm.toFixed(0)} kg
                     </Text>
@@ -772,13 +775,13 @@ export default function LogExerciseScreen() {
                   </View>
                   {prs[v.id] && (
                     <View style={s.prBadge}>
-                      <Ionicons name="trophy" size={14} color="#fbbf24" />
+                      <Ionicons name="trophy" size={14} color={SEMANTIC.acceptable} />
                       <Text style={s.prText}>
                         {prs[v.id].estimated_1rm.toFixed(0)} kg
                       </Text>
                     </View>
                   )}
-                  <Ionicons name="chevron-forward" size={16} color="#555" />
+                  <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
                 </View>
               </AnimatedPressable>
             ))}
@@ -788,7 +791,7 @@ export default function LogExerciseScreen() {
               onPress={() => { haptic.light(); setVariantModalVisible(true); }}
               style={s.addVariantBtn}
             >
-              <Ionicons name="add-circle-outline" size={20} color="#a8e02a" />
+              <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.lime} />
               <EliteText variant="body" style={s.addVariantText}>
                 Agregar variante
               </EliteText>
@@ -802,7 +805,7 @@ export default function LogExerciseScreen() {
             {/* Header del ejercicio */}
             <GradientCard style={s.exerciseHeader}>
               <View style={s.exerciseHeaderRow}>
-                <Ionicons name="barbell-outline" size={22} color="#a8e02a" />
+                <Ionicons name="barbell-outline" size={22} color={ATP_BRAND.lime} />
                 <View style={s.exerciseHeaderInfo}>
                   <EliteText variant="subtitle">{activeExercise.name_es}</EliteText>
                   <EliteText variant="caption" style={s.muscleText}>
@@ -814,7 +817,7 @@ export default function LogExerciseScreen() {
               </View>
               {activePR && (
                 <View style={s.prHeaderRow}>
-                  <Ionicons name="trophy" size={16} color="#fbbf24" />
+                  <Ionicons name="trophy" size={16} color={SEMANTIC.acceptable} />
                   <Text style={s.prHeaderText}>
                     PR: {activePR.weight_kg} kg x {activePR.rep_range} reps
                     ({activePR.estimated_1rm.toFixed(1)} kg 1RM)
@@ -825,11 +828,11 @@ export default function LogExerciseScreen() {
 
             {/* Selector de método */}
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ color: '#999', fontSize: 10, fontWeight: '600', letterSpacing: 1, marginBottom: 8 }}>MÉTODO</Text>
+              <Text style={{ color: TEXT.secondary, fontSize: 10, fontWeight: '600', letterSpacing: 1, marginBottom: 8 }}>MÉTODO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
                   {Object.values(TRAINING_METHODS).map(method => (
-                    <Pressable
+                    <AnimatedPressable
                       key={method.id}
                       onPress={() => {
                         setSelectedMethod(method.id as TrainingMethodId);
@@ -839,16 +842,16 @@ export default function LogExerciseScreen() {
                       <View style={{
                         flexDirection: 'row', alignItems: 'center', gap: 6,
                         paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-                        backgroundColor: selectedMethod === method.id ? `${method.color}20` : '#1a1a1a',
+                        backgroundColor: selectedMethod === method.id ? `${method.color}20` : ELEVATION[2].bg,
                         borderWidth: 1,
-                        borderColor: selectedMethod === method.id ? method.color : '#333',
+                        borderColor: selectedMethod === method.id ? method.color : ELEVATION[3].border,
                       }}>
-                        <Ionicons name={method.icon as any} size={14} color={selectedMethod === method.id ? method.color : '#666'} />
-                        <Text style={{ color: selectedMethod === method.id ? method.color : '#666', fontSize: 12, fontWeight: '600' }}>
+                        <Ionicons name={method.icon as any} size={14} color={selectedMethod === method.id ? method.color : TEXT.tertiary} />
+                        <Text style={{ color: selectedMethod === method.id ? method.color : TEXT.tertiary, fontSize: 12, fontWeight: '600' }}>
                           {method.name}
                         </Text>
                       </View>
-                    </Pressable>
+                    </AnimatedPressable>
                   ))}
                 </View>
               </ScrollView>
@@ -864,7 +867,7 @@ export default function LogExerciseScreen() {
               <View style={s.colReps}><Text style={s.colLabel}>REPS</Text></View>
               <View style={[s.colRir, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }]}>
                 <Text style={s.colLabel}>RIR</Text>
-                <InfoButton title="RIR" explanation="Reps in Reserve — repeticiones que podrías hacer antes del fallo. RIR 2 = podrías hacer 2 más." color="#888" size={11} />
+                <InfoButton title="RIR" explanation="Reps in Reserve — repeticiones que podrías hacer antes del fallo. RIR 2 = podrías hacer 2 más." color={TEXT.secondary} size={11} />
               </View>
               <View style={s.col1rm}><Text style={s.colLabel}>1RM</Text></View>
               <View style={{ width: 28 }} />
@@ -905,7 +908,7 @@ export default function LogExerciseScreen() {
                       onChangeText={v => updateSet(index, 'weight', v)}
                       keyboardType="decimal-pad"
                       placeholder="0"
-                      placeholderTextColor="#444"
+                      placeholderTextColor={TEXT.muted}
                       maxLength={6}
                     />
                   </View>
@@ -918,7 +921,7 @@ export default function LogExerciseScreen() {
                       onChangeText={v => updateSet(index, 'reps', v)}
                       keyboardType="number-pad"
                       placeholder="0"
-                      placeholderTextColor="#444"
+                      placeholderTextColor={TEXT.muted}
                       maxLength={3}
                     />
                   </View>
@@ -931,7 +934,7 @@ export default function LogExerciseScreen() {
                       onChangeText={v => updateSet(index, 'rir', v)}
                       keyboardType="number-pad"
                       placeholder="-"
-                      placeholderTextColor="#444"
+                      placeholderTextColor={TEXT.muted}
                       maxLength={2}
                     />
                   </View>
@@ -946,9 +949,9 @@ export default function LogExerciseScreen() {
                   {/* Eliminar */}
                   <View style={{ width: 28, alignItems: 'center' }}>
                     {sets.length > 1 && (
-                      <Pressable onPress={() => removeSet(index)} hitSlop={8}>
-                        <Ionicons name="close-circle" size={18} color="#ef4444" />
-                      </Pressable>
+                      <AnimatedPressable onPress={() => removeSet(index)} hitSlop={8}>
+                        <Ionicons name="close-circle" size={18} color={SEMANTIC.error} />
+                      </AnimatedPressable>
                     )}
                   </View>
                 </Animated.View>
@@ -957,7 +960,7 @@ export default function LogExerciseScreen() {
 
             {/* Agregar set */}
             <AnimatedPressable onPress={addSet} style={s.addSetBtn}>
-              <Ionicons name="add-circle-outline" size={20} color="#a8e02a" />
+              <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.lime} />
               <EliteText variant="body" style={s.addSetText}>
                 Agregar set
               </EliteText>
@@ -972,7 +975,7 @@ export default function LogExerciseScreen() {
               <Ionicons
                 name={saving ? 'hourglass-outline' : 'checkmark-circle'}
                 size={22}
-                color="#000"
+                color={TEXT_COLORS.onAccent}
               />
               <Text style={s.saveBtnText}>
                 {saving ? 'GUARDANDO...' : 'GUARDAR'}
@@ -1047,7 +1050,7 @@ export default function LogExerciseScreen() {
               value={newVariantName}
               onChangeText={setNewVariantName}
               placeholder="Ej: Press banca inclinado con mancuernas"
-              placeholderTextColor="#555"
+              placeholderTextColor={TEXT.tertiary}
               autoFocus
             />
 
@@ -1057,16 +1060,16 @@ export default function LogExerciseScreen() {
               value={newVariantEquipment}
               onChangeText={setNewVariantEquipment}
               placeholder="Ej: mancuernas, banco inclinado"
-              placeholderTextColor="#555"
+              placeholderTextColor={TEXT.tertiary}
             />
 
             <View style={s.modalActions}>
-              <Pressable
+              <AnimatedPressable
                 onPress={() => setVariantModalVisible(false)}
                 style={s.modalCancel}
               >
                 <Text style={s.modalCancelText}>Cancelar</Text>
-              </Pressable>
+              </AnimatedPressable>
               <AnimatedPressable
                 onPress={handleAddVariant}
                 disabled={!newVariantName.trim()}
@@ -1087,7 +1090,7 @@ export default function LogExerciseScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: BG.screen,
   },
   flex: { flex: 1 },
   scrollContent: {
@@ -1103,40 +1106,40 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   backStepText: {
-    color: '#a8e02a',
+    color: ATP_BRAND.lime,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
   },
 
   // --- Comunes ---
   stepLabel: {
-    color: '#a8e02a',
+    color: ATP_BRAND.lime,
     letterSpacing: 2,
     marginBottom: Spacing.md,
     marginTop: Spacing.sm,
   },
   loadingText: {
-    color: '#666',
+    color: TEXT.tertiary,
     textAlign: 'center',
     marginTop: Spacing.xl,
   },
   emptyText: {
-    color: '#555',
+    color: TEXT.tertiary,
     textAlign: 'center',
     marginTop: Spacing.xl,
   },
   muscleText: {
-    color: '#888',
+    color: TEXT.secondary,
     marginTop: 2,
   },
   equipmentText: {
-    color: '#666',
+    color: TEXT.tertiary,
     marginTop: 2,
   },
 
   // --- Paso 1: Benchmarks ---
   benchmarkCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: BG.input,
     borderRadius: Radius.card,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -1156,25 +1159,25 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#fbbf2415',
+    backgroundColor: withOpacity(SEMANTIC.acceptable, 0.08),
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
     borderRadius: Radius.pill,
   },
   prText: {
-    color: '#fbbf24',
+    color: SEMANTIC.acceptable,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xs,
   },
 
   // --- Paso 2: Variantes ---
   officialCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: BG.input,
     borderRadius: Radius.card,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: '#fbbf2440',
+    borderColor: withOpacity(SEMANTIC.acceptable, 0.25),
   },
   officialRow: {
     flexDirection: 'row',
@@ -1191,19 +1194,19 @@ const s = StyleSheet.create({
     fontSize: FontSizes.md,
   },
   officialBadge: {
-    backgroundColor: '#fbbf24',
+    backgroundColor: SEMANTIC.acceptable,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: Radius.xs,
   },
   officialBadgeText: {
-    color: '#000',
+    color: TEXT_COLORS.onAccent,
     fontFamily: Fonts.bold,
     fontSize: 9,
     letterSpacing: 1,
   },
   variantCard: {
-    backgroundColor: '#0a0a0a',
+    backgroundColor: BG.input,
     borderRadius: Radius.card,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -1225,12 +1228,12 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.md,
     marginTop: Spacing.xs,
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: BORDER.input,
     borderRadius: Radius.card,
     borderStyle: 'dashed',
   },
   addVariantText: {
-    color: '#a8e02a',
+    color: ATP_BRAND.lime,
     fontFamily: Fonts.semiBold,
   },
 
@@ -1251,10 +1254,10 @@ const s = StyleSheet.create({
     marginTop: Spacing.sm,
     paddingTop: Spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#1a1a1a',
+    borderTopColor: ELEVATION[2].bg,
   },
   prHeaderText: {
-    color: '#fbbf24',
+    color: SEMANTIC.acceptable,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
   },
@@ -1268,7 +1271,7 @@ const s = StyleSheet.create({
     gap: Spacing.xs,
   },
   colLabel: {
-    color: '#555',
+    color: TEXT.tertiary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.xs,
     letterSpacing: 1,
@@ -1286,7 +1289,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
     marginBottom: Spacing.sm,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: BG.input,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.xs,
@@ -1295,26 +1298,26 @@ const s = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: ELEVATION[2].bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   setCircleComplete: {
-    backgroundColor: '#a8e02a',
+    backgroundColor: ATP_BRAND.lime,
   },
   setCircleText: {
-    color: '#888',
+    color: TEXT.secondary,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
   },
   setCircleTextComplete: {
-    color: '#000',
+    color: TEXT_COLORS.onAccent,
   },
   input: {
     fontFamily: Fonts.bold,
     fontSize: FontSizes.md,
-    color: '#fff',
-    backgroundColor: '#1a1a1a',
+    color: TEXT.primary,
+    backgroundColor: ELEVATION[2].bg,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.xs + 2,
     paddingHorizontal: Spacing.xs,
@@ -1322,10 +1325,10 @@ const s = StyleSheet.create({
     width: '100%',
   },
   rirInput: {
-    color: '#c084fc',
+    color: CATEGORY_COLORS.mind,
   },
   live1rmText: {
-    color: '#a8e02a',
+    color: ATP_BRAND.lime,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.sm,
     textAlign: 'center',
@@ -1338,12 +1341,12 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.md,
     marginTop: Spacing.xs,
     borderWidth: 1,
-    borderColor: '#222',
+    borderColor: BORDER.input,
     borderRadius: Radius.sm,
     borderStyle: 'dashed',
   },
   addSetText: {
-    color: '#a8e02a',
+    color: ATP_BRAND.lime,
     fontFamily: Fonts.semiBold,
   },
 
@@ -1353,13 +1356,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing.sm,
-    backgroundColor: '#a8e02a',
+    backgroundColor: ATP_BRAND.lime,
     borderRadius: Radius.card,
     paddingVertical: Spacing.md,
     marginTop: Spacing.lg,
   },
   saveBtnText: {
-    color: '#000',
+    color: TEXT_COLORS.onAccent,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.lg,
     letterSpacing: 2,
@@ -1368,11 +1371,11 @@ const s = StyleSheet.create({
   // --- Modal ---
   modalOverlay: {
     flex: 1,
-    backgroundColor: '#000000cc',
+    backgroundColor: 'rgba(0,0,0,0.8)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#111',
+    backgroundColor: ELEVATION[1].bg,
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
     padding: Spacing.lg,
@@ -1383,12 +1386,12 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   modalSubtitle: {
-    color: '#888',
+    color: TEXT.secondary,
     textAlign: 'center',
     marginBottom: Spacing.lg,
   },
   modalLabel: {
-    color: '#888',
+    color: TEXT.secondary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
     marginBottom: Spacing.xs,
@@ -1397,8 +1400,8 @@ const s = StyleSheet.create({
   modalInput: {
     fontFamily: Fonts.regular,
     fontSize: FontSizes.md,
-    color: '#fff',
-    backgroundColor: '#1a1a1a',
+    color: TEXT.primary,
+    backgroundColor: ELEVATION[2].bg,
     borderRadius: Radius.sm,
     paddingVertical: Spacing.sm + 2,
     paddingHorizontal: Spacing.md,
@@ -1415,10 +1418,10 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radius.sm,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: ELEVATION[3].border,
   },
   modalCancelText: {
-    color: '#888',
+    color: TEXT.secondary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.md,
   },
@@ -1428,10 +1431,10 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.sm + 2,
     borderRadius: Radius.sm,
-    backgroundColor: '#a8e02a',
+    backgroundColor: ATP_BRAND.lime,
   },
   modalSaveText: {
-    color: '#000',
+    color: TEXT_COLORS.onAccent,
     fontFamily: Fonts.bold,
     fontSize: FontSizes.md,
   },

@@ -23,13 +23,15 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 
+// MB-3.6 §4.2: colores de brand.ts (antes hex crudos); "y timers" fuera del
+// copy — /timer murió (Bloque 1), HIIT es la casa de los intervalos.
 const SECUNDARIOS = [
-  { name: 'Mis rutinas', subtitle: 'Rutinas guardadas listas para ejecutar', icon: 'list-outline' as const, color: '#a8e02a', route: '/my-routines' as const },
-  { name: 'Construir rutina', subtitle: 'Crea tu rutina desde cero', icon: 'construct-outline' as const, color: '#60a5fa', route: '/builder' as const, params: { mode: 'routine' } },
-  { name: 'HIIT y timers', subtitle: 'Tabata · EMOM · AMRAP · 30/30 con voz', icon: 'flame-outline' as const, color: '#fb7185', route: '/fitness-hiit' as const },
-  { name: 'Registrar ejercicio', subtitle: 'Loguea sets, reps y peso', icon: 'add-circle-outline' as const, color: '#34d399', route: '/log-exercise' as const },
+  { name: 'Mis rutinas', subtitle: 'Rutinas guardadas listas para ejecutar', icon: 'list-outline' as const, color: CATEGORY_COLORS.fitness, route: '/my-routines' as const },
+  { name: 'Construir rutina', subtitle: 'Crea tu rutina desde cero', icon: 'construct-outline' as const, color: SEMANTIC.info, route: '/builder' as const, params: { mode: 'routine' } },
+  { name: 'HIIT', subtitle: 'Tabata · EMOM · AMRAP · 30/30 con voz', icon: 'flame-outline' as const, color: SEMANTIC.error, route: '/fitness-hiit' as const },
+  { name: 'Registrar ejercicio', subtitle: 'Loguea sets, reps y peso', icon: 'add-circle-outline' as const, color: ATP_BRAND.teal, route: '/log-exercise' as const },
 ];
 
 export default function FitnessTrainScreen() {
@@ -66,7 +68,7 @@ export default function FitnessTrainScreen() {
                 <EliteText style={s.heroTitle}>EMPEZAR SESIÓN DE HOY</EliteText>
                 <View style={s.heroCtaRow}>
                   <EliteText style={s.heroCtaText}>Generar mi rutina</EliteText>
-                  <Ionicons name="arrow-forward" size={16} color="#a8e02a" />
+                  <Ionicons name="arrow-forward" size={16} color={ATP_BRAND.lime} />
                 </View>
               </View>
             </ImageBackground>
@@ -113,9 +115,9 @@ const s = StyleSheet.create({
     fontSize: 9, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.7)',
     letterSpacing: 2, marginBottom: 6,
   },
-  heroTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: '#fff', lineHeight: 30 },
+  heroTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: TEXT_COLORS.primary, lineHeight: 30 },
   heroCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
-  heroCtaText: { color: '#a8e02a', fontSize: 14, fontFamily: Fonts.bold },
+  heroCtaText: { color: ATP_BRAND.lime, fontSize: 14, fontFamily: Fonts.bold },
 
   sectionLabel: {
     fontSize: 11, fontFamily: Fonts.bold, color: TEXT_COLORS.secondary,

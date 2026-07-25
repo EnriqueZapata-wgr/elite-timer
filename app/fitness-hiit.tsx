@@ -1,8 +1,6 @@
 /**
- * Fitness HIIT — Pantalla dedicada a HIIT y timer.
- *
- * Sale del fitness-hub: presets de Tabata, EMOM, AMRAP, 30/30
- * y boton para crear timer personalizado.
+ * Fitness HIIT — presets de Tabata, EMOM, AMRAP, 30/30 con voz
+ * + builder para armar el propio. (El timer libre murio en MB-3.6 §1.1.)
  */
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -17,11 +15,13 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CARD } from '@/src/constants/brand';
+import { CARD, ATP_BRAND, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import type { Routine, Block } from '@/src/engine/types';
 
-const ORANGE = '#fb923c';
-const ORANGE_GRADIENT = { start: 'rgba(251,146,60,0.10)', end: 'rgba(251,146,60,0.02)' };
+// MB-3.6 §4.2: acento de intensidad = amber de marca (el naranja #fb923c era
+// un 4º color fuera de la doctrina lime+teal+amber).
+const ORANGE = ATP_BRAND.amber;
+const ORANGE_GRADIENT = { start: withOpacity(ATP_BRAND.amber, 0.1), end: withOpacity(ATP_BRAND.amber, 0.02) };
 
 let _presetId = 0;
 function presetId(): string { return `hiit-${Date.now()}-${++_presetId}`; }
@@ -109,7 +109,7 @@ export default function FitnessHIITScreen() {
 
   return (
     <Screen>
-      <PillarHeader pillar="fitness" title="HIIT / Timer" />
+      <PillarHeader pillar="fitness" title="HIIT" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         <SectionTitle>WORKOUTS</SectionTitle>
@@ -125,7 +125,7 @@ export default function FitnessHIITScreen() {
                     <EliteText style={s.meta}>{preset.metaText}</EliteText>
                   </View>
                   <View style={s.playBtn}>
-                    <Ionicons name="play" size={14} color="#000" />
+                    <Ionicons name="play" size={14} color={TEXT_COLORS.onAccent} />
                   </View>
                 </View>
               </GradientCard>
@@ -161,12 +161,12 @@ const s = StyleSheet.create({
   name: {
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
-    color: '#fff',
+    color: TEXT_COLORS.primary,
   },
   desc: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
-    color: '#bbb',
+    color: TEXT_COLORS.secondary,
     marginTop: 2,
   },
   meta: {
@@ -185,22 +185,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: ORANGE,
-    paddingVertical: 14,
-    borderRadius: Radius.md,
-    marginTop: Spacing.sm,
-  },
-  ctaText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    color: '#000',
-    letterSpacing: 1.5,
-  },
   ctaButtonGhost: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,7 +192,7 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
     backgroundColor: CARD.bg,
     borderWidth: 1,
-    borderColor: 'rgba(251,146,60,0.3)',
+    borderColor: withOpacity(ATP_BRAND.amber, 0.3),
     paddingVertical: 12,
     borderRadius: Radius.md,
     marginTop: Spacing.md,

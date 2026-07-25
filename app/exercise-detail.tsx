@@ -190,7 +190,7 @@ const s = StyleSheet.create({
     marginHorizontal: Spacing.md, borderRadius: Radius.card, overflow: 'hidden',
   },
   heroBody: { padding: Spacing.md },
-  heroName: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 24, lineHeight: 30 },
+  heroName: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 24, lineHeight: 30 },
   heroMeta: { color: 'rgba(255,255,255,0.75)', fontFamily: Fonts.regular, fontSize: 13, marginTop: 4 },
 
   tagsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: Spacing.md },
@@ -210,7 +210,7 @@ const s = StyleSheet.create({
 
   warnCard: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
-    backgroundColor: withOpacity('#ef4444', 0.08), borderRadius: Radius.card,
+    backgroundColor: withOpacity(SEMANTIC.error, 0.08), borderRadius: Radius.card,
     padding: Spacing.md, marginTop: Spacing.md,
   },
   warnText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },

@@ -206,8 +206,8 @@ export default function ExerciseLibraryScreen() {
               <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.88)']} style={StyleSheet.absoluteFill} />
               {item.benchmark.tier && (
                 <View style={[s.tierBadge, item.benchmark.tier === 'A' ? s.tierA : s.tierB]}>
-                  <Ionicons name="pulse" size={10} color={item.benchmark.tier === 'A' ? '#000' : '#fff'} />
-                  <Text style={[s.tierText, item.benchmark.tier === 'A' && { color: '#000' }]}>EDAD ATP</Text>
+                  <Ionicons name="pulse" size={10} color={item.benchmark.tier === 'A' ? TEXT_COLORS.onAccent : TEXT.primary} />
+                  <Text style={[s.tierText, item.benchmark.tier === 'A' && { color: TEXT_COLORS.onAccent }]}>EDAD ATP</Text>
                 </View>
               )}
               <View style={s.cardBody}>
@@ -277,14 +277,14 @@ const s = StyleSheet.create({
   },
   opcionChipActiva: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
   opcionText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
-  opcionTextActiva: { color: '#000' },
+  opcionTextActiva: { color: TEXT_COLORS.onAccent },
 
   card: {
     flex: 1, height: 150, borderRadius: Radius.card, overflow: 'hidden',
     backgroundColor: ELEVATION[1].bg, justifyContent: 'flex-end',
   },
   cardBody: { padding: Spacing.sm },
-  cardName: { color: '#fff', fontFamily: Fonts.bold, fontSize: 13, lineHeight: 17 },
+  cardName: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 13, lineHeight: 17 },
   cardMeta: { color: 'rgba(255,255,255,0.65)', fontFamily: Fonts.regular, fontSize: 10, marginTop: 2 },
   tierBadge: {
     position: 'absolute', top: 8, right: 8, flexDirection: 'row', alignItems: 'center', gap: 3,
@@ -292,5 +292,5 @@ const s = StyleSheet.create({
   },
   tierA: { backgroundColor: ATP_BRAND.lime },
   tierB: { backgroundColor: withOpacity(ATP_BRAND.teal, 0.85) },
-  tierText: { color: '#fff', fontFamily: Fonts.bold, fontSize: 8, letterSpacing: 0.5 },
+  tierText: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 8, letterSpacing: 0.5 },
 });

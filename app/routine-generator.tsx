@@ -43,7 +43,7 @@ import {
   type MatrixExercise,
   type NivelUsuario,
 } from '@/src/constants/exercise-matrix';
-import { ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
 const OBJETIVOS: { key: Objetivo; label: string }[] = [
@@ -251,7 +251,7 @@ export default function RoutineGeneratorScreen() {
         <View style={s.doorRow}>
           {(['auto', 'explorar'] as const).map((p) => (
             <AnimatedPressable key={p} onPress={() => { haptic.light(); setPuerta(p); }} style={[s.door, puerta === p && s.doorActive]}>
-              <Ionicons name={p === 'auto' ? 'flash' : 'search'} size={15} color={puerta === p ? '#000' : TEXT.secondary} />
+              <Ionicons name={p === 'auto' ? 'flash' : 'search'} size={15} color={puerta === p ? TEXT_COLORS.onAccent : TEXT.secondary} />
               <Text style={[s.doorText, puerta === p && s.doorTextActive]}>{p === 'auto' ? 'AUTO' : 'EXPLORAR'}</Text>
             </AnimatedPressable>
           ))}
@@ -467,7 +467,7 @@ const s = StyleSheet.create({
   },
   doorActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
   doorText: { color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 1 },
-  doorTextActive: { color: '#000' },
+  doorTextActive: { color: TEXT_COLORS.onAccent },
 
   poolCard: {
     alignItems: 'center', paddingVertical: Spacing.md, marginBottom: Spacing.sm,

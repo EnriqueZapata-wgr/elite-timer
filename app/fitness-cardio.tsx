@@ -20,6 +20,7 @@ import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 import { autoSyncSiActiva } from '@/src/services/fitness/health-import-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { SEMANTIC, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import {
   getLastCardioSessions,
   getCardioRecordsByDiscipline,
@@ -30,8 +31,8 @@ import {
   type CardioRecord,
 } from '@/src/services/fitness-service';
 
-const CARDIO_BLUE = '#38bdf8';
-const CARDIO_GRADIENT = { start: 'rgba(56,189,248,0.10)', end: 'rgba(56,189,248,0.02)' };
+const CARDIO_BLUE = SEMANTIC.info; // MB-3.6 §4.2: azul de marca, no un 5º azul
+const CARDIO_GRADIENT = { start: withOpacity(SEMANTIC.info, 0.1), end: withOpacity(SEMANTIC.info, 0.02) };
 
 const DISCIPLINES: { key: CardioDiscipline; name: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'running',  name: 'Correr',   icon: 'walk-outline' },
@@ -118,7 +119,7 @@ export default function FitnessCardioScreen() {
           style={s.ctaButton}
           onPress={() => { haptic.medium(); router.push('/log-cardio'); }}
         >
-          <Ionicons name="add-circle-outline" size={20} color="#000" />
+          <Ionicons name="add-circle-outline" size={20} color={TEXT_COLORS.onAccent} />
           <EliteText style={s.ctaText}>REGISTRAR SESIÓN CARDIO</EliteText>
         </AnimatedPressable>
 
@@ -151,12 +152,12 @@ const s = StyleSheet.create({
   disciplineName: {
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
-    color: '#fff',
+    color: TEXT_COLORS.primary,
   },
   disciplineLast: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.regular,
-    color: '#bbb',
+    color: TEXT_COLORS.secondary,
   },
   disciplineEmpty: {
     fontSize: FontSizes.sm,
@@ -174,7 +175,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.sm,
-    backgroundColor: 'rgba(56,189,248,0.10)',
+    backgroundColor: withOpacity(SEMANTIC.info, 0.1),
     alignItems: 'center',
   },
   prChipLabel: {
@@ -202,7 +203,7 @@ const s = StyleSheet.create({
   ctaText: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
-    color: '#000',
+    color: TEXT_COLORS.onAccent,
     letterSpacing: 1.5,
   },
   ctaButtonGhost: {
@@ -211,7 +212,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     borderWidth: 1,
-    borderColor: 'rgba(56,189,248,0.35)',
+    borderColor: withOpacity(SEMANTIC.info, 0.35),
     paddingVertical: 12,
     borderRadius: Radius.md,
     marginTop: Spacing.sm,
