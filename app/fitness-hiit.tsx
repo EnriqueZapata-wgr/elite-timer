@@ -110,7 +110,7 @@ export default function FitnessHIITScreen() {
       <PillarHeader pillar="fitness" title="HIIT" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        <SectionTitle>WORKOUTS</SectionTitle>
+        <SectionTitle>ENTRENAMIENTOS</SectionTitle>
 
         {HIIT_PRESETS.map((preset, i) => (
           <Animated.View key={preset.name} entering={FadeInUp.delay(50 + i * 40).springify()}>

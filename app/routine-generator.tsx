@@ -54,7 +54,7 @@ const OBJETIVOS: { key: Objetivo; label: string }[] = [
 ];
 
 const ENFOQUES: { key: EnfoquePatron; label: string }[] = [
-  { key: 'full_body', label: 'Full body' },
+  { key: 'full_body', label: 'Cuerpo completo' },
   { key: 'tren_superior', label: 'Tren superior' },
   { key: 'empuje', label: 'Empuje' },
   { key: 'traccion', label: 'Tracción' },

@@ -85,7 +85,7 @@ function StandardBlockRunner({ block, onCue, onDone }: {
     } else {
       const r = parseInt(reps, 10);
       if (!(r > 0)) {
-        Alert.alert('Falta el dato', block.esIsometrico ? 'Registra los segundos del hold.' : 'Registra las repeticiones.');
+        Alert.alert('Falta el dato', block.esIsometrico ? 'Registra los segundos del aguante.' : 'Registra las repeticiones.');
         return;
       }
       haptic.medium();
@@ -120,7 +120,7 @@ function StandardBlockRunner({ block, onCue, onDone }: {
           <Text style={s.serieMeta}>
             {esDistancia
               ? 'Salto horizontal máximo — mide la distancia talón a talón'
-              : block.esIsometrico ? `Hold objetivo: ${block.reps} s` : `Objetivo: ${block.reps} reps`}
+              : block.esIsometrico ? `Aguante objetivo: ${block.reps} s` : `Objetivo: ${block.reps} reps`}
             {!esDistancia && block.esUnilateral ? ' · por lado' : ''}
           </Text>
           {esDistancia ? (
@@ -369,7 +369,7 @@ export default function StrengthSessionScreen() {
                 </View>
                 <View style={s.statCell}>
                   <Text style={s.statValue}>{summary.setsCount}</Text>
-                  <Text style={s.statLabel}>SETS</Text>
+                  <Text style={s.statLabel}>SERIES</Text>
                 </View>
                 <View style={s.statCell}>
                   <Text style={s.statValue}>{Math.round(summary.volumeKg)}</Text>
@@ -503,7 +503,8 @@ export default function StrengthSessionScreen() {
         }
       />
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 140 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Progreso */}
+        {/* Progreso — MB-3.7 §1.2: el número manda (en el gym se lee rápido);
+            la barra queda como indicador ambiental delgado, sin label propio. */}
         <View style={s.progressRow}>
           <Text style={s.progressText}>EJERCICIO {idx + 1} / {bloques.length}</Text>
           <View style={s.progressBar}>
@@ -574,8 +575,8 @@ const s = StyleSheet.create({
 
   progressRow: { marginBottom: Spacing.md },
   progressText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 11, letterSpacing: 2, marginBottom: 6 },
-  progressBar: { height: 3, backgroundColor: ELEVATION[1].bg, borderRadius: 2 },
-  progressFill: { height: '100%', backgroundColor: ATP_BRAND.lime, borderRadius: 2 },
+  progressBar: { height: 2, backgroundColor: ELEVATION[1].bg, borderRadius: 1, opacity: 0.9 },
+  progressFill: { height: '100%', backgroundColor: withOpacity(ATP_BRAND.lime, 0.75), borderRadius: 1 },
 
   heroCard: {
     height: 220,

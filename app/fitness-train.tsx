@@ -31,7 +31,7 @@ const SECUNDARIOS = [
   { name: 'Mis rutinas', subtitle: 'Rutinas guardadas listas para ejecutar', icon: 'list-outline' as const, color: CATEGORY_COLORS.fitness, route: '/my-routines' as const },
   { name: 'Construir rutina', subtitle: 'Crea tu rutina desde cero', icon: 'construct-outline' as const, color: SEMANTIC.info, route: '/builder' as const, params: { mode: 'routine' } },
   { name: 'HIIT', subtitle: 'Tabata · EMOM · AMRAP · 30/30 con voz', icon: 'flame-outline' as const, color: SEMANTIC.error, route: '/fitness-hiit' as const },
-  { name: 'Registrar ejercicio', subtitle: 'Loguea sets, reps y peso', icon: 'add-circle-outline' as const, color: ATP_BRAND.teal, route: '/log-exercise' as const },
+  { name: 'Registrar ejercicio', subtitle: 'Registra series, reps y peso', icon: 'add-circle-outline' as const, color: ATP_BRAND.teal, route: '/log-exercise' as const },
 ];
 
 export default function FitnessTrainScreen() {

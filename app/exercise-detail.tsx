@@ -143,10 +143,11 @@ export default function ExerciseDetailScreen() {
             </View>
           )}
 
-          {/* Variantes de la familia (progresión/regresión + swap de equipo) */}
+          {/* Variantes de la familia (progresión/regresión + swap de equipo).
+              MB-3.7 §1.3: la familia ya está en el header — aquí solo el conteo. */}
           {variantes.length > 0 && (
             <>
-              <Text style={s.sectionLabel}>FAMILIA {ex.familia.toUpperCase()} · {variantes.length} VARIANTES</Text>
+              <Text style={s.sectionLabel}>{variantes.length} {variantes.length === 1 ? 'VARIANTE' : 'VARIANTES'}</Text>
               {variantes.map((v) => (
                 <AnimatedPressable
                   key={v.slug}

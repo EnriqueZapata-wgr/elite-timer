@@ -105,7 +105,7 @@ export const MUSCLE_GROUP_LABELS: Record<string, string> = {
   legs: 'Piernas',
   arms: 'Brazos',
   core: 'Core',
-  full_body: 'Full Body',
+  full_body: 'Cuerpo completo',
 };
 
 /** Colores por grupo muscular */

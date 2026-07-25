@@ -262,7 +262,10 @@ export default function FitnessHubScreen() {
           {renderHoy()}
         </Animated.View>
 
-        {/* SECUNDARIO — la semana (compacto, ya no hero) */}
+        {/* SECUNDARIO — la semana (compacto, ya no hero).
+            MB-3.7 §1.5: el día que YA entrenaste, la card se oculta — el hero
+            de completado trae los logros de hoy y no compiten dos resúmenes. */}
+        {today?.kind !== 'entrenado' && (
         <Animated.View entering={FadeInUp.delay(120).springify()} style={s.weekCard}>
           <EliteText style={s.weekLabel}>ESTA SEMANA</EliteText>
           <View style={s.statsRow}>
@@ -284,6 +287,7 @@ export default function FitnessHubScreen() {
             </View>
           </View>
         </Animated.View>
+        )}
 
         {/* TERCIARIO — navegación en filas compactas */}
         <View style={{ marginTop: Spacing.lg }}>
@@ -324,7 +328,7 @@ function Logro({ valor, label, destacado }: { valor: string; label: string; dest
 
 function enfoqueLabel(e: string): string {
   const labels: Record<string, string> = {
-    full_body: 'Full body', tren_superior: 'Tren superior', empuje: 'Empuje',
+    full_body: 'Cuerpo completo', tren_superior: 'Tren superior', empuje: 'Empuje',
     traccion: 'Tracción', pierna_empuje: 'Pierna empuje', pierna_traccion: 'Pierna tracción',
   };
   return labels[e] ?? e;

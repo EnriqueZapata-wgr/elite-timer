@@ -862,7 +862,7 @@ export default function LogExerciseScreen() {
 
             {/* Encabezados de columnas */}
             <View style={s.colHeaders}>
-              <View style={s.colSet}><Text style={s.colLabel}>SET</Text></View>
+              <View style={s.colSet}><Text style={s.colLabel}>SERIE</Text></View>
               <View style={s.colWeight}><Text style={s.colLabel}>KG</Text></View>
               <View style={s.colReps}><Text style={s.colLabel}>REPS</Text></View>
               <View style={[s.colRir, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }]}>
@@ -962,7 +962,7 @@ export default function LogExerciseScreen() {
             <AnimatedPressable onPress={addSet} style={s.addSetBtn}>
               <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.lime} />
               <EliteText variant="body" style={s.addSetText}>
-                Agregar set
+                Agregar serie
               </EliteText>
             </AnimatedPressable>
 

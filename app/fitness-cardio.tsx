@@ -1,8 +1,9 @@
 /**
  * Fitness Cardio — Pantalla dedicada a las 4 disciplinas de cardio.
  *
- * Sale del fitness-hub: muestra correr, ciclismo, natacion y remo
- * con la ultima sesion y los PRs por distancia.
+ * Sale del fitness-hub: 4 disciplinas como puertas a registrar + sus PRs
+ * por distancia (MB-3.7 §1.4: el hub es navegación — la última sesión vive
+ * en log-cardio como prefill).
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
@@ -22,12 +23,9 @@ import { autoSyncSiActiva } from '@/src/services/fitness/health-import-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SEMANTIC, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import {
-  getLastCardioSessions,
   getCardioRecordsByDiscipline,
   formatDuration,
-  formatPace,
   type CardioDiscipline,
-  type CardioSession,
   type CardioRecord,
 } from '@/src/services/fitness-service';
 
@@ -44,19 +42,12 @@ const DISCIPLINES: { key: CardioDiscipline; name: string; icon: keyof typeof Ion
 export default function FitnessCardioScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [lastByDiscipline, setLastByDiscipline] = useState<Record<CardioDiscipline, CardioSession | null>>({
-    running: null, cycling: null, swimming: null, rowing: null, other: null,
-  });
   const [recordsByDiscipline, setRecordsByDiscipline] = useState<Record<CardioDiscipline, CardioRecord[]>>({
     running: [], cycling: [], swimming: [], rowing: [], other: [],
   });
 
   const cargar = useCallback(() => {
-    Promise.all([getLastCardioSessions(), getCardioRecordsByDiscipline()])
-      .then(([last, recs]) => {
-        setLastByDiscipline(last);
-        setRecordsByDiscipline(recs);
-      });
+    getCardioRecordsByDiscipline().then(setRecordsByDiscipline);
   }, []);
 
   useFocusEffect(useCallback(() => {
@@ -75,7 +66,6 @@ export default function FitnessCardioScreen() {
         <SectionTitle>DISCIPLINAS</SectionTitle>
 
         {DISCIPLINES.map((d, i) => {
-          const last = lastByDiscipline[d.key];
           const records = recordsByDiscipline[d.key] ?? [];
 
           return (
@@ -90,15 +80,10 @@ export default function FitnessCardioScreen() {
                     <EliteText style={s.disciplineName}>{d.name}</EliteText>
                   </View>
 
-                  {last && last.distance_meters && last.duration_seconds ? (
-                    <EliteText style={s.disciplineLast}>
-                      Última: {(last.distance_meters / 1000).toFixed(2)} km en {formatDuration(last.duration_seconds)}
-                      {last.avg_pace_seconds_per_km ? ` · ${formatPace(last.avg_pace_seconds_per_km)}` : ''}
-                    </EliteText>
-                  ) : (
-                    <EliteText style={s.disciplineEmpty}>Sin sesiones registradas</EliteText>
-                  )}
-
+                  {/* MB-3.7 §1.4: "Última: …" RETIRADA — el hub es navegación
+                      (cero datos); ese dato vive en log-cardio como prefill
+                      "la última vez… tocar para repetir", donde SÍ se usa.
+                      Los PRs se quedan: no viven en ningún otro lugar. */}
                   {records.length > 0 && (
                     <View style={s.prsRow}>
                       {records.slice(0, 5).map(pr => (
@@ -153,17 +138,6 @@ const s = StyleSheet.create({
     fontSize: FontSizes.lg,
     fontFamily: Fonts.bold,
     color: TEXT_COLORS.primary,
-  },
-  disciplineLast: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: TEXT_COLORS.secondary,
-  },
-  disciplineEmpty: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: Colors.textMuted,
-    fontStyle: 'italic',
   },
   prsRow: {
     flexDirection: 'row',

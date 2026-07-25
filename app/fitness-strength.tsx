@@ -84,9 +84,10 @@ function getPRRecency(achievedAt: string): 'today' | 'week' | null {
   return null;
 }
 
+// MB-3.7 §2: español MX (CORE se queda — uso normal de gym).
 const MUSCLE_GROUP_DESCRIPTIONS: Record<string, string> = {
-  chest: 'UPPER BODY', back: 'UPPER BODY', shoulders: 'UPPER BODY',
-  legs: 'LOWER BODY', arms: 'UPPER BODY', core: 'CORE', full_body: 'FULL BODY',
+  chest: 'TREN SUPERIOR', back: 'TREN SUPERIOR', shoulders: 'TREN SUPERIOR',
+  legs: 'TREN INFERIOR', arms: 'TREN SUPERIOR', core: 'CORE', full_body: 'CUERPO COMPLETO',
 };
 
 const REP_RANGES = [1, 2, 3, 4, 5];
@@ -404,19 +405,10 @@ export default function FitnessStrengthScreen() {
                         {ex.muscle_groups.slice(0, 3).join(' · ').toUpperCase()}
                       </EliteText>
                     )}
-                    {ex.currentPR != null && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
-                        <Ionicons name="trophy" size={14} color={SEMANTIC.acceptable} />
-                        <EliteText style={{ color: SEMANTIC.acceptable, fontSize: 13, fontFamily: Fonts.bold }}>
-                          {ex.currentPR}kg
-                        </EliteText>
-                        {ex.estimated1RM != null && (
-                          <EliteText style={{ color: TEXT.secondary, fontSize: 11 }}>
-                            · {ex.estimated1RM}kg 1RM
-                          </EliteText>
-                        )}
-                      </View>
-                    )}
+                    {/* MB-3.7 §1.1 (resolución Enrique): PR/1RM SOLO en TUS
+                        MARCAS — la card de benchmark es acceso a registrar, y
+                        en el propio registro (log-exercise) el PR actual se
+                        muestra ahí donde SÍ decide el peso a vencer. */}
                   </View>
                   <AnimatedPressable onPress={() => {
                     haptic.medium();
