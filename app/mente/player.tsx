@@ -39,7 +39,7 @@ import { applySeekToSkip, effectiveListenedAt } from '@/src/services/mente-audio
 import { Image as ExpoImage } from 'expo-image';
 import { localCoverFor, resolveCoverSource, resolveRemoteCoverUrl } from '@/src/components/mente/audio-cover';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, CATEGORY_COLORS, PILLAR_GRADIENTS, withOpacity } from '@/src/constants/brand';
 
 const MIND_PURPLE = CATEGORY_COLORS.mind;
 
@@ -137,8 +137,20 @@ export default function MenteAudioPlayerScreen() {
       setPiece(found);
       pieceRef.current = found;
       setDuration(found.duracion_seg);
-      setCover(localCoverFor(found));
-      resolveRemoteCoverUrl(found).then(url => { if (!cancelled && url) setRemoteCover(url); });
+      // V1.5.2 (#3): reset explícito del remoto (que nunca quede la cover de la
+      // pieza ANTERIOR mientras baja la nueva) + base gradiente cuando la pieza
+      // tiene cover remota — la foto genérica solo si no hay remota u offline.
+      setRemoteCover(null);
+      if (found.imagen_path) {
+        setCover(null);
+        resolveRemoteCoverUrl(found).then(url => {
+          if (cancelled) return;
+          if (url) setRemoteCover(url);
+          else setCover(localCoverFor(found)); // firma falló (offline) → foto local
+        });
+      } else {
+        setCover(localCoverFor(found));
+      }
       if (user?.id) {
         fetchFavoriteSlugs(user.id).then(favs => { if (!cancelled) setIsFav(favs.has(found.slug)); });
       }
@@ -389,8 +401,15 @@ export default function MenteAudioPlayerScreen() {
 
   return (
     <View style={s.screen}>
-      {cover && (
-        <ImageBackground source={cover} style={StyleSheet.absoluteFill} resizeMode="cover">
+      {piece && (
+        <ImageBackground source={cover ?? undefined} style={StyleSheet.absoluteFill} resizeMode="cover">
+          {/* V1.5.2 (#3): base gradiente mientras baja la remota (sin foto genérica) */}
+          {!cover && (
+            <LinearGradient
+              colors={[PILLAR_GRADIENTS.mind.start, PILLAR_GRADIENTS.mind.end]}
+              style={StyleSheet.absoluteFill}
+            />
+          )}
           {remoteCover && (
             <ExpoImage
               source={{ uri: remoteCover }}
@@ -398,7 +417,7 @@ export default function MenteAudioPlayerScreen() {
               contentFit="cover"
               transition={250}
               cachePolicy="disk"
-              onError={() => setRemoteCover(null)}
+              onError={() => { setRemoteCover(null); if (pieceRef.current) setCover(localCoverFor(pieceRef.current)); }}
             />
           )}
           <LinearGradient

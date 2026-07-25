@@ -7,10 +7,11 @@
  * Primera vez (0 sesiones) → tutorial N=1.
  */
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ImageBackground, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -27,6 +28,10 @@ import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const DAY_LETTERS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+
+// V1.5.2 (#1): hero editorial con la portada MJ del módulo (molde MenteHero:
+// imagen + overlay gradiente + acento morado del pilar — fuera header plano).
+const HERO_NBACK = require('@/assets/images/mente/cards/card_nback.jpg');
 
 function lastNDates(n: number): string[] {
   const out: string[] = [];
@@ -96,17 +101,23 @@ export default function NBackHomeScreen() {
         scrollEventThrottle={16}
         contentContainerStyle={s.scroll}
       >
-        {/* Header editorial */}
-        <View style={s.header}>
-          <EliteText style={s.kicker}>PILAR MENTE · COGNICIÓN</EliteText>
-          <EliteText style={s.title}>N-Back</EliteText>
-          <View style={s.levelRow}>
-            <EliteText style={s.levelHero}>N = {state?.current_n ?? NBACK_CONFIG.N_START}</EliteText>
-            <View style={s.badgePill}>
-              <EliteText style={s.badgeText}>{badge.emoji} {badge.label}</EliteText>
+        {/* Header editorial — V1.5.2 (#1): imagen MJ + gradiente (molde MenteHero) */}
+        <ImageBackground source={HERO_NBACK} style={s.hero} resizeMode="cover">
+          <LinearGradient
+            colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.55)', 'rgba(10,10,10,0.97)']}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={s.header}>
+            <EliteText style={s.kicker}>PILAR MENTE · COGNICIÓN</EliteText>
+            <EliteText style={s.title}>N-Back</EliteText>
+            <View style={s.levelRow}>
+              <EliteText style={s.levelHero}>N = {state?.current_n ?? NBACK_CONFIG.N_START}</EliteText>
+              <View style={s.badgePill}>
+                <EliteText style={s.badgeText}>{badge.emoji} {badge.label}</EliteText>
+              </View>
             </View>
           </View>
-        </View>
+        </ImageBackground>
 
         <View style={s.body}>
           {/* Week strip */}
@@ -146,7 +157,10 @@ export default function NBackHomeScreen() {
                 : 'Tu reto arranca con el primer round'}
             </EliteText>
             <View style={s.progressTrack}>
-              <View style={[s.progressFill, { width: `${(dayOfChallenge / NBACK_CONFIG.CHALLENGE_DAYS) * 100}%` }]} />
+              <LinearGradient
+                colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={[s.progressFill, { width: `${(dayOfChallenge / NBACK_CONFIG.CHALLENGE_DAYS) * 100}%` }]}
+              />
             </View>
             <EliteText style={s.cardSub}>
               Memoria de trabajo entrenada {NBACK_CONFIG.CHALLENGE_DAYS} días — el protocolo con evidencia real.
@@ -163,13 +177,21 @@ export default function NBackHomeScreen() {
               {roundsToday}/{NBACK_CONFIG.ROUNDS_PER_DAY} rounds · ~20 min
             </EliteText>
             <View style={s.progressTrack}>
-              <View style={[s.progressFill, { width: `${todayPct}%` }]} />
+              <LinearGradient
+                colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={[s.progressFill, { width: `${todayPct}%` }]}
+              />
             </View>
             <AnimatedPressable style={s.startBtn} onPress={startSession}>
-              <Ionicons name="play" size={18} color="#000" />
-              <EliteText style={s.startText}>
-                {(state?.sessions_total ?? 0) === 0 ? 'APRENDER A JUGAR' : 'EMPEZAR SESIÓN'}
-              </EliteText>
+              <LinearGradient
+                colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                style={s.startBtnInner}
+              >
+                <Ionicons name="play" size={18} color="#000" />
+                <EliteText style={s.startText}>
+                  {(state?.sessions_total ?? 0) === 0 ? 'APRENDER A JUGAR' : 'EMPEZAR SESIÓN'}
+                </EliteText>
+              </LinearGradient>
             </AnimatedPressable>
             {/* Decisión #44-3: el canal auditivo es obligatorio. */}
             <View style={s.audioHint}>
@@ -227,6 +249,11 @@ export default function NBackHomeScreen() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#000' },
   scroll: { paddingBottom: Spacing.xxl },
+  hero: {
+    justifyContent: 'flex-end', minHeight: 216,
+    borderBottomWidth: 1, borderBottomColor: withOpacity('#7F77DD', 0.55),
+    marginBottom: Spacing.sm,
+  },
   header: { paddingTop: 108, paddingHorizontal: Spacing.md, paddingBottom: Spacing.md },
   kicker: { color: '#7F77DD', fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 3 },
   title: { color: '#fff', fontSize: 34, fontFamily: Fonts.extraBold, letterSpacing: 1, marginTop: 2 },
@@ -267,12 +294,13 @@ const s = StyleSheet.create({
     height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.08)',
     marginTop: 10, overflow: 'hidden',
   },
-  progressFill: { height: '100%', backgroundColor: ATP_BRAND.lime, borderRadius: 3 },
+  progressFill: { height: '100%', borderRadius: 3 },
 
-  startBtn: {
+  // V1.5.2 (#1): CTA en gradiente molécula (fuera lime plano full-width)
+  startBtn: { borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.md },
+  startBtnInner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.pill,
-    paddingVertical: 13, marginTop: Spacing.md,
+    paddingVertical: 13,
   },
   startText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
   audioHint: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },

@@ -4,7 +4,8 @@
  * Ciclos de inhala/retén/exhala con visualización.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, Alert, ScrollView, Animated as RNAnimated, DeviceEventEmitter, Text } from 'react-native';
+import { View, StyleSheet, Pressable, Alert, ScrollView, Animated as RNAnimated, DeviceEventEmitter, Text, ImageBackground } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -37,6 +38,7 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-service';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
+import { prefetchAudioCovers } from '@/src/components/mente/audio-cover';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
@@ -55,6 +57,18 @@ import { MenteHero } from '@/src/components/mente/MenteHero';
 
 // #138: hero editorial del pilar (require estático · Metro).
 const HERO_RESPIRACION = require('@/assets/images/intervenciones/respiracion.jpg');
+
+// V1.5.2 (#4): imágenes editoriales LOCALES por técnica (molde meditación:
+// imagen + gradiente + velo). Todo del bundle → cero red, cero parpadeo.
+const BREATH_CARD_IMAGES: Record<string, any> = {
+  'box-4': require('@/assets/images/intervenciones/cognitivo.jpg'),
+  '478-relaxation': require('@/assets/images/intervenciones/naturaleza.jpg'),
+  'coherent-5': require('@/assets/images/intervenciones/respiracion.jpg'),
+  'energize-2': require('@/assets/images/intervenciones/calor.jpg'),
+  'wim-hof-lite': require('@/assets/images/intervenciones/frio.jpg'),
+  'physiological-sigh': require('@/assets/images/intervenciones/grounding.jpg'),
+};
+const BREATH_CARD_FALLBACK = require('@/assets/images/mente/cards/card_respiracion.jpg');
 
 const PURPLE = CATEGORY_COLORS.mind;
 const BLUE = '#60a5fa';
@@ -210,7 +224,11 @@ function SelectorScreen({ onSelect, onBack }: {
   useFocusEffect(useCallback(() => {
     let alive = true;
     fetchAudioPieces().then(all => {
-      if (alive) setPieces(all.filter(p => p.categoria === 'respiracion'));
+      if (!alive) return;
+      const resp = all.filter(p => p.categoria === 'respiracion');
+      setPieces(resp);
+      // V1.5.2 (#3): calienta firma + disco de expo-image antes del render.
+      prefetchAudioCovers(resp);
     });
     return () => { alive = false; };
   }, []));
@@ -253,48 +271,55 @@ function SelectorScreen({ onSelect, onBack }: {
           </>
         )}
 
+        {/* V1.5.2 (#4): cards editoriales (imagen local + gradiente + velo),
+            mismo lenguaje que meditación. Assets del bundle → cero parpadeo. */}
         {BREATHING_LIBRARY.map((t, idx) => (
           <AnimatedRN.View key={t.id} entering={FadeInUp.delay(50 + idx * 40).springify()}>
             <AnimatedPressable onPress={() => onSelect(t)}>
-              <View style={{
-                backgroundColor: '#0a0a0a', borderRadius: 16, padding: 16, marginBottom: 10,
-                flexDirection: 'row', alignItems: 'center',
-                borderWidth: 1, borderColor: `${PURPLE}15`,
-              }}>
-                <View style={{ width: 4, height: 48, backgroundColor: PURPLE, borderRadius: 2, marginRight: 14 }} />
+              <ImageBackground
+                source={BREATH_CARD_IMAGES[t.id] ?? BREATH_CARD_FALLBACK}
+                style={{ minHeight: 132, justifyContent: 'flex-end', marginBottom: 10 }}
+                imageStyle={{ borderRadius: 16 }}
+                resizeMode="cover"
+              >
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.45)', 'rgba(0,0,0,0.85)']}
+                  locations={[0, 0.5, 1]}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 16 }]}
+                />
                 <View style={{
-                  width: 44, height: 44, borderRadius: 22,
-                  backgroundColor: `${PURPLE}15`,
-                  justifyContent: 'center', alignItems: 'center', marginRight: 14,
+                  position: 'absolute', top: 12, right: 12,
+                  width: 34, height: 34, borderRadius: 17,
+                  backgroundColor: 'rgba(0,0,0,0.45)',
+                  justifyContent: 'center', alignItems: 'center',
                 }}>
-                  <Ionicons name={getBreathIcon(t.id) as any} size={22} color={PURPLE} />
+                  <Ionicons name={getBreathIcon(t.id) as any} size={18} color={PURPLE} />
                 </View>
-                <View style={{ flex: 1 }}>
+                <View style={{ padding: 14 }}>
                   <Text style={{ color: '#fff', fontSize: 16, fontFamily: Fonts.bold }}>{t.title}</Text>
-                  <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>{t.description}</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-                    <View style={{ backgroundColor: `${PURPLE}15`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                      <Text style={{ color: PURPLE, fontSize: 10, fontFamily: Fonts.semiBold }}>{t.durationMinutes} min</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12, fontFamily: Fonts.regular, marginTop: 2 }}>{t.description}</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+                    <View style={{ backgroundColor: `${PURPLE}2A`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: '#c9c4f5', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.durationMinutes} min</Text>
                     </View>
-                    <View style={{ backgroundColor: 'rgba(168,224,42,0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                    <View style={{ backgroundColor: 'rgba(168,224,42,0.16)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                       <Text style={{ color: '#a8e02a', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.phases.map(p => p.seconds + 's').join('-')}</Text>
                     </View>
                     {/* Sprint MENTE: nivel + beneficio principal */}
-                    <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                      <Text style={{ color: '#999', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.level}</Text>
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.level}</Text>
                     </View>
-                    <View style={{ backgroundColor: 'rgba(255,255,255,0.06)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                      <Text style={{ color: '#999', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.benefit}</Text>
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.benefit}</Text>
                     </View>
                     {t.contraindications && (
-                      <View style={{ backgroundColor: 'rgba(239,159,39,0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <View style={{ backgroundColor: 'rgba(239,159,39,0.2)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                         <Text style={{ color: '#EF9F27', fontSize: 10, fontFamily: Fonts.semiBold }}>⚠ precauciones</Text>
                       </View>
                     )}
                   </View>
                 </View>
-                <Ionicons name="play-circle-outline" size={28} color={ATP_BRAND.teal} />
-              </View>
+              </ImageBackground>
             </AnimatedPressable>
           </AnimatedRN.View>
         ))}

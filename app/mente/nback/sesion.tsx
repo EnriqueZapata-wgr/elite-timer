@@ -23,10 +23,11 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   NBACK_CONFIG, generateRound, scoreChannel, evaluateRound, startingN,
   trialDurationMs, stimuliCountFor, resolvePressIndex,
-  type NBackRound, type NBackRoundResult,
+  type NBackRound, type NBackRoundResult, type ChannelScore,
 } from '@/src/services/nback-core';
 import { createNBackAudio, type NBackAudioHandle } from '@/src/services/nback-audio';
 import {
@@ -55,6 +56,10 @@ interface ResultsView {
   result: NBackRoundResult;
   outcome: RoundOutcome | null;
   n: number;
+  /** V1.5.2 (#2): breakdown por canal — LOS MISMOS ChannelScore que alimentan
+   * el accuracy/score (scoreChannel en finishRound), no un recomputo. */
+  visual: ChannelScore;
+  audio: ChannelScore;
 }
 
 export default function NBackSessionScreen() {
@@ -312,7 +317,7 @@ export default function NBackSessionScreen() {
     }
     if (!aliveRef.current) return;
     haptic.success();
-    setResults({ result, outcome, n: round.n });
+    setResults({ result, outcome, n: round.n, visual, audio });
     setPhase('results');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
@@ -467,7 +472,9 @@ export default function NBackSessionScreen() {
             <EliteText style={s.coachTitle}>{coach.title}</EliteText>
             <EliteText style={s.coachBody}>{coach.body}</EliteText>
             <AnimatedPressable style={s.coachBtn} onPress={dismissCoach}>
-              <EliteText style={s.coachBtnText}>ENTENDIDO</EliteText>
+              <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.coachBtnInner}>
+                <EliteText style={s.coachBtnText}>ENTENDIDO</EliteText>
+              </LinearGradient>
             </AnimatedPressable>
           </Animated.View>
         </View>
@@ -482,7 +489,9 @@ export default function NBackSessionScreen() {
               La app pasó a segundo plano y el round se detuvo para no ensuciar tu score.
             </EliteText>
             <AnimatedPressable style={s.coachBtn} onPress={resumeFromPause}>
-              <EliteText style={s.coachBtnText}>REANUDAR</EliteText>
+              <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.coachBtnInner}>
+                <EliteText style={s.coachBtnText}>REANUDAR</EliteText>
+              </LinearGradient>
             </AnimatedPressable>
             <AnimatedPressable style={s.endBtn} onPress={() => { haptic.light(); clearTimers(); router.back(); }}>
               <EliteText style={s.endText}>Salir (el round se pierde)</EliteText>
@@ -497,8 +506,8 @@ export default function NBackSessionScreen() {
             {results.result.promoted ? 'Nivel superado' : results.result.demoted ? 'Ajustamos el reto' : 'Buen round'}
           </EliteText>
 
-          <ResultBar label="Posición" pct={Math.round(results.result.accuracyVisual * 100)} />
-          <ResultBar label="Sonido" pct={Math.round(results.result.accuracyAudio * 100)} />
+          <ResultBar label="Posición" pct={Math.round(results.result.accuracyVisual * 100)} score={results.visual} />
+          <ResultBar label="Sonido" pct={Math.round(results.result.accuracyAudio * 100)} score={results.audio} />
           <EliteText style={s.thresholdHint}>
             &lt;{DROP_PCT}% en un canal baja el nivel · ≥{RAISE_PCT}% en ambos lo sube
           </EliteText>
@@ -532,7 +541,9 @@ export default function NBackSessionScreen() {
           </View>
 
           <AnimatedPressable style={s.continueBtn} onPress={continueNextRound}>
-            <EliteText style={s.continueText}>CONTINUAR</EliteText>
+            <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.continueBtnInner}>
+              <EliteText style={s.continueText}>CONTINUAR</EliteText>
+            </LinearGradient>
           </AnimatedPressable>
           <AnimatedPressable style={s.endBtn} onPress={() => { haptic.light(); router.back(); }}>
             <EliteText style={s.endText}>Terminar por hoy</EliteText>
@@ -543,7 +554,7 @@ export default function NBackSessionScreen() {
   );
 }
 
-function ResultBar({ label, pct }: { label: string; pct: number }) {
+function ResultBar({ label, pct, score }: { label: string; pct: number; score: ChannelScore }) {
   return (
     <View style={s.barBlock}>
       <View style={s.barLabelRow}>
@@ -551,10 +562,33 @@ function ResultBar({ label, pct }: { label: string; pct: number }) {
         <EliteText style={s.barPct}>{pct}%</EliteText>
       </View>
       <View style={s.barTrack}>
-        <View style={[s.barFill, { width: `${Math.min(100, pct)}%` }, pct < DROP_PCT && { backgroundColor: '#f87171' }]} />
+        {/* V1.5.2 (#1): fill en gradiente molécula (fuera lime plano); rojo si cae bajo umbral */}
+        {pct < DROP_PCT ? (
+          <View style={[s.barFill, { width: `${Math.min(100, pct)}%`, backgroundColor: '#f87171' }]} />
+        ) : (
+          <LinearGradient
+            colors={ATP_BRAND.moleculeGradient}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={[s.barFill, { width: `${Math.min(100, pct)}%` }]}
+          />
+        )}
         {/* Umbrales 75/90 de la referencia */}
         <View style={[s.barMark, { left: `${DROP_PCT}%` }]} />
         <View style={[s.barMark, { left: `${RAISE_PCT}%` }]} />
+      </View>
+      {/* V1.5.2 (#2): breakdown de errores del canal — +comisión / −omisión,
+          de los mismos conteos que produjeron el score. */}
+      <View style={s.breakdownRow}>
+        <EliteText style={[s.breakdownText, score.falses > 0 && s.breakdownBad]}>
+          +{score.falses} de más
+        </EliteText>
+        <EliteText style={s.breakdownSep}>·</EliteText>
+        <EliteText style={[s.breakdownText, score.misses > 0 && s.breakdownBad]}>
+          −{score.misses} sin marcar
+        </EliteText>
+        {score.falses === 0 && score.misses === 0 && (
+          <EliteText style={s.breakdownClean}>  canal limpio ✓</EliteText>
+        )}
       </View>
     </View>
   );
@@ -594,10 +628,12 @@ const s = StyleSheet.create({
     backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  // V1.5 (B5): presionado = relleno SÓLIDO (el contorno delgado no se distinguía).
-  matchBtnPressed: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
-  matchBtnOk: { borderColor: ATP_BRAND.lime, backgroundColor: ATP_BRAND.lime },
-  matchBtnBad: { borderColor: '#f87171', backgroundColor: '#f87171' },
+  // V1.5 (B5): presionado debe distinguirse AL INSTANTE. V1.5.2 (#1 re-skin):
+  // fuera el bloque lime sólido — relleno translúcido fuerte + borde grueso
+  // del acento (igual de visible sobre negro, sin brutalist plano).
+  matchBtnPressed: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.35), borderColor: ATP_BRAND.lime, borderWidth: 2 },
+  matchBtnOk: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.35), borderColor: ATP_BRAND.lime, borderWidth: 2 },
+  matchBtnBad: { backgroundColor: withOpacity('#f87171', 0.35), borderColor: '#f87171', borderWidth: 2 },
   matchBtnText: { color: '#fff', fontSize: 12, fontFamily: Fonts.bold, letterSpacing: 2 },
 
   // V1.5: overlay compartido coach tutorial / pausa background.
@@ -617,10 +653,10 @@ const s = StyleSheet.create({
     color: TEXT.secondary, fontSize: FontSizes.md, fontFamily: Fonts.regular,
     lineHeight: 22, marginTop: Spacing.sm,
   },
-  coachBtn: {
-    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.pill,
-    alignItems: 'center', paddingVertical: 13, marginTop: Spacing.lg,
-  },
+  // V1.5.2 (#1): CTA en gradiente molécula (BUTTON_STYLES: gradiente para
+  // superficies, lime sólido solo botones compactos).
+  coachBtn: { borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.lg },
+  coachBtnInner: { alignItems: 'center', paddingVertical: 13 },
   coachBtnText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
 
   resultsWrap: { flex: 1, justifyContent: 'center' },
@@ -650,11 +686,14 @@ const s = StyleSheet.create({
   },
   rewardText: { color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.bold },
 
-  continueBtn: {
-    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.pill,
-    alignItems: 'center', paddingVertical: 14, marginTop: Spacing.lg,
-  },
+  continueBtn: { borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.lg },
+  continueBtnInner: { alignItems: 'center', paddingVertical: 14 },
   continueText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
+  breakdownRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
+  breakdownText: { color: TEXT.tertiary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  breakdownBad: { color: '#f8a5a5' },
+  breakdownSep: { color: TEXT.tertiary, fontSize: FontSizes.xs },
+  breakdownClean: { color: withOpacity(ATP_BRAND.lime, 0.8), fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   endBtn: { alignItems: 'center', paddingVertical: 14 },
   endText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 });

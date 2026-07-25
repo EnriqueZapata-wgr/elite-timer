@@ -15,7 +15,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { localCoverFor, resolveRemoteCoverUrl } from '@/src/components/mente/audio-cover';
 import type { AudioPiece } from '@/src/services/mente-audio-service';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, PILLAR_GRADIENTS, withOpacity } from '@/src/constants/brand';
 
 interface Props {
   piece: AudioPiece;
@@ -28,21 +28,41 @@ function fmtMin(seconds: number): string {
 }
 
 export function AudioPieceCard({ piece, onPress }: Props) {
-  // V1.5.1 (#7): el fallback local es la BASE permanente; la remota entra
-  // encima con fade solo cuando cargó (antes se swapeaba el source y quedaba
-  // blank mientras bajaba; y sin onError las que fallan quedaban vacías).
+  // V1.5.1 (#7): la remota entra encima con fade solo cuando cargó.
+  // V1.5.2 (#3): la BASE ya no es la foto genérica de categoría cuando la pieza
+  // TIENE cover remota — es un gradiente del pilar ("cargando→cargado", no
+  // "foto vieja→foto nueva"). La foto local queda: (a) piezas sin imagen_path
+  // (es SU cover), (b) fallo de red/firma (offline, vía onError).
   const [remoteUri, setRemoteUri] = useState<string | null>(null);
+  const [remoteFailed, setRemoteFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     setRemoteUri(null);
-    resolveRemoteCoverUrl(piece).then(url => { if (alive && url) setRemoteUri(url); });
+    setRemoteFailed(false);
+    resolveRemoteCoverUrl(piece).then(url => {
+      if (!alive) return;
+      if (url) setRemoteUri(url);
+      else if (piece.imagen_path) setRemoteFailed(true); // firma falló → foto local
+    });
     return () => { alive = false; };
   }, [piece.slug]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const usePhotoBase = !piece.imagen_path || remoteFailed;
+
   return (
     <AnimatedPressable onPress={() => onPress(piece)} style={s.card}>
-      <ImageBackground source={localCoverFor(piece)} style={s.image} imageStyle={{ borderRadius: Radius.lg }}>
+      <ImageBackground
+        source={usePhotoBase ? localCoverFor(piece) : undefined}
+        style={s.image}
+        imageStyle={{ borderRadius: Radius.lg }}
+      >
+        {!usePhotoBase && (
+          <LinearGradient
+            colors={[PILLAR_GRADIENTS.mind.start, PILLAR_GRADIENTS.mind.end]}
+            style={[StyleSheet.absoluteFill, { borderRadius: Radius.lg }]}
+          />
+        )}
         {remoteUri && (
           <ExpoImage
             source={{ uri: remoteUri }}
@@ -50,7 +70,7 @@ export function AudioPieceCard({ piece, onPress }: Props) {
             contentFit="cover"
             transition={200}
             cachePolicy="disk"
-            onError={() => setRemoteUri(null)}
+            onError={() => { setRemoteUri(null); setRemoteFailed(true); }}
           />
         )}
         <LinearGradient

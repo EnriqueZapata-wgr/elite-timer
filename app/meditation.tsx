@@ -11,7 +11,7 @@
  * los deep links con meditationId (protocolos) — MEDITATION_LIBRARY sigue
  * intacta como datos para no romper esos links.
  */
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Alert, ScrollView, DeviceEventEmitter } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
@@ -20,7 +20,7 @@ import { useKeepAwake } from 'expo-keep-awake';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
-import { GradientCard } from '@/src/components/ui/GradientCard';
+import { prefetchAudioCovers } from '@/src/components/mente/audio-cover';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useTimer } from '@/hooks/use-timer';
 import { toggleCompletion } from '@/src/services/protocol-service';
@@ -110,6 +110,8 @@ function LibraryScreen({ onSelect, onBack }: {
       if (!alive) return;
       setPieces(all);
       setLoaded(true);
+      // V1.5.2 (#3): calienta firma + disco de expo-image antes del render.
+      prefetchAudioCovers(all);
     });
     return () => { alive = false; };
   }, []);
@@ -134,8 +136,10 @@ function LibraryScreen({ onSelect, onBack }: {
     router.push({ pathname: '/mente/player', params: { slug: piece.slug } });
   }, [isPro, router]);
 
-  // Sin guía: el timer de Silencio 5/10/15/20 se conserva (A2).
-  const silence = useMemo(() => MEDITATION_LIBRARY.filter(m => m.type === 'silence'), []);
+  // V1.5.2 (#5): piezas "Silencio 5/10/15/20" RETIRADAS de la audioteca —
+  // timers legacy superados por el contenido real. El código (silenceSession en
+  // meditation-library + PhasedTimerScreen) se conserva; revive re-agregando la
+  // sección aquí si algún día vuelve.
   const favoritas = pieces.filter(p => favorites.has(p.slug));
   const guiadas = pieces.filter(p => p.categoria === 'meditacion');
   const visualizacion = pieces.filter(p => p.categoria === 'visualizacion');
@@ -156,7 +160,7 @@ function LibraryScreen({ onSelect, onBack }: {
           image={HERO_MENTE}
           kicker="PILAR MENTE"
           title="Meditación"
-          subtitle="Guiadas · visualización · mantras · descanso · silencio"
+          subtitle="Guiadas · visualización · mantras · descanso"
         />
 
         <View style={styles.libBody}>
@@ -239,21 +243,7 @@ function LibraryScreen({ onSelect, onBack }: {
             </>
           )}
 
-          <EliteText style={styles.libSection}>SIN GUÍA · SILENCIO</EliteText>
-          {silence.map(m => (
-            <GradientCard key={m.id} color={PURPLE} onPress={() => { haptic.light(); onSelect(m); }} style={styles.libCard}>
-              <View style={styles.libCardBody}>
-                <View style={styles.libCardInfo}>
-                  <EliteText variant="body" style={styles.libCardTitle}>{m.title}</EliteText>
-                  <EliteText variant="caption" style={styles.libCardDesc}>{m.description}</EliteText>
-                </View>
-                <View style={styles.libCardRight}>
-                  <EliteText style={styles.libCardDuration}>{m.durationMinutes}</EliteText>
-                  <EliteText variant="caption" style={styles.libCardMin}>min</EliteText>
-                </View>
-              </View>
-            </GradientCard>
-          ))}
+          {/* V1.5.2 (#5): sección "SIN GUÍA · SILENCIO" retirada (ver arriba). */}
 
           {/* Ajuste 1: las últimas sesiones viven DENTRO de la sección. */}
           <MenteRecentSessions type="meditation" fallbackLabel="Meditación" />

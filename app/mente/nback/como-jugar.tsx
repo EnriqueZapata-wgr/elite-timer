@@ -11,6 +11,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInRight } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
@@ -103,8 +104,10 @@ export default function NBackComoJugarScreen() {
           </View>
 
           <AnimatedPressable style={s.startBtn} onPress={advance}>
-            {last && <Ionicons name="play" size={18} color="#000" />}
-            <EliteText style={s.startText}>{last ? 'EMPEZAR' : 'ENTENDIDO'}</EliteText>
+            <LinearGradient colors={ATP_BRAND.moleculeGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.startBtnInner}>
+              {last && <Ionicons name="play" size={18} color="#000" />}
+              <EliteText style={s.startText}>{last ? 'EMPEZAR' : 'ENTENDIDO'}</EliteText>
+            </LinearGradient>
           </AnimatedPressable>
           {idx > 0 && (
             <AnimatedPressable
@@ -156,10 +159,11 @@ const s = StyleSheet.create({
   backStepBtn: { alignItems: 'center', paddingVertical: 12 },
   backStepText: { color: TEXT.secondary, fontSize: FontSizes.sm, fontFamily: Fonts.semiBold },
 
-  startBtn: {
+  // V1.5.2 (#1): CTA en gradiente molécula (fuera lime plano full-width)
+  startBtn: { borderRadius: Radius.pill, overflow: 'hidden', marginTop: Spacing.md },
+  startBtnInner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.pill,
-    paddingVertical: 14, marginTop: Spacing.md,
+    paddingVertical: 14,
   },
   startText: { color: '#000', fontSize: FontSizes.sm, fontFamily: Fonts.bold, letterSpacing: 2 },
   startHint: {
