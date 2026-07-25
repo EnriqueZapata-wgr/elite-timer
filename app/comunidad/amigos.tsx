@@ -154,6 +154,18 @@ export default function CommunityFriendsScreen() {
         </Animated.View>
       </View>
 
+      {/* MB-4 Bloque 4: ánimo compartido de tu gente (opt-in, sin ranking) */}
+      <Animated.View entering={FadeInUp.delay(70).springify()}>
+        <Pressable style={s.animoLink} onPress={() => { haptic.light(); router.push('/comunidad/animo'); }}>
+          <Ionicons name="pulse-outline" size={16} color={ATP_BRAND.teal} />
+          <View style={{ flex: 1 }}>
+            <EliteText style={s.animoTitle}>Ánimo de tu gente</EliteText>
+            <EliteText style={s.animoSub}>Lo que tus amigos eligieron compartir</EliteText>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={TEXT.secondary} />
+        </Pressable>
+      </Animated.View>
+
       {/* ── Solicitudes recibidas ── */}
       {incoming.length > 0 && (
         <Animated.View entering={FadeInUp.delay(90).springify()}>
@@ -240,4 +252,14 @@ const s = StyleSheet.create({
     marginTop: Spacing.md, paddingVertical: 10,
   },
   searchLinkText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime },
+
+  // MB-4 Bloque 4: acceso al ánimo compartido
+  animoLink: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card,
+    borderWidth: 0.5, borderColor: ELEVATION[1].border,
+    padding: Spacing.md, marginBottom: Spacing.md,
+  },
+  animoTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
+  animoSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: TEXT.secondary, marginTop: 1 },
 });

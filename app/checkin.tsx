@@ -18,6 +18,7 @@ import {
 import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/EmotionMap2D';
 import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
+import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
 import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
@@ -67,6 +68,11 @@ export default function CheckinScreen() {
   const [showTribeBridge, setShowTribeBridge] = useState(false);
   // MB-4 Bloque 2: invitación a navegar tras el cierre. Un "no" la quita y no se insiste.
   const [navDeclined, setNavDeclined] = useState(false);
+  // MB-4 Bloque 4: compartir es OPT-IN explícito por check-in. Nunca por defecto.
+  const [savedCheckinId, setSavedCheckinId] = useState<string | null>(null);
+  const [shareIncludeEmotion, setShareIncludeEmotion] = useState(false);
+  const [sharedId, setSharedId] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
   const dailyPrompt = promptForDate(getLocalToday());
 
   // #21: racha viva visible AL ENTRAR (no solo tras guardar). Mismo query que handleSave (DRY).
@@ -160,6 +166,29 @@ export default function CheckinScreen() {
     handleMapEmotionPress(e);
   };
 
+  // MB-4 Bloque 4: compartir este check-in con tu gente (opt-in explícito).
+  const handleShare = async () => {
+    if (!quadrant || sharing) return;
+    haptic.medium();
+    setSharing(true);
+    const firstEmotion = EMOTIONS.find(e => e.id === selectedEmotions[0]);
+    const id = await shareMood({
+      checkinId: savedCheckinId,
+      quadrant,
+      emotionLabel: firstEmotion?.label ?? null,
+      includeEmotion: shareIncludeEmotion,
+    });
+    setSharing(false);
+    if (id) setSharedId(id);
+  };
+
+  const handleUnshare = async () => {
+    if (!sharedId) return;
+    haptic.light();
+    const ok = await unshareMood(sharedId);
+    if (ok) setSharedId(null);
+  };
+
   // Glow ambiental: el color de la emoción activa tiñe el fondo de la pantalla.
   const activeEmotion = selectedEmotions.length > 0
     ? EMOTIONS.find(e => e.id === selectedEmotions[selectedEmotions.length - 1])
@@ -182,7 +211,7 @@ export default function CheckinScreen() {
           .filter((e): e is Emotion => !!e)
           .map(e => ({ energy: e.energy, intensity: e.intensity })),
       );
-      await saveCheckin({
+      const newCheckinId = await saveCheckin({
         quadrant,
         emotions: selectedEmotions,
         energy_level: axes.energy_level,
@@ -192,6 +221,8 @@ export default function CheckinScreen() {
         context_doing: ctxDoing ?? undefined,
         note: note.trim() || undefined,
       });
+      // MB-4 Bloque 4: el id habilita el share opt-in del cierre.
+      setSavedCheckinId(newCheckinId);
       if (params.protocolItemId) {
         try { await toggleCompletion(params.protocolItemId); } catch (e) { logWarn('[checkin] toggleCompletion failed', e); }
       }
@@ -302,6 +333,49 @@ export default function CheckinScreen() {
               </View>
             </Animated.View>
           )}
+          {/* MB-4 Bloque 4: compartir con tu gente — opt-in explícito y granular
+              POR check-in. Nunca por defecto; se puede retirar. */}
+          <Animated.View entering={FadeIn.delay(550).duration(400)} style={styles.shareCard}>
+            {sharedId ? (
+              <>
+                <EliteText variant="caption" style={styles.shareDone}>
+                  Compartido con tu gente ✓
+                </EliteText>
+                <Pressable onPress={handleUnshare} hitSlop={8}>
+                  <EliteText variant="caption" style={styles.shareUndo}>Dejar de compartir</EliteText>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <EliteText variant="caption" style={styles.shareTitle}>
+                  ¿Compartir cómo estás con tu gente?
+                </EliteText>
+                <EliteText variant="caption" style={styles.shareSub}>
+                  Solo tus amigos de ATP lo ven. Nada se comparte solo.
+                </EliteText>
+                <Pressable
+                  onPress={() => { haptic.light(); setShareIncludeEmotion(v => !v); }}
+                  style={styles.shareToggleRow}
+                  hitSlop={6}
+                >
+                  <View style={[styles.shareCheck, shareIncludeEmotion && { backgroundColor: qColor, borderColor: qColor }]} />
+                  <EliteText variant="caption" style={styles.shareToggleText}>
+                    Incluir la emoción (si no, solo la zona)
+                  </EliteText>
+                </Pressable>
+                <Pressable
+                  onPress={handleShare}
+                  disabled={sharing}
+                  style={[styles.shareBtn, { borderColor: qColor + '50' }, sharing && { opacity: 0.5 }]}
+                >
+                  <EliteText variant="caption" style={[styles.shareBtnText, { color: qColor }]}>
+                    {sharing ? 'Compartiendo…' : 'Compartir'}
+                  </EliteText>
+                </Pressable>
+              </>
+            )}
+          </Animated.View>
+
           {/* C5 COMUNIDAD: mood bajo sostenido → puente cálido a la Tribu (Skool) */}
           {showTribeBridge && (
             <Animated.View entering={FadeIn.delay(600).duration(500)} style={styles.tribeCard}>
@@ -822,6 +896,28 @@ const styles = StyleSheet.create({
   navInviteNoText: { color: Colors.textSecondary, fontSize: FontSizes.md },
   navInviteYes: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: Radius.pill },
   navInviteYesText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.md, letterSpacing: 1 },
+
+  // MB-4 Bloque 4: compartir con tu gente (opt-in)
+  shareCard: {
+    alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs,
+    marginHorizontal: Spacing.lg, padding: Spacing.md,
+    backgroundColor: SURFACES.card, borderRadius: Radius.md,
+    borderWidth: 0.5, borderColor: SURFACES.border,
+  },
+  shareTitle: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md, textAlign: 'center' },
+  shareSub: { color: Colors.textSecondary, fontSize: FontSizes.sm, textAlign: 'center' },
+  shareToggleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.xs },
+  shareCheck: {
+    width: 16, height: 16, borderRadius: 4, borderWidth: 1.5, borderColor: SURFACES.disabled,
+  },
+  shareToggleText: { color: Colors.textSecondary, fontSize: FontSizes.sm },
+  shareBtn: {
+    borderWidth: 1, borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, marginTop: Spacing.xs,
+  },
+  shareBtnText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  shareDone: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  shareUndo: { color: Colors.textSecondary, fontSize: FontSizes.sm },
 
   // C5 COMUNIDAD: puente a la Tribu (mood bajo sostenido)
   tribeCard: {

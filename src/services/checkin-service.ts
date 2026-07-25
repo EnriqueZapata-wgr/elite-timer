@@ -35,13 +35,19 @@ export interface CheckinRecord {
   created_at: string;
 }
 
-export async function saveCheckin(data: CheckinData): Promise<void> {
+/**
+ * Guarda el check-in y devuelve su id (MB-4 Bloque 4: el share opt-in del
+ * cierre lo necesita para ligar mood_shares.checkin_id — cascada de borrado).
+ */
+export async function saveCheckin(data: CheckinData): Promise<string | null> {
   const user = await getAuthenticatedUser();
-  const { error } = await supabase.from('emotional_checkins').insert({
-    user_id: user.id,
-    ...data,
-  });
+  const { data: row, error } = await supabase
+    .from('emotional_checkins')
+    .insert({ user_id: user.id, ...data })
+    .select('id')
+    .single();
   if (error) throw error;
+  return row?.id ?? null;
 }
 
 export async function getTodayCheckins(): Promise<CheckinRecord[]> {
