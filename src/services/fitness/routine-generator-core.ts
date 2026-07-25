@@ -13,9 +13,11 @@
 import {
   equipoDisponible,
   emomPermitido,
+  musculosPrincipalesDe,
   NIVEL_EJERCICIO_RANK,
   NIVEL_USUARIO_RANK,
   GRUPOS_MUSCULARES,
+  EQUIPO_CON_UNIDADES,
   type MatrixExercise,
   type NivelUsuario,
   type MetodoATP,
@@ -53,6 +55,14 @@ export interface GeneratorInput {
   slugsRecientes?: string[];
   /** Si ayer fue sesión pesada, hoy sesga a metabólico/sarcomérico. */
   ayerFuePesado?: boolean;
+  /**
+   * Candado de cantidad (MB-3.5 #11): cuántas piezas declaró el usuario por
+   * token con unidades (Mancuerna/Kettlebell). Sin declarar = 'par' (no
+   * restringe — comportamiento previo).
+   */
+  equipoUnidades?: Partial<Record<string, '1' | 'par'>>;
+  /** Ejercicios vetados a mano en Explorar (MB-3.5 #5) — filtro duro extra. */
+  slugsExcluidos?: string[];
 }
 
 export type SlotKey =
@@ -65,7 +75,9 @@ export type SlotKey =
 export interface RoutineBlock {
   slug: string;
   nombre: string;
+  /** Clip mp4 en loop (o null); el runner lo muestra grande con posterUrl de placeholder. */
   mediaUrl: string | null;
+  posterUrl: string | null;
   slot: SlotKey;
   /** Método ejecutable asignado (subset con ejecutor en código). */
   metodo: Extract<MetodoATP, 'Estándar' | '3-5' | 'EMOM Auto' | 'Myo-reps'>;
@@ -175,31 +187,58 @@ function matchEnfoque(ex: MatrixExercise, enfoque: Enfoque): boolean {
     return PATRONES_ENFOQUE[enfoque.enfoque].includes(ex.patron);
   }
   // Bro-split: el ejercicio impacta alguno de los músculos elegidos
-  // (principal o secundarios, vía grupos del eje 4).
+  // (principal o secundarios, vía grupos del eje 4). El principal puede ser
+  // compuesto ("Cuádriceps, Glúteo") — matchea cualquiera de sus partes.
+  const principales = musculosPrincipalesDe(ex.musculoPrincipal);
   return enfoque.musculos.some((grupo) => {
     const miembros = GRUPOS_MUSCULARES[grupo] ?? [grupo];
-    if (miembros.includes(ex.musculoPrincipal)) return true;
+    if (principales.some((p) => miembros.includes(p))) return true;
     return ex.secundarios.some((sec) => miembros.some((m) => sec.startsWith(m)));
   });
 }
 
-/** Rank de nivel de usuario acotado al rank máximo de ejercicio (Avanzado=2). */
+/** Rank de nivel de usuario mapeado al rank de ejercicio (atleta ve filas Atleta). */
 function rankUsuarioComoEjercicio(nivel: NivelUsuario): number {
-  return Math.min(NIVEL_USUARIO_RANK[nivel], 2);
+  return NIVEL_USUARIO_RANK[nivel];
 }
 
 /**
- * Filtros duros del Akinator: enfoque → equipo → contraindicaciones → nivel →
- * senior. La sustitución por contraindicación/equipo emerge sola: al excluir
- * una variante, sobrevive otra de la MISMA familia que sí pasa los filtros.
+ * Candado de cantidad (MB-3.5 #11): un ejercicio con unidades_equipo='par' es
+ * ejecutable solo si alguna alternativa de equipo que el usuario TIENE no está
+ * declarada como '1'. (El bug del "1 kettlebell": thrusters bilaterales fuera.)
+ */
+export function unidadesDisponibles(
+  ex: Pick<MatrixExercise, 'unidadesEquipo' | 'equipoRequisitos'>,
+  equipoSet: ReadonlySet<string>,
+  unidades: Partial<Record<string, '1' | 'par'>> | undefined,
+): boolean {
+  if (ex.unidadesEquipo !== 'par' || !unidades) return true;
+  return ex.equipoRequisitos.every((grupo) =>
+    grupo.some((tok) => {
+      if (tok === 'Peso corporal') return true;
+      if (!equipoSet.has(tok)) return false;
+      if ((EQUIPO_CON_UNIDADES as readonly string[]).includes(tok) && unidades[tok] === '1') return false;
+      return true;
+    }),
+  );
+}
+
+/**
+ * Filtros duros del Akinator: enfoque → equipo (+unidades) → contraindicaciones
+ * → nivel → senior → vetos manuales. La sustitución por contraindicación/equipo
+ * emerge sola: al excluir una variante, sobrevive otra de la MISMA familia que
+ * sí pasa los filtros.
  */
 export function filtrarPool(input: GeneratorInput): MatrixExercise[] {
   const equipoSet = new Set(input.equipo);
   const flags = new Set(input.contraindicaciones);
+  const excluidos = new Set(input.slugsExcluidos ?? []);
   const rankMax = rankUsuarioComoEjercicio(input.nivel);
   return input.catalogo.filter((ex) => {
+    if (excluidos.has(ex.slug)) return false;
     if (ex.patron !== 'Estiramiento' && !matchEnfoque(ex, input.enfoque)) return false;
     if (!equipoDisponible(ex.equipo, equipoSet)) return false;
+    if (!unidadesDisponibles(ex, equipoSet, input.equipoUnidades)) return false;
     if (ex.contraindicaciones.some((c) => flags.has(c))) return false;
     if (NIVEL_EJERCICIO_RANK[ex.nivel] > rankMax) return false;
     if (input.senior && !ex.seniorApto) return false;
@@ -269,6 +308,7 @@ function construirBloque(ex: MatrixExercise, slot: SlotKey, nivel: NivelUsuario)
     slug: ex.slug,
     nombre: ex.nombre,
     mediaUrl: ex.mediaUrl,
+    posterUrl: ex.posterUrl,
     slot,
     metodo: asignarMetodo(ex, slot, nivel),
     series: p.series,

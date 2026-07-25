@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { EliteText } from '@/components/elite-text';
 import { EliteToggle } from '@/components/elite-toggle';
-import { useSettings, type VoiceLanguage, type SoundStyle } from '@/src/contexts/settings-context';
+import { useSettings, type VoiceLanguage, type SoundStyle, type FitnessVoiceMode } from '@/src/contexts/settings-context';
 import { loadSoundPref, setSoundEnabled as persistSoundPref } from '@/src/components/edad-atp/edad-sound';
 import { speak } from '@/src/utils/speech';
 import { playBeep, initAudio, setSoundStyle } from '@/src/utils/sounds';
@@ -23,6 +23,13 @@ import { Colors, Spacing, Radius } from '@/constants/theme';
 const LANGUAGES: { value: VoiceLanguage; label: string }[] = [
   { value: 'es-MX', label: 'Español (MX)' },
   { value: 'en-US', label: 'English (US)' },
+];
+
+// MB-3.5 #6: voz de los métodos/runner de Fitness — opcional, no se quita.
+const FITNESS_VOICE_MODES: { value: FitnessVoiceMode; label: string }[] = [
+  { value: 'todo', label: 'Todo' },
+  { value: 'hitos', label: 'Solo hitos' },
+  { value: 'off', label: 'Apagada' },
 ];
 
 const SOUND_STYLES: { value: SoundStyle; label: string }[] = [
@@ -87,6 +94,21 @@ export default function SettingsExperienciaScreen() {
             value={settings.countdownSpoken}
             onValueChange={v => { haptic.light(); updateSetting('countdownSpoken', v); }}
           />
+          {settings.voiceEnabled && (
+            <>
+              <EliteText variant="caption" style={ui.chipLabel}>VOZ EN FITNESS (MÉTODOS Y SESIÓN)</EliteText>
+              <View style={ui.chipRow}>
+                {FITNESS_VOICE_MODES.map(mode => (
+                  <Chip
+                    key={mode.value}
+                    label={mode.label}
+                    selected={settings.fitnessVoice === mode.value}
+                    onPress={() => { haptic.light(); updateSetting('fitnessVoice', mode.value); }}
+                  />
+                ))}
+              </View>
+            </>
+          )}
           <Divider />
         </Animated.View>
 

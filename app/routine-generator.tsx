@@ -38,6 +38,7 @@ import {
   GRUPOS_MUSCULARES,
   CONTRAINDICACIONES,
   NIVELES_USUARIO,
+  EQUIPO_CON_UNIDADES,
   type MatrixExercise,
   type NivelUsuario,
 } from '@/src/constants/exercise-matrix';
@@ -109,22 +110,37 @@ export default function RoutineGeneratorScreen() {
 
   const [puerta, setPuerta] = useState<'auto' | 'explorar'>('auto');
   const [catalogo, setCatalogo] = useState<MatrixExercise[]>([]);
+  // MB-3.5 #4: el catálogo con estado explícito — sin él, el CTA quedaba
+  // "apagado" (opacity 0.4) para siempre si la red fallaba, sin explicación.
+  const [catalogoError, setCatalogoError] = useState(false);
   const [objetivo, setObjetivo] = useState<Objetivo>('hipertrofia');
   const [enfoque, setEnfoque] = useState<EnfoquePatron>('full_body');
   const [broSplit, setBroSplit] = useState(false);
   const [musculos, setMusculos] = useState<string[]>([]);
   const [equipo, setEquipo] = useState<string[]>(['Mancuerna']);
+  // MB-3.5 #11: candado de cantidad — cuántas mancuernas/KB tiene (1 o par).
+  const [unidades, setUnidades] = useState<Partial<Record<string, '1' | 'par'>>>({});
   const [nivel, setNivel] = useState<NivelUsuario>('intermedio');
   const [senior, setSenior] = useState(false);
   const [tiempoMin, setTiempoMin] = useState(45);
   const [flags, setFlags] = useState<string[]>([]);
   const [regen, setRegen] = useState(0);
+  // MB-3.5 #5: ejercicios vetados a mano en Explorar (alimentan el generado).
+  const [excluidos, setExcluidos] = useState<Set<string>>(new Set());
   const [contexto, setContexto] = useState<{ ayerPesado: boolean; recientes: string[] }>({ ayerPesado: false, recientes: [] });
   const [rutina, setRutina] = useState<GeneratedRoutine | null>(null);
 
+  function cargarCatalogo() {
+    setCatalogoError(false);
+    getExerciseMatrix().then((all) => {
+      setCatalogo(all);
+      setCatalogoError(all.length === 0);
+    });
+  }
+
   // Catálogo + prefs persistidas + contexto de rotación.
   useEffect(() => {
-    getExerciseMatrix().then(setCatalogo);
+    cargarCatalogo();
     AsyncStorage.getItem(PREFS_KEY).then((raw) => {
       if (!raw) return;
       try {
@@ -134,6 +150,7 @@ export default function RoutineGeneratorScreen() {
         if (typeof p.senior === 'boolean') setSenior(p.senior);
         if (typeof p.tiempoMin === 'number') setTiempoMin(p.tiempoMin);
         if (Array.isArray(p.flags)) setFlags(p.flags);
+        if (p.unidades && typeof p.unidades === 'object') setUnidades(p.unidades);
       } catch { /* prefs corruptas → defaults */ }
     });
     if (user) {
@@ -142,10 +159,10 @@ export default function RoutineGeneratorScreen() {
     }
   }, [user]);
 
-  // Persistir prefs (equipo/nivel/senior/tiempo/flags — lo que no cambia a diario).
+  // Persistir prefs (equipo/nivel/senior/tiempo/flags/unidades — lo que no cambia a diario).
   useEffect(() => {
-    AsyncStorage.setItem(PREFS_KEY, JSON.stringify({ equipo, nivel, senior, tiempoMin, flags })).catch(() => {});
-  }, [equipo, nivel, senior, tiempoMin, flags]);
+    AsyncStorage.setItem(PREFS_KEY, JSON.stringify({ equipo, nivel, senior, tiempoMin, flags, unidades })).catch(() => {});
+  }, [equipo, nivel, senior, tiempoMin, flags, unidades]);
 
   const input = useMemo((): GeneratorInput | null => {
     if (catalogo.length === 0) return null;
@@ -156,6 +173,7 @@ export default function RoutineGeneratorScreen() {
         ? { kind: 'musculos', musculos }
         : { kind: 'patron', enfoque },
       equipo,
+      equipoUnidades: unidades,
       nivel,
       senior,
       tiempoMin,
@@ -164,15 +182,31 @@ export default function RoutineGeneratorScreen() {
       slugsRecientes: contexto.recientes,
       ayerFuePesado: contexto.ayerPesado,
     };
-  }, [catalogo, objetivo, enfoque, broSplit, musculos, equipo, nivel, senior, tiempoMin, flags, user, regen, contexto]);
+  }, [catalogo, objetivo, enfoque, broSplit, musculos, equipo, unidades, nivel, senior, tiempoMin, flags, user, regen, contexto]);
 
   // Akinator: el pool encogiéndose EN VIVO con los filtros actuales.
+  // (SIN los vetos manuales — así el usuario puede re-incluir lo vetado.)
   const pool = useMemo(() => (input ? filtrarPool(input) : []), [input]);
+  const poolEjecutable = useMemo(
+    () => pool.filter((e) => e.patron !== 'Estiramiento'),
+    [pool],
+  );
+  const activos = poolEjecutable.filter((e) => !excluidos.has(e.slug)).length;
 
   function generar() {
     if (!input) return;
     haptic.medium();
-    setRutina(generarRutina(input));
+    // Los vetos de Explorar alimentan el generado como filtro duro extra.
+    setRutina(generarRutina({ ...input, slugsExcluidos: [...excluidos] }));
+  }
+
+  function toggleExcluido(slug: string) {
+    haptic.light();
+    setExcluidos((prev) => {
+      const next = new Set(prev);
+      if (next.has(slug)) next.delete(slug); else next.add(slug);
+      return next;
+    });
   }
 
   function empezar() {
@@ -205,8 +239,11 @@ export default function RoutineGeneratorScreen() {
         {/* Contador de pool (corazón del modo Explorar, visible siempre en él) */}
         {puerta === 'explorar' && (
           <Animated.View entering={FadeInDown.duration(250)} style={s.poolCard}>
-            <Text style={s.poolCount}>{pool.filter((e) => e.patron !== 'Estiramiento').length}</Text>
-            <Text style={s.poolLabel}>ejercicios ejecutables con tus filtros</Text>
+            <Text style={s.poolCount}>{activos}</Text>
+            <Text style={s.poolLabel}>
+              ejercicios ejecutables con tus filtros
+              {excluidos.size > 0 ? ` (${excluidos.size} vetado${excluidos.size === 1 ? '' : 's'} por ti)` : ''}
+            </Text>
           </Animated.View>
         )}
 
@@ -243,6 +280,17 @@ export default function RoutineGeneratorScreen() {
           ))}
         </View>
 
+        {/* Candado de cantidad (MB-3.5 #11): ¿1 pieza o par? Filtro duro del motor. */}
+        {EQUIPO_CON_UNIDADES.filter((t) => equipo.includes(t)).map((t) => (
+          <View key={t} style={s.unidadesRow}>
+            <Text style={s.unidadesLabel}>{t === 'Mancuerna' ? 'Mancuernas' : 'Kettlebells'}: ¿cuántas tienes?</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Chip label="Solo 1" active={unidades[t] === '1'} onPress={() => setUnidades((u) => ({ ...u, [t]: '1' }))} />
+              <Chip label="Par" active={(unidades[t] ?? 'par') === 'par'} onPress={() => setUnidades((u) => ({ ...u, [t]: 'par' }))} />
+            </View>
+          </View>
+        ))}
+
         {/* Tiempo */}
         <Text style={s.sectionLabel}>TIEMPO</Text>
         <View style={s.timeRow}>
@@ -275,31 +323,52 @@ export default function RoutineGeneratorScreen() {
           ))}
         </View>
 
-        {/* Pool en Explorar: lista viva (se encoge con cada filtro) */}
-        {puerta === 'explorar' && pool.length > 0 && (
+        {/* Pool en Explorar (MB-3.5 #5): lista COMPLETA, cada ejercicio se puede
+            vetar/re-incluir con estado visible — la selección alimenta el generado. */}
+        {puerta === 'explorar' && poolEjecutable.length > 0 && (
           <View style={{ marginTop: Spacing.md }}>
-            <Text style={s.sectionLabel}>EL POOL</Text>
-            {pool.filter((e) => e.patron !== 'Estiramiento').slice(0, 12).map((e) => (
-              <View key={e.slug} style={s.poolRow}>
-                <Text style={s.poolRowName} numberOfLines={1}>{e.nombre}</Text>
-                <Text style={s.poolRowMeta}>{e.musculoPrincipal}</Text>
-              </View>
-            ))}
-            {pool.filter((e) => e.patron !== 'Estiramiento').length > 12 && (
-              <Text style={s.poolMore}>… y {pool.filter((e) => e.patron !== 'Estiramiento').length - 12} más</Text>
-            )}
+            <Text style={s.sectionLabel}>EL POOL · TOCA PARA VETAR / INCLUIR</Text>
+            {poolEjecutable.map((e) => {
+              const vetado = excluidos.has(e.slug);
+              return (
+                <AnimatedPressable key={e.slug} onPress={() => toggleExcluido(e.slug)} style={s.poolRow}>
+                  <Ionicons
+                    name={vetado ? 'close-circle' : 'checkmark-circle'}
+                    size={18}
+                    color={vetado ? TEXT.tertiary : ATP_BRAND.lime}
+                  />
+                  <Text style={[s.poolRowName, vetado && s.poolRowNameVetado]} numberOfLines={1}>{e.nombre}</Text>
+                  <Text style={s.poolRowMeta}>{e.musculoPrincipal}</Text>
+                </AnimatedPressable>
+              );
+            })}
           </View>
         )}
 
-        {/* Generar */}
+        {/* Generar — con estado explícito del catálogo (MB-3.5 #4: nada de CTA
+            "apagado" sin explicación si la red falló). */}
         <View style={{ marginTop: Spacing.xl }}>
-          <GradientCTA
-            label={rutina ? 'GENERAR OTRA' : 'GENERAR'}
-            pillar="fitness"
-            icon="flash"
-            disabled={!input}
-            onPress={() => { setRegen((r) => (rutina ? r + 1 : r)); generar(); }}
-          />
+          {catalogoError ? (
+            <View style={s.avisoCard}>
+              <Ionicons name="cloud-offline-outline" size={16} color={ATP_BRAND.teal} />
+              <Text style={s.avisoText}>No se pudo cargar el catálogo de ejercicios.</Text>
+              <AnimatedPressable onPress={() => { haptic.light(); cargarCatalogo(); }}>
+                <Text style={s.retryText}>Reintentar</Text>
+              </AnimatedPressable>
+            </View>
+          ) : catalogo.length === 0 ? (
+            <View style={s.avisoCard}>
+              <Ionicons name="hourglass-outline" size={16} color={ATP_BRAND.teal} />
+              <Text style={s.avisoText}>Cargando catálogo de ejercicios…</Text>
+            </View>
+          ) : (
+            <GradientCTA
+              label={rutina ? 'GENERAR OTRA' : 'GENERAR'}
+              pillar="fitness"
+              icon="flash"
+              onPress={() => { setRegen((r) => (rutina ? r + 1 : r)); generar(); }}
+            />
+          )}
         </View>
 
         {/* Preview de la rutina */}
@@ -337,6 +406,15 @@ export default function RoutineGeneratorScreen() {
                 <View style={{ marginTop: Spacing.md }}>
                   <GradientCTA label="EMPEZAR SESIÓN" pillar="fitness" icon="play" onPress={empezar} />
                 </View>
+                {/* ARGOS ENCIMA, no al lado (MB-3.5 #7): el algoritmo arma el
+                    esqueleto gratis; ARGOS personaliza/explica como capa premium. */}
+                <GradientCTA
+                  label="ARGOS, AJÚSTALA"
+                  variant="quiet"
+                  icon="sparkles-outline"
+                  onPress={() => { haptic.light(); router.push('/argos-routine'); }}
+                  style={{ marginTop: Spacing.xs }}
+                />
               </>
             )}
           </Animated.View>
@@ -364,12 +442,19 @@ const s = StyleSheet.create({
   poolCount: { color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: 40, fontVariant: ['tabular-nums'] },
   poolLabel: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12 },
   poolRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    flexDirection: 'row', alignItems: 'center',
     paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: ELEVATION[1].border, gap: Spacing.sm,
   },
   poolRowName: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13, flex: 1 },
+  poolRowNameVetado: { color: TEXT.tertiary, textDecorationLine: 'line-through' },
   poolRowMeta: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 11 },
-  poolMore: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 12, marginTop: 6 },
+
+  unidadesRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    gap: Spacing.sm, marginTop: Spacing.sm, flexWrap: 'wrap',
+  },
+  unidadesLabel: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 13 },
+  retryText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: 13 },
 
   sectionLabel: {
     color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 2,

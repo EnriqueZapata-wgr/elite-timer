@@ -14,7 +14,6 @@ import { View, Text, ScrollView, StyleSheet, TextInput, Alert, DeviceEventEmitte
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Screen } from '@/src/components/ui/Screen';
@@ -27,7 +26,9 @@ import { EMOMAuto } from '@/src/components/training/EMOMAuto';
 import { MyoReps } from '@/src/components/training/MyoReps';
 import { RestTimer } from '@/src/components/training/RestTimer';
 import { KeepAwakeActive } from '@/src/components/training/KeepAwakeActive';
+import { ExerciseClip } from '@/src/components/training/ExerciseClip';
 import { useMethodVoice } from '@/src/hooks/useMethodVoice';
+import { useSettings, type FitnessVoiceMode } from '@/src/contexts/settings-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { awardBooleanElectron } from '@/src/services/electron-service';
@@ -35,6 +36,7 @@ import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-servic
 import { saveWorkoutSession, type SaveSessionResult } from '@/src/services/fitness/workout-session-service';
 import type { SessionSet } from '@/src/services/fitness/workout-session-core';
 import type { GeneratedRoutine, RoutineBlock } from '@/src/services/fitness/routine-generator-core';
+import { clipDe, posterDe } from '@/src/constants/exercise-matrix';
 import { ATP_BRAND, TEXT, ELEVATION, PILLAR_GRADIENTS, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
@@ -147,11 +149,18 @@ function StandardBlockRunner({ block, onCue, onDone }: {
 
 // ── Pantalla ──
 
+// MB-3.5 #6: toggle rápido de voz de Fitness (todo → solo hitos → apagada).
+const VOZ_CICLO: Record<FitnessVoiceMode, FitnessVoiceMode> = { todo: 'hitos', hitos: 'off', off: 'todo' };
+const VOZ_ICONO: Record<FitnessVoiceMode, 'volume-high' | 'volume-low' | 'volume-mute'> = {
+  todo: 'volume-high', hitos: 'volume-low', off: 'volume-mute',
+};
+
 export default function StrengthSessionScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ plan?: string; slugs?: string; name?: string }>();
   const { user } = useAuth();
   const { cue } = useMethodVoice();
+  const { settings, updateSetting } = useSettings();
 
   const plan = useMemo((): GeneratedRoutine | null => {
     if (!params.plan) return null;
@@ -180,6 +189,7 @@ export default function StrengthSessionScreen() {
           slug: ex.slug,
           nombre: ex.nombre,
           mediaUrl: ex.mediaUrl,
+          posterUrl: ex.posterUrl,
           slot: 'multi_sarcomerico',
           metodo: 'Estándar',
           series: 3,
@@ -207,9 +217,9 @@ export default function StrengthSessionScreen() {
     anunciadoRef.current = idx;
     const unidad = actual.esIsometrico ? 'segundos' : 'repeticiones';
     if (actual.metodo === 'Estándar') {
-      cue(`Ejercicio ${idx + 1}: ${actual.nombre}. ${actual.series} series de ${actual.reps} ${unidad}.`);
+      cue(`Ejercicio ${idx + 1}: ${actual.nombre}. ${actual.series} series de ${actual.reps} ${unidad}.`, { hito: true });
     } else {
-      cue(`Ejercicio ${idx + 1}: ${actual.nombre}. Método ${actual.metodo}.`);
+      cue(`Ejercicio ${idx + 1}: ${actual.nombre}. Método ${actual.metodo}.`, { hito: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, actual]);
@@ -276,7 +286,7 @@ export default function StrengthSessionScreen() {
       try { await awardBooleanElectron(user.id, 'strength'); } catch { /* fail-soft */ }
       DeviceEventEmitter.emit('electrons_changed');
       DeviceEventEmitter.emit('day_changed');
-      cue('Sesión completada.');
+      cue('Sesión completada.', { hito: true });
     }
     setSaving(false);
     setResultado(res);
@@ -298,7 +308,7 @@ export default function StrengthSessionScreen() {
         <ConfettiCelebration visible={celebrar} />
         <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
           <Animated.View entering={FadeInDown.duration(300)}>
-            <LinearGradient colors={PILLAR_GRADIENTS.fitness as unknown as [string, string]} style={s.summaryHero}>
+            <LinearGradient colors={[PILLAR_GRADIENTS.fitness.start, PILLAR_GRADIENTS.fitness.end]} style={s.summaryHero}>
               <Text style={s.summaryTitle}>ENTRENAMIENTO REGISTRADO</Text>
               <View style={s.statsGrid}>
                 <View style={s.statCell}>
@@ -411,6 +421,15 @@ export default function StrengthSessionScreen() {
             { text: 'Salir', style: 'destructive', onPress: () => router.back() },
           ]);
         }}
+        rightAction={
+          <AnimatedPressable
+            hitSlop={8}
+            onPress={() => { haptic.light(); updateSetting('fitnessVoice', VOZ_CICLO[settings.fitnessVoice]); }}
+            style={s.voiceBtn}
+          >
+            <Ionicons name={VOZ_ICONO[settings.fitnessVoice]} size={17} color={settings.fitnessVoice === 'off' ? TEXT.tertiary : ATP_BRAND.lime} />
+          </AnimatedPressable>
+        }
       />
       <ScrollView contentContainerStyle={{ padding: Spacing.md, paddingBottom: 140 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Progreso */}
@@ -421,14 +440,17 @@ export default function StrengthSessionScreen() {
           </View>
         </View>
 
-        {/* Hero del ejercicio: poster + degradado (molde editorial) */}
+        {/* Hero del ejercicio: CLIP en loop protagonista + degradado (molde editorial) */}
         <Animated.View key={actual.slug} entering={FadeInDown.duration(300)} style={s.heroCard}>
-          {actual.mediaUrl ? (
-            <Image source={{ uri: actual.mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
-          ) : null}
-          <LinearGradient
-            colors={['rgba(0,0,0,0.15)', 'rgba(0,0,0,0.85)']}
+          <ExerciseClip
+            clipUrl={clipDe(actual)}
+            posterUrl={posterDe({ mediaUrl: actual.mediaUrl, posterUrl: actual.posterUrl ?? null })}
             style={StyleSheet.absoluteFill}
+          />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.82)']}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
           />
           <View style={s.heroContent}>
             <Text style={s.heroName}>{actual.nombre}</Text>
@@ -485,7 +507,7 @@ const s = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: ATP_BRAND.lime, borderRadius: 2 },
 
   heroCard: {
-    height: 170,
+    height: 220,
     borderRadius: Radius.card,
     overflow: 'hidden',
     marginBottom: Spacing.md,
@@ -535,6 +557,11 @@ const s = StyleSheet.create({
     borderRadius: Radius.pill, borderWidth: 1, borderColor: ELEVATION[2].border, backgroundColor: ELEVATION[2].bg,
   },
   endBtnText: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: 12, letterSpacing: 1 },
+
+  voiceBtn: {
+    width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+  },
 
   summaryHero: { borderRadius: Radius.card, padding: Spacing.lg, marginBottom: Spacing.md },
   summaryTitle: { color: '#fff', fontFamily: Fonts.extraBold, fontSize: 16, letterSpacing: 1, marginBottom: Spacing.md },

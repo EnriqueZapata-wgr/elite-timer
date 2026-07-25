@@ -38,6 +38,8 @@ function makeEx(partial: Partial<MatrixExercise> & { slug?: string }): MatrixExe
     contraindicaciones: [],
     familia: `fam-${slug}`,
     mediaUrl: null,
+    posterUrl: null,
+    unidadesEquipo: 'n/a',
     origen: 'movekit',
     ...partial,
     ...(partial.equipo ? { equipoRequisitos: parseEquipoRequisitos(partial.equipo) } : {}),
@@ -110,6 +112,68 @@ describe('filtrarPool (Akinator)', () => {
     const noEstiramiento = pool.filter((e) => e.patron !== 'Estiramiento');
     expect(noEstiramiento.length).toBeGreaterThan(0);
     expect(noEstiramiento.every((e) => e.patron === 'Bisagra')).toBe(true);
+  });
+
+  it('candado de unidades (MB-3.5 #11): con 1 KB los ejercicios "par" quedan fuera', () => {
+    const catalogo = [
+      ...catalogoBase(),
+      makeEx({ slug: 'kb-thruster-doble', equipo: 'Kettlebell', cargable: true, patron: 'Sentadilla', musculoPrincipal: 'Cuádriceps', cualidades: ['fuerza', 'metabólico'], unidadesEquipo: 'par', familia: 'Thruster' }),
+      makeEx({ slug: 'kb-goblet-squat', equipo: 'Kettlebell', cargable: true, patron: 'Sentadilla', musculoPrincipal: 'Cuádriceps', cualidades: ['fuerza', 'hipertrofia'], unidadesEquipo: '1', familia: 'Sentadilla' }),
+    ];
+    const conUno = filtrarPool(baseInput({ catalogo, equipo: ['Kettlebell'], equipoUnidades: { Kettlebell: '1' } }));
+    expect(conUno.find((e) => e.slug === 'kb-thruster-doble')).toBeUndefined();
+    expect(conUno.find((e) => e.slug === 'kb-goblet-squat')).toBeDefined();
+    // Con par (o sin declarar) el "par" sí entra.
+    const conPar = filtrarPool(baseInput({ catalogo, equipo: ['Kettlebell'], equipoUnidades: { Kettlebell: 'par' } }));
+    expect(conPar.find((e) => e.slug === 'kb-thruster-doble')).toBeDefined();
+    const sinDeclarar = filtrarPool(baseInput({ catalogo, equipo: ['Kettlebell'] }));
+    expect(sinDeclarar.find((e) => e.slug === 'kb-thruster-doble')).toBeDefined();
+  });
+
+  it('candado de unidades: una alternativa de equipo en par mantiene el ejercicio ejecutable', () => {
+    const catalogo = [
+      ...catalogoBase(),
+      makeEx({ slug: 'press-db-o-kb', equipo: 'Mancuerna / Kettlebell', cargable: true, patron: 'Empuje', musculoPrincipal: 'Pecho', cualidades: ['fuerza'], unidadesEquipo: 'par', familia: 'Press' }),
+    ];
+    // 1 mancuerna pero PAR de KB → ejecutable vía KB.
+    const pool = filtrarPool(baseInput({
+      catalogo, equipo: ['Mancuerna', 'Kettlebell'],
+      equipoUnidades: { Mancuerna: '1', Kettlebell: 'par' },
+    }));
+    expect(pool.find((e) => e.slug === 'press-db-o-kb')).toBeDefined();
+    // 1 y 1 → fuera.
+    const pool2 = filtrarPool(baseInput({
+      catalogo, equipo: ['Mancuerna', 'Kettlebell'],
+      equipoUnidades: { Mancuerna: '1', Kettlebell: '1' },
+    }));
+    expect(pool2.find((e) => e.slug === 'press-db-o-kb')).toBeUndefined();
+  });
+
+  it('vetos de Explorar (MB-3.5 #5): slugsExcluidos es filtro duro', () => {
+    const pool = filtrarPool(baseInput({ slugsExcluidos: ['flexiones', 'curl-mancuerna'] }));
+    expect(pool.find((e) => e.slug === 'flexiones')).toBeUndefined();
+    expect(pool.find((e) => e.slug === 'curl-mancuerna')).toBeUndefined();
+    expect(pool.find((e) => e.slug === 'squat-barra')).toBeDefined();
+  });
+
+  it('nivel Atleta (MB-3.5 #10): solo el usuario atleta ve ejercicios Atleta', () => {
+    const catalogo = [
+      ...catalogoBase(),
+      makeEx({ slug: 'muscle-up', equipo: 'Barra fija', patron: 'Tracción', musculoPrincipal: 'Dorsal', cualidades: ['fuerza', 'potencia'], nivel: 'Atleta', familia: 'Dominada' }),
+    ];
+    const avanzado = filtrarPool(baseInput({ catalogo, equipo: ['Barra', 'Mancuerna', 'Banca', 'Barra fija'], nivel: 'avanzado' }));
+    expect(avanzado.find((e) => e.slug === 'muscle-up')).toBeUndefined();
+    const atleta = filtrarPool(baseInput({ catalogo, equipo: ['Barra', 'Mancuerna', 'Banca', 'Barra fija'], nivel: 'atleta' }));
+    expect(atleta.find((e) => e.slug === 'muscle-up')).toBeDefined();
+  });
+
+  it('músculo principal compuesto ("Cuádriceps, Glúteo") matchea por cualquiera de sus partes', () => {
+    const catalogo = [
+      ...catalogoBase(),
+      makeEx({ slug: 'broad-jump', patron: 'Sentadilla', dinamica: 'Explosivo', musculoPrincipal: 'Cuádriceps, Glúteo', cualidades: ['potencia'], nivel: 'Intermedio', seniorApto: false, familia: 'Salto horizontal' }),
+    ];
+    const pool = filtrarPool(baseInput({ catalogo, enfoque: { kind: 'musculos', musculos: ['Glúteo'] } }));
+    expect(pool.find((e) => e.slug === 'broad-jump')).toBeDefined();
   });
 
   it('bro-split: multiselect por músculo', () => {

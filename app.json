@@ -14,7 +14,9 @@
       "bundleIdentifier": "com.atpperformance.app",
       "buildNumber": "1.5.0",
       "infoPlist": {
-        "UIBackgroundModes": ["audio"],
+        "UIBackgroundModes": [
+          "audio"
+        ],
         "NSMicrophoneUsageDescription": "ATP necesita acceso al micrófono para que puedas hablar con ARGOS",
         "NSSpeechRecognitionUsageDescription": "ATP necesita reconocimiento de voz para transcribir lo que dices",
         "ITSAppUsesNonExemptEncryption": false
@@ -81,7 +83,8 @@
           "url": "https://sentry.io/"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

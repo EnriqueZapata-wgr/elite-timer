@@ -1,7 +1,16 @@
 /**
- * Entrenar — ARGOS hero + Mis rutinas, Construir, Timer rápido, Registrar ejercicio.
+ * Entrenar (MB-3.5 #7) — UNA acción primaria + grupo secundario chico.
+ *
+ * Antes: 7 destinos de peso igual (generador, ARGOS hero, mis rutinas, builder,
+ * timer, HIIT, log suelto) — "varias cosas mandan a lo mismo". Simple beats smart:
+ *  · Primaria: EMPEZAR SESIÓN DE HOY → generador determinista (la base gratis).
+ *  · Secundarias: Mis rutinas · Construir · HIIT y timers · Registrar suelto.
+ *  · ARGOS ya no es puerta hermana del generador — vive DENTRO del resultado
+ *    ("ARGOS, ajústala"): el algoritmo arma el esqueleto, ARGOS es capa premium.
+ *  · Timer rápido retirado como destino (duplicaba a HIIT, que trae Tabata/EMOM/
+ *    AMRAP/30-30 con voz); /timer sigue ruteado para deep-links.
  */
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -16,23 +25,17 @@ import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
-const ITEMS = [
-  // MB-3: el generador determinista es la base gratis; ARGOS la capa premium.
-  { name: 'Generar rutina', subtitle: 'Objetivo + equipo + tiempo → tu sesión de hoy', icon: 'flash-outline' as const, color: '#a8e02a', route: '/routine-generator' as const },
+const SECUNDARIOS = [
   { name: 'Mis rutinas', subtitle: 'Rutinas guardadas listas para ejecutar', icon: 'list-outline' as const, color: '#a8e02a', route: '/my-routines' as const },
   { name: 'Construir rutina', subtitle: 'Crea tu rutina desde cero', icon: 'construct-outline' as const, color: '#60a5fa', route: '/builder' as const, params: { mode: 'routine' } },
-  // FIT-2 (MB-3): abría el BUILDER (construir desde cero) — ahora abre la
-  // pantalla de timers estándar existente. Subtítulo honesto con sus presets.
-  { name: 'Timer rápido', subtitle: '30s · 60s · 90s · Tabata — elige y GO', icon: 'timer-outline' as const, color: '#fb923c', route: '/timer' as const },
-  // MB-3 limpieza: fitness-hiit era huérfana (solo deep-link) — ahora linkeada.
-  { name: 'HIIT', subtitle: 'Tabata · EMOM · AMRAP · 30/30 con voz', icon: 'flame-outline' as const, color: '#fb7185', route: '/fitness-hiit' as const },
+  { name: 'HIIT y timers', subtitle: 'Tabata · EMOM · AMRAP · 30/30 con voz', icon: 'flame-outline' as const, color: '#fb7185', route: '/fitness-hiit' as const },
   { name: 'Registrar ejercicio', subtitle: 'Loguea sets, reps y peso', icon: 'add-circle-outline' as const, color: '#34d399', route: '/log-exercise' as const },
 ];
 
 export default function FitnessTrainScreen() {
   const router = useRouter();
 
-  function nav(item: typeof ITEMS[number]) {
+  function nav(item: typeof SECUNDARIOS[number]) {
     haptic.medium();
     if (item.params) {
       router.push({ pathname: item.route, params: item.params });
@@ -46,34 +49,39 @@ export default function FitnessTrainScreen() {
       <PillarHeader pillar="fitness" title="Entrenar" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {/* ARGOS hero */}
+        {/* LA acción primaria: sesión de hoy (molde editorial, protagonista) */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/argos-routine'); }}>
-            <LinearGradient
-              colors={['rgba(168,224,42,0.12)', 'rgba(168,224,42,0.04)']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={s.argosCard}
+          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/routine-generator'); }}>
+            <ImageBackground
+              source={require('@/assets/images/agenda/entrenar/entrenar-02.png')}
+              style={s.heroCard}
+              imageStyle={s.heroImg}
             >
-              <View style={s.argosIcon}>
-                <Ionicons name="eye-outline" size={26} color="#a8e02a" />
+              <LinearGradient
+                colors={['rgba(0,0,0,0.25)', 'rgba(0,0,0,0.5)', 'rgba(10,10,10,0.95)']}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={s.heroInner}>
+                <EliteText style={s.heroKicker}>OBJETIVO + EQUIPO + TIEMPO</EliteText>
+                <EliteText style={s.heroTitle}>EMPEZAR SESIÓN DE HOY</EliteText>
+                <View style={s.heroCtaRow}>
+                  <EliteText style={s.heroCtaText}>Generar mi rutina</EliteText>
+                  <Ionicons name="arrow-forward" size={16} color="#a8e02a" />
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <EliteText style={s.argosTitle}>ARGOS genera tu rutina</EliteText>
-                <EliteText style={s.argosSub}>IA que conoce tu nivel, PRs y objetivos</EliteText>
-              </View>
-              <Ionicons name="sparkles-outline" size={20} color="#a8e02a" />
-            </LinearGradient>
+            </ImageBackground>
           </AnimatedPressable>
         </Animated.View>
 
-        {/* Items */}
-        {ITEMS.map((item, idx) => (
-          <Animated.View key={item.name} entering={FadeInUp.delay(100 + idx * 50).springify()}>
+        {/* Grupo secundario chico */}
+        <EliteText style={s.sectionLabel}>MÁS FORMAS DE ENTRENAR</EliteText>
+        {SECUNDARIOS.map((item, idx) => (
+          <Animated.View key={item.name} entering={FadeInUp.delay(120 + idx * 50).springify()}>
             <AnimatedPressable onPress={() => nav(item)}>
               <GradientCard color={item.color} style={s.card}>
                 <View style={s.row}>
                   <View style={[s.icon, { backgroundColor: withOpacity(item.color, 0.15) }]}>
-                    <Ionicons name={item.icon} size={22} color={item.color} />
+                    <Ionicons name={item.icon} size={20} color={item.color} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <EliteText style={s.name}>{item.name}</EliteText>
@@ -94,24 +102,30 @@ export default function FitnessTrainScreen() {
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
-  // ARGOS
-  argosCard: {
-    borderRadius: 18, padding: 20, marginBottom: Spacing.md,
-    borderWidth: 1, borderColor: 'rgba(168,224,42,0.15)',
-    flexDirection: 'row', alignItems: 'center', gap: 14,
+  // Hero primario (molde editorial "Mis Datos")
+  heroCard: {
+    borderRadius: 20, overflow: 'hidden', justifyContent: 'flex-end',
+    minHeight: 190, marginBottom: Spacing.lg,
   },
-  argosIcon: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: 'rgba(168,224,42,0.15)',
-    justifyContent: 'center', alignItems: 'center',
+  heroImg: { resizeMode: 'cover' },
+  heroInner: { padding: 20 },
+  heroKicker: {
+    fontSize: 9, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 2, marginBottom: 6,
   },
-  argosTitle: { color: '#a8e02a', fontSize: 16, fontFamily: Fonts.extraBold },
-  argosSub: { color: '#999', fontSize: 12, marginTop: 2 },
+  heroTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: '#fff', lineHeight: 30 },
+  heroCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+  heroCtaText: { color: '#a8e02a', fontSize: 14, fontFamily: Fonts.bold },
 
-  // Items
+  sectionLabel: {
+    fontSize: 11, fontFamily: Fonts.bold, color: TEXT_COLORS.secondary,
+    letterSpacing: 2, marginBottom: Spacing.sm,
+  },
+
+  // Secundarias compactas
   card: { padding: Spacing.md, marginBottom: Spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  icon: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  icon: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   name: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT_COLORS.primary, marginBottom: 2 },
   sub: { fontSize: FontSizes.xs, color: TEXT_COLORS.secondary },
 });

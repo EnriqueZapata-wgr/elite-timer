@@ -16,11 +16,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type VoiceLanguage = 'es-MX' | 'en-US';
 export type SoundStyle = 'digital' | 'boxing' | 'whistle' | 'military' | 'silent';
+/** Voz de los métodos/runner de Fitness (MB-3.5 #6): todo · solo hitos · apagada. */
+export type FitnessVoiceMode = 'todo' | 'hitos' | 'off';
 
 export interface Settings {
   voiceEnabled: boolean;
   voiceLanguage: VoiceLanguage;
   countdownSpoken: boolean;
+  fitnessVoice: FitnessVoiceMode;
   soundsEnabled: boolean;
   soundStyle: SoundStyle;
   soundVolume: number;
@@ -32,6 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
   voiceEnabled: true,
   voiceLanguage: 'es-MX',
   countdownSpoken: true,
+  fitnessVoice: 'todo',
   soundsEnabled: true,
   soundStyle: 'digital',
   soundVolume: 70,

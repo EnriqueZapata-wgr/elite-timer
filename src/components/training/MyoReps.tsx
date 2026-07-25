@@ -4,7 +4,7 @@
  * Fases: activación → descanso 5s → sobrecarga → repetir hasta fallo.
  * Feedback de peso basado en cuántas sobrecargas logró.
  */
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -12,14 +12,16 @@ import * as Haptics from 'expo-haptics';
 interface Props {
   exerciseName: string;
   onComplete: (result: { activationReps: number; overloadSets: number[]; failedAt: number; weightFeedback: string }) => void;
-  /** MB-3 Track E: cue de voz opcional (el host decide si habla). Aditivo — no toca la regla. */
-  onCue?: (text: string) => void;
+  /** Cue de voz opcional (el host decide si habla). { hito } = se habla también en modo 'solo hitos'. */
+  onCue?: (text: string, opts?: { hito?: boolean }) => void;
 }
 
 export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
   const [phase, setPhase] = useState<'activation' | 'rest' | 'overload' | 'done'>('activation');
   const [overloadSets, setOverloadSets] = useState<number[]>([]);
   const [restTimer, setRestTimer] = useState(5);
+  // MB-3.5 #2: tocar reps SELECCIONA (corregible); la sobrecarga cierra con CONFIRMAR.
+  const [seleccion, setSeleccion] = useState<number | null>(null);
 
   // 5 second rest timer
   useEffect(() => {
@@ -57,12 +59,12 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
       else weightFeedback = 'Peso bajo. Sube la próxima sesión.';
 
       setPhase('done');
-      onCue?.(weightFeedback);
+      onCue?.(weightFeedback, { hito: true });
       onComplete({ activationReps: 20, overloadSets: updated, failedAt: setNumber, weightFeedback });
     } else if (setNumber >= 10) {
       // Llegó a 10 sin fallar
       setPhase('done');
-      onCue?.('Peso bajo. Sube la próxima sesión.');
+      onCue?.('Peso bajo. Sube la próxima sesión.', { hito: true });
       onComplete({
         activationReps: 20, overloadSets: updated, failedAt: 0,
         weightFeedback: 'Peso bajo. Sube la próxima sesión.',
@@ -72,6 +74,14 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
       setPhase('rest');
       setRestTimer(5);
     }
+  }
+
+  /** Cierre explícito de la sobrecarga (la regla de fallo no cambia). */
+  function confirmarSobrecarga() {
+    if (seleccion == null) return;
+    const reps = seleccion;
+    setSeleccion(null);
+    completeOverload(reps);
   }
 
   return (
@@ -121,29 +131,45 @@ export function MyoReps({ exerciseName, onComplete, onCue }: Props) {
             SOBRECARGA {overloadSets.length + 1}
           </Text>
           <Text style={{ color: '#999', fontSize: 13, marginBottom: 20 }}>
-            Haz 5 reps. Si no puedes → fallo controlado.
+            Haz 5 reps. Menos de 5 = fallo controlado (fin del método).
           </Text>
-          <View style={{ flexDirection: 'row', gap: 16 }}>
-            <Pressable
-              onPress={() => completeOverload(5)}
-              style={{ backgroundColor: '#a8e02a', borderRadius: 16, padding: 16, paddingHorizontal: 28 }}
-            >
-              <Text style={{ color: '#000', fontSize: 15, fontWeight: '800' }}>5 REPS</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => {
-                Alert.alert('¿Cuántas reps hiciste?', 'Selecciona las reps completadas antes de fallar', [
-                  { text: '1 rep', onPress: () => completeOverload(1) },
-                  { text: '2 reps', onPress: () => completeOverload(2) },
-                  { text: '3 reps', onPress: () => completeOverload(3) },
-                  { text: '4 reps', onPress: () => completeOverload(4) },
-                ]);
-              }}
-              style={{ backgroundColor: '#ef4444', borderRadius: 16, padding: 16, paddingHorizontal: 28 }}
-            >
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '800' }}>FALLO</Text>
-            </Pressable>
+          {/* Tap = seleccionar (corregible); CONFIRMAR cierra la sobrecarga */}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {[1, 2, 3, 4, 5].map((r) => (
+              <Pressable
+                key={r}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSeleccion(r); }}
+                style={{
+                  width: 50, height: 50, borderRadius: 25,
+                  backgroundColor: seleccion === r ? (r === 5 ? '#a8e02a' : '#ef4444') : '#1a1a1a',
+                  justifyContent: 'center', alignItems: 'center',
+                  borderWidth: 1, borderColor: seleccion === r ? (r === 5 ? '#a8e02a' : '#ef4444') : '#333',
+                }}
+              >
+                <Text style={{ color: seleccion === r ? '#000' : '#fff', fontSize: 17, fontWeight: '800' }}>{r}</Text>
+              </Pressable>
+            ))}
           </View>
+          <Text style={{ color: '#666', fontSize: 11, marginTop: 10 }}>
+            {seleccion == null ? 'Tocar selecciona — confirma para cerrar.'
+              : seleccion === 5 ? '5 reps completas — confirma para seguir.'
+                : `${seleccion} reps = fallo controlado — confirma para cerrar.`}
+          </Text>
+          {seleccion != null && (
+            <Pressable
+              onPress={confirmarSobrecarga}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14,
+                backgroundColor: seleccion === 5 ? '#a8e02a' : '#ef4444',
+                borderRadius: 16, padding: 14, paddingHorizontal: 32,
+              }}
+            >
+              <Ionicons name="checkmark-circle" size={18} color={seleccion === 5 ? '#000' : '#fff'} />
+              <Text style={{ color: seleccion === 5 ? '#000' : '#fff', fontSize: 15, fontWeight: '800' }}>
+                CONFIRMAR
+              </Text>
+            </Pressable>
+          )}
         </View>
       )}
 

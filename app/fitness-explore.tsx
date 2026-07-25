@@ -18,7 +18,7 @@ import { TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 // MB-3 limpieza: Planes/Follow Me (coming-soons muertos) RETIRADOS del código
 // — cuando exista el destino se agregan como items reales, no como stubs.
 const ITEMS = [
-  { name: 'Biblioteca de ejercicios', subtitle: '212 ejercicios matriceados · filtra por músculo, patrón y nivel', icon: 'book-outline' as const, color: '#38bdf8', route: '/exercise-library' as const },
+  { name: 'Biblioteca de ejercicios', subtitle: '214 ejercicios con clip · filtra por músculo, equipo, patrón y nivel', icon: 'book-outline' as const, color: '#38bdf8', route: '/exercise-library' as const },
   { name: 'Métodos ATP', subtitle: '3-5 · EMOM Auto · Myo Reps', icon: 'flash-outline' as const, color: '#a8e02a', route: '/training-methods' as const },
 ];
 

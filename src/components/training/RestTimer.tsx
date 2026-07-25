@@ -16,7 +16,8 @@ interface Props {
   /** Qué viene después (se anuncia y se muestra): "Serie 3 de 4". */
   siguiente?: string;
   onDone: () => void;
-  onCue?: (text: string) => void;
+  /** { hito } = se habla también en modo 'solo hitos' (MB-3.5 #6). */
+  onCue?: (text: string, opts?: { hito?: boolean }) => void;
 }
 
 export function RestTimer({ seconds, siguiente, onDone, onCue }: Props) {
@@ -43,7 +44,7 @@ export function RestTimer({ seconds, siguiente, onDone, onCue }: Props) {
   useEffect(() => {
     if (restante <= 0) {
       haptic.heavy();
-      onCueRef.current?.('¡Vamos!');
+      onCueRef.current?.('¡Vamos!', { hito: true });
       onDoneRef.current();
       return;
     }

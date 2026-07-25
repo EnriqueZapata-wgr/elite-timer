@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-generate-exercise-matrix-seed.py — MB-3 Track A.
+generate-exercise-matrix-seed.py — MB-3 Track A · MB-3.5 #10 (v2 UPSERT).
 
-Genera supabase/migrations/221_exercise_matrix_seed.sql desde el xlsx fuente
-(Matriz_Fitness_ATP_206_revisado.xlsx, hoja "Matriz 206 (auto)"). Reproducible:
-correrlo de nuevo con el mismo xlsx produce byte-a-byte el mismo SQL.
+Genera supabase/migrations/223_exercise_matrix_seed_v2.sql desde el xlsx fuente
+(Matriz_Fitness_ATP_206_revisado.xlsx, hoja "Matriz 206 (auto)", 214 filas).
+Reproducible: correrlo de nuevo con el mismo xlsx produce byte-a-byte el mismo SQL.
 
 Uso:
   python scripts/generate-exercise-matrix-seed.py [ruta_al_xlsx]
@@ -12,9 +12,14 @@ Uso:
 Reglas de transformación (espejo de src/constants/exercise-matrix.ts):
   - Multi-valor con separador "·" → text[] (cualidades, metodos, contraindicaciones).
   - "Sí"/"No" → boolean (cargable, senior_apto).
+  - media_url = Clip URL (mp4 en loop del bucket fitness-clips); el Poster URL
+    pasa a la columna nueva poster_url (placeholder mientras carga el clip).
+    dead-hang y broad-jump no existen en MoveKit → ambas NULL (la UI lo maneja).
+  - unidades_equipo ('1' | 'par' | 'n/a') — candado de cantidad del generador.
   - origen: filas amarillas del xlsx = variantes lastre ATP (slug -lastre) → 'atp';
     el resto → 'movekit'. Se valida que sean exactamente 6.
-  - Seed idempotente: ON CONFLICT (slug) DO NOTHING.
+  - Seed UPSERT: ON CONFLICT (slug) DO UPDATE — los cambios de tags del xlsx
+    (banca declarada, nivel re-taggeado, Atleta) llegan a filas ya existentes.
 
 Requiere: pip install openpyxl
 """
@@ -30,13 +35,13 @@ except ImportError:
 DEFAULT_XLSX = r"C:\Users\ezapa\OneDrive\EZ online\ATP\R and D\Matriz_Fitness_ATP_206_revisado.xlsx"
 SHEET = "Matriz 206 (auto)"
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_SQL = os.path.join(REPO_ROOT, "supabase", "migrations", "221_exercise_matrix_seed.sql")
+OUT_SQL = os.path.join(REPO_ROOT, "supabase", "migrations", "223_exercise_matrix_seed_v2.sql")
 
 EXPECTED_HEADER = [
     "slug", "Nombre (MoveKit)", "Equipo", "Cargable", "Tipo", "Patrón",
     "Dinámica", "Lateralidad", "Músculo principal", "Secundarios", "Cualidades",
     "Nivel", "Senior-apto", "Método ATP", "EMOM-apto", "Benchmark edad",
-    "Contraindicaciones", "Familia", "Poster URL",
+    "Contraindicaciones", "Familia", "Poster URL", "Clip URL", "Unidades equipo",
 ]
 
 # Valores canónicos (validación dura: un typo en el xlsx debe TRONAR aquí,
@@ -49,15 +54,16 @@ CANON = {
     "lateralidad": {"Bilateral", "Unilateral"},
     "cualidades": {"fuerza", "hipertrofia", "potencia", "resistencia",
                    "metabólico", "movilidad", "estabilidad", "recovery"},
-    "nivel": {"Principiante", "Intermedio", "Avanzado"},
+    "nivel": {"Principiante", "Intermedio", "Avanzado", "Atleta"},
     "metodos": {"Estándar", "3-5", "EMOM Auto", "Myo-reps", "Rest-pause",
                 "Cluster", "Dropset", "Superserie"},
     "emom_apto": {"Todos", "Intermedio+", "Avanzado", "No"},
     "benchmark_edad": {"No", "Tier A (push-ups)", "Tier A (plank)", "Tier B (max)",
                        "Tier B (max lastrado)", "Tier B (×BW)", "Tier B (carry)",
-                       "Tier B (wall-sit)"},
+                       "Tier B (wall-sit)", "Tier B (segundos)", "Tier B (distancia)"},
     "contraindicaciones": {"Rodilla", "Hombro", "Lumbar/hernia", "Muñeca",
-                           "Hipertensión (isométrico largo)"},
+                           "Hipertensión (isométrico largo)", "Aquiles"},
+    "unidades_equipo": {"1", "par", "n/a"},
 }
 
 
@@ -125,6 +131,11 @@ def main():
         cualidades = check_multi(split_dot(r[10]), "cualidades", slug)
         metodos = check_multi(split_dot(r[13]), "metodos", slug)
         contra = check_multi(split_dot(r[16]), "contraindicaciones", slug)
+        poster = str(r[18]).strip() if r[18] else None
+        clip = str(r[19]).strip() if r[19] else None
+        unidades = check(str(r[20]).strip() if r[20] is not None else "n/a", "unidades_equipo", slug)
+        # media_url = clip (protagonista, loop); poster queda como placeholder.
+        # Sin clip (dead-hang/broad-jump, fuera de MoveKit): media NULL.
         row_sql = "  (" + ", ".join([
             q(slug),
             q(str(r[1]).strip()),                                   # nombre
@@ -144,34 +155,66 @@ def main():
             q(check(str(r[15] or "No").strip(), "benchmark_edad", slug)),
             arr(contra),
             q(str(r[17]).strip()),                                  # familia
-            q(str(r[18]).strip()) if r[18] else "NULL",             # media_url
+            q(clip),                                                # media_url (clip mp4)
+            q(poster),                                              # poster_url
+            q(unidades),                                            # unidades_equipo
             q(origen),
         ]) + ")"
         values.append(row_sql)
 
-    if len(values) != 212:
-        sys.exit(f"Se esperaban 212 filas, hay {len(values)}")
+    if len(values) != 214:
+        sys.exit(f"Se esperaban 214 filas, hay {len(values)}")
     if n_atp != 6:
         sys.exit(f"Se esperaban 6 variantes lastre ATP, hay {n_atp}")
 
     out = io.StringIO()
     out.write(
         "-- ============================================================================\n"
-        "-- 221 — EXERCISE MATRIX SEED (MB-3 Track A): 212 filas (206 MoveKit + 6 lastre ATP).\n"
+        "-- 223 — EXERCISE MATRIX SEED v2 (MB-3.5 #10): 214 filas (208 MoveKit + 6 lastre ATP).\n"
         "--\n"
         "-- GENERADO por scripts/generate-exercise-matrix-seed.py desde\n"
         "-- Matriz_Fitness_ATP_206_revisado.xlsx — NO editar a mano; regenerar.\n"
-        "-- Idempotente: ON CONFLICT (slug) DO NOTHING.\n"
-        "-- ⚠️ NO aplicar al remoto desde la rama — db push tras merge.\n"
+        "-- Delta vs 221: banca declarada (31 filas), unidades_equipo (1/par/n/a),\n"
+        "-- nivel re-taggeado (+Atleta), +dead-hang/+broad-jump, media_url=clip mp4\n"
+        "-- (bucket fitness-clips) + poster_url como placeholder.\n"
+        "-- Idempotente: UPSERT — ON CONFLICT (slug) DO UPDATE (los re-tags llegan\n"
+        "-- a filas existentes). ⚠️ NO aplicar al remoto desde la rama — db push tras merge.\n"
         "-- ============================================================================\n\n"
+        "-- Columnas nuevas (idempotente).\n"
+        "ALTER TABLE exercise_matrix ADD COLUMN IF NOT EXISTS poster_url text;\n"
+        "ALTER TABLE exercise_matrix ADD COLUMN IF NOT EXISTS unidades_equipo text NOT NULL DEFAULT 'n/a';\n\n"
         "INSERT INTO exercise_matrix (\n"
         "  slug, nombre, equipo, cargable, tipo, patron, dinamica, lateralidad,\n"
         "  musculo_principal, secundarios, cualidades, nivel, senior_apto, metodos,\n"
-        "  emom_apto, benchmark_edad, contraindicaciones, familia, media_url, origen\n"
+        "  emom_apto, benchmark_edad, contraindicaciones, familia, media_url,\n"
+        "  poster_url, unidades_equipo, origen\n"
         ") VALUES\n"
     )
     out.write(",\n".join(values))
-    out.write("\nON CONFLICT (slug) DO NOTHING;\n")
+    out.write(
+        "\nON CONFLICT (slug) DO UPDATE SET\n"
+        "  nombre = EXCLUDED.nombre,\n"
+        "  equipo = EXCLUDED.equipo,\n"
+        "  cargable = EXCLUDED.cargable,\n"
+        "  tipo = EXCLUDED.tipo,\n"
+        "  patron = EXCLUDED.patron,\n"
+        "  dinamica = EXCLUDED.dinamica,\n"
+        "  lateralidad = EXCLUDED.lateralidad,\n"
+        "  musculo_principal = EXCLUDED.musculo_principal,\n"
+        "  secundarios = EXCLUDED.secundarios,\n"
+        "  cualidades = EXCLUDED.cualidades,\n"
+        "  nivel = EXCLUDED.nivel,\n"
+        "  senior_apto = EXCLUDED.senior_apto,\n"
+        "  metodos = EXCLUDED.metodos,\n"
+        "  emom_apto = EXCLUDED.emom_apto,\n"
+        "  benchmark_edad = EXCLUDED.benchmark_edad,\n"
+        "  contraindicaciones = EXCLUDED.contraindicaciones,\n"
+        "  familia = EXCLUDED.familia,\n"
+        "  media_url = EXCLUDED.media_url,\n"
+        "  poster_url = EXCLUDED.poster_url,\n"
+        "  unidades_equipo = EXCLUDED.unidades_equipo,\n"
+        "  origen = EXCLUDED.origen;\n"
+    )
 
     with open(OUT_SQL, "w", encoding="utf-8", newline="\n") as f:
         f.write(out.getvalue())

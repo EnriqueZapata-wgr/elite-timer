@@ -1,8 +1,9 @@
 /**
- * Exercise Library — biblioteca MATRICEADA (MB-3 Track F).
+ * Exercise Library — biblioteca MATRICEADA (MB-3 Track F · MB-3.5 #9).
  *
- * 212 ejercicios del catálogo exercise_matrix con buscador + filtros por los
- * ejes (músculo, patrón, nivel) y card editorial con poster. Tap → detalle.
+ * 214 ejercicios del catálogo exercise_matrix con buscador arriba + filtros por
+ * los ejes que el usuario piensa (músculo · equipo · patrón · nivel) en chips
+ * con wrap (sin scroll escondido) y card editorial con poster. Tap → detalle.
  * Reemplaza la biblioteca de juguete (~26 filas de `exercises`); el registro
  * sigue viviendo en exercises/exercise_logs vía el runner de sesión.
  */
@@ -16,17 +17,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { FilterPills } from '@/src/components/ui/FilterPills';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { haptic } from '@/src/utils/haptics';
 import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
-import { GRUPOS_MUSCULARES, PATRONES, type MatrixExercise } from '@/src/constants/exercise-matrix';
+import {
+  GRUPOS_MUSCULARES, PATRONES, EQUIPO_TOKENS, NIVELES_EJERCICIO,
+  musculosPrincipalesDe, posterDe, type MatrixExercise,
+} from '@/src/constants/exercise-matrix';
 import { ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
+// MB-3.5 #9: filtros por los ejes que el usuario realmente piensa.
 const GRUPOS = ['Todos', ...Object.keys(GRUPOS_MUSCULARES)];
+const EQUIPO_FILTRO = ['Todos', ...EQUIPO_TOKENS];
 const PATRONES_FILTRO = ['Todos', ...PATRONES];
-const NIVELES_FILTRO = ['Todos', 'Principiante', 'Intermedio', 'Avanzado'];
+const NIVELES_FILTRO = ['Todos', ...NIVELES_EJERCICIO];
+
+type EjeKey = 'musculo' | 'equipo' | 'patron' | 'nivel';
 
 function normaliza(s: string): string {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -37,8 +44,12 @@ export default function ExerciseLibraryScreen() {
   const [catalogo, setCatalogo] = useState<MatrixExercise[] | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [grupo, setGrupo] = useState('Todos');
+  const [equipo, setEquipo] = useState('Todos');
   const [patron, setPatron] = useState('Todos');
   const [nivel, setNivel] = useState('Todos');
+  // Un eje abierto a la vez: sus opciones se muestran en fila con wrap
+  // (nada de scroll horizontal escondido).
+  const [ejeAbierto, setEjeAbierto] = useState<EjeKey | null>(null);
 
   useEffect(() => {
     getExerciseMatrix().then(setCatalogo);
@@ -50,9 +61,17 @@ export default function ExerciseLibraryScreen() {
     return catalogo.filter((e) => {
       if (grupo !== 'Todos') {
         const miembros = GRUPOS_MUSCULARES[grupo] ?? [];
-        const enGrupo = miembros.includes(e.musculoPrincipal)
+        const principales = musculosPrincipalesDe(e.musculoPrincipal);
+        const enGrupo = principales.some((p) => miembros.includes(p))
           || e.secundarios.some((sec) => miembros.some((m) => sec.startsWith(m)));
         if (!enGrupo) return false;
+      }
+      if (equipo !== 'Todos') {
+        const tokens = e.equipoRequisitos.flat();
+        const conEquipo = equipo === 'Peso corporal'
+          ? tokens.length === 0 || tokens.every((t) => t === 'Peso corporal')
+          : tokens.includes(equipo as (typeof tokens)[number]);
+        if (!conEquipo) return false;
       }
       if (patron !== 'Todos' && e.patron !== patron) return false;
       if (nivel !== 'Todos' && e.nivel !== nivel) return false;
@@ -62,7 +81,15 @@ export default function ExerciseLibraryScreen() {
       }
       return true;
     });
-  }, [catalogo, busqueda, grupo, patron, nivel]);
+  }, [catalogo, busqueda, grupo, equipo, patron, nivel]);
+
+  const EJES: { key: EjeKey; label: string; valor: string; opciones: string[]; set: (v: string) => void }[] = [
+    { key: 'musculo', label: 'Músculo', valor: grupo, opciones: GRUPOS, set: setGrupo },
+    { key: 'equipo', label: 'Equipo', valor: equipo, opciones: EQUIPO_FILTRO, set: setEquipo },
+    { key: 'patron', label: 'Patrón', valor: patron, opciones: PATRONES_FILTRO, set: setPatron },
+    { key: 'nivel', label: 'Nivel', valor: nivel, opciones: NIVELES_FILTRO, set: setNivel },
+  ];
+  const ejeActivo = EJES.find((e) => e.key === ejeAbierto) ?? null;
 
   return (
     <Screen edges={[]}>
@@ -86,10 +113,40 @@ export default function ExerciseLibraryScreen() {
         )}
       </View>
 
-      {/* Filtros por ejes de la matriz */}
-      <FilterPills options={GRUPOS} selected={grupo} onSelect={setGrupo} style={s.pillsRow} />
-      <FilterPills options={PATRONES_FILTRO} selected={patron} onSelect={setPatron} style={s.pillsRow} />
-      <FilterPills options={NIVELES_FILTRO} selected={nivel} onSelect={setNivel} style={s.pillsRow} />
+      {/* Fila de ejes: cada chip abre sus opciones (con wrap) debajo */}
+      <View style={s.ejesRow}>
+        {EJES.map((eje) => {
+          const activo = eje.valor !== 'Todos';
+          const abierto = ejeAbierto === eje.key;
+          return (
+            <AnimatedPressable
+              key={eje.key}
+              onPress={() => { haptic.light(); setEjeAbierto(abierto ? null : eje.key); }}
+              style={[s.ejeChip, (activo || abierto) && s.ejeChipActivo]}
+            >
+              <Text style={[s.ejeChipText, (activo || abierto) && s.ejeChipTextActivo]}>
+                {activo ? `${eje.label} · ${eje.valor}` : eje.label}
+              </Text>
+              <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={12} color={activo || abierto ? ATP_BRAND.lime : TEXT.tertiary} />
+            </AnimatedPressable>
+          );
+        })}
+      </View>
+
+      {/* Opciones del eje abierto — chips con wrap, sin scroll escondido */}
+      {ejeActivo && (
+        <View style={s.opcionesWrap}>
+          {ejeActivo.opciones.map((op) => (
+            <AnimatedPressable
+              key={op}
+              onPress={() => { haptic.light(); ejeActivo.set(op); setEjeAbierto(null); }}
+              style={[s.opcionChip, ejeActivo.valor === op && s.opcionChipActiva]}
+            >
+              <Text style={[s.opcionText, ejeActivo.valor === op && s.opcionTextActiva]}>{op}</Text>
+            </AnimatedPressable>
+          ))}
+        </View>
+      )}
 
       {/* Grid de cards con poster */}
       {catalogo === null ? (
@@ -116,8 +173,8 @@ export default function ExerciseLibraryScreen() {
                 router.push({ pathname: '/exercise-detail', params: { slug: item.slug } });
               }}
             >
-              {item.mediaUrl ? (
-                <Image source={{ uri: item.mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+              {posterDe(item) ? (
+                <Image source={{ uri: posterDe(item)! }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
               ) : null}
               <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.88)']} style={StyleSheet.absoluteFill} />
               {item.benchmark.tier && (
@@ -154,7 +211,32 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: ELEVATION[1].border,
   },
   searchInput: { flex: 1, color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 14, padding: 0 },
-  pillsRow: { marginBottom: Spacing.xs },
+
+  ejesRow: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+    paddingHorizontal: Spacing.md, marginBottom: Spacing.xs,
+  },
+  ejeChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.pill,
+    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+  },
+  ejeChipActivo: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: withOpacity(ATP_BRAND.lime, 0.5) },
+  ejeChipText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
+  ejeChipTextActivo: { color: ATP_BRAND.lime },
+
+  opcionesWrap: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  opcionChip: {
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.pill,
+    backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
+  },
+  opcionChipActiva: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  opcionText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
+  opcionTextActiva: { color: '#000' },
 
   card: {
     flex: 1, height: 150, borderRadius: Radius.card, overflow: 'hidden',

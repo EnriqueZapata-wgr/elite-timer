@@ -98,7 +98,9 @@ export function tierAFunctionalEntries(sets: SessionSetLike[], sexo: Sexo): Tier
 export const NUDGE_MAX_POR_BENCHMARK = 0.4;
 export const NUDGE_CAP_TOTAL = 1.2;
 
-export type TierBKey = 'deadlift_xbw' | 'pullups_max' | 'pullups_lastrado' | 'farmer_carry' | 'wall_sit';
+export type TierBKey =
+  | 'deadlift_xbw' | 'pullups_max' | 'pullups_lastrado' | 'farmer_carry' | 'wall_sit'
+  | 'dead_hang' | 'broad_jump';
 
 interface TierBSpec {
   key: TierBKey;
@@ -154,6 +156,18 @@ const TIER_B_SPECS: Record<string, TierBSpec> = {
   'wall-sit': {
     key: 'wall_sit', label: 'Wall sit (s)', fuente: 'Attia (heurística)',
     progreso: (m) => (m.reps > 0 ? Math.min(1, m.reps / 120) : null),
+  },
+  // Dead hang: hold hacia 120 s (H) / 90 s (M) — Attia. (Isométrico: reps = segundos.)
+  'dead-hang': {
+    key: 'dead_hang', label: 'Dead hang (s)', fuente: 'Attia (heurística)',
+    progreso: (m, _bw, sexo) => (m.reps > 0 ? Math.min(1, m.reps / (sexo === 'male' ? 120 : 90)) : null),
+  },
+  // Broad jump: el benchmark es DISTANCIA (≈ tu estatura) y el runner registra
+  // reps — sin captura de distancia el nudge se omite (mejor omitir que mentir).
+  // Mapeado para que el badge Tier B exista; se activa cuando haya captura en cm.
+  'broad-jump': {
+    key: 'broad_jump', label: 'Broad jump (distancia)', fuente: 'Estándares prácticos',
+    progreso: () => null,
   },
 };
 

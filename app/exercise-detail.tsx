@@ -11,17 +11,17 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
+import { ExerciseClip } from '@/src/components/training/ExerciseClip';
 import { haptic } from '@/src/utils/haptics';
 import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
 import { benchmarkInfo } from '@/src/services/fitness/edad-bridge-core';
-import type { MatrixExercise } from '@/src/constants/exercise-matrix';
+import { clipDe, posterDe, type MatrixExercise } from '@/src/constants/exercise-matrix';
 import { ATP_BRAND, TEXT, ELEVATION, withOpacity, SEMANTIC } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
@@ -78,12 +78,10 @@ export default function ExerciseDetailScreen() {
       <ScreenHeader title={ex.familia} />
       <ScrollView contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
 
-        {/* Hero editorial: poster + degradado */}
+        {/* Hero editorial: CLIP protagonista en loop (poster de placeholder) + degradado */}
         <Animated.View entering={FadeInDown.duration(300)} style={s.hero}>
-          {ex.mediaUrl ? (
-            <Image source={{ uri: ex.mediaUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
-          ) : null}
-          <LinearGradient colors={['rgba(0,0,0,0.1)', 'rgba(0,0,0,0.9)']} style={StyleSheet.absoluteFill} />
+          <ExerciseClip clipUrl={clipDe(ex)} posterUrl={posterDe(ex)} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.05)', 'rgba(0,0,0,0.85)']} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={s.heroBody}>
             <Text style={s.heroName}>{ex.nombre}</Text>
             <Text style={s.heroMeta}>{ex.musculoPrincipal}{ex.secundarios.length > 0 ? ` · ${ex.secundarios.join(', ')}` : ''}</Text>
@@ -188,7 +186,7 @@ const s = StyleSheet.create({
   metaText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 14 },
 
   hero: {
-    height: 260, justifyContent: 'flex-end', backgroundColor: ELEVATION[1].bg,
+    height: 300, justifyContent: 'flex-end', backgroundColor: ELEVATION[1].bg,
     marginHorizontal: Spacing.md, borderRadius: Radius.card, overflow: 'hidden',
   },
   heroBody: { padding: Spacing.md },

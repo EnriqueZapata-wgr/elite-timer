@@ -31,6 +31,14 @@ export const MUSCULOS_PRINCIPALES = [
 ] as const;
 export type MusculoPrincipal = (typeof MUSCULOS_PRINCIPALES)[number];
 
+/**
+ * Músculo principal puede venir compuesto ("Cuádriceps, Glúteo" — broad-jump).
+ * Los filtros por grupo deben matchear cualquiera de las partes.
+ */
+export function musculosPrincipalesDe(musculoPrincipal: string): string[] {
+  return musculoPrincipal.split(',').map((m) => m.trim()).filter(Boolean);
+}
+
 /** Grupos para pills de filtro y bro-split (multiselect por músculo). */
 export const GRUPOS_MUSCULARES: Record<string, string[]> = {
   Pecho: ['Pecho'],
@@ -117,8 +125,8 @@ export const CUALIDADES = [
 export type Cualidad = (typeof CUALIDADES)[number];
 
 // ── Eje 7 · Nivel ──
-/** Nivel del EJERCICIO (el xlsx no taggea 'Atleta' en ejercicios). */
-export const NIVELES_EJERCICIO = ['Principiante', 'Intermedio', 'Avanzado'] as const;
+/** Nivel del EJERCICIO (xlsx re-taggeado MB-3.5: ahora sí hay filas Atleta). */
+export const NIVELES_EJERCICIO = ['Principiante', 'Intermedio', 'Avanzado', 'Atleta'] as const;
 export type NivelEjercicio = (typeof NIVELES_EJERCICIO)[number];
 
 /** Nivel del USUARIO (4 niveles — atleta existe para usar sesiones largas). */
@@ -126,7 +134,7 @@ export const NIVELES_USUARIO = ['principiante', 'intermedio', 'avanzado', 'atlet
 export type NivelUsuario = (typeof NIVELES_USUARIO)[number];
 
 export const NIVEL_EJERCICIO_RANK: Record<NivelEjercicio, number> = {
-  Principiante: 0, Intermedio: 1, Avanzado: 2,
+  Principiante: 0, Intermedio: 1, Avanzado: 2, Atleta: 3,
 };
 export const NIVEL_USUARIO_RANK: Record<NivelUsuario, number> = {
   principiante: 0, intermedio: 1, avanzado: 2, atleta: 3,
@@ -153,9 +161,17 @@ export function emomPermitido(emomApto: EmomApto, nivel: NivelUsuario): boolean 
 
 // ── Eje 9 · Contraindicaciones (capa Mariana) ──
 export const CONTRAINDICACIONES = [
-  'Rodilla', 'Hombro', 'Lumbar/hernia', 'Muñeca', 'Hipertensión (isométrico largo)',
+  'Rodilla', 'Hombro', 'Lumbar/hernia', 'Muñeca', 'Hipertensión (isométrico largo)', 'Aquiles',
 ] as const;
 export type Contraindicacion = (typeof CONTRAINDICACIONES)[number];
+
+// ── Unidades de equipo (candado de cantidad — MB-3.5 #11) ──
+/** '1' = basta una pieza · 'par' = requiere par (mancuernas/KB) · 'n/a' = no aplica. */
+export const UNIDADES_EQUIPO = ['1', 'par', 'n/a'] as const;
+export type UnidadesEquipo = (typeof UNIDADES_EQUIPO)[number];
+
+/** Tokens de equipo donde la cantidad importa (se pregunta 1 vs par). */
+export const EQUIPO_CON_UNIDADES = ['Mancuerna', 'Kettlebell'] as const;
 
 // ── Eje 11 · Benchmark de edad ──
 export type BenchmarkTier = 'A' | 'B' | null;
@@ -198,7 +214,11 @@ export interface MatrixExercise {
   benchmark: BenchmarkEdad;
   contraindicaciones: string[];
   familia: string;
+  /** Clip mp4 en loop (bucket fitness-clips) tras el seed 223; null sin clip. */
   mediaUrl: string | null;
+  /** Poster estático — placeholder mientras carga el clip (y fallback sin video). */
+  posterUrl: string | null;
+  unidadesEquipo: UnidadesEquipo;
   origen: OrigenEjercicio;
 }
 
@@ -223,6 +243,9 @@ export interface ExerciseMatrixRow {
   contraindicaciones: string[];
   familia: string;
   media_url: string | null;
+  /** Columnas 223 — pueden faltar si la migración aún no corre (fail-soft). */
+  poster_url?: string | null;
+  unidades_equipo?: string | null;
   origen: string;
 }
 
@@ -250,6 +273,25 @@ export function mapMatrixRow(row: ExerciseMatrixRow): MatrixExercise {
     contraindicaciones: row.contraindicaciones ?? [],
     familia: row.familia,
     mediaUrl: row.media_url,
+    posterUrl: row.poster_url ?? null,
+    unidadesEquipo: (UNIDADES_EQUIPO as readonly string[]).includes(row.unidades_equipo ?? '')
+      ? (row.unidades_equipo as UnidadesEquipo)
+      : 'n/a',
     origen: row.origen as OrigenEjercicio,
   };
+}
+
+/**
+ * URL de imagen estática segura para cards/posters: poster_url si existe;
+ * si media_url aún es imagen (DB pre-223) la usa; nunca devuelve un mp4.
+ */
+export function posterDe(ex: Pick<MatrixExercise, 'mediaUrl' | 'posterUrl'>): string | null {
+  if (ex.posterUrl) return ex.posterUrl;
+  if (ex.mediaUrl && !ex.mediaUrl.endsWith('.mp4')) return ex.mediaUrl;
+  return null;
+}
+
+/** URL de clip mp4 (loop) — null si el catálogo aún no tiene el swap 223. */
+export function clipDe(ex: Pick<MatrixExercise, 'mediaUrl'>): string | null {
+  return ex.mediaUrl?.endsWith('.mp4') ? ex.mediaUrl : null;
 }
