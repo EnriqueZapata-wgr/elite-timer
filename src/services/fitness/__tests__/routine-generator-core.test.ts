@@ -339,3 +339,59 @@ describe('caso senior', () => {
     expect(r.tiempoTotalSeg).toBeLessThanOrEqual(44 * 60);
   });
 });
+
+// ── Objetivo MOVILIDAD (MB-3.6 Bloque 2) ──
+
+describe('objetivo movilidad', () => {
+  it('la sesión es SOLO bloques de movilidad/estiramiento (slot movilidad)', () => {
+    const r = generarRutina(baseInput({ objetivo: 'movilidad' }));
+    expect(r.bloques.length).toBeGreaterThan(0);
+    for (const b of r.bloques) {
+      expect(b.slot).toBe('movilidad');
+    }
+    const slugs = r.bloques.map((b) => b.slug);
+    expect(slugs).toContain('estiramiento-pecho');
+    expect(slugs).toContain('estiramiento-cadera');
+  });
+
+  it('el enfoque NO recorta el pool (cuerpo completo)', () => {
+    // pierna_traccion normalmente excluye Empuje; en movilidad el estiramiento
+    // de pecho (Empuje no aplica — es Estiramiento) y todo el pool pasa.
+    const pool = filtrarPool(baseInput({
+      objetivo: 'movilidad',
+      enfoque: { kind: 'patron', enfoque: 'pierna_traccion' },
+    }));
+    expect(pool.some((e) => e.slug === 'estiramiento-pecho')).toBe(true);
+    expect(pool.some((e) => e.slug === 'flexiones')).toBe(true);
+  });
+
+  it('sin ejercicios de movilidad ejecutables → aviso honesto, sin inventar', () => {
+    const soloFuerza = catalogoBase().filter((e) => !e.cualidades.some((q) => ['movilidad', 'recovery', 'estabilidad'].includes(q)) && e.patron !== 'Estiramiento');
+    const r = generarRutina(baseInput({ objetivo: 'movilidad', catalogo: soloFuerza }));
+    expect(r.bloques).toHaveLength(0);
+    expect(r.avisos.some((a) => a.toLowerCase().includes('movilidad'))).toBe(true);
+  });
+
+  it('pool corto: sesión honesta más corta + aviso de cuánto da', () => {
+    const r = generarRutina(baseInput({ objetivo: 'movilidad', tiempoMin: 55 }));
+    // Solo hay 2 estiramientos en el catálogo sintético (~2 min c/u) → mucho
+    // menos del 60% del presupuesto ⇒ aviso "da para ~X min".
+    expect(r.bloques.length).toBeLessThanOrEqual(4);
+    expect(r.avisos.some((a) => a.includes('da para'))).toBe(true);
+  });
+
+  it('determinista y sin aviso de "ayer pesado" (no aplica a movilidad)', () => {
+    const a = generarRutina(baseInput({ objetivo: 'movilidad', ayerFuePesado: true }));
+    const b = generarRutina(baseInput({ objetivo: 'movilidad', ayerFuePesado: true }));
+    expect(a.bloques.map((x) => x.slug)).toEqual(b.bloques.map((x) => x.slug));
+    expect(a.avisos.some((x) => x.includes('sesión pesada'))).toBe(false);
+  });
+
+  it('isométrico en movilidad = hold de 45 s (2 series)', () => {
+    const r = generarRutina(baseInput({ objetivo: 'movilidad' }));
+    const iso = r.bloques.find((b) => b.esIsometrico);
+    expect(iso).toBeDefined();
+    expect(iso!.series).toBe(2);
+    expect(iso!.reps).toBe(45); // reps = segundos de hold en isométricos
+  });
+});
