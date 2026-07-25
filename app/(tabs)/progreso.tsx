@@ -1,6 +1,6 @@
 /**
- * Tab Progreso — Muestra la pantalla de Récords Personales.
- * Re-exporta PersonalRecordsScreen que detecta automáticamente si está en tab.
+ * Tab Progreso — muestra la pantalla fusionada de Fuerza (benchmarks + PRs,
+ * MB-3.6 Bloque 1.1). Antes re-exportaba personal-records (hoy redirect).
  */
-import PersonalRecordsScreen from '../personal-records';
-export default PersonalRecordsScreen;
+import FitnessStrengthScreen from '../fitness-strength';
+export default FitnessStrengthScreen;

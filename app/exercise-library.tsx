@@ -8,8 +8,8 @@
  * sigue viviendo en exercises/exercise_logs vía el runner de sesión.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, StyleSheet, TextInput, FlatList, ScrollView } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,13 +18,14 @@ import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EmptyState } from '@/src/components/ui/EmptyState';
+import { MetodosAtpInfo } from '@/src/components/training/MetodosAtpInfo';
 import { haptic } from '@/src/utils/haptics';
 import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
 import {
   GRUPOS_MUSCULARES, PATRONES, EQUIPO_TOKENS, NIVELES_EJERCICIO,
   musculosPrincipalesDe, posterDe, type MatrixExercise,
 } from '@/src/constants/exercise-matrix';
-import { ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
 // MB-3.5 #9: filtros por los ejes que el usuario realmente piensa.
@@ -41,6 +42,10 @@ function normaliza(s: string): string {
 
 export default function ExerciseLibraryScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
+  // MB-3.6 §1.1: los métodos ATP viven aquí (antes /training-methods suelto) —
+  // la teoría junto a los ejercicios, no como destino hermano.
+  const [tab, setTab] = useState<'ejercicios' | 'metodos'>(params.tab === 'metodos' ? 'metodos' : 'ejercicios');
   const [catalogo, setCatalogo] = useState<MatrixExercise[] | null>(null);
   const [busqueda, setBusqueda] = useState('');
   const [grupo, setGrupo] = useState('Todos');
@@ -95,6 +100,28 @@ export default function ExerciseLibraryScreen() {
     <Screen edges={[]}>
       <ScreenHeader title="Biblioteca" />
 
+      {/* Tabs: ejercicios | métodos ATP */}
+      <View style={s.tabsRow}>
+        {([
+          { key: 'ejercicios' as const, label: 'EJERCICIOS' },
+          { key: 'metodos' as const, label: 'MÉTODOS ATP' },
+        ]).map((t) => (
+          <AnimatedPressable
+            key={t.key}
+            onPress={() => { haptic.light(); setTab(t.key); }}
+            style={[s.tabChip, tab === t.key && s.tabChipActivo]}
+          >
+            <Text style={[s.tabText, tab === t.key && s.tabTextActivo]}>{t.label}</Text>
+          </AnimatedPressable>
+        ))}
+      </View>
+
+      {tab === 'metodos' ? (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <MetodosAtpInfo />
+        </ScrollView>
+      ) : (
+      <>
       {/* Buscador */}
       <View style={s.searchWrap}>
         <Ionicons name="search" size={16} color={TEXT.tertiary} />
@@ -191,6 +218,8 @@ export default function ExerciseLibraryScreen() {
           )}
         />
       )}
+      </>
+      )}
     </Screen>
   );
 }
@@ -202,6 +231,18 @@ const s = StyleSheet.create({
     color: TEXT.tertiary, fontFamily: Fonts.semiBold, fontSize: 11, letterSpacing: 1,
     paddingHorizontal: Spacing.md, marginBottom: 2,
   },
+
+  tabsRow: {
+    flexDirection: 'row', gap: 8,
+    paddingHorizontal: Spacing.md, marginBottom: Spacing.sm,
+  },
+  tabChip: {
+    flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: Radius.pill,
+    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
+  },
+  tabChipActivo: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  tabText: { color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1.5 },
+  tabTextActivo: { color: TEXT_COLORS.onAccent },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

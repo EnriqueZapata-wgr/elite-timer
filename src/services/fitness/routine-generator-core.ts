@@ -26,7 +26,7 @@ import {
 
 // ── Tipos de entrada/salida ──
 
-export type Objetivo = 'fuerza' | 'hipertrofia' | 'metabolico';
+export type Objetivo = 'fuerza' | 'hipertrofia' | 'metabolico' | 'movilidad';
 
 export type EnfoquePatron =
   | 'full_body' | 'tren_superior' | 'empuje' | 'traccion'
@@ -70,7 +70,7 @@ export type SlotKey =
   | 'especifico_fuerza' | 'especifico_metabolico'
   | 'multi_sarcomerico' | 'especifico_sarcomerico'
   | 'unilateral_fuerza' | 'unilateral_metabolico' | 'unilateral_sarcomerico'
-  | 'recovery';
+  | 'recovery' | 'movilidad';
 
 export interface RoutineBlock {
   slug: string;
@@ -149,6 +149,9 @@ const PRESCRIPCION: Record<SlotKey, {
   unilateral_metabolico:  { series: 3, reps: 12, trabajoSeg: 40, descansoSeg: 30,  miniSeries: 0, microDescansoSeg: 0 },
   unilateral_sarcomerico: { series: 3, reps: 10, trabajoSeg: 35, descansoSeg: 90,  miniSeries: 3, microDescansoSeg: 5 },
   recovery:               { series: 1, reps: 60, trabajoSeg: 60, descansoSeg: 15,  miniSeries: 0, microDescansoSeg: 0 },
+  // Bloque de sesión de movilidad (MB-3.6 Bloque 2): 2 pasadas por ejercicio.
+  // Isométrico = hold de 45 s; dinámico = ~12 reps controladas en esos 45 s.
+  movilidad:              { series: 2, reps: 12, trabajoSeg: 45, descansoSeg: 15,  miniSeries: 0, microDescansoSeg: 0 },
 };
 
 // ── PRNG determinista (mulberry32 sobre hash del seed) ──
@@ -236,7 +239,10 @@ export function filtrarPool(input: GeneratorInput): MatrixExercise[] {
   const rankMax = rankUsuarioComoEjercicio(input.nivel);
   return input.catalogo.filter((ex) => {
     if (excluidos.has(ex.slug)) return false;
-    if (ex.patron !== 'Estiramiento' && !matchEnfoque(ex, input.enfoque)) return false;
+    // Objetivo movilidad = cuerpo completo: el enfoque no recorta el pool
+    // (los estiramientos ya pasaban siempre; aquí pasan también los ejercicios
+    // de movilidad/estabilidad taggeados fuera del patrón elegido).
+    if (input.objetivo !== 'movilidad' && ex.patron !== 'Estiramiento' && !matchEnfoque(ex, input.enfoque)) return false;
     if (!equipoDisponible(ex.equipo, equipoSet)) return false;
     if (!unidadesDisponibles(ex, equipoSet, input.equipoUnidades)) return false;
     if (ex.contraindicaciones.some((c) => flags.has(c))) return false;
@@ -265,6 +271,7 @@ function elegibleParaSlot(ex: MatrixExercise, slot: SlotKey): boolean {
     case 'unilateral_metabolico': return esUni && metabolico;
     case 'unilateral_sarcomerico': return esUni && q.includes('hipertrofia');
     case 'recovery':
+    case 'movilidad':
       return ex.patron === 'Estiramiento' || q.includes('movilidad') || q.includes('recovery') || q.includes('estabilidad');
   }
 }
@@ -277,7 +284,10 @@ function elegibleParaSlot(ex: MatrixExercise, slot: SlotKey): boolean {
  */
 export function tiempoBloqueSeg(slot: SlotKey, esUnilateral: boolean, esIsometrico: boolean): number {
   const p = PRESCRIPCION[slot];
-  const trabajo = (esUnilateral ? 2 : 1) * (esIsometrico ? p.reps : p.trabajoSeg);
+  // El hold isométrico que se muestra y ejecuta ES trabajoSeg (construirBloque
+  // pone reps=trabajoSeg en isos) — antes se sumaba p.reps y el tiempo de un
+  // iso fuera de recovery quedaba subcontado (35 s de hold contados como 5 s).
+  const trabajo = (esUnilateral ? 2 : 1) * p.trabajoSeg;
   const minisTotales = p.series * p.miniSeries;
   return p.series * (trabajo + p.descansoSeg) + minisTotales * p.microDescansoSeg;
 }
@@ -359,9 +369,10 @@ export function generarRutina(input: GeneratorInput): GeneratedRoutine {
   }
 
   // Máximo de multiarticulares pesados por nivel; si ayer fue pesado, hoy 0.
+  // (En movilidad no aplica — no hay slots pesados ni aviso de estímulo.)
   let pesadosRestantes = MAX_MULTI_PESADOS[input.nivel];
   if (objetivo === 'metabolico') pesadosRestantes = Math.min(pesadosRestantes, 1);
-  if (input.ayerFuePesado) {
+  if (input.ayerFuePesado && objetivo !== 'movilidad') {
     pesadosRestantes = 0;
     avisos.push('Ayer fue sesión pesada: hoy el estímulo va a metabólico y sarcomérico.');
   }
@@ -381,7 +392,7 @@ export function generarRutina(input: GeneratorInput): GeneratedRoutine {
   const elegirCandidato = (slot: SlotKey): MatrixExercise | null => {
     const candidatos = pool.filter((ex) =>
       elegibleParaSlot(ex, slot) && !usados.has(ex.slug) &&
-      (slot === 'recovery' || ex.patron !== 'Estiramiento'),
+      (slot === 'recovery' || slot === 'movilidad' || ex.patron !== 'Estiramiento'),
     );
     if (candidatos.length === 0) return null;
     // Rank de preferencia: rota primario dentro de su familia (anti-repetición),
@@ -417,6 +428,39 @@ export function generarRutina(input: GeneratorInput): GeneratedRoutine {
     tiempoAcum += bloque.tiempoSeg;
     return true;
   };
+
+  // ── Objetivo MOVILIDAD (MB-3.6 Bloque 2): sesión completa de bloques de
+  // movilidad/estiramiento/estabilidad. MISMO motor (pool, score anti-repetición,
+  // seed determinista) — sin escalera de fuerza ni reserva de recovery. ──
+  if (objetivo === 'movilidad') {
+    for (let i = 0; i < 40; i++) {
+      const ex = elegirCandidato('movilidad');
+      if (!ex) break;
+      const bloque = construirBloque(ex, 'movilidad', input.nivel);
+      if (tiempoAcum + bloque.tiempoSeg > presupuestoSeg) break;
+      bloques.push(bloque);
+      usados.add(ex.slug);
+      familiasUsadas.add(ex.familia);
+      patronesUsados.set(ex.patron, (patronesUsados.get(ex.patron) ?? 0) + 1);
+      musculosUsados.set(ex.musculoPrincipal, (musculosUsados.get(ex.musculoPrincipal) ?? 0) + 1);
+      tiempoAcum += bloque.tiempoSeg;
+    }
+    if (bloques.length === 0) {
+      avisos.push('No hay ejercicios de movilidad ejecutables con tus filtros. Suelta un filtro y vuelve a generar.');
+    } else if (tiempoAcum < presupuestoSeg * 0.6) {
+      // Honestidad: el pool se agotó antes de llenar el tiempo pedido.
+      avisos.push(`Tu pool de movilidad da para ~${Math.max(1, Math.round(tiempoAcum / 60))} min sin repetir ejercicios. Sesión completa, no rellenada.`);
+    }
+    return {
+      bloques,
+      tiempoTotalSeg: tiempoAcum,
+      tiempoEfectivoMin,
+      techoMin,
+      avisos,
+      recoveryExtraMin: 0,
+      seed: input.seed,
+    };
+  }
 
   // Escalera de slots: pasadas completas en orden hasta agotar presupuesto.
   const MAX_PASADAS = 4;

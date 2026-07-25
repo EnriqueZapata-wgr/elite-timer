@@ -9,12 +9,11 @@
  * El esqueleto es algorítmico y gratis ($0 runtime, offline, determinista por
  * día+usuario); ARGOS es la capa premium encima — este flujo no la toca.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
@@ -25,6 +24,8 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
 import { ayerFueSesionPesada, getSlugsRecientes } from '@/src/services/fitness/workout-session-service';
+import { getFitnessLevel, setFitnessLevel } from '@/src/services/fitness/fitness-profile-service';
+import { loadGeneratorPrefs, saveGeneratorPrefs } from '@/src/services/fitness/generator-prefs';
 import {
   generarRutina,
   filtrarPool,
@@ -45,12 +46,11 @@ import {
 import { ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
-const PREFS_KEY = 'fitness_generator_prefs_v1';
-
 const OBJETIVOS: { key: Objetivo; label: string }[] = [
   { key: 'fuerza', label: 'Fuerza' },
   { key: 'hipertrofia', label: 'Hipertrofia' },
   { key: 'metabolico', label: 'Metabólico' },
+  { key: 'movilidad', label: 'Movilidad' },
 ];
 
 const ENFOQUES: { key: EnfoquePatron; label: string }[] = [
@@ -77,6 +77,7 @@ const SLOT_LABELS: Record<string, string> = {
   unilateral_metabolico: 'Unilateral · metabólico',
   unilateral_sarcomerico: 'Unilateral · hipertrofia',
   recovery: 'Recovery / prehab',
+  movilidad: 'Movilidad',
 };
 
 // ── Chips reutilizables ──
@@ -138,31 +139,44 @@ export default function RoutineGeneratorScreen() {
     });
   }
 
-  // Catálogo + prefs persistidas + contexto de rotación.
+  // Evita persistir antes de haber cargado (pisaría las prefs con defaults).
+  const prefsListasRef = useRef(false);
+
+  // Catálogo + prefs persistidas + nivel del PERFIL (224: la fuente de verdad)
+  // + contexto de rotación.
   useEffect(() => {
     cargarCatalogo();
-    AsyncStorage.getItem(PREFS_KEY).then((raw) => {
-      if (!raw) return;
-      try {
-        const p = JSON.parse(raw);
-        if (Array.isArray(p.equipo)) setEquipo(p.equipo);
-        if (p.nivel && (NIVELES_USUARIO as readonly string[]).includes(p.nivel)) setNivel(p.nivel);
-        if (typeof p.senior === 'boolean') setSenior(p.senior);
-        if (typeof p.tiempoMin === 'number') setTiempoMin(p.tiempoMin);
-        if (Array.isArray(p.flags)) setFlags(p.flags);
-        if (p.unidades && typeof p.unidades === 'object') setUnidades(p.unidades);
-      } catch { /* prefs corruptas → defaults */ }
-    });
+    (async () => {
+      const p = await loadGeneratorPrefs();
+      if (p) {
+        setEquipo(p.equipo);
+        if (p.nivel) setNivel(p.nivel);
+        setSenior(p.senior);
+        setTiempoMin(p.tiempoMin);
+        setFlags(p.flags);
+        setUnidades(p.unidades);
+        setObjetivo(p.objetivo);
+        setEnfoque(p.enfoque);
+      }
+      // El perfil manda sobre la pref legacy.
+      if (user) {
+        const nivelPerfil = await getFitnessLevel(user.id);
+        if (nivelPerfil) setNivel(nivelPerfil);
+      }
+      prefsListasRef.current = true;
+    })();
     if (user) {
       ayerFueSesionPesada(user.id).then((ayerPesado) => setContexto((prev) => ({ ...prev, ayerPesado })));
       getSlugsRecientes(user.id).then((recientes) => setContexto((prev) => ({ ...prev, recientes })));
     }
   }, [user]);
 
-  // Persistir prefs (equipo/nivel/senior/tiempo/flags/unidades — lo que no cambia a diario).
+  // Persistir prefs (equipo/senior/tiempo/flags/unidades/objetivo/enfoque + nivel
+  // como caché legacy — el hub regenera "hoy" con esto).
   useEffect(() => {
-    AsyncStorage.setItem(PREFS_KEY, JSON.stringify({ equipo, nivel, senior, tiempoMin, flags, unidades })).catch(() => {});
-  }, [equipo, nivel, senior, tiempoMin, flags, unidades]);
+    if (!prefsListasRef.current) return;
+    saveGeneratorPrefs({ equipo, nivel, senior, tiempoMin, flags, unidades, objetivo, enfoque });
+  }, [equipo, nivel, senior, tiempoMin, flags, unidades, objetivo, enfoque]);
 
   const input = useMemo((): GeneratorInput | null => {
     if (catalogo.length === 0) return null;
@@ -187,9 +201,10 @@ export default function RoutineGeneratorScreen() {
   // Akinator: el pool encogiéndose EN VIVO con los filtros actuales.
   // (SIN los vetos manuales — así el usuario puede re-incluir lo vetado.)
   const pool = useMemo(() => (input ? filtrarPool(input) : []), [input]);
+  // Con objetivo movilidad los estiramientos SON el pool ejecutable.
   const poolEjecutable = useMemo(
-    () => pool.filter((e) => e.patron !== 'Estiramiento'),
-    [pool],
+    () => (objetivo === 'movilidad' ? pool : pool.filter((e) => e.patron !== 'Estiramiento')),
+    [pool, objetivo],
   );
   const activos = poolEjecutable.filter((e) => !excluidos.has(e.slug)).length;
 
@@ -255,20 +270,30 @@ export default function RoutineGeneratorScreen() {
           ))}
         </View>
 
-        {/* Enfoque (patrón default · bro-split opt-in) */}
-        <Text style={s.sectionLabel}>ENFOQUE</Text>
-        <View style={s.chipsRow}>
-          {ENFOQUES.map((e) => (
-            <Chip key={e.key} label={e.label} active={!broSplit && enfoque === e.key} onPress={() => { setBroSplit(false); setEnfoque(e.key); }} />
-          ))}
-          <Chip label="Por músculo" active={broSplit} onPress={() => setBroSplit(!broSplit)} />
-        </View>
-        {broSplit && (
-          <View style={[s.chipsRow, { marginTop: Spacing.xs }]}>
-            {Object.keys(GRUPOS_MUSCULARES).map((g) => (
-              <Chip key={g} label={g} active={musculos.includes(g)} onPress={() => toggle(musculos, setMusculos, g)} />
-            ))}
-          </View>
+        {/* Enfoque (patrón default · bro-split opt-in) — movilidad es cuerpo
+            completo: sin enfoque que recorte. */}
+        {objetivo === 'movilidad' ? (
+          <>
+            <Text style={s.sectionLabel}>ENFOQUE</Text>
+            <Text style={s.sectionHint}>Sesión de movilidad de cuerpo completo — estiramientos, movilidad y estabilidad de tu matriz.</Text>
+          </>
+        ) : (
+          <>
+            <Text style={s.sectionLabel}>ENFOQUE</Text>
+            <View style={s.chipsRow}>
+              {ENFOQUES.map((e) => (
+                <Chip key={e.key} label={e.label} active={!broSplit && enfoque === e.key} onPress={() => { setBroSplit(false); setEnfoque(e.key); }} />
+              ))}
+              <Chip label="Por músculo" active={broSplit} onPress={() => setBroSplit(!broSplit)} />
+            </View>
+            {broSplit && (
+              <View style={[s.chipsRow, { marginTop: Spacing.xs }]}>
+                {Object.keys(GRUPOS_MUSCULARES).map((g) => (
+                  <Chip key={g} label={g} active={musculos.includes(g)} onPress={() => toggle(musculos, setMusculos, g)} />
+                ))}
+              </View>
+            )}
+          </>
         )}
 
         {/* Equipo (filtro duro) */}
@@ -306,11 +331,19 @@ export default function RoutineGeneratorScreen() {
           </AnimatedPressable>
         </View>
 
-        {/* Nivel + senior */}
+        {/* Nivel + senior — el nivel vive en el PERFIL (224); cambiarlo aquí lo actualiza allá. */}
         <Text style={s.sectionLabel}>NIVEL</Text>
         <View style={s.chipsRow}>
           {NIVELES_USUARIO.map((n) => (
-            <Chip key={n} label={NIVEL_LABELS[n]} active={nivel === n} onPress={() => setNivel(n)} />
+            <Chip
+              key={n}
+              label={NIVEL_LABELS[n]}
+              active={nivel === n}
+              onPress={() => {
+                setNivel(n);
+                if (user) setFitnessLevel(user.id, n);
+              }}
+            />
           ))}
           <Chip label="Senior" active={senior} onPress={() => setSenior(!senior)} />
         </View>
@@ -406,15 +439,10 @@ export default function RoutineGeneratorScreen() {
                 <View style={{ marginTop: Spacing.md }}>
                   <GradientCTA label="EMPEZAR SESIÓN" pillar="fitness" icon="play" onPress={empezar} />
                 </View>
-                {/* ARGOS ENCIMA, no al lado (MB-3.5 #7): el algoritmo arma el
-                    esqueleto gratis; ARGOS personaliza/explica como capa premium. */}
-                <GradientCTA
-                  label="ARGOS, AJÚSTALA"
-                  variant="quiet"
-                  icon="sparkles-outline"
-                  onPress={() => { haptic.light(); router.push('/argos-routine'); }}
-                  style={{ marginTop: Spacing.xs }}
-                />
+                {/* MB-3.6 §1.1: ARGOS RETIRADO de Fitness — hoy /argos-routine
+                    genera desde cero ignorando este esqueleto, así que "ARGOS,
+                    ajústala" era promesa a medias. Vuelve cuando ARGOS tome el
+                    output del generador como input real. */}
               </>
             )}
           </Animated.View>

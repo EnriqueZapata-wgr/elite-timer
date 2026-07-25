@@ -16,7 +16,7 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CARD } from '@/src/constants/brand';
 import type { Routine, Block } from '@/src/engine/types';
 
@@ -133,20 +133,14 @@ export default function FitnessHIITScreen() {
           </Animated.View>
         ))}
 
+        {/* MB-3.6 §1.1: "Abrir timer libre" RETIRADO — /timer murió (duplicaba
+            estos presets); la ruta redirige aquí para deep-links viejos. */}
         <AnimatedPressable
           style={s.ctaButtonGhost}
           onPress={() => { haptic.light(); router.push('/builder'); }}
         >
           <Ionicons name="create-outline" size={18} color={ORANGE} />
           <EliteText style={s.ctaTextGhost}>CREAR HIIT PERSONALIZADO</EliteText>
-        </AnimatedPressable>
-
-        <AnimatedPressable
-          style={s.ctaButton}
-          onPress={() => { haptic.medium(); router.push('/timer'); }}
-        >
-          <Ionicons name="timer-outline" size={20} color="#000" />
-          <EliteText style={s.ctaText}>ABRIR TIMER LIBRE</EliteText>
         </AnimatedPressable>
 
         <View style={{ height: 80 }} />

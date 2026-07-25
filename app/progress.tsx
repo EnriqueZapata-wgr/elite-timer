@@ -265,7 +265,7 @@ export default function ProgressScreen() {
               const trendColor = ex.trend === 'up' ? Colors.neonGreen : ex.trend === 'down' ? SEMANTIC.error : Colors.textSecondary;
 
               return (
-                <Pressable key={ex.exerciseId} onPress={() => { haptic.light(); router.push('/personal-records'); }}>
+                <Pressable key={ex.exerciseId} onPress={() => { haptic.light(); router.push('/fitness-strength'); }}>
                   <View style={styles.topExRow}>
                     <EliteText variant="caption" style={styles.topExRank}>{i + 1}</EliteText>
                     <View style={[styles.topExDot, { backgroundColor: mgColor }]} />
@@ -293,7 +293,7 @@ export default function ProgressScreen() {
         <Animated.View entering={FadeInUp.delay(250).springify()}>
           <View style={styles.sectionHeader}>
             <EliteText variant="caption" style={styles.sectionLabel}>PRs RECIENTES</EliteText>
-            <Pressable onPress={() => { haptic.light(); router.push('/personal-records'); }}>
+            <Pressable onPress={() => { haptic.light(); router.push('/fitness-strength'); }}>
               <EliteText variant="caption" style={styles.sectionLink}>Ver todos ›</EliteText>
             </Pressable>
           </View>
@@ -322,7 +322,7 @@ export default function ProgressScreen() {
                   {prs.map(pr => {
                     const mgColor = MUSCLE_GROUP_COLORS[pr.muscle_group ?? ''] ?? Colors.textSecondary;
                     return (
-                      <Pressable key={pr.id} onPress={() => { haptic.light(); router.push('/personal-records'); }}>
+                      <Pressable key={pr.id} onPress={() => { haptic.light(); router.push('/fitness-strength'); }}>
                         <View style={styles.prRow}>
                           <View style={[styles.prDot, { backgroundColor: mgColor }]} />
                           <View style={styles.prContent}>

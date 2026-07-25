@@ -302,7 +302,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
           {/* Botones */}
           <View style={{ gap: 12, alignItems: 'center', marginTop: 24, width: '100%' }}>
             <AnimatedPressable
-              onPress={() => router.push('/personal-records')}
+              onPress={() => router.push('/fitness-strength')}
               style={styles.completedOutlineBtn}
             >
               <Ionicons name="trophy-outline" size={18} color={Colors.neonGreen} />
