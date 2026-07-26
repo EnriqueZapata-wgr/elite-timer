@@ -22,11 +22,11 @@ Verifiqué el esquema **directo contra information_schema del remoto**: la colum
 - **Flush automático** al abrir el hub de Fitness: las pendientes se re-suben solas; electrón de strength solo si la sesión recuperada es de HOY (cero retroactividad, misma doctrina que el import de cardio). La fecha de la sesión sale de `endedAt`, no del día del flush.
 - `log-exercise` (métodos sueltos): el catch terminal que se tragaba el trabajo ahora ofrece Reintentar.
 
-### 0.3 · Crash de Health Connect — CAUSA RAÍZ CONFIRMADA (distinta a la hipótesis #1)
-**Cómo lo probé: análisis estático del código nativo de la librería + manifest generado — NO tuve device.** El diagnóstico es concluyente a nivel de código; el humo real lo valida Enrique en el build.
+### 0.3 · Crash de Health Connect — CAUSA RAÍZ (✅ confirmada por Sentry, coincide con el diagnóstico)
+**Doble confirmación:** el análisis estático del código nativo de la librería llegó a la misma conclusión que después validó Sentry (issue 7634111992): `UninitializedPropertyAccessException: lateinit property requestPermission has not been initialized` en `HealthConnectPermissionDelegate.launchPermissionsDialog` (línea 45) · SM-S928B · Android 16 · app 1.7.0+17 · sin manejar (UncaughtExceptionHandler).
 
-- La hipótesis #1 del brief (falta el intent-filter de rationale) **no es la causa**: el `app.plugin.js` de `react-native-health-connect@3.5.3` SÍ genera ese intent-filter, y está registrado en app.json.
-- **La causa real:** la librería exige `HealthConnectPermissionDelegate.setPermissionDelegate(this)` en `MainActivity.onCreate` — y NADIE lo hace (en Expo requiere config plugin custom que no existía). `requestPermission()` es el **único método del módulo Kotlin sin try/catch** (`HealthConnectManager.kt:66-76`) y ejecuta `requestPermission.launch(...)` sobre una **`lateinit var` sin inicializar** dentro de una corrutina sin handler → `UninitializedPropertyAccessException` → **muere el proceso**. Inatrapable desde JS: la promesa jamás se rechaza.
+- La hipótesis original del rationale **no era la causa**: el `app.plugin.js` de `react-native-health-connect@3.5.3` SÍ genera ese intent-filter, y está registrado en app.json.
+- **La causa real:** la librería exige `HealthConnectPermissionDelegate.setPermissionDelegate(this)` en `MainActivity.onCreate` (su README) — y su plugin de Expo SOLO parcha el AndroidManifest, nunca MainActivity; en Expo managed no hay MainActivity en el repo, así que el registro jamás ocurrió. `requestPermission()` es el **único método del módulo Kotlin sin try/catch** (`HealthConnectManager.kt:66-76`) y ejecuta `requestPermission.launch(...)` sobre la **`lateinit var` sin inicializar** dentro de una corrutina sin handler → **muere el proceso**. Inatrapable desde JS: la promesa jamás se rechaza (por eso no se intentó "atraparlo" — la mitigación JS es NO entrar al camino roto).
 - **Fix nativo:** `plugins/with-health-connect-delegate.js` (registrado en app.json) inyecta en prebuild: (a) el `setPermissionDelegate` en MainActivity.kt, (b) el activity-alias `VIEW_PERMISSION_USAGE`/`HEALTH_PERMISSIONS` que Android 14+ exige para el link de política de privacidad. **Requiere BUILD nativo.**
 - **Blindaje JS (nunca un crash, en CUALQUIER binario):**
   1. Si la lectura ya está concedida → se lee directo, **sin abrir ningún diálogo** (camino seguro en todos los binarios, y más rápido).
@@ -138,7 +138,7 @@ El card de consentimiento ahora dice en iOS "Strava, Garmin y tus demás apps es
 ---
 
 ## 🚩 FLAGS HONESTOS
-1. **Crash HC diagnosticado por análisis estático, sin device** — el título exacto de Sentry (issue 7634111992) debería decir `UninitializedPropertyAccessException` / `lateinit property requestPermission has not been initialized`. **Si NO coincide, avisar: el blindaje JS sigue valiendo, pero el plugin habría que re-apuntarlo.**
+1. ~~Crash HC diagnosticado solo por análisis estático~~ → **RESUELTO: Sentry confirmó el título exacto** (`lateinit property requestPermission has not been initialized`, `launchPermissionsDialog:45`, SM-S928B/Android 16/1.7.0+17). El plugin apunta al lugar correcto; queda solo la verificación en build (nativo, no verificable por OTA).
 2. **`PRIMER_VERSION_CODE_CON_DELEGATE = 18`** asume que el próximo build sube versionCode; si no, ajustar la constante en health-import-service.ts.
 3. **db push (231-233) va ANTES del OTA** — misma doctrina F4. La 233 revive user_symptoms; conviene re-verificar el pilar Salud tras el push.
 4. Rangos EMOM = propuesta; Enrique veta tabla arriba. Kettlebell swings caen en "carga externa" (6-12) — quizá quiera reps más altas ahí.
