@@ -20,8 +20,9 @@ import { computeEmotionProfile, buildShareText, PROFILE_PERIOD_DAYS, type Emotio
 import { loadHistoryData, type HistoryCheckinRecord } from '@/src/services/emotion-history-service';
 import { colorAtPoint, emotionGradient, normX, normY, isLightColor, QUADRANT_CENTERS } from '@/src/services/emotion-map-core';
 import { haptic } from '@/src/utils/haptics';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, withOpacity, BG } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, ATP_BRAND, withOpacity, BG } from '@/src/constants/brand';
 
 const EMOTION_BY_ID = new Map(EMOTIONS.map(e => [e.id, e]));
 
@@ -86,12 +87,15 @@ export default function EmotionProfileScreen() {
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${Math.min(100, (profile.have / profile.needed) * 100)}%` }]} />
             </View>
-            <Pressable
-              onPress={() => { haptic.medium(); router.push('/checkin'); }}
-              style={styles.insufficientCta}
-            >
-              <EliteText style={styles.insufficientCtaText}>HACER UN CHECK-IN</EliteText>
-            </Pressable>
+            {/* MB-7 Track D: CTA al molde editorial (degradado de marca, glow
+                Mente) — era lime plano legacy. Es lo PRIMERO que el usuario ve
+                en un pilar recién nacido. */}
+            <GradientCTA
+              label="HACER UN CHECK-IN"
+              pillar="mind"
+              onPress={() => router.push('/checkin')}
+              style={{ marginTop: Spacing.md }}
+            />
           </Animated.View>
         </View>
       </Screen>
@@ -136,7 +140,8 @@ export default function EmotionProfileScreen() {
                     {info?.label ?? q.quadrant}
                   </EliteText>
                   <View style={styles.mixTrack}>
-                    <View style={[styles.mixFill, { width: `${q.pct}%`, backgroundColor: withOpacity(info?.color ?? '', 0.8) }]} />
+                    {/* Fallback real: withOpacity('') producía un color inválido */}
+                    <View style={[styles.mixFill, { width: `${q.pct}%`, backgroundColor: withOpacity(info?.color ?? TEXT_COLORS.secondary, 0.8) }]} />
                   </View>
                   <EliteText variant="caption" style={styles.mixPct}>{Math.round(q.pct)}%</EliteText>
                 </View>
@@ -229,12 +234,7 @@ const styles = StyleSheet.create({
     width: '100%', height: 6, borderRadius: 3, backgroundColor: BG.input, marginTop: Spacing.sm,
     overflow: 'hidden',
   },
-  progressFill: { height: 6, borderRadius: 3, backgroundColor: Colors.neonGreen },
-  insufficientCta: {
-    backgroundColor: Colors.neonGreen, borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, marginTop: Spacing.md,
-  },
-  insufficientCtaText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.md, letterSpacing: 1.5 },
+  progressFill: { height: 6, borderRadius: 3, backgroundColor: withOpacity(ATP_BRAND.lime, 0.85) },
 
   // Héroe
   heroWrap: { alignItems: 'center', paddingHorizontal: Spacing.xl, paddingVertical: Spacing.xl, gap: Spacing.sm },

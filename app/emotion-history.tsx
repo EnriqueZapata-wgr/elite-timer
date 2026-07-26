@@ -28,7 +28,7 @@ import { colorAtPoint, emotionGradient, normX, normY, isLightColor } from '@/src
 import { PHASES } from '@/src/services/cycle-service';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, SEMANTIC, ATP_BRAND, withOpacity } from '@/src/constants/brand';
 
 const EMOTION_BY_ID = new Map(EMOTIONS.map(e => [e.id, e]));
 
@@ -293,7 +293,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: SURFACES.base, borderWidth: 0.5, borderColor: SURFACES.cardLight,
   },
-  pillActive: { backgroundColor: Colors.neonGreen, borderColor: Colors.neonGreen },
+  // MB-7 Track D: fuera el neonGreen de ELITE — lime de marca (micro-acento).
+  pillActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
   pillText: { color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, letterSpacing: 1 },
   pillTextActive: { color: TEXT_COLORS.onAccent },
 
