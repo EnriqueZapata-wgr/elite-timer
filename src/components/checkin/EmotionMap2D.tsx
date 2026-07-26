@@ -19,8 +19,9 @@ import {
 import { View, StyleSheet, Pressable } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
-  useSharedValue, useAnimatedStyle, useAnimatedReaction, withTiming, withRepeat,
-  Easing, runOnJS, ZoomIn, FadeIn,
+  useSharedValue, useAnimatedStyle, withTiming, withRepeat, withDecay, withSpring,
+  cancelAnimation, interpolate, Extrapolation,
+  Easing, runOnJS, ZoomIn, FadeIn, type SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
@@ -28,8 +29,7 @@ import { EMOTIONS, QUADRANTS, type Emotion, type QuadrantKey } from '@/src/data/
 import {
   computeEmotionMapLayout, emotionGradient, colorAtPoint, isLightColor,
   QUADRANT_CENTERS, toWorld, WORLD_W, WORLD_H, NODE_SIZE,
-  visibleWorldBox, isInWorldBox,
-  type EmotionMapLayout, type WorldBox,
+  type EmotionMapLayout,
 } from '@/src/services/emotion-map-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes } from '@/constants/theme';
@@ -48,7 +48,39 @@ const EMOTION_BY_ID = new Map(EMOTIONS.map((e) => [e.id, e]));
 export const ZOOM_LANDING = 0.8;   // aterrizaje: se ve la zona, no el océano
 export const ZOOM_MAX = 1.35;
 const OVERVIEW_LABEL_CUTOFF = 0.42; // debajo de esto los labels no aportan
-const OVERSCROLL = 90;              // margen elástico al arrastrar más allá del mundo
+const LABEL_FADE_RANGE = 0.14;      // los labels se desvanecen por worklet alrededor del corte
+const RUBBER_C = 0.55;              // constante de resistencia de la liga (rubber-band iOS)
+// Snap-back de zoom: amortiguamiento ~crítico, sin rebote (apple-design §4).
+const SETTLE_SPRING = { damping: 30, stiffness: 260, mass: 1, overshootClamping: true } as const;
+
+// ═══ Liga progresiva en bordes — un tope duro se lee como "se congeló";
+// la resistencia progresiva se lee como "responde, pero aquí ya no hay más". ═══
+
+function rubberband(overshoot: number, dim: number): number {
+  'worklet';
+  return (overshoot * dim * RUBBER_C) / (dim + RUBBER_C * overshoot);
+}
+
+/** Inversa exacta de rubberband — agarrar el plano a media liga no salta. */
+function invRubberband(r: number, dim: number): number {
+  'worklet';
+  const capped = Math.min(r, dim * 0.999);
+  return (capped * dim) / (RUBBER_C * (dim - capped));
+}
+
+function rubberMap(v: number, min: number, max: number, dim: number): number {
+  'worklet';
+  if (v < min) return min - rubberband(min - v, dim);
+  if (v > max) return max + rubberband(v - max, dim);
+  return v;
+}
+
+function invRubberMap(v: number, min: number, max: number, dim: number): number {
+  'worklet';
+  if (v < min) return min - invRubberband(min - v, dim);
+  if (v > max) return max + invRubberband(v - max, dim);
+  return v;
+}
 
 export interface EmotionMapHandle {
   /** Desliza la cámara hasta una emoción (la navegación del Bloque 2 vive de esto). */
@@ -77,69 +109,55 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
   const layout = getEmotionMapLayout();
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const [overview, setOverview] = useState(false);
-  // Bloque C · perf: caja del mundo visible (null = aún sin medir → render de todo).
-  const [visibleBox, setVisibleBox] = useState<WorldBox | null>(null);
 
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const scale = useSharedValue(ZOOM_LANDING);
-  const savedTx = useSharedValue(0);
-  const savedTy = useSharedValue(0);
-  const savedScale = useSharedValue(ZOOM_LANDING);
+  // Cámara "cruda" (sin liga): el gesto acumula aquí y la vista presenta
+  // rubberMap(raw). Pan y pinch componen sobre el mismo estado sin pelearse.
+  const rawTx = useSharedValue(0);
+  const rawTy = useSharedValue(0);
+  const pinchLast = useSharedValue(1);
+  const focalX = useSharedValue(0);
+  const focalY = useSharedValue(0);
+  const panActive = useSharedValue(false);
   const placed = useRef(false);
 
   const fitScale = viewport.w > 0
     ? Math.min(viewport.w / WORLD_W, viewport.h / WORLD_H)
     : 0.2;
 
-  const clampTx = useCallback((v: number, s: number) => {
+  // Límites reales del mundo (sin margen): la liga da el "give", el reposo es al ras.
+  const boundsX = useCallback((s: number): [number, number] => {
     'worklet';
-    const min = viewport.w - WORLD_W * s - OVERSCROLL;
-    const max = OVERSCROLL;
-    if (min > max) return (viewport.w - WORLD_W * s) / 2;
-    return Math.min(max, Math.max(min, v));
+    const min = viewport.w - WORLD_W * s;
+    if (min > 0) return [min / 2, min / 2]; // mundo más chico que el viewport → centrado
+    return [min, 0];
   }, [viewport.w]);
 
-  const clampTy = useCallback((v: number, s: number) => {
+  const boundsY = useCallback((s: number): [number, number] => {
     'worklet';
-    const min = viewport.h - WORLD_H * s - OVERSCROLL;
-    const max = OVERSCROLL;
-    if (min > max) return (viewport.h - WORLD_H * s) / 2;
-    return Math.min(max, Math.max(min, v));
+    const min = viewport.h - WORLD_H * s;
+    if (min > 0) return [min / 2, min / 2];
+    return [min, 0];
   }, [viewport.h]);
 
   const setOverviewSafe = useCallback((on: boolean) => {
     setOverview((prev) => (prev === on ? prev : on));
   }, []);
 
-  // Bloque C · perf: recalcula la caja del mundo visible cuando la cámara cambia.
-  const recomputeVisibleBox = useCallback(() => {
-    if (viewport.w === 0) return;
-    setVisibleBox(visibleWorldBox(viewport.w, viewport.h, tx.value, ty.value, scale.value));
-  }, [viewport.w, viewport.h, tx, ty, scale]);
-
-  // Cuantizamos la cámara a "celdas" para NO cruzar el bridge JS en cada frame
-  // del pan/pinch (serían 60 setState/s). Solo al cambiar de celda se recalcula.
-  useAnimatedReaction(
-    () => {
-      const q = 90; // px de pantalla por celda
-      return `${Math.round(tx.value / q)}|${Math.round(ty.value / q)}|${Math.round(scale.value * 20)}`;
-    },
-    (cur, prev) => {
-      if (cur !== prev) runOnJS(recomputeVisibleBox)();
-    },
-    [recomputeVisibleBox],
-  );
-
   const animateTo = useCallback((wx: number, wy: number, targetScale: number, durationMs = 480) => {
     if (viewport.w === 0) return;
     const s = Math.max(fitScale, Math.min(ZOOM_MAX, targetScale));
     const easing = Easing.out(Easing.cubic); // entra suave, nunca ease-in
+    const [minX, maxX] = boundsX(s);
+    const [minY, maxY] = boundsY(s);
+    // withTiming arranca del valor presentado → un dedo la interrumpe sin salto.
     scale.value = withTiming(s, { duration: durationMs, easing });
-    tx.value = withTiming(clampTx(viewport.w / 2 - wx * s, s), { duration: durationMs, easing });
-    ty.value = withTiming(clampTy(viewport.h / 2 - wy * s, s), { duration: durationMs, easing });
+    tx.value = withTiming(Math.min(maxX, Math.max(minX, viewport.w / 2 - wx * s)), { duration: durationMs, easing });
+    ty.value = withTiming(Math.min(maxY, Math.max(minY, viewport.h / 2 - wy * s)), { duration: durationMs, easing });
     setOverviewSafe(s < OVERVIEW_LABEL_CUTOFF);
-  }, [viewport, fitScale, clampTx, clampTy, scale, tx, ty, setOverviewSafe]);
+  }, [viewport, fitScale, boundsX, boundsY, scale, tx, ty, setOverviewSafe]);
 
   useImperativeHandle(ref, () => ({
     centerOnEmotion: (id, opts) => {
@@ -164,41 +182,119 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
     placed.current = true;
     const c = QUADRANT_CENTERS[initialQuadrant ?? 'high_pleasant'];
     const { wx, wy } = toWorld(c.nx, c.ny);
-    tx.value = clampTx(viewport.w / 2 - wx * ZOOM_LANDING, ZOOM_LANDING);
-    ty.value = clampTy(viewport.h / 2 - wy * ZOOM_LANDING, ZOOM_LANDING);
-    setVisibleBox(visibleWorldBox(viewport.w, viewport.h, tx.value, ty.value, ZOOM_LANDING));
+    const [minX, maxX] = boundsX(ZOOM_LANDING);
+    const [minY, maxY] = boundsY(ZOOM_LANDING);
+    tx.value = Math.min(maxX, Math.max(minX, viewport.w / 2 - wx * ZOOM_LANDING));
+    ty.value = Math.min(maxY, Math.max(minY, viewport.h / 2 - wy * ZOOM_LANDING));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewport]);
+
+  // ═══ Gestos — el camino del gesto NUNCA cruza al hilo de JS. ═══
+  // Touch-down agarra el plano donde está (cancela inercia), el tracking es 1:1
+  // sobre la cámara cruda, y al soltar la velocidad se entrega a withDecay.
 
   const pan = useMemo(() => Gesture.Pan()
     .enabled(interactive)
     .minDistance(6)
-    .onStart(() => {
-      savedTx.value = tx.value;
-      savedTy.value = ty.value;
+    .onBegin(() => {
+      // Respuesta en touch-down: si venía con inercia, se engancha aquí mismo.
+      cancelAnimation(tx);
+      cancelAnimation(ty);
     })
-    .onUpdate((e) => {
-      tx.value = clampTx(savedTx.value + e.translationX, scale.value);
-      ty.value = clampTy(savedTy.value + e.translationY, scale.value);
-    }), [interactive, clampTx, clampTy, savedTx, savedTy, tx, ty, scale]);
+    .onStart(() => {
+      panActive.value = true;
+      const [minX, maxX] = boundsX(scale.value);
+      const [minY, maxY] = boundsY(scale.value);
+      rawTx.value = invRubberMap(tx.value, minX, maxX, viewport.w);
+      rawTy.value = invRubberMap(ty.value, minY, maxY, viewport.h);
+    })
+    .onChange((e) => {
+      const [minX, maxX] = boundsX(scale.value);
+      const [minY, maxY] = boundsY(scale.value);
+      rawTx.value += e.changeX;
+      rawTy.value += e.changeY;
+      tx.value = rubberMap(rawTx.value, minX, maxX, viewport.w);
+      ty.value = rubberMap(rawTy.value, minY, maxY, viewport.h);
+    })
+    .onEnd((e) => {
+      // Momentum: proyección de inercia estilo iOS + liga en los bordes.
+      // Los límites se computan con la escala legal (por si el pinch quedó en liga).
+      const sNow = Math.max(fitScale, Math.min(ZOOM_MAX, scale.value));
+      const [minX, maxX] = boundsX(sNow);
+      const [minY, maxY] = boundsY(sNow);
+      tx.value = withDecay({ velocity: e.velocityX, deceleration: 0.998, clamp: [minX, maxX], rubberBandEffect: true });
+      ty.value = withDecay({ velocity: e.velocityY, deceleration: 0.998, clamp: [minY, maxY], rubberBandEffect: true });
+    })
+    .onFinalize(() => {
+      panActive.value = false;
+    }), [interactive, viewport, fitScale, boundsX, boundsY, rawTx, rawTy, tx, ty, scale, panActive]);
 
   const pinch = useMemo(() => Gesture.Pinch()
     .enabled(interactive)
+    .onBegin(() => {
+      cancelAnimation(tx);
+      cancelAnimation(ty);
+      cancelAnimation(scale);
+    })
     .onStart(() => {
-      savedScale.value = scale.value;
-      savedTx.value = tx.value;
-      savedTy.value = ty.value;
+      pinchLast.value = 1;
+      const [minX, maxX] = boundsX(scale.value);
+      const [minY, maxY] = boundsY(scale.value);
+      rawTx.value = invRubberMap(tx.value, minX, maxX, viewport.w);
+      rawTy.value = invRubberMap(ty.value, minY, maxY, viewport.h);
     })
     .onUpdate((e) => {
-      const s = Math.max(fitScale * 0.9, Math.min(ZOOM_MAX, savedScale.value * e.scale));
-      const k = s / savedScale.value;
-      scale.value = s;
-      tx.value = clampTx(e.focalX - (e.focalX - savedTx.value) * k, s);
-      ty.value = clampTy(e.focalY - (e.focalY - savedTy.value) * k, s);
+      // Factor incremental (no acumulado desde onStart): compone con el pan
+      // simultáneo sin saltos y siempre parte del valor presentado.
+      const k = e.scale / pinchLast.value;
+      pinchLast.value = e.scale;
+      const sPrev = scale.value;
+      let sNext = sPrev * k;
+      // Liga también en el zoom: pasar el límite resiste, no corta.
+      if (sNext > ZOOM_MAX) sNext = ZOOM_MAX + rubberband(sNext - ZOOM_MAX, 0.25);
+      else if (sNext < fitScale) sNext = fitScale - rubberband(fitScale - sNext, fitScale * 0.35);
+      const k2 = sNext / sPrev;
+      focalX.value = e.focalX;
+      focalY.value = e.focalY;
+      rawTx.value = e.focalX - (e.focalX - rawTx.value) * k2;
+      rawTy.value = e.focalY - (e.focalY - rawTy.value) * k2;
+      scale.value = sNext;
+      const [minX, maxX] = boundsX(sNext);
+      const [minY, maxY] = boundsY(sNext);
+      tx.value = rubberMap(rawTx.value, minX, maxX, viewport.w);
+      ty.value = rubberMap(rawTy.value, minY, maxY, viewport.h);
     })
     .onEnd(() => {
-      runOnJS(setOverviewSafe)(scale.value < OVERVIEW_LABEL_CUTOFF);
-    }), [interactive, fitScale, clampTx, clampTy, savedScale, savedTx, savedTy, tx, ty, scale, setOverviewSafe]);
+      const sTarget = Math.max(fitScale, Math.min(ZOOM_MAX, scale.value));
+      const [minX, maxX] = boundsX(sTarget);
+      const [minY, maxY] = boundsY(sTarget);
+      const sNow = scale.value;
+      if (sTarget !== sNow) {
+        // El zoom quedó en la zona de liga → regresa al límite alrededor del
+        // focal, arrancando del valor presentado (amortiguamiento ~crítico).
+        scale.value = withSpring(sTarget, SETTLE_SPRING);
+        if (!panActive.value) {
+          const k = sTarget / sNow;
+          const txT = Math.min(maxX, Math.max(minX, focalX.value - (focalX.value - tx.value) * k));
+          const tyT = Math.min(maxY, Math.max(minY, focalY.value - (focalY.value - ty.value) * k));
+          cancelAnimation(tx);
+          cancelAnimation(ty);
+          tx.value = withSpring(txT, SETTLE_SPRING);
+          ty.value = withSpring(tyT, SETTLE_SPRING);
+        }
+      } else if (!panActive.value) {
+        // Zoom válido pero la traslación pudo quedar fuera de los nuevos límites
+        // (pinch puro sin pan que la regrese con decay).
+        if (tx.value < minX || tx.value > maxX) {
+          tx.value = withSpring(Math.min(maxX, Math.max(minX, tx.value)), SETTLE_SPRING);
+        }
+        if (ty.value < minY || ty.value > maxY) {
+          ty.value = withSpring(Math.min(maxY, Math.max(minY, ty.value)), SETTLE_SPRING);
+        }
+      }
+      // Único cruce a JS: AL TERMINAR el gesto (flip gradiente/plano + zonas).
+      runOnJS(setOverviewSafe)(sTarget < OVERVIEW_LABEL_CUTOFF);
+    }), [interactive, viewport, fitScale, boundsX, boundsY, rawTx, rawTy, tx, ty, scale, pinchLast, focalX, focalY, panActive, setOverviewSafe]);
 
   const gesture = useMemo(() => Gesture.Simultaneous(pan, pinch), [pan, pinch]);
 
@@ -228,19 +324,13 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
     >
       <GestureDetector gesture={gesture}>
         <Animated.View style={[styles.world, worldStyle]}>
+          {/* Las burbujas se montan UNA vez y solo se transforma el contenedor —
+              el gesto no vuelve a tocar el hilo de JS (adiós culling reactivo,
+              que re-renderizaba las 144 a media navegación). */}
           {layout.points.map((p) => {
             const emotion = EMOTION_BY_ID.get(p.id);
             if (!emotion) return null;
             const isSelected = selectedSet.has(p.id);
-            // Bloque C · culling por viewport: lo que queda fuera de la caja
-            // visible (+margen) no se renderiza. Selección y highlights NUNCA se
-            // cullean — la cámara los persigue y deben estar listos al llegar.
-            if (
-              visibleBox && !isSelected && !highlightSet?.has(p.id)
-              && !isInWorldBox(p.wx, p.wy, visibleBox)
-            ) {
-              return null;
-            }
             const dimmed = highlightSet ? !highlightSet.has(p.id) && !isSelected : false;
             return (
               <MapNode
@@ -252,7 +342,7 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
                 ny={p.ny}
                 selected={isSelected}
                 dimmed={dimmed}
-                showLabel={!overview}
+                cameraScale={scale}
                 flat={overview}
                 onPress={handlePress}
               />
@@ -302,16 +392,28 @@ interface NodeProps {
   ny: number;
   selected: boolean;
   dimmed: boolean;
-  showLabel: boolean;
-  /** Bloque C · perf: nodo pequeño/lejano → color plano (sin LinearGradient). */
+  /** Escala de la cámara — los labels se desvanecen en worklet, sin setState. */
+  cameraScale: SharedValue<number>;
+  /** Al asentarse en vista alejada → color plano (sin LinearGradient). */
   flat: boolean;
   onPress: (e: Emotion) => void;
 }
 
-const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimmed, showLabel, flat, onPress }: NodeProps) {
+const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimmed, cameraScale, flat, onPress }: NodeProps) {
   const [gTop, gBottom] = useMemo(() => emotionGradient(nx, ny), [nx, ny]);
   const base = useMemo(() => colorAtPoint(nx, ny), [nx, ny]);
   const labelColor = isLightColor(base) ? TEXT_COLORS.onAccent : TEXT.primary;
+
+  // Opacidad del label derivada de la escala EN el hilo de UI: alejarse los
+  // funde, acercarse los revela — sin cruzar a JS a media navegación.
+  const labelFade = useAnimatedStyle(() => ({
+    opacity: interpolate(
+      cameraScale.value,
+      [OVERVIEW_LABEL_CUTOFF, OVERVIEW_LABEL_CUTOFF + LABEL_FADE_RANGE],
+      [0, 1],
+      Extrapolation.CLAMP,
+    ),
+  }));
 
   return (
     <View
@@ -322,23 +424,25 @@ const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimme
         {selected ? (
           <OrbitalMark color={base} gradient={[gTop, gBottom]} />
         ) : flat ? (
-          // Vista alejada: el gradiente es invisible a ese tamaño → color plano,
-          // 0 LinearGradient. Aquí es donde vivían los 144 gradientes simultáneos.
+          // Vista alejada asentada: el gradiente es invisible a ese tamaño →
+          // color plano, 0 LinearGradient.
           <View style={[styles.circle, { backgroundColor: base }]} />
         ) : (
           <LinearGradient colors={[gTop, gBottom]} style={styles.circle}>
-            {showLabel && (
+            <Animated.View style={labelFade}>
               <EliteText numberOfLines={3} style={[styles.nodeLabel, { color: labelColor }]}>
                 {emotion.label}
               </EliteText>
-            )}
+            </Animated.View>
           </LinearGradient>
         )}
       </Pressable>
-      {selected && showLabel && (
-        <EliteText numberOfLines={2} style={[styles.selectedLabel, { color: base }]}>
-          {emotion.label}
-        </EliteText>
+      {selected && !flat && (
+        <Animated.View style={[styles.selectedLabelWrap, labelFade]}>
+          <EliteText numberOfLines={2} style={[styles.selectedLabel, { color: base }]}>
+            {emotion.label}
+          </EliteText>
+        </Animated.View>
       )}
     </View>
   );
@@ -409,11 +513,13 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold,
     textAlign: 'center',
   },
-  selectedLabel: {
+  selectedLabelWrap: {
     position: 'absolute',
     top: NODE_SIZE + 2,
     width: NODE_SIZE + 60,
-    marginLeft: -30,
+    left: -30,
+  },
+  selectedLabel: {
     fontSize: FontSizes.md,
     fontFamily: Fonts.bold,
     textAlign: 'center',
