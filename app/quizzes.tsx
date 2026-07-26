@@ -80,11 +80,13 @@ export default function QuizzesScreen() {
       const quizzes = await getAvailableQuizzes();
       setDbQuizzes(quizzes);
       if (!user?.id || quizzes.length === 0) return;
+      // quiz_responses no tiene is_complete (fantasma MB-6) — completado =
+      // completed_at no nulo.
       const { data } = await supabase
         .from('quiz_responses')
         .select('quiz_id, completed_at')
         .eq('user_id', user.id)
-        .eq('is_complete', true)
+        .not('completed_at', 'is', null)
         .order('completed_at', { ascending: false });
       if (data) {
         const completed: Record<string, string> = {};

@@ -27,10 +27,12 @@ export interface EdadSignal {
 
 /** Sexo del perfil ('male' | 'female'); null si no está declarado. */
 async function getSexo(userId: string): Promise<Sexo | null> {
+  // biological_sex vive en client_profiles, no en profiles (fantasma MB-6:
+  // el 400 silencioso dejaba el sexo siempre null → benchmarks sin sexo).
   const { data, error } = await supabase
-    .from('profiles')
+    .from('client_profiles')
     .select('biological_sex')
-    .eq('id', userId)
+    .eq('user_id', userId)
     .maybeSingle();
   if (error) { logWarn('[edad-bridge] getSexo failed:', error.message); return null; }
   const s = (data as { biological_sex?: string } | null)?.biological_sex;

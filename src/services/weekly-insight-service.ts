@@ -167,9 +167,11 @@ async function pillarSupplementsPct(userId: string, startStr: string, endStr: st
 /** Hidratación: % promedio de total_ml/goal por día con registro. */
 async function pillarHydrationPct(userId: string, startStr: string, endStr: string): Promise<number> {
   try {
+    // hydration_logs no tiene goal_ml — la meta diaria es target_ml (fantasma
+    // MB-6: el 400 dejaba la hidratación semanal siempre en 0%).
     const { data } = await supabase
       .from('hydration_logs')
-      .select('date, total_ml, goal_ml')
+      .select('date, total_ml, target_ml')
       .eq('user_id', userId)
       .gte('date', startStr)
       .lte('date', endStr);
@@ -177,7 +179,7 @@ async function pillarHydrationPct(userId: string, startStr: string, endStr: stri
     // Sumamos % por día (capped 100) y dividimos entre 7 — días sin registro = 0%.
     let totalPct = 0;
     for (const r of data as any[]) {
-      const goal = Number(r.goal_ml) || 2000;
+      const goal = Number(r.target_ml) || 2000;
       const ml = Number(r.total_ml) || 0;
       totalPct += Math.min(100, Math.round((ml / goal) * 100));
     }

@@ -118,12 +118,13 @@ export async function getClientList(): Promise<ClientSummary[]> {
     .in('user_id', clientIds)
     .gte('logged_at', startOfMonth.toISOString());
 
-  // Última consulta por cliente
+  // Última consulta por cliente — la columna real es consultation_date
+  // (fantasma MB-6: `date` no existe y el panel nunca mostraba última consulta).
   const { data: consults } = await supabase
     .from('consultations')
-    .select('client_id, date')
+    .select('client_id, consultation_date')
     .in('client_id', clientIds)
-    .order('date', { ascending: false });
+    .order('consultation_date', { ascending: false });
 
   const statsByClient = new Map<string, { sessions: Set<string>; lastWorkout: string | null; lastConsult: string | null }>();
   for (const log of (logs ?? [])) {
@@ -143,7 +144,7 @@ export async function getClientList(): Promise<ClientSummary[]> {
       statsByClient.set(c.client_id, { sessions: new Set(), lastWorkout: null, lastConsult: null });
     }
     const entry = statsByClient.get(c.client_id)!;
-    if (!entry.lastConsult) entry.lastConsult = c.date; // ya está ordenado desc
+    if (!entry.lastConsult) entry.lastConsult = c.consultation_date; // ya está ordenado desc
   }
 
   return connections.map(c => ({

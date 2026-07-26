@@ -25,6 +25,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   ATP_BRAND, TEXT, ELEVATION, SEMANTIC, CATEGORY_COLORS, PILLAR_GRADIENTS, GLOW, withOpacity,
@@ -230,23 +231,44 @@ function ProgressionLineChart({ data }: { data: ProgressionPoint[] }) {
 
 // === DELETE + RECALCULATE PR ===
 
+/** Epley — misma fórmula que calc_estimated_1rm en SQL (reps=1 → peso directo). */
+function estimated1rm(weightKg: number, reps: number): number {
+  return reps === 1 ? weightKg : Math.round(weightKg * (1 + reps / 30) * 100) / 100;
+}
+
 async function recalculatePR(userId: string, exerciseId: string) {
-  const { data: logs } = await supabase
+  // exercise_logs NO tiene estimated_1rm/rep_range (fantasma MB-6: el 400
+  // silencioso hacía que el PR jamás se reconstruyera desde los logs).
+  // Se calcula client-side con la misma fórmula del trigger SQL.
+  const { data: logs, error } = await supabase
     .from('exercise_logs')
-    .select('weight_kg, reps, estimated_1rm, rep_range')
+    .select('weight_kg, reps')
     .eq('user_id', userId)
     .eq('exercise_id', exerciseId)
-    .order('estimated_1rm', { ascending: false })
-    .limit(1);
+    .not('weight_kg', 'is', null);
 
-  if (logs && logs.length > 0) {
-    const best = logs[0];
+  if (error) {
+    // Sin lectura confiable de logs no se toca personal_records.
+    logWarn('[fitness-strength] recalculatePR query failed:', error.message);
+    return;
+  }
+
+  const best = (logs ?? [])
+    .filter((l: any) => Number(l.weight_kg) > 0 && Number(l.reps) > 0)
+    .map((l: any) => ({
+      weight_kg: Number(l.weight_kg),
+      reps: Number(l.reps),
+      e1rm: estimated1rm(Number(l.weight_kg), Number(l.reps)),
+    }))
+    .sort((a, b) => b.e1rm - a.e1rm)[0];
+
+  if (best) {
     await supabase.from('personal_records').upsert({
       user_id: userId,
       exercise_id: exerciseId,
-      estimated_1rm: best.estimated_1rm,
+      estimated_1rm: best.e1rm,
       weight_kg: best.weight_kg,
-      rep_range: best.rep_range ?? best.reps ?? 1,
+      rep_range: best.reps,
     }, { onConflict: 'user_id,exercise_id,rep_range' });
   } else {
     await supabase

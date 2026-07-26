@@ -85,7 +85,7 @@ async function gatherClientData(clientId: string): Promise<ClientFullData> {
   // Health measurements y personal records
   const settled2 = await Promise.allSettled([
     supabase.from('health_measurements').select('*').eq('user_id', clientId).order('date', { ascending: false }).limit(1),
-    supabase.from('personal_records').select('exercise_name, weight_kg, reps, achieved_at').eq('user_id', clientId).order('achieved_at', { ascending: false }).limit(15),
+    supabase.from('personal_records').select('weight_kg, rep_range, achieved_at, exercises(name, name_es)').eq('user_id', clientId).order('achieved_at', { ascending: false }).limit(15),
   ]);
   const hmRes = settledData('health_measurements', settled2[0] as any);
   const prRes = settledData('personal_records', settled2[1] as any);
@@ -315,7 +315,8 @@ Sueño (cronotipo): ${sleepTime}-${wakeTime}
   if (data.personalRecords.length > 0) {
     p += `\n## PERSONAL RECORDS\n`;
     data.personalRecords.forEach((pr: any) => {
-      p += `${pr.exercise_name}: ${pr.weight_kg}kg x${pr.reps} (${pr.achieved_at})\n`;
+      const exName = pr.exercises?.name_es || pr.exercises?.name || 'Ejercicio';
+      p += `${exName}: ${pr.weight_kg}kg x${pr.rep_range} (${pr.achieved_at})\n`;
     });
   }
 

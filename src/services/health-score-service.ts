@@ -2,6 +2,7 @@
  * Health Score Service — Calcula y almacena scores de salud funcional.
  */
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import {
   calculateHealthScore, mapPatientDataToInput, type HealthScore, type Sex,
 } from '@/src/data/functional-health-engine';
@@ -105,19 +106,23 @@ export async function calculateAndSaveScore(userId: string, consultationId?: str
   ]);
 
   const hmRes = await getLatestMeasurement(userId).catch(() => null);
-  const prsRes = await supabase.from('personal_records').select('exercise_name, weight_kg, reps').eq('user_id', userId).order('achieved_at', { ascending: false }).limit(15);
-  const prs = prsRes.data ?? [];
+  // personal_records no tiene exercise_name/reps (fantasma MB-6): el nombre
+  // viene del embed a exercises y las reps del PR son rep_range.
+  const prsRes = await supabase.from('personal_records').select('weight_kg, rep_range, exercises(name, name_es)').eq('user_id', userId).order('achieved_at', { ascending: false }).limit(15);
+  if (prsRes.error) logWarn('[health-score] personal_records query failed:', prsRes.error.message);
+  const prs = (prsRes.data ?? []).map((pr: any) => ({
+    exercise_name: pr.exercises?.name_es || pr.exercises?.name || '',
+    weight_kg: pr.weight_kg,
+    rep_range: pr.rep_range,
+  }));
 
   const labs = labsRes.data?.[0] ?? null;
   const body = bodyRes.data?.[0] ?? null;
-  let profile = profileRes.data ?? null;
+  const profile = profileRes.data ?? null;
 
-  // Si no hay client_profile, intentar crear uno mínimo desde profiles
-  if (!profile) {
-    const { data: userProfile } = await supabase
-      .from('profiles').select('date_of_birth, biological_sex').eq('id', userId).single();
-    if (userProfile) profile = userProfile;
-  }
+  // Fallback eliminado (fantasma MB-6): profiles NO tiene date_of_birth ni
+  // biological_sex — ese select devolvía 400 silencioso y nunca aportó datos.
+  // Esos campos viven solo en client_profiles; sin perfil aplican los defaults.
 
   if (!labs) throw new Error('No se encontraron resultados de laboratorio. Sube un estudio primero.');
 

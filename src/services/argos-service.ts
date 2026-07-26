@@ -672,9 +672,10 @@ interface PersonalRecord {
 
 async function fetchUserPRs(userId: string): Promise<PersonalRecord[]> {
   try {
+    // personal_records no tiene `reps` — el equivalente es rep_range (fantasma MB-6).
     const { data } = await supabase
       .from('personal_records')
-      .select('exercise_id, estimated_1rm, weight_kg, reps, exercises(name, name_es)')
+      .select('exercise_id, estimated_1rm, weight_kg, rep_range, exercises(name, name_es)')
       .eq('user_id', userId)
       .order('estimated_1rm', { ascending: false })
       .limit(10);
@@ -682,7 +683,7 @@ async function fetchUserPRs(userId: string): Promise<PersonalRecord[]> {
       exercise: pr.exercises?.name_es || pr.exercises?.name || 'unknown',
       estimated1rm: pr.estimated_1rm,
       weight: pr.weight_kg,
-      reps: pr.reps,
+      reps: pr.rep_range,
     }));
   } catch {
     return [];
