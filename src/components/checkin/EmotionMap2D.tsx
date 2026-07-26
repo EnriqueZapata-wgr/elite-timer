@@ -19,7 +19,7 @@ import {
 import { View, StyleSheet, Pressable } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, withRepeat,
+  useSharedValue, useAnimatedStyle, useAnimatedReaction, withTiming, withRepeat,
   Easing, runOnJS, ZoomIn, FadeIn,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,7 +28,8 @@ import { EMOTIONS, QUADRANTS, type Emotion, type QuadrantKey } from '@/src/data/
 import {
   computeEmotionMapLayout, emotionGradient, colorAtPoint, isLightColor,
   QUADRANT_CENTERS, toWorld, WORLD_W, WORLD_H, NODE_SIZE,
-  type EmotionMapLayout,
+  visibleWorldBox, isInWorldBox,
+  type EmotionMapLayout, type WorldBox,
 } from '@/src/services/emotion-map-core';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes } from '@/constants/theme';
@@ -76,6 +77,8 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
   const layout = getEmotionMapLayout();
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const [overview, setOverview] = useState(false);
+  // Bloque C · perf: caja del mundo visible (null = aún sin medir → render de todo).
+  const [visibleBox, setVisibleBox] = useState<WorldBox | null>(null);
 
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
@@ -108,6 +111,25 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
   const setOverviewSafe = useCallback((on: boolean) => {
     setOverview((prev) => (prev === on ? prev : on));
   }, []);
+
+  // Bloque C · perf: recalcula la caja del mundo visible cuando la cámara cambia.
+  const recomputeVisibleBox = useCallback(() => {
+    if (viewport.w === 0) return;
+    setVisibleBox(visibleWorldBox(viewport.w, viewport.h, tx.value, ty.value, scale.value));
+  }, [viewport.w, viewport.h, tx, ty, scale]);
+
+  // Cuantizamos la cámara a "celdas" para NO cruzar el bridge JS en cada frame
+  // del pan/pinch (serían 60 setState/s). Solo al cambiar de celda se recalcula.
+  useAnimatedReaction(
+    () => {
+      const q = 90; // px de pantalla por celda
+      return `${Math.round(tx.value / q)}|${Math.round(ty.value / q)}|${Math.round(scale.value * 20)}`;
+    },
+    (cur, prev) => {
+      if (cur !== prev) runOnJS(recomputeVisibleBox)();
+    },
+    [recomputeVisibleBox],
+  );
 
   const animateTo = useCallback((wx: number, wy: number, targetScale: number, durationMs = 480) => {
     if (viewport.w === 0) return;
@@ -144,6 +166,7 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
     const { wx, wy } = toWorld(c.nx, c.ny);
     tx.value = clampTx(viewport.w / 2 - wx * ZOOM_LANDING, ZOOM_LANDING);
     ty.value = clampTy(viewport.h / 2 - wy * ZOOM_LANDING, ZOOM_LANDING);
+    setVisibleBox(visibleWorldBox(viewport.w, viewport.h, tx.value, ty.value, ZOOM_LANDING));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewport]);
 
@@ -208,7 +231,17 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
           {layout.points.map((p) => {
             const emotion = EMOTION_BY_ID.get(p.id);
             if (!emotion) return null;
-            const dimmed = highlightSet ? !highlightSet.has(p.id) && !selectedSet.has(p.id) : false;
+            const isSelected = selectedSet.has(p.id);
+            // Bloque C · culling por viewport: lo que queda fuera de la caja
+            // visible (+margen) no se renderiza. Selección y highlights NUNCA se
+            // cullean — la cámara los persigue y deben estar listos al llegar.
+            if (
+              visibleBox && !isSelected && !highlightSet?.has(p.id)
+              && !isInWorldBox(p.wx, p.wy, visibleBox)
+            ) {
+              return null;
+            }
+            const dimmed = highlightSet ? !highlightSet.has(p.id) && !isSelected : false;
             return (
               <MapNode
                 key={p.id}
@@ -217,9 +250,10 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
                 wy={p.wy}
                 nx={p.nx}
                 ny={p.ny}
-                selected={selectedSet.has(p.id)}
+                selected={isSelected}
                 dimmed={dimmed}
                 showLabel={!overview}
+                flat={overview}
                 onPress={handlePress}
               />
             );
@@ -269,10 +303,12 @@ interface NodeProps {
   selected: boolean;
   dimmed: boolean;
   showLabel: boolean;
+  /** Bloque C · perf: nodo pequeño/lejano → color plano (sin LinearGradient). */
+  flat: boolean;
   onPress: (e: Emotion) => void;
 }
 
-const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimmed, showLabel, onPress }: NodeProps) {
+const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimmed, showLabel, flat, onPress }: NodeProps) {
   const [gTop, gBottom] = useMemo(() => emotionGradient(nx, ny), [nx, ny]);
   const base = useMemo(() => colorAtPoint(nx, ny), [nx, ny]);
   const labelColor = isLightColor(base) ? TEXT_COLORS.onAccent : TEXT.primary;
@@ -285,6 +321,10 @@ const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimme
       <Pressable onPress={() => onPress(emotion)} style={styles.nodePress} disabled={selected}>
         {selected ? (
           <OrbitalMark color={base} gradient={[gTop, gBottom]} />
+        ) : flat ? (
+          // Vista alejada: el gradiente es invisible a ese tamaño → color plano,
+          // 0 LinearGradient. Aquí es donde vivían los 144 gradientes simultáneos.
+          <View style={[styles.circle, { backgroundColor: base }]} />
         ) : (
           <LinearGradient colors={[gTop, gBottom]} style={styles.circle}>
             {showLabel && (

@@ -13,6 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
@@ -192,29 +193,37 @@ export default function ExerciseLibraryScreen() {
           columnWrapperStyle={{ gap: Spacing.sm, paddingHorizontal: Spacing.md }}
           contentContainerStyle={{ gap: Spacing.sm, paddingTop: Spacing.sm, paddingBottom: 120 }}
           ListHeaderComponent={<Text style={s.countText}>{filtrados.length} ejercicios</Text>}
-          renderItem={({ item }) => (
-            <AnimatedPressable
-              style={s.card}
-              onPress={() => {
-                haptic.light();
-                router.push({ pathname: '/exercise-detail', params: { slug: item.slug } });
-              }}
+          renderItem={({ item, index }) => (
+            // MB-4.1 · Bloque B: entrada escalonada (era la única del pilar sin
+            // `entering`). El delay se topa: es lista virtualizada larga y con
+            // index absoluto un item lejano tardaría segundos en aparecer.
+            <Animated.View
+              entering={FadeInDown.delay(Math.min(index, 12) * 40).springify()}
+              style={{ flex: 1 }}
             >
-              {posterDe(item) ? (
-                <Image source={{ uri: posterDe(item)! }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
-              ) : null}
-              <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.88)']} style={StyleSheet.absoluteFill} />
-              {item.benchmark.tier && (
-                <View style={[s.tierBadge, item.benchmark.tier === 'A' ? s.tierA : s.tierB]}>
-                  <Ionicons name="pulse" size={10} color={item.benchmark.tier === 'A' ? TEXT_COLORS.onAccent : TEXT.primary} />
-                  <Text style={[s.tierText, item.benchmark.tier === 'A' && { color: TEXT_COLORS.onAccent }]}>EDAD ATP</Text>
+              <AnimatedPressable
+                style={s.card}
+                onPress={() => {
+                  haptic.light();
+                  router.push({ pathname: '/exercise-detail', params: { slug: item.slug } });
+                }}
+              >
+                {posterDe(item) ? (
+                  <Image source={{ uri: posterDe(item)! }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+                ) : null}
+                <LinearGradient colors={['rgba(0,0,0,0.05)', 'rgba(0,0,0,0.88)']} style={StyleSheet.absoluteFill} />
+                {item.benchmark.tier && (
+                  <View style={[s.tierBadge, item.benchmark.tier === 'A' ? s.tierA : s.tierB]}>
+                    <Ionicons name="pulse" size={10} color={item.benchmark.tier === 'A' ? TEXT_COLORS.onAccent : TEXT.primary} />
+                    <Text style={[s.tierText, item.benchmark.tier === 'A' && { color: TEXT_COLORS.onAccent }]}>EDAD ATP</Text>
+                  </View>
+                )}
+                <View style={s.cardBody}>
+                  <Text style={s.cardName} numberOfLines={2}>{item.nombre}</Text>
+                  <Text style={s.cardMeta} numberOfLines={1}>{item.musculoPrincipal} · {item.nivel}</Text>
                 </View>
-              )}
-              <View style={s.cardBody}>
-                <Text style={s.cardName} numberOfLines={2}>{item.nombre}</Text>
-                <Text style={s.cardMeta} numberOfLines={1}>{item.musculoPrincipal} · {item.nivel}</Text>
-              </View>
-            </AnimatedPressable>
+              </AnimatedPressable>
+            </Animated.View>
           )}
         />
       )}
@@ -247,7 +256,7 @@ const s = StyleSheet.create({
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     marginHorizontal: Spacing.md, marginBottom: Spacing.sm,
-    backgroundColor: '#0a0a0a', borderRadius: Radius.card,
+    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card,
     paddingHorizontal: Spacing.md, paddingVertical: 10,
     borderWidth: 1, borderColor: ELEVATION[1].border,
   },

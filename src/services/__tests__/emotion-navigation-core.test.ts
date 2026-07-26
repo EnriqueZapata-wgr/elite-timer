@@ -7,7 +7,7 @@ import {
   strategyForEmotion, toolsForBajar, toolsForVoltear, isCrisisOrigin,
 } from '../emotion-navigation-core';
 import { FRAMING_PHRASES, TOOL_CRISIS, TOOL_EVIDENCIA } from '../../data/emotion-navigation';
-import { EMOTIONS } from '../../data/emotions-library';
+import { EMOTIONS, NO_DESCENT_TARGET_IDS } from '../../data/emotions-library';
 
 const byId = new Map(EMOTIONS.map((e) => [e.id, e]));
 
@@ -145,6 +145,64 @@ describe('frase que encuadra', () => {
       ['2026-07-25', '2026-07-26', '2026-07-27', '2026-07-28', '2026-07-29'].map(pickFramingPhrase),
     );
     expect(set.size).toBeGreaterThan(1);
+  });
+});
+
+describe('MB-4.1 · Bloque A — las cadenas ya no navegan a la zona depresiva', () => {
+  it('el tagging de familia cubre las 144 y la lista de exclusión existe', () => {
+    for (const e of EMOTIONS) {
+      expect(e.family, e.id).toBeTruthy();
+    }
+    for (const id of NO_DESCENT_TARGET_IDS) {
+      expect(EMOTIONS.some((e) => e.id === id), id).toBe(true);
+    }
+  });
+
+  it('NINGUNA cadena de descenso (barriendo las 144) toca la lista de exclusión', () => {
+    for (const e of EMOTIONS) {
+      for (const step of buildDescentChain(e.id).slice(1)) {
+        expect(NO_DESCENT_TARGET_IDS.has(step.id), `${e.id} → ${step.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('NINGUNA cadena de descenso cambia de familia', () => {
+    for (const e of EMOTIONS) {
+      for (const step of buildDescentChain(e.id)) {
+        expect(step.family, `${e.id} → ${step.id}`).toBe(e.family);
+      }
+    }
+  });
+
+  it('todo destino de volteo es del lado agradable Y de una única familia compatible', () => {
+    const unpleasant = EMOTIONS.filter((e) => e.quadrant === 'high_unpleasant' || e.quadrant === 'low_unpleasant');
+    for (const e of unpleasant) {
+      const targets = buildFlipChain(e.id).slice(1); // sin el origen
+      expect(targets.length, e.id).toBeGreaterThan(0);
+      const fams = new Set(targets.map((t) => t.family));
+      expect(fams.size, `${e.id}: ${[...fams].join(',')}`).toBe(1);
+      for (const t of targets) {
+        expect(['high_pleasant', 'low_pleasant'], `${e.id} → ${t.id}`).toContain(t.quadrant);
+      }
+    }
+  });
+
+  it('caso guía: enojo NUNCA cruza a miedo; furia se queda en la familia ira', () => {
+    for (const step of buildDescentChain('angry')) {
+      expect(step.family).toBe('ira');
+      expect(['afraid', 'terrified', 'anxious', 'nervous', 'panicked'], step.id).not.toContain(step.id);
+    }
+    const enraged = buildDescentChain('enraged');
+    expect(enraged.every((s) => s.family === 'ira')).toBe(true);
+    expect(enraged.length).toBeGreaterThan(1); // furia sí tiene a dónde bajar
+  });
+
+  it('sin descenso posible → volteo directo (no se fuerza un camino que el copy promete)', () => {
+    // "Con fastidio" (annoyed) ya es la ira más suave: no hay a dónde bajar.
+    expect(buildDescentChain('annoyed')).toHaveLength(1);
+    expect(buildNavigationPlan('annoyed')!.moves.map((m) => m.move)).toEqual(['voltear']);
+    // "Con enojo" sí tiene descenso real → conserva bajar + voltear.
+    expect(buildNavigationPlan('angry')!.moves.map((m) => m.move)).toEqual(['bajar', 'voltear']);
   });
 });
 

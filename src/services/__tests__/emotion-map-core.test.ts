@@ -5,7 +5,8 @@ import { describe, it, expect } from 'vitest';
 import {
   computeEmotionMapLayout, normX, normY, toWorld, toNorm, colorAtPoint,
   emotionGradient, mixHex, quadrantAtPoint, searchEmotions, QUADRANT_CENTERS,
-  MIN_SEP, WORLD_W, WORLD_H, fnv1a,
+  MIN_SEP, WORLD_W, WORLD_H, NODE_SIZE, fnv1a,
+  visibleWorldBox, isInWorldBox,
 } from '../emotion-map-core';
 import { EMOTIONS } from '../../data/emotions-library';
 
@@ -161,6 +162,57 @@ describe('utilidades', () => {
   it('fnv1a es estable', () => {
     expect(fnv1a('furia')).toBe(fnv1a('furia'));
     expect(fnv1a('a')).not.toBe(fnv1a('b'));
+  });
+});
+
+describe('MB-4.1 · Bloque C — culling por viewport (perf del mapa)', () => {
+  it('la caja visible corresponde a lo que la cámara muestra en pantalla', () => {
+    // Cámara centrada en el origen del mundo, escala 1, viewport 400×800.
+    const box = visibleWorldBox(400, 800, 0, 0, 1, 0);
+    // Con tx=ty=0, s=1: pantalla (0..400, 0..800) = mundo (0..400, 0..800).
+    expect(box.minX).toBeCloseTo(0);
+    expect(box.maxX).toBeCloseTo(400);
+    expect(box.minY).toBeCloseTo(0);
+    expect(box.maxY).toBeCloseTo(800);
+  });
+
+  it('el margen expande la caja en px de mundo por los cuatro lados', () => {
+    const box = visibleWorldBox(400, 800, 0, 0, 1, 50);
+    expect(box.minX).toBeCloseTo(-50);
+    expect(box.maxX).toBeCloseTo(450);
+    expect(box.maxY).toBeCloseTo(850);
+  });
+
+  it('al alejar (scale pequeña) la caja abarca TODO el mundo → nada se cullea', () => {
+    // fitScale aproximado para ver el mundo entero en un viewport chico.
+    const s = Math.min(400 / WORLD_W, 800 / WORLD_H);
+    const box = visibleWorldBox(400, 800, 0, 0, s);
+    // Las 144 posiciones caen dentro de la caja (vista alejada = render de todo, plano).
+    const layout = computeEmotionMapLayout(EMOTIONS);
+    for (const p of layout.points) {
+      expect(isInWorldBox(p.wx, p.wy, box), p.id).toBe(true);
+    }
+  });
+
+  it('al acercar (ZOOM_LANDING) se cullea la mayoría: menos gradientes vivos', () => {
+    // Cámara centrada en un cuadrante a zoom de aterrizaje.
+    const s = 0.8;
+    const c = QUADRANT_CENTERS.high_unpleasant;
+    const { wx, wy } = toWorld(c.nx, c.ny);
+    const tx = 200 - wx * s; // viewport.w/2 - wx*s
+    const ty = 400 - wy * s;
+    const box = visibleWorldBox(400, 800, tx, ty, s);
+    const layout = computeEmotionMapLayout(EMOTIONS);
+    const visibles = layout.points.filter((p) => isInWorldBox(p.wx, p.wy, box));
+    expect(visibles.length).toBeGreaterThan(0);
+    expect(visibles.length).toBeLessThan(layout.points.length); // NO son las 144
+  });
+
+  it('isInWorldBox respeta los bordes (incluye el margen, excluye lo lejano)', () => {
+    const box = visibleWorldBox(400, 800, 0, 0, 1, NODE_SIZE * 3);
+    expect(isInWorldBox(200, 400, box)).toBe(true);   // centro
+    expect(isInWorldBox(-1000, 400, box)).toBe(false); // muy a la izquierda
+    expect(isInWorldBox(200, 5000, box)).toBe(false);  // muy abajo
   });
 });
 

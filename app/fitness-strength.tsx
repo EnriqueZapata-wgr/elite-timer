@@ -757,7 +757,9 @@ const styles = StyleSheet.create({
   muscleGroupHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
   muscleGroupDot: { width: 10, height: 10, borderRadius: 5 },
   muscleGroupTitle: { letterSpacing: 2, fontSize: FontSizes.md, fontFamily: Fonts.bold },
-  muscleGroupDesc: { color: TEXT.secondary, fontSize: FontSizes.xs, letterSpacing: 1, opacity: 0.6 },
+  // MB-4.1 · Bloque B: un solo mecanismo de muteo (token de color), NO
+  // TEXT.secondary + opacity 0.6 apilados (el design system: se vuelve invisible).
+  muscleGroupDesc: { color: TEXT.tertiary, fontSize: FontSizes.xs, letterSpacing: 1 },
 
   // Card de ejercicio
   exerciseCard: {

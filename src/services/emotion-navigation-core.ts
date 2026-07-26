@@ -15,7 +15,9 @@
  *
  * Sin imports de react-native/supabase → Vitest node.
  */
-import { EMOTIONS, type Emotion, type QuadrantKey } from '../data/emotions-library';
+import {
+  EMOTIONS, NO_DESCENT_TARGET_IDS, type Emotion, type QuadrantKey, type EmotionFamily,
+} from '../data/emotions-library';
 import {
   type EmotionMove, type CognitiveStrategy, type RegulationTool,
   TOOLS_BAJAR_YA, TOOLS_BAJAR_SOSTENER, TOOLS_FUNDIDO, TOOLS_ALTA_DESAGRADABLE,
@@ -43,9 +45,14 @@ export function pickFramingPhrase(dateKey: string): string {
 const isPleasant = (q: QuadrantKey) => q === 'high_pleasant' || q === 'low_pleasant';
 
 /**
- * Cadena de descenso (↓): versiones más manejables de lo mismo. Cada paso baja
- * energía Y baja intensidad, sin cambiar de lado. El usuario LEE el camino:
- * eso — ver que se puede bajar — es el ejercicio.
+ * Cadena de descenso (↓): versiones más manejables de LO MISMO. Cada paso baja
+ * energía Y baja intensidad, SIN cambiar de familia emocional (MB-4.1 · Bloque A):
+ * enojo baja a fastidio, nunca salta a miedo ni navega hacia la zona depresiva.
+ * El usuario LEE el camino: eso — ver que se puede bajar — es el ejercicio.
+ *
+ * Si tras los filtros no hay siguiente paso, la cadena se detiene (mejor 2 pasos
+ * honestos que 4 que mienten). Nunca termina en una emoción de anhedonia
+ * (NO_DESCENT_TARGET_IDS): esas se pueden nombrar, pero no las ofrecemos como meta.
  */
 export function buildDescentChain(originId: string, maxSteps = 3): Emotion[] {
   const origin = BY_ID.get(originId);
@@ -56,6 +63,8 @@ export function buildDescentChain(originId: string, maxSteps = 3): Emotion[] {
   for (let step = 0; step < maxSteps; step++) {
     const candidates = EMOTIONS.filter((e) =>
       isPleasant(e.quadrant) === side &&
+      e.family === origin.family &&           // A.2 · el descenso NO cambia de familia
+      !NO_DESCENT_TARGET_IDS.has(e.id) &&      // A.3 · nunca guiar hacia la zona depresiva
       !chain.some((c) => c.id === e.id) &&
       e.energy < current.energy - 0.2 &&
       e.intensity <= current.intensity - 1,
@@ -77,28 +86,60 @@ export function buildDescentChain(originId: string, maxSteps = 3): Emotion[] {
 }
 
 /**
- * Cadena de volteo (→): cruzar hacia el lado agradable con energía similar,
- * y de ahí un paso más hacia algo sostenible (menor intensidad).
- * frustración → determinación → foco.
+ * Puente de volteo por FAMILIA DE DESTINO curada (MB-4.1 · Bloque A.5). Antes el
+ * puente se elegía por mera cercanía numérica y salían saltos arbitrarios
+ * (frustración → asombro, ansiedad → asombro). Ahora cada familia desagradable
+ * apunta a una familia agradable coherente:
+ *   ira / agobio → foco (canaliza el fuego en determinación y claridad)
+ *   miedo → calma (seguridad y presencia frente a la amenaza)
+ *   tristeza / vergüenza / rechazo → afecto (calidez y conexión, no juicio)
+ *   desconexión → calma (volver a la presencia frente al piloto automático)
+ * (Las familias agradables no son origen de volteo; se mapean a sí mismas para
+ * que el Record sea total.)
+ */
+const FLIP_TARGET_FAMILY: Record<EmotionFamily, EmotionFamily> = {
+  ira: 'foco',
+  agobio: 'foco',
+  miedo: 'calma',
+  desconexion: 'calma',
+  tristeza: 'afecto',
+  verguenza: 'afecto',
+  rechazo: 'afecto',
+  energia: 'energia',
+  foco: 'foco',
+  afecto: 'afecto',
+  calma: 'calma',
+  gratitud: 'gratitud',
+  curiosidad: 'curiosidad',
+};
+
+/**
+ * Cadena de volteo (→): cruzar hacia el lado agradable, pero SOLO dentro de la
+ * familia de destino curada del origen. Puente = el miembro de esa familia más
+ * cercano en energía; luego un paso más a algo sostenible (menor intensidad,
+ * misma familia). frustración → foco (Valiente → Con enfoque), no al azar.
  */
 export function buildFlipChain(originId: string): Emotion[] {
   const origin = BY_ID.get(originId);
   if (!origin || isPleasant(origin.quadrant)) return origin ? [origin] : [];
+
+  const targetFamily = FLIP_TARGET_FAMILY[origin.family];
+  const pool = EMOTIONS.filter((e) => isPleasant(e.quadrant) && e.family === targetFamily);
+  if (pool.length === 0) return [origin];
   const chain: Emotion[] = [origin];
 
-  const pleasant = EMOTIONS.filter((e) => isPleasant(e.quadrant));
   const score1 = (e: Emotion) =>
     Math.abs(e.energy - origin.energy) + 0.5 * Math.abs(e.intensity - origin.intensity);
-  const bridge = [...pleasant].sort((a, b) => {
+  const bridge = [...pool].sort((a, b) => {
     const d = score1(a) - score1(b);
     if (d !== 0) return d;
     return a.id < b.id ? -1 : 1;
   })[0];
-  if (!bridge) return chain;
   chain.push(bridge);
 
-  // Paso 2: algo sostenible — parecido en energía al puente, menos intenso.
-  const settle = pleasant
+  // Paso 2: algo sostenible — parecido en energía al puente, menos intenso,
+  // misma familia de destino (no se dispersa la intención).
+  const settle = pool
     .filter((e) => e.id !== bridge.id && e.intensity < bridge.intensity)
     .sort((a, b) => {
       const sa = Math.abs(a.energy - bridge.energy) + 0.4 * a.intensity;
@@ -204,7 +245,12 @@ export function buildNavigationPlan(originId: string): NavigationPlan | null {
   switch (origin.quadrant) {
     case 'high_unpleasant': {
       const descent = buildDescentChain(originId);
-      moves.push(mk('bajar', descent.map((e) => e.id), toolsForBajar(originId)));
+      // A.4 · Si tras los filtros hay descenso real, se ofrece bajar (su copy
+      // promete "versiones más manejables" y ahora sí existen). Si NO hay
+      // descenso posible, se ofrece directo el volteo en vez de forzar un camino.
+      if (descent.length > 1) {
+        moves.push(mk('bajar', descent.map((e) => e.id), toolsForBajar(originId)));
+      }
       const flipStart = descent[descent.length - 1] ?? origin;
       const flip = buildFlipChain(flipStart.id);
       moves.push(mk('voltear', flip.map((e) => e.id), toolsForVoltear(originId)));

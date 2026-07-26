@@ -970,7 +970,9 @@ export default function LogExerciseScreen() {
             <AnimatedPressable
               onPress={handleSave}
               disabled={saving}
-              style={[s.saveBtn, saving && { opacity: 0.5 }]}
+              // MB-4.1 · Bloque B: disabled a ~0.7 (no 0.5 casi-invisible). El
+              // estado ya se explica solo: label "GUARDANDO..." + reloj de arena.
+              style={[s.saveBtn, saving && { opacity: 0.7 }]}
             >
               <Ionicons
                 name={saving ? 'hourglass-outline' : 'checkmark-circle'}
@@ -1073,9 +1075,13 @@ export default function LogExerciseScreen() {
               <AnimatedPressable
                 onPress={handleAddVariant}
                 disabled={!newVariantName.trim()}
-                style={[s.modalSave, !newVariantName.trim() && { opacity: 0.4 }]}
+                // MB-4.1 · Bloque B: disabled a ~0.7 + badge explícito (por qué no
+                // se puede) en vez de solo atenuar a 0.4 (patrón del design system).
+                style={[s.modalSave, !newVariantName.trim() && { opacity: 0.7 }]}
               >
-                <Text style={s.modalSaveText}>Agregar</Text>
+                <Text style={s.modalSaveText}>
+                  {!newVariantName.trim() ? 'Falta el nombre' : 'Agregar'}
+                </Text>
               </AnimatedPressable>
             </View>
           </Pressable>

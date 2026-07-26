@@ -27,7 +27,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, SEMANTIC, CATEGORY_COLORS, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, SEMANTIC, CATEGORY_COLORS, ELEVATION, GLOW, withOpacity } from '@/src/constants/brand';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getTodayFitnessState, type TodayFitnessState } from '@/src/services/fitness/today-session-service';
@@ -49,7 +49,7 @@ const OBJETIVO_LABELS: Record<Objetivo, string> = {
 const NAV_ITEMS = [
   { name: 'Mi Fitness', subtitle: 'Fuerza y récords · cardio · movilidad', icon: 'trophy-outline' as const, color: CATEGORY_COLORS.fitness, route: '/fitness-my' as const },
   { name: 'Entrenar', subtitle: 'Rutinas · builder · HIIT · registro', icon: 'flash-outline' as const, color: ATP_BRAND.teal, route: '/fitness-train' as const },
-  { name: 'Biblioteca', subtitle: 'Ejercicios con clip · métodos ATP', icon: 'book-outline' as const, color: '#5B9BD5', route: '/exercise-library' as const },
+  { name: 'Biblioteca', subtitle: 'Ejercicios con clip · métodos ATP', icon: 'book-outline' as const, color: SEMANTIC.info, route: '/exercise-library' as const },
 ];
 
 export default function FitnessHubScreen() {
@@ -257,8 +257,9 @@ export default function FitnessHubScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
-        {/* PROTAGONISTA — la sesión de hoy */}
-        <Animated.View entering={FadeInDown.duration(300).springify()}>
+        {/* PROTAGONISTA — la sesión de hoy. GLOW selectivo (doctrina: 1 por
+            pantalla): el halo lima le da profundidad al héroe y nada más compite. */}
+        <Animated.View entering={FadeInDown.duration(300).springify()} style={s.heroGlow}>
           {renderHoy()}
         </Animated.View>
 
@@ -338,6 +339,8 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
 
   // Hero — la sesión de hoy (protagonista único)
+  // El halo va en el WRAPPER (heroCard tiene overflow:hidden y cliparía la sombra).
+  heroGlow: { borderRadius: 20, ...GLOW.accent },
   heroCard: { borderRadius: 20, overflow: 'hidden', justifyContent: 'flex-end', minHeight: 300 },
   heroImg: { resizeMode: 'cover' },
   heroInner: { padding: 20 },

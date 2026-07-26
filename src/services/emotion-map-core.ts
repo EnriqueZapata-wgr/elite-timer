@@ -319,6 +319,48 @@ export const QUADRANT_CENTERS: Record<QuadrantKey, { nx: number; ny: number }> =
   low_unpleasant: { nx: -0.45, ny: -0.55 },
 };
 
+// ═══ CULLING POR VIEWPORT (MB-4.1 · Bloque C — plan B de perf) ═══
+//
+// 144 gradientes simultáneos en un Android de gama media es el riesgo #1. Solo
+// renderizamos lo que cae en el viewport (+ margen), y en vista alejada el nodo
+// se dibuja como color plano (sin LinearGradient). Estos helpers son PUROS para
+// poder testear la matemática sin montar la vista.
+
+export interface WorldBox {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/**
+ * Rectángulo del MUNDO visible dado el estado de cámara. transformOrigin es
+ * top-left: un punto (wx,wy) aparece en pantalla en (tx + wx·scale, ty + wy·scale).
+ * Despejando, el mundo visible es [−tx/s, (vpW−tx)/s] × [−ty/s, (vpH−ty)/s].
+ * Se expande con `marginPx` (en px de MUNDO) para que deslizar no haga pop-in.
+ */
+export function visibleWorldBox(
+  viewportW: number,
+  viewportH: number,
+  tx: number,
+  ty: number,
+  scale: number,
+  marginPx: number = NODE_SIZE * 3,
+): WorldBox {
+  const s = scale > 0.0001 ? scale : 0.0001;
+  return {
+    minX: -tx / s - marginPx,
+    maxX: (viewportW - tx) / s + marginPx,
+    minY: -ty / s - marginPx,
+    maxY: (viewportH - ty) / s + marginPx,
+  };
+}
+
+/** ¿El centro de un nodo cae dentro (o en el margen) de la caja visible? */
+export function isInWorldBox(wx: number, wy: number, box: WorldBox): boolean {
+  return wx >= box.minX && wx <= box.maxX && wy >= box.minY && wy <= box.maxY;
+}
+
 /** Cuadrante que corresponde a un punto normalizado arbitrario del plano. */
 export function quadrantAtPoint(nx: number, ny: number): QuadrantKey {
   if (ny >= 0) return nx >= 0 ? 'high_pleasant' : 'high_unpleasant';

@@ -7,6 +7,29 @@ import { SEMANTIC, CATEGORY_COLORS } from '../constants/brand';
 
 export type QuadrantKey = 'high_pleasant' | 'high_unpleasant' | 'low_pleasant' | 'low_unpleasant';
 
+/**
+ * Familia emocional (MB-4.1 · Bloque A). NO es un eje numérico: es semántica.
+ * La navegación la usa para que el descenso NO cruce de familia (enojo → miedo
+ * era un salto de familia, y discutiblemente peor) y para que el volteo apunte
+ * a una familia agradable curada. Enrique revisa el tagging (ver FAMILY_MEMBERS).
+ */
+export type EmotionFamily =
+  // ── lado desagradable ──
+  | 'ira'          // enojo / frustración / aversión
+  | 'miedo'        // miedo / ansiedad / agitación
+  | 'agobio'       // estrés / carga / sin salida
+  | 'verguenza'    // vergüenza / culpa / duda de sí
+  | 'tristeza'     // tristeza / duelo / derrota
+  | 'rechazo'      // soledad / rechazo / exclusión
+  | 'desconexion'  // vacío / agotamiento / anhedonia
+  // ── lado agradable ──
+  | 'energia'      // impulso / vitalidad
+  | 'foco'         // enfoque / determinación / claridad
+  | 'afecto'       // amor / conexión / calidez
+  | 'calma'        // calma / serenidad / presencia
+  | 'gratitud'     // gratitud / plenitud / contento
+  | 'curiosidad';  // curiosidad / apertura / juego
+
 export interface Emotion {
   id: string;
   label: string;
@@ -16,6 +39,8 @@ export interface Emotion {
   energy: number;
   /** Nivel de intensidad 1-10 (10 = emoción más extrema del cuadrante) */
   intensity: number;
+  /** Familia emocional (MB-4.1 · Bloque A). Ver EmotionFamily / FAMILY_MEMBERS. */
+  family: EmotionFamily;
 }
 
 export const QUADRANTS = {
@@ -53,7 +78,7 @@ export const QUADRANTS = {
   },
 } as const;
 
-export const EMOTIONS: Emotion[] = [
+const EMOTIONS_BASE: Omit<Emotion, 'family'>[] = [
   // ══════ HIGH PLEASANT (amarillo) — energy 5-10, intensity 1-10 ══════
   { id: 'ecstatic', label: 'En éxtasis', description: 'Sientes una alegría tan grande que es difícil contenerla. Todo brilla.', quadrant: 'high_pleasant', energy: 10, intensity: 10 },
   { id: 'euphoric', label: 'Con euforia', description: 'Una felicidad intensa y desbordante te recorre todo el cuerpo.', quadrant: 'high_pleasant', energy: 10, intensity: 9 },
@@ -206,6 +231,53 @@ export const EMOTIONS: Emotion[] = [
   { id: 'pessimistic', label: 'Pesimista', description: 'Solo ves lo que puede salir mal.', quadrant: 'low_unpleasant', energy: 3, intensity: 4 },
   { id: 'withdrawn', label: 'En repliegue', description: 'Prefieres alejarte del mundo. No quieres interactuar.', quadrant: 'low_unpleasant', energy: 1, intensity: 5 },
 ];
+
+/**
+ * Tagging de FAMILIA emocional (MB-4.1 · Bloque A) — agrupado por familia para
+ * que Enrique lo revise de un vistazo (igual que la matriz de Fitness). Cambiar
+ * aquí NO cambia energy/intensity ni la posición en el mapa: solo enseña a la
+ * navegación qué emociones son "lo mismo, más manejable" vs otra cosa.
+ *
+ * Regla que blindan las cadenas: el descenso solo se mueve DENTRO de una familia
+ * (enojo baja a fastidio, no salta a miedo ni a la zona depresiva).
+ */
+const FAMILY_MEMBERS: Record<EmotionFamily, string[]> = {
+  // ── lado desagradable ──
+  // Nota: celos/envidia (comparación) NO son "enojo más manejable" → viven en
+  // verguenza (inadecuación), no contaminan la escalera de descenso de la ira.
+  ira: ['enraged', 'angry', 'frustrated', 'exasperated', 'irritated', 'annoyed', 'impatient', 'defensive', 'hostile', 'disgusted', 'resentful', 'bitter'],
+  miedo: ['anxious', 'panicked', 'afraid', 'terrified', 'nervous', 'worried', 'agitated', 'restless', 'shocked', 'out_of_control', 'desperate', 'hyper'],
+  agobio: ['overwhelmed', 'stressed', 'tense', 'pressured', 'trapped', 'conflicted'],
+  verguenza: ['humiliated', 'ashamed', 'guilty', 'insecure', 'regretful', 'jealous', 'envious'],
+  tristeza: ['depressed', 'hopeless', 'defeated', 'helpless', 'powerless', 'sad', 'let_down', 'disappointed', 'melancholic', 'homesick', 'fragile', 'vulnerable', 'insecure_low', 'pessimistic'],
+  rechazo: ['abandoned', 'rejected', 'lonely', 'invisible', 'excluded', 'misunderstood'],
+  desconexion: ['empty', 'numb', 'burned_out', 'exhausted', 'drained', 'apathetic', 'withdrawn', 'bored', 'unmotivated', 'indifferent', 'disconnected', 'lost', 'confused', 'stuck', 'tired'],
+  // ── lado agradable ──
+  energia: ['ecstatic', 'euphoric', 'thrilled', 'excited', 'energized', 'motivated', 'passionate', 'alive', 'radiant', 'invigorated', 'triumphant', 'restored', 'free'],
+  foco: ['determined', 'empowered', 'confident', 'brave', 'focused', 'reflective', 'contemplative', 'thoughtful'],
+  afecto: ['loved', 'loving', 'connected', 'compassionate', 'tender', 'warm', 'gentle', 'forgiving', 'nostalgic_pos'],
+  calma: ['calm', 'relaxed', 'peaceful', 'serene', 'comfortable', 'cozy', 'safe', 'balanced', 'centered', 'grounded', 'present', 'mindful', 'accepting', 'mellow', 'at_ease', 'quiet', 'still', 'relieved', 'trusting', 'patient', 'sleepy_good', 'lazy_good'],
+  gratitud: ['proud', 'accomplished', 'hopeful', 'optimistic', 'grateful', 'joyful', 'happy', 'cheerful', 'content', 'satisfied', 'fulfilled', 'blessed'],
+  curiosidad: ['inspired', 'amused', 'playful', 'creative', 'curious', 'amazed', 'fascinated', 'surprised_pos'],
+};
+
+const FAMILY_BY_ID: Record<string, EmotionFamily> = Object.fromEntries(
+  (Object.entries(FAMILY_MEMBERS) as [EmotionFamily, string[]][])
+    .flatMap(([fam, ids]) => ids.map((id) => [id, fam] as [string, EmotionFamily])),
+);
+
+/**
+ * Emociones clínicamente adyacentes a la depresión / anhedonia: pueden
+ * NOMBRARSE (siguen en el mapa — si es lo que sientes, está bien) pero NUNCA
+ * ser destino de un descenso. No las quitamos; solo no guiamos a nadie hacia
+ * ellas. Son los 8 del brief + `bored` ("Sin interés"), el destino de anhedonia
+ * que aparecía en 11 de las 36 cadenas de alta·desagradable.
+ */
+export const NO_DESCENT_TARGET_IDS = new Set<string>([
+  'depressed', 'hopeless', 'burned_out', 'apathetic', 'numb', 'empty', 'exhausted', 'withdrawn', 'bored',
+]);
+
+export const EMOTIONS: Emotion[] = EMOTIONS_BASE.map((e) => ({ ...e, family: FAMILY_BY_ID[e.id] }));
 
 export const CONTEXT_WHERE = [
   'Casa', 'Trabajo', 'Gym', 'Calle', 'Carro', 'Restaurante',
