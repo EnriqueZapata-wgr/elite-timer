@@ -56,6 +56,7 @@ import {
   type HeroContext, type HeroRecommendation, type CyclePhase,
 } from '@/src/services/hero-recommendation-service';
 import { edadDeltaYears } from '@/src/services/edad-atp/edad-delta-core';
+import { MOTOR_V2_VERSION } from '@/src/constants/edad-atp-motor-v2-config';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { getActiveFast } from '@/src/services/fasting-service';
 import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
@@ -261,6 +262,9 @@ export default function TodayScreen() {
       supabase.from('edad_atp_calculations')
         .select('chronological_age, edad_integral')
         .eq('user_id', user.id)
+        // mig 234: solo registros del motor actual — los 111 previos al
+        // 2026-06-12 son del motor v1 y no deben alimentar la señal de ARGOS.
+        .eq('motor_version', MOTOR_V2_VERSION)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),

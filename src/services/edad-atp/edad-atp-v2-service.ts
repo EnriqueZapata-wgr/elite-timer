@@ -32,6 +32,7 @@ import { loadAllParamValues } from './load-all-params';
 import { coalesceHealthRows, HEALTH_COALESCE_ROWS } from './capture-service';
 import { loadCanonicalLabValues, bridgeToPhenoAge } from './lab-values-service';
 import { SF_DOMAIN_WEIGHTS } from '@/src/constants/edad-atp-v2-model';
+import { MOTOR_V2_VERSION } from '@/src/constants/edad-atp-motor-v2-config';
 
 export type EdadAtpV2Inputs = {
   chronological_age: number;
@@ -217,22 +218,23 @@ export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result>
   const motor = computeMotorV2(motorInput);
   const result = motorResultToView(motor);
   try {
+    // algoritmo_excel NO se manda: es del motor v1 (matriz V7/V6) y el v2 no lo
+    // produce — la mig 234 la volvió nullable (fantasma MB-6: era NOT NULL sin
+    // default y al no mandarla NINGÚN cálculo se persistió nunca).
     const { error } = await supabase.from('edad_atp_calculations').insert({
       user_id: userId,
       chronological_age: result.chronological_age,
       edad_integral: result.edad_integral,
       ce_integral: result.ce_integral,
-      // algoritmo_excel es NOT NULL sin default (fantasma MB-6: al no mandarla,
-      // NINGÚN cálculo se persistió nunca). El motor v2 ya no corre el Excel;
-      // misma doctrina que las columnas legacy de abajo: se mapea al análogo v2 —
-      // la edad base pre-modulador de hábitos (v1: integral = excel + modificador).
-      algoritmo_excel: motor.edad_pre_modulador,
-      // Las 5 columnas legacy se mapean a las 5 áreas v2 (no se migra el esquema SQL).
-      edad_metabolica: motor.areas.riesgos.edad_ajustada,
-      edad_corporal: motor.areas.composicion.edad_ajustada,
-      edad_cardiovascular: motor.areas.labs.edad_ajustada,
+      // mig 234: columnas con el vocabulario v2 real (antes las legacy recibían
+      // áreas que no correspondían al nombre) + versión de motor para no mezclar
+      // motores en señales/tendencias. Requiere db push ANTES del OTA.
+      motor_version: MOTOR_V2_VERSION,
+      edad_riesgos: motor.areas.riesgos.edad_ajustada,
+      edad_composicion: motor.areas.composicion.edad_ajustada,
+      edad_labs: motor.areas.labs.edad_ajustada,
       edad_fitness: motor.areas.fitness.edad_ajustada,
-      edad_cognitiva: motor.areas.cognicion.edad_ajustada,
+      edad_cognicion: motor.areas.cognicion.edad_ajustada,
     });
     // supabase no lanza en 4xx — sin este check el catch nunca ve el error.
     if (error) logWarn('[edad-atp-v2] persist calculation failed:', error.message);

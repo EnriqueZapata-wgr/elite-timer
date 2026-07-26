@@ -35,6 +35,13 @@ export const MOTOR_V2_FACTORES_ANCLAJE = {
 export const MOTOR_V2_CAPS = { min: 20, max: 100 } as const;
 
 /**
+ * Versión del motor persistida en edad_atp_calculations.motor_version (mig 234).
+ * Escritor (edad-atp-v2-service) y lectores (edadAtpDelta → ARGOS, tendencias)
+ * la comparten para NUNCA mezclar registros de motores distintos en una señal.
+ */
+export const MOTOR_V2_VERSION = 'v2';
+
+/**
  * Cognición v2.1 — latencia añadida por captura en pantalla táctil (display + touch
  * sampling) vs el botón físico de Der & Deary 2006. Se RESTA al RT medido antes de
  * mapear a edad: un RT de teléfono NO es comparable a uno de laboratorio.
