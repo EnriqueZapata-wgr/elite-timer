@@ -199,7 +199,9 @@ export default function HealthInputScreen() {
       ]);
     } catch (err: any) {
       haptic.error();
-      Alert.alert('Error', err.message || 'No se pudo guardar');
+      // MB-SEC-1 §6: detalle al log, copy genérico a pantalla.
+      console.warn('[health-input] no se pudo guardar:', err?.message);
+      Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
     }
     setSaving(false);
   };

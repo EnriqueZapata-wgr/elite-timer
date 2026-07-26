@@ -38,7 +38,10 @@ serve(async (_req: Request) => {
     .limit(BATCH_SIZE);
 
   if (error) {
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+    // MB-SEC-1 §6: el detalle va al log interno (function logs), NUNCA al cuerpo
+    // de la respuesta — un error.message de Postgres puede filtrar tabla/columna.
+    console.error('[account-deletion] query failed:', error.message);
+    return new Response(JSON.stringify({ error: 'Error interno del servicio.' }), { status: 500 });
   }
   if (!due || due.length === 0) {
     return new Response(JSON.stringify({ deleted: 0 }), { status: 200 });

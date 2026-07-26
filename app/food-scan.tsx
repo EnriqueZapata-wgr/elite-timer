@@ -526,7 +526,10 @@ export default function FoodScanScreen() {
       haptic.success();
       setSaved(true);
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo guardar');
+      // MB-SEC-1 §6: detalle al log, copy genérico a pantalla (err.message de
+      // Postgres/Storage puede filtrar tabla/columna/constraint).
+      console.warn('[food-scan] no se pudo guardar:', err?.message);
+      Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
     }
     setSaving(false);
   };
@@ -559,7 +562,10 @@ export default function FoodScanScreen() {
       haptic.light();
       router.back();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'No se pudo guardar');
+      // MB-SEC-1 §6: detalle al log, copy genérico a pantalla (err.message de
+      // Postgres/Storage puede filtrar tabla/columna/constraint).
+      console.warn('[food-scan] no se pudo guardar:', err?.message);
+      Alert.alert('Error', 'No se pudo guardar. Intenta de nuevo.');
     }
     setSaving(false);
   };

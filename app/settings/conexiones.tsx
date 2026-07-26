@@ -65,7 +65,10 @@ export default function SettingsConexionesScreen() {
       setConnectCode('');
       loadCoachData();
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo conectar.');
+      // MB-SEC-1 §6: err.message reenvía el error crudo de Postgres/RPC → log
+      // interno + copy genérico (no filtrar tabla/columna al usuario).
+      console.warn('[conexiones] connectToCoach falló:', err?.message);
+      Alert.alert('Error', 'No se pudo conectar. Revisa el código e intenta de nuevo.');
     } finally {
       setConnecting(false);
     }
@@ -77,7 +80,9 @@ export default function SettingsConexionesScreen() {
       const code = await generateCoachCode();
       setCoachCode(code);
     } catch (err: any) {
-      Alert.alert('Error', err.message ?? 'No se pudo generar el código.');
+      // MB-SEC-1 §6: log interno + copy genérico (sin filtrar detalle del RPC).
+      console.warn('[conexiones] generateCoachCode falló:', err?.message);
+      Alert.alert('Error', 'No se pudo generar el código. Intenta de nuevo.');
     } finally {
       setGeneratingCode(false);
     }
