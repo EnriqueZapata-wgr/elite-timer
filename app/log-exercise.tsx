@@ -33,6 +33,8 @@ import { TRAINING_METHODS, type TrainingMethodId } from '@/src/constants/trainin
 import { Method35 } from '@/src/components/training/Method35';
 import { EMOMAuto } from '@/src/components/training/EMOMAuto';
 import { MyoReps } from '@/src/components/training/MyoReps';
+import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
+import { emomPrescripcionDe, type EmomPrescripcion } from '@/src/services/fitness/emom-core';
 import { KeepAwakeActive } from '@/src/components/training/KeepAwakeActive';
 import { useMethodVoice } from '@/src/hooks/useMethodVoice';
 import { awardBooleanElectron } from '@/src/services/electron-service';
@@ -50,6 +52,8 @@ interface ExerciseRow {
   muscle_groups: string[];
   equipment_list: string[];
   instructions: string | null;
+  /** Traza al catálogo matriceado (MB-3) — permite derivar la prescripción EMOM. */
+  matrix_slug?: string | null;
 }
 
 interface PRRow {
@@ -107,6 +111,9 @@ export default function LogExerciseScreen() {
   ]);
   const [saving, setSaving] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<TrainingMethodId>('standard');
+  // MB-5 Bloque 1: prescripción EMOM X×X derivada de la matriz (si el
+  // ejercicio está trazado vía matrix_slug); sin traza, el runner usa defaults.
+  const [emomRx, setEmomRx] = useState<EmomPrescripcion | undefined>(undefined);
 
   // --- Modal de agregar variante ---
   const [variantModalVisible, setVariantModalVisible] = useState(false);
@@ -124,6 +131,23 @@ export default function LogExerciseScreen() {
     if (!params.exerciseId || benchmarks.length === 0) return;
     autoNavigate(params.exerciseId);
   }, [params.exerciseId, benchmarks]);
+
+  // MB-5 Bloque 1: al elegir EMOM, deriva la prescripción X×X desde la matriz
+  // (solo si el ejercicio está trazado con matrix_slug; fail-soft → defaults).
+  useEffect(() => {
+    const ex = selectedVariant || selectedBenchmark;
+    const slug = ex?.matrix_slug;
+    if (selectedMethod !== 'emom_auto' || !slug) { setEmomRx(undefined); return; }
+    let vivo = true;
+    getExerciseMatrix()
+      .then((all) => {
+        if (!vivo) return;
+        const m = all.find((e) => e.slug === slug);
+        setEmomRx(m ? emomPrescripcionDe(m) : undefined);
+      })
+      .catch(() => { if (vivo) setEmomRx(undefined); });
+    return () => { vivo = false; };
+  }, [selectedMethod, selectedVariant, selectedBenchmark]);
 
   async function loadBenchmarks() {
     setLoading(true);
@@ -560,7 +584,16 @@ export default function LogExerciseScreen() {
         router.back();
       }
     } catch (err) {
-      Alert.alert('Error', 'No se pudieron guardar los datos del método.');
+      // MB-5 0.2: el resultado del método sigue en memoria — ofrecer reintento
+      // en vez de tragarse el trabajo con un alert terminal.
+      Alert.alert(
+        'No se pudo guardar',
+        err instanceof Error ? err.message : 'No se pudieron guardar los datos del método.',
+        [
+          { text: 'Salir sin guardar', style: 'destructive', onPress: () => router.back() },
+          { text: 'Reintentar', onPress: () => handleMethodComplete(result) },
+        ],
+      );
     }
   }
 
@@ -1005,6 +1038,7 @@ export default function LogExerciseScreen() {
               <EMOMAuto
                 exerciseName={activeExercise.name_es}
                 userLevel="intermediate"
+                prescripcion={emomRx}
                 onComplete={handleMethodComplete}
                 onCue={cue}
               />

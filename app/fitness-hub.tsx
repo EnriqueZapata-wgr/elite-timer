@@ -11,7 +11,7 @@
  * Debajo: la semana en tamaño secundario; las 3 navegaciones bajan a terciarias.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, ImageBackground } from 'react-native';
+import { View, ScrollView, StyleSheet, ImageBackground, DeviceEventEmitter } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,7 @@ import { ATP_BRAND, TEXT, SEMANTIC, CATEGORY_COLORS, ELEVATION, GLOW, withOpacit
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getTodayFitnessState, type TodayFitnessState } from '@/src/services/fitness/today-session-service';
+import { flushPendingSessions } from '@/src/services/fitness/workout-session-service';
 import { setFitnessLevel } from '@/src/services/fitness/fitness-profile-service';
 import { NIVELES_USUARIO, type NivelUsuario } from '@/src/constants/exercise-matrix';
 import type { Objetivo } from '@/src/services/fitness/routine-generator-core';
@@ -69,12 +70,23 @@ export default function FitnessHubScreen() {
   useFocusEffect(useCallback(() => {
     loadWeekStats();
     cargarHoy();
+    // MB-5 0.2: re-sube sesiones que fallaron al guardar (silencioso, fail-soft).
+    if (user) {
+      flushPendingSessions(user.id).then((n) => {
+        if (n > 0) {
+          DeviceEventEmitter.emit('electrons_changed');
+          DeviceEventEmitter.emit('day_changed');
+          loadWeekStats();
+          cargarHoy();
+        }
+      }).catch(() => {});
+    }
     supabase.auth.getUser().then(({ data: { user: u } }) => {
       if (!u) return;
       supabase.from('client_profiles').select('biological_sex').eq('user_id', u.id).maybeSingle()
         .then(({ data }) => setBioSex((data as any)?.biological_sex ?? null), () => {});
     });
-  }, [cargarHoy]));
+  }, [cargarHoy, user]));
 
   async function loadWeekStats() {
     try {

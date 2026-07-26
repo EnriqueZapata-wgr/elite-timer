@@ -6,6 +6,7 @@
  * ahora agrupadas bajo `workout_sessions` vía session_id, y trazadas al
  * catálogo matriceado vía matrix_slug + exercises.matrix_slug.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
@@ -28,6 +29,11 @@ export interface SaveSessionInput {
   routineName?: string;
   /** Snapshot del plan generado (GeneratedRoutine) — para repetir/auditar. */
   plan?: unknown;
+  /**
+   * MB-5 0.2: id estable para reintentos idempotentes — mismo id ⇒ upsert de
+   * workout_sessions (no duplica la sesión) y re-escritura limpia de sus logs.
+   */
+  sessionId?: string;
 }
 
 export interface SaveSessionResult {
@@ -47,7 +53,7 @@ export interface SaveSessionResult {
  * (adopta la fila y le fija matrix_slug); si no, la crea.
  */
 async function ensureExerciseIds(
-  sets: SessionSet[],
+  sets: Pick<SessionSet, 'slug' | 'nombre'>[],
 ): Promise<Record<string, string>> {
   const porSlug = new Map<string, string>(); // slug → nombre
   for (const s of sets) if (!porSlug.has(s.slug)) porSlug.set(s.slug, s.nombre);
@@ -107,6 +113,21 @@ async function ensureExerciseIds(
   return out;
 }
 
+/**
+ * MB-5 2.1: fila en `exercises` para un ejercicio de la matriz (la adopta o
+ * crea si falta) — el constructor la usa para que sus bloques traceados
+ * tengan también FK clásica. Fail-soft: null si no se pudo (offline).
+ */
+export async function ensureExerciseId(slug: string, nombre: string): Promise<string | null> {
+  try {
+    const ids = await ensureExerciseIds([{ slug, nombre }]);
+    return ids[slug] ?? null;
+  } catch (e) {
+    logWarn('[workout-session] ensureExerciseId:', e);
+    return null;
+  }
+}
+
 /** PR previo (mejor 1RM) por slug, para detectar mejoras de ESTA sesión. */
 async function getPrev1RMs(userId: string, exerciseIdBySlug: Record<string, string>): Promise<Record<string, number>> {
   const ids = Object.values(exerciseIdBySlug);
@@ -144,8 +165,11 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
     const summary = computeSessionSummary(validSets);
     const prs = computePRUpdates(validSets, prev1RMs);
     const durationSeconds = Math.max(0, Math.round((input.endedAt.getTime() - input.startedAt.getTime()) / 1000));
-    const sessionId = generateUUID();
-    const today = getLocalToday();
+    const sessionId = input.sessionId ?? generateUUID();
+    // Fecha DE LA SESIÓN, no del guardado: en el camino normal endedAt es ahora
+    // (idéntico a getLocalToday); en un reintento diferido (0.2) conserva el
+    // día real del entrenamiento.
+    const today = toLocalDateString(input.endedAt);
     const nowIso = input.endedAt.toISOString();
 
     // La señal Edad ATP se procesa ANTES del insert de la sesión para poder
@@ -155,7 +179,9 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
       validSets.map((s) => ({ slug: s.slug, reps: s.reps, weightKg: s.weightKg, distanceCm: s.distanceCm ?? null })),
     );
 
-    const { error: sesErr } = await supabase.from('workout_sessions').insert({
+    // Upsert por id: un reintento (mismo sessionId) actualiza la fila del
+    // intento fallido en vez de duplicar la sesión.
+    const { error: sesErr } = await supabase.from('workout_sessions').upsert({
       id: sessionId,
       user_id: input.userId,
       date: today,
@@ -173,8 +199,19 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
         alimentado: edadSignal.alimentado,
         proyeccion_years: edadSignal.proyeccion?.years ?? null,
       },
-    });
+    }, { onConflict: 'id' });
     if (sesErr) throw new Error(`workout_sessions insert: ${sesErr.message}`);
+
+    // Reintento: limpia logs de un intento anterior parcialmente subido antes
+    // de re-insertar (fail-soft — si no hay nada que borrar, sigue).
+    if (input.sessionId) {
+      const { error: delErr } = await supabase
+        .from('exercise_logs')
+        .delete()
+        .eq('user_id', input.userId)
+        .eq('session_id', sessionId);
+      if (delErr) logWarn('[workout-session] limpieza pre-reintento:', delErr.message);
+    }
 
     const rows = validSets.map((s) => ({
       id: generateUUID(),
@@ -255,6 +292,103 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
     logWarn('[workout-session] saveWorkoutSession failed:', err);
     return { ok: false, error: err instanceof Error ? err.message : 'No se pudo guardar la sesión.' };
   }
+}
+
+// ── Sesiones pendientes (MB-5 0.2: el trabajo del usuario es sagrado) ──
+//
+// Si el guardado falla (red, esquema), la sesión completa se persiste en el
+// teléfono y se reintenta después. El sessionId estable + upsert de arriba
+// hacen el reintento idempotente (cero duplicados).
+
+const PENDING_SESSIONS_KEY = 'pending_workout_sessions_v1';
+
+interface PendingSession {
+  sessionId: string;
+  userId: string;
+  sets: SessionSet[];
+  startedAtIso: string;
+  endedAtIso: string;
+  source: 'generada' | 'manual';
+  routineName?: string;
+  plan?: unknown;
+}
+
+async function readPending(): Promise<PendingSession[]> {
+  try {
+    const raw = await AsyncStorage.getItem(PENDING_SESSIONS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writePending(list: PendingSession[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PENDING_SESSIONS_KEY, JSON.stringify(list));
+  } catch (e) {
+    logWarn('[workout-session] writePending:', e);
+  }
+}
+
+/** Persiste la sesión localmente para reintentar después (reemplaza por sessionId). */
+export async function stashPendingSession(input: SaveSessionInput & { sessionId: string }): Promise<void> {
+  const list = await readPending();
+  const entry: PendingSession = {
+    sessionId: input.sessionId,
+    userId: input.userId,
+    sets: input.sets,
+    startedAtIso: input.startedAt.toISOString(),
+    endedAtIso: input.endedAt.toISOString(),
+    source: input.source,
+    routineName: input.routineName,
+    plan: input.plan,
+  };
+  await writePending([...list.filter((p) => p.sessionId !== input.sessionId), entry]);
+}
+
+/** Saca una sesión de la cola local (tras guardado exitoso). */
+export async function removePendingSession(sessionId: string): Promise<void> {
+  const list = await readPending();
+  if (list.some((p) => p.sessionId === sessionId)) {
+    await writePending(list.filter((p) => p.sessionId !== sessionId));
+  }
+}
+
+/**
+ * Reintenta subir las sesiones pendientes del usuario. Silencioso y fail-soft:
+ * las que suben salen de la cola; las que fallan se quedan para la próxima.
+ * Otorga el electrón de strength SOLO si la sesión recuperada es de HOY
+ * (cero retroactividad — misma doctrina que el import de cardio).
+ */
+export async function flushPendingSessions(userId: string): Promise<number> {
+  const list = await readPending();
+  const propias = list.filter((p) => p.userId === userId);
+  if (propias.length === 0) return 0;
+  let guardadas = 0;
+  for (const p of propias) {
+    const res = await saveWorkoutSession({
+      userId: p.userId,
+      sets: p.sets,
+      startedAt: new Date(p.startedAtIso),
+      endedAt: new Date(p.endedAtIso),
+      source: p.source,
+      routineName: p.routineName,
+      plan: p.plan,
+      sessionId: p.sessionId,
+    });
+    if (res.ok) {
+      await removePendingSession(p.sessionId);
+      guardadas++;
+      if (toLocalDateString(new Date(p.endedAtIso)) === getLocalToday()) {
+        try {
+          const { awardBooleanElectron } = await import('@/src/services/electron-service');
+          await awardBooleanElectron(userId, 'strength');
+        } catch { /* fail-soft: la sesión vale aunque el award falle */ }
+      }
+    }
+  }
+  return guardadas;
 }
 
 /** Última sesión pesada reciente (para el sesgo del generador). */

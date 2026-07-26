@@ -26,6 +26,11 @@ export interface Block {
   exercise_id?: string | null;
   /** Nombre del ejercicio (resuelto por JOIN, no columna en DB) */
   exercise_name?: string | null;
+  /**
+   * Traza al catálogo exercise_matrix (MB-5 2.1). Con ella el bloque hereda
+   * clip, métodos ATP y benchmark de edad; es el sello del "patrón nuevo".
+   */
+  matrix_slug?: string | null;
   /** Descanso sugerido en modo rutina (segundos, default 120) */
   suggested_rest_seconds?: number | null;
   children?: Block[];

@@ -23,6 +23,7 @@ import {
   type MetodoATP,
   type Patron,
 } from '@/src/constants/exercise-matrix';
+import { emomPrescripcionDe, emomTiempoSeg, type EmomPrescripcion } from './emom-core';
 
 // ── Tipos de entrada/salida ──
 
@@ -94,6 +95,12 @@ export interface RoutineBlock {
   musculoPrincipal: string;
   patron: Patron;
   familia: string;
+  /**
+   * MB-5 Bloque 1: prescripción EMOM X×X derivada de la carga del ejercicio
+   * (solo cuando metodo = 'EMOM Auto'). Planes viejos sin este campo corren
+   * con los defaults del runner.
+   */
+  emom?: EmomPrescripcion;
 }
 
 export interface GeneratedRoutine {
@@ -314,24 +321,29 @@ function construirBloque(ex: MatrixExercise, slot: SlotKey, nivel: NivelUsuario)
   const p = PRESCRIPCION[slot];
   const esIso = ex.dinamica === 'Isométrico';
   const esUni = ex.lateralidad === 'Unilateral';
+  const metodo = asignarMetodo(ex, slot, nivel);
+  // MB-5 Bloque 1: el EMOM ya no es 10×10 — X×X según la carga del ejercicio.
+  // series/reps/tiempo del bloque reflejan la prescripción real (N minutos + paga).
+  const emom = metodo === 'EMOM Auto' ? emomPrescripcionDe(ex, nivel) : undefined;
   return {
     slug: ex.slug,
     nombre: ex.nombre,
     mediaUrl: ex.mediaUrl,
     posterUrl: ex.posterUrl,
     slot,
-    metodo: asignarMetodo(ex, slot, nivel),
-    series: p.series,
-    reps: esIso ? p.trabajoSeg : p.reps,
+    metodo,
+    series: emom ? emom.rondas : p.series,
+    reps: emom ? emom.reps : (esIso ? p.trabajoSeg : p.reps),
     esIsometrico: esIso,
     esUnilateral: esUni,
     descansoSeg: p.descansoSeg,
     miniSeries: p.miniSeries,
     microDescansoSeg: p.microDescansoSeg,
-    tiempoSeg: tiempoBloqueSeg(slot, esUni, esIso),
+    tiempoSeg: emom ? emomTiempoSeg(emom.rondas) : tiempoBloqueSeg(slot, esUni, esIso),
     musculoPrincipal: ex.musculoPrincipal,
     patron: ex.patron,
     familia: ex.familia,
+    emom,
   };
 }
 

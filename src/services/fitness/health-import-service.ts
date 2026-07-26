@@ -93,25 +93,89 @@ export async function getHealthPlatform(): Promise<HealthPlatform> {
 
 // ── Permisos (solo lectura, solo entrenamientos) ──
 
-export async function solicitarPermisos(): Promise<boolean> {
+/**
+ * MB-5 0.3: el binario 1.7.0 (versionCode 17) trae el módulo de Health
+ * Connect pero SIN el permission delegate registrado en MainActivity —
+ * llamar requestPermission() ahí truena NATIVO (lateinit sin inicializar,
+ * corrutina sin try/catch → muere el proceso; JS no puede atraparlo).
+ * El fix nativo (plugins/with-health-connect-delegate.js) entra con el
+ * siguiente build → gate por versionCode del BINARIO, no del bundle OTA.
+ */
+const PRIMER_VERSION_CODE_CON_DELEGATE = 18;
+
+function binarioConDelegate(): boolean {
+  try {
+    // Lazy require (doctrina nativos): si el módulo falta, asumimos binario viejo.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Application = require('expo-application') as { nativeBuildVersion: string | null };
+    const vc = parseInt(Application.nativeBuildVersion ?? '0', 10);
+    return Number.isFinite(vc) && vc >= PRIMER_VERSION_CODE_CON_DELEGATE;
+  } catch {
+    return false;
+  }
+}
+
+/** ¿Ya está concedida la lectura de entrenamientos? (NO abre diálogos — seguro en cualquier binario.) */
+async function lecturaConcedidaAndroid(): Promise<boolean> {
+  if (!healthConnect) return false;
+  const granted = await healthConnect.getGrantedPermissions();
+  return granted.some(
+    (p) => 'recordType' in p && p.recordType === 'ExerciseSession' && p.accessType === 'read',
+  );
+}
+
+export type ResultadoPermisos =
+  | 'ok'                    // lectura concedida (ya estaba, o el usuario aceptó)
+  | 'denegado'              // el usuario negó el permiso
+  | 'dialogo_no_disponible'; // binario sin delegate: el diálogo nativo crashearía → ruta manual
+
+export async function solicitarPermisos(): Promise<ResultadoPermisos> {
   try {
     if (Platform.OS === 'android' && healthConnect) {
       await healthConnect.initialize();
+      // 1) Cortocircuito: si ya está concedido, no abrimos ningún diálogo.
+      if (await lecturaConcedidaAndroid()) return 'ok';
+      // 2) Binario 1.7.0: el diálogo de permisos crashea nativo → salida
+      //    elegante (la UI ofrece conceder desde los ajustes de Health Connect).
+      if (!binarioConDelegate()) return 'dialogo_no_disponible';
       const granted = await healthConnect.requestPermission([
         { accessType: 'read', recordType: 'ExerciseSession' },
         { accessType: 'read', recordType: 'Distance' },
         { accessType: 'read', recordType: 'HeartRate' },
         { accessType: 'read', recordType: 'TotalCaloriesBurned' },
       ]);
-      return granted.length > 0;
+      return granted.length > 0 ? 'ok' : 'denegado';
     }
     if (Platform.OS === 'ios' && healthKit) {
-      return await healthKit.requestAuthorization({ toRead: ['HKWorkoutTypeIdentifier'] });
+      const ok = await healthKit.requestAuthorization({ toRead: ['HKWorkoutTypeIdentifier'] });
+      return ok ? 'ok' : 'denegado';
     }
   } catch (e) {
     logWarn('[health-import] permisos:', e);
   }
+  return 'denegado';
+}
+
+/** ¿La lectura ya está concedida? Para re-checar tras conceder en ajustes (sin diálogos). */
+export async function permisosYaConcedidos(): Promise<boolean> {
+  try {
+    if (Platform.OS === 'android' && healthConnect) {
+      await healthConnect.initialize();
+      return await lecturaConcedidaAndroid();
+    }
+  } catch (e) {
+    logWarn('[health-import] re-check permisos:', e);
+  }
   return false;
+}
+
+/** Abre los ajustes de Health Connect (ruta manual de permisos — no usa el delegate). */
+export function abrirAjustesHealthConnect(): void {
+  try {
+    healthConnect?.openHealthConnectSettings();
+  } catch (e) {
+    logWarn('[health-import] abrir ajustes:', e);
+  }
 }
 
 // ── Lectura normalizada ──

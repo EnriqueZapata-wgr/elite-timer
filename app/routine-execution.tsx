@@ -18,8 +18,11 @@ import { EliteText } from '@/components/elite-text';
 import { EliteButton } from '@/components/elite-button';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { ConfettiCelebration } from '@/src/components/ui/ConfettiCelebration';
+import { ExerciseClip } from '@/src/components/training/ExerciseClip';
 import { useRoutineMode } from '@/src/hooks/useRoutineMode';
 import { getLastWeight } from '@/src/services/exercise-service';
+import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
+import { clipDe, posterDe, type MatrixExercise } from '@/src/constants/exercise-matrix';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { formatTime } from '@/src/engine/helpers';
 import { Colors, Fonts, Spacing, FontSizes, Radius } from '@/constants/theme';
@@ -96,6 +99,19 @@ function RoutineContent({ routine }: { routine: Routine }) {
   const [rpe, setRpe] = useState<number | null>(null);
   const [rir, setRir] = useState<number | null>(null);
   const lastWeightLoaded = useRef<string | null>(null);
+
+  // MB-5 2.1: herencia del catálogo — si la rutina trae bloques trazados
+  // (matrix_slug), carga la matriz una vez para mostrar el CLIP del ejercicio.
+  const [matrixMap, setMatrixMap] = useState<Map<string, MatrixExercise> | null>(null);
+  useEffect(() => {
+    if (!rm.exercises.some((e) => e.matrixSlug)) return;
+    getExerciseMatrix()
+      .then((all) => setMatrixMap(new Map(all.map((e) => [e.slug, e]))))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const matrixDe = (slug?: string | null): MatrixExercise | null =>
+    (slug && matrixMap?.get(slug)) || null;
 
   useEffect(() => {
     const exerciseId = rm.currentExercise?.exerciseId;
@@ -317,6 +333,7 @@ function RoutineContent({ routine }: { routine: Routine }) {
 
   // === TRANSICIÓN ===
   if (rm.phase === 'transition') {
+    const matrixEx = matrixDe(rm.currentExercise?.matrixSlug);
     return (
       <SafeAreaView style={[styles.screen, styles.centered]}>
         <EliteText variant="caption" style={styles.sessionTime}>
@@ -325,7 +342,18 @@ function RoutineContent({ routine }: { routine: Routine }) {
         <EliteText variant="caption" style={styles.exerciseCounter}>
           Ejercicio {rm.currentExerciseIndex + 1} de {rm.exercises.length}
         </EliteText>
-        <Ionicons name="barbell-outline" size={48} color={Colors.neonGreen} style={{ marginVertical: 16 }} />
+        {/* MB-5 2.1: rutina del patrón nuevo → clip del catálogo en loop */}
+        {matrixEx && (clipDe(matrixEx) || posterDe(matrixEx)) ? (
+          <View style={styles.clipHero}>
+            <ExerciseClip
+              clipUrl={clipDe(matrixEx)}
+              posterUrl={posterDe(matrixEx)}
+              style={StyleSheet.absoluteFill}
+            />
+          </View>
+        ) : (
+          <Ionicons name="barbell-outline" size={48} color={Colors.neonGreen} style={{ marginVertical: 16 }} />
+        )}
         <EliteText variant="title" style={styles.bigExerciseName}>
           {rm.currentExercise?.exerciseName}
         </EliteText>
@@ -841,6 +869,15 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xl,
     textAlign: 'center',
     letterSpacing: 2,
+  },
+  // MB-5 2.1: clip del catálogo en la transición (rutinas del patrón nuevo).
+  clipHero: {
+    width: '100%',
+    height: 190,
+    borderRadius: Radius.card,
+    overflow: 'hidden',
+    backgroundColor: '#121212',
+    marginVertical: Spacing.md,
   },
   setIndicator: {
     letterSpacing: 2,

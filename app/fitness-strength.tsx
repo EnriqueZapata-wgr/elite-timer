@@ -10,7 +10,7 @@
  * /personal-records redirige aquí (deep-links y tab Progreso viven).
  */
 import { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, ActivityIndicator, Alert, Dimensions } from 'react-native';
+import { View, ScrollView, StyleSheet, ActivityIndicator, Alert, Dimensions, ImageBackground } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -23,6 +23,7 @@ import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
+import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { supabase } from '@/src/lib/supabase';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
@@ -262,6 +263,7 @@ export default function FitnessStrengthScreen() {
   const router = useRouter();
   const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [benchmarks, setBenchmarks] = useState<BenchmarkExercise[]>([]);
+  const [bioSex, setBioSex] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
@@ -301,6 +303,12 @@ export default function FitnessStrengthScreen() {
   useFocusEffect(useCallback(() => {
     loadRecords();
     getBenchmarksWithVariants().then(setBenchmarks).catch(() => {});
+    // MB-5 Bloque 3: hero editorial sex-aware (mismo criterio que fitness-hub).
+    supabase.auth.getUser().then(({ data: { user: u } }) => {
+      if (!u) return;
+      supabase.from('client_profiles').select('biological_sex').eq('user_id', u.id).maybeSingle()
+        .then(({ data }) => setBioSex((data as { biological_sex?: string | null } | null)?.biological_sex ?? null), () => {});
+    });
   }, [loadRecords]));
 
   const exerciseGroups = groupByExercise(records);
@@ -332,34 +340,42 @@ export default function FitnessStrengthScreen() {
       <ScreenHeader title="Fuerza" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing.xxl }}>
-        {/* ── 1. HERO — Rendimiento (protagonista) ── */}
+        {/* ── 1. HERO — Rendimiento (protagonista) ──
+            MB-5 Bloque 3: sube de "verde brutalist" al molde EDITORIAL —
+            imagen de fondo + overlay gradiente + jerarquía (mismo tratamiento
+            que el hero del hub). "ELITE" aquí es el NIVEL del atleta, se queda. */}
         <Animated.View entering={FadeInDown.duration(300).springify()}>
-          <LinearGradient
-            colors={[PILLAR_GRADIENTS.fitness.start, PILLAR_GRADIENTS.fitness.end]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
-          >
-            <EliteText variant="caption" style={styles.heroLabel}>RENDIMIENTO</EliteText>
-            <View style={styles.heroLevelWrap}>
-              <EliteText style={styles.heroLevel}>{getLevel(totalPRs)}</EliteText>
-            </View>
+          <View style={styles.heroCard}>
+            <ImageBackground source={pickFitnessImage(bioSex)} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <LinearGradient
+              colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.88)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.heroContent}>
+              <EliteText variant="caption" style={styles.heroLabel}>RENDIMIENTO</EliteText>
+              <View style={styles.heroLevelWrap}>
+                {/* Etiquetas largas (PRINCIPIANTE/INTERMEDIO) encogen, no se cortan */}
+                <EliteText style={styles.heroLevel} numberOfLines={1} adjustsFontSizeToFit>
+                  {getLevel(totalPRs)}
+                </EliteText>
+              </View>
 
-            <View style={styles.heroMiniStats}>
-              <View style={styles.heroMiniStatItem}>
-                <EliteText style={styles.heroMiniStatValue}>{totalPRs}</EliteText>
-                <EliteText variant="caption" style={styles.heroMiniStatLabel}>PRs</EliteText>
+              <View style={styles.heroMiniStats}>
+                <View style={styles.heroMiniStatItem}>
+                  <EliteText style={styles.heroMiniStatValue}>{totalPRs}</EliteText>
+                  <EliteText variant="caption" style={styles.heroMiniStatLabel}>PRs</EliteText>
+                </View>
+                <View style={styles.heroMiniStatDivider} />
+                <View style={styles.heroMiniStatItem}>
+                  <EliteText style={styles.heroMiniStatValue}>{best1RM > 0 ? `${best1RM}kg` : '—'}</EliteText>
+                  <EliteText variant="caption" style={styles.heroMiniStatLabel}>Mejor 1RM est.</EliteText>
+                </View>
+                {/* §4.4 caza de redundancia: el "último PR" NO va aquí — ese dato
+                    vive en la tabla de marcas con sus badges HOY/PR! (un dato =
+                    un lugar). El hero se queda con los 2 agregados. */}
               </View>
-              <View style={styles.heroMiniStatDivider} />
-              <View style={styles.heroMiniStatItem}>
-                <EliteText style={styles.heroMiniStatValue}>{best1RM > 0 ? `${best1RM}kg` : '—'}</EliteText>
-                <EliteText variant="caption" style={styles.heroMiniStatLabel}>Mejor 1RM est.</EliteText>
-              </View>
-              {/* §4.4 caza de redundancia: el "último PR" NO va aquí — ese dato
-                  vive en la tabla de marcas con sus badges HOY/PR! (un dato =
-                  un lugar). El hero se queda con los 2 agregados. */}
             </View>
-          </LinearGradient>
+          </View>
         </Animated.View>
 
         {/* ── 2. BENCHMARKS ── */}
@@ -682,14 +698,15 @@ export default function FitnessStrengthScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: ELEVATION[0].bg },
 
-  // Hero
+  // Hero (MB-5 Bloque 3: molde editorial — imagen + overlay + contenido)
   heroCard: {
     marginHorizontal: Spacing.md,
     borderRadius: Radius.card,
-    padding: Spacing.lg,
     marginBottom: Spacing.md,
     overflow: 'hidden',
+    backgroundColor: ELEVATION[1].bg,
   },
+  heroContent: { padding: Spacing.lg },
   heroLabel: {
     color: 'rgba(255,255,255,0.7)', letterSpacing: 3, fontSize: 10,
     fontFamily: Fonts.bold, marginBottom: Spacing.xs,

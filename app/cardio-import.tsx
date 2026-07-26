@@ -26,6 +26,8 @@ import { formatDuration } from '@/src/services/fitness-service';
 import {
   getHealthPlatform,
   solicitarPermisos,
+  permisosYaConcedidos,
+  abrirAjustesHealthConnect,
   leerEntrenamientos,
   importarEntrenamientos,
   getAutoSync,
@@ -39,7 +41,7 @@ const DISCIPLINA_LABELS: Record<string, string> = {
   running: 'Correr', cycling: 'Ciclismo', swimming: 'Natación', rowing: 'Remo', other: 'Otro',
 };
 
-type Fase = 'cargando' | 'consentimiento' | 'no_disponible' | 'leyendo' | 'lista' | 'resultado';
+type Fase = 'cargando' | 'consentimiento' | 'no_disponible' | 'permiso_manual' | 'leyendo' | 'lista' | 'resultado';
 
 export default function CardioImportScreen() {
   const router = useRouter();
@@ -64,14 +66,33 @@ export default function CardioImportScreen() {
   async function conectarYLeer() {
     haptic.medium();
     setFase('leyendo');
-    const ok = await solicitarPermisos();
-    if (!ok) {
+    const res = await solicitarPermisos();
+    // MB-5 0.3: binario 1.7.0 sin permission delegate — el diálogo nativo
+    // crashearía. Ruta manual: conceder desde los ajustes de Health Connect.
+    if (res === 'dialogo_no_disponible') {
+      setFase('permiso_manual');
+      return;
+    }
+    if (res !== 'ok') {
       setFase('consentimiento');
       return;
     }
     const ws = await leerEntrenamientos(14);
     setWorkouts(ws);
     setFase('lista');
+  }
+
+  /** Re-check tras conceder el permiso a mano en Health Connect (sin diálogos). */
+  async function verificarPermisoManual() {
+    haptic.medium();
+    setFase('leyendo');
+    if (await permisosYaConcedidos()) {
+      const ws = await leerEntrenamientos(14);
+      setWorkouts(ws);
+      setFase('lista');
+    } else {
+      setFase('permiso_manual');
+    }
   }
 
   async function importar() {
@@ -153,8 +174,9 @@ export default function CardioImportScreen() {
               </View>
               <EliteText style={s.cardTitle}>Una conexión, todas tus apps</EliteText>
               <EliteText style={s.cardBody}>
-                Strava, Garmin, Samsung Health y Google Fit escriben sus entrenamientos
-                en {nombre}. ATP los lee de ahí — sin integrar cuenta por cuenta.
+                {plataforma?.os === 'ios'
+                  ? `Strava, Garmin y tus demás apps de entrenamiento escriben en ${nombre} (Apple Health). ATP los lee de ahí — sin integrar cuenta por cuenta.`
+                  : `Strava, Garmin, Samsung Health y Google Fit escriben sus entrenamientos en ${nombre}. ATP los lee de ahí — sin integrar cuenta por cuenta.`}
               </EliteText>
             </Animated.View>
 
@@ -186,6 +208,26 @@ export default function CardioImportScreen() {
 
         {fase === 'leyendo' && (
           <View style={s.center}><EliteText style={s.metaText}>Leyendo tus entrenamientos…</EliteText></View>
+        )}
+
+        {/* MB-5 0.3 — Ruta manual de permisos (binario sin el diálogo nativo): honesta, sin crash */}
+        {fase === 'permiso_manual' && (
+          <Animated.View entering={FadeInDown.duration(300)} style={s.card}>
+            <View style={[s.iconWrap, { backgroundColor: withOpacity(ATP_BRAND.teal, 0.12) }]}>
+              <Ionicons name="key-outline" size={26} color={ATP_BRAND.teal} />
+            </View>
+            <EliteText style={s.cardTitle}>Un paso en Health Connect</EliteText>
+            <EliteText style={s.cardBody}>
+              Esta versión de la app aún no puede abrir el diálogo de permisos (llega con la
+              próxima actualización de la tienda). Mientras tanto puedes concederlo a mano:
+              abre Health Connect → Permisos de apps → ATP → activa la lectura de ejercicio,
+              y vuelve aquí.
+            </EliteText>
+            <GradientCTA label="ABRIR HEALTH CONNECT" pillar="fitness" icon="settings-outline"
+              onPress={() => { haptic.light(); abrirAjustesHealthConnect(); }} style={{ marginTop: Spacing.sm }} />
+            <GradientCTA label="Ya di el permiso — leer" variant="quiet" icon="refresh-outline"
+              onPress={verificarPermisoManual} style={{ marginTop: Spacing.xs }} />
+          </Animated.View>
         )}
 
         {/* Lista de entrenamientos leídos */}

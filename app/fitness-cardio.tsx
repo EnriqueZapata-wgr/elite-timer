@@ -17,6 +17,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 import { autoSyncSiActiva } from '@/src/services/fitness/health-import-service';
@@ -100,13 +101,15 @@ export default function FitnessCardioScreen() {
           );
         })}
 
-        <AnimatedPressable
-          style={s.ctaButton}
-          onPress={() => { haptic.medium(); router.push('/log-cardio'); }}
-        >
-          <Ionicons name="add-circle-outline" size={20} color={TEXT_COLORS.onAccent} />
-          <EliteText style={s.ctaText}>REGISTRAR SESIÓN CARDIO</EliteText>
-        </AnimatedPressable>
+        {/* MB-5 Bloque 3: CTA héroe a degradado editorial (antes azul plano legacy) */}
+        <View style={{ marginTop: Spacing.md }}>
+          <GradientCTA
+            label="REGISTRAR SESIÓN CARDIO"
+            pillar="fitness"
+            icon="add-circle-outline"
+            onPress={() => router.push('/log-cardio')}
+          />
+        </View>
 
         {/* MB-3.6 §3.2: import desde Health Connect / HealthKit (Strava, Garmin,
             Samsung y Google Fit escriben ahí — una integración, todas las fuentes). */}
@@ -164,22 +167,6 @@ const s = StyleSheet.create({
     color: CARDIO_BLUE,
   },
 
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: CARDIO_BLUE,
-    paddingVertical: 14,
-    borderRadius: Radius.md,
-    marginTop: Spacing.md,
-  },
-  ctaText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    color: TEXT_COLORS.onAccent,
-    letterSpacing: 1.5,
-  },
   ctaButtonGhost: {
     flexDirection: 'row',
     alignItems: 'center',

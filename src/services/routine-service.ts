@@ -63,6 +63,7 @@ interface DbBlockRow {
   notes: string;
   exercise_id: string | null;
   suggested_rest_seconds: number | null;
+  matrix_slug: string | null;
 }
 
 /** Convierte un row de DB a un Block del engine (sin children, para buildTree).
@@ -84,6 +85,7 @@ function dbRowToBlock(row: DbBlockRow & { exercises?: { name: string } | null })
     exercise_id: row.exercise_id,
     exercise_name: row.exercises?.name ?? null,
     suggested_rest_seconds: (row as any).suggested_rest_seconds ?? null,
+    matrix_slug: (row as any).matrix_slug ?? null,
     _routine_id: row.routine_id,
   };
 }
@@ -147,6 +149,7 @@ function flattenTreeToDbRows(blocks: Block[], routineId: string): Omit<DbBlockRo
         notes: block.notes,
         exercise_id: block.exercise_id ?? null,
         suggested_rest_seconds: block.suggested_rest_seconds ?? null,
+        matrix_slug: block.matrix_slug ?? null,
       });
       if (block.children) {
         walk(block.children, block.id);
@@ -166,12 +169,23 @@ export async function getRoutines(): Promise<Routine[]> {
   // getRoutines no fuerza refresh — si no hay sesión, retorna vacío silenciosamente
   if (!user) return [];
 
-  // Fetch rutinas (con JOIN a profiles para crédito de clones)
-  const { data: routineRows, error: routineError } = await supabase
+  // Fetch rutinas (con JOIN a profiles para crédito de clones). MB-5 2.3: las
+  // archivadas no aparecen; fail-soft si el remoto aún no tiene archived_at.
+  const SELECT_RUTINAS = '*, original_creator:profiles!routines_original_creator_id_fkey(full_name)';
+  let { data: routineRows, error: routineError } = await supabase
     .from('routines')
-    .select('*, original_creator:profiles!routines_original_creator_id_fkey(full_name)')
+    .select(SELECT_RUTINAS)
     .eq('creator_id', user.id)
+    .is('archived_at', null)
     .order('created_at', { ascending: false });
+
+  if (routineError && routineError.message.includes('archived_at')) {
+    ({ data: routineRows, error: routineError } = await supabase
+      .from('routines')
+      .select(SELECT_RUTINAS)
+      .eq('creator_id', user.id)
+      .order('created_at', { ascending: false }));
+  }
 
   if (routineError) throw new Error(routineError.message);
   if (!routineRows || routineRows.length === 0) return [];
@@ -293,9 +307,17 @@ export async function saveRoutine(routine: Routine): Promise<void> {
   if (deleteError) throw new Error(deleteError.message);
 
   // Paso 3: Insert blocks nuevos — si falla, restaurar los blocks previos
-  const { error: insertError } = await supabase
+  let { error: insertError } = await supabase
     .from('blocks')
     .insert(rows);
+
+  // Fail-soft pre-mig 232 (doctrina anti columna-fantasma): si el remoto aún
+  // no tiene blocks.matrix_slug, guarda la rutina sin la traza en vez de tirar
+  // el guardado completo.
+  if (insertError && insertError.message.includes('matrix_slug')) {
+    const sinSlug = rows.map(({ matrix_slug: _ms, ...r }) => r);
+    ({ error: insertError } = await supabase.from('blocks').insert(sinSlug));
+  }
 
   if (insertError) {
     // Rollback: restaurar blocks anteriores si existían. Si no existían (fue
@@ -306,6 +328,25 @@ export async function saveRoutine(routine: Routine): Promise<void> {
       try { await supabase.from('routines').delete().eq('id', routine.id).eq('creator_id', user.id); } catch {}
     }
     throw new Error(`Error al guardar bloques: ${insertError.message}`);
+  }
+}
+
+/**
+ * MB-5 2.3: archiva rutinas en lote (reversible — archived_at, no DELETE).
+ * Requiere la migración 232 en el remoto; si falta, lanza con mensaje claro.
+ */
+export async function archiveRoutines(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const user = await getAuthenticatedUser();
+  const { error } = await supabase
+    .from('routines')
+    .update({ archived_at: new Date().toISOString() })
+    .in('id', ids)
+    .eq('creator_id', user.id);
+  if (error) {
+    throw new Error(error.message.includes('archived_at')
+      ? 'El archivado necesita la actualización de datos (migración 232). Usa Eliminar o inténtalo tras la actualización.'
+      : error.message);
   }
 }
 

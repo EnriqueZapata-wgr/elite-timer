@@ -74,6 +74,7 @@
       "expo-secure-store",
       "@react-native-community/datetimepicker",
       "react-native-health-connect",
+      "./plugins/with-health-connect-delegate",
       [
         "@kingstinct/react-native-healthkit",
         {

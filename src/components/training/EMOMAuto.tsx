@@ -19,19 +19,35 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { ELEVATION, TEXT } from '@/src/constants/brand';
 import { Fonts, Radius } from '@/constants/theme';
+import { EMOM_CLASE_LABEL, type EmomPrescripcion } from '@/src/services/fitness/emom-core';
 
 const NARANJA = '#fb923c';
+
+// Límites duros del ajuste manual (guiado, no prisionero: el rango sugerido
+// viene de la prescripción; estos solo evitan configuraciones sin sentido).
+const RONDAS_LIM = { min: 3, max: 20 };
+const REPS_LIM = { min: 1, max: 60 };
 
 interface Props {
   exerciseName: string;
   userLevel: 'beginner' | 'intermediate';
+  /**
+   * MB-5 Bloque 1: prescripción X×X según la carga del ejercicio (emom-core).
+   * Sin ella (planes viejos, ejercicios fuera de matriz) corre el default
+   * previo: 10×10 intermedio · 8×8 principiante.
+   */
+  prescripcion?: EmomPrescripcion;
   onComplete: (result: { rounds: number[]; debt: number; weightFeedback: string }) => void;
   /** Cue de voz opcional (el host decide si habla). { hito } = se habla también en modo 'solo hitos'. */
   onCue?: (text: string, opts?: { hito?: boolean }) => void;
 }
 
-export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) {
-  const config = userLevel === 'beginner' ? { rounds: 8, targetReps: 8 } : { rounds: 10, targetReps: 10 };
+export function EMOMAuto({ exerciseName, userLevel, prescripcion, onComplete, onCue }: Props) {
+  const legacy = userLevel === 'beginner' ? { rounds: 8, targetReps: 8 } : { rounds: 10, targetReps: 10 };
+  // X×X ajustable en la fase ready; al iniciar queda fijo para toda la sesión.
+  const [rondasCfg, setRondasCfg] = useState(prescripcion?.rondas ?? legacy.rounds);
+  const [repsCfg, setRepsCfg] = useState(prescripcion?.reps ?? legacy.targetReps);
+  const config = { rounds: rondasCfg, targetReps: repsCfg };
   const [phase, setPhase] = useState<'ready' | 'active' | 'captura' | 'debt' | 'done'>('ready');
   const [currentRound, setCurrentRound] = useState(0);
   const [timer, setTimer] = useState(60);
@@ -39,6 +55,8 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) 
   const [results, setResults] = useState<(number | null)[]>([]);
   /** Selección de la ronda ACTUAL — corregible hasta que el reloj llegue a 0. */
   const [seleccion, setSeleccion] = useState<number | null>(null);
+  /** Selección para rondas pendientes (banner en vivo / fase captura) — se confirma explícito. */
+  const [capturaSel, setCapturaSel] = useState<number | null>(null);
   const [totalDebt, setTotalDebt] = useState(0);
   // El commit del minuto lee la selección vía ref (el tick no depende de taps).
   const seleccionRef = useRef<number | null>(null);
@@ -91,6 +109,7 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) 
     const nuevos = [...resultsRef.current];
     nuevos[roundIdx] = reps;
     setResults(nuevos);
+    setCapturaSel(null);
     if (phase === 'captura' && nuevos.every((r) => r != null)) {
       cerrarEmom(nuevos as number[]);
     }
@@ -126,9 +145,12 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) 
   }
 
   // Botones de reps (target hacia abajo) — tap = SELECCIONAR, no cerrar.
-  const repsButtons = Array.from({ length: config.targetReps + 1 }, (_, i) => config.targetReps - i)
-    .filter((r) => r >= 0)
-    .slice(0, 6);
+  // MB-5 Bloque 1: paso adaptativo a la carga (target 10 → de 1 en 1, como
+  // antes; target 25-40 → saltos) + ajuste fino ± para el dato exacto (la
+  // deuda se calcula con reps exactas).
+  const paso = Math.max(1, Math.round(config.targetReps / 10));
+  const repsButtons = Array.from({ length: 6 }, (_, i) => config.targetReps - i * paso)
+    .filter((r) => r >= 0);
 
   const pendientes = results.map((r, i) => (r == null ? i : -1)).filter((i) => i >= 0);
   const deudaParcial = results.reduce<number>((s, r) => s + (r == null ? 0 : Math.max(0, config.targetReps - r)), 0);
@@ -147,6 +169,47 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) 
     </View>
   );
 
+  /** Ajuste fino ±1 sobre una selección ya hecha (dato exacto para la deuda). */
+  const ajusteFino = (valor: number, onChange: (n: number) => void) => (
+    <View style={s.fineRow}>
+      <Pressable
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange(Math.max(0, valor - 1)); }}
+        style={s.fineBtn}
+      >
+        <Ionicons name="remove" size={18} color={TEXT.primary} />
+      </Pressable>
+      <Text style={s.fineValue}>{valor}</Text>
+      <Pressable
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange(Math.min(REPS_LIM.max, valor + 1)); }}
+        style={s.fineBtn}
+      >
+        <Ionicons name="add" size={18} color={TEXT.primary} />
+      </Pressable>
+    </View>
+  );
+
+  /** Stepper de configuración X×X (solo fase ready — guiado, no prisionero). */
+  const cfgStepper = (label: string, valor: number, set: (n: number) => void, min: number, max: number) => (
+    <View style={s.cfgRow}>
+      <Text style={s.cfgLabel}>{label}</Text>
+      <View style={s.cfgControls}>
+        <Pressable
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); set(Math.max(min, valor - 1)); }}
+          style={s.fineBtn}
+        >
+          <Ionicons name="remove" size={18} color={TEXT.primary} />
+        </Pressable>
+        <Text style={s.cfgValue}>{valor}</Text>
+        <Pressable
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); set(Math.min(max, valor + 1)); }}
+          style={s.fineBtn}
+        >
+          <Ionicons name="add" size={18} color={TEXT.primary} />
+        </Pressable>
+      </View>
+    </View>
+  );
+
   return (
     <View style={{ padding: 20 }}>
       {/* Header */}
@@ -162,12 +225,24 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) 
         </Text>
       </View>
 
-      {/* READY */}
+      {/* READY — X×X ajustable (MB-5 Bloque 1: guiado, no prisionero) */}
       {phase === 'ready' && (
         <View style={{ alignItems: 'center' }}>
           <Text style={s.exerciseName}>{exerciseName}</Text>
+          {prescripcion && (
+            <Text style={s.claseHint}>{EMOM_CLASE_LABEL[prescripcion.clase]}</Text>
+          )}
+          <View style={s.cfgCard}>
+            {cfgStepper('RONDAS', rondasCfg, setRondasCfg, RONDAS_LIM.min, RONDAS_LIM.max)}
+            {cfgStepper('REPS POR MINUTO', repsCfg, setRepsCfg, REPS_LIM.min, REPS_LIM.max)}
+            {prescripcion && (
+              <Text style={s.sugeridoText}>
+                Sugerido para este ejercicio: {prescripcion.repsMin}-{prescripcion.repsMax} reps · {prescripcion.rondasMin}-{prescripcion.rondasMax} rondas
+              </Text>
+            )}
+          </View>
           <Pressable
-            onPress={() => { setPhase('active'); setTimer(60); onCue?.('EMOM iniciado. Ronda 1.', { hito: true }); }}
+            onPress={() => { setPhase('active'); setTimer(60); onCue?.(`EMOM iniciado: ${rondasCfg} rondas de ${repsCfg} repeticiones. Ronda 1.`, { hito: true }); }}
             style={s.ctaBtn}
           >
             <Text style={s.ctaText}>INICIAR EMOM</Text>
@@ -194,7 +269,15 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) 
             <View style={s.pendienteCard}>
               <Text style={s.pendienteTitle}>RONDA {pendientes[0] + 1} SIN REGISTRO</Text>
               <Text style={s.pendienteBody}>¿Cuántas reps hiciste?</Text>
-              {botonesReps((r) => capturarPendiente(pendientes[0], r), null)}
+              {botonesReps((r) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCapturaSel(r); }, capturaSel)}
+              {capturaSel != null && (
+                <>
+                  {ajusteFino(capturaSel, setCapturaSel)}
+                  <Pressable onPress={() => capturarPendiente(pendientes[0], capturaSel)} style={s.miniCta}>
+                    <Text style={s.miniCtaText}>REGISTRAR RONDA</Text>
+                  </Pressable>
+                </>
+              )}
             </View>
           )}
 
@@ -203,6 +286,7 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) 
             {seleccion == null ? '¿Cuántas reps completaste? (tocar selecciona)' : `Seleccionaste ${seleccion} — se registra al cerrar el minuto. Corrige si quieres.`}
           </Text>
           {botonesReps((r) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSeleccion(r); }, seleccion)}
+          {seleccion != null && ajusteFino(seleccion, setSeleccion)}
 
           {/* Rondas completadas */}
           {results.length > 0 && (
@@ -233,7 +317,15 @@ export function EMOMAuto({ exerciseName, userLevel, onComplete, onCue }: Props) 
           <Ionicons name="help-circle-outline" size={32} color={NARANJA} />
           <Text style={s.pendienteTitle}>RONDA {(pendientes[0] ?? 0) + 1} SIN REGISTRO</Text>
           <Text style={s.pendienteBody}>El EMOM terminó — ¿cuántas reps hiciste en esa ronda?</Text>
-          {botonesReps((r) => capturarPendiente(pendientes[0], r), null)}
+          {botonesReps((r) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setCapturaSel(r); }, capturaSel)}
+          {capturaSel != null && (
+            <>
+              {ajusteFino(capturaSel, setCapturaSel)}
+              <Pressable onPress={() => capturarPendiente(pendientes[0], capturaSel)} style={s.miniCta}>
+                <Text style={s.miniCtaText}>REGISTRAR RONDA</Text>
+              </Pressable>
+            </>
+          )}
           <Text style={s.hintText}>
             {pendientes.length > 1 ? `Faltan ${pendientes.length} rondas por registrar.` : 'Última ronda por registrar.'}
           </Text>
@@ -272,7 +364,28 @@ const s = StyleSheet.create({
   headerTitle: { color: NARANJA, fontSize: 15, fontFamily: Fonts.extraBold },
   headerBody: { color: '#ccc', fontSize: 13, lineHeight: 20, fontFamily: Fonts.regular },
 
-  exerciseName: { color: '#fff', fontSize: 18, fontFamily: Fonts.bold, marginBottom: 20 },
+  exerciseName: { color: '#fff', fontSize: 18, fontFamily: Fonts.bold, marginBottom: 8 },
+  claseHint: { color: NARANJA, fontSize: 12, fontFamily: Fonts.semiBold, marginBottom: 12, textAlign: 'center' },
+  cfgCard: {
+    width: '100%', backgroundColor: ELEVATION[1].bg, borderColor: ELEVATION[1].border,
+    borderWidth: 1, borderRadius: Radius.card, padding: 14, gap: 10,
+  },
+  cfgRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  cfgLabel: { color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.semiBold, letterSpacing: 1.5 },
+  cfgControls: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cfgValue: { color: '#fff', fontSize: 22, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'], minWidth: 40, textAlign: 'center' },
+  sugeridoText: { color: TEXT.secondary, fontSize: 11, fontFamily: Fonts.regular, textAlign: 'center', marginTop: 2 },
+  fineRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, marginTop: 12 },
+  fineBtn: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: ELEVATION[2].bg,
+    borderWidth: 1, borderColor: ELEVATION[2].border, justifyContent: 'center', alignItems: 'center',
+  },
+  fineValue: { color: '#fff', fontSize: 20, fontFamily: Fonts.extraBold, fontVariant: ['tabular-nums'], minWidth: 36, textAlign: 'center' },
+  miniCta: {
+    backgroundColor: NARANJA, borderRadius: Radius.pill, paddingVertical: 10, paddingHorizontal: 24,
+    marginTop: 12, alignSelf: 'center',
+  },
+  miniCtaText: { color: '#000', fontSize: 13, fontFamily: Fonts.extraBold, letterSpacing: 1 },
   ctaBtn: {
     backgroundColor: NARANJA, borderRadius: Radius.card, padding: 18, paddingHorizontal: 48,
     alignItems: 'center', marginTop: 16,

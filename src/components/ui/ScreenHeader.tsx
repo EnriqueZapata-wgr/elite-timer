@@ -30,7 +30,11 @@ export function ScreenHeader({ title, rightAction, onBack }: ScreenHeaderProps) 
         <BackButton onPress={onBack} />
         <HomeChip />
       </View>
-      <EliteText style={s.title} numberOfLines={1}>{title.toUpperCase()}</EliteText>
+      {/* MB-5 Bloque 4.2: títulos largos ("REGISTRAR CARDIO") se encogen en
+          vez de truncarse ("REGISTRAR CARD…") — aplica a todo el pilar. */}
+      <EliteText style={s.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        {title.toUpperCase()}
+      </EliteText>
       <View style={[s.side, s.sideRight]}>{rightAction ?? null}</View>
     </View>
   );

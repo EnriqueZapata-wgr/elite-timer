@@ -33,7 +33,14 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { getExerciseMatrix } from '@/src/services/fitness/exercise-matrix-service';
-import { saveWorkoutSession, type SaveSessionResult } from '@/src/services/fitness/workout-session-service';
+import {
+  saveWorkoutSession,
+  stashPendingSession,
+  removePendingSession,
+  type SaveSessionInput,
+  type SaveSessionResult,
+} from '@/src/services/fitness/workout-session-service';
+import { generateUUID } from '@/src/utils/uuid';
 import type { SessionSet } from '@/src/services/fitness/workout-session-core';
 import type { GeneratedRoutine, RoutineBlock } from '@/src/services/fitness/routine-generator-core';
 import { clipDe, posterDe } from '@/src/constants/exercise-matrix';
@@ -226,6 +233,8 @@ export default function StrengthSessionScreen() {
   const [resultado, setResultado] = useState<SaveSessionResult | null>(null);
   const startedAtRef = useRef(new Date());
   const anunciadoRef = useRef(-1);
+  // MB-5 0.2: id estable de la sesión — reintentos idempotentes (no duplica).
+  const sessionIdRef = useRef(generateUUID());
 
   // Camino biblioteca: ?slugs=a,b,c → bloques estándar desde la matriz.
   useEffect(() => {
@@ -325,7 +334,7 @@ export default function StrengthSessionScreen() {
       return;
     }
     setSaving(true);
-    const res = await saveWorkoutSession({
+    const inputSesion: SaveSessionInput = {
       userId: user.id,
       sets: todos,
       startedAt: startedAtRef.current,
@@ -333,8 +342,11 @@ export default function StrengthSessionScreen() {
       source: plan ? 'generada' : 'manual',
       routineName: params.name ?? (plan ? 'Rutina generada' : 'Sesión libre'),
       plan: plan ?? undefined,
-    });
+      sessionId: sessionIdRef.current,
+    };
+    const res = await saveWorkoutSession(inputSesion);
     if (res.ok) {
+      removePendingSession(sessionIdRef.current).catch(() => {});
       try { await awardBooleanElectron(user.id, 'strength'); } catch { /* fail-soft */ }
       DeviceEventEmitter.emit('electrons_changed');
       DeviceEventEmitter.emit('day_changed');
@@ -343,10 +355,18 @@ export default function StrengthSessionScreen() {
     setSaving(false);
     setResultado(res);
     if (!res.ok) {
-      Alert.alert('No se pudo guardar', res.error ?? 'Inténtalo de nuevo.', [
-        { text: 'Reintentar', onPress: () => finalizar(todos) },
-        { text: 'Salir sin guardar', style: 'destructive', onPress: () => router.back() },
-      ]);
+      // MB-5 0.2: el trabajo del usuario es sagrado — la sesión completa queda
+      // en el teléfono y se re-sube sola (flush al abrir Fitness) o al reintentar.
+      try { await stashPendingSession({ ...inputSesion, sessionId: sessionIdRef.current }); } catch { /* fail-soft */ }
+      Alert.alert(
+        'No se pudo guardar',
+        `${res.error ?? 'Error desconocido.'}\n\nTu entrenamiento NO se perdió: quedó guardado en este teléfono y se subirá solo la próxima vez que abras Fitness.`,
+        [
+          { text: 'Salir', style: 'destructive', onPress: () => router.back() },
+          { text: 'Volver a la sesión' },
+          { text: 'Reintentar', onPress: () => finalizar(todos) },
+        ],
+      );
     }
   }
 
@@ -546,7 +566,7 @@ export default function StrengthSessionScreen() {
           <Method35 key={`m35-${idx}`} exerciseName={actual.nombre} userLevel={nivelMetodo} onComplete={(st) => onMethodComplete(actual, { sets: st })} onCue={cue} />
         )}
         {actual.metodo === 'EMOM Auto' && (
-          <EMOMAuto key={`emom-${idx}`} exerciseName={actual.nombre} userLevel={nivelMetodo} onComplete={(r) => onMethodComplete(actual, r)} onCue={cue} />
+          <EMOMAuto key={`emom-${idx}`} exerciseName={actual.nombre} userLevel={nivelMetodo} prescripcion={actual.emom} onComplete={(r) => onMethodComplete(actual, r)} onCue={cue} />
         )}
         {actual.metodo === 'Myo-reps' && (
           <MyoReps key={`myo-${idx}`} exerciseName={actual.nombre} onComplete={(r) => onMethodComplete(actual, r)} onCue={cue} />
@@ -575,7 +595,7 @@ const s = StyleSheet.create({
 
   progressRow: { marginBottom: Spacing.md },
   progressText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 11, letterSpacing: 2, marginBottom: 6 },
-  progressBar: { height: 2, backgroundColor: ELEVATION[1].bg, borderRadius: 1, opacity: 0.9 },
+  progressBar: { height: 2, backgroundColor: ELEVATION[1].bg, borderRadius: 1 },
   progressFill: { height: '100%', backgroundColor: withOpacity(ATP_BRAND.lime, 0.75), borderRadius: 1 },
 
   heroCard: {

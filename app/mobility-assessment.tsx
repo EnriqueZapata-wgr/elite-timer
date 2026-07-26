@@ -492,7 +492,8 @@ const s = StyleSheet.create({
     marginTop: Spacing.lg, marginBottom: Spacing.sm,
   },
   howRow: { flexDirection: 'row', gap: 10, marginBottom: 8, alignItems: 'flex-start' },
-  howText: { color: TEXT.primary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19, opacity: 0.85 },
+  // MB-5 Bloque 3: un solo mecanismo de muteo — token de color, sin opacity apilada.
+  howText: { color: TEXT.secondary, fontFamily: Fonts.regular, fontSize: 13, flex: 1, lineHeight: 19 },
   unidadHint: { color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: 12, marginTop: -6, marginBottom: Spacing.sm },
 
   ladoBlock: { marginBottom: Spacing.md },

@@ -39,6 +39,8 @@ export interface RoutineExercise {
   suggestedSets: number;
   suggestedRestSeconds: number;
   completedSets: ExerciseSet[];
+  /** Traza a exercise_matrix (MB-5 2.1) — habilita clip en la ejecución. */
+  matrixSlug?: string | null;
 }
 
 export interface RoutineModeStats {
@@ -80,6 +82,7 @@ function extractExercises(blocks: Block[]): RoutineExercise[] {
           suggestedSets: parentGroupRounds,
           suggestedRestSeconds: block.suggested_rest_seconds ?? 120,
           completedSets: [],
+          matrixSlug: block.matrix_slug ?? null,
         });
       } else if (block.children) {
         walk(block.children, parentGroupRounds);

@@ -49,7 +49,7 @@ interface BlockCardProps {
   onMoveDown: (() => void) | null;
   depth: number;
   onAssignExercise?: () => void;
-  onRequestExercisePicker?: (onSelect: (exercise: { id: string; name: string }) => void) => void;
+  onRequestExercisePicker?: (onSelect: (exercise: { id: string | null; name: string; matrix_slug?: string | null }) => void) => void;
 }
 
 // === COMPONENTE PRINCIPAL ===
@@ -249,6 +249,7 @@ export function BlockCard({
                         ...child,
                         exercise_id: exercise.id,
                         exercise_name: exercise.name,
+                        matrix_slug: exercise.matrix_slug ?? null,
                       });
                     });
                   } : undefined}
@@ -393,7 +394,7 @@ export function BlockCard({
                     <EliteText variant="caption" style={styles.changeBtnText}>CAMBIAR</EliteText>
                   </Pressable>
                   <Pressable
-                    onPress={() => { updateField('exercise_id', null); updateField('exercise_name', null); }}
+                    onPress={() => { updateField('exercise_id', null); updateField('exercise_name', null); updateField('matrix_slug', null); }}
                     hitSlop={8}
                   >
                     <Ionicons name="close-circle" size={16} color={Colors.textSecondary} />

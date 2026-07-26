@@ -18,7 +18,7 @@ import { ScheduleModal } from '@/src/components/ScheduleModal';
 import { shareRoutine } from '@/src/services/share-service';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, TEXT } from '@/src/constants/brand';
 import { flattenRoutine, calcRoutineStats, formatTimeHuman } from '@/src/engine';
 import type { Routine } from '@/src/engine/types';
 import type { RoutineCalcStats } from '@/src/engine/helpers';
@@ -136,7 +136,34 @@ export default function ProgramsScreen() {
     }
   };
 
+  // MB-5 2.2: solo se comparten rutinas del patrón nuevo — todos sus
+  // ejercicios trazados a la biblioteca (matrix_slug), que es lo que hereda
+  // clip y métodos al clonarse. Timers (sin ejercicios) comparten igual.
+  const esPatronNuevo = (routine: Routine): boolean => {
+    if (routine.mode !== 'routine') return true;
+    let tieneEjercicios = false;
+    let todosTrazados = true;
+    const walk = (blocks: Routine['blocks']) => {
+      for (const b of blocks) {
+        if (b.type === 'work' && (b.exercise_id || b.exercise_name)) {
+          tieneEjercicios = true;
+          if (!b.matrix_slug) todosTrazados = false;
+        }
+        if (b.children) walk(b.children);
+      }
+    };
+    walk(routine.blocks);
+    return tieneEjercicios && todosTrazados;
+  };
+
   const handleShare = async (routine: Routine) => {
+    if (!esPatronNuevo(routine)) {
+      Alert.alert(
+        'Rutina del patrón viejo',
+        'Solo se comparten rutinas armadas con ejercicios de la biblioteca (los que traen clip y métodos ATP). Abre la rutina en el constructor y reasigna sus ejercicios para poder compartirla.',
+      );
+      return;
+    }
     try {
       const link = await shareRoutine(routine.id);
       await Share.share({
@@ -303,14 +330,14 @@ export default function ProgramsScreen() {
                       </EliteText>
                     </View>
 
-                    {/* Menú ⋮ — MB-1.5 §1: pressed visible */}
-                    <Pressable
+                    {/* Menú ⋮ — MB-5 Bloque 3: spring scale estándar, sin opacity apilada */}
+                    <AnimatedPressable
                       onPress={() => setMenuRoutine(routine)}
                       hitSlop={12}
-                      style={({ pressed }) => [styles.menuBtn, pressed && { opacity: 0.5, transform: [{ scale: 0.9 }] }]}
+                      style={styles.menuBtn}
                     >
                       <Ionicons name="ellipsis-vertical" size={18} color={Colors.textSecondary} />
-                    </Pressable>
+                    </AnimatedPressable>
 
                     {/* Contenido */}
                     <View style={styles.cardBody}>
@@ -599,11 +626,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  // MB-5 Bloque 3: un solo mecanismo de muteo — token, sin opacity apilada.
   cardLastUsed: {
-    color: Colors.textSecondary,
+    color: TEXT.tertiary,
     fontSize: 11,
     marginTop: 4,
-    opacity: 0.7,
   },
   creditRow: {
     flexDirection: 'row',

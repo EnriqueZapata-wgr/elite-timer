@@ -26,7 +26,7 @@ import {
   GRUPOS_MUSCULARES, PATRONES, EQUIPO_TOKENS, NIVELES_EJERCICIO,
   musculosPrincipalesDe, posterDe, type MatrixExercise,
 } from '@/src/constants/exercise-matrix';
-import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, withOpacity, brandGradient } from '@/src/constants/brand';
 import { Fonts, Radius, Spacing } from '@/constants/theme';
 
 // MB-3.5 #9: filtros por los ejes que el usuario realmente piensa.
@@ -101,7 +101,7 @@ export default function ExerciseLibraryScreen() {
     <Screen edges={[]}>
       <ScreenHeader title="Biblioteca" />
 
-      {/* Tabs: ejercicios | métodos ATP */}
+      {/* Tabs: ejercicios | métodos ATP — MB-5 Bloque 3: activo = degradado editorial */}
       <View style={s.tabsRow}>
         {([
           { key: 'ejercicios' as const, label: 'EJERCICIOS' },
@@ -110,8 +110,11 @@ export default function ExerciseLibraryScreen() {
           <AnimatedPressable
             key={t.key}
             onPress={() => { haptic.light(); setTab(t.key); }}
-            style={[s.tabChip, tab === t.key && s.tabChipActivo]}
+            style={[s.tabChip, tab === t.key && s.chipActivoGrad]}
           >
+            {tab === t.key && (
+              <LinearGradient colors={brandGradient()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            )}
             <Text style={[s.tabText, tab === t.key && s.tabTextActivo]}>{t.label}</Text>
           </AnimatedPressable>
         ))}
@@ -141,7 +144,8 @@ export default function ExerciseLibraryScreen() {
         )}
       </View>
 
-      {/* Fila de ejes: cada chip abre sus opciones (con wrap) debajo */}
+      {/* Fila de ejes: cada chip abre sus opciones (con wrap) debajo.
+          MB-5 Bloque 3: autofiltro CON valor = degradado; abierto sin valor = tinte. */}
       <View style={s.ejesRow}>
         {EJES.map((eje) => {
           const activo = eje.valor !== 'Todos';
@@ -150,12 +154,19 @@ export default function ExerciseLibraryScreen() {
             <AnimatedPressable
               key={eje.key}
               onPress={() => { haptic.light(); setEjeAbierto(abierto ? null : eje.key); }}
-              style={[s.ejeChip, (activo || abierto) && s.ejeChipActivo]}
+              style={[s.ejeChip, activo ? s.chipActivoGrad : (abierto && s.ejeChipAbierto)]}
             >
-              <Text style={[s.ejeChipText, (activo || abierto) && s.ejeChipTextActivo]}>
+              {activo && (
+                <LinearGradient colors={brandGradient()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+              )}
+              <Text style={[s.ejeChipText, activo ? s.ejeChipTextGrad : (abierto && s.ejeChipTextAbierto)]}>
                 {activo ? `${eje.label} · ${eje.valor}` : eje.label}
               </Text>
-              <Ionicons name={abierto ? 'chevron-up' : 'chevron-down'} size={12} color={activo || abierto ? ATP_BRAND.lime : TEXT.tertiary} />
+              <Ionicons
+                name={abierto ? 'chevron-up' : 'chevron-down'}
+                size={12}
+                color={activo ? TEXT_COLORS.onAccent : abierto ? ATP_BRAND.lime : TEXT.tertiary}
+              />
             </AnimatedPressable>
           );
         })}
@@ -164,15 +175,21 @@ export default function ExerciseLibraryScreen() {
       {/* Opciones del eje abierto — chips con wrap, sin scroll escondido */}
       {ejeActivo && (
         <View style={s.opcionesWrap}>
-          {ejeActivo.opciones.map((op) => (
-            <AnimatedPressable
-              key={op}
-              onPress={() => { haptic.light(); ejeActivo.set(op); setEjeAbierto(null); }}
-              style={[s.opcionChip, ejeActivo.valor === op && s.opcionChipActiva]}
-            >
-              <Text style={[s.opcionText, ejeActivo.valor === op && s.opcionTextActiva]}>{op}</Text>
-            </AnimatedPressable>
-          ))}
+          {ejeActivo.opciones.map((op) => {
+            const activa = ejeActivo.valor === op;
+            return (
+              <AnimatedPressable
+                key={op}
+                onPress={() => { haptic.light(); ejeActivo.set(op); setEjeAbierto(null); }}
+                style={[s.opcionChip, activa && s.chipActivoGrad]}
+              >
+                {activa && (
+                  <LinearGradient colors={brandGradient()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                )}
+                <Text style={[s.opcionText, activa && s.opcionTextActiva]}>{op}</Text>
+              </AnimatedPressable>
+            );
+          })}
         </View>
       )}
 
@@ -249,7 +266,8 @@ const s = StyleSheet.create({
     flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: Radius.pill,
     backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
   },
-  tabChipActivo: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  // MB-5 Bloque 3: activo = degradado molécula clippeado al pill.
+  chipActivoGrad: { borderColor: 'transparent', overflow: 'hidden' },
   tabText: { color: TEXT.secondary, fontFamily: Fonts.bold, fontSize: 11, letterSpacing: 1.5 },
   tabTextActivo: { color: TEXT_COLORS.onAccent },
 
@@ -271,9 +289,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: Radius.pill,
     backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderColor: ELEVATION[1].border,
   },
-  ejeChipActivo: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: withOpacity(ATP_BRAND.lime, 0.5) },
+  ejeChipAbierto: { backgroundColor: withOpacity(ATP_BRAND.lime, 0.12), borderColor: withOpacity(ATP_BRAND.lime, 0.5) },
   ejeChipText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
-  ejeChipTextActivo: { color: ATP_BRAND.lime },
+  ejeChipTextAbierto: { color: ATP_BRAND.lime },
+  ejeChipTextGrad: { color: TEXT_COLORS.onAccent },
 
   opcionesWrap: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 8,
@@ -284,7 +303,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.pill,
     backgroundColor: ELEVATION[2].bg, borderWidth: 1, borderColor: ELEVATION[2].border,
   },
-  opcionChipActiva: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
   opcionText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: 12 },
   opcionTextActiva: { color: TEXT_COLORS.onAccent },
 

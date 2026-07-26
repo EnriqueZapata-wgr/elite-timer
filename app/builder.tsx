@@ -21,6 +21,7 @@ import * as Haptics from 'expo-haptics';
 
 import { EliteText } from '@/components/elite-text';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { StatsBar } from '@/src/components/builder/StatsBar';
 import { BlockCard } from '@/src/components/builder/BlockCard';
 import { AddBlockButton } from '@/src/components/builder/AddBlockButton';
@@ -31,10 +32,11 @@ import { formatTime } from '@/src/engine/helpers';
 import { saveRoutine, getRoutine } from '@/src/services/routine-service';
 import { generateUUID as generateId } from '@/src/services/routine-service';
 import { deepCopyBlock } from '@/src/utils/routine-storage';
-import { ExercisePicker } from '@/src/components/ExercisePicker';
-import type { Exercise } from '@/src/types/exercise';
+import { MatrixExercisePicker } from '@/src/components/MatrixExercisePicker';
+import { ensureExerciseId } from '@/src/services/fitness/workout-session-service';
+import type { MatrixExercise } from '@/src/constants/exercise-matrix';
 import { Colors, Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, brandGradient } from '@/src/constants/brand';
 
 // === CATEGORÍAS (solo Workout y Custom según diseño) ===
 
@@ -63,7 +65,7 @@ export default function BuilderScreen() {
   const [saving, setSaving] = useState(false);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [exercisePickerVisible, setExercisePickerVisible] = useState(false);
-  const exercisePickerCallback = useRef<((exercise: { id: string; name: string }) => void) | null>(null);
+  const exercisePickerCallback = useRef<((exercise: { id: string | null; name: string; matrix_slug?: string | null }) => void) | null>(null);
 
   // Cargar rutina existente si viene routineId
   useEffect(() => {
@@ -162,18 +164,23 @@ export default function BuilderScreen() {
 
   // --- Abrir el picker de ejercicios con un callback ---
 
-  const openExercisePicker = useCallback((onSelect: (exercise: { id: string; name: string }) => void) => {
+  const openExercisePicker = useCallback((onSelect: (exercise: { id: string | null; name: string; matrix_slug?: string | null }) => void) => {
     exercisePickerCallback.current = onSelect;
     setExercisePickerVisible(true);
   }, []);
 
-  const handleExerciseSelected = useCallback((exercise: Exercise) => {
-    if (exercisePickerCallback.current) {
-      exercisePickerCallback.current(exercise);
-      setHasChanges(true);
-    }
+  // MB-5 2.1: el picker ahora entrega ejercicios de exercise_matrix. Se
+  // resuelve/crea la fila espejo en `exercises` (FK clásica del engine) y el
+  // bloque guarda ADEMÁS matrix_slug — la traza que hereda clip, métodos ATP
+  // y benchmark de edad. Sin red, la traza basta (id queda null).
+  const handleExerciseSelected = useCallback(async (ex: MatrixExercise) => {
+    const cb = exercisePickerCallback.current;
     exercisePickerCallback.current = null;
     setExercisePickerVisible(false);
+    if (!cb) return;
+    const id = await ensureExerciseId(ex.slug, ex.nombre);
+    cb({ id, name: ex.nombre, matrix_slug: ex.slug });
+    setHasChanges(true);
   }, []);
 
   // --- Guardar ---
@@ -379,6 +386,7 @@ export default function BuilderScreen() {
                         ...block,
                         exercise_id: exercise.id,
                         exercise_name: exercise.name,
+                        matrix_slug: exercise.matrix_slug ?? null,
                       });
                     });
                   }}
@@ -397,26 +405,28 @@ export default function BuilderScreen() {
           <View style={{ height: 120 }} />
         </ScrollView>
 
-        {/* === BOTTOM ACTION BAR === */}
+        {/* === BOTTOM ACTION BAR ===
+            MB-5 Bloque 3: spring scale (AnimatedPressable) en vez de opacity
+            apilada en pressed; GUARDAR con el degradado de marca. */}
         <View style={styles.bottomBar}>
           {/* PROBAR */}
-          <Pressable
+          <AnimatedPressable
             onPress={handleTest}
             disabled={!stats || stats.totalSteps === 0}
-            style={({ pressed }) => [styles.bottomBtn, styles.bottomBtnOutline, pressed && { opacity: 0.6 }]}
+            style={[styles.bottomBtn, styles.bottomBtnOutline]}
           >
             <Ionicons name="play" size={18} color={Colors.textSecondary} />
             <EliteText variant="caption" style={styles.bottomBtnOutlineText}>PROBAR</EliteText>
-          </Pressable>
+          </AnimatedPressable>
 
           {/* GUARDAR (protagonista) */}
-          <Pressable
+          <AnimatedPressable
             onPress={handleSave}
             disabled={saving}
-            style={({ pressed }) => [pressed && { opacity: 0.8 }, saving && { opacity: 0.5 }]}
+            style={saving && { opacity: 0.7 }}
           >
             <LinearGradient
-              colors={['#c5f540', '#7ab800']}
+              colors={brandGradient()}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.saveBtn}
@@ -426,17 +436,17 @@ export default function BuilderScreen() {
                 {saving ? 'GUARDANDO...' : 'GUARDAR'}
               </EliteText>
             </LinearGradient>
-          </Pressable>
+          </AnimatedPressable>
 
           {/* PREVIEW */}
-          <Pressable
+          <AnimatedPressable
             onPress={() => setPreviewVisible(true)}
             disabled={!stats || stats.totalSteps === 0}
-            style={({ pressed }) => [styles.bottomBtn, styles.bottomBtnOutline, pressed && { opacity: 0.6 }]}
+            style={[styles.bottomBtn, styles.bottomBtnOutline]}
           >
             <Ionicons name="eye-outline" size={18} color={Colors.textSecondary} />
             <EliteText variant="caption" style={styles.bottomBtnOutlineText}>PREVIEW</EliteText>
-          </Pressable>
+          </AnimatedPressable>
         </View>
 
         {/* === MODAL PREVIEW === */}
@@ -492,8 +502,8 @@ export default function BuilderScreen() {
           </View>
         </Modal>
 
-        {/* === EXERCISE PICKER MODAL === */}
-        <ExercisePicker
+        {/* === EXERCISE PICKER MODAL (MB-5 2.1: catálogo matriceado) === */}
+        <MatrixExercisePicker
           visible={exercisePickerVisible}
           onClose={() => {
             exercisePickerCallback.current = null;

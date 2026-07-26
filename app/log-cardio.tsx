@@ -16,13 +16,14 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
+import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, BG, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT, TEXT_COLORS, ELEVATION, BG, withOpacity, brandGradient } from '@/src/constants/brand';
 import {
   logCardioSession,
   getLastCardioSessions,
@@ -178,7 +179,7 @@ export default function LogCardioScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 1er tap: disciplina */}
+          {/* 1er tap: disciplina — MB-5 Bloque 3: chip activo con degradado editorial */}
           <Animated.View entering={FadeInUp.delay(40).springify()}>
             <EliteText style={s.label}>DISCIPLINA</EliteText>
             <View style={s.chipsRow}>
@@ -188,8 +189,11 @@ export default function LogCardioScreen() {
                   <AnimatedPressable
                     key={d.key}
                     onPress={() => { haptic.light(); setDiscipline(d.key); }}
-                    style={[s.discBtn, active && s.discBtnActive]}
+                    style={[s.discBtn, active && s.chipActivoGrad]}
                   >
+                    {active && (
+                      <LinearGradient colors={brandGradient()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                    )}
                     <Ionicons name={d.icon} size={18} color={active ? TEXT_COLORS.onAccent : TEXT.secondary} />
                     <EliteText style={[s.discText, active && s.discTextActive]}>{d.name}</EliteText>
                   </AnimatedPressable>
@@ -211,7 +215,10 @@ export default function LogCardioScreen() {
             </Animated.View>
           ) : null}
 
-          {/* 2º tap: duración */}
+          {/* 2º tap: duración — MB-5 Bloque 4.1: el tiempo exacto SIEMPRE
+              visible (antes vivía escondido tras "Otra" y nadie lo encontraba).
+              Escribir en las cajas deselecciona el preset; tocar un preset
+              limpia las cajas. */}
           <Animated.View entering={FadeInUp.delay(100).springify()}>
             <EliteText style={s.label}>DURACIÓN</EliteText>
             <View style={s.chipsRow}>
@@ -220,34 +227,31 @@ export default function LogCardioScreen() {
                 return (
                   <AnimatedPressable
                     key={min}
-                    onPress={() => { haptic.light(); setCustomDur(false); setDuracionMin(min); }}
-                    style={[s.durBtn, active && s.durBtnActive]}
+                    onPress={() => {
+                      haptic.light();
+                      setCustomDur(false);
+                      setDuracionMin(min);
+                      setHours(''); setMinutes(''); setSeconds('');
+                    }}
+                    style={[s.durBtn, active && s.chipActivoGrad]}
                   >
+                    {active && (
+                      <LinearGradient colors={brandGradient()} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                    )}
                     <EliteText style={[s.durText, active && s.durTextActive]}>{min}′</EliteText>
                   </AnimatedPressable>
                 );
               })}
-              <AnimatedPressable
-                onPress={() => {
-                  haptic.light();
-                  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                  setCustomDur(!customDur);
-                }}
-                style={[s.durBtn, customDur && s.durBtnActive]}
-              >
-                <EliteText style={[s.durText, customDur && s.durTextActive]}>Otra</EliteText>
-              </AnimatedPressable>
             </View>
 
-            {customDur && (
-              <View style={s.timeRow}>
-                <TimeBox value={hours} onChange={setHours} label="HRS" />
-                <EliteText style={s.timeColon}>:</EliteText>
-                <TimeBox value={minutes} onChange={setMinutes} label="MIN" />
-                <EliteText style={s.timeColon}>:</EliteText>
-                <TimeBox value={seconds} onChange={setSeconds} label="SEG" />
-              </View>
-            )}
+            <EliteText style={s.sublabel}>O ESCRIBE EL TIEMPO EXACTO</EliteText>
+            <View style={s.timeRow}>
+              <TimeBox value={hours} onChange={(v) => { setCustomDur(true); setDuracionMin(null); setHours(v); }} label="HRS" />
+              <EliteText style={s.timeColon}>:</EliteText>
+              <TimeBox value={minutes} onChange={(v) => { setCustomDur(true); setDuracionMin(null); setMinutes(v); }} label="MIN" />
+              <EliteText style={s.timeColon}>:</EliteText>
+              <TimeBox value={seconds} onChange={(v) => { setCustomDur(true); setDuracionMin(null); setSeconds(v); }} label="SEG" />
+            </View>
           </Animated.View>
 
           {/* Plegado: más detalles (todo opcional) */}
@@ -420,7 +424,8 @@ const s = StyleSheet.create({
     backgroundColor: ELEVATION[1].bg, borderRadius: Radius.pill,
     borderWidth: 1, borderColor: ELEVATION[1].border,
   },
-  discBtnActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
+  // MB-5 Bloque 3: chip activo = degradado molécula (overflow clip al pill).
+  chipActivoGrad: { borderColor: 'transparent', overflow: 'hidden' },
   discText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: TEXT.secondary },
   discTextActive: { color: TEXT_COLORS.onAccent },
 
@@ -438,7 +443,6 @@ const s = StyleSheet.create({
     backgroundColor: ELEVATION[1].bg, borderRadius: Radius.pill,
     borderWidth: 1, borderColor: ELEVATION[1].border,
   },
-  durBtnActive: { backgroundColor: ATP_BRAND.lime, borderColor: ATP_BRAND.lime },
   durText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT.secondary, fontVariant: ['tabular-nums'] },
   durTextActive: { color: TEXT_COLORS.onAccent },
 
