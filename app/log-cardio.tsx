@@ -34,6 +34,7 @@ import {
 } from '@/src/services/fitness-service';
 import { awardBooleanElectron } from '@/src/services/electron-service';
 import { warn as logWarn } from '@/src/lib/logger';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -162,7 +163,7 @@ export default function LogCardioScreen() {
         router.back();
       }
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo guardar la sesión.');
+      Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar la sesión.'));
     } finally {
       setSaving(false);
     }

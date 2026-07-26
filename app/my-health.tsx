@@ -6,6 +6,7 @@ import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } fro
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useRouter , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { userErrorMessage } from '@/src/utils/user-error';
 // Módulos nativos — importar con try/catch para OTA compat
 let ImagePicker: any = null;
 try { ImagePicker = require('expo-image-picker'); } catch { /* */ }
@@ -164,7 +165,7 @@ function MyHealthScreen() {
       });
       await processUpload(base64, 'pdf', type);
     } catch (err: any) {
-      setResult({ error: err.message ?? 'Error al seleccionar PDF' });
+      setResult({ error: userErrorMessage(err, 'No se pudo seleccionar el PDF.') });
     }
   };
 
@@ -222,7 +223,7 @@ function MyHealthScreen() {
         loadData();
       } catch (err: any) {
         setUploading(false);
-        setResult({ error: err.message ?? 'Error al subir' });
+        setResult({ error: userErrorMessage(err, 'No se pudo subir el archivo.') });
       }
       return;
     }
@@ -242,7 +243,7 @@ function MyHealthScreen() {
       }
       loadData();
     } catch (err: any) {
-      setResult({ error: err.message ?? 'Error al subir' });
+      setResult({ error: userErrorMessage(err, 'No se pudo subir el archivo.') });
     }
     setUploading(false);
     setProcessing(false);
@@ -299,7 +300,7 @@ function MyHealthScreen() {
     try {
       await runReviewFlow(uploadId);
     } catch (err: any) {
-      setResult({ error: err?.message ?? 'Error al reintentar', retriable: true, uploadId });
+      setResult({ error: userErrorMessage(err, 'No se pudo reintentar.'), retriable: true, uploadId });
     }
     setProcessing(false);
     loadData();
@@ -480,7 +481,9 @@ function MyHealthScreen() {
                   </Pressable>
                 </View>
                 {u.error_message && (
-                  <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: FontSizes.xs, marginTop: 4 }}>{u.error_message}</EliteText>
+                  <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: FontSizes.xs, marginTop: 4 }}>
+                    {userErrorMessage(u.error_message, 'No se pudo procesar este archivo. Reintenta.')}
+                  </EliteText>
                 )}
               </View>
             ))}

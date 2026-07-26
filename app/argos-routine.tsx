@@ -10,6 +10,7 @@ import { supabase } from '../src/lib/supabase';
 import { generateRoutine, type GeneratedRoutine } from '../src/services/argos-service';
 import { saveRoutine as saveRoutineToDb, generateUUID } from '../src/services/routine-service';
 import type { Block, Routine } from '../src/engine/types';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 const GOALS = [
   { id: 'fuerza', label: 'Fuerza', icon: 'barbell-outline' as const, color: '#a8e02a' },
@@ -145,7 +146,7 @@ export default function ArgosRoutineScreen() {
         { text: 'OK' },
       ]);
     } catch (e: any) {
-      Alert.alert('Error', e?.message || 'No se pudo guardar la rutina.');
+      Alert.alert('Error', userErrorMessage(e, 'No se pudo guardar la rutina.'));
     }
   }
 

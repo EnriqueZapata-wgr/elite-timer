@@ -289,9 +289,10 @@ export default function JournalScreen() {
         Alert.alert(
           'No se pudo guardar',
           isAuth ? 'Tu sesión expiró. Vuelve a iniciar sesión.' :
-          isRLS ? 'Permiso denegado al guardar (RLS). Reporta a soporte.' :
+          isRLS ? 'Permiso denegado al guardar. Reporta a soporte.' :
           isNet ? 'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.' :
-          `Error: ${msg || 'desconocido'}`
+          // Track F (MB-7): el detalle técnico ya quedó en logs — a pantalla, copy genérico.
+          'No se pudo guardar tu entrada. Inténtalo de nuevo.'
         );
         setSaving(false);
         return;
@@ -317,7 +318,7 @@ export default function JournalScreen() {
         'No se pudo guardar',
         isNet
           ? 'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.'
-          : `Error: ${msg || 'desconocido'}`
+          : 'No se pudo guardar tu entrada. Inténtalo de nuevo.'
       );
     }
     setSaving(false);

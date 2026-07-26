@@ -21,6 +21,7 @@ import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
 import { cycleModalityOptions, defaultCycleModality, type CycleModality } from '@/src/services/onboarding-v2-core';
 import { saveCycleModality } from '@/src/services/onboarding-v2-service';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 const ROSE = '#fb7185';
 const GRADIENT = { start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.03)' };
@@ -83,7 +84,7 @@ export default function CycleSettingsScreen() {
         { onConflict: 'user_id' },
       );
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo guardar la fecha.');
+      Alert.alert('Error', userErrorMessage(e, 'No se pudo guardar la fecha.'));
     }
   };
 
@@ -100,7 +101,7 @@ export default function CycleSettingsScreen() {
       }, { onConflict: 'user_id' });
       Alert.alert('Guardado', 'Configuración actualizada.');
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo guardar.');
+      Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar.'));
     }
     setSaving(false);
   };

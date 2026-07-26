@@ -38,6 +38,7 @@ import { ensureExerciseId } from '@/src/services/fitness/workout-session-service
 import type { MatrixExercise } from '@/src/constants/exercise-matrix';
 import { Colors, Spacing, Radius, Fonts, FontSizes, BlockColors } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, brandGradient } from '@/src/constants/brand';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 // === CATEGORÍAS (solo Workout y Custom según diseño) ===
 
@@ -88,7 +89,7 @@ export default function BuilderScreen() {
         }
       } catch (err: any) {
         if (__DEV__) console.error('[builder] Error al cargar rutina:', err);
-        Alert.alert('Error', err?.message ?? 'No se pudo cargar la rutina.');
+        Alert.alert('Error', userErrorMessage(err, 'No se pudo cargar la rutina.'));
       }
       setLoaded(true);
     }

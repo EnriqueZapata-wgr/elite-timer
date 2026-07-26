@@ -24,6 +24,7 @@ import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { awardBooleanElectron } from '@/src/services/electron-service';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 const CONTEXTS = [
   { id: 'fasting',       name: 'Ayuno',         icon: 'moon-outline' as const },
@@ -105,7 +106,7 @@ export default function GlucoseLogScreen() {
         .order('time', { ascending: false });
       setTodayLogs(data ?? []);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo guardar');
+      Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar'));
     } finally {
       setSaving(false);
     }

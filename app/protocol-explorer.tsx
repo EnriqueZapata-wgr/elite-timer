@@ -46,6 +46,7 @@ import {
 } from '@/src/services/safety/protocol-gate-core';
 import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
 import { getSafetyParams } from '@/src/services/safety/safety-params-service';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 // === COMPONENTES AUXILIARES ===
 
@@ -183,7 +184,7 @@ export default function ProtocolExplorerScreen() {
     } catch (err: any) {
       haptic.error();
       console.error('[ProtocolExplorer] Error completo:', err);
-      const msg = err?.message || 'No se pudo activar el protocolo. Verifica tu conexión.';
+      const msg = userErrorMessage(err, 'No se pudo activar el protocolo. Verifica tu conexión.');
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.alert(`Error al activar\n\n${msg}`);
       } else {

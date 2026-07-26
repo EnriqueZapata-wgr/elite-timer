@@ -87,7 +87,9 @@ serve(async (_req: Request) => {
     .limit(BATCH_SIZE);
 
   if (pendingError) {
-    return new Response(JSON.stringify({ error: pendingError.message }), { status: 500 });
+    // Track F (MB-7): el detalle va al log del function, no a la respuesta.
+    console.error("[data-export] pending query failed:", pendingError.message);
+    return new Response(JSON.stringify({ error: "internal_error" }), { status: 500 });
   }
   if (!pending || pending.length === 0) {
     return new Response(JSON.stringify({ processed: 0 }), { status: 200 });

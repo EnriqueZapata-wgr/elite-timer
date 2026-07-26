@@ -19,6 +19,7 @@ import { getShareInfo, cloneFromShare, type ShareInfo } from '@/src/services/sha
 import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
 import { CATEGORY_COLORS } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 export default function SharedRoutineScreen() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function SharedRoutineScreen() {
       await cloneFromShare(code);
       setCloned(true);
     } catch (err: any) {
-      setError(err.message ?? 'Error al clonar');
+      setError(userErrorMessage(err, 'No se pudo clonar la rutina.'));
     } finally {
       setCloning(false);
     }

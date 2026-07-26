@@ -290,7 +290,9 @@ export async function saveWorkoutSession(input: SaveSessionInput): Promise<SaveS
     };
   } catch (err) {
     logWarn('[workout-session] saveWorkoutSession failed:', err);
-    return { ok: false, error: err instanceof Error ? err.message : 'No se pudo guardar la sesión.' };
+    // Track F (MB-7): el error crudo (Postgres/red) se queda en logs — el
+    // Alert de strength-session muestra este string tal cual al usuario.
+    return { ok: false, error: 'No se pudo guardar la sesión.' };
   }
 }
 

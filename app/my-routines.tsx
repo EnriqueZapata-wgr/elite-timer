@@ -21,6 +21,7 @@ import { routineUsesClipRunner } from '@/src/services/fitness/routine-bridge-cor
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import type { Routine } from '@/src/engine/types';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 // === HELPERS ===
 
@@ -122,7 +123,7 @@ export default function MyRoutinesScreen() {
       setLimpiezaVisible(false);
       loadRoutines();
     } catch (e) {
-      Alert.alert('No se pudo archivar', e instanceof Error ? e.message : 'Inténtalo de nuevo.');
+      Alert.alert('No se pudo archivar', userErrorMessage(e, 'Inténtalo de nuevo.'));
     }
   }
 

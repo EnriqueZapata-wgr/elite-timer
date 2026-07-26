@@ -32,6 +32,7 @@ import { PILLAR_GRADIENTS, SURFACES, TEXT_COLORS, CARD, withOpacity } from '@/sr
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { derivePregnancyProgress, type PregnancyStatus } from '@/src/utils/pregnancy';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 // ═══ CONSTANTES ═══
 
@@ -364,7 +365,7 @@ export default function CycleScreen() {
       setEditorVisible(false);
       await loadData();
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo guardar.');
+      Alert.alert('Error', userErrorMessage(e, 'No se pudo guardar.'));
     }
     setSaving(false);
   };

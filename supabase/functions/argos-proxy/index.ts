@@ -427,13 +427,16 @@ serve(async (req) => {
         });
         const data = await res.json();
         if (!res.ok) {
-          return new Response(JSON.stringify({ error: { type: "files_upload_failed", message: JSON.stringify(data?.error) || `status ${res.status}` } }),
+          // Track F (MB-7): el detalle upstream va al log del function, no al cliente.
+          console.error("[argos-proxy] files_upload_failed:", res.status, JSON.stringify(data?.error));
+          return new Response(JSON.stringify({ error: { type: "files_upload_failed", message: "No se pudo subir el archivo." } }),
             { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         return new Response(JSON.stringify({ file_id: data.id }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch (e: any) {
-        return new Response(JSON.stringify({ error: { type: "files_upload_exception", message: e?.message || String(e) } }),
+        console.error("[argos-proxy] files_upload_exception:", e?.message || String(e));
+        return new Response(JSON.stringify({ error: { type: "files_upload_exception", message: "No se pudo subir el archivo." } }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
     }

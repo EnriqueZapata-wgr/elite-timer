@@ -34,6 +34,7 @@ import { parseLocalDate, getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 /** Edad cronológica derivada de la fecha de nacimiento (null si inválida). */
 function ageFromDob(dob: string | null): number | null {
@@ -130,7 +131,7 @@ export default function ProfileScreen() {
       if (res.canceled || !res.assets?.[0]?.uri) return;
       await uploadAvatar(res.assets[0]);
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo seleccionar la foto.');
+      Alert.alert('Error', userErrorMessage(e, 'No se pudo seleccionar la foto.'));
     }
   }
 
@@ -193,7 +194,7 @@ export default function ProfileScreen() {
       setAvatarUrl(urlData.signedUrl); // el header de YO lee de auth metadata → se actualiza solo
       haptic.success();
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo subir la foto.');
+      Alert.alert('Error', userErrorMessage(e, 'No se pudo subir la foto.'));
     } finally {
       setAvatarUploading(false);
     }
@@ -208,7 +209,7 @@ export default function ProfileScreen() {
       setAvatarUrl(null); // vuelve a las iniciales del nombre
       haptic.success();
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo quitar la foto.');
+      Alert.alert('Error', userErrorMessage(e, 'No se pudo quitar la foto.'));
     } finally {
       setAvatarUploading(false);
     }

@@ -17,6 +17,7 @@ import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 const DIET_TYPES = [
   { id: 'omnivore', name: 'Omnívoro', icon: 'restaurant-outline' },
@@ -74,7 +75,7 @@ export default function FoodPreferencesScreen() {
       }, { onConflict: 'user_id' });
       Alert.alert('Guardado', 'Preferencias actualizadas.');
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo guardar.');
+      Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar.'));
     }
     setSaving(false);
   };

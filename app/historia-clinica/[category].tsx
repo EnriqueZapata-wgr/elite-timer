@@ -23,6 +23,7 @@ import {
   scoreFitzpatrick,
 } from '@/src/services/dx/fitzpatrick-core';
 import { saveSkinType } from '@/src/services/dx/fitzpatrick-service';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 export default function HistoriaClinicaCategory() {
   const { category } = useLocalSearchParams<{ category?: string }>();
@@ -79,7 +80,7 @@ export default function HistoriaClinicaCategory() {
       }
       Alert.alert('', `${questionnaire.title} guardado.`, [{ text: 'OK', onPress: () => router.back() }]);
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'No se pudo guardar.');
+      Alert.alert('Error', userErrorMessage(e, 'No se pudo guardar.'));
     }
   };
 

@@ -57,6 +57,7 @@ import {
 } from '@/src/services/nutrition-service';
 import { SectionSaveHeader } from '@/src/components/coach/SectionSaveHeader';
 import { SaveableSection } from '@/src/components/coach/SaveableSection';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 const TEAL = CATEGORY_COLORS.metrics;
 const DAY_LABELS_SHORT = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -2061,7 +2062,7 @@ function LabsTab({ clientId }: { clientId: string }) {
                 <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: 11 }}>
                   {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : u.status === 'processing' ? 'Procesando' : 'Subido'}
                 </EliteText>
-                {u.error_message && <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10 }}>{u.error_message}</EliteText>}
+                {u.error_message && <EliteText variant="caption" style={{ color: SEMANTIC.error, fontSize: 10 }}>{userErrorMessage(u.error_message, 'No se pudo procesar este archivo.')}</EliteText>}
               </View>
               <Pressable
                 onPress={async () => {

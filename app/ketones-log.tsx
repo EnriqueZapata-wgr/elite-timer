@@ -26,6 +26,7 @@ import {
   isValidKetoneReading, ketoStatusFor, formatKetoneReading,
 } from '@/src/services/salud/ketones-source-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { userErrorMessage } from '@/src/utils/user-error';
 
 const KETO_ACCENT = '#c084fc';
 
@@ -100,7 +101,7 @@ export default function KetonesLogScreen() {
         .order('time', { ascending: false });
       setTodayLogs(data ?? []);
     } catch (err: any) {
-      Alert.alert('Error', err?.message ?? 'No se pudo guardar');
+      Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar'));
     } finally {
       setSaving(false);
     }
