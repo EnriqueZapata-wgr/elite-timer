@@ -19,8 +19,8 @@ import {
 import { View, StyleSheet, Pressable } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withTiming, withRepeat, withDecay, withSpring,
-  cancelAnimation, interpolate, Extrapolation,
+  useSharedValue, useAnimatedStyle, useAnimatedReaction, withTiming, withRepeat,
+  withDecay, withSpring, cancelAnimation, interpolate, Extrapolation,
   Easing, runOnJS, ZoomIn, FadeIn, type SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,12 +28,12 @@ import { EliteText } from '@/components/elite-text';
 import { EMOTIONS, QUADRANTS, type Emotion, type QuadrantKey } from '@/src/data/emotions-library';
 import {
   computeEmotionMapLayout, emotionGradient, colorAtPoint, isLightColor,
-  QUADRANT_CENTERS, toWorld, WORLD_W, WORLD_H, NODE_SIZE,
+  QUADRANT_CENTERS, toWorld, WORLD_W, WORLD_H, WORLD_PAD, NODE_SIZE,
   type EmotionMapLayout,
 } from '@/src/services/emotion-map-core';
 import { haptic } from '@/src/utils/haptics';
-import { Fonts, FontSizes } from '@/constants/theme';
-import { TEXT, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { Fonts, FontSizes, Radius } from '@/constants/theme';
+import { BG, TEXT, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
 // Layout determinista: se computa UNA vez por proceso (mismo seed = mismo mapa).
 let cachedLayout: EmotionMapLayout | null = null;
@@ -82,6 +82,9 @@ function invRubberMap(v: number, min: number, max: number, dim: number): number 
   return v;
 }
 
+/** Región que la cámara está mostrando (B.6 MB-7): cuadrante real o vista alejada. */
+export type MapRegion = QuadrantKey | 'overview';
+
 export interface EmotionMapHandle {
   /** Desliza la cámara hasta una emoción (la navegación del Bloque 2 vive de esto). */
   centerOnEmotion: (id: string, opts?: { zoom?: number; durationMs?: number }) => void;
@@ -98,12 +101,17 @@ interface Props {
   /** Cadena de navegación (Bloque 2): estas emociones se destacan, el resto baja. */
   highlightIds?: string[];
   onEmotionPress?: (e: Emotion) => void;
+  /**
+   * B.6 (MB-7): notifica la región real bajo el centro del viewport. Se deriva
+   * en worklet y solo cruza a JS cuando la región CAMBIA (no por frame).
+   */
+  onRegionChange?: (region: MapRegion) => void;
   /** false → cámara solo controlada por ref (modo navegación guiada). */
   interactive?: boolean;
 }
 
-export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function EmotionMap2D(
-  { initialQuadrant, selectedIds = [], highlightIds, onEmotionPress, interactive = true },
+export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function EmotionMap2D(
+  { initialQuadrant, selectedIds = [], highlightIds, onEmotionPress, onRegionChange, interactive = true },
   ref,
 ) {
   const layout = getEmotionMapLayout();
@@ -298,6 +306,29 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
 
   const gesture = useMemo(() => Gesture.Simultaneous(pan, pinch), [pan, pinch]);
 
+  // B.6 (MB-7): región real bajo el centro del viewport, derivada EN el worklet.
+  // Solo cruza a JS cuando la región cambia (cruzar de cuadrante / entrar a
+  // overview) — nunca por frame. En overview no se nombra un cuadrante.
+  useAnimatedReaction(
+    () => {
+      if (viewport.w === 0) return null;
+      if (scale.value < OVERVIEW_LABEL_CUTOFF) return 'overview' as MapRegion;
+      const s = scale.value;
+      const cx = (viewport.w / 2 - tx.value) / s;
+      const cy = (viewport.h / 2 - ty.value) / s;
+      const usableW = WORLD_W - WORLD_PAD * 2;
+      const usableH = WORLD_H - WORLD_PAD * 2;
+      const nx = ((cx - WORLD_PAD) / usableW) * 2 - 1;
+      const ny = 1 - ((cy - WORLD_PAD) / usableH) * 2;
+      if (ny >= 0) return (nx >= 0 ? 'high_pleasant' : 'high_unpleasant') as MapRegion;
+      return (nx >= 0 ? 'low_pleasant' : 'low_unpleasant') as MapRegion;
+    },
+    (cur, prev) => {
+      if (cur && cur !== prev && onRegionChange) runOnJS(onRegionChange)(cur);
+    },
+    [viewport, onRegionChange],
+  );
+
   const worldStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],
   }));
@@ -377,7 +408,7 @@ export const EmotionMap2D = forwardRef<EmotionMapHandle, Props>(function Emotion
       </GestureDetector>
     </View>
   );
-});
+}));
 
 const ZONE_W = 620;
 const ZONE_H = 300;
@@ -417,7 +448,15 @@ const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimme
 
   return (
     <View
-      style={[styles.node, { left: wx - NODE_SIZE / 2, top: wy - NODE_SIZE / 2 }, dimmed && styles.nodeDimmed]}
+      style={[
+        styles.node,
+        { left: wx - NODE_SIZE / 2, top: wy - NODE_SIZE / 2 },
+        dimmed && styles.nodeDimmed,
+        // B.4 (MB-7): el átomo y su etiqueta se dibujan POR ENCIMA de las
+        // vecinas — sin esto los hermanos posteriores cortaban el label
+        // ("n éxtasis" en vez de "En éxtasis").
+        selected && styles.nodeSelected,
+      ]}
       pointerEvents={dimmed ? 'none' : 'auto'}
     >
       <Pressable onPress={() => onPress(emotion)} style={styles.nodePress} disabled={selected}>
@@ -498,6 +537,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   nodeDimmed: { opacity: 0.16 },
+  nodeSelected: { zIndex: 30 },
   nodePress: { width: NODE_SIZE, height: NODE_SIZE },
   circle: {
     width: NODE_SIZE,
@@ -568,7 +608,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  zonePress: { alignItems: 'center', gap: 10 },
+  // B.8 (MB-7): el rótulo lleva su propio soporte translúcido — sin él
+  // competía sin contraste contra el enjambre de burbujas.
+  zonePress: {
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 44,
+    paddingVertical: 28,
+    borderRadius: Radius.lg,
+    backgroundColor: withOpacity(BG.input, 0.78),
+  },
   zoneLabel: {
     fontSize: 44,
     lineHeight: 52,
@@ -576,8 +625,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   zoneHint: {
-    color: TEXT.secondary,
+    color: TEXT.primary,
     fontSize: 24,
     fontFamily: Fonts.semiBold,
+    opacity: 0.75,
   },
 });

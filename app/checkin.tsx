@@ -2,7 +2,7 @@
  * Check-in emocional RULER — Reconocer → Etiquetar → Entender.
  * 3 pasos: cuadrante → emociones (con descripciones) → contexto.
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -15,7 +15,9 @@ import {
   QUADRANTS, EMOTIONS, CONTEXT_WHERE, CONTEXT_WHO, CONTEXT_DOING,
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
-import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/EmotionMap2D';
+import { EmotionMap2D, type EmotionMapHandle, type MapRegion } from '@/src/components/checkin/EmotionMap2D';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
+import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
@@ -52,6 +54,12 @@ export default function CheckinScreen() {
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
   // MB-4 Bloque 1: hoja de definición (reemplaza el tooltip de long-press) + buscador.
   const [sheetEmotion, setSheetEmotion] = useState<Emotion | null>(null);
+  // B.1 (MB-7): UNA emoción activa mientras navegas — la segunda solo se ofrece
+  // tras CONTINUAR. addSecond = ya aceptó sumar otra; askSecond = hoja de oferta.
+  const [addSecond, setAddSecond] = useState(false);
+  const [askSecond, setAskSecond] = useState(false);
+  // B.6 (MB-7): región real bajo la cámara — el encabezado dice dónde ESTÁS.
+  const [mapRegion, setMapRegion] = useState<MapRegion | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const mapRef = useRef<EmotionMapHandle>(null);
@@ -118,8 +126,22 @@ export default function CheckinScreen() {
     return () => sub.remove();
   }, [step]);
 
+  // B.7 (MB-7): con una hoja inferior abierta, el orbe de ARGOS se retira —
+  // la descripción de la emoción es el contenido principal de ese momento.
+  const { setHidden: setArgosHidden } = useArgosPresence();
+  const sheetOpen = sheetEmotion !== null || askSecond;
+  useEffect(() => {
+    setArgosHidden(sheetOpen);
+    return () => setArgosHidden(false);
+  }, [sheetOpen, setArgosHidden]);
+
   const qd = quadrant ? QUADRANTS[quadrant] : null;
   const qColor = qd?.color ?? TEXT_COLORS.secondary;
+  // B.6 (MB-7): el título del plano nombra la región que la cámara muestra —
+  // nunca un cuadrante en overview, nunca uno que ya no está en pantalla.
+  const regionQd = mapRegion && mapRegion !== 'overview' ? QUADRANTS[mapRegion] : null;
+  const mapTitle = mapRegion === 'overview' ? 'Todo el plano' : (regionQd ?? qd)?.label ?? '';
+  const mapTitleColor = mapRegion === 'overview' ? TEXT_COLORS.primary : (regionQd ?? qd)?.color ?? qColor;
   // C5-002: "En pánico" seleccionado → banner Línea de la Vida visible en el
   // resto del flujo (guardarraíl determinístico, sin alarmismo).
   const panicSelected = selectedEmotions.includes('panicked');
@@ -127,25 +149,45 @@ export default function CheckinScreen() {
   const handleQuadrant = (q: QuadrantKey) => {
     setQuadrant(q);
     setSelectedEmotions([]);
+    setSheetEmotion(null);
+    setAddSecond(false);
+    setAskSecond(false);
+    setMapRegion(q);
     vibrateMedium();
     setStep(2);
   };
 
-  // MB-4 Bloque 1: tocar una emoción en el plano la selecciona (máx 2 — la
-  // tercera reemplaza a la segunda) y abre su definición. El cuadrante efectivo
-  // sigue a la PRIMERA emoción elegida: el plano es libre, el usuario puede
-  // cruzar de zona y el dato guardado refleja dónde terminó, no dónde entró.
-  const handleMapEmotionPress = (e: Emotion) => {
-    setSelectedEmotions(prev => {
-      const next = prev.includes(e.id)
-        ? prev
-        : prev.length >= 2 ? [prev[0], e.id] : [...prev, e.id];
-      const first = EMOTIONS.find(em => em.id === next[0]);
-      if (first) setQuadrant(first.quadrant);
-      return next;
-    });
-    setSheetEmotion(e);
-  };
+  // B.1 (MB-7, decisión de Enrique): UNA emoción activa que va switcheando
+  // mientras navegas — tocar otra la reemplaza, tocar la MISMA la suelta (B.2).
+  // Solo tras CONTINUAR se ofrece sumar una segunda (addSecond); entonces el
+  // slot 2 es el que switchea. El cuadrante efectivo sigue a la primera elegida.
+  const handleMapEmotionPress = useCallback((e: Emotion) => {
+    const wasSelected = selectedEmotions.includes(e.id);
+    let next: string[];
+    if (wasSelected) next = selectedEmotions.filter(id => id !== e.id);
+    else if (addSecond) next = selectedEmotions.length >= 2 ? [selectedEmotions[0], e.id] : [...selectedEmotions, e.id];
+    else next = [e.id];
+    setSelectedEmotions(next);
+    const first = EMOTIONS.find(em => em.id === next[0]);
+    if (first) setQuadrant(first.quadrant);
+    setSheetEmotion(wasSelected ? null : e);
+    setAskSecond(false);
+  }, [selectedEmotions, addSecond]);
+
+  // B.1: CONTINUAR con una sola emoción abre la oferta de sumar una segunda;
+  // con dos (o si ya la aceptó) sigue de largo al contexto.
+  const handleContinue = useCallback(() => {
+    haptic.medium();
+    setSheetEmotion(null);
+    if (selectedEmotions.length === 1 && !addSecond) {
+      setAskSecond(true);
+      return;
+    }
+    setStep(3);
+  }, [selectedEmotions.length, addSecond]);
+
+  // B.6 (MB-7): el encabezado se deriva de la región real del viewport.
+  const handleRegionChange = useCallback((r: MapRegion) => setMapRegion(r), []);
 
   const removeEmotion = (id: string) => {
     haptic.light();
@@ -199,7 +241,6 @@ export default function CheckinScreen() {
 
   const handleSave = async () => {
     if (!quadrant || selectedEmotions.length === 0) return;
-    haptic.heavy();
     setSaving(true);
     try {
       // MB-5: pleasantness/energy_level derivados del RULER (cuadrante + emociones).
@@ -435,8 +476,11 @@ export default function CheckinScreen() {
             </EliteText>
           )}
 
+          {/* B.5 (MB-7): mismo lado que el plano (Mood Meter) — desagradable a
+              la IZQUIERDA, agradable a la DERECHA. Memoria espacial: donde el
+              usuario aprende una emoción en la portada, ahí vive en el plano. */}
           <View style={styles.mapGrid}>
-            {(['high_pleasant', 'high_unpleasant', 'low_pleasant', 'low_unpleasant'] as QuadrantKey[]).map((q, i) => {
+            {(['high_unpleasant', 'high_pleasant', 'low_unpleasant', 'low_pleasant'] as QuadrantKey[]).map((q, i) => {
               const d = QUADRANTS[q];
               const isTopLeft = i === 0;
               const isTopRight = i === 1;
@@ -526,9 +570,9 @@ export default function CheckinScreen() {
         <Animated.View entering={FadeIn.duration(250)} style={styles.mapFlex}>
           <View style={styles.mapHeaderRow}>
             <View style={{ flex: 1 }}>
-              <EliteText style={[styles.mapTitle, { color: qColor }]}>{qd!.label}</EliteText>
+              <EliteText style={[styles.mapTitle, { color: mapTitleColor }]}>{mapTitle}</EliteText>
               <EliteText variant="caption" style={styles.mapHint}>
-                Desliza el plano · toca una emoción · elige 1 o 2
+                Desliza el plano · toca una emoción · tócala otra vez para soltarla
               </EliteText>
             </View>
             <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={styles.mapTool} hitSlop={8}>
@@ -548,6 +592,7 @@ export default function CheckinScreen() {
               initialQuadrant={quadrant}
               selectedIds={selectedEmotions}
               onEmotionPress={handleMapEmotionPress}
+              onRegionChange={handleRegionChange}
             />
 
             {/* Buscador por nombre */}
@@ -594,17 +639,11 @@ export default function CheckinScreen() {
                   </Pressable>
                 </View>
                 <EliteText variant="body" style={styles.defDesc}>{sheetEmotion.description}</EliteText>
+                {/* B.1: la segunda emoción ya no se ofrece aquí — CONTINUAR
+                    abre la oferta (o sigue de largo si ya hay dos). */}
                 <View style={styles.defActions}>
-                  {selectedEmotions.length < 2 && (
-                    <Pressable
-                      onPress={() => { haptic.light(); setSheetEmotion(null); }}
-                      style={styles.defSecondary}
-                    >
-                      <EliteText variant="caption" style={styles.defSecondaryText}>Sumar otra</EliteText>
-                    </Pressable>
-                  )}
                   <Pressable
-                    onPress={() => { haptic.medium(); setSheetEmotion(null); setStep(3); }}
+                    onPress={handleContinue}
                     style={[styles.defContinue, { backgroundColor: sheetColor }]}
                   >
                     <EliteText style={styles.defContinueText}>CONTINUAR</EliteText>
@@ -614,9 +653,37 @@ export default function CheckinScreen() {
             );
           })()}
 
+          {/* B.1: oferta de segunda emoción — aparece al dar CONTINUAR con una */}
+          {askSecond && (
+            <Animated.View
+              entering={SlideInDown.duration(260)}
+              exiting={SlideOutDown.duration(200)}
+              style={styles.defSheet}
+            >
+              <EliteText style={styles.askTitle}>¿Sumar una segunda emoción?</EliteText>
+              <EliteText variant="caption" style={styles.askSub}>
+                A veces conviven dos. Si con una basta, sigue.
+              </EliteText>
+              <View style={styles.defActions}>
+                <Pressable
+                  onPress={() => { haptic.light(); setAskSecond(false); setAddSecond(true); }}
+                  style={styles.defSecondary}
+                >
+                  <EliteText variant="caption" style={styles.defSecondaryText}>Sumar otra</EliteText>
+                </Pressable>
+                <Pressable
+                  onPress={() => { haptic.medium(); setAskSecond(false); setStep(3); }}
+                  style={[styles.defContinue, { backgroundColor: qColor }]}
+                >
+                  <EliteText style={styles.defContinueText}>SEGUIR</EliteText>
+                </Pressable>
+              </View>
+            </Animated.View>
+          )}
+
           {/* Sin hoja abierta pero con selección: CTA para seguir */}
-          {!sheetEmotion && selectedEmotions.length > 0 && (
-            <Pressable onPress={() => { haptic.medium(); setStep(3); }} style={[styles.nextBtn, { backgroundColor: qColor }]}>
+          {!sheetEmotion && !askSecond && selectedEmotions.length > 0 && (
+            <Pressable onPress={handleContinue} style={[styles.nextBtn, { backgroundColor: qColor }]}>
               <EliteText style={styles.nextBtnText}>Siguiente</EliteText>
             </Pressable>
           )}
@@ -674,15 +741,15 @@ export default function CheckinScreen() {
               maxLength={500}
             />
 
-            <Pressable
-              onPress={handleSave}
+            {/* B.9 (MB-7): CTA al molde editorial — degradado de marca, nunca
+                color plano (doctrina §1). El glow lo tiñe el pilar Mente. */}
+            <GradientCTA
+              label={saving ? 'Guardando…' : 'REGISTRAR'}
+              pillar="mind"
               disabled={saving}
-              style={[styles.registerBtn, { backgroundColor: qColor }, saving && { opacity: 0.5 }]}
-            >
-              <EliteText style={styles.registerBtnText}>
-                {saving ? 'Guardando...' : 'REGISTRAR'}
-              </EliteText>
-            </Pressable>
+              onPress={handleSave}
+              style={[styles.registerCta, saving && { opacity: 0.6 }]}
+            />
 
             <View style={{ height: Spacing.xxl }} />
           </KeyboardAwareScrollView>
@@ -698,24 +765,25 @@ function ContextSection({ label, items, selected, onSelect, color }: {
   label: string; items: string[]; selected: string | null;
   onSelect: (v: string) => void; color: string;
 }) {
+  // B.9 (MB-7): los chips ENVUELVEN — el scroll horizontal cortaba opciones en
+  // el borde ("Comp…", "D…") sin leerse como scroll. Press con spring, no plano.
   return (
     <View style={styles.ctxSection}>
       <EliteText variant="caption" style={styles.ctxLabel}>{label}</EliteText>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={styles.ctxRow}>
-          {items.map(item => {
-            const sel = selected === item;
-            return (
-              <Pressable key={item} onPress={() => onSelect(item)}
-                style={[styles.ctxPill, sel && { backgroundColor: color + '15', borderColor: color + '30' }]}>
+      <View style={styles.ctxWrap}>
+        {items.map(item => {
+          const sel = selected === item;
+          return (
+            <AnimatedPressable key={item} onPress={() => onSelect(item)}>
+              <View style={[styles.ctxPill, sel && { backgroundColor: color + '22', borderColor: color + '55' }]}>
                 <EliteText variant="caption" style={[styles.ctxText, sel && { color, fontFamily: Fonts.semiBold }]}>
                   {item}
                 </EliteText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </ScrollView>
+              </View>
+            </AnimatedPressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -810,6 +878,9 @@ const styles = StyleSheet.create({
   },
   defSecondary: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.sm },
   defSecondaryText: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  // B.1: oferta de segunda emoción (post-CONTINUAR)
+  askTitle: { color: Colors.textPrimary, fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
+  askSub: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 20, marginTop: Spacing.xs },
   defContinue: {
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, borderRadius: Radius.pill,
   },
@@ -838,10 +909,10 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary, fontFamily: Fonts.bold, letterSpacing: 2,
     fontSize: FontSizes.sm, marginBottom: Spacing.sm,
   },
-  ctxRow: { flexDirection: 'row', gap: Spacing.xs, paddingRight: Spacing.md },
+  ctxWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs },
   ctxPill: {
     paddingHorizontal: Spacing.sm + 4, paddingVertical: Spacing.xs + 3,
-    borderRadius: Radius.pill, backgroundColor: SURFACES.cardLight, borderWidth: 1, borderColor: 'transparent',
+    borderRadius: Radius.pill, backgroundColor: SURFACES.card, borderWidth: 1, borderColor: SURFACES.border,
   },
   ctxText: { color: Colors.textSecondary, fontSize: FontSizes.md },
 
@@ -862,13 +933,7 @@ const styles = StyleSheet.create({
   },
   promptText: { color: Colors.textPrimary, fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, lineHeight: 24 },
 
-  registerBtn: {
-    alignSelf: 'center', marginTop: Spacing.lg,
-    paddingHorizontal: Spacing.xl + Spacing.lg, paddingVertical: Spacing.md,
-    borderRadius: Radius.pill, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
-  },
-  registerBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.lg, letterSpacing: 2 },
+  registerCta: { alignSelf: 'center', marginTop: Spacing.lg },
 
   // Done
   doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },

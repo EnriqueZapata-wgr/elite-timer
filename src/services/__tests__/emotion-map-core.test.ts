@@ -48,6 +48,15 @@ describe('layout del mapa completo (144 emociones)', () => {
     expect(computeEmotionMapLayout(shuffled)).toEqual(layout);
   });
 
+  it('B.4 (MB-7): el claro del átomo cabe en MIN_SEP — halo + radio de vecina', () => {
+    // El átomo expandido dibuja halo de (NODE_SIZE+26)/2 px y anillo de
+    // (NODE_SIZE+10)/2 px (styles de EmotionMap2D). Si MIN_SEP baja de
+    // halo + radio de la vecina, el orbital se encima a la burbuja de al lado.
+    const HALO_RADIUS = (NODE_SIZE + 26) / 2;
+    const NEIGHBOR_RADIUS = NODE_SIZE / 2;
+    expect(MIN_SEP).toBeGreaterThanOrEqual(HALO_RADIUS + NEIGHBOR_RADIUS);
+  });
+
   it('ninguna emoción queda escondida: separación mínima entre todos los pares', () => {
     for (let i = 0; i < layout.points.length; i++) {
       for (let j = i + 1; j < layout.points.length; j++) {
