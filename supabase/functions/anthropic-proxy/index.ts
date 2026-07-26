@@ -132,11 +132,12 @@ serve(async (req) => {
       request_type: body.requestType,
       latency_ms: latencyMs,
       success: false,
-      error_message: error.message,
+      error_message: error.message, // detalle → log interno, no al cliente
       target_user_id: body.targetUserId ?? null,
       target_profile_id: body.targetProfileId ?? null,
     });
-    return new Response(JSON.stringify({ error: error.message }), {
+    // MB-SEC-1 §6: mensaje genérico al cliente (el detalle ya quedó en el log).
+    return new Response(JSON.stringify({ error: "Error interno del servicio." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

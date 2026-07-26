@@ -1,0 +1,21 @@
+-- ============================================================================
+-- 229 — MB-SEC-1 §4 · quitar el listado abierto del bucket avatars_public.
+--
+-- Hallazgo advisor: la policy `avatars_public_read` (179) daba SELECT amplio
+-- sobre storage.objects para bucket_id='avatars_public' → cualquiera (incluso
+-- anon) podía LISTAR todos los archivos del bucket. Un bucket público NO
+-- necesita esa policy para servir imágenes: las fotos se sirven por URL directa
+-- (/storage/v1/object/public/avatars_public/...), que NO pasa por RLS.
+--
+-- Verificado antes de tocar (regla de oro): la app NO lista este bucket — cero
+-- referencias a 'avatars_public' en el cliente y cero `.list()`; user_profile_
+-- public.avatar_url guarda la URL pública y se pinta con <Image uri>. Quitar el
+-- SELECT amplio NO rompe nada; solo cierra la enumeración.
+--
+-- Las policies de escritura (insert/update/delete, gated a la carpeta {user_id}/
+-- del dueño) se conservan intactas.
+--
+-- Idempotente (DROP POLICY IF EXISTS). NO aplicar al remoto desde este branch.
+-- ============================================================================
+
+DROP POLICY IF EXISTS "avatars_public_read" ON storage.objects;

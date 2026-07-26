@@ -287,7 +287,9 @@ export default function FoodTextScreen() {
       if (user?.id) void maybeGeneratePostMealInsight(user.id, desc);
       router.back();
     } catch (err: any) {
-      Alert.alert('Error al guardar', err.message || 'Intenta de nuevo');
+      // MB-SEC-1 §6: detalle al log, copy genérico a pantalla.
+      console.warn('[food-text] no se pudo guardar:', err?.message);
+      Alert.alert('Error al guardar', 'Intenta de nuevo.');
     } finally {
       setSaving(false);
     }

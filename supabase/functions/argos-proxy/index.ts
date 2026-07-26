@@ -864,7 +864,9 @@ serve(async (req) => {
       target_profile_id: body.targetProfileId ?? null,
     });
     await refundEconomy(body.userId); // excepción → devolver H+ si se debitó
-    return new Response(JSON.stringify({ error: error?.message || String(error) }), {
+    // MB-SEC-1 §6: el detalle ya quedó en logArgosCall (error_message). Al
+    // cliente, mensaje genérico — nada de rutas/tablas/stack.
+    return new Response(JSON.stringify({ error: "Error interno del servicio." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
