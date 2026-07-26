@@ -217,11 +217,16 @@ export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result>
   const motor = computeMotorV2(motorInput);
   const result = motorResultToView(motor);
   try {
-    await supabase.from('edad_atp_calculations').insert({
+    const { error } = await supabase.from('edad_atp_calculations').insert({
       user_id: userId,
       chronological_age: result.chronological_age,
       edad_integral: result.edad_integral,
       ce_integral: result.ce_integral,
+      // algoritmo_excel es NOT NULL sin default (fantasma MB-6: al no mandarla,
+      // NINGÚN cálculo se persistió nunca). El motor v2 ya no corre el Excel;
+      // misma doctrina que las columnas legacy de abajo: se mapea al análogo v2 —
+      // la edad base pre-modulador de hábitos (v1: integral = excel + modificador).
+      algoritmo_excel: motor.edad_pre_modulador,
       // Las 5 columnas legacy se mapean a las 5 áreas v2 (no se migra el esquema SQL).
       edad_metabolica: motor.areas.riesgos.edad_ajustada,
       edad_corporal: motor.areas.composicion.edad_ajustada,
@@ -229,6 +234,8 @@ export async function computeEdadAtpV2(userId: string): Promise<EdadAtpV2Result>
       edad_fitness: motor.areas.fitness.edad_ajustada,
       edad_cognitiva: motor.areas.cognicion.edad_ajustada,
     });
+    // supabase no lanza en 4xx — sin este check el catch nunca ve el error.
+    if (error) logWarn('[edad-atp-v2] persist calculation failed:', error.message);
   } catch (err) {
     logWarn('[edad-atp-v2] persist calculation failed:', err);
   }

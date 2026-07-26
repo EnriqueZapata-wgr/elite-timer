@@ -4,11 +4,13 @@
  * recuperación y cumplimiento de protocolo.
  *
  * Usa datos existentes de Supabase (health_measurements, food_logs).
- * Todos los queries están envueltos en try/catch para degradar
- * graciosamente si alguna tabla no existe.
+ * Degrada graciosamente a defaults neutrales, pero SIEMPRE registra el
+ * error (supabase no lanza: el 400 viene en { error }, no en el catch —
+ * así se corrompió el score en silencio durante semanas, MB-6).
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 
 // === INTERFACES ===
 
@@ -72,13 +74,14 @@ function scoreColor(score: number): string {
 /** Sueño: basado en horas de sueño o calidad registrada */
 async function calcSleep(userId: string, today: string): Promise<HealthScoreComponent> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('health_measurements')
       .select('sleep_hours, sleep_quality')
       .eq('user_id', userId)
       .eq('date', today)
       .limit(1)
-      .single();
+      .maybeSingle();
+    if (error) logWarn('[health-score] sleep query failed:', error.message);
 
     if (data?.sleep_hours) {
       const h = data.sleep_hours;
@@ -91,7 +94,7 @@ async function calcSleep(userId: string, today: string): Promise<HealthScoreComp
       const score = Math.round(data.sleep_quality * 10);
       return { score, source: 'Manual', detail: `Calidad ${data.sleep_quality}/10` };
     }
-  } catch { /* tabla no existe o error de query */ }
+  } catch (e) { logWarn('[health-score] sleep failed:', e); }
 
   return { score: 50, source: 'Sin datos', detail: 'Sin registro hoy' };
 }
@@ -99,13 +102,14 @@ async function calcSleep(userId: string, today: string): Promise<HealthScoreComp
 /** Actividad: basada en pasos diarios */
 async function calcActivity(userId: string, today: string): Promise<HealthScoreComponent> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('health_measurements')
       .select('steps_daily')
       .eq('user_id', userId)
       .eq('date', today)
       .limit(1)
-      .single();
+      .maybeSingle();
+    if (error) logWarn('[health-score] activity query failed:', error.message);
 
     if (data?.steps_daily) {
       const s = data.steps_daily;
@@ -113,29 +117,46 @@ async function calcActivity(userId: string, today: string): Promise<HealthScoreC
       const formatted = s >= 1000 ? `${(s / 1000).toFixed(1)}k` : `${s}`;
       return { score, source: 'Manual', detail: `${formatted} pasos` };
     }
-  } catch { /* silenciar */ }
+  } catch (e) { logWarn('[health-score] activity failed:', e); }
 
   return { score: 30, source: 'Sin datos', detail: 'Sin registro hoy' };
 }
 
-/** Nutrición: promedio de quality_score de food_logs del día */
+/**
+ * Nutrición: promedio de calidad por comida del día. food_logs NO tiene
+ * quality_score (fantasma MB-6): la calidad vive en ai_analysis.score (IA)
+ * o en notes.quality_score (registro manual) — misma regla que
+ * nutrition-score-service. `date` es tipo date → igualdad, no rango timestamp.
+ */
 async function calcNutrition(userId: string, today: string): Promise<HealthScoreComponent> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('food_logs')
-      .select('quality_score')
+      .select('ai_analysis, notes')
       .eq('user_id', userId)
-      .gte('date', today)
-      .lt('date', today + 'T23:59:59');
+      .eq('date', today);
+    if (error) logWarn('[health-score] nutrition query failed:', error.message);
 
     if (data && data.length > 0) {
-      const scores = data.filter((d: any) => d.quality_score != null).map((d: any) => d.quality_score);
+      const scores = data
+        .map((f: any) => {
+          const ai = f.ai_analysis?.score;
+          if (Number.isFinite(ai)) return Number(ai);
+          try {
+            const notes = typeof f.notes === 'string' ? JSON.parse(f.notes) : f.notes;
+            return Number.isFinite(notes?.quality_score) ? Number(notes.quality_score) : null;
+          } catch { return null; }
+        })
+        .filter((s: number | null): s is number => s != null);
+      const plural = data.length > 1 ? 's' : '';
       if (scores.length > 0) {
         const avg = Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length);
-        return { score: Math.min(100, avg), source: 'Registros', detail: `${data.length} comida${data.length > 1 ? 's' : ''} hoy` };
+        return { score: Math.min(100, avg), source: 'Registros', detail: `${data.length} comida${plural} hoy` };
       }
+      // Hay comidas pero ninguna trae calidad: neutral honesto, no promedio inventado.
+      return { score: 50, source: 'Registros', detail: `${data.length} comida${plural} sin calificar` };
     }
-  } catch { /* silenciar */ }
+  } catch (e) { logWarn('[health-score] nutrition failed:', e); }
 
   return { score: 50, source: 'Sin datos', detail: 'Sin registro hoy' };
 }
@@ -143,13 +164,14 @@ async function calcNutrition(userId: string, today: string): Promise<HealthScore
 /** Estrés: basado en stress_level (1-10, invertido — menor es mejor) */
 async function calcStress(userId: string, today: string): Promise<HealthScoreComponent> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('health_measurements')
       .select('stress_level')
       .eq('user_id', userId)
       .eq('date', today)
       .limit(1)
-      .single();
+      .maybeSingle();
+    if (error) logWarn('[health-score] stress query failed:', error.message);
 
     if (data?.stress_level) {
       // stress_level 1-10: invertir para que bajo estrés = alto score
@@ -157,7 +179,7 @@ async function calcStress(userId: string, today: string): Promise<HealthScoreCom
       const score = Math.round(inverted * 10);
       return { score, source: 'Manual', detail: `Nivel ${data.stress_level}/10` };
     }
-  } catch { /* silenciar */ }
+  } catch (e) { logWarn('[health-score] stress failed:', e); }
 
   return { score: 60, source: 'Sin datos', detail: 'Sin registro hoy' };
 }
@@ -166,40 +188,54 @@ async function calcStress(userId: string, today: string): Promise<HealthScoreCom
 async function calcRecovery(userId: string, today: string): Promise<HealthScoreComponent> {
   try {
     // Buscar medición de hoy o la más reciente
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('health_measurements')
       .select('resting_hr')
       .eq('user_id', userId)
       .order('date', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+    if (error) logWarn('[health-score] recovery query failed:', error.message);
 
     if (data?.resting_hr) {
       const hr = data.resting_hr;
       const score = hr < 55 ? 90 : hr < 65 ? 75 : hr < 75 ? 55 : 35;
       return { score, source: 'Manual', detail: `${hr} bpm en reposo` };
     }
-  } catch { /* silenciar */ }
+  } catch (e) { logWarn('[health-score] recovery failed:', e); }
 
   return { score: 60, source: 'Sin datos', detail: 'Sin registro' };
 }
 
-/** Cumplimiento de protocolo: busca tabla daily_plan, si no existe retorna default */
+/**
+ * Cumplimiento de protocolo: plan del día en daily_plans. Las columnas reales
+ * son completed_actions/total_actions/compliance_pct (fantasma MB-6:
+ * completed_tasks/total_tasks no existen → el componente devolvía siempre
+ * "Sin plan activo" aunque el plan fuera al 100%).
+ * Estados distinguibles: Protocolo (hay plan, aunque vaya en 0%) ·
+ * Sin protocolo (no hay fila) · Sin datos (falló la query, y se loguea).
+ */
 async function calcCompliance(userId: string, today: string): Promise<HealthScoreComponent> {
   try {
     const { data, error } = await supabase
       .from('daily_plans')
-      .select('completed_tasks, total_tasks')
+      .select('completed_actions, total_actions, compliance_pct')
       .eq('user_id', userId)
       .eq('date', today)
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    if (!error && data && data.total_tasks > 0) {
-      const pct = Math.round((data.completed_tasks / data.total_tasks) * 100);
-      return { score: pct, source: 'Protocolo', detail: `${data.completed_tasks}/${data.total_tasks} tareas` };
+    if (error) {
+      logWarn('[health-score] compliance query failed:', error.message);
+      return { score: 0, source: 'Sin datos', detail: 'No se pudo leer el plan' };
     }
-  } catch { /* tabla no existe — silenciar */ }
+    if (data && (data.total_actions ?? 0) > 0) {
+      const total = data.total_actions as number;
+      const done = data.completed_actions ?? 0;
+      const pct = data.compliance_pct ?? Math.round((done / total) * 100);
+      return { score: pct, source: 'Protocolo', detail: `${done}/${total} acciones` };
+    }
+  } catch (e) { logWarn('[health-score] compliance failed:', e); }
 
   return { score: 0, source: 'Sin protocolo', detail: 'Sin plan activo' };
 }

@@ -37,7 +37,8 @@ async function fetchLatestWeightKg(userId: string): Promise<number | null> {
       .maybeSingle();
     const w = (data as any)?.weight_kg;
     return Number.isFinite(w) && w > 0 ? Number(w) : null;
-  } catch {
+  } catch (e) {
+    logWarn('[nutrition-score] weight query failed:', e);
     return null;
   }
 }
@@ -67,6 +68,9 @@ export async function computeAndSaveDailyScore(
       getMealTimes(userId).catch(() => null),
     ]);
 
+    // supabase no lanza en 4xx — sin estos checks un error de esquema pasa por "día vacío".
+    if (foodRes.error) logWarn('[nutrition-score] food_logs query failed:', foodRes.error.message);
+    if (waterRes.error) logWarn('[nutrition-score] hydration query failed:', waterRes.error.message);
     const foods = (foodRes.data ?? []) as any[];
     const waterMl = (waterRes.data as any)?.total_ml ?? 0;
 
@@ -157,7 +161,8 @@ export async function getScoreTrend(userId: string, days = 7): Promise<ScoreTren
     return ((data ?? []) as any[])
       .map((r) => ({ date: String(r.date).slice(0, 10), score: r.overall_score ?? 0 }))
       .reverse();
-  } catch {
+  } catch (e) {
+    logWarn('[nutrition-score] trend query failed:', e);
     return [];
   }
 }
