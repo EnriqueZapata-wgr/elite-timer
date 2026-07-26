@@ -86,6 +86,8 @@ export interface ExecutionStep {
   exerciseId?: string | null;
   /** Nombre del ejercicio (propagado del Block) */
   exerciseName?: string | null;
+  /** Traza al catálogo exercise_matrix (propagada del Block — MB-7 Track C). */
+  matrixSlug?: string | null;
 }
 
 // === ENGINE ===

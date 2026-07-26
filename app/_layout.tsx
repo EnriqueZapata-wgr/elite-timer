@@ -170,7 +170,6 @@ function RootLayout() {
 
                 <Stack.Screen name="session-summary" />
                 <Stack.Screen name="execution" options={{ animation: 'fade' }} />
-                <Stack.Screen name="routine-execution" options={{ animation: 'fade' }} />
                 <Stack.Screen name="builder" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings/legal" options={{ headerShown: false, animation: 'slide_from_right' }} />

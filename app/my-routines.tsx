@@ -17,6 +17,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { haptic } from '@/src/utils/haptics';
 import { getRoutines, deleteRoutine, archiveRoutines, saveRoutine, generateUUID } from '@/src/services/routine-service';
+import { routineUsesClipRunner } from '@/src/services/fitness/routine-bridge-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import type { Routine } from '@/src/engine/types';
@@ -177,12 +178,19 @@ export default function MyRoutinesScreen() {
       router.push({ pathname: '/builder', params: { routineId: routine.id } });
       return;
     }
-    // Timer mode → countdown engine, Routine mode → exercise engine
-    const screen = routine.mode === 'timer' ? '/execution' : '/routine-execution';
-    router.push({
-      pathname: screen,
-      params: { routine: JSON.stringify(routine) },
-    } as any);
+    // MB-7 Track C: la interfaz la decide el CONTENIDO, no el modo — ejercicios
+    // de matriz → runner con clip; puro tiempo → timer. (routine-execution RIP.)
+    if (routineUsesClipRunner(routine)) {
+      router.push({
+        pathname: '/strength-session',
+        params: { routine: JSON.stringify(routine), name: routine.name },
+      });
+    } else {
+      router.push({
+        pathname: '/execution',
+        params: { routine: JSON.stringify(routine) },
+      });
+    }
   }
 
   function handleLongPress(routine: Routine) {

@@ -30,6 +30,7 @@ import { flattenRoutine, calcRoutineStats } from '@/src/engine';
 import type { Block, Routine, ExecutionStep } from '@/src/engine/types';
 import { formatTime } from '@/src/engine/helpers';
 import { saveRoutine, getRoutine } from '@/src/services/routine-service';
+import { routineUsesClipRunner } from '@/src/services/fitness/routine-bridge-core';
 import { generateUUID as generateId } from '@/src/services/routine-service';
 import { deepCopyBlock } from '@/src/utils/routine-storage';
 import { MatrixExercisePicker } from '@/src/components/MatrixExercisePicker';
@@ -216,10 +217,19 @@ export default function BuilderScreen() {
       setSaving(true);
       await saveRoutine(routine);
       setHasChanges(false);
-      router.push({
-        pathname: '/execution',
-        params: { routine: JSON.stringify(routine) },
-      });
+      // MB-7 Track C: ejercicios de matriz → runner con clip, SIN importar el
+      // modo ni el origen. Solo el puro tiempo cae al timer.
+      if (routineUsesClipRunner(routine)) {
+        router.push({
+          pathname: '/strength-session',
+          params: { routine: JSON.stringify(routine), name: routine.name },
+        });
+      } else {
+        router.push({
+          pathname: '/execution',
+          params: { routine: JSON.stringify(routine) },
+        });
+      }
     } catch (err: any) {
       const msg = err?.message ?? 'Error desconocido';
       if (__DEV__) console.error('[builder] Error al guardar antes de probar:', err);

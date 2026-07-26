@@ -172,6 +172,7 @@ export function flattenRoutine(routine: Routine): ExecutionStep[] {
         context: stepContext,
         exerciseId: block.exercise_id ?? null,
         exerciseName: block.exercise_name ?? null,
+        matrixSlug: block.matrix_slug ?? null,
       });
 
       // Rest between para hojas con múltiples rondas (excepto última)

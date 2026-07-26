@@ -9,7 +9,7 @@ import * as Haptics from 'expo-haptics';
 
 import { CircularTimer } from '@/components/circular-timer';
 import { EliteText } from '@/components/elite-text';
-import { EliteButton } from '@/components/elite-button';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useRoutineEngine } from '@/hooks/use-routine-engine';
 import { formatTime, formatTimeHuman } from '@/src/engine/helpers';
 import { supabase } from '@/src/lib/supabase';
@@ -19,7 +19,7 @@ import { awardBooleanElectron } from '@/src/services/electron-service';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius, BlockColors } from '@/constants/theme';
-import { SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, BLOCK_COLORS, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, BLOCK_COLORS, CATEGORY_COLORS, PILLAR_GRADIENTS, brandGradient, withOpacity } from '@/src/constants/brand';
 import type { Routine as EngineRoutine, ExecutionStep } from '@/src/engine/types';
 
 // === COLORES POR TIPO DE STEP ===
@@ -33,9 +33,9 @@ const STEP_COLORS: Record<string, string> = {
 const REST_BETWEEN_COLOR = TEXT_COLORS.secondary;
 
 function getStepColor(step: ExecutionStep | null): string {
-  if (!step) return Colors.neonGreen;
+  if (!step) return ATP_BRAND.lime;
   if (step.isRestBetween) return REST_BETWEEN_COLOR;
-  return STEP_COLORS[step.type] ?? Colors.neonGreen;
+  return STEP_COLORS[step.type] ?? ATP_BRAND.lime;
 }
 
 const STEP_LABELS: Record<string, string> = {
@@ -79,7 +79,7 @@ export default function ExecutionScreen() {
     return (
       <SafeAreaView style={[styles.screen, styles.centered]}>
         <EliteText variant="title">SIN RUTINA</EliteText>
-        <EliteButton label="VOLVER" onPress={() => router.back()} style={{ marginTop: 24 }} />
+        <GradientCTA label="VOLVER" pillar="fitness" onPress={() => router.back()} style={{ marginTop: 24 }} />
       </SafeAreaView>
     );
   }
@@ -172,12 +172,19 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.completedScroll}
         >
-          <EliteText variant="title" style={styles.completedTitle}>
-            RUTINA COMPLETADA
-          </EliteText>
-          <EliteText variant="body" style={styles.completedRoutine}>
-            {routine.name}
-          </EliteText>
+          {/* MB-7 Track C: cierre al molde editorial — hero de gradiente del
+              pilar, mismo lenguaje que el runner de fuerza. */}
+          <LinearGradient
+            colors={[PILLAR_GRADIENTS.fitness.start, PILLAR_GRADIENTS.fitness.end]}
+            style={styles.completedHero}
+          >
+            <EliteText variant="title" style={styles.completedTitle}>
+              RUTINA COMPLETADA
+            </EliteText>
+            <EliteText variant="body" style={styles.completedRoutine}>
+              {routine.name}
+            </EliteText>
+          </LinearGradient>
 
           {/* Stats grid */}
           <View style={styles.statsGrid}>
@@ -215,8 +222,8 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
           </View>
 
           <View style={styles.completedButtons}>
-            <EliteButton label="REPETIR" onPress={restart} />
-            <EliteButton label="VOLVER AL INICIO" variant="outline" onPress={() => router.back()} />
+            <GradientCTA label="REPETIR" pillar="fitness" onPress={restart} />
+            <GradientCTA label="VOLVER AL INICIO" variant="quiet" onPress={() => router.back()} />
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -235,7 +242,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         <View style={[styles.heroBarAccent, { backgroundColor: stepColor }]} />
 
         <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={24} color={Colors.neonGreen} />
+          <Ionicons name="chevron-back" size={24} color={TEXT_COLORS.primary} />
         </Pressable>
 
         <View style={styles.heroBarContent}>
@@ -360,18 +367,26 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
 
           <Pressable
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); engineState === 'running' ? pause() : play(); }}
-            style={({ pressed }) => [styles.controlPrimary, pressed && styles.controlPressed, {
-              shadowColor: Colors.neonGreen,
+            style={({ pressed }) => [pressed && styles.controlPressed, {
+              shadowColor: ATP_BRAND.lime,
               shadowOffset: { width: 0, height: 4 },
               shadowOpacity: 0.3,
               shadowRadius: 15,
             }]}
           >
-            <Ionicons
-              name={engineState === 'running' ? 'pause' : 'play'}
-              size={32}
-              color={Colors.textOnGreen}
-            />
+            {/* Doctrina §1: el CTA héroe es DEGRADADO de marca, no lime plano */}
+            <LinearGradient
+              colors={brandGradient()}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.controlPrimary}
+            >
+              <Ionicons
+                name={engineState === 'running' ? 'pause' : 'play'}
+                size={32}
+                color={TEXT_COLORS.onAccent}
+              />
+            </LinearGradient>
           </Pressable>
 
           <Pressable
@@ -491,7 +506,7 @@ const styles = StyleSheet.create({
   },
   heroBarName: {
     fontFamily: Fonts.bold,
-    color: Colors.neonGreen,
+    color: TEXT_COLORS.primary,
     fontSize: FontSizes.lg,
     flex: 1,
   },
@@ -611,7 +626,7 @@ const styles = StyleSheet.create({
   },
   miniStatProgressFill: {
     height: '100%',
-    backgroundColor: Colors.neonGreen,
+    backgroundColor: withOpacity(ATP_BRAND.lime, 0.75),
     borderRadius: 1,
   },
 
@@ -686,7 +701,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.neonGreen,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -694,7 +709,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: Radius.lg,
-    backgroundColor: Colors.surfaceLight,
+    backgroundColor: SURFACES.cardLight,
+    borderWidth: 1,
+    borderColor: SURFACES.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -722,7 +739,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   exerciseIndicatorText: {
-    color: Colors.neonGreen,
+    color: TEXT_COLORS.secondary,
     fontFamily: Fonts.semiBold,
     fontSize: FontSizes.sm,
   },
@@ -732,14 +749,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: Spacing.xl,
   },
+  completedHero: {
+    alignSelf: 'stretch',
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.xl,
+    borderRadius: Radius.card,
+    padding: Spacing.lg,
+    alignItems: 'center',
+  },
   completedTitle: {
-    color: Colors.neonGreen,
+    color: TEXT_COLORS.primary,
     fontSize: FontSizes.xl,
     marginBottom: Spacing.xs,
   },
   completedRoutine: {
-    color: Colors.textSecondary,
-    marginBottom: Spacing.xl,
+    color: 'rgba(255,255,255,0.75)',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -763,7 +787,7 @@ const styles = StyleSheet.create({
     fontSize: FontSizes.xs,
   },
   statValue: {
-    color: Colors.neonGreen,
+    color: TEXT_COLORS.primary,
     fontSize: FontSizes.xxl,
   },
   statRatio: {

@@ -20,6 +20,7 @@ import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT } from '@/src/constants/brand';
 import { flattenRoutine, calcRoutineStats, formatTimeHuman } from '@/src/engine';
+import { routineUsesClipRunner } from '@/src/services/fitness/routine-bridge-core';
 import type { Routine } from '@/src/engine/types';
 import type { RoutineCalcStats } from '@/src/engine/helpers';
 import {
@@ -69,11 +70,18 @@ export default function ProgramsScreen() {
 
   const playRoutine = (routine: Routine) => {
     haptic.light();
-    const target = routine.mode === 'routine' ? ('/routine-execution' as const) : ('/execution' as const);
-    router.push({
-      pathname: target,
-      params: { routine: JSON.stringify(routine) },
-    });
+    // MB-7 Track C: la interfaz la decide el CONTENIDO — matriz → clip; tiempo → timer.
+    if (routineUsesClipRunner(routine)) {
+      router.push({
+        pathname: '/strength-session',
+        params: { routine: JSON.stringify(routine), name: routine.name },
+      });
+    } else {
+      router.push({
+        pathname: '/execution',
+        params: { routine: JSON.stringify(routine) },
+      });
+    }
   };
 
   const editRoutine = (routine: Routine) => {

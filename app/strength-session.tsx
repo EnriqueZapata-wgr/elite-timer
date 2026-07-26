@@ -7,7 +7,10 @@
  * (workout_sessions + exercise_logs), PRs con celebración (brinco >15%) y la
  * señal de Edad ATP (puente Track C).
  *
- * Entrada: ?plan=<GeneratedRoutine JSON> (generador) o ?slugs=a,b,c (biblioteca).
+ * Entrada: ?plan=<GeneratedRoutine JSON> (generador), ?slugs=a,b,c (biblioteca)
+ * o ?routine=<Routine JSON> (builder — MB-7 Track C: puente vía
+ * routine-bridge-core; los bloques de tiempo puro corren inline como countdown,
+ * el usuario nunca sale de la sesión).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, Alert, DeviceEventEmitter } from 'react-native';
@@ -43,6 +46,8 @@ import {
 import { generateUUID } from '@/src/utils/uuid';
 import type { SessionSet } from '@/src/services/fitness/workout-session-core';
 import type { GeneratedRoutine, RoutineBlock } from '@/src/services/fitness/routine-generator-core';
+import { bridgeRoutineToSession, type SessionBlock } from '@/src/services/fitness/routine-bridge-core';
+import type { Routine as EngineRoutine } from '@/src/engine/types';
 import { clipDe, posterDe } from '@/src/constants/exercise-matrix';
 import { esBenchmarkDistancia } from '@/src/services/fitness/edad-bridge-core';
 import { ATP_BRAND, TEXT, TEXT_COLORS, BG, ELEVATION, PILLAR_GRADIENTS, SEMANTIC, withOpacity, CATEGORY_COLORS } from '@/src/constants/brand';
@@ -206,6 +211,58 @@ function StandardBlockRunner({ block, onCue, onDone }: {
   );
 }
 
+// ── Runner de bloque de TIEMPO (MB-7 Track C) ──
+// Countdown inline para bloques de puro tiempo del builder: la mezcla corre
+// dentro de la MISMA sesión, sin sacar al usuario al timer legacy.
+
+function TiempoBlockRunner({ block, onCue, onDone }: {
+  block: SessionBlock;
+  onCue: (t: string, opts?: { hito?: boolean }) => void;
+  onDone: () => void;
+}) {
+  const [restante, setRestante] = useState(block.tiempoSeg);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+  const onCueRef = useRef(onCue);
+  onCueRef.current = onCue;
+
+  useEffect(() => {
+    if (restante <= 0) {
+      haptic.heavy();
+      onCueRef.current?.(block.esDescansoTiempo ? '¡Vamos!' : 'Tiempo.', { hito: true });
+      onDoneRef.current();
+      return;
+    }
+    if (restante <= 3) {
+      haptic.medium();
+      onCueRef.current?.(String(restante));
+    }
+    const t = setTimeout(() => setRestante((r) => r - 1), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restante]);
+
+  const min = Math.floor(restante / 60);
+  const seg = restante % 60;
+  return (
+    <Animated.View entering={FadeInUp.duration(250)} style={s.serieCard}>
+      <Text style={s.serieLabel}>{block.esDescansoTiempo ? 'DESCANSO' : 'POR TIEMPO'}</Text>
+      <Text style={[s.tiempoTime, block.esDescansoTiempo && { color: ATP_BRAND.teal }]}>
+        {min}:{String(seg).padStart(2, '0')}
+      </Text>
+      <View style={s.tiempoActions}>
+        <AnimatedPressable onPress={() => { haptic.light(); setRestante((r) => r + 30); }} style={s.tiempoSecondary}>
+          <Text style={s.tiempoSecondaryText}>+30 s</Text>
+        </AnimatedPressable>
+        <AnimatedPressable onPress={() => { haptic.light(); setRestante(0); }} style={s.tiempoSkip}>
+          <Ionicons name="play-skip-forward" size={16} color={TEXT_COLORS.onAccent} />
+          <Text style={s.tiempoSkipText}>SALTAR</Text>
+        </AnimatedPressable>
+      </View>
+    </Animated.View>
+  );
+}
+
 // ── Pantalla ──
 
 // MB-3.5 #6: toggle rápido de voz de Fitness (todo → solo hitos → apagada).
@@ -216,7 +273,7 @@ const VOZ_ICONO: Record<FitnessVoiceMode, 'volume-high' | 'volume-low' | 'volume
 
 export default function StrengthSessionScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ plan?: string; slugs?: string; name?: string }>();
+  const params = useLocalSearchParams<{ plan?: string; slugs?: string; name?: string; routine?: string }>();
   const { user } = useAuth();
   const { cue } = useMethodVoice();
   const { settings, updateSetting } = useSettings();
@@ -226,7 +283,7 @@ export default function StrengthSessionScreen() {
     try { return JSON.parse(params.plan) as GeneratedRoutine; } catch { return null; }
   }, [params.plan]);
 
-  const [bloques, setBloques] = useState<RoutineBlock[] | null>(plan?.bloques ?? null);
+  const [bloques, setBloques] = useState<SessionBlock[] | null>(plan?.bloques ?? null);
   const [idx, setIdx] = useState(0);
   const [sets, setSets] = useState<SessionSet[]>([]);
   const [saving, setSaving] = useState(false);
@@ -235,6 +292,20 @@ export default function StrengthSessionScreen() {
   const anunciadoRef = useRef(-1);
   // MB-5 0.2: id estable de la sesión — reintentos idempotentes (no duplica).
   const sessionIdRef = useRef(generateUUID());
+
+  // Camino builder (MB-7 Track C): ?routine=<Routine> → puente al catálogo.
+  // Ejercicios con matrix_slug corren con clip; bloques de tiempo, inline.
+  useEffect(() => {
+    if (bloques || !params.routine) return;
+    let rt: EngineRoutine | null = null;
+    try { rt = JSON.parse(params.routine) as EngineRoutine; } catch { rt = null; }
+    if (!rt) { setBloques([]); return; }
+    const parsed = rt;
+    getExerciseMatrix().then((all) => {
+      const map = new Map(all.map((e) => [e.slug, e]));
+      setBloques(bridgeRoutineToSession(parsed, map).bloques);
+    });
+  }, [bloques, params.routine]);
 
   // Camino biblioteca: ?slugs=a,b,c → bloques estándar desde la matriz.
   useEffect(() => {
@@ -277,7 +348,9 @@ export default function StrengthSessionScreen() {
     if (!actual || anunciadoRef.current === idx) return;
     anunciadoRef.current = idx;
     const unidad = actual.esIsometrico ? 'segundos' : 'repeticiones';
-    if (actual.metodo === 'Estándar') {
+    if (actual.esTiempo) {
+      cue(`${actual.nombre}: ${actual.tiempoSeg} segundos.`, { hito: true });
+    } else if (actual.metodo === 'Estándar') {
       cue(`Ejercicio ${idx + 1}: ${actual.nombre}. ${actual.series} series de ${actual.reps} ${unidad}.`, { hito: true });
     } else {
       cue(`Ejercicio ${idx + 1}: ${actual.nombre}. Método ${actual.metodo}.`, { hito: true });
@@ -526,40 +599,62 @@ export default function StrengthSessionScreen() {
         {/* Progreso — MB-3.7 §1.2: el número manda (en el gym se lee rápido);
             la barra queda como indicador ambiental delgado, sin label propio. */}
         <View style={s.progressRow}>
-          <Text style={s.progressText}>EJERCICIO {idx + 1} / {bloques.length}</Text>
+          <Text style={s.progressText}>{actual.esTiempo ? 'BLOQUE' : 'EJERCICIO'} {idx + 1} / {bloques.length}</Text>
           <View style={s.progressBar}>
             <View style={[s.progressFill, { width: `${((idx) / bloques.length) * 100}%` }]} />
           </View>
         </View>
 
-        {/* Hero del ejercicio: CLIP en loop protagonista + degradado (molde editorial) */}
-        <Animated.View key={actual.slug} entering={FadeInDown.duration(300)} style={s.heroCard}>
-          <ExerciseClip
-            clipUrl={clipDe(actual)}
-            posterUrl={posterDe({ mediaUrl: actual.mediaUrl, posterUrl: actual.posterUrl ?? null })}
-            style={StyleSheet.absoluteFill}
-          />
-          <LinearGradient
-            colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.82)']}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-          />
-          <View style={s.heroContent}>
-            <Text style={s.heroName}>{actual.nombre}</Text>
-            <View style={s.heroPills}>
-              <View style={s.heroPill}><Text style={s.heroPillText}>{actual.musculoPrincipal}</Text></View>
-              <View style={s.heroPill}><Text style={s.heroPillText}>{actual.patron}</Text></View>
-              {actual.metodo !== 'Estándar' && (
-                <View style={[s.heroPill, { backgroundColor: withOpacity(CATEGORY_COLORS.fitness, 0.25) }]}>
-                  <Text style={[s.heroPillText, { color: ATP_BRAND.lime }]}>{actual.metodo}</Text>
+        {/* Hero del ejercicio: CLIP en loop protagonista + degradado (molde
+            editorial). Bloques de tiempo (sin matriz) → hero de gradiente. */}
+        {actual.esTiempo ? (
+          <Animated.View key={actual.slug} entering={FadeInDown.duration(300)} style={[s.heroCard, s.heroCardTiempo]}>
+            <LinearGradient
+              colors={[PILLAR_GRADIENTS.fitness.start, PILLAR_GRADIENTS.fitness.end]}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+            <View style={s.heroContent}>
+              <Text style={s.heroName}>{actual.nombre}</Text>
+              <View style={s.heroPills}>
+                <View style={s.heroPill}>
+                  <Text style={s.heroPillText}>{actual.esDescansoTiempo ? 'DESCANSO' : 'POR TIEMPO'}</Text>
                 </View>
-              )}
+              </View>
             </View>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        ) : (
+          <Animated.View key={actual.slug} entering={FadeInDown.duration(300)} style={s.heroCard}>
+            <ExerciseClip
+              clipUrl={clipDe(actual)}
+              posterUrl={posterDe({ mediaUrl: actual.mediaUrl, posterUrl: actual.posterUrl ?? null })}
+              style={StyleSheet.absoluteFill}
+            />
+            <LinearGradient
+              colors={['rgba(0,0,0,0.02)', 'rgba(0,0,0,0.08)', 'rgba(0,0,0,0.82)']}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+            />
+            <View style={s.heroContent}>
+              <Text style={s.heroName}>{actual.nombre}</Text>
+              <View style={s.heroPills}>
+                <View style={s.heroPill}><Text style={s.heroPillText}>{actual.musculoPrincipal}</Text></View>
+                <View style={s.heroPill}><Text style={s.heroPillText}>{actual.patron}</Text></View>
+                {actual.metodo !== 'Estándar' && (
+                  <View style={[s.heroPill, { backgroundColor: withOpacity(CATEGORY_COLORS.fitness, 0.25) }]}>
+                    <Text style={[s.heroPillText, { color: ATP_BRAND.lime }]}>{actual.metodo}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </Animated.View>
+        )}
 
-        {/* Cuerpo: estándar o método */}
-        {actual.metodo === 'Estándar' && (
+        {/* Cuerpo: tiempo inline, estándar o método */}
+        {actual.esTiempo && (
+          <TiempoBlockRunner key={`tiempo-${idx}`} block={actual} onCue={cue} onDone={() => avanzar([])} />
+        )}
+        {!actual.esTiempo && actual.metodo === 'Estándar' && (
           <StandardBlockRunner key={`std-${actual.slug}-${idx}`} block={actual} onCue={cue} onDone={avanzar} />
         )}
         {actual.metodo === '3-5' && (
@@ -576,7 +671,7 @@ export default function StrengthSessionScreen() {
         <View style={s.actionsRow}>
           <AnimatedPressable onPress={saltarEjercicio} style={s.skipExercise}>
             <Ionicons name="play-skip-forward-outline" size={15} color={TEXT.secondary} />
-            <Text style={s.skipExerciseText}>Saltar ejercicio</Text>
+            <Text style={s.skipExerciseText}>{actual.esTiempo ? 'Saltar bloque' : 'Saltar ejercicio'}</Text>
           </AnimatedPressable>
           <AnimatedPressable onPress={() => finalizar(sets)} disabled={saving} style={s.endBtn}>
             <Text style={s.endBtnText}>{saving ? 'GUARDANDO…' : 'TERMINAR'}</Text>
@@ -606,6 +701,7 @@ const s = StyleSheet.create({
     backgroundColor: ELEVATION[1].bg,
     justifyContent: 'flex-end',
   },
+  heroCardTiempo: { height: 120 },
   heroContent: { padding: Spacing.md },
   heroName: { color: TEXT.primary, fontFamily: Fonts.extraBold, fontSize: 22 },
   heroPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
@@ -632,6 +728,24 @@ const s = StyleSheet.create({
     fontFamily: Fonts.bold, fontSize: 22, color: TEXT.primary, backgroundColor: BG.input,
     borderRadius: Radius.sm, paddingVertical: Spacing.sm, textAlign: 'center',
   },
+
+  // MB-7 Track C: bloque de tiempo inline
+  tiempoTime: {
+    color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: 64,
+    fontVariant: ['tabular-nums'], textAlign: 'center', marginVertical: Spacing.xs,
+  },
+  tiempoActions: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center', marginTop: Spacing.xs },
+  tiempoSecondary: {
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: Radius.pill,
+    borderWidth: 1, borderColor: ELEVATION[2].border, backgroundColor: ELEVATION[2].bg,
+  },
+  tiempoSecondaryText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: 13 },
+  tiempoSkip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
+    borderRadius: Radius.pill, backgroundColor: ATP_BRAND.lime,
+  },
+  tiempoSkipText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: 13, letterSpacing: 1 },
 
   loggedRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: 6 },
   loggedDot: {
