@@ -36,6 +36,7 @@ import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/s
 import { FoodReviewEditor, parseAIToReview, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
+import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { useAuth } from '@/src/contexts/auth-context';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -297,6 +298,9 @@ export default function FoodScanScreen() {
   const { mode: mp, mealType: mealParam } = useLocalSearchParams<{ mode?: string; mealType?: string }>();
   const mode: ScanMode = (mp as ScanMode) || 'food';
   const cfg = MODE_CFG[mode];
+  // Track C (MB-8): en modo SIMPLE el guardado es "describir y listo";
+  // el editor granular (gramajes, unidades, macros) es opt-in.
+  const { mode: nutritionMode } = useNutritionMode();
 
   const [step, setStep] = useState<Step>('capture');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -476,6 +480,12 @@ export default function FoodScanScreen() {
 
   const handleSaveFood = () => {
     if (!result) return;
+    // Track C (MB-8): SIMPLE guarda la estimación tal cual (nunca se bloquea
+    // por un campo faltante); ajustar fino queda a un toque de distancia.
+    if (nutritionMode === 'simple') {
+      void handleConfirmSave(parseAIToReview(result));
+      return;
+    }
     setShowReview(true);
   };
 
@@ -1375,6 +1385,17 @@ export default function FoodScanScreen() {
                   {saving ? 'Guardando...' : 'Guardar \u2713'}
                 </EliteText>
               </AnimatedPressable>
+            )}
+
+            {/* Track C: en SIMPLE, ajustar es opt-in (en COMPLETO el editor ya
+                es el paso siguiente del bot\u00f3n Guardar) */}
+            {mode === 'food' && !saved && nutritionMode === 'simple' && (
+              <Pressable onPress={() => setShowReview(true)} disabled={saving}
+                style={{ alignSelf: 'center', paddingVertical: Spacing.sm }}>
+                <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>
+                  Revisar y ajustar antes de guardar
+                </EliteText>
+              </Pressable>
             )}
 
             {/* SUP-1: scan de suplemento → ficha en mi plan */}
