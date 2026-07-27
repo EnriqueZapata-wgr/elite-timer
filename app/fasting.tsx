@@ -23,6 +23,9 @@ import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { BreakFastGuide } from '@/src/components/nutrition/BreakFastGuide';
 import { ATP_BRAND, brandGradient } from '@/src/constants/brand';
 import { FASTING_PHASES, getCurrentPhase, getNextPhase } from '@/src/constants/fasting-phases';
+import { FASTING_MEASURED_MODE } from '@/src/constants/flags';
+import { measuredState, type MeasuredState } from '@/src/services/fasting-metrics-core';
+import { loadLatestFastingMeasurement } from '@/src/services/fasting-measurement-service';
 import { toLocalDateString } from '../src/utils/date-helpers';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
@@ -86,6 +89,11 @@ const RING_SIZE = width * 0.65;
 const STROKE_WIDTH = 12;
 const RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+// MB-9 · Track E.1: pasar la meta NO llena más nada. El sobretiempo se dibuja
+// como un arco delgado y apagado JUSTO ADENTRO del anillo — registra que
+// seguiste, no lo premia (sin color, sin celebración).
+const OVERTIME_RADIUS = RADIUS - STROKE_WIDTH / 2 - 4;
+const OVERTIME_CIRCUMFERENCE = 2 * Math.PI * OVERTIME_RADIUS;
 
 // Protocolos de ayuno (copy es-MX — E.3: toda sigla se explica)
 const FASTING_PROTOCOLS = [
@@ -192,6 +200,21 @@ export default function FastingScreen() {
 
   // Track D.2 (MB-8): cierre guiado del ayuno (proteína primero).
   const [breakGuide, setBreakGuide] = useState<{ fastId: string; hours: number; zoneLabel: string } | null>(null);
+
+  // MB-9 · Track E.3: estado REAL medido vía GKI (glucosa + cetonas), detrás del
+  // flag FASTING_MEASURED_MODE. Sin datos → cae al estimado por tiempo.
+  const [measured, setMeasured] = useState<MeasuredState | null>(null);
+  useEffect(() => {
+    if (!FASTING_MEASURED_MODE || !activeFast?.fast_start) { setMeasured(null); return; }
+    let alive = true;
+    loadLatestFastingMeasurement(activeFast.fast_start).then((m) => {
+      if (!alive) return;
+      setMeasured(m.glucoseMgdl != null && m.ketonesMmol != null
+        ? measuredState(m.glucoseMgdl, m.ketonesMmol, 'mgdl')
+        : null);
+    });
+    return () => { alive = false; };
+  }, [activeFast?.fast_start, activeFast?.id]);
 
   // Registro de ayuno pasado
   const [showPastFast, setShowPastFast] = useState(false);
@@ -778,6 +801,9 @@ export default function FastingScreen() {
   const nextZone = getNextZone(elapsedHours);
   const timeToNext = nextZone ? (nextZone.hours * 60 - safeElapsed) : 0;
   const remainingMinutes = Math.max(targetMinutes - safeElapsed, 0);
+  // Track E.1: fracción de sobretiempo (topada a +100% de la meta para el arco).
+  const overtimeMinutes = Math.max(0, safeElapsed - targetMinutes);
+  const overtimeFrac = targetMinutes > 0 ? Math.min(overtimeMinutes / targetMinutes, 1) : 0;
 
   // === DERIVADOS DEL LAYOUT MB-8 (Track F) ===
   // F.4: marcador que viaja sobre el anillo (posición polar del progreso).
@@ -1017,6 +1043,18 @@ export default function FastingScreen() {
                   />
                   {/* F.4: marcador que viaja — ves dónde vas, no solo cuánto falta */}
                   <Circle cx={markerX} cy={markerY} r={STROKE_WIDTH / 2 + 3} fill={currentZone.color} stroke="#000" strokeWidth={2.5} />
+                  {/* E.1: sobretiempo — arco delgado y apagado, sin color ni premio */}
+                  {overtimeFrac > 0 && (
+                    <Circle
+                      cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={OVERTIME_RADIUS}
+                      stroke="#444" strokeWidth={3} fill="transparent"
+                      strokeDasharray={`${OVERTIME_CIRCUMFERENCE}`}
+                      strokeDashoffset={OVERTIME_CIRCUMFERENCE * (1 - overtimeFrac)}
+                      strokeLinecap="round"
+                      rotation={-90}
+                      origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+                    />
+                  )}
                 </>
               )}
             </Svg>
@@ -1034,9 +1072,16 @@ export default function FastingScreen() {
                       Faltan {formatDuration(remainingMinutes)}
                     </Text>
                   ) : (
-                    <Text style={{ color: '#22c55e', fontSize: 13, fontWeight: '800', marginTop: 6 }}>
-                      ¡META ALCANZADA!
-                    </Text>
+                    /* E.1: al cumplir la meta el copy empuja a romperlo bien, no
+                       a seguir alargando. El botón TERMINAR abre el cierre guiado. */
+                    <>
+                      <Text style={{ color: '#22c55e', fontSize: 13, fontWeight: '800', marginTop: 6 }}>
+                        YA LLEGASTE
+                      </Text>
+                      <Text style={{ color: '#8a8a8a', fontSize: 11, marginTop: 3, textAlign: 'center', lineHeight: 15 }}>
+                        Romperlo bien cuenta{'\n'}tanto como sostenerlo
+                      </Text>
+                    </>
                   )}
                 </>
               ) : lastCompleted ? (
@@ -1223,11 +1268,24 @@ export default function FastingScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>AHORA, EN TU CUERPO</Text>
                 <Text style={{ color: currentZone.color, fontSize: 17, fontWeight: '800' }}>{currentZone.label}</Text>
+                {/* E.3: dos modos. Con sangre → estado real medido (GKI = profundidad
+                    de cetosis, nunca autofagia). Sin sangre → estimado por tiempo. */}
+                {measured ? (
+                  <Text style={{ color: '#a8e02a', fontSize: 11, fontWeight: '700', marginTop: 2 }}>
+                    MEDIDO · GKI {measured.gki} · {measured.zone.label}
+                  </Text>
+                ) : (
+                  <Text style={{ color: '#666', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginTop: 2 }}>
+                    ESTIMADO POR TIEMPO
+                  </Text>
+                )}
               </View>
             </View>
             <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>{currentZone.now}</Text>
 
-            {nextZone && (
+            {/* E.1: no se anuncia una fase que cae DESPUÉS de tu meta — nada de
+                niveles por desbloquear más allá de lo que te propusiste. */}
+            {nextZone && nextZone.hours < selectedProtocol.hours && (
               <View style={{ backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, marginTop: 14 }}>
                 <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
                   SIGUIENTE · {nextZone.label.toUpperCase()} · EN {formatDuration(timeToNext).toUpperCase()}
@@ -1236,9 +1294,10 @@ export default function FastingScreen() {
               </View>
             )}
 
-            {/* Mapa de fases (la checklist de antes, plegada aquí) */}
+            {/* Mapa de fases — SOLO las que caben en tu meta (E.1). Con meta de
+                16 h, "ayuno prolongado" no existe en tu pantalla. */}
             <View style={{ marginTop: 16 }}>
-              {FASTING_PHASES.filter(p => p.hours > 0).map(p => {
+              {FASTING_PHASES.filter(p => p.hours > 0 && p.hours < selectedProtocol.hours).map(p => {
                 const reached = elapsedHours >= p.hours;
                 return (
                   <View key={p.hours} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5, opacity: reached ? 1 : 0.45 }}>
@@ -1252,6 +1311,18 @@ export default function FastingScreen() {
                   </View>
                 );
               })}
+            </View>
+
+            {/* E.2: la métrica de mejora cambia de eje — velocidad, no duración.
+                Framing + vacío que informa (se mide con sangre). */}
+            <View style={{ marginTop: 16, backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#1a1a1a' }}>
+              <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '800', letterSpacing: 1.5 }}>TU PROGRESO REAL</Text>
+              <Text style={{ color: '#bbb', fontSize: 12, marginTop: 6, lineHeight: 18 }}>
+                Lo que importa no son las horas que aguantas, sino qué tan rápido cambias de combustible: eso es flexibilidad metabólica. La curva se mueve a la izquierda, no la barra más lejos.
+              </Text>
+              <Text style={{ color: '#666', fontSize: 11, marginTop: 6, lineHeight: 16 }}>
+                Para verla, mide tu glucosa y cetonas durante el ayuno. Con eso ATP calcula cuándo entraste en cetosis y si cada vez lo haces antes.
+              </Text>
             </View>
           </Pressable>
         </Pressable>

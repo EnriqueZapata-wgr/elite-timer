@@ -36,3 +36,24 @@
  *  3. `eas update --branch preview` (OTA — sin build nativo, sin migración).
  */
 export const INTERVENTIONS_DRIVE_HOY = true;
+
+/**
+ * FASTING_MEASURED_MODE — modo medido del ayuno por sangre (MB-9 · Track E.3).
+ *
+ * QUÉ CONTROLA
+ *  · OFF (default) → la pastilla de fase muestra la etapa ESTIMADA por tiempo,
+ *    declarada como estimación. Es lo honesto sin datos de sangre.
+ *  · ON → si hay glucosa y cetonas capturadas durante el ayuno, la pastilla
+ *    muestra el estado REAL medido vía GKI (glucosa mmol/L ÷ cetonas mmol/L),
+ *    leído como PROFUNDIDAD DE CETOSIS. La matemática vive en fasting-metrics-core.
+ *
+ * POR QUÉ EMPIEZA APAGADO
+ *  El modo medido depende de captura de glucosa/cetonas en contexto de ayuno y
+ *  requiere validación en device (lectura real de glucose_logs 040 + ketones_logs
+ *  078). El core y el cableado están listos; se enciende tras el device test.
+ *  ⚠️ El GKI viene de terapia metabólica oncológica y se usa como profundidad de
+ *  cetosis, NUNCA como afirmación de autofagia (doctrina Track D).
+ *
+ * CÓMO ENCENDERLO: `true` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ */
+export const FASTING_MEASURED_MODE = false;
