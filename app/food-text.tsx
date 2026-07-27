@@ -117,15 +117,18 @@ function parseAIPortion(portion: unknown): number {
   return clampGrams(parsed);
 }
 
-/** Calcula quality_score simple basado en ingredientes */
+/**
+ * Calcula quality_score (0-100) del registro manual.
+ * Doctrina ATP (MB-8 Track D.0): la calidad la manda la LIMPIEZA de la comida
+ * (proporción de ingredientes sin procesar), no un macro. La proteína da solo
+ * un bono chico de adecuación — nunca compensa una comida procesada.
+ */
 function calcQualityScore(ingredients: SelectedIngredient[], totalProtein: number): number {
   if (ingredients.length === 0) return 0;
   const processedCount = ingredients.filter(i => i.food.isProcessed).length;
-  const processedRatio = processedCount / ingredients.length;
-
-  let score = 60; // Base
-  if (processedRatio > 0.5) score = 40;
-  if (totalProtein > 30) score += 20;
+  const cleanRatio = 1 - processedCount / ingredients.length;
+  let score = 40 + Math.round(cleanRatio * 50); // 40-90: la limpieza manda
+  if (totalProtein >= 25) score += 10;          // bono de adecuación proteica
   return Math.min(score, 100);
 }
 
@@ -294,9 +297,6 @@ export default function FoodTextScreen() {
       setSaving(false);
     }
   }, [user, ingredients, query, mealType, timeHH, timeMM, totals, router]);
-
-  // --- Verificar si el usuario escribió texto libre sin seleccionar resultados ---
-  const isFreeTextOnly = query.trim().length > 0 && ingredients.length === 0;
 
   // Si está en modo revisión, mostrar el editor
   if (showReview && ingredients.length > 0) {
@@ -721,24 +721,6 @@ const s = StyleSheet.create({
     fontFamily: Fonts.regular,
     fontSize: FontSizes.sm,
     marginTop: 2,
-  },
-
-  // --- Aviso de texto libre ---
-  freeTextWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: withOpacity(SEMANTIC.warning, 0.1),
-    borderRadius: Radius.card,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.sm + 4,
-    marginBottom: Spacing.md,
-    gap: Spacing.xs,
-  },
-  freeTextWarningText: {
-    flex: 1,
-    color: SEMANTIC.warning,
-    fontFamily: Fonts.regular,
-    fontSize: FontSizes.sm,
   },
 
   // --- AI search ---

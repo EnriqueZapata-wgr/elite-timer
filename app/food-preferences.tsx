@@ -15,6 +15,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { useAuth } from '@/src/contexts/auth-context';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { userErrorMessage } from '@/src/utils/user-error';
@@ -47,7 +48,9 @@ export default function FoodPreferencesScreen() {
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
     supabase.from('food_preferences').select('*').eq('user_id', user.id).maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        // MB-8 Track B (G5): un 400 no es "sin preferencias".
+        if (error) { logWarn('[food-preferences] load failed:', error.message); return; }
         if (data) {
           setDiet(data.diet_type ?? 'omnivore');
           setAllergies(data.allergies ?? []);
@@ -66,16 +69,19 @@ export default function FoodPreferencesScreen() {
   const handleSave = async () => {
     if (!user?.id) return;
     setSaving(true);
-    haptic.success();
-    try {
-      await supabase.from('food_preferences').upsert({
-        user_id: user.id, diet_type: diet, allergies,
-        dislikes: dislikes || null, cooking_style: cookingStyle,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+    // MB-8 Track B (G5): el try/catch no atrapa 4xx (supabase-js no lanza) —
+    // antes mostraba "Guardado" aunque el upsert fallara.
+    const { error } = await supabase.from('food_preferences').upsert({
+      user_id: user.id, diet_type: diet, allergies,
+      dislikes: dislikes || null, cooking_style: cookingStyle,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+    if (error) {
+      logWarn('[food-preferences] save failed:', error.message);
+      Alert.alert('Error', userErrorMessage(error, 'No se pudo guardar.'));
+    } else {
+      haptic.success();
       Alert.alert('Guardado', 'Preferencias actualizadas.');
-    } catch (err: any) {
-      Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar.'));
     }
     setSaving(false);
   };

@@ -16,6 +16,7 @@ import { GradientCard } from '@/src/components/ui/GradientCard';
 import { WaterGoalEditor } from '@/src/components/hydration/WaterGoalEditor';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { getUserWaterGoal, addWater as addWaterEntry } from '@/src/services/hydration-service';
@@ -49,7 +50,9 @@ export default function HydrationScreen() {
       getUserWaterGoal(user.id),
     ]);
     setWaterGoal(goalMl);
-    if (logRes.data) {
+    // MB-8 Track B: un 400 no es "0 ml".
+    if (logRes.error) logWarn('[hydration] load failed:', logRes.error.message);
+    else if (logRes.data) {
       setWaterMl((logRes.data as any).total_ml ?? 0);
     }
   }

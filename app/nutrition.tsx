@@ -21,6 +21,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getUserWaterGoal } from '@/src/services/hydration-service';
 import { useMacroMode } from '@/src/hooks/useMacroMode';
@@ -107,6 +108,13 @@ export default function NutritionScreen() {
         getUserWaterGoal(user.id),
       ]);
 
+      // MB-8 Track B (G6): supabase no lanza en 4xx — sin estos checks un error
+      // de esquema se pinta como "día en ceros", indistinguible de vacío real.
+      if (foodRes.error) logWarn('[nutrition-hub] food_logs failed:', foodRes.error.message);
+      if (waterRes.error) logWarn('[nutrition-hub] hydration_logs failed:', waterRes.error.message);
+      if (fastRes.error) logWarn('[nutrition-hub] fasting_logs failed:', fastRes.error.message);
+      if (glucoseRes.error) logWarn('[nutrition-hub] glucose_logs failed:', glucoseRes.error.message);
+
       const foods = foodRes.data ?? [];
       const activeFast = fastRes.data?.[0];
       // ÍTEM 4: guard NaN. Si fast_start viene nulo/corrupto, fastElapsed
@@ -127,7 +135,7 @@ export default function NutritionScreen() {
         lastGlucose: glucoseRes.data?.[0]?.value_mg_dl ?? null,
         glucoseContext: glucoseRes.data?.[0]?.context ?? null,
       });
-    } catch { /* silenciar */ }
+    } catch (e) { logWarn('[nutrition-hub] loadData failed:', e); }
 
     // T3: score funcional — calcula + persiste (daily_nutrition_scores) y trae trend
     try {

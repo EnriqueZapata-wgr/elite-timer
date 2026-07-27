@@ -220,11 +220,14 @@ export default function FastingScreen() {
   const persistFastingGoal = useCallback(async (hours: number) => {
     if (!userId) return;
     try {
-      const { data } = await supabase
+      const { data, error: readErr } = await supabase
         .from('user_day_preferences').select('goals').eq('user_id', userId).maybeSingle();
+      if (readErr) logWarn('[fasting] goals read failed:', readErr.message);
       const goals = { ...((data?.goals as any) ?? {}), fasting_hours: hours };
-      await supabase.from('user_day_preferences').upsert({ user_id: userId, goals });
-    } catch { /* opcional: el goal se re-intenta al próximo cambio */ }
+      // MB-8 Track B (G8): el try/catch no atrapa 4xx — chequear {error}.
+      const { error } = await supabase.from('user_day_preferences').upsert({ user_id: userId, goals });
+      if (error) logWarn('[fasting] goal upsert failed:', error.message);
+    } catch (e) { logWarn('[fasting] persistFastingGoal failed:', e); }
   }, [userId]);
 
   useFocusEffect(useCallback(() => {

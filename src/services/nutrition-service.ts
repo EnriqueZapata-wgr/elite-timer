@@ -3,9 +3,9 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { callAnthropic, extractResponseText } from './anthropic-client';
 import { generateAIReferencePrompt } from '@/src/constants/argos-food-library';
-import { getUserWaterGoal } from './hydration-service';
 import { getArgosCallMetadata } from './argos-service';
 import { ATP_LLM } from '@/src/constants/llm-config';
 
@@ -67,8 +67,10 @@ export interface Recipe {
 
 export async function getActivePlan(userId?: string): Promise<NutritionPlan | null> {
   const uid = userId || await getUserId();
-  const { data } = await supabase.from('nutrition_plans').select('*')
-    .eq('user_id', uid).eq('status', 'active').order('created_at', { ascending: false }).limit(1).single();
+  // MB-8 Track B: .single() con 0 planes = PGRST116 espurio → maybeSingle.
+  const { data, error } = await supabase.from('nutrition_plans').select('*')
+    .eq('user_id', uid).eq('status', 'active').order('created_at', { ascending: false }).limit(1).maybeSingle();
+  if (error) logWarn('[nutrition] getActivePlan failed:', error.message);
   return data;
 }
 
@@ -114,14 +116,17 @@ export async function logFood(data: {
 export async function getFoodLogs(userId?: string, date?: string): Promise<FoodLog[]> {
   const uid = userId || await getUserId();
   const d = date || getLocalToday();
-  const { data } = await supabase.from('food_logs').select('*')
+  const { data, error } = await supabase.from('food_logs').select('*')
     .eq('user_id', uid).eq('date', d).order('created_at', { ascending: true });
+  // MB-8 Track B: sin este log, un 400 de esquema se disfraza de "día vacío".
+  if (error) logWarn('[nutrition] getFoodLogs failed:', error.message);
   return data ?? [];
 }
 
 export async function getFoodLogsRange(userId: string, startDate: string, endDate: string): Promise<FoodLog[]> {
-  const { data } = await supabase.from('food_logs').select('*')
+  const { data, error } = await supabase.from('food_logs').select('*')
     .eq('user_id', userId).gte('date', startDate).lte('date', endDate).order('date', { ascending: false });
+  if (error) logWarn('[nutrition] getFoodLogsRange failed:', error.message);
   return data ?? [];
 }
 
@@ -242,8 +247,10 @@ export async function reanalyzeFood(ingredients: any[], mealType?: string): Prom
 // Nota: getHydration() y addWater() viven ahora en hydration-service.ts (single source of truth).
 
 export async function getHydrationForUser(userId: string, date: string): Promise<HydrationLog | null> {
-  const { data } = await supabase.from('hydration_logs').select('*')
-    .eq('user_id', userId).eq('date', date).single();
+  // MB-8 Track B: .single() con 0 filas = PGRST116 espurio → maybeSingle.
+  const { data, error } = await supabase.from('hydration_logs').select('*')
+    .eq('user_id', userId).eq('date', date).maybeSingle();
+  if (error) logWarn('[nutrition] getHydrationForUser failed:', error.message);
   return data;
 }
 
@@ -253,61 +260,12 @@ export async function getHydrationForUser(userId: string, date: string): Promise
 // `src/services/fasting-service.ts`. getFastingLogsRange se re-exporta abajo.
 
 // === DAILY SCORE ===
-
-export async function calculateDailyScore(userId?: string, date?: string): Promise<DailyNutritionScore> {
-  const uid = userId || await getUserId();
-  const d = date || getLocalToday();
-
-  const [foods, hydration, fasting, plan] = await Promise.all([
-    getFoodLogs(uid, d),
-    getHydrationForUser(uid, d),
-    supabase.from('fasting_logs').select('*').eq('user_id', uid).eq('date', d).single().then(r => r.data),
-    getActivePlan(uid).catch(() => null),
-  ]);
-
-  // Calculate scores
-  const aiScores = foods.filter(f => f.ai_analysis?.score).map(f => f.ai_analysis.score as number);
-  const adherence = aiScores.length > 0 ? Math.round(aiScores.reduce((a, b) => a + b, 0) / aiScores.length) : 50;
-  const totalCal = foods.reduce((s, f) => s + (f.ai_analysis?.estimated_calories ?? f.calories ?? 0), 0);
-  const totalProt = foods.reduce((s, f) => s + (f.ai_analysis?.estimated_protein ?? f.protein_g ?? 0), 0);
-  const totalCarbs = foods.reduce((s, f) => s + (f.ai_analysis?.estimated_carbs ?? f.carbs_g ?? 0), 0);
-  const totalFat = foods.reduce((s, f) => s + (f.ai_analysis?.estimated_fat ?? f.fat_g ?? 0), 0);
-
-  const waterMl = hydration?.total_ml ?? 0;
-  const waterTarget = await getUserWaterGoal(uid);
-  const hydrationScore = Math.min(100, Math.round((waterMl / waterTarget) * 100));
-
-  const fastingHours = fasting?.actual_hours ?? 0;
-  const fastingTarget = fasting?.target_hours ?? plan?.fasting_hours ?? 16;
-  const fastingScore = fasting?.status === 'completed'
-    ? Math.min(100, Math.round((fastingHours / fastingTarget) * 100))
-    : 0;
-
-  const quality = adherence;
-  const overall = Math.round(adherence * 0.4 + hydrationScore * 0.2 + fastingScore * 0.2 + quality * 0.2);
-
-  const red_flags: string[] = [];
-  const highlights: string[] = [];
-  if (totalProt < (plan?.protein_target ?? 80) * 0.7) red_flags.push('Poca proteína');
-  if (waterMl < waterTarget * 0.5) red_flags.push('Deshidratado');
-  if (adherence >= 80) highlights.push('Buena adherencia');
-  if (hydrationScore >= 90) highlights.push('Hidratación óptima');
-  if (fasting?.status === 'completed') highlights.push('Ayuno cumplido');
-
-  const score: DailyNutritionScore = {
-    overall_score: overall, adherence_score: adherence, hydration_score: hydrationScore,
-    fasting_score: fastingScore, quality_score: quality,
-    total_calories: totalCal, total_protein: totalProt, meals_logged: foods.length,
-    water_ml: waterMl, fasting_hours: fastingHours, red_flags, highlights,
-  };
-
-  // Upsert
-  await supabase.from('daily_nutrition_scores').upsert({
-    user_id: uid, date: d, ...score, total_carbs: totalCarbs, total_fat: totalFat,
-  }, { onConflict: 'user_id,date' });
-
-  return score;
-}
+// MB-8 Track B: calculateDailyScore se RETIRÓ. Era la implementación vieja del
+// score (huérfana sin caller, flaggeada desde el delivery 2026-07-11): leía
+// ai_analysis.estimated_* (formato de prompt viejo) y hacía fasting_logs
+// .single() que falla con ≥2 ayunos/día. El camino canónico es
+// nutrition-score-service.computeAndSaveDailyScore. El tipo DailyNutritionScore
+// se conserva: lo importa el panel coach para leer daily_nutrition_scores.
 
 // === LABEL ANALYSIS ===
 
@@ -394,8 +352,9 @@ Responde SOLO con JSON válido (sin backticks ni markdown):
 // === COACH HELPERS ===
 
 export async function getDailyScoresRange(userId: string, startDate: string, endDate: string): Promise<any[]> {
-  const { data } = await supabase.from('daily_nutrition_scores').select('*')
+  const { data, error } = await supabase.from('daily_nutrition_scores').select('*')
     .eq('user_id', userId).gte('date', startDate).lte('date', endDate).order('date');
+  if (error) logWarn('[nutrition] getDailyScoresRange failed:', error.message);
   return data ?? [];
 }
 

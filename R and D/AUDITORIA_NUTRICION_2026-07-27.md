@@ -143,4 +143,32 @@ Vara: `docs/DESIGN_SYSTEM.md` (superficies heroicas = degradados; lime solo micr
 6. **M1-M3** (código muerto) — cero riesgo, alto valor de higiene.
 7. **D7** (prompt IA) — requiere decisión de Enrique/Mariana, NO se toca esta noche.
 
-*(§2 se complementa con el barrido mecánico exhaustivo de queries — tabla anexa al final si el agente de barrido aporta hallazgos adicionales.)*
+---
+
+## ANEXO · Barrido mecánico exhaustivo de queries (complemento a §2)
+
+Se corrió un barrido query-por-query de TODO código que toca las tablas del pilar (pantallas + servicios + consumidores cruzados). Confirmó G1-G8 y M1-M4 y agregó:
+
+### 👻 Adicionales confirmados
+| # | Dónde | Bug | Estado |
+|---|---|---|---|
+| G9 | `supplements.tsx` (¡MB-2 la retrabajó y esto quedó!) | **6 writes sin chequear error**: toggle de toma (delete/upsert), alta, edición y baja de ficha. Alta de suplemento podía fallar y cerrar el form como si hubiera guardado; el check optimista quedaba tachado en UI y vivo en DB | ✅ **Corregido en Track B** (con revert del optimista en toggles) |
+| G10 | `supplements.tsx` `loadAll` | 3 queries de carga sin chequear error → "plan vacío / 0% adherencia" silencioso | ✅ Corregido |
+| G11 | `glucose-log.tsx` | Cargas de historial (inicial + refresh) sin chequear error | ✅ Corregido |
+| G12 | `hydration.tsx` `loadData` | Error de lectura → 0 ml silencioso | ✅ Corregido |
+| G13 | `meal-times-service` | `.single()` con 0 filas → PGRST116 espurio (salvado por catch, pero ruido + defaults) | ✅ `maybeSingle` |
+| G14 | `nutrition-service.calculateDailyScore` | `fasting_logs .single()` fallaba con ≥2 ayunos/día O 0 filas → ayuno "inexistente" | ✅ Resuelto por retiro (M1) |
+
+### 🚩 FUERA del pilar — flaggeados, NO tocados esta noche (decisión de alcance)
+| Dónde | Qué | Por qué no se tocó |
+|---|---|---|
+| `app/(tabs)/index.tsx` (HOY) | Toggles de suplemento (delete :836, upsert :845) y cargas sin chequear error | Es pantalla de HOY, no del pilar; mismo patrón que G9 — candidato al próximo run de HOY |
+| `reports-service.ts` | 5 reportes con `catch { return empty }` sin log y selects sin check → un 400 pinta reportes en ceros | Servicio transversal de reportes; arreglo mecánico pero ancho (5 funciones × N queries) |
+| `weekly-insight-service.ts` | `pillarNutritionPct`/`pillarSupplementsPct`/`pillarHydrationPct` → `catch { return 0 }` sin log | Transversal (insight semanal) |
+| `daily-review-service.ts` | `fetchProteinByDay`/`fetchGlucoseToday`/`fetchMealsToday` → catch a `{}` / `0` sin log | Transversal |
+| `argos-service.ts` | Bloques de contexto (comida/glucosa/ayuno/suplementos) con `catch (_) {}` sin log → ARGOS con contexto incompleto en silencio | Es el chat; tocarlo de noche sin device test es más riesgo que valor |
+| `day-compiler.ts` :181-199 | Selects de food/hydration/fasting/glucose/supplement sin check | Compilador de HOY — mismo run de HOY |
+| `starter-recipes.ts` seed | Spread `...r` contra `recipes` (frágil ante drift de esquema) | Herramienta admin, bajo riesgo |
+
+### ✅ Estado final del pilar tras Track B
+Todos los fantasmas G1-G14 del pilar quedaron cerrados. Los transversales de la tabla anterior quedan **abiertos y priorizados para el run de HOY/reportes**.

@@ -64,7 +64,11 @@ export default function GlucoseLogScreen() {
     supabase.from('glucose_logs').select('*')
       .eq('user_id', user.id).eq('date', today)
       .order('time', { ascending: false })
-      .then(({ data }) => setTodayLogs(data ?? []));
+      .then(({ data, error }) => {
+        // MB-8 Track B: un 400 no es "sin mediciones".
+        if (error) logWarn('[glucose-log] load failed:', error.message);
+        else setTodayLogs(data ?? []);
+      });
   }, [user?.id]));
 
   const handleSave = async () => {
@@ -101,10 +105,11 @@ export default function GlucoseLogScreen() {
       try { await awardBooleanElectron(user.id, 'glucose_log'); DeviceEventEmitter.emit('electrons_changed'); } catch (e) { logWarn('[glucose-log] award electron failed', e); }
 
       // Refresh (misma fecha local).
-      const { data } = await supabase.from('glucose_logs').select('*')
+      const { data, error: refreshErr } = await supabase.from('glucose_logs').select('*')
         .eq('user_id', user.id).eq('date', today)
         .order('time', { ascending: false });
-      setTodayLogs(data ?? []);
+      if (refreshErr) logWarn('[glucose-log] refresh failed:', refreshErr.message);
+      else setTodayLogs(data ?? []);
     } catch (err: any) {
       Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar'));
     } finally {

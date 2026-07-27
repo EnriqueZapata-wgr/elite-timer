@@ -7,7 +7,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter, Text, Pressable, Modal, TextInput } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, Text, Pressable, Modal, TextInput } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -21,7 +21,7 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
-import { saveFoodLog } from '@/src/services/food-log-service';
+import { saveFoodLog, deleteFoodLogChecked } from '@/src/services/food-log-service';
 import { warn as logWarn } from '@/src/lib/logger';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
@@ -62,7 +62,11 @@ export default function FoodRegisterScreen() {
     supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
       .eq('user_id', user.id).eq('date', today)
       .order('meal_time', { ascending: true })
-      .then(({ data }) => setTodayLogs(data ?? []));
+      .then(({ data, error }) => {
+        // MB-8 Track B (G7): un 400 no es "día sin registros".
+        if (error) logWarn('[food-register] today logs failed:', error.message);
+        else setTodayLogs(data ?? []);
+      });
 
     // Cargar frecuentes para el tipo de comida actual
     if (directMealType) {
@@ -129,13 +133,18 @@ export default function FoodRegisterScreen() {
           text: 'Eliminar',
           style: 'destructive',
           onPress: async () => {
-            await supabase.from('food_logs').delete().eq('id', logId);
-            DeviceEventEmitter.emit('day_changed');
+            // MB-8 Track B (G2): borrado verificado — 0 filas o error ≠ éxito.
+            const del = await deleteFoodLogChecked(logId);
+            if (!del.ok) {
+              Alert.alert('No se pudo eliminar', 'Intenta de nuevo.');
+              return;
+            }
             haptic.success();
             const today = getLocalToday();
-            const { data } = await supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
+            const { data, error } = await supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
               .eq('user_id', user!.id).eq('date', today).order('meal_time', { ascending: true });
-            setTodayLogs(data ?? []);
+            if (error) logWarn('[food-register] refresh logs failed:', error.message);
+            else setTodayLogs(data ?? []);
           },
         },
       ]

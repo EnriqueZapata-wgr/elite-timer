@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
+import { warn as logWarn } from '../src/lib/logger';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '../src/utils/date-helpers';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
@@ -99,6 +100,11 @@ export default function SupplementsScreen() {
         .select('name, dosage, brand, form, timing, reason, dose_pattern, dose_times, created_at')
         .eq('user_id', userId).order('created_at', { ascending: false }).limit(100),
     ]);
+    // MB-8 Track B: supabase no lanza en 4xx — un error aquí se veía como
+    // "plan vacío / 0% adherencia" sin señal alguna.
+    if (suppsRes.error) logWarn('[supplements] fichas load failed:', suppsRes.error.message);
+    if (logsRes.error) logWarn('[supplements] logs load failed:', logsRes.error.message);
+    if (historyRes.error) logWarn('[supplements] history load failed:', historyRes.error.message);
     const supps = (suppsRes.data ?? []) as any[];
     const logs = (logsRes.data ?? []) as any[];
     setSupplements(supps);
@@ -147,20 +153,38 @@ export default function SupplementsScreen() {
     }));
 
     if (currentlyTaken) {
-      await supabase.from('supplement_logs')
+      const { error } = await supabase.from('supplement_logs')
         .delete()
         .eq('user_id', userId)
         .eq('supplement_id', supplementId)
         .eq('date', today)
         .eq('dose_index', doseIndex);
+      // MB-8 Track B: si el write falla, revertir el optimista (el check
+      // "destachado" que en DB sigue tachado era un fantasma silencioso).
+      if (error) {
+        logWarn('[supplements] toggle off failed:', error.message);
+        setTodayLogs(prev => ({
+          ...prev,
+          [supplementId]: [...(prev[supplementId] ?? []), doseIndex],
+        }));
+        return;
+      }
     } else {
-      await supabase.from('supplement_logs').upsert({
+      const { error } = await supabase.from('supplement_logs').upsert({
         user_id: userId,
         supplement_id: supplementId,
         date: today,
         dose_index: doseIndex,
         taken: true,
       }, { onConflict: 'user_id,supplement_id,date,dose_index' });
+      if (error) {
+        logWarn('[supplements] toggle on failed:', error.message);
+        setTodayLogs(prev => ({
+          ...prev,
+          [supplementId]: (prev[supplementId] ?? []).filter(i => i !== doseIndex),
+        }));
+        return;
+      }
       // Economía (fire-and-forget; no-op si flag OFF). Key por suplemento/día
       // SIN dose_index → DECISIÓN multi-dosis: máximo 1 electrón por suplemento
       // al día (la 2ª/3ª toma no re-acredita; cap 8/día global se mantiene).
@@ -265,10 +289,15 @@ export default function SupplementsScreen() {
         ? newDoseTimes
         : null,
     };
-    if (editingId) {
-      await supabase.from('user_supplements').update(payload).eq('id', editingId);
-    } else {
-      await supabase.from('user_supplements').insert({ user_id: userId, source: 'manual', ...payload });
+    // MB-8 Track B: alta/edición verificada — antes un 4xx cerraba el form
+    // como si hubiera guardado (supabase-js no lanza).
+    const { error } = editingId
+      ? await supabase.from('user_supplements').update(payload).eq('id', editingId)
+      : await supabase.from('user_supplements').insert({ user_id: userId, source: 'manual', ...payload });
+    if (error) {
+      logWarn('[supplements] save failed:', error.message);
+      Alert.alert('No se pudo guardar', 'Intenta de nuevo.');
+      return;
     }
     resetForm();
     setShowAdd(false);
@@ -288,7 +317,13 @@ export default function SupplementsScreen() {
       {
         text: 'Eliminar', style: 'destructive',
         onPress: async () => {
-          await supabase.from('user_supplements').update({ is_active: false }).eq('id', id);
+          // MB-8 Track B: baja verificada.
+          const { error } = await supabase.from('user_supplements').update({ is_active: false }).eq('id', id);
+          if (error) {
+            logWarn('[supplements] remove failed:', error.message);
+            Alert.alert('No se pudo eliminar', 'Intenta de nuevo.');
+            return;
+          }
           loadSupplements();
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         },

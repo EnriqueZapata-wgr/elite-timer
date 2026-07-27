@@ -14,6 +14,7 @@ import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { saveFoodLog } from '@/src/services/food-log-service';
+import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, SURFACES } from '@/src/constants/brand';
@@ -53,12 +54,14 @@ export default function MyRecipesScreen() {
   async function loadRecipes() {
     if (!user?.id) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('user_recipes')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
-    setRecipes((data as Recipe[]) ?? []);
+    // MB-8 Track B (G4): un 400 no es "sin recetas".
+    if (error) logWarn('[my-recipes] load failed:', error.message);
+    else setRecipes((data as Recipe[]) ?? []);
     setLoading(false);
   }
 
@@ -106,7 +109,13 @@ export default function MyRecipesScreen() {
       {
         text: 'Eliminar', style: 'destructive',
         onPress: async () => {
-          await supabase.from('user_recipes').delete().eq('id', recipe.id);
+          // MB-8 Track B (G4): borrado verificado.
+          const { data, error } = await supabase.from('user_recipes').delete().eq('id', recipe.id).select('id');
+          if (error || !data?.length) {
+            logWarn('[my-recipes] delete failed:', error?.message ?? 'no rows');
+            Alert.alert('No se pudo eliminar', 'Intenta de nuevo.');
+            return;
+          }
           haptic.success();
           loadRecipes();
         },
@@ -117,22 +126,24 @@ export default function MyRecipesScreen() {
   async function createRecipe() {
     if (!user?.id || !newName.trim()) return;
     haptic.medium();
-    try {
-      await supabase.from('user_recipes').insert({
-        user_id: user.id,
-        name: newName.trim(),
-        total_calories: parseInt(newCalories) || 0,
-        total_protein: parseFloat(newProtein) || 0,
-        total_carbs: parseFloat(newCarbs) || 0,
-        total_fat: parseFloat(newFat) || 0,
-      });
-      haptic.success();
-      setShowCreate(false);
-      setNewName(''); setNewCalories(''); setNewProtein(''); setNewCarbs(''); setNewFat('');
-      loadRecipes();
-    } catch {
+    // MB-8 Track B (G4): el try/catch no atrapa 4xx — se chequea {error}.
+    const { error } = await supabase.from('user_recipes').insert({
+      user_id: user.id,
+      name: newName.trim(),
+      total_calories: parseInt(newCalories) || 0,
+      total_protein: parseFloat(newProtein) || 0,
+      total_carbs: parseFloat(newCarbs) || 0,
+      total_fat: parseFloat(newFat) || 0,
+    });
+    if (error) {
+      logWarn('[my-recipes] create failed:', error.message);
       Alert.alert('Error', 'No se pudo crear la receta.');
+      return;
     }
+    haptic.success();
+    setShowCreate(false);
+    setNewName(''); setNewCalories(''); setNewProtein(''); setNewCarbs(''); setNewFat('');
+    loadRecipes();
   }
 
   return (

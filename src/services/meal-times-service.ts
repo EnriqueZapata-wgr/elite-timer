@@ -57,11 +57,12 @@ export async function getMealTimes(userId: string): Promise<{ mealTimes: MealTim
   let mealTimes: MealTimes = DEFAULT_MEAL_TIMES;
   let timezone = deviceTimezone();
   try {
+    // MB-8 Track B: .single() con 0 filas = PGRST116 espurio → maybeSingle.
     const { data } = await supabase
       .from('client_profiles')
       .select('meal_times, timezone')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
     if (data?.meal_times) {
       mealTimes = normalizeMealTimes(data.meal_times);
     } else {
