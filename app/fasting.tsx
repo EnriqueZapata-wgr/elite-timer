@@ -5,7 +5,7 @@
  * Columnas DB: fast_start, target_hours, actual_hours, status, date.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, Pressable, Alert, Dimensions, DeviceEventEmitter } from 'react-native';
+import { View, Text, ScrollView, Pressable, Alert, Dimensions, DeviceEventEmitter, Modal } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +21,9 @@ import * as fastingService from '../src/services/fasting-service';
 import { useAnalytics, ATP_EVENTS } from '../src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { BreakFastGuide } from '@/src/components/nutrition/BreakFastGuide';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { ATP_BRAND, brandGradient } from '@/src/constants/brand';
+import { FASTING_PHASES, getCurrentPhase, getNextPhase } from '@/src/constants/fasting-phases';
+import { toLocalDateString } from '../src/utils/date-helpers';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
 import { FASTING_ALERTS } from '@/src/constants/attestation-copy';
@@ -39,12 +41,9 @@ const PAST_END_PRESETS = [
   { label: 'Ahora', getDate: () => new Date() },
   { label: 'Hace 1h', getDate: () => new Date(Date.now() - 60 * 60 * 1000) },
 ];
-const BREAK_END_PRESETS = [
-  { label: 'Ahora', getDate: () => new Date() },
-  { label: 'Hace 30m', getDate: () => new Date(Date.now() - 30 * 60 * 1000) },
-  { label: 'Hace 1h', getDate: () => new Date(Date.now() - 60 * 60 * 1000) },
-  { label: 'Hace 2h', getDate: () => new Date(Date.now() - 2 * 60 * 60 * 1000) },
-];
+// MB-8 Track F: BREAK_END_PRESETS se retiró — TERMINAR cierra al momento
+// (SPEC: sin diálogo de confirmación); corregir un fin olvidado vive en el
+// historial (editar ayuno).
 
 /** Mapea el reason de un MutationResult fallido a copy en español para el usuario. */
 function fastErrorCopy(reason: fastingService.MutationReason): string {
@@ -88,44 +87,23 @@ const STROKE_WIDTH = 12;
 const RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-// Protocolos de ayuno
+// Protocolos de ayuno (copy es-MX — E.3: toda sigla se explica)
 const FASTING_PROTOCOLS = [
-  { id: '12:12', hours: 12, label: '12:12', description: 'Principiante — 12h ayuno, 12h alimentación', color: '#22c55e' },
-  { id: '14:10', hours: 14, label: '14:10', description: 'Intermedio — 14h ayuno, 10h alimentación', color: '#38bdf8' },
-  { id: '16:8', hours: 16, label: '16:8', description: 'Popular — 16h ayuno, 8h alimentación', color: '#a8e02a' },
-  { id: '18:6', hours: 18, label: '18:6', description: 'Avanzado — 18h ayuno, 6h alimentación', color: '#f59e0b' },
-  { id: '20:4', hours: 20, label: '20:4', description: 'Warrior — 20h ayuno, 4h alimentación', color: '#f97316' },
-  { id: '24:0', hours: 24, label: 'OMAD', description: 'Una comida al día — 24h de ayuno', color: '#ef4444' },
-  { id: '36:0', hours: 36, label: '36h', description: 'Ayuno extendido — 36 horas', color: '#c084fc' },
-  { id: '72:0', hours: 72, label: '72h', description: 'Ayuno prolongado — 72 horas', color: '#ec4899' },
+  { id: '12:12', hours: 12, label: '12:12', description: 'Para empezar — 12 h de ayuno, 12 de alimentación', color: '#22c55e' },
+  { id: '14:10', hours: 14, label: '14:10', description: 'Intermedio — 14 h de ayuno, 10 de alimentación', color: '#38bdf8' },
+  { id: '16:8', hours: 16, label: '16:8', description: 'El clásico — 16 h de ayuno, 8 de alimentación', color: '#a8e02a' },
+  { id: '18:6', hours: 18, label: '18:6', description: 'Avanzado — 18 h de ayuno, 6 de alimentación', color: '#f59e0b' },
+  { id: '20:4', hours: 20, label: '20:4', description: 'Exigente — 20 h de ayuno, 4 de alimentación', color: '#f97316' },
+  { id: '24:0', hours: 24, label: 'OMAD', description: 'Una comida al día — 24 h de ayuno', color: '#ef4444' },
+  { id: '36:0', hours: 36, label: '36 h', description: 'Extendido — 36 horas, requiere experiencia', color: '#c084fc' },
+  { id: '72:0', hours: 72, label: '72 h', description: 'Prolongado — 72 horas, con protocolo de seguridad', color: '#ec4899' },
 ];
 
-// Zonas biológicas del ayuno
-const FASTING_ZONES = [
-  { hours: 0, label: 'Fase alimentada', description: 'Digestión y absorción de nutrientes', color: '#22c55e', icon: 'restaurant-outline' as const },
-  { hours: 4, label: 'Postabsorción', description: 'Glucosa en sangre baja, empieza a usar reservas', color: '#38bdf8', icon: 'trending-down-outline' as const },
-  { hours: 8, label: 'Glucogenólisis', description: 'Tu hígado libera glucógeno almacenado', color: '#60a5fa', icon: 'flash-outline' as const },
-  { hours: 12, label: 'Cetosis temprana', description: 'Empiezas a quemar grasa como combustible', color: '#a8e02a', icon: 'flame-outline' as const },
-  { hours: 16, label: 'Autofagia', description: 'Tus células reciclan componentes dañados', color: '#f59e0b', icon: 'refresh-outline' as const },
-  { hours: 24, label: 'Autofagia profunda', description: 'Reparación celular intensa + hormona de crecimiento', color: '#f97316', icon: 'shield-outline' as const },
-  { hours: 36, label: 'Reparación inmune', description: 'Sistema inmune se regenera', color: '#c084fc', icon: 'medkit-outline' as const },
-  { hours: 48, label: 'Reset metabólico', description: 'Sensibilidad a insulina se restaura profundamente', color: '#ec4899', icon: 'nuclear-outline' as const },
-];
-
-function getCurrentZone(hours: number) {
-  let zone = FASTING_ZONES[0];
-  for (const z of FASTING_ZONES) {
-    if (hours >= z.hours) zone = z;
-  }
-  return zone;
-}
-
-function getNextZone(hours: number) {
-  for (const z of FASTING_ZONES) {
-    if (z.hours > hours) return z;
-  }
-  return null;
-}
+// MB-8 Track F.1: las fases metabólicas viven parametrizadas en UN solo lugar
+// (src/constants/fasting-phases — ventanas PROVISIONALES, las cierra Enrique).
+// Aliases para el resto del archivo (breakFast, historial).
+const getCurrentZone = getCurrentPhase;
+const getNextZone = getNextPhase;
 
 function formatDuration(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60);
@@ -135,6 +113,39 @@ function formatDuration(totalMinutes: number): string {
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+/** F.3: "desde tu último ayuno" — en días cuando ya son ≥48 h. */
+function formatSince(totalMinutes: number): string {
+  const days = Math.floor(totalMinutes / 1440);
+  if (days >= 2) return `${days} días`;
+  return formatDuration(totalMinutes);
+}
+
+/** F.4: anillo chico de la tira semanal (consistencia de un vistazo). */
+function DayRing({ letter, pct, isToday }: { letter: string; pct: number; isToday: boolean }) {
+  const size = 30;
+  const sw = 3;
+  const r = (size - sw) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <View style={{ alignItems: 'center', gap: 4 }}>
+      <Svg width={size} height={size}>
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke="#1f1f1f" strokeWidth={sw} fill="transparent" />
+        {pct > 0 && (
+          <Circle
+            cx={size / 2} cy={size / 2} r={r}
+            stroke={ATP_BRAND.lime} strokeWidth={sw} fill="transparent"
+            strokeDasharray={`${c}`} strokeDashoffset={c * (1 - Math.min(1, pct))}
+            strokeLinecap="round" rotation={-90} origin={`${size / 2}, ${size / 2}`}
+          />
+        )}
+      </Svg>
+      <Text style={{ color: isToday ? '#fff' : '#555', fontSize: 10, fontWeight: isToday ? '800' : '600' }}>
+        {letter}
+      </Text>
+    </View>
+  );
 }
 
 /**
@@ -156,7 +167,6 @@ export default function FastingScreen() {
   const [selectedProtocol, setSelectedProtocol] = useState(FASTING_PROTOCOLS[2]); // 16:8
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [showProtocols, setShowProtocols] = useState(false);
   const [elapsed, setElapsed] = useState(0); // minutos
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -165,9 +175,11 @@ export default function FastingScreen() {
   const [customStartSet, setCustomStartSet] = useState(false);
   const [startWheelOpen, setStartWheelOpen] = useState(false);
   const [customStartTime, setCustomStartTime] = useState(new Date());
-  // Break-fast end picker: showEndPicker = modal del wheel abierto.
-  const [showEndPicker, setShowEndPicker] = useState(false);
-  const [customEndTime, setCustomEndTime] = useState(new Date());
+  // MB-8 Track F: hojas de meta (F.2) y de fase metabólica (F.1).
+  const [goalSheetOpen, setGoalSheetOpen] = useState(false);
+  const [phaseSheetOpen, setPhaseSheetOpen] = useState(false);
+  // Cambio de meta con gate pendiente (ayuno activo → objetivo largo).
+  const [pendingGoal, setPendingGoal] = useState<typeof FASTING_PROTOCOLS[number] | null>(null);
 
   // Sprint Compliance 3: gate de ayuno prolongado (atestación >48h + hard
   // blocks embarazo/TCA/diabetes) + parámetros de seguridad server-driven.
@@ -483,7 +495,6 @@ export default function FastingScreen() {
       await fastingService.cancelActiveFast(activeFast.id);
       setActiveFast(null);
       setElapsed(0);
-      setShowEndPicker(false);
       return;
     }
     const actualHours = (endTime.getTime() - start.getTime()) / (1000 * 60 * 60);
@@ -528,24 +539,42 @@ export default function FastingScreen() {
     }
     setActiveFast(null);
     setElapsed(0);
-    setShowEndPicker(false);
     loadHistory();
     DeviceEventEmitter.emit('day_changed');
   }
 
-  // F16.13: Alert con 2 botones. El 3-button Alert tenía comportamiento
-  // inconsistente entre Android versions / RN-Web (el middle onPress podía
-  // no disparar). "Elegir hora" se expone como Pressable secundario debajo
-  // del botón principal.
-  function handleBreakFast() {
-    Alert.alert(
-      'Romper ayuno',
-      `Has ayunado ${formatDuration(elapsed)}`,
-      [
-        { text: 'Seguir ayunando', style: 'cancel' },
-        { text: 'Terminé ahora', onPress: () => breakFastWithTime(new Date()) },
-      ],
-    );
+  // MB-8 Track F.0: TERMINAR ya no confirma con diálogo (SPEC: el botón baja
+  // de énfasis visual, no se esconde) — llama breakFastWithTime(new Date())
+  // directo. El cierre guiado (BreakFastGuide) es la pantalla de aterrizaje.
+
+  // === META EDITABLE (F.2) ===
+  /** Aplica la meta elegida: estado + goal persistido + target del ayuno activo. */
+  async function applyGoal(p: typeof FASTING_PROTOCOLS[number]) {
+    setSelectedProtocol(p);
+    persistFastingGoal(p.hours);
+    if (activeFast) {
+      const r = await fastingService.updateFast({ fastId: activeFast.id, targetHours: p.hours });
+      if (r.ok) setActiveFast(r.data);
+      else logWarn('[fasting] target update failed:', r.message);
+    }
+  }
+
+  /** Selección desde la hoja de meta. Con ayuno ACTIVO y objetivo largo, corre
+   * el mismo gate de seguridad que al iniciar (no se brinca la atestación). */
+  async function selectGoal(p: typeof FASTING_PROTOCOLS[number]) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setGoalSheetOpen(false);
+    if (activeFast) {
+      const safetyState = await getSafetyState(userId);
+      const decision = fastingGateDecision(p.hours, safetyState, fastingParamsRef.current);
+      if (decision.result !== 'allowed') {
+        setPendingGoal(p);
+        setFastingGate(decision);
+        setGateVisible(true);
+        return;
+      }
+    }
+    applyGoal(p);
   }
 
   // Efectos secundarios de un savePastFast exitoso (electrón + refresh + cleanup).
@@ -750,6 +779,36 @@ export default function FastingScreen() {
   const timeToNext = nextZone ? (nextZone.hours * 60 - safeElapsed) : 0;
   const remainingMinutes = Math.max(targetMinutes - safeElapsed, 0);
 
+  // === DERIVADOS DEL LAYOUT MB-8 (Track F) ===
+  // F.4: marcador que viaja sobre el anillo (posición polar del progreso).
+  const markerAngle = progress * 2 * Math.PI - Math.PI / 2;
+  const markerX = RING_SIZE / 2 + RADIUS * Math.cos(markerAngle);
+  const markerY = RING_SIZE / 2 + RADIUS * Math.sin(markerAngle);
+  // F.3: vacío que informa — tiempo desde el último ayuno completado.
+  const lastCompleted = history[0] ?? null;
+  const lastEnd = lastCompleted ? (safeDate(lastCompleted.fast_end) ?? safeDate(lastCompleted.fast_start)) : null;
+  const sinceLastMin = lastEnd ? Math.max(0, (Date.now() - lastEnd.getTime()) / 60000) : 0;
+  // F.2: hora meta proyectada del ayuno activo (recálculo en vivo).
+  const activeStart = activeFast ? safeDate(activeFast.fast_start) : null;
+  const goalEnd = activeStart ? new Date(activeStart.getTime() + selectedProtocol.hours * 3600000) : null;
+  // F.4: tira de la semana (7 días terminando hoy; hoy incluye el ayuno en curso).
+  const WEEK_LETTERS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+  const week: { key: string; letter: string; pct: number; isToday: boolean }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = toLocalDateString(d);
+    let pct = 0;
+    for (const f of history) {
+      if (f.date !== key) continue;
+      const t = f.target_hours || 16;
+      pct = Math.max(pct, Math.min(1, (f.actual_hours || 0) / t));
+    }
+    const isToday = i === 0;
+    if (isToday && activeFast) pct = Math.max(pct, progress);
+    week.push({ key, letter: WEEK_LETTERS[d.getDay()], pct, isToday });
+  }
+
   // === RENDER ===
   return (
     <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
@@ -762,7 +821,10 @@ export default function FastingScreen() {
             </Pressable>
             <View>
               <Text style={{ color: '#5B9BD5', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP</Text>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>AYUNO</Text>
+              {/* F.0.6: el estado se anuncia con palabras */}
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>
+                {activeFast ? 'Estás ayunando' : 'AYUNO'}
+              </Text>
             </View>
           </View>
           <Pressable onPress={() => setShowHistory(!showHistory)} hitSlop={12}>
@@ -929,368 +991,283 @@ export default function FastingScreen() {
           )}
         </View>
 
-      ) : activeFast ? (
-        /* ════════════════════════════════════════════════════════════════
-           AYUNANDO — Timer activo
-        ════════════════════════════════════════════════════════════════ */
+      ) : (
+        /* ═══ TIMER — UN solo layout para reposo y ayuno activo (MB-8 Track F).
+           El anillo y el botón primario viven SIEMPRE en el mismo lugar;
+           solo cambia lo que hay adentro y el peso visual (SPEC Zero→ATP). ═══ */
         <View style={{ alignItems: 'center', paddingHorizontal: 20 }}>
-          {/* Ring timer */}
+          {/* Anillo fijo — cero salto de layout (F.0.2) */}
           <View style={{ width: RING_SIZE, height: RING_SIZE, justifyContent: 'center', alignItems: 'center', marginVertical: 20 }}>
             <Svg width={RING_SIZE} height={RING_SIZE}>
               <Circle
                 cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
                 stroke="#1a1a1a" strokeWidth={STROKE_WIDTH} fill="transparent"
+                strokeDasharray={activeFast ? undefined : '3 9'}
               />
-              <Circle
-                cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
-                stroke={currentZone.color} strokeWidth={STROKE_WIDTH} fill="transparent"
-                strokeDasharray={`${CIRCUMFERENCE}`}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                rotation={-90}
-                origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
-              />
+              {activeFast && (
+                <>
+                  <Circle
+                    cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
+                    stroke={currentZone.color} strokeWidth={STROKE_WIDTH} fill="transparent"
+                    strokeDasharray={`${CIRCUMFERENCE}`}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    rotation={-90}
+                    origin={`${RING_SIZE / 2}, ${RING_SIZE / 2}`}
+                  />
+                  {/* F.4: marcador que viaja — ves dónde vas, no solo cuánto falta */}
+                  <Circle cx={markerX} cy={markerY} r={STROKE_WIDTH / 2 + 3} fill={currentZone.color} stroke="#000" strokeWidth={2.5} />
+                </>
+              )}
             </Svg>
 
-            {/* Center content */}
-            <View style={{ position: 'absolute', alignItems: 'center' }}>
-              <Text style={{ color: '#fff', fontSize: 42, fontWeight: '900', fontVariant: ['tabular-nums'] }}>
-                {formatDuration(elapsed)}
-              </Text>
-              <Text style={{ color: '#999', fontSize: 13, marginTop: 4 }}>
-                de {selectedProtocol.hours}h objetivo
-              </Text>
-              {remainingMinutes > 0 ? (
-                <Text style={{ color: currentZone.color, fontSize: 12, fontWeight: '600', marginTop: 8 }}>
-                  Faltan {formatDuration(remainingMinutes)}
-                </Text>
+            {/* Centro: el número es el héroe (F.0.3) */}
+            <View style={{ position: 'absolute', alignItems: 'center', paddingHorizontal: 28 }}>
+              {activeFast ? (
+                <>
+                  <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>TRANSCURRIDO</Text>
+                  <Text style={{ color: '#fff', fontSize: 44, fontWeight: '900', fontVariant: ['tabular-nums'], marginTop: 2 }}>
+                    {formatDuration(elapsed)}
+                  </Text>
+                  {remainingMinutes > 0 ? (
+                    <Text style={{ color: currentZone.color, fontSize: 12, fontWeight: '600', marginTop: 6 }}>
+                      Faltan {formatDuration(remainingMinutes)}
+                    </Text>
+                  ) : (
+                    <Text style={{ color: '#22c55e', fontSize: 13, fontWeight: '800', marginTop: 6 }}>
+                      ¡META ALCANZADA!
+                    </Text>
+                  )}
+                </>
+              ) : lastCompleted ? (
+                /* F.3: vacío que informa — dato real en vez de anillo muerto */
+                <>
+                  <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, textAlign: 'center' }}>DESDE TU ÚLTIMO AYUNO</Text>
+                  <Text style={{ color: '#fff', fontSize: 40, fontWeight: '900', fontVariant: ['tabular-nums'], marginTop: 2 }}>
+                    {formatSince(sinceLastMin)}
+                  </Text>
+                  <Text style={{ color: '#666', fontSize: 12, marginTop: 6 }}>
+                    ayunaste {Math.round((lastCompleted.actual_hours || 0) * 10) / 10} h
+                  </Text>
+                </>
               ) : (
-                <Text style={{ color: '#22c55e', fontSize: 14, fontWeight: '800', marginTop: 8 }}>
-                  ¡OBJETIVO ALCANZADO!
-                </Text>
+                /* F.3: primera vez — el vacío invita, no acusa */
+                <>
+                  <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>TU PRIMER AYUNO</Text>
+                  <Text style={{ color: '#fff', fontSize: 44, fontWeight: '900', marginTop: 2 }}>
+                    {selectedProtocol.hours} h
+                  </Text>
+                  <Text style={{ color: '#666', fontSize: 12, marginTop: 6 }}>empieza cuando tú digas</Text>
+                </>
               )}
             </View>
-          </View>
 
-          {/* Zona actual */}
-          <View style={{
-            backgroundColor: `${currentZone.color}10`, borderRadius: 16, padding: 16,
-            width: '100%', marginBottom: 12,
-            borderWidth: 1, borderColor: `${currentZone.color}25`,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Ionicons name={currentZone.icon} size={20} color={currentZone.color} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: currentZone.color, fontSize: 14, fontWeight: '700' }}>
-                  {currentZone.label}
-                </Text>
-                <Text style={{ color: '#999', fontSize: 12, marginTop: 2 }}>
-                  {currentZone.description}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Siguiente zona */}
-          {nextZone && (
-            <View style={{
-              backgroundColor: '#0a0a0a', borderRadius: 12, padding: 14, width: '100%', marginBottom: 20,
-              flexDirection: 'row', alignItems: 'center', gap: 10,
-            }}>
-              <Ionicons name="arrow-forward-outline" size={16} color="#666" />
-              <Text style={{ color: '#666', fontSize: 12, flex: 1 }}>
-                Siguiente: <Text style={{ color: nextZone.color, fontWeight: '600' }}>{nextZone.label}</Text> en {formatDuration(timeToNext)}
-              </Text>
-            </View>
-          )}
-
-          {/* Checklist de zonas */}
-          <View style={{ width: '100%', marginBottom: 16 }}>
-            <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 10 }}>
-              PROGRESO POR ZONAS
-            </Text>
-            {FASTING_ZONES.filter(z => z.hours > 0 && z.hours <= selectedProtocol.hours).map(zone => {
-              const reached = elapsedHours >= zone.hours;
-              const isCurrent = zone === currentZone;
-              return (
-                <View key={zone.hours} style={{
-                  flexDirection: 'row', alignItems: 'center', gap: 10,
-                  paddingVertical: 6, paddingHorizontal: 4,
-                  opacity: reached ? 1 : 0.4,
-                }}>
-                  <View style={{
-                    width: 24, height: 24, borderRadius: 12,
-                    backgroundColor: reached ? `${zone.color}20` : '#1a1a1a',
-                    justifyContent: 'center', alignItems: 'center',
-                    borderWidth: isCurrent ? 2 : 0, borderColor: zone.color,
-                  }}>
-                    {reached ? (
-                      <Ionicons name="checkmark" size={14} color={zone.color} />
-                    ) : (
-                      <Text style={{ color: '#444', fontSize: 9, fontWeight: '700' }}>{zone.hours}h</Text>
-                    )}
-                  </View>
-                  <Text style={{ color: reached ? '#fff' : '#555', fontSize: 12, fontWeight: isCurrent ? '700' : '500', flex: 1 }}>
-                    {zone.label}
-                  </Text>
-                  {isCurrent && (
-                    <Text style={{ color: zone.color, fontSize: 9, fontWeight: '800' }}>AQUÍ</Text>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Hora de inicio (tap para editar) */}
-          <Pressable
-            onPress={() => setActiveStartEditOpen(true)}
-            hitSlop={8}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}
-          >
-            <Text style={{ color: '#666', fontSize: 12 }}>
-              {(() => {
-                const start = safeDate(activeFast.fast_start);
-                return start ? `Iniciaste a las ${formatTime(start)}` : 'Iniciaste a las --:--';
-              })()}
-            </Text>
-            <Ionicons name="pencil-outline" size={13} color="#a8e02a" />
-          </Pressable>
-
-          {/* Botones */}
-          <Pressable
-            onPress={handleBreakFast}
-            style={{
-              backgroundColor: ATP_BRAND.lime, borderRadius: 18, paddingVertical: 18,
-              width: '100%', alignItems: 'center', marginBottom: 8,
-            }}
-          >
-            <Text style={{ color: '#000', fontSize: 18, fontWeight: '800' }}>ROMPER AYUNO</Text>
-          </Pressable>
-
-          {/* F16.13: link secundario al picker custom (antes era opción del Alert 3-button). */}
-          {!showEndPicker && (
+            {/* Badge de meta sobre el anillo — presente en AMBOS estados (SPEC #6) */}
             <Pressable
-              onPress={() => { setCustomEndTime(new Date()); setShowEndPicker(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'break_end' }); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGoalSheetOpen(true); }}
               hitSlop={8}
-              style={{ alignItems: 'center', marginBottom: 12 }}
-            >
-              <Text style={{ color: '#a8e02a', fontSize: 13, fontWeight: '600' }}>
-                Elegir otra hora de fin
-              </Text>
-            </Pressable>
-          )}
-
-          {/* Picker de hora de fin (wheel modal — reemplaza mode="datetime") */}
-          <TimeWheelPicker
-            visible={showEndPicker}
-            initialValue={customEndTime}
-            // AY-3: undefined si fast_start es inválido — evita que el picker se congele.
-            minDate={safeDate(activeFast.fast_start) ?? undefined}
-            maxDate={new Date()}
-            title="¿Cuándo terminaste?"
-            presets={BREAK_END_PRESETS}
-            onConfirm={(date) => { setShowEndPicker(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'break_end', applied: true }); breakFastWithTime(date); }}
-            onCancel={() => { setShowEndPicker(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'break_end', applied: false }); }}
-          />
-
-          <Pressable onPress={cancelFast}>
-            <Text style={{ color: '#666', fontSize: 13 }}>Cancelar y eliminar</Text>
-          </Pressable>
-        </View>
-
-      ) : (
-        /* ════════════════════════════════════════════════════════════════
-           IDLE — Iniciar ayuno
-        ════════════════════════════════════════════════════════════════ */
-        <View style={{ paddingHorizontal: 20 }}>
-          {/* Selector de protocolo */}
-          <Pressable onPress={() => setShowProtocols(!showProtocols)}>
-            <LinearGradient
-              colors={[`${selectedProtocol.color}12`, `${selectedProtocol.color}04`]}
               style={{
-                borderRadius: 18, padding: 20, marginBottom: 20,
-                borderWidth: 1, borderColor: `${selectedProtocol.color}25`,
+                position: 'absolute', top: 0, right: 0,
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: '#121212', borderWidth: 1, borderColor: `${selectedProtocol.color}55`,
+                alignItems: 'center', justifyContent: 'center',
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                <View>
-                  <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 1 }}>PROTOCOLO</Text>
-                  <Text style={{ color: selectedProtocol.color, fontSize: 32, fontWeight: '900', marginTop: 4 }}>
-                    {selectedProtocol.label}
-                  </Text>
-                  <Text style={{ color: '#999', fontSize: 12, marginTop: 4 }}>
-                    {selectedProtocol.description}
-                  </Text>
-                </View>
-                <Ionicons name={showProtocols ? 'chevron-up' : 'chevron-down'} size={22} color="#666" />
-              </View>
-            </LinearGradient>
-          </Pressable>
-
-          {/* Lista de protocolos expandible (capada a MAX_FAST_HOURS) */}
-          {showProtocols && (
-            <View style={{ marginBottom: 20, gap: 6 }}>
-              {FASTING_PROTOCOLS.filter(p => p.hours <= MAX_FAST_HOURS).map(p => (
-                <Pressable
-                  key={p.id}
-                  onPress={() => {
-                    setSelectedProtocol(p);
-                    setShowProtocols(false);
-                    persistFastingGoal(p.hours); // Sprint 1.5: única config de ayuno post protocol-config
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 12,
-                    backgroundColor: selectedProtocol.id === p.id ? `${p.color}10` : '#0a0a0a',
-                    borderRadius: 14, padding: 14,
-                    borderWidth: 1,
-                    borderColor: selectedProtocol.id === p.id ? `${p.color}30` : '#1a1a1a',
-                  }}
-                >
-                  <View style={{
-                    width: 36, height: 36, borderRadius: 18,
-                    backgroundColor: `${p.color}15`,
-                    justifyContent: 'center', alignItems: 'center',
-                  }}>
-                    <Text style={{ color: p.color, fontSize: 12, fontWeight: '900' }}>{p.hours}h</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{p.label}</Text>
-                    <Text style={{ color: '#666', fontSize: 11 }}>{p.description}</Text>
-                  </View>
-                  {selectedProtocol.id === p.id && (
-                    <Ionicons name="checkmark-circle" size={20} color={p.color} />
-                  )}
-                </Pressable>
-              ))}
-            </View>
-          )}
-
-          {/* Ring preview */}
-          <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <View style={{ width: RING_SIZE * 0.8, height: RING_SIZE * 0.8, justifyContent: 'center', alignItems: 'center' }}>
-              <Svg width={RING_SIZE * 0.8} height={RING_SIZE * 0.8}>
-                <Circle
-                  cx={RING_SIZE * 0.4} cy={RING_SIZE * 0.4} r={RADIUS * 0.8}
-                  stroke="#1a1a1a" strokeWidth={STROKE_WIDTH - 2} fill="transparent"
-                  strokeDasharray="4 8"
-                />
-              </Svg>
-              <View style={{ position: 'absolute', alignItems: 'center' }}>
-                <Text style={{ color: '#333', fontSize: 36, fontWeight: '900' }}>0:00</Text>
-                <Text style={{ color: '#444', fontSize: 12 }}>de {selectedProtocol.hours}h</Text>
-              </View>
-            </View>
+              <Text style={{ color: selectedProtocol.color, fontSize: 13, fontWeight: '900' }}>{selectedProtocol.hours}</Text>
+            </Pressable>
           </View>
 
-          {/* Zonas biológicas preview */}
-          <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>
-            ZONAS QUE ALCANZARÁS
-          </Text>
-          {FASTING_ZONES.filter(z => z.hours <= selectedProtocol.hours && z.hours > 0).map(zone => (
-            <View key={zone.hours} style={{
-              flexDirection: 'row', alignItems: 'center', gap: 12,
-              paddingVertical: 8, paddingHorizontal: 4, opacity: 0.7,
-            }}>
-              <View style={{
-                width: 28, height: 28, borderRadius: 14,
-                backgroundColor: `${zone.color}15`,
-                justifyContent: 'center', alignItems: 'center',
-              }}>
-                <Ionicons name={zone.icon} size={14} color={zone.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: '#ccc', fontSize: 13, fontWeight: '600' }}>{zone.label}</Text>
-                <Text style={{ color: '#666', fontSize: 11 }}>{zone.description}</Text>
-              </View>
-              <Text style={{ color: zone.color, fontSize: 12, fontWeight: '700' }}>{zone.hours}h</Text>
-            </View>
-          ))}
-
-          {/* BOTÓN INICIAR */}
-          <Pressable
-            onPress={startFast}
-            style={{
-              backgroundColor: selectedProtocol.color, borderRadius: 20, paddingVertical: 20,
-              alignItems: 'center', marginTop: 24,
-              shadowColor: selectedProtocol.color,
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.3, shadowRadius: 12,
-            }}
-          >
-            <Text style={{ color: '#000', fontSize: 20, fontWeight: '900', letterSpacing: 1 }}>
-              INICIAR AYUNO
-            </Text>
-          </Pressable>
-
-          {/* ¿Empezaste antes? (wheel modal — reemplaza mode="datetime") */}
-          <Pressable
-            onPress={() => { setCustomStartTime(customStartSet ? customStartTime : new Date()); setStartWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'start' }); }}
-            style={{ alignItems: 'center', marginTop: 12 }}
-          >
-            <Text style={{ color: customStartSet ? selectedProtocol.color : '#666', fontSize: 13, fontWeight: customStartSet ? '600' : '400' }}>
-              {customStartSet
-                ? `Empezaste hace ${formatDuration((Date.now() - customStartTime.getTime()) / (1000 * 60))} · cambiar`
-                : '¿Empezaste antes? Elige la hora'}
-            </Text>
-          </Pressable>
-
-          {customStartSet && (
-            <Pressable onPress={() => setCustomStartSet(false)} style={{ alignItems: 'center', marginTop: 6 }}>
-              <Text style={{ color: '#666', fontSize: 12 }}>Usar hora actual</Text>
+          {/* F.1: fase metabólica en vivo — la narrativa de tu cuerpo */}
+          {activeFast && (
+            <Pressable
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setPhaseSheetOpen(true); }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 8,
+                backgroundColor: `${currentZone.color}12`, borderWidth: 1, borderColor: `${currentZone.color}30`,
+                borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9, marginBottom: 6,
+              }}
+            >
+              <Ionicons name={currentZone.icon} size={15} color={currentZone.color} />
+              <Text style={{ color: currentZone.color, fontSize: 13, fontWeight: '700' }}>{currentZone.label}</Text>
+              <Ionicons name="chevron-up" size={13} color="#666" />
             </Pressable>
           )}
 
-          <TimeWheelPicker
-            visible={startWheelOpen}
-            initialValue={customStartTime}
-            maxDate={new Date()}
-            title="¿Cuándo empezaste?"
-            presets={START_PRESETS}
-            onConfirm={(date) => { setCustomStartTime(date); setCustomStartSet(true); setStartWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'start', applied: true }); }}
-            onCancel={() => { setStartWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'start', applied: false }); }}
-          />
-
-          {/* Historial rápido */}
-          {history.length > 0 && (
-            <View style={{ marginTop: 24 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
-                  RECIENTES
+          {/* INICIO · META — se edita donde se ve (F.2), 3 niveles de texto (F.0.4) */}
+          <View style={{ flexDirection: 'row', width: '100%', marginTop: 14 }}>
+            <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
+              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>INICIO</Text>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                {activeFast
+                  ? (activeStart ? formatTime(activeStart) : '--:--')
+                  : customStartSet ? formatTime(customStartTime) : 'Ahora'}
+              </Text>
+              <Pressable
+                onPress={activeFast
+                  ? () => setActiveStartEditOpen(true)
+                  : () => { setCustomStartTime(customStartSet ? customStartTime : new Date()); setStartWheelOpen(true); analytics.track(ATP_EVENTS.FAST_PICKER_OPENED, { which: 'start' }); }}
+                hitSlop={8}
+              >
+                <Text style={{ color: '#a8e02a', fontSize: 12, fontWeight: '600' }}>
+                  {activeFast ? 'Editar inicio' : '¿Empezaste antes?'}
                 </Text>
-                <Pressable onPress={() => setShowHistory(true)}>
-                  <Text style={{ color: '#a8e02a', fontSize: 11, fontWeight: '600' }}>Ver todo</Text>
+              </Pressable>
+              {!activeFast && customStartSet && (
+                <Pressable onPress={() => setCustomStartSet(false)} hitSlop={8}>
+                  <Text style={{ color: '#666', fontSize: 11 }}>Usar ahora</Text>
                 </Pressable>
+              )}
+            </View>
+            <View style={{ width: 1, backgroundColor: '#1a1a1a' }} />
+            <View style={{ flex: 1, alignItems: 'center', gap: 3 }}>
+              <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>META</Text>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
+                {selectedProtocol.hours} h{activeFast && goalEnd ? ` · ${formatTime(goalEnd)}` : ''}
+              </Text>
+              <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setGoalSheetOpen(true); }} hitSlop={8}>
+                <Text style={{ color: '#a8e02a', fontSize: 12, fontWeight: '600' }}>Cambiar meta</Text>
+              </Pressable>
+            </View>
+          </View>
+
+          {/* F.4: tu semana de un vistazo */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 10, marginTop: 18 }}>
+            {week.map((d) => (
+              <DayRing key={d.key} letter={d.letter} pct={d.pct} isToday={d.isToday} />
+            ))}
+          </View>
+
+          {/* BOTÓN PRIMARIO — mismo lugar, mismo tamaño; solo cambia el peso
+              visual (F.0.1). Terminar NO pide confirmación: el cierre guiado
+              (BreakFastGuide) es el aterrizaje. */}
+          {activeFast ? (
+            <Pressable
+              onPress={() => breakFastWithTime(new Date())}
+              style={{
+                width: '100%', borderRadius: 18, paddingVertical: 18, alignItems: 'center', marginTop: 22,
+                backgroundColor: 'rgba(168,224,42,0.13)', borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)',
+              }}
+            >
+              <Text style={{ color: ATP_BRAND.lime, fontSize: 17, fontWeight: '800', letterSpacing: 1 }}>TERMINAR AYUNO</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={startFast} style={{ width: '100%', borderRadius: 18, overflow: 'hidden', marginTop: 22 }}>
+              <LinearGradient
+                colors={brandGradient()}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={{ paddingVertical: 18, alignItems: 'center' }}
+              >
+                <Text style={{ color: '#000', fontSize: 17, fontWeight: '900', letterSpacing: 1 }}>INICIAR AYUNO</Text>
+              </LinearGradient>
+            </Pressable>
+          )}
+
+          {/* Único secundario del estado activo (destructivo, con confirmación) */}
+          {activeFast && (
+            <Pressable onPress={cancelFast} style={{ paddingVertical: 14 }}>
+              <Text style={{ color: '#666', fontSize: 13 }}>Cancelar y eliminar</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
+      {/* ── Hoja de META (F.2): los 8 protocolos plegados aquí — antes
+          vivían expandidos en la pantalla ── */}
+      <Modal visible={goalSheetOpen} transparent animationType="slide" onRequestClose={() => setGoalSheetOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }} onPress={() => setGoalSheetOpen(false)}>
+          <Pressable
+            style={{ backgroundColor: '#121212', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, borderWidth: 1, borderColor: '#1f1f1f' }}
+            onPress={() => {}}
+          >
+            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '800', marginBottom: 4 }}>Tu meta de ayuno</Text>
+            <Text style={{ color: '#777', fontSize: 12, marginBottom: 14 }}>
+              {activeFast ? 'Puedes ajustarla sin cortar el ayuno en curso.' : 'Se recuerda para tus próximos ayunos.'}
+            </Text>
+            {FASTING_PROTOCOLS.filter(p => p.hours <= MAX_FAST_HOURS).map(p => (
+              <Pressable
+                key={p.id}
+                onPress={() => selectGoal(p)}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 12,
+                  backgroundColor: selectedProtocol.id === p.id ? `${p.color}10` : 'transparent',
+                  borderRadius: 14, padding: 12,
+                  borderWidth: 1,
+                  borderColor: selectedProtocol.id === p.id ? `${p.color}30` : 'transparent',
+                }}
+              >
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${p.color}15`, justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{ color: p.color, fontSize: 12, fontWeight: '900' }}>{p.hours}h</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{p.label}</Text>
+                  <Text style={{ color: '#666', fontSize: 11 }}>{p.description}</Text>
+                </View>
+                {selectedProtocol.id === p.id && <Ionicons name="checkmark-circle" size={20} color={p.color} />}
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── Hoja de FASE (F.1): qué pasa ahora, qué sigue, mapa completo ── */}
+      <Modal visible={phaseSheetOpen} transparent animationType="slide" onRequestClose={() => setPhaseSheetOpen(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }} onPress={() => setPhaseSheetOpen(false)}>
+          <Pressable
+            style={{ backgroundColor: '#121212', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34, borderWidth: 1, borderColor: '#1f1f1f' }}
+            onPress={() => {}}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: `${currentZone.color}18`, justifyContent: 'center', alignItems: 'center' }}>
+                <Ionicons name={currentZone.icon} size={20} color={currentZone.color} />
               </View>
-              {history.slice(0, 3).map(fast => {
-                const hours = fast.actual_hours || 0;
-                const zone = getCurrentZone(hours);
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>AHORA, EN TU CUERPO</Text>
+                <Text style={{ color: currentZone.color, fontSize: 17, fontWeight: '800' }}>{currentZone.label}</Text>
+              </View>
+            </View>
+            <Text style={{ color: '#ccc', fontSize: 13, lineHeight: 20 }}>{currentZone.now}</Text>
+
+            {nextZone && (
+              <View style={{ backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, marginTop: 14 }}>
+                <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>
+                  SIGUIENTE · {nextZone.label.toUpperCase()} · EN {formatDuration(timeToNext).toUpperCase()}
+                </Text>
+                <Text style={{ color: '#888', fontSize: 12, marginTop: 4, lineHeight: 18 }}>{nextZone.description}</Text>
+              </View>
+            )}
+
+            {/* Mapa de fases (la checklist de antes, plegada aquí) */}
+            <View style={{ marginTop: 16 }}>
+              {FASTING_PHASES.filter(p => p.hours > 0).map(p => {
+                const reached = elapsedHours >= p.hours;
                 return (
-                  <View key={fast.id} style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 10,
-                    backgroundColor: '#0a0a0a', borderRadius: 12, padding: 12, marginBottom: 6,
-                  }}>
-                    <View style={{
-                      width: 32, height: 32, borderRadius: 16,
-                      backgroundColor: `${zone.color}15`,
-                      justifyContent: 'center', alignItems: 'center',
-                    }}>
-                      <Text style={{ color: zone.color, fontSize: 12, fontWeight: '900' }}>{Math.round(hours)}h</Text>
+                  <View key={p.hours} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 5, opacity: reached ? 1 : 0.45 }}>
+                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: reached ? `${p.color}20` : '#1a1a1a', justifyContent: 'center', alignItems: 'center' }}>
+                      {reached
+                        ? <Ionicons name="checkmark" size={13} color={p.color} />
+                        : <Text style={{ color: '#555', fontSize: 8, fontWeight: '700' }}>{p.hours}h</Text>}
                     </View>
-                    <Text style={{ color: '#ccc', fontSize: 13, flex: 1 }}>{zone.label}</Text>
-                    <Text style={{ color: '#666', fontSize: 11 }}>
-                      {(() => {
-                        const d = safeDate(fast.fast_start);
-                        return d ? d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }) : '--';
-                      })()}
-                    </Text>
+                    <Text style={{ color: reached ? '#fff' : '#666', fontSize: 12, flex: 1 }}>{p.label}</Text>
+                    <Text style={{ color: '#555', fontSize: 10 }}>{p.hours} h</Text>
                   </View>
                 );
               })}
             </View>
-          )}
-        </View>
-      )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── ¿Empezaste antes? (IDLE): wheel de hora de inicio custom ── */}
+      <TimeWheelPicker
+        visible={startWheelOpen}
+        initialValue={customStartTime}
+        maxDate={new Date()}
+        title="¿Cuándo empezaste?"
+        presets={START_PRESETS}
+        onConfirm={(date) => { setCustomStartTime(date); setCustomStartSet(true); setStartWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'start', applied: true }); }}
+        onCancel={() => { setStartWheelOpen(false); analytics.track(ATP_EVENTS.FAST_PICKER_DISMISSED, { which: 'start', applied: false }); }}
+      />
+
       {/* ── Editar ayuno pasado: paso 1 (INICIO) ── */}
       {editingFast && editMode === 'start' && (
         <TimeWheelPicker
@@ -1351,9 +1328,14 @@ export default function FastingScreen() {
         visible={gateVisible}
         decision={fastingGate}
         userId={userId || null}
-        protocolKey={`fasting_${selectedProtocol.hours}h`}
-        onProceed={() => { setGateVisible(false); setFastingGate(null); doStartFast(); }}
-        onClose={() => { setGateVisible(false); setFastingGate(null); }}
+        protocolKey={`fasting_${(pendingGoal ?? selectedProtocol).hours}h`}
+        onProceed={() => {
+          setGateVisible(false); setFastingGate(null);
+          // F.2: el gate también cubre el cambio de meta con ayuno activo.
+          if (pendingGoal) { applyGoal(pendingGoal); setPendingGoal(null); }
+          else doStartFast();
+        }}
+        onClose={() => { setGateVisible(false); setFastingGate(null); setPendingGoal(null); }}
       />
 
       <MedicalDisclaimer feature="fasting" />

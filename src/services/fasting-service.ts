@@ -226,8 +226,11 @@ export async function updateFast(params: {
   fastId: string;
   fastStart?: Date;
   fastEnd?: Date | null;
+  /** MB-8 Track F.2: editar la meta desde el propio timer. */
+  targetHours?: number;
 }): Promise<MutationResult> {
   const updates: Record<string, any> = {};
+  if (params.targetHours !== undefined) updates.target_hours = params.targetHours;
   if (params.fastStart) updates.fast_start = params.fastStart.toISOString();
   if (params.fastEnd !== undefined) {
     updates.fast_end = params.fastEnd ? params.fastEnd.toISOString() : null;
