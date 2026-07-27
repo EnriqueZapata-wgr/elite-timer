@@ -28,7 +28,8 @@ import { EliteText } from '@/components/elite-text';
 import { EMOTIONS, QUADRANTS, type Emotion, type QuadrantKey } from '@/src/data/emotions-library';
 import {
   computeEmotionMapLayout, emotionGradient, colorAtPoint, isLightColor,
-  QUADRANT_CENTERS, toWorld, WORLD_W, WORLD_H, WORLD_PAD, NODE_SIZE,
+  QUADRANT_CENTERS, toWorld, quadrantLandingWorld, WORLD_W, WORLD_H, WORLD_PAD, NODE_SIZE,
+  CENTER_X, CENTER_Y, CALM_R0,
   type EmotionMapLayout,
 } from '@/src/services/emotion-map-core';
 import { haptic } from '@/src/utils/haptics';
@@ -49,6 +50,10 @@ export const ZOOM_LANDING = 0.8;   // aterrizaje: se ve la zona, no el océano
 export const ZOOM_MAX = 1.35;
 const OVERVIEW_LABEL_CUTOFF = 0.42; // debajo de esto los labels no aportan
 const LABEL_FADE_RANGE = 0.14;      // los labels se desvanecen por worklet alrededor del corte
+// LOD (A.4): alejado se ven solo los landmarks; el resto se revela al acercar.
+const REVEAL_CUTOFF = 0.60;         // arriba de esto las NO-representativas se revelan
+const REVEAL_RANGE = 0.14;          // rango del fundido por worklet
+const LOD_MIN_OPACITY = 0.12;       // las no-representativas no desaparecen del todo
 const RUBBER_C = 0.55;              // constante de resistencia de la liga (rubber-band iOS)
 // Snap-back de zoom: amortiguamiento ~crítico, sin rebote (apple-design §4).
 const SETTLE_SPRING = { damping: 30, stiffness: 260, mass: 1, overshootClamping: true } as const;
@@ -174,8 +179,7 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
       animateTo(p.wx, p.wy, opts?.zoom ?? ZOOM_LANDING, opts?.durationMs ?? 480);
     },
     centerOnQuadrant: (q) => {
-      const c = QUADRANT_CENTERS[q];
-      const { wx, wy } = toWorld(c.nx, c.ny);
+      const { wx, wy } = quadrantLandingWorld(q);
       animateTo(wx, wy, ZOOM_LANDING);
     },
     zoomOut: () => {
@@ -188,8 +192,7 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
   useEffect(() => {
     if (viewport.w === 0 || placed.current) return;
     placed.current = true;
-    const c = QUADRANT_CENTERS[initialQuadrant ?? 'high_pleasant'];
-    const { wx, wy } = toWorld(c.nx, c.ny);
+    const { wx, wy } = quadrantLandingWorld(initialQuadrant ?? 'high_pleasant');
     const [minX, maxX] = boundsX(ZOOM_LANDING);
     const [minY, maxY] = boundsY(ZOOM_LANDING);
     tx.value = Math.min(maxX, Math.max(minX, viewport.w / 2 - wx * ZOOM_LANDING));
@@ -343,8 +346,7 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
 
   const jumpToQuadrant = useCallback((q: QuadrantKey) => {
     haptic.light();
-    const c = QUADRANT_CENTERS[q];
-    const { wx, wy } = toWorld(c.nx, c.ny);
+    const { wx, wy } = quadrantLandingWorld(q);
     animateTo(wx, wy, ZOOM_LANDING);
   }, [animateTo]);
 
@@ -355,6 +357,17 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
     >
       <GestureDetector gesture={gesture}>
         <Animated.View style={[styles.world, worldStyle]}>
+          {/* Zona CALMA — el centro es destino, no hueco (A.1). */}
+          <View
+            pointerEvents="none"
+            style={[
+              styles.calmCore,
+              { left: CENTER_X - CALM_R0, top: CENTER_Y - CALM_R0, width: CALM_R0 * 2, height: CALM_R0 * 2, borderRadius: CALM_R0 },
+            ]}
+          >
+            <EliteText style={styles.calmLabel}>CALMA</EliteText>
+          </View>
+
           {/* Las burbujas se montan UNA vez y solo se transforma el contenedor —
               el gesto no vuelve a tocar el hilo de JS (adiós culling reactivo,
               que re-renderizaba las 144 a media navegación). */}
@@ -371,6 +384,8 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
                 wy={p.wy}
                 nx={p.nx}
                 ny={p.ny}
+                size={p.size}
+                representative={p.representative}
                 selected={isSelected}
                 dimmed={dimmed}
                 cameraScale={scale}
@@ -385,7 +400,7 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
             <>
               {(Object.keys(QUADRANTS) as QuadrantKey[]).map((q) => {
                 const c = QUADRANT_CENTERS[q];
-                const { wx, wy } = toWorld(c.nx, c.ny);
+                const { wx, wy } = quadrantLandingWorld(q);
                 const zoneColor = colorAtPoint(c.nx, c.ny);
                 return (
                   <Animated.View
@@ -421,6 +436,10 @@ interface NodeProps {
   wy: number;
   nx: number;
   ny: number;
+  /** Diámetro de la burbuja (escala con intensidad · MB-9 Track A). */
+  size: number;
+  /** Landmark: visible en vista alejada. Las demás se revelan al acercar (LOD). */
+  representative: boolean;
   selected: boolean;
   dimmed: boolean;
   /** Escala de la cámara — los labels se desvanecen en worklet, sin setState. */
@@ -430,10 +449,17 @@ interface NodeProps {
   onPress: (e: Emotion) => void;
 }
 
-const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimmed, cameraScale, flat, onPress }: NodeProps) {
+const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, size, representative, selected, dimmed, cameraScale, flat, onPress }: NodeProps) {
   const [gTop, gBottom] = useMemo(() => emotionGradient(nx, ny), [nx, ny]);
   const base = useMemo(() => colorAtPoint(nx, ny), [nx, ny]);
   const labelColor = isLightColor(base) ? TEXT_COLORS.onAccent : TEXT.primary;
+
+  // Estilos dependientes del tamaño de burbuja (intensidad).
+  const dyn = useMemo(() => ({
+    node: { left: wx - size / 2, top: wy - size / 2, width: size },
+    press: { width: size, height: size },
+    circle: { width: size, height: size, borderRadius: size / 2 },
+  }), [wx, wy, size]);
 
   // Opacidad del label derivada de la escala EN el hilo de UI: alejarse los
   // funde, acercarse los revela — sin cruzar a JS a media navegación.
@@ -446,28 +472,47 @@ const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimme
     ),
   }));
 
+  // LOD (A.4): las NO-representativas se funden al alejar y se revelan al
+  // acercar; los landmarks (y la selección) siempre a opacidad plena. En hilo
+  // de UI: la revelación no cruza a JS a media navegación.
+  const lodFade = useAnimatedStyle(() => {
+    if (representative || selected) return { opacity: 1 };
+    return {
+      opacity: interpolate(
+        cameraScale.value,
+        [REVEAL_CUTOFF, REVEAL_CUTOFF + REVEAL_RANGE],
+        [LOD_MIN_OPACITY, 1],
+        Extrapolation.CLAMP,
+      ),
+    };
+  });
+
+  // Alejado, una burbuja no-landmark no debe robar el toque destinado a las zonas.
+  const tappable = !dimmed && (representative || selected || !flat);
+
   return (
-    <View
+    <Animated.View
       style={[
         styles.node,
-        { left: wx - NODE_SIZE / 2, top: wy - NODE_SIZE / 2 },
+        dyn.node,
         dimmed && styles.nodeDimmed,
         // B.4 (MB-7): el átomo y su etiqueta se dibujan POR ENCIMA de las
         // vecinas — sin esto los hermanos posteriores cortaban el label
         // ("n éxtasis" en vez de "En éxtasis").
         selected && styles.nodeSelected,
+        lodFade,
       ]}
-      pointerEvents={dimmed ? 'none' : 'auto'}
+      pointerEvents={tappable ? 'auto' : 'none'}
     >
-      <Pressable onPress={() => onPress(emotion)} style={styles.nodePress} disabled={selected}>
+      <Pressable onPress={() => onPress(emotion)} style={dyn.press} disabled={selected}>
         {selected ? (
-          <OrbitalMark color={base} gradient={[gTop, gBottom]} />
+          <OrbitalMark color={base} gradient={[gTop, gBottom]} size={size} />
         ) : flat ? (
           // Vista alejada asentada: el gradiente es invisible a ese tamaño →
           // color plano, 0 LinearGradient.
-          <View style={[styles.circle, { backgroundColor: base }]} />
+          <View style={[styles.circle, dyn.circle, { backgroundColor: base }]} />
         ) : (
-          <LinearGradient colors={[gTop, gBottom]} style={styles.circle}>
+          <LinearGradient colors={[gTop, gBottom]} style={[styles.circle, dyn.circle]}>
             <Animated.View style={labelFade}>
               <EliteText numberOfLines={3} style={[styles.nodeLabel, { color: labelColor }]}>
                 {emotion.label}
@@ -477,13 +522,13 @@ const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimme
         )}
       </Pressable>
       {selected && !flat && (
-        <Animated.View style={[styles.selectedLabelWrap, labelFade]}>
+        <Animated.View style={[styles.selectedLabelWrap, { top: size + 2 }, labelFade]}>
           <EliteText numberOfLines={2} style={[styles.selectedLabel, { color: base }]}>
             {emotion.label}
           </EliteText>
         </Animated.View>
       )}
-    </View>
+    </Animated.View>
   );
 });
 
@@ -492,7 +537,7 @@ const MapNode = memo(function MapNode({ emotion, wx, wy, nx, ny, selected, dimme
  * y le nace un orbital con su electrón girando. (No es el lenguaje de formas
  * de la referencia: es el vocabulario de energía celular de la propia app.)
  */
-function OrbitalMark({ color, gradient }: { color: string; gradient: [string, string] }) {
+function OrbitalMark({ color, gradient, size = NODE_SIZE }: { color: string; gradient: [string, string]; size?: number }) {
   const spin = useSharedValue(0);
 
   useEffect(() => {
@@ -503,19 +548,32 @@ function OrbitalMark({ color, gradient }: { color: string; gradient: [string, st
     transform: [{ rotate: `${spin.value}deg` }],
   }));
 
+  // Dimensiones del átomo derivadas del tamaño de la burbuja (intensidad).
+  const dyn = useMemo(() => {
+    const halo = size + 26;
+    const nucleus = size * 0.46;
+    const ring = size + 10;
+    return {
+      wrap: { width: size, height: size },
+      halo: { width: halo, height: halo, borderRadius: halo / 2 },
+      nucleus: { width: nucleus, height: nucleus, borderRadius: nucleus / 2 },
+      ring: { width: ring, height: ring, borderRadius: ring / 2 },
+    };
+  }, [size]);
+
   return (
-    <View style={styles.orbitalWrap}>
+    <View style={[styles.orbitalWrap, dyn.wrap]}>
       {/* Halo del núcleo */}
       <Animated.View
         entering={ZoomIn.springify().damping(12)}
-        style={[styles.orbitalHalo, { backgroundColor: withOpacity(color, 0.18) }]}
+        style={[styles.orbitalHalo, dyn.halo, { backgroundColor: withOpacity(color, 0.18) }]}
       />
       {/* Núcleo (el círculo colapsado) */}
       <Animated.View entering={ZoomIn.springify().damping(10)} style={styles.nucleusShadowless}>
-        <LinearGradient colors={gradient} style={styles.nucleus} />
+        <LinearGradient colors={gradient} style={[styles.nucleus, dyn.nucleus]} />
       </Animated.View>
       {/* Orbital + electrón girando */}
-      <Animated.View entering={ZoomIn.delay(60).springify().damping(12)} style={[styles.orbitRing, { borderColor: withOpacity(color, 0.75) }, orbitStyle]}>
+      <Animated.View entering={ZoomIn.delay(60).springify().damping(12)} style={[styles.orbitRing, dyn.ring, { borderColor: withOpacity(color, 0.75) }, orbitStyle]}>
         <View style={[styles.electron, { backgroundColor: color }]} />
       </Animated.View>
     </View>
@@ -555,9 +613,24 @@ const styles = StyleSheet.create({
   },
   selectedLabelWrap: {
     position: 'absolute',
-    top: NODE_SIZE + 2,
     width: NODE_SIZE + 60,
     left: -30,
+  },
+
+  // Zona CALMA — el centro del circumplejo es destino (A.1), un núcleo tenue.
+  calmCore: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: withOpacity(TEXT.primary, 0.10),
+    backgroundColor: withOpacity(TEXT.primary, 0.03),
+  },
+  calmLabel: {
+    fontSize: 40,
+    letterSpacing: 6,
+    fontFamily: Fonts.semiBold,
+    color: withOpacity(TEXT.primary, 0.28),
   },
   selectedLabel: {
     fontSize: FontSizes.md,

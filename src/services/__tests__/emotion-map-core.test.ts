@@ -5,10 +5,18 @@ import { describe, it, expect } from 'vitest';
 import {
   computeEmotionMapLayout, normX, normY, toWorld, toNorm, colorAtPoint,
   emotionGradient, mixHex, quadrantAtPoint, searchEmotions, QUADRANT_CENTERS,
-  MIN_SEP, WORLD_W, WORLD_H, NODE_SIZE, fnv1a,
+  WORLD_W, WORLD_H, NODE_SIZE, fnv1a,
   visibleWorldBox, isInWorldBox,
+  CENTER_X, CENTER_Y, QUADRANT_SECTORS, REPRESENTATIVE_IDS,
+  nodeSizeForIntensity, radiusForIntensity, angleForEmotion, quadrantLandingWorld,
 } from '../emotion-map-core';
-import { EMOTIONS } from '../../data/emotions-library';
+import { EMOTIONS, type QuadrantKey } from '../../data/emotions-library';
+
+/** Ángulo (grados 0-360, CCW desde +x) de un punto de mundo respecto al centro. */
+function worldAngle(wx: number, wy: number): number {
+  const a = (Math.atan2(CENTER_Y - wy, wx - CENTER_X) * 180) / Math.PI;
+  return a < 0 ? a + 360 : a;
+}
 
 describe('coordenadas del spec', () => {
   it('y = (energy - 5.5) / 4.5', () => {
@@ -32,15 +40,17 @@ describe('coordenadas del spec', () => {
   });
 });
 
-describe('layout del mapa completo (144 emociones)', () => {
+describe('circumplejo polar (MB-9 · Track A) — layout de las 144', () => {
   const layout = computeEmotionMapLayout(EMOTIONS);
+  const byId = new Map(layout.points.map((p) => [p.id, p]));
+  const emById = new Map(EMOTIONS.map((e) => [e.id, e]));
 
   it('coloca las 144 emociones', () => {
     expect(layout.points).toHaveLength(EMOTIONS.length);
     expect(EMOTIONS).toHaveLength(144);
   });
 
-  it('es DETERMINISTA: dos corridas → mismo mapa exacto', () => {
+  it('A.3 · es DETERMINISTA: dos corridas → mismo mapa exacto (snapshot vivo)', () => {
     const again = computeEmotionMapLayout(EMOTIONS);
     expect(again).toEqual(layout);
     // Y también con el array fuente en otro orden (no depende del orden del input).
@@ -48,32 +58,62 @@ describe('layout del mapa completo (144 emociones)', () => {
     expect(computeEmotionMapLayout(shuffled)).toEqual(layout);
   });
 
-  it('B.4 (MB-7): el claro del átomo cabe en MIN_SEP — halo + radio de vecina', () => {
-    // El átomo expandido dibuja halo de (NODE_SIZE+26)/2 px y anillo de
-    // (NODE_SIZE+10)/2 px (styles de EmotionMap2D). Si MIN_SEP baja de
-    // halo + radio de la vecina, el orbital se encima a la burbuja de al lado.
-    const HALO_RADIUS = (NODE_SIZE + 26) / 2;
-    const NEIGHBOR_RADIUS = NODE_SIZE / 2;
-    expect(MIN_SEP).toBeGreaterThanOrEqual(HALO_RADIUS + NEIGHBOR_RADIUS);
-  });
-
-  it('ninguna emoción queda escondida: separación mínima entre todos los pares', () => {
+  it('A.2 · CERO colisiones: ningún par a distancia < r1+r2 (radios reales)', () => {
     for (let i = 0; i < layout.points.length; i++) {
       for (let j = i + 1; j < layout.points.length; j++) {
         const a = layout.points[i];
         const b = layout.points[j];
         const d = Math.hypot(a.wx - b.wx, a.wy - b.wy);
-        expect(d, `${a.id} vs ${b.id}`).toBeGreaterThanOrEqual(MIN_SEP - 1);
+        // r1 + r2 = (size_a + size_b)/2. El gap se resta como tolerancia.
+        expect(d, `${a.id} vs ${b.id}`).toBeGreaterThanOrEqual((a.size + b.size) / 2 - 1);
       }
     }
   });
 
-  it('el offset anticolisión NUNCA cambia una emoción de lado (agradable/desagradable)', () => {
+  it('A.2 · monotonía: nadie termina en radio menor que otra de intensidad estrictamente menor', () => {
+    for (const a of layout.points) {
+      for (const b of layout.points) {
+        const ia = emById.get(a.id)!.intensity;
+        const ib = emById.get(b.id)!.intensity;
+        if (ia < ib) {
+          expect(a.radius, `${a.id}(i${ia}) vs ${b.id}(i${ib})`).toBeLessThanOrEqual(b.radius + 1e-6);
+        }
+      }
+    }
+  });
+
+  it('A.2 · ningún deslizamiento cruza de cuadrante: el ángulo se queda en su sector', () => {
     for (const p of layout.points) {
-      const emotion = EMOTIONS.find((e) => e.id === p.id)!;
-      const pleasant = emotion.quadrant === 'high_pleasant' || emotion.quadrant === 'low_pleasant';
-      if (pleasant) expect(p.wx, p.id).toBeGreaterThan(WORLD_W / 2);
-      else expect(p.wx, p.id).toBeLessThan(WORLD_W / 2);
+      const q = emById.get(p.id)!.quadrant;
+      const [lo, hi] = QUADRANT_SECTORS[q];
+      const ang = worldAngle(p.wx, p.wy);
+      expect(ang, p.id).toBeGreaterThanOrEqual(lo - 0.5);
+      expect(ang, p.id).toBeLessThanOrEqual(hi + 0.5);
+    }
+  });
+
+  it('el diámetro escala con la intensidad (las de adentro son más chicas)', () => {
+    expect(nodeSizeForIntensity(1)).toBeLessThan(nodeSizeForIntensity(10));
+    for (const p of layout.points) {
+      const i = emById.get(p.id)!.intensity;
+      expect(p.size).toBeCloseTo(nodeSizeForIntensity(i));
+    }
+    // radio también monótono con la intensidad (base).
+    expect(radiusForIntensity(1)).toBeLessThan(radiusForIntensity(10));
+  });
+
+  it('el centro es la CALMA: ninguna burbuja invade el radio interior', () => {
+    for (const p of layout.points) {
+      expect(p.radius, p.id).toBeGreaterThanOrEqual(radiusForIntensity(1) - 1e-6);
+    }
+  });
+
+  it('valencia = lado: agradable a la derecha del centro, desagradable a la izquierda', () => {
+    for (const p of layout.points) {
+      const q = emById.get(p.id)!.quadrant;
+      const pleasant = q === 'high_pleasant' || q === 'low_pleasant';
+      if (pleasant) expect(p.wx, p.id).toBeGreaterThan(CENTER_X);
+      else expect(p.wx, p.id).toBeLessThan(CENTER_X);
     }
   });
 
@@ -86,22 +126,47 @@ describe('layout del mapa completo (144 emociones)', () => {
     }
   });
 
-  it('reporta los solapes exactos para revisión humana', () => {
-    // Sabemos que hay emociones con misma (energía, intensidad, cuadrante):
-    // p. ej. panicked y enraged (10,10 high_unpleasant).
+  it('reporta los solapes de posición base para revisión humana', () => {
+    // panicked y enraged comparten (energía 10, intensidad 10, high_unpleasant)
+    // → misma posición polar base.
     expect(layout.overlaps.length).toBeGreaterThan(0);
     const panicGroup = layout.overlaps.find((g) => g.ids.includes('panicked'));
     expect(panicGroup?.ids).toContain('enraged');
-    // Todo grupo reportado tiene 2+ miembros.
     for (const g of layout.overlaps) expect(g.ids.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('la energía manda en el orden vertical (a grandes rasgos)', () => {
-    const byId = new Map(layout.points.map((p) => [p.id, p]));
-    // enraged (energy 10) queda claramente más arriba que annoyed (energy 6).
+  it('A.4 · los landmarks (LOD) existen y son un subconjunto propio', () => {
+    for (const id of REPRESENTATIVE_IDS) {
+      expect(EMOTIONS.some((e) => e.id === id), id).toBe(true);
+      expect(byId.get(id)!.representative).toBe(true);
+    }
+    const reps = layout.points.filter((p) => p.representative);
+    expect(reps.length).toBe(REPRESENTATIVE_IDS.size);
+    expect(reps.length).toBeLessThan(layout.points.length);
+  });
+
+  it('la energía manda la verticalidad dentro del cuadrante', () => {
+    // enraged (energy 10) queda más arriba que annoyed (energy 6), ambos hu.
     expect(byId.get('enraged')!.wy).toBeLessThan(byId.get('annoyed')!.wy);
-    // quiet (energy 1) queda abajo de restored (energy 5).
-    expect(byId.get('quiet')!.wy).toBeGreaterThan(byId.get('restored')!.wy);
+  });
+
+  it('el aterrizaje de cada cuadrante cae en su propio sector', () => {
+    for (const q of Object.keys(QUADRANT_SECTORS) as QuadrantKey[]) {
+      const { wx, wy } = quadrantLandingWorld(q);
+      const [lo, hi] = QUADRANT_SECTORS[q];
+      const ang = worldAngle(wx, wy);
+      expect(ang, q).toBeGreaterThanOrEqual(lo);
+      expect(ang, q).toBeLessThanOrEqual(hi);
+    }
+  });
+
+  it('angleForEmotion respeta los límites del sector', () => {
+    for (const e of EMOTIONS) {
+      const [lo, hi] = QUADRANT_SECTORS[e.quadrant];
+      const a = angleForEmotion(e.quadrant, e.energy);
+      expect(a, e.id).toBeGreaterThanOrEqual(lo);
+      expect(a, e.id).toBeLessThanOrEqual(hi);
+    }
   });
 });
 
