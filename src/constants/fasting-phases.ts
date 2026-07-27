@@ -1,13 +1,25 @@
 /**
- * Fases metabólicas del ayuno — FUENTE ÚNICA (MB-8 · Track F.1).
+ * Fases metabólicas del ayuno — FUENTE ÚNICA (MB-8 · Track F.1 → MB-9 · Track D).
  *
- * ⚠️ VENTANAS PROVISIONALES. Las horas de cada fase las define Enrique con
- * su protocolo de ayuno (R and D) — estos defaults vienen de las zonas que
- * ya traía la app (fasting.tsx pre-MB-8) y NO están validados. Cambiar las
- * ventanas = editar SOLO este archivo.
+ * ⚠️ MB-9 · Track D (P0): se RETIRARON las cuatro fases sin respaldo que la app
+ * publicaba con reloj ("Autofagia · 16 h", "Autofagia profunda · 24 h",
+ * "Reparación inmune · 36 h", "Reset metabólico · 48 h"). No existe una hora
+ * confirmada de autofagia en humanos: el flujo autofágico casi no se puede medir
+ * en personas vivas y las cifras que circulan vienen de animales o de marcadores
+ * extrapolados. Publicar una hora es afirmar lo que no está establecido.
  *
- * `now` narra qué pasa en el cuerpo durante la fase; `next` prepara la
- * siguiente. Copy con mecanismo, sin siglas sin presentar (doctrina Mente).
+ * La escalera de abajo se basa en literatura primaria (Cahill 2006 · de Cabo &
+ * Mattson 2019). **La autofagia se puede nombrar como proceso que el ayuno
+ * favorece, pero NUNCA con reloj.** Detalle y fuentes en
+ * `R and D/RESEARCH_FASES_AYUNO_ATP_2026-07-26.md`.
+ *
+ * ⚠️ VENTANAS ORIENTATIVAS, no relojes. El momento del cambio depende de la
+ * dieta previa, la actividad física, la última comida y la salud metabólica.
+ * Enrique valida las ventanas finales. Cambiar las ventanas = editar SOLO este
+ * archivo.
+ *
+ * `now` narra qué pasa en el cuerpo durante la fase. Copy con mecanismo, sin
+ * siglas sin presentar (doctrina Mente).
  */
 import type { Ionicons } from '@expo/vector-icons';
 
@@ -35,58 +47,34 @@ export const FASTING_PHASES: FastingPhase[] = [
   {
     hours: 4,
     label: 'Postabsorción',
-    description: 'La glucosa baja, empiezas a usar reservas',
-    now: 'Terminó la digestión. La glucosa en sangre baja y tu cuerpo empieza a jalar de sus reservas en vez de la comida.',
+    description: 'Cae la insulina, tu hígado suelta glucógeno',
+    now: 'Terminó la digestión. La insulina baja y tu hígado empieza a soltar el glucógeno que tenía guardado, para mantener estable tu energía sin comer.',
     color: '#38bdf8',
     icon: 'trending-down-outline',
   },
   {
-    hours: 8,
-    label: 'Glucogenólisis',
-    description: 'Tu hígado libera glucógeno almacenado',
-    now: 'Tu hígado libera glucógeno — la glucosa que tenía guardada — para mantener estable tu energía sin comer.',
-    color: '#60a5fa',
-    icon: 'flash-outline',
+    hours: 12,
+    label: 'Cambio metabólico',
+    description: 'El glucógeno se agota, entra la grasa',
+    now: 'El glucógeno del hígado se agota y tu cuerpo cambia de combustible: arranca la lipólisis (quema de grasa) y empieza a producir cetonas.',
+    color: '#a8e02a',
+    icon: 'swap-horizontal-outline',
   },
   {
-    hours: 12,
-    label: 'Cetosis temprana',
-    description: 'Empiezas a quemar grasa como combustible',
-    now: 'Las reservas de glucosa se agotan y tu cuerpo cambia de combustible: empieza a quemar grasa y a producir cetonas.',
-    color: '#a8e02a',
+    hours: 18,
+    label: 'Cetosis',
+    description: 'Las cetonas se vuelven tu combustible',
+    now: 'Las cetonas suben y se vuelven combustible relevante para tu cerebro y tu músculo. El ayuno favorece procesos de reciclaje celular (autofagia); su momento exacto en humanos no está establecido.',
+    color: '#f59e0b',
     icon: 'flame-outline',
   },
   {
-    hours: 16,
-    label: 'Autofagia',
-    description: 'Tus células reciclan componentes dañados',
-    now: 'Arranca la autofagia: tus células detectan la pausa y reciclan componentes dañados para construir piezas nuevas.',
-    color: '#f59e0b',
-    icon: 'refresh-outline',
-  },
-  {
-    hours: 24,
-    label: 'Autofagia profunda',
-    description: 'Reparación celular intensa + hormona de crecimiento',
-    now: 'La reparación celular se intensifica y sube la hormona de crecimiento, que protege tu músculo mientras ayunas.',
+    hours: 48,
+    label: 'Ayuno prolongado',
+    description: 'La grasa domina · requiere acompañamiento',
+    now: 'La grasa domina como combustible y tu cuerpo protege el músculo ahorrando proteína. A partir de aquí el ayuno prolongado requiere acompañamiento.',
     color: '#f97316',
     icon: 'shield-outline',
-  },
-  {
-    hours: 36,
-    label: 'Reparación inmune',
-    description: 'Tu sistema inmune se regenera',
-    now: 'Tu cuerpo recicla células inmunes viejas y activa la producción de nuevas. Hidratación y electrolitos son clave aquí.',
-    color: '#c084fc',
-    icon: 'medkit-outline',
-  },
-  {
-    hours: 48,
-    label: 'Reset metabólico',
-    description: 'La sensibilidad a la insulina se restaura a fondo',
-    now: 'Reset profundo: tus células vuelven a responder bien a la insulina, la base de la flexibilidad metabólica que ATP persigue.',
-    color: '#ec4899',
-    icon: 'nuclear-outline',
   },
 ];
 

@@ -76,7 +76,7 @@ const FAST_MILESTONES: { hours: number; title: string; message: string }[] = [
   {
     hours: 48,
     title: '48 horas de ayuno',
-    message: 'La autofagia (reciclaje celular) se intensifica. Asegura electrolitos: sodio, potasio, magnesio.',
+    message: 'Entras en ayuno prolongado: la grasa domina como combustible. Asegura electrolitos —sodio, potasio, magnesio— e hidrátate bien.',
   },
   // 120h se maneja vía cierre automático (ver autoCloseAtLimit).
 ];
