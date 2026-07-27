@@ -4,7 +4,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildDescentChain, buildFlipChain, buildNavigationPlan, pickFramingPhrase,
-  strategyForEmotion, toolsForBajar, toolsForVoltear, isCrisisOrigin,
+  strategyForEmotion, toolsForBajar, toolsForCruzar, isCrisisOrigin,
+  reframeTwin, buildReframeChain,
 } from '../emotion-navigation-core';
 import { FRAMING_PHRASES, TOOL_CRISIS, TOOL_EVIDENCIA } from '../../data/emotion-navigation';
 import { EMOTIONS, NO_DESCENT_TARGET_IDS } from '../../data/emotions-library';
@@ -54,19 +55,28 @@ describe('cadena de volteo (→ mover valencia)', () => {
   });
 });
 
-describe('plan por cuadrante (flujo §4 decidido por Enrique)', () => {
-  it('alta·desagradable → DOS movimientos: bajar y luego voltear', () => {
+describe('plan con disponibilidad condicional (MB-9 · Track B · análisis v2)', () => {
+  it('ira alta·desagradable → bajar y luego CRUZAR (cruzar solo tras el descenso)', () => {
     const plan = buildNavigationPlan('angry')!;
     expect(plan.crisis).toBe(false);
-    expect(plan.moves.map((m) => m.move)).toEqual(['bajar', 'voltear']);
-    // El volteo parte de donde terminó el descenso.
+    expect(plan.moves.map((m) => m.move)).toEqual(['bajar', 'cruzar']);
+    // Cruzar parte de donde terminó el descenso — ya dentro de la ventana.
     const descentEnd = plan.moves[0].chainIds[plan.moves[0].chainIds.length - 1];
     expect(plan.moves[1].chainIds[0]).toBe(descentEnd);
   });
 
-  it('baja·desagradable → SOLO voltear (subirla a la fuerza sería empujar)', () => {
+  it('energía re-leíble (ansiedad) → bajar y REENCUADRAR, no cruzar (el cruce legítimo arriba)', () => {
+    const plan = buildNavigationPlan('anxious')!;
+    expect(plan.moves.map((m) => m.move)).toEqual(['bajar', 'reencuadrar']);
+    // El reencuadre es un arco corto: origen → gemelo agradable de misma activación.
+    const reframe = plan.moves[1];
+    expect(reframe.chainIds[0]).toBe('anxious');
+    expect(reframe.chainIds).toHaveLength(2);
+  });
+
+  it('baja·desagradable → SOLO cruzar (subirla a la fuerza sería empujar)', () => {
     const plan = buildNavigationPlan('sad')!;
-    expect(plan.moves.map((m) => m.move)).toEqual(['voltear']);
+    expect(plan.moves.map((m) => m.move)).toEqual(['cruzar']);
   });
 
   it('alta·agradable → canalizar, sin cadena de arreglo', () => {
@@ -75,9 +85,30 @@ describe('plan por cuadrante (flujo §4 decidido por Enrique)', () => {
     expect(plan.moves[0].chainIds).toEqual(['motivated']);
   });
 
-  it('baja·agradable → saborear: destino legítimo', () => {
+  it('baja·agradable → SUBIR (la mitad olvidada) y saborear (destino legítimo)', () => {
     const plan = buildNavigationPlan('calm')!;
-    expect(plan.moves.map((m) => m.move)).toEqual(['saborear']);
+    expect(plan.moves.map((m) => m.move)).toEqual(['subir', 'saborear']);
+  });
+
+  it('prohibición dura: subir NUNCA se ofrece desde el lado desagradable', () => {
+    const unpleasant = EMOTIONS.filter((e) => e.quadrant === 'high_unpleasant' || e.quadrant === 'low_unpleasant');
+    for (const e of unpleasant) {
+      const plan = buildNavigationPlan(e.id)!;
+      for (const m of plan.moves) {
+        expect(m.move, `${e.id} → ${m.move}`).not.toBe('subir');
+      }
+    }
+  });
+
+  it('reencuadre: la ansiedad tiene gemelo agradable de casi la misma activación', () => {
+    const twin = reframeTwin('anxious')!;
+    expect(twin).toBeTruthy();
+    expect(twin.quadrant).toBe('high_pleasant');
+    expect(twin.family).toBe('energia');
+    expect(Math.abs(twin.energy - byId.get('anxious')!.energy)).toBeLessThanOrEqual(3);
+    // La ira NO se relee como entusiasmo: la furia no tiene gemelo.
+    expect(reframeTwin('enraged')).toBeNull();
+    expect(buildReframeChain('enraged')).toHaveLength(1); // solo el origen
   });
 
   it('crisis ROMPE el flujo: acompañamiento, no reframing', () => {
@@ -105,7 +136,7 @@ describe('herramientas por movimiento (spec §2)', () => {
     expect(toolsForBajar('angry').some((t) => t.id === 'descarga')).toBe(true);
   });
 
-  it('voltear rutea por estrategia: culpa → autocompasión, frustración → proceso, desánimo → agencia', () => {
+  it('cruzar rutea por estrategia: culpa → autocompasión, frustración → proceso, desánimo → agencia', () => {
     expect(strategyForEmotion('guilty')).toBe('autocompasion');
     expect(strategyForEmotion('frustrated')).toBe('proceso');
     expect(strategyForEmotion('hopeless')).toBe('agencia');
@@ -114,13 +145,13 @@ describe('herramientas por movimiento (spec §2)', () => {
     expect(strategyForEmotion('nostalgic_pos')).toBe('distanciamiento'); // fallback
   });
 
-  it('ARGOS (tu evidencia) cierra la lista de voltear', () => {
-    const tools = toolsForVoltear('sad');
+  it('ARGOS (tu evidencia) cierra la lista de cruzar', () => {
+    const tools = toolsForCruzar('sad');
     expect(tools[tools.length - 1]).toEqual(TOOL_EVIDENCIA);
   });
 
   it('fundido de verdad → recuperación antes que reframing', () => {
-    const tools = toolsForVoltear('burned_out');
+    const tools = toolsForCruzar('burned_out');
     expect(tools.some((t) => t.id === 'nsdr')).toBe(true);
   });
 
@@ -197,12 +228,13 @@ describe('MB-4.1 · Bloque A — las cadenas ya no navegan a la zona depresiva',
     expect(enraged.length).toBeGreaterThan(1); // furia sí tiene a dónde bajar
   });
 
-  it('sin descenso posible → volteo directo (no se fuerza un camino que el copy promete)', () => {
-    // "Con fastidio" (annoyed) ya es la ira más suave: no hay a dónde bajar.
+  it('sin descenso posible → cruce directo (no se fuerza un camino que el copy promete)', () => {
+    // "Con fastidio" (annoyed) ya es la ira más suave: no hay a dónde bajar, y la
+    // ira no es re-leíble → cruzar directo (no reencuadrar).
     expect(buildDescentChain('annoyed')).toHaveLength(1);
-    expect(buildNavigationPlan('annoyed')!.moves.map((m) => m.move)).toEqual(['voltear']);
-    // "Con enojo" sí tiene descenso real → conserva bajar + voltear.
-    expect(buildNavigationPlan('angry')!.moves.map((m) => m.move)).toEqual(['bajar', 'voltear']);
+    expect(buildNavigationPlan('annoyed')!.moves.map((m) => m.move)).toEqual(['cruzar']);
+    // "Con enojo" sí tiene descenso real → conserva bajar + cruzar.
+    expect(buildNavigationPlan('angry')!.moves.map((m) => m.move)).toEqual(['bajar', 'cruzar']);
   });
 });
 

@@ -22,6 +22,7 @@ import {
   type EmotionMove, type CognitiveStrategy, type RegulationTool,
   TOOLS_BAJAR_YA, TOOLS_BAJAR_SOSTENER, TOOLS_FUNDIDO, TOOLS_ALTA_DESAGRADABLE,
   TOOLS_VOLTEAR, TOOL_EVIDENCIA, TOOLS_CANALIZAR, TOOLS_SABOREAR, TOOL_CRISIS,
+  TOOLS_REENCUADRAR, TOOLS_SUBIR,
   FRAMING_PHRASES, MOVE_QUESTIONS, MOVE_SUBTEXT,
 } from '../data/emotion-navigation';
 import { fnv1a } from './emotion-map-core';
@@ -151,6 +152,58 @@ export function buildFlipChain(originId: string): Emotion[] {
   return chain;
 }
 
+// ═══ REENCUADRE (⇄) — el arco corto de misma activación ═══
+
+/**
+ * Familia agradable ENERGIZADA hacia la que se relee una activación desagradable
+ * SIN pedir calmarse (análisis v2 §4). Solo para las familias cuya energía es
+ * genuinamente re-leíble en positivo:
+ *   miedo → energia   (nervios/ansiedad ↔ ganas/emoción: misma activación)
+ *   agobio → foco     (la presión ↔ determinación con dirección)
+ * La ira NO entra: la furia no se relee como entusiasmo; su camino es bajar.
+ */
+const REFRAME_TARGET_FAMILY: Partial<Record<EmotionFamily, EmotionFamily>> = {
+  miedo: 'energia',
+  agobio: 'foco',
+};
+
+/** Umbral de activación alta: el reencuadre corto vive arriba, no en la calma. */
+const HIGH_AROUSAL = 6;
+/** Máxima diferencia de energía para que el par cuente como "misma activación". */
+const REFRAME_ENERGY_TOLERANCE = 3;
+
+/**
+ * ¿La emoción tiene un gemelo energético agradable de casi la misma activación?
+ * Devuelve el gemelo (la lectura positiva de la misma energía) o null.
+ */
+export function reframeTwin(originId: string): Emotion | null {
+  const origin = BY_ID.get(originId);
+  if (!origin || origin.quadrant !== 'high_unpleasant' || origin.energy < HIGH_AROUSAL) return null;
+  const targetFamily = REFRAME_TARGET_FAMILY[origin.family];
+  if (!targetFamily) return null;
+  const twins = EMOTIONS
+    .filter((e) => e.quadrant === 'high_pleasant' && e.family === targetFamily &&
+      e.energy >= HIGH_AROUSAL && Math.abs(e.energy - origin.energy) <= REFRAME_ENERGY_TOLERANCE)
+    .sort((a, b) => {
+      const d = Math.abs(a.energy - origin.energy) - Math.abs(b.energy - origin.energy);
+      if (d !== 0) return d;
+      return a.id < b.id ? -1 : 1;
+    });
+  return twins[0] ?? null;
+}
+
+/**
+ * Cadena de reencuadre (⇄): arco CORTO entre vecinas de activación parecida. No
+ * baja energía y no cruza medio plano: relee la misma activación en su gemelo
+ * agradable. "Estoy nervioso" → "estoy encendido". Dos nodos: origen y gemelo.
+ */
+export function buildReframeChain(originId: string): Emotion[] {
+  const origin = BY_ID.get(originId);
+  if (!origin) return [];
+  const twin = reframeTwin(originId);
+  return twin ? [origin, twin] : [origin];
+}
+
 // ═══ HERRAMIENTAS POR MOVIMIENTO ═══
 
 /**
@@ -191,8 +244,9 @@ export function toolsForBajar(originId: string): RegulationTool[] {
   return tools.slice(0, 4);
 }
 
-/** Herramientas para VOLTEAR: la estrategia que aplica + ARGOS (tu evidencia). */
-export function toolsForVoltear(originId: string): RegulationTool[] {
+/** Herramientas para CRUZAR: la estrategia cognitiva que aplica + ARGOS (tu
+ *  evidencia). Solo se ofrece dentro de la ventana (ver buildNavigationPlan). */
+export function toolsForCruzar(originId: string): RegulationTool[] {
   const origin = BY_ID.get(originId);
   // Fundido de verdad → antes de cualquier reframing, recuperación.
   if (origin && DEPLETED_IDS.has(originId)) {
@@ -200,6 +254,19 @@ export function toolsForVoltear(originId: string): RegulationTool[] {
   }
   const strategy = strategyForEmotion(originId);
   return [...TOOLS_VOLTEAR[strategy], TOOL_EVIDENCIA].slice(0, 4);
+}
+
+/** Herramientas para REENCUADRAR (⇄): releer la energía, sin pedir calmarse. */
+export function toolsForReencuadrar(): RegulationTool[] {
+  return [...TOOLS_REENCUADRAR];
+}
+
+/** Herramientas para SUBIR/CANALIZAR (↑): activar la base agradable. Desde la
+ *  calma (low_pleasant) se activa suave; desde la energía alta se canaliza. */
+export function toolsForSubir(originId: string): RegulationTool[] {
+  const origin = BY_ID.get(originId);
+  if (origin?.quadrant === 'high_pleasant') return [...TOOLS_CANALIZAR];
+  return [...TOOLS_SUBIR];
 }
 
 // ═══ EL PLAN COMPLETO ═══
@@ -223,11 +290,21 @@ export interface NavigationPlan {
 }
 
 /**
- * Plan de navegación por cuadrante (flujo §4, decidido por Enrique):
- *  - alta·desagradable → DOS movimientos: bajar (↓) y luego voltear (→)
- *    (el volteo parte de donde terminó el descenso).
- *  - baja·desagradable → UNO: solo voltear. Subirla a la fuerza sería empujar.
- *  - alta·agradable → canalizar. baja·agradable → saborear.
+ * Plan de navegación con DISPONIBILIDAD CONDICIONAL (MB-9 · Track B · análisis
+ * v2). La geometría DIBUJA la decisión; este núcleo la TOMA, con las reglas de
+ * familia y la lista de exclusión intactas. La disponibilidad depende de dónde
+ * estás — eso no es una limitación, es el modelo siendo honesto:
+ *
+ *  - alta·desagradable → **bajar** primero (fisiológica, siempre desde arriba).
+ *    Si la energía es re-leíble (miedo/agobio con gemelo agradable), se ofrece
+ *    **reencuadrar** (⇄): el único cruce de valencia legítimo estando arriba.
+ *    Si no lo es, se ofrece **cruzar** (→) pero SOLO tras el descenso, ya dentro
+ *    de la ventana — cruzar está bloqueado en activación alta.
+ *  - baja·desagradable → **cruzar** (dentro de la ventana). Subirla a la fuerza
+ *    sería empujar: la prohibición dura no ofrece subir desde desagradable.
+ *  - alta·agradable → **canalizar** la energía (no se arregla, se usa).
+ *  - baja·agradable → **subir** (activar desde la calma, la mitad olvidada) y
+ *    **saborear** (sostenerla, destino legítimo).
  */
 export function buildNavigationPlan(originId: string): NavigationPlan | null {
   const origin = BY_ID.get(originId);
@@ -245,26 +322,36 @@ export function buildNavigationPlan(originId: string): NavigationPlan | null {
   switch (origin.quadrant) {
     case 'high_unpleasant': {
       const descent = buildDescentChain(originId);
-      // A.4 · Si tras los filtros hay descenso real, se ofrece bajar (su copy
-      // promete "versiones más manejables" y ahora sí existen). Si NO hay
-      // descenso posible, se ofrece directo el volteo en vez de forzar un camino.
+      // Bajar primero: baja la activación hacia la ventana. Si hay descenso real
+      // (su copy promete "versiones más manejables" y ahora existen), se ofrece.
       if (descent.length > 1) {
         moves.push(mk('bajar', descent.map((e) => e.id), toolsForBajar(originId)));
       }
-      const flipStart = descent[descent.length - 1] ?? origin;
-      const flip = buildFlipChain(flipStart.id);
-      moves.push(mk('voltear', flip.map((e) => e.id), toolsForVoltear(originId)));
+      if (reframeTwin(originId)) {
+        // Energía re-leíble → reencuadrar: releer la misma activación en su gemelo
+        // agradable, sin pedir calmarse. El único cruce de valencia válido arriba.
+        moves.push(mk('reencuadrar', buildReframeChain(originId).map((e) => e.id), toolsForReencuadrar()));
+      } else {
+        // Cruzar SOLO tras bajar (ya en la ventana): parte de donde terminó el
+        // descenso; sin descenso posible, se cruza desde el origen.
+        const crossStart = descent[descent.length - 1] ?? origin;
+        const flip = buildFlipChain(crossStart.id);
+        moves.push(mk('cruzar', flip.map((e) => e.id), toolsForCruzar(originId)));
+      }
       break;
     }
     case 'low_unpleasant': {
+      // Baja activación = ya en la ventana → cruzar. NUNCA subir (empujaría).
       const flip = buildFlipChain(originId);
-      moves.push(mk('voltear', flip.map((e) => e.id), toolsForVoltear(originId)));
+      moves.push(mk('cruzar', flip.map((e) => e.id), toolsForCruzar(originId)));
       break;
     }
     case 'high_pleasant':
       moves.push(mk('canalizar', [originId], TOOLS_CANALIZAR));
       break;
     case 'low_pleasant':
+      // La mitad olvidada de la regulación: desde la calma también se puede subir.
+      moves.push(mk('subir', [originId], toolsForSubir(originId)));
       moves.push(mk('saborear', [originId], TOOLS_SABOREAR));
       break;
   }

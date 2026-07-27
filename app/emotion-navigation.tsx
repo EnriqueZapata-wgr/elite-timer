@@ -206,6 +206,16 @@ export default function EmotionNavigationScreen() {
         <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
           <EliteText style={[styles.question, { color: focusColor }]}>{move.question}</EliteText>
           <EliteText variant="body" style={styles.subtext}>{move.subtext}</EliteText>
+          {/* B.2: el destino lejano es horizonte tenue; la app solo ofrece el
+              siguiente paso. La ruta es un arco con escalas, no una cuerda. */}
+          {move.chainIds.length > 2 && (
+            <EliteText style={styles.horizon} numberOfLines={1}>
+              {(() => {
+                const dest = EMOTIONS.find(e => e.id === move.chainIds[move.chainIds.length - 1]);
+                return dest ? `Hacia el horizonte: ${dest.label.toLowerCase()} · un paso a la vez` : '';
+              })()}
+            </EliteText>
+          )}
           <View style={styles.cardActions}>
             <Pressable onPress={() => { haptic.light(); router.back(); }} style={styles.stayLink}>
               <EliteText variant="caption" style={styles.stayText}>{STAY_COPY}</EliteText>
@@ -292,6 +302,10 @@ const styles = StyleSheet.create({
   },
   question: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, lineHeight: 30 },
   subtext: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 21, marginTop: Spacing.xs },
+  horizon: {
+    color: withOpacity(TEXT_COLORS.secondary, 0.55), fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold, letterSpacing: 0.5, marginTop: Spacing.sm, fontStyle: 'italic',
+  },
   cardActions: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginTop: Spacing.md, gap: Spacing.sm,

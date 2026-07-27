@@ -16,7 +16,19 @@
  * Sin imports de react-native → testeable en Vitest node.
  */
 
-export type EmotionMove = 'bajar' | 'voltear' | 'canalizar' | 'saborear';
+/**
+ * Los cuatro movimientos de la doctrina (MB-9 · Track B · análisis v2), más los
+ * dos destinos del lado agradable que ATP ya trataba como legítimos:
+ *  - ↓ bajar       activación → centro (fisiológica). Siempre desde arriba.
+ *  - ⇄ reencuadrar arco corto entre vecinas de misma activación (releer la
+ *                  energía). El ÚNICO cruce de valencia legítimo estando arriba.
+ *  - → cruzar      arco por el borde (cognitiva). SOLO dentro de la ventana.
+ *  - ↑ subir       hacia afuera (activación). Solo desde agradable o neutro.
+ *  - canalizar     usar la energía agradable alta (no se arregla, se usa).
+ *  - saborear      sostener la calma agradable (destino, no parada).
+ * Prohibición dura: subir desde desagradable NO se ofrece nunca.
+ */
+export type EmotionMove = 'bajar' | 'reencuadrar' | 'cruzar' | 'subir' | 'canalizar' | 'saborear';
 
 export interface RegulationTool {
   id: string;
@@ -85,7 +97,22 @@ export const TOOLS_ALTA_DESAGRADABLE: RegulationTool[] = [
 export const TOOL_CRISIS: RegulationTool =
   T('panico', 'Navegar un ataque de pánico', 'Acompañamiento paso a paso, a tu ritmo.', audio('navegar_ataque_panico'), 10);
 
-/** → VOLTEAR LA VALENCIA — cognitivas, por estrategia (spec §2). */
+/** ⇄ REENCUADRAR — releer la misma activación, sin pedir calmarse (análisis v2).
+ *  Es cognitiva LIGERA y vive en activación alta: nervios ↔ ganas. */
+export const TOOLS_REENCUADRAR: RegulationTool[] = [
+  T('reetiquetar', 'Reetiquetar la activación', 'Nervios y ganas comparten cuerpo. Ponle el nombre que te sirve.', { pathname: '/journal' }, 5),
+  T('presencia_re', 'Presencia', 'Volver al cuerpo para leer la energía tal cual es, sin la historia del miedo.', audio('presencia'), 10),
+];
+
+/** ↑ SUBIR — activar desde la calma agradable (la mitad olvidada de la
+ *  regulación): movimiento suave, propósito, crear. Nunca desde desagradable. */
+export const TOOLS_SUBIR: RegulationTool[] = [
+  T('mover', 'Muévete un poco', 'Desde la calma, activar suave: una caminata, estiramiento, algo de cuerpo.', { pathname: '/fitness-hub' }),
+  T('proposito', 'Visión de futuro', 'Levantar la vista al horizonte y elegir hacia dónde.', audio('vision_de_futuro'), 12),
+  T('crear_sub', 'Visualización creativa', 'Poner la calma a construir algo tuyo.', audio('visualizacion_creativa'), 12),
+];
+
+/** → CRUZAR LA VALENCIA — cognitivas, por estrategia (spec §2). SOLO en ventana. */
 export type CognitiveStrategy =
   | 'distanciamiento' | 'aceptacion' | 'gratitud' | 'autocompasion'
   | 'proceso' | 'agencia' | 'presencia';
@@ -143,14 +170,18 @@ export const TOOLS_SABOREAR: RegulationTool[] = [
 
 export const MOVE_QUESTIONS: Record<EmotionMove, string> = {
   bajar: '¿Qué pasa si le bajas la energía?',
-  voltear: '¿Y si pudieras verle el otro lado?',
+  reencuadrar: '¿Y si es la misma energía, leída distinta?',
+  cruzar: '¿Y si pudieras verle el otro lado?',
+  subir: 'Esta base aguanta más. ¿Subimos?',
   canalizar: 'No hay nada que arreglar aquí. ¿La usamos?',
   saborear: 'No hay nada que mover. ¿La saboreas?',
 };
 
 export const MOVE_SUBTEXT: Record<EmotionMove, string> = {
   bajar: 'Mira el mapa: la misma emoción tiene versiones más manejables. Bajar no es rendirte.',
-  voltear: 'La misma situación cabe en varias historias. Mira qué hay del otro lado del plano.',
+  reencuadrar: 'Nervios y ganas se sienten casi igual. No te pide calmarte: te pide releer lo que ya traes.',
+  cruzar: 'Ya bajó la marea. Desde aquí sí se puede mirar la misma situación en otra historia.',
+  subir: 'Desde lo bueno también se navega: activar, no solo bajar. Movimiento, luz, propósito.',
   canalizar: 'Hoy entrena fuerte, crea, decide. Esta energía es de las buenas.',
   saborear: 'Quedarte aquí es un destino legítimo, no una parada intermedia.',
 };
