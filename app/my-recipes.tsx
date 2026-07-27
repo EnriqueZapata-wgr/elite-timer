@@ -2,7 +2,7 @@
  * Mis Recetas — Guardar y reusar comidas personalizadas sin re-estimar.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Alert, TextInput, Modal, Pressable, DeviceEventEmitter } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, TextInput, Modal, Pressable } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -13,7 +13,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
-import { getLocalToday } from '@/src/utils/date-helpers';
+import { saveFoodLog } from '@/src/services/food-log-service';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, SURFACES } from '@/src/constants/brand';
@@ -65,27 +65,27 @@ export default function MyRecipesScreen() {
   async function useRecipe(recipe: Recipe) {
     if (!user?.id) return;
     haptic.medium();
-    const today = getLocalToday();
     const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-    try {
-      await supabase.from('food_logs').insert({
-        user_id: user.id,
-        date: today,
-        meal_time: now,
-        meal_type: recipe.meal_type || 'snack_am',
-        description: recipe.name,
-        calories: recipe.total_calories,
-        protein_g: recipe.total_protein,
-        carbs_g: recipe.total_carbs,
-        fat_g: recipe.total_fat,
-        notes: JSON.stringify({ source: 'recipe', recipe_id: recipe.id }),
-      });
-      DeviceEventEmitter.emit('day_changed');
-      haptic.success();
-      Alert.alert('Registrado', `"${recipe.name}" agregado a tu registro de hoy.`);
-    } catch {
+    // Track A (MB-8): guardado unificado + chequeo real de error (antes el
+    // try/catch no atrapaba 4xx y mostraba "Registrado" en falso — G3).
+    const result = await saveFoodLog({
+      userId: user.id,
+      mealTime: now,
+      mealType: recipe.meal_type || 'snack_am',
+      description: recipe.name,
+      source: 'recipe',
+      calories: recipe.total_calories,
+      proteinG: recipe.total_protein,
+      carbsG: recipe.total_carbs,
+      fatG: recipe.total_fat,
+      extras: { recipe_id: recipe.id },
+    });
+    if (!result.ok) {
       Alert.alert('Error', 'No se pudo registrar la receta.');
+      return;
     }
+    haptic.success();
+    Alert.alert('Registrado', `"${recipe.name}" agregado a tu registro de hoy.`);
   }
 
   // T5 (#56): toggle favorito (optimista)

@@ -6,7 +6,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, TextInput,
-  Image, Dimensions, Alert, Platform, DeviceEventEmitter,
+  Image, Dimensions, Alert, Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,8 +26,9 @@ import { haptic } from '@/src/utils/haptics';
 import { warn as logWarn } from '@/src/lib/logger';
 import {
   analyzeFoodPhoto, analyzeLabelPhoto, analyzeSupplementPhoto,
-  logFood, uploadFoodPhoto,
+  uploadFoodPhoto,
 } from '@/src/services/nutrition-service';
+import { saveFoodLog } from '@/src/services/food-log-service';
 import { analyzeFoodText, reanalyzeFood } from '@/src/services/nutrition-service';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 import { BackButton } from '@/src/components/ui/BackButton';
@@ -489,13 +490,17 @@ export default function FoodScanScreen() {
       }
       const hungerVal = hungerKey ? HUNGER_OPTIONS.find(h => h.key === hungerKey)?.value : undefined;
       const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-      await logFood({
-        meal_type: mealType,
+      // Track A (MB-8): guardado unificado — source/was_edited a columnas reales.
+      const saveRes = await saveFoodLog({
+        userId: user?.id,
+        mealType,
         description: reviewed.description || result.food_identified || description || textInput || 'Sin descripción',
-        photo_url: photoUrl,
-        meal_time: now,
-        hunger_level: hungerVal,
-        ai_analysis: {
+        photoUrl,
+        mealTime: now,
+        hungerLevel: hungerVal,
+        source: inputType === 'text' ? 'scan_text' : 'scan_photo',
+        wasEdited: true,
+        aiAnalysis: {
           ...result,
           ingredients: reviewed.items,
           totals: reviewed.totals,
@@ -503,10 +508,11 @@ export default function FoodScanScreen() {
           was_edited: true,
         },
         calories: reviewed.totals.calories,
-        protein_g: reviewed.totals.protein_g,
-        carbs_g: reviewed.totals.carbs_g,
-        fat_g: reviewed.totals.fat_g,
+        proteinG: reviewed.totals.protein_g,
+        carbsG: reviewed.totals.carbs_g,
+        fatG: reviewed.totals.fat_g,
       });
+      if (!saveRes.ok) throw new Error(saveRes.message);
       // Actualizar frecuentes (background)
       if (user?.id) {
         updateFrequentFood(user.id, mealType, {
@@ -519,8 +525,7 @@ export default function FoodScanScreen() {
         });
       }
 
-      // Regla #6 CLAUDE.md: HOY/Nutrición recompilan el día (fix flag NUTRICIÓN).
-      DeviceEventEmitter.emit('day_changed');
+      // 'day_changed' lo emite saveFoodLog (regla #6).
       // T5 HARDENING: funnel core — comida registrada (sin descripción en props).
       analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'scan_reviewed', meal_type: mealType, has_photo: !!photoUrl });
       haptic.success();
@@ -543,10 +548,14 @@ export default function FoodScanScreen() {
       }
       const hungerVal = hungerKey ? HUNGER_OPTIONS.find(h => h.key === hungerKey)?.value : undefined;
       const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-      await logFood({
-        meal_type: mealType, description: description || textInput || 'Sin descripción',
-        photo_url: photoUrl, meal_time: now, hunger_level: hungerVal,
+      // Track A (MB-8): guardado unificado.
+      const saveRes = await saveFoodLog({
+        userId: user?.id,
+        mealType, description: description || textInput || 'Sin descripción',
+        photoUrl, mealTime: now, hungerLevel: hungerVal,
+        source: 'scan_raw',
       });
+      if (!saveRes.ok) throw new Error(saveRes.message);
       // Economía (fire-and-forget; no-op si flag OFF). Solo comida CON FOTO (doc: 8 E-, cap 4/día).
       if (user?.id && photoUrl) {
         fireElectronAward({
@@ -555,8 +564,7 @@ export default function FoodScanScreen() {
           metadata: { meal_type: mealType },
         });
       }
-      // Regla #6 CLAUDE.md: HOY/Nutrición recompilan el día (fix flag NUTRICIÓN).
-      DeviceEventEmitter.emit('day_changed');
+      // 'day_changed' lo emite saveFoodLog (regla #6).
       // T5 HARDENING: funnel core — comida registrada sin análisis.
       analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'scan_raw', meal_type: mealType, has_photo: !!photoUrl });
       haptic.light();

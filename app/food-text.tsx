@@ -8,7 +8,6 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   View, StyleSheet, ScrollView, TextInput, Pressable,
   KeyboardAvoidingView, Platform, Alert, ActivityIndicator,
-  DeviceEventEmitter,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,11 +17,11 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { useAuth } from '@/src/contexts/auth-context';
-import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { searchFoods, calculateNutrients } from '@/src/data/food-database';
 import type { FoodItem } from '@/src/data/food-database';
 import { analyzeFoodText as analyzeWithAI } from '@/src/services/nutrition-service';
+import { saveFoodLog } from '@/src/services/food-log-service';
 import { FoodReviewEditor, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { maybeGeneratePostMealInsight } from '@/src/services/argos-nutrition-insights';
@@ -251,22 +250,23 @@ export default function FoodTextScreen() {
       const safeFat = safeNum(reviewed.totals.fat_g, 0);
       const hasMacros = safeCalories > 0 || safeProtein > 0;
       const qualityScore = ingredients.length > 0 ? calcQualityScore(ingredients, safeProtein) : 0;
-      const extras = JSON.stringify({ fiber_g: safeNum(totals.fiber, 0), quality_score: qualityScore, source: 'manual_text', was_edited: true });
 
-      const { error } = await supabase.from('food_logs').insert({
-        user_id: user!.id,
+      // Track A (MB-8): guardado unificado — source/was_edited a columnas reales.
+      const result = await saveFoodLog({
+        userId: user!.id,
         date: today,
-        meal_time: mealTime,
-        meal_type: mealType,
+        mealTime,
+        mealType,
         description: desc,
+        source: 'manual_text',
+        wasEdited: true,
         calories: hasMacros ? Math.round(safeCalories * 10) / 10 : null,
-        protein_g: hasMacros ? Math.round(safeProtein * 10) / 10 : null,
-        carbs_g: hasMacros ? Math.round(safeCarbs * 10) / 10 : null,
-        fat_g: hasMacros ? Math.round(safeFat * 10) / 10 : null,
-        notes: extras,
+        proteinG: hasMacros ? Math.round(safeProtein * 10) / 10 : null,
+        carbsG: hasMacros ? Math.round(safeCarbs * 10) / 10 : null,
+        fatG: hasMacros ? Math.round(safeFat * 10) / 10 : null,
+        extras: { fiber_g: safeNum(totals.fiber, 0), quality_score: qualityScore },
       });
-
-      if (error) throw error;
+      if (!result.ok) throw new Error(result.message);
 
       // Actualizar frecuentes (background, no bloquear UI)
       if (user?.id && hasMacros) {
@@ -280,7 +280,7 @@ export default function FoodTextScreen() {
         });
       }
 
-      DeviceEventEmitter.emit('day_changed');
+      // 'day_changed' lo emite saveFoodLog (regla #6).
       // T5 HARDENING: funnel core — comida registrada por texto.
       analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'text', meal_type: mealType });
       // T6 NUTRICIÓN: insight post-meal de ARGOS (opt-in + throttle, no bloquea)

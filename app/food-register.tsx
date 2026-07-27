@@ -21,6 +21,8 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
+import { saveFoodLog } from '@/src/services/food-log-service';
+import { warn as logWarn } from '@/src/lib/logger';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -77,39 +79,43 @@ export default function FoodRegisterScreen() {
     haptic.medium();
     const today = getLocalToday();
     const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
-    try {
-      await supabase.from('food_logs').insert({
-        user_id: user.id,
-        date: today,
-        meal_time: now,
-        meal_type: food.meal_type,
-        description: food.food_name,
-        calories: food.calories,
-        protein_g: food.protein_g,
-        carbs_g: food.carbs_g,
-        fat_g: food.fat_g,
-        notes: JSON.stringify({ source: 'frequent', items: food.items }),
-      });
-      // Actualizar times_used
-      await supabase.from('user_frequent_foods')
-        .update({ times_used: (food.times_used || 0) + 1, last_used_at: new Date().toISOString() })
-        .eq('id', food.id);
-
-      DeviceEventEmitter.emit('day_changed');
-      // T5 HARDENING: funnel core — comida registrada desde frecuentes.
-      analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'frequent', meal_type: food.meal_type });
-      // T6 NUTRICIÓN: insight post-meal de ARGOS (opt-in + throttle, no bloquea)
-      void maybeGeneratePostMealInsight(user.id, food.food_name);
-      haptic.success();
-      Alert.alert('Registrado', `${food.food_name} agregado`);
-      // Refrescar logs
-      supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
-        .eq('user_id', user.id).eq('date', today)
-        .order('meal_time', { ascending: true })
-        .then(({ data }) => setTodayLogs(data ?? []));
-    } catch {
-      Alert.alert('Error', 'No se pudo registrar');
+    // Track A (MB-8): guardado unificado + chequeo real de error (antes el
+    // try/catch no atrapaba 4xx y mostraba "Registrado" en falso — G1).
+    const result = await saveFoodLog({
+      userId: user.id,
+      date: today,
+      mealTime: now,
+      mealType: food.meal_type,
+      description: food.food_name,
+      source: 'frequent',
+      calories: food.calories,
+      proteinG: food.protein_g,
+      carbsG: food.carbs_g,
+      fatG: food.fat_g,
+      extras: { items: food.items },
+    });
+    if (!result.ok) {
+      Alert.alert('Error al registrar', 'Intenta de nuevo.');
+      return;
     }
+    // Actualizar times_used (best-effort, con log si falla)
+    const { error: freqErr } = await supabase.from('user_frequent_foods')
+      .update({ times_used: (food.times_used || 0) + 1, last_used_at: new Date().toISOString() })
+      .eq('id', food.id);
+    if (freqErr) logWarn('[food-register] times_used update failed:', freqErr.message);
+
+    // T5 HARDENING: funnel core — comida registrada desde frecuentes.
+    analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'frequent', meal_type: food.meal_type });
+    // T6 NUTRICIÓN: insight post-meal de ARGOS (opt-in + throttle, no bloquea)
+    void maybeGeneratePostMealInsight(user.id, food.food_name);
+    haptic.success();
+    Alert.alert('Registrado', `${food.food_name} agregado`);
+    // Refrescar logs
+    const { data, error: refreshErr } = await supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
+      .eq('user_id', user.id).eq('date', today)
+      .order('meal_time', { ascending: true });
+    if (refreshErr) logWarn('[food-register] refresh logs failed:', refreshErr.message);
+    else setTodayLogs(data ?? []);
   }
 
   async function handleDeleteLog(logId: string, desc: string) {
