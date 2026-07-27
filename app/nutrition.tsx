@@ -32,7 +32,7 @@ import { getTodayInsight, NUTRITION_INSIGHT_EVENT, type CachedInsight } from '@/
 import type { ScoreBreakdown } from '@/src/services/nutrition-score-core';
 import { NutritionScoreCard } from '@/src/components/nutricion/NutritionScoreCard';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, TEXT_COLORS, PILLAR_GRADIENTS } from '@/src/constants/brand';
+import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
@@ -199,60 +199,11 @@ export default function NutritionScreen() {
           />
         </Animated.View>
 
-        {/* ═══ HERO: Resumen del día (solo modo COMPLETO — en simple el
-            score card ya trae proteína/agua sin ruido) ═══ */}
-        {mode === 'complete' && (
-        <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <GradientCard gradient={PILLAR_GRADIENTS.nutrition} padding={20}>
-            <EliteText style={s.heroTitle}>RESUMEN DEL DÍA</EliteText>
-            {summary.mealCount === 0 ? (
-              /* T4 HARDENING: primer día / día vacío — guía en vez de ceros. */
-              <View style={s.emptyHero}>
-                <Ionicons name="restaurant-outline" size={28} color={BLUE} />
-                <EliteText style={s.emptyHeroTitle}>Tu día nutricional empieza aquí</EliteText>
-                <EliteText style={s.emptyHeroText}>
-                  Registra tu primera comida — foto o texto, como prefieras.
-                </EliteText>
-              </View>
-            ) : macroMode ? (
-              <View style={s.macroRow}>
-                <View style={s.macroItem}>
-                  <EliteText style={s.macroValue}>{summary.calories}</EliteText>
-                  <EliteText style={s.macroLabel}>kcal</EliteText>
-                </View>
-                <View style={s.macroDivider} />
-                <View style={s.macroItem}>
-                  <EliteText style={[s.macroValue, { color: BLUE }]}>{summary.protein}g</EliteText>
-                  <EliteText style={s.macroLabel}>Proteína</EliteText>
-                </View>
-                <View style={s.macroDivider} />
-                <View style={s.macroItem}>
-                  <EliteText style={s.macroValue}>{summary.carbs}g</EliteText>
-                  <EliteText style={s.macroLabel}>Carbs</EliteText>
-                </View>
-                <View style={s.macroDivider} />
-                <View style={s.macroItem}>
-                  <EliteText style={s.macroValue}>{summary.fat}g</EliteText>
-                  <EliteText style={s.macroLabel}>Grasa</EliteText>
-                </View>
-              </View>
-            ) : (
-              /* Macros OFF: solo proteína visible (decisión Mariana) */
-              <View style={s.macroRow}>
-                <View style={s.macroItem}>
-                  <EliteText style={[s.macroValue, { color: BLUE }]}>{summary.protein}g</EliteText>
-                  <EliteText style={s.macroLabel}>Proteína</EliteText>
-                </View>
-              </View>
-            )}
-            {summary.mealCount > 0 && (
-              <EliteText style={s.heroSub}>
-                {summary.mealCount} {summary.mealCount === 1 ? 'comida registrada' : 'comidas registradas'} hoy
-              </EliteText>
-            )}
-          </GradientCard>
-        </Animated.View>
-        )}
+        {/* MB-8 Track E.2: el hub es navegación, no tablero. La card RESUMEN
+            DEL DÍA duplicaba los macros que ya viven en el registro (un dato
+            vive en UN solo lugar) — fuera. El score card se queda: es la
+            síntesis de coaching (decisión MB-1.5 "score = coaching"), no un
+            dato crudo. Los macros del día se consultan en Registrar. */}
 
         {/* Banner educativo una sola vez (macros OFF) */}
         {showMacroBanner && (
@@ -296,8 +247,9 @@ export default function NutritionScreen() {
             acceso de Hábitos; muestra estado vivo) */}
         {summary.isFasting && isFeatureVisible('fasting', mode) && (
           <Animated.View entering={FadeInUp.delay(75).springify()} style={{ marginTop: Spacing.sm }}>
+            {/* E.2: sin dato duro — las horas viven en /fasting */}
             <NavCard icon="timer-outline" color="#fbbf24" title="Ayuno activo"
-              subtitle={`${summary.fastHours}h en curso · toca para ver detalle`}
+              subtitle="En curso — toca para ver tu progreso"
               onPress={() => { haptic.light(); router.push('/fasting'); }} />
           </Animated.View>
         )}
@@ -366,8 +318,9 @@ export default function NutritionScreen() {
 
           {isFeatureVisible('glucose', mode) && (
           <Animated.View entering={FadeInUp.delay(180).springify()}>
+            {/* E.2: sin dato duro — el valor vive en /glucose-log */}
             <NavCard icon="analytics-outline" color="#fb923c" title="Glucosa"
-              subtitle={summary.lastGlucose ? `Último: ${summary.lastGlucose} mg/dL` : 'Registrar medición'}
+              subtitle="Registra y consulta tus mediciones"
               onPress={() => { haptic.light(); router.push('/glucose-log'); }} />
           </Animated.View>
           )}
@@ -426,24 +379,6 @@ function NavCard({ icon, color, title, subtitle, badge, badgeColor, onPress }: {
 // ═══ ESTILOS ═══
 const s = StyleSheet.create({
   content: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
-
-  heroTitle: {
-    fontSize: 11, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 2, marginBottom: Spacing.md,
-  },
-  macroRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
-  macroItem: { alignItems: 'center' },
-  macroValue: { fontSize: FontSizes.xl, fontFamily: Fonts.bold, color: '#fff' },
-  macroLabel: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.5)', marginTop: 2 },
-  macroDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.08)' },
-  heroSub: { fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: Spacing.md },
-  // T4 HARDENING: empty state del hero (día sin comidas)
-  emptyHero: { alignItems: 'center', gap: 6, paddingVertical: Spacing.sm },
-  emptyHeroTitle: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#fff', marginTop: 4 },
-  emptyHeroText: {
-    fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: 'rgba(255,255,255,0.55)',
-    textAlign: 'center', lineHeight: 19,
-  },
 
   macroBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,

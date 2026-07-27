@@ -17,7 +17,7 @@ import { saveFoodLog } from '@/src/services/food-log-service';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, SURFACES } from '@/src/constants/brand';
+import { TEXT_COLORS, SURFACES, ATP_BRAND } from '@/src/constants/brand';
 
 interface Recipe {
   id: string;
@@ -65,7 +65,7 @@ export default function MyRecipesScreen() {
     setLoading(false);
   }
 
-  async function useRecipe(recipe: Recipe) {
+  async function registerRecipe(recipe: Recipe) {
     if (!user?.id) return;
     haptic.medium();
     const now = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' });
@@ -185,10 +185,10 @@ export default function MyRecipesScreen() {
         {recipes.filter(r => filter === 'all' || r.is_favorite).map((recipe, idx) => (
           <Animated.View key={recipe.id} entering={FadeInUp.delay(idx * 50).springify()}>
             <SwipeToDeleteRow onConfirmDelete={() => deleteRecipe(recipe)}>
-            <AnimatedPressable onPress={() => useRecipe(recipe)} onLongPress={() => deleteRecipe(recipe)}>
+            <AnimatedPressable onPress={() => registerRecipe(recipe)} onLongPress={() => deleteRecipe(recipe)}>
               <View style={s.recipeCard}>
                 <View style={s.recipeHeader}>
-                  <Ionicons name="bookmark" size={16} color="#fbbf24" />
+                  <Ionicons name="bookmark" size={16} color={ATP_BRAND.amber} />
                   <EliteText style={s.recipeName} numberOfLines={1}>{recipe.name}</EliteText>
                   {/* T5: corazón de favorito */}
                   <Pressable onPress={() => toggleFavorite(recipe)} hitSlop={10}>
@@ -250,7 +250,7 @@ export default function MyRecipesScreen() {
 
         {/* Botón crear */}
         <AnimatedPressable onPress={() => { haptic.light(); setShowCreate(true); }} style={s.createBtn}>
-          <Ionicons name="add-circle-outline" size={20} color="#fbbf24" />
+          <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.amber} />
           <EliteText style={s.createBtnText}>Crear receta manual</EliteText>
         </AnimatedPressable>
 
@@ -266,7 +266,7 @@ export default function MyRecipesScreen() {
 
             <EliteText variant="caption" style={s.inputLabel}>Nombre</EliteText>
             <TextInput style={s.input} value={newName} onChangeText={setNewName}
-              placeholder="Ej: Bullet Proof Coffee" placeholderTextColor="#555" autoFocus />
+              placeholder="Ej: Omelette de 3 huevos con aguacate" placeholderTextColor="#555" autoFocus />
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: Spacing.md }}>
               <View style={{ flex: 1 }}>
@@ -293,9 +293,10 @@ export default function MyRecipesScreen() {
               </View>
             </View>
 
+            {/* E.1 (MB-8): disabled explícito, no opacidad apilada */}
             <AnimatedPressable onPress={createRecipe} disabled={!newName.trim()}
-              style={[s.saveBtn, !newName.trim() && { opacity: 0.4 }]}>
-              <EliteText style={s.saveBtnText}>GUARDAR RECETA</EliteText>
+              style={[s.saveBtn, !newName.trim() && { backgroundColor: SURFACES.cardLight }]}>
+              <EliteText style={[s.saveBtnText, !newName.trim() && { color: TEXT_COLORS.muted }]}>GUARDAR RECETA</EliteText>
             </AnimatedPressable>
           </Pressable>
         </Pressable>
@@ -327,7 +328,7 @@ const s = StyleSheet.create({
   recipeCard: {
     backgroundColor: SURFACES.card, borderRadius: Radius.card,
     padding: Spacing.md, marginBottom: Spacing.sm,
-    borderLeftWidth: 3, borderLeftColor: '#fbbf24',
+    borderLeftWidth: 3, borderLeftColor: ATP_BRAND.amber,
   },
   recipeHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   recipeName: { fontSize: FontSizes.lg, fontFamily: Fonts.bold, color: '#fff', flex: 1 },
@@ -348,7 +349,7 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.md, marginTop: Spacing.md,
     borderWidth: 1, borderColor: '#333', borderRadius: Radius.card, borderStyle: 'dashed',
   },
-  createBtnText: { color: '#fbbf24', fontFamily: Fonts.semiBold },
+  createBtnText: { color: ATP_BRAND.amber, fontFamily: Fonts.semiBold },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#111', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.lg, paddingBottom: 40 },
@@ -359,7 +360,7 @@ const s = StyleSheet.create({
     fontFamily: Fonts.regular, fontSize: FontSizes.md, padding: Spacing.md,
   },
   saveBtn: {
-    backgroundColor: '#fbbf24', borderRadius: Radius.card, paddingVertical: Spacing.md,
+    backgroundColor: ATP_BRAND.amber, borderRadius: Radius.card, paddingVertical: Spacing.md,
     alignItems: 'center', marginTop: Spacing.lg,
   },
   saveBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.lg },

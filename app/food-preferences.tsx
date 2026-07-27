@@ -12,6 +12,7 @@ import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
@@ -150,9 +151,14 @@ export default function FoodPreferencesScreen() {
           </View>
         </Animated.View>
 
-        <AnimatedPressable onPress={handleSave} disabled={saving} style={[s.saveBtn, saving && { opacity: 0.5 }]}>
-          <EliteText style={s.saveBtnText}>{saving ? 'GUARDANDO…' : 'GUARDAR'}</EliteText>
-        </AnimatedPressable>
+        {/* E.1 (MB-8): CTA heroico = degradado del sistema, sin opacidad apilada */}
+        <GradientCTA
+          label={saving ? 'GUARDANDO…' : 'GUARDAR'}
+          pillar="nutrition"
+          disabled={saving}
+          onPress={handleSave}
+          style={{ marginTop: Spacing.xl }}
+        />
 
         <View style={{ height: 80 }} />
       </ScrollView>
@@ -175,9 +181,4 @@ const s = StyleSheet.create({
     color: '#fff', fontFamily: Fonts.regular, fontSize: FontSizes.md, minHeight: 60,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
   },
-  saveBtn: {
-    backgroundColor: '#38bdf8', paddingVertical: 16, borderRadius: Radius.md,
-    alignItems: 'center', marginTop: Spacing.xl,
-  },
-  saveBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 2 },
 });

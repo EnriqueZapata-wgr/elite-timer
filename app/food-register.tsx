@@ -17,6 +17,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { haptic } from '@/src/utils/haptics';
@@ -189,12 +190,15 @@ export default function FoodRegisterScreen() {
       <Screen keyboard>
         <PillarHeader pillar="nutrition" title={directMealType.name} />
         <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
-          {/* Opciones de registro */}
+          {/* Opciones de registro — E.1 (MB-8): CTA heroico = degradado, no lime plano */}
           <Animated.View entering={FadeInUp.delay(50).springify()}>
-            <AnimatedPressable onPress={() => goToScan(directMealType.id)} style={s.actionBtn}>
-              <Ionicons name="camera-outline" size={22} color="#000" />
-              <EliteText style={s.actionBtnText}>Escanear con cámara</EliteText>
-            </AnimatedPressable>
+            <GradientCTA
+              label="ESCANEAR CON CÁMARA"
+              icon="camera-outline"
+              pillar="nutrition"
+              onPress={() => goToScan(directMealType.id)}
+              style={{ marginBottom: Spacing.sm }}
+            />
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(100).springify()}>
@@ -339,6 +343,7 @@ export default function FoodRegisterScreen() {
                 <View key={id} style={s.editRow}>
                   <EliteText style={s.editLabel}>{meal.name}</EliteText>
                   <View style={s.editTimes}>
+                    {/* E.3 (MB-8): teclado numérico para teclear horas */}
                     <TextInput
                       style={s.editInput}
                       value={editDraft[id].start}
@@ -346,6 +351,7 @@ export default function FoodRegisterScreen() {
                       placeholder={DEFAULT_MEAL_TIMES[id].start}
                       placeholderTextColor="#444"
                       maxLength={5}
+                      keyboardType="numbers-and-punctuation"
                     />
                     <EliteText style={s.editDash}>–</EliteText>
                     <TextInput
@@ -355,6 +361,7 @@ export default function FoodRegisterScreen() {
                       placeholder={DEFAULT_MEAL_TIMES[id].end}
                       placeholderTextColor="#444"
                       maxLength={5}
+                      keyboardType="numbers-and-punctuation"
                     />
                   </View>
                 </View>
@@ -461,22 +468,7 @@ const s = StyleSheet.create({
     color: '#a8e02a',
   },
 
-  // Action buttons (direct meal type view)
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: '#a8e02a',
-    paddingVertical: 16,
-    borderRadius: Radius.md,
-    marginBottom: Spacing.sm,
-  },
-  actionBtnText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.bold,
-    color: '#000',
-  },
+  // Action buttons (direct meal type view) — el primario es GradientCTA (E.1)
   actionBtnGhost: {
     flexDirection: 'row',
     alignItems: 'center',

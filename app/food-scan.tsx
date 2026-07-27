@@ -65,7 +65,8 @@ const MEAL_TYPES = [
 const HUNGER_OPTIONS = [
   { key: 'hungry', emoji: '\u{1F60B}', label: 'Con hambre', value: 8 },
   { key: 'normal', emoji: '\u{1F610}', label: 'Normal', value: 5 },
-  { key: 'not_hungry', emoji: '\u{1F922}', label: 'Sin hambre', value: 2 },
+  // E.3 (MB-8): antes 🤢 (nauseado) — no significa "sin hambre".
+  { key: 'not_hungry', emoji: '\u{1F636}', label: 'Sin hambre', value: 2 },
   { key: 'craving', emoji: '\u{1F630}', label: 'Antojo', value: 7 },
 ];
 
@@ -1003,19 +1004,26 @@ export default function FoodScanScreen() {
         <Animated.View entering={FadeInDown.delay(300).springify().damping(18)}>
           <View style={{ marginTop: Spacing.xl, gap: Spacing.sm }}>
             {/* Botón analizar — habilitado por foto o texto */}
-            <AnimatedPressable
-              onPress={handleAnalyze}
-              disabled={mode === 'food' ? (inputType === 'text' ? !textInput.trim() : !photoBase64) : !photoBase64}
-              scaleDown={0.96}
-              style={[st.ctaBtn, {
-                backgroundColor: cfg.color,
-                opacity: (mode === 'food' ? (inputType === 'text' ? !!textInput.trim() : !!photoBase64) : !!photoBase64) ? 1 : 0.3,
-              }]}>
-              <Ionicons name="sparkles" size={20} color={TEXT_COLORS.onAccent} />
-              <EliteText style={{ color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
-                Analizar con IA
-              </EliteText>
-            </AnimatedPressable>
+            {(() => {
+              // E.1 (MB-8): antipatrón de opacidad apilada — el disabled ahora
+              // es un estado explícito (fill recedido + texto muted), no un
+              // botón brillante "con algo encima".
+              const canAnalyze = mode === 'food'
+                ? (inputType === 'text' ? !!textInput.trim() : !!photoBase64)
+                : !!photoBase64;
+              return (
+                <AnimatedPressable
+                  onPress={handleAnalyze}
+                  disabled={!canAnalyze}
+                  scaleDown={0.96}
+                  style={[st.ctaBtn, { backgroundColor: canAnalyze ? cfg.color : SURFACES.cardLight }]}>
+                  <Ionicons name="sparkles" size={20} color={canAnalyze ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
+                  <EliteText style={{ color: canAnalyze ? TEXT_COLORS.onAccent : TEXT_COLORS.muted, fontFamily: Fonts.bold, fontSize: FontSizes.xl }}>
+                    Analizar con IA
+                  </EliteText>
+                </AnimatedPressable>
+              );
+            })()}
 
             {mode === 'food' && (
               <Pressable onPress={handleSaveWithout} disabled={saving}

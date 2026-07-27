@@ -27,7 +27,7 @@ import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { maybeGeneratePostMealInsight } from '@/src/services/argos-nutrition-insights';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity,
 } from '@/src/constants/brand';
@@ -52,7 +52,8 @@ const CATEGORY_ICONS: Record<FoodItem['category'], keyof typeof Ionicons.glyphMa
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Desayuno' },
   { key: 'snack_am', label: 'Snack AM' },
-  { key: 'lunch', label: 'Almuerzo' },
+  // E.3 (MB-8): es-MX — "Comida", igual que food-scan y food-register.
+  { key: 'lunch', label: 'Comida' },
   { key: 'snack_pm', label: 'Snack PM' },
   { key: 'dinner', label: 'Cena' },
 ] as const;
@@ -452,7 +453,7 @@ export default function FoodTextScreen() {
                 )}
                 <View style={{ flex: 1 }}>
                   <EliteText style={s.aiSearchTitle}>Estimar con IA</EliteText>
-                  <EliteText style={s.aiSearchSub}>"{query.trim()}" — calcular macros</EliteText>
+                  <EliteText style={s.aiSearchSub}>{`"${query.trim()}" — calcular macros`}</EliteText>
                 </View>
               </AnimatedPressable>
             </Animated.View>
@@ -591,25 +592,28 @@ export default function FoodTextScreen() {
 
           {/* ═══ Botón guardar ═══ */}
           <Animated.View entering={FadeInUp.delay(250).duration(400)} style={s.saveSection}>
-            <AnimatedPressable
-              onPress={handleSave}
-              disabled={saving || (!query.trim() && ingredients.length === 0)}
-              style={[
-                s.saveBtn,
-                (saving || (!query.trim() && ingredients.length === 0)) && s.saveBtnDisabled,
-              ]}
-            >
-              {saving ? (
-                <EliteText style={s.saveBtnText}>Guardando...</EliteText>
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle" size={22} color={TEXT_COLORS.onAccent} />
-                  <EliteText style={s.saveBtnText}>
-                    {ingredients.length > 0 ? 'Guardar comida' : 'Guardar como texto'}
-                  </EliteText>
-                </>
-              )}
-            </AnimatedPressable>
+            {(() => {
+              // E.1 (MB-8): disabled explícito, no opacidad apilada.
+              const canSave = !saving && (!!query.trim() || ingredients.length > 0);
+              return (
+                <AnimatedPressable
+                  onPress={handleSave}
+                  disabled={!canSave}
+                  style={[s.saveBtn, !canSave && s.saveBtnDisabled]}
+                >
+                  {saving ? (
+                    <EliteText style={s.saveBtnText}>Guardando...</EliteText>
+                  ) : (
+                    <>
+                      <Ionicons name="checkmark-circle" size={22} color={canSave ? TEXT_COLORS.onAccent : TEXT_COLORS.muted} />
+                      <EliteText style={[s.saveBtnText, !canSave && { color: TEXT_COLORS.muted }]}>
+                        {ingredients.length > 0 ? 'Guardar comida' : 'Guardar como texto'}
+                      </EliteText>
+                    </>
+                  )}
+                </AnimatedPressable>
+              );
+            })()}
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -920,8 +924,9 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.md,
     gap: Spacing.sm,
   },
+  // E.1 (MB-8): estado disabled explícito (fill recedido), no opacity apilada.
   saveBtnDisabled: {
-    opacity: 0.4,
+    backgroundColor: SURFACES.cardLight,
   },
   saveBtnText: {
     color: TEXT_COLORS.onAccent,
