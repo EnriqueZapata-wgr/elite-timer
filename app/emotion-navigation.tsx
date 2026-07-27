@@ -25,6 +25,7 @@ import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner
 import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/EmotionMap2D';
 import { EMOTIONS } from '@/src/data/emotions-library';
 import { buildNavigationPlan, pickFramingPhrase } from '@/src/services/emotion-navigation-core';
+import { logNavigationMove } from '@/src/services/emotion-stats-service';
 import { STAY_COPY, type RegulationTool } from '@/src/data/emotion-navigation';
 import { colorAtPoint, normX, normY } from '@/src/services/emotion-map-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -146,6 +147,9 @@ export default function EmotionNavigationScreen() {
   const startMovement = () => {
     if (!move) return;
     haptic.medium();
+    // C.1: registra el movimiento tomado desde el estado de origen — materia
+    // prima de la efectividad. Fire-and-forget: no interrumpe el flujo.
+    logNavigationMove(origin.id, move.move);
     if (move.chainIds.length <= 1) {
       setSubStep('tools');
       return;

@@ -21,8 +21,14 @@ import { EmptyState } from '@/src/components/ui/EmptyState';
 import { EMOTIONS, QUADRANTS } from '@/src/data/emotions-library';
 import {
   buildMosaic, buildDayMoods, computeCorrelation, computePhaseBreakdown,
-  filterByRange, type HistoryRange, type CorrelationResult,
+  filterByRange, RANGE_DAYS, type HistoryRange, type CorrelationResult,
 } from '@/src/services/emotion-history-core';
+import {
+  buildWeekdayPattern, buildDayPartPattern, buildQuadrantDistribution,
+  buildTriggers, buildConsistency, computeNavigationEfficacy,
+  type PatternReport, type NavEvent,
+} from '@/src/services/emotion-stats-core';
+import { loadNavigationLogs } from '@/src/services/emotion-stats-service';
 import { loadHistoryData, type HistoryData, type HistoryCheckinRecord } from '@/src/services/emotion-history-service';
 import { colorAtPoint, emotionGradient, normX, normY, isLightColor } from '@/src/services/emotion-map-core';
 import { PHASES } from '@/src/services/cycle-service';
@@ -45,9 +51,32 @@ const CORRELATION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   sun: 'sunny-outline',
 };
 
+// MB-9 · Track C — copy de los reportes profundos.
+const MOVE_LABELS: Record<string, string> = {
+  bajar: 'bajas la energía',
+  reencuadrar: 'reencuadras la activación',
+  cruzar: 'cruzas al otro lado',
+  subir: 'subes desde la calma',
+};
+// Preposición por dimensión de disparador (dónde / con quién / qué hacías).
+const TRIGGER_WORD: Record<string, string> = { where: 'en', who: 'con', doing: 'mientras' };
+
+/** Frase de un patrón temporal (o el vacío que informa). */
+function patternLine(report: PatternReport): string {
+  if (report.status === 'insufficient') {
+    return report.needMore > 0
+      ? `Necesitas ${report.needMore} check-in${report.needMore === 1 ? '' : 's'} más para empezar a ver este patrón.`
+      : 'Aún no hay señal repartida en suficientes momentos. Sigue registrando.';
+  }
+  const low = report.lowest!;
+  const high = report.highest!;
+  return `Tu ánimo tiende a caer ${low.label.toLowerCase()} (${low.avg}/10) y a subir ${high.label.toLowerCase()} (${high.avg}/10). Es una asociación en tus datos, no una causa.`;
+}
+
 export default function EmotionHistoryScreen() {
   const router = useRouter();
   const [data, setData] = useState<HistoryData | null>(null);
+  const [navLogs, setNavLogs] = useState<NavEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<HistoryRange>('month');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -57,6 +86,8 @@ export default function EmotionHistoryScreen() {
       .then(setData)
       .catch(() => setData({ checkins: [], correlationDefs: [], phaseByDate: null }))
       .finally(() => setLoading(false));
+    // C.1: los movimientos de navegación tomados alimentan la efectividad.
+    loadNavigationLogs().then(setNavLogs).catch(() => {});
   }, []);
 
   const rangeCheckins = useMemo(
@@ -73,6 +104,27 @@ export default function EmotionHistoryScreen() {
     () => (data?.phaseByDate ? computePhaseBreakdown(dayMoods, data.phaseByDate) : null),
     [data, dayMoods],
   );
+
+  // ── MB-9 · Track C: reportes profundos (día/hora, distribución+tendencia,
+  //    disparadores, consistencia, efectividad de navegación) ──
+  const prevCheckins = useMemo(() => {
+    if (!data) return [];
+    const days = RANGE_DAYS[range];
+    const now = Date.now();
+    const start = now - 2 * days * 86400000;
+    const end = now - days * 86400000;
+    return data.checkins.filter((c) => {
+      const t = new Date(c.created_at).getTime();
+      return Number.isFinite(t) && t >= start && t < end;
+    });
+  }, [data, range]);
+
+  const weekdayPattern = useMemo(() => buildWeekdayPattern(rangeCheckins), [rangeCheckins]);
+  const dayPartPattern = useMemo(() => buildDayPartPattern(rangeCheckins), [rangeCheckins]);
+  const distribution = useMemo(() => buildQuadrantDistribution(rangeCheckins, prevCheckins), [rangeCheckins, prevCheckins]);
+  const triggers = useMemo(() => buildTriggers(rangeCheckins), [rangeCheckins]);
+  const consistency = useMemo(() => buildConsistency(rangeCheckins, RANGE_DAYS[range]), [rangeCheckins, range]);
+  const efficacy = useMemo(() => computeNavigationEfficacy(navLogs, rangeCheckins), [navLogs, rangeCheckins]);
 
   const maxCount = mosaic[0]?.count ?? 1;
 
@@ -184,6 +236,123 @@ export default function EmotionHistoryScreen() {
                 </View>
               </Animated.View>
             ))}
+          </View>
+        )}
+
+        {/* ═══ CUÁNDO SE TE CAE EL ÁNIMO (día / hora) ═══ */}
+        {rangeCheckins.length > 0 && (
+          <View style={{ marginTop: Spacing.xl }}>
+            <EliteText variant="caption" style={styles.sectionTitle}>CUÁNDO CAMBIA TU ÁNIMO</EliteText>
+            <View style={styles.corrCard}>
+              <View style={styles.corrHeader}>
+                <Ionicons name="calendar-outline" size={16} color={TEXT_COLORS.secondary} />
+                <EliteText variant="caption" style={styles.corrLabel}>POR DÍA DE LA SEMANA</EliteText>
+              </View>
+              <EliteText variant="body" style={styles.corrText}>{patternLine(weekdayPattern)}</EliteText>
+            </View>
+            <View style={styles.corrCard}>
+              <View style={styles.corrHeader}>
+                <Ionicons name="time-outline" size={16} color={TEXT_COLORS.secondary} />
+                <EliteText variant="caption" style={styles.corrLabel}>POR FRANJA DEL DÍA</EliteText>
+              </View>
+              <EliteText variant="body" style={styles.corrText}>{patternLine(dayPartPattern)}</EliteText>
+            </View>
+          </View>
+        )}
+
+        {/* ═══ DISTRIBUCIÓN POR CUADRANTE + TENDENCIA ═══ */}
+        {distribution.status === 'ok' && (
+          <View style={{ marginTop: Spacing.xl }}>
+            <EliteText variant="caption" style={styles.sectionTitle}>DÓNDE VIVISTE ESTE PERIODO</EliteText>
+            <View style={styles.corrCard}>
+              {distribution.shares.map((s) => {
+                const info = QUADRANTS[s.quadrant];
+                const up = (s.deltaPct ?? 0) > 0;
+                return (
+                  <View key={s.quadrant} style={styles.distRow}>
+                    <View style={[styles.distDot, { backgroundColor: info.color }]} />
+                    <EliteText variant="body" style={styles.distLabel} numberOfLines={1}>{info.label}</EliteText>
+                    <EliteText variant="body" style={styles.distPct}>{s.pct}%</EliteText>
+                    {s.deltaPct != null && Math.abs(s.deltaPct) >= 1 && (
+                      <View style={styles.distTrend}>
+                        <Ionicons name={up ? 'arrow-up' : 'arrow-down'} size={12} color={up ? SEMANTIC.acceptable : TEXT_COLORS.secondary} />
+                        <EliteText variant="caption" style={styles.distTrendText}>{Math.abs(s.deltaPct)}</EliteText>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+              {distribution.shares.every((s) => s.deltaPct == null) && (
+                <EliteText variant="caption" style={styles.distNote}>
+                  La flecha de tendencia aparece cuando el periodo anterior también tiene registros.
+                </EliteText>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* ═══ DISPARADORES FRECUENTES (asociación, no causa) ═══ */}
+        {triggers.status === 'ok' && (
+          <View style={{ marginTop: Spacing.xl }}>
+            <EliteText variant="caption" style={styles.sectionTitle}>QUÉ ACOMPAÑA TUS BAJONES</EliteText>
+            <EliteText variant="caption" style={styles.sectionSub}>
+              Lo que más estaba presente en tus estados desagradables. Presencia, no causa.
+            </EliteText>
+            <View style={styles.corrCard}>
+              {triggers.triggers.map((t) => (
+                <View key={`${t.dimension}-${t.value}`} style={styles.distRow}>
+                  <Ionicons name="pricetag-outline" size={14} color={TEXT_COLORS.secondary} />
+                  <EliteText variant="body" style={styles.distLabel} numberOfLines={1}>
+                    {TRIGGER_WORD[t.dimension]} {t.value}
+                  </EliteText>
+                  <EliteText variant="caption" style={styles.distPct}>{t.count}×</EliteText>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* ═══ TU NAVEGACIÓN FUNCIONA (C.1 · el diferenciador) ═══ */}
+        {efficacy.moves.length > 0 && (
+          <View style={{ marginTop: Spacing.xl }}>
+            <EliteText variant="caption" style={styles.sectionTitle}>MOVERTE FUNCIONA</EliteText>
+            <EliteText variant="caption" style={styles.sectionSub}>
+              De tus movimientos y tu siguiente check-in. Asociación, no promesa.
+            </EliteText>
+            {efficacy.moves.map((m) => (
+              <View key={m.move} style={[styles.corrCard, styles.corrCardSignal]}>
+                <View style={styles.corrHeader}>
+                  <Ionicons name="navigate-outline" size={16} color={SEMANTIC.info} />
+                  <EliteText variant="caption" style={styles.corrLabel}>{(MOVE_LABELS[m.move] ?? m.move).toUpperCase()}</EliteText>
+                </View>
+                <EliteText variant="body" style={styles.corrText}>
+                  Cuando {MOVE_LABELS[m.move] ?? m.move}, tu siguiente check-in mejora {Math.round((m.rate ?? 0) * 10)} de cada 10 veces ({m.sampled} registros).
+                </EliteText>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* ═══ CONSISTENCIA (racha de escucha) ═══ */}
+        {rangeCheckins.length > 0 && (
+          <View style={{ marginTop: Spacing.xl }}>
+            <EliteText variant="caption" style={styles.sectionTitle}>TU CONSTANCIA</EliteText>
+            <View style={styles.corrCard}>
+              <View style={styles.consRow}>
+                <View style={styles.consStat}>
+                  <EliteText style={styles.consNum}>{consistency.currentStreak}</EliteText>
+                  <EliteText variant="caption" style={styles.consLbl}>racha actual</EliteText>
+                </View>
+                <View style={styles.consStat}>
+                  <EliteText style={styles.consNum}>{consistency.longestStreak}</EliteText>
+                  <EliteText variant="caption" style={styles.consLbl}>racha más larga</EliteText>
+                </View>
+                <View style={styles.consStat}>
+                  <EliteText style={styles.consNum}>{Math.round(consistency.consistencyPct)}%</EliteText>
+                  <EliteText variant="caption" style={styles.consLbl}>días con check-in</EliteText>
+                </View>
+              </View>
+            </View>
           </View>
         )}
 
@@ -344,6 +513,19 @@ const styles = StyleSheet.create({
   },
   corrBadgeText: { color: SEMANTIC.info, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 1 },
   corrText: { color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 21 },
+
+  // MB-9 · Track C — distribución / disparadores / consistencia
+  distRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xs + 1 },
+  distDot: { width: 10, height: 10, borderRadius: 5 },
+  distLabel: { color: Colors.textPrimary, fontSize: FontSizes.md, flex: 1 },
+  distPct: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.md },
+  distTrend: { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 34, justifyContent: 'flex-end' },
+  distTrendText: { color: Colors.textSecondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  distNote: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: Spacing.xs, lineHeight: 16 },
+  consRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  consStat: { alignItems: 'center', gap: 2 },
+  consNum: { color: ATP_BRAND.lime, fontFamily: Fonts.extraBold, fontSize: FontSizes.xxl },
+  consLbl: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center' },
 
   // Ciclo
   phaseRow: {
