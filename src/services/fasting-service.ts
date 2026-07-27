@@ -253,6 +253,26 @@ export async function updateFast(params: {
   return { ok: true, data: data[0] as FastingLog };
 }
 
+/**
+ * Registra con qué se rompió el ayuno (doctrina ATP: proteína primero,
+ * MB-8 Track D.2). Mismo contrato verificado que el resto del servicio.
+ */
+export async function recordBrokeFastWith(fastId: string, brokeFastWith: string): Promise<MutationResult> {
+  const { data, error } = await supabase
+    .from('fasting_logs')
+    .update({ broke_fast_with: brokeFastWith })
+    .eq('id', fastId)
+    .select();
+  if (error) {
+    const c = classifyError('recordBrokeFastWith', error);
+    return { ok: false, ...c };
+  }
+  if (!data || data.length === 0) {
+    return { ok: false, reason: 'no_rows', message: 'Row not found or RLS blocked' };
+  }
+  return { ok: true, data: data[0] as FastingLog };
+}
+
 export async function autoCloseAtLimit(params: {
   fastId: string;
   hours: number;

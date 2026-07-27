@@ -20,6 +20,7 @@ import { getFastingTier } from '../src/constants/electrons';
 import * as fastingService from '../src/services/fasting-service';
 import { useAnalytics, ATP_EVENTS } from '../src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { BreakFastGuide } from '@/src/components/nutrition/BreakFastGuide';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 import { AttestationGateModal } from '@/src/components/safety/AttestationGateModal';
@@ -176,6 +177,9 @@ export default function FastingScreen() {
   useEffect(() => {
     getSafetyParams().then(p => { fastingParamsRef.current = p.fasting_safety; }).catch(() => {});
   }, []);
+
+  // Track D.2 (MB-8): cierre guiado del ayuno (proteína primero).
+  const [breakGuide, setBreakGuide] = useState<{ fastId: string; hours: number; zoneLabel: string } | null>(null);
 
   // Registro de ayuno pasado
   const [showPastFast, setShowPastFast] = useState(false);
@@ -516,11 +520,8 @@ export default function FastingScreen() {
     } catch { /* opcional */ }
 
     const zone = getCurrentZone(actualHours);
-    const durationMinutes = actualHours * 60;
-    Alert.alert(
-      '¡Ayuno completado!',
-      `Duraste ${formatDuration(durationMinutes)} · Alcanzaste: ${zone.label}`,
-    );
+    // Track D.2 (MB-8): cierre guiado — proteína primero + broke_fast_with.
+    setBreakGuide({ fastId: activeFast.id, hours: actualHours, zoneLabel: zone.label });
 
     if (activeFast?.id) {
       AsyncStorage.removeItem(milestoneStorageKey(activeFast.id)).catch(() => {});
@@ -1329,6 +1330,21 @@ export default function FastingScreen() {
           onCancel={() => setActiveStartEditOpen(false)}
         />
       )}
+
+      {/* Track D.2 (MB-8): cierre guiado — proteína primero + broke_fast_with */}
+      <BreakFastGuide
+        visible={!!breakGuide}
+        hours={breakGuide?.hours ?? 0}
+        zoneLabel={breakGuide?.zoneLabel ?? ''}
+        onRecord={(brokeWith) => {
+          if (!breakGuide) return;
+          fastingService.recordBrokeFastWith(breakGuide.fastId, brokeWith).then((r) => {
+            if (!r.ok) logWarn('[fasting] broke_fast_with failed:', r.message);
+          });
+        }}
+        onRegisterMeal={() => { setBreakGuide(null); router.push('/food-scan'); }}
+        onClose={() => setBreakGuide(null)}
+      />
 
       {/* Sprint Compliance 3: gate de ayuno prolongado (atestación §2.4 / hard block) */}
       <AttestationGateModal
