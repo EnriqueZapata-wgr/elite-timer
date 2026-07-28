@@ -9,12 +9,15 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { useStopwatch } from '@/src/hooks/useStopwatch';
 import { saveKinematicTest, type KinematicTestKey } from '@/src/services/edad-atp/kinematic-tests-service';
+import { ATP_BRAND, BG, BORDER, TEXT, TEXT_COLORS, ELEVATION } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 interface Props {
@@ -55,38 +58,41 @@ export function StopwatchTestScreen({ testKey, title, intro, helperTitle, helper
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.intro}>{intro}</EliteText>
 
-        <Pressable onPress={() => { haptic.light(); setHelpOpen(true); }} style={styles.helpLink}>
-          <Ionicons name="help-circle-outline" size={16} color={Colors.neonGreen} />
+        {/* ACCENT_ROLES: link de ayuda no es CTA/héroe/estado → neutro. */}
+        <AnimatedPressable onPress={() => { haptic.light(); setHelpOpen(true); }} style={styles.helpLink}>
+          <Ionicons name="help-circle-outline" size={16} color={TEXT.secondary} />
           <EliteText variant="caption" style={styles.helpLinkText}>¿Cómo se hace?</EliteText>
-        </Pressable>
+        </AnimatedPressable>
 
         <View style={styles.timerCard}>
           <EliteText style={styles.timer}>{elapsed.toFixed(1)}<EliteText style={styles.timerUnit}> s</EliteText></EliteText>
           <View style={styles.controls}>
             {!running ? (
-              <Pressable onPress={() => { haptic.medium(); start(); }} style={[styles.ctrl, styles.ctrlStart]}>
-                <Ionicons name="play" size={20} color={Colors.textOnGreen} />
+              <AnimatedPressable onPress={() => { haptic.medium(); start(); }} style={[styles.ctrl, styles.ctrlStart]}>
+                <Ionicons name="play" size={20} color={TEXT_COLORS.onAccent} />
                 <EliteText variant="body" style={styles.ctrlStartText}>{elapsed > 0 ? 'Reanudar' : 'Empezar'}</EliteText>
-              </Pressable>
+              </AnimatedPressable>
             ) : (
-              <Pressable onPress={() => { haptic.medium(); stop(); }} style={[styles.ctrl, styles.ctrlStop]}>
+              <AnimatedPressable onPress={() => { haptic.medium(); stop(); }} style={[styles.ctrl, styles.ctrlStop]}>
                 <Ionicons name="stop" size={20} color="#fff" />
                 <EliteText variant="body" style={styles.ctrlStopText}>Detener</EliteText>
-              </Pressable>
+              </AnimatedPressable>
             )}
-            <Pressable onPress={() => { haptic.light(); reset(); }} style={[styles.ctrl, styles.ctrlReset]} disabled={running}>
+            <AnimatedPressable onPress={() => { haptic.light(); reset(); }} style={[styles.ctrl, styles.ctrlReset]} disabled={running}>
               <Ionicons name="refresh" size={18} color={running ? Colors.textMuted : Colors.textSecondary} />
               <EliteText variant="caption" style={[styles.ctrlResetText, running && { color: Colors.textMuted }]}>Reiniciar</EliteText>
-            </Pressable>
+            </AnimatedPressable>
           </View>
         </View>
 
-        <Pressable onPress={handleSave} disabled={!canSave || saving} style={[styles.saveBtn, (!canSave || saving) && { opacity: 0.5 }]}>
-          <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar resultado'}</EliteText>
-        </Pressable>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <EliteText variant="body" style={styles.backText}>Volver</EliteText>
-        </Pressable>
+        <GradientCTA
+          label={saving ? 'GUARDANDO…' : 'GUARDAR RESULTADO'}
+          onPress={handleSave}
+          disabled={!canSave || saving}
+          pillar="fitness"
+          style={styles.saveBtn}
+        />
+        <GradientCTA label="Volver" variant="quiet" onPress={() => router.back()} />
       </ScrollView>
 
       <Modal visible={helpOpen} transparent animationType="fade" onRequestClose={() => setHelpOpen(false)}>
@@ -94,9 +100,7 @@ export function StopwatchTestScreen({ testKey, title, intro, helperTitle, helper
           <Pressable style={styles.modalCard} onPress={() => {}}>
             <EliteText variant="body" style={styles.modalTitle}>{helperTitle}</EliteText>
             <EliteText variant="caption" style={styles.modalBody}>{helperBody}</EliteText>
-            <Pressable onPress={() => setHelpOpen(false)} style={styles.modalClose}>
-              <EliteText variant="body" style={styles.modalCloseText}>Entendido</EliteText>
-            </Pressable>
+            <GradientCTA label="Entendido" onPress={() => setHelpOpen(false)} style={styles.modalClose} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -106,28 +110,26 @@ export function StopwatchTestScreen({ testKey, title, intro, helperTitle, helper
 
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  intro: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
+  intro: { color: TEXT.secondary, fontSize: FontSizes.sm, lineHeight: 20 },
   helpLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  helpLinkText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
-  timerCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: '#1a1a1a', alignItems: 'center', gap: Spacing.md, marginTop: Spacing.sm },
-  timer: { fontFamily: Fonts.extraBold, fontSize: FontSizes.timer, color: Colors.neonGreen },
-  timerUnit: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: Colors.textSecondary },
+  helpLinkText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
+  timerCard: { backgroundColor: BG.card, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: BORDER.card, alignItems: 'center', gap: Spacing.md, marginTop: Spacing.sm },
+  // Lima solo en el dato heroico (el cronómetro ES el protagonista de la pantalla).
+  timer: { fontFamily: Fonts.extraBold, fontSize: FontSizes.timer, color: ATP_BRAND.lime },
+  timerUnit: { fontFamily: Fonts.semiBold, fontSize: FontSizes.lg, color: TEXT.secondary },
   controls: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   ctrl: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 20, borderRadius: Radius.pill },
-  ctrlStart: { backgroundColor: Colors.neonGreen },
-  ctrlStartText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  // CTA compacto inline — lime sólido permitido bajo ACCENT_ROLES (§1).
+  ctrlStart: { backgroundColor: ATP_BRAND.lime },
+  ctrlStartText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
   ctrlStop: { backgroundColor: Colors.error },
   ctrlStopText: { color: '#fff', fontFamily: Fonts.bold },
-  ctrlReset: { borderWidth: 1, borderColor: '#222' },
-  ctrlResetText: { color: Colors.textSecondary },
-  saveBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md },
-  saveBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
-  backBtn: { paddingVertical: Spacing.sm, alignItems: 'center' },
-  backText: { color: Colors.textSecondary },
+  ctrlReset: { borderWidth: 1, borderColor: BORDER.input },
+  ctrlResetText: { color: TEXT.secondary },
+  saveBtn: { marginTop: Spacing.md },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: Spacing.lg },
-  modalCard: { backgroundColor: '#0d0d0d', borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: '#222', gap: Spacing.sm },
-  modalTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-  modalBody: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
-  modalClose: { backgroundColor: Colors.neonGreen, borderRadius: Radius.sm, paddingVertical: 10, alignItems: 'center', marginTop: Spacing.xs },
-  modalCloseText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  modalCard: { backgroundColor: ELEVATION[2].bg, borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: ELEVATION[2].border, gap: Spacing.sm },
+  modalTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  modalBody: { color: TEXT.secondary, fontSize: FontSizes.sm, lineHeight: 20 },
+  modalClose: { marginTop: Spacing.xs },
 });

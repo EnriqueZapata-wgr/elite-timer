@@ -3,18 +3,19 @@
  * Recibe el dominio + preguntas; maneja estado, guardado y navegación.
  */
 import { useState, useCallback } from 'react';
-import { ScrollView, StyleSheet, Pressable, Alert } from 'react-native';
+import { ScrollView, StyleSheet, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
-import { EliteText } from '@/components/elite-text';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { QuestionnaireQuestion, type QuestionOption } from './QuestionnaireQuestion';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveQuestionnaireResponses, type QuestionnaireResponse } from '@/src/services/edad-atp/capture-service';
-import { Colors, Spacing, Radius, Fonts } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 
 export type DomainQuestion = { parameter_key: string; text: string; options: QuestionOption[] };
 
@@ -39,7 +40,10 @@ export function QuestionnaireScreen({ domain, title, questions, pillar = 'metric
       .select('parameter_key, value_text')
       .eq('user_id', user.id)
       .eq('domain', domain)
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        // MB-11 A (mismo linaje): supabase-js no lanza en 4xx — sin este check
+        // el fallo se leería como "cuestionario sin contestar" y se piso todo.
+        if (error) { logWarn('[EdadATP] questionnaire_responses preload failed', error); return; }
         if (!data?.length) return;
         const prev: Record<string, string> = {};
         for (const r of data as any[]) if (r.value_text != null) prev[r.parameter_key] = r.value_text;
@@ -75,9 +79,13 @@ export function QuestionnaireScreen({ domain, title, questions, pillar = 'metric
             onSelect={(v) => setAnswers((p) => ({ ...p, [q.parameter_key]: v }))}
           />
         ))}
-        <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
-          <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar respuestas'}</EliteText>
-        </Pressable>
+        <GradientCTA
+          label={saving ? 'GUARDANDO…' : 'GUARDAR RESPUESTAS'}
+          onPress={handleSave}
+          disabled={saving}
+          pillar={pillar === 'rest' ? 'sleep' : pillar}
+          style={styles.saveBtn}
+        />
       </ScrollView>
     </Screen>
   );
@@ -85,6 +93,5 @@ export function QuestionnaireScreen({ domain, title, questions, pillar = 'metric
 
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, paddingBottom: 120 },
-  saveBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
-  saveBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  saveBtn: { marginTop: Spacing.sm },
 });
