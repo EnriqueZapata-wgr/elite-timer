@@ -12,9 +12,9 @@
  * Reglas: ofrecer nunca imponer (STAY siempre visible) · crisis rompe el
  * flujo (acompañamiento, no reframing) · cero nombres propios · sin promesas.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { useRouter, useLocalSearchParams, type Href } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect, type Href } from 'expo-router';
 import Animated, { FadeIn, FadeInDown, SlideInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +26,9 @@ import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/Em
 import { EMOTIONS } from '@/src/data/emotions-library';
 import { buildNavigationPlan, pickFramingPhrase } from '@/src/services/emotion-navigation-core';
 import { logNavigationMove } from '@/src/services/emotion-stats-service';
+import { saveCheckin } from '@/src/services/checkin-service';
+import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
+import { warn as logWarn } from '@/src/lib/logger';
 import { STAY_COPY, type RegulationTool } from '@/src/data/emotion-navigation';
 import { colorAtPoint, normX, normY } from '@/src/services/emotion-map-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -53,8 +56,19 @@ export default function EmotionNavigationScreen() {
   const [focusId, setFocusId] = useState(emotionId);
   const mapRef = useRef<EmotionMapHandle>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Track F (MB-10): al VOLVER de la herramienta se ofrece el re-check-in corto
+  // ("¿cómo quedaste?"). Ese segundo dato alimenta la métrica de efectividad de
+  // MB-9 — es el único modo de saber si esto sirve.
+  const pendingRecheck = useRef<{ chainIds: string[] } | null>(null);
+  const [recheck, setRecheck] = useState<'offer' | 'saved' | null>(null);
+  const [recheckSaving, setRecheckSaving] = useState(false);
 
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
+
+  useFocusEffect(useCallback(() => {
+    // Regresó de la herramienta (el push dejó marca) → ofrecer el re-check-in.
+    if (pendingRecheck.current) setRecheck((r) => r ?? 'offer');
+  }, []));
 
   const move = plan?.moves[moveIndex];
 
@@ -180,7 +194,41 @@ export default function EmotionNavigationScreen() {
 
   const openTool = (tool: RegulationTool) => {
     haptic.medium();
+    // Track F: marcar el viaje — al volver, "¿cómo quedaste?".
+    if (move) pendingRecheck.current = { chainIds: move.chainIds };
     router.push(tool.route as Href);
+  };
+
+  // Track F: el re-check-in corto ES un check-in real (mismo registro, misma
+  // estadística, misma salvaguarda) — así la efectividad de MB-9 tiene su
+  // segundo punto sin duplicar nada.
+  const handleRecheckPick = async (e: (typeof EMOTIONS)[number]) => {
+    if (recheckSaving) return;
+    haptic.medium();
+    setRecheckSaving(true);
+    try {
+      const axes = deriveCheckinAxes(e.quadrant, [{ energy: e.energy, intensity: e.intensity }]);
+      await saveCheckin({
+        quadrant: e.quadrant,
+        emotions: [e.id],
+        energy_level: axes.energy_level,
+        pleasantness: axes.pleasantness,
+      });
+      pendingRecheck.current = null;
+      setRecheck('saved');
+    } catch (err) {
+      // Best-effort: perder el dato no debe atrapar a la persona en la pantalla.
+      logWarn('[emotion-navigation] recheck save failed', err);
+      pendingRecheck.current = null;
+      setRecheck(null);
+    }
+    setRecheckSaving(false);
+  };
+
+  const dismissRecheck = () => {
+    haptic.light();
+    pendingRecheck.current = null;
+    setRecheck(null);
   };
 
   const focusEmotion = EMOTIONS.find(e => e.id === focusId);
@@ -205,8 +253,62 @@ export default function EmotionNavigationScreen() {
         />
       </View>
 
+      {/* Track F: re-check-in corto al volver de la herramienta */}
+      {recheck === 'offer' && (() => {
+        const chainIds = pendingRecheck.current?.chainIds ?? [origin.id];
+        const options = [...new Set([...chainIds].reverse())]
+          .map(id => EMOTIONS.find(e => e.id === id))
+          .filter((e): e is NonNullable<typeof e> => !!e)
+          .slice(0, 4);
+        return (
+          <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
+            <EliteText style={[styles.question, { color: focusColor }]}>¿Cómo quedaste?</EliteText>
+            <EliteText variant="body" style={styles.subtext}>
+              Un toque y ya. Este segundo dato es el que enseña si moverte funciona.
+            </EliteText>
+            <View style={styles.recheckWrap}>
+              {options.map(e => (
+                <Pressable
+                  key={e.id}
+                  disabled={recheckSaving}
+                  onPress={() => handleRecheckPick(e)}
+                  style={[styles.recheckChip, recheckSaving && { opacity: 0.6 }]}
+                >
+                  <EliteText variant="body" style={styles.recheckChipText}>
+                    {e.label}{e.id === origin.id ? ' · igual' : ''}
+                  </EliteText>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.cardActions}>
+              <Pressable onPress={dismissRecheck} style={styles.stayLink}>
+                <EliteText variant="caption" style={styles.stayText}>Prefiero no decir</EliteText>
+              </Pressable>
+            </View>
+          </Animated.View>
+        );
+      })()}
+
+      {recheck === 'saved' && (
+        <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
+          <EliteText style={[styles.question, { color: focusColor }]}>Registrado</EliteText>
+          <EliteText variant="body" style={styles.subtext}>
+            Con cada ida y vuelta, tu estadística aprende qué movimiento te funciona a ti.
+          </EliteText>
+          <View style={styles.cardActions}>
+            <View />
+            <Pressable
+              onPress={() => { haptic.medium(); router.back(); }}
+              style={[styles.cta, { backgroundColor: focusColor }]}
+            >
+              <EliteText style={styles.ctaText}>LISTO</EliteText>
+            </Pressable>
+          </View>
+        </Animated.View>
+      )}
+
       {/* Tarjeta inferior según sub-paso */}
-      {move && subStep === 'question' && (
+      {recheck === null && move && subStep === 'question' && (
         <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
           <EliteText style={[styles.question, { color: focusColor }]}>{move.question}</EliteText>
           <EliteText variant="body" style={styles.subtext}>{move.subtext}</EliteText>
@@ -233,7 +335,7 @@ export default function EmotionNavigationScreen() {
         </Animated.View>
       )}
 
-      {subStep === 'moving' && focusEmotion && (
+      {recheck === null && subStep === 'moving' && focusEmotion && (
         <Animated.View key={focusId} entering={FadeIn.duration(250)} style={styles.card}>
           <EliteText style={[styles.movingLabel, { color: focusColor }]}>{focusEmotion.label}</EliteText>
           <EliteText variant="caption" style={styles.movingDesc} numberOfLines={2}>
@@ -242,7 +344,7 @@ export default function EmotionNavigationScreen() {
         </Animated.View>
       )}
 
-      {move && subStep === 'tools' && (
+      {recheck === null && move && subStep === 'tools' && (
         <Animated.View entering={SlideInDown.duration(280)} style={styles.card}>
           <EliteText variant="caption" style={styles.toolsTitle}>EL VEHÍCULO</EliteText>
           <EliteText variant="body" style={styles.subtext}>
@@ -324,6 +426,15 @@ const styles = StyleSheet.create({
   // Recorriendo la cadena
   movingLabel: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
   movingDesc: { color: Colors.textSecondary, fontSize: FontSizes.md, lineHeight: 20, marginTop: 4 },
+
+  // Track F: re-check-in corto ("¿cómo quedaste?")
+  recheckWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
+  recheckChip: {
+    paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.pill, backgroundColor: SURFACES.card,
+    borderWidth: 1, borderColor: SURFACES.border,
+  },
+  recheckChipText: { color: Colors.textPrimary, fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
 
   // Vehículo
   toolsTitle: {

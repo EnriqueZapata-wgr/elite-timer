@@ -100,7 +100,13 @@ export const TOOL_CRISIS: RegulationTool =
 /** ⇄ REENCUADRAR — releer la misma activación, sin pedir calmarse (análisis v2).
  *  Es cognitiva LIGERA y vive en activación alta: nervios ↔ ganas. */
 export const TOOLS_REENCUADRAR: RegulationTool[] = [
-  T('reetiquetar', 'Reetiquetar la activación', 'Nervios y ganas comparten cuerpo. Ponle el nombre que te sirve.', { pathname: '/journal' }, 5),
+  T('reetiquetar', 'Reetiquetar la activación', 'Nervios y ganas comparten cuerpo. Ponle el nombre que te sirve.', {
+    pathname: '/journal',
+    params: {
+      journalType: 'work_dump',
+      prompt: 'Nervios y ganas comparten cuerpo. Escribe qué cambia si esto que traes se llama ganas.',
+    },
+  }, 5),
   T('presencia_re', 'Presencia', 'Volver al cuerpo para leer la energía tal cual es, sin la historia del miedo.', audio('presencia'), 10),
 ];
 
@@ -127,7 +133,7 @@ export const TOOLS_VOLTEAR: Record<CognitiveStrategy, RegulationTool[]> = {
   ],
   gratitud: [
     T('gratitud', 'Meditación de gratitud', 'Mover la atención de lo que falta a lo que hay.', audio('gratitud'), 10),
-    T('journal_gratitud', 'Journal de gratitud', 'Escribir 3 cosas reales de hoy. Sin poesía.', { pathname: '/journal' }, 5),
+    T('journal_gratitud', 'Journal de gratitud', 'Escribir 3 cosas reales de hoy. Sin poesía.', { pathname: '/journal', params: { journalType: 'gratitude' } }, 5),
   ],
   autocompasion: [
     T('compasion', 'Amor y compasión', 'Cuando el juicio es hacia adentro, el camino es tratarte como a alguien que quieres.', audio('amor_compasion'), 12),
@@ -163,7 +169,7 @@ export const TOOLS_CANALIZAR: RegulationTool[] = [
 export const TOOLS_SABOREAR: RegulationTool[] = [
   T('gratitud_sab', 'Meditación de gratitud', 'Quedarte un rato en lo que sí está.', audio('gratitud'), 10),
   T('presente', 'Presente perfecto', 'Este momento, tal cual es, alcanza.', audio('mantra_presente_perfecto'), 5),
-  T('journal_sab', 'Escríbelo', 'Los momentos así también merecen registro.', { pathname: '/journal' }, 5),
+  T('journal_sab', 'Escríbelo', 'Los momentos así también merecen registro.', { pathname: '/journal', params: { journalType: 'gratitude' } }, 5),
 ];
 
 // ═══ COPY DE MOVIMIENTOS (voz ATP: directa, sin empalago) ═══

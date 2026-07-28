@@ -26,7 +26,7 @@ import { SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, BG, ATP_BRAND, CATEGORY_C
 import { JOURNAL_TYPES } from '@/src/constants/journal-types';
 import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
 import { Screen } from '@/src/components/ui/Screen';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -70,9 +70,14 @@ const STOIC_QUOTES = [
 export default function JournalScreen() {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // Track F (MB-10): la navegación emocional aterriza AQUÍ con tipo
+  // preseleccionado y su prompt — el journal es el vehículo de cruzar/reencuadrar.
+  const params = useLocalSearchParams<{ journalType?: string; prompt?: string }>();
 
-  // Modo: selector vs formulario
-  const [selectedType, setSelectedType] = useState<string | null>(null);
+  // Modo: selector vs formulario (el deep-link de navegación salta el selector)
+  const [selectedType, setSelectedType] = useState<string | null>(() =>
+    JOURNAL_TYPES.some(t => t.key === params.journalType) ? params.journalType! : null,
+  );
   const [entries, setEntries] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [userSex, setUserSex] = useState<string>('male');
@@ -352,6 +357,15 @@ export default function JournalScreen() {
           keyboardDismissMode="interactive"
           bottomOffset={24}
         >
+          {/* Track F (MB-10): el prompt de la navegación emocional encabeza el
+              formulario — la herramienta llega con la pregunta puesta. */}
+          {typeof params.prompt === 'string' && params.prompt.length > 0 && (
+            <Animated.View entering={FadeInUp.delay(80).springify()} style={s.navPromptCard}>
+              <EliteText variant="caption" style={s.navPromptKicker}>DESDE TU NAVEGACIÓN</EliteText>
+              <EliteText variant="body" style={s.navPromptText}>{params.prompt}</EliteText>
+            </Animated.View>
+          )}
+
           {/* Mood antes */}
           <Animated.View entering={FadeInUp.delay(100).springify()}>
             <EliteText variant="caption" style={s.label}>¿Cómo te sientes ahora?</EliteText>
@@ -679,6 +693,13 @@ const s = StyleSheet.create({
 
   // Mood
   label: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs, marginTop: Spacing.md },
+  // Track F (MB-10): prompt que llega desde la navegación emocional
+  navPromptCard: {
+    backgroundColor: BG.card, borderRadius: Radius.md, borderWidth: 0.5,
+    borderColor: withOpacity(PURPLE, 0.35), padding: Spacing.md, gap: 4,
+  },
+  navPromptKicker: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 2 },
+  navPromptText: { color: TEXT_COLORS.primary, fontSize: FontSizes.md, lineHeight: 22 },
   moodRow: { flexDirection: 'row', gap: 6, marginBottom: Spacing.md },
   moodDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 1.5, borderColor: '#555', alignItems: 'center', justifyContent: 'center' },
 

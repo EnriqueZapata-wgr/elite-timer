@@ -144,10 +144,19 @@ describe('plan con disponibilidad condicional (MB-9 · Track B · análisis v2)'
 });
 
 describe('herramientas por movimiento (spec §2)', () => {
-  it('bajar siempre arranca con el suspiro fisiológico (la vía más rápida)', () => {
-    const tools = toolsForBajar('angry');
-    expect(tools[0].id).toBe('suspiro');
-    expect(tools.length).toBeLessThanOrEqual(4);
+  it('Track F · la respiración de arranque depende de la intensidad', () => {
+    // Intensidad extrema (enojo i8) → suspiro fisiológico: la vía más rápida.
+    const extreme = toolsForBajar('angry');
+    expect(extreme[0].id).toBe('suspiro');
+    expect(extreme.length).toBeLessThanOrEqual(4);
+    // Intensidad moderada (estrés i6) → 4-7-8: la lenta, sostenida.
+    const moderate = toolsForBajar('stressed');
+    expect(moderate[0].id).toBe('resp478');
+    // Ambas rutas llevan a una sesión REAL de respiración del pilar Mente.
+    for (const t of [...extreme, ...moderate].filter((x) => x.id === 'suspiro' || x.id === 'resp478')) {
+      expect(t.route.pathname).toBe('/breathing');
+      expect(t.route.params?.breathingId).toBeTruthy();
+    }
   });
 
   it('ansiedad recibe su pieza específica; enojo la suya', () => {

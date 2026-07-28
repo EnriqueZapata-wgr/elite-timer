@@ -242,10 +242,19 @@ export function strategyForEmotion(emotionId: string): CognitiveStrategy {
 /** ¿"Fundido" y no solo activado? → recuperación real, no relajación. */
 const DEPLETED_IDS = new Set(['exhausted', 'drained', 'burned_out', 'tired', 'depleted', 'numb', 'empty', 'apathetic']);
 
-/** Herramientas para BAJAR según el estado de origen. Máx 4, sin relleno. */
+/** Intensidad desde la cual la respiración de arranque es el suspiro
+ *  fisiológico (la vía más rápida); debajo, la 4-7-8 (la lenta) va primero.
+ *  Track F (MB-10): "la lenta / 4-7-8 según intensidad". */
+export const SIGH_FIRST_INTENSITY = 8;
+
+/** Herramientas para BAJAR según el estado de origen. Máx 4, sin relleno.
+ *  Es la salida crítica del módulo: la única que se ofrece en activación alta,
+ *  y SIEMPRE lleva a una sesión real de respiración del pilar Mente. */
 export function toolsForBajar(originId: string): RegulationTool[] {
   const origin = BY_ID.get(originId);
-  const tools: RegulationTool[] = [...TOOLS_BAJAR_YA];
+  const [suspiro, resp478] = TOOLS_BAJAR_YA;
+  const tools: RegulationTool[] =
+    origin && origin.intensity < SIGH_FIRST_INTENSITY ? [resp478, suspiro] : [suspiro, resp478];
   if (origin && ['anxious', 'stressed', 'overwhelmed', 'panicked', 'nervous', 'worried', 'agitated'].includes(originId)) {
     tools.push(TOOLS_ALTA_DESAGRADABLE[1]); // gestión de ansiedad
   } else if (origin && ['angry', 'enraged', 'frustrated', 'tense', 'pressured', 'exasperated'].includes(originId)) {
