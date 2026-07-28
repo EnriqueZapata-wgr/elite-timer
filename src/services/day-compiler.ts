@@ -241,7 +241,10 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   // Nombre: user_metadata → profiles.full_name → fallback
   let userName = userRes.data.user?.user_metadata?.full_name?.split(' ')[0]?.toUpperCase() || '';
   if (!userName) {
-    const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle();
+    // MB-11 E: supabase-js no lanza en 4xx — sin el check, un fallo aquí se
+    // leería como "perfil sin nombre" y el saludo caería al email en silencio.
+    const { data: prof, error: profErr } = await supabase.from('profiles').select('full_name').eq('id', userId).maybeSingle();
+    if (profErr) logWarn('[compileDay] profiles full_name query failed', profErr);
     userName = prof?.full_name?.split(' ')[0]?.toUpperCase() || '';
   }
   if (!userName) {
@@ -598,9 +601,10 @@ async function buildAgenda(
     wakeTime = wakeFromPrefs;
   } else {
     try {
-      const { data: chrono } = await supabase
+      const { data: chrono, error: chronoErr } = await supabase
         .from('user_chronotype').select('wake_time')
         .eq('user_id', userId).maybeSingle();
+      if (chronoErr) logWarn('[compileDay] user_chronotype wake_time query failed', chronoErr);
       if ((chrono as any)?.wake_time) wakeTime = (chrono as any).wake_time;
     } catch { /* default 07:00 */ }
   }
@@ -615,9 +619,12 @@ async function buildAgenda(
     let planActions: any[] = [];
 
     // Paso 1: ¿ya hay un plan generado para hoy en daily_plans?
-    const { data } = await supabase
+    const { data, error: planErr } = await supabase
       .from('daily_plans').select('actions')
       .eq('user_id', userId).eq('date', today).maybeSingle();
+    // MB-11 E: si esto falla en silencio, se REGENERA un plan que ya existía
+    // (pisando compleciones del día) — el log es la única evidencia.
+    if (planErr) logWarn('[compileDay] daily_plans select failed', planErr);
 
     if (data?.actions && Array.isArray(data.actions) && data.actions.length > 0) {
       planActions = data.actions;
@@ -676,9 +683,10 @@ async function buildAgenda(
     let chronoScores: any = null;
     try {
       // MB-6: raw_scores → un Delfín ancla al cronotipo MADRE, no a oso fijo.
-      const { data: chronoRow } = await supabase
+      const { data: chronoRow, error: chronoRowErr } = await supabase
         .from('user_chronotype').select('chronotype, raw_scores')
         .eq('user_id', userId).maybeSingle();
+      if (chronoRowErr) logWarn('[compileDay] user_chronotype anchors query failed', chronoRowErr);
       chronoType = (chronoRow as any)?.chronotype ?? null;
       chronoScores = (chronoRow as any)?.raw_scores ?? null;
     } catch { /* anchors caen al default del cronotipo normalizado */ }
@@ -717,7 +725,9 @@ async function buildAgenda(
 
   // === CUSTOM actions from user preferences ===
   try {
-    const { data: prefs } = await supabase.from('user_day_preferences').select('custom_agenda_actions').eq('user_id', userId).maybeSingle();
+    const { data: prefs, error: prefsErr } = await supabase.from('user_day_preferences').select('custom_agenda_actions').eq('user_id', userId).maybeSingle();
+    // MB-11 E: fallo aquí = "no tienes acciones custom" falso. Log obligatorio.
+    if (prefsErr) logWarn('[compileDay] user_day_preferences customs query failed', prefsErr);
     const customs = (prefs?.custom_agenda_actions as any[]) ?? [];
     for (const c of customs) {
       if (c.name && c.time) {
@@ -738,9 +748,10 @@ async function buildAgenda(
   try {
     // MB-6: peak_focus_* — ventana de foco pico como item informativo (dato
     // que user_chronotype ya tenía y la agenda no usaba).
-    const { data: chrono } = await supabase
+    const { data: chrono, error: sleepErr } = await supabase
       .from('user_chronotype').select('sleep_time, peak_focus_start, peak_focus_end')
       .eq('user_id', userId).maybeSingle();
+    if (sleepErr) logWarn('[compileDay] user_chronotype sleep/focus query failed', sleepErr);
     const sleepRaw = (chrono as any)?.sleep_time;
     const sleepItem = sleepAgendaItem(sleepRaw);
     if (sleepItem) items.push(sleepItem);
@@ -763,10 +774,13 @@ async function buildAgenda(
   // OR determinístico vía day-state-core: hecho en AGENDA ⇒ tachado en HOY.
   // Nunca des-marca (una compleción real no se pierde por un log pending).
   try {
-    const { data: logRows } = await supabase
+    const { data: logRows, error: logsErr } = await supabase
       .from('agenda_event_logs')
       .select('status, agenda_events(name, intervention_key)')
       .eq('user_id', userId).eq('date', today);
+    // MB-11 E: si falla, el OR de "hecho en AGENDA ⇒ tachado en HOY" se pierde
+    // en silencio y los items aparecen pendientes aunque ya se hicieron.
+    if (logsErr) logWarn('[compileDay] agenda_event_logs query failed', logsErr);
     const idx = buildDoneIndex(((logRows ?? []) as any[])
       .filter((l) => l.agenda_events)
       .map((l) => ({

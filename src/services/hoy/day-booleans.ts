@@ -76,7 +76,11 @@ export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, Href> = {
 /** Electrones que solo se ofrecen a un subconjunto de usuarios. */
 export const FEMALE_ONLY_ELECTRONS = new Set<string>(['period_log']);
 
-// ─── Opciones seleccionables del EditDayModal (MB-5: movidas aquí — puras) ───
+// ─── Universo de electrones seleccionables (MB-5: puras) ───
+// MB-11 E: el EditDayModal (su UI original) se retiró — compileDay sigue
+// leyendo user_day_preferences.active_*_electrons persistidas, pero HOY NO
+// queda pantalla que las escriba. ⚠️ Flag producto: el opt-in de nback y la
+// selección de electrones no tienen puerta hasta que se cablee una nueva.
 
 export interface ElectronOption {
   key: string;

@@ -50,7 +50,8 @@ describe('patrón 3 lugares — electrones booleanos', () => {
     expect(ELECTRON_WEIGHTS.nback?.weight).toBe(2.5);
     // Opt-in: no suma al denominador de todos…
     expect(MANDATORY_BOOLEANS).not.toContain('nback');
-    // …pero sigue siendo activable en EditDayModal (lugar 3a vía prefs)…
+    // …pero sigue en el universo seleccionable (lugar 3a vía prefs persistidas;
+    // MB-11 E: sin UI que las escriba hoy — ver nota en day-booleans.ts)…
     expect(ALL_BOOLEAN_OPTIONS.map((o) => o.key)).toContain('nback');
     // …y conserva conteo real + ruta de tap (lugar 3b).
     expect(VERIFIED_ELECTRON_KEYS).toContain('nback');
@@ -74,7 +75,7 @@ describe('patrón 3 lugares — electrones booleanos', () => {
     }
   });
 
-  it('los pesos del EditDayModal no divergen de ELECTRON_WEIGHTS', () => {
+  it('los pesos del universo seleccionable no divergen de ELECTRON_WEIGHTS', () => {
     for (const opt of [...ALL_BOOLEAN_OPTIONS, ...ALL_QUANT_OPTIONS]) {
       const canonical = (ELECTRON_WEIGHTS as Record<string, { weight: number }>)[opt.key];
       if (canonical) {
