@@ -273,6 +273,11 @@ export default function TodayScreen() {
       cyclePhase = cycleRes.value.currentPhase as CyclePhase;
     }
     if (fastRes.status === 'fulfilled') fastingActive = !!fastRes.value;
+    // MB-11 A: supabase-js no lanza en 4xx — el fallo viene en { error } y sin
+    // este check la señal degrada a "sin datos" sin dejar rastro.
+    if (edadRes.status === 'fulfilled' && edadRes.value?.error) {
+      logWarn('[HOY] edad_atp_calculations query failed', edadRes.value.error);
+    }
     if (edadRes.status === 'fulfilled' && edadRes.value?.data?.edad_integral != null) {
       // P1.6: signo del delta desde el core (anti-reinversión del número estrella).
       edadAtpDelta = edadDeltaYears(
@@ -353,14 +358,23 @@ export default function TodayScreen() {
         supabase.from('supplement_logs').select('supplement_id, taken').eq('user_id', user.id).eq('date', today),
         supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('date', today),
       ]);
-      setSupplements(suppsRes.data ?? []);
-      const taken: Record<string, boolean> = {};
-      // Multi-dosis (188): puede haber N logs/día por suplemento — OR (≥1 toma = tomado en HOY).
-      (logsRes.data ?? []).forEach((l: any) => { taken[l.supplement_id] = taken[l.supplement_id] || !!l.taken; });
-      // HOY-6: mantener el ref en sync con el estado canónico (DB).
-      suppTakenRef.current = taken;
-      setSuppTaken(taken);
-      setHasJournalToday((journalRes.count ?? 0) > 0);
+      // MB-11 A: chequear { error } de cada query (supabase-js no lanza en 4xx).
+      // En error se conserva el estado previo — una lista vacía o un "sin journal"
+      // falsos se confunden con datos reales (regla MB-6: sin datos ≠ cero).
+      if (suppsRes.error) logWarn('[HOY] user_supplements query failed', suppsRes.error);
+      else setSupplements(suppsRes.data ?? []);
+      if (logsRes.error) {
+        logWarn('[HOY] supplement_logs query failed', logsRes.error);
+      } else {
+        const taken: Record<string, boolean> = {};
+        // Multi-dosis (188): puede haber N logs/día por suplemento — OR (≥1 toma = tomado en HOY).
+        (logsRes.data ?? []).forEach((l: any) => { taken[l.supplement_id] = taken[l.supplement_id] || !!l.taken; });
+        // HOY-6: mantener el ref en sync con el estado canónico (DB).
+        suppTakenRef.current = taken;
+        setSuppTaken(taken);
+      }
+      if (journalRes.error) logWarn('[HOY] journal_entries count query failed', journalRes.error);
+      else setHasJournalToday((journalRes.count ?? 0) > 0);
     } catch { /* silencioso */ }
     setLoading(false);
   }, [user?.id, computeHeroRec]);
@@ -451,7 +465,12 @@ export default function TodayScreen() {
       .select('biological_sex')
       .eq('user_id', user.id)
       .maybeSingle()
-      .then(({ data }) => { setUserSex((data as any)?.biological_sex ?? null); });
+      .then(({ data, error }) => {
+        // MB-11 A: en error NO pisar el gate con null "falso" — se queda el
+        // estado previo (null inicial = gate conservador) y queda registro.
+        if (error) { logWarn('[HOY] client_profiles query failed', error); return; }
+        setUserSex((data as any)?.biological_sex ?? null);
+      });
   }, [user?.id]);
 
   // HOY-8: refs para leer el `day`/`streak` más recientes sin que el efecto
@@ -556,12 +575,15 @@ export default function TodayScreen() {
       const today = getLocalToday();
       // Cache en Supabase — válido por 6 horas
       try {
-        const { data: cached } = await supabase
+        const { data: cached, error: cacheErr } = await supabase
           .from('argos_daily_insights')
           .select('insight, created_at')
           .eq('user_id', user.id)
           .eq('date', today)
           .maybeSingle();
+        // MB-11 A: un fallo aquí no es "sin cache" — sin este log, cada visita
+        // regeneraría el insight (LLM) sin que nadie se entere del porqué.
+        if (cacheErr) logWarn('[HOY] argos_daily_insights cache query failed', cacheErr);
         if (cached?.insight) {
           const cacheAge = cached.created_at
             ? (Date.now() - new Date(cached.created_at).getTime()) / (1000 * 60 * 60)
@@ -573,10 +595,13 @@ export default function TodayScreen() {
       try {
         const insight = await generateDailyInsight(user.id);
         if (insight) {
-          await supabase.from('argos_daily_insights').upsert(
+          const { error: upsertErr } = await supabase.from('argos_daily_insights').upsert(
             { user_id: user.id, date: today, insight, created_at: new Date().toISOString() },
             { onConflict: 'user_id,date' },
           );
+          // MB-11 A: si el upsert falla, el insight se regenera (y se cobra) en
+          // cada visita — el log es la única evidencia del leak.
+          if (upsertErr) logWarn('[HOY] argos_daily_insights upsert failed', upsertErr);
         }
       } catch (_) { /* silencioso */ }
     })();
@@ -744,12 +769,15 @@ export default function TodayScreen() {
     // Persist en daily_plans
     try {
       const today = getLocalToday();
-      const { data: plan } = await supabase
+      const { data: plan, error: planErr } = await supabase
         .from('daily_plans')
         .select('actions')
         .eq('user_id', user.id)
         .eq('date', today)
         .maybeSingle();
+      // MB-11 A: si el select falla, el toggle queda solo en el optimistic
+      // update y se pierde al recompilar — sin log parecería un "plan sin item".
+      if (planErr) logWarn('[HOY] daily_plans select failed', planErr);
 
       // HOY-7: `plan.actions` es JSONB → puede venir null, objeto, string, etc.
       // Validar shape en runtime antes de `.map` para no crashear.
@@ -759,10 +787,11 @@ export default function TodayScreen() {
             ? { ...a, completed: !a?.completed }
             : a
         );
-        await supabase.from('daily_plans')
+        const { error: updErr } = await supabase.from('daily_plans')
           .update({ actions: updatedActions })
           .eq('user_id', user.id)
           .eq('date', today);
+        if (updErr) logWarn('[HOY] daily_plans update failed', updErr);
       }
     } catch (e) {
       console.warn('Error toggling agenda item:', e);
@@ -773,13 +802,16 @@ export default function TodayScreen() {
   async function handleEditSave(bools: string[], quants: string[]) {
     if (!user?.id) return;
     try {
-      await supabase.from('user_day_preferences').upsert({
+      const { error } = await supabase.from('user_day_preferences').upsert({
         user_id: user.id,
         active_boolean_electrons: bools,
         active_quantitative_electrons: quants,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
-    } catch { /* tabla puede no existir */ }
+      // MB-11 A: sin este check, un fallo del upsert deja las preferencias sin
+      // guardar mientras loadDay() repinta como si hubieran quedado.
+      if (error) logWarn('[HOY] user_day_preferences upsert failed', error);
+    } catch (e) { logWarn('[HOY] user_day_preferences upsert threw', e); }
     loadDay();
   }
 
@@ -833,18 +865,22 @@ export default function TodayScreen() {
     try {
       if (wasTaken) {
         // Multi-dosis (188): borra TODAS las tomas del día (semántica binaria del HOY).
-        await supabase.from('supplement_logs')
+        const { error: delErr } = await supabase.from('supplement_logs')
           .delete()
           .eq('user_id', user.id)
           .eq('supplement_id', supplementId)
           .eq('date', today);
+        // MB-11 A: supabase-js no lanza en 4xx — throw activa el rollback del
+        // catch (mismo patrón que deErr en toggleBoolean).
+        if (delErr) throw delErr;
       } else {
         // Multi-dosis (188): el quick-toggle del HOY registra la PRIMERA toma
         // (dose_index 0); las tomas 2..N se marcan en la pantalla Suplementos.
         // El unique evolucionó a (user,supp,date,dose_index) — onConflict actualizado.
-        await supabase.from('supplement_logs').upsert({
+        const { error: insErr } = await supabase.from('supplement_logs').upsert({
           user_id: user.id, supplement_id: supplementId, date: today, dose_index: 0, taken: true,
         }, { onConflict: 'user_id,supplement_id,date,dose_index' });
+        if (insErr) throw insErr;
         // Economía (fire-and-forget; no-op si flag OFF). Misma key que la pantalla Suplementos
         // → idempotente entre ambos paths (no doble award).
         fireElectronAward({
@@ -862,19 +898,24 @@ export default function TodayScreen() {
         for (const e of day.booleanElectrons) currentStates[e.source] = e.completed;
       }
       const wasCompleted = currentStates['supplements'] === true;
+      // MB-11 A: los upserts de sync chequean { error } pero NO lanzan — el log
+      // del suplemento ya persistió y el rollback del catch desharía la UI de
+      // un dato real. El recompile (electrons_changed) reconstruye el JSONB.
       if (anyTaken && !wasCompleted) {
         currentStates['supplements'] = true;
-        await supabase.from('daily_electrons').upsert(
+        const { error: syncErr } = await supabase.from('daily_electrons').upsert(
           { user_id: user.id, date: today, electrons: currentStates },
           { onConflict: 'user_id,date' },
         );
+        if (syncErr) logWarn('[HOY] daily_electrons sync upsert failed', syncErr);
         await awardBooleanElectron(user.id, 'supplements');
       } else if (!anyTaken && wasCompleted) {
         currentStates['supplements'] = false;
-        await supabase.from('daily_electrons').upsert(
+        const { error: syncErr } = await supabase.from('daily_electrons').upsert(
           { user_id: user.id, date: today, electrons: currentStates },
           { onConflict: 'user_id,date' },
         );
+        if (syncErr) logWarn('[HOY] daily_electrons sync upsert failed', syncErr);
         await revokeBooleanElectron(user.id, 'supplements');
       }
       DeviceEventEmitter.emit('electrons_changed');
