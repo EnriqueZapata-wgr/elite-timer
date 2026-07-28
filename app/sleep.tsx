@@ -18,8 +18,8 @@ import { Screen } from '@/src/components/ui/Screen';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
-import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
-import { getLocalToday } from '@/src/utils/date-helpers';
+import { type WearableData } from '@/src/services/wearable-service';
+import { fetchWearableToday } from '@/src/hooks/useWearableToday';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND, TEXT_COLORS, SURFACES, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -64,11 +64,10 @@ export default function SleepScreen() {
         }
       } catch { /* sin cronotipo → solo estado de conexión */ }
       // Wearable: si hay datos de hoy, mostrarlos (fail-soft).
+      // MB-11 B.3: fuente única — comparte la llamada del día con YO.
       try {
-        if (await isWearableAvailable()) {
-          const data = await getWearableDataForDate(getLocalToday());
-          if (active && data) setWearable(data);
-        }
+        const data = await fetchWearableToday();
+        if (active && data) setWearable(data);
       } catch { /* sin wearable — estado vacío honesto */ }
     })();
     return () => { active = false; };

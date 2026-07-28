@@ -3,7 +3,6 @@
  *
  * Scores de salud, composición corporal, cronotipo, quizzes, acciones.
  */
-import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -24,7 +23,8 @@ import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
 import { calculateDailyHealthScore, type DailyHealthScore } from '@/src/services/daily-health-score';
-import { isWearableAvailable, getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
+import { type WearableData } from '@/src/services/wearable-service';
+import { fetchWearableToday } from '@/src/hooks/useWearableToday';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CARD, PILLAR_GRADIENTS } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -85,14 +85,11 @@ export default function YoScreen() {
         setDailyScore(score);
       }
     } catch { /* degradar graciosamente */ }
-    // Cargar datos de wearable
+    // Cargar datos de wearable (MB-11 B.3: fuente única — una llamada por
+    // fecha compartida con Sueño, en vez de un fetch propio por pantalla).
     try {
-      const today = getLocalToday();
-      const available = await isWearableAvailable();
-      if (available) {
-        const data = await getWearableDataForDate(today);
-        if (data) setWearableData(data);
-      }
+      const data = await fetchWearableToday();
+      if (data) setWearableData(data);
     } catch { /* wearable no disponible */ }
     // Sexo biológico para imágenes -el/-ella (default male en el picker si falta).
     try {

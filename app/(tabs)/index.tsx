@@ -1,19 +1,24 @@
 /**
  * HOY — Dashboard diario compilado.
  *
- * Usa compileDay() como única fuente de datos. Seis secciones:
- * 1. Hero (imagen + gradiente + ring + saludo)
- * 2. Próximo electrón
- * 3. Electrones booleanos (grid 2-col)
- * 4. Electrones cuantitativos (barras)
- * 5. Sugerencia inteligente
- * 6. Agenda (timeline)
+ * Usa compileDay() como única fuente de datos. Estructura real (MB-11 B.4):
+ * 1. Hero editorial (foto por hora + saludo + card AHORA + TU DÍA editorial)
+ * 2. AgendaPreviewCard (→ /agenda)
+ * 3. Economía self-gated (ProBoostCard + HPlusExplainerCard)
+ * 4. HoyEditorialSection (cards editoriales, visibilidad por usuario)
+ * 5. Lectura de la semana (domingo ≥19h, cacheada)
+ * 6. CTA "Ajustar Mi Protocolo" (→ /salud/intervenciones)
+ * Overlays: TopBanner · AppTour · ArgosReactionToast.
+ *
+ * Las secciones legacy (próximo electrón, grids de electrones, sugerencia,
+ * agenda triple, suplementos, journal inline, daily review, quick-voice)
+ * se retiraron del render en v13d-v13e y su código murió aquí en MB-11 B.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, Text, TextInput,
-  Dimensions, DeviceEventEmitter, ImageBackground,
-  LayoutAnimation, Platform, UIManager, ActivityIndicator, Alert,
+  View, StyleSheet, ScrollView, Pressable, Text,
+  DeviceEventEmitter, ImageBackground,
+  Platform, UIManager, Alert,
 } from 'react-native';
 import { warn as logWarn } from '@/src/lib/logger';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -24,7 +29,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/contexts/auth-context';
-import { compileDay, type CompiledDay, VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, type VerifiedElectronKey } from '@/src/services/day-compiler';
+import { compileDay, type CompiledDay } from '@/src/services/day-compiler';
 import { SplashLoader } from '@/src/components/SplashLoader';
 import { NotificationBellIcon } from '@/src/components/hoy/NotificationBellIcon';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
@@ -34,21 +39,15 @@ import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
 import { HPlusExplainerCard } from '@/src/components/economy/HPlusExplainerCard';
 import { getEffectiveCardsVisible } from '@/src/services/hoy/visibility-service';
 import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
-import { awardBooleanElectron, revokeBooleanElectron } from '@/src/services/electron-service';
-import { AnimatedScoreRing } from '@/src/components/ui/AnimatedScoreRing';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
-import { fireElectronAward } from '@/src/services/economy/electron-award-client';
-import { EditDayModal } from '@/src/components/hoy/EditDayModal';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { ExpandableSheet } from '@/src/components/ui/ExpandableSheet';
-import { getWearableDataForDate, type WearableData } from '@/src/services/wearable-service';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { getHoyBackgroundRequire } from '@/src/constants/brand';
 import { topScoreMover } from '@/src/services/hoy/score-coaching-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
-import { nowDividerIndex, minutesOfDay, formatNowLabel } from '@/src/utils/agenda-now';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
-import { generateDailyInsight, invalidateDailyInsight, chatWithArgosEx, saveConversation } from '@/src/services/argos-service';
+import { generateDailyInsight, invalidateDailyInsight } from '@/src/services/argos-service';
 import { addWater } from '@/src/services/hydration-service';
 import { getCurrentStreak } from '@/src/services/adherence-service';
 import {
@@ -59,11 +58,7 @@ import { edadDeltaYears } from '@/src/services/edad-atp/edad-delta-core';
 import { MOTOR_V2_VERSION } from '@/src/constants/edad-atp-motor-v2-config';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { getActiveFast } from '@/src/services/fasting-service';
-import { buildDailyReview, type DailyReview } from '@/src/services/daily-review-service';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
-import { speakArgos } from '@/src/services/argos-voice';
-// VoiceButton removido del HOY (decisión 21-jun). handleQuickVoice + modal de respuesta quedan
-// como código muerto hasta el sprint de cleanup HOY profundo.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // #v13d 2.7: HoyDayCard legacy → HoyDayCardEditorial (imagen B/N + tipografía display).
 import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditorial';
@@ -72,113 +67,11 @@ import { TopBanner } from '@/src/components/global/TopBanner';
 import { ArgosReactionToast } from '@/src/components/economy/ArgosReactionToast';
 import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
-import { CARD, SEMANTIC, SURFACES } from '@/src/constants/brand';
-// DX F4 (swap): items de intervención en la agenda de HOY → logCompletion (no daily_plans).
-import { INTERVENTION_ITEM_PREFIX } from '@/src/services/interventions/intervention-agenda-core';
-import { logCompletion } from '@/src/services/interventions/intervention-service';
-// F1 Batch 4 (#30): writer único HOY↔AGENDA + cancel de recordatorio local al completar.
-import { markAgendaLogCompleted } from '@/src/services/agenda-service';
-import { syncAgendaLocalNotifications } from '@/src/services/agenda-local-notifications';
 
+// LayoutAnimation lo usan cards hijas (HoyEditorialSection) — el enable global vive aquí.
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutos
-
-// Momentos del día para agrupar suplementos (mismo modelo que app/supplements.tsx).
-const SUPP_TIMINGS = [
-  { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
-  { id: 'with_food', label: 'Con comida', icon: 'restaurant-outline' as const, color: '#a8e02a' },
-  { id: 'afternoon', label: 'Tarde', icon: 'partly-sunny-outline' as const, color: '#fb923c' },
-  { id: 'evening', label: 'Noche', icon: 'moon-outline' as const, color: '#818cf8' },
-  { id: 'bedtime', label: 'Antes de dormir', icon: 'bed-outline' as const, color: '#c084fc' },
-] as const;
-
-// ═══ HELPERS ═══
-
-/** Color del score según porcentaje */
-function scoreColor(pct: number): string {
-  if (pct >= 70) return '#a8e02a';
-  if (pct >= 50) return '#fbbf24';
-  return '#fb7185';
-}
-
-/** Etiqueta del score según porcentaje */
-function scoreLabel(pct: number): string {
-  if (pct >= 90) return 'MÁXIMA CARGA';
-  if (pct >= 70) return 'BUENA CARGA';
-  if (pct >= 50) return 'CARGANDO';
-  if (pct >= 20) return 'BAJA CARGA';
-  return 'SIN CARGA';
-}
-
-/** Color de categoría para el timeline */
-function getCatColor(category?: string): string {
-  if (!category) return '#444';
-  const c = category.toLowerCase();
-  if (c.includes('fitness') || c.includes('exercise')) return '#a8e02a';
-  if (c.includes('nutrition') || c.includes('meal') || c.includes('supplement')) return '#5B9BD5';
-  if (c.includes('mind') || c.includes('meditation') || c.includes('breathing')) return '#7F77DD';
-  if (c.includes('optimization') || c.includes('habit')) return '#EF9F27';
-  if (c.includes('rest') || c.includes('sleep')) return '#666';
-  return '#444';
-}
-
-/** Formato display 24h → "8:30" (sin AM/PM, corto) */
-function fmtTime(t: string): string {
-  if (!t) return '';
-  // Ya viene en 24h: "08:30", "14:00"
-  const [h, m] = t.split(':').map(s => parseInt(s, 10));
-  return `${h}:${String(m || 0).padStart(2, '0')}`;
-}
-
-/** Parse hora de un time string a minutos del día */
-function toMinutes(t: string): number {
-  if (!t) return 0;
-  const [h, m] = t.replace(/[^0-9:]/g, '').split(':').map(Number);
-  return (h || 0) * 60 + (m || 0);
-}
-
-/**
- * HOY-11: registrar delta de agua con visibilidad de error.
- * addWater() ya cae a null en error interno; aquí surfaceamos para no
- * dejar al usuario tocando un botón muerto sin feedback.
- */
-async function handleWaterDelta(userId: string, deltaMl: number): Promise<void> {
-  haptic.light();
-  try {
-    const result = await addWater(userId, deltaMl);
-    if (result === null) {
-      logWarn('[HOY] addWater returned null', { userId, deltaMl });
-      Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
-    }
-  } catch (e) {
-    logWarn('[HOY] addWater threw', e);
-    Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
-  }
-}
-
-/** Segmentar agenda por franjas horarias */
-function segmentAgenda(items: CompiledDay['agendaItems']) {
-  const sorted = [...items].sort((a, b) => toMinutes(a.time) - toMinutes(b.time));
-
-  const morning: typeof items = [];
-  const afternoon: typeof items = [];
-  const evening: typeof items = [];
-
-  for (const item of sorted) {
-    const h = Math.floor(toMinutes(item.time) / 60);
-    if (h >= 5 && h < 12) morning.push(item);
-    else if (h >= 12 && h < 18) afternoon.push(item);
-    else evening.push(item);
-  }
-
-  return [
-    { label: 'MAÑANA', icon: 'sunny-outline' as const, color: '#fbbf24', items: morning },
-    { label: 'TARDE', icon: 'partly-sunny-outline' as const, color: '#fb923c', items: afternoon },
-    { label: 'NOCHE', icon: 'moon-outline' as const, color: '#818cf8', items: evening },
-  ].filter(seg => seg.items.length > 0);
-}
 
 // ═══ COMPONENTE PRINCIPAL ═══
 
@@ -197,42 +90,15 @@ export default function TodayScreen() {
   // badge = user_notifications sin leer, tap → /notifications).
   // #tabs-redesign V1.3: visibilidad de las cards editoriales (default: todas).
   const [cardsVisible, setCardsVisible] = useState<Set<string>>(new Set(HOY_CARD_ORDER_DEFAULT));
-  const [expandedSource, setExpandedSource] = useState<string | null>(null);
-  const [editModalVisible, setEditModalVisible] = useState(false);
   const [showTour, setShowTour] = useState(false);
-  const [voiceLoading, setVoiceLoading] = useState(false);
-  const [voiceResponse, setVoiceResponse] = useState('');
-  const [voiceTranscript, setVoiceTranscript] = useState('');
-  const [voiceConversationId, setVoiceConversationId] = useState<string | null>(null);
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const [streak, setStreak] = useState<number | null>(null);
-  const [wearable, setWearable] = useState<WearableData | null>(null);
-  const [supplements, setSupplements] = useState<{ id: string; name: string; dosage: string; timing: string }[]>([]);
-  const [suppTaken, setSuppTaken] = useState<Record<string, boolean>>({});
-  // Override de expansión por momento del día (undefined = colapsado si todo tomado).
-  const [openTimings, setOpenTimings] = useState<Record<string, boolean>>({});
-  const [hasJournalToday, setHasJournalToday] = useState<boolean>(true);
-  const [journalDraft, setJournalDraft] = useState('');
-  const [journalSaving, setJournalSaving] = useState(false);
-  const [dailyReview, setDailyReview] = useState<DailyReview | null>(null);
-  const [dailyReviewDismissed, setDailyReviewDismissed] = useState(false);
   // Gate de género para electrones (period_log) — null hasta que carga.
   const [userSex, setUserSex] = useState<string | null>(null);
   const [weeklyInsight, setWeeklyInsight] = useState<WeeklyInsightData | null>(null);
   const [weeklyInsightDismissed, setWeeklyInsightDismissed] = useState(false);
-  // HOY-5: contador (no flag booleano). Un toggle solapado con otro mantiene
-  // el contador > 0 hasta que todos terminen — recién entonces los listeners
-  // disparan loadDay.
-  const isTogglingRef = useRef(0);
-  // HOY-5: id del setTimeout que dispara la recompilación post-toggle.
-  // Cancelar el previo antes de programar uno nuevo evita doble loadDay.
-  const recompileTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // HOY-9: id del setTimeout que limpia el voice response. Cancelable +
-  // cleanup en unmount → evita setState sobre componente desmontado.
-  const voiceClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // HOY-6: ref que espeja `suppTaken` para evitar leer estado stale del
-  // closure cuando el usuario toggle dos suplementos rápido.
-  const suppTakenRef = useRef<Record<string, boolean>>({});
+  // (MB-11 B: isTogglingRef/recompileTimeoutRef murieron con toggleBoolean —
+  // los toggles y sus guards viven ahora dentro de las cards editoriales.)
   // #68: recomendación HERO dinámica + timestamp del último cómputo (cache 15
   // min para que la recomendación no cambie de forma errática entre focus).
   const [heroRec, setHeroRec] = useState<HeroRecommendation | null>(null);
@@ -351,31 +217,9 @@ export default function TodayScreen() {
     if (compiledForHero) {
       computeHeroRec(compiledForHero, streakForHero, forceHero).catch(() => { /* silencioso */ });
     }
-    try {
-      const today = getLocalToday();
-      const [suppsRes, logsRes, journalRes] = await Promise.all([
-        supabase.from('user_supplements').select('id, name, dosage, timing').eq('user_id', user.id).eq('is_active', true).order('timing'),
-        supabase.from('supplement_logs').select('supplement_id, taken').eq('user_id', user.id).eq('date', today),
-        supabase.from('journal_entries').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('date', today),
-      ]);
-      // MB-11 A: chequear { error } de cada query (supabase-js no lanza en 4xx).
-      // En error se conserva el estado previo — una lista vacía o un "sin journal"
-      // falsos se confunden con datos reales (regla MB-6: sin datos ≠ cero).
-      if (suppsRes.error) logWarn('[HOY] user_supplements query failed', suppsRes.error);
-      else setSupplements(suppsRes.data ?? []);
-      if (logsRes.error) {
-        logWarn('[HOY] supplement_logs query failed', logsRes.error);
-      } else {
-        const taken: Record<string, boolean> = {};
-        // Multi-dosis (188): puede haber N logs/día por suplemento — OR (≥1 toma = tomado en HOY).
-        (logsRes.data ?? []).forEach((l: any) => { taken[l.supplement_id] = taken[l.supplement_id] || !!l.taken; });
-        // HOY-6: mantener el ref en sync con el estado canónico (DB).
-        suppTakenRef.current = taken;
-        setSuppTaken(taken);
-      }
-      if (journalRes.error) logWarn('[HOY] journal_entries count query failed', journalRes.error);
-      else setHasJournalToday((journalRes.count ?? 0) > 0);
-    } catch { /* silencioso */ }
+    // MB-11 B: aquí vivían 3 queries (user_supplements, supplement_logs,
+    // journal_entries) que alimentaban las secciones de suplementos y journal
+    // retiradas del render en v13e — se fueron con su UI.
     setLoading(false);
   }, [user?.id, computeHeroRec]);
 
@@ -383,32 +227,28 @@ export default function TodayScreen() {
     setLoading(true);
     loadDay();
     const interval = setInterval(loadDay, REFRESH_INTERVAL);
-    // HOY-5: el contador > 0 indica que algún toggle está en vuelo — los
-    // listeners NO disparan loadDay hasta que todos terminen.
+    // MB-11 B: el guard isTogglingRef (HOY-5) murió con toggleBoolean — los
+    // toggles viven en las cards editoriales, que emiten estos eventos al final.
     const sub1 = DeviceEventEmitter.addListener('day_changed', () => {
       // #136: el día cambió de verdad → HERO recomputa YA (sin cache)
-      if (isTogglingRef.current === 0) loadDay(true);
+      loadDay(true);
       // H7: el contexto del día cambió → invalida el insight cacheado (se regenera
       // en la próxima carga del Home). Lazy: no dispara LLM aquí.
       if (user?.id) invalidateDailyInsight(user.id);
     });
     const sub2 = DeviceEventEmitter.addListener('electrons_changed', () => {
-      if (isTogglingRef.current === 0) loadDay(true);
+      loadDay(true);
     });
     // Mega-Sprint A B4.1: re-hacer el test de cronotipo cambia wake/sleep → HOY
     // recompila su timing sin depender del re-focus del tab.
     const sub3 = DeviceEventEmitter.addListener('chronotype_changed', () => {
-      if (isTogglingRef.current === 0) loadDay(true);
+      loadDay(true);
     });
     return () => {
       clearInterval(interval);
       sub1.remove();
       sub2.remove();
       sub3.remove();
-      // HOY-5/HOY-9: limpiar timeouts pendientes al desmontar para no
-      // hacer setState sobre componente desmontado.
-      if (recompileTimeoutRef.current) clearTimeout(recompileTimeoutRef.current);
-      if (voiceClearTimeoutRef.current) clearTimeout(voiceClearTimeoutRef.current);
     };
   }, [loadDay]);
 
@@ -421,23 +261,15 @@ export default function TodayScreen() {
     return () => clearInterval(t);
   }, []);
 
-  // Wearable (cardio del día + pasos). Hoy el servicio es un stub → null (placeholder).
-  // Cuando se reactive HealthKit/Health Connect, estos cards muestran datos reales sin más cambios.
-  useEffect(() => {
-    let alive = true;
-    getWearableDataForDate(getLocalToday())
-      .then((w) => { if (alive) setWearable(w); })
-      .catch(() => { if (alive) setWearable(null); });
-    return () => { alive = false; };
-  }, [user?.id]);
+  // MB-11 B.3: el fetch de wearable que vivía aquí era estado muerto (las cards
+  // Actividad se retiraron en v13e). YO y Sueño comparten useWearableToday.
 
   // F36.7/F49/F03.7: defense-in-depth. Si el `day_changed` event no llega
-  // (RN-Web inconsistente, listener silenciado por isTogglingRef, navegación
-  // que dispara el emit mientras HOY está desmontado), refrescamos al
-  // recuperar focus. Cubre los 3 casos de Paty: cambio de meta agua,
-  // toggle de electrón en config, edición de wake_time.
+  // (RN-Web inconsistente, navegación que dispara el emit mientras HOY está
+  // desmontado), refrescamos al recuperar focus. Cubre los 3 casos de Paty:
+  // cambio de meta agua, toggle de electrón en config, edición de wake_time.
   useFocusEffect(useCallback(() => {
-    if (isTogglingRef.current === 0) loadDay();
+    loadDay();
     // #tabs-redesign V1.3: refrescar visibilidad al enfocar (#3b: efectiva = protocolo si flag ON).
     if (user?.id) getEffectiveCardsVisible(user.id).then(setCardsVisible).catch(() => {});
   }, [loadDay, user?.id]));
@@ -473,51 +305,9 @@ export default function TodayScreen() {
       });
   }, [user?.id]);
 
-  // HOY-8: refs para leer el `day`/`streak` más recientes sin que el efecto
-  // se re-dispare con cada mutación.
-  const dayRef = useRef<CompiledDay | null>(null);
-  const streakRef = useRef<number | null>(null);
-  useEffect(() => { dayRef.current = day; }, [day]);
-  useEffect(() => { streakRef.current = streak; }, [streak]);
-
-  // --- Daily Review: render solo de noche (≥20h); dismiss persiste por día ---
-  // HOY-8: depende solo de `user?.id` y de si `day` ya cargó (booleano), NO de
-  // las mutaciones de `day`. Las 3 queries internas solo corren en la
-  // transición null→loaded, no en cada toggle. Cancelación descarta
-  // resultados stale si el usuario navega o el efecto se re-dispara.
-  const hasDay = !!day;
-  useEffect(() => {
-    if (!user?.id || !hasDay) return;
-    const hourNow = new Date().getHours();
-    if (hourNow < 20) { setDailyReview(null); return; }
-    const today = getLocalToday();
-    const key = `@atp/daily_review_dismissed:${today}`;
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const v = await AsyncStorage.getItem(key);
-        if (cancelled) return;
-        if (v === 'true') {
-          setDailyReviewDismissed(true);
-          return;
-        }
-        setDailyReviewDismissed(false);
-        const currentDay = dayRef.current;
-        if (!currentDay) return;
-        const r = await buildDailyReview(user.id, currentDay, streakRef.current ?? 0);
-        if (!cancelled) setDailyReview(r);
-      } catch { /* silencioso */ }
-    })();
-    return () => { cancelled = true; };
-  }, [user?.id, hasDay]);
-
-  function dismissDailyReview() {
-    const key = `@atp/daily_review_dismissed:${getLocalToday()}`;
-    AsyncStorage.setItem(key, 'true').catch(() => {});
-    setDailyReviewDismissed(true);
-    haptic.light();
-  }
+  // MB-11 B: el efecto de Daily Review (3 queries nocturnas vía buildDailyReview)
+  // era código muerto — su card se retiró del render en v13e 3.C y el mini-reporte
+  // vive integrado en HoyDayCardEditorial.
 
   // --- Weekly Insight: domingo ≥19h. 1 llamada/semana cacheada. ---
   useEffect(() => {
@@ -607,372 +397,17 @@ export default function TodayScreen() {
     })();
   }, [user?.id]);
 
-  // --- Toggle electrón booleano ---
-  /**
-   * Handler unificado para tap en un electrón booleano de la grid o del
-   * próximo-electrón card. Para los verificados (meditation, breathwork,
-   * strength, supplements): NO togglea — lleva a la pantalla de actividad.
-   * El compilador los prende solos en el siguiente recompile si hay sesión real.
-   */
-  function onElectronTap(source: string) {
-    if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) {
-      haptic.light();
-      router.push(VERIFIED_ELECTRON_ROUTES[source as VerifiedElectronKey]);
-      return;
-    }
-    toggleBoolean(source);
-  }
-
-  async function toggleBoolean(source: string) {
-    if (!user?.id || !day) return;
-    // Guard defensivo: si un verificado se cuela aquí, no falsearlo en DB.
-    if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) {
-      logWarn('[HOY] toggleBoolean called on verified electron — ignoring', source);
-      return;
-    }
-    haptic.medium();
-    const today = getLocalToday();
-
-    // Buscar el electrón actual
-    const el = day.booleanElectrons.find(e => e.source === source);
-    if (!el) return;
-    const wasCompleted = el.completed;
-
-    // Optimistic update
-    setDay(prev => {
-      if (!prev) return prev;
-      const updated = { ...prev };
-      updated.booleanElectrons = prev.booleanElectrons.map(e =>
-        e.source === source ? { ...e, completed: !wasCompleted } : e
-      );
-      // Recalcular progreso
-      let earned = 0, possible = 0;
-      for (const e of updated.booleanElectrons) {
-        possible += e.weight;
-        if (e.completed) earned += e.weight;
-      }
-      for (const e of updated.quantitativeElectrons) {
-        possible += e.weight;
-        earned += e.weight * Math.min(1, e.target > 0 ? e.current / e.target : 0);
-      }
-      earned = Math.round(earned * 10) / 10;
-      possible = Math.round(possible * 10) / 10;
-      const percentage = possible > 0 ? Math.round((earned / possible) * 100) : 0;
-      updated.electronProgress = { earned, possible, percentage };
-      return updated;
-    });
-
-    // Dual write: daily_electrons + electron_logs
-    // HOY-5: contador, no flag. Permite toggles solapados sin que un toggle
-    // que termina antes destape el guard mientras otro sigue en vuelo.
-    isTogglingRef.current += 1;
-    try {
-      // 1) daily_electrons (JSONB para UI rápida)
-      const newStates: Record<string, boolean> = {};
-      for (const e of day.booleanElectrons) {
-        newStates[e.source] = e.source === source ? !wasCompleted : e.completed;
-      }
-      const { error: deErr } = await supabase
-        .from('daily_electrons')
-        .upsert({ user_id: user.id, date: today, electrons: newStates }, { onConflict: 'user_id,date' });
-      if (deErr) {
-        // ÍTEM 4: visibilidad sobre fallos del upsert que antes silenciaba
-        // la falta de destructuring. Throw para activar el revert del catch.
-        throw deErr;
-      }
-
-      // 2) electron_logs (acumulado)
-      if (wasCompleted) {
-        await revokeBooleanElectron(user.id, source as any);
-      } else {
-        await awardBooleanElectron(user.id, source as any);
-      }
-      DeviceEventEmitter.emit('electrons_changed');
-    } catch (e) {
-      logWarn('[HOY] Error toggling electron:', e);
-      // Revertir optimistic update en caso de error
-      setDay(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          booleanElectrons: prev.booleanElectrons.map(el =>
-            el.source === source ? { ...el, completed: wasCompleted } : el
-          ),
-        };
-      });
-    } finally {
-      isTogglingRef.current = Math.max(0, isTogglingRef.current - 1);
-    }
-
-    // Recompilar para sincronizar nextElectron y suggestion (sin race condition).
-    // HOY-5: cancelar la recompilación previa antes de programar una nueva
-    // → toggles rápidos repetidos disparan UNA sola recompilación al final.
-    if (recompileTimeoutRef.current) clearTimeout(recompileTimeoutRef.current);
-    recompileTimeoutRef.current = setTimeout(() => {
-      recompileTimeoutRef.current = null;
-      loadDay();
-    }, 300);
-  }
-
-  // --- Toggle agenda item ---
-  async function toggleAgendaItem(itemId: string) {
-    if (!day || !user?.id) return;
-    haptic.light();
-
-    // DX F4: item de intervención (id 'iv-<user_intervention_id>') → compleción
-    // vía logCompletion (electrón 'intervention' + emit, regla #5). Solo completa
-    // (F3 no modela des-completar; tap sobre uno hecho = no-op). No toca daily_plans.
-    if (itemId.startsWith(INTERVENTION_ITEM_PREFIX)) {
-      const item = day.agendaItems.find(i => i.id === itemId);
-      if (!item || item.completed) return;
-      setDay(prev => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          agendaItems: prev.agendaItems.map(i =>
-            i.id === itemId ? { ...i, completed: true } : i
-          ),
-        };
-      });
-      try {
-        await logCompletion(user.id, itemId.slice(INTERVENTION_ITEM_PREFIX.length));
-        // F1 Batch 4 (#30): writer ÚNICO — la instancia de AGENDA del mismo
-        // concepto también se marca completed (HOY y AGENDA, un solo estado).
-        await markAgendaLogCompleted(user.id, { name: item.name });
-        // F4: hecho ⇒ sin recordatorio — re-sync cancela la notif local del ítem.
-        syncAgendaLocalNotifications(user.id).catch(() => {});
-      } catch (e) {
-        logWarn('[HOY] Error completing intervention:', e);
-      }
-      return;
-    }
-
-    // Optimistic update
-    setDay(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        agendaItems: prev.agendaItems.map(item =>
-          item.id === itemId ? { ...item, completed: !item.completed } : item
-        ),
-      };
-    });
-
-    // F1 Batch 4 (#30): si el toggle marca HECHO, converger la instancia de
-    // AGENDA del mismo concepto (writer único) y cancelar su recordatorio local.
-    const toggledItem = day.agendaItems.find(i => i.id === itemId);
-    if (toggledItem && !toggledItem.completed) {
-      markAgendaLogCompleted(user.id, { name: toggledItem.name }).catch(() => {});
-      syncAgendaLocalNotifications(user.id).catch(() => {});
-    }
-
-    // Persist en daily_plans
-    try {
-      const today = getLocalToday();
-      const { data: plan, error: planErr } = await supabase
-        .from('daily_plans')
-        .select('actions')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .maybeSingle();
-      // MB-11 A: si el select falla, el toggle queda solo en el optimistic
-      // update y se pierde al recompilar — sin log parecería un "plan sin item".
-      if (planErr) logWarn('[HOY] daily_plans select failed', planErr);
-
-      // HOY-7: `plan.actions` es JSONB → puede venir null, objeto, string, etc.
-      // Validar shape en runtime antes de `.map` para no crashear.
-      if (plan?.actions && Array.isArray(plan.actions)) {
-        const updatedActions = plan.actions.map((a: any) =>
-          (a?.id === itemId || `p-${a?.scheduled_time}` === itemId)
-            ? { ...a, completed: !a?.completed }
-            : a
-        );
-        const { error: updErr } = await supabase.from('daily_plans')
-          .update({ actions: updatedActions })
-          .eq('user_id', user.id)
-          .eq('date', today);
-        if (updErr) logWarn('[HOY] daily_plans update failed', updErr);
-      }
-    } catch (e) {
-      console.warn('Error toggling agenda item:', e);
-    }
-  }
-
-  // --- EditDayModal save ---
-  async function handleEditSave(bools: string[], quants: string[]) {
-    if (!user?.id) return;
-    try {
-      const { error } = await supabase.from('user_day_preferences').upsert({
-        user_id: user.id,
-        active_boolean_electrons: bools,
-        active_quantitative_electrons: quants,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
-      // MB-11 A: sin este check, un fallo del upsert deja las preferencias sin
-      // guardar mientras loadDay() repinta como si hubieran quedado.
-      if (error) logWarn('[HOY] user_day_preferences upsert failed', error);
-    } catch (e) { logWarn('[HOY] user_day_preferences upsert threw', e); }
-    loadDay();
-  }
-
-  // --- Quick log: journal nocturno (≥21h, sin entrada hoy) ---
-  async function saveQuickJournal() {
-    if (!user?.id || journalSaving) return;
-    const content = journalDraft.trim();
-    if (content.length < 3) return;
-    setJournalSaving(true);
-    haptic.medium();
-    try {
-      const { error } = await supabase.from('journal_entries').insert({
-        user_id: user.id,
-        date: getLocalToday(),
-        prompt: '¿Cómo estuvo tu día?',
-        content,
-        journal_type: 'free',
-      });
-      if (error) throw error;
-      try { await awardBooleanElectron(user.id, 'journal'); } catch { /* idempotent */ }
-      setHasJournalToday(true);
-      setJournalDraft('');
-      DeviceEventEmitter.emit('electrons_changed');
-      DeviceEventEmitter.emit('day_changed');
-      haptic.success();
-    } catch (e) {
-      console.warn('Quick journal error:', e);
-    } finally {
-      setJournalSaving(false);
-    }
-  }
-
-  // --- Quick log: suplemento (toggle por item) ---
-  // Mantiene el boolean electron 'supplements' en sync: cualquier suplemento
-  // tomado hoy lo activa; al destomar el último, se revoca.
-  async function toggleSupplement(supplementId: string) {
-    if (!user?.id) return;
-    haptic.light();
-    const today = getLocalToday();
-    // HOY-6: leer desde el ref (estado más reciente), no del closure que
-    // captura `suppTaken` en el momento de definir la función.
-    const wasTaken = !!suppTakenRef.current[supplementId];
-    const nextSuppTaken = { ...suppTakenRef.current, [supplementId]: !wasTaken };
-    // Actualizar el ref ANTES del setState — así un toggle solapado lee el
-    // valor recién proyectado y no el anterior.
-    suppTakenRef.current = nextSuppTaken;
-
-    // Optimistic
-    setSuppTaken(nextSuppTaken);
-
-    try {
-      if (wasTaken) {
-        // Multi-dosis (188): borra TODAS las tomas del día (semántica binaria del HOY).
-        const { error: delErr } = await supabase.from('supplement_logs')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('supplement_id', supplementId)
-          .eq('date', today);
-        // MB-11 A: supabase-js no lanza en 4xx — throw activa el rollback del
-        // catch (mismo patrón que deErr en toggleBoolean).
-        if (delErr) throw delErr;
-      } else {
-        // Multi-dosis (188): el quick-toggle del HOY registra la PRIMERA toma
-        // (dose_index 0); las tomas 2..N se marcan en la pantalla Suplementos.
-        // El unique evolucionó a (user,supp,date,dose_index) — onConflict actualizado.
-        const { error: insErr } = await supabase.from('supplement_logs').upsert({
-          user_id: user.id, supplement_id: supplementId, date: today, dose_index: 0, taken: true,
-        }, { onConflict: 'user_id,supplement_id,date,dose_index' });
-        if (insErr) throw insErr;
-        // Economía (fire-and-forget; no-op si flag OFF). Misma key que la pantalla Suplementos
-        // → idempotente entre ambos paths (no doble award).
-        fireElectronAward({
-          habit_type: 'supplement_check', evidence_tier: 'self', local_date: today,
-          idempotency_key: `supplement_check_${user.id}_${today}_${supplementId}`,
-          metadata: { supplement_id: supplementId, source: 'hoy_quicktoggle' },
-        });
-      }
-
-      // Sync boolean electron 'supplements' con estado agregado.
-      // HOY-6: usar la proyección fresca, no la del closure.
-      const anyTaken = Object.values(nextSuppTaken).some(Boolean);
-      const currentStates: Record<string, boolean> = {};
-      if (day) {
-        for (const e of day.booleanElectrons) currentStates[e.source] = e.completed;
-      }
-      const wasCompleted = currentStates['supplements'] === true;
-      // MB-11 A: los upserts de sync chequean { error } pero NO lanzan — el log
-      // del suplemento ya persistió y el rollback del catch desharía la UI de
-      // un dato real. El recompile (electrons_changed) reconstruye el JSONB.
-      if (anyTaken && !wasCompleted) {
-        currentStates['supplements'] = true;
-        const { error: syncErr } = await supabase.from('daily_electrons').upsert(
-          { user_id: user.id, date: today, electrons: currentStates },
-          { onConflict: 'user_id,date' },
-        );
-        if (syncErr) logWarn('[HOY] daily_electrons sync upsert failed', syncErr);
-        await awardBooleanElectron(user.id, 'supplements');
-      } else if (!anyTaken && wasCompleted) {
-        currentStates['supplements'] = false;
-        const { error: syncErr } = await supabase.from('daily_electrons').upsert(
-          { user_id: user.id, date: today, electrons: currentStates },
-          { onConflict: 'user_id,date' },
-        );
-        if (syncErr) logWarn('[HOY] daily_electrons sync upsert failed', syncErr);
-        await revokeBooleanElectron(user.id, 'supplements');
-      }
-      DeviceEventEmitter.emit('electrons_changed');
-      DeviceEventEmitter.emit('day_changed');
-    } catch (e) {
-      console.warn('Toggle supplement error:', e);
-      // HOY-6: rollback en ref + estado, juntos.
-      suppTakenRef.current = { ...suppTakenRef.current, [supplementId]: wasTaken };
-      setSuppTaken(prev => ({ ...prev, [supplementId]: wasTaken }));
-    }
-  }
-
-  // Quick-logs de mood (caritas) y glucosa eliminados del HOY (sprint cleanup): el mood se
-  // captura en /checkin y la glucosa en /glucose-log (no es realista en MVP sin CGM).
-
-  // --- Quick voice desde HOY (sin abrir chat) ---
-  async function handleQuickVoice(transcript: string) {
-    if (!user?.id) return;
-    setVoiceLoading(true);
-    setVoiceResponse('');
-    setVoiceTranscript(transcript);
-    try {
-      const messages = [{ role: 'user' as const, content: transcript }];
-      // T4 MAGIA ARGOS: este quick-ask nace en HOY — se lo decimos a ARGOS.
-      const result = await chatWithArgosEx(user.id, messages, { screenContext: 'hoy' });
-      setVoiceResponse(result.text);
-
-      // ARG-2: si la respuesta fue degradada (rate-limited / providers caídos),
-      // NO persistir ni hablar — solo mostrar el texto en la UI para feedback.
-      if (!result.degraded) {
-        const allMessages = [...messages, { role: 'assistant' as const, content: result.text }];
-        const id = await saveConversation(user.id, allMessages);
-        setVoiceConversationId(id);
-
-        await speakArgos(result.text);
-      }
-      // HOY-9: guardar el id del timeout y cancelarlo si se reemplaza o el
-      // componente se desmonta → evita setState sobre componente desmontado.
-      if (voiceClearTimeoutRef.current) clearTimeout(voiceClearTimeoutRef.current);
-      voiceClearTimeoutRef.current = setTimeout(() => {
-        voiceClearTimeoutRef.current = null;
-        setVoiceResponse('');
-        setVoiceConversationId(null);
-      }, 15000);
-    } catch (e) {
-      console.error('Quick voice error:', e);
-    } finally {
-      setVoiceLoading(false);
-    }
-  }
+  // MB-11 B: aquí vivían los handlers muertos de secciones retiradas del render
+  // (onElectronTap/toggleBoolean de la grid de electrones, toggleAgendaItem,
+  // handleEditSave, saveQuickJournal, toggleSupplement, handleQuickVoice) — se
+  // fueron con su UI. Los toggles de electrones viven en las cards editoriales
+  // (HoyEditorialSection), la agenda completa en /agenda, suplementos en
+  // /supplements, journal en /journal y la voz en el tab ARGOS.
 
   // --- Derivados ---
   const hour = new Date().getHours();
   const pct = day?.electronProgress.percentage ?? 0;
   const heroBg = getHoyBackgroundRequire(hour, pct);
-  const elColor = scoreColor(pct);
-  const elLabel = scoreLabel(pct);
 
   // ═══ RENDER ═══
 
@@ -1227,28 +662,16 @@ export default function TodayScreen() {
             Enrique: las cards editoriales contextuales (Hero/AYUNO/UV) ya cubren esto. */}
 
         {/* Sprint 1.5 B: protocol-config murió — configurar el día ES activar
-            intervenciones (Mi Protocolo = HOY cards = Agenda, doctrina fusión). */}
-        <AnimatedPressable
+            intervenciones (Mi Protocolo = HOY cards = Agenda, doctrina fusión).
+            MB-11 B.1: al molde GradientCTA (quiet: acción secundaria). El
+            EditDayModal que vivía aquí nunca se abría (visible siempre false)
+            — retirado junto con su componente huérfano. */}
+        <GradientCTA
+          label="Ajustar Mi Protocolo"
+          variant="quiet"
+          icon="options-outline"
           onPress={() => { haptic.light(); router.push('/salud/intervenciones'); }}
           style={s.editDayBtn}
-        >
-          <Ionicons name="options-outline" size={16} color="#666" />
-          <Text style={s.editDayBtnText}>Ajustar Mi Protocolo</Text>
-        </AnimatedPressable>
-
-        <EditDayModal
-          visible={editModalVisible}
-          onClose={() => setEditModalVisible(false)}
-          activeBooleans={day.booleanElectrons.map(e => e.source)}
-          activeQuantitatives={day.quantitativeElectrons.map(e => e.source)}
-          agendaActions={day.agendaItems.map(a => ({
-            id: a.id, name: a.name, time: a.time,
-            category: a.category, completed: a.completed,
-          }))}
-          userSex={userSex}
-          onSave={async (bools, quants, _actions) => {
-            await handleEditSave(bools, quants);
-          }}
         />
 
         {/* #hoy-funcionalidad 4.9: SECCIÓN 6 "AGENDA" triple (MAÑANA/TARDE/NOCHE) eliminada
@@ -1268,48 +691,8 @@ export default function TodayScreen() {
       {/* F3 (AGENDA-COMPLETE): el modal de la campana se retiró — el inbox vive en /notifications
           (el INSIGHT ARGOS del día se muestra ahí, fijado arriba). */}
 
-      {/* ARGOS response → bottom sheet expandible (F07.3). Snap 25/50/90, drag, scroll. */}
-      <ExpandableSheet
-        visible={!!voiceResponse}
-        onClose={() => { setVoiceResponse(''); setVoiceConversationId(null); }}
-        title="ARGOS"
-      >
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
-          <Text style={{ color: '#ddd', fontSize: 15, lineHeight: 23 }}>{voiceResponse}</Text>
-        </ScrollView>
-        <AnimatedPressable
-          onPress={() => {
-            haptic.medium();
-            const convId = voiceConversationId;
-            setVoiceResponse('');
-            setVoiceConversationId(null);
-            if (convId) router.push({ pathname: '/argos-chat', params: { conversationId: convId } });
-            else router.push('/argos-chat');
-          }}
-          style={{
-            marginTop: 12, backgroundColor: 'rgba(168,224,42,0.15)', borderRadius: 12,
-            paddingVertical: 13, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)',
-          }}
-        >
-          <Text style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: 14 }}>Ver conversación completa →</Text>
-        </AnimatedPressable>
-      </ExpandableSheet>
-
-      {/* ARGOS dual FAB: mic + chat */}
-      <View style={{ position: 'absolute', bottom: 90, right: 20, zIndex: 100, alignItems: 'flex-end' }}>
-        {voiceLoading ? (
-          <View style={{
-            backgroundColor: '#0a0a0a', borderRadius: 12, padding: 10,
-            marginBottom: 8, flexDirection: 'row', alignItems: 'center', gap: 8,
-            borderWidth: 1, borderColor: 'rgba(168,224,42,0.2)',
-          }}>
-            <ActivityIndicator size="small" color="#a8e02a" />
-            <Text style={{ color: '#a8e02a', fontSize: 12 }}>ARGOS piensa...</Text>
-          </View>
-        ) : null}
-
-        {/* N1: ARGOS vive en el menú inferior, no como FAB. Mic FAB removido. */}
-      </View>
+      {/* MB-11 B: el sheet de quick-voice y el indicador FAB "ARGOS piensa" eran
+          código muerto desde N1 (ARGOS vive en el menú inferior) — retirados. */}
 
       {/* hotfix-ux FIX 4: reacción ARGOS (pool encouragement) + atribución "+X ⚡ Fuente"
           tras cada award de electrón. Escucha 'electron_awarded' (electron-service). */}
@@ -1330,32 +713,6 @@ const s = StyleSheet.create({
   scrollContent: {
     paddingBottom: 120,
   },
-  loadingWrap: {
-    flex: 1,
-    backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  loadingText: {
-    color: Colors.textSecondary,
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.semiBold,
-  },
-  retryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#a8e02a',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryBtnText: {
-    color: '#000',
-    fontFamily: Fonts.bold,
-    fontSize: FontSizes.md,
-  },
 
   // ── Top bar ──
   topBar: {
@@ -1374,20 +731,6 @@ const s = StyleSheet.create({
     letterSpacing: 3,
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
-  },
-  streakPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: Radius.pill,
-    backgroundColor: 'rgba(251,146,60,0.12)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(251,146,60,0.25)',
-  },
-  streakPillText: {
-    color: '#fb923c',
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    letterSpacing: 0.5,
   },
 
   // ── HERO ──
@@ -1431,19 +774,6 @@ const s = StyleSheet.create({
     marginTop: 4,
     textTransform: 'uppercase',
   },
-  protocolPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)', // acento moderado: chip de info secundaria, neutral
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    alignSelf: 'flex-start',
-    marginBottom: Spacing.md,
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
   // #68: card de recomendación HERO dinámica (glass sutil sobre la foto)
   heroRecCard: {
     flexDirection: 'row',
@@ -1486,451 +816,11 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
   },
-  protocolPillText: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-  },
-  heroScoreWrap: {
-    alignItems: 'center',
-    marginTop: Spacing.sm,
-  },
-  heroScoreRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  heroScoreInfo: {
-    gap: 4,
-  },
-  heroElectronNum: {
-    fontSize: 22,
-    fontFamily: Fonts.bold,
-  },
-  heroElectronSlash: {
-    fontSize: 13,
-    fontFamily: Fonts.regular,
-    color: 'rgba(255,255,255,0.4)',
-  },
-  heroScoreLabel: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    letterSpacing: 3,
-    marginTop: 4,
-  },
 
   // ── Secciones ──
   section: {
     paddingHorizontal: Spacing.md,
     marginTop: Spacing.xl, // 32 — más aire entre secciones (jerarquía: que respire)
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 12, // separación título→contenido
-  },
-  sectionTitle: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    color: Colors.textSecondary,
-    letterSpacing: 3,
-  },
-  sectionSubtitle: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textMuted,
-  },
-
-  // ── Próximo electrón ──
-  nextElectronCard: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: 'rgba(168,224,42,0.2)',
-    padding: Spacing.md,
-    shadowColor: '#a8e02a',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  nextElectronHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginBottom: 12,
-  },
-  nextElectronIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  nextElectronText: {
-    flex: 1,
-  },
-  nextElectronLabel: {
-    fontSize: 9,
-    fontFamily: Fonts.bold,
-    color: Colors.textMuted,
-    letterSpacing: 2,
-    marginBottom: 2,
-  },
-  nextElectronName: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.bold,
-    color: Colors.textPrimary,
-  },
-  nextElectronDesc: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: Colors.textSecondary,
-    marginTop: 2,
-    lineHeight: 16,
-  },
-  nextElectronBtn: {
-    backgroundColor: '#a8e02a',
-    borderRadius: Radius.sm,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  nextElectronBtnText: {
-    color: '#000',
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    letterSpacing: 2,
-  },
-  missionCompleteCard: {
-    backgroundColor: 'rgba(168,224,42,0.08)',
-    borderRadius: Radius.md,
-    borderWidth: 0.5,
-    borderColor: 'rgba(168,224,42,0.2)',
-    padding: Spacing.lg,
-    alignItems: 'center',
-    gap: 8,
-  },
-  missionCompleteText: {
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.bold,
-    color: '#a8e02a',
-  },
-  missionCompleteSubtext: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: Colors.textSecondary,
-  },
-
-  // ── Electron grid ──
-  electronGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  electronCard: {
-    minHeight: 110,
-    backgroundColor: CARD.bg,
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    borderColor: '#1a1a1a',
-    padding: Spacing.sm + 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-  },
-  electronIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  electronName: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textMuted,
-    textAlign: 'center',
-  },
-  electronDesc: {
-    fontSize: 9,
-    fontFamily: Fonts.regular,
-    color: '#555',
-    textAlign: 'center',
-    lineHeight: 12,
-    marginTop: 1,
-    paddingHorizontal: 2,
-  },
-  electronDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  electronExpandedPanel: {
-    backgroundColor: '#0a0a0a',
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
-    marginTop: 4,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-    gap: 4,
-  },
-  electronExpandedDesc: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: Colors.textSecondary,
-    lineHeight: 16,
-  },
-  electronExpandedWeight: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textMuted,
-  },
-  electronExpandedLink: {
-    marginTop: 4,
-  },
-  electronExpandedLinkText: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-    color: '#a8e02a',
-  },
-
-  // ── Cuantitativos ──
-  quantGrid: {
-    gap: Spacing.sm,
-  },
-  quantCard: {
-    backgroundColor: CARD.bg,
-    borderRadius: Radius.card,
-    padding: Spacing.sm + 2,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-  },
-  quantCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 6,
-  },
-  quantCardName: {
-    flex: 1,
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
-  },
-  quantCardValue: {
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  quantTrack: {
-    height: 6,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  quantFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  waterQuickRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 10,
-  },
-  quickRow: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  quickLogMore: {
-    fontSize: 11,
-    fontFamily: Fonts.semiBold,
-    color: '#666',
-  },
-  // Check-in emocional (card navegable) + wearable
-  checkinCard: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: CARD.bg, borderRadius: Radius.card, padding: Spacing.md,
-    borderWidth: 0.5, borderColor: 'rgba(244,114,182,0.25)',
-  },
-  checkinIcon: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(244,114,182,0.12)', alignItems: 'center', justifyContent: 'center',
-  },
-  checkinTitle: { color: '#fff', fontSize: FontSizes.md, fontFamily: Fonts.semiBold },
-  checkinSub: { color: '#888', fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: 2 },
-  wearableRow: { flexDirection: 'row', gap: Spacing.sm },
-  wearableHint: { color: '#666', fontSize: FontSizes.xs, fontFamily: Fonts.regular, marginTop: Spacing.sm },
-  suppGroupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 2,
-  },
-  suppGroupTitle: {
-    flex: 1,
-    fontSize: 11,
-    fontFamily: Fonts.semiBold,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  suppGroupCount: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  suppGroupCountText: {
-    color: '#666',
-    fontSize: 11,
-    fontFamily: Fonts.semiBold,
-  },
-  suppRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: CARD.bg,
-    borderRadius: Radius.card,
-    borderWidth: 0.5,
-    borderColor: '#1a1a1a',
-  },
-  suppRowDone: {
-    backgroundColor: 'rgba(168,224,42,0.08)',
-    borderColor: 'rgba(168,224,42,0.25)',
-  },
-  suppDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 1.5,
-    borderColor: '#333',
-  },
-  suppName: {
-    flex: 1,
-    color: Colors.textPrimary,
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.semiBold,
-  },
-  suppNameDone: {
-    color: '#a8e02a',
-    textDecorationLine: 'line-through',
-  },
-  suppDosage: {
-    color: '#666',
-    fontSize: 11,
-    fontFamily: Fonts.regular,
-  },
-  journalCard: {
-    backgroundColor: 'rgba(192,132,252,0.06)',
-    borderRadius: Radius.md,
-    borderWidth: 0.5,
-    borderColor: 'rgba(192,132,252,0.2)',
-    padding: Spacing.md,
-  },
-  journalTitle: {
-    color: '#c084fc',
-    fontSize: 13,
-    fontFamily: Fonts.bold,
-    letterSpacing: 0.5,
-  },
-  journalInput: {
-    color: '#fff',
-    fontFamily: Fonts.regular,
-    fontSize: 14,
-    minHeight: 48,
-    maxHeight: 100,
-    textAlignVertical: 'top',
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  journalSaveBtn: {
-    backgroundColor: '#c084fc',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  journalSaveText: {
-    color: '#000',
-    fontSize: 11,
-    fontFamily: Fonts.bold,
-    letterSpacing: 1,
-  },
-
-  // ── Daily Review ──
-  reviewCard: {
-    backgroundColor: 'rgba(129,140,248,0.06)',
-    borderRadius: Radius.md,
-    borderWidth: 0.5,
-    borderColor: 'rgba(129,140,248,0.2)',
-    padding: Spacing.md,
-  },
-  reviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  reviewLabel: {
-    color: '#818cf8',
-    fontSize: 10,
-    fontFamily: Fonts.bold,
-    letterSpacing: 2,
-  },
-  reviewSummaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  reviewStat: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  reviewStatValue: {
-    color: '#fff',
-    fontSize: 18,
-    fontFamily: Fonts.bold,
-    fontVariant: ['tabular-nums'],
-  },
-  reviewStatLabel: {
-    color: '#666',
-    fontSize: 9,
-    fontFamily: Fonts.semiBold,
-    letterSpacing: 1.5,
-    marginTop: 2,
-  },
-  reviewItem: {
-    flex: 1,
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontFamily: Fonts.regular,
-    lineHeight: 17,
-  },
-  reviewFocus: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 0.5,
-    borderTopColor: 'rgba(255,255,255,0.06)',
-  },
-  reviewFocusLabel: {
-    color: '#818cf8',
-    fontSize: 9,
-    fontFamily: Fonts.bold,
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  reviewFocusText: {
-    color: Colors.textPrimary,
-    fontSize: 13,
-    fontFamily: Fonts.semiBold,
-    lineHeight: 18,
   },
 
   // ── Weekly Insight ──
@@ -2007,47 +897,6 @@ const s = StyleSheet.create({
     lineHeight: 17,
     fontStyle: 'italic',
   },
-  waterQuickBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(56,189,248,0.15)',
-    borderRadius: 8,
-  },
-  waterQuickText: {
-    color: '#38bdf8',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  // ── Sugerencia ──
-  suggestionCard: {
-    backgroundColor: 'rgba(239,159,39,0.08)',
-    borderRadius: Radius.md,
-    borderWidth: 0.5,
-    borderColor: 'rgba(239,159,39,0.2)',
-    padding: Spacing.md,
-  },
-  suggestionRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  suggestionTextWrap: {
-    flex: 1,
-  },
-  suggestionText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.regular,
-    color: Colors.textPrimary,
-    lineHeight: 20,
-  },
-  suggestionAction: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.bold,
-    color: '#EF9F27',
-    marginTop: 6,
-  },
-
   // ── Edit day button ──
   editDayBtn: {
     flexDirection: 'row',
@@ -2057,107 +906,5 @@ const s = StyleSheet.create({
     paddingVertical: 12,
     marginHorizontal: 20,
     marginTop: 20,
-  },
-  editDayBtnText: {
-    color: '#666',
-    fontSize: 12,
-    fontFamily: Fonts.semiBold,
-  },
-
-  // ── Agenda ──
-  agendaTitle: {
-    fontSize: 22,
-    fontFamily: Fonts.bold,
-    color: Colors.textPrimary,
-    letterSpacing: 1,
-  },
-  agendaTimeline: {
-    paddingBottom: Spacing.md,
-  },
-  agendaRow: {
-    flexDirection: 'row',
-    minHeight: 72,
-  },
-  agendaLineCol: {
-    width: 28,
-    alignItems: 'center',
-  },
-  agendaLineSeg: {
-    width: 1.5,
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-  },
-  agendaDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: '#333',
-    backgroundColor: CARD.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  agendaCard: {
-    flex: 1,
-    marginLeft: Spacing.sm,
-    marginBottom: Spacing.sm,
-    backgroundColor: CARD.bg,
-    borderRadius: Radius.card,
-    borderLeftWidth: 3,
-    padding: Spacing.sm + 2,
-  },
-  agendaCardDone: {
-    opacity: 0.5,
-  },
-  agendaCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  agendaTime: {
-    color: '#aaa', // F01.11-12: subir contraste sobre bg dark
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.semiBold,
-    fontVariant: ['tabular-nums'],
-  },
-  agendaCardBody: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  agendaCardContent: {
-    flex: 1,
-  },
-  agendaItemName: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textPrimary,
-    lineHeight: 20,
-  },
-  agendaItemNameDone: {
-    textDecorationLine: 'line-through',
-    color: Colors.textSecondary,
-  },
-  agendaSubtitle: {
-    color: '#aaa', // F01.11-12: subir contraste sobre bg dark
-    fontSize: FontSizes.sm,
-    marginTop: 2,
-  },
-  agendaEmpty: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xl,
-    gap: 8,
-  },
-  agendaEmptyText: {
-    fontSize: FontSizes.md,
-    fontFamily: Fonts.semiBold,
-    color: Colors.textSecondary,
-  },
-  agendaEmptySubtext: {
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    color: '#888', // F01.11-12: subir contraste (antes textMuted #555)
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
   },
 });
