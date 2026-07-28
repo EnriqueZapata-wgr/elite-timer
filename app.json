@@ -2,7 +2,7 @@
   "expo": {
     "name": "ATP",
     "slug": "EliteTimer",
-    "version": "1.8.0",
+    "version": "1.9.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "atp",
@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.atpperformance.app",
-      "buildNumber": "1.8.0",
+      "buildNumber": "1.9.0",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
@@ -23,7 +23,7 @@
       }
     },
     "android": {
-      "versionCode": 18,
+      "versionCode": 19,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -32,6 +32,7 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.ACCESS_COARSE_LOCATION",
@@ -72,6 +73,13 @@
       "expo-font",
       "expo-audio",
       "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ATP necesita acceso a tus fotos para que puedas registrar tus comidas, tus suplementos y tus estudios de laboratorio desde imágenes que ya tienes.",
+          "cameraPermission": "ATP necesita la cámara para que puedas fotografiar tus comidas, tus suplementos y tus estudios de laboratorio."
+        }
+      ],
       "@react-native-community/datetimepicker",
       "react-native-health-connect",
       "./plugins/with-health-connect-delegate",
