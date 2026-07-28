@@ -1,9 +1,14 @@
 /**
- * Check-in emocional RULER — Reconocer → Etiquetar → Entender.
- * 3 pasos: cuadrante → emociones (con descripciones) → contexto.
+ * Check-in emocional — Reconocer → Etiquetar → Entender (MB-10 · Track A).
+ *
+ * La puerta de entrada es LA RUEDA (Willcox): 6 núcleos → 13 familias → 144
+ * emociones con acercamiento de cámara. Gana lo que lleve a la palabra exacta
+ * más rápido — el mapa espiral vive ahora en Exploración, fuera del check-in.
+ * 2 pasos: rueda (nombrar) → contexto. Nombrar ES la primera intervención
+ * (Lieberman 2007): el aterrizaje lo dice en una línea.
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, TextInput, Dimensions, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
+import { View, StyleSheet, Pressable, TextInput, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInDown, SlideOutDown, SlideInRight } from 'react-native-reanimated';
@@ -15,13 +20,14 @@ import {
   QUADRANTS, EMOTIONS, CONTEXT_WHERE, CONTEXT_WHO, CONTEXT_DOING,
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
-import { EmotionMap2D, type EmotionMapHandle, type MapRegion } from '@/src/components/checkin/EmotionMap2D';
+import { EmotionWheel, type EmotionWheelHandle } from '@/src/components/checkin/EmotionWheel';
+import { NAMING_MECHANISM_LINE } from '@/src/data/emotion-wheel-config';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
-import { saveCheckin, getTodayCheckins, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
+import { saveCheckin, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
 import { promptForDate, buildCheckinJournalEntry } from '@/src/data/checkin-prompts';
@@ -38,11 +44,8 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, withOpacity, SKOOL_URL, ATP_BRAND } from '@/src/constants/brand';
 import { Screen } from '@/src/components/ui/Screen';
-
-const { width: SW } = Dimensions.get('window');
-const CELL = (SW - Spacing.md * 2 - 2) / 2;
 
 export default function CheckinScreen() {
   const router = useRouter();
@@ -58,17 +61,14 @@ export default function CheckinScreen() {
   // tras CONTINUAR. addSecond = ya aceptó sumar otra; askSecond = hoja de oferta.
   const [addSecond, setAddSecond] = useState(false);
   const [askSecond, setAskSecond] = useState(false);
-  // B.6 (MB-7): región real bajo la cámara — el encabezado dice dónde ESTÁS.
-  const [mapRegion, setMapRegion] = useState<MapRegion | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const mapRef = useRef<EmotionMapHandle>(null);
+  const wheelRef = useRef<EmotionWheelHandle>(null);
   const [ctxWhere, setCtxWhere] = useState<string | null>(null);
   const [ctxWho, setCtxWho] = useState<string | null>(null);
   const [ctxDoing, setCtxDoing] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
-  const [recent, setRecent] = useState<CheckinRecord[]>([]);
   const [pastCheckins, setPastCheckins] = useState<CheckinRecord[]>([]);
   // T4 MENTE: streak de días consecutivos con check-in (se calcula al guardar)
   const [checkinStreak, setCheckinStreak] = useState(0);
@@ -100,25 +100,24 @@ export default function CheckinScreen() {
   };
 
   useEffect(() => {
-    getTodayCheckins().then(setRecent).catch(() => {});
-    // 21 días: ventana del trigger de la Tribu (el historial visible solo usa 10).
+    // 21 días: ventana del trigger de la Tribu (C5). El historial visible ya no
+    // vive aquí: la rueda es la protagonista; la historia vive en su pantalla.
     getRecentCheckins(BRIDGE_WINDOW_DAYS).then(setPastCheckins).catch(() => {});
     loadCheckinStreak();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // #20: back consciente del paso — en pasos intermedios regresa al paso anterior,
-  // nunca saca de la app. En paso 1 (o done) sale de la pantalla.
+  // #20: back consciente del paso — en el contexto regresa a la rueda,
+  // nunca saca de la app. En la rueda (o done) sale de la pantalla.
   const handleBack = () => {
-    if (step > 1 && step < 4) setStep(step - 1);
+    if (step === 2) setStep(1);
     else router.back();
   };
 
   // #20: hardware back de Android — consumir el evento en pasos intermedios.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (step > 1 && step < 4) {
-        setStep(step - 1);
+      if (step === 2) {
+        setStep(1);
         return true;
       }
       return false;
@@ -137,31 +136,15 @@ export default function CheckinScreen() {
 
   const qd = quadrant ? QUADRANTS[quadrant] : null;
   const qColor = qd?.color ?? TEXT_COLORS.secondary;
-  // B.6 (MB-7): el título del plano nombra la región que la cámara muestra —
-  // nunca un cuadrante en overview, nunca uno que ya no está en pantalla.
-  const regionQd = mapRegion && mapRegion !== 'overview' ? QUADRANTS[mapRegion] : null;
-  const mapTitle = mapRegion === 'overview' ? 'Todo el plano' : (regionQd ?? qd)?.label ?? '';
-  const mapTitleColor = mapRegion === 'overview' ? TEXT_COLORS.primary : (regionQd ?? qd)?.color ?? qColor;
   // C5-002: "En pánico" seleccionado → banner Línea de la Vida visible en el
   // resto del flujo (guardarraíl determinístico, sin alarmismo).
   const panicSelected = selectedEmotions.includes('panicked');
-
-  const handleQuadrant = (q: QuadrantKey) => {
-    setQuadrant(q);
-    setSelectedEmotions([]);
-    setSheetEmotion(null);
-    setAddSecond(false);
-    setAskSecond(false);
-    setMapRegion(q);
-    vibrateMedium();
-    setStep(2);
-  };
 
   // B.1 (MB-7, decisión de Enrique): UNA emoción activa que va switcheando
   // mientras navegas — tocar otra la reemplaza, tocar la MISMA la suelta (B.2).
   // Solo tras CONTINUAR se ofrece sumar una segunda (addSecond); entonces el
   // slot 2 es el que switchea. El cuadrante efectivo sigue a la primera elegida.
-  const handleMapEmotionPress = useCallback((e: Emotion) => {
+  const handleWheelEmotionPress = useCallback((e: Emotion) => {
     const wasSelected = selectedEmotions.includes(e.id);
     let next: string[];
     if (wasSelected) next = selectedEmotions.filter(id => id !== e.id);
@@ -183,11 +166,8 @@ export default function CheckinScreen() {
       setAskSecond(true);
       return;
     }
-    setStep(3);
+    setStep(2);
   }, [selectedEmotions.length, addSecond]);
-
-  // B.6 (MB-7): el encabezado se deriva de la región real del viewport.
-  const handleRegionChange = useCallback((r: MapRegion) => setMapRegion(r), []);
 
   const removeEmotion = (id: string) => {
     haptic.light();
@@ -204,8 +184,9 @@ export default function CheckinScreen() {
     haptic.light();
     setSearchOpen(false);
     setSearchQuery('');
-    mapRef.current?.centerOnEmotion(e.id);
-    handleMapEmotionPress(e);
+    // La rueda entra al nivel de su familia — se ve dónde vive la palabra.
+    wheelRef.current?.focusEmotion(e.id);
+    handleWheelEmotionPress(e);
   };
 
   // MB-4 Bloque 4: compartir este check-in con tu gente (opt-in explícito).
@@ -315,7 +296,7 @@ export default function CheckinScreen() {
       } catch (e) { logWarn('[checkin] award electron failed', e); }
 
       vibrateMedium();
-      setStep(4);
+      setStep(3);
     } catch (e) {
       // MB-5: el fallo era invisible (solo logWarn) — el usuario se quedaba en
       // el paso 3 sin feedback y creía que guardó. Sus selecciones siguen en
@@ -330,7 +311,7 @@ export default function CheckinScreen() {
   };
 
   // === DONE ===
-  if (step === 4) {
+  if (step === 3) {
     return (
       <Screen keyboard>
         <Animated.View entering={FadeIn.duration(400)} style={styles.doneContainer}>
@@ -458,141 +439,41 @@ export default function CheckinScreen() {
 
       {/* Dots */}
       <View style={styles.dots}>
-        {[1, 2, 3].map(i => (
+        {[1, 2].map(i => (
           <View key={i} style={[styles.dotIndicator, i <= step && { backgroundColor: qColor }]} />
         ))}
       </View>
 
-      {/* ═══ STEP 1: MAPA ═══ */}
+      {/* ═══ STEP 1: LA RUEDA — 6 núcleos → 13 familias → 144 emociones ═══ */}
       {step === 1 && (
-        <Animated.View entering={FadeIn.duration(200)} style={styles.stepFlex}>
-          <EliteText style={styles.mainTitle}>¿Cómo te sientes?</EliteText>
-          <EliteText variant="caption" style={styles.mainSub}>Toca la zona que mejor describe tu estado</EliteText>
+        <Animated.View entering={FadeIn.duration(200)} style={styles.mapFlex}>
+          <View style={styles.mapHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <EliteText style={styles.wheelTitle}>¿Cómo te sientes?</EliteText>
+              <EliteText variant="caption" style={styles.mapHint}>
+                Toca un núcleo para acercarte · o directo a la orilla si ya sabes
+              </EliteText>
+            </View>
+            <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={styles.mapTool} hitSlop={8}>
+              <Ionicons name="search" size={18} color={TEXT_COLORS.secondary} />
+            </Pressable>
+          </View>
 
-          {/* #21: racha viva visible al entrar (antes solo aparecía tras guardar) */}
+          {/* #21: racha viva visible al entrar */}
           {checkinStreak > 1 && (
             <EliteText variant="caption" style={styles.streakBadge}>
               🔥 {checkinStreak} días seguidos escuchándote
             </EliteText>
           )}
 
-          {/* B.5 (MB-7): mismo lado que el plano (Mood Meter) — desagradable a
-              la IZQUIERDA, agradable a la DERECHA. Memoria espacial: donde el
-              usuario aprende una emoción en la portada, ahí vive en el plano. */}
-          <View style={styles.mapGrid}>
-            {(['high_unpleasant', 'high_pleasant', 'low_unpleasant', 'low_pleasant'] as QuadrantKey[]).map((q, i) => {
-              const d = QUADRANTS[q];
-              const isTopLeft = i === 0;
-              const isTopRight = i === 1;
-              const isBottomLeft = i === 2;
-              const isBottomRight = i === 3;
-              return (
-                <AnimatedPressable key={q} onPress={() => handleQuadrant(q)}>
-                  <LinearGradient
-                    colors={[d.color + '25', d.color + '08', 'transparent']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[
-                      styles.mapCell,
-                      { borderColor: d.color + '20' },
-                      isTopLeft && { borderTopLeftRadius: Radius.lg },
-                      isTopRight && { borderTopRightRadius: Radius.lg },
-                      isBottomLeft && { borderBottomLeftRadius: Radius.lg },
-                      isBottomRight && { borderBottomRightRadius: Radius.lg },
-                    ]}
-                  >
-                    <EliteText variant="caption" style={[styles.mapLabel, { color: d.color }]}>
-                      {d.label}
-                    </EliteText>
-                    <EliteText variant="caption" style={styles.mapExamples}>
-                      {d.examples.join(' · ')}
-                    </EliteText>
-                  </LinearGradient>
-                </AnimatedPressable>
-              );
-            })}
-          </View>
-
-          {recent.length > 0 && (
-            <View style={styles.recentRow}>
-              <EliteText variant="caption" style={styles.recentLabel}>Hoy:</EliteText>
-              {recent.slice(0, 5).map(c => (
-                <View key={c.id} style={[styles.recentCircle, { backgroundColor: QUADRANTS[c.quadrant].color }]} />
-              ))}
-            </View>
-          )}
-
-          {/* Historial reciente */}
-          {pastCheckins.length > 0 && (
-            <ScrollView style={{ maxHeight: 200, marginTop: Spacing.md }} showsVerticalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.xs }}>
-                <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, letterSpacing: 2, fontFamily: Fonts.bold, fontSize: FontSizes.xs }}>
-                  CHECK-INS RECIENTES
-                </EliteText>
-                {/* MB-4 Bloque 3: acceso al historial completo con correlaciones */}
-                <Pressable onPress={() => { haptic.light(); router.push('/emotion-history'); }} hitSlop={8}>
-                  <EliteText variant="caption" style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.xs }}>
-                    Ver todo →
-                  </EliteText>
-                </Pressable>
-              </View>
-              {pastCheckins.slice(0, 10).map(ci => {
-                const qInfo = QUADRANTS[ci.quadrant];
-                const emotionLabels = ci.emotions
-                  .map(id => EMOTIONS.find(e => e.id === id)?.label)
-                  .filter(Boolean)
-                  .join(', ');
-                return (
-                  <View key={ci.id} style={{
-                    backgroundColor: SURFACES.card, borderRadius: Radius.card,
-                    padding: Spacing.sm, marginBottom: 6,
-                    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
-                    borderLeftWidth: 3, borderLeftColor: qInfo.color,
-                  }}>
-                    <View style={{ flex: 1 }}>
-                      <EliteText variant="caption" style={{ color: qInfo.color, fontSize: FontSizes.xs, fontFamily: Fonts.bold }}>
-                        {emotionLabels || qInfo.label}
-                      </EliteText>
-                      <EliteText variant="caption" style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: 2 }}>
-                        {new Date(ci.created_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </EliteText>
-                    </View>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          )}
-        </Animated.View>
-      )}
-
-      {/* ═══ STEP 2: EL PLANO — mapa 2D continuo con las 144 emociones ═══ */}
-      {step === 2 && quadrant && (
-        <Animated.View entering={FadeIn.duration(250)} style={styles.mapFlex}>
-          <View style={styles.mapHeaderRow}>
-            <View style={{ flex: 1 }}>
-              <EliteText style={[styles.mapTitle, { color: mapTitleColor }]}>{mapTitle}</EliteText>
-              <EliteText variant="caption" style={styles.mapHint}>
-                Desliza el plano · toca una emoción · tócala otra vez para soltarla
-              </EliteText>
-            </View>
-            <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={styles.mapTool} hitSlop={8}>
-              <Ionicons name="search" size={18} color={TEXT_COLORS.secondary} />
-            </Pressable>
-            <Pressable onPress={() => { haptic.light(); setSearchOpen(false); mapRef.current?.zoomOut(); }} style={styles.mapTool} hitSlop={8}>
-              <Ionicons name="contract-outline" size={18} color={TEXT_COLORS.secondary} />
-            </Pressable>
-          </View>
-
           {/* C5-002: recurso de crisis al marcar "En pánico" */}
           {panicSelected && <CrisisSupportBanner style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }} />}
 
           <View style={styles.mapCanvas}>
-            <EmotionMap2D
-              ref={mapRef}
-              initialQuadrant={quadrant}
+            <EmotionWheel
+              ref={wheelRef}
               selectedIds={selectedEmotions}
-              onEmotionPress={handleMapEmotionPress}
-              onRegionChange={handleRegionChange}
+              onEmotionPress={handleWheelEmotionPress}
             />
 
             {/* Buscador por nombre */}
@@ -639,6 +520,9 @@ export default function CheckinScreen() {
                   </Pressable>
                 </View>
                 <EliteText variant="body" style={styles.defDesc}>{sheetEmotion.description}</EliteText>
+                {/* A.6: el mecanismo, nombrado — no es copy motivacional, es
+                    Lieberman (2007). Vive en emotion-wheel-config. */}
+                <EliteText variant="caption" style={styles.defMechanism}>{NAMING_MECHANISM_LINE}</EliteText>
                 {/* B.1: la segunda emoción ya no se ofrece aquí — CONTINUAR
                     abre la oferta (o sigue de largo si ya hay dos). */}
                 <View style={styles.defActions}>
@@ -672,7 +556,7 @@ export default function CheckinScreen() {
                   <EliteText variant="caption" style={styles.defSecondaryText}>Sumar otra</EliteText>
                 </Pressable>
                 <Pressable
-                  onPress={() => { haptic.medium(); setAskSecond(false); setStep(3); }}
+                  onPress={() => { haptic.medium(); setAskSecond(false); setStep(2); }}
                   style={[styles.defContinue, { backgroundColor: qColor }]}
                 >
                   <EliteText style={styles.defContinueText}>SEGUIR</EliteText>
@@ -690,8 +574,8 @@ export default function CheckinScreen() {
         </Animated.View>
       )}
 
-      {/* ═══ STEP 3: CONTEXTO ═══ */}
-      {step === 3 && quadrant && (
+      {/* ═══ STEP 2: CONTEXTO ═══ */}
+      {step === 2 && quadrant && (
         <Animated.View entering={SlideInRight.duration(250)} style={styles.stepFlex}>
           {/* V1.5.1 (#5): KeyboardAwareScrollView (keyboard-controller) — el
               input queda visible al escribir; insets nativos no bastaron. */}
@@ -799,29 +683,8 @@ const styles = StyleSheet.create({
   dotIndicator: { width: 8, height: 8, borderRadius: Radius.xs, backgroundColor: SURFACES.disabled },
 
   stepFlex: { flex: 1, paddingHorizontal: Spacing.md, paddingTop: Spacing.lg },
-  mainTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold, color: Colors.textPrimary, textAlign: 'center' },
-  mainSub: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs, marginBottom: Spacing.lg, fontSize: FontSizes.md },
   // #21: racha visible al entrar (mismo tono que el done screen)
-  streakBadge: { color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md, textAlign: 'center', marginTop: -Spacing.sm, marginBottom: Spacing.md },
-
-  // Map
-  mapGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 2, justifyContent: 'center',
-  },
-  mapCell: {
-    width: CELL, height: CELL * 0.75, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center', padding: Spacing.md,
-  },
-  mapLabel: { fontFamily: Fonts.bold, fontSize: FontSizes.md, textAlign: 'center', marginBottom: 6 },
-  mapExamples: { color: Colors.textSecondary, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 16 },
-
-  // Recent
-  recentRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: Spacing.xs, marginTop: Spacing.lg,
-  },
-  recentLabel: { color: Colors.textSecondary, fontSize: FontSizes.sm },
-  recentCircle: { width: 14, height: 14, borderRadius: 7 },
+  streakBadge: { color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md, textAlign: 'center', marginTop: 2, marginBottom: Spacing.xs },
 
   // MB-4 Bloque 1: glow ambiental (detrás de todo, tercio superior)
   ambientGlow: {
@@ -835,6 +698,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, paddingBottom: Spacing.sm,
   },
   mapTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold },
+  wheelTitle: { fontSize: FontSizes.xl, fontFamily: Fonts.extraBold, color: Colors.textPrimary },
   mapHint: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 2 },
   mapTool: {
     width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
@@ -872,6 +736,11 @@ const styles = StyleSheet.create({
   defName: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
   defRemove: { color: Colors.textSecondary, fontSize: FontSizes.sm },
   defDesc: { color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 22, marginTop: Spacing.xs },
+  // A.6: la línea del mecanismo (Lieberman) — voz baja, sin empalago.
+  defMechanism: {
+    color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 18,
+    marginTop: Spacing.sm, fontStyle: 'italic',
+  },
   defActions: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
     gap: Spacing.md, marginTop: Spacing.md,
