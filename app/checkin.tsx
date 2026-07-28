@@ -413,10 +413,12 @@ export default function CheckinScreen() {
                     Incluir la emoción (si no, solo la zona)
                   </EliteText>
                 </Pressable>
+                {/* H.2 (MB-10): el estado ocupado lo dice el LABEL, no una capa
+                    de opacidad encima (antipatrón "botón apagado"). */}
                 <Pressable
                   onPress={handleShare}
                   disabled={sharing}
-                  style={[styles.shareBtn, { borderColor: qColor + '50' }, sharing && { opacity: 0.5 }]}
+                  style={[styles.shareBtn, { borderColor: qColor + '50' }]}
                 >
                   <EliteText variant="caption" style={[styles.shareBtnText, { color: qColor }]}>
                     {sharing ? 'Compartiendo…' : 'Compartir'}
@@ -686,12 +688,14 @@ export default function CheckinScreen() {
 
             {/* B.9 (MB-7): CTA al molde editorial — degradado de marca, nunca
                 color plano (doctrina §1). El glow lo tiñe el pilar Mente. */}
+            {/* H.2 (MB-10): "Guardando…" ya comunica el estado — sin capa de
+                opacidad apilada que lo deje viéndose apagado. */}
             <GradientCTA
               label={saving ? 'Guardando…' : 'REGISTRAR'}
               pillar="mind"
               disabled={saving}
               onPress={handleSave}
-              style={[styles.registerCta, saving && { opacity: 0.6 }]}
+              style={styles.registerCta}
             />
 
             <View style={{ height: Spacing.xxl }} />

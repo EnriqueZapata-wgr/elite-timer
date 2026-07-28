@@ -34,7 +34,7 @@ import { colorAtPoint, emotionGradient, normX, normY, isLightColor } from '@/src
 import { PHASES } from '@/src/services/cycle-service';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, SEMANTIC, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, SEMANTIC, ATP_BRAND, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 
 const EMOTION_BY_ID = new Map(EMOTIONS.map(e => [e.id, e]));
 
@@ -130,7 +130,12 @@ export default function EmotionHistoryScreen() {
 
   return (
     <Screen>
-      <PillarHeader pillar="mind" title="Tu historial" onBack={() => router.back()} />
+      {/* H.2 (MB-10): barrida editorial — el módulo entero respira el mismo
+          ambiente gradiente (violeta Mente), como perfil y navegación. */}
+      <View style={styles.ambient} pointerEvents="none">
+        <LinearGradient colors={[withOpacity(CATEGORY_COLORS.mind, 0.18), 'transparent']} style={{ flex: 1 }} />
+      </View>
+      <PillarHeader pillar="mind" title="Tu historia" onBack={() => router.back()} />
 
       {/* Filtros de rango */}
       <View style={styles.pillsRow}>
@@ -453,6 +458,8 @@ function CheckinRow({ checkin, expanded, onToggle }: {
 }
 
 const styles = StyleSheet.create({
+  // H.2 (MB-10): ambiente gradiente del módulo
+  ambient: { position: 'absolute', top: 0, left: 0, right: 0, height: 300, zIndex: 0 },
   pillsRow: {
     flexDirection: 'row', gap: Spacing.xs, paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm, paddingBottom: Spacing.md,

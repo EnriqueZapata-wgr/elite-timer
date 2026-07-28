@@ -145,7 +145,7 @@ export default function MenteHubScreen() {
           image={HERO_MENTE}
           kicker="TU PILAR"
           title="Mente"
-          subtitle="Meditación · respiración · journal · check-in"
+          subtitle="Meditación · respiración · journal · emociones"
         />
         <View style={{ paddingHorizontal: Spacing.md, marginVertical: Spacing.sm }}>
           <CommunityPresence pillar="mente" />
@@ -203,18 +203,18 @@ export default function MenteHubScreen() {
           />
         </Animated.View>
 
-        {/* F12 (V1.5): Check-in al MISMO molde que el resto — era la única
-            card bespoke del hub y rompía el vocabulario. */}
+        {/* MB-10 · Track H: el check-in creció a MÓDULO (Emociones): check-in
+            por la rueda + explorar el mapa + tu historia, en su propio hub. */}
         <Animated.View entering={FadeInUp.delay(240).springify()}>
           <MenteHubCard
-            title="Check-in"
+            title="Emociones"
             subtitle={hub.checkinsToday > 0
-              ? `${hub.checkinsToday} check-in${hub.checkinsToday > 1 ? 's' : ''} hoy · registra otro momento`
+              ? `${hub.checkinsToday} check-in${hub.checkinsToday > 1 ? 's' : ''} hoy · vuelve a escucharte`
               : promptForDate(getLocalToday())}
             icon="heart-outline"
             imageBn={CARD_ART.checkin}
             badge={hub.checkinsToday > 0 ? `${hub.checkinsToday} hoy` : undefined}
-            onPress={() => router.push('/checkin')}
+            onPress={() => router.push('/emotions')}
             ctaLabel="¿Cómo estás hoy?"
             onCta={() => router.push('/checkin')}
           />

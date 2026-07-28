@@ -8,6 +8,7 @@ import { callAnthropic, callAnthropicStream, extractResponseText } from './anthr
 import { ArgosStreamUnavailableError } from './argos-stream-core';
 import { buildDemandingCoachInjection, DEMANDING_COACH_USER_HINT } from './routine-coach-logic';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
+import { EMOTIONS } from '@/src/data/emotions-library';
 import { ATP_LLM } from '@/src/constants/llm-config';
 import { getHydrationStats } from './hydration-service';
 import { getCycleInfo } from './cycle-service';
@@ -742,6 +743,12 @@ interface UserContext {
     lastCheckInAt: string | null;
     checkInsLast7: number;
   };
+  /** H.4 (MB-10): el check-in de HOY entra al contexto — solo el de hoy.
+   *  El expediente de otros días NO viaja (límite duro del módulo). */
+  todayEmotion?: {
+    quadrant: string;
+    labels: string[];
+  };
   cycleInfo?: {
     cycleDay: number;
     currentPhase: string;
@@ -1054,11 +1061,22 @@ async function loadUserContext(userId: string): Promise<UserContext> {
     const sinceISO = parseLocalDate(sevenDaysAgo).toISOString();
     const { data: checkins } = await supabase
       .from('emotional_checkins')
-      .select('pleasantness, created_at')
+      .select('pleasantness, created_at, quadrant, emotions')
       .eq('user_id', userId)
       .gte('created_at', sinceISO)
       .order('created_at', { ascending: false });
     if (checkins && checkins.length > 0) {
+      // H.4 (MB-10): SOLO el check-in más reciente de HOY entra como estado
+      // emocional actual. El historial de navegación de otros días no viaja.
+      const latest = checkins[0] as any;
+      if (latest?.created_at && toLocalDateString(new Date(latest.created_at)) === today) {
+        const labels = (Array.isArray(latest.emotions) ? latest.emotions : [])
+          .map((id: string) => EMOTIONS.find((e) => e.id === id)?.label)
+          .filter((l: string | undefined): l is string => !!l);
+        if (labels.length > 0) {
+          context.todayEmotion = { quadrant: String(latest.quadrant ?? ''), labels };
+        }
+      }
       const values = (checkins as any[]).map(c => c.pleasantness).filter((v: any) => typeof v === 'number');
       const avg = values.length > 0 ? values.reduce((s: number, v: number) => s + v, 0) / values.length : 0;
       // trend: comparar primera mitad cronológica (más antigua) vs segunda (más reciente)
@@ -1264,6 +1282,17 @@ function buildContextPrompt(ctx: UserContext): string {
   if (ctx.recentMood) {
     const m = ctx.recentMood;
     parts.push(`Mood 7d: ${m.checkInsLast7} check-ins, promedio agrado ${m.avgPleasantness}/10, tendencia ${m.trend}`);
+  }
+  if (ctx.todayEmotion) {
+    // H.4 (MB-10): el estado de HOY calibra las recomendaciones — con límites
+    // DUROS que viajan pegados al dato (no dependen del cerebro cacheado).
+    parts.push(`Estado emocional de HOY (check-in): ${ctx.todayEmotion.labels.join(', ')} (zona ${ctx.todayEmotion.quadrant})`);
+    parts.push(
+      'REGLAS DEL DATO EMOCIONAL (obligatorias): usa el estado de HOY solo para calibrar tono y recomendaciones. ' +
+      'NO diagnosticas ni interpretas patrones emocionales como condición clínica. ' +
+      'NUNCA mencionas el historial o expediente emocional de otros días salvo que el cliente lo pregunte explícitamente. ' +
+      'Si detectas señales sostenidas de malestar profundo, sugiere apoyo profesional — no lo resuelves tú.',
+    );
   }
   if (ctx.cycleInfo) {
     const c = ctx.cycleInfo;
