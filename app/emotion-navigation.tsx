@@ -213,6 +213,8 @@ export default function EmotionNavigationScreen() {
         emotions: [e.id],
         energy_level: axes.energy_level,
         pleasantness: axes.pleasantness,
+        // Track E: el re-check-in post-herramienta también etiqueta su puerta.
+        entry_gate: 'recheck',
       });
       pendingRecheck.current = null;
       setRecheck('saved');

@@ -13,6 +13,13 @@ async function getAuthenticatedUser(): Promise<User> {
   return data.user;
 }
 
+/**
+ * Puerta por la que se llegó a la palabra (MB-10 · Track E). Todas las puertas
+ * escriben EL MISMO registro; esto solo etiqueta el camino:
+ *  rueda · cuerpo · mapa (exploración) · busqueda · recheck (post-herramienta).
+ */
+export type CheckinEntryGate = 'rueda' | 'cuerpo' | 'mapa' | 'busqueda' | 'recheck';
+
 export interface CheckinData {
   quadrant: QuadrantKey;
   emotions: string[];
@@ -22,6 +29,8 @@ export interface CheckinData {
   context_who?: string;
   context_doing?: string;
   note?: string;
+  /** Requiere migración 238 (columna entry_gate). */
+  entry_gate?: CheckinEntryGate;
 }
 
 export interface CheckinRecord {
@@ -38,6 +47,10 @@ export interface CheckinRecord {
 /**
  * Guarda el check-in y devuelve su id (MB-4 Bloque 4: el share opt-in del
  * cierre lo necesita para ligar mood_shares.checkin_id — cascada de borrado).
+ *
+ * Track E (MB-10): si el remoto aún no tiene la columna entry_gate (mig 238
+ * sin aplicar — gotcha de columna fantasma con 400), se reintenta SIN la
+ * puerta: perder la etiqueta jamás puede costar el check-in.
  */
 export async function saveCheckin(data: CheckinData): Promise<string | null> {
   const user = await getAuthenticatedUser();
@@ -46,7 +59,19 @@ export async function saveCheckin(data: CheckinData): Promise<string | null> {
     .insert({ user_id: user.id, ...data })
     .select('id')
     .single();
-  if (error) throw error;
+  if (error) {
+    const ghostColumn = data.entry_gate != null &&
+      (error.code === 'PGRST204' || error.code === '42703' || /entry_gate/.test(error.message ?? ''));
+    if (!ghostColumn) throw error;
+    const { entry_gate: _gate, ...rest } = data;
+    const retry = await supabase
+      .from('emotional_checkins')
+      .insert({ user_id: user.id, ...rest })
+      .select('id')
+      .single();
+    if (retry.error) throw retry.error;
+    return retry.data?.id ?? null;
+  }
   return row?.id ?? null;
 }
 

@@ -29,7 +29,7 @@ import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
-import { saveCheckin, getRecentCheckins, type CheckinRecord } from '@/src/services/checkin-service';
+import { saveCheckin, getRecentCheckins, type CheckinRecord, type CheckinEntryGate } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
 import { promptForDate, buildCheckinJournalEntry } from '@/src/data/checkin-prompts';
@@ -67,6 +67,11 @@ export default function CheckinScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   // Track B: la puerta del cuerpo — salida discreta de la rueda.
   const [bodyGateOpen, setBodyGateOpen] = useState(false);
+  // Track E: por qué puerta se llegó a la palabra. Todas escriben el mismo
+  // registro; esto solo etiqueta el camino (la última ayuda usada gana).
+  const [entryGate, setEntryGate] = useState<CheckinEntryGate>(
+    params.gate === 'mapa' ? 'mapa' : 'rueda',
+  );
   const wheelRef = useRef<EmotionWheelHandle>(null);
   const [ctxWhere, setCtxWhere] = useState<string | null>(null);
   const [ctxWho, setCtxWho] = useState<string | null>(null);
@@ -204,6 +209,7 @@ export default function CheckinScreen() {
     haptic.light();
     setSearchOpen(false);
     setSearchQuery('');
+    setEntryGate('busqueda');
     // La rueda entra al nivel de su familia — se ve dónde vive la palabra.
     wheelRef.current?.focusEmotion(e.id);
     handleWheelEmotionPress(e);
@@ -262,14 +268,16 @@ export default function CheckinScreen() {
         context_who: ctxWho ?? undefined,
         context_doing: ctxDoing ?? undefined,
         note: note.trim() || undefined,
+        // Track E: la puerta viaja en el mismo registro (mig 238).
+        entry_gate: entryGate,
       });
       // MB-4 Bloque 4: el id habilita el share opt-in del cierre.
       setSavedCheckinId(newCheckinId);
       if (params.protocolItemId) {
         try { await toggleCompletion(params.protocolItemId); } catch (e) { logWarn('[checkin] toggleCompletion failed', e); }
       }
-      // T5 HARDENING: funnel core — check-in completado (cuadrante, sin nota).
-      analytics.track(ATP_EVENTS.CHECKIN_COMPLETED, { quadrant, emotions: selectedEmotions.length });
+      // T5 HARDENING: funnel core — check-in completado (cuadrante + puerta, sin nota).
+      analytics.track(ATP_EVENTS.CHECKIN_COMPLETED, { quadrant, emotions: selectedEmotions.length, gate: entryGate });
 
       // C5 COMUNIDAD: ¿mood bajo sostenido ~3 semanas? → puente a la Tribu (Skool).
       // Lógica pura (checkin-bridge-core); incluye el check-in recién guardado.
@@ -546,6 +554,7 @@ export default function CheckinScreen() {
               onClose={() => setBodyGateOpen(false)}
               onPickFamily={(fam) => {
                 setBodyGateOpen(false);
+                setEntryGate('cuerpo');
                 wheelRef.current?.focusFamily(fam);
               }}
             />
