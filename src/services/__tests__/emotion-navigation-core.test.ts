@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildDescentChain, buildFlipChain, buildNavigationPlan, pickFramingPhrase,
   strategyForEmotion, toolsForBajar, toolsForCruzar, isCrisisOrigin,
-  reframeTwin, buildReframeChain,
+  reframeTwin, buildReframeChain, SINGLE_EXIT_INTENSITY,
 } from '../emotion-navigation-core';
 import { FRAMING_PHRASES, TOOL_CRISIS, TOOL_EVIDENCIA } from '../../data/emotion-navigation';
 import { EMOTIONS, NO_DESCENT_TARGET_IDS } from '../../data/emotions-library';
@@ -56,8 +56,9 @@ describe('cadena de volteo (→ mover valencia)', () => {
 });
 
 describe('plan con disponibilidad condicional (MB-9 · Track B · análisis v2)', () => {
-  it('ira alta·desagradable → bajar y luego CRUZAR (cruzar solo tras el descenso)', () => {
-    const plan = buildNavigationPlan('angry')!;
+  it('ira DENTRO de la ventana → bajar y luego CRUZAR (cruzar solo tras el descenso)', () => {
+    // impatient: intensidad 4 (< umbral), con descenso real dentro de ira.
+    const plan = buildNavigationPlan('impatient')!;
     expect(plan.crisis).toBe(false);
     expect(plan.moves.map((m) => m.move)).toEqual(['bajar', 'cruzar']);
     // Cruzar parte de donde terminó el descenso — ya dentro de la ventana.
@@ -65,13 +66,31 @@ describe('plan con disponibilidad condicional (MB-9 · Track B · análisis v2)'
     expect(plan.moves[1].chainIds[0]).toBe(descentEnd);
   });
 
-  it('energía re-leíble (ansiedad) → bajar y REENCUADRAR, no cruzar (el cruce legítimo arriba)', () => {
-    const plan = buildNavigationPlan('anxious')!;
-    expect(plan.moves.map((m) => m.move)).toEqual(['bajar', 'reencuadrar']);
-    // El reencuadre es un arco corto: origen → gemelo agradable de misma activación.
-    const reframe = plan.moves[1];
-    expect(reframe.chainIds[0]).toBe('anxious');
+  it('energía re-leíble dentro de la ventana (nervios) → REENCUADRAR disponible', () => {
+    // nervous: intensidad 5 (< umbral), familia miedo → gemelo en energía.
+    const plan = buildNavigationPlan('nervous')!;
+    expect(plan.moves.map((m) => m.move)).toContain('reencuadrar');
+    const reframe = plan.moves.find((m) => m.move === 'reencuadrar')!;
+    expect(reframe.chainIds[0]).toBe('nervous');
     expect(reframe.chainIds).toHaveLength(2);
+  });
+
+  it('TRACK C (MB-10) · fuera de la ventana: intensidad ≥ umbral → UNA salida, y es bajar', () => {
+    // Barrido completo: toda alta·desagradable intensa ofrece SOLO la salida
+    // del cuerpo. Nada de reencuadrar ni cruzar: sería prepararla para fallar.
+    const outOfWindow = EMOTIONS.filter(
+      (e) => e.quadrant === 'high_unpleasant' && e.intensity >= SINGLE_EXIT_INTENSITY && !isCrisisOrigin(e.id),
+    );
+    expect(outOfWindow.length).toBeGreaterThan(10);
+    for (const e of outOfWindow) {
+      const plan = buildNavigationPlan(e.id)!;
+      expect(plan.moves.map((m) => m.move), e.id).toEqual(['bajar']);
+      expect(plan.moves[0].tools.length, e.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('el umbral es una constante editable (calibración clínica pendiente de Mariana)', () => {
+    expect(SINGLE_EXIT_INTENSITY).toBe(6);
   });
 
   it('baja·desagradable → SOLO cruzar (subirla a la fuerza sería empujar)', () => {
@@ -233,8 +252,8 @@ describe('MB-4.1 · Bloque A — las cadenas ya no navegan a la zona depresiva',
     // ira no es re-leíble → cruzar directo (no reencuadrar).
     expect(buildDescentChain('annoyed')).toHaveLength(1);
     expect(buildNavigationPlan('annoyed')!.moves.map((m) => m.move)).toEqual(['cruzar']);
-    // "Con enojo" sí tiene descenso real → conserva bajar + cruzar.
-    expect(buildNavigationPlan('angry')!.moves.map((m) => m.move)).toEqual(['bajar', 'cruzar']);
+    // "Con enojo" (intensidad 8, fuera de ventana · Track C) → SOLO bajar.
+    expect(buildNavigationPlan('angry')!.moves.map((m) => m.move)).toEqual(['bajar']);
   });
 });
 

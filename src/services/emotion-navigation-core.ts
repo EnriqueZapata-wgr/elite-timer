@@ -169,6 +169,19 @@ const REFRAME_TARGET_FAMILY: Partial<Record<EmotionFamily, EmotionFamily>> = {
 
 /** Umbral de activación alta: el reencuadre corto vive arriba, no en la calma. */
 const HIGH_AROUSAL = 6;
+
+/**
+ * TRACK C (MB-10) · Umbral de salida única: emoción desagradable de ALTA
+ * activación con intensidad ≥ este valor → UNA sola salida, y es del cuerpo
+ * (bajar). Nada de reencuadrar ni cruzar: con la activación arriba las
+ * herramientas cognitivas casi no sirven, y ofrecerlas ahí es preparar a la
+ * persona para fallar (ventana de tolerancia · análisis v2 §2).
+ *
+ * ⚠️ Honestidad: la ventana de tolerancia es un constructo clínico de diseño,
+ * NO una medida validada con puntos de corte universales. Este umbral es
+ * editable y su calibración final es criterio clínico (Mariana).
+ */
+export const SINGLE_EXIT_INTENSITY = 6;
 /** Máxima diferencia de energía para que el par cuente como "misma activación". */
 const REFRAME_ENERGY_TOLERANCE = 3;
 
@@ -295,11 +308,14 @@ export interface NavigationPlan {
  * familia y la lista de exclusión intactas. La disponibilidad depende de dónde
  * estás — eso no es una limitación, es el modelo siendo honesto:
  *
- *  - alta·desagradable → **bajar** primero (fisiológica, siempre desde arriba).
- *    Si la energía es re-leíble (miedo/agobio con gemelo agradable), se ofrece
- *    **reencuadrar** (⇄): el único cruce de valencia legítimo estando arriba.
- *    Si no lo es, se ofrece **cruzar** (→) pero SOLO tras el descenso, ya dentro
- *    de la ventana — cruzar está bloqueado en activación alta.
+ *  - alta·desagradable con intensidad ≥ SINGLE_EXIT_INTENSITY (Track C · MB-10)
+ *    → **UNA sola salida: bajar** (fisiológica, del cuerpo). Fuera de la
+ *    ventana, menos opciones es más cuidado.
+ *  - alta·desagradable dentro de la ventana → **bajar** primero. Si la energía
+ *    es re-leíble (miedo/agobio con gemelo agradable), se ofrece **reencuadrar**
+ *    (⇄): el único cruce de valencia legítimo estando arriba. Si no lo es, se
+ *    ofrece **cruzar** (→) pero SOLO tras el descenso — cruzar está bloqueado
+ *    en activación alta.
  *  - baja·desagradable → **cruzar** (dentro de la ventana). Subirla a la fuerza
  *    sería empujar: la prohibición dura no ofrece subir desde desagradable.
  *  - alta·agradable → **canalizar** la energía (no se arregla, se usa).
@@ -322,6 +338,13 @@ export function buildNavigationPlan(originId: string): NavigationPlan | null {
   switch (origin.quadrant) {
     case 'high_unpleasant': {
       const descent = buildDescentChain(originId);
+      // TRACK C (MB-10): fuera de la ventana (intensidad ≥ umbral) hay UNA
+      // sola salida y es del cuerpo. La cadena puede ser corta o no existir;
+      // las herramientas fisiológicas son la salida real de todas formas.
+      if (origin.intensity >= SINGLE_EXIT_INTENSITY) {
+        moves.push(mk('bajar', descent.map((e) => e.id), toolsForBajar(originId)));
+        break;
+      }
       // Bajar primero: baja la activación hacia la ventana. Si hay descenso real
       // (su copy promete "versiones más manejables" y ahora existen), se ofrece.
       if (descent.length > 1) {
