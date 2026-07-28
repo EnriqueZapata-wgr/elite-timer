@@ -233,6 +233,13 @@ describe('utilidades', () => {
     expect(searchEmotions(EMOTIONS, 'x')).toHaveLength(0); // < 2 chars
   });
 
+  it('Track G (MB-10) · escritura parcial: la palabra a medias ya encuentra', () => {
+    expect(searchEmotions(EMOTIONS, 'frustr')[0]?.id).toBe('frustrated');
+    expect(searchEmotions(EMOTIONS, 'agob').some((e) => e.id === 'overwhelmed')).toBe(true);
+    // Y también busca en la DESCRIPCIÓN, no solo en el nombre.
+    expect(searchEmotions(EMOTIONS, 'piloto autom').some((e) => e.id === 'disconnected')).toBe(true);
+  });
+
   it('fnv1a es estable', () => {
     expect(fnv1a('furia')).toBe(fnv1a('furia'));
     expect(fnv1a('a')).not.toBe(fnv1a('b'));

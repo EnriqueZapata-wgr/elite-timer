@@ -22,7 +22,8 @@ import {
 } from '@/src/data/emotions-library';
 import { EmotionWheel, type EmotionWheelHandle } from '@/src/components/checkin/EmotionWheel';
 import { BodyGate } from '@/src/components/checkin/BodyGate';
-import { NAMING_MECHANISM_LINE, BODY_GATE_LABEL } from '@/src/data/emotion-wheel-config';
+import { NAMING_MECHANISM_LINE, BODY_GATE_LABEL, WHEEL_CORES, FAMILY_LABELS } from '@/src/data/emotion-wheel-config';
+import { getWheelLayout, findEmotionSector } from '@/src/services/emotion-wheel-core';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
@@ -507,15 +508,22 @@ export default function CheckinScreen() {
                   autoFocus
                   autoCorrect={false}
                 />
-                {searchEmotions(EMOTIONS, searchQuery).map(e => (
-                  <Pressable key={e.id} onPress={() => handleSearchPick(e)} style={styles.searchRow}>
-                    <View style={[styles.searchDot, { backgroundColor: QUADRANTS[e.quadrant].color }]} />
-                    <EliteText variant="body" style={styles.searchLabel}>{e.label}</EliteText>
-                    <EliteText variant="caption" style={styles.searchQuadrant} numberOfLines={1}>
-                      {QUADRANTS[e.quadrant].label}
-                    </EliteText>
-                  </Pressable>
-                ))}
+                {searchEmotions(EMOTIONS, searchQuery).map(e => {
+                  // Track G: el resultado habla el vocabulario del módulo —
+                  // dónde vive la palabra (núcleo › familia), no el cuadrante.
+                  const sector = findEmotionSector(getWheelLayout(), e.id);
+                  const coreLabel = WHEEL_CORES.find(c => c.key === sector?.core)?.label ?? '';
+                  const famLabel = sector?.family ? FAMILY_LABELS[sector.family] : '';
+                  return (
+                    <Pressable key={e.id} onPress={() => handleSearchPick(e)} style={styles.searchRow}>
+                      <View style={[styles.searchDot, { backgroundColor: sector?.color ?? QUADRANTS[e.quadrant].color }]} />
+                      <EliteText variant="body" style={styles.searchLabel}>{e.label}</EliteText>
+                      <EliteText variant="caption" style={styles.searchQuadrant} numberOfLines={1}>
+                        {coreLabel && famLabel ? `${coreLabel} › ${famLabel}` : QUADRANTS[e.quadrant].label}
+                      </EliteText>
+                    </Pressable>
+                  );
+                })}
               </Animated.View>
             )}
           </View>
