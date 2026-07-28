@@ -35,7 +35,17 @@ export const WORLD_PAD = 100;
 export const CENTER_X = WORLD_SIZE / 2;
 export const CENTER_Y = WORLD_SIZE / 2;
 
-/** Radio interior: por dentro vive la zona CALMA, ninguna burbuja entra. */
+/**
+ * D.5 (MB-10): el centro NO se etiqueta. Calma es una emoción concreta que vive
+ * en baja energía agradable; el centro es baja intensidad de cualquier cualidad,
+ * y su punto exacto es ausencia de emoción — justo lo que la salvaguarda de
+ * anhedonia evita. Pintarlo como destino contradiría nuestra propia protección.
+ * Vacío ⇒ no se pinta nombre. (Alternativa que Enrique puede activar después:
+ * 'tu ventana'. Cambiar el texto aquí, sin tocar el render.)
+ */
+export const EXPLORATION_CENTER_LABEL = '';
+
+/** Radio interior: por dentro vive el claro central, ninguna burbuja entra. */
 export const CALM_R0 = 340;
 /** Radio del anillo de máxima intensidad (deja aire para la burbuja + el borde). */
 export const OUTER_R = 1300;
@@ -255,6 +265,29 @@ export function computeEmotionMapLayout(emotions: Emotion[]): EmotionMapLayout {
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 
+  // D.4 (MB-10, validado en prototipo): reparto radial por ORDEN, no por valor.
+  // La distribución real de `intensity` es una campana (0 emociones en 1, una
+  // en 2, 63 entre 5 y 6) → mapear el valor al radio dejaba el centro hueco y
+  // los anillos medios saturados. Ahora: las 144 ordenadas por intensidad y
+  // repartidas por POSICIÓN en la fila, con raíz cuadrada para densidad pareja
+  // por área. El orden se respeta por construcción; ninguna intensidad se toca.
+  const n = sorted.length;
+  const rankRadius = (i: number) => CALM_R0 + Math.sqrt((i + 0.5) / n) * (OUTER_R - CALM_R0);
+  // Tope de banda por intensidad: el desborde de una emoción JAMÁS cruza el
+  // arranque de la siguiente intensidad (monotonía por construcción).
+  const bandCap = new Map<number, number>();
+  for (let i = 0; i < n; i++) {
+    const v = sorted[i].intensity;
+    if (!bandCap.has(v)) {
+      // Busca el primer índice con intensidad mayor; su radio base es el tope.
+      let cap = OUTER_R;
+      for (let j = i; j < n; j++) {
+        if (sorted[j].intensity > v) { cap = rankRadius(j); break; }
+      }
+      bandCap.set(v, cap);
+    }
+  }
+
   interface Placed {
     id: string; nx: number; ny: number;
     wx: number; wy: number; size: number;
@@ -263,18 +296,21 @@ export function computeEmotionMapLayout(emotions: Emotion[]): EmotionMapLayout {
   const placed: Placed[] = [];
   const overlapMap = new Map<string, { nx: number; ny: number; ids: string[] }>();
 
-  for (const e of sorted) {
+  for (let rank = 0; rank < sorted.length; rank++) {
+    const e = sorted[rank];
     const nx = normX(e.quadrant, e.intensity);
     const ny = normY(e.energy);
     const size = nodeSizeForIntensity(e.intensity);
     const baseAngle = angleForEmotion(e.quadrant, e.energy);
-    const baseRadius = radiusForIntensity(e.intensity);
+    const baseRadius = rankRadius(rank);
     const [secLo, secHi] = QUADRANT_SECTORS[e.quadrant];
-    // La banda de esta intensidad: el desborde NUNCA la cruza (monotonía).
-    const maxRadius = baseRadius + RING_BAND * 0.85;
+    // Desborde permitido: dentro del tope de su intensidad (monotonía) y sin
+    // pasarse del anillo exterior.
+    const maxRadius = Math.min(bandCap.get(e.intensity) ?? OUTER_R, baseRadius + RING_BAND * 0.85, OUTER_R);
 
-    // Reporte de solapes base (misma posición polar exacta).
-    const key = `${e.quadrant}|${baseAngle.toFixed(3)}|${baseRadius.toFixed(3)}`;
+    // Reporte de solapes de DIRECCIÓN (mismo ángulo semántico exacto) para
+    // revisión humana — con radio por orden ya no hay colisión de posición base.
+    const key = `${e.quadrant}|${baseAngle.toFixed(3)}`;
     const grp = overlapMap.get(key);
     if (grp) grp.ids.push(e.id);
     else overlapMap.set(key, { nx, ny, ids: [e.id] });

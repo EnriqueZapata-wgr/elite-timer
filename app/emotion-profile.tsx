@@ -213,6 +213,16 @@ export default function EmotionProfileScreen() {
             <Ionicons name="share-social-outline" size={16} color={TEXT_COLORS.onAccent} />
             <EliteText style={styles.shareText}>COMPARTIR MI CLIMA</EliteText>
           </Pressable>
+          {/* Track D (MB-10): la entrada a Exploración — el espiral vive aquí,
+              no en el check-in. Para días buenos: territorio y vocabulario. */}
+          <Pressable
+            onPress={() => { haptic.light(); router.push('/emotion-exploration'); }}
+            style={styles.exploreLink}
+            hitSlop={8}
+          >
+            <Ionicons name="map-outline" size={14} color={TEXT_COLORS.secondary} />
+            <EliteText variant="caption" style={styles.exploreText}>Explorar el territorio de emociones</EliteText>
+          </Pressable>
         </Animated.View>
       </ScrollView>
     </Screen>
@@ -284,4 +294,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xl,
   },
   shareText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.sm, letterSpacing: 1.5 },
+
+  // Track D: entrada a Exploración
+  exploreLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: Spacing.sm, marginTop: Spacing.md,
+  },
+  exploreText: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, textDecorationLine: 'underline' },
 });

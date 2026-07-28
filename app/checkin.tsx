@@ -50,7 +50,7 @@ import { Screen } from '@/src/components/ui/Screen';
 
 export default function CheckinScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ protocolItemId?: string }>();
+  const params = useLocalSearchParams<{ protocolItemId?: string; emotionId?: string; gate?: string }>();
   const analytics = useAnalytics();
 
   const [step, setStep] = useState(1);
@@ -107,6 +107,22 @@ export default function CheckinScreen() {
     // vive aquí: la rueda es la protagonista; la historia vive en su pantalla.
     getRecentCheckins(BRIDGE_WINDOW_DAYS).then(setPastCheckins).catch(() => {});
     loadCheckinStreak();
+  }, []);
+
+  // Track D (MB-10): llegar desde Exploración con la emoción YA puesta —
+  // mismo aterrizaje que todas las puertas, cero flujos paralelos.
+  useEffect(() => {
+    const preId = typeof params.emotionId === 'string' ? params.emotionId : undefined;
+    if (!preId) return;
+    const e = EMOTIONS.find(em => em.id === preId);
+    if (!e) return;
+    setSelectedEmotions([e.id]);
+    setQuadrant(e.quadrant);
+    setSheetEmotion(e);
+    const t = setTimeout(() => wheelRef.current?.focusEmotion(e.id), 120);
+    return () => clearTimeout(t);
+    // Solo al montar: el param no cambia dentro de la sesión de la pantalla.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // #20: back consciente del paso — en el contexto regresa a la rueda,

@@ -29,7 +29,7 @@ import { EMOTIONS, QUADRANTS, type Emotion, type QuadrantKey } from '@/src/data/
 import {
   computeEmotionMapLayout, emotionGradient, colorAtPoint, isLightColor,
   QUADRANT_CENTERS, toWorld, quadrantLandingWorld, WORLD_W, WORLD_H, WORLD_PAD, NODE_SIZE,
-  CENTER_X, CENTER_Y, CALM_R0,
+  CENTER_X, CENTER_Y, CALM_R0, EXPLORATION_CENTER_LABEL,
   type EmotionMapLayout,
 } from '@/src/services/emotion-map-core';
 import { haptic } from '@/src/utils/haptics';
@@ -51,9 +51,12 @@ export const ZOOM_MAX = 1.35;
 const OVERVIEW_LABEL_CUTOFF = 0.42; // debajo de esto los labels no aportan
 const LABEL_FADE_RANGE = 0.14;      // los labels se desvanecen por worklet alrededor del corte
 // LOD (A.4): alejado se ven solo los landmarks; el resto se revela al acercar.
-const REVEAL_CUTOFF = 0.60;         // arriba de esto las NO-representativas se revelan
-const REVEAL_RANGE = 0.14;          // rango del fundido por worklet
-const LOD_MIN_OPACITY = 0.12;       // las no-representativas no desaparecen del todo
+// D.2/D.3 (MB-10, device test): el cribado a 0.12 leía como ROTO (casi todo
+// negro con dos brillantes) y las burbujas tardaban en aparecer → piso de
+// opacidad arriba y revelado más temprano/corto.
+const REVEAL_CUTOFF = 0.48;         // arriba de esto las NO-representativas se revelan
+const REVEAL_RANGE = 0.10;          // rango del fundido por worklet
+const LOD_MIN_OPACITY = 0.45;       // jerarquía, no apagón: el fondo se LEE
 const RUBBER_C = 0.55;              // constante de resistencia de la liga (rubber-band iOS)
 // Snap-back de zoom: amortiguamiento ~crítico, sin rebote (apple-design §4).
 const SETTLE_SPRING = { damping: 30, stiffness: 260, mass: 1, overshootClamping: true } as const;
@@ -206,6 +209,11 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
 
   const pan = useMemo(() => Gesture.Pan()
     .enabled(interactive)
+    // 🔴 D.1 (MB-10): el pinch es DUEÑO de los gestos de dos dedos. Sin este
+    // límite, al pellizcar el centroide se movía y el pan sumaba su delta a
+    // rawTx/rawTy mientras el pinch aplicaba su anclaje focal — dos modelos
+    // escribiendo la misma variable → deriva a la esquina.
+    .maxPointers(1)
     .minDistance(6)
     .onBegin(() => {
       // Respuesta en touch-down: si venía con inercia, se engancha aquí mismo.
@@ -357,7 +365,9 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
     >
       <GestureDetector gesture={gesture}>
         <Animated.View style={[styles.world, worldStyle]}>
-          {/* Zona CALMA — el centro es destino, no hueco (A.1). */}
+          {/* D.5 (MB-10): el claro central queda como origen de los ejes — con
+              su presencia visual pero SIN nombre. El texto vive en una
+              constante editable (EXPLORATION_CENTER_LABEL); vacía ⇒ no se pinta. */}
           <View
             pointerEvents="none"
             style={[
@@ -365,7 +375,9 @@ export const EmotionMap2D = memo(forwardRef<EmotionMapHandle, Props>(function Em
               { left: CENTER_X - CALM_R0, top: CENTER_Y - CALM_R0, width: CALM_R0 * 2, height: CALM_R0 * 2, borderRadius: CALM_R0 },
             ]}
           >
-            <EliteText style={styles.calmLabel}>CALMA</EliteText>
+            {EXPLORATION_CENTER_LABEL.length > 0 && (
+              <EliteText style={styles.calmLabel}>{EXPLORATION_CENTER_LABEL}</EliteText>
+            )}
           </View>
 
           {/* Las burbujas se montan UNA vez y solo se transforma el contenedor —
