@@ -133,6 +133,13 @@ function meanColor(members: Emotion[]): string {
   return colorAtPoint(sx / n, sy / n);
 }
 
+// Layout determinista: se computa UNA vez por proceso (mismo input ⇒ misma rueda).
+let cachedWheelLayout: WheelLayout | null = null;
+export function getWheelLayout(): WheelLayout {
+  if (!cachedWheelLayout) cachedWheelLayout = buildWheelLayout(EMOTIONS);
+  return cachedWheelLayout;
+}
+
 export function buildWheelLayout(emotions: Emotion[] = EMOTIONS): WheelLayout {
   const byFamily = new Map<EmotionFamily, Emotion[]>();
   for (const e of emotions) {

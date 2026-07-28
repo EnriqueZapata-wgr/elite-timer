@@ -71,3 +71,59 @@ export const FAMILY_LABELS: Record<EmotionFamily, string> = {
  */
 export const NAMING_MECHANISM_LINE =
   'Ponerle nombre a lo que sientes ya bajó algo. No es el trámite antes de la ayuda: es la primera parte de la ayuda.';
+
+// ═══ TRACK B · LA PUERTA DEL CUERPO ═══
+//
+// Respaldo: Nummenmaa et al. (PNAS 2014, n=701) — las emociones producen mapas
+// corporales consistentes y culturalmente universales. Es la única puerta que
+// funciona cuando la persona no tiene palabras, y es lo más ATP posible:
+// cuerpo primero, también en emociones.
+//
+// ⚠️ El mapeo cuerpo→emoción NO es uno a uno. Cada zona ACOTA a un par de
+// familias candidatas; jamás diagnostica. El copy dice "suele sentirse así",
+// nunca "lo que tienes es".
+
+/** La salida discreta en la rueda. Aparece exactamente cuando hace falta. */
+export const BODY_GATE_LABEL = 'No sé cómo se llama';
+
+/** La honestidad de la puerta, en la cara del usuario. */
+export const BODY_GATE_DISCLAIMER =
+  'El cuerpo acota, no diagnostica. Esto suele sentirse así — tú confirmas la palabra.';
+
+export interface BodyZone {
+  key: string;
+  /** Lenguaje de cuerpo, no de clínica. */
+  label: string;
+  /** Cómo se siente — una línea, segunda persona. */
+  detail: string;
+  /** Familias candidatas EN ORDEN de probabilidad (Nummenmaa). Máx 3. */
+  families: EmotionFamily[];
+}
+
+/** Zonas grandes en lenguaje de cuerpo (default del brief, editable aquí). */
+export const BODY_ZONES: BodyZone[] = [
+  {
+    key: 'pecho',
+    label: 'Pecho apretado',
+    detail: 'Presión en el centro, respiración corta, el corazón se nota.',
+    families: ['miedo', 'agobio', 'tristeza'],
+  },
+  {
+    key: 'cabeza',
+    label: 'Cabeza y mandíbula',
+    detail: 'Mandíbula apretada, sienes cargadas, calor que sube.',
+    families: ['ira', 'agobio'],
+  },
+  {
+    key: 'estomago',
+    label: 'Estómago y garganta',
+    detail: 'Nudo, revoltura, algo que no baja o que quiere salir.',
+    families: ['miedo', 'verguenza', 'ira'],
+  },
+  {
+    key: 'apagado',
+    label: 'Todo apagado',
+    detail: 'Los brazos y las piernas pesan; nada enciende.',
+    families: ['desconexion', 'tristeza'],
+  },
+];

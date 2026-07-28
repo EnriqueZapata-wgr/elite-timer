@@ -21,7 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { EMOTIONS, type Emotion, type EmotionFamily } from '@/src/data/emotions-library';
 import {
-  buildWheelLayout, sectorFocus, coreLabelMode, familyLabelVisible, emotionLabelVisible,
+  getWheelLayout, sectorFocus, coreLabelMode, familyLabelVisible, emotionLabelVisible,
   radialTextTransform, annularSectorPath, wheelPoint, findEmotionSector, findFamilySector,
   WHEEL_WORLD, CORE_R0, CORE_R1, FAM_R0, FAM_R1, EMO_R0, EMO_R1,
   CORE_FONT_WIDE, CORE_FONT_NARROW, FAM_FONT, EMO_FONT, LEVEL_ZOOM,
@@ -32,13 +32,6 @@ import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { BG, BORDER, TEXT, withOpacity } from '@/src/constants/brand';
 
-// Layout y paths: deterministas, se computan UNA vez por proceso.
-let cachedLayout: ReturnType<typeof buildWheelLayout> | null = null;
-function getLayout() {
-  if (!cachedLayout) cachedLayout = buildWheelLayout(EMOTIONS);
-  return cachedLayout;
-}
-
 interface RingPaths {
   cores: string[];
   families: string[];
@@ -47,7 +40,7 @@ interface RingPaths {
 let cachedPaths: RingPaths | null = null;
 function getPaths(): RingPaths {
   if (!cachedPaths) {
-    const l = getLayout();
+    const l = getWheelLayout();
     cachedPaths = {
       cores: l.cores.map((s) => annularSectorPath(CORE_R0, CORE_R1, s.startDeg, s.endDeg)),
       families: l.families.map((s) => annularSectorPath(FAM_R0, FAM_R1, s.startDeg, s.endDeg)),
@@ -89,7 +82,7 @@ export const EmotionWheel = memo(forwardRef<EmotionWheelHandle, Props>(function 
   { selectedIds = [], onEmotionPress, onFocusChange },
   ref,
 ) {
-  const layout = getLayout();
+  const layout = getWheelLayout();
   const paths = getPaths();
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const [focus, setFocus] = useState<WheelFocusState>({ level: 0, core: null, family: null });

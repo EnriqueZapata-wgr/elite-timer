@@ -21,7 +21,8 @@ import {
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
 import { EmotionWheel, type EmotionWheelHandle } from '@/src/components/checkin/EmotionWheel';
-import { NAMING_MECHANISM_LINE } from '@/src/data/emotion-wheel-config';
+import { BodyGate } from '@/src/components/checkin/BodyGate';
+import { NAMING_MECHANISM_LINE, BODY_GATE_LABEL } from '@/src/data/emotion-wheel-config';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
@@ -63,6 +64,8 @@ export default function CheckinScreen() {
   const [askSecond, setAskSecond] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // Track B: la puerta del cuerpo — salida discreta de la rueda.
+  const [bodyGateOpen, setBodyGateOpen] = useState(false);
   const wheelRef = useRef<EmotionWheelHandle>(null);
   const [ctxWhere, setCtxWhere] = useState<string | null>(null);
   const [ctxWho, setCtxWho] = useState<string | null>(null);
@@ -501,6 +504,29 @@ export default function CheckinScreen() {
             )}
           </View>
 
+          {/* Track B: salida discreta — aparece exactamente cuando hace falta
+              (nada elegido, ninguna hoja abierta). */}
+          {!sheetEmotion && !askSecond && !bodyGateOpen && selectedEmotions.length === 0 && (
+            <Pressable
+              onPress={() => { haptic.light(); setSearchOpen(false); setBodyGateOpen(true); }}
+              style={styles.bodyGateLink}
+              hitSlop={8}
+            >
+              <EliteText variant="caption" style={styles.bodyGateText}>{BODY_GATE_LABEL}</EliteText>
+            </Pressable>
+          )}
+
+          {/* Track B: la puerta del cuerpo — zona → familias candidatas → rueda */}
+          {bodyGateOpen && (
+            <BodyGate
+              onClose={() => setBodyGateOpen(false)}
+              onPickFamily={(fam) => {
+                setBodyGateOpen(false);
+                wheelRef.current?.focusFamily(fam);
+              }}
+            />
+          )}
+
           {/* Hoja de definición: nombre en el color de su zona + descripción */}
           {sheetEmotion && (() => {
             const sheetColor = colorAtPoint(
@@ -740,6 +766,14 @@ const styles = StyleSheet.create({
   defMechanism: {
     color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 18,
     marginTop: Spacing.sm, fontStyle: 'italic',
+  },
+  // Track B: la salida discreta hacia la puerta del cuerpo
+  bodyGateLink: {
+    alignSelf: 'center', paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  bodyGateText: {
+    color: Colors.textSecondary, fontSize: FontSizes.md, textDecorationLine: 'underline',
   },
   defActions: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',

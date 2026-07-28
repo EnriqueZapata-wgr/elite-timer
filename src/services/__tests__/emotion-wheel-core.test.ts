@@ -19,7 +19,7 @@ import {
   CORE_R0, CORE_R1, FAM_R0, FAM_R1, EMO_R0, EMO_R1,
   LEVEL_ZOOM, FAM_FONT, EMO_FONT, MIN_LABEL_SCREEN_PX,
 } from '../emotion-wheel-core';
-import { WHEEL_CORES } from '../../data/emotion-wheel-config';
+import { WHEEL_CORES, BODY_ZONES, BODY_GATE_DISCLAIMER, FAMILY_LABELS } from '../../data/emotion-wheel-config';
 import { EMOTIONS } from '../../data/emotions-library';
 
 const layout = buildWheelLayout(EMOTIONS);
@@ -237,5 +237,35 @@ describe('el orden de núcleos respeta el config (editar el config = editar la r
   it('los núcleos aparecen en el orden del config, contiguos desde las 12', () => {
     const keys = layout.cores.map((c) => c.key);
     expect(keys).toEqual(WHEEL_CORES.map((c) => c.key));
+  });
+});
+
+describe('Track B · la puerta del cuerpo (zonas → familias candidatas)', () => {
+  it('toda zona apunta a familias REALES de la rueda (1 a 3, sin repetidos)', () => {
+    for (const z of BODY_ZONES) {
+      expect(z.families.length, z.key).toBeGreaterThanOrEqual(1);
+      expect(z.families.length, z.key).toBeLessThanOrEqual(3);
+      expect(new Set(z.families).size, z.key).toBe(z.families.length);
+      for (const fam of z.families) {
+        expect(findFamilySector(layout, fam), `${z.key} → ${fam}`).not.toBeNull();
+        expect(FAMILY_LABELS[fam], fam).toBeTruthy();
+      }
+    }
+  });
+
+  it('acota, no diagnostica: el disclaimer existe y las zonas hablan cuerpo, no clínica', () => {
+    expect(BODY_GATE_DISCLAIMER.length).toBeGreaterThan(10);
+    for (const z of BODY_ZONES) {
+      expect(z.label.length, z.key).toBeGreaterThan(0);
+      expect(z.detail.length, z.key).toBeGreaterThan(0);
+    }
+  });
+
+  it('la puerta ACOTA (ninguna zona abarca todas las familias) y las 4 zonas del brief existen', () => {
+    const allFams = new Set(EMOTIONS.map((e) => e.family));
+    for (const z of BODY_ZONES) {
+      expect(z.families.length, z.key).toBeLessThan(allFams.size);
+    }
+    expect(BODY_ZONES.map((z) => z.key)).toEqual(['pecho', 'cabeza', 'estomago', 'apagado']);
   });
 });
