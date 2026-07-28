@@ -410,10 +410,6 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'ayurveda',
       },
       {
-        citation: 'Investigación soviética · Vasilyev "Fototerapia matutina en atletas" 1980s (traducciones limitadas)',
-        paradigm: 'soviet_sports',
-      },
-      {
         citation: 'Fell GL et al. "Skin β-endorphin mediates addiction to UV light" Cell 2014 · fisiología del "sun-seeking behavior"',
         paradigm: 'western_academic',
         url: 'https://pubmed.ncbi.nlm.nih.gov/24949974/',
@@ -859,10 +855,6 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       {
         citation: 'Ayurveda · Bhumi Sparsha (भूमि स्पर्श · contacto con tierra) parte de rutina Dinacharya, y práctica pādābhyanga (masaje pies) tras contacto',
         paradigm: 'ayurveda',
-      },
-      {
-        citation: 'Investigación soviética Vasilyev · "Bio-electric coupling of organism to environment" 1970s',
-        paradigm: 'soviet_sports',
       },
       {
         citation: 'Prieto Gratacós E · biofísica del acoplamiento bioeléctrico humano-tierra · defiende grounding como restauración de potencial electromagnético',
@@ -3416,8 +3408,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'functional_independent',
       },
       {
-        citation: 'Buteyko method (Konstantin Buteyko, URSS 1950s) · retención vacía como entrenamiento CO2 tolerance',
-        paradigm: 'soviet_sports',
+        citation: 'Método Buteyko (K. Buteyko, URSS años 1950) · técnica respiratoria documentada · sin literatura primaria recuperable',
+        paradigm: 'traditional_documented',
       },
     ],
   },
@@ -3527,10 +3519,6 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       {
         citation: 'Andrew Huberman "HRV & Breathwork Progressions" HubermanLab',
         paradigm: 'functional_independent',
-      },
-      {
-        citation: 'Buteyko method · CO2 tolerance como pilar de salud respiratoria',
-        paradigm: 'soviet_sports',
       },
     ],
   },
@@ -4513,8 +4501,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'functional_independent',
       },
       {
-        citation: 'Tradición rusa · Zakalivanie protocolo escalonado adulto · Sechenov Institute',
-        paradigm: 'soviet_sports',
+        citation: 'Zakalivanie (закаливание) · protocolo escalonado de endurecimiento térmico documentado en manuales soviéticos de educación física · sin ensayos controlados',
+        paradigm: 'traditional_documented',
       },
       {
         citation: 'Kneipp · progresión Wechseldusche (ducha alternada) niveles intermedios',
@@ -4640,10 +4628,6 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       {
         citation: 'Andrew Huberman "Cold Exposure" · ducha completa como sustituto de cold plunge doméstico',
         paradigm: 'functional_independent',
-      },
-      {
-        citation: 'Tradición rusa · Zakalivanie avanzado en programas deportivos élite',
-        paradigm: 'soviet_sports',
       },
       {
         citation: 'Ernesto Prieto Gratacós · bioeléctrica hormesis frío para densidad mitocondrial',
@@ -4952,8 +4936,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         url: 'https://pubmed.ncbi.nlm.nih.gov/22505948/',
       },
       {
-        citation: 'Investigación soviética · banya (баня) rusa con vasta (venik) · Sechenov Institute · termorregulación deportiva',
-        paradigm: 'soviet_sports',
+        citation: 'Banya rusa con vasta (venik) · práctica térmica tradicional · sin literatura primaria peer-reviewed',
+        paradigm: 'traditional_documented',
       },
     ],
   },
@@ -5056,8 +5040,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'traditional_documented',
       },
       {
-        citation: 'Tradición banya rusa · variante vapor + venik (azote suave con hojas de abedul · Vasilyev URSS 1970s)',
-        paradigm: 'soviet_sports',
+        citation: 'Banya rusa · variante vapor + venik (azote suave con hojas de abedul) · práctica cultural sin fuente primaria atribuible',
+        paradigm: 'traditional_documented',
       },
       {
         citation: 'Temazcal mesoamericano · vapor de hierbas medicinales (romero, ruda, salvia) · Bernardino de Sahagún Codex Florentino',
@@ -5202,8 +5186,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'traditional_documented',
       },
       {
-        citation: 'Investigación soviética · Morzhi (nadadores hielo) · Sechenov Institute',
-        paradigm: 'soviet_sports',
+        citation: 'Morzhi (моржи · nadadores de hielo) · práctica tradicional rusa · la investigación moderna de natación invernal es checa, polaca y finlandesa',
+        paradigm: 'traditional_documented',
       },
     ],
   },
@@ -5605,8 +5589,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'traditional_documented',
       },
       {
-        citation: 'Tradición banya rusa · alternancia banya caliente + inmersión río/nieve · Vasilyev URSS documentación',
-        paradigm: 'soviet_sports',
+        citation: 'Banya rusa · alternancia calor + inmersión en río o nieve · práctica cultural sin fuente primaria atribuible',
+        paradigm: 'traditional_documented',
       },
       {
         citation: 'Ayurveda · Sarvanga swedana + snana con agua fresca alternada · variante ceremonial rejuvenecedora',
@@ -7324,10 +7308,6 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         citation: 'Ayurveda · Chankramana como Nitya-Karma (deber diario)',
         paradigm: 'ayurveda',
       },
-      {
-        citation: 'Investigación soviética · Kolchak/Sechenov · trabajo "ligero-constante" (lyogkij-postoyannij trud) para longevidad',
-        paradigm: 'soviet_sports',
-      },
     ],
   },
   {
@@ -7407,7 +7387,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'functional_independent',
       },
       {
-        citation: 'Verkhoshansky "Supertraining" · GPP (General Physical Preparation) incluye volumen aeróbico bajo-moderado alto',
+        citation: 'Escuela soviética de periodización (Matveyev) · la fase de preparación física general incluye volumen aeróbico bajo-moderado',
         paradigm: 'soviet_sports',
       },
       {
@@ -7618,8 +7598,8 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'functional_independent',
       },
       {
-        citation: 'Pavel Tsatsouline (Kettlebell Simple & Sinister) · farmer walks + kettlebell training · influencia soviética',
-        paradigm: 'soviet_sports',
+        citation: 'Pavel Tsatsouline · escuela de kettlebell de influencia soviética (swing y turkish get-up) · autor de divulgación, sin credenciales de investigación',
+        paradigm: 'functional_independent',
       },
       {
         citation: 'Strongman tradition · Highland Games (siglo XI Escocia) · "clachneart" (piedra de fuerza), "farmer walks" documentados como labor agrícola pre-moderna',
@@ -7923,7 +7903,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         paradigm: 'tcm',
       },
       {
-        citation: 'Soviet aerobic base training (Verkhoshansky periodization) · GPP fase con zona baja alta duración construye "cimiento" antes de intensidad',
+        citation: 'Escuela soviética de periodización · la preparación aeróbica precede a la intensificación (nota: el sistema de bloques de Verkhoshansky reduce el volumen extensivo, no lo aumenta)',
         paradigm: 'soviet_sports',
       },
     ],
@@ -10415,10 +10395,6 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
       {
         citation: 'Tradición rusa · Zakalivanie (закаливание · endurecimiento por frío) · protocolo Suvórov s.XVIII',
         paradigm: 'traditional_documented',
-      },
-      {
-        citation: 'Investigación soviética · winter swimming (Morzhi) · Voronin 1970s',
-        paradigm: 'soviet_sports',
       },
       {
         citation: 'Ayurveda · Sheetali/Sheetkari pranayama + baños fríos matutinos para Pitta · Charaka Samhita Sutra Sthana',
