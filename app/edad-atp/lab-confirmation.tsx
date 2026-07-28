@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveConfirmedLabValues, deleteLabUpload, loadReviewFromDb, type LabReviewPayload } from '@/src/services/lab-service';
 import { getReview, setReview, clearReview } from '@/src/services/edad-atp/lab-review-store';
@@ -21,7 +22,7 @@ import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SEMANTIC } from '@/src/constants/brand';
+import { SEMANTIC, ATP_BRAND, TEXT_COLORS, TEXT } from '@/src/constants/brand';
 
 // YYYY-MM-DD válido (entre 1900 y 2099).
 const ISO_DATE_RE = /^(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -54,7 +55,7 @@ function statusOf(it: ProcessedItem): Status {
 }
 
 const STATUS_META: Record<Status, { icon: any; color: string }> = {
-  ok: { icon: 'checkmark-circle', color: Colors.neonGreen },
+  ok: { icon: 'checkmark-circle', color: SEMANTIC.success },
   review: { icon: 'alert-circle', color: SEMANTIC.warning },
   flag: { icon: 'help-circle', color: SEMANTIC.error },
 };
@@ -329,9 +330,7 @@ export default function LabConfirmationScreen() {
           </View>
         )}
 
-        <Pressable onPress={handleConfirm} disabled={saving} style={[styles.confirmBtn, saving && { opacity: 0.6 }]}>
-          <EliteText variant="body" style={styles.confirmBtnText}>{saving ? 'Guardando…' : 'Confirmar y guardar'}</EliteText>
-        </Pressable>
+        <GradientCTA label={saving ? 'GUARDANDO…' : 'CONFIRMAR Y GUARDAR'} onPress={handleConfirm} disabled={saving} style={styles.confirmBtn} />
         <Pressable onPress={handleCancel} disabled={saving} style={styles.cancelBtn}>
           <EliteText variant="body" style={styles.cancelBtnText}>Cancelar y volver a subir</EliteText>
         </Pressable>
@@ -362,9 +361,9 @@ const styles = StyleSheet.create({
   dupHint: { color: SEMANTIC.warning, fontSize: FontSizes.xs, marginBottom: 4 },
   dupChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   dupChip: { paddingVertical: 5, paddingHorizontal: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: '#333', backgroundColor: '#0a0a0a' },
-  dupChipActive: { borderColor: Colors.neonGreen, backgroundColor: 'rgba(168,224,42,0.12)' },
+  dupChipActive: { borderColor: ATP_BRAND.lime, backgroundColor: 'rgba(168,224,42,0.12)' },
   dupChipText: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  dupChipTextActive: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  dupChipTextActive: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
   editRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: 4 },
   editInput: {
     width: 90, textAlign: 'right', backgroundColor: '#000', borderRadius: Radius.sm,
@@ -372,21 +371,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.semiBold, borderWidth: 1, borderColor: '#222',
   },
   unit: { color: Colors.textSecondary },
-  doneBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
-  doneBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  doneBtn: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 12 },
+  doneBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
   editBtn: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: Radius.pill, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)' },
-  editBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  editBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
   derivedCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a', marginTop: Spacing.xs },
   derivedTitle: { color: Colors.textSecondary, fontFamily: Fonts.bold, fontSize: FontSizes.sm, marginBottom: Spacing.xs },
   derivedRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
   derivedLabel: { color: Colors.textSecondary },
   derivedValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  confirmBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md },
-  confirmBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  confirmBtn: { marginTop: Spacing.md },
   cancelBtn: { paddingVertical: Spacing.sm, alignItems: 'center', marginTop: 4 },
   cancelBtnText: { color: Colors.textSecondary },
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md, padding: Spacing.lg },
   emptyText: { color: Colors.textSecondary, textAlign: 'center' },
-  primaryBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
-  primaryBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  primaryBtn: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg },
+  primaryBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
 });

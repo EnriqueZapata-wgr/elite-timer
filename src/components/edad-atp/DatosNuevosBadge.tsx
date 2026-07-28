@@ -5,7 +5,8 @@
  */
 import { Pressable, View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { ATP_BRAND } from '@/src/constants/brand';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 interface Props {
   visible: boolean;
@@ -31,6 +32,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(168,224,42,0.35)',
     paddingHorizontal: Spacing.sm, paddingVertical: 6,
   },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.neonGreen },
-  text: { color: Colors.neonGreen, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: ATP_BRAND.lime },
+  text: { color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
 });

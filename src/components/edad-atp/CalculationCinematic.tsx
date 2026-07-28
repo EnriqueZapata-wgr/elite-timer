@@ -9,6 +9,7 @@ import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { playPhaseTick, playReveal } from './edad-sound';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 type Phase = { label: string; emoji: string; ms: number };
@@ -103,9 +104,9 @@ const styles = StyleSheet.create({
   phaseLabel: { color: '#fff', fontSize: FontSizes.lg, fontFamily: Fonts.semiBold, textAlign: 'center' },
   dots: { flexDirection: 'row', gap: 8, marginTop: Spacing.md },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#333' },
-  dotOn: { backgroundColor: Colors.neonGreen },
+  dotOn: { backgroundColor: ATP_BRAND.lime },
   revealWrap: { alignItems: 'center', gap: 6 },
   revealLabel: { color: Colors.textSecondary, fontSize: FontSizes.xs, letterSpacing: 2, fontFamily: Fonts.bold },
-  revealValue: { color: Colors.neonGreen, fontSize: 80, fontFamily: Fonts.extraBold, lineHeight: 88 },
+  revealValue: { color: ATP_BRAND.lime, fontSize: 80, fontFamily: Fonts.extraBold, lineHeight: 88 },
   revealSub: { color: Colors.textSecondary, fontSize: FontSizes.sm },
 });

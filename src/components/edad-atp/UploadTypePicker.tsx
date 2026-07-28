@@ -5,6 +5,7 @@
  */
 import { Modal, View, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
+import { TEXT } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { UPLOAD_TYPES, type UploadType } from '@/src/constants/upload-types';
 
@@ -61,7 +62,7 @@ const styles = StyleSheet.create({
   optLabel: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   optHint: { color: Colors.textMuted, fontSize: FontSizes.xs, marginTop: 1 },
   motorPill: { backgroundColor: 'rgba(168,224,42,0.14)', borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 1 },
-  motorPillText: { color: Colors.neonGreen, fontSize: 9, fontFamily: Fonts.semiBold },
+  motorPillText: { color: TEXT.secondary, fontSize: 9, fontFamily: Fonts.semiBold },
   ctxPill: { backgroundColor: 'rgba(142,142,147,0.16)', borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 1 },
   ctxPillText: { color: Colors.textMuted, fontSize: 9, fontFamily: Fonts.semiBold },
   cancel: { marginTop: Spacing.md, paddingVertical: 12, alignItems: 'center' },

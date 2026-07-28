@@ -30,6 +30,7 @@ import {
   mulberry32, avgNoOutliers, buildGngSchedule, gngErrorRatePct,
   GNG_WITHHOLD_MS, type GngStimulus,
 } from '@/src/services/edad-atp/gng-trial-flow';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const TRIALS = 20;
@@ -306,15 +307,15 @@ export default function ReactionTimeTest() {
 const styles = StyleSheet.create({
   content: { flex: 1, padding: Spacing.md },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.lg },
-  title: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+  title: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
   desc: { color: Colors.textSecondary, fontSize: FontSizes.sm, textAlign: 'center', lineHeight: 20 },
-  cta: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl },
-  ctaText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  cta: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xl },
+  ctaText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
   target: { flex: 1, borderRadius: Radius.card, alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
-  targetOn: { backgroundColor: Colors.neonGreen },
+  targetOn: { backgroundColor: ATP_BRAND.lime },
   targetOff: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: '#1a1a1a' },
   targetNoGo: { backgroundColor: '#E24B4A' },
-  targetText: { color: Colors.textOnGreen, fontFamily: Fonts.extraBold, fontSize: FontSizes.xl },
+  targetText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.extraBold, fontSize: FontSizes.xl },
   counter: { color: Colors.textSecondary, fontSize: FontSizes.sm },
   errCounter: { color: Colors.textSecondary, fontSize: FontSizes.sm, marginTop: 4, fontFamily: Fonts.semiBold },
   errCounterOn: { color: '#fff', backgroundColor: 'rgba(226,75,74,0.85)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: Radius.sm, overflow: 'hidden' },
@@ -325,7 +326,7 @@ const styles = StyleSheet.create({
   resultRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
   resultLabel: { color: Colors.textSecondary },
   resultVal: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  resultGood: { color: Colors.neonGreen },
+  resultGood: { color: SEMANTIC.success },
   resultBad: { color: '#E24B4A' },
   resultDivider: { height: 1, backgroundColor: '#1a1a1a', marginVertical: Spacing.xs },
 });

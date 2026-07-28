@@ -3,16 +3,18 @@
  * Reaction Time viene en Sprint 4; por ahora permite ingresar RT manual.
  */
 import { useState, useCallback } from 'react';
-import { ScrollView, StyleSheet, Pressable, Alert, View } from 'react-native';
+import { ScrollView, StyleSheet, Alert, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { saveFunctionalTests, getLatestFunctionalTests, type FunctionalTestEntry } from '@/src/services/edad-atp/capture-service';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
+import { TEXT } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 function daysAgo(dateStr: string): number {
@@ -69,9 +71,11 @@ export default function CognitiveCapture() {
           </View>
         ) : null}
 
-        <Pressable onPress={() => { haptic.medium(); router.push('/edad-atp/tests/reaction-time'); }} style={styles.testBtn}>
-          <EliteText variant="body" style={styles.testBtnText}>{last ? 'Volver a hacer test interactivo' : 'Hacer test interactivo'}</EliteText>
-        </Pressable>
+        <GradientCTA
+          label={last ? 'VOLVER A HACER EL TEST' : 'HACER TEST INTERACTIVO'}
+          pillar="mind"
+          onPress={() => router.push('/edad-atp/tests/reaction-time')}
+        />
 
         <View style={styles.infoCard}>
           <EliteText variant="body" style={styles.infoTitle}>Tiempo de reacción (Deary-Liewald)</EliteText>
@@ -83,9 +87,7 @@ export default function CognitiveCapture() {
           <NumberInputRow label="RT simple" unit="ms" value={simple} onChangeText={setSimple} helper="Estímulo único" />
           <NumberInputRow label="RT choice" unit="ms" value={choice} onChangeText={setChoice} helper="4 opciones" />
         </View>
-        <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
-          <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
-        </Pressable>
+        <GradientCTA label={saving ? 'GUARDANDO…' : 'GUARDAR'} onPress={handleSave} disabled={saving} style={styles.saveBtn} />
       </ScrollView>
     </Screen>
   );
@@ -94,14 +96,11 @@ export default function CognitiveCapture() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   lastCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: 'rgba(168,224,42,0.35)' },
-  lastTitle: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  lastTitle: { color: TEXT.primary, fontFamily: Fonts.semiBold },
   lastVals: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 2 },
-  testBtn: { borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)', borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center' },
-  testBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
   infoCard: { backgroundColor: 'rgba(168,224,42,0.08)', borderRadius: Radius.card, padding: Spacing.md, gap: 6 },
-  infoTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold },
+  infoTitle: { color: TEXT.primary, fontFamily: Fonts.bold },
   infoText: { color: Colors.textSecondary, fontSize: FontSizes.xs, lineHeight: 18 },
   card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
-  saveBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
-  saveBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  saveBtn: { marginTop: Spacing.sm },
 });

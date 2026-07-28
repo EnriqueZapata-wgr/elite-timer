@@ -5,13 +5,14 @@
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { StyleSheet, View } from 'react-native';
 import { EliteText } from '@/components/elite-text';
+import { SEMANTIC } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 export function RecalculateDiff({ from, to }: { from: number; to: number }) {
   const delta = Math.round((to - from) * 10) / 10;
   if (delta === 0) return null;
   const improved = delta < 0;
-  const color = improved ? Colors.neonGreen : '#EF9F27';
+  const color = improved ? SEMANTIC.success : '#EF9F27';
   const label = improved
     ? `${Math.abs(delta)} año${Math.abs(delta) === 1 ? '' : 's'} más joven`
     : `${delta} año${delta === 1 ? '' : 's'} más viejo`;

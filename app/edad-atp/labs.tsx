@@ -15,6 +15,7 @@ import { GlobalTopBar } from '@/src/components/ui/GlobalTopBar';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { loadCanonicalLabValues, collapseLanguageDuplicates, loadAllSeries, type CanonicalValue, type LabValueSource } from '@/src/services/edad-atp/lab-values-service';
 import { trendFromSeries, interpretValue, type Trend, type SeriePoint } from '@/src/components/edad-atp/parameter-chart-model';
@@ -336,7 +337,7 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.surface, borderWidth: 1, borderColor: '#1a1a1a' },
   chipActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },
   chipText: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  chipTextActive: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  chipTextActive: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
   empty: { color: Colors.textMuted, textAlign: 'center', marginTop: Spacing.xl, paddingHorizontal: Spacing.md, lineHeight: 18 },
   group: { gap: 2, marginBottom: Spacing.sm },
   groupTitle: { color: Colors.textMuted, letterSpacing: 1, marginBottom: 2, textTransform: 'uppercase' },
@@ -357,7 +358,7 @@ const styles = StyleSheet.create({
   rangeToggle: { paddingHorizontal: Spacing.sm, paddingVertical: 5, borderRadius: Radius.md, backgroundColor: '#0a0a0a', borderWidth: 1, borderColor: '#1a1a1a' },
   rangeToggleActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },
   rangeToggleText: { color: Colors.textMuted, fontSize: FontSizes.xs },
-  rangeToggleTextActive: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  rangeToggleTextActive: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
 });
 
 // #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).

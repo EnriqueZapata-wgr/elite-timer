@@ -14,6 +14,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { getLatestKinematicTests, type KinematicTestKey } from '@/src/services/edad-atp/kinematic-tests-service';
+import { ATP_BRAND, CATEGORY_COLORS } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 type Row = { key: KinematicTestKey; label: string; subtitle: string; unit: string; icon: any; route: Href };
@@ -57,7 +58,7 @@ export default function CinematicTestsIndex() {
             <Animated.View key={t.key} entering={FadeInUp.delay(60 + i * 50).springify()}>
               <AnimatedPressable onPress={() => { haptic.light(); router.push(t.route); }} style={styles.row}>
                 <View style={[styles.iconWrap, { backgroundColor: 'rgba(168,224,42,0.12)' }]}>
-                  <Ionicons name={t.icon} size={22} color={Colors.neonGreen} />
+                  <Ionicons name={t.icon} size={22} color={CATEGORY_COLORS.fitness} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <EliteText variant="body" style={styles.label}>{t.label}</EliteText>
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
   label: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
   subtitle: { color: Colors.textSecondary, fontSize: FontSizes.xs },
   valueCol: { alignItems: 'flex-end' },
-  value: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  value: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold },
   date: { color: Colors.textMuted, fontSize: FontSizes.xs },
   pending: { color: Colors.textMuted, fontSize: FontSizes.xs },
 });

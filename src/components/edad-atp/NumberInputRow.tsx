@@ -5,6 +5,7 @@
  */
 import { View, TextInput, StyleSheet, Pressable } from 'react-native';
 import { EliteText } from '@/components/elite-text';
+import { ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 interface Props {
@@ -59,13 +60,13 @@ export function NumberInputRow({ label, unit, value, onChangeText, helper, place
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.xs },
   rowHighlight: { backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: Radius.sm, paddingHorizontal: Spacing.xs, marginHorizontal: -Spacing.xs },
-  inputHighlight: { borderColor: Colors.neonGreen },
+  inputHighlight: { borderColor: ATP_BRAND.lime },
   labelCol: { flex: 1 },
   label: { color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   helper: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 1 },
-  helperLink: { color: Colors.neonGreen, fontSize: FontSizes.xs, marginTop: 2, fontFamily: Fonts.semiBold },
+  helperLink: { color: ATP_BRAND.lime, fontSize: FontSizes.xs, marginTop: 2, fontFamily: Fonts.semiBold },
   badge: { alignSelf: 'flex-start', backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.sm, paddingHorizontal: 6, paddingVertical: 1, marginTop: 2 },
-  badgeText: { color: Colors.neonGreen, fontSize: FontSizes.xs },
+  badgeText: { color: TEXT.secondary, fontSize: FontSizes.xs },
   input: {
     width: 96, textAlign: 'right',
     backgroundColor: Colors.surface, borderRadius: Radius.sm,
@@ -73,5 +74,5 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md,
     borderWidth: 1, borderColor: '#1a1a1a',
   },
-  inputReadOnly: { color: Colors.neonGreen, borderColor: 'rgba(168,224,42,0.3)' },
+  inputReadOnly: { color: ATP_BRAND.lime, borderColor: 'rgba(168,224,42,0.3)' },
 });

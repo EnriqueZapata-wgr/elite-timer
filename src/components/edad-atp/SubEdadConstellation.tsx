@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
 import { haptic } from '@/src/utils/haptics';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Fonts, FontSizes } from '@/constants/theme';
 import { EDAD_DIMS as DIMS, statusColor, statusGlyph, EDAD_TIMING, SUB_EDAD_CE_PENDING_THRESHOLD, EDAD_PENDING_COLOR } from './tokens';
 
@@ -69,11 +70,11 @@ const styles = StyleSheet.create({
   wrap: { width: SIZE, height: SIZE, alignSelf: 'center' },
   center: {
     position: 'absolute', left: SIZE / 2 - 72, top: SIZE / 2 - 72, width: 144, height: 144,
-    borderRadius: 72, backgroundColor: '#0d1a0a', borderWidth: 2, borderColor: Colors.neonGreen,
+    borderRadius: 72, backgroundColor: '#0d1a0a', borderWidth: 2, borderColor: ATP_BRAND.lime,
   },
   centerInner: { flex: 1, borderRadius: 72, alignItems: 'center', justifyContent: 'center', gap: 2 },
   centerLabel: { color: Colors.textSecondary, fontSize: 10, letterSpacing: 2, fontFamily: Fonts.bold },
-  centerValue: { color: Colors.neonGreen, fontSize: 44, fontFamily: Fonts.extraBold, lineHeight: 48 },
+  centerValue: { color: ATP_BRAND.lime, fontSize: 44, fontFamily: Fonts.extraBold, lineHeight: 48 },
   centerSub: { color: Colors.textSecondary, fontSize: FontSizes.xs },
   mini: {
     position: 'absolute', width: MINI, height: MINI, borderRadius: MINI / 2,

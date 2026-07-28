@@ -2,7 +2,7 @@
  * Tokens compartidos del módulo Edad ATP — colores por dimensión, estados,
  * timings de animación y helpers de status. Fuente única para los componentes UI.
  */
-import { Colors } from '@/constants/theme';
+import { SEMANTIC } from '@/src/constants/brand';
 
 // Motor v2: 5 áreas (labs/composicion/fitness/cognicion/riesgos). Emojis sin cambio.
 export type DimKey = 'labs' | 'composicion' | 'fitness' | 'cognicion' | 'riesgos';
@@ -15,7 +15,10 @@ export const EDAD_DIMS: { key: DimKey; icon: string; label: string; color: strin
   { key: 'riesgos', icon: '❤️', label: 'Riesgos', color: '#E24B4A' },
 ];
 
-export const EDAD_STATUS = { good: Colors.neonGreen, neutral: '#EF9F27', bad: '#E24B4A' };
+// MB-11 D.3: `good` colgaba de Colors.neonGreen (alias legacy) — el ancla que
+// reproducía el verde plano en todo el clúster. Ahora deriva del token
+// semántico canónico: estado "mejor que tu edad" ES feedback, no decoración.
+export const EDAD_STATUS = { good: SEMANTIC.success, neutral: '#EF9F27', bad: '#E24B4A' };
 
 /**
  * CE mínimo (%) para mostrar el número de una sub-edad. Por debajo, la mayoría de

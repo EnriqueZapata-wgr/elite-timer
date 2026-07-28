@@ -1,14 +1,18 @@
 /**
  * Edad ATP — Hub de captura de datos (Sprint 2, MVP manual).
- * Muestra la CE actual + 5 cards navegables a las pantallas de captura.
+ * MB-11 D.4: entrada del módulo al molde editorial — hero con imagen
+ * (edad-atp el/ella) + overlay + número protagonista, como Mente/Sueño.
+ * Muestra la CE actual + cards navegables a las pantallas de captura.
  */
 import { useState, useCallback, useRef } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, ImageBackground } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { router, useFocusEffect , type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
@@ -21,7 +25,9 @@ import { DatosNuevosBadge } from '@/src/components/edad-atp/DatosNuevosBadge';
 import { loadDatasetEntries } from '@/src/services/edad-atp/dataset-snapshot';
 import { computeDatasetHash } from '@/src/services/edad-atp/dataset-hash';
 import { getLastCalc, recalcStatus } from '@/src/services/edad-atp/recalc-gate';
-import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+import { pickEdadAtpImage } from '@/src/utils/yo-image-picker';
+import { ATP_BRAND, BG, BORDER, TEXT, CATEGORY_COLORS, SEMANTIC } from '@/src/constants/brand';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const CALC_THRESHOLD = 30; // % CE mínimo para habilitar "Calcular mi Edad"
 
@@ -120,33 +126,59 @@ export default function EdadAtpHub() {
     <Screen>
       <PillarHeader pillar="metrics" title="Edad ATP" />
       <ScrollView contentContainerStyle={styles.content}>
-        <EliteText variant="caption" style={styles.subtitle}>Captura de datos — MVP manual</EliteText>
-
-        {/* CE actual → estrellas (#8) */}
-        <View style={styles.ceCard}>
-          <CeStars ce={ceValue} label="Calidad de tu evaluación" size={22} showLegend />
-        </View>
+        {/* MB-11 D.4: HERO editorial — imagen + overlay + número protagonista.
+            Sin cálculo aún, el vacío informa qué falta (no un anillo triste). */}
+        <AnimatedPressable
+          onPress={() => {
+            if (!edadResult) return;
+            haptic.success();
+            router.push('/edad-atp/result-preview');
+          }}
+          disabled={!edadResult}
+          style={styles.heroWrap}
+        >
+          <ImageBackground
+            source={pickEdadAtpImage(data?.sex)}
+            style={styles.heroBg}
+            imageStyle={styles.heroBgImage}
+            resizeMode="cover"
+          >
+            <LinearGradient
+              colors={['rgba(0,0,0,0.35)', 'rgba(0,0,0,0.55)', 'rgba(10,10,10,0.95)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.heroInner}>
+              <EliteText variant="caption" style={styles.heroLabel}>TU EDAD ATP</EliteText>
+              {edadResult ? (
+                <>
+                  <EliteText style={styles.heroValue}>{edadResult.edad_integral.toFixed(1)}</EliteText>
+                  <EliteText variant="caption" style={styles.heroSub}>
+                    cronológica {edadResult.chronological_age} · toca para ver el detalle
+                  </EliteText>
+                </>
+              ) : (
+                <EliteText variant="caption" style={styles.heroSub}>
+                  Aún sin calcular — completa tu evaluación abajo y el número aparece aquí.
+                </EliteText>
+              )}
+              <View style={styles.heroStars}>
+                <CeStars ce={ceValue} label="Calidad de tu evaluación" size={18} showLegend />
+              </View>
+            </View>
+          </ImageBackground>
+        </AnimatedPressable>
 
         <DatosNuevosBadge visible={hasNewData} onPress={() => { haptic.medium(); router.push('/edad-atp/result-preview'); }} />
 
         {/* ATP Labs — vista canónica con historial y gráficas */}
         <AnimatedPressable onPress={() => { haptic.medium(); router.push('/edad-atp/labs'); }} style={styles.card}>
-          <View style={styles.cardIcon}><Ionicons name="flask-outline" size={22} color={Colors.neonGreen} /></View>
+          <View style={styles.cardIcon}><Ionicons name="flask-outline" size={22} color={CATEGORY_COLORS.metrics} /></View>
           <View style={{ flex: 1 }}>
             <EliteText variant="body" style={styles.cardTitle}>ATP Labs</EliteText>
             <EliteText variant="caption" style={styles.cardDesc}>Tus laboratorios con historial y gráficas de continuum</EliteText>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+          <Ionicons name="chevron-forward" size={18} color={TEXT.secondary} />
         </AnimatedPressable>
-
-        {/* Estado "result": Integral ya calculada → hero con CTA a ver/recalcular. */}
-        {edadResult && (
-          <AnimatedPressable onPress={() => { haptic.success(); router.push('/edad-atp/result-preview'); }} style={styles.heroCard}>
-            <EliteText variant="caption" style={styles.heroLabel}>TU EDAD ATP</EliteText>
-            <EliteText style={styles.heroValue}>{edadResult.edad_integral.toFixed(1)}</EliteText>
-            <EliteText variant="caption" style={styles.heroSub}>cronológica {edadResult.chronological_age} · toca para ver el detalle</EliteText>
-          </AnimatedPressable>
-        )}
 
         {CARDS.map((c) => {
           const status = cardStatus(c);
@@ -157,27 +189,27 @@ export default function EdadAtpHub() {
               style={styles.card}
             >
               <View style={styles.cardIcon}>
-                <Ionicons name={c.icon} size={22} color={Colors.neonGreen} />
+                <Ionicons name={c.icon} size={22} color={CATEGORY_COLORS.metrics} />
               </View>
               <View style={{ flex: 1 }}>
                 <EliteText variant="body" style={styles.cardTitle}>{c.title}</EliteText>
                 <EliteText variant="caption" style={styles.cardDesc}>{c.desc}</EliteText>
               </View>
               {status != null && (
-                <EliteText variant="caption" style={[styles.cardPct, status.done && { color: Colors.neonGreen }]}>{status.text}</EliteText>
+                // Lima solo como estado "hecho" (feedback semántico, ACCENT_ROLES c).
+                <EliteText variant="caption" style={[styles.cardPct, status.done && { color: SEMANTIC.success }]}>{status.text}</EliteText>
               )}
-              <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
+              <Ionicons name="chevron-forward" size={18} color={TEXT.secondary} />
             </AnimatedPressable>
           );
         })}
 
         {ceValue >= CALC_THRESHOLD ? (
-          <AnimatedPressable
+          <GradientCTA
+            label={edadResult ? 'RECALCULAR MI EDAD' : 'CALCULAR MI EDAD'}
             onPress={() => { haptic.success(); router.push('/edad-atp/result-preview'); }}
             style={styles.calcBtn}
-          >
-            <EliteText variant="body" style={styles.calcBtnText}>{edadResult ? 'Recalcular mi Edad' : 'Calcular mi Edad'}</EliteText>
-          </AnimatedPressable>
+          />
         ) : (
           <>
             <EliteText variant="caption" style={styles.needMore}>
@@ -188,11 +220,11 @@ export default function EdadAtpHub() {
               onPress={() => { haptic.medium(); router.push('/labs-guide'); }}
               style={styles.guideBtn}
             >
-              <Ionicons name="document-text-outline" size={16} color={Colors.neonGreen} />
+              <Ionicons name="document-text-outline" size={16} color={TEXT.secondary} />
               <EliteText variant="caption" style={styles.guideBtnText}>
                 ¿No sabes qué labs hacerte? Descarga la guía
               </EliteText>
-              <Ionicons name="chevron-forward" size={14} color={Colors.neonGreen} />
+              <Ionicons name="chevron-forward" size={14} color={TEXT.secondary} />
             </AnimatedPressable>
           </>
         )}
@@ -203,33 +235,33 @@ export default function EdadAtpHub() {
 
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
-  subtitle: { color: Colors.textSecondary, marginBottom: Spacing.xs },
-  ceCard: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.lg, alignItems: 'center', gap: 6, marginBottom: Spacing.sm },
-  ceLabel: { color: Colors.textSecondary, letterSpacing: 1 },
-  ceValue: { color: Colors.neonGreen, fontSize: 40, fontFamily: Fonts.extraBold },
-  ceBarTrack: { width: '100%', height: 6, backgroundColor: '#1a1a1a', borderRadius: 3, overflow: 'hidden' },
-  ceBarFill: { height: 6, backgroundColor: Colors.neonGreen, borderRadius: 3 },
-  heroCard: { backgroundColor: '#0d1a0a', borderRadius: Radius.card, padding: Spacing.lg, alignItems: 'center', gap: 2, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)' },
-  heroLabel: { color: Colors.textSecondary, letterSpacing: 2, fontFamily: Fonts.bold },
-  heroValue: { color: Colors.neonGreen, fontSize: 48, fontFamily: Fonts.extraBold },
-  heroSub: { color: Colors.textSecondary },
+  // MB-11 D.4: hero editorial (imagen + overlay + número protagonista)
+  heroWrap: { borderRadius: Radius.card, overflow: 'hidden', marginBottom: Spacing.xs },
+  heroBg: { minHeight: 190 },
+  heroBgImage: { opacity: 0.9 },
+  heroInner: { flex: 1, justifyContent: 'flex-end', padding: Spacing.lg, gap: 2 },
+  heroLabel: { color: 'rgba(255,255,255,0.75)', letterSpacing: 2, fontFamily: Fonts.bold },
+  // Lima solo en el dato heroico — el número ES el protagonista del módulo.
+  heroValue: { color: ATP_BRAND.lime, fontSize: 48, fontFamily: Fonts.extraBold },
+  heroSub: { color: 'rgba(255,255,255,0.7)' },
+  heroStars: { marginTop: Spacing.sm },
   card: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md,
-    borderWidth: 1, borderColor: '#1a1a1a',
+    backgroundColor: BG.card, borderRadius: Radius.card, padding: Spacing.md,
+    borderWidth: 1, borderColor: BORDER.card,
   },
-  cardIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(168,224,42,0.12)', justifyContent: 'center', alignItems: 'center' },
-  cardTitle: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  cardDesc: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: 2 },
-  cardPct: { color: Colors.textSecondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, maxWidth: 96, textAlign: 'right' },
-  calcBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md },
-  calcBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
-  needMore: { color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.md, paddingHorizontal: Spacing.md },
-  // Sprint LABS GUÍA: CTA a la guía cuando falta data para calcular
+  cardIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(29,158,117,0.12)', justifyContent: 'center', alignItems: 'center' },
+  cardTitle: { color: TEXT.primary, fontFamily: Fonts.semiBold },
+  cardDesc: { color: TEXT.secondary, fontSize: FontSizes.xs, marginTop: 2 },
+  cardPct: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, maxWidth: 96, textAlign: 'right' },
+  calcBtn: { marginTop: Spacing.md },
+  needMore: { color: TEXT.secondary, textAlign: 'center', marginTop: Spacing.md, paddingHorizontal: Spacing.md },
+  // Sprint LABS GUÍA: acceso secundario a la guía cuando falta data (neutro,
+  // no compite con el CTA primario — ACCENT_ROLES).
   guideBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: '#222',
+    backgroundColor: BG.card, borderRadius: Radius.md, borderWidth: 1, borderColor: BORDER.input,
     paddingVertical: Spacing.md, marginTop: Spacing.sm,
   },
-  guideBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  guideBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
 });

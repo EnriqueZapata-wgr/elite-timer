@@ -17,6 +17,7 @@ import ConfettiCannon from 'react-native-confetti-cannon';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useAuth } from '@/src/contexts/auth-context';
 import { computeEdadAtpV2, loadUserData, countFields, type UnifiedUserData } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
@@ -32,6 +33,7 @@ import { computeDatasetHash } from '@/src/services/edad-atp/dataset-hash';
 import { getLastCalc, saveLastCalc, recalcStatus } from '@/src/services/edad-atp/recalc-gate';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
+import { ATP_BRAND, SEMANTIC } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { ResultDisclaimerFooter } from '@/src/components/legal/ResultDisclaimerFooter';
@@ -173,15 +175,13 @@ function ResultScreen() {
             {sources.map((s) => (
               <AnimatedPressable key={s.label} onPress={() => router.push(s.route)} style={styles.sourceRow}>
                 <EliteText variant="body" style={styles.sourceLabel}>{s.label}</EliteText>
-                <EliteText variant="caption" style={[styles.sourceDetail, s.done && { color: Colors.neonGreen }]}>
+                <EliteText variant="caption" style={[styles.sourceDetail, s.done && { color: SEMANTIC.success }]}>
                   {s.detail} {s.done ? '✓' : '⚠'}
                 </EliteText>
               </AnimatedPressable>
             ))}
 
-            <AnimatedPressable onPress={handleShare} style={styles.shareBtn}>
-              <EliteText variant="body" style={styles.shareBtnText}>Compartir mi Edad ATP</EliteText>
-            </AnimatedPressable>
+            <GradientCTA label="COMPARTIR MI EDAD ATP" onPress={handleShare} style={styles.shareBtn} />
 
             {/* MB-5: fuera la frase dev "domain_scores usan placeholder neutral" — era copy interno visible al usuario. */}
             <EliteText variant="caption" style={styles.note}>
@@ -220,15 +220,14 @@ const styles = StyleSheet.create({
   ceWrap: { alignItems: 'center', marginTop: Spacing.sm },
   recalcBtn: { backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)' },
   recalcBtnBusy: { opacity: 0.6 },
-  recalcText: { color: Colors.neonGreen, fontFamily: Fonts.bold },
+  recalcText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold },
   unchanged: { color: Colors.textMuted, fontSize: FontSizes.xs, textAlign: 'center', marginTop: 4 },
   sourcesTitle: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: Spacing.md, marginBottom: 2 },
   sourceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   sourceLabel: { color: Colors.textPrimary },
   sourceDetail: { color: Colors.textSecondary },
   note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.sm },
-  shareBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md },
-  shareBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  shareBtn: { marginTop: Spacing.md },
   backBtn: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   backText: { color: Colors.textPrimary },
   offscreen: { position: 'absolute', left: -10000, top: 0 },

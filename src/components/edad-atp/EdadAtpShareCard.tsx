@@ -6,6 +6,7 @@ import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { edadDeltaYears, classifyEdadDelta } from '@/src/services/edad-atp/edad-delta-core';
 import type { EdadAtpV2Result } from '@/src/types/edad-atp-v2';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
 
 const DIMS = [
@@ -58,10 +59,10 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#050505', padding: Spacing.xl, justifyContent: 'space-between', alignItems: 'center' },
   story: { width: 360, aspectRatio: 9 / 16 },
   square: { width: 360, aspectRatio: 1 },
-  brandTop: { color: Colors.neonGreen, fontFamily: Fonts.bold, letterSpacing: 3, fontSize: FontSizes.sm },
+  brandTop: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, letterSpacing: 3, fontSize: FontSizes.sm },
   center: { alignItems: 'center', gap: 4 },
   label: { color: Colors.textSecondary, fontSize: FontSizes.xs, letterSpacing: 2, fontFamily: Fonts.bold },
-  value: { color: Colors.neonGreen, fontSize: 96, fontFamily: Fonts.extraBold, lineHeight: 104 },
+  value: { color: ATP_BRAND.lime, fontSize: 96, fontFamily: Fonts.extraBold, lineHeight: 104 },
   chrono: { color: Colors.textSecondary, fontSize: FontSizes.sm },
   highlight: { color: '#fff', fontSize: FontSizes.md, fontFamily: Fonts.semiBold, textAlign: 'center', marginTop: Spacing.sm },
   subsRow: { flexDirection: 'row', gap: Spacing.md, justifyContent: 'center' },

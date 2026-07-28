@@ -14,12 +14,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { saveKinematicTest, getLatestKinematicTests } from '@/src/services/edad-atp/kinematic-tests-service';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
+import { TEXT } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 export default function TestOldManScreen() {
@@ -57,7 +59,7 @@ export default function TestOldManScreen() {
           Sin usar manos, siéntate en el piso y vuelve a ponerte de pie. Empiezas con 10 puntos y restas 1 por cada apoyo (mano, rodilla, antebrazo) o pérdida de equilibrio.
         </EliteText>
         <Pressable onPress={() => { haptic.light(); setHelpOpen(true); }} style={styles.helpLink}>
-          <Ionicons name="help-circle-outline" size={16} color={Colors.neonGreen} />
+          <Ionicons name="help-circle-outline" size={16} color={TEXT.secondary} />
           <EliteText variant="caption" style={styles.helpLinkText}>¿Cómo se puntúa?</EliteText>
         </Pressable>
         <View style={styles.card}>
@@ -67,9 +69,7 @@ export default function TestOldManScreen() {
             badge={last != null ? `actual ${last}` : undefined}
           />
         </View>
-        <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
-          <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar resultado'}</EliteText>
-        </Pressable>
+        <GradientCTA label={saving ? 'GUARDANDO…' : 'GUARDAR RESULTADO'} pillar="fitness" onPress={handleSave} disabled={saving} style={styles.saveBtn} />
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <EliteText variant="body" style={styles.backText}>Volver</EliteText>
         </Pressable>
@@ -82,9 +82,7 @@ export default function TestOldManScreen() {
             <EliteText variant="caption" style={styles.modalBody}>
               {'Desde de pie, baja a sentarte en el piso con piernas cruzadas y vuelve a levantarte, sin usar manos, rodillas, antebrazos ni costados como apoyo.\n\nEmpiezas con 10 puntos:\n• −1 por cada apoyo de mano, rodilla o antebrazo.\n• −1 si pierdes el equilibrio.\n\nPredictor validado de mortalidad por todas las causas. 10/10 = óptimo.'}
             </EliteText>
-            <Pressable onPress={() => setHelpOpen(false)} style={styles.modalClose}>
-              <EliteText variant="body" style={styles.modalCloseText}>Entendido</EliteText>
-            </Pressable>
+            <GradientCTA label="Entendido" onPress={() => setHelpOpen(false)} style={styles.modalClose} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -96,16 +94,14 @@ const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   intro: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
   helpLink: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start' },
-  helpLinkText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  helpLinkText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
   card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a', marginTop: Spacing.sm },
-  saveBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md },
-  saveBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  saveBtn: { marginTop: Spacing.md },
   backBtn: { paddingVertical: Spacing.sm, alignItems: 'center' },
   backText: { color: Colors.textSecondary },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: Spacing.lg },
   modalCard: { backgroundColor: '#0d0d0d', borderRadius: Radius.card, padding: Spacing.lg, borderWidth: 1, borderColor: '#222', gap: Spacing.sm },
   modalTitle: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
   modalBody: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
-  modalClose: { backgroundColor: Colors.neonGreen, borderRadius: Radius.sm, paddingVertical: 10, alignItems: 'center', marginTop: Spacing.xs },
-  modalCloseText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  modalClose: { marginTop: Spacing.xs },
 });

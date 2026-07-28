@@ -24,6 +24,7 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { saveHealthMeasurement, saveQuestionnaireResponses } from '@/src/services/edad-atp/capture-service';
 import type { EdadAtpV2Result, SubEdadComponent, SubEdadKey, SubEdadResult } from '@/src/types/edad-atp-v2';
+import { ATP_BRAND, TEXT, TEXT_COLORS } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   BAND_DISPLAY, type ComponentBand, statusColor,
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
   delta: { textAlign: 'center', marginBottom: 2 },
   ceRow: { alignItems: 'center', marginBottom: Spacing.sm },
   pendingMsg: { color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.sm, paddingHorizontal: Spacing.md, lineHeight: 18 },
-  sectionTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold, marginTop: Spacing.sm },
+  sectionTitle: { color: TEXT.primary, fontFamily: Fonts.bold, marginTop: Spacing.sm },
   sectionHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginTop: -4 },
   compRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   compLabel: { color: Colors.textPrimary, flex: 1 },
@@ -296,10 +297,11 @@ const styles = StyleSheet.create({
   compStatus: { fontSize: FontSizes.xs },
   chevron: { color: Colors.textSecondary, fontSize: FontSizes.md, marginLeft: 2 },
   actionCard: { backgroundColor: 'rgba(168,224,42,0.08)', borderRadius: Radius.card, padding: Spacing.md, gap: 8, marginTop: Spacing.md },
-  actionTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold },
+  actionTitle: { color: TEXT.primary, fontFamily: Fonts.bold },
   actionText: { color: Colors.textSecondary, fontSize: FontSizes.xs, lineHeight: 18 },
-  actionBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center', marginTop: 4 },
-  actionBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  // CTA compacto inline — lime sólido permitido bajo ACCENT_ROLES (§1).
+  actionBtn: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center', marginTop: 4 },
+  actionBtnText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
   backBtn: { backgroundColor: Colors.surface, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   backText: { color: Colors.textPrimary },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center', padding: Spacing.lg },

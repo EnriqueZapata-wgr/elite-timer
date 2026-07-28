@@ -5,6 +5,7 @@
  */
 import { Modal, View, Pressable, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
+import { ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { getLabParamMeta } from './component-meta';
 
@@ -58,10 +59,10 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
   title: { color: Colors.textPrimary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
   abbrPill: { backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 2 },
-  abbr: { color: Colors.neonGreen, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
-  value: { color: Colors.neonGreen, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  abbr: { color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
+  value: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
   desc: { color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 20 },
   disclaimer: { color: Colors.textMuted, fontSize: FontSizes.xs, lineHeight: 15, marginTop: 2 },
   closeBtn: { marginTop: Spacing.sm, backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: Radius.md, paddingVertical: 10, alignItems: 'center' },
-  closeText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  closeText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 });

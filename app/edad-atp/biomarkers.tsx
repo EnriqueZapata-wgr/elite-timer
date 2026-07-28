@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
@@ -25,6 +26,7 @@ import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { getCycleInfo } from '@/src/services/cycle-service';
 import { deriveLabCycleContext, type CyclePhase } from '@/src/services/salud/lab-cycle-context-core';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, TEXT } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // key = biomarker_key (edad_atp_biomarkers). labCol = columna en lab_results si difiere.
@@ -210,7 +212,7 @@ export default function BiomarkersCapture() {
       <ScrollView contentContainerStyle={styles.content}>
         {sourceUploadId ? (
           <View style={styles.sourceBanner}>
-            <Ionicons name="document-text-outline" size={16} color={Colors.neonGreen} />
+            <Ionicons name="document-text-outline" size={16} color={TEXT.secondary} />
             <EliteText variant="caption" style={styles.sourceText} numberOfLines={1}>
               Capturando desde: {sourceFileName ?? 'tu archivo'}
             </EliteText>
@@ -298,7 +300,7 @@ export default function BiomarkersCapture() {
               );
             })}
             <Pressable onPress={() => { haptic.light(); setEditMode((e) => !e); }} style={styles.editBtn}>
-              <Ionicons name={editMode ? 'close' : 'create-outline'} size={15} color={Colors.neonGreen} />
+              <Ionicons name={editMode ? 'close' : 'create-outline'} size={15} color={TEXT.secondary} />
               <EliteText variant="caption" style={styles.editBtnText}>{editMode ? 'Cancelar edición' : 'Editar manualmente'}</EliteText>
             </Pressable>
           </View>
@@ -326,9 +328,7 @@ export default function BiomarkersCapture() {
           Lo que captures aquí cuenta como override manual (gana sobre tus labs subidos).
         </EliteText>
 
-        <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
-          <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
-        </Pressable>
+        <GradientCTA label={saving ? 'GUARDANDO…' : 'GUARDAR'} onPress={handleSave} disabled={saving} style={styles.saveBtn} />
       </ScrollView>
     </Screen>
   );
@@ -343,29 +343,28 @@ const styles = StyleSheet.create({
     borderRadius: Radius.card, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, marginBottom: Spacing.sm,
   },
   sourceText: { color: Colors.textPrimary, flex: 1, fontSize: FontSizes.xs },
-  sourceLink: { color: Colors.neonGreen, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  sourceLink: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   section: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: Spacing.xs },
-  okTitle: { color: Colors.neonGreen, fontFamily: Fonts.bold, fontSize: FontSizes.md },
+  okTitle: { color: SEMANTIC.success, fontFamily: Fonts.bold, fontSize: FontSizes.md },
   pendTitle: { color: '#e0a020', fontFamily: Fonts.bold, fontSize: FontSizes.md, marginBottom: Spacing.xs },
   tapHint: { color: Colors.textSecondary, fontSize: FontSizes.xs, marginBottom: Spacing.xs },
   availRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: Spacing.xs },
   inlineEdit: { borderTopWidth: 1, borderTopColor: '#1a1a1a', paddingTop: Spacing.xs, marginTop: Spacing.xs },
   inlineBtns: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.sm, marginTop: Spacing.xs },
   inlineCancel: { paddingVertical: 6, paddingHorizontal: 12 },
-  inlineSave: { backgroundColor: Colors.neonGreen, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 16 },
-  inlineSaveText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  inlineSave: { backgroundColor: ATP_BRAND.lime, borderRadius: Radius.sm, paddingVertical: 6, paddingHorizontal: 16 },
+  inlineSaveText: { color: TEXT_COLORS.onAccent, fontFamily: Fonts.bold },
   availLabel: { color: Colors.textPrimary, flex: 1 },
   availRight: { alignItems: 'flex-end' },
   availValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
-  availSrc: { color: Colors.neonGreen, fontSize: FontSizes.xs },
+  availSrc: { color: SEMANTIC.success, fontSize: FontSizes.xs },
   // MB-7: nota de fase del ciclo bajo labs hormonales de mujer.
   cyclePhaseNote: { color: '#D4537E', fontSize: FontSizes.xs, marginTop: -2, marginBottom: Spacing.xs, paddingHorizontal: 2 },
   cyclePhaseNoteWarn: { color: '#EF9F27' },
   editBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing.sm, alignSelf: 'flex-start' },
-  editBtnText: { color: Colors.neonGreen },
-  allDone: { color: Colors.neonGreen, textAlign: 'center', marginVertical: Spacing.sm },
+  editBtnText: { color: TEXT.secondary },
+  allDone: { color: SEMANTIC.success, textAlign: 'center', marginVertical: Spacing.sm },
   note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
-  saveBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
-  saveBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  saveBtn: { marginTop: Spacing.sm },
 });

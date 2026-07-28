@@ -4,6 +4,7 @@
  */
 import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ceToStars, starFills, CE_STARS_LEGEND } from './ce-stars';
 
@@ -26,7 +27,7 @@ export function CeStars({ ce, size = 18, showLegend = false, label }: Props) {
       {label ? <EliteText variant="caption" style={styles.label}>{label}</EliteText> : null}
       <View style={styles.row} accessibilityLabel={`${stars} de 5 estrellas de calidad de evaluación`}>
         {fills.map((f, i) => (
-          <EliteText key={i} style={[styles.star, { fontSize: size, color: f === 'empty' ? Colors.textMuted : Colors.neonGreen }]}>
+          <EliteText key={i} style={[styles.star, { fontSize: size, color: f === 'empty' ? Colors.textMuted : ATP_BRAND.lime }]}>
             {GLYPH[f]}
           </EliteText>
         ))}

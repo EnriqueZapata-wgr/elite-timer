@@ -11,6 +11,7 @@ import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { supabase } from '@/src/lib/supabase';
+import { SEMANTIC } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const DOMAINS: { domain: string; icon: string; title: string; route: Href }[] = [
@@ -52,17 +53,17 @@ export default function QuestionnairesHub() {
               <EliteText style={styles.emoji}>{d.icon}</EliteText>
               <View style={{ flex: 1 }}>
                 <EliteText variant="body" style={styles.title}>{d.title}</EliteText>
-                <EliteText variant="caption" style={[styles.status, isDone && { color: Colors.neonGreen }]}>
+                <EliteText variant="caption" style={[styles.status, isDone && { color: SEMANTIC.success }]}>
                   {isDone ? '✓ Completado · Toca para revisar' : 'Toca para contestar'}
                 </EliteText>
               </View>
-              {isDone && <Ionicons name="checkmark-circle" size={18} color={Colors.neonGreen} />}
+              {isDone && <Ionicons name="checkmark-circle" size={18} color={SEMANTIC.success} />}
               <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
             </Pressable>
           );
         })}
         <EliteText variant="caption" style={styles.note}>
-          "Composición corporal" abre la captura de báscula. El resto son cuestionarios cortos.
+          “Composición corporal” abre la captura de báscula. El resto son cuestionarios cortos.
         </EliteText>
       </ScrollView>
     </Screen>

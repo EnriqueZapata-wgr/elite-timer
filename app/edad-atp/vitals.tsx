@@ -10,6 +10,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
@@ -18,6 +19,7 @@ import { saveHealthMeasurement, getLatestHealthMeasurement, type HealthMeasureme
 import { useFormDraft } from '@/src/hooks/useFormDraft';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
+import { TEXT } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 const FIELDS: { key: string; label: string; unit: string; helper?: string; integer?: boolean }[] = [
@@ -145,9 +147,7 @@ export default function VitalsCapture() {
         )}
 
         {(!hasData || editMode) && (
-          <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
-            <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
-          </Pressable>
+          <GradientCTA label={saving ? 'GUARDANDO…' : 'GUARDAR'} onPress={handleSave} disabled={saving} style={styles.saveBtn} />
         )}
       </ScrollView>
     </Screen>
@@ -162,7 +162,6 @@ const styles = StyleSheet.create({
   sumLabel: { color: Colors.textSecondary },
   sumValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
   updateBtn: { marginTop: Spacing.sm, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)', borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
-  updateBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
-  saveBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
-  saveBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  updateBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
+  saveBtn: { marginTop: Spacing.sm },
 });

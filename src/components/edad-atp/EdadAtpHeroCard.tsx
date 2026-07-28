@@ -8,6 +8,7 @@ import { useCallback, useState } from 'react';
 import { View, Pressable, StyleSheet, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { EliteText } from '@/components/elite-text';
+import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { computeEdadAtpV2 } from '@/src/services/edad-atp/edad-atp-v2-service';
 import { computeCE } from '@/src/services/edad-atp/ce-service';
@@ -127,5 +128,5 @@ const styles = StyleSheet.create({
   barVal: { width: 28, textAlign: 'right', fontFamily: Fonts.semiBold },
   ctaRow: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
   cta: { flex: 1, backgroundColor: 'rgba(168,224,42,0.10)', borderRadius: Radius.md, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)' },
-  ctaText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
+  ctaText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
 });

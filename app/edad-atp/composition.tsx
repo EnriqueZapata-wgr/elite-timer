@@ -9,6 +9,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EliteText } from '@/components/elite-text';
+import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { NumberInputRow } from '@/src/components/edad-atp/NumberInputRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
@@ -17,6 +18,7 @@ import { saveHealthMeasurement, getLatestHealthMeasurement } from '@/src/service
 import { useFormDraft } from '@/src/hooks/useFormDraft';
 import { getLocalToday, parseLocalDate } from '@/src/utils/date-helpers';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
+import { SEMANTIC, TEXT } from '@/src/constants/brand';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // Acepta coma O punto decimal (Mariana flag #10).
@@ -194,9 +196,7 @@ export default function CompositionCapture() {
         </EliteText>
 
         {(!hasData || editMode) && (
-          <Pressable onPress={handleSave} disabled={saving} style={[styles.saveBtn, saving && { opacity: 0.6 }]}>
-            <EliteText variant="body" style={styles.saveBtnText}>{saving ? 'Guardando…' : 'Guardar'}</EliteText>
-          </Pressable>
+          <GradientCTA label={saving ? 'GUARDANDO…' : 'GUARDAR'} onPress={handleSave} disabled={saving} style={styles.saveBtn} />
         )}
       </ScrollView>
     </Screen>
@@ -206,14 +206,13 @@ export default function CompositionCapture() {
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   intro: { color: Colors.textSecondary, fontSize: FontSizes.xs },
-  diff: { color: Colors.neonGreen, fontSize: FontSizes.xs, textAlign: 'right', marginTop: -4, marginBottom: 2 },
+  diff: { color: SEMANTIC.success, fontSize: FontSizes.xs, textAlign: 'right', marginTop: -4, marginBottom: 2 },
   card: { backgroundColor: Colors.surface, borderRadius: Radius.card, padding: Spacing.md, borderWidth: 1, borderColor: '#1a1a1a' },
   sumRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Spacing.xs },
   sumLabel: { color: Colors.textSecondary },
   sumValue: { color: Colors.textPrimary, fontFamily: Fonts.semiBold },
   updateBtn: { marginTop: Spacing.sm, borderWidth: 1, borderColor: 'rgba(168,224,42,0.4)', borderRadius: Radius.md, paddingVertical: Spacing.sm, alignItems: 'center' },
-  updateBtnText: { color: Colors.neonGreen, fontFamily: Fonts.semiBold },
+  updateBtnText: { color: TEXT.secondary, fontFamily: Fonts.semiBold },
   note: { color: Colors.textSecondary, fontSize: FontSizes.xs, textAlign: 'center', marginTop: Spacing.xs },
-  saveBtn: { backgroundColor: Colors.neonGreen, borderRadius: Radius.md, paddingVertical: Spacing.md, alignItems: 'center', marginTop: Spacing.sm },
-  saveBtnText: { color: Colors.textOnGreen, fontFamily: Fonts.bold },
+  saveBtn: { marginTop: Spacing.sm },
 });
