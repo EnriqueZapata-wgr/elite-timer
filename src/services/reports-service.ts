@@ -7,7 +7,8 @@
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 
-export type ReportPeriod = 'week' | 'month' | '3month' | 'all';
+// MB-11 C (SPEC Zero→ATP): toggle Semana/Mes/Año — 'year' entra al contrato.
+export type ReportPeriod = 'week' | 'month' | '3month' | 'year' | 'all';
 
 export interface DailyPoint {
   date: string;       // YYYY-MM-DD
@@ -54,6 +55,7 @@ function periodDays(period: ReportPeriod): number {
     case 'week': return 7;
     case 'month': return 30;
     case '3month': return 90;
+    case 'year': return 365;
     case 'all': return 365;
   }
 }
@@ -465,5 +467,63 @@ export async function getCycleReport(period: ReportPeriod): Promise<CycleReport>
     const avgM = moodVals.length > 0 ? moodVals.reduce((a: number, b: number) => a + b, 0) / moodVals.length : 0;
 
     return { periodDays: pDays, avgEnergy: Math.round(avgE * 10) / 10, avgMood: Math.round(avgM * 10) / 10, logsCount: data.length };
+  } catch { return empty; }
+}
+
+// === IDENTIDAD (MB-11 C · SPEC Zero→ATP: stats de identidad) ===
+
+export interface IdentityStats {
+  /** null = la fuente falló (sin datos) — la UI pinta '—', nunca un 0 falso. */
+  totalFasts: number | null;
+  longestFastH: number | null;
+  totalWorkouts: number | null;
+  streakCurrent: number | null;
+  streakLongest: number | null;
+}
+
+/**
+ * Números de identidad de TODA la historia (no del período): total de ayunos,
+ * ayuno más largo, sesiones de entrenamiento y rachas. Alimentan la narrativa
+ * de progreso ("esto ya me conoce"). Cada fuente chequea { error } — linaje
+ * MB-6 — y degrada a null por separado.
+ */
+export async function getIdentityStats(): Promise<IdentityStats> {
+  const empty: IdentityStats = {
+    totalFasts: null, longestFastH: null, totalWorkouts: null,
+    streakCurrent: null, streakLongest: null,
+  };
+  try {
+    const userId = await getUserId();
+    if (!userId) return empty;
+
+    const { warn: logWarn } = await import('@/src/lib/logger');
+    const { getStreakRecord } = await import('@/src/services/adherence-service');
+
+    const [fastCountRes, longestRes, workoutCountRes, streaks] = await Promise.all([
+      supabase.from('fasting_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId).eq('status', 'completed'),
+      supabase.from('fasting_logs')
+        .select('actual_hours')
+        .eq('user_id', userId).eq('status', 'completed')
+        .order('actual_hours', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('workout_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      getStreakRecord(userId),
+    ]);
+
+    if (fastCountRes.error) logWarn('[Identidad] fasting_logs count failed', fastCountRes.error);
+    if (longestRes.error) logWarn('[Identidad] fasting_logs longest failed', longestRes.error);
+    if (workoutCountRes.error) logWarn('[Identidad] workout_sessions count failed', workoutCountRes.error);
+
+    return {
+      totalFasts: fastCountRes.error ? null : (fastCountRes.count ?? 0),
+      longestFastH: longestRes.error ? null
+        : (longestRes.data?.actual_hours != null ? Math.round(Number(longestRes.data.actual_hours) * 10) / 10 : 0),
+      totalWorkouts: workoutCountRes.error ? null : (workoutCountRes.count ?? 0),
+      streakCurrent: streaks?.current ?? null,
+      streakLongest: streaks?.longest ?? null,
+    };
   } catch { return empty; }
 }

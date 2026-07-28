@@ -19,11 +19,17 @@ interface BarChartProps {
   unit?: string;
   target?: number;
   width?: number;
+  /**
+   * MB-11 C (SPEC Zero→ATP): barra "meta cumplida / no cumplida" por color —
+   * con target, la barra que llega pinta a color y la que no queda en gris
+   * tenue. Se entiende sin leer la leyenda. Sin target no cambia nada.
+   */
+  colorByTarget?: boolean;
 }
 
 /** Grafica de barras simple. */
 export function SimpleBarChart({
-  data, color, height = 110, unit = '', target, width: widthProp,
+  data, color, height = 110, unit = '', target, width: widthProp, colorByTarget,
 }: BarChartProps) {
   const width = widthProp ?? SCREEN_W - 80;
   if (data.length === 0) return null;
@@ -65,6 +71,7 @@ export function SimpleBarChart({
         const barH = max > 0 ? (d.value / max) * chartH : 0;
         const x = i * slotW + (slotW - barW) / 2;
         const y = padding.top + chartH - barH;
+        const met = !colorByTarget || target == null || target <= 0 || d.value >= target;
 
         return (
           <G key={i}>
@@ -73,7 +80,7 @@ export function SimpleBarChart({
               y={y}
               width={barW}
               height={Math.max(barH, 1)}
-              fill={color}
+              fill={met ? color : 'rgba(255,255,255,0.22)'}
               rx={barW / 4}
               opacity={0.85}
             />

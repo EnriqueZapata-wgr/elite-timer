@@ -13,6 +13,7 @@
  * conceptos distintos.
  */
 import { supabase } from '@/src/lib/supabase';
+import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 
 export const ADHERENCE_THRESHOLD = 75;
@@ -95,6 +96,73 @@ export function computeStreak(plans: PlanRow[]): number {
 export function computeAvgCompliance(plans: PlanRow[]): number {
   if (plans.length === 0) return 0;
   return Math.round(plans.reduce((s, p) => s + (p.compliance_pct ?? 0), 0) / plans.length);
+}
+
+/**
+ * MB-11 C (stats de identidad): racha MÁS LARGA de la historia, con la misma
+ * regla de gracia que computeStreak — 1 fallo aislado no rompe (no suma, no
+ * corta); 2+ consecutivos sí. Hoy en progreso no rompe la racha vigente.
+ * Itera días de CALENDARIO del plan más antiguo a hoy, igual que computeStreak.
+ */
+export function computeLongestStreak(plans: PlanRow[]): number {
+  if (plans.length === 0) return 0;
+
+  const byDate = new Map<string, number>();
+  let earliest = plans[0].date;
+  for (const p of plans) {
+    byDate.set(p.date, p.compliance_pct ?? 0);
+    if (p.date < earliest) earliest = p.date;
+  }
+
+  const today = getLocalToday();
+  const cursor = parseLocalDate(earliest);
+  let best = 0;
+  let current = 0;
+  let graceUsed = false;
+
+  while (true) {
+    const cursorStr = toLocalDateString(cursor);
+    if (cursorStr > today) break;
+    const compliance = byDate.get(cursorStr);
+    const ok = compliance !== undefined && compliance >= ADHERENCE_THRESHOLD;
+
+    if (ok) {
+      current++;
+      if (current > best) best = current;
+    } else if (cursorStr === today) {
+      // Hoy en progreso: no suma, no rompe.
+    } else if (!graceUsed && current > 0) {
+      graceUsed = true; // fallo aislado dentro de una racha viva: se perdona
+    } else {
+      current = 0;
+      graceUsed = false;
+    }
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return best;
+}
+
+/**
+ * Racha actual + racha más larga sobre TODA la historia de daily_plans.
+ * Chequea { error } (supabase-js no lanza en 4xx — linaje MB-6) y en fallo
+ * devuelve null: "sin datos" ≠ "racha 0".
+ */
+export async function getStreakRecord(
+  userId: string,
+): Promise<{ current: number; longest: number } | null> {
+  const { data, error } = await supabase
+    .from('daily_plans')
+    .select('date, compliance_pct')
+    .eq('user_id', userId)
+    .order('date');
+  if (error) {
+    logWarn('[Adherencia] daily_plans history query failed', error);
+    return null;
+  }
+  const plans = (data ?? []) as PlanRow[];
+  return { current: computeStreak(plans), longest: computeLongestStreak(plans) };
 }
 
 /**
