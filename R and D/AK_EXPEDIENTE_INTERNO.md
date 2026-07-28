@@ -28,7 +28,7 @@
 | 🟡 **En disputa** | Trabajándose: falta research, decisión o validación. |
 | 🟢 **Vencido** | Tenemos expediente. AK puede atacar y aguantamos. |
 
-**Conteo al 2026-07-27:** 🟢 6 · 🟡 9 · 🔴 4
+**Conteo al 2026-07-28 (madrugada):** 🟢 8 · 🟡 8 · 🔴 5
 
 ---
 
@@ -54,6 +54,12 @@
 **El ataque:** el bloque `bano_frio_desinflamacion` usa 10-15 °C. Peake 2017 (*J Physiol*, DOI 10.1113/JP272881) hizo **biopsias musculares** con inmersión a **10 °C durante 10 min** y concluyó textualmente que los cambios en células inflamatorias, citoquinas, neurotrofinas y HSP **no difirieron** de la recuperación activa.
 **Por qué duele:** el nombre del bloque afirma el mecanismo exacto que el estudio de mejor calidad, al protocolo idéntico, no encuentra. Y hay contraindicación adicional: Roberts 2015 (DOI 10.1113/JP270570) y el meta-análisis de Piñero 2024 (DOI 10.1002/ejsc.12074) muestran que **el frío post-fuerza reduce las ganancias de masa y fuerza**.
 **Cómo se vence:** renombrar el bloque, mover el respaldo a lo que sí sostiene (analgesia, percepción de recuperación, adaptación antioxidante crónica) y **añadir la contraindicación de hipertrofia**, que hoy no existe y afecta directamente a nuestro usuario típico.
+
+### AK-21 · "Rechazan a los cuerpos de consenso y luego los citan a su favor"
+**El ataque:** al tipar las 777 fuentes aparecieron **seis citas que invocan autoridad institucional**, y cuatro de ellas se usan **como respaldo**: la American Optometric Association para la regla 20-20-20, un *Preferred Practice Pattern* de la American Academy of Ophthalmology, una *Scientific Statement* de la AHA publicada en *Circulation* (St-Onge 2017), y el Departamento de Veteranos de EE.UU. citado con el argumento de que "35+ centros lo implementan" — que es adopción institucional, no evidencia.
+**Por qué duele:** es exactamente la incoherencia de AHA/USDA/Harvard, dentro de nuestro propio catálogo. Es el argumento más fuerte del portal y se cae con cuatro citas.
+**Lo que NO es problema, y conviene saber distinguirlo:** las otras dos son usos legítimos. Tres advertencias de Divers Alert Network contra la hiperventilación previa a la apnea **restringen** una práctica por seguridad, no la validan. Y la AHA aparece además citada explícitamente como *"postura opuesta"* sobre los omega-6 — eso no solo es admisible, **es el modelo de lo que el portal debe hacer siempre**.
+**Cómo se vence:** ya está la mitad hecha. Se creó el tipo `authority_body` en `ScientificSource`, y el generador del portal lo **excluye del cálculo de nivel** y lo muestra en su propia sección etiquetada. Falta reescribir o retirar las cuatro usadas a favor. Cinco de 777 es un perfil de coherencia mucho mejor del que temíamos.
 
 ---
 
@@ -89,13 +95,15 @@
 ### AK-12 · "Publican la fórmula de su jerarquía y sus propios datos no la cumplen"
 **El ataque:** N1 se define como "≥3 paradigmas convergentes". Medido: N1 promedia 3,4 paradigmas duros, N2 promedia 3,3 y N3 promedia 3,4. Hay un N3 con **un solo** paradigma. Los cuatro niveles son estadísticamente el mismo número, y la fórmula es pública.
 **Por qué duele:** con el catálogo en la mano, cualquiera reproduce esa tabla en diez minutos. Y con el portal público, el catálogo está en la mano de cualquiera.
-**Cómo se vence:** **decisión tomada por Enrique (2026-07-27)**: el nivel lo **computa el código** desde las fuentes reales; Mariana puede hacer override y el override queda registrado y visible en el Nivel 3. **Pendiente de ejecución.**
+**Cómo se vence:** **decisión tomada por Enrique (2026-07-27)**: el nivel lo **computa el código** desde las fuentes reales; Mariana puede hacer override y el override queda registrado y visible en el Nivel 3.
+**Ejecutado 2026-07-28:** implementado en `tools/science-portal/extract.py` con una asimetría deliberada — **el cálculo solo puede BAJAR el nivel declarado, nunca subirlo.** Una primera versión que permitía promover habría subido 55 intervenciones a N1, lo cual confirma el ataque: la fórmula publicada, tomada literalmente, infla. Con el techo estricto (≥3 paradigmas duros y ≥2 estudios resolubles para N1), **el nivel declarado se sostiene en 84 de 88** y baja en cuatro: `pantallas_off_90min` y `meta_pasos_10k` de N1 a N2, `ducha_fria_nivel3` y `pausas_activas_90min` de N2 a N3. Esas cuatro aparecen marcadas en el portal con su motivo. **Falta:** el override registrado de Mariana. Baja a 🟡.
 
 ### AK-13 · "Dicen que no se conforman con la ciencia occidental y su bibliografía es 68% occidental"
 **El ataque:** ATP declara 11 paradigmas. Medido sobre las 716 citas: 298 occidentales académicas + 188 de divulgación occidental = **68%**. Y los cuatro paradigmas que codifican literalmente el estándar —`indian_academic`, `chinese_academic`, `russian_academic`, `latam_academic`— sumaban **2 citas de 716**. Las 143 de MTC y ayurveda son textos clásicos sin año ni URL: tradición documentada legítima, pero **no "consolidada con métodos modernos de validación"**.
 **Nuestra contra, y es buena:** **ninguna de las 88 intervenciones se sostiene solo en tradición y divulgación. Cero.** Todas tienen ancla occidental o mecanística — exactamente lo que la spec promete. Nadie lo había medido.
 **Progreso (2026-07-27):** el piloto de 15 intervenciones cosechó **~105 estudios nuevos con DOI verificado**, la mayoría no occidentales: cuerpo japonés de shinrin-yoku (n=280 y n=348, financiación MEXT), cohorte HEIJO-KYO, Diabetologia con n=98.658 chinos, cohorte de Henan con n=7.676, AIIMS y JIPMER para el protocolo 5-5, RCT alemán de yoga nidra con cortisol que valida las dos dosis de ATP.
-**Falta:** integrarlos al catálogo. Baja a 🟡 y va camino a 🟢.
+**Ejecutado 2026-07-28:** los 68 estudios verificados están **dentro del catálogo**, cada uno con paradigma, `sourceType` y DOI. Se añadieron dos paradigmas que faltaban y sin los cuales el corpus japonés no tenía dónde vivir: `japanese_academic` y `korean_academic`. Las fuentes académicas no occidentales pasaron de **2 de 716 (0,3%) a 32 de 777 (4,1%)** — un factor de trece.
+**Y el dato honesto que hay que sostener:** el corpus sigue siendo **67% de origen occidental**, prácticamente igual que el 68% de partida. Porque junto con la cosecha no occidental entró también mucha evidencia occidental, buena parte de ella *en contra* de nuestras propias afirmaciones. La cosecha mejoró la honestidad del expediente mucho más de lo que movió su geografía. Decir esto es más defendible que presumir el 4,1% sin contexto. Sigue 🟡.
 
 ### AK-19 · "Su reloj de órganos no lo valida ni la propia investigación china"
 **El ataque:** `recordatorio_dormir` invoca el reloj de órganos MTC (hígado 1-3am, vesícula 23-1h). Búsqueda dirigida de 子午流注 (*ziwu liuzhu*) en chino y en inglés: el corpus de resultados es **~90% clínicas de acupuntura y blogs de wellness**. Los RCT que existen tienen un defecto de diseño fatal: **ninguno compara la misma intervención en el horario "correcto" contra el "incorrecto"**; comparan contra cuidado estándar y atribuyen el efecto al horario por asignación. Y la cronobiología hepática real muestra oscilación continua dependiente de alimentación y fotoperiodo — **"el hígado depura de 1 a 3 am" no aparece en esa literatura**.
