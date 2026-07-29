@@ -163,7 +163,13 @@ export default function MobilityAssessmentScreen() {
   }, [test, input]);
 
   async function terminar(final: MobilityInput) {
-    if (!user) return;
+    if (!user) {
+      // C-1 (MB-12): sin sesión el CTA quedaba muerto tras ~6 min de captura.
+      // El score se calcula local; se muestra y se avisa que no se subió.
+      setErrorGuardado('Tu sesión expiró: la evaluación no se subió. Inicia sesión de nuevo para guardarla.');
+      setFase('resultado');
+      return;
+    }
     setGuardando(true);
     setErrorGuardado(null);
     const res = await saveMobilityAssessment(user.id, final);

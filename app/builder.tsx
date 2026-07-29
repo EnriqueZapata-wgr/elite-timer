@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView, Platform, TextInput,
 } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -241,21 +241,31 @@ export default function BuilderScreen() {
   }, [routine, router]);
 
   // --- Volver con confirmación ---
+  // C-1 (MB-12): la guardia vive en el evento de navegación (beforeRemove) —
+  // el botón físico de Android y el swipe-back de iOS esquivaban el onBack
+  // del header. Todos los caminos de salida pasan por aquí.
 
-  const handleBack = useCallback(() => {
-    if (hasChanges) {
+  const navigation = useNavigation();
+  useEffect(() => {
+    const unsub = (navigation as any).addListener('beforeRemove', (e: any) => {
+      if (!hasChanges) return;
+      e.preventDefault();
       Alert.alert(
         'Cambios sin guardar',
         '¿Quieres salir sin guardar?',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Salir', style: 'destructive', onPress: () => router.back() },
+          { text: 'Salir', style: 'destructive', onPress: () => (navigation as any).dispatch(e.data.action) },
         ],
       );
-    } else {
-      router.back();
-    }
-  }, [hasChanges, router]);
+    });
+    return unsub;
+  }, [navigation, hasChanges]);
+
+  const handleBack = useCallback(() => {
+    // La confirmación la pone beforeRemove si hay cambios.
+    router.back();
+  }, [router]);
 
   // --- Preview ---
 
