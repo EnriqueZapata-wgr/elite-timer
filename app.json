@@ -12,13 +12,13 @@
       "supportsTablet": true,
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.atpperformance.app",
-      "buildNumber": "1.9.0",
+      "buildNumber": "2",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
         ],
-        "NSMicrophoneUsageDescription": "ATP necesita acceso al micrófono para que puedas hablar con ARGOS",
-        "NSSpeechRecognitionUsageDescription": "ATP necesita reconocimiento de voz para transcribir lo que dices",
+        "NSMicrophoneUsageDescription": "ATP necesita el micrófono para que puedas dictar tus registros y conversar por voz con ARGOS, tu asistente de rendimiento, en vez de escribir.",
+        "NSSpeechRecognitionUsageDescription": "ATP convierte tu voz en texto para que registres comidas, entrenamientos y notas de journal hablando, sin teclear.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -36,7 +36,6 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.health.READ_EXERCISE",
         "android.permission.health.READ_DISTANCE",
         "android.permission.health.READ_HEART_RATE",
@@ -86,16 +85,16 @@
       [
         "@kingstinct/react-native-healthkit",
         {
-          "NSHealthShareUsageDescription": "ATP lee tus entrenamientos (tipo, duración, distancia, calorías y frecuencia cardiaca media) para registrarlos en tu pilar Fitness. Solo lectura — nada se escribe ni se comparte.",
-          "NSHealthUpdateUsageDescription": false,
+          "NSHealthShareUsageDescription": "ATP lee tus entrenamientos (tipo, duración, distancia, calorías y frecuencia cardiaca media) para registrarlos en tu pilar Fitness. Solo lectura: nada se escribe ni se comparte.",
+          "NSHealthUpdateUsageDescription": "ATP no escribe información en Salud. Solo lee tus entrenamientos para registrarlos en tu pilar Fitness.",
           "background": false
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "ATP necesita acceso al micrófono para que puedas hablar con ARGOS",
-          "speechRecognitionPermission": "ATP necesita reconocimiento de voz para transcribir lo que dices"
+          "microphonePermission": "ATP necesita el micrófono para que puedas dictar tus registros y conversar por voz con ARGOS, tu asistente de rendimiento, en vez de escribir.",
+          "speechRecognitionPermission": "ATP convierte tu voz en texto para que registres comidas, entrenamientos y notas de journal hablando, sin teclear."
         }
       ],
       [
