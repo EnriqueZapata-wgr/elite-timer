@@ -12,3 +12,12 @@ verify_jwt = true
 # ES un JWT válido y pasaría verify_jwt); esto solo corta requests sin JWT alguno.
 [functions.argos-voice]
 verify_jwt = true
+
+# MB-13: webhooks de pago. Los proveedores NO mandan JWT de Supabase; la
+# protección real es la firma (Stripe HMAC) / token compartido (Conekta,
+# RevenueCat) dentro de cada función.
+[functions.payment-webhook]
+verify_jwt = false
+
+[functions.revenuecat-webhook]
+verify_jwt = false
