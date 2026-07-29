@@ -4,7 +4,7 @@
  * disclaimers + estado de aceptación (user_consent).
  */
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,9 +58,8 @@ export default function SettingsLegalScreen() {
       status: consent?.terms_accepted_at
         ? `Aceptados: v${consent.terms_version ?? '1.0'} · ${fmtDate(consent.terms_accepted_at)}`
         : 'Ver documento',
-      // Sprint Compliance 2: mientras la web no publica (espera razón social
-      // de la SAS), el documento vive in-app en staging.
-      onPress: () => router.push('/legal/terminos'),
+      // B-6 (MB-12): fuente única — las MISMAS URLs que abre el paywall.
+      onPress: () => Linking.openURL('https://somosatp.com/terminos').catch(() => {}),
     },
     {
       icon: 'lock-closed-outline' as const,
@@ -68,7 +67,7 @@ export default function SettingsLegalScreen() {
       status: consent?.privacy_accepted_at
         ? `Aceptada: v${consent.privacy_version ?? '1.0'} · ${fmtDate(consent.privacy_accepted_at)}`
         : 'Ver documento',
-      onPress: () => router.push('/legal/aviso'),
+      onPress: () => Linking.openURL('https://somosatp.com/privacidad').catch(() => {}),
     },
     {
       icon: 'medkit-outline' as const,

@@ -12,6 +12,8 @@ export default function AvisoPrivacidadScreen() {
       title={AVISO_INTEGRAL_TITLE}
       versionLabel={AVISO_INTEGRAL_VERSION_LABEL}
       sections={AVISO_INTEGRAL_SECTIONS}
+      // B-6 (MB-12): fuente única — el documento publicado (el del paywall).
+      webUrl="https://somosatp.com/privacidad"
     />
   );
 }

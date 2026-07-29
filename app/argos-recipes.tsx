@@ -13,6 +13,7 @@ import {
 } from '../src/services/argos-service';
 import { buildRecipeAdvancedContext } from '../src/services/recipe-context-service';
 import { EliteToggle } from '@/components/elite-toggle';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 const MEAL_TYPES = [
   { id: 'desayuno', label: 'Desayuno', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -311,6 +312,8 @@ export default function ArgosRecipesScreen() {
           </Pressable>
         </View>
       )}
+      {/* B-5 (MB-12): las recetas y sus macros son estimación de IA */}
+      <MedicalDisclaimer feature="nutrition" />
     </ScrollView>
   );
 }

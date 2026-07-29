@@ -232,7 +232,7 @@ export default function KetonesLogScreen() {
         )}
 
         <View style={{ height: 80 }} />
-        <MedicalDisclaimer feature="glucose" />
+        <MedicalDisclaimer feature="ketones" />
       </ScrollView>
     </Screen>
   );

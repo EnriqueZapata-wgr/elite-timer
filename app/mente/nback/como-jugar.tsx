@@ -80,9 +80,11 @@ export default function NBackComoJugarScreen() {
         <View style={s.header}>
           <EliteText style={s.kicker}>N-BACK · TUTORIAL</EliteText>
           <EliteText style={s.title}>Cómo jugar</EliteText>
+          {/* B-4 (MB-12): alineado con el artículo de Saber más — te prometemos
+              el entrenamiento, no el milagro. */}
           <EliteText style={s.subtitle}>
-            Dual N-Back: el único entrenamiento de memoria de trabajo con
-            evidencia real de transferir a inteligencia fluida (Jaeggi 2008).
+            Dual N-Back: entrena tu memoria de trabajo con dificultad
+            creciente. Te prometemos el entrenamiento, no el milagro.
           </EliteText>
         </View>
 

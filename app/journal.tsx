@@ -56,13 +56,14 @@ const STOIC_QUESTIONS = [
   '¿Qué aprendí de mí?',
 ];
 
+// B-4 (MB-12): la cita se queda; la atribución con nombre propio sale del copy.
 const STOIC_QUOTES = [
-  '"No es que tengamos poco tiempo, sino que perdemos mucho." — Séneca',
-  '"La felicidad de tu vida depende de la calidad de tus pensamientos." — Marco Aurelio',
-  '"Lo que nos perturba no son las cosas, sino nuestra opinión sobre ellas." — Epicteto',
-  '"Sufres más en la imaginación que en la realidad." — Séneca',
-  '"Primero di lo que serías; luego haz lo que tengas que hacer." — Epicteto',
-  '"El mejor momento para plantar un árbol fue hace 20 años. El segundo mejor es ahora." — Marco Aurelio',
+  '"No es que tengamos poco tiempo, sino que perdemos mucho."',
+  '"La felicidad de tu vida depende de la calidad de tus pensamientos."',
+  '"Lo que nos perturba no son las cosas, sino nuestra opinión sobre ellas."',
+  '"Sufres más en la imaginación que en la realidad."',
+  '"Primero di lo que serías; luego haz lo que tengas que hacer."',
+  '"El mejor momento para plantar un árbol fue hace 20 años. El segundo mejor es ahora."',
 ];
 
 // ═══ COMPONENTE PRINCIPAL ═══

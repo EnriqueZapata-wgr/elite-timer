@@ -33,6 +33,7 @@ import type { ScoreBreakdown } from '@/src/services/nutrition-score-core';
 import { NutritionScoreCard } from '@/src/components/nutricion/NutritionScoreCard';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
@@ -340,6 +341,8 @@ export default function NutritionScreen() {
           )}
         </View>
 
+        {/* B-5 (MB-12): las macros del pilar son estimación de IA */}
+        <MedicalDisclaimer feature="nutrition" />
         <View style={{ height: 80 }} />
       </ScrollView>
 

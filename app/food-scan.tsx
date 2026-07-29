@@ -41,6 +41,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { fireElectronAward } from '@/src/services/economy/electron-award-client';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 // === CONSTANTES ===
 
@@ -1466,6 +1467,8 @@ export default function FoodScanScreen() {
               </EliteText>
             </Pressable>
           </View>
+          {/* B-5 (MB-12): las macros son estimación de IA */}
+          <MedicalDisclaimer feature="nutrition" />
         </Animated.View>
       </ScrollView>
     </SafeAreaView>

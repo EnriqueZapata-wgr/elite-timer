@@ -96,9 +96,9 @@ export const SLEEP_QUIZ: FunctionalQuiz = {
     { id: 'S22', text: 'Hay ruido constante donde duermo (tráfico, vecinos, mascota)', domain: 'environment', rootCause: 'Ruido fragmenta las fases de sueño', weight: 1 },
   ],
   resultInsights: [
-    { domain: 'cortisol', threshold: 3, title: 'Cortisol nocturno elevado', description: 'Tu cuerpo está produciendo cortisol cuando debería estar en modo reparación.', recommendation: 'Ashwagandha 300mg antes de dormir, fosfatidilserina 200mg, técnicas de respiración 4-7-8.', protocolId: 'sleep_deep' },
+    { domain: 'cortisol', threshold: 3, title: 'Cortisol nocturno elevado', description: 'Tu cuerpo está produciendo cortisol cuando debería estar en modo reparación.', recommendation: 'Ashwagandha y fosfatidilserina son los que suelen acompañar este patrón — las cantidades las define quien te lleva. Suma técnicas de respiración 4-7-8.', protocolId: 'sleep_deep' },
     { domain: 'circadian', threshold: 3, title: 'Ritmo circadiano desincronizado', description: 'Tu reloj interno no recibe las señales correctas para sincronizarse.', recommendation: 'Luz solar 10 min al despertar, lentes rojos 2h antes de dormir, horario fijo ±30 min.', protocolId: 'circadian_reset' },
-    { domain: 'nervous', threshold: 3, title: 'Sistema nervioso sobreactivado', description: 'Tu cuerpo no logra pasar de modo "lucha" a modo "descanso".', recommendation: 'Magnesio glicinato 400mg, respiración box breathing antes de dormir, GABA 500mg.', protocolId: 'nervous_calm' },
+    { domain: 'nervous', threshold: 3, title: 'Sistema nervioso sobreactivado', description: 'Tu cuerpo no logra pasar de modo "lucha" a modo "descanso".', recommendation: 'Magnesio glicinato y GABA son los que suelen acompañar este patrón — las cantidades las define quien te lleva. Respiración box breathing antes de dormir.', protocolId: 'nervous_calm' },
     { domain: 'metabolic_sleep', threshold: 2, title: 'Interferencia metabólica', description: 'Tu glucosa o hábitos están interfiriendo con la calidad de tu sueño.', recommendation: 'Última cafeína antes de mediodía, cena 3h antes de dormir, proteína + grasa en última comida.' },
     { domain: 'environment', threshold: 2, title: 'Entorno subóptimo', description: 'Tu ambiente de sueño no facilita el descanso profundo.', recommendation: 'Blackout curtains, temperatura 18-20°C, ruido blanco si hay ruido ambiental.' },
   ],
@@ -127,7 +127,7 @@ export const ENERGY_QUIZ: FunctionalQuiz = {
     { id: 'E01', text: 'Después de comer, me da sueño intenso o necesito acostarme', domain: 'insulin', rootCause: 'Pico de glucosa → crash → somnolencia post-prandial', weight: 2 },
     { id: 'E02', text: 'Tengo antojos intensos de azúcar, pan o carbohidratos', domain: 'insulin', rootCause: 'Montaña rusa de glucosa / resistencia a insulina', weight: 2 },
     { id: 'E03', text: 'Acumulo grasa principalmente en el abdomen', domain: 'insulin', rootCause: 'Grasa visceral = marcador de resistencia a insulina', weight: 1 },
-    { id: 'E04', text: 'Tengo manchas oscuras en cuello, axilas o ingles (acantosis)', domain: 'insulin', rootCause: 'Signo clínico de hiperinsulinemia', weight: 2 },
+    { id: 'E04', text: 'Tengo manchas oscuras en cuello, axilas o ingles (acantosis)', domain: 'insulin', rootCause: 'Signo que suele acompañar patrones de insulina elevada', weight: 2 },
     { id: 'E05', text: 'Si no como cada 3-4 horas me siento irritable o débil', domain: 'insulin', rootCause: 'Hipoglucemia reactiva — cuerpo no usa grasa como combustible', weight: 1 },
     { id: 'E06', text: 'Tengo sed excesiva o voy mucho al baño', domain: 'insulin', rootCause: 'Glucosa elevada aumenta filtración renal', weight: 1 },
 
@@ -153,10 +153,10 @@ export const ENERGY_QUIZ: FunctionalQuiz = {
     { id: 'E21', text: 'Siento "niebla mental" — dificultad para pensar con claridad', domain: 'mitochondria', rootCause: 'El cerebro consume 20% del ATP total — disfunción mitocondrial afecta cognición', weight: 2 },
   ],
   resultInsights: [
-    { domain: 'insulin', threshold: 3, title: 'Posible resistencia a insulina', description: 'Tu cuerpo podría no estar usando la glucosa eficientemente. Esto es reversible.', recommendation: 'Caminata 15 min post-comida, reducir carbohidratos refinados, priorizar proteína + grasa en cada comida, ayuno 16h.', protocolId: 'metabolic_reset' },
-    { domain: 'adrenal', threshold: 3, title: 'Patrón de fatiga adrenal', description: 'Tus glándulas adrenales podrían estar agotadas por estrés crónico.', recommendation: 'Ashwagandha 600mg, vitamina C 1000mg, sal marina en agua AM, eliminar cafeína post-mediodía.', protocolId: 'adrenal_recovery' },
-    { domain: 'thyroid', threshold: 3, title: 'Función tiroidea subóptima', description: 'Tus síntomas sugieren que tu tiroides podría necesitar evaluación.', recommendation: 'Solicita labs: TSH, T4L, T3L, anticuerpos antitiroideos. Selenio 200mcg, zinc 25mg.', protocolId: 'thyroid_support' },
-    { domain: 'mitochondria', threshold: 2, title: 'Salud mitocondrial comprometida', description: 'Tus centrales de energía celular podrían necesitar soporte.', recommendation: 'CoQ10 200mg, PQQ 20mg, NAD+ precursors (NMN 250mg), ejercicio de intervalos.', protocolId: 'mito_boost' },
+    { domain: 'insulin', threshold: 3, title: 'Patrón de glucosa y energía inestable', description: 'Tus respuestas apuntan a picos y caídas de energía después de comer.', recommendation: 'Caminata 15 min post-comida, reducir carbohidratos refinados, priorizar proteína + grasa en cada comida, ayuno 16h.', protocolId: 'metabolic_reset' },
+    { domain: 'adrenal', threshold: 3, title: 'Patrón de energía agotada por estrés', description: 'Tus respuestas muestran un patrón de energía baja ligado a estrés sostenido.', recommendation: 'Ashwagandha y vitamina C son los que suelen aparecer aquí — las cantidades las define quien te lleva. Sal marina en agua por la mañana y eliminar cafeína después de mediodía.', protocolId: 'adrenal_recovery' },
+    { domain: 'thyroid', threshold: 3, title: 'Función tiroidea subóptima', description: 'Tus síntomas sugieren que tu tiroides podría necesitar evaluación.', recommendation: 'Solicita labs: TSH, T4L, T3L, anticuerpos antitiroideos. Selenio y zinc son los que suelen acompañar este patrón — las cantidades las define quien te lleva.', protocolId: 'thyroid_support' },
+    { domain: 'mitochondria', threshold: 2, title: 'Salud mitocondrial comprometida', description: 'Tus centrales de energía celular podrían necesitar soporte.', recommendation: 'CoQ10, PQQ y NMN son los que se asocian a este patrón mitocondrial — las cantidades las define quien te lleva. Ejercicio de intervalos.', protocolId: 'mito_boost' },
   ],
 };
 
@@ -208,10 +208,10 @@ export const STRESS_QUIZ: FunctionalQuiz = {
     { id: 'ST20', text: 'Retengo líquidos o me siento hinchado/a frecuentemente', domain: 'physical_stress', rootCause: 'Cortisol promueve retención de sodio y agua', weight: 1 },
   ],
   resultInsights: [
-    { domain: 'sympathetic', threshold: 3, title: 'Sistema nervioso sobreactivado', description: 'Tu cuerpo pasa demasiado tiempo en modo "lucha o huida".', recommendation: 'Respiración diafragmática 5 min 3x/día, baño frío 30 seg, caminar en naturaleza, ashwagandha 600mg.', protocolId: 'nervous_reset' },
+    { domain: 'sympathetic', threshold: 3, title: 'Sistema nervioso sobreactivado', description: 'Tu cuerpo pasa demasiado tiempo en modo "lucha o huida".', recommendation: 'Respiración diafragmática varias veces al día, baño frío breve, caminar en naturaleza. Ashwagandha es el que suele acompañar este patrón — la cantidad la define quien te lleva.', protocolId: 'nervous_reset' },
     { domain: 'emotional', threshold: 3, title: 'Carga emocional acumulada', description: 'Tus reservas emocionales están bajas. Necesitas recargar.', recommendation: 'Journaling descarga 10 min/día, establecer 1 límite claro esta semana, meditation 10 min/día.' },
-    { domain: 'cognitive', threshold: 3, title: 'Fatiga cognitiva', description: 'Tu corteza prefrontal está agotada por estrés sostenido.', recommendation: 'Digital detox 1h antes de dormir, omega-3 2g/día, lion\'s mane 500mg, breaks de 5 min cada hora.' },
-    { domain: 'physical_stress', threshold: 3, title: 'Estrés somatizado', description: 'Tu cuerpo está manifestando el estrés físicamente.', recommendation: 'Vitamina C 2000mg, magnesio glicinato 400mg, adaptógenos (ashwagandha, rhodiola), reduce entrenamiento de alta intensidad temporalmente.' },
+    { domain: 'cognitive', threshold: 3, title: 'Fatiga cognitiva', description: 'Tu corteza prefrontal está agotada por estrés sostenido.', recommendation: 'Digital detox antes de dormir y breaks breves cada hora. Omega-3 y melena de león son los que suelen acompañar este patrón — las cantidades las define quien te lleva.' },
+    { domain: 'physical_stress', threshold: 3, title: 'Estrés somatizado', description: 'Tu cuerpo está manifestando el estrés físicamente.', recommendation: 'Vitamina C, magnesio glicinato y adaptógenos (ashwagandha, rhodiola) son los que suelen aparecer aquí — las cantidades las define quien te lleva. Reduce temporalmente el entrenamiento de alta intensidad.' },
   ],
 };
 
@@ -261,9 +261,9 @@ export const DIGESTION_QUIZ: FunctionalQuiz = {
     { id: 'D18', text: 'Después de comer ciertos alimentos, mi energía baja notablemente', domain: 'sensitivity', rootCause: 'Respuesta inflamatoria a alimentos específicos', weight: 1 },
   ],
   resultInsights: [
-    { domain: 'permeability', threshold: 3, title: 'Posible intestino permeable', description: 'La barrera intestinal podría estar comprometida, permitiendo el paso de partículas a la sangre.', recommendation: 'L-glutamina 5g, colágeno 10g, zinc carnosina 75mg, eliminar gluten y lácteos 30 días de prueba.', protocolId: 'gut_repair' },
-    { domain: 'dysbiosis', threshold: 3, title: 'Flora intestinal desbalanceada', description: 'Las bacterias benéficas podrían estar en minoría frente a patógenos.', recommendation: 'Probióticos multi-cepa 50B UFC, prebióticos (inulina, FOS), reducir azúcar, aumentar fibra soluble.', protocolId: 'gut_flora' },
-    { domain: 'stomach_acid', threshold: 3, title: 'Ácido gástrico insuficiente', description: 'Tu estómago podría no estar produciendo suficiente ácido para digerir correctamente.', recommendation: 'Betaína HCL con pepsina con comidas proteicas, vinagre de manzana 1 cda antes de comer, no beber agua durante comidas.' },
+    { domain: 'permeability', threshold: 3, title: 'Patrón digestivo con señales sistémicas', description: 'Tus respuestas combinan molestias digestivas con señales fuera del intestino (piel, articulaciones, energía).', recommendation: 'L-glutamina, colágeno y zinc carnosina son los que suelen aparecer aquí — las cantidades las define quien te lleva. Prueba de eliminación de gluten y lácteos 30 días.', protocolId: 'gut_repair' },
+    { domain: 'dysbiosis', threshold: 3, title: 'Flora intestinal desbalanceada', description: 'Las bacterias benéficas podrían estar en minoría frente a patógenos.', recommendation: 'Probióticos multi-cepa y prebióticos (inulina, FOS) son los que suelen acompañar este patrón — la fórmula la define quien te lleva. Reducir azúcar y aumentar fibra soluble.', protocolId: 'gut_flora' },
+    { domain: 'stomach_acid', threshold: 3, title: 'Ácido gástrico insuficiente', description: 'Tu estómago podría no estar produciendo suficiente ácido para digerir correctamente.', recommendation: 'Betaína HCL con pepsina y vinagre de manzana son los que suelen aparecer aquí — cantidades y momentos los define quien te lleva. Evita beber mucha agua durante las comidas.' },
     { domain: 'sensitivity', threshold: 2, title: 'Sensibilidades alimentarias', description: 'Tu cuerpo reacciona negativamente a ciertos alimentos.', recommendation: 'Dieta de eliminación 30 días (gluten, lácteos, soya), reintroducción gradual para identificar triggers.' },
   ],
 };
@@ -314,10 +314,10 @@ export const PAIN_QUIZ: FunctionalQuiz = {
     { id: 'P18', text: 'He tenido la misma lesión o dolor en el mismo lugar más de 3 veces', domain: 'recovery', rootCause: 'Patrón de movimiento compensatorio — nunca se arregló la causa raíz', weight: 1 },
   ],
   resultInsights: [
-    { domain: 'chronic_inflammation', threshold: 3, title: 'Inflamación crónica sistémica', description: 'Tu cuerpo tiene un nivel de inflamación base elevado que acelera el envejecimiento.', recommendation: 'Omega-3 3g EPA/DHA, cúrcuma con pimienta negra 1g, dieta antiinflamatoria, eliminar aceites de semilla.', protocolId: 'anti_inflammatory' },
-    { domain: 'joint_mobility', threshold: 3, title: 'Movilidad articular limitada', description: 'Tus articulaciones no tienen el rango de movimiento óptimo para protegerte de lesiones.', recommendation: 'Movilidad articular 10 min diarios (mañana), yoga o stretching 2x/semana, colágeno tipo II 40mg.', protocolId: 'mobility_program' },
+    { domain: 'chronic_inflammation', threshold: 3, title: 'Patrón inflamatorio sostenido', description: 'Tus respuestas muestran señales de inflamación sostenida en más de un frente.', recommendation: 'Omega-3 (EPA/DHA) y cúrcuma con pimienta negra son los que suelen acompañar este patrón — las cantidades las define quien te lleva. Dieta antiinflamatoria y eliminar aceites de semilla.', protocolId: 'anti_inflammatory' },
+    { domain: 'joint_mobility', threshold: 3, title: 'Movilidad articular limitada', description: 'Tus articulaciones no tienen el rango de movimiento óptimo para protegerte de lesiones.', recommendation: 'Movilidad articular diaria por la mañana, yoga o stretching regular. Colágeno tipo II es el que suele acompañar este patrón — la cantidad la define quien te lleva.', protocolId: 'mobility_program' },
     { domain: 'posture', threshold: 3, title: 'Patrones posturales disfuncionales', description: 'Tu postura genera compensaciones que causan dolor y limitan rendimiento.', recommendation: 'Corrección de flexores de cadera, fortalecimiento de glúteos, retracción escapular, breaks cada 45 min de estar sentado.' },
-    { domain: 'recovery', threshold: 2, title: 'Recuperación comprometida', description: 'Tu cuerpo no se repara tan eficientemente como debería.', recommendation: 'Vitamina C 2g, zinc 25mg, colágeno 15g, sueño 7-8h, contraste frío-calor post-entrenamiento.' },
+    { domain: 'recovery', threshold: 2, title: 'Recuperación comprometida', description: 'Tu cuerpo no se repara tan eficientemente como debería.', recommendation: 'Vitamina C, zinc y colágeno son los que suelen aparecer aquí — las cantidades las define quien te lleva. Prioriza el sueño y el contraste frío-calor después de entrenar.' },
   ],
 };
 

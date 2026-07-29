@@ -77,14 +77,15 @@ export default function ProfileScreen() {
     })();
   }, [user?.id]);
 
-  /** Valida fecha y rango de edad (13-100 años). Devuelve YYYY-MM-DD o null. */
+  /** Valida fecha y rango de edad (18-100 años — B-7 MB-12: la política
+   *  publicada es 18+ y no hay flujo de consentimiento parental). */
   function validateDate(): string | null {
     const d = parseInt(day, 10), m = parseInt(month, 10), y = parseInt(year, 10);
     if (!d || !m || !y || d < 1 || d > 31 || m < 1 || m > 12 || y < 1900) return null;
     const date = new Date(y, m - 1, d);
     if (date.getDate() !== d || date.getMonth() !== m - 1) return null;
     const age = (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-    if (age < 13 || age > 100) return null;
+    if (age < 18 || age > 100) return null;
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
 
@@ -219,7 +220,7 @@ export default function ProfileScreen() {
     if (!user?.id || !isValid) return;
     const dateStr = validateDate();
     if (!dateStr) {
-      Alert.alert('Fecha inválida', 'Introduce una fecha de nacimiento válida (13-100 años).');
+      Alert.alert('Fecha inválida', 'Introduce una fecha de nacimiento válida. ATP es para mayores de 18 años.');
       return;
     }
     setSaving(true);

@@ -8,6 +8,8 @@ export default function TerminosScreen() {
       title={TERMS_TITLE}
       versionLabel={TERMS_VERSION_LABEL}
       sections={TERMS_SECTIONS}
+      // B-6 (MB-12): fuente única — el documento publicado (el del paywall).
+      webUrl="https://somosatp.com/terminos"
     />
   );
 }

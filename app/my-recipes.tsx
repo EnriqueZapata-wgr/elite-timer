@@ -18,6 +18,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT_COLORS, SURFACES, ATP_BRAND } from '@/src/constants/brand';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 interface Recipe {
   id: string;
@@ -254,6 +255,8 @@ export default function MyRecipesScreen() {
           <EliteText style={s.createBtnText}>Crear receta manual</EliteText>
         </AnimatedPressable>
 
+        {/* B-5 (MB-12): las macros de recetas son estimación de IA */}
+        <MedicalDisclaimer feature="nutrition" />
         <View style={{ height: 80 }} />
       </ScrollView>
 

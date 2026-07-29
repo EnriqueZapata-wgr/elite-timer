@@ -14,6 +14,8 @@ import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { BackButton } from '@/src/components/ui/BackButton';
 import { StaggerItem } from '@/src/components/ui/StaggerItem';
+import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { SkeletonLoader } from '@/src/components/ui/SkeletonLoader';
 import { useAuth } from '@/src/contexts/auth-context';
 import {
@@ -101,8 +103,9 @@ export default function QuizTakeScreen() {
       setDomainScores(scores);
       const recs = await evaluateRecommendations(scores, quiz.protocol_mapping, quiz.max_recommendations);
       setRecommendations(recs);
-      // Seleccionar todas las recomendaciones por defecto
-      setSelectedRecs(new Set(recs.map(r => r.protocol_key)));
+      // B-5 (MB-12): nada preseleccionado — aceptar protocolos es decisión
+      // explícita del usuario, nunca por omisión.
+      setSelectedRecs(new Set());
       setStep('results');
     }
   };
@@ -194,9 +197,10 @@ export default function QuizTakeScreen() {
     );
   }
 
-  // === FASE 1: INTRO ===
+  // === FASE 1: INTRO === (B-5 MB-12: gate de disclaimers médicos)
   if (step === 'intro') {
     return (
+      <MedicalDisclaimerGate>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <BackButton />
@@ -232,6 +236,7 @@ export default function QuizTakeScreen() {
           </AnimatedPressable>
         </View>
       </SafeAreaView>
+      </MedicalDisclaimerGate>
     );
   }
 
@@ -345,8 +350,9 @@ export default function QuizTakeScreen() {
     );
   }
 
-  // === FASE 3: RESULTADOS ===
+  // === FASE 3: RESULTADOS === (B-5 MB-12: gate + disclaimer inline)
   return (
+    <MedicalDisclaimerGate>
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Animated.View entering={FadeInUp.duration(400)}>
@@ -414,6 +420,7 @@ export default function QuizTakeScreen() {
               })}
             </View>
           )}
+          <MedicalDisclaimer feature="quiz" />
         </Animated.View>
       </ScrollView>
 
@@ -439,6 +446,7 @@ export default function QuizTakeScreen() {
         </Pressable>
       </View>
     </SafeAreaView>
+    </MedicalDisclaimerGate>
   );
 }
 

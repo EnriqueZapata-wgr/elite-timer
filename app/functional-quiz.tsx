@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
 import { getQuizById } from '../src/constants/functional-quizzes';
 import { awardBooleanElectron } from '../src/services/electron-service';
+import { MedicalDisclaimerGate } from '../src/components/legal/MedicalDisclaimerGate';
 
 type Screen = 'intro' | 'quiz' | 'results';
 
@@ -180,6 +181,7 @@ export default function FunctionalQuizScreen() {
   // ═══ INTRO ═══
   if (screen === 'intro') {
     return (
+      <MedicalDisclaimerGate>
       <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
         <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 8 }}>
           <Pressable onPress={() => router.back()} hitSlop={12}>
@@ -250,6 +252,7 @@ export default function FunctionalQuizScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      </MedicalDisclaimerGate>
     );
   }
 
@@ -359,7 +362,7 @@ export default function FunctionalQuizScreen() {
     );
   }
 
-  // ═══ RESULTS ═══
+  // ═══ RESULTS ═══ (gated como braverman — B-5 MB-12)
   if (screen === 'results') {
     const domainScores: Record<string, number> = {};
     for (const q of quiz.questions) {
@@ -373,6 +376,7 @@ export default function FunctionalQuizScreen() {
     );
 
     return (
+      <MedicalDisclaimerGate>
       <ScrollView style={{ flex: 1, backgroundColor: '#000' }} contentContainerStyle={{ paddingBottom: 40 }}>
         <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 16 }}>
           <Text style={{ color: quiz.color, fontSize: 10, fontWeight: '700', letterSpacing: 2, textAlign: 'center' }}>
@@ -404,16 +408,16 @@ export default function FunctionalQuizScreen() {
             </Text>
             <Text style={{ color: '#999', fontSize: 13, textAlign: 'center', marginTop: 8 }}>
               {activeInsights.length > 0
-                ? 'ARGOS detectó patrones que vale la pena atender'
-                : 'No se detectaron alertas significativas en esta evaluación'}
+                ? 'ARGOS observó patrones que vale la pena atender'
+                : 'No se observaron alertas significativas en esta evaluación'}
             </Text>
           </View>
 
-          {/* Insights activos — QUÉ DETECTAMOS */}
+          {/* B-3 (MB-12): observar es de cuestionario; detectar, de aparato de diagnóstico */}
           {activeInsights.length > 0 && (
             <View style={{ marginTop: 24 }}>
               <Text style={{ color: '#999', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 12 }}>
-                QUÉ DETECTAMOS
+                QUÉ OBSERVAMOS
               </Text>
               {activeInsights.map((insight, i) => {
                 const domColor = getDomainColor(insight.domain);
@@ -432,7 +436,7 @@ export default function FunctionalQuizScreen() {
                       backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 10, padding: 12,
                     }}>
                       <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700', letterSpacing: 1, marginBottom: 4 }}>
-                        RECOMENDACIÓN
+                        QUÉ SUELE ACOMPAÑAR ESTE PATRÓN
                       </Text>
                       <Text style={{ color: '#ccc', fontSize: 12, lineHeight: 18 }}>
                         {insight.recommendation}
@@ -487,8 +491,8 @@ export default function FunctionalQuizScreen() {
             );
           })}
 
-          {/* Descargo */}
-          <Text style={{ color: '#444', fontSize: 9, marginTop: 16, textAlign: 'center', lineHeight: 14 }}>
+          {/* Descargo — B-5 (MB-12): legible, no letra chica */}
+          <Text style={{ color: '#999', fontSize: 12, marginTop: 16, textAlign: 'center', lineHeight: 18 }}>
             Esta evaluación es educativa y no sustituye el diagnóstico médico profesional.
             Consulta a un profesional de salud antes de iniciar suplementación.
           </Text>
@@ -512,6 +516,7 @@ export default function FunctionalQuizScreen() {
           </View>
         </View>
       </ScrollView>
+      </MedicalDisclaimerGate>
     );
   }
 

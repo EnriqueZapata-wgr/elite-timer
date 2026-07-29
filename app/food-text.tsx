@@ -31,6 +31,7 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity,
 } from '@/src/constants/brand';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 // === CONSTANTES ===
 
@@ -615,6 +616,8 @@ export default function FoodTextScreen() {
               );
             })()}
           </Animated.View>
+          {/* B-5 (MB-12): las macros son estimación de IA */}
+          <MedicalDisclaimer feature="nutrition" />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
