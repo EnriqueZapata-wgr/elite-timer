@@ -20,11 +20,16 @@ const TIER = {
 
 interface Props {
   pkg: ProtonPackage;
+  /**
+   * MB-13 · Pieza 6.1: el precio viene del PRODUCTO real de la tienda
+   * (priceString de RevenueCat), nunca de pesos pintados en pantalla.
+   */
+  priceLabel: string;
   popular?: boolean;
   onBuy: () => void;
 }
 
-export function PackageCard({ pkg, popular, onBuy }: Props) {
+export function PackageCard({ pkg, priceLabel, popular, onBuy }: Props) {
   const tier = TIER[(pkg.display_order as 1 | 2 | 3)] ?? TIER[1];
   return (
     <GradientCard gradient={tier.grad} accentColor={tier.accent} accentPosition="top" onPress={onBuy}>
@@ -46,7 +51,7 @@ export function PackageCard({ pkg, popular, onBuy }: Props) {
         </View>
       ) : null}
       <View style={[styles.buy, { backgroundColor: tier.accent }]}>
-        <EliteText style={styles.buyText}>COMPRAR · ${formatFull(pkg.price_mxn)} MXN</EliteText>
+        <EliteText style={styles.buyText}>{priceLabel}</EliteText>
       </View>
     </GradientCard>
   );

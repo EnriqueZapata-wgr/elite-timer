@@ -21,3 +21,8 @@ verify_jwt = false
 
 [functions.revenuecat-webhook]
 verify_jwt = false
+
+# MB-13 · Pieza 6.4: reclamo de consumibles — requiere JWT de usuario; la
+# verificación real es getUser() adentro + idempotencia por transaction_id.
+[functions.reclaim-hplus]
+verify_jwt = true

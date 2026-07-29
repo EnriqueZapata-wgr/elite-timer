@@ -1,13 +1,13 @@
 /**
- * shop-service — catálogo de paquetes H+ + compra (stub IAP).
+ * shop-service — catálogo de paquetes H+.
  *
- * ⚠️ IAP REAL no incluido (sprint dedicado): mockPurchase intenta acreditar vía award_protons
- * (el path que usará el webhook 'purchase-completed' server-side). Desde el cliente esa RPC
- * está revocada (anti-minteo) → devuelve error: es ESPERADO. La compra real credita por
- * webhook con service_role. Ver COWORK_REPORT (flag IAP).
+ * MB-13 · Pieza 6: la compra real vive en iap-service (consumibles vía
+ * RevenueCat; el product id de tienda ES el sku por convención) y el
+ * crédito lo hace el webhook server-side, idempotente por transaction_id.
+ * El price_mxn del catálogo es referencia interna: la UI muestra SIEMPRE
+ * el priceString del producto real de la tienda.
  */
 import { supabase } from '@/src/lib/supabase';
-import { awardProtons } from './proton-service';
 
 export interface ProtonPackage {
   sku: string;
@@ -28,10 +28,3 @@ export async function getProtonPackages(): Promise<ProtonPackage[]> {
   return (data ?? []) as ProtonPackage[];
 }
 
-/** STUB de compra (dev). El crédito real lo hace el webhook IAP server-side. */
-export async function mockPurchase(
-  userId: string,
-  pkg: ProtonPackage,
-): Promise<{ success: boolean; error?: string }> {
-  return awardProtons(userId, pkg.protons, 'package_purchase', undefined, { sku: pkg.sku, mock: true });
-}
