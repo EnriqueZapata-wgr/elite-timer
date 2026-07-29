@@ -26,14 +26,65 @@ import {
   FRAMING_PHRASES, MOVE_QUESTIONS, MOVE_SUBTEXT,
 } from '../data/emotion-navigation';
 import { fnv1a } from './emotion-map-core';
+import { parseLocalDate, toLocalDateString } from '../utils/date-helpers';
 
 const BY_ID = new Map(EMOTIONS.map((e) => [e.id, e]));
 
-/** Emociones cuya selección es señal de crisis: el flujo se rompe. */
-const CRISIS_EMOTION_IDS = new Set(['panicked']);
+/**
+ * Crisis en DOS niveles (MB-12 · A-1). No se unifican a propósito: si la
+ * Línea de la Vida sale con cualquier mal día, la gente aprende a ignorar el
+ * banner — y entonces no sirve el día que importa.
+ */
+
+/** Nivel 1 — rompe el flujo: acompañamiento, nunca reframing ni análisis. */
+const CRISIS_EMOTION_IDS = new Set([
+  'hopeless',   // Sin esperanza · intensidad 10
+  'depressed',  // Con depresión · 9
+  'trapped',    // Sin salida · 8
+  'empty',      // Vací@ · 8
+  'helpless',   // Sin defensa · 8
+  'numb',       // Sin sentir · 7
+  'abandoned',  // Con abandono · 9
+  'panicked',   // En pánico · 10
+]);
+
+/**
+ * Nivel 2 — además muestra CrisisSupportBanner (Línea de la Vida).
+ * Desesperanza y sensación de estar sin salida son los marcadores mejor
+ * establecidos de riesgo; el resto acompaña, pero no dispara el teléfono solo.
+ */
+const CRISIS_HOTLINE_IDS = new Set(['hopeless', 'depressed', 'trapped']);
 
 export function isCrisisOrigin(emotionId: string): boolean {
   return CRISIS_EMOTION_IDS.has(emotionId);
+}
+
+export function isCrisisHotline(emotionId: string): boolean {
+  return CRISIS_HOTLINE_IDS.has(emotionId);
+}
+
+/** Regla de trayectoria (nivel 2): la trayectoria, no el momento. */
+export const CRISIS_TRAJECTORY_COUNT = 3;
+export const CRISIS_TRAJECTORY_WINDOW_DAYS = 7;
+
+/**
+ * true si hay 3+ check-ins con alguna emoción de nivel 1 dentro de los
+ * últimos 7 días (hoy incluido, en fecha LOCAL). Un mal día es un mal día;
+ * tres en una semana es otra cosa — el banner se muestra aunque la emoción
+ * de hoy no sea de nivel 2.
+ */
+export function hasCrisisTrajectory(
+  checkins: { created_at: string; emotions: string[] | null }[],
+  todayLocal: string,
+): boolean {
+  const cutoff = parseLocalDate(todayLocal);
+  cutoff.setDate(cutoff.getDate() - (CRISIS_TRAJECTORY_WINDOW_DAYS - 1));
+  const cutoffKey = toLocalDateString(cutoff);
+  const hits = checkins.filter((c) =>
+    toLocalDateString(new Date(c.created_at)) >= cutoffKey &&
+    (c.emotions ?? []).some((id) => CRISIS_EMOTION_IDS.has(id)),
+  );
+  return hits.length >= CRISIS_TRAJECTORY_COUNT;
 }
 
 /** Frase que encuadra — rotación determinista por fecha local (misma frase todo el día). */

@@ -29,6 +29,7 @@ import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
+import { isCrisisOrigin, isCrisisHotline, hasCrisisTrajectory } from '@/src/services/emotion-navigation-core';
 import { saveCheckin, getRecentCheckins, type CheckinRecord, type CheckinEntryGate } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { shouldShowTribeBridge, TRIBE_BRIDGE_COPY, BRIDGE_WINDOW_DAYS } from '@/src/services/checkin-bridge-core';
@@ -161,9 +162,22 @@ export default function CheckinScreen() {
 
   const qd = quadrant ? QUADRANTS[quadrant] : null;
   const qColor = qd?.color ?? TEXT_COLORS.secondary;
-  // C5-002: "En pánico" seleccionado → banner Línea de la Vida visible en el
-  // resto del flujo (guardarraíl determinístico, sin alarmismo).
-  const panicSelected = selectedEmotions.includes('panicked');
+  // A-1 (MB-12): crisis en DOS niveles. Nivel 1 rompe el flujo (acompañamiento,
+  // sin celebración); nivel 2 además muestra la Línea de la Vida — por emoción
+  // marcadora o por trayectoria (3+ check-ins con nivel 1 en 7 días), para que
+  // el banner no salga con cualquier mal día y se aprenda a ignorar.
+  const crisisSelected = selectedEmotions.some(isCrisisOrigin);
+  const crisisEmotionId = selectedEmotions.find(isCrisisOrigin) ?? selectedEmotions[0];
+  const hotlineVisible = crisisSelected && (
+    selectedEmotions.some(isCrisisHotline) ||
+    hasCrisisTrajectory(
+      [
+        { created_at: new Date().toISOString(), emotions: selectedEmotions },
+        ...pastCheckins,
+      ],
+      getLocalToday(),
+    )
+  );
 
   // B.1 (MB-7, decisión de Enrique): UNA emoción activa que va switcheando
   // mientras navegas — tocar otra la reemplaza, tocar la MISMA la suelta (B.2).
@@ -346,24 +360,51 @@ export default function CheckinScreen() {
           <View style={[styles.donePulse, { backgroundColor: qColor + '20' }]}>
             <View style={[styles.doneDot, { backgroundColor: qColor }]} />
           </View>
-          <EliteText style={[styles.doneTitle, { color: qColor }]}>Check-in registrado</EliteText>
-          <EliteText variant="caption" style={styles.doneSub}>
-            {selectedEmotions.map(id => EMOTIONS.find(e => e.id === id)?.label).join(' · ')}
+          {/* A-3 (MB-12): sobre una crisis no se celebra — se reconoce sin
+              analizar. El check-in ya quedó guardado (el dato importa). */}
+          <EliteText style={[styles.doneTitle, { color: qColor }]}>
+            {crisisSelected ? 'Queda registrado' : 'Check-in registrado'}
           </EliteText>
-          {/* T4 MENTE: streak de días consecutivos */}
-          {checkinStreak > 1 && (
+          <EliteText variant="caption" style={styles.doneSub}>
+            {crisisSelected
+              ? 'No tienes que hacer nada más ahora.'
+              : selectedEmotions.map(id => EMOTIONS.find(e => e.id === id)?.label).join(' · ')}
+          </EliteText>
+          {/* T4 MENTE: streak de días consecutivos — nunca sobre una crisis (A-3) */}
+          {!crisisSelected && checkinStreak > 1 && (
             <EliteText variant="caption" style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
               🔥 {checkinStreak} días seguidos escuchándote
             </EliteText>
           )}
-          {/* C5-002: recurso de crisis también en la pantalla de cierre */}
-          {panicSelected && (
+          {/* A-4 (MB-12): la Línea de la Vida es de NIVEL 2 (marcadores o trayectoria) */}
+          {hotlineVisible && (
             <CrisisSupportBanner style={{ marginHorizontal: Spacing.lg }} />
+          )}
+          {/* A-2 (MB-12): con señal de crisis, /emotion-navigation ES el destino
+              — su rama de acompañamiento ("ahora no toca analizar nada"), nunca
+              la excepción. Se ofrece, no se impone. */}
+          {crisisSelected && selectedEmotions.length > 0 && (
+            <Animated.View entering={FadeIn.delay(400).duration(400)} style={styles.navInviteCard}>
+              <EliteText variant="caption" style={styles.navInviteSub}>
+                Si quieres, te acompañamos un momento. Sin analizar nada.
+              </EliteText>
+              <View style={styles.navInviteRow}>
+                <Pressable
+                  onPress={() => {
+                    haptic.medium();
+                    router.push({ pathname: '/emotion-navigation', params: { emotionId: crisisEmotionId } });
+                  }}
+                  style={[styles.navInviteYes, { backgroundColor: qColor }]}
+                >
+                  <EliteText style={styles.navInviteYesText}>ACOMPAÑAMIENTO</EliteText>
+                </Pressable>
+              </View>
+            </Animated.View>
           )}
           {/* MB-4 Bloque 2: el check-in TERMINÓ (completo, con su electrón).
               Recién ahora la invitación a navegar — opcional, y un "no" se
-              respeta. En crisis no se ofrece reframing (el banner acompaña). */}
-          {!panicSelected && !navDeclined && selectedEmotions.length > 0 && (
+              respeta. */}
+          {!crisisSelected && !navDeclined && selectedEmotions.length > 0 && (
             <Animated.View entering={FadeIn.delay(400).duration(400)} style={styles.navInviteCard}>
               <EliteText variant="body" style={styles.navInviteTitle}>{INVITE_TITLE}</EliteText>
               <EliteText variant="caption" style={styles.navInviteSub}>{INVITE_SUBTEXT}</EliteText>
@@ -496,8 +537,8 @@ export default function CheckinScreen() {
             </EliteText>
           )}
 
-          {/* C5-002: recurso de crisis al marcar "En pánico" */}
-          {panicSelected && <CrisisSupportBanner style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }} />}
+          {/* A-4 (MB-12): recurso de crisis en el flujo — solo nivel 2 */}
+          {hotlineVisible && <CrisisSupportBanner style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }} />}
 
           <View style={styles.mapCanvas}>
             <EmotionWheel
@@ -660,8 +701,8 @@ export default function CheckinScreen() {
               })}
             </View>
 
-            {/* C5-002: el recurso de crisis acompaña todo el flujo si marcó "En pánico" */}
-            {panicSelected && <CrisisSupportBanner style={{ marginBottom: Spacing.md }} />}
+            {/* A-4 (MB-12): el recurso de crisis acompaña el flujo — solo nivel 2 */}
+            {hotlineVisible && <CrisisSupportBanner style={{ marginBottom: Spacing.md }} />}
 
             <ContextSection label="¿Dónde estás?" items={CONTEXT_WHERE} selected={ctxWhere} onSelect={v => { haptic.light(); setCtxWhere(ctxWhere === v ? null : v); }} color={qColor} />
             <ContextSection label="¿Con quién?" items={CONTEXT_WHO} selected={ctxWho} onSelect={v => { haptic.light(); setCtxWho(ctxWho === v ? null : v); }} color={qColor} />
