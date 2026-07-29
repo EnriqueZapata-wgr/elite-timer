@@ -1,11 +1,13 @@
 /**
- * Check-in emocional — Reconocer → Etiquetar → Entender (MB-10 · Track A).
+ * Check-in emocional — Reconocer → Etiquetar → Entender (MB-14 · cuadrícula).
  *
- * La puerta de entrada es LA RUEDA (Willcox): 6 núcleos → 13 familias → 144
- * emociones con acercamiento de cámara. Gana lo que lleve a la palabra exacta
- * más rápido — el mapa espiral vive ahora en Exploración, fuera del check-in.
- * 2 pasos: rueda (nombrar) → contexto. Nombrar ES la primera intervención
- * (Lieberman 2007): el aterrizaje lo dice en una línea.
+ * La puerta de entrada es LA CUADRÍCULA: 4 cuadrantes → 36 emociones por
+ * cuadrante, en <Text> y Pressable (la rueda no pintaba etiquetas en device y
+ * el toque no respondía; queda intacta para Exploración). 2 pasos: cuadrícula
+ * (nombrar) → contexto, con el mapa corporal como paso opcional SOLO tras
+ * emoción desagradable intensa (Pieza 2). Nombrar ES la primera intervención
+ * (Lieberman 2007): el aterrizaje lo dice en una línea. Al cierre, una frase
+ * por cuadrante (Pieza 3) — nunca sobre una señal de crisis (tramo A MB-12).
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, TextInput, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
@@ -20,13 +22,15 @@ import {
   QUADRANTS, EMOTIONS, CONTEXT_WHERE, CONTEXT_WHO, CONTEXT_DOING,
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
-import { EmotionWheel, type EmotionWheelHandle } from '@/src/components/checkin/EmotionWheel';
-import { BodyGate } from '@/src/components/checkin/BodyGate';
-import { NAMING_MECHANISM_LINE, BODY_GATE_LABEL, WHEEL_CORES, FAMILY_LABELS } from '@/src/data/emotion-wheel-config';
-import { getWheelLayout, findEmotionSector } from '@/src/services/emotion-wheel-core';
+import { MoodGrid, type MoodGridHandle } from '@/src/components/checkin/MoodGrid';
+import { BodyCheck } from '@/src/components/checkin/BodyCheck';
+import { NAMING_MECHANISM_LINE } from '@/src/data/emotion-wheel-config';
+import { GRID_HINT } from '@/src/data/emotion-grid-config';
+import { shouldOfferBodyMap } from '@/src/services/emotion-grid-core';
+import { closingPhraseForDate } from '@/src/data/checkin-closing-phrases';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
-import { colorAtPoint, normX, normY, searchEmotions } from '@/src/services/emotion-map-core';
+import { searchEmotions } from '@/src/services/emotion-map-core';
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
 import { isCrisisOrigin, isCrisisHotline, hasCrisisTrajectory } from '@/src/services/emotion-navigation-core';
@@ -66,14 +70,17 @@ export default function CheckinScreen() {
   const [askSecond, setAskSecond] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  // Track B: la puerta del cuerpo — salida discreta de la rueda.
-  const [bodyGateOpen, setBodyGateOpen] = useState(false);
+  // Pieza 2 (MB-14): el mapa corporal ya NO es puerta de entrada — es un paso
+  // opcional entre nombrar y contexto, solo tras emoción desagradable intensa.
+  const [bodyStepOpen, setBodyStepOpen] = useState(false);
   // Track E: por qué puerta se llegó a la palabra. Todas escriben el mismo
   // registro; esto solo etiqueta el camino (la última ayuda usada gana).
+  // MB-14: 'rueda' etiqueta ahora la puerta DEFAULT (la cuadrícula) — el CHECK
+  // de mig 238 no admite valores nuevos y hoy no se toca la base (OTA-only).
   const [entryGate, setEntryGate] = useState<CheckinEntryGate>(
     params.gate === 'mapa' ? 'mapa' : 'rueda',
   );
-  const wheelRef = useRef<EmotionWheelHandle>(null);
+  const gridRef = useRef<MoodGridHandle>(null);
   const [ctxWhere, setCtxWhere] = useState<string | null>(null);
   const [ctxWho, setCtxWho] = useState<string | null>(null);
   const [ctxDoing, setCtxDoing] = useState<string | null>(null);
@@ -126,22 +133,27 @@ export default function CheckinScreen() {
     setSelectedEmotions([e.id]);
     setQuadrant(e.quadrant);
     setSheetEmotion(e);
-    const t = setTimeout(() => wheelRef.current?.focusEmotion(e.id), 120);
+    const t = setTimeout(() => gridRef.current?.focusEmotion(e.id), 120);
     return () => clearTimeout(t);
     // Solo al montar: el param no cambia dentro de la sesión de la pantalla.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // #20: back consciente del paso — en el contexto regresa a la rueda,
-  // nunca saca de la app. En la rueda (o done) sale de la pantalla.
+  // #20: back consciente del paso — el cuerpo regresa a la cuadrícula y el
+  // contexto también; nunca saca de la app. En la cuadrícula (o done) sale.
   const handleBack = () => {
-    if (step === 2) setStep(1);
+    if (bodyStepOpen) setBodyStepOpen(false);
+    else if (step === 2) setStep(1);
     else router.back();
   };
 
   // #20: hardware back de Android — consumir el evento en pasos intermedios.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (bodyStepOpen) {
+        setBodyStepOpen(false);
+        return true;
+      }
       if (step === 2) {
         setStep(1);
         return true;
@@ -149,12 +161,12 @@ export default function CheckinScreen() {
       return false;
     });
     return () => sub.remove();
-  }, [step]);
+  }, [step, bodyStepOpen]);
 
-  // B.7 (MB-7): con una hoja inferior abierta, el orbe de ARGOS se retira —
-  // la descripción de la emoción es el contenido principal de ese momento.
+  // B.7 (MB-7): con una hoja inferior abierta (o el paso del cuerpo en foco),
+  // el orbe de ARGOS se retira — ese contenido es el principal del momento.
   const { setHidden: setArgosHidden } = useArgosPresence();
-  const sheetOpen = sheetEmotion !== null || askSecond;
+  const sheetOpen = sheetEmotion !== null || askSecond || bodyStepOpen;
   useEffect(() => {
     setArgosHidden(sheetOpen);
     return () => setArgosHidden(false);
@@ -183,7 +195,7 @@ export default function CheckinScreen() {
   // mientras navegas — tocar otra la reemplaza, tocar la MISMA la suelta (B.2).
   // Solo tras CONTINUAR se ofrece sumar una segunda (addSecond); entonces el
   // slot 2 es el que switchea. El cuadrante efectivo sigue a la primera elegida.
-  const handleWheelEmotionPress = useCallback((e: Emotion) => {
+  const handleEmotionPress = useCallback((e: Emotion) => {
     const wasSelected = selectedEmotions.includes(e.id);
     let next: string[];
     if (wasSelected) next = selectedEmotions.filter(id => id !== e.id);
@@ -196,6 +208,14 @@ export default function CheckinScreen() {
     setAskSecond(false);
   }, [selectedEmotions, addSecond]);
 
+  // Pieza 2 (MB-14): entre nombrar y contexto, el cuerpo — SOLO si alguna
+  // emoción elegida es de cuadrante desagradable con intensidad alta. En
+  // cualquier otro caso se sigue de largo (a quien está bien, no le aplica).
+  const proceedToContext = useCallback(() => {
+    if (shouldOfferBodyMap(selectedEmotions)) setBodyStepOpen(true);
+    else setStep(2);
+  }, [selectedEmotions]);
+
   // B.1: CONTINUAR con una sola emoción abre la oferta de sumar una segunda;
   // con dos (o si ya la aceptó) sigue de largo al contexto.
   const handleContinue = useCallback(() => {
@@ -205,8 +225,8 @@ export default function CheckinScreen() {
       setAskSecond(true);
       return;
     }
-    setStep(2);
-  }, [selectedEmotions.length, addSecond]);
+    proceedToContext();
+  }, [selectedEmotions.length, addSecond, proceedToContext]);
 
   const removeEmotion = (id: string) => {
     haptic.light();
@@ -224,9 +244,9 @@ export default function CheckinScreen() {
     setSearchOpen(false);
     setSearchQuery('');
     setEntryGate('busqueda');
-    // La rueda entra al nivel de su familia — se ve dónde vive la palabra.
-    wheelRef.current?.focusEmotion(e.id);
-    handleWheelEmotionPress(e);
+    // La cuadrícula abre el cuadrante de la palabra — se ve dónde vive.
+    gridRef.current?.focusEmotion(e.id);
+    handleEmotionPress(e);
   };
 
   // MB-4 Bloque 4: compartir este check-in con tu gente (opt-in explícito).
@@ -252,13 +272,12 @@ export default function CheckinScreen() {
     if (ok) setSharedId(null);
   };
 
-  // Glow ambiental: el color de la emoción activa tiñe el fondo de la pantalla.
+  // Glow ambiental: el color del CUADRANTE de la emoción activa tiñe el fondo.
+  // MB-14: sale del cuadrante, no del punto del mapa — una familia cromática.
   const activeEmotion = selectedEmotions.length > 0
     ? EMOTIONS.find(e => e.id === selectedEmotions[selectedEmotions.length - 1])
     : null;
-  const ambientColor = activeEmotion
-    ? colorAtPoint(normX(activeEmotion.quadrant, activeEmotion.intensity), normY(activeEmotion.energy))
-    : null;
+  const ambientColor = activeEmotion ? QUADRANTS[activeEmotion.quadrant].color : null;
 
   const handleSave = async () => {
     if (!quadrant || selectedEmotions.length === 0) return;
@@ -370,6 +389,15 @@ export default function CheckinScreen() {
               ? 'No tienes que hacer nada más ahora.'
               : selectedEmotions.map(id => EMOTIONS.find(e => e.id === id)?.label).join(' · ')}
           </EliteText>
+          {/* Pieza 3 (MB-14): UNA frase al cierre, contextual al cuadrante y
+              determinista por fecha. Con señal de crisis NO hay frase de
+              ningún tipo (tramo A MB-12: a alguien en crisis no se le
+              reencuadra nada) — el gate es crisisSelected. */}
+          {!crisisSelected && quadrant && (
+            <EliteText variant="body" style={styles.closingPhrase}>
+              {closingPhraseForDate(quadrant, getLocalToday())}
+            </EliteText>
+          )}
           {/* T4 MENTE: streak de días consecutivos — nunca sobre una crisis (A-3) */}
           {!crisisSelected && checkinStreak > 1 && (
             <EliteText variant="caption" style={{ color: '#a8e02a', fontFamily: Fonts.bold, fontSize: FontSizes.md }}>
@@ -515,14 +543,22 @@ export default function CheckinScreen() {
         ))}
       </View>
 
-      {/* ═══ STEP 1: LA RUEDA — 6 núcleos → 13 familias → 144 emociones ═══ */}
-      {step === 1 && (
+      {/* ═══ PIEZA 2: EL CUERPO — paso opcional tras emoción negativa intensa ═══ */}
+      {step === 1 && bodyStepOpen && (
+        <BodyCheck
+          color={qColor}
+          onDone={() => { setBodyStepOpen(false); setStep(2); }}
+        />
+      )}
+
+      {/* ═══ STEP 1: LA CUADRÍCULA — 4 cuadrantes → 36 emociones ═══ */}
+      {step === 1 && !bodyStepOpen && (
         <Animated.View entering={FadeIn.duration(200)} style={styles.mapFlex}>
           <View style={styles.mapHeaderRow}>
             <View style={{ flex: 1 }}>
               <EliteText style={styles.wheelTitle}>¿Cómo te sientes?</EliteText>
               <EliteText variant="caption" style={styles.mapHint}>
-                Toca un núcleo para acercarte · o directo a la orilla si ya sabes
+                {GRID_HINT}
               </EliteText>
             </View>
             <Pressable onPress={() => { haptic.light(); setSearchOpen(o => !o); }} style={styles.mapTool} hitSlop={8}>
@@ -541,10 +577,10 @@ export default function CheckinScreen() {
           {hotlineVisible && <CrisisSupportBanner style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }} />}
 
           <View style={styles.mapCanvas}>
-            <EmotionWheel
-              ref={wheelRef}
+            <MoodGrid
+              ref={gridRef}
               selectedIds={selectedEmotions}
-              onEmotionPress={handleWheelEmotionPress}
+              onEmotionPress={handleEmotionPress}
             />
 
             {/* Buscador por nombre */}
@@ -559,56 +595,24 @@ export default function CheckinScreen() {
                   autoFocus
                   autoCorrect={false}
                 />
-                {searchEmotions(EMOTIONS, searchQuery).map(e => {
-                  // Track G: el resultado habla el vocabulario del módulo —
-                  // dónde vive la palabra (núcleo › familia), no el cuadrante.
-                  const sector = findEmotionSector(getWheelLayout(), e.id);
-                  const coreLabel = WHEEL_CORES.find(c => c.key === sector?.core)?.label ?? '';
-                  const famLabel = sector?.family ? FAMILY_LABELS[sector.family] : '';
-                  return (
-                    <Pressable key={e.id} onPress={() => handleSearchPick(e)} style={styles.searchRow}>
-                      <View style={[styles.searchDot, { backgroundColor: sector?.color ?? QUADRANTS[e.quadrant].color }]} />
-                      <EliteText variant="body" style={styles.searchLabel}>{e.label}</EliteText>
-                      <EliteText variant="caption" style={styles.searchQuadrant} numberOfLines={1}>
-                        {coreLabel && famLabel ? `${coreLabel} › ${famLabel}` : QUADRANTS[e.quadrant].label}
-                      </EliteText>
-                    </Pressable>
-                  );
-                })}
+                {searchEmotions(EMOTIONS, searchQuery).map(e => (
+                  // MB-14: el punto lleva el color del CUADRANTE — la misma
+                  // familia cromática que la celda donde va a aterrizar.
+                  <Pressable key={e.id} onPress={() => handleSearchPick(e)} style={styles.searchRow}>
+                    <View style={[styles.searchDot, { backgroundColor: QUADRANTS[e.quadrant].color }]} />
+                    <EliteText variant="body" style={styles.searchLabel}>{e.label}</EliteText>
+                  </Pressable>
+                ))}
               </Animated.View>
             )}
           </View>
 
-          {/* Track B: salida discreta — aparece exactamente cuando hace falta
-              (nada elegido, ninguna hoja abierta). */}
-          {!sheetEmotion && !askSecond && !bodyGateOpen && selectedEmotions.length === 0 && (
-            <Pressable
-              onPress={() => { haptic.light(); setSearchOpen(false); setBodyGateOpen(true); }}
-              style={styles.bodyGateLink}
-              hitSlop={8}
-            >
-              <EliteText variant="caption" style={styles.bodyGateText}>{BODY_GATE_LABEL}</EliteText>
-            </Pressable>
-          )}
+          {/* Pieza 2 (MB-14): la puerta del cuerpo salió del arranque — solo
+              ofrecía estados negativos. Ahora es un paso condicional (arriba). */}
 
-          {/* Track B: la puerta del cuerpo — zona → familias candidatas → rueda */}
-          {bodyGateOpen && (
-            <BodyGate
-              onClose={() => setBodyGateOpen(false)}
-              onPickFamily={(fam) => {
-                setBodyGateOpen(false);
-                setEntryGate('cuerpo');
-                wheelRef.current?.focusFamily(fam);
-              }}
-            />
-          )}
-
-          {/* Hoja de definición: nombre en el color de su zona + descripción */}
+          {/* Hoja de definición: nombre en el color de su CUADRANTE + descripción */}
           {sheetEmotion && (() => {
-            const sheetColor = colorAtPoint(
-              normX(sheetEmotion.quadrant, sheetEmotion.intensity),
-              normY(sheetEmotion.energy),
-            );
+            const sheetColor = QUADRANTS[sheetEmotion.quadrant].color;
             return (
               <Animated.View
                 entering={SlideInDown.duration(260)}
@@ -658,7 +662,7 @@ export default function CheckinScreen() {
                   <EliteText variant="caption" style={styles.defSecondaryText}>Sumar otra</EliteText>
                 </Pressable>
                 <Pressable
-                  onPress={() => { haptic.medium(); setAskSecond(false); setStep(2); }}
+                  onPress={() => { haptic.medium(); setAskSecond(false); proceedToContext(); }}
                   style={[styles.defContinue, { backgroundColor: qColor }]}
                 >
                   <EliteText style={styles.defContinueText}>SEGUIR</EliteText>
@@ -828,7 +832,6 @@ const styles = StyleSheet.create({
   },
   searchDot: { width: 10, height: 10, borderRadius: 5 },
   searchLabel: { color: Colors.textPrimary, fontSize: FontSizes.md, flexShrink: 0 },
-  searchQuadrant: { color: Colors.textSecondary, fontSize: FontSizes.xs, flex: 1, textAlign: 'right' },
 
   // Hoja de definición
   defSheet: {
@@ -844,14 +847,6 @@ const styles = StyleSheet.create({
   defMechanism: {
     color: Colors.textSecondary, fontSize: FontSizes.sm, lineHeight: 18,
     marginTop: Spacing.sm, fontStyle: 'italic',
-  },
-  // Track B: la salida discreta hacia la puerta del cuerpo
-  bodyGateLink: {
-    alignSelf: 'center', paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  bodyGateText: {
-    color: Colors.textSecondary, fontSize: FontSizes.md, textDecorationLine: 'underline',
   },
   defActions: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end',
@@ -922,6 +917,11 @@ const styles = StyleSheet.create({
   doneDot: { width: 32, height: 32, borderRadius: Radius.md },
   doneTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
   doneSub: { color: Colors.textSecondary, fontSize: FontSizes.md },
+  // Pieza 3 (MB-14): la frase al cierre — editorial, voz baja, sin firma.
+  closingPhrase: {
+    color: Colors.textPrimary, fontSize: FontSizes.md, lineHeight: 22,
+    textAlign: 'center', marginHorizontal: Spacing.xl, marginTop: Spacing.xs,
+  },
   doneBtn: {
     borderWidth: 1, borderRadius: Radius.pill,
     paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm + 2, marginTop: Spacing.md,
