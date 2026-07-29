@@ -271,6 +271,8 @@ function RootLayout() {
                 {/* Suscripciones RevenueCat (sprint IAP V1.3) */}
                 <Stack.Screen name="paywall" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="settings/subscription" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* MB-13: canje de códigos de activación (puente de pago) */}
+                <Stack.Screen name="redeem-code" options={{ headerShown: false, animation: 'slide_from_bottom' }} />
                 {/* Economía Protones H+ (feature gated; pantallas accesibles para QA) */}
                 <Stack.Screen name="economy/admin" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="economy/shop" options={{ headerShown: false, animation: 'slide_from_bottom' }} />

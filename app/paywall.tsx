@@ -255,6 +255,17 @@ export default function PaywallScreen() {
           </EliteText>
         </AnimatedPressable>
 
+        {/* MB-13: quien pagó en la web o recibió invitación activa aquí su plan */}
+        <AnimatedPressable
+          onPress={() => { haptic.light(); router.push('/redeem-code'); }}
+          disabled={busy !== null}
+          style={styles.restoreBtn}
+        >
+          <EliteText style={styles.restoreText}>
+            Tengo un código. Si compraste en la web o te invitaron, aquí lo activas.
+          </EliteText>
+        </AnimatedPressable>
+
         {/* E-2 (MB-12): disclosure obligatoria de suscripción auto-renovable */}
         <EliteText style={styles.sdkNote}>
           Suscripciones auto-renovables: el precio mostrado se cobra por{' '}

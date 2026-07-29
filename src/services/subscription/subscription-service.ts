@@ -75,6 +75,41 @@ export async function fetchSubscriptionEvents(
   return data as SubscriptionEvent[];
 }
 
+/** MB-13 · PIEZA 1 — resultado tipado del RPC redeem_activation_code. */
+export type RedeemCodeStatus =
+  | 'ok'
+  | 'not_found'
+  | 'expired'
+  | 'exhausted'
+  | 'already_redeemed'
+  | 'not_authenticated'
+  | 'network_error';
+
+export interface RedeemCodeResult {
+  status: RedeemCodeStatus;
+  tier: Tier | null;
+  expiresAt: string | null;
+}
+
+/**
+ * Canjea un código de activación (founders, web, cortesías). El servidor
+ * normaliza el código y decide el tier; el cliente solo muestra el resultado.
+ * Gotcha del repo: supabase-js no lanza en 4xx — se chequea {error}.
+ */
+export async function redeemActivationCode(code: string): Promise<RedeemCodeResult> {
+  const { data, error } = await supabase.rpc('redeem_activation_code', { p_code: code });
+  if (error) return { status: 'network_error', tier: null, expiresAt: null };
+  const result = (data ?? {}) as Record<string, unknown>;
+  const status = typeof result.status === 'string'
+    ? (result.status as RedeemCodeStatus)
+    : 'network_error';
+  return {
+    status,
+    tier: typeof result.tier === 'string' ? (result.tier as Tier) : null,
+    expiresAt: typeof result.expires_at === 'string' ? result.expires_at : null,
+  };
+}
+
 /**
  * Activa el Boost Pro 24h descontando H+ (RPC atómico, rate limit 3/semana).
  * Errores posibles: rate_limit_exceeded · already_active · insufficient_h_plus.
