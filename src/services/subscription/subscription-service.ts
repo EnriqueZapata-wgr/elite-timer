@@ -36,6 +36,25 @@ export async function fetchProfileTier(userId: string): Promise<Tier> {
   return tierFromProfile(data.tier, data.tier_expires_at);
 }
 
+const VALID_TIERS: readonly Tier[] = ['free', 'base', 'pro', 'clinician'];
+
+/**
+ * MB-13 · PIEZA 2 — el tier efectivo lo decide el SERVIDOR
+ * (get_my_effective_tier: RevenueCat vigente > código/webhook > free).
+ * El cliente no calcula vigencias. Si el RPC aún no está desplegado o no
+ * hay red, cae al lector directo de profiles como respaldo.
+ */
+export async function fetchEffectiveTier(userId: string): Promise<Tier> {
+  const { data, error } = await supabase.rpc('get_my_effective_tier');
+  if (!error && data && typeof data === 'object') {
+    const tier = (data as Record<string, unknown>).tier;
+    if (typeof tier === 'string' && (VALID_TIERS as string[]).includes(tier)) {
+      return tier as Tier;
+    }
+  }
+  return fetchProfileTier(userId);
+}
+
 /** Boost activo más reciente del usuario (RLS: solo filas propias). */
 export async function fetchActiveBoost(userId: string): Promise<BoostStatus> {
   const { data, error } = await supabase
