@@ -9,12 +9,26 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ── 1) profiles.role: autorización, separada del tier (que es suscripción) ─
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'user'
-  CHECK (role IN ('user', 'admin'));
+-- ⚠️ DRIFT verificado en remoto (2026-07-29): profiles.role YA existe como
+-- enum user_role (admin/coach/nutritionist/assistant/client, default
+-- 'client', nullable) sin migración que lo versione. En remoto este bloque
+-- es no-op; el ADD COLUMN TEXT aplica solo en entornos limpios. El gate de
+-- abajo compara el valor textual, válido en ambos mundos.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'role'
+  ) THEN
+    ALTER TABLE profiles ADD COLUMN role TEXT NOT NULL DEFAULT 'user'
+      CHECK (role IN ('user', 'admin'));
+  END IF;
+END $$;
 
 -- Admin actual (mismo UUID que src/constants/admin-config.ts).
 UPDATE profiles SET role = 'admin'
-WHERE id = '90a55e74-0e3d-477a-9ac5-2b339f7c40af' AND role <> 'admin';
+WHERE id = '90a55e74-0e3d-477a-9ac5-2b339f7c40af'
+  AND (role IS NULL OR role::text <> 'admin');
 
 -- Las policies de UPDATE de profiles no restringen columnas: sin esto,
 -- cualquier usuario podría auto-asignarse role='admin'. El trigger corta
@@ -68,9 +82,10 @@ DECLARE
   v_attempts INT;
 BEGIN
   -- Gate de admin. auth.uid() nulo = llamada service_role (permitida).
+  -- role::text cubre ambos mundos: enum user_role (remoto) o TEXT (limpio).
   IF v_caller IS NOT NULL THEN
-    SELECT role INTO v_role FROM profiles WHERE id = v_caller;
-    IF COALESCE(v_role, 'user') <> 'admin' THEN
+    SELECT role::text INTO v_role FROM profiles WHERE id = v_caller;
+    IF COALESCE(v_role, 'client') <> 'admin' THEN
       RETURN jsonb_build_object('ok', false, 'error', 'not_authorized');
     END IF;
   END IF;
@@ -130,4 +145,4 @@ GRANT EXECUTE ON FUNCTION generate_activation_codes(INT, TEXT, INT, TEXT, TIMEST
 COMMENT ON FUNCTION generate_activation_codes(INT, TEXT, INT, TEXT, TIMESTAMPTZ) IS
   'MB-13 — genera lotes de códigos de activación de un uso. Gate: profiles.role = admin (o service_role). Devuelve la lista de códigos.';
 COMMENT ON COLUMN profiles.role IS
-  'MB-13 — autorización (user/admin), separada de tier que es suscripción. Protegida por trg_protect_profiles_role.';
+  'Autorización (enum user_role en remoto: admin/coach/nutritionist/assistant/client), separada de tier que es suscripción. MB-13: protegida por trg_protect_profiles_role; generate_activation_codes exige admin.';
