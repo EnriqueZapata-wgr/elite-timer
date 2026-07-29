@@ -193,7 +193,7 @@ export default function ShopScreen() {
             {/* E-1 (MB-12): se COBRA con H+ a todos (doctrina correcta) — el
                 copy "incluido con Pro" era el que estaba mal, no el cobro. */}
             <EliteText style={styles.galleryPoetic}>
-              Tu química cerebral leída a fondo por ARGOS. Se canjea con H+ —
+              Tu química cerebral leída a fondo por ARGOS. Se canjea con H+;
               el precio exacto lo ves antes de generar.
             </EliteText>
             <View style={styles.priceRow}>

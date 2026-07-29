@@ -35,14 +35,14 @@ const STEPS: Step[] = [
     emoji: '⚡',
     kicker: 'PASO 1 · GANA',
     title: 'Electrones',
-    body: 'Cada hábito verificado que cumples — agua, sol, entreno, journal, meditación — te da electrones. Son permanentes: construyen tu rango de por vida. Nadie te los puede quitar.',
+    body: 'Cada hábito verificado que cumples (agua, sol, entreno, journal, meditación) te da electrones. Son permanentes: construyen tu rango de por vida. Nadie te los puede quitar.',
   },
   {
     key: 'convierte',
     emoji: '🔁',
     kicker: 'PASO 2 · CONVIERTE',
     title: 'Tu esfuerzo se vuelve energía',
-    body: 'Convierte electrones en Protones H+ cuando quieras. La conversión no toca tu rango — el rango se calcula sobre lo ganado históricamente, no sobre lo que tienes.',
+    body: 'Convierte electrones en Protones H+ cuando quieras. La conversión no toca tu rango: el rango se calcula sobre lo ganado históricamente, no sobre lo que tienes.',
     cta: { label: 'Ver conversión', route: '/economy/convert' },
   },
   {
@@ -50,15 +50,18 @@ const STEPS: Step[] = [
     emoji: '💎',
     kicker: 'PASO 3 · USA',
     title: 'Protones H+',
-    body: 'Los puntos de energía de ATP. Úsalos dentro de la app en consultas a ARGOS, análisis de comida por foto, lectura de labs y desbloqueos premium. También puedes recargar con packs.',
+    // MB-12.1: fuera "recargar con packs" — las recargas salieron de la
+    // tienda en este mismo run.
+    body: 'Los puntos de energía de ATP. Úsalos dentro de la app en consultas a ARGOS, análisis de comida por foto, lectura de labs y desbloqueos premium.',
   },
   {
     key: 'gasta',
     emoji: '🚀',
     kicker: 'PASO 4 · POTENCIA',
     title: 'Gasta con criterio',
-    body: 'El movimiento estrella: 500 H+ te dan 24 horas de ATP Pro completo (Boost). Retos semanales multiplican tu tasa de conversión. Tu constancia literalmente paga tu IA.',
-    cta: { label: 'Ver retos', route: '/economy/challenges' },
+    // MB-12.1: fuera los retos (apagados por bandera) y su CTA — dos
+    // promesas muertas en un párrafo.
+    body: 'El movimiento estrella: 500 H+ te dan 24 horas de ATP Pro completo (Boost). Tu constancia literalmente paga tu IA.',
   },
 ];
 

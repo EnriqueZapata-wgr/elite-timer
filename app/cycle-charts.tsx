@@ -136,7 +136,7 @@ export default function CycleChartsScreen() {
           {loadFailed && data.length === 0 ? (
             <View style={s.emptyChart}>
               <Ionicons name="cloud-offline-outline" size={32} color="#666" />
-              <EliteText style={s.emptyText}>Tus registros no se pudieron leer — revisa tu conexión</EliteText>
+              <EliteText style={s.emptyText}>Tus registros no se pudieron leer. Revisa tu conexión.</EliteText>
             </View>
           ) : data.length < 3 ? (
             <View style={s.emptyChart}>

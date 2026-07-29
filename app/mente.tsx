@@ -200,7 +200,7 @@ export default function MenteHubScreen() {
           <MenteHubCard
             title="Journal"
             subtitle={hubFailed
-              ? 'Tu actividad no se pudo leer — revisa tu conexión'
+              ? 'Tu actividad no se pudo leer. Revisa tu conexión.'
               : hub.lastJournalAt
                 ? `Última entrada ${formatRelativeTime(hub.lastJournalAt).toLowerCase()}`
                 : 'Escribe tu primera entrada'}

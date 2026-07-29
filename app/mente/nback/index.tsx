@@ -168,7 +168,7 @@ export default function NBackHomeScreen() {
               />
             </View>
             <EliteText style={s.cardSub}>
-              Memoria de trabajo entrenada {NBACK_CONFIG.CHALLENGE_DAYS} días — el entrenamiento, no el milagro.
+              Memoria de trabajo entrenada {NBACK_CONFIG.CHALLENGE_DAYS} días: el entrenamiento, no el milagro.
             </EliteText>
           </Animated.View>
 

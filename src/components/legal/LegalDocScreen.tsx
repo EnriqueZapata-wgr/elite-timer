@@ -43,7 +43,7 @@ export function LegalDocScreen({ title, versionLabel, sections, webUrl }: Props)
       {webUrl ? (
         <View style={s.scroll}>
           <EliteText style={s.body}>
-            El documento oficial vive en somosatp.com — la misma versión que
+            El documento oficial vive en somosatp.com. Es la misma versión que
             aceptas al usar ATP.
           </EliteText>
           <AnimatedPressable

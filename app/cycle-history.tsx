@@ -121,7 +121,7 @@ export default function CycleHistoryScreen() {
               <Ionicons name={loadFailed ? 'cloud-offline-outline' : 'calendar-outline'} size={36} color="#666" />
               <EliteText style={s.emptyText}>
                 {loadFailed
-                  ? 'Tus ciclos no se pudieron leer — revisa tu conexión'
+                  ? 'Tus ciclos no se pudieron leer. Revisa tu conexión.'
                   : 'Sin ciclos registrados aún'}
               </EliteText>
             </View>

@@ -73,7 +73,7 @@ export const SLEEP_QUIZ: FunctionalQuiz = {
     // RITMO CIRCADIANO
     { id: 'S06', text: 'No me da la luz del sol en los primeros 30 minutos del día', domain: 'circadian', rootCause: 'Falta de zeitgeber principal para resetear reloj interno', weight: 2 },
     { id: 'S07', text: 'Uso pantallas (celular, laptop, TV) en la última hora antes de dormir', domain: 'circadian', rootCause: 'Luz azul suprime melatonina', weight: 1 },
-    { id: 'S08', text: 'Mi hora de dormir varía más de 1 hora entre semana y fin de semana', domain: 'circadian', rootCause: 'Jet lag social — desincroniza el reloj circadiano', weight: 1 },
+    { id: 'S08', text: 'Mi hora de dormir varía más de 1 hora entre semana y fin de semana', domain: 'circadian', rootCause: 'Jet lag social: desincroniza el reloj circadiano', weight: 1 },
     { id: 'S09', text: 'Trabajo en turnos nocturnos o con horarios rotativos', domain: 'circadian', rootCause: 'Disrupción circadiana crónica', weight: 2 },
     { id: 'S10', text: 'Ceno después de las 9 PM frecuentemente', domain: 'circadian', rootCause: 'Digestión tardía interfiere con fase de sueño profundo', weight: 1 },
 
@@ -82,12 +82,12 @@ export const SLEEP_QUIZ: FunctionalQuiz = {
     { id: 'S12', text: 'Rechino los dientes o aprieto la mandíbula al dormir', domain: 'nervous', rootCause: 'Tensión del sistema nervioso / magnesio bajo', weight: 1 },
     { id: 'S13', text: 'Mis piernas se sienten inquietas cuando me acuesto', domain: 'nervous', rootCause: 'Deficiencia de hierro o magnesio / dopamina baja', weight: 1 },
     { id: 'S14', text: 'Tengo sueños muy vívidos, intensos o pesadillas frecuentes', domain: 'nervous', rootCause: 'Exceso de actividad REM / GABA insuficiente', weight: 1 },
-    { id: 'S15', text: 'Ronco fuerte o me han dicho que dejo de respirar al dormir', domain: 'nervous', rootCause: 'Posible apnea del sueño — requiere evaluación', weight: 2 },
+    { id: 'S15', text: 'Ronco fuerte o me han dicho que dejo de respirar al dormir', domain: 'nervous', rootCause: 'Roncar fuerte y dejar de respirar mientras duermes es de las pocas cosas que sí conviene revisar con un médico', weight: 2 },
 
     // INTERFERENCIA METABÓLICA
     { id: 'S16', text: 'Si no como algo antes de dormir, me cuesta conciliar el sueño', domain: 'metabolic_sleep', rootCause: 'Hipoglucemia nocturna / desregulación de glucosa', weight: 1 },
     { id: 'S17', text: 'Me despierto con mucha hambre y necesito comer inmediatamente', domain: 'metabolic_sleep', rootCause: 'Reservas de glucógeno bajas / cortisol matutino elevado', weight: 1 },
-    { id: 'S18', text: 'Tomo más de 2 tazas de café al día', domain: 'metabolic_sleep', rootCause: 'Cafeína tiene vida media de 5-6h — afecta sueño profundo', weight: 1 },
+    { id: 'S18', text: 'Tomo más de 2 tazas de café al día', domain: 'metabolic_sleep', rootCause: 'La cafeína tarda entre cinco y seis horas en bajar a la mitad: afecta el sueño profundo', weight: 1 },
     { id: 'S19', text: 'Consumo alcohol 3+ veces por semana', domain: 'metabolic_sleep', rootCause: 'Alcohol fragmenta el sueño REM y reduce sueño profundo', weight: 1 },
 
     // ENTORNO
@@ -95,12 +95,14 @@ export const SLEEP_QUIZ: FunctionalQuiz = {
     { id: 'S21', text: 'La temperatura de mi cuarto es mayor a 20°C al dormir', domain: 'environment', rootCause: 'El cuerpo necesita bajar 1-2°C para sueño profundo', weight: 1 },
     { id: 'S22', text: 'Hay ruido constante donde duermo (tráfico, vecinos, mascota)', domain: 'environment', rootCause: 'Ruido fragmenta las fases de sueño', weight: 1 },
   ],
+  // MB-12.1: copy literal de R and D/COPY_CUESTIONARIOS_FUNCIONALES.md —
+  // el cuestionario OBSERVA, no diagnostica; cero dosis y cero em dash.
   resultInsights: [
-    { domain: 'cortisol', threshold: 3, title: 'Cortisol nocturno elevado', description: 'Tu cuerpo está produciendo cortisol cuando debería estar en modo reparación.', recommendation: 'Ashwagandha y fosfatidilserina son los que suelen acompañar este patrón — las cantidades las define quien te lleva. Suma técnicas de respiración 4-7-8.', protocolId: 'sleep_deep' },
-    { domain: 'circadian', threshold: 3, title: 'Ritmo circadiano desincronizado', description: 'Tu reloj interno no recibe las señales correctas para sincronizarse.', recommendation: 'Luz solar 10 min al despertar, lentes rojos 2h antes de dormir, horario fijo ±30 min.', protocolId: 'circadian_reset' },
-    { domain: 'nervous', threshold: 3, title: 'Sistema nervioso sobreactivado', description: 'Tu cuerpo no logra pasar de modo "lucha" a modo "descanso".', recommendation: 'Magnesio glicinato y GABA son los que suelen acompañar este patrón — las cantidades las define quien te lleva. Respiración box breathing antes de dormir.', protocolId: 'nervous_calm' },
-    { domain: 'metabolic_sleep', threshold: 2, title: 'Interferencia metabólica', description: 'Tu glucosa o hábitos están interfiriendo con la calidad de tu sueño.', recommendation: 'Última cafeína antes de mediodía, cena 3h antes de dormir, proteína + grasa en última comida.' },
-    { domain: 'environment', threshold: 2, title: 'Entorno subóptimo', description: 'Tu ambiente de sueño no facilita el descanso profundo.', recommendation: 'Blackout curtains, temperatura 18-20°C, ruido blanco si hay ruido ambiental.' },
+    { domain: 'cortisol', threshold: 3, title: 'Tu cuerpo sigue encendido a la hora de dormir', description: 'Reportas señales de que sigues en modo alerta cuando ya deberías estar reparando.', recommendation: 'Ashwagandha y fosfatidilserina son los que suelen acompañar este patrón; cuánto y cuándo lo define quien te lleva. Del lado de los hábitos: respiración 4-7-8 antes de acostarte, y bajar luces una hora antes.', protocolId: 'sleep_deep' },
+    { domain: 'circadian', threshold: 3, title: 'Tu reloj interno anda desfasado', description: 'Tu cuerpo tiene un reloj propio que se ajusta con luz y horarios. Por lo que reportas, no está recibiendo esas señales.', recommendation: 'Sal a la luz del sol los primeros diez minutos después de despertar. Baja la luz azul un par de horas antes de dormir. Y acuéstate a la misma hora, con media hora de margen, aunque sea fin de semana.', protocolId: 'circadian_reset' },
+    { domain: 'nervous', threshold: 3, title: 'Tu cuerpo no encuentra el botón de apagado', description: 'Reportas señales de que te cuesta pasar de modo alerta a modo descanso.', recommendation: 'Magnesio glicinato y GABA son los que suelen acompañar este patrón; las cantidades las define quien te lleva. Del lado de los hábitos: respiración en caja antes de acostarte, cuatro tiempos iguales de inhalar, sostener, exhalar y sostener.', protocolId: 'nervous_calm' },
+    { domain: 'metabolic_sleep', threshold: 2, title: 'Lo que comes y bebes te está moviendo el sueño', description: 'Tu glucosa y tus horarios de comida están metiéndose con la calidad de tu descanso.', recommendation: 'Última cafeína antes del mediodía: tarda entre cinco y seis horas en bajar a la mitad. Cena tres horas antes de acostarte. Y que esa última comida lleve proteína y grasa, no azúcar.' },
+    { domain: 'environment', threshold: 2, title: 'Tu cuarto está jugando en contra', description: 'El lugar donde duermes no le está facilitando el trabajo a tu cuerpo.', recommendation: 'Oscuridad total: cualquier luz, aunque sea el foquito de un aparato, frena la melatonina. Entre 18 y 20 grados, porque tu cuerpo necesita bajar un par de grados para entrar a sueño profundo. Y si hay ruido que no puedes quitar, tápalo con ruido blanco.' },
   ],
 };
 
@@ -126,15 +128,15 @@ export const ENERGY_QUIZ: FunctionalQuiz = {
     // RESISTENCIA A INSULINA
     { id: 'E01', text: 'Después de comer, me da sueño intenso o necesito acostarme', domain: 'insulin', rootCause: 'Pico de glucosa → crash → somnolencia post-prandial', weight: 2 },
     { id: 'E02', text: 'Tengo antojos intensos de azúcar, pan o carbohidratos', domain: 'insulin', rootCause: 'Montaña rusa de glucosa / resistencia a insulina', weight: 2 },
-    { id: 'E03', text: 'Acumulo grasa principalmente en el abdomen', domain: 'insulin', rootCause: 'Grasa visceral = marcador de resistencia a insulina', weight: 1 },
-    { id: 'E04', text: 'Tengo manchas oscuras en cuello, axilas o ingles (acantosis)', domain: 'insulin', rootCause: 'Signo que suele acompañar patrones de insulina elevada', weight: 2 },
-    { id: 'E05', text: 'Si no como cada 3-4 horas me siento irritable o débil', domain: 'insulin', rootCause: 'Hipoglucemia reactiva — cuerpo no usa grasa como combustible', weight: 1 },
+    { id: 'E03', text: 'Acumulo grasa principalmente en el abdomen', domain: 'insulin', rootCause: 'La grasa del abdomen es la que más se relaciona con cómo manejas la glucosa', weight: 1 },
+    { id: 'E04', text: 'Tengo manchas oscuras en cuello, axilas o ingles (acantosis)', domain: 'insulin', rootCause: 'La piel del cuello y las axilas a veces refleja cómo anda tu insulina', weight: 2 },
+    { id: 'E05', text: 'Si no como cada 3-4 horas me siento irritable o débil', domain: 'insulin', rootCause: 'Tu cuerpo depende del siguiente bocado porque todavía no aprende a usar tu grasa como combustible', weight: 1 },
     { id: 'E06', text: 'Tengo sed excesiva o voy mucho al baño', domain: 'insulin', rootCause: 'Glucosa elevada aumenta filtración renal', weight: 1 },
 
     // FATIGA ADRENAL
-    { id: 'E07', text: 'Necesito café o estimulantes para funcionar en la mañana', domain: 'adrenal', rootCause: 'Cortisol matutino insuficiente', weight: 2 },
+    { id: 'E07', text: 'Necesito café o estimulantes para funcionar en la mañana', domain: 'adrenal', rootCause: 'Tu cuerpo no está produciendo su propia señal de arranque en la mañana', weight: 2 },
     { id: 'E08', text: 'Tengo un "bajón" de energía entre 2 y 4 PM', domain: 'adrenal', rootCause: 'Caída natural de cortisol mal compensada', weight: 1 },
-    { id: 'E09', text: 'Me mareo al levantarme rápido de estar sentado o acostado', domain: 'adrenal', rootCause: 'Hipotensión ortostática — aldosterona baja', weight: 1 },
+    { id: 'E09', text: 'Me mareo al levantarme rápido de estar sentado o acostado', domain: 'adrenal', rootCause: 'La presión tarda en ajustarse al cambio de postura: señal de que el sistema anda corto de recursos', weight: 1 },
     { id: 'E10', text: 'Se me antojan los alimentos salados más de lo normal', domain: 'adrenal', rootCause: 'Aldosterona baja → pérdida de sodio', weight: 1 },
     { id: 'E11', text: 'Me recupero lentamente de enfermedades o esfuerzo físico', domain: 'adrenal', rootCause: 'Respuesta adrenal comprometida', weight: 1 },
     { id: 'E12', text: 'Tengo el segundo aire de energía después de las 6 PM', domain: 'adrenal', rootCause: 'Curva de cortisol irregular', weight: 1 },
@@ -150,13 +152,13 @@ export const ENERGY_QUIZ: FunctionalQuiz = {
     { id: 'E18', text: 'Me fatigo más rápido que antes con el mismo esfuerzo físico', domain: 'mitochondria', rootCause: 'Producción de ATP mitocondrial reducida', weight: 1 },
     { id: 'E19', text: 'Tengo dolor muscular persistente sin razón clara', domain: 'mitochondria', rootCause: 'Estrés oxidativo mitocondrial', weight: 1 },
     { id: 'E20', text: 'Mi recuperación después del ejercicio es cada vez más lenta', domain: 'mitochondria', rootCause: 'Capacidad de regeneración celular comprometida', weight: 1 },
-    { id: 'E21', text: 'Siento "niebla mental" — dificultad para pensar con claridad', domain: 'mitochondria', rootCause: 'El cerebro consume 20% del ATP total — disfunción mitocondrial afecta cognición', weight: 2 },
+    { id: 'E21', text: 'Siento "niebla mental": dificultad para pensar con claridad', domain: 'mitochondria', rootCause: 'El cerebro consume el 20% de tu energía total: cuando la producción baja, pensar cuesta más', weight: 2 },
   ],
   resultInsights: [
-    { domain: 'insulin', threshold: 3, title: 'Patrón de glucosa y energía inestable', description: 'Tus respuestas apuntan a picos y caídas de energía después de comer.', recommendation: 'Caminata 15 min post-comida, reducir carbohidratos refinados, priorizar proteína + grasa en cada comida, ayuno 16h.', protocolId: 'metabolic_reset' },
-    { domain: 'adrenal', threshold: 3, title: 'Patrón de energía agotada por estrés', description: 'Tus respuestas muestran un patrón de energía baja ligado a estrés sostenido.', recommendation: 'Ashwagandha y vitamina C son los que suelen aparecer aquí — las cantidades las define quien te lleva. Sal marina en agua por la mañana y eliminar cafeína después de mediodía.', protocolId: 'adrenal_recovery' },
-    { domain: 'thyroid', threshold: 3, title: 'Función tiroidea subóptima', description: 'Tus síntomas sugieren que tu tiroides podría necesitar evaluación.', recommendation: 'Solicita labs: TSH, T4L, T3L, anticuerpos antitiroideos. Selenio y zinc son los que suelen acompañar este patrón — las cantidades las define quien te lleva.', protocolId: 'thyroid_support' },
-    { domain: 'mitochondria', threshold: 2, title: 'Salud mitocondrial comprometida', description: 'Tus centrales de energía celular podrían necesitar soporte.', recommendation: 'CoQ10, PQQ y NMN son los que se asocian a este patrón mitocondrial — las cantidades las define quien te lleva. Ejercicio de intervalos.', protocolId: 'mito_boost' },
+    { domain: 'insulin', threshold: 3, title: 'Tu energía sube y baja con lo que comes', description: 'Por lo que reportas, tu cuerpo está montado en una montaña rusa de glucosa: subes rápido después de comer y caes igual de rápido.', recommendation: 'Camina quince minutos después de comer, que es lo más barato y lo que más mueve la aguja. Baja los carbohidratos refinados. Y que cada comida arranque con proteína y grasa, no con pan.', protocolId: 'metabolic_reset' },
+    { domain: 'adrenal', threshold: 3, title: 'Vives con el acelerador pisado', description: 'Reportas el patrón de alguien que lleva mucho tiempo funcionando con estrés sostenido y ya le está cobrando.', recommendation: 'Ashwagandha y vitamina C son los que suelen acompañar este patrón; cuánto lo define quien te lleva. Del lado de los hábitos: una pizca de sal de mar en tu primer vaso de agua, y cero cafeína después del mediodía.', protocolId: 'adrenal_recovery' },
+    { domain: 'thyroid', threshold: 3, title: 'Varias señales apuntan a tu tiroides', description: 'Los síntomas que reportas coinciden con los que se revisan cuando se estudia la función tiroidea.', recommendation: 'Este es de los que sí valen un estudio de sangre. Pide TSH, T4 libre, T3 libre y anticuerpos antitiroideos, y llévalos con tu médico. Selenio y zinc son los nutrientes que más se asocian a la función tiroidea.', protocolId: 'thyroid_support' },
+    { domain: 'mitochondria', threshold: 2, title: 'Tus fábricas de energía están rindiendo menos', description: 'Dentro de cada célula tienes mitocondrias, que son las que producen la energía que usas para todo. Lo que reportas es el patrón de cuando están rindiendo por debajo.', recommendation: 'CoQ10, PQQ y NMN son los que suelen acompañar este patrón; las cantidades las define quien te lleva. Y lo que más las entrena es el ejercicio por intervalos: tramos cortos fuertes con descanso entre ellos.', protocolId: 'mito_boost' },
   ],
 };
 
@@ -181,23 +183,23 @@ export const STRESS_QUIZ: FunctionalQuiz = {
   questions: [
     // SIMPÁTICO
     { id: 'ST01', text: 'Mi mandíbula está tensa o apretada durante el día sin darme cuenta', domain: 'sympathetic', rootCause: 'Tensión muscular crónica por activación simpática', weight: 1 },
-    { id: 'ST02', text: 'Mi respiración es corta y superficial la mayor parte del día', domain: 'sympathetic', rootCause: 'Patrón respiratorio de estrés — no activa el diafragma', weight: 2 },
+    { id: 'ST02', text: 'Mi respiración es corta y superficial la mayor parte del día', domain: 'sympathetic', rootCause: 'Patrón respiratorio de estrés: no activa el diafragma', weight: 2 },
     { id: 'ST03', text: 'Tengo tensión crónica en cuello, hombros o espalda alta', domain: 'sympathetic', rootCause: 'Músculos del estrés crónicamente contraídos', weight: 1 },
     { id: 'ST04', text: 'Mi digestión empeora cuando estoy bajo presión', domain: 'sympathetic', rootCause: 'El SNS desvía sangre del digestivo al musculoesquelético', weight: 1 },
-    { id: 'ST05', text: 'Me sobresalto fácilmente con ruidos inesperados', domain: 'sympathetic', rootCause: 'Reflejo de sobresalto hiperactivo — sistema en alerta permanente', weight: 1 },
+    { id: 'ST05', text: 'Me sobresalto fácilmente con ruidos inesperados', domain: 'sympathetic', rootCause: 'Reflejo de sobresalto hiperactivo: sistema en alerta permanente', weight: 1 },
     { id: 'ST06', text: 'Siento que vivo en modo "urgente" aunque no haya emergencia real', domain: 'sympathetic', rootCause: 'Eje HPA crónicamente activado', weight: 2 },
 
     // EMOCIONAL
     { id: 'ST07', text: 'Me cuesta decir "no" o poner límites a otros', domain: 'emotional', rootCause: 'Carga emocional acumulada por people-pleasing', weight: 1 },
-    { id: 'ST08', text: 'Siento culpa cuando descanso o no estoy siendo "productivo"', domain: 'emotional', rootCause: 'Identidad atada a productividad — no hay permiso para parar', weight: 1 },
-    { id: 'ST09', text: 'Me irrito con cosas pequeñas que antes no me molestaban', domain: 'emotional', rootCause: 'Reservas de tolerancia agotadas — señal de burnout', weight: 1 },
+    { id: 'ST08', text: 'Siento culpa cuando descanso o no estoy siendo "productivo"', domain: 'emotional', rootCause: 'Identidad atada a productividad: no hay permiso para parar', weight: 1 },
+    { id: 'ST09', text: 'Me irrito con cosas pequeñas que antes no me molestaban', domain: 'emotional', rootCause: 'Reservas de tolerancia agotadas: señal de desgaste acumulado', weight: 1 },
     { id: 'ST10', text: 'Siento que estoy "funcionando" pero no "viviendo"', domain: 'emotional', rootCause: 'Desconexión emocional por estrés crónico', weight: 2 },
     { id: 'ST11', text: 'Lloro o me emociono más fácilmente que antes', domain: 'emotional', rootCause: 'Serotonina/GABA bajos por estrés prolongado', weight: 1 },
 
     // COGNITIVO
-    { id: 'ST12', text: 'Olvido cosas que acabo de hacer o decir', domain: 'cognitive', rootCause: 'Cortisol alto daña hipocampo — afecta memoria de trabajo', weight: 1 },
+    { id: 'ST12', text: 'Olvido cosas que acabo de hacer o decir', domain: 'cognitive', rootCause: 'El cortisol alto sostenido le pega a la memoria de trabajo', weight: 1 },
     { id: 'ST13', text: 'Me cuesta tomar decisiones simples', domain: 'cognitive', rootCause: 'Fatiga de decisión + cortisol afecta corteza prefrontal', weight: 1 },
-    { id: 'ST14', text: 'Mi mente salta de un pensamiento a otro sin control', domain: 'cognitive', rootCause: 'Mente de mono — sistema de atención comprometido por estrés', weight: 1 },
+    { id: 'ST14', text: 'Mi mente salta de un pensamiento a otro sin control', domain: 'cognitive', rootCause: 'Mente de mono: sistema de atención comprometido por estrés', weight: 1 },
     { id: 'ST15', text: 'Necesito releer cosas varias veces para entenderlas', domain: 'cognitive', rootCause: 'Memoria de trabajo reducida por cortisol crónico', weight: 1 },
 
     // FÍSICO
@@ -208,10 +210,10 @@ export const STRESS_QUIZ: FunctionalQuiz = {
     { id: 'ST20', text: 'Retengo líquidos o me siento hinchado/a frecuentemente', domain: 'physical_stress', rootCause: 'Cortisol promueve retención de sodio y agua', weight: 1 },
   ],
   resultInsights: [
-    { domain: 'sympathetic', threshold: 3, title: 'Sistema nervioso sobreactivado', description: 'Tu cuerpo pasa demasiado tiempo en modo "lucha o huida".', recommendation: 'Respiración diafragmática varias veces al día, baño frío breve, caminar en naturaleza. Ashwagandha es el que suele acompañar este patrón — la cantidad la define quien te lleva.', protocolId: 'nervous_reset' },
-    { domain: 'emotional', threshold: 3, title: 'Carga emocional acumulada', description: 'Tus reservas emocionales están bajas. Necesitas recargar.', recommendation: 'Journaling descarga 10 min/día, establecer 1 límite claro esta semana, meditation 10 min/día.' },
-    { domain: 'cognitive', threshold: 3, title: 'Fatiga cognitiva', description: 'Tu corteza prefrontal está agotada por estrés sostenido.', recommendation: 'Digital detox antes de dormir y breaks breves cada hora. Omega-3 y melena de león son los que suelen acompañar este patrón — las cantidades las define quien te lleva.' },
-    { domain: 'physical_stress', threshold: 3, title: 'Estrés somatizado', description: 'Tu cuerpo está manifestando el estrés físicamente.', recommendation: 'Vitamina C, magnesio glicinato y adaptógenos (ashwagandha, rhodiola) son los que suelen aparecer aquí — las cantidades las define quien te lleva. Reduce temporalmente el entrenamiento de alta intensidad.' },
+    { domain: 'sympathetic', threshold: 3, title: 'Tu cuerpo está en alerta casi todo el tiempo', description: 'Reportas el patrón de alguien que pasa el día en modo lucha o huida, y casi nunca en modo reparación.', recommendation: 'Respiración con el diafragma, cinco minutos, tres veces al día: es lo que le avisa a tu cuerpo que puede bajar. Camina en la naturaleza, que no es cursi, es de lo mejor medido. Ashwagandha es el que suele acompañar este patrón.', protocolId: 'nervous_reset' },
+    { domain: 'emotional', threshold: 3, title: 'Traes la carga emocional acumulada', description: 'Tus reservas están bajas. No es falta de carácter: es que no has tenido dónde soltar.', recommendation: 'Diez minutos de escribir sin filtro, sin releer. Un límite claro esta semana, uno solo. Y diez minutos de meditación, que sirven más por la constancia que por la duración.' },
+    { domain: 'cognitive', threshold: 3, title: 'Tu cabeza está pidiendo descanso', description: 'La parte del cerebro que decide, planea y se aguanta las ganas es la que primero se cansa. Por lo que reportas, ahí es donde estás.', recommendation: 'Una hora sin pantallas antes de dormir. Cinco minutos de pausa por cada hora de trabajo. Omega-3 y melena de león son los que suelen acompañar este patrón.' },
+    { domain: 'physical_stress', threshold: 3, title: 'El estrés se te está yendo al cuerpo', description: 'Lo que traes en la cabeza está saliendo por la piel, el sueño, la digestión o las ganas. El cuerpo lleva la cuenta.', recommendation: 'Vitamina C, magnesio glicinato y adaptógenos como ashwagandha o rodiola son los que suelen acompañar este patrón. Y baja la intensidad del entrenamiento un rato: entrenar duro con el tanque vacío hace más daño que descansar.' },
   ],
 };
 
@@ -222,7 +224,7 @@ export const STRESS_QUIZ: FunctionalQuiz = {
 export const DIGESTION_QUIZ: FunctionalQuiz = {
   id: 'digestion_functional',
   name: 'Digestión e Intestino',
-  subtitle: 'Tu segundo cerebro habla — ¿lo escuchas?',
+  subtitle: 'Tu segundo cerebro habla. ¿Lo escuchas?',
   emoji: '🔬',
   color: '#22c55e',
   description: 'El intestino produce el 90% de la serotonina y el 70% del sistema inmune vive ahí. Esta evaluación detecta disbiosis, permeabilidad intestinal y sensibilidades.',
@@ -235,9 +237,9 @@ export const DIGESTION_QUIZ: FunctionalQuiz = {
   ],
   questions: [
     // PERMEABILIDAD
-    { id: 'D01', text: 'Mi abdomen se ve plano en la mañana pero inflado en la noche', domain: 'permeability', rootCause: 'Inflamación intestinal progresiva — permeabilidad', weight: 2 },
+    { id: 'D01', text: 'Mi abdomen se ve plano en la mañana pero inflado en la noche', domain: 'permeability', rootCause: 'Inflamación intestinal que va subiendo a lo largo del día', weight: 2 },
     { id: 'D02', text: 'Tengo dolor articular que no se explica por lesión', domain: 'permeability', rootCause: 'Partículas alimentarias en sangre → inflamación sistémica', weight: 1 },
-    { id: 'D03', text: 'Mi piel tiene acné, rosácea o eczema frecuente', domain: 'permeability', rootCause: 'Eje intestino-piel — toxinas bacterianas en circulación', weight: 1 },
+    { id: 'D03', text: 'Mi piel tiene acné, rosácea o eczema frecuente', domain: 'permeability', rootCause: 'Eje intestino-piel: lo que pasa adentro se asoma por la piel', weight: 1 },
     { id: 'D04', text: 'Tengo sensibilidad a alimentos que antes toleraba bien', domain: 'permeability', rootCause: 'Nuevas sensibilidades = señal de permeabilidad aumentada', weight: 2 },
     { id: 'D05', text: 'Sufro de fatiga crónica inexplicable', domain: 'permeability', rootCause: 'Endotoxinas (LPS) en circulación generan fatiga inflamatoria', weight: 1 },
 
@@ -249,7 +251,7 @@ export const DIGESTION_QUIZ: FunctionalQuiz = {
     { id: 'D10', text: 'Tengo mal aliento que no se resuelve con higiene dental', domain: 'dysbiosis', rootCause: 'Fermentación anormal en estómago o intestino', weight: 1 },
 
     // ÁCIDO ESTOMACAL
-    { id: 'D11', text: 'Siento pesadez o que la comida "se queda" mucho tiempo en el estómago', domain: 'stomach_acid', rootCause: 'Hipoclorhidria — ácido gástrico insuficiente para digerir', weight: 1 },
+    { id: 'D11', text: 'Siento pesadez o que la comida "se queda" mucho tiempo en el estómago', domain: 'stomach_acid', rootCause: 'Señal de que el arranque ácido del estómago se queda corto para digerir', weight: 1 },
     { id: 'D12', text: 'Eructo frecuentemente después de comer', domain: 'stomach_acid', rootCause: 'Fermentación en estómago por digestión incompleta', weight: 1 },
     { id: 'D13', text: 'Tengo reflujo o acidez estomacal', domain: 'stomach_acid', rootCause: 'Paradójicamente, el reflujo suele ser por POCO ácido, no mucho', weight: 1 },
     { id: 'D14', text: 'Veo alimentos sin digerir en mis heces', domain: 'stomach_acid', rootCause: 'Enzimas digestivas insuficientes', weight: 2 },
@@ -261,10 +263,10 @@ export const DIGESTION_QUIZ: FunctionalQuiz = {
     { id: 'D18', text: 'Después de comer ciertos alimentos, mi energía baja notablemente', domain: 'sensitivity', rootCause: 'Respuesta inflamatoria a alimentos específicos', weight: 1 },
   ],
   resultInsights: [
-    { domain: 'permeability', threshold: 3, title: 'Patrón digestivo con señales sistémicas', description: 'Tus respuestas combinan molestias digestivas con señales fuera del intestino (piel, articulaciones, energía).', recommendation: 'L-glutamina, colágeno y zinc carnosina son los que suelen aparecer aquí — las cantidades las define quien te lleva. Prueba de eliminación de gluten y lácteos 30 días.', protocolId: 'gut_repair' },
-    { domain: 'dysbiosis', threshold: 3, title: 'Flora intestinal desbalanceada', description: 'Las bacterias benéficas podrían estar en minoría frente a patógenos.', recommendation: 'Probióticos multi-cepa y prebióticos (inulina, FOS) son los que suelen acompañar este patrón — la fórmula la define quien te lleva. Reducir azúcar y aumentar fibra soluble.', protocolId: 'gut_flora' },
-    { domain: 'stomach_acid', threshold: 3, title: 'Ácido gástrico insuficiente', description: 'Tu estómago podría no estar produciendo suficiente ácido para digerir correctamente.', recommendation: 'Betaína HCL con pepsina y vinagre de manzana son los que suelen aparecer aquí — cantidades y momentos los define quien te lleva. Evita beber mucha agua durante las comidas.' },
-    { domain: 'sensitivity', threshold: 2, title: 'Sensibilidades alimentarias', description: 'Tu cuerpo reacciona negativamente a ciertos alimentos.', recommendation: 'Dieta de eliminación 30 días (gluten, lácteos, soya), reintroducción gradual para identificar triggers.' },
+    { domain: 'permeability', threshold: 3, title: 'Varias señales apuntan a tu barrera intestinal', description: 'Tu intestino tiene una pared que decide qué pasa a la sangre y qué no. Lo que reportas coincide con el patrón de cuando esa pared está permitiendo más de lo que debería.', recommendation: 'L-glutamina, colágeno y zinc carnosina son los que suelen acompañar este patrón; las cantidades las define quien te lleva. Y la prueba más honesta es quitar gluten y lácteos treinta días y ver qué cambia en ti.', protocolId: 'gut_repair' },
+    { domain: 'dysbiosis', threshold: 3, title: 'Tu flora intestinal anda despareja', description: 'En tu intestino viven bacterias que trabajan a tu favor y otras que no. Por lo que reportas, las que no están ganando terreno.', recommendation: 'Probióticos de varias cepas y prebióticos como la inulina son los que suelen acompañar este patrón. Del lado de la comida: menos azúcar, que es lo que alimenta a las que no te convienen, y más fibra soluble.', protocolId: 'gut_flora' },
+    { domain: 'stomach_acid', threshold: 3, title: 'Tu digestión arranca lenta', description: 'El estómago necesita un medio bien ácido para romper la proteína. Lo que reportas coincide con el patrón de cuando ese arranque se queda corto.', recommendation: 'Betaína con pepsina es la que suele acompañar este patrón; cuánto lo define quien te lleva. Del lado de los hábitos: una cucharada de vinagre de manzana antes de comer, y no tomar agua durante la comida, porque diluye justo lo que necesitas concentrado.' },
+    { domain: 'sensitivity', threshold: 2, title: 'Hay alimentos que no te están cayendo', description: 'Tu cuerpo está reaccionando a algo que comes. Lo difícil no es creerlo: es saber a qué.', recommendation: 'La forma de saberlo es quitando, no adivinando. Treinta días sin gluten, lácteos ni soya, y luego los regresas de uno en uno con varios días entre cada uno. El que te cae mal se delata solo.' },
   ],
 };
 
@@ -275,7 +277,7 @@ export const DIGESTION_QUIZ: FunctionalQuiz = {
 export const PAIN_QUIZ: FunctionalQuiz = {
   id: 'pain_functional',
   name: 'Dolor e Inflamación',
-  subtitle: 'El dolor es un mensaje — ¿qué te está diciendo tu cuerpo?',
+  subtitle: 'El dolor es un mensaje. ¿Qué te está diciendo tu cuerpo?',
   emoji: '🦴',
   color: '#f97316',
   description: 'La inflamación crónica es la raíz de la mayoría de enfermedades modernas. Esta evaluación detecta patrones inflamatorios y limitaciones de movilidad.',
@@ -291,33 +293,33 @@ export const PAIN_QUIZ: FunctionalQuiz = {
     { id: 'P01', text: 'Me despierto con rigidez en articulaciones que mejora con movimiento', domain: 'chronic_inflammation', rootCause: 'Rigidez matutina >30 min = marcador de inflamación sistémica', weight: 2 },
     { id: 'P02', text: 'Tengo hinchazón visible en dedos, tobillos o rodillas', domain: 'chronic_inflammation', rootCause: 'Retención de líquido inflamatorio', weight: 1 },
     { id: 'P03', text: 'Mi PCR (proteína C reactiva) o VSG han salido elevados en labs', domain: 'chronic_inflammation', rootCause: 'Marcadores directos de inflamación sistémica', weight: 2 },
-    { id: 'P04', text: 'Tengo dolor que se mueve de una articulación a otra', domain: 'chronic_inflammation', rootCause: 'Inflamación migratoria — puede ser autoinmune', weight: 2 },
+    { id: 'P04', text: 'Tengo dolor que se mueve de una articulación a otra', domain: 'chronic_inflammation', rootCause: 'El dolor que viaja entre articulaciones es de los que vale la pena platicar con un médico', weight: 2 },
     { id: 'P05', text: 'El dolor empeora con ciertos alimentos (trigo, azúcar, alcohol)', domain: 'chronic_inflammation', rootCause: 'Inflamación mediada por dieta', weight: 1 },
 
     // MOVILIDAD
-    { id: 'P06', text: 'No puedo tocar mis pies con las piernas rectas', domain: 'joint_mobility', rootCause: 'Cadena posterior acortada — isquiotibiales y fascia', weight: 1 },
-    { id: 'P07', text: 'No puedo levantar los brazos completamente sobre mi cabeza sin arquear la espalda', domain: 'joint_mobility', rootCause: 'Movilidad de hombro limitada — dorsal ancho/pectoral acortados', weight: 1 },
+    { id: 'P06', text: 'No puedo tocar mis pies con las piernas rectas', domain: 'joint_mobility', rootCause: 'Cadena posterior acortada: isquiotibiales y fascia', weight: 1 },
+    { id: 'P07', text: 'No puedo levantar los brazos completamente sobre mi cabeza sin arquear la espalda', domain: 'joint_mobility', rootCause: 'Movilidad de hombro limitada: dorsal ancho y pectoral acortados', weight: 1 },
     { id: 'P08', text: 'No puedo hacer sentadilla profunda con talones en el piso', domain: 'joint_mobility', rootCause: 'Movilidad de tobillo y cadera limitada', weight: 1 },
     { id: 'P09', text: 'Mis rodillas crujen o truenan al subir escaleras', domain: 'joint_mobility', rootCause: 'Condromalacia o déficit de colágeno/lubricación', weight: 1 },
-    { id: 'P10', text: 'Tengo un lado del cuerpo notablemente más rígido que el otro', domain: 'joint_mobility', rootCause: 'Asimetría funcional — riesgo de lesión compensatoria', weight: 1 },
+    { id: 'P10', text: 'Tengo un lado del cuerpo notablemente más rígido que el otro', domain: 'joint_mobility', rootCause: 'Asimetría funcional: riesgo de lesión por compensar', weight: 1 },
 
     // POSTURA
     { id: 'P11', text: 'Paso más de 6 horas al día sentado', domain: 'posture', rootCause: 'Flexores de cadera acortados, glúteos inhibidos, cifosis', weight: 1 },
     { id: 'P12', text: 'Tengo dolor en zona lumbar baja recurrente', domain: 'posture', rootCause: 'Core débil + flexores acortados + glúteos inhibidos', weight: 1 },
-    { id: 'P13', text: 'Mi cabeza se adelanta hacia las pantallas (postura de cuello)', domain: 'posture', rootCause: 'Forward head posture — 4.5 kg extra por cada pulgada de adelanto', weight: 1 },
+    { id: 'P13', text: 'Mi cabeza se adelanta hacia las pantallas (postura de cuello)', domain: 'posture', rootCause: 'Cabeza adelantada: cada centímetro hacia el frente le suma carga extra al cuello', weight: 1 },
     { id: 'P14', text: 'Tengo dolor entre los omóplatos o parte alta de la espalda', domain: 'posture', rootCause: 'Romboides y trapecio medio estirados por hombros encorvados', weight: 1 },
 
     // RECUPERACIÓN
     { id: 'P15', text: 'El dolor muscular post-ejercicio me dura más de 72 horas', domain: 'recovery', rootCause: 'Inflamación crónica retrasa limpieza de metabolitos', weight: 1 },
-    { id: 'P16', text: 'Las lesiones menores (raspones, moretones) tardan mucho en sanar', domain: 'recovery', rootCause: 'Capacidad regenerativa comprometida — vitamina C, zinc, colágeno', weight: 1 },
+    { id: 'P16', text: 'Las lesiones menores (raspones, moretones) tardan mucho en sanar', domain: 'recovery', rootCause: 'Señal de que la capacidad de reparación anda por debajo', weight: 1 },
     { id: 'P17', text: 'Siento que mi cuerpo envejece más rápido que mi edad', domain: 'recovery', rootCause: 'Estrés oxidativo acelerado + inflamación crónica = envejecimiento', weight: 2 },
-    { id: 'P18', text: 'He tenido la misma lesión o dolor en el mismo lugar más de 3 veces', domain: 'recovery', rootCause: 'Patrón de movimiento compensatorio — nunca se arregló la causa raíz', weight: 1 },
+    { id: 'P18', text: 'He tenido la misma lesión o dolor en el mismo lugar más de 3 veces', domain: 'recovery', rootCause: 'Patrón de movimiento compensatorio: nunca se arregló la causa raíz', weight: 1 },
   ],
   resultInsights: [
-    { domain: 'chronic_inflammation', threshold: 3, title: 'Patrón inflamatorio sostenido', description: 'Tus respuestas muestran señales de inflamación sostenida en más de un frente.', recommendation: 'Omega-3 (EPA/DHA) y cúrcuma con pimienta negra son los que suelen acompañar este patrón — las cantidades las define quien te lleva. Dieta antiinflamatoria y eliminar aceites de semilla.', protocolId: 'anti_inflammatory' },
-    { domain: 'joint_mobility', threshold: 3, title: 'Movilidad articular limitada', description: 'Tus articulaciones no tienen el rango de movimiento óptimo para protegerte de lesiones.', recommendation: 'Movilidad articular diaria por la mañana, yoga o stretching regular. Colágeno tipo II es el que suele acompañar este patrón — la cantidad la define quien te lleva.', protocolId: 'mobility_program' },
-    { domain: 'posture', threshold: 3, title: 'Patrones posturales disfuncionales', description: 'Tu postura genera compensaciones que causan dolor y limitan rendimiento.', recommendation: 'Corrección de flexores de cadera, fortalecimiento de glúteos, retracción escapular, breaks cada 45 min de estar sentado.' },
-    { domain: 'recovery', threshold: 2, title: 'Recuperación comprometida', description: 'Tu cuerpo no se repara tan eficientemente como debería.', recommendation: 'Vitamina C, zinc y colágeno son los que suelen aparecer aquí — las cantidades las define quien te lleva. Prioriza el sueño y el contraste frío-calor después de entrenar.' },
+    { domain: 'chronic_inflammation', threshold: 3, title: 'Tu cuerpo trae inflamación de fondo', description: 'La inflamación es útil cuando aparece y se va. Lo que reportas es el patrón de la que se quedó, y esa sí desgasta.', recommendation: 'Omega-3 y cúrcuma con pimienta negra son los que suelen acompañar este patrón; las cantidades las define quien te lleva. Y lo que más pesa es lo que quitas: fuera los aceites de semilla industriales, que es de lo poco que puedes cambiar hoy mismo.', protocolId: 'anti_inflammatory' },
+    { domain: 'joint_mobility', threshold: 3, title: 'Tus articulaciones están cortas de rango', description: 'No llegas al rango que tu cuerpo necesita para moverse sin compensar, y compensar es como aparecen las lesiones.', recommendation: 'Diez minutos de movilidad en la mañana, todos los días. Yoga o estiramiento dos veces por semana. Colágeno tipo II es el que suele acompañar este patrón.', protocolId: 'mobility_program' },
+    { domain: 'posture', threshold: 3, title: 'Tu postura te está cobrando', description: 'Tu cuerpo encontró una forma de acomodarse que funciona a corto plazo y duele a largo plazo.', recommendation: 'Abre los flexores de cadera, que es lo que se acorta de estar sentado. Fortalece glúteos. Junta los omóplatos varias veces al día. Y levántate cada cuarenta y cinco minutos, aunque sea a caminar tantito.' },
+    { domain: 'recovery', threshold: 2, title: 'Te estás recuperando más lento de lo que deberías', description: 'Lo que reportas es el patrón de un cuerpo que se repara por debajo de su capacidad.', recommendation: 'Vitamina C, zinc y colágeno son los que suelen acompañar este patrón. Pero antes que cualquier suplemento: duerme entre siete y ocho horas, porque ahí es donde se repara todo lo demás.' },
   ],
 };
 

@@ -248,7 +248,7 @@ export default function Solar() {
                   sugerencia de exposición, no en otra pantalla. */}
               <Text style={{ color: '#999', fontSize: 11, marginTop: 8, lineHeight: 16 }}>
                 No aplica si tienes piel sensible o fotosensible, antecedente de
-                melanoma o tomas medicamentos fotosensibilizantes — en ese caso
+                melanoma o tomas medicamentos fotosensibilizantes. En ese caso
                 manda tu dermatólogo.
               </Text>
             </View>

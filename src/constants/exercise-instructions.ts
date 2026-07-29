@@ -23,7 +23,7 @@ export const EXERCISE_INSTRUCTIONS: Record<string, string> = {
   'pull-ups':
     'Cuelga con agarre prono al ancho de hombros. Jala llevando los codos hacia las costillas hasta pasar la barbilla; baja con control hasta extender del todo.',
   'pull-ups-lastre':
-    'Misma ejecución que la dominada estricta, con lastre en cinturón o chaleco. Sube hasta pasar la barbilla y baja con control total — el lastre castiga los rebotes.',
+    'Misma ejecución que la dominada estricta, con lastre en cinturón o chaleco. Sube hasta pasar la barbilla y baja con control total: el lastre castiga los rebotes.',
   'bodyweight-elevated-push-up':
     'Manos en una superficie elevada, cuerpo en línea recta. Baja el pecho hacia el borde con codos a ~45° y empuja de vuelta sin quebrar la cadera.',
   'bodyweight-knee-push-ups':

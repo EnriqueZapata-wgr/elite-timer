@@ -1314,7 +1314,7 @@ function buildContextPrompt(ctx: UserContext): string {
         'REGLA LABS + CICLO (obligatoria): en mujeres con ciclo activo, interpreta los labs EN CONTEXTO de la fase ' +
         `del ciclo indicada arriba (fase ${ctx.cycleInfo.currentPhase}): hormonas (estradiol, progesterona, LH/FSH), ` +
         'ferritina/hierro y marcadores inflamatorios varían por fase. Si la fase hace ambiguo un valor, dilo y ' +
-        'sugiere repetir la medición en la fase adecuada — no concluyas con un dato fuera de contexto.',
+        'sugiere repetir la medición en la fase adecuada; no concluyas con un dato fuera de contexto.',
       );
     }
   }
@@ -1881,10 +1881,10 @@ export async function generateRecipe(
 
   const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una receta saludable.
 
-FILOSOFÍA NUTRICIONAL ATP (E-6 MB-12 — comida limpia y flexibilidad metabólica; el macro es consecuencia, no objetivo):
+FILOSOFÍA NUTRICIONAL ATP (comida limpia y flexibilidad metabólica; el macro es consecuencia, no objetivo):
 - Comida REAL y sin procesar: ingredientes que se reconocen a simple vista
 - Densidad de nutrientes primero: vísceras, huevo, pescado, verduras, fermentados
-- Flexibilidad metabólica: el cuerpo alterna combustibles — ni grasa-céntrico ni carbo-céntrico
+- Flexibilidad metabólica: el cuerpo alterna combustibles; ni grasa-céntrico ni carbo-céntrico
 - Proteína suficiente como base estructural (sin volverla el tema de la receta)
 - Anti-inflamatorio: evitar aceites de semilla, azúcar refinada, harinas procesadas
 - Ingredientes accesibles en México/LATAM
@@ -1949,7 +1949,7 @@ export async function generateShoppingList(
 
   const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una lista de super optimizada para ${days} días.
 
-CRITERIOS (comida limpia y flexibilidad metabólica — el macro es consecuencia):
+CRITERIOS (comida limpia y flexibilidad metabólica; el macro es consecuencia):
 - Comida real y sin procesar, densa en nutrientes
 - Fuentes de proteína variadas y de calidad (animal y vegetal)
 - Grasas de comida real (aguacate, aceite de oliva, nueces)

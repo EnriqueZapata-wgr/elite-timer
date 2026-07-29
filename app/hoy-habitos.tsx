@@ -114,14 +114,14 @@ export default function HoyHabitosScreen() {
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         <EliteText variant="caption" style={s.intro}>
           Elige qué hábitos trackea tu HOY. Lo que apagues deja de contar en tu
-          ATP Score de mañana en adelante — tu historial no se toca.
+          ATP Score de mañana en adelante; tu historial no se toca.
         </EliteText>
 
         {loadFailed && (
           <View style={s.row}>
             <Ionicons name="cloud-offline-outline" size={18} color={TEXT.secondary} />
             <EliteText variant="caption" style={{ color: TEXT.secondary, flex: 1 }}>
-              Tu configuración no se pudo leer — revisa tu conexión y vuelve a entrar.
+              Tu configuración no se pudo leer. Revisa tu conexión y vuelve a entrar.
             </EliteText>
           </View>
         )}

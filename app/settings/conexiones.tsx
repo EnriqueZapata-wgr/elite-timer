@@ -242,7 +242,7 @@ export default function SettingsConexionesScreen() {
                     conexión aún no está disponible. */}
                 <EliteText variant="caption" style={styles.wearableDesc}>
                   La conexión con Apple Health y Google Health está en
-                  desarrollo — cuando llegue, sueño, pasos, FC y HRV entrarán
+                  desarrollo. Cuando llegue, sueño, pasos, FC y HRV entrarán
                   solos.
                 </EliteText>
               </View>

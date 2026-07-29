@@ -97,7 +97,7 @@ export default function MenteProgresoScreen() {
             <View style={{ flex: 1 }}>
               <EliteText style={s.streakLabel}>Tus rachas no se pudieron leer</EliteText>
               <EliteText style={s.streakNext}>
-                Revisa tu conexión y vuelve a entrar — tus datos siguen ahí.
+                Revisa tu conexión y vuelve a entrar. Tus datos siguen ahí.
               </EliteText>
             </View>
           </View>

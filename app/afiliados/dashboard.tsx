@@ -80,7 +80,7 @@ export default function AfiliadosDashboardScreen() {
           <Ionicons name="cloud-offline-outline" size={40} color={TEXT.tertiary} />
           <EliteText style={st.guardTitle}>No pudimos leer tu panel</EliteText>
           <EliteText style={st.guardBody}>
-            Tu balance y tus referidos siguen intactos — esto fue un problema de conexión.
+            Tu balance y tus referidos siguen intactos. Esto fue un problema de conexión.
           </EliteText>
           <AnimatedPressable style={st.guardBtn} onPress={() => { haptic.medium(); load(); }}>
             <EliteText style={st.guardBtnText}>REINTENTAR</EliteText>

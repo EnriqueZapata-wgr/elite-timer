@@ -44,7 +44,7 @@ export function argosRateLimitMessage(payload?: unknown): string {
       ? Math.max(1, Math.ceil(p.retry_after / 60))
       : null;
   const cuando = mins ? `Se libera en ~${mins} min.` : 'Se libera en unos minutos.';
-  return `Alcanzaste tu límite de ARGOS por ahora — no es tu conexión. ${cuando} Reintentar antes no ayuda.`;
+  return `Alcanzaste tu límite de ARGOS por ahora; no es tu conexión. ${cuando} Reintentar antes no ayuda.`;
 }
 
 /**

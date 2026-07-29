@@ -143,7 +143,7 @@ export default function NBackSessionScreen() {
       if (!aliveRef.current) return;
       Alert.alert(
         'No pudimos leer tu nivel',
-        'Revisa tu conexión e intenta de nuevo — tu progreso sigue guardado.',
+        'Revisa tu conexión e intenta de nuevo. Tu progreso sigue guardado.',
         [{ text: 'OK', onPress: () => router.back() }],
       );
     });

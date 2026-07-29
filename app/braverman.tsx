@@ -428,7 +428,7 @@ function BravermanTest() {
   if (screen === 'quiz' && currentQ) {
     const neuroMeta = NEUROTRANSMITTER_META[currentQ.neurotransmitter];
     const categoryLabel = CATEGORY_LABELS[currentQ.category];
-    const partLabel = currentPart === 1 ? 'PARTE 1 — DOMINANCIAS' : 'PARTE 2 — DEFICIENCIAS';
+    const partLabel = currentPart === 1 ? 'PARTE 1 · DOMINANCIAS' : 'PARTE 2 · DEFICIENCIAS';
     const partQuestions = currentPart === 1 ? PART1.length : PART2.length;
     const progressPart = (currentIndex / partQuestions) * 100;
     const progressTotal = (answeredTotal / totalQuestions) * 100;
@@ -671,7 +671,7 @@ function BravermanTest() {
               DEFICIENCIA PRINCIPAL
             </Text>
             <Text style={{ color: DEFICIENCY_COLORS[defLevel], fontSize: 22, fontFamily: Fonts.extraBold, marginTop: 4 }}>
-              {defMeta.name} — {DEFICIENCY_LABELS[defLevel]}
+              {defMeta.name} · {DEFICIENCY_LABELS[defLevel]}
             </Text>
             <Text style={{
               color: '#ccc', fontSize: 13, fontFamily: Fonts.regular,
@@ -774,7 +774,7 @@ function BravermanTest() {
               <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21 }}>
                 Tu cerebro tiene naturaleza {domMeta.name.toLowerCase()} ({domMeta.controls.toLowerCase()}).
                 {defLevel !== 'none' ? ` Este perfil, con tu deficiencia principal en ${defMeta.name.toLowerCase()}, suele venir acompañado de: ${defMeta.deficientSymptoms.toLowerCase()}.` : ''}
-                {'\n\n'}ARGOS usará este perfil para personalizar tus recomendaciones de suplementos, nutrición, ejercicio y protocolos.
+                {'\n\n'}ARGOS usará este perfil como contexto para orientar tu nutrición, tu ejercicio y tus protocolos. Lo que registres de suplementos sigue siendo tuyo: qué tomar y cuánto se define con quien te lleva.
               </Text>
             </View>
           </Animated.View>
@@ -805,7 +805,7 @@ function BravermanTest() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <Text style={{ fontSize: 16 }}>{meta.emoji}</Text>
                     <Text style={{ color: meta.color, fontSize: 13, fontFamily: Fonts.bold }}>
-                      {meta.name} — {DEFICIENCY_LABELS[level]}
+                      {meta.name} · {DEFICIENCY_LABELS[level]}
                     </Text>
                   </View>
                   {supps.supplements.slice(0, 4).map((supp, i) => (

@@ -62,7 +62,7 @@ export default function SettingsLegalScreen() {
       icon: 'document-text-outline' as const,
       title: 'Términos de servicio',
       status: consentFailed
-        ? 'Estado de aceptación sin lectura — revisa tu conexión'
+        ? 'Estado de aceptación sin lectura. Revisa tu conexión.'
         : consent?.terms_accepted_at
           ? `Aceptados: v${consent.terms_version ?? '1.0'} · ${fmtDate(consent.terms_accepted_at)}`
           : 'Ver documento',
@@ -73,7 +73,7 @@ export default function SettingsLegalScreen() {
       icon: 'lock-closed-outline' as const,
       title: 'Política de privacidad',
       status: consentFailed
-        ? 'Estado de aceptación sin lectura — revisa tu conexión'
+        ? 'Estado de aceptación sin lectura. Revisa tu conexión.'
         : consent?.privacy_accepted_at
           ? `Aceptada: v${consent.privacy_version ?? '1.0'} · ${fmtDate(consent.privacy_accepted_at)}`
           : 'Ver documento',

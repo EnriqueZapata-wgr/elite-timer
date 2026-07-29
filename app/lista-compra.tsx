@@ -122,7 +122,7 @@ export default function ListaCompraScreen() {
             </EliteText>
             <EliteText style={s.emptySub}>
               {loadFailed
-                ? 'Revisa tu conexión y vuelve a entrar — tus recetas siguen guardadas.'
+                ? 'Revisa tu conexión y vuelve a entrar. Tus recetas siguen guardadas.'
                 : 'Guarda recetas de ARGOS (traen ingredientes) o genera tu lista IA semanal desde Recetas ARGOS.'}
             </EliteText>
           </View>

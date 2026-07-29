@@ -45,7 +45,7 @@ export default function HistoriaClinicaIndex() {
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>
             {loadFailed
-              ? 'Tu avance no se pudo leer — revisa tu conexión'
+              ? 'Tu avance no se pudo leer. Revisa tu conexión.'
               : `${completed} de ${total} cuestionarios completados · tu base para personalizar ARGOS`}
           </EliteText>
         </Animated.View>

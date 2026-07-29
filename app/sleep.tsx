@@ -132,7 +132,7 @@ export default function SleepScreen() {
             <Animated.View entering={FadeInUp.delay(80).springify()} style={s.windowCard}>
               <EliteText style={s.windowKicker}>TU VENTANA DE SUEÑO</EliteText>
               <EliteText style={s.emptySub}>
-                No se pudo leer tu cronotipo — revisa tu conexión y vuelve a entrar.
+                No se pudo leer tu cronotipo. Revisa tu conexión y vuelve a entrar.
               </EliteText>
             </Animated.View>
           )}

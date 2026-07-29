@@ -93,7 +93,7 @@ export default function EconomyAdminScreen() {
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.eRow}>
           <Ionicons name="flash" size={16} color={ATP_BRAND.lime} />
           <EliteText variant="caption" style={styles.eText}>
-            {electrons != null ? `${electrons.current_electrons.toLocaleString('en-US')} E- disponibles para convertir` : '— E- (sin lectura)'}
+            {electrons != null ? `${electrons.current_electrons.toLocaleString('en-US')} E- disponibles para convertir` : 'E- sin lectura'}
           </EliteText>
         </Animated.View>
 

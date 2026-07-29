@@ -163,7 +163,7 @@ export default function PaywallScreen() {
           {priceLabel}
         </EliteText>
         <EliteText style={styles.trialNote}>
-          {trialLabel(pkg) ?? 'Se renueva automáticamente — cancela cuando quieras'}
+          {trialLabel(pkg) ?? 'Se renueva automáticamente. Cancela cuando quieras.'}
         </EliteText>
 
         <View style={styles.featureList}>
@@ -234,7 +234,7 @@ export default function PaywallScreen() {
         {sdkReady && offeringsError && packages.length === 0 && (
           <AnimatedPressable onPress={() => { haptic.light(); refresh(); }} style={styles.restoreBtn}>
             <EliteText style={styles.sdkNote}>
-              No pudimos cargar los precios — toca para reintentar.
+              No pudimos cargar los precios. Toca para reintentar.
             </EliteText>
           </AnimatedPressable>
         )}

@@ -241,7 +241,11 @@ export const EmotionWheel = memo(forwardRef<EmotionWheelHandle, Props>(function 
                   x={p.x}
                   y={p.y + CORE_FONT_WIDE * 0.35}
                   fontSize={CORE_FONT_WIDE}
-                  fontFamily={Fonts.extraBold}
+                  // MB-12.1 B-1: react-native-svg en Android NO resuelve una
+                  // familia cargada por expo-font — con fontFamily el texto no
+                  // se pinta. fontWeight sí funciona (mismo patrón que
+                  // SimpleCharts/CycleCalendar/ParameterChart).
+                  fontWeight="800"
                   fill={withOpacity(TEXT.primary, alpha)}
                   textAnchor="middle"
                 >
@@ -255,7 +259,7 @@ export const EmotionWheel = memo(forwardRef<EmotionWheelHandle, Props>(function 
               <SvgText
                 key={`lbl-${s.key}`}
                 fontSize={CORE_FONT_NARROW}
-                fontFamily={Fonts.extraBold}
+                fontWeight="800"
                 fill={withOpacity(TEXT.primary, alpha)}
                 textAnchor={t.anchor}
                 transform={`translate(${p.x}, ${p.y}) rotate(${t.rotateDeg})`}
@@ -277,7 +281,7 @@ export const EmotionWheel = memo(forwardRef<EmotionWheelHandle, Props>(function 
               <SvgText
                 key={`lbl-${s.key}`}
                 fontSize={FAM_FONT}
-                fontFamily={Fonts.bold}
+                fontWeight="700"
                 fill={withOpacity(TEXT.primary, alpha)}
                 textAnchor={t.anchor}
                 transform={`translate(${p.x}, ${p.y}) rotate(${t.rotateDeg})`}
@@ -298,7 +302,7 @@ export const EmotionWheel = memo(forwardRef<EmotionWheelHandle, Props>(function 
               <SvgText
                 key={`lbl-${s.key}`}
                 fontSize={EMO_FONT}
-                fontFamily={Fonts.semiBold}
+                fontWeight="600"
                 fill={withOpacity(TEXT.primary, selectedSet.has(s.emotionId) ? 1 : 0.92)}
                 textAnchor={t.anchor}
                 transform={`translate(${p.x}, ${p.y}) rotate(${t.rotateDeg})`}

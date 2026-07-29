@@ -296,19 +296,19 @@ export default function FitnessHubScreen() {
           <EliteText style={s.weekLabel}>ESTA SEMANA</EliteText>
           <View style={s.statsRow}>
             <View style={s.statItem}>
-              <EliteText style={s.statValue}>{stats ? stats.sessions : '—'}</EliteText>
+              <EliteText style={s.statValue}>{stats ? stats.sessions : '–'}</EliteText>
               <EliteText style={s.statLabel}>Sesiones</EliteText>
             </View>
             <View style={s.statDivider} />
             <View style={s.statItem}>
               <EliteText style={s.statValue}>
-                {stats ? (stats.volume > 1000 ? `${(stats.volume / 1000).toFixed(1)}k` : stats.volume) : '—'}
+                {stats ? (stats.volume > 1000 ? `${(stats.volume / 1000).toFixed(1)}k` : stats.volume) : '–'}
               </EliteText>
               <EliteText style={s.statLabel}>Kg movidos</EliteText>
             </View>
             <View style={s.statDivider} />
             <View style={s.statItem}>
-              <EliteText style={[s.statValue, { color: SEMANTIC.acceptable }]}>{stats ? stats.prs : '—'}</EliteText>
+              <EliteText style={[s.statValue, { color: SEMANTIC.acceptable }]}>{stats ? stats.prs : '–'}</EliteText>
               <EliteText style={s.statLabel}>PRs nuevos</EliteText>
             </View>
           </View>
