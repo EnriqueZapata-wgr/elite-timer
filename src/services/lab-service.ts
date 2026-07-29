@@ -2,6 +2,7 @@
  * Lab Service — Upload, extracción IA, CRUD de resultados de laboratorio.
  */
 import { supabase } from '@/src/lib/supabase';
+import { getFreshSignedUrl } from '@/src/services/storage-signed-url';
 import { callAnthropic, extractResponseText, uploadFileToAnthropicViaProxy } from '@/src/services/anthropic-client';
 import { getArgosCallMetadata } from '@/src/services/argos-service';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -110,7 +111,9 @@ async function runParserOnUpload(
 
   return withSmartRetry(
     async () => {
-      const fileRes = await fetch(upload.file_url);
+      // MB-13 · Pieza 5.3: file_url guarda el path (filas viejas: URL completa).
+      const freshUrl = await getFreshSignedUrl('lab-files', upload.file_url);
+      const fileRes = await fetch(freshUrl ?? upload.file_url);
       const source = { type: 'base64', media_type: mediaType, data: await blobToBase64(await fileRes.blob()) };
       return callAnthropic(
         [{ role: 'user', content: [
@@ -174,16 +177,16 @@ export async function uploadLabFile(
 
   if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
 
-  const { data: urlData } = await supabase.storage.from('lab-files').createSignedUrl(path, 365 * 24 * 60 * 60);
-  const fileUrl = urlData?.signedUrl ?? '';
-
+  // MB-13 · Pieza 5.3: en DB va el PATH de storage, no una URL firmada de un
+  // año (enlace público de facto). La URL se firma corta al momento de usarse.
   const { data: upload, error: insertError } = await supabase
     .from('lab_uploads')
-    .insert({ user_id: userId, file_url: fileUrl, file_type: fileType, file_name: fileName ?? `lab_${Date.now()}.${ext}`, status: 'uploaded' })
+    .insert({ user_id: userId, file_url: path, file_type: fileType, file_name: fileName ?? `lab_${Date.now()}.${ext}`, status: 'uploaded' })
     .select('id')
     .single();
 
   if (insertError) throw insertError;
+  const fileUrl = (await getFreshSignedUrl('lab-files', path)) ?? '';
   return { uploadId: upload.id, fileUrl };
 }
 

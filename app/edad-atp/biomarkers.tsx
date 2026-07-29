@@ -9,6 +9,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, Linking } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/src/lib/supabase';
+import { getFreshSignedUrl } from '@/src/services/storage-signed-url';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
@@ -107,8 +108,9 @@ export default function BiomarkersCapture() {
   const [sourceFileUrl, setSourceFileUrl] = useState<string | null>(null);
   useEffect(() => {
     if (!sourceUploadId) return;
+    // MB-13 · Pieza 5.3: file_url guarda el path; se firma corto al mostrar.
     supabase.from('lab_uploads').select('file_url').eq('id', sourceUploadId).maybeSingle()
-      .then(({ data }) => setSourceFileUrl(data?.file_url ?? null));
+      .then(async ({ data }) => setSourceFileUrl(await getFreshSignedUrl('lab-files', data?.file_url)));
   }, [sourceUploadId]);
 
   useFocusEffect(useCallback(() => {
