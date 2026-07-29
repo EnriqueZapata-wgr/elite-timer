@@ -39,6 +39,8 @@ const ZERO: MenteStreaks = { journal: 0, breathing: 0, meditation: 0, checkin: 0
 export default function MenteProgresoScreen() {
   const router = useRouter();
   const [streaks, setStreaks] = useState<MenteStreaks>(ZERO);
+  // D-2 (MB-12): con error de red las 4 rachas en 0 serían mentira — se avisa.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [medals, setMedals] = useState<MenteMedal[]>([]);
   const [justAwarded, setJustAwarded] = useState<string[]>([]);
 
@@ -48,6 +50,13 @@ export default function MenteProgresoScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const s = await fetchMenteStreaks(user.id);
+      if (!alive) return;
+      if (s === null) {
+        // Sin datos confiables no se sincronizan medallas ni se pintan ceros.
+        setLoadFailed(true);
+        return;
+      }
+      setLoadFailed(false);
       const existing = await fetchMenteMedals(user.id);
       const fresh = await syncMenteMedals(user.id, s, existing);
       if (!alive) return;
@@ -79,8 +88,22 @@ export default function MenteProgresoScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
+        {/* D-2 (MB-12): falló ≠ rachas en 0 — se dice la verdad */}
+        {loadFailed && (
+          <View style={s.streakCard}>
+            <View style={s.streakLeft}>
+              <Ionicons name="cloud-offline-outline" size={20} color={TEXT.tertiary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <EliteText style={s.streakLabel}>Tus rachas no se pudieron leer</EliteText>
+              <EliteText style={s.streakNext}>
+                Revisa tu conexión y vuelve a entrar — tus datos siguen ahí.
+              </EliteText>
+            </View>
+          </View>
+        )}
         {/* Rachas por categoría */}
-        {MENTE_CATEGORIES.map((cat, idx) => {
+        {!loadFailed && MENTE_CATEGORIES.map((cat, idx) => {
           const copy = CATEGORY_COPY[cat];
           const streak = streaks[cat];
           const next = nextMedalTarget(streak);

@@ -60,21 +60,36 @@ export default function EconomyAdminScreen() {
     <Screen edges={[]}>
       <ScreenHeader title="Mi Progreso" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.delay(40).springify()}>
-          <RankBadge lifetimeElectrons={electrons?.lifetime_electrons ?? 0} />
-        </Animated.View>
+        {/* D-2 (MB-12): balance null = no se pudo leer — jamás pintar 0 real */}
+        {electrons != null && (
+          <Animated.View entering={FadeInDown.delay(40).springify()}>
+            <RankBadge lifetimeElectrons={electrons.lifetime_electrons} />
+          </Animated.View>
+        )}
 
-        <Animated.View entering={FadeInDown.delay(90).springify()}>
-          <BalanceCard
-            protons={protons?.current_protons ?? 0}
-            onPressShop={() => { haptic.medium(); router.push('/economy/shop'); }}
-          />
-        </Animated.View>
+        {protons != null ? (
+          <Animated.View entering={FadeInDown.delay(90).springify()}>
+            <BalanceCard
+              protons={protons.current_protons}
+              onPressShop={() => { haptic.medium(); router.push('/economy/shop'); }}
+            />
+          </Animated.View>
+        ) : (
+          <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.eRow}>
+            <Ionicons name="cloud-offline-outline" size={16} color={TEXT.secondary} />
+            <EliteText variant="caption" style={styles.eText}>
+              Tu balance no se pudo leer.{' '}
+              <EliteText variant="caption" style={{ color: ATP_BRAND.lime }} onPress={load}>
+                Reintentar
+              </EliteText>
+            </EliteText>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.eRow}>
           <Ionicons name="flash" size={16} color={ATP_BRAND.lime} />
           <EliteText variant="caption" style={styles.eText}>
-            {(electrons?.current_electrons ?? 0).toLocaleString('en-US')} E- disponibles para convertir
+            {electrons != null ? `${electrons.current_electrons.toLocaleString('en-US')} E- disponibles para convertir` : '— E- (sin lectura)'}
           </EliteText>
         </Animated.View>
 

@@ -151,7 +151,13 @@ export default function CommunityPublicProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             haptic.medium();
-            await blockUser(userId);
+            // D-2 (MB-12): es una acción de SEGURIDAD — confirmar solo si el
+            // servidor la aplicó de verdad.
+            const code = await blockUser(userId);
+            if (code !== 'blocked') {
+              Alert.alert('No se pudo bloquear', 'Revisa tu conexión e intenta de nuevo.');
+              return;
+            }
             router.back();
           },
         },
@@ -172,7 +178,12 @@ export default function CommunityPublicProfileScreen() {
     if (!userId) return;
     setReportOpen(false);
     haptic.light();
-    await reportUser(userId, reason);
+    // D-2 (MB-12): "recibimos tu reporte" solo si el servidor lo recibió.
+    const code = await reportUser(userId, reason);
+    if (code === 'error' || code === 'invalid_reason') {
+      Alert.alert('No se pudo enviar', 'Tu reporte no llegó. Revisa tu conexión e intenta de nuevo.');
+      return;
+    }
     Alert.alert('Gracias', 'Recibimos tu reporte. Lo revisaremos pronto.');
   }, [userId]);
 

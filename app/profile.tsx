@@ -227,8 +227,12 @@ export default function ProfileScreen() {
     try {
       const trimmed = name.trim();
       // Nombre: profiles + auth metadata (este último refresca el header de YO al instante).
-      await supabase.from('profiles').update({ full_name: trimmed }).eq('id', user.id);
-      await supabase.auth.updateUser({ data: { full_name: trimmed } });
+      // D-2 (MB-12): supabase-js no lanza en 4xx — sin leer { error }, el
+      // "Perfil guardado ✓" salía aunque fecha y sexo (Edad ATP) se perdieran.
+      const { error: nameErr } = await supabase.from('profiles').update({ full_name: trimmed }).eq('id', user.id);
+      if (nameErr) throw nameErr;
+      const { error: authErr } = await supabase.auth.updateUser({ data: { full_name: trimmed } });
+      if (authErr) throw authErr;
       // DOB + sexo: upsert real a client_profiles (editable, no solo "ensure").
       await upsertClientProfile(user.id, { date_of_birth: dateStr, biological_sex: sex });
       haptic.success();

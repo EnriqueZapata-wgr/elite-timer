@@ -186,7 +186,12 @@ export default function JournalScreen() {
     try {
       const { data, error } = await supabase.from('journal_entries').select('*')
         .eq('user_id', user.id).order('created_at', { ascending: false }).limit(30);
-      if (error) console.warn('Journal load error:', error.message);
+      // D-2 (MB-12): con error NO se pisa la lista — antes las entradas
+      // "desaparecían" de la pantalla en cualquier fallo de red.
+      if (error) {
+        console.warn('Journal load error:', error.message);
+        return;
+      }
       setEntries(data ?? []);
     } catch (e) {
       console.warn('Journal loadEntries catch:', e);

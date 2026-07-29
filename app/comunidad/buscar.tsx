@@ -71,6 +71,8 @@ export default function CommunitySearchScreen() {
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
+  // D-2 (MB-12): fallo del RPC ≠ "sin resultados" (culpaba al otro usuario).
+  const [searchFailed, setSearchFailed] = useState(false);
   const [states, setStates] = useState<Record<string, FriendState>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -88,9 +90,10 @@ export default function CommunitySearchScreen() {
 
   const runSearch = useCallback(async (q: string) => {
     setSearching(true);
-    const { results: rows, rateLimited: limited } = await searchUsersGuarded(q);
+    const { results: rows, rateLimited: limited, failed } = await searchUsersGuarded(q);
     setResults(rows);
     setRateLimited(limited);
+    setSearchFailed(!!failed);
     setSearching(false);
   }, []);
 
@@ -100,6 +103,7 @@ export default function CommunitySearchScreen() {
     if (t.trim().length < MIN_CHARS) {
       setResults([]);
       setRateLimited(false);
+      setSearchFailed(false);
       return;
     }
     timer.current = setTimeout(() => runSearch(t), DEBOUNCE_MS);
@@ -163,6 +167,12 @@ export default function CommunitySearchScreen() {
       <View style={{ marginTop: Spacing.md }}>
         {searching ? (
           <EliteText style={s.empty}>Buscando…</EliteText>
+        ) : searchFailed ? (
+          // D-2 (MB-12): un fallo de red es NUESTRO — no se culpa al otro
+          // usuario ("no activó aparecer en el buscador").
+          <EliteText style={s.empty}>
+            La búsqueda no se pudo completar. Revisa tu conexión e intenta de nuevo.
+          </EliteText>
         ) : results.length === 0 && query.trim().length >= MIN_CHARS && !rateLimited ? (
           <EliteText style={s.empty}>
             Sin resultados. Solo aparecen perfiles que activaron “Aparecer en el buscador”.

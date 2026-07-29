@@ -33,7 +33,10 @@ export default function HistoriaClinicaCategory() {
 
   useEffect(() => {
     if (!user?.id || !category) { setInitial({}); return; }
-    loadHistoriaClinica(user.id).then(d => setInitial(d[category] ?? {}));
+    // D-2 (MB-12): sin catch, un fallo dejaba el spinner girando para siempre.
+    loadHistoriaClinica(user.id)
+      .then(d => setInitial(d[category] ?? {}))
+      .catch(() => setInitial({}));
   }, [user?.id, category]);
 
   if (!questionnaire) {

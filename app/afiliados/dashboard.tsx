@@ -44,23 +44,51 @@ export default function AfiliadosDashboardScreen() {
   const [referred, setReferred] = useState<ReferredUser[]>([]);
   const [earnings, setEarnings] = useState<Earning[]>([]);
   const [copied, setCopied] = useState(false);
+  // D-2 (MB-12): fallo de red = estado de error con reintento, no "$0.00".
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    const aff = await getAffiliate(user.id);
-    setAffiliate(aff);
-    if (!aff || aff.status !== 'approved') return;
-    const [dash, primaryCode] = await Promise.all([
-      loadAffiliateDashboard(aff.id),
-      ensurePrimaryCode(aff.id),
-    ]);
-    setWallet(dash.wallet);
-    setReferred(dash.referred);
-    setEarnings(dash.earnings);
-    setCode(primaryCode ?? dash.codes[0] ?? null);
+    try {
+      setLoadError(false);
+      const aff = await getAffiliate(user.id);
+      setAffiliate(aff);
+      if (!aff || aff.status !== 'approved') return;
+      const [dash, primaryCode] = await Promise.all([
+        loadAffiliateDashboard(aff.id),
+        ensurePrimaryCode(aff.id),
+      ]);
+      setWallet(dash.wallet);
+      setReferred(dash.referred);
+      setEarnings(dash.earnings);
+      setCode(primaryCode ?? dash.codes[0] ?? null);
+    } catch {
+      setLoadError(true);
+    }
   }, [user?.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // D-2 (MB-12): patrón routine-generator — estado de error + Reintentar.
+  if (loadError) {
+    return (
+      <View style={[st.screen, { paddingTop: insets.top + 8, paddingHorizontal: Spacing.md }]}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={TEXT.primary} />
+        </Pressable>
+        <View style={st.guardBox}>
+          <Ionicons name="cloud-offline-outline" size={40} color={TEXT.tertiary} />
+          <EliteText style={st.guardTitle}>No pudimos leer tu panel</EliteText>
+          <EliteText style={st.guardBody}>
+            Tu balance y tus referidos siguen intactos — esto fue un problema de conexión.
+          </EliteText>
+          <AnimatedPressable style={st.guardBtn} onPress={() => { haptic.medium(); load(); }}>
+            <EliteText style={st.guardBtnText}>REINTENTAR</EliteText>
+          </AnimatedPressable>
+        </View>
+      </View>
+    );
+  }
 
   // ── Guard: no aprobado → a aplicar ──
   if (affiliate === null || (affiliate && affiliate.status !== 'approved')) {

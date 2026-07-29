@@ -58,7 +58,8 @@ function MiExpedienteScreen() {
     setLoaded(true);
   }, [user?.id]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // D-2 (MB-12): sin catch, un rechazo dejaba la pantalla cargando por siempre.
+  useFocusEffect(useCallback(() => { load().catch(() => setLoaded(true)); }, [load]));
 
   const groups = groupByMonth(events);
 

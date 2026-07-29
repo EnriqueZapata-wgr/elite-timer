@@ -46,6 +46,8 @@ export default function SleepScreen() {
   const [wearable, setWearable] = useState<WearableData | null>(null);
   const [wake, setWake] = useState<string | null>(null);
   const [sleep, setSleep] = useState<string | null>(null);
+  // D-2 (MB-12): fallo de red ≠ "no tienes cronotipo" — la card lo dice.
+  const [chronoFailed, setChronoFailed] = useState(false);
 
   useFocusEffect(useCallback(() => {
     let active = true;
@@ -53,14 +55,19 @@ export default function SleepScreen() {
       if (!user?.id) return;
       // Ventana de sueño del cronotipo — dato real que ya tenemos sin wearable.
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('user_chronotype')
           .select('wake_time, sleep_time')
           .eq('user_id', user.id)
           .maybeSingle();
-        if (active && data) {
-          setWake((data as any).wake_time ?? null);
-          setSleep((data as any).sleep_time ?? null);
+        if (active) {
+          if (error) {
+            setChronoFailed(true);
+          } else if (data) {
+            setChronoFailed(false);
+            setWake((data as any).wake_time ?? null);
+            setSleep((data as any).sleep_time ?? null);
+          }
         }
       } catch { /* sin cronotipo → solo estado de conexión */ }
       // Wearable: si hay datos de hoy, mostrarlos (fail-soft).
@@ -117,6 +124,16 @@ export default function SleepScreen() {
               <AnimatedPressable onPress={() => { haptic.light(); router.push('/my-chronotype'); }}>
                 <EliteText style={s.windowLink}>Ver mi cronotipo →</EliteText>
               </AnimatedPressable>
+            </Animated.View>
+          )}
+
+          {/* D-2 (MB-12): la ventana no se pudo leer — se dice, no se omite */}
+          {chronoFailed && !sleepLabel && !wakeLabel && (
+            <Animated.View entering={FadeInUp.delay(80).springify()} style={s.windowCard}>
+              <EliteText style={s.windowKicker}>TU VENTANA DE SUEÑO</EliteText>
+              <EliteText style={s.emptySub}>
+                No se pudo leer tu cronotipo — revisa tu conexión y vuelve a entrar.
+              </EliteText>
             </Animated.View>
           )}
 

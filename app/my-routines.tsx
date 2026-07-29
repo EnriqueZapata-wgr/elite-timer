@@ -219,7 +219,10 @@ export default function MyRoutinesScreen() {
               await saveRoutine(copy);
               haptic.success();
               loadRoutines();
-            } catch { /* silenciar */ }
+            } catch {
+              // D-2 (MB-12): fallar mudo confirmaba en falso.
+              Alert.alert('No se pudo duplicar', 'Revisa tu conexión e intenta de nuevo.');
+            }
           },
         },
         {
@@ -246,7 +249,10 @@ export default function MyRoutinesScreen() {
               await deleteRoutine(routine.id);
               haptic.success();
               loadRoutines();
-            } catch { /* silenciar */ }
+            } catch {
+              // D-2 (MB-12): fallar mudo dejaba la rutina "eliminada" solo en apariencia.
+              Alert.alert('No se pudo eliminar', 'La rutina sigue ahí. Revisa tu conexión e intenta de nuevo.');
+            }
           },
         },
       ]

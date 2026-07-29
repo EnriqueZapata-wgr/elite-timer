@@ -32,6 +32,22 @@ export class ArgosRateLimitError extends Error {
 }
 
 /**
+ * D-4 (MB-12): mensaje PROPIO de rate limit. Mostrarlo como "problema de
+ * conexión" hacía que el usuario reintentara contra un límite. Dice qué pasó
+ * y cuándo se libera (si el proxy lo manda).
+ */
+export function argosRateLimitMessage(payload?: unknown): string {
+  const p = payload as any;
+  const mins = typeof p?.retry_after_minutes === 'number'
+    ? Math.max(1, Math.ceil(p.retry_after_minutes))
+    : typeof p?.retry_after === 'number'
+      ? Math.max(1, Math.ceil(p.retry_after / 60))
+      : null;
+  const cuando = mins ? `Se libera en ~${mins} min.` : 'Se libera en unos minutos.';
+  return `Alcanzaste tu límite de ARGOS por ahora — no es tu conexión. ${cuando} Reintentar antes no ayuda.`;
+}
+
+/**
  * El stream no está disponible (proxy viejo sin SSE, respuesta degradada,
  * error de red antes del primer chunk). El caller hace fallback al modo
  * no-streaming (chatWithArgosEx).

@@ -26,28 +26,38 @@ export interface MenteMedal {
 
 const LOOKBACK_ROWS = 400;
 
-/** Rachas vivas (ancla hoy/ayer) de las 4 categorías del pilar. */
-export async function fetchMenteStreaks(userId: string): Promise<MenteStreaks> {
-  const [journal, sessions, checkins] = await Promise.all([
+/**
+ * Rachas vivas (ancla hoy/ayer) de las 4 categorías del pilar.
+ * D-2 (MB-12): null si alguna fuente falló — una racha en 0 por error de red
+ * no es una racha en 0, y "faltan 7 días para tu medalla" sería mentira.
+ */
+export async function fetchMenteStreaks(userId: string): Promise<MenteStreaks | null> {
+  const [journalRes, sessionsRes, checkinsRes] = await Promise.all([
     supabase.from('journal_entries')
       .select('date')
       .eq('user_id', userId)
       .order('date', { ascending: false })
-      .limit(LOOKBACK_ROWS)
-      .then(({ data }) => (data ?? []).map((r: any) => String(r.date).slice(0, 10))),
+      .limit(LOOKBACK_ROWS),
     supabase.from('mind_sessions')
       .select('type, date')
       .eq('user_id', userId)
       .order('date', { ascending: false })
-      .limit(LOOKBACK_ROWS)
-      .then(({ data }) => data ?? []),
+      .limit(LOOKBACK_ROWS),
     supabase.from('emotional_checkins')
       .select('created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
-      .limit(LOOKBACK_ROWS)
-      .then(({ data }) => (data ?? []).map((r: any) => toLocalDateString(new Date(r.created_at)))),
+      .limit(LOOKBACK_ROWS),
   ]);
+  if (journalRes.error || sessionsRes.error || checkinsRes.error) {
+    logWarn('[mente] fetchMenteStreaks:',
+      journalRes.error?.message ?? sessionsRes.error?.message ?? checkinsRes.error?.message);
+    return null;
+  }
+
+  const journal = (journalRes.data ?? []).map((r: any) => String(r.date).slice(0, 10));
+  const sessions = sessionsRes.data ?? [];
+  const checkins = (checkinsRes.data ?? []).map((r: any) => toLocalDateString(new Date(r.created_at)));
 
   const sessionDates = (type: string) =>
     sessions.filter((s: any) => s.type === type).map((s: any) => String(s.date).slice(0, 10));

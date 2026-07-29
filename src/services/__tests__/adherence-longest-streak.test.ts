@@ -62,6 +62,18 @@ describe('computeLongestStreak (MB-11 C · stats de identidad)', () => {
     expect(computeLongestStreak(plans)).toBe(2);
   });
 
+  it('D-3 (MB-12): dos fallos AISLADOS (nunca consecutivos) no rompen — la gracia se recupera al retomar', () => {
+    // 3 OK, 1 fallo, 3 OK, 1 fallo, 2 OK → una sola racha puenteada: 8.
+    const plans = [
+      plan(-9, 90), plan(-8, 90), plan(-7, 90),
+      plan(-6, 20), // fallo aislado 1
+      plan(-5, 90), plan(-4, 90), plan(-3, 90),
+      plan(-2, 20), // fallo aislado 2 — antes rompía aquí
+      plan(-1, 90), plan(0, 90),
+    ];
+    expect(computeLongestStreak(plans)).toBe(8);
+  });
+
   it('racha vieja mayor que la actual gana', () => {
     const plans = [
       plan(-10, 90), plan(-9, 90), plan(-8, 90), plan(-7, 90),

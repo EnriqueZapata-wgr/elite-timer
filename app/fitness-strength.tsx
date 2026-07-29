@@ -262,20 +262,24 @@ async function recalculatePR(userId: string, exerciseId: string) {
     }))
     .sort((a, b) => b.e1rm - a.e1rm)[0];
 
+  // D-2 (MB-12): borrar-y-reconstruir un PR no puede fallar mudo — el error
+  // se propaga para que el caller avise y no confirme en falso.
   if (best) {
-    await supabase.from('personal_records').upsert({
+    const { error: upsertErr } = await supabase.from('personal_records').upsert({
       user_id: userId,
       exercise_id: exerciseId,
       estimated_1rm: best.e1rm,
       weight_kg: best.weight_kg,
       rep_range: best.reps,
     }, { onConflict: 'user_id,exercise_id,rep_range' });
+    if (upsertErr) throw upsertErr;
   } else {
-    await supabase
+    const { error: deleteErr } = await supabase
       .from('personal_records')
       .delete()
       .eq('user_id', userId)
       .eq('exercise_id', exerciseId);
+    if (deleteErr) throw deleteErr;
   }
 }
 
@@ -577,12 +581,16 @@ export default function FitnessStrengthScreen() {
                                 try {
                                   const { data: { user } } = await supabase.auth.getUser();
                                   if (!user) return;
-                                  await supabase.from('personal_records').delete()
+                                  // D-2 (MB-12): borrar sin leer { error } fallaba mudo.
+                                  const { error: delErr } = await supabase.from('personal_records').delete()
                                     .eq('user_id', user.id).eq('exercise_id', entry.exerciseId);
+                                  if (delErr) throw delErr;
                                   await recalculatePR(user.id, entry.exerciseId);
                                   haptic.success();
                                   loadRecords();
-                                } catch { /* silenciar */ }
+                                } catch {
+                                  Alert.alert('No se pudo eliminar', 'El récord sigue ahí. Revisa tu conexión e intenta de nuevo.');
+                                }
                               },
                             },
                           ]

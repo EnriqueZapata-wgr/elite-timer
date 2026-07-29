@@ -23,15 +23,15 @@ const STEPS = [100, 500, 1000, 5000];
 
 export default function ConvertScreen() {
   const { user } = useAuth();
-  const [available, setAvailable] = useState(0);
+  // D-2 (MB-12): null = sin lectura (cold start / fallo) — NO es "tienes 0 E-".
+  const [available, setAvailable] = useState<number | null>(null);
   const [multiplier, setMultiplier] = useState(1);
   const [electrons, setElectrons] = useState(0);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!user?.id) return;
-    // Task #134: getElectronBalance ahora puede devolver null (cold start / RLS hidratando).
-    // Si es null, no actualizamos available — mantiene el valor previo (0 al inicio).
+    // Task #134: getElectronBalance puede devolver null (cold start / RLS hidratando).
     const [bal, rate] = await Promise.all([getElectronBalance(user.id), getConversionRate(user.id)]);
     if (bal) setAvailable(bal.current_electrons);
     setMultiplier(rate.multiplier);
@@ -39,7 +39,7 @@ export default function ConvertScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const maxConvertible = Math.floor(available / 100) * 100;
+  const maxConvertible = Math.floor((available ?? 0) / 100) * 100;
   const protons = previewProtons(electrons, multiplier);
   const canConvert = electrons >= 100 && electrons <= maxConvertible;
 
@@ -68,9 +68,15 @@ export default function ConvertScreen() {
         <View style={styles.orbWrap}><ProtonOrb size={64} /></View>
 
         <EliteText variant="caption" style={styles.muted}>
-          Tienes {formatFull(available)} E- · tasa 100 E- = {formatFull(300 * multiplier)} H+
-          {multiplier > 1 ? `  (reto ×${multiplier})` : ''}
+          {available == null
+            ? `Tu balance no se pudo leer · tasa 100 E- = ${formatFull(300 * multiplier)} H+`
+            : `Tienes ${formatFull(available)} E- · tasa 100 E- = ${formatFull(300 * multiplier)} H+${multiplier > 1 ? `  (reto ×${multiplier})` : ''}`}
         </EliteText>
+        {available == null && (
+          <AnimatedPressable onPress={load} style={[styles.stepBtn, { alignSelf: 'center' }]}>
+            <EliteText style={[styles.stepText, { color: ATP_BRAND.lime }]}>Reintentar lectura</EliteText>
+          </AnimatedPressable>
+        )}
 
         <View style={styles.amountCard}>
           <EliteText variant="caption" style={styles.muted}>CONVERTIR</EliteText>

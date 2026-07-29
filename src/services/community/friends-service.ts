@@ -144,6 +144,8 @@ export interface GuardedSearchResult {
   results: UserSearchResult[];
   /** True si el guard LOCAL frenó la búsqueda (el server también limita a 20/60s). */
   rateLimited: boolean;
+  /** D-2 (MB-12): true si el RPC falló — la UI no debe pintar "sin resultados". */
+  failed?: boolean;
 }
 
 /** Historial local de búsquedas (ms epoch) para avisar ANTES de quemar la llamada. */
@@ -170,7 +172,7 @@ export async function searchUsersGuarded(query: string): Promise<GuardedSearchRe
   const { data, error } = await supabase.rpc('search_users', { p_query: query });
   if (error) {
     console.warn('[friends] searchUsersGuarded:', error.message);
-    return { results: [], rateLimited: false };
+    return { results: [], rateLimited: false, failed: true };
   }
   return { results: (data ?? []) as UserSearchResult[], rateLimited: false };
 }

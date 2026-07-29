@@ -14,6 +14,7 @@ import {
 import { buildRecipeAdvancedContext } from '../src/services/recipe-context-service';
 import { EliteToggle } from '@/components/elite-toggle';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
 
 const MEAL_TYPES = [
   { id: 'desayuno', label: 'Desayuno', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -65,8 +66,13 @@ export default function ArgosRecipesScreen() {
         Alert.alert('Error', 'No se pudo generar la receta.');
         setMode('menu');
       }
-    } catch (_) {
-      Alert.alert('Error', 'Problema de conexión.');
+    } catch (err: any) {
+      // D-4 (MB-12): el rate limit NO es "problema de conexión".
+      if (err?.name === 'ArgosRateLimitError') {
+        Alert.alert('Límite de ARGOS', argosRateLimitMessage(err?.payload));
+      } else {
+        Alert.alert('Error', 'Problema de conexión.');
+      }
       setMode('menu');
     }
   }
@@ -85,8 +91,13 @@ export default function ArgosRecipesScreen() {
         Alert.alert('Error', 'No se pudo generar la lista.');
         setMode('menu');
       }
-    } catch (_) {
-      Alert.alert('Error', 'Problema de conexión.');
+    } catch (err: any) {
+      // D-4 (MB-12): el rate limit NO es "problema de conexión".
+      if (err?.name === 'ArgosRateLimitError') {
+        Alert.alert('Límite de ARGOS', argosRateLimitMessage(err?.payload));
+      } else {
+        Alert.alert('Error', 'Problema de conexión.');
+      }
       setMode('menu');
     }
   }

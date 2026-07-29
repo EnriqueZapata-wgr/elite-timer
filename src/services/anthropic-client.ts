@@ -82,12 +82,19 @@ export async function callAnthropic(
   }
   clearTimeout(timeoutId);
 
+  // D-4 (MB-12): el rate limit del proxy tiene tipo PROPIO también en el modo
+  // no-stream — antes caía en el error genérico y la UI decía "problema de
+  // conexión" mientras el usuario reintentaba contra un límite.
+  if (response.status === 429) {
+    throw new ArgosRateLimitError(await response.json().catch(() => null));
+  }
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
     throw new Error(`Proxy error ${response.status}: ${errorText}`);
   }
 
   const data = await response.json();
+  if (data?._rate_limited) throw new ArgosRateLimitError(data);
   if (data?.error) {
     const msg = typeof data.error === 'string' ? data.error : data.error?.message || JSON.stringify(data.error);
     throw new Error(msg);

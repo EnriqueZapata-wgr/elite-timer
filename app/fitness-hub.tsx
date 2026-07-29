@@ -29,6 +29,7 @@ import { pickFitnessImage } from '@/src/utils/yo-image-picker';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT, SEMANTIC, CATEGORY_COLORS, ELEVATION, GLOW, withOpacity } from '@/src/constants/brand';
 import { supabase } from '@/src/lib/supabase';
+import { toLocalDateString } from '@/src/utils/date-helpers';
 import { useAuth } from '@/src/contexts/auth-context';
 import { getTodayFitnessState, type TodayFitnessState } from '@/src/services/fitness/today-session-service';
 import { flushPendingSessions } from '@/src/services/fitness/workout-session-service';
@@ -56,7 +57,8 @@ const NAV_ITEMS = [
 export default function FitnessHubScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [stats, setStats] = useState({ sessions: 0, volume: 0, prs: 0 });
+  // D-3 (MB-12): null = aún sin leer o falló — jamás pintar ceros por error.
+  const [stats, setStats] = useState<{ sessions: number; volume: number; prs: number } | null>(null);
   const [today, setToday] = useState<TodayFitnessState | null>(null);
   // Batch 3 (#22): hero editorial sex-aware (fitness-el/ella).
   const [bioSex, setBioSex] = useState<string | null>(null);
@@ -93,28 +95,39 @@ export default function FitnessHubScreen() {
       const { data: { user: u } } = await supabase.auth.getUser();
       if (!u) return;
 
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      // D-3 (MB-12): fecha LOCAL (regla técnica #3) — el corte UTC mandaba un
+      // entreno de las 7 pm al día siguiente en México.
+      const weekAgo = toLocalDateString(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
 
-      // HOTFIX schema: exercise_logs no tiene columna `date` — es `logged_at`
-      // (mismo bug de clase que personal_records abajo: 400 silencioso → stats en 0).
-      const { data: logs } = await supabase
-        .from('exercise_logs')
-        .select('logged_at, weight_kg, reps')
-        .eq('user_id', u.id)
-        .gte('logged_at', weekAgo);
+      // D-3: las SESIONES salen de workout_sessions (fuente que sí se escribe
+      // bien, con `date` local) — contar días de exercise_logs daba 0 en una
+      // semana entrenada solo con timer HIIT o cardio.
+      const [sessionsRes, logsRes, prsRes] = await Promise.all([
+        supabase
+          .from('workout_sessions')
+          .select('date')
+          .eq('user_id', u.id)
+          .gte('date', weekAgo),
+        supabase
+          .from('exercise_logs')
+          .select('logged_at, weight_kg, reps')
+          .eq('user_id', u.id)
+          .gte('logged_at', weekAgo),
+        // HOTFIX schema (verificado por SQL): personal_records no tiene `date`
+        // — la columna real es `achieved_at`. El date=gte daba 400 silencioso.
+        supabase
+          .from('personal_records')
+          .select('id')
+          .eq('user_id', u.id)
+          .gte('achieved_at', weekAgo),
+      ]);
+      // D-3: si algo falló, NO pintar ceros junto al dato que sí cargó.
+      if (sessionsRes.error || logsRes.error || prsRes.error) return;
 
-      const uniqueDays = new Set((logs || []).map(l => String(l.logged_at ?? '').slice(0, 10))).size;
-      const totalVolume = (logs || []).reduce((sum, l) => sum + ((l.weight_kg || 0) * (l.reps || 0)), 0);
+      const uniqueDays = new Set((sessionsRes.data ?? []).map(r => String((r as any).date).slice(0, 10))).size;
+      const totalVolume = (logsRes.data ?? []).reduce((sum, l: any) => sum + ((l.weight_kg || 0) * (l.reps || 0)), 0);
 
-      // HOTFIX schema (verificado por SQL): personal_records no tiene `date` —
-      // la columna real es `achieved_at`. El date=gte daba 400 silencioso.
-      const { data: prs } = await supabase
-        .from('personal_records')
-        .select('id')
-        .eq('user_id', u.id)
-        .gte('achieved_at', weekAgo);
-
-      setStats({ sessions: uniqueDays, volume: Math.round(totalVolume), prs: prs?.length || 0 });
+      setStats({ sessions: uniqueDays, volume: Math.round(totalVolume), prs: prsRes.data?.length || 0 });
     } catch { /* opcional */ }
   }
 
@@ -283,19 +296,19 @@ export default function FitnessHubScreen() {
           <EliteText style={s.weekLabel}>ESTA SEMANA</EliteText>
           <View style={s.statsRow}>
             <View style={s.statItem}>
-              <EliteText style={s.statValue}>{stats.sessions}</EliteText>
+              <EliteText style={s.statValue}>{stats ? stats.sessions : '—'}</EliteText>
               <EliteText style={s.statLabel}>Sesiones</EliteText>
             </View>
             <View style={s.statDivider} />
             <View style={s.statItem}>
               <EliteText style={s.statValue}>
-                {stats.volume > 1000 ? `${(stats.volume / 1000).toFixed(1)}k` : stats.volume}
+                {stats ? (stats.volume > 1000 ? `${(stats.volume / 1000).toFixed(1)}k` : stats.volume) : '—'}
               </EliteText>
               <EliteText style={s.statLabel}>Kg movidos</EliteText>
             </View>
             <View style={s.statDivider} />
             <View style={s.statItem}>
-              <EliteText style={[s.statValue, { color: SEMANTIC.acceptable }]}>{stats.prs}</EliteText>
+              <EliteText style={[s.statValue, { color: SEMANTIC.acceptable }]}>{stats ? stats.prs : '—'}</EliteText>
               <EliteText style={s.statLabel}>PRs nuevos</EliteText>
             </View>
           </View>

@@ -137,7 +137,16 @@ export default function NBackSessionScreen() {
       setIsTutorial(tutorial);
       setN(startN);
       startCountdown(startN);
-    })();
+    })().catch(() => {
+      // D-2 (MB-12): sin leer tu nivel no se arranca en N=1 "por si acaso" —
+      // eso degrada a un usuario de N=5 al tutorial. Se avisa y se sale.
+      if (!aliveRef.current) return;
+      Alert.alert(
+        'No pudimos leer tu nivel',
+        'Revisa tu conexión e intenta de nuevo — tu progreso sigue guardado.',
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
+    });
     return () => {
       aliveRef.current = false;
       clearTimers();

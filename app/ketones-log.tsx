@@ -57,7 +57,8 @@ export default function KetonesLogScreen() {
     supabase.from('ketones_logs').select('*')
       .eq('user_id', user.id).eq('date', today)
       .order('time', { ascending: false })
-      .then(({ data }) => setTodayLogs(data ?? []));
+      // D-2 (MB-12): con error NO se pisa la lista — "sin mediciones" sería mentira.
+      .then(({ data, error }) => { if (!error) setTodayLogs(data ?? []); });
   }, [user?.id]));
 
   const handleSave = async () => {
@@ -96,10 +97,11 @@ export default function KetonesLogScreen() {
       setValue('');
       setNotes('');
 
-      const { data } = await supabase.from('ketones_logs').select('*')
+      // D-2 (MB-12): el refresh con error no congela la lista en vacío.
+      const { data, error: refreshError } = await supabase.from('ketones_logs').select('*')
         .eq('user_id', user.id).eq('date', today)
         .order('time', { ascending: false });
-      setTodayLogs(data ?? []);
+      if (!refreshError) setTodayLogs(data ?? []);
     } catch (err: any) {
       Alert.alert('Error', userErrorMessage(err, 'No se pudo guardar'));
     } finally {

@@ -109,18 +109,26 @@ export default function MyChronotypeScreen() {
   const [physicalStart, setPhysicalStart] = useState<string | null>(null);
   // MB-6: raw_scores del quiz → cronotipo MADRE real del Delfín (no Oso fijo).
   const [rawScores, setRawScores] = useState<any>(null);
+  // D-2 (MB-12): fallo de red ≠ "aún no conocemos tu cronotipo".
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useFocusEffect(useCallback(() => {
     let active = true;
     (async () => {
       if (!user?.id) { setLoading(false); return; }
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('user_chronotype')
           .select('chronotype, wake_time, sleep_time, peak_focus_start, peak_focus_end, peak_physical_start, raw_scores')
           .eq('user_id', user.id)
           .maybeSingle();
         if (!active) return;
+        if (error) {
+          setLoadFailed(true);
+          setLoading(false);
+          return;
+        }
+        setLoadFailed(false);
         setChrono((data as any)?.chronotype ?? null);
         setWake((data as any)?.wake_time ?? null);
         setSleep((data as any)?.sleep_time ?? null);
@@ -145,6 +153,24 @@ export default function MyChronotypeScreen() {
           <SkeletonLoader variant="card" height={220} />
           <SkeletonLoader variant="card" height={120} />
           <SkeletonLoader variant="card" height={160} />
+        </View>
+      </Screen>
+    );
+  }
+
+  // D-2 (MB-12): falló la lectura → se dice la verdad, no "haz el test".
+  if (!info && loadFailed) {
+    return (
+      <Screen>
+        <View style={s.emptyWrap}>
+          <BackButton />
+          <View style={s.emptyBody}>
+            <EliteText style={s.emptyEmoji}>📡</EliteText>
+            <EliteText style={s.emptyTitle}>No pudimos leer tu cronotipo</EliteText>
+            <EliteText style={s.emptySub}>
+              Tus datos siguen guardados. Revisa tu conexión y vuelve a entrar.
+            </EliteText>
+          </View>
         </View>
       </Screen>
     );

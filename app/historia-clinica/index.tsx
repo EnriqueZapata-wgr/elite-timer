@@ -24,10 +24,14 @@ export default function HistoriaClinicaIndex() {
   const router = useRouter();
   const { user } = useAuth();
   const [done, setDone] = useState<Set<string>>(new Set());
+  // D-2 (MB-12): fallo de red ≠ "0 de M completados".
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
-    loadHistoriaClinica(user.id).then(d => setDone(completedCategories(d)));
+    loadHistoriaClinica(user.id)
+      .then(d => { setLoadFailed(false); setDone(completedCategories(d)); })
+      .catch(() => setLoadFailed(true));
   }, [user?.id]));
 
   const total = HC_QUESTIONNAIRES.length;
@@ -40,7 +44,9 @@ export default function HistoriaClinicaIndex() {
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>
-            {completed} de {total} cuestionarios completados · tu base para personalizar ARGOS
+            {loadFailed
+              ? 'Tu avance no se pudo leer — revisa tu conexión'
+              : `${completed} de ${total} cuestionarios completados · tu base para personalizar ARGOS`}
           </EliteText>
         </Animated.View>
 

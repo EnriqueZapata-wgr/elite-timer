@@ -54,7 +54,8 @@ export default function ExerciseDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const [catalogo, setCatalogo] = useState<MatrixExercise[]>([]);
 
-  useEffect(() => { getExerciseMatrix().then(setCatalogo); }, []);
+  // D-2 (MB-12): sin catch, un rechazo dejaba la ficha cargando por siempre.
+  useEffect(() => { getExerciseMatrix().then(setCatalogo).catch(() => setCatalogo([])); }, []);
 
   const ex = useMemo(() => catalogo.find((e) => e.slug === slug) ?? null, [catalogo, slug]);
   const variantes = useMemo(
