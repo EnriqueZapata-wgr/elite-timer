@@ -100,6 +100,15 @@ export default function ExerciseDetailScreen() {
             {ex.cargable && <Tag label="Cargable" tone="lime" />}
           </View>
 
+          {/* E-9 (MB-12): CÓMO SE HACE — la ficha ya no entrega solo tags y
+              un clip que casi nunca existe. */}
+          {ex.instrucciones && (
+            <>
+              <Text style={s.sectionLabel}>CÓMO SE HACE</Text>
+              <Text style={s.bodyText}>{ex.instrucciones}</Text>
+            </>
+          )}
+
           {/* Equipo */}
           <Text style={s.sectionLabel}>EQUIPO</Text>
           <Text style={s.bodyText}>{ex.equipo}</Text>

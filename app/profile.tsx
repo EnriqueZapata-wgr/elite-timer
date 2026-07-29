@@ -178,7 +178,16 @@ export default function ProfileScreen() {
       }
 
       const ext = contentType === 'image/png' ? 'png' : 'jpg';
-      const fileName = `${user.id}/avatar-${Date.now()}.${ext}`;
+      // E-9 (MB-12): path ESTABLE por usuario — antes cada cambio subía
+      // avatar-<timestamp> nuevo sin borrar el anterior (huérfanos que la
+      // supresión ARCO nunca alcanzaba).
+      const fileName = `${user.id}/avatar.${ext}`;
+      // Limpieza de huérfanos previos (timestamps viejos y el otro formato).
+      try {
+        const { data: existing } = await supabase.storage.from('avatars').list(user.id);
+        const stale = (existing ?? []).map((f) => `${user.id}/${f.name}`).filter((p) => p !== fileName);
+        if (stale.length > 0) await supabase.storage.from('avatars').remove(stale);
+      } catch { /* best-effort */ }
       const { error: upErr } = await supabase.storage
         .from('avatars')
         .upload(fileName, body, { upsert: true, contentType });
@@ -205,6 +214,13 @@ export default function ProfileScreen() {
     if (!user?.id) return;
     setAvatarUploading(true);
     try {
+      // E-9 (MB-12): "Quitar foto" también borra el ARCHIVO del bucket — para
+      // supresión ARCO la imagen no puede persistir tras quitarla.
+      try {
+        const { data: existing } = await supabase.storage.from('avatars').list(user.id);
+        const paths = (existing ?? []).map((f) => `${user.id}/${f.name}`);
+        if (paths.length > 0) await supabase.storage.from('avatars').remove(paths);
+      } catch { /* best-effort: el perfil queda sin URL de todas formas */ }
       await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
       await supabase.auth.updateUser({ data: { avatar_url: null } });
       setAvatarUrl(null); // vuelve a las iniciales del nombre

@@ -674,6 +674,16 @@ export default function TodayScreen() {
           style={s.editDayBtn}
         />
 
+        {/* E-3 (MB-12): la puerta de los electrones — sin ella todo usuario
+            quedaba clavado en los 6 booleanos del default (mig 043). */}
+        <GradientCTA
+          label="Elegir mis hábitos"
+          variant="quiet"
+          icon="checkbox-outline"
+          onPress={() => { haptic.light(); router.push('/hoy-habitos'); }}
+          style={s.editDayBtn}
+        />
+
         {/* #hoy-funcionalidad 4.9: SECCIÓN 6 "AGENDA" triple (MAÑANA/TARDE/NOCHE) eliminada
             — el próximo evento vive en HeroAgendaCard; la agenda completa irá a AGENDA V2. */}
 

@@ -1,6 +1,7 @@
 /**
- * Tab Biblioteca — Muestra la pantalla de Mis Rutinas.
- * Re-exporta ProgramsScreen que detecta automáticamente si está en tab.
+ * Tab Biblioteca (oculta del tab bar) — muestra Mis Rutinas.
+ * E-4 (MB-12): programs.tsx se borró (duplicaba my-routines con "Última vez:
+ * Nunca" hardcodeado y un store AsyncStorage paralelo que nadie leía).
  */
-import ProgramsScreen from '../programs';
-export default ProgramsScreen;
+import MyRoutinesScreen from '../my-routines';
+export default MyRoutinesScreen;

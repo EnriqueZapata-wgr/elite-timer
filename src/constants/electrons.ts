@@ -48,6 +48,8 @@ export const ELECTRON_WEIGHTS = {
   checkin:      { weight: 2.0, name: 'Check-in emocional', icon: 'heart-circle-outline', color: '#f472b6' },
   journal:      { weight: 1.5, name: 'Journal',            icon: 'book-outline',          color: '#c084fc' },
   glucose_log:  { weight: 1.0, name: 'Registro glucosa',   icon: 'analytics-outline',     color: '#fb923c' },
+  // E-7 (MB-12): el GKI necesita las DOS lecturas — cetonas premia igual que glucosa.
+  ketones_log:  { weight: 1.0, name: 'Registro cetonas',   icon: 'flask-outline',         color: '#38bdf8' },
   lab_upload:   { weight: 10.0, name: 'Lab upload',        icon: 'document-outline',      color: '#c084fc' },
 
   // Ayuno (por sesión completada)

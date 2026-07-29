@@ -14,7 +14,7 @@ import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import {
-  getMyPublicProfile, updateVisibility, setUsername,
+  getMyPublicProfile, updateVisibility, setUsername, syncPublicProfile,
 } from '@/src/services/community/public-profile-service';
 import { type PublicProfileRow } from '@/src/services/community/public-profile-core';
 import { type VisibilityFlags } from '@/src/constants/community';
@@ -46,10 +46,18 @@ export default function SettingsComunidadScreen() {
 
   useEffect(() => {
     if (!user?.id) return;
-    getMyPublicProfile(user.id).then((p) => {
+    (async () => {
+      let p = await getMyPublicProfile(user.id);
+      // E-8 (MB-12): la migración 177 solo backfilleó usuarios EXISTENTES y su
+      // trigger no crea la fila — todo usuario nuevo veía los 9 toggles
+      // muertos sin explicación. Al primer acceso se crea la fila y se relee.
+      if (!p) {
+        const created = await syncPublicProfile({});
+        if (created) p = await getMyPublicProfile(user.id);
+      }
       setProfile(p);
       if (p?.username) setUsernameInput(p.username);
-    });
+    })();
   }, [user?.id]);
 
   const patch = useCallback(async (p: Partial<VisibilityFlags>) => {
@@ -68,7 +76,11 @@ export default function SettingsComunidadScreen() {
     const res = await setUsername(usernameInput);
     if (res.ok) {
       setUsernameMsg({ ok: true, text: 'Guardado' });
-      setProfile((p) => (p ? { ...p, username: usernameInput.trim().toLowerCase() } : p));
+      // E-8 (MB-12): el alta pudo CREAR la fila — sin releer, el estado se
+      // quedaba en null y los toggles seguían muertos hasta salir y volver.
+      const fresh = await getMyPublicProfile(user.id);
+      setProfile(fresh ?? null);
+      if (fresh?.username) setUsernameInput(fresh.username);
     } else {
       setUsernameMsg({ ok: false, text: res.error ?? 'No se pudo guardar' });
     }

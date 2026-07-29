@@ -48,8 +48,12 @@ export default function EconomyAdminScreen() {
   const navItems: NavItem[] = [
     { icon: 'swap-horizontal', label: 'Convertir E- → H+', sublabel: 'Tasa actual 100 → 300', route: '/economy/convert' },
     { icon: 'receipt-outline', label: 'Historial de movimientos', sublabel: 'E- y H+', route: '/economy/history' },
-    { icon: 'flag-outline', label: 'Mis Retos', sublabel: 'Browse + activos', route: '/economy/challenges' },
-    { icon: 'people-outline', label: 'Referidos', sublabel: 'Tu código + tracking', route: '/economy/referrals' },
+    // E-1 (MB-12): Retos cobra H+ reales pero settleChallenge no se invoca
+    // desde ningún lado — cobrar por un premio inalcanzable no se queda.
+    // Referidos promete H+ sin backend que los otorgue. Ambos ocultos hasta
+    // que exista la liquidación.
+    { icon: 'flag-outline', label: 'Mis Retos', sublabel: 'Próximamente', soon: true },
+    { icon: 'people-outline', label: 'Referidos', sublabel: 'Próximamente', soon: true },
     { icon: 'cart-outline', label: 'Tienda H+', sublabel: 'Paquetes', route: '/economy/shop' },
     // #99: explicación visual de la economía
     { icon: 'school-outline', label: '¿Cómo gano H+?', sublabel: 'La economía en 60 segundos', route: '/economy/how-to-earn' },

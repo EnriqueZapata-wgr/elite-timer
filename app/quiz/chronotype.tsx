@@ -4,7 +4,7 @@
  * 10 preguntas con animaciones, resultado visual con scores y horarios.
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeInDown, FadeIn, ZoomIn, SlideInRight, SlideOutLeft } from 'react-native-reanimated';
@@ -72,8 +72,9 @@ export default function ChronotypeQuizScreen() {
   if (!quiz) {
     return (
       <ScreenContainer centered>
+        {/* E-9 (MB-12): "ejecuta la migración 025" era copy de dev en pantalla */}
         <EliteText variant="body" style={{ color: TEXT_COLORS.secondary }}>
-          Quiz no disponible. Ejecuta la migración 025.
+          El test no está disponible ahora. Revisa tu conexión e intenta de nuevo.
         </EliteText>
         <AnimatedPressable onPress={() => router.back()} style={{ marginTop: Spacing.lg }}>
           <EliteText variant="body" style={{ color: ATP_BRAND.lime }}>Volver</EliteText>
@@ -116,10 +117,18 @@ export default function ChronotypeQuizScreen() {
     try {
       const schedules = quiz.scoring_logic?.chronotype_schedules;
       const schedule = schedules?.[result] as ChronotypeInfo | undefined;
-      if (schedule) {
-        await submitQuizResult(quiz.id, answers, scores, result, { schedule });
-        await saveUserChronotype(result, schedule, scores);
+      // E-9 (MB-12): sin schedule NO se guarda nada — navegar igual dejaba al
+      // usuario "activando" un cronotipo que jamás quedó en la base.
+      if (!schedule) {
+        Alert.alert(
+          'No se pudo activar',
+          'Tu resultado no se pudo guardar ahora. Intenta de nuevo en un momento.',
+        );
+        setSaving(false);
+        return;
       }
+      await submitQuizResult(quiz.id, answers, scores, result, { schedule });
+      await saveUserChronotype(result, schedule, scores);
       // Update onboarding step — SOLO si venimos del flujo de onboarding. Tomar el quiz de
       // cronotipo SUELTO no debe pisar onboarding_step: reseteaba a usuarios ya 'completed'
       // a 'chronotype' → quedaban atrapados en onboarding 4/9 al siguiente arranque en frío.
@@ -136,6 +145,8 @@ export default function ChronotypeQuizScreen() {
       }
     } catch (err) {
       if (__DEV__) console.error('[chronotype save]', err);
+      // E-9 (MB-12): el fallo era mudo — se avisa y NO se navega en falso.
+      Alert.alert('No se pudo guardar', 'Revisa tu conexión e intenta de nuevo.');
     }
     setSaving(false);
   };
@@ -161,8 +172,9 @@ export default function ChronotypeQuizScreen() {
             </Pressable>
             <View style={{ flex: 1 }}>
               <EliteText style={styles.headerTitle}>Descubre tu cronotipo</EliteText>
+              {/* E-9 (MB-12): unificado con my-chronotype ("5 min") */}
               <EliteText variant="caption" style={styles.headerSub}>
-                {total} preguntas · 2 minutos
+                {total} preguntas · 5 minutos
               </EliteText>
             </View>
           </View>

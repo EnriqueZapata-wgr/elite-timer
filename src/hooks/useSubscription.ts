@@ -51,6 +51,8 @@ export interface UseSubscriptionResult {
   effectiveTier: Tier;
   entitlements: string[];
   offerings: PurchasesOfferings | null;
+  /** E-2 (MB-12): true si getOfferings FALLÓ — distinto de "no disponible". */
+  offeringsError: boolean;
   customerInfo: CustomerInfo | null;
   isLoading: boolean;
   /** Semántica "al menos": clinician también es isPro; base/pro/clinician son isBase */
@@ -73,6 +75,9 @@ export function useSubscription(): UseSubscriptionResult {
   const [entitlements, setEntitlements] = useState<string[]>([]);
   const [customerInfo, setCustomerInfo] = useState<CustomerInfo | null>(null);
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
+  // E-2 (MB-12): el error de offerings se distingue de "aún no hay" — el
+  // paywall necesita ofrecer reintento, no un botón muerto.
+  const [offeringsError, setOfferingsError] = useState(false);
   const [boost, setBoost] = useState<BoostStatus>({ active: false, expiresAt: null });
   const [isLoading, setIsLoading] = useState(true);
   const mounted = useRef(true);
@@ -112,8 +117,11 @@ export function useSubscription(): UseSubscriptionResult {
       } catch { /* sin red — Supabase manda */ }
       try {
         const offs = await Purchases.getOfferings();
-        if (mounted.current) setOfferings(offs);
-      } catch { /* offerings sin configurar en stores todavía */ }
+        if (mounted.current) { setOfferings(offs); setOfferingsError(false); }
+      } catch {
+        // E-2 (MB-12): antes se descartaba y el paywall quedaba mudo.
+        if (mounted.current) setOfferingsError(true);
+      }
     }
     if (mounted.current) setIsLoading(false);
   }, [userId, sdkReady, applyCustomerInfo]);
@@ -216,6 +224,7 @@ export function useSubscription(): UseSubscriptionResult {
     effectiveTier,
     entitlements,
     offerings,
+    offeringsError,
     customerInfo,
     isLoading,
     isPro: isTierAtLeast(effectiveTier, 'pro'),

@@ -163,10 +163,9 @@ function RootLayout() {
                 <Stack.Screen name="forgot-password" />
                 <Stack.Screen name="reset-password" options={{ animation: 'fade' }} />
                 <Stack.Screen name="timer" />
-                <Stack.Screen name="programs" />
-                <Stack.Screen name="create-program" />
-                <Stack.Screen name="create-routine" />
-                <Stack.Screen name="standard-programs" />
+                {/* E-4 (MB-12): programs / create-program / create-routine /
+                    standard-programs borradas — duplicaban my-routines/builder
+                    con un store AsyncStorage paralelo que nadie leía. */}
 
                 <Stack.Screen name="session-summary" />
                 <Stack.Screen name="execution" options={{ animation: 'fade' }} />
@@ -216,7 +215,7 @@ function RootLayout() {
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-scan" options={{ animation: 'slide_from_bottom' }} />
                 <Stack.Screen name="protocol-explorer" options={{ animation: 'slide_from_right' }} />
-                <Stack.Screen name="smart-shopping" options={{ animation: 'slide_from_right' }} />
+                {/* E-4 (MB-12): smart-shopping borrada (27 líneas, un EmptyState) */}
                 {/* Sprint NUTRICIÓN T5: lista de compra desde mis recetas */}
                 <Stack.Screen name="lista-compra" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="health-input" options={{ animation: 'slide_from_right' }} />

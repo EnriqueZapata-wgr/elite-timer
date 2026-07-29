@@ -28,7 +28,6 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { playReveal } from '@/src/components/edad-atp/edad-sound';
 import { getProtonBalance } from '@/src/services/economy/proton-service';
-import { getProtonPackages, mockPurchase, type ProtonPackage } from '@/src/services/economy/shop-service';
 import { formatFull } from '@/src/services/economy/format';
 import {
   activateProBoost,
@@ -73,7 +72,6 @@ const BOOSTS: BoostItem[] = [
 export default function ShopScreen() {
   const { user } = useAuth();
   const [hPlus, setHPlus] = useState<number | null>(null);
-  const [packages, setPackages] = useState<ProtonPackage[]>([]);
   const [confirming, setConfirming] = useState<BoostItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [unlocked, setUnlocked] = useState<BoostItem | null>(null);
@@ -82,7 +80,6 @@ export default function ShopScreen() {
     if (!user?.id) return;
     // Task #134: null = cold start, no pintar 0
     getProtonBalance(user.id).then((b) => { if (b) setHPlus(b.current_protons); }).catch(() => {});
-    getProtonPackages().then(setPackages).catch(() => {});
   }, [user?.id]);
 
   useFocusEffect(useCallback(() => {
@@ -137,30 +134,8 @@ export default function ShopScreen() {
     }
   }
 
-  function onBuyPack(pkg: ProtonPackage) {
-    haptic.medium();
-    Alert.alert(
-      'Confirmar recarga',
-      `${pkg.name}\n${formatFull(pkg.protons)} H+ por $${formatFull(pkg.price_mxn)} MXN`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Comprar (dev)',
-          onPress: async () => {
-            if (!user?.id) return;
-            const r = await mockPurchase(user.id, pkg);
-            if (r.success) {
-              haptic.success();
-              DeviceEventEmitter.emit('balance_changed');
-              Alert.alert('¡Listo!', `Se acreditaron ${formatFull(pkg.protons)} H+`);
-            } else {
-              Alert.alert('Compra (stub)', 'La acreditación real ocurre en el servidor (webhook IAP).');
-            }
-          },
-        },
-      ],
-    );
-  }
+  // E-1 (MB-12): la sección RECARGAS y el "Comprar (dev)" se retiran — el
+  // mock siempre falla contra el anti-minteo del server. Vuelven con IAP real.
 
   return (
     <Screen edges={[]}>
@@ -215,11 +190,14 @@ export default function ShopScreen() {
               <EliteText style={{ fontSize: 18 }}>🧠</EliteText>
             </View>
             <EliteText style={styles.galleryTitle}>Reporte Premium · Braverman</EliteText>
+            {/* E-1 (MB-12): se COBRA con H+ a todos (doctrina correcta) — el
+                copy "incluido con Pro" era el que estaba mal, no el cobro. */}
             <EliteText style={styles.galleryPoetic}>
-              Tu química cerebral leída a fondo por ARGOS. Incluido con Pro — o con cualquier Boost activo.
+              Tu química cerebral leída a fondo por ARGOS. Se canjea con H+ —
+              el precio exacto lo ves antes de generar.
             </EliteText>
             <View style={styles.priceRow}>
-              <EliteText style={styles.includedText}>Incluido con Pro / Boost</EliteText>
+              <EliteText style={styles.includedText}>Se paga con H+</EliteText>
               <Ionicons name="chevron-forward" size={16} color={TEXT.secondary} />
             </View>
           </AnimatedPressable>
@@ -240,21 +218,9 @@ export default function ShopScreen() {
           </View>
         </Animated.View>
 
-        {/* ── RECARGAS ── */}
-        <SectionKicker delay={420} label="RECARGAS" />
-        {packages.map((pkg, i) => (
-          <Animated.View key={pkg.sku} entering={FadeInDown.delay(460 + i * 50).springify()}>
-            <AnimatedPressable onPress={() => onBuyPack(pkg)} style={styles.packRow}>
-              <View style={{ flex: 1 }}>
-                <EliteText style={styles.packName}>{pkg.name}</EliteText>
-                <EliteText style={styles.packProtons}>{formatFull(pkg.protons)} H+</EliteText>
-              </View>
-              <EliteText style={styles.packPrice}>${formatFull(pkg.price_mxn)} MXN</EliteText>
-            </AnimatedPressable>
-          </Animated.View>
-        ))}
         <EliteText style={styles.footNote}>
-          Pagos vía Apple/Google IAP (próximamente). Recarga de prueba por ahora.
+          Las recargas con dinero llegan con los pagos de Apple/Google. Por
+          ahora, los H+ se ganan: completa tu día y convierte tus E-.
         </EliteText>
       </ScrollView>
 

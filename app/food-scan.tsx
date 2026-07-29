@@ -43,6 +43,27 @@ import { getLocalToday } from '@/src/utils/date-helpers';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
+// E-7 (MB-12): resize antes de mandar a la IA — la palanca de costo
+// documentada sin aplicar (el base64 iba a resolución completa de cámara).
+// Módulo nativo lazy (gotcha ExpoPrint): en binarios sin él, fallback al
+// base64 del picker tal cual.
+let ImageManipulator: any = null;
+try { ImageManipulator = require('expo-image-manipulator'); } catch { /* */ }
+
+async function shrinkBase64ForAI(uri: string, fallback: string | null): Promise<string | null> {
+  if (!ImageManipulator?.manipulateAsync) return fallback;
+  try {
+    const m = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: 1024 } }],
+      { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+    );
+    return m?.base64 ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 // === CONSTANTES ===
 
 type ScanMode = 'food' | 'label' | 'supplement';
@@ -368,7 +389,8 @@ export default function FoodScanScreen() {
     if (!res.canceled && res.assets[0]) {
       haptic.light();
       setPhotoUri(res.assets[0].uri);
-      setPhotoBase64(res.assets[0].base64 ?? null);
+      // E-7 (MB-12): resize a 1024px antes de enviar a la IA.
+      setPhotoBase64(await shrinkBase64ForAI(res.assets[0].uri, res.assets[0].base64 ?? null));
       setInputType('photo');
       setStep('preview');
     }
@@ -386,7 +408,8 @@ export default function FoodScanScreen() {
     if (!res.canceled && res.assets[0]) {
       haptic.light();
       setPhotoUri(res.assets[0].uri);
-      setPhotoBase64(res.assets[0].base64 ?? null);
+      // E-7 (MB-12): resize a 1024px antes de enviar a la IA.
+      setPhotoBase64(await shrinkBase64ForAI(res.assets[0].uri, res.assets[0].base64 ?? null));
       setInputType('photo');
       setStep('preview');
     }
@@ -537,6 +560,16 @@ export default function FoodScanScreen() {
         });
       }
 
+      // E-7 (MB-12): el incentivo estaba INVERTIDO — quien hacía el flujo
+      // completo con IA sacaba 0 e- y quien lo saltaba sacaba 8. El premio va
+      // en ambos caminos (con foto; mismo cap server-side 4/día).
+      if (user?.id && photoUrl) {
+        fireElectronAward({
+          habit_type: 'food_photo', evidence_tier: 'evidence', local_date: getLocalToday(),
+          idempotency_key: `food_photo_${user.id}_${getLocalToday()}_${now}`,
+          metadata: { meal_type: mealType },
+        });
+      }
       // 'day_changed' lo emite saveFoodLog (regla #6).
       // T5 HARDENING: funnel core — comida registrada (sin descripción en props).
       analytics.track(ATP_EVENTS.FOOD_LOGGED, { source: 'scan_reviewed', meal_type: mealType, has_photo: !!photoUrl });

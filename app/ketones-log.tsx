@@ -7,7 +7,7 @@
  */
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TextInput, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, TextInput, Alert, DeviceEventEmitter } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -27,6 +27,8 @@ import {
 } from '@/src/services/salud/ketones-source-core';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { userErrorMessage } from '@/src/utils/user-error';
+import { awardBooleanElectron } from '@/src/services/electron-service';
+import { warn as logWarn } from '@/src/lib/logger';
 
 const KETO_ACCENT = '#c084fc';
 
@@ -96,6 +98,14 @@ export default function KetonesLogScreen() {
       haptic.success();
       setValue('');
       setNotes('');
+
+      // E-7 (MB-12): el GKI necesita glucosa Y cetonas — glucose-log premiaba
+      // y esta mitad del diferenciador no otorgaba nada ni emitía eventos.
+      try {
+        await awardBooleanElectron(user.id, 'ketones_log');
+        DeviceEventEmitter.emit('electrons_changed');
+        DeviceEventEmitter.emit('day_changed');
+      } catch (e) { logWarn('[ketones-log] award electron failed', e); }
 
       // D-2 (MB-12): el refresh con error no congela la lista en vacío.
       const { data, error: refreshError } = await supabase.from('ketones_logs').select('*')

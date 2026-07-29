@@ -3,6 +3,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Screen } from '@/src/components/ui/Screen';
@@ -18,6 +19,9 @@ import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 type Tab = 'available' | 'active' | 'history';
+
+// E-1 (MB-12): OFF hasta que settleChallenge se invoque y progress se alimente.
+const CHALLENGES_ENABLED = false;
 
 export default function ChallengesScreen() {
   const { user } = useAuth();
@@ -49,6 +53,28 @@ export default function ChallengesScreen() {
       const msg = r.error === 'insufficient_protons' ? 'No tienes H+ suficientes para la entrada.' : (r.error ?? 'Intenta de nuevo.');
       Alert.alert('No se pudo unir', msg);
     }
+  }
+
+  // E-1 (MB-12): joinChallenge debita H+ reales pero settleChallenge no se
+  // invoca desde ningún archivo del repo y nada alimenta progress. Hasta que
+  // exista la liquidación, esta pantalla no cobra: puerta cerrada también
+  // para deep links. Encender CHALLENGES_ENABLED cuando el ciclo esté completo.
+  if (!CHALLENGES_ENABLED) {
+    return (
+      <Screen edges={[]}>
+        <ScreenHeader title="Retos" onBack={() => router.back()} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.sm }}>
+          <Ionicons name="construct-outline" size={40} color={TEXT.secondary} />
+          <EliteText style={{ color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg, textAlign: 'center' }}>
+            Los retos están en construcción
+          </EliteText>
+          <EliteText variant="caption" style={{ color: TEXT.secondary, textAlign: 'center', lineHeight: 19 }}>
+            Cuando el premio se pueda ganar de verdad, se abren. Nada de cobrar
+            entradas por un reto que no se puede liquidar.
+          </EliteText>
+        </View>
+      </Screen>
+    );
   }
 
   return (

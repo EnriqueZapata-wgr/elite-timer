@@ -271,7 +271,10 @@ async function recalculatePR(userId: string, exerciseId: string) {
       estimated_1rm: best.e1rm,
       weight_kg: best.weight_kg,
       rep_range: best.reps,
-    }, { onConflict: 'user_id,exercise_id,rep_range' });
+      // E-9 (MB-12): alineado con log-exercise.tsx y workout-session-service
+      // ('user_id,exercise_id' — el índice único real); el triple con
+      // rep_range daba 42P10 y la reconstrucción fallaba.
+    }, { onConflict: 'user_id,exercise_id' });
     if (upsertErr) throw upsertErr;
   } else {
     const { error: deleteErr } = await supabase

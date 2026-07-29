@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { haptic } from '@/src/utils/haptics';
 import { supabase } from '../src/lib/supabase';
 import {
   generateRecipe, generateShoppingList,
@@ -23,11 +24,13 @@ const MEAL_TYPES = [
   { id: 'snack', label: 'Snack', icon: 'cafe-outline' as const, color: '#a8e02a' },
 ];
 
+// E-6 (MB-12): objetivos de COMIDA, no de macro — ATP es comida limpia y
+// flexibilidad metabólica; el macro es consecuencia, no objetivo.
 const GOALS = [
-  { id: 'alta proteína', label: 'Alta proteína' },
-  { id: 'bajo carb', label: 'Bajo en carbohidratos' },
-  { id: 'cetogénica', label: 'Cetogénica' },
+  { id: 'comida real y sin procesar', label: 'Comida real' },
+  { id: 'densa en nutrientes', label: 'Densa en nutrientes' },
   { id: 'anti-inflamatoria', label: 'Anti-inflamatoria' },
+  { id: 'saciante y ligera para la noche', label: 'Ligera y saciante' },
   { id: 'rápida', label: 'Rápida (<15 min)' },
   { id: 'económica', label: 'Económica' },
 ];
@@ -36,8 +39,12 @@ export default function ArgosRecipesScreen() {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'menu' | 'generating' | 'recipe' | 'shoppingResult'>('menu');
   const [selectedMeal, setSelectedMeal] = useState('');
-  const [selectedGoal, setSelectedGoal] = useState('alta proteína');
+  // E-6 (MB-12): sin macro preseleccionado — arranca en comida real.
+  const [selectedGoal, setSelectedGoal] = useState('comida real y sin procesar');
   const [recipe, setRecipe] = useState<GeneratedRecipe | null>(null);
+  // E-7 (MB-12): guardar la receta a user_recipes (con ingredientes).
+  const [savingRecipe, setSavingRecipe] = useState(false);
+  const [recipeSaved, setRecipeSaved] = useState(false);
   const [shoppingList, setShoppingList] = useState<ShoppingList | null>(null);
   // #96: cross-módulo (labs + preferencias + objetivo + ciclo) — opt-in
   const [advancedMode, setAdvancedMode] = useState(false);
@@ -61,6 +68,7 @@ export default function ArgosRecipesScreen() {
       });
       if (result) {
         setRecipe(result);
+        setRecipeSaved(false); // E-7: la receta nueva se puede guardar
         setMode('recipe');
       } else {
         Alert.alert('Error', 'No se pudo generar la receta.');
@@ -75,6 +83,32 @@ export default function ArgosRecipesScreen() {
       }
       setMode('menu');
     }
+  }
+
+  // E-7 (MB-12): escribe la receta generada a user_recipes — mismo esquema que
+  // el alta manual de my-recipes, más los ingredientes (lista-compra los lee).
+  async function handleSaveRecipe() {
+    if (!recipe || savingRecipe || recipeSaved) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    haptic.medium();
+    setSavingRecipe(true);
+    const { error } = await supabase.from('user_recipes').insert({
+      user_id: user.id,
+      name: recipe.name,
+      total_calories: Math.round(recipe.calories) || 0,
+      total_protein: recipe.protein_g || 0,
+      total_carbs: recipe.carbs_g || 0,
+      total_fat: recipe.fat_g || 0,
+      ingredients: recipe.ingredients ?? [],
+    });
+    setSavingRecipe(false);
+    if (error) {
+      Alert.alert('No se pudo guardar', 'Revisa tu conexión e intenta de nuevo.');
+      return;
+    }
+    haptic.success();
+    setRecipeSaved(true);
   }
 
   async function handleShoppingList() {
@@ -275,8 +309,19 @@ export default function ArgosRecipesScreen() {
             </View>
           )}
 
+          {/* E-7 (MB-12): la receta se puede GUARDAR — lista-compra promete
+              "guarda recetas de ARGOS (traen ingredientes)" y no había cómo. */}
+          <Pressable onPress={handleSaveRecipe} disabled={savingRecipe} style={{
+            backgroundColor: 'rgba(168,224,42,0.12)', borderRadius: 16, padding: 14, alignItems: 'center', marginTop: 20,
+            borderWidth: 1, borderColor: 'rgba(168,224,42,0.3)', opacity: savingRecipe ? 0.6 : 1,
+          }}>
+            <Text style={{ color: '#a8e02a', fontSize: 14, fontWeight: '700' }}>
+              {savingRecipe ? 'Guardando…' : recipeSaved ? 'Guardada en Mis recetas ✓' : 'Guardar en Mis recetas'}
+            </Text>
+          </Pressable>
+
           <Pressable onPress={handleGenerateRecipe} style={{
-            backgroundColor: '#0a0a0a', borderRadius: 16, padding: 14, alignItems: 'center', marginTop: 20,
+            backgroundColor: '#0a0a0a', borderRadius: 16, padding: 14, alignItems: 'center', marginTop: 10,
             borderWidth: 1, borderColor: '#1a1a1a',
           }}>
             <Text style={{ color: '#999', fontSize: 14, fontWeight: '600' }}>Generar otra receta</Text>

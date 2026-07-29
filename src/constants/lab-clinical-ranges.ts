@@ -222,6 +222,23 @@ export function isClinicalOnlyParam(key: string): boolean {
 }
 
 /**
+ * E-9 (MB-12): umbrales FUNCIONALES de mediciones en casa — fuente única.
+ * Antes vivían hardcodeados en health-input.tsx (120/80, 140/90) y
+ * mis-datos-core.ts (glucosa 70/99/125, cetonas 0.5/3.0). La UI describe el
+ * rango observado — nunca emite juicio clínico ("consulta médico" no es
+ * veredicto de una app).
+ */
+export const HOME_METRIC_THRESHOLDS = {
+  blood_pressure: {
+    optimalMax: { systolic: 120, diastolic: 80 },
+    elevatedMax: { systolic: 140, diastolic: 90 },
+    unit: 'mmHg',
+  },
+  fasting_glucose: { lowMax: 70, optimalMax: 99, elevatedMax: 125, unit: 'mg/dL' },
+  ketones: { nutritionalMin: 0.5, nutritionalMax: 3.0, unit: 'mmol/L' },
+} as const;
+
+/**
  * Valida un valor extraído contra el rango absoluto del biomarker.
  * @returns true si el valor es plausible, false si es imposible (descartar).
  */

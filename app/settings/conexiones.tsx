@@ -238,8 +238,12 @@ export default function SettingsConexionesScreen() {
                 <EliteText variant="body" style={styles.wearableTitle}>
                   Wearables y dispositivos
                 </EliteText>
+                {/* E-9 (MB-12): promesa alineada con lo que existe — la
+                    conexión aún no está disponible. */}
                 <EliteText variant="caption" style={styles.wearableDesc}>
-                  Conecta Apple Health o Google Health para datos automáticos de sueño, pasos, FC y HRV.
+                  La conexión con Apple Health y Google Health está en
+                  desarrollo — cuando llegue, sueño, pasos, FC y HRV entrarán
+                  solos.
                 </EliteText>
               </View>
             </View>

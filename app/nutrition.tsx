@@ -313,6 +313,14 @@ export default function NutritionScreen() {
           </Animated.View>
           )}
 
+          {/* E-4 (MB-12): la ruta existía sin enlace — y argos-recipes promete
+              cruzar tus ALERGIAS, que solo se capturan aquí. */}
+          <Animated.View entering={FadeInUp.delay(125).springify()}>
+            <NavCard icon="options-outline" color="#60a5fa" title="Preferencias de comida"
+              subtitle="Alergias, estilo de dieta y lo que no comes"
+              onPress={() => { haptic.light(); router.push('/food-preferences'); }} />
+          </Animated.View>
+
           {/* Nu1: Ayuno e Hidratación se quitaron de Nutrición — viven en Hábitos → Mente
               (/fasting y /hydration). Evita duplicar el mismo acceso en dos pilares.
               T1: la card de arriba solo aparece con ayuno ACTIVO (estado vivo). */}

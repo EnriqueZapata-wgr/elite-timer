@@ -7,7 +7,10 @@
  */
 import { useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import { Redirect } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
+import { useAuth } from '@/src/contexts/auth-context';
+import { isAdmin } from '@/src/constants/admin-config';
 
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
@@ -16,7 +19,13 @@ import { supabase } from '@/src/lib/supabase';
 import { Colors, Spacing, Radius, FontSizes, Fonts } from '@/constants/theme';
 
 export default function GoalTreeSmokeScreen() {
+  const { user } = useAuth();
   const [goal, setGoal] = useState('correr un maratón en 6 meses');
+
+  // E-4 (MB-12): mismo gate que settings/dev — dispara LLM con costo real.
+  if (!__DEV__ && !isAdmin(user?.id)) {
+    return <Redirect href="/settings" />;
+  }
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -1,0 +1,171 @@
+/**
+ * Mis hábitos del HOY (MB-12 · E-3) — la puerta perdida de los electrones.
+ *
+ * Aquí el usuario decide qué hábitos booleanos y cuantitativos trackea su
+ * HOY (incluye el opt-in de N-Back). Escribe user_day_preferences vía
+ * electron-prefs-service (el writer que no existía: todo usuario quedaba
+ * clavado en los 6 defaults de la migración 043). Los MANDATORY son core y
+ * no se apagan — se muestran como fijos.
+ */
+import { useCallback, useState } from 'react';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+
+import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { EliteText } from '@/components/elite-text';
+import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { useAuth } from '@/src/contexts/auth-context';
+import { supabase } from '@/src/lib/supabase';
+import { haptic } from '@/src/utils/haptics';
+import {
+  ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS, MANDATORY_BOOLEANS,
+  FEMALE_ONLY_ELECTRONS, type ElectronOption,
+} from '@/src/services/hoy/day-booleans';
+import {
+  getElectronPrefs, setElectronPrefs, applyElectronToggle, type ElectronPrefs,
+} from '@/src/services/hoy/electron-prefs-service';
+import { ELEVATION, TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
+
+// Sin fuente hasta wearables (mismo filtro que day-compiler).
+const QUANTS_SIN_FUENTE = new Set(['steps', 'sleep']);
+
+const MANDATORY_LABELS: Record<string, string> = {
+  journal: 'Journal',
+  no_processed_foods: 'Sin procesados',
+  screen_time_cutoff: 'Off pantallas',
+  cardio: 'Cardio',
+};
+
+export default function HoyHabitosScreen() {
+  const { user } = useAuth();
+  const [prefs, setPrefs] = useState<ElectronPrefs | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [bioSex, setBioSex] = useState<string | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    if (!user?.id) return () => { alive = false; };
+    getElectronPrefs(user.id).then((p) => {
+      if (!alive) return;
+      if (p === null) { setLoadFailed(true); return; }
+      setLoadFailed(false);
+      setPrefs(p);
+    });
+    supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => { if (alive) setBioSex((data as any)?.biological_sex ?? null); }, () => {});
+    return () => { alive = false; };
+  }, [user?.id]));
+
+  async function toggle(kind: 'booleans' | 'quants', option: ElectronOption, active: boolean) {
+    if (!user?.id || !prefs) return;
+    haptic.light();
+    const canonical = (kind === 'booleans' ? ALL_BOOLEAN_OPTIONS : ALL_QUANT_OPTIONS).map((o) => o.key);
+    const next: ElectronPrefs = {
+      ...prefs,
+      [kind]: applyElectronToggle(prefs[kind], option.key, active, canonical),
+    };
+    const prev = prefs;
+    setPrefs(next); // optimista
+    const res = await setElectronPrefs(user.id, next);
+    if (!res.ok) {
+      setPrefs(prev); // revertir — nunca confirmar en falso
+      Alert.alert('No se pudo guardar', 'Revisa tu conexión e intenta de nuevo.');
+    }
+  }
+
+  const booleanOptions = ALL_BOOLEAN_OPTIONS.filter(
+    (o) => !FEMALE_ONLY_ELECTRONS.has(o.key) || bioSex === 'female',
+  );
+  const quantOptions = ALL_QUANT_OPTIONS.filter((o) => !QUANTS_SIN_FUENTE.has(o.key));
+
+  const renderRow = (kind: 'booleans' | 'quants', o: ElectronOption, idx: number) => {
+    const active = prefs?.[kind].includes(o.key) ?? false;
+    return (
+      <Animated.View key={o.key} entering={FadeInUp.delay(40 + idx * 30).springify()}>
+        <AnimatedPressable
+          onPress={() => toggle(kind, o, !active)}
+          disabled={!prefs}
+          style={[s.row, active && { borderColor: withOpacity(o.color, 0.5) }]}
+        >
+          <View style={[s.iconWrap, { backgroundColor: withOpacity(o.color, 0.14) }]}>
+            <Ionicons name={o.icon as any} size={18} color={o.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <EliteText style={s.rowName}>{o.name}</EliteText>
+            <EliteText variant="caption" style={s.rowWeight}>Peso {o.weight} e-</EliteText>
+          </View>
+          <Ionicons
+            name={active ? 'checkmark-circle' : 'ellipse-outline'}
+            size={22}
+            color={active ? ATP_BRAND.lime : TEXT.tertiary}
+          />
+        </AnimatedPressable>
+      </Animated.View>
+    );
+  };
+
+  return (
+    <Screen edges={[]}>
+      <ScreenHeader title="Mis hábitos" onBack={() => router.back()} />
+      <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+        <EliteText variant="caption" style={s.intro}>
+          Elige qué hábitos trackea tu HOY. Lo que apagues deja de contar en tu
+          ATP Score de mañana en adelante — tu historial no se toca.
+        </EliteText>
+
+        {loadFailed && (
+          <View style={s.row}>
+            <Ionicons name="cloud-offline-outline" size={18} color={TEXT.secondary} />
+            <EliteText variant="caption" style={{ color: TEXT.secondary, flex: 1 }}>
+              Tu configuración no se pudo leer — revisa tu conexión y vuelve a entrar.
+            </EliteText>
+          </View>
+        )}
+
+        {!loadFailed && (
+          <>
+            <EliteText style={s.sectionTitle}>HÁBITOS SÍ / NO</EliteText>
+            {booleanOptions.map((o, i) => renderRow('booleans', o, i))}
+
+            <EliteText style={s.sectionTitle}>METAS DEL DÍA</EliteText>
+            {quantOptions.map((o, i) => renderRow('quants', o, i))}
+
+            <EliteText style={s.sectionTitle}>SIEMPRE ACTIVOS</EliteText>
+            <EliteText variant="caption" style={s.mandatoryNote}>
+              Estos son el núcleo del sistema y no se apagan:{' '}
+              {MANDATORY_BOOLEANS.map((k) => MANDATORY_LABELS[k] ?? k).join(' · ')}.
+            </EliteText>
+          </>
+        )}
+
+        <View style={{ height: Spacing.xxl }} />
+      </ScrollView>
+    </Screen>
+  );
+}
+
+const s = StyleSheet.create({
+  content: { paddingHorizontal: Spacing.md, paddingBottom: 80 },
+  intro: { color: TEXT.secondary, lineHeight: 19, marginBottom: Spacing.sm },
+  sectionTitle: {
+    color: ATP_BRAND.lime, fontSize: FontSizes.xs, fontFamily: Fonts.bold,
+    letterSpacing: 3, marginTop: Spacing.lg, marginBottom: Spacing.sm,
+  },
+  row: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: ELEVATION[1].bg, borderRadius: Radius.card,
+    borderWidth: 1, borderColor: ELEVATION[1].border,
+    padding: Spacing.md, marginBottom: Spacing.sm,
+  },
+  iconWrap: {
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  rowName: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.md },
+  rowWeight: { color: TEXT.tertiary, marginTop: 1 },
+  mandatoryNote: { color: TEXT.secondary, lineHeight: 19 },
+});

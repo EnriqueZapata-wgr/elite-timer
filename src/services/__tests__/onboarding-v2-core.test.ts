@@ -71,9 +71,9 @@ describe('modalidad de ciclo (task #111)', () => {
     expect(defaultCycleModality('female')).toBe('regular');
   });
 
-  it('hombre: disabled default + partner', () => {
+  it('hombre: disabled default (partner retirado de la UI — E-5 MB-12)', () => {
     const opts = cycleModalityOptions('male').map(o => o.value);
-    expect(opts).toEqual(['disabled', 'partner']);
+    expect(opts).toEqual(['disabled']);
     expect(defaultCycleModality('male')).toBe('disabled');
   });
 });
