@@ -6,7 +6,7 @@
  * documentos se publiquen en somosatp.com, estas pantallas siguen siendo el
  * espejo in-app linkeado desde los checkboxes de consentimiento.
  */
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,9 +21,16 @@ interface Props {
   title: string;
   versionLabel: string;
   sections: LegalSection[];
+  /**
+   * B-6 (MB-12): fuente única = el documento publicado en somosatp.com (el
+   * mismo que abre el paywall). Con webUrl presente, el texto in-app —que aún
+   * tiene placeholders [ENTRE CORCHETES]— NO se muestra: un solo contrato, y
+   * es el que el usuario acepta.
+   */
+  webUrl?: string;
 }
 
-export function LegalDocScreen({ title, versionLabel, sections }: Props) {
+export function LegalDocScreen({ title, versionLabel, sections, webUrl }: Props) {
   const router = useRouter();
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -33,12 +40,23 @@ export function LegalDocScreen({ title, versionLabel, sections }: Props) {
         </AnimatedPressable>
         <EliteText style={s.headerTitle} numberOfLines={1}>{title}</EliteText>
       </View>
+      {webUrl ? (
+        <View style={s.scroll}>
+          <EliteText style={s.body}>
+            El documento oficial vive en somosatp.com. Es la misma versión que
+            aceptas al usar ATP.
+          </EliteText>
+          <AnimatedPressable
+            style={s.webBtn}
+            onPress={() => { haptic.light(); Linking.openURL(webUrl).catch(() => {}); }}
+          >
+            <Ionicons name="open-outline" size={18} color={TEXT.primary} />
+            <EliteText style={s.webBtnText}>Abrir documento</EliteText>
+          </AnimatedPressable>
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={s.scroll}>
         <EliteText style={s.version}>{versionLabel}</EliteText>
-        <EliteText style={s.stagingNote}>
-          Documento en preparación: los campos [ENTRE CORCHETES] se completarán con los
-          datos de la sociedad responsable antes de su publicación oficial.
-        </EliteText>
         {sections.map((sec, i) => (
           <View key={i} style={s.section}>
             <EliteText style={s.heading}>{sec.heading}</EliteText>
@@ -46,6 +64,7 @@ export function LegalDocScreen({ title, versionLabel, sections }: Props) {
           </View>
         ))}
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -60,10 +79,12 @@ const s = StyleSheet.create({
   headerTitle: { flex: 1, fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
   scroll: { paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl },
   version: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: '#666', letterSpacing: 1 },
-  stagingNote: {
-    fontSize: FontSizes.xs, fontFamily: Fonts.regular, color: '#8a7a2f',
-    marginTop: 8, lineHeight: 17,
+  webBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderColor: '#333', borderRadius: 14,
+    paddingVertical: Spacing.md, marginTop: Spacing.lg,
   },
+  webBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: TEXT.primary },
   section: { marginTop: Spacing.lg },
   heading: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: TEXT.primary, marginBottom: 8 },
   body: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#bbb', lineHeight: 21 },

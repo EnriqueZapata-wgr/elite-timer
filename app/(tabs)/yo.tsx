@@ -257,16 +257,17 @@ export default function YoScreen() {
         {/* ═══════════════════════════════════════════
             8. CONNECT WEARABLE BANNER
             ═══════════════════════════════════════════ */}
+        {/* E-9 (MB-12): la promesa se alinea con lo que existe — los
+            wearables aún no se conectan; sin CTA a un hub genérico. */}
         {!wearableData && (
           <Animated.View entering={FadeInUp.delay(550).springify()}>
-            <AnimatedPressable style={s.connectBanner} onPress={() => { haptic.light(); router.push('/settings'); }}>
+            <View style={s.connectBanner}>
               <Ionicons name="watch-outline" size={20} color="#888" />
               <View style={{ flex: 1 }}>
-                <EliteText style={s.connectBannerTitle}>Conecta tu dispositivo</EliteText>
-                <EliteText style={s.connectBannerDesc}>Apple Watch, Oura, Garmin para mejorar tus scores</EliteText>
+                <EliteText style={s.connectBannerTitle}>Wearables en desarrollo</EliteText>
+                <EliteText style={s.connectBannerDesc}>Cuando llegue la conexión, tus scores se alimentarán solos</EliteText>
               </View>
-              <Ionicons name="chevron-forward" size={16} color="#555" />
-            </AnimatedPressable>
+            </View>
           </Animated.View>
         )}
 

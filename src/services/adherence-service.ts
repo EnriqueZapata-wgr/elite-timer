@@ -77,6 +77,10 @@ export function computeStreak(plans: PlanRow[]): number {
 
     if (ok) {
       streak++;
+      // D-3 (MB-12): la gracia es por fallo AISLADO — al retomar se recupera.
+      // Sin este reset, el segundo fallo suelto en meses de historia rompía
+      // la racha aunque nunca hubiera 2 fallos consecutivos.
+      graceUsed = false;
     } else if (isToday) {
       // Hoy en progreso: no suma, no rompe, no consume gracia.
     } else if (!graceUsed) {
@@ -129,6 +133,10 @@ export function computeLongestStreak(plans: PlanRow[]): number {
     if (ok) {
       current++;
       if (current > best) best = current;
+      // D-3 (MB-12): la gracia es por fallo AISLADO, no una por racha — sin
+      // este reset, dos fallos sueltos en meses (nunca consecutivos) dejaban
+      // la "racha récord" en cero aunque el histórico fuera sólido.
+      graceUsed = false;
     } else if (cursorStr === today) {
       // Hoy en progreso: no suma, no rompe.
     } else if (!graceUsed && current > 0) {

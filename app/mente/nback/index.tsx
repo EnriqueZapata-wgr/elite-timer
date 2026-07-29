@@ -48,6 +48,8 @@ export default function NBackHomeScreen() {
   const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [state, setState] = useState<NBackUserState | null>(null);
+  // D-2 (MB-12): fallo de red ≠ usuario nuevo — no se pinta N=1 ni tutorial.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [roundsToday, setRoundsToday] = useState(0);
   const [weekMap, setWeekMap] = useState<Record<string, number>>({});
   const [challengeDays, setChallengeDays] = useState(0);
@@ -59,31 +61,34 @@ export default function NBackHomeScreen() {
     if (user?.id) {
       fetchNBackState(user.id).then(st => {
         if (!alive) return;
+        setLoadFailed(false);
         setState(st);
         if (st.challenge_started_on) {
           fetchRoundsByDate(user.id, st.challenge_started_on).then(map => {
             if (!alive) return;
             setChallengeDays(challengeDay(Object.keys(map).length));
             setWeekMap(map);
-          });
+          }).catch(() => {});
         } else {
-          fetchRoundsByDate(user.id, week[0]).then(map => { if (alive) setWeekMap(map); });
+          fetchRoundsByDate(user.id, week[0]).then(map => { if (alive) setWeekMap(map); }).catch(() => {});
         }
-      });
-      countRoundsOnDate(user.id, today).then(c => { if (alive) setRoundsToday(c); });
+      }).catch(() => { if (alive) setLoadFailed(true); });
+      countRoundsOnDate(user.id, today).then(c => { if (alive) setRoundsToday(c); }).catch(() => {});
     }
     return () => { alive = false; };
   }, [user?.id]));
 
   const startSession = useCallback(() => {
     haptic.medium();
-    if ((state?.sessions_total ?? 0) === 0) {
+    // D-2: con el estado sin leer (loading o fallo) NUNCA mandamos al tutorial
+    // — la sesión decide su N con su propia lectura (y avisa si no puede).
+    if (state !== null && state.sessions_total === 0) {
       // Primera vez: tutorial obligatorio (decisión #44-1).
       router.push('/mente/nback/como-jugar');
       return;
     }
     router.push('/mente/nback/sesion');
-  }, [router, state?.sessions_total]);
+  }, [router, state]);
 
   const today = getLocalToday();
   const week = lastNDates(7);
@@ -163,7 +168,7 @@ export default function NBackHomeScreen() {
               />
             </View>
             <EliteText style={s.cardSub}>
-              Memoria de trabajo entrenada {NBACK_CONFIG.CHALLENGE_DAYS} días — el protocolo con evidencia real.
+              Memoria de trabajo entrenada {NBACK_CONFIG.CHALLENGE_DAYS} días: el entrenamiento, no el milagro.
             </EliteText>
           </Animated.View>
 

@@ -7,7 +7,7 @@
  * y resumen final "TU FENOTIPO" + las 5 que el motor prescribe (motor INTOCADO).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
@@ -71,7 +71,15 @@ function MasterQuizScreen() {
       setDone(first === null);
       setLoading(false);
       void age;
-    })();
+    })().catch(() => {
+      // D-2 (MB-12): sin catch, un fallo dejaba el spinner girando para siempre.
+      setLoading(false);
+      Alert.alert(
+        'No se pudo cargar el cuestionario',
+        'Tus respuestas siguen guardadas. Revisa tu conexión e intenta de nuevo.',
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
+    });
   }, [user?.id]);
 
   const progress = useMemo(

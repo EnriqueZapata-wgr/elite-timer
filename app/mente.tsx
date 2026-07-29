@@ -67,6 +67,9 @@ const EMPTY: HubState = {
 export default function MenteHubScreen() {
   const router = useRouter();
   const [hub, setHub] = useState<HubState>(EMPTY);
+  // D-2 (MB-12): falló ≠ "no tienes datos" — con error de red no se pintan
+  // ceros ni "escribe tu primera entrada".
+  const [hubFailed, setHubFailed] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useFocusEffect(useCallback(() => {
@@ -78,28 +81,33 @@ export default function MenteHubScreen() {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
-      const [journalDates, journalRows, sessions, checkins] = await Promise.all([
-        fetchJournalDates(user.id).catch(() => [] as string[]),
+      const [journalDates, journalRes, sessionsRes, checkinsRes] = await Promise.all([
+        fetchJournalDates(user.id).catch(() => null),
         supabase.from('journal_entries')
           .select('journal_type, created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(5)
-          .then(({ data }) => data ?? []),
+          .limit(5),
         supabase.from('mind_sessions')
           .select('type, template_name, duration_seconds, created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(10)
-          .then(({ data }) => data ?? []),
+          .limit(10),
         supabase.from('emotional_checkins')
           .select('created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
-          .limit(10)
-          .then(({ data }) => data ?? []),
+          .limit(10),
       ]);
       if (!alive) return;
+      if (journalDates === null || journalRes.error || sessionsRes.error || checkinsRes.error) {
+        setHubFailed(true);
+        return;
+      }
+      setHubFailed(false);
+      const journalRows = journalRes.data ?? [];
+      const sessions = sessionsRes.data ?? [];
+      const checkins = checkinsRes.data ?? [];
 
       // Ajuste 1: el hub solo necesita el "último" por tipo para los subtítulos
       // de las cards — el historial vive dentro de cada sección.
@@ -191,9 +199,11 @@ export default function MenteHubScreen() {
         <Animated.View entering={FadeInUp.delay(190).springify()}>
           <MenteHubCard
             title="Journal"
-            subtitle={hub.lastJournalAt
-              ? `Última entrada ${formatRelativeTime(hub.lastJournalAt).toLowerCase()}`
-              : 'Escribe tu primera entrada'}
+            subtitle={hubFailed
+              ? 'Tu actividad no se pudo leer. Revisa tu conexión.'
+              : hub.lastJournalAt
+                ? `Última entrada ${formatRelativeTime(hub.lastJournalAt).toLowerCase()}`
+                : 'Escribe tu primera entrada'}
             icon="journal-outline"
             imageBn={CARD_ART.journal}
             badge={hub.journalStreak > 0 ? `🔥 ${hub.journalStreak} ${hub.journalStreak === 1 ? 'día' : 'días'}` : undefined}

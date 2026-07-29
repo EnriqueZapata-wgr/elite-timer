@@ -16,6 +16,10 @@ import type { Referral } from '@/src/services/economy/economy-types';
 import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
+// E-1 (MB-12): OFF hasta que recordReferralSignup / markReferralPaid se
+// invoquen desde algún lado — prometer H+ sin backend que los otorgue no se queda.
+const REFERRALS_ENABLED = false;
+
 export default function ReferralsScreen() {
   const { user } = useAuth();
   const [code, setCode] = useState<string>('');
@@ -35,11 +39,30 @@ export default function ReferralsScreen() {
     if (!code) return;
     haptic.medium();
     try {
-      await Share.share({ message: `Únete a ATP con mi código ${code} y empieza a optimizar tu salud. https://atp.app/r/${code}` });
+      // E-1 (MB-12): el dominio es somosatp.com (atp.app no es nuestro).
+      await Share.share({ message: `Únete a ATP con mi código ${code} y empieza a optimizar tu salud. https://somosatp.com/r/${code}` });
     } catch { /* cancelado */ }
   }
 
   const rewarded = referrals.filter((r) => r.status === 'rewarded').length;
+
+  // E-1 (MB-12): puerta cerrada también para deep links mientras no haya backend.
+  if (!REFERRALS_ENABLED) {
+    return (
+      <Screen edges={[]}>
+        <ScreenHeader title="Referidos" onBack={() => router.back()} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, gap: Spacing.sm }}>
+          <Ionicons name="construct-outline" size={40} color={TEXT.secondary} />
+          <EliteText style={{ color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg, textAlign: 'center' }}>
+            Referidos está en construcción
+          </EliteText>
+          <EliteText variant="caption" style={{ color: TEXT.secondary, textAlign: 'center', lineHeight: 19 }}>
+            Cuando las recompensas se puedan otorgar de verdad, se abre.
+          </EliteText>
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen edges={[]}>

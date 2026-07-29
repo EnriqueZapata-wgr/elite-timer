@@ -186,6 +186,8 @@ export default function CycleScreen() {
 
   // Estado principal
   const [loading, setLoading] = useState(true);
+  // D-2 (MB-12): fallo de red ≠ "sin datos de ciclo".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [logs, setLogs] = useState<DayLog[]>([]);
   const [settings, setSettings] = useState({ avg_cycle_length: 28, avg_period_length: 5 });
   // MB-7: máscara ATP Embarazo — estado desde cycle_settings.pregnancy_status.
@@ -221,7 +223,9 @@ export default function CycleScreen() {
           .eq('user_id', userId)
           .maybeSingle(),
       ]);
-      if (logsRes.data) setLogs(logsRes.data as DayLog[]);
+      // D-2 (MB-12): con error de red no se pinta "Sin datos de ciclo".
+      if (logsRes.error) setLoadFailed(true);
+      else { setLoadFailed(false); setLogs((logsRes.data ?? []) as DayLog[]); }
       if (settingsRes.data) {
         setSettings({
           avg_cycle_length: settingsRes.data.avg_cycle_length ?? 28,
@@ -525,12 +529,14 @@ export default function CycleScreen() {
           ) : (
             <GradientCard gradient={PILLAR_GRADIENTS.cycle} style={{ marginBottom: Spacing.sm }} padding={Spacing.lg}>
               <View style={{ alignItems: 'center', gap: 8 }}>
-                <Ionicons name="water-outline" size={32} color={ROSE} />
+                <Ionicons name={loadFailed ? 'cloud-offline-outline' : 'water-outline'} size={32} color={ROSE} />
                 <EliteText style={{ color: '#fff', fontFamily: Fonts.bold, fontSize: FontSizes.lg, textAlign: 'center' }}>
-                  Sin datos de ciclo
+                  {loadFailed ? 'Tu ciclo no se pudo leer' : 'Sin datos de ciclo'}
                 </EliteText>
                 <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, textAlign: 'center' }}>
-                  Registra tu primer día de período para comenzar el tracking.
+                  {loadFailed
+                    ? 'Tus registros siguen guardados. Revisa tu conexión y vuelve a entrar.'
+                    : 'Registra tu primer día de período para comenzar el tracking.'}
                 </EliteText>
               </View>
             </GradientCard>

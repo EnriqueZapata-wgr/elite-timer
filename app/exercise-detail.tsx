@@ -54,7 +54,8 @@ export default function ExerciseDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const [catalogo, setCatalogo] = useState<MatrixExercise[]>([]);
 
-  useEffect(() => { getExerciseMatrix().then(setCatalogo); }, []);
+  // D-2 (MB-12): sin catch, un rechazo dejaba la ficha cargando por siempre.
+  useEffect(() => { getExerciseMatrix().then(setCatalogo).catch(() => setCatalogo([])); }, []);
 
   const ex = useMemo(() => catalogo.find((e) => e.slug === slug) ?? null, [catalogo, slug]);
   const variantes = useMemo(
@@ -98,6 +99,15 @@ export default function ExerciseDetailScreen() {
             {ex.seniorApto && <Tag label="Senior apto" />}
             {ex.cargable && <Tag label="Cargable" tone="lime" />}
           </View>
+
+          {/* E-9 (MB-12): CÓMO SE HACE — la ficha ya no entrega solo tags y
+              un clip que casi nunca existe. */}
+          {ex.instrucciones && (
+            <>
+              <Text style={s.sectionLabel}>CÓMO SE HACE</Text>
+              <Text style={s.bodyText}>{ex.instrucciones}</Text>
+            </>
+          )}
 
           {/* Equipo */}
           <Text style={s.sectionLabel}>EQUIPO</Text>

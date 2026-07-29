@@ -4,9 +4,11 @@
  * Accesible vía router.push('/dev'). Lista las pantallas de validación/debug.
  * Expo Router trata `_dev/` como folder privado (no routeable) → usamos `dev/`.
  */
-import { router } from 'expo-router';
+import { router, Redirect } from 'expo-router';
 import { ScrollView, Text, Pressable, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '@/src/contexts/auth-context';
+import { isAdmin } from '@/src/constants/admin-config';
 
 const DEV_TOOLS = [
   {
@@ -19,6 +21,14 @@ const DEV_TOOLS = [
 ];
 
 export default function DevToolsIndex() {
+  const { user } = useAuth();
+
+  // E-4 (MB-12): mismo gate que settings/dev — un deep link dejaba a
+  // cualquier founder disparando llamadas al LLM con costo.
+  if (!__DEV__ && !isAdmin(user?.id)) {
+    return <Redirect href="/settings" />;
+  }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>

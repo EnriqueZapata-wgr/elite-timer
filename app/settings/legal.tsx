@@ -4,7 +4,7 @@
  * disclaimers + estado de aceptación (user_consent).
  */
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -41,6 +41,8 @@ export default function SettingsLegalScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [consent, setConsent] = useState<ConsentRow | null>(null);
+  // D-2 (MB-12): fallo de red ≠ "nunca aceptaste nada".
+  const [consentFailed, setConsentFailed] = useState(false);
   const [showDisclaimers, setShowDisclaimers] = useState(false);
 
   useEffect(() => {
@@ -48,27 +50,34 @@ export default function SettingsLegalScreen() {
     supabase.from('user_consent')
       .select('terms_accepted_at, terms_version, privacy_accepted_at, privacy_version, medical_disclaimer_accepted_at, medical_disclaimer_version')
       .eq('user_id', user.id).maybeSingle()
-      .then(({ data }) => setConsent((data as ConsentRow) ?? null));
+      .then(({ data, error }) => {
+        if (error) { setConsentFailed(true); return; }
+        setConsentFailed(false);
+        setConsent((data as ConsentRow) ?? null);
+      });
   }, [user?.id]);
 
   const rows = [
     {
       icon: 'document-text-outline' as const,
       title: 'Términos de servicio',
-      status: consent?.terms_accepted_at
-        ? `Aceptados: v${consent.terms_version ?? '1.0'} · ${fmtDate(consent.terms_accepted_at)}`
-        : 'Ver documento',
-      // Sprint Compliance 2: mientras la web no publica (espera razón social
-      // de la SAS), el documento vive in-app en staging.
-      onPress: () => router.push('/legal/terminos'),
+      status: consentFailed
+        ? 'Estado de aceptación sin lectura. Revisa tu conexión.'
+        : consent?.terms_accepted_at
+          ? `Aceptados: v${consent.terms_version ?? '1.0'} · ${fmtDate(consent.terms_accepted_at)}`
+          : 'Ver documento',
+      // B-6 (MB-12): fuente única — las MISMAS URLs que abre el paywall.
+      onPress: () => Linking.openURL('https://somosatp.com/terminos').catch(() => {}),
     },
     {
       icon: 'lock-closed-outline' as const,
       title: 'Política de privacidad',
-      status: consent?.privacy_accepted_at
-        ? `Aceptada: v${consent.privacy_version ?? '1.0'} · ${fmtDate(consent.privacy_accepted_at)}`
-        : 'Ver documento',
-      onPress: () => router.push('/legal/aviso'),
+      status: consentFailed
+        ? 'Estado de aceptación sin lectura. Revisa tu conexión.'
+        : consent?.privacy_accepted_at
+          ? `Aceptada: v${consent.privacy_version ?? '1.0'} · ${fmtDate(consent.privacy_accepted_at)}`
+          : 'Ver documento',
+      onPress: () => Linking.openURL('https://somosatp.com/privacidad').catch(() => {}),
     },
     {
       icon: 'medkit-outline' as const,

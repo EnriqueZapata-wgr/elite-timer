@@ -77,10 +77,9 @@ export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, Href> = {
 export const FEMALE_ONLY_ELECTRONS = new Set<string>(['period_log']);
 
 // ─── Universo de electrones seleccionables (MB-5: puras) ───
-// MB-11 E: el EditDayModal (su UI original) se retiró — compileDay sigue
-// leyendo user_day_preferences.active_*_electrons persistidas, pero HOY NO
-// queda pantalla que las escriba. ⚠️ Flag producto: el opt-in de nback y la
-// selección de electrones no tienen puerta hasta que se cablee una nueva.
+// MB-12 E-3: la puerta volvió — /hoy-habitos escribe las listas vía
+// electron-prefs-service (writer espejo de visibility-service) y emite
+// 'electrons_changed'. El opt-in de nback vive ahí.
 
 export interface ElectronOption {
   key: string;

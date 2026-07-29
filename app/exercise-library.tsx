@@ -58,7 +58,8 @@ export default function ExerciseLibraryScreen() {
   const [ejeAbierto, setEjeAbierto] = useState<EjeKey | null>(null);
 
   useEffect(() => {
-    getExerciseMatrix().then(setCatalogo);
+    // D-2 (MB-12): sin catch, un rechazo dejaba la biblioteca cargando por siempre.
+    getExerciseMatrix().then(setCatalogo).catch(() => setCatalogo([]));
   }, []);
 
   const filtrados = useMemo(() => {

@@ -35,6 +35,8 @@ interface RecipeRow {
 export default function ListaCompraScreen() {
   const { user } = useAuth();
   const [recipes, setRecipes] = useState<RecipeRow[]>([]);
+  // D-2 (MB-12): fallo de red ≠ "sin recetas con ingredientes".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [checked, setChecked] = useState<Set<string>>(new Set());
 
@@ -45,7 +47,11 @@ export default function ListaCompraScreen() {
       .eq('user_id', user.id)
       .order('is_favorite', { ascending: false })
       .order('created_at', { ascending: false })
-      .then(({ data }) => setRecipes((data as RecipeRow[]) ?? []));
+      .then(({ data, error }) => {
+        if (error) { setLoadFailed(true); return; }
+        setLoadFailed(false);
+        setRecipes((data as RecipeRow[]) ?? []);
+      });
   }, [user?.id]));
 
   const items: AggregatedItem[] = useMemo(() => {
@@ -110,10 +116,14 @@ export default function ListaCompraScreen() {
 
         {withIngredients.length === 0 && (
           <View style={s.empty}>
-            <Ionicons name="cart-outline" size={48} color="#333" />
-            <EliteText style={s.emptyTitle}>Sin recetas con ingredientes</EliteText>
+            <Ionicons name={loadFailed ? 'cloud-offline-outline' : 'cart-outline'} size={48} color="#333" />
+            <EliteText style={s.emptyTitle}>
+              {loadFailed ? 'Tus recetas no se pudieron leer' : 'Sin recetas con ingredientes'}
+            </EliteText>
             <EliteText style={s.emptySub}>
-              Guarda recetas de ARGOS (traen ingredientes) o genera tu lista IA semanal desde Recetas ARGOS.
+              {loadFailed
+                ? 'Revisa tu conexión y vuelve a entrar. Tus recetas siguen guardadas.'
+                : 'Guarda recetas de ARGOS (traen ingredientes) o genera tu lista IA semanal desde Recetas ARGOS.'}
             </EliteText>
           </View>
         )}

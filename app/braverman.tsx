@@ -311,7 +311,7 @@ function BravermanTest() {
                 color: '#bbb', fontSize: 14, fontFamily: Fonts.regular,
                 textAlign: 'center', marginTop: 8, lineHeight: 22, maxWidth: 320,
               }}>
-                Evaluación clínica de neurotransmisores del Dr. Eric R. Braverman. Descubre tu naturaleza bioquímica dominante y detecta posibles deficiencias.
+                Tu perfil de neurotransmisores. Descubre tu naturaleza bioquímica dominante y observa posibles deficiencias.
               </Text>
             </View>
           </LinearGradient>
@@ -366,7 +366,7 @@ function BravermanTest() {
             color: TEXT.tertiary, fontSize: 10, fontFamily: Fonts.regular,
             textAlign: 'center', marginTop: Spacing.md,
           }}>
-            ~15-20 minutos · Basado en {'“'}The Edge Effect{'”'} del Dr. Eric R. Braverman
+            ~15-20 minutos · Basado en el modelo de perfiles de neurotransmisores
           </Text>
 
           <AnimatedPressable
@@ -428,7 +428,7 @@ function BravermanTest() {
   if (screen === 'quiz' && currentQ) {
     const neuroMeta = NEUROTRANSMITTER_META[currentQ.neurotransmitter];
     const categoryLabel = CATEGORY_LABELS[currentQ.category];
-    const partLabel = currentPart === 1 ? 'PARTE 1 — DOMINANCIAS' : 'PARTE 2 — DEFICIENCIAS';
+    const partLabel = currentPart === 1 ? 'PARTE 1 · DOMINANCIAS' : 'PARTE 2 · DEFICIENCIAS';
     const partQuestions = currentPart === 1 ? PART1.length : PART2.length;
     const progressPart = (currentIndex / partQuestions) * 100;
     const progressTotal = (answeredTotal / totalQuestions) * 100;
@@ -671,7 +671,7 @@ function BravermanTest() {
               DEFICIENCIA PRINCIPAL
             </Text>
             <Text style={{ color: DEFICIENCY_COLORS[defLevel], fontSize: 22, fontFamily: Fonts.extraBold, marginTop: 4 }}>
-              {defMeta.name} — {DEFICIENCY_LABELS[defLevel]}
+              {defMeta.name} · {DEFICIENCY_LABELS[defLevel]}
             </Text>
             <Text style={{
               color: '#ccc', fontSize: 13, fontFamily: Fonts.regular,
@@ -773,19 +773,20 @@ function BravermanTest() {
               </Text>
               <Text style={{ color: '#ccc', fontSize: 13, fontFamily: Fonts.regular, lineHeight: 21 }}>
                 Tu cerebro tiene naturaleza {domMeta.name.toLowerCase()} ({domMeta.controls.toLowerCase()}).
-                {defLevel !== 'none' ? ` Tu deficiencia principal en ${defMeta.name.toLowerCase()} puede estar causando: ${defMeta.deficientSymptoms.toLowerCase()}.` : ''}
-                {'\n\n'}ARGOS usará este perfil para personalizar tus recomendaciones de suplementos, nutrición, ejercicio y protocolos.
+                {defLevel !== 'none' ? ` Este perfil, con tu deficiencia principal en ${defMeta.name.toLowerCase()}, suele venir acompañado de: ${defMeta.deficientSymptoms.toLowerCase()}.` : ''}
+                {'\n\n'}ARGOS usará este perfil como contexto para orientar tu nutrición, tu ejercicio y tus protocolos. Lo que registres de suplementos sigue siendo tuyo: qué tomar y cuánto se define con quien te lleva.
               </Text>
             </View>
           </Animated.View>
 
-          {/* PLAN DE SUPLEMENTOS INTEGRADO */}
+          {/* B-2 (MB-12): un cuestionario de autoreporte no genera un plan de
+              dosificación — nombres sí, cantidades nunca. */}
           <Animated.View entering={FadeInDown.delay(520).springify()} style={{ marginTop: Spacing.lg }}>
             <Text style={{
               color: TEXT.secondary, fontSize: 10, fontFamily: Fonts.semiBold,
               letterSpacing: 2, marginBottom: 12,
             }}>
-              PLAN DE SUPLEMENTOS PERSONALIZADO
+              QUÉ SE ASOCIA A TU PERFIL
             </Text>
             <Text style={{ color: TEXT.tertiary, fontSize: 11, fontFamily: Fonts.regular, marginBottom: 16 }}>
               Basado en TODAS tus deficiencias, no solo la principal
@@ -804,7 +805,7 @@ function BravermanTest() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                     <Text style={{ fontSize: 16 }}>{meta.emoji}</Text>
                     <Text style={{ color: meta.color, fontSize: 13, fontFamily: Fonts.bold }}>
-                      {meta.name} — {DEFICIENCY_LABELS[level]}
+                      {meta.name} · {DEFICIENCY_LABELS[level]}
                     </Text>
                   </View>
                   {supps.supplements.slice(0, 4).map((supp, i) => (
@@ -814,9 +815,6 @@ function BravermanTest() {
                       borderWidth: 1, borderColor: ELEVATION[1].border,
                     }}>
                       <Text style={{ color: '#ccc', fontSize: 12, fontFamily: Fonts.regular, flex: 1 }}>{supp.name}</Text>
-                      <Text style={{ color: ATP_BRAND.lime, fontSize: 12, fontFamily: Fonts.semiBold }}>
-                        {supp[level as 'minor' | 'moderate' | 'major'] || supp.minor}
-                      </Text>
                     </View>
                   ))}
                 </View>
@@ -827,7 +825,7 @@ function BravermanTest() {
               backgroundColor: 'rgba(251,191,36,0.08)', borderRadius: 12, padding: 14, marginTop: 8,
             }}>
               <Text style={{ color: '#fbbf24', fontSize: 11, fontFamily: Fonts.regular }}>
-                ⚠️ Los suplementos se pueden superponer entre deficiencias. Consulta a un profesional de salud para un plan personalizado que evite duplicidades y considere interacciones.
+                Esto es orientación educativa. Qué tomar y cuánto se define con quien te lleva.
               </Text>
             </View>
           </Animated.View>

@@ -36,10 +36,14 @@ export default function QuizzesScreen() {
   // profiles.skin_type (doctrina placeholder única), refresca en fototipo_changed.
   const [skinType, setSkinType] = useState<number | null>(null);
 
+  // E-9 (MB-12): user?.id en deps — con deps vacías y arranque frío (user aún
+  // null), el `if (!user?.id) return` interno dejaba los checkmarks sin cargar
+  // para siempre.
   useEffect(() => {
     loadCompletionStatus();
     loadDbQuizzes();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;

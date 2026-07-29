@@ -6,6 +6,7 @@
  * FUENTE ÚNICA de los valores de los 11 ejes (R and D/MATRIZ_FITNESS_DIMENSIONES.md).
  * Ni el generador ni la UI usan strings sueltos: todo sale de aquí.
  */
+import { EXERCISE_INSTRUCTIONS } from './exercise-instructions';
 
 // ── Eje 1 · Patrón de movimiento ──
 export const PATRONES = [
@@ -220,6 +221,9 @@ export interface MatrixExercise {
   posterUrl: string | null;
   unidadesEquipo: UnidadesEquipo;
   origen: OrigenEjercicio;
+  /** E-9 (MB-12): instrucciones cortas de ejecución (exercise-instructions.ts,
+   *  client-side por slug); null/ausente si aún no hay para este ejercicio. */
+  instrucciones?: string | null;
 }
 
 /** Fila cruda de `exercise_matrix` (shape de Supabase). */
@@ -278,6 +282,7 @@ export function mapMatrixRow(row: ExerciseMatrixRow): MatrixExercise {
       ? (row.unidades_equipo as UnidadesEquipo)
       : 'n/a',
     origen: row.origen as OrigenEjercicio,
+    instrucciones: EXERCISE_INSTRUCTIONS[row.slug] ?? null,
   };
 }
 

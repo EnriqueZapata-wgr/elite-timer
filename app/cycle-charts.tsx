@@ -5,7 +5,7 @@
  * sobre bandas de color de las 4 fases del ciclo.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Dimensions, Text } from 'react-native';
+import { View, ScrollView, StyleSheet, Dimensions, Text, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Rect, Path, Circle as SvgCircle } from 'react-native-svg';
@@ -55,6 +55,8 @@ export default function CycleChartsScreen() {
   const [params, setParams] = useState(DEFAULT_PARAMS);
   const [periodLabel, setPeriodLabel] = useState<PeriodLabel>('Último ciclo');
   const [data, setData] = useState<any[]>([]);
+  // D-2 (MB-12): fallo de red ≠ "registra al menos 3 días".
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -68,7 +70,11 @@ export default function CycleChartsScreen() {
       .eq('user_id', user.id)
       .gte('date', sinceStr)
       .order('date', { ascending: true })
-      .then(({ data: d }) => setData(d ?? []));
+      .then(({ data: d, error }) => {
+        if (error) { setLoadFailed(true); return; }
+        setLoadFailed(false);
+        setData(d ?? []);
+      });
   }, [user?.id, periodLabel]));
 
   const toggleParam = (key: string) => {
@@ -103,10 +109,16 @@ export default function CycleChartsScreen() {
   }, []);
 
   // MB-7: no renderizar gráficas de ciclo hasta confirmar acceso (female).
+  // D-2 (MB-12): durante 'checking' la pantalla mostraba vacío indefinido.
   if (gate !== 'allowed') {
     return (
       <Screen>
         <PillarHeader pillar="cycle" title="Gráficas" />
+        {gate === 'checking' && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#fb7185" />
+          </View>
+        )}
       </Screen>
     );
   }
@@ -121,7 +133,12 @@ export default function CycleChartsScreen() {
 
         {/* Chart */}
         <GradientCard gradient={{ start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.02)' }} style={s.chartCard}>
-          {data.length < 3 ? (
+          {loadFailed && data.length === 0 ? (
+            <View style={s.emptyChart}>
+              <Ionicons name="cloud-offline-outline" size={32} color="#666" />
+              <EliteText style={s.emptyText}>Tus registros no se pudieron leer. Revisa tu conexión.</EliteText>
+            </View>
+          ) : data.length < 3 ? (
             <View style={s.emptyChart}>
               <Ionicons name="analytics-outline" size={32} color="#666" />
               <EliteText style={s.emptyText}>Registra al menos 3 días para ver gráficas</EliteText>

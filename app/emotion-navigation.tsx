@@ -24,9 +24,12 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
 import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/EmotionMap2D';
 import { EMOTIONS } from '@/src/data/emotions-library';
-import { buildNavigationPlan, pickFramingPhrase } from '@/src/services/emotion-navigation-core';
+import {
+  buildNavigationPlan, pickFramingPhrase, isCrisisHotline, hasCrisisTrajectory,
+  CRISIS_TRAJECTORY_WINDOW_DAYS,
+} from '@/src/services/emotion-navigation-core';
 import { logNavigationMove } from '@/src/services/emotion-stats-service';
-import { saveCheckin } from '@/src/services/checkin-service';
+import { saveCheckin, getRecentCheckins } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { STAY_COPY, type RegulationTool } from '@/src/data/emotion-navigation';
@@ -64,6 +67,22 @@ export default function EmotionNavigationScreen() {
   const [recheckSaving, setRecheckSaving] = useState(false);
 
   useEffect(() => () => { timers.current.forEach(clearTimeout); }, []);
+
+  // A-4 (MB-12): la Línea de la Vida es de NIVEL 2 — por emoción marcadora
+  // (isCrisisHotline) o por trayectoria (3+ check-ins nivel 1 en 7 días). El
+  // acompañamiento (nivel 1) no la dispara solo: si el banner sale con
+  // cualquier mal día, se aprende a ignorar.
+  const [hotline, setHotline] = useState(() => isCrisisHotline(emotionId));
+  useEffect(() => {
+    if (!plan?.crisis || hotline) return;
+    let cancelled = false;
+    getRecentCheckins(CRISIS_TRAJECTORY_WINDOW_DAYS)
+      .then((rows) => {
+        if (!cancelled && hasCrisisTrajectory(rows, getLocalToday())) setHotline(true);
+      })
+      .catch(() => { /* best-effort: el marcador directo ya cubrió el caso agudo */ });
+    return () => { cancelled = true; };
+  }, [plan?.crisis, hotline, emotionId]);
 
   useFocusEffect(useCallback(() => {
     // Regresó de la herramienta (el push dejó marca) → ofrecer el re-check-in.
@@ -103,7 +122,7 @@ export default function EmotionNavigationScreen() {
       <Screen>
         <PillarHeader pillar="mind" title="Acompañamiento" onBack={() => router.back()} />
         <View style={styles.crisisWrap}>
-          <CrisisSupportBanner />
+          {hotline && <CrisisSupportBanner />}
           <Animated.View entering={FadeInDown.delay(150).duration(400)} style={styles.crisisCard}>
             <EliteText variant="body" style={styles.crisisText}>
               Ahora mismo no toca analizar nada. Toca acompañarte.

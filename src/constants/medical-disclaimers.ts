@@ -9,20 +9,22 @@
  * (re-solicita aceptación a todos).
  */
 
-// 1.1 (Sprint Compliance 4): posicionamiento "optimizar sanos" en el global +
-// sweep de palabras (§4) — bump re-solicita aceptación a todos.
-export const MEDICAL_DISCLAIMER_VERSION = '1.1';
+// 1.2 (MB-12 · B-5): suplementos habla de REGISTRO (no de sugerencias — el
+// pie contradecía la doctrina del pilar) + key propia de cetonas (el copy de
+// glucosa hablaba de diabetes). Bump re-solicita aceptación a todos.
+export const MEDICAL_DISCLAIMER_VERSION = '1.2';
 
 export type DisclaimerFeature =
   | 'global' | 'solar' | 'supplements' | 'glucose' | 'health'
   | 'braverman' | 'quiz' | 'fasting' | 'cycle' | 'genetics'
-  | 'argos' | 'interpretation' | 'nutrition';
+  | 'argos' | 'interpretation' | 'nutrition' | 'ketones';
 
 export const DISCLAIMERS: Record<DisclaimerFeature, string> = {
   global: 'ATP no es medicina para enfermos; es optimización y educación. La información y sugerencias no constituyen diagnóstico ni tratamiento, ni sustituyen consulta con profesional de salud. Antes de iniciar suplementos, cambios dietéticos o prácticas, consulta a tu médico, especialmente si tienes condiciones preexistentes, estás embarazada, lactando, o tomando medicamentos.',
   solar: 'La exposición solar guiada se basa en investigación sobre síntesis de vitamina D. No sustituye recomendaciones de tu dermatólogo. Si tienes piel sensible, antecedentes de melanoma, condiciones fotosensibles, o tomas medicamentos fotosensibilizantes, consulta a un especialista. Conoce tu fototipo.',
-  supplements: 'Las sugerencias de suplementación son orientativas y educativas. Consulta a tu médico antes de iniciar cualquier suplemento, especialmente si tomas medicamentos.',
+  supplements: 'Esto es tu registro de suplementos: documenta lo que ya tomas y tu adherencia. ATP no prescribe ni sugiere suplementos, cantidades ni horarios. Qué tomar y cuánto se define con tu profesional de salud, especialmente si tomas medicamentos.',
   glucose: 'ATP no diagnostica diabetes ni prediabetes. Los rangos funcionales mostrados son orientativos. Si tus mediciones son consistentemente anómalas, consulta a tu médico.',
+  ketones: 'Tus mediciones de cetonas son tu registro para seguir tu flexibilidad metabólica. ATP no diagnostica condiciones metabólicas. Si vives con diabetes, el manejo de cetonas se hace solo con tu médico; ante mediciones inusualmente altas o malestar, busca atención.',
   health: 'Los biomarcadores y edad biológica son estimaciones basadas en investigación pública. No reemplazan evaluación clínica. Consulta tus laboratorios con tu médico.',
   braverman: 'El Test de Braverman es un cuestionario de auto-reporte sobre patrones cognitivos y de comportamiento. No diagnostica trastornos. Si experimentas síntomas significativos de ansiedad, depresión, insomnio o dolor crónico, consulta a un profesional de salud mental.',
   quiz: 'Este quiz es educativo. No sustituye evaluación médica. Si los síntomas persisten o empeoran, consulta a un especialista.',

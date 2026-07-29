@@ -11,11 +11,13 @@ export { type HistoriaClinicaData, completedCategories } from '@/src/services/hi
 
 /** Carga el JSONB completo de historia clínica del usuario ({} si no existe). */
 export async function loadHistoriaClinica(userId: string): Promise<HistoriaClinicaData> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('historia_clinica')
     .select('data')
     .eq('user_id', userId)
     .maybeSingle();
+  // D-2 (MB-12): un fallo NO es "historia vacía" — se propaga y la UI decide.
+  if (error) throw error;
   return (data?.data as HistoriaClinicaData) ?? {};
 }
 

@@ -112,6 +112,9 @@ function LibraryScreen({ onSelect, onBack }: {
       setLoaded(true);
       // V1.5.2 (#3): calienta firma + disco de expo-image antes del render.
       prefetchAudioCovers(all);
+    }).catch(() => {
+      // D-2 (MB-12): sin catch, un rechazo dejaba el catálogo cargando por siempre.
+      if (alive) setLoaded(true);
     });
     return () => { alive = false; };
   }, []);

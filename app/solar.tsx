@@ -244,6 +244,13 @@ export default function Solar() {
               <Text style={{ color: '#ccc', fontSize: 13, marginTop: 6, lineHeight: 20 }}>
                 Exponte 10-15 min sin protección en este horario para sintetizar vitamina D3. Brazos y piernas al sol.
               </Text>
+              {/* B-5 (MB-12): la contraindicación vive en la MISMA card que la
+                  sugerencia de exposición, no en otra pantalla. */}
+              <Text style={{ color: '#999', fontSize: 11, marginTop: 8, lineHeight: 16 }}>
+                No aplica si tienes piel sensible o fotosensible, antecedente de
+                melanoma o tomas medicamentos fotosensibilizantes. En ese caso
+                manda tu dermatólogo.
+              </Text>
             </View>
           ) : (
             <View style={{ backgroundColor: 'rgba(96,165,250,0.06)', borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(96,165,250,0.12)' }}>

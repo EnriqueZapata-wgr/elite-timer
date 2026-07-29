@@ -77,14 +77,15 @@ export default function ProfileScreen() {
     })();
   }, [user?.id]);
 
-  /** Valida fecha y rango de edad (13-100 años). Devuelve YYYY-MM-DD o null. */
+  /** Valida fecha y rango de edad (18-100 años — B-7 MB-12: la política
+   *  publicada es 18+ y no hay flujo de consentimiento parental). */
   function validateDate(): string | null {
     const d = parseInt(day, 10), m = parseInt(month, 10), y = parseInt(year, 10);
     if (!d || !m || !y || d < 1 || d > 31 || m < 1 || m > 12 || y < 1900) return null;
     const date = new Date(y, m - 1, d);
     if (date.getDate() !== d || date.getMonth() !== m - 1) return null;
     const age = (Date.now() - date.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-    if (age < 13 || age > 100) return null;
+    if (age < 18 || age > 100) return null;
     return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   }
 
@@ -177,7 +178,16 @@ export default function ProfileScreen() {
       }
 
       const ext = contentType === 'image/png' ? 'png' : 'jpg';
-      const fileName = `${user.id}/avatar-${Date.now()}.${ext}`;
+      // E-9 (MB-12): path ESTABLE por usuario — antes cada cambio subía
+      // avatar-<timestamp> nuevo sin borrar el anterior (huérfanos que la
+      // supresión ARCO nunca alcanzaba).
+      const fileName = `${user.id}/avatar.${ext}`;
+      // Limpieza de huérfanos previos (timestamps viejos y el otro formato).
+      try {
+        const { data: existing } = await supabase.storage.from('avatars').list(user.id);
+        const stale = (existing ?? []).map((f) => `${user.id}/${f.name}`).filter((p) => p !== fileName);
+        if (stale.length > 0) await supabase.storage.from('avatars').remove(stale);
+      } catch { /* best-effort */ }
       const { error: upErr } = await supabase.storage
         .from('avatars')
         .upload(fileName, body, { upsert: true, contentType });
@@ -204,6 +214,13 @@ export default function ProfileScreen() {
     if (!user?.id) return;
     setAvatarUploading(true);
     try {
+      // E-9 (MB-12): "Quitar foto" también borra el ARCHIVO del bucket — para
+      // supresión ARCO la imagen no puede persistir tras quitarla.
+      try {
+        const { data: existing } = await supabase.storage.from('avatars').list(user.id);
+        const paths = (existing ?? []).map((f) => `${user.id}/${f.name}`);
+        if (paths.length > 0) await supabase.storage.from('avatars').remove(paths);
+      } catch { /* best-effort: el perfil queda sin URL de todas formas */ }
       await supabase.from('profiles').update({ avatar_url: null }).eq('id', user.id);
       await supabase.auth.updateUser({ data: { avatar_url: null } });
       setAvatarUrl(null); // vuelve a las iniciales del nombre
@@ -219,15 +236,19 @@ export default function ProfileScreen() {
     if (!user?.id || !isValid) return;
     const dateStr = validateDate();
     if (!dateStr) {
-      Alert.alert('Fecha inválida', 'Introduce una fecha de nacimiento válida (13-100 años).');
+      Alert.alert('Fecha inválida', 'Introduce una fecha de nacimiento válida. ATP es para mayores de 18 años.');
       return;
     }
     setSaving(true);
     try {
       const trimmed = name.trim();
       // Nombre: profiles + auth metadata (este último refresca el header de YO al instante).
-      await supabase.from('profiles').update({ full_name: trimmed }).eq('id', user.id);
-      await supabase.auth.updateUser({ data: { full_name: trimmed } });
+      // D-2 (MB-12): supabase-js no lanza en 4xx — sin leer { error }, el
+      // "Perfil guardado ✓" salía aunque fecha y sexo (Edad ATP) se perdieran.
+      const { error: nameErr } = await supabase.from('profiles').update({ full_name: trimmed }).eq('id', user.id);
+      if (nameErr) throw nameErr;
+      const { error: authErr } = await supabase.auth.updateUser({ data: { full_name: trimmed } });
+      if (authErr) throw authErr;
       // DOB + sexo: upsert real a client_profiles (editable, no solo "ensure").
       await upsertClientProfile(user.id, { date_of_birth: dateStr, biological_sex: sex });
       haptic.success();

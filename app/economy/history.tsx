@@ -18,6 +18,45 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 type Tab = 'electrons' | 'protons';
 
+// E-1 (MB-12): el usuario no lee claves de base de datos — se traducen, y lo
+// que no esté en el mapa se limpia (snake_case → texto con espacios).
+const KEY_LABELS: Record<string, string> = {
+  // Tipos de movimiento H+
+  action_spent: 'Uso de ARGOS',
+  conversion: 'Conversión E- → H+',
+  boost: 'Boost Pro',
+  purchase: 'Recarga',
+  grant: 'Regalo ATP',
+  refund: 'Reembolso',
+  // Acciones de ARGOS
+  food_estimate_photo: 'Análisis de comida por foto',
+  food_estimate_text: 'Comida por texto',
+  recipe_generate: 'Receta ARGOS',
+  chat_message: 'Chat con ARGOS',
+  braverman_premium: 'Reporte Premium Braverman',
+  intervention_rationale: 'Explicación de protocolo',
+  // Razones E-
+  checkin: 'Check-in emocional',
+  checkin_emotional: 'Check-in emocional',
+  strength: 'Entrenamiento de fuerza',
+  cardio: 'Cardio',
+  fasting: 'Ayuno',
+  hydration: 'Hidratación',
+  nutrition: 'Nutrición',
+  meditation: 'Meditación',
+  breathing: 'Respiración',
+  journal: 'Journal',
+  nback: 'N-Back',
+  daily_bonus: 'Bono del día',
+};
+
+function humanizeKey(key: string | null | undefined): string {
+  if (!key) return 'Movimiento';
+  if (KEY_LABELS[key]) return KEY_LABELS[key];
+  const clean = key.replace(/_/g, ' ').trim();
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
 export default function HistoryScreen() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>('protons');
@@ -27,10 +66,15 @@ export default function HistoryScreen() {
     if (!user?.id) return;
     if (tab === 'electrons') {
       const tx = await getElectronHistory(user.id);
-      setRows(tx.map((t) => ({ id: t.id, amount: t.amount, label: t.reason, created_at: t.created_at })));
+      setRows(tx.map((t) => ({ id: t.id, amount: t.amount, label: humanizeKey(t.reason), created_at: t.created_at })));
     } else {
       const tx = await getProtonHistory(user.id);
-      setRows(tx.map((t) => ({ id: t.id, amount: t.amount, label: t.action_key ? `${t.type} · ${t.action_key}` : t.type, created_at: t.created_at })));
+      setRows(tx.map((t) => ({
+        id: t.id,
+        amount: t.amount,
+        label: t.action_key ? `${humanizeKey(t.type)} · ${humanizeKey(t.action_key)}` : humanizeKey(t.type),
+        created_at: t.created_at,
+      })));
     }
   }, [user?.id, tab]);
 

@@ -6,7 +6,7 @@
  * fila por projectionIsClean). Cero DM: aquí no hay mensajería.
  */
 import { useEffect, useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, Pressable, RefreshControl, DeviceEventEmitter } from 'react-native';
+import { View, ScrollView, StyleSheet, Pressable, RefreshControl, DeviceEventEmitter, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -128,8 +128,14 @@ export default function CommunityFriendsScreen() {
     haptic.light();
     // Optimista: saca la solicitud de la lista; el listener friends_changed recarga.
     setIncoming((prev) => prev.filter((r) => r.request_id !== requestId));
-    await respondFriendRequest(requestId, accept);
-  }, []);
+    const code = await respondFriendRequest(requestId, accept);
+    // E-9 (MB-12): si el RPC falló, la solicitud VUELVE a la lista — antes
+    // desaparecía de la UI sin haberse respondido de verdad.
+    if (code !== 'accepted' && code !== 'declined') {
+      Alert.alert('No se pudo responder', 'Revisa tu conexión e intenta de nuevo.');
+      load();
+    }
+  }, [load]);
 
   const hasAnything = friends.length > 0 || incoming.length > 0 || outgoing.length > 0;
 

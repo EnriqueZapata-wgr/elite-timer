@@ -22,12 +22,21 @@ import { CYCLE_INFO } from '@/src/constants/cycle-info';
 import { cycleModalityOptions, defaultCycleModality, type CycleModality } from '@/src/services/onboarding-v2-core';
 import { saveCycleModality } from '@/src/services/onboarding-v2-service';
 import { userErrorMessage } from '@/src/utils/user-error';
+import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 
 const ROSE = '#fb7185';
 const GRADIENT = { start: 'rgba(251,113,133,0.08)', end: 'rgba(251,113,133,0.03)' };
 
+// E-5 (MB-12, decisión bakeada): el modo compañero se RETIRA de la UI para la
+// beta — es código muerto que promete algo que no existe (para funcionar
+// faltan tres piezas: leer cycle_modality en el gate, un modo lectura del
+// ciclo de la pareja y una entrada de navegación). Se retoma completo después.
+const COMPANION_MODE_ENABLED = false;
+
 export default function CycleSettingsScreen() {
   const { user } = useAuth();
+  // E-5 (MB-12): era la ÚNICA pantalla del pilar sin useCycleGate.
+  const gate = useCycleGate();
   const [avgCycle, setAvgCycle] = useState('28');
   const [avgPeriod, setAvgPeriod] = useState('5');
   const [mode, setMode] = useState<'full' | 'companion'>('full');
@@ -105,6 +114,15 @@ export default function CycleSettingsScreen() {
     }
     setSaving(false);
   };
+
+  // E-5 (MB-12): mismo patrón que cycle-charts/cycle-history.
+  if (gate !== 'allowed') {
+    return (
+      <Screen>
+        <PillarHeader pillar="cycle" title="Configuración" />
+      </Screen>
+    );
+  }
 
   return (
     <Screen keyboard>
@@ -187,6 +205,8 @@ export default function CycleSettingsScreen() {
           </Animated.View>
         )}
 
+        {/* E-5 (MB-12): modo compañero retirado de la beta (flag arriba) */}
+        {COMPANION_MODE_ENABLED && (
         <Animated.View entering={FadeInUp.delay(100).springify()} style={{ marginTop: Spacing.md }}>
           <GradientCard gradient={GRADIENT} padding={20}>
             <SectionTitle>MODO DE TRACKING</SectionTitle>
@@ -208,8 +228,10 @@ export default function CycleSettingsScreen() {
             </AnimatedPressable>
           </GradientCard>
         </Animated.View>
+        )}
 
-        {/* Sección compañero */}
+        {/* Sección compañero — E-5 (MB-12): retirada de la beta */}
+        {COMPANION_MODE_ENABLED && (
         <Animated.View entering={FadeInUp.delay(150).springify()} style={{ marginTop: Spacing.md }}>
           <GradientCard gradient={GRADIENT} padding={20}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
@@ -301,6 +323,7 @@ export default function CycleSettingsScreen() {
             )}
           </GradientCard>
         </Animated.View>
+        )}
 
         <AnimatedPressable onPress={handleSave} disabled={saving} style={[s.saveBtn, saving && { opacity: 0.5 }]}>
           <EliteText style={s.saveBtnText}>{saving ? 'GUARDANDO…' : 'GUARDAR'}</EliteText>

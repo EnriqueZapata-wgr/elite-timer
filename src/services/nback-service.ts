@@ -82,33 +82,38 @@ const STATE_DEFAULT: NBackUserState = {
 };
 
 /** Estado del user; si no hay fila aún devuelve defaults (la fila se crea al
- * completar el 1er round — no ensuciar la tabla con lurkers). */
+ * completar el 1er round — no ensuciar la tabla con lurkers).
+ * D-2 (MB-12): un fallo de red LANZA — degradar a un usuario de N=5 al
+ * tutorial de N=1 por un 4xx silencioso es mentirle. */
 export async function fetchNBackState(userId: string): Promise<NBackUserState> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('nback_user_state')
     .select('current_n, best_n, sessions_total, streak_days, last_session_date, time_practiced_total_min, challenge_started_on')
     .eq('user_id', userId)
     .maybeSingle();
+  if (error) throw error;
   if (!data) return STATE_DEFAULT;
   return { ...STATE_DEFAULT, ...data } as NBackUserState;
 }
 
 export async function countRoundsOnDate(userId: string, date: string): Promise<number> {
-  const { count } = await supabase
+  const { count, error } = await supabase
     .from('nback_sessions')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId).eq('date', date).not('completed_at', 'is', null);
+  if (error) throw error;
   return count ?? 0;
 }
 
 /** Rounds por día para el week-strip (yyyy-mm-dd → count). */
 export async function fetchRoundsByDate(userId: string, fromDate: string): Promise<Record<string, number>> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('nback_sessions')
     .select('date')
     .eq('user_id', userId)
     .gte('date', fromDate)
     .not('completed_at', 'is', null);
+  if (error) throw error;
   const map: Record<string, number> = {};
   for (const row of (data ?? []) as { date: string | null }[]) {
     if (row.date) map[row.date] = (map[row.date] ?? 0) + 1;

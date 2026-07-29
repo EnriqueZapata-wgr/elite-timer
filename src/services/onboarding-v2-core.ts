@@ -106,7 +106,10 @@ const FEMALE_MODALITIES: CycleModalityOption[] = [
 
 const MALE_MODALITIES: CycleModalityOption[] = [
   { value: 'disabled', label: 'Desactivar módulo Ciclo', description: 'No verás el módulo de ciclo menstrual', icon: 'eye-off-outline' },
-  { value: 'partner', label: 'Vincular con mi pareja', description: 'Insights de compañero sobre el ciclo de tu pareja', icon: 'people-outline' },
+  // E-5 (MB-12, decisión bakeada): 'partner' se retira de la UI para la beta —
+  // prometía insights de compañero que no existen (faltan gate por modalidad,
+  // modo lectura del ciclo de la pareja y entrada de navegación). El valor
+  // sigue en el type por compatibilidad de datos; se retoma completo después.
 ];
 
 /** Opciones de modalidad según sexo biológico. */

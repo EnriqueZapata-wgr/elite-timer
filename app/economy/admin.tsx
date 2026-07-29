@@ -48,8 +48,12 @@ export default function EconomyAdminScreen() {
   const navItems: NavItem[] = [
     { icon: 'swap-horizontal', label: 'Convertir E- → H+', sublabel: 'Tasa actual 100 → 300', route: '/economy/convert' },
     { icon: 'receipt-outline', label: 'Historial de movimientos', sublabel: 'E- y H+', route: '/economy/history' },
-    { icon: 'flag-outline', label: 'Mis Retos', sublabel: 'Browse + activos', route: '/economy/challenges' },
-    { icon: 'people-outline', label: 'Referidos', sublabel: 'Tu código + tracking', route: '/economy/referrals' },
+    // E-1 (MB-12): Retos cobra H+ reales pero settleChallenge no se invoca
+    // desde ningún lado — cobrar por un premio inalcanzable no se queda.
+    // Referidos promete H+ sin backend que los otorgue. Ambos ocultos hasta
+    // que exista la liquidación.
+    { icon: 'flag-outline', label: 'Mis Retos', sublabel: 'Próximamente', soon: true },
+    { icon: 'people-outline', label: 'Referidos', sublabel: 'Próximamente', soon: true },
     { icon: 'cart-outline', label: 'Tienda H+', sublabel: 'Paquetes', route: '/economy/shop' },
     // #99: explicación visual de la economía
     { icon: 'school-outline', label: '¿Cómo gano H+?', sublabel: 'La economía en 60 segundos', route: '/economy/how-to-earn' },
@@ -60,21 +64,36 @@ export default function EconomyAdminScreen() {
     <Screen edges={[]}>
       <ScreenHeader title="Mi Progreso" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Animated.View entering={FadeInDown.delay(40).springify()}>
-          <RankBadge lifetimeElectrons={electrons?.lifetime_electrons ?? 0} />
-        </Animated.View>
+        {/* D-2 (MB-12): balance null = no se pudo leer — jamás pintar 0 real */}
+        {electrons != null && (
+          <Animated.View entering={FadeInDown.delay(40).springify()}>
+            <RankBadge lifetimeElectrons={electrons.lifetime_electrons} />
+          </Animated.View>
+        )}
 
-        <Animated.View entering={FadeInDown.delay(90).springify()}>
-          <BalanceCard
-            protons={protons?.current_protons ?? 0}
-            onPressShop={() => { haptic.medium(); router.push('/economy/shop'); }}
-          />
-        </Animated.View>
+        {protons != null ? (
+          <Animated.View entering={FadeInDown.delay(90).springify()}>
+            <BalanceCard
+              protons={protons.current_protons}
+              onPressShop={() => { haptic.medium(); router.push('/economy/shop'); }}
+            />
+          </Animated.View>
+        ) : (
+          <Animated.View entering={FadeInDown.delay(90).springify()} style={styles.eRow}>
+            <Ionicons name="cloud-offline-outline" size={16} color={TEXT.secondary} />
+            <EliteText variant="caption" style={styles.eText}>
+              Tu balance no se pudo leer.{' '}
+              <EliteText variant="caption" style={{ color: ATP_BRAND.lime }} onPress={load}>
+                Reintentar
+              </EliteText>
+            </EliteText>
+          </Animated.View>
+        )}
 
         <Animated.View entering={FadeInDown.delay(140).springify()} style={styles.eRow}>
           <Ionicons name="flash" size={16} color={ATP_BRAND.lime} />
           <EliteText variant="caption" style={styles.eText}>
-            {(electrons?.current_electrons ?? 0).toLocaleString('en-US')} E- disponibles para convertir
+            {electrons != null ? `${electrons.current_electrons.toLocaleString('en-US')} E- disponibles para convertir` : 'E- sin lectura'}
           </EliteText>
         </Animated.View>
 

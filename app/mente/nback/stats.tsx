@@ -42,14 +42,16 @@ export default function NBackStatsScreen() {
   useFocusEffect(useCallback(() => {
     let alive = true;
     if (!user?.id) return () => { alive = false; };
+    // D-2 (MB-12): fetchNBackState ahora LANZA en error — sin catch la
+    // pantalla se quedaría con defaults falsos y una promesa sin manejar.
     fetchNBackState(user.id).then(st => {
       if (!alive) return;
       setState(st);
       if (st.challenge_started_on) {
-        fetchChallengeStats(user.id, st.challenge_started_on).then(c => { if (alive) setChallenge(c); });
+        fetchChallengeStats(user.id, st.challenge_started_on).then(c => { if (alive) setChallenge(c); }).catch(() => {});
       }
-    });
-    fetchNBackPercentiles().then(p => { if (alive) setPct(p); });
+    }).catch(() => {});
+    fetchNBackPercentiles().then(p => { if (alive) setPct(p); }).catch(() => {});
     return () => { alive = false; };
   }, [user?.id]));
 

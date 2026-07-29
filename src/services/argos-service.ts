@@ -1307,6 +1307,16 @@ function buildContextPrompt(ctx: UserContext): string {
   if (ctx.recentLabs) {
     const markers = ctx.recentLabs.keyMarkers.map(m => `${m.name} ${m.value}${m.unit}`).join(', ');
     parts.push(`Labs (${ctx.recentLabs.lastUpdated}): ${markers}`);
+    // E-9 (MB-12): ciclo y labs viajaban como dos líneas independientes — el
+    // mismo patrón de reglas duras pegadas al dato que el estado emocional.
+    if (ctx.cycleInfo) {
+      parts.push(
+        'REGLA LABS + CICLO (obligatoria): en mujeres con ciclo activo, interpreta los labs EN CONTEXTO de la fase ' +
+        `del ciclo indicada arriba (fase ${ctx.cycleInfo.currentPhase}): hormonas (estradiol, progesterona, LH/FSH), ` +
+        'ferritina/hierro y marcadores inflamatorios varían por fase. Si la fase hace ambiguo un valor, dilo y ' +
+        'sugiere repetir la medición en la fase adecuada; no concluyas con un dato fuera de contexto.',
+      );
+    }
   }
   if (ctx.todaySupplements) {
     const s = ctx.todaySupplements;
@@ -1871,10 +1881,11 @@ export async function generateRecipe(
 
   const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una receta saludable.
 
-FILOSOFÍA NUTRICIONAL ATP:
-- Priorizar proteína (meta: ${context.gender === 'female' ? '1.6-2.0' : '2.0-2.5'}g/kg de peso)
-- Grasas saludables como fuente principal de energía
-- Carbohidratos de fuentes naturales (no procesados)
+FILOSOFÍA NUTRICIONAL ATP (comida limpia y flexibilidad metabólica; el macro es consecuencia, no objetivo):
+- Comida REAL y sin procesar: ingredientes que se reconocen a simple vista
+- Densidad de nutrientes primero: vísceras, huevo, pescado, verduras, fermentados
+- Flexibilidad metabólica: el cuerpo alterna combustibles; ni grasa-céntrico ni carbo-céntrico
+- Proteína suficiente como base estructural (sin volverla el tema de la receta)
 - Anti-inflamatorio: evitar aceites de semilla, azúcar refinada, harinas procesadas
 - Ingredientes accesibles en México/LATAM
 
@@ -1938,11 +1949,12 @@ export async function generateShoppingList(
 
   const systemPrompt = `Eres ARGOS, sistema de IA de ATP. Genera una lista de super optimizada para ${days} días.
 
-CRITERIOS:
-- Priorizar proteína animal de calidad
-- Grasas saludables (aguacate, aceite de oliva, nueces)
+CRITERIOS (comida limpia y flexibilidad metabólica; el macro es consecuencia):
+- Comida real y sin procesar, densa en nutrientes
+- Fuentes de proteína variadas y de calidad (animal y vegetal)
+- Grasas de comida real (aguacate, aceite de oliva, nueces)
 - Verduras variadas y de temporada en México
-- Frutas de bajo índice glucémico
+- Frutas de temporada
 - Sin ultra-procesados
 - Organizado por sección del supermercado
 

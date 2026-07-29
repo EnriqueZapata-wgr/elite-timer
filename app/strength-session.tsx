@@ -40,6 +40,10 @@ import {
   saveWorkoutSession,
   stashPendingSession,
   removePendingSession,
+  stashLiveSession,
+  readLiveSession,
+  clearLiveSession,
+  type LiveSessionStash,
   type SaveSessionInput,
   type SaveSessionResult,
 } from '@/src/services/fitness/workout-session-service';
@@ -59,17 +63,21 @@ const CARDIO_LABELS: Record<string, string> = {
 
 // ── Runner de bloque estándar (registro inline + descanso hablado) ──
 
-function StandardBlockRunner({ block, onCue, onDone }: {
+function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged }: {
   block: RoutineBlock;
   onCue: (t: string) => void;
   onDone: (sets: SessionSet[]) => void;
+  /** C-1 (MB-12): cada serie cerrada persiste — no al final, en cada serie. */
+  onSetLogged?: (partial: SessionSet[]) => void;
+  /** C-1: series ya hechas de este bloque al retomar una sesión recuperada. */
+  initialLogged?: SessionSet[];
 }) {
-  const [serie, setSerie] = useState(1);
+  const [serie, setSerie] = useState((initialLogged?.length ?? 0) + 1);
   const [resting, setResting] = useState(false);
   const [peso, setPeso] = useState('');
   const [reps, setReps] = useState(String(block.reps));
   const [distancia, setDistancia] = useState('');
-  const [logged, setLogged] = useState<SessionSet[]>([]);
+  const [logged, setLogged] = useState<SessionSet[]>(initialLogged ?? []);
   // MB-3.6 Bloque 5: broad jump es benchmark de DISTANCIA — se captura en cm
   // (activa su nudge de Edad ATP; reps no significaban nada aquí).
   const esDistancia = esBenchmarkDistancia(block.slug);
@@ -116,6 +124,7 @@ function StandardBlockRunner({ block, onCue, onDone }: {
     const todos = [...logged, nuevo];
     setLogged(todos);
     setDistancia('');
+    onSetLogged?.(todos);
     if (serie >= block.series) {
       onDone(todos);
     } else {
@@ -292,6 +301,60 @@ export default function StrengthSessionScreen() {
   const anunciadoRef = useRef(-1);
   // MB-5 0.2: id estable de la sesión — reintentos idempotentes (no duplica).
   const sessionIdRef = useRef(generateUUID());
+  // C-1 (MB-12): series del bloque en curso al retomar una sesión recuperada.
+  const [resumePartial, setResumePartial] = useState<SessionSet[] | null>(null);
+  const recoveryChecked = useRef(false);
+
+  // C-1 (MB-12): stash incremental — el estado persiste en AsyncStorage serie
+  // a serie (no al final). Si la app muere, el trabajo sigue en el teléfono.
+  function stashNow(consolidados: SessionSet[], enIdx: number, partial: SessionSet[]) {
+    if (!bloques || bloques.length === 0) return;
+    stashLiveSession({
+      sessionId: sessionIdRef.current,
+      startedAtIso: startedAtRef.current.toISOString(),
+      routineName: params.name ?? undefined,
+      source: plan ? 'generada' : 'manual',
+      sets: consolidados,
+      partialSets: partial,
+      idx: enIdx,
+      bloques,
+      plan: plan ?? undefined,
+    }).catch(() => { /* fail-soft: el stash nunca rompe la sesión */ });
+  }
+
+  // C-1 (MB-12): recuperación al montar — si quedó una sesión sin cerrar,
+  // se ofrece retomarla (bloques, series y reloj tal como estaban).
+  useEffect(() => {
+    if (recoveryChecked.current) return;
+    recoveryChecked.current = true;
+    readLiveSession().then((stash: LiveSessionStash | null) => {
+      if (!stash || stash.sessionId === sessionIdRef.current) return;
+      const seriesHechas = stash.sets.length + (stash.partialSets?.length ?? 0);
+      Alert.alert(
+        'Tienes una sesión sin terminar',
+        `${stash.routineName ?? 'Sesión de fuerza'} · ${seriesHechas} serie${seriesHechas === 1 ? '' : 's'} registrada${seriesHechas === 1 ? '' : 's'}. ¿La retomamos?`,
+        [
+          {
+            text: 'Descartarla', style: 'destructive',
+            onPress: () => { clearLiveSession(stash.sessionId).catch(() => {}); },
+          },
+          {
+            text: 'Retomar',
+            onPress: () => {
+              sessionIdRef.current = stash.sessionId;
+              startedAtRef.current = new Date(stash.startedAtIso);
+              setSets(stash.sets);
+              setResumePartial(stash.partialSets ?? []);
+              setBloques(stash.bloques as SessionBlock[]);
+              setIdx(Math.min(Math.max(0, stash.idx), stash.bloques.length - 1));
+            },
+          },
+        ],
+      );
+    }).catch(() => {});
+    // Solo al montar — la oferta de recuperación es una sola.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Camino builder (MB-7 Track C): ?routine=<Routine> → puente al catálogo.
   // Ejercicios con matrix_slug corren con clip; bloques de tiempo, inline.
@@ -359,18 +422,26 @@ export default function StrengthSessionScreen() {
   }, [idx, actual]);
 
   function avanzar(nuevosSets: SessionSet[]) {
-    setSets((prev) => [...prev, ...nuevosSets]);
+    const consolidados = [...sets, ...nuevosSets];
+    setSets(consolidados);
+    setResumePartial(null);
     if (bloques && idx + 1 < bloques.length) {
+      stashNow(consolidados, idx + 1, []);
       setIdx(idx + 1);
     } else {
-      finalizar([...sets, ...nuevosSets]);
+      finalizar(consolidados);
     }
   }
 
   function saltarEjercicio() {
     haptic.light();
-    if (bloques && idx + 1 < bloques.length) setIdx(idx + 1);
-    else finalizar(sets);
+    setResumePartial(null);
+    if (bloques && idx + 1 < bloques.length) {
+      stashNow(sets, idx + 1, []);
+      setIdx(idx + 1);
+    } else {
+      finalizar(sets);
+    }
   }
 
   // Resultados de métodos → SessionSets (mismo mapeo que log-exercise).
@@ -398,7 +469,17 @@ export default function StrengthSessionScreen() {
   }
 
   async function finalizar(todos: SessionSet[]) {
-    if (!user) { router.back(); return; }
+    if (!user) {
+      // C-1 (MB-12): auth expirada tras un entreno largo — NUNCA descartar en
+      // silencio. El estado queda en el stash y se explica cómo recuperarlo.
+      stashNow(todos, idx, []);
+      Alert.alert(
+        'Tu cuenta se desconectó',
+        'Tu entrenamiento NO se perdió: quedó guardado en este teléfono. Inicia sesión de nuevo y, al volver a abrir la sesión de fuerza, podrás retomarlo y guardarlo.',
+        [{ text: 'Entendido', onPress: () => router.back() }],
+      );
+      return;
+    }
     if (todos.filter((t) => t.reps > 0).length === 0) {
       Alert.alert('Sesión vacía', 'No registraste ninguna serie.', [
         { text: 'Seguir entrenando' },
@@ -420,6 +501,7 @@ export default function StrengthSessionScreen() {
     const res = await saveWorkoutSession(inputSesion);
     if (res.ok) {
       removePendingSession(sessionIdRef.current).catch(() => {});
+      clearLiveSession(sessionIdRef.current).catch(() => {});
       try { await awardBooleanElectron(user.id, 'strength'); } catch { /* fail-soft */ }
       DeviceEventEmitter.emit('electrons_changed');
       DeviceEventEmitter.emit('day_changed');
@@ -431,6 +513,9 @@ export default function StrengthSessionScreen() {
       // MB-5 0.2: el trabajo del usuario es sagrado — la sesión completa queda
       // en el teléfono y se re-sube sola (flush al abrir Fitness) o al reintentar.
       try { await stashPendingSession({ ...inputSesion, sessionId: sessionIdRef.current }); } catch { /* fail-soft */ }
+      // La sesión completa ya vive en la cola de pendientes — el stash en
+      // curso se retira para no ofrecer retomar algo ya cerrado.
+      clearLiveSession(sessionIdRef.current).catch(() => {});
       Alert.alert(
         'No se pudo guardar',
         `${res.error ?? 'Error desconocido.'}\n\nTu entrenamiento NO se perdió: quedó guardado en este teléfono y se subirá solo la próxima vez que abras Fitness.`,
@@ -655,7 +740,14 @@ export default function StrengthSessionScreen() {
           <TiempoBlockRunner key={`tiempo-${idx}`} block={actual} onCue={cue} onDone={() => avanzar([])} />
         )}
         {!actual.esTiempo && actual.metodo === 'Estándar' && (
-          <StandardBlockRunner key={`std-${actual.slug}-${idx}`} block={actual} onCue={cue} onDone={avanzar} />
+          <StandardBlockRunner
+            key={`std-${actual.slug}-${idx}`}
+            block={actual}
+            onCue={cue}
+            onDone={avanzar}
+            onSetLogged={(partial) => stashNow(sets, idx, partial)}
+            initialLogged={resumePartial ?? undefined}
+          />
         )}
         {actual.metodo === '3-5' && (
           <Method35 key={`m35-${idx}`} exerciseName={actual.nombre} userLevel={nivelMetodo} onComplete={(st) => onMethodComplete(actual, { sets: st })} onCue={cue} />

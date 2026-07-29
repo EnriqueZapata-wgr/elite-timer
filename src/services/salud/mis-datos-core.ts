@@ -8,6 +8,7 @@
  * glucose_logs/ketones_logs para glucosa/cetonas). MIS DATOS NO migra tablas —
  * es el destino ÚNICO que consolida la navegación + muestra el último valor.
  */
+import { HOME_METRIC_THRESHOLDS } from '../../constants/lab-clinical-ranges';
 
 export interface MisDatosSummary {
   labsCount: number;
@@ -55,19 +56,22 @@ export function relativeDays(iso: string | null | undefined, now: Date): string 
   return months === 1 ? 'hace 1 mes' : `hace ${months} meses`;
 }
 
-/** Rango funcional de glucosa (mg/dL) → etiqueta + severidad para color. */
+/** Rango funcional de glucosa (mg/dL) → etiqueta + severidad para color.
+ *  E-9 (MB-12): umbrales desde la fuente única (lab-clinical-ranges). */
 export function glucoseStatus(value: number | null): { label: string; level: 'ok' | 'warn' | 'high' } | null {
   if (value == null) return null;
-  if (value < 70) return { label: 'Baja', level: 'warn' };
-  if (value <= 99) return { label: 'Óptima (ayuno)', level: 'ok' };
-  if (value <= 125) return { label: 'Elevada', level: 'warn' };
+  const g = HOME_METRIC_THRESHOLDS.fasting_glucose;
+  if (value < g.lowMax) return { label: 'Baja', level: 'warn' };
+  if (value <= g.optimalMax) return { label: 'Óptima (ayuno)', level: 'ok' };
+  if (value <= g.elevatedMax) return { label: 'Elevada', level: 'warn' };
   return { label: 'Alta', level: 'high' };
 }
 
 /** Rango de cetosis (mmol/L) → etiqueta. */
 export function ketosisStatus(value: number | null): { label: string; level: 'ok' | 'warn' | 'high' } | null {
   if (value == null) return null;
-  if (value < 0.5) return { label: 'Sin cetosis', level: 'warn' };
-  if (value <= 3.0) return { label: 'Cetosis nutricional', level: 'ok' };
+  const k = HOME_METRIC_THRESHOLDS.ketones;
+  if (value < k.nutritionalMin) return { label: 'Sin cetosis', level: 'warn' };
+  if (value <= k.nutritionalMax) return { label: 'Cetosis nutricional', level: 'ok' };
   return { label: 'Cetosis alta', level: 'high' };
 }

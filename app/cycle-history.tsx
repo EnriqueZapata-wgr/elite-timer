@@ -2,7 +2,7 @@
  * Cycle History — Lista de ciclos pasados con promedios.
  */
 import { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -33,6 +33,8 @@ export default function CycleHistoryScreen() {
   // MB-7: gate biological_sex — cierra el deep-link a /cycle-history.
   const gate = useCycleGate();
   const [cycles, setCycles] = useState<CyclePeriod[]>([]);
+  // D-2 (MB-12): fallo de red ≠ "sin ciclos registrados aún".
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
@@ -41,7 +43,11 @@ export default function CycleHistoryScreen() {
       .eq('user_id', user.id)
       .order('start_date', { ascending: false })
       .limit(24)
-      .then(({ data }) => setCycles((data ?? []) as CyclePeriod[]));
+      .then(({ data, error }) => {
+        if (error) { setLoadFailed(true); return; }
+        setLoadFailed(false);
+        setCycles((data ?? []) as CyclePeriod[]);
+      });
   }, [user?.id]));
 
   const cycleLengths = cycles.filter(c => c.cycle_length).map(c => c.cycle_length!);
@@ -58,10 +64,16 @@ export default function CycleHistoryScreen() {
   };
 
   // MB-7: no renderizar historial de ciclo hasta confirmar acceso (female).
+  // D-2 (MB-12): durante 'checking' la pantalla mostraba vacío indefinido.
   if (gate !== 'allowed') {
     return (
       <Screen>
         <PillarHeader pillar="cycle" title="Historial" />
+        {gate === 'checking' && (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color="#fb7185" />
+          </View>
+        )}
       </Screen>
     );
   }
@@ -106,8 +118,12 @@ export default function CycleHistoryScreen() {
 
           {cycles.length === 0 && (
             <View style={s.empty}>
-              <Ionicons name="calendar-outline" size={36} color="#666" />
-              <EliteText style={s.emptyText}>Sin ciclos registrados aún</EliteText>
+              <Ionicons name={loadFailed ? 'cloud-offline-outline' : 'calendar-outline'} size={36} color="#666" />
+              <EliteText style={s.emptyText}>
+                {loadFailed
+                  ? 'Tus ciclos no se pudieron leer. Revisa tu conexión.'
+                  : 'Sin ciclos registrados aún'}
+              </EliteText>
             </View>
           )}
 

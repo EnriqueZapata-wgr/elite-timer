@@ -38,6 +38,7 @@ import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
 import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -685,6 +686,9 @@ function ArgosChat() {
             <Text style={{ color: '#999', fontSize: 13 }}>ARGOS está pensando...</Text>
           </View>
         )}
+
+        {/* B-5 (MB-12): disclaimer ARGOS — copy de fuente única */}
+        <MedicalDisclaimer feature="argos" compact />
       </ScrollView>
 
       {/* Área de input */}

@@ -51,7 +51,7 @@ const LEGAL_LINKS = [
 ];
 
 export default function PaywallScreen() {
-  const { offerings, purchase, restore, sdkReady, tier } = useSubscription();
+  const { offerings, offeringsError, isLoading, refresh, purchase, restore, sdkReady, tier } = useSubscription();
   const analytics = useAnalytics();
   const [period, setPeriod] = useState<Period>('yearly');
   const [busy, setBusy] = useState<PlanKey | 'restore' | null>(null);
@@ -70,6 +70,34 @@ export default function PaywallScreen() {
       }) ?? null
     );
   }
+
+  // E-2 (MB-12): el trial sale del PRODUCTO real (introPrice gratis) o no se
+  // muestra — "14 días de prueba gratis" fijo era publicidad falsa (3.1.2).
+  function trialLabel(pkg: PurchasesPackage | null): string | null {
+    const intro = (pkg?.product as any)?.introPrice;
+    if (!intro || Number(intro.price) !== 0) return null;
+    const units = Number(intro.periodNumberOfUnits ?? 0);
+    const unit = String(intro.periodUnit ?? '').toUpperCase();
+    const unitEs = unit === 'DAY' ? 'día' : unit === 'WEEK' ? 'semana' : unit === 'MONTH' ? 'mes' : unit === 'YEAR' ? 'año' : '';
+    if (!units || !unitEs) return null;
+    const plural = units > 1 ? (unitEs === 'mes' ? 'meses' : `${unitEs}s`) : unitEs;
+    return `${units} ${plural} de prueba gratis`;
+  }
+
+  // E-2 (MB-12): el % de ahorro se CALCULA de los precios reales; si no se
+  // puede calcular, el badge no existe.
+  const savingsPct = useMemo(() => {
+    for (const plan of ['pro', 'base'] as PlanKey[]) {
+      const m = packages.find((pkg) => `${pkg.identifier} ${pkg.product.identifier}`.toLowerCase().includes(plan) && pkg.packageType === 'MONTHLY');
+      const y = packages.find((pkg) => `${pkg.identifier} ${pkg.product.identifier}`.toLowerCase().includes(plan) && pkg.packageType === 'ANNUAL');
+      const monthly12 = (m?.product.price ?? 0) * 12;
+      const yearly = y?.product.price ?? 0;
+      if (monthly12 > 0 && yearly > 0 && yearly < monthly12) {
+        return Math.round((1 - yearly / monthly12) * 100);
+      }
+    }
+    return null;
+  }, [packages]);
 
   async function onSubscribe(plan: PlanKey) {
     const pkg = findPackage(plan, period);
@@ -110,9 +138,14 @@ export default function PaywallScreen() {
   function renderPlanCard(plan: PlanKey, delay: number) {
     const pkg = findPackage(plan, period);
     const isPro = plan === 'pro';
+    // E-2 (MB-12): tres estados reales — cargando / error / no disponible.
     const priceLabel = pkg
       ? `${pkg.product.priceString} / ${period === 'monthly' ? 'mes' : 'año'}`
-      : 'Disponible pronto';
+      : isLoading
+        ? 'Cargando precios…'
+        : offeringsError
+          ? 'Precios sin conexión'
+          : 'Disponible pronto';
     const ctaDisabled = !pkg || busy !== null;
 
     return (
@@ -130,7 +163,7 @@ export default function PaywallScreen() {
           {priceLabel}
         </EliteText>
         <EliteText style={styles.trialNote}>
-          {isPro ? 'Sin trial · empieza ya' : '14 días de prueba gratis'}
+          {trialLabel(pkg) ?? 'Se renueva automáticamente. Cancela cuando quieras.'}
         </EliteText>
 
         <View style={styles.featureList}>
@@ -153,7 +186,7 @@ export default function PaywallScreen() {
           style={[styles.cta, isPro ? styles.ctaPro : styles.ctaBase]}
         >
           <EliteText style={[styles.ctaText, isPro ? styles.ctaTextPro : styles.ctaTextBase]}>
-            {busy === plan ? 'Procesando…' : pkg ? 'Suscribirme' : 'Muy pronto'}
+            {busy === plan ? 'Procesando…' : pkg ? 'Suscribirme' : isLoading ? 'Cargando…' : offeringsError ? 'Sin conexión' : 'Muy pronto'}
           </EliteText>
         </AnimatedPressable>
       </Animated.View>
@@ -184,9 +217,9 @@ export default function PaywallScreen() {
                 <EliteText style={[styles.toggleText, active && styles.toggleTextActive]}>
                   {p === 'monthly' ? 'Mensual' : 'Anual'}
                 </EliteText>
-                {p === 'yearly' && (
+                {p === 'yearly' && savingsPct != null && (
                   <View style={styles.savingsBadge}>
-                    <EliteText style={styles.savingsText}>AHORRAS 33%</EliteText>
+                    <EliteText style={styles.savingsText}>AHORRAS {savingsPct}%</EliteText>
                   </View>
                 )}
               </AnimatedPressable>
@@ -197,6 +230,14 @@ export default function PaywallScreen() {
         {renderPlanCard('pro', 140)}
         {renderPlanCard('base', 190)}
 
+        {/* E-2 (MB-12): error ≠ "no disponible" — con reintento */}
+        {sdkReady && offeringsError && packages.length === 0 && (
+          <AnimatedPressable onPress={() => { haptic.light(); refresh(); }} style={styles.restoreBtn}>
+            <EliteText style={styles.sdkNote}>
+              No pudimos cargar los precios. Toca para reintentar.
+            </EliteText>
+          </AnimatedPressable>
+        )}
         {!sdkReady && (
           <EliteText style={styles.sdkNote}>
             Las compras se habilitan con la próxima actualización de la app.
@@ -213,6 +254,15 @@ export default function PaywallScreen() {
             {busy === 'restore' ? 'Restaurando…' : '¿Ya eres suscriptor? Restaurar compras'}
           </EliteText>
         </AnimatedPressable>
+
+        {/* E-2 (MB-12): disclosure obligatoria de suscripción auto-renovable */}
+        <EliteText style={styles.sdkNote}>
+          Suscripciones auto-renovables: el precio mostrado se cobra por{' '}
+          {period === 'monthly' ? 'mes' : 'año'} y se renueva automáticamente al
+          final de cada periodo, salvo que canceles al menos 24 horas antes en
+          tu cuenta de App Store o Google Play. Puedes gestionarla o cancelarla
+          desde los ajustes de tu tienda.
+        </EliteText>
 
         <View style={styles.legalRow}>
           {LEGAL_LINKS.map((link, i) => (

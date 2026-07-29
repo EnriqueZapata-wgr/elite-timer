@@ -357,6 +357,68 @@ export async function removePendingSession(sessionId: string): Promise<void> {
   }
 }
 
+// ── Sesión EN CURSO (MB-12 · C-1): stash incremental, serie a serie ──
+//
+// Las series de un entreno de 90 min no pueden vivir solo en useState: si la
+// app muere (memoria, crash, llamada), el trabajo se pierde. Cada serie
+// cerrada persiste el estado bajo una key con el id de sesión; al montar la
+// pantalla, si hay una sesión no cerrada, se ofrece retomarla.
+
+const LIVE_SESSION_PREFIX = 'live_strength_session_v1:';
+
+export interface LiveSessionStash {
+  sessionId: string;
+  startedAtIso: string;
+  routineName?: string;
+  source: 'generada' | 'manual';
+  /** Sets consolidados (bloques ya cerrados). */
+  sets: SessionSet[];
+  /** Sets del bloque en curso (cerrados serie a serie, bloque aún abierto). */
+  partialSets: SessionSet[];
+  /** Índice del bloque en curso. */
+  idx: number;
+  /** Bloques armados de la sesión (JSON plano) para reconstruirla tal cual. */
+  bloques: unknown[];
+  plan?: unknown;
+}
+
+/** Persiste el estado EN CURSO (reemplaza el stash de esa sesión). */
+export async function stashLiveSession(stash: LiveSessionStash): Promise<void> {
+  try {
+    await AsyncStorage.setItem(LIVE_SESSION_PREFIX + stash.sessionId, JSON.stringify(stash));
+  } catch (e) {
+    logWarn('[workout-session] stashLiveSession:', e);
+  }
+}
+
+/** La sesión en curso más reciente que quedó sin cerrar (o null). */
+export async function readLiveSession(): Promise<LiveSessionStash | null> {
+  try {
+    const keys = (await AsyncStorage.getAllKeys()).filter((k) => k.startsWith(LIVE_SESSION_PREFIX));
+    if (keys.length === 0) return null;
+    const rows = await AsyncStorage.multiGet(keys);
+    const parsed = rows
+      .map(([, v]) => { try { return v ? (JSON.parse(v) as LiveSessionStash) : null; } catch { return null; } })
+      .filter((s): s is LiveSessionStash => !!s && Array.isArray(s.bloques) && s.bloques.length > 0);
+    if (parsed.length === 0) return null;
+    parsed.sort((a, b) => (a.startedAtIso < b.startedAtIso ? 1 : -1));
+    return parsed[0];
+  } catch {
+    return null;
+  }
+}
+
+/** Borra el stash en curso (sesión guardada o descartada a propósito). */
+export async function clearLiveSession(sessionId?: string): Promise<void> {
+  try {
+    const keys = (await AsyncStorage.getAllKeys()).filter((k) =>
+      sessionId ? k === LIVE_SESSION_PREFIX + sessionId : k.startsWith(LIVE_SESSION_PREFIX));
+    if (keys.length > 0) await AsyncStorage.multiRemove(keys);
+  } catch (e) {
+    logWarn('[workout-session] clearLiveSession:', e);
+  }
+}
+
 /**
  * Reintenta subir las sesiones pendientes del usuario. Silencioso y fail-soft:
  * las que suben salen de la cola; las que fallan se quedan para la próxima.

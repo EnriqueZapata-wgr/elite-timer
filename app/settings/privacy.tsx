@@ -87,9 +87,11 @@ export default function SettingsPrivacyScreen() {
     ]);
     setConsent(c);
     setCbStatus(cbs);
-    setHasClinician((clinRes.data ?? []).length > 0);
-    setExports((expRes.data as ExportRow[]) ?? []);
-    setDeletion((delRes.data as DeletionRow) ?? null);
+    // D-2 (MB-12): con error NO se pisa el estado — antes un fallo ocultaba
+    // una baja ya programada y rompía el guard inFlight de exportaciones.
+    if (!clinRes.error) setHasClinician((clinRes.data ?? []).length > 0);
+    if (!expRes.error) setExports((expRes.data as ExportRow[]) ?? []);
+    if (!delRes.error) setDeletion((delRes.data as DeletionRow) ?? null);
   }, [user?.id]);
 
   useEffect(() => { reload(); }, [reload]);

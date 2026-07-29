@@ -124,6 +124,9 @@ export async function loadAffiliateDashboard(affiliateId: string): Promise<{
     supabase.from('affiliate_referred_users').select('joined_at, active, first_paid_at, ltv_generated_mxn').eq('affiliate_id', affiliateId),
     supabase.from('affiliate_earnings').select('month_start, commission_mxn, source_type, status, paid_at, active_referrals_count').eq('affiliate_id', affiliateId).order('month_start', { ascending: false }).limit(24),
   ]);
+  // D-2 (MB-12): es DINERO — un fallo jamás se pinta como "$0.00" real.
+  const firstError = walletRes.error ?? codesRes.error ?? referredRes.error ?? earningsRes.error;
+  if (firstError) throw firstError;
   return {
     wallet: (walletRes.data as AffiliateWallet) ?? null,
     codes: (codesRes.data as AffiliateCode[]) ?? [],

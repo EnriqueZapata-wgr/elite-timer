@@ -229,7 +229,9 @@ function SelectorScreen({ onSelect, onBack }: {
       setPieces(resp);
       // V1.5.2 (#3): calienta firma + disco de expo-image antes del render.
       prefetchAudioCovers(resp);
-    });
+    // D-2 (MB-12): sin catch quedaba una promesa sin manejar — el timer
+    // visual sigue funcionando aunque el catálogo narrado no cargue.
+    }).catch(() => {});
     return () => { alive = false; };
   }, []));
 

@@ -22,6 +22,7 @@ import { haptic } from '@/src/utils/haptics';
 import { parseDecimalInput } from '@/src/utils/number-helpers';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { HOME_METRIC_THRESHOLDS } from '@/src/constants/lab-clinical-ranges';
 
 const TEAL = CATEGORY_COLORS.metrics;
 
@@ -223,12 +224,14 @@ export default function HealthInputScreen() {
     return val >= 7 ? SEMANTIC.success : val >= 4 ? SEMANTIC.warning : SEMANTIC.error;
   };
 
+  // E-9 (MB-12): umbrales desde la fuente única (lab-clinical-ranges).
   const bpColor = () => {
     const s = data.systolic_bp;
     const d = data.diastolic_bp;
     if (!s || !d) return null;
-    if (s < 120 && d < 80) return SEMANTIC.success;
-    if (s < 140 && d < 90) return SEMANTIC.warning;
+    const bp = HOME_METRIC_THRESHOLDS.blood_pressure;
+    if (s < bp.optimalMax.systolic && d < bp.optimalMax.diastolic) return SEMANTIC.success;
+    if (s < bp.elevatedMax.systolic && d < bp.elevatedMax.diastolic) return SEMANTIC.warning;
     return SEMANTIC.error;
   };
 
@@ -319,7 +322,8 @@ export default function HealthInputScreen() {
                     <View style={[st.indicator, { backgroundColor: withOpacity(bpColor()!, 0.12) }]}>
                       <Ionicons name={bpColor() === SEMANTIC.success ? 'checkmark-circle' : 'alert-circle'} size={16} color={bpColor()!} />
                       <EliteText variant="caption" style={{ color: bpColor()!, fontSize: FontSizes.xs }}>
-                        {bpColor() === SEMANTIC.success ? 'PA óptima' : bpColor() === SEMANTIC.warning ? 'PA elevada' : 'PA alta — consulta médico'}
+                        {/* E-9 (MB-12): describe el rango, sin juicio clínico */}
+                        {bpColor() === SEMANTIC.success ? 'PA en rango óptimo' : bpColor() === SEMANTIC.warning ? 'PA por arriba del rango óptimo' : 'PA fuera de rango funcional'}
                       </EliteText>
                     </View>
                   )}

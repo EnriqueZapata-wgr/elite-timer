@@ -31,6 +31,8 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import {
   CATEGORY_COLORS, SURFACES, TEXT_COLORS, SEMANTIC, withOpacity,
 } from '@/src/constants/brand';
+import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
 
 // === CONSTANTES ===
 
@@ -243,7 +245,6 @@ export default function FoodTextScreen() {
       const today = getLocalToday();
       const mealTime = `${timeHH.padStart(2, '0')}:${timeMM.padStart(2, '0')}:00`;
 
-      haptic.success();
       const desc = reviewed.description || ingredients.map(i => `${i.food.name} (${i.grams}g)`).join(', ') || query.trim();
       // REG-cabos: barrera final antes de la DB. Aunque reviewed.totals viene
       // ya saneado por Batch 3, blindamos cada total con safeNum por si algún
@@ -271,6 +272,9 @@ export default function FoodTextScreen() {
         extras: { fiber_g: safeNum(totals.fiber, 0), quality_score: qualityScore },
       });
       if (!result.ok) throw new Error(result.message);
+      // D-2 (MB-12): el buzz de éxito va DESPUÉS del guardado confirmado —
+      // antes vibraba y luego aparecía el error.
+      haptic.success();
 
       // Actualizar frecuentes (background, no bloquear UI)
       if (user?.id && hasMacros) {
@@ -437,8 +441,13 @@ export default function FoodTextScreen() {
                     } else {
                       Alert.alert('Sin resultado', 'No se pudo estimar. Intenta con otra descripción.');
                     }
-                  } catch {
-                    Alert.alert('Error', 'No se pudo conectar con IA. Intenta de nuevo.');
+                  } catch (err: any) {
+                    // D-4 (MB-12): el rate limit NO es una falla de red.
+                    if (err?.name === 'ArgosRateLimitError') {
+                      Alert.alert('Límite de ARGOS', argosRateLimitMessage(err?.payload));
+                    } else {
+                      Alert.alert('Error', 'No se pudo conectar con IA. Intenta de nuevo.');
+                    }
                   } finally {
                     setAiLoading(false);
                   }
@@ -615,6 +624,8 @@ export default function FoodTextScreen() {
               );
             })()}
           </Animated.View>
+          {/* B-5 (MB-12): las macros son estimación de IA */}
+          <MedicalDisclaimer feature="nutrition" />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

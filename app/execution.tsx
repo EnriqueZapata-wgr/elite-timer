@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, DeviceEventEmitter } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, DeviceEventEmitter, Alert } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -141,7 +141,10 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
       try {
-        await supabase.from('cardio_sessions').insert({
+        // C-2 (MB-12): supabase-js NO lanza en 4xx — sin leer { error }, el
+        // electrón se otorgaba por una sesión que no existe y el reconcile se
+        // lo quitaba después. El premio SOLO tras insert confirmado.
+        const { error } = await supabase.from('cardio_sessions').insert({
           id: generateUUID(),
           user_id: user.id,
           date: getLocalToday(),
@@ -151,6 +154,7 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
           notes: `${routine.name || 'Timer'} · ${stats.stepsCompleted} steps · ${stats.workSeconds}s trabajo`,
           source: 'manual',
         });
+        if (error) return; // el reconcile del día lo recoge; sin premio falso
         await awardBooleanElectron(user.id, 'cardio');
         DeviceEventEmitter.emit('electrons_changed');
         DeviceEventEmitter.emit('day_changed');
@@ -241,7 +245,21 @@ function ExecutionContent({ routine }: { routine: EngineRoutine }) {
         {/* Borde izquierdo */}
         <View style={[styles.heroBarAccent, { backgroundColor: stepColor }]} />
 
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Pressable
+          onPress={() => {
+            // C-1 (MB-12): salir del timer con tiempo corrido confirma —
+            // mismo patrón que el runner de fuerza.
+            if (elapsedSeconds > 0) {
+              Alert.alert('¿Salir de la sesión?', 'Se pierde lo no guardado.', [
+                { text: 'Seguir' },
+                { text: 'Salir', style: 'destructive', onPress: () => router.back() },
+              ]);
+            } else {
+              router.back();
+            }
+          }}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={24} color={TEXT_COLORS.primary} />
         </Pressable>
 

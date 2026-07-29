@@ -57,58 +57,61 @@ export const CATEGORY_LABELS = {
   personality: 'Personalidad',
 } as const;
 
-// Suplementos recomendados por nivel de deficiencia
-// Fuente: Dr. Braverman, 'The Edge Effect'
+// Nutrientes ASOCIADOS por perfil de neurotransmisor (solo nombres).
+// MB-12.1: los campos de dosis (minor/moderate/major) se BORRARON a propósito
+// — eran un explosivo dormido: cualquier pantalla o contexto de ARGOS futuro
+// que leyera este objeto volvía a publicar dosificación desde un cuestionario
+// de autoreporte. Si algún acceso futuro las busca, que rompa el build.
 export const SUPPLEMENT_RECOMMENDATIONS = {
   dopamine: {
     name: 'Aceleradores de dopamina',
     supplements: [
-      { name: 'Fenilalanina', minor: '500 mg', moderate: '1000 mg', major: '1000-2000 mg' },
-      { name: 'Tirosina', minor: '500 mg', moderate: '1000 mg', major: '1000-2000 mg' },
-      { name: 'Metionina', minor: '250 mg', moderate: '500 mg', major: '1000 mg' },
-      { name: 'Rhodiola', minor: '50 mg', moderate: '100 mg', major: '200 mg' },
-      { name: 'Piridoxina (B6)', minor: '5 mg', moderate: '10 mg', major: '50 mg' },
-      { name: 'Complejo B', minor: '25 mg', moderate: '50 mg', major: '100 mg' },
-      { name: 'Fosfatidilserina', minor: '50 mg', moderate: '100 mg', major: '200 mg' },
-      { name: 'Ginkgo Biloba', minor: '50 mg', moderate: '75 mg', major: '100 mg' },
+      { name: 'Fenilalanina' },
+      { name: 'Tirosina' },
+      { name: 'Metionina' },
+      { name: 'Rhodiola' },
+      { name: 'Piridoxina (B6)' },
+      { name: 'Complejo B' },
+      { name: 'Fosfatidilserina' },
+      { name: 'Ginkgo Biloba' },
     ],
   },
   acetylcholine: {
     name: 'Impulsores de acetilcolina',
     supplements: [
-      { name: 'Colina (GPC)', minor: '100 mg', moderate: '200 mg', major: '500 mg' },
-      { name: 'Fosfatidilcolina', minor: '500 mg', moderate: '1000 mg', major: '2000 mg' },
-      { name: 'Fosfatidilserina', minor: '50 mg', moderate: '100 mg', major: '200 mg' },
-      { name: 'Acetil-L-carnitina', minor: '250 mg', moderate: '500 mg', major: '1000 mg' },
-      { name: 'DHA', minor: '200 mg', moderate: '500 mg', major: '1000 mg' },
-      { name: 'Vitamina B12', minor: '100 mg', moderate: '200 mg', major: '500 mg' },
-      { name: 'Huperzina-A', minor: '50 mg', moderate: '100 mg', major: '200 mg' },
+      { name: 'Colina (GPC)' },
+      { name: 'Fosfatidilcolina' },
+      { name: 'Fosfatidilserina' },
+      { name: 'Acetil-L-carnitina' },
+      { name: 'DHA' },
+      { name: 'Vitamina B12' },
+      { name: 'Huperzina-A' },
     ],
   },
   gaba: {
     name: 'Impulsores de GABA',
     supplements: [
-      { name: 'Inositol', minor: '500 mg', moderate: '1000 mg', major: '2000 mg' },
-      { name: 'GABA', minor: '100 mg', moderate: '500 mg', major: '1000 mg' },
-      { name: 'Ácido glutámico', minor: '250 mg', moderate: '500 mg', major: '1000 mg' },
-      { name: 'Melatonina (noche)', minor: '1 mg', moderate: '2 mg', major: '3-6 mg' },
-      { name: 'Tiamina', minor: '200 mg', moderate: '400 mg', major: '600 mg' },
-      { name: 'Niacinamida', minor: '25 mg', moderate: '100 mg', major: '500 mg' },
-      { name: 'Raíz de valeriana', minor: '100 mg', moderate: '200 mg', major: '500 mg' },
-      { name: 'Pasionaria', minor: '200 mg', moderate: '500 mg', major: '1000 mg' },
+      { name: 'Inositol' },
+      { name: 'GABA' },
+      { name: 'Ácido glutámico' },
+      { name: 'Melatonina (noche)' },
+      { name: 'Tiamina' },
+      { name: 'Niacinamida' },
+      { name: 'Raíz de valeriana' },
+      { name: 'Pasionaria' },
     ],
   },
   serotonin: {
     name: 'Aceleradores de serotonina',
     supplements: [
-      { name: 'Calcio', minor: '500 mg', moderate: '750 mg', major: '1000 mg' },
-      { name: 'Aceite de pescado', minor: '500 mg', moderate: '1000 mg', major: '2000 mg' },
-      { name: '5-HTP', minor: '100 mg', moderate: '200 mg', major: '500 mg' },
-      { name: 'Magnesio', minor: '200 mg', moderate: '400 mg', major: '800 mg' },
-      { name: 'Melatonina (noche)', minor: '0.3 mg', moderate: '1-2 mg', major: '1-6 mg' },
-      { name: 'Hierba de San Juan', minor: '200 mg', moderate: '400 mg', major: '600 mg' },
-      { name: 'Triptófano', minor: '500 mg', moderate: '1000 mg', major: '1500-2000 mg' },
-      { name: 'Zinc', minor: '15 mg', moderate: '30 mg', major: '45 mg' },
+      { name: 'Calcio' },
+      { name: 'Aceite de pescado' },
+      { name: '5-HTP' },
+      { name: 'Magnesio' },
+      { name: 'Melatonina (noche)' },
+      { name: 'Hierba de San Juan' },
+      { name: 'Triptófano' },
+      { name: 'Zinc' },
     ],
   },
 } as const;

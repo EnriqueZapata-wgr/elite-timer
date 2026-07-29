@@ -12,6 +12,7 @@ import Markdown from 'react-native-markdown-display';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EliteText } from '@/components/elite-text';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -100,7 +101,9 @@ export default function BravermanPremiumScreen() {
 
   const canAfford = quote?.balance == null || quote.balance >= (quote?.cost ?? 0);
 
+  // B-5 (MB-12): markdown de LLM sin disclaimer → gate obligatorio.
   return (
+    <MedicalDisclaimerGate>
     <Screen edges={[]}>
       <ScreenHeader title="Reporte Premium" onBack={() => router.back()} />
 
@@ -227,6 +230,7 @@ export default function BravermanPremiumScreen() {
         </ScrollView>
       )}
     </Screen>
+    </MedicalDisclaimerGate>
   );
 }
 
