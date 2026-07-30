@@ -154,7 +154,17 @@ async function processLabUpload(supabase: any, uploadId: string): Promise<void> 
 
     await supabase.from('lab_uploads').update({ status: 'processing' }).eq('id', uploadId);
 
-    const fileRes = await fetch(upload.file_url);
+    // MB-13 · Pieza 5.3: file_url ahora guarda el PATH de storage (las filas
+    // viejas traen la URL firmada completa). Se firma corto al momento.
+    let fileUrl: string = upload.file_url;
+    if (!fileUrl.startsWith("http")) {
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("lab-files")
+        .createSignedUrl(fileUrl, 600);
+      if (signErr || !signed?.signedUrl) throw new Error("signed_url_failed");
+      fileUrl = signed.signedUrl;
+    }
+    const fileRes = await fetch(fileUrl);
     if (!fileRes.ok) throw new Error(`download ${fileRes.status}`);
     const bytes = new Uint8Array(await fileRes.arrayBuffer());
 

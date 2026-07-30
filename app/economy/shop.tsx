@@ -12,13 +12,14 @@
  *  - PROTOCOLOS y REGALAR H+: "PRONTO" honesto (faltan decisiones de producto)
  *  - RECARGAS: packs existentes (stub IAP hasta webhook server-side)
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert, DeviceEventEmitter, Modal, ScrollView, StyleSheet, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Animated, { FadeInDown, ZoomIn } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import type { PurchasesStoreProduct } from 'react-native-purchases';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
@@ -29,6 +30,17 @@ import { haptic } from '@/src/utils/haptics';
 import { playReveal } from '@/src/components/edad-atp/edad-sound';
 import { getProtonBalance } from '@/src/services/economy/proton-service';
 import { formatFull } from '@/src/services/economy/format';
+import { getProtonPackages, type ProtonPackage } from '@/src/services/economy/shop-service';
+import {
+  clearPendingPurchases,
+  getHPlusProducts,
+  getPendingPurchases,
+  purchaseHPlusPack,
+  reclaimHPlusPurchases,
+  resolvePendingPurchases,
+  type PendingHPlusPurchase,
+} from '@/src/services/economy/iap-service';
+import { PackageCard } from '@/src/components/economy/PackageCard';
 import {
   activateProBoost,
   PRO_BOOST_COST_H_PLUS,
@@ -75,6 +87,12 @@ export default function ShopScreen() {
   const [confirming, setConfirming] = useState<BoostItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [unlocked, setUnlocked] = useState<BoostItem | null>(null);
+  // MB-13 · Pieza 6: recargas como consumibles IAP reales.
+  const [packs, setPacks] = useState<ProtonPackage[]>([]);
+  const [products, setProducts] = useState<Record<string, PurchasesStoreProduct>>({});
+  const [pending, setPending] = useState<PendingHPlusPurchase[]>([]);
+  const [buyingSku, setBuyingSku] = useState<string | null>(null);
+  const [reclaiming, setReclaiming] = useState(false);
 
   const load = useCallback(() => {
     if (!user?.id) return;
@@ -87,6 +105,82 @@ export default function ShopScreen() {
     const sub = DeviceEventEmitter.addListener('balance_changed', load);
     return () => sub.remove();
   }, [load]));
+
+  // Catálogo + productos reales de la tienda + compras pendientes.
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    (async () => {
+      const catalog = await getProtonPackages();
+      if (!alive) return;
+      setPacks(catalog);
+      setPending(await getPendingPurchases());
+      const prods = await getHPlusProducts(catalog.map((p) => p.sku));
+      if (alive) setProducts(prods);
+    })();
+    return () => { alive = false; };
+  }, []));
+
+  // 6.3: mientras haya compra pendiente, se observa el ledger propio hasta
+  // que el webhook acredite. La UI lo dice; no se queda muda.
+  useEffect(() => {
+    if (pending.length === 0) return;
+    const timer = setInterval(async () => {
+      const resolved = await resolvePendingPurchases();
+      if (resolved.length > 0) {
+        haptic.success();
+        playReveal();
+        DeviceEventEmitter.emit('balance_changed');
+        setPending(await getPendingPurchases());
+      }
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [pending.length]);
+
+  async function onBuyPack(pkg: ProtonPackage) {
+    const product = products[pkg.sku];
+    if (!product || buyingSku) return;
+    haptic.medium();
+    setBuyingSku(pkg.sku);
+    const result = await purchaseHPlusPack(product, pkg.sku, pkg.protons);
+    setBuyingSku(null);
+    if (result.success) {
+      // El cobro ya pasó; el crédito llega por webhook. Estado visible.
+      setPending(await getPendingPurchases());
+    } else if (result.error !== 'cancelled') {
+      haptic.warning();
+      Alert.alert('Algo no salió', result.error ?? 'Intenta de nuevo en unos minutos.');
+    }
+  }
+
+  // 6.4: reclamo server-side del consumible perdido entre cobro y webhook.
+  async function onReclaim() {
+    if (reclaiming) return;
+    haptic.medium();
+    setReclaiming(true);
+    const result = await reclaimHPlusPurchases();
+    setReclaiming(false);
+    if (result.success && result.credited > 0) {
+      haptic.success();
+      playReveal();
+      DeviceEventEmitter.emit('balance_changed');
+      await clearPendingPurchases();
+      setPending([]);
+      Alert.alert('Recarga acreditada', `${formatFull(result.protons)} H+ llegaron a tu cuenta.`);
+    } else if (result.success) {
+      if (result.checked > 0) {
+        // La tienda reporta compras y todas ya estaban acreditadas.
+        await clearPendingPurchases();
+        setPending([]);
+      }
+      Alert.alert(
+        'Sin pendientes',
+        'La tienda no reporta compras sin acreditar. Si pagaste hace un momento, dale unos segundos y vuelve a intentar.',
+      );
+    } else {
+      haptic.warning();
+      Alert.alert('No pudimos verificar', 'Revisa tu conexión e intenta de nuevo.');
+    }
+  }
 
   function onBoostPress(item: BoostItem) {
     haptic.medium();
@@ -134,8 +228,10 @@ export default function ShopScreen() {
     }
   }
 
-  // E-1 (MB-12): la sección RECARGAS y el "Comprar (dev)" se retiran — el
-  // mock siempre falla contra el anti-minteo del server. Vuelven con IAP real.
+  // E-1 (MB-12) retiró RECARGAS con precios pintados y "Comprar (dev)".
+  // MB-13 · Pieza 6 las regresa como consumibles IAP reales: precio del
+  // producto de la tienda, crédito server-side idempotente vía webhook.
+  const recargasReady = packs.length > 0 && Object.keys(products).length > 0;
 
   return (
     <Screen edges={[]}>
@@ -203,6 +299,44 @@ export default function ShopScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* ── RECARGAS (MB-13 · Pieza 6: consumibles IAP reales) ── */}
+        {recargasReady && (
+          <>
+            <SectionKicker delay={320} label="RECARGAS" />
+            {pending.length > 0 && (
+              <Animated.View entering={FadeInDown.springify()} style={styles.pendingCard}>
+                <Ionicons name="hourglass-outline" size={18} color={BRONZE} />
+                <View style={{ flex: 1 }}>
+                  <EliteText style={styles.pendingTitle}>Pago recibido</EliteText>
+                  <EliteText style={styles.pendingBody}>
+                    Tus H+ se acreditan en cuanto el servidor confirma la compra,
+                    normalmente en menos de un minuto. Puedes seguir usando la app.
+                  </EliteText>
+                </View>
+              </Animated.View>
+            )}
+            {packs.map((pkg, i) => {
+              const product = products[pkg.sku];
+              if (!product) return null;
+              return (
+                <Animated.View key={pkg.sku} entering={FadeInDown.delay(360 + i * 60).springify()}>
+                  <PackageCard
+                    pkg={pkg}
+                    priceLabel={buyingSku === pkg.sku ? 'Procesando…' : `COMPRAR · ${product.priceString}`}
+                    popular={pkg.display_order === 2}
+                    onBuy={() => onBuyPack(pkg)}
+                  />
+                </Animated.View>
+              );
+            })}
+            <AnimatedPressable onPress={onReclaim} disabled={reclaiming} style={styles.reclaimLink}>
+              <EliteText style={styles.reclaimLinkText}>
+                {reclaiming ? 'Verificando con la tienda…' : '¿Pagaste y no ves tus H+? Reclamar recarga'}
+              </EliteText>
+            </AnimatedPressable>
+          </>
+        )}
+
         {/* ── PRÓXIMAMENTE (honesto, sin nav muerta) ── */}
         <SectionKicker delay={340} label="EN LA GALERÍA PRONTO" />
         <Animated.View entering={FadeInDown.delay(380).springify()} style={styles.soonRow}>
@@ -219,8 +353,9 @@ export default function ShopScreen() {
         </Animated.View>
 
         <EliteText style={styles.footNote}>
-          Las recargas con dinero llegan con los pagos de Apple/Google. Por
-          ahora, los H+ se ganan: completa tu día y convierte tus E-.
+          {recargasReady
+            ? 'Los H+ también se ganan: completa tu día y convierte tus E-.'
+            : 'Las recargas con dinero llegan con los pagos de Apple/Google. Por ahora, los H+ se ganan: completa tu día y convierte tus E-.'}
         </EliteText>
       </ScrollView>
 
@@ -397,6 +532,27 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.sm,
   },
+  pendingCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    backgroundColor: withOpacity(BRONZE, 0.08),
+    borderColor: withOpacity(BRONZE, 0.3),
+    borderWidth: 0.5,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  pendingTitle: { fontFamily: Fonts.bold, fontSize: FontSizes.sm, color: BRONZE },
+  pendingBody: {
+    fontFamily: Fonts.regular,
+    fontSize: FontSizes.xs,
+    color: TEXT.secondary,
+    lineHeight: 17,
+    marginTop: 2,
+  },
+  reclaimLink: { alignItems: 'center', paddingVertical: Spacing.xs },
+  reclaimLinkText: { fontFamily: Fonts.semiBold, fontSize: FontSizes.xs, color: TEXT.secondary },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',

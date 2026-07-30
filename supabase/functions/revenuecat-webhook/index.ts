@@ -110,6 +110,58 @@ serve(async (req) => {
       });
     }
 
+    // ── MB-13 · Pieza 6: packs H+ (consumibles) ──────────────────────────
+    // Si el product_id es un pack del catálogo, esto es una RECARGA, no una
+    // suscripción: se acredita server-side (credit_hplus_purchase, idempotente
+    // por transaction_id porque RevenueCat reintenta) y NO se toca el tier.
+    // Sin esta rama, un NON_RENEWING_PURCHASE sin entitlements recalcularía
+    // el tier a 'free' y pisaría una suscripción activa.
+    if (productId) {
+      const { data: pack } = await supabase
+        .from("proton_packages")
+        .select("sku, protons")
+        .or(`store_product_id.eq.${productId},sku.eq.${productId}`)
+        .limit(1)
+        .maybeSingle();
+
+      if (pack) {
+        const transactionId = event.transaction_id ?? originalTransactionId ?? event.id;
+        const { data: credit, error: creditErr } = await supabase.rpc("credit_hplus_purchase", {
+          p_user_id: userId,
+          p_product_id: productId,
+          p_transaction_id: String(transactionId),
+          p_metadata: { rc_event_id: event.id ?? null, rc_event_type: eventType, store },
+        });
+        if (creditErr) console.error("credit_hplus_purchase error:", creditErr);
+
+        // Audit trail del consumible (idempotente-por-efecto: la acreditación
+        // real ya quedó protegida por transaction_id).
+        await supabase.from("subscription_events").insert({
+          user_id: userId,
+          event_type: eventType,
+          product_id: productId,
+          entitlement_id: null,
+          tier: null,
+          original_transaction_id: originalTransactionId,
+          price_usd: price ?? null,
+          currency: currency ?? null,
+          event_timestamp_ms: purchasedAtMs ?? Date.now(),
+          expiration_at: null,
+          is_trial_conversion: false,
+          store,
+          raw_payload: event,
+        });
+
+        return new Response(JSON.stringify({
+          ok: true,
+          kind: "hplus_pack",
+          credited: credit?.credited ?? false,
+          detail: credit?.error ?? null,
+          sku: pack.sku,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     // 1) Insertar en subscription_events (audit trail)
     const tier = tierFromEntitlements(entitlementIds);
     const entitlementId = entitlementIds[0] || null;
@@ -152,13 +204,80 @@ serve(async (req) => {
       newExpiresAt = expirationAt;
     }
 
-    const { error: updateErr } = await supabase.from("profiles").update({
-      tier: newTier,
-      tier_expires_at: newExpiresAt,
-      revenuecat_customer_id: userId, // mismo user_id que app_user_id
-    }).eq("id", userId);
-    if (updateErr) {
-      console.error("Error actualizando profiles.tier:", updateErr);
+    // ── MB-13 · Pieza 2: contabilidad en el árbitro (tier_grants) ────────
+    // RevenueCat es la precedencia 1 de resolve_effective_tier. El grant se
+    // referencia por original_transaction_id; en cancelación se RECORTA su
+    // vigencia (no se borra hoy: se respeta lo pagado) y apply_effective_tier
+    // decide si queda otro grant (código/web) o cae a free.
+    const grantRef = originalTransactionId ?? `rc_${userId}`;
+    try {
+      if (ACTIVATION_TYPES.has(eventType) && newTier !== "free") {
+        const { data: existing } = await supabase
+          .from("tier_grants")
+          .select("id")
+          .eq("source", "revenuecat")
+          .eq("ref", grantRef)
+          .is("revoked_at", null)
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          await supabase.from("tier_grants")
+            .update({ tier: newTier, expires_at: newExpiresAt })
+            .eq("id", existing.id);
+        } else {
+          await supabase.from("tier_grants").insert({
+            user_id: userId,
+            source: "revenuecat",
+            tier: newTier,
+            expires_at: newExpiresAt,
+            ref: grantRef,
+            metadata: { store, product_id: productId ?? null },
+          });
+        }
+      } else if (CANCELLATION_TYPES.has(eventType)) {
+        // La vigencia pagada se conserva: si RevenueCat aún reporta
+        // expiración futura, el grant vive hasta ahí; si no, muere hoy.
+        const capIso = expirationAt ?? new Date().toISOString();
+        await supabase.from("tier_grants")
+          .update({ expires_at: capIso })
+          .eq("source", "revenuecat")
+          .eq("ref", grantRef)
+          .is("revoked_at", null);
+      }
+    } catch (grantErr) {
+      console.error("tier_grants bookkeeping error:", grantErr);
+    }
+
+    if (CANCELLATION_TYPES.has(eventType) && newTier === "free") {
+      // La baja pasa por el árbitro: si el usuario tiene un grant vigente de
+      // código o pago web, NO se le tira a free por cancelar en la tienda.
+      const { data: applied, error: applyErr } = await supabase.rpc("apply_effective_tier", {
+        p_user_id: userId,
+        p_reason: `revenuecat_${eventType.toLowerCase()}`,
+      });
+      if (applyErr) {
+        // Fallback pre-migración 240: comportamiento legacy.
+        console.error("apply_effective_tier error (fallback directo):", applyErr);
+        const { error: updateErr } = await supabase.from("profiles").update({
+          tier: newTier,
+          tier_expires_at: newExpiresAt,
+          revenuecat_customer_id: userId,
+        }).eq("id", userId);
+        if (updateErr) console.error("Error actualizando profiles.tier:", updateErr);
+      } else {
+        newTier = (applied?.tier ?? newTier) as typeof newTier;
+        newExpiresAt = (applied?.expires_at as string | null) ?? null;
+        await supabase.from("profiles").update({ revenuecat_customer_id: userId }).eq("id", userId);
+      }
+    } else {
+      const { error: updateErr } = await supabase.from("profiles").update({
+        tier: newTier,
+        tier_expires_at: newExpiresAt,
+        revenuecat_customer_id: userId, // mismo user_id que app_user_id
+      }).eq("id", userId);
+      if (updateErr) {
+        console.error("Error actualizando profiles.tier:", updateErr);
+      }
     }
 
     return new Response(JSON.stringify({

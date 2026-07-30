@@ -148,9 +148,10 @@ export async function uploadFoodPhoto(base64Data: string): Promise<string> {
     .upload(path, bytes, { contentType: 'image/jpeg' });
   if (error) throw new Error(`Upload failed: ${error.message}`);
 
-  const { data: urlData } = await supabase.storage.from('food-photos')
-    .createSignedUrl(path, 365 * 24 * 60 * 60);
-  return urlData?.signedUrl ?? '';
+  // MB-13 · Pieza 5.3: se devuelve el PATH (queda en food_logs.photo_url), no
+  // una URL firmada de un año. Hoy nada pinta esa foto; si algún día se
+  // muestra, firmar corto con getFreshSignedUrl('food-photos', photo_url).
+  return path;
 }
 
 // Prompt base ATP de nutrición — evalúa CALIDAD, no solo calorías

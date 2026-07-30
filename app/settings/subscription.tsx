@@ -210,6 +210,24 @@ export default function SubscriptionSettingsScreen() {
           </Animated.View>
         )}
 
+        {/* ── Canje de código (MB-13: puente de pago web / cortesías) ── */}
+        <Animated.View entering={FadeInUp.delay(110).springify()}>
+          <AnimatedPressable
+            onPress={() => { haptic.medium(); router.push('/redeem-code'); }}
+            style={styles.card}
+          >
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <EliteText style={styles.rowLabel}>Tengo un código</EliteText>
+                <EliteText style={styles.eventDate}>
+                  Si compraste en la web o te invitaron, aquí lo activas.
+                </EliteText>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={TEXT.secondary} />
+            </View>
+          </AnimatedPressable>
+        </Animated.View>
+
         {/* ── Restaurar ── */}
         <Animated.View entering={FadeInUp.delay(130).springify()}>
           <AnimatedPressable onPress={onRestore} disabled={restoring} style={styles.restoreBtn}>

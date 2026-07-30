@@ -2,7 +2,8 @@
  * useSubscription — tier de suscripción + Boost H+ (Task #133).
  *
  * Fuentes combinadas (se toma el tier MÁS ALTO, cubre lag del webhook):
- *  1. profiles.tier en Supabase — lo escribe el webhook RevenueCat (Cowork)
+ *  1. Tier efectivo resuelto por el SERVIDOR (get_my_effective_tier, MB-13:
+ *     RevenueCat vigente > código/webhook > free). El cliente no calcula.
  *  2. Entitlements activos del SDK RevenueCat — tiempo real en el device
  *  3. pro_boosts — boost 24h comprado con H+ eleva effectiveTier a 'pro'
  *
@@ -23,7 +24,7 @@ import { configureRevenueCat, getPurchases } from '@/src/services/revenuecat';
 import {
   activateProBoost,
   fetchActiveBoost,
-  fetchProfileTier,
+  fetchEffectiveTier,
   type ActivateBoostResult,
 } from '@/src/services/subscription/subscription-service';
 import {
@@ -102,8 +103,9 @@ export function useSubscription(): UseSubscriptionResult {
       return;
     }
     const Purchases = getPurchases();
+    // MB-13 · PIEZA 2: el tier viene resuelto del servidor (árbitro único).
     const [dbTier, activeBoost] = await Promise.all([
-      fetchProfileTier(userId),
+      fetchEffectiveTier(userId),
       fetchActiveBoost(userId),
     ]);
     if (mounted.current) {
