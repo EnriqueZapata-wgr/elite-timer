@@ -1,28 +1,19 @@
 /**
- * Cuadrícula del check-in (MB-14) — copy y estructura.
+ * Plano del check-in (MB-14 copy · MB-15 plano 12x12) — copy y estructura.
  *
- * La rueda se retira del check-in (queda intacta para Exploración): en
- * dispositivo real no pintaba una sola etiqueta y el toque directo no
- * respondía. La cuadrícula no pelea ninguna de esas peleas: el texto es
- * <Text> de React Native, el toque es Pressable, el color lo define la celda.
+ * La rueda se retiró del check-in (queda intacta para Exploración) y las
+ * cuatro tarjetas de MB-14 se reemplazaron por el plano continuo 12x12
+ * (MoodPlane): la posición es el significado. El texto sigue siendo <Text>
+ * de React Native, el toque Pressable, y el color sale de la posición.
  *
  * Los nombres técnicos NO van en pantalla (nadie sabe qué es valencia ni
- * arousal): cada tarjeta describe la sensación.
+ * arousal): cada etiqueta de cuadrante describe la sensación.
  *
  * Sin imports de react-native → testeable en Vitest node.
  */
 import type { QuadrantKey } from './emotions-library';
 
-/**
- * Orden 2x2 de la pantalla uno. Respeta la memoria espacial del módulo
- * (B.5 · MB-7): alta energía ARRIBA, agradable a la DERECHA.
- */
-export const GRID_ROWS: readonly (readonly QuadrantKey[])[] = [
-  ['high_unpleasant', 'high_pleasant'],
-  ['low_unpleasant', 'low_pleasant'],
-];
-
-/** Copy de las tarjetas: la sensación, no la jerga. */
+/** Etiquetas del mapa general: la sensación, no la jerga. */
 export const QUADRANT_FEEL: Record<QuadrantKey, string> = {
   high_unpleasant: 'Con mucha energía y no se siente bien',
   high_pleasant: 'Con mucha energía y se siente bien',
@@ -30,8 +21,8 @@ export const QUADRANT_FEEL: Record<QuadrantKey, string> = {
   low_pleasant: 'Con poca energía y se siente bien',
 };
 
-/** Hint del paso 1 (reemplaza el de la rueda). */
-export const GRID_HINT = 'Primero cómo se siente. La palabra exacta viene después.';
+/** Hint del paso 1 (el plano se recorre y se acerca). */
+export const GRID_HINT = 'Cada emoción vive en su lugar. Acércate y toca la tuya.';
 
 // ═══ PIEZA 2 · EL CUERPO, DONDE SÍ TIENE SENTIDO ═══
 //

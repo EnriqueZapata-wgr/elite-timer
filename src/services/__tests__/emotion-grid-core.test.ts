@@ -1,69 +1,15 @@
 /**
- * MB-14 · Pieza 1 y Pieza 2 — la cuadrícula y la regla del cuerpo.
+ * Pieza 2 (MB-14) — la regla del cuerpo.
  *
- * Cubre lo que el device test no puede automatizar:
- *  - el color de la celda SALE DEL CUADRANTE (ningún amarillo dentro del
- *    rojo: el hex base de todas las celdas de un cuadrante es idéntico),
- *  - el tono crece con la intensidad y es monótono,
- *  - el orden de celdas es determinista y completo (las 36 del cuadrante),
- *  - el mapa corporal SOLO se ofrece con emoción desagradable intensa.
+ * El mapa corporal SOLO se ofrece con emoción desagradable intensa. (Los
+ * tests de orden y tono de la cuadrícula se retiraron con MoodGrid en MB-15:
+ * el plano 12x12 se cubre en emotion-plane-core.test.)
  */
 import { describe, it, expect } from 'vitest';
 import {
-  emotionsForQuadrant, cellTone, cellToneOpacity,
-  shouldOfferBodyMap, isUnpleasant,
-  CELL_TONE_MIN, CELL_TONE_MAX, BODY_MAP_MIN_INTENSITY,
+  shouldOfferBodyMap, isUnpleasant, BODY_MAP_MIN_INTENSITY,
 } from '../emotion-grid-core';
-import { EMOTIONS, QUADRANTS, type QuadrantKey } from '../../data/emotions-library';
-
-const ALL_QUADRANTS = Object.keys(QUADRANTS) as QuadrantKey[];
-
-describe('emotionsForQuadrant — las celdas del cuadrante', () => {
-  it('devuelve las 36 emociones de cada cuadrante, sin fugas ni duplicados', () => {
-    for (const q of ALL_QUADRANTS) {
-      const cells = emotionsForQuadrant(q);
-      expect(cells).toHaveLength(36);
-      expect(new Set(cells.map((e) => e.id)).size).toBe(36);
-      expect(cells.every((e) => e.quadrant === q)).toBe(true);
-    }
-    // Las 4 cuadrículas juntas son exactamente la biblioteca completa.
-    const total = ALL_QUADRANTS.flatMap((q) => emotionsForQuadrant(q));
-    expect(total).toHaveLength(EMOTIONS.length);
-  });
-
-  it('ordena de suave a intensa, con orden estable entre llamadas', () => {
-    for (const q of ALL_QUADRANTS) {
-      const cells = emotionsForQuadrant(q);
-      for (let i = 1; i < cells.length; i++) {
-        expect(cells[i].intensity).toBeGreaterThanOrEqual(cells[i - 1].intensity);
-      }
-      expect(emotionsForQuadrant(q).map((e) => e.id)).toEqual(cells.map((e) => e.id));
-    }
-  });
-});
-
-describe('cellTone — un cuadrante, una familia cromática, sin excepciones', () => {
-  it('el hex base de TODAS las celdas de un cuadrante es el color del cuadrante', () => {
-    // El fix de la incoherencia: ningún amarillo dentro del rojo. withOpacity
-    // devuelve #RRGGBBAA → los primeros 7 chars deben ser el hex del cuadrante.
-    for (const q of ALL_QUADRANTS) {
-      for (const e of emotionsForQuadrant(q)) {
-        expect(cellTone(q, e.intensity).startsWith(QUADRANTS[q].color)).toBe(true);
-      }
-    }
-  });
-
-  it('el tono crece con la intensidad (monótono) y respeta el rango', () => {
-    for (let i = 2; i <= 10; i++) {
-      expect(cellToneOpacity(i)).toBeGreaterThan(cellToneOpacity(i - 1));
-    }
-    expect(cellToneOpacity(1)).toBe(CELL_TONE_MIN);
-    expect(cellToneOpacity(10)).toBe(CELL_TONE_MAX);
-    // Clamp: fuera de rango no revienta ni se sale del techo de legibilidad.
-    expect(cellToneOpacity(0)).toBe(CELL_TONE_MIN);
-    expect(cellToneOpacity(99)).toBe(CELL_TONE_MAX);
-  });
-});
+import { EMOTIONS } from '../../data/emotions-library';
 
 describe('shouldOfferBodyMap — Pieza 2, la regla que no se rompe', () => {
   it('sí: desagradable con intensidad >= 7 (alta o baja energía)', () => {

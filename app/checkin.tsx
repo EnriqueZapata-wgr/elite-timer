@@ -1,13 +1,15 @@
 /**
- * Check-in emocional — Reconocer → Etiquetar → Entender (MB-14 · cuadrícula).
+ * Check-in emocional — Reconocer → Etiquetar → Entender (MB-15 · plano 12x12).
  *
- * La puerta de entrada es LA CUADRÍCULA: 4 cuadrantes → 36 emociones por
- * cuadrante, en <Text> y Pressable (la rueda no pintaba etiquetas en device y
- * el toque no respondía; queda intacta para Exploración). 2 pasos: cuadrícula
- * (nombrar) → contexto, con el mapa corporal como paso opcional SOLO tras
- * emoción desagradable intensa (Pieza 2). Nombrar ES la primera intervención
- * (Lieberman 2007): el aterrizaje lo dice en una línea. Al cierre, una frase
- * por cuadrante (Pieza 3) — nunca sobre una señal de crisis (tramo A MB-12).
+ * La puerta de entrada es EL PLANO 12x12: la posición es el significado
+ * (horizontal = agrado, vertical = energía), se recorre arrastrando y se
+ * acerca con pinch. Celdas View + Text + Pressable, cero SVG, UNA
+ * transformación nativa (MoodPlane; la rueda queda intacta para Exploración).
+ * 2 pasos: plano (nombrar) → contexto, con el mapa corporal como paso opcional
+ * SOLO tras emoción desagradable intensa (Pieza 2 MB-14). Nombrar ES la
+ * primera intervención (Lieberman 2007): el aterrizaje lo dice en una línea.
+ * Al cierre, una frase por cuadrante (Pieza 3 MB-14) — nunca sobre una señal
+ * de crisis (tramo A MB-12).
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, TextInput, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
@@ -22,7 +24,7 @@ import {
   QUADRANTS, EMOTIONS, CONTEXT_WHERE, CONTEXT_WHO, CONTEXT_DOING,
   type QuadrantKey, type Emotion,
 } from '@/src/data/emotions-library';
-import { MoodGrid, type MoodGridHandle } from '@/src/components/checkin/MoodGrid';
+import { MoodPlane, type MoodPlaneHandle } from '@/src/components/checkin/MoodPlane';
 import { BodyCheck } from '@/src/components/checkin/BodyCheck';
 import { NAMING_MECHANISM_LINE } from '@/src/data/emotion-wheel-config';
 import { GRID_HINT } from '@/src/data/emotion-grid-config';
@@ -80,7 +82,7 @@ export default function CheckinScreen() {
   const [entryGate, setEntryGate] = useState<CheckinEntryGate>(
     params.gate === 'mapa' ? 'mapa' : 'rueda',
   );
-  const gridRef = useRef<MoodGridHandle>(null);
+  const planeRef = useRef<MoodPlaneHandle>(null);
   const [ctxWhere, setCtxWhere] = useState<string | null>(null);
   const [ctxWho, setCtxWho] = useState<string | null>(null);
   const [ctxDoing, setCtxDoing] = useState<string | null>(null);
@@ -133,7 +135,7 @@ export default function CheckinScreen() {
     setSelectedEmotions([e.id]);
     setQuadrant(e.quadrant);
     setSheetEmotion(e);
-    const t = setTimeout(() => gridRef.current?.focusEmotion(e.id), 120);
+    const t = setTimeout(() => planeRef.current?.focusEmotion(e.id), 120);
     return () => clearTimeout(t);
     // Solo al montar: el param no cambia dentro de la sesión de la pantalla.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -244,8 +246,8 @@ export default function CheckinScreen() {
     setSearchOpen(false);
     setSearchQuery('');
     setEntryGate('busqueda');
-    // La cuadrícula abre el cuadrante de la palabra — se ve dónde vive.
-    gridRef.current?.focusEmotion(e.id);
+    // El plano viaja hasta la celda de la palabra — se ve dónde vive.
+    planeRef.current?.focusEmotion(e.id);
     handleEmotionPress(e);
   };
 
@@ -365,7 +367,7 @@ export default function CheckinScreen() {
       logWarn('[checkin] save flow threw', e);
       Alert.alert(
         'No se pudo guardar',
-        'Tu check-in no se registró. Revisa tu conexión e intenta de nuevo — tus respuestas siguen aquí.',
+        'Tu check-in no se registró. Revisa tu conexión e intenta de nuevo. Tus respuestas siguen aquí.',
       );
     }
     setSaving(false);
@@ -551,7 +553,7 @@ export default function CheckinScreen() {
         />
       )}
 
-      {/* ═══ STEP 1: LA CUADRÍCULA — 4 cuadrantes → 36 emociones ═══ */}
+      {/* ═══ STEP 1: EL PLANO 12x12 — la posición es el significado ═══ */}
       {step === 1 && !bodyStepOpen && (
         <Animated.View entering={FadeIn.duration(200)} style={styles.mapFlex}>
           <View style={styles.mapHeaderRow}>
@@ -577,8 +579,8 @@ export default function CheckinScreen() {
           {hotlineVisible && <CrisisSupportBanner style={{ marginHorizontal: Spacing.md, marginBottom: Spacing.sm }} />}
 
           <View style={styles.mapCanvas}>
-            <MoodGrid
-              ref={gridRef}
+            <MoodPlane
+              ref={planeRef}
               selectedIds={selectedEmotions}
               onEmotionPress={handleEmotionPress}
             />
