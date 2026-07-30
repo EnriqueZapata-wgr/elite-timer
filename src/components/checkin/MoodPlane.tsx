@@ -20,6 +20,9 @@
  *
  * Las coordenadas gridCol/gridRow las revisó Enrique una por una (bdb818c):
  * no se recalculan ni se derivan de energy/intensity.
+ *
+ * MB-16: es el lienzo ÚNICO del módulo. Check-in selecciona, la navegación lo
+ * usa como cámara guiada (highlightIds + interactive), Exploración lo recorre.
  */
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
@@ -46,14 +49,29 @@ const EASE_OUT = Easing.out(Easing.cubic);
 const LABEL_FADE_START = 1.12;
 const LABEL_FADE_END = 1.7;
 
+export interface FocusOptions {
+  /** Duración del vuelo de cámara (default 480 ms). */
+  durationMs?: number;
+  /** Zoom relativo al fit (default FOCUS_ZOOM_FACTOR). La navegación usa un
+   *  factor constante para que cada escalón se lea como traslado, no corte. */
+  zoomFactor?: number;
+}
+
 export interface MoodPlaneHandle {
   /** Encuadra la cámara en la celda de la emoción (búsqueda / preselección). */
-  focusEmotion: (emotionId: string) => void;
+  focusEmotion: (emotionId: string, opts?: FocusOptions) => void;
+  /** Vuelve al mapa general completo (los cuatro cuadrantes a la vista). */
+  zoomOut: () => void;
 }
 
 interface Props {
   selectedIds: string[];
-  onEmotionPress: (e: Emotion) => void;
+  /** Cadena de navegación (MB-16): estas celdas se destacan, el resto baja. */
+  highlightIds?: string[];
+  /** Sin handler las celdas no responden al toque: el plano es solo lienzo. */
+  onEmotionPress?: (e: Emotion) => void;
+  /** false: la cámara queda en manos del ref (recorrido guiado). */
+  interactive?: boolean;
 }
 
 /** Posición de cada etiqueta de cuadrante sobre el mapa general. */
@@ -65,7 +83,7 @@ const OVERLAY_QUADRANTS: { q: QuadrantKey; top: boolean; right: boolean }[] = [
 ];
 
 export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
-  { selectedIds, onEmotionPress },
+  { selectedIds, highlightIds, onEmotionPress, interactive = true },
   ref,
 ) {
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
@@ -80,7 +98,7 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
   const ty = useSharedValue(0);
   const pinchLast = useSharedValue(1);
   const placed = useRef(false);
-  const pendingFocus = useRef<string | null>(null);
+  const pendingFocus = useRef<{ id: string; opts?: FocusOptions } | null>(null);
   // pointerEvents de las etiquetas: cruza a JS solo al cruzar el umbral.
   const [labelsShown, setLabelsShown] = useState(true);
 
@@ -93,18 +111,23 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
     ty.value = withTiming(cam.ty, { duration: durationMs, easing: EASE_OUT });
   }, [scale, tx, ty]);
 
-  const focusEmotion = useCallback((emotionId: string) => {
+  const focusEmotion = useCallback((emotionId: string, opts?: FocusOptions) => {
     if (!placed.current) {
-      pendingFocus.current = emotionId;
+      pendingFocus.current = { id: emotionId, opts };
       return;
     }
     const e = EMOTIONS.find((em) => em.id === emotionId);
     if (!e) return;
     const c = cellCenter(e.gridCol, e.gridRow);
-    animateTo(cameraFor(c.x, c.y, fit * FOCUS_ZOOM_FACTOR, viewport.w, viewport.h, minScale), 480);
+    const zoom = fit * (opts?.zoomFactor ?? FOCUS_ZOOM_FACTOR);
+    animateTo(cameraFor(c.x, c.y, zoom, viewport.w, viewport.h, minScale), opts?.durationMs ?? 480);
   }, [animateTo, fit, viewport, minScale]);
 
-  useImperativeHandle(ref, () => ({ focusEmotion }), [focusEmotion]);
+  const zoomOut = useCallback(() => {
+    animateTo(cameraFor(PLANE_SIZE / 2, PLANE_SIZE / 2, fit, viewport.w, viewport.h, minScale), 420);
+  }, [animateTo, fit, viewport, minScale]);
+
+  useImperativeHandle(ref, () => ({ focusEmotion, zoomOut }), [focusEmotion, zoomOut]);
 
   // Colocación inicial: el mapa general completo, centrado. Sin animación.
   useEffect(() => {
@@ -116,15 +139,16 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
     ty.value = cam.ty;
     // Una preselección (Exploración) pudo llegar antes del primer layout.
     if (pendingFocus.current) {
-      const id = pendingFocus.current;
+      const { id, opts } = pendingFocus.current;
       pendingFocus.current = null;
-      focusEmotion(id);
+      focusEmotion(id, opts);
     }
   }, [ready, fit, viewport, minScale, scale, tx, ty, focusEmotion]);
 
   // ═══ GESTOS — todo el camino en worklets, nunca cruza a JS por frame. ═══
 
   const pan = useMemo(() => Gesture.Pan()
+    .enabled(interactive)
     // El pinch es DUEÑO de los dos dedos: sin esto, pan y pinch escriben el
     // mismo shared value y pelean (D.1 · MB-10, verificado en device).
     .maxPointers(1)
@@ -149,9 +173,10 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
       if (content > viewport.h) {
         ty.value = withDecay({ velocity: e.velocityY, deceleration: 0.996, clamp: [viewport.h - content, 0] });
       }
-    }), [viewport, scale, tx, ty]);
+    }), [interactive, viewport, scale, tx, ty]);
 
   const pinch = useMemo(() => Gesture.Pinch()
+    .enabled(interactive)
     .onBegin(() => {
       cancelAnimation(tx);
       cancelAnimation(ty);
@@ -172,7 +197,7 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
       const content = PLANE_SIZE * sNext;
       tx.value = clampAxis(e.focalX - (e.focalX - tx.value) * k2, content, viewport.w);
       ty.value = clampAxis(e.focalY - (e.focalY - ty.value) * k2, content, viewport.h);
-    }), [viewport, minScale, scale, tx, ty, pinchLast]);
+    }), [interactive, viewport, minScale, scale, tx, ty, pinchLast]);
 
   const gesture = useMemo(() => Gesture.Simultaneous(pinch, pan), [pinch, pan]);
 
@@ -202,7 +227,7 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
 
   const handleCellPress = useCallback((e: Emotion) => {
     haptic.light();
-    onEmotionPress(e);
+    onEmotionPress?.(e);
   }, [onEmotionPress]);
 
   const zoomToQuadrant = useCallback((q: QuadrantKey) => {
@@ -212,6 +237,11 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
   }, [animateTo, fit, viewport, minScale]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const highlightSet = useMemo(
+    () => (highlightIds ? new Set(highlightIds) : null),
+    [highlightIds],
+  );
+  const cellsDisabled = !interactive || !onEmotionPress;
 
   // Rectángulo de reposo del plano en pantalla (mapa general): las etiquetas
   // viven encima de ese rectángulo, FUERA del contenedor transformado.
@@ -234,6 +264,9 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
                   key={e.id}
                   emotion={e}
                   selected={selectedSet.has(e.id)}
+                  highlighted={highlightSet?.has(e.id) ?? false}
+                  dimmed={!!highlightSet && !highlightSet.has(e.id) && !selectedSet.has(e.id)}
+                  disabled={cellsDisabled}
                   onPress={handleCellPress}
                 />
               ))}
@@ -244,7 +277,7 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
                 styles.labelOverlay,
                 { left: restLeft, top: restTop, width: restSize, height: restSize },
                 labelFade,
-                { pointerEvents: labelsShown ? 'box-none' : 'none' },
+                { pointerEvents: labelsShown && interactive ? 'box-none' : 'none' },
               ]}
             >
               {OVERLAY_QUADRANTS.map(({ q, top, right }) => (
@@ -275,21 +308,27 @@ export const MoodPlane = forwardRef<MoodPlaneHandle, Props>(function MoodPlane(
 
 // ═══ La celda: un Pressable real con la palabra en Text (reglas 1 y 3). ═══
 
-const PlaneCell = memo(function PlaneCell({ emotion, selected, onPress }: {
+const PlaneCell = memo(function PlaneCell({ emotion, selected, highlighted, dimmed, disabled, onPress }: {
   emotion: Emotion;
   selected: boolean;
+  highlighted: boolean;
+  dimmed: boolean;
+  disabled: boolean;
   onPress: (e: Emotion) => void;
 }) {
   const rect = cellRect(emotion.gridCol, emotion.gridRow);
   return (
     <Pressable
       onPress={() => onPress(emotion)}
+      disabled={disabled}
       style={[
         styles.cell,
         {
           left: rect.left, top: rect.top, width: rect.size, height: rect.size,
           backgroundColor: planeCellColor(emotion.gridCol, emotion.gridRow),
         },
+        highlighted && styles.cellHighlighted,
+        dimmed && styles.cellDimmed,
         selected && styles.cellSelected,
       ]}
       accessibilityRole="button"
@@ -327,6 +366,9 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   cellSelected: { borderColor: TEXT.primary },
+  // Cadena de navegación: la ruta se marca, el resto baja sin apagarse.
+  cellHighlighted: { borderColor: withOpacity(TEXT.primary, 0.45) },
+  cellDimmed: { opacity: 0.4 },
   cellLabel: {
     color: TEXT.primary,
     fontFamily: Fonts.semiBold,

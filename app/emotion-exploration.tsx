@@ -1,14 +1,13 @@
 /**
- * Exploración — el mapa espiral, FUERA del check-in (MB-10 · Track D).
+ * Exploración — recorrer el territorio, FUERA del check-in (MB-10 · Track D,
+ * lienzo MB-16).
  *
- * El espiral de MB-9 no se tira: cambia de lugar y de propósito. Esto es para
- * días buenos: recorrer el territorio, construir vocabulario, ver la
- * navegación como geometría. Como puerta de entrada era un examen (device
- * test); como territorio para explorar, brilla.
- *
- * Tocar una emoción enseña su palabra, su descripción y dónde vive
- * (núcleo › familia). Si quieres registrarla, el check-in se abre con ella
- * puesta — mismo aterrizaje que todas las puertas, cero flujos paralelos.
+ * Esto es para días buenos: recorrer el mapa, construir vocabulario, ver que
+ * cada emoción vive en un lugar. Desde MB-16 el lienzo es el plano 12x12
+ * (MoodPlane): mismo plano y mismo zoom que el check-in, pero sin selección
+ * para registrar. Tocar una emoción enseña su palabra, su descripción y en
+ * qué zona del plano vive. Si quieres registrarla, el check-in se abre con
+ * ella puesta, el mismo aterrizaje que todas las puertas.
  */
 import { useRef, useState } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
@@ -19,32 +18,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
-import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/EmotionMap2D';
+import { MoodPlane, type MoodPlaneHandle } from '@/src/components/checkin/MoodPlane';
 import type { Emotion } from '@/src/data/emotions-library';
-import { colorAtPoint, normX, normY } from '@/src/services/emotion-map-core';
-import { getWheelLayout, findEmotionSector } from '@/src/services/emotion-wheel-core';
-import { WHEEL_CORES, FAMILY_LABELS } from '@/src/data/emotion-wheel-config';
+import { planeAccentColor, quadrantFromCell } from '@/src/services/emotion-plane-core';
+import { QUADRANT_FEEL } from '@/src/data/emotion-grid-config';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
 export default function EmotionExplorationScreen() {
   const router = useRouter();
-  const mapRef = useRef<EmotionMapHandle>(null);
+  const planeRef = useRef<MoodPlaneHandle>(null);
   const [selected, setSelected] = useState<Emotion | null>(null);
 
   const color = selected
-    ? colorAtPoint(normX(selected.quadrant, selected.intensity), normY(selected.energy))
+    ? planeAccentColor(selected.gridCol, selected.gridRow)
     : TEXT_COLORS.secondary;
 
-  // Vocabulario del módulo: dónde vive la palabra (núcleo › familia).
-  const home = selected ? findEmotionSector(getWheelLayout(), selected.id) : null;
-  const coreLabel = home ? WHEEL_CORES.find((c) => c.key === home.core)?.label : null;
-  const familyLabel = home?.family ? FAMILY_LABELS[home.family] : null;
+  // Dónde vive la palabra: en el plano, la zona ES el significado.
+  const feel = selected ? QUADRANT_FEEL[quadrantFromCell(selected.gridCol, selected.gridRow)] : null;
 
   const handlePress = (e: Emotion) => {
-    setSelected((prev) => (prev?.id === e.id ? null : e));
-    mapRef.current?.centerOnEmotion(e.id, { zoom: 0.9 });
+    if (selected?.id === e.id) {
+      setSelected(null);
+      return;
+    }
+    setSelected(e);
+    planeRef.current?.focusEmotion(e.id);
   };
 
   return (
@@ -60,14 +60,14 @@ export default function EmotionExplorationScreen() {
         <EliteText variant="caption" style={styles.hint}>
           144 palabras para lo que sientes. Recorre, acerca, toca una.
         </EliteText>
-        <Pressable onPress={() => { haptic.light(); mapRef.current?.zoomOut(); }} style={styles.tool} hitSlop={8}>
+        <Pressable onPress={() => { haptic.light(); planeRef.current?.zoomOut(); }} style={styles.tool} hitSlop={8}>
           <Ionicons name="contract-outline" size={18} color={TEXT_COLORS.secondary} />
         </Pressable>
       </View>
 
       <View style={{ flex: 1 }}>
-        <EmotionMap2D
-          ref={mapRef}
+        <MoodPlane
+          ref={planeRef}
           selectedIds={selected ? [selected.id] : []}
           onEmotionPress={handlePress}
         />
@@ -86,11 +86,9 @@ export default function EmotionExplorationScreen() {
               <Ionicons name="close" size={20} color={TEXT_COLORS.secondary} />
             </Pressable>
           </View>
-          {coreLabel && familyLabel && (
+          {feel && (
             <Animated.View entering={FadeIn.duration(200)}>
-              <EliteText variant="caption" style={styles.home}>
-                Vive en {coreLabel} › {familyLabel}
-              </EliteText>
+              <EliteText variant="caption" style={styles.home}>{feel}</EliteText>
             </Animated.View>
           )}
           <EliteText variant="body" style={styles.desc}>{selected.description}</EliteText>

@@ -107,6 +107,16 @@ export function planeCellColor(col: number, row: number): string {
   return withOpacity(QUADRANTS[quadrantFromCell(col, row)].color, planeToneOpacity(col, row));
 }
 
+/**
+ * Color de ACENTO de una posición del plano (MB-16): la familia del cuadrante
+ * posicional a tono pleno, para texto, CTA y ambiente fuera del mapa.
+ * planeCellColor es SOLO para el fondo de la celda: trae la opacidad del mapa
+ * horneada (#RRGGBBAA) y pasarlo por withOpacity duplicaría el alpha.
+ */
+export function planeAccentColor(col: number, row: number): string {
+  return QUADRANTS[quadrantFromCell(col, row)].color;
+}
+
 // ═══ CÁMARA ═══
 // Transform con origen top-left: pantalla = mundo * escala + traslación.
 // clampAxis y clampScale corren en worklets (el camino del gesto no cruza a JS).

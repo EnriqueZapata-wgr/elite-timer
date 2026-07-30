@@ -22,7 +22,7 @@ import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
-import { EmotionMap2D, type EmotionMapHandle } from '@/src/components/checkin/EmotionMap2D';
+import { MoodPlane, type MoodPlaneHandle } from '@/src/components/checkin/MoodPlane';
 import { EMOTIONS } from '@/src/data/emotions-library';
 import {
   buildNavigationPlan, pickFramingPhrase, isCrisisHotline, hasCrisisTrajectory,
@@ -33,13 +33,18 @@ import { saveCheckin, getRecentCheckins } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { STAY_COPY, type RegulationTool } from '@/src/data/emotion-navigation';
-import { colorAtPoint, normX, normY } from '@/src/services/emotion-map-core';
+import { planeAccentColor } from '@/src/services/emotion-plane-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 
 const CHAIN_STEP_MS = 1200; // la cámara se detiene a leer cada vecino
+// MB-16: el lienzo es el plano 12x12. Zoom CONSTANTE durante el ejercicio:
+// bajar dos puntos mueve la cámara visiblemente sobre el mapa (izquierda es
+// menos agradable, abajo es menos energía) y el trayecto se lee como traslado,
+// nunca como corte. A 2.4x del fit se ven las vecinas del escalón.
+const NAV_ZOOM_FACTOR = 2.4;
 
 type Phase = 'frame' | 'map';
 type SubStep = 'question' | 'moving' | 'tools';
@@ -57,7 +62,7 @@ export default function EmotionNavigationScreen() {
   const [moveIndex, setMoveIndex] = useState(0);
   const [subStep, setSubStep] = useState<SubStep>('question');
   const [focusId, setFocusId] = useState(emotionId);
-  const mapRef = useRef<EmotionMapHandle>(null);
+  const mapRef = useRef<MoodPlaneHandle>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Track F (MB-10): al VOLVER de la herramienta se ofrece el re-check-in corto
   // ("¿cómo quedaste?"). Ese segundo dato alimenta la métrica de efectividad de
@@ -92,13 +97,13 @@ export default function EmotionNavigationScreen() {
   const move = plan?.moves[moveIndex];
 
   const originColor = origin
-    ? colorAtPoint(normX(origin.quadrant, origin.intensity), normY(origin.energy))
+    ? planeAccentColor(origin.gridCol, origin.gridRow)
     : TEXT_COLORS.secondary;
 
   // Al entrar al mapa: volver a SU emoción (ahí donde se registró).
   useEffect(() => {
     if (phase !== 'map' || !origin) return;
-    const t = setTimeout(() => mapRef.current?.centerOnEmotion(origin.id, { zoom: 0.9 }), 80);
+    const t = setTimeout(() => mapRef.current?.focusEmotion(origin.id, { zoomFactor: NAV_ZOOM_FACTOR }), 80);
     timers.current.push(t);
   }, [phase, origin]);
 
@@ -192,7 +197,7 @@ export default function EmotionNavigationScreen() {
       if (i === 0) return;
       const t = setTimeout(() => {
         setFocusId(id);
-        mapRef.current?.centerOnEmotion(id, { zoom: 0.95, durationMs: 700 });
+        mapRef.current?.focusEmotion(id, { zoomFactor: NAV_ZOOM_FACTOR, durationMs: 700 });
         haptic.light();
       }, i * CHAIN_STEP_MS);
       timers.current.push(t);
@@ -208,7 +213,7 @@ export default function EmotionNavigationScreen() {
     setSubStep('question');
     const startId = plan.moves[next].chainIds[0];
     setFocusId(startId);
-    mapRef.current?.centerOnEmotion(startId, { zoom: 0.9 });
+    mapRef.current?.focusEmotion(startId, { zoomFactor: NAV_ZOOM_FACTOR });
   };
 
   const openTool = (tool: RegulationTool) => {
@@ -254,7 +259,7 @@ export default function EmotionNavigationScreen() {
 
   const focusEmotion = EMOTIONS.find(e => e.id === focusId);
   const focusColor = focusEmotion
-    ? colorAtPoint(normX(focusEmotion.quadrant, focusEmotion.intensity), normY(focusEmotion.energy))
+    ? planeAccentColor(focusEmotion.gridCol, focusEmotion.gridRow)
     : originColor;
 
   return (
@@ -265,9 +270,8 @@ export default function EmotionNavigationScreen() {
       <PillarHeader pillar="mind" title="Navegar" onBack={() => router.back()} />
 
       <View style={styles.mapCanvas}>
-        <EmotionMap2D
+        <MoodPlane
           ref={mapRef}
-          initialQuadrant={origin.quadrant}
           selectedIds={[focusId]}
           highlightIds={subStep === 'question' ? undefined : move?.chainIds}
           interactive={subStep !== 'moving'}

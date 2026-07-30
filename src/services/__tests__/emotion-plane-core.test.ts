@@ -21,7 +21,7 @@ import {
   PLANE_FONT_SIZE, PLANE_MIN_SCALE, PLANE_MAX_SCALE,
   PLANE_TONE_MIN, PLANE_TONE_MAX,
   cellRect, cellCenter, isPleasantCol, isHighRow, quadrantFromCell,
-  planeToneOpacity, planeCellColor, planeFitScale, clampScale, clampAxis,
+  planeToneOpacity, planeCellColor, planeAccentColor, planeFitScale, clampScale, clampAxis,
   cameraFor, quadrantCenter, QUADRANT_ZOOM_FACTOR, FOCUS_ZOOM_FACTOR,
 } from '../emotion-plane-core';
 import { EMOTIONS, QUADRANTS, type QuadrantKey } from '../../data/emotions-library';
@@ -74,6 +74,15 @@ describe('regla 4 — el color sale de la POSICIÓN, no de la emoción', () => {
   it('el hex base de cada celda es el de su cuadrante posicional', () => {
     for (const e of EMOTIONS) {
       expect(planeCellColor(e.gridCol, e.gridRow).startsWith(family(e.gridCol, e.gridRow))).toBe(true);
+    }
+  });
+
+  it('planeAccentColor (MB-16): familia posicional a tono pleno, sin alpha horneado', () => {
+    for (const e of EMOTIONS) {
+      const accent = planeAccentColor(e.gridCol, e.gridRow);
+      // Acento = el color del cuadrante tal cual: apto para withOpacity, CTA y texto.
+      expect(accent).toBe(family(e.gridCol, e.gridRow));
+      expect(accent).toMatch(/^#[0-9a-fA-F]{6}$/);
     }
   });
 
