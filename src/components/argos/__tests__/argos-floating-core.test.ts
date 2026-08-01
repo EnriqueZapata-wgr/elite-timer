@@ -51,6 +51,25 @@ describe('isTabRootPath (MB-19: la orbe vive en el tab bar)', () => {
     }
   });
 
+  it('detecta también las cuatro retiradas con href: null', () => {
+    // Siguen siendo rutas del grupo (tabs) y renderizan CON tab bar. Si no
+    // estuvieran, sobre ellas saldrían la orbe y el flotante a la vez.
+    for (const p of ['/yo', '/biblioteca', '/progreso', '/perfil']) {
+      expect(isTabRootPath(p), p).toBe(true);
+    }
+  });
+
+  it('es LA lista: la casita usa la misma, no una copia', async () => {
+    // A1 del audit: había dos listas y se desincronizaron en cuanto el tab bar
+    // cambió. Este test falla si alguien vuelve a hacerse una local.
+    const { shouldHideHomeButton } = await import('@/src/components/ui/home-floating-core');
+    const { RUTAS_DE_TAB } = await import('@/src/components/argos/argos-floating-core');
+    for (const p of RUTAS_DE_TAB) {
+      expect(shouldHideHomeButton({ pathname: p, keyboardVisible: false }), p).toBe(true);
+      expect(shouldHideFloatingButton({ ...base, pathname: p }), p).toBe(true);
+    }
+  });
+
   it('una pantalla empujada NO es una sala: ahí el flotante es el único acceso', () => {
     for (const p of ['/nutrition', '/salud/hoy', '/comunidad/ranking', '/atp-orden', '/health-hub']) {
       expect(isTabRootPath(p), p).toBe(false);
