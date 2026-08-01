@@ -41,7 +41,7 @@ export const SKOOL_URL = 'https://www.skool.com/the-vital-order-7560/about';
 export const SURFACES = {
   base: '#0A0A0A',       // Tab bar, sidebar (casi negro, sutil)
   card: '#121212',       // Cards = ELEVATION[1] (unificado viejo+nuevo, se despega del negro)
-  cardLight: '#1A1A1A',  // Bordes, separadores, pista del timer
+  cardLight: '#232323',  // Bordes, separadores, pista del timer (= ELEVATION[2].bg, MB-17 4.3)
   border: '#1F1F1F',     // Bordes sutiles de cards = ELEVATION[1].border
   disabled: '#333333',   // Elementos deshabilitados
 } as const;
@@ -58,7 +58,8 @@ export const TEXT_COLORS = {
 // ═══ COLORES POR CATEGORÍA ═══
 
 export const CATEGORY_COLORS = {
-  fitness: '#A8E02A',    // Lima
+  fitness: '#8CBF24',    // Lima desaturado (MB-17 4.2): el lima puro queda
+                         // reservado a acción primaria y dato heroico
   nutrition: '#5B9BD5',  // Azul
   mind: '#7F77DD',       // Morado
   optimization: '#EF9F27', // Amber
@@ -73,7 +74,9 @@ export const SEMANTIC = {
   success: '#A8E02A',    // Éxito, óptimo
   acceptable: ATP_BRAND.amber, // Aceptable, en rango (el único amarillo de marca)
   warning: '#EF9F27',    // Advertencia, riesgo
-  error: '#fb7185',      // Error/crítico — rose-400, legible en fondo oscuro
+  error: '#E8877F',      // Error de UI (formularios) — coral apagado: NO debe
+                         // gritar más que un biomarcador crítico (manual v3,
+                         // MB-17 4.1: los dos rojos se separan)
   info: '#5B9BD5',       // Información
   noData: '#444444',     // Sin datos
 } as const;
@@ -142,7 +145,7 @@ export function withOpacity(hex: string, opacity: number): string {
 export const BG = {
   screen: '#000',          // fondo de TODA pantalla = ELEVATION[0]
   card: '#121212',         // fondo de TODA card = ELEVATION[1] (se despega del negro)
-  cardElevated: '#1A1A1A', // card sobre card = ELEVATION[2]
+  cardElevated: '#232323', // card sobre card = ELEVATION[2] (MB-17 4.3)
   input: '#0a0a0a',        // fondo de inputs (recedido, contrasta con la card)
 } as const;
 
@@ -228,10 +231,12 @@ export const LETTER_SPACING = {
  *   2 = card sobre card / sheet / modal   3 = popover / menu flotante
  */
 export const ELEVATION = {
+  // MB-17 4.3: los niveles estaban a 1.08-1.12 entre sí (imperceptible) — se
+  // abren para que un modal sobre una card se distinga de la card.
   0: { bg: '#000000', border: 'transparent' },
   1: { bg: '#121212', border: '#1F1F1F' }, // card estandar — se despega del negro
-  2: { bg: '#1A1A1A', border: '#2A2A2A' }, // card sobre card / sheet / modal
-  3: { bg: '#222222', border: '#323232' }, // popover / menu flotante
+  2: { bg: '#232323', border: '#333333' }, // card sobre card / sheet / modal
+  3: { bg: '#2F2F2F', border: '#3D3D3D' }, // popover / menu flotante
 } as const;
 
 /**
@@ -283,7 +288,8 @@ export const SCORE_COLORS = {
   charged:  '#a8e02a',   // 70-84 lime ATP
   stable:   ATP_BRAND.amber, // 55-69 amarillo (único amarillo de marca)
   low:      '#f97316',   // 40-54 naranja
-  critical: '#ef4444',   // 0-39 rojo
+  critical: '#FF3B30',   // 0-39 rojo pleno — el dato crítico de salud grita MÁS
+                         // que un error de formulario (manual v3, MB-17 4.1)
 } as const;
 
 /** Devuelve el color asociado a un score (0-100). */
@@ -347,7 +353,7 @@ export function brandGradient(pillar?: keyof typeof PILLAR_GRADIENTS): readonly 
 
 /** Gradientes por pilar/categoria — start (color tinted) -> end (oscuro). */
 export const PILLAR_GRADIENTS = {
-  fitness:    { start: 'rgba(168,224,42,0.25)', end: 'rgba(10,10,10,0.95)' },
+  fitness:    { start: 'rgba(140,191,36,0.25)', end: 'rgba(10,10,10,0.95)' }, // = CATEGORY_COLORS.fitness (MB-17 4.2)
   nutrition:  { start: 'rgba(91,155,213,0.25)', end: 'rgba(10,10,10,0.95)' },
   mind:       { start: 'rgba(127,119,221,0.25)', end: 'rgba(10,10,10,0.95)' },
   health:     { start: 'rgba(29,158,117,0.25)', end: 'rgba(10,10,10,0.95)' },
@@ -356,7 +362,7 @@ export const PILLAR_GRADIENTS = {
   sleep:      { start: 'rgba(91,155,213,0.20)', end: 'rgba(10,10,10,0.95)' },
   recovery:   { start: 'rgba(78,170,128,0.20)', end: 'rgba(10,10,10,0.95)' },
   stress:     { start: 'rgba(239,159,39,0.20)', end: 'rgba(10,10,10,0.95)' },
-  activity:   { start: 'rgba(168,224,42,0.20)', end: 'rgba(10,10,10,0.95)' },
+  activity:   { start: 'rgba(140,191,36,0.20)', end: 'rgba(10,10,10,0.95)' }, // = CATEGORY_COLORS.fitness (MB-17 4.2)
   protocol:   { start: 'rgba(239,159,39,0.20)', end: 'rgba(10,10,10,0.95)' },
 } as const;
 
