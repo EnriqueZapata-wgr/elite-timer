@@ -62,6 +62,37 @@ describe('APP_REGISTRY', () => {
   });
 });
 
+/**
+ * El audit de MB-19 encontró que al absorber /habits-portal se cubrieron OCHO
+ * de sus NUEVE cards. La que faltó, el hub del pilar Mente, dejó 495 líneas
+ * inalcanzables (el hub y su pantalla de rachas y medallas).
+ *
+ * Estas son las nueve, copiadas del archivo que se borró (commit c4fe260).
+ * No es una lista decorativa: es la deuda que se pagó, escrita para que si
+ * alguien vuelve a tocar el registro se entere de qué tiene que seguir ahí.
+ */
+describe('las nueve cards de habits-portal', () => {
+  const NUEVE = [
+    { card: 'NUTRICIÓN', route: '/nutrition' },
+    { card: 'SUPLEMENTACIÓN', route: '/supplements' },
+    { card: 'FITNESS', route: '/fitness-hub' },
+    { card: 'AYUNO', route: '/fasting' },
+    { card: 'SUEÑO', route: '/sleep' },
+    { card: 'MENTE', route: '/mente' },
+    { card: 'CICLO', route: '/cycle' },
+    { card: 'HIDRATACIÓN', route: '/hydration' },
+    { card: 'ATP SOL', route: '/solar' },
+  ];
+
+  it('son nueve, no ocho', () => {
+    expect(NUEVE).toHaveLength(9);
+  });
+
+  it.each(NUEVE)('$card sigue teniendo su app en el registro', ({ route }) => {
+    expect(APP_REGISTRY.some((a) => String(a.route) === route)).toBe(true);
+  });
+});
+
 describe('cobertura de iconos', () => {
   it('toda app del registro tiene dibujo (si no, sale un signo de interrogación en el device)', () => {
     for (const a of APP_REGISTRY) {

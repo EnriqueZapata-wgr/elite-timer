@@ -128,14 +128,20 @@ function collectRoutes() {
  * En las plantillas, `${...}` se sustituye por `[param]`: `/perfil/${id}`
  * queda como `/perfil/[param]`, que es exactamente lo que resuelve la
  * ruta dinámica.
+ *
+ * Devuelve cada string con la línea donde empieza: la línea es lo que después
+ * se mira para decidir si el string se está NAVEGANDO o solo mencionando.
  */
 function extractStrings(src) {
   const out = [];
   const n = src.length;
   let i = 0;
+  let line = 1;
 
   while (i < n) {
     const c = src[i];
+
+    if (c === '\n') { line++; i++; continue; }
 
     // Comentario de línea
     if (c === '/' && src[i + 1] === '/') {
@@ -145,13 +151,17 @@ function extractStrings(src) {
     // Comentario de bloque
     if (c === '/' && src[i + 1] === '*') {
       i += 2;
-      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) i++;
+      while (i < n && !(src[i] === '*' && src[i + 1] === '/')) {
+        if (src[i] === '\n') line++;
+        i++;
+      }
       i += 2;
       continue;
     }
     // String simple o doble
     if (c === "'" || c === '"') {
       const quote = c;
+      const startLine = line;
       let buf = '';
       i++;
       while (i < n && src[i] !== quote) {
@@ -161,15 +171,17 @@ function extractStrings(src) {
         i++;
       }
       i++;
-      out.push(buf);
+      out.push({ value: buf, line: startLine });
       continue;
     }
     // Plantilla
     if (c === '`') {
+      const startLine = line;
       let buf = '';
       i++;
       while (i < n && src[i] !== '`') {
         if (src[i] === '\\') { buf += src[i + 1] ?? ''; i += 2; continue; }
+        if (src[i] === '\n') { line++; buf += src[i]; i++; continue; }
         if (src[i] === '$' && src[i + 1] === '{') {
           // Saltar la interpolación completa contando llaves.
           let depth = 1;
@@ -177,6 +189,7 @@ function extractStrings(src) {
           while (i < n && depth > 0) {
             if (src[i] === '{') depth++;
             else if (src[i] === '}') depth--;
+            else if (src[i] === '\n') line++;
             i++;
           }
           buf += '[param]';
@@ -186,7 +199,7 @@ function extractStrings(src) {
         i++;
       }
       i++;
-      out.push(buf);
+      out.push({ value: buf, line: startLine });
       continue;
     }
     i++;
@@ -203,6 +216,161 @@ function extractTabNames(src) {
   return names;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 2b · Las dos reglas que separan NAVEGAR de MENCIONAR
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * REGLA 1 · Forma de navegación.
+ *
+ * Que un string se parezca a una ruta no significa que alguien la abra. El
+ * audit de MB-19 lo demostró con dos ejemplos que el censo estaba aceptando:
+ *
+ *   p.startsWith('/mente')          predicado para ESCONDER el botón flotante
+ *   console.log('/admin/reports')   una traza
+ *
+ * Ese falso positivo dejó pasar el bloqueador del run: el pilar Mente se quedó
+ * sin puerta y el censo dijo verde. Ahora la línea donde vive el string tiene
+ * que contener, además, una forma de navegar.
+ *
+ * Cubre las formas reales del proyecto: router.push/replace/navigate/dismissTo,
+ * <Redirect>, <Link>, href=, pathname:, y el campo `route:` de los arreglos de
+ * configuración (hoy-cards, app-registry, salud-puertas), que es como se
+ * declaran la mayoría de las puertas.
+ */
+const NAV_FORMS = [
+  /\brouter\s*\.\s*(push|replace|navigate|dismissTo|prefetch)\b/,
+  /\bnavigation\s*\.\s*(push|replace|navigate)\b/,
+  /<\s*Redirect\b/,
+  /<\s*Link\b/,
+  // Las que llevan valor EXIGEN el valor. `pathname:` a secas también casaba
+  // con la firma `isMentePillarPath(pathname: string)`, y por ESE hueco pasó el
+  // bloqueador del run: un predicado que esconde un botón acreditaba una puerta.
+  /\bhref\s*[=:]\s*[{'"`]/i,
+  /\bpathname\s*:\s*['"`]/,
+  /\broute\s*:\s*['"`]/,
+  /\bdeepLink\s*[=:]\s*['"`]/i,
+  // El tipo `Href` de expo-router en posición de anotación. Cubre las tres
+  // formas reales del proyecto: la tabla tipada
+  // (`const DATA_CAPTURE_ROUTES: Record<string, Href> = {`), la envuelta en
+  // otro genérico (`Partial<Record<DxMissingKey, Href>>`) y la función que
+  // fabrica la ruta (`function v2Route(step): Href { return \`/…\` }`), que es
+  // por donde pasa el onboarding entero. Las líneas de import ya se filtraron,
+  // así que un `import type { Href }` no acredita nada.
+  /:\s*[^=;{]*\bHref\b/,
+  // Un identificador que ES una ruta: `setOnboardingRoute('/…')`,
+  // `redirectTo = '/…'`. Se navega guardando la ruta en una variable y
+  // empujándola después, y eso sigue siendo una puerta. Deliberadamente en
+  // inglés (route/href/redirect/navigate, el vocabulario de expo-router): un
+  // `const rutas = [...]` en español NO es navegar.
+  /\b\w*(?:[Rr]oute|[Hh]ref|[Rr]edirect|[Nn]avigate)\w*\s*[=(]\s*[[{'"`]/,
+];
+
+/**
+ * La ventana de líneas que se mira. La forma de navegar casi siempre está en
+ * la misma línea; se miran unas pocas hacia arriba para no castigar a las
+ * llamadas partidas en varias líneas ni a las tablas tipadas, donde el `Href`
+ * está en la línea de la declaración y las rutas debajo.
+ */
+const NAV_WINDOW = 6;
+
+function hasNavForm(lines, lineNumber, aliases = []) {
+  const from = Math.max(0, lineNumber - NAV_WINDOW);
+  const chunk = lines
+    .slice(from, lineNumber)
+    // Las líneas de import se descartan: `import type { Href } from 'expo-router'`
+    // no navega a ningún lado, solo trae el tipo.
+    .filter((l) => !/^\s*(?:import|export)\b[\s\S]*\bfrom\s*['"]/.test(l))
+    .join('\n');
+  if (NAV_FORMS.some((re) => re.test(chunk))) return true;
+  // Atajo local del archivo: `const go = (route: Href) => router.push(route)`
+  // y luego `go('/reports')`. Sin esto, un helper de tres letras convierte una
+  // puerta real en una huérfana falsa, y una alarma que miente se deja de leer.
+  return aliases.length > 0 && new RegExp(`\\b(?:${aliases.join('|')})\\s*\\(`).test(chunk);
+}
+
+/**
+ * Los alias de navegación declarados EN ESTE archivo: nombres que envuelven a
+ * `router.push` y compañía. Se buscan por archivo porque son locales.
+ */
+const ALIAS_RES = [
+  /\b(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>\s*(?:\{[\s\S]{0,200}?)?router\s*\.\s*(?:push|replace|navigate|dismissTo)/g,
+  /\bfunction\s+(\w+)\s*\([^)]*\)\s*(?::[^{]*)?\{[\s\S]{0,300}?router\s*\.\s*(?:push|replace|navigate|dismissTo)/g,
+];
+
+function navAliases(src) {
+  const found = new Set();
+  for (const re of ALIAS_RES) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(src)) !== null) found.add(m[1]);
+  }
+  return [...found];
+}
+
+/**
+ * REGLA 2 · Solo cuentan los archivos que alguien importa.
+ *
+ * El audit creó `src/_zz/muerto.ts`, un archivo que nadie importa, con tres
+ * rutas dentro de un arreglo: las huérfanas bajaron de 8 a 5. Un archivo
+ * muerto no puede abrir una puerta.
+ *
+ * Las raíces son las pantallas de `app/` (con expo-router, cada archivo de
+ * ahí es un punto de entrada por sí mismo) y las edge functions. Desde ahí se
+ * sigue el grafo de imports.
+ */
+function resolveImport(fromAbs, spec) {
+  let base;
+  if (spec.startsWith('@/')) base = path.join(ROOT, spec.slice(2));
+  else if (spec.startsWith('.')) base = path.resolve(path.dirname(fromAbs), spec);
+  else return null; // paquete de node_modules
+
+  const candidates = [base];
+  for (const ext of SOURCE_EXT) candidates.push(base + ext);
+  for (const ext of SOURCE_EXT) candidates.push(path.join(base, 'index' + ext));
+  for (const c of candidates) {
+    try {
+      if (fs.statSync(c).isFile()) return c;
+    } catch { /* siguiente candidato */ }
+  }
+  return null;
+}
+
+const IMPORT_RE = /(?:^|\n)\s*(?:import|export)[\s\S]{0,300}?from\s*['"]([^'"]+)['"]|\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)|\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+
+function importedFiles(abs, src) {
+  const out = [];
+  IMPORT_RE.lastIndex = 0;
+  let m;
+  while ((m = IMPORT_RE.exec(src)) !== null) {
+    const spec = m[1] || m[2] || m[3];
+    if (!spec) continue;
+    const resolved = resolveImport(abs, spec);
+    if (resolved && SOURCE_EXT.has(path.extname(resolved))) out.push(resolved);
+  }
+  return out;
+}
+
+/** Los archivos alcanzables desde una pantalla o una edge function. */
+function reachableFiles(allFiles, sources) {
+  const isRoot = (abs) => {
+    const rel = path.relative(ROOT, abs).split(path.sep).join('/');
+    return rel.startsWith('app/') || rel.startsWith('supabase/functions/');
+  };
+  const seen = new Set();
+  const queue = allFiles.filter(isRoot);
+  for (const f of queue) seen.add(f);
+  while (queue.length > 0) {
+    const abs = queue.shift();
+    const src = sources.get(abs);
+    if (src === undefined) continue;
+    for (const dep of importedFiles(abs, src)) {
+      if (!seen.has(dep)) { seen.add(dep); queue.push(dep); }
+    }
+  }
+  return seen;
+}
+
 function collectReferences() {
   const refs = new Map(); // ruta normalizada → Set de archivos que la citan
   const tabRegistrations = new Set();
@@ -211,16 +379,34 @@ function collectReferences() {
     SOURCE_EXT.has(path.extname(f))
   );
 
+  const sources = new Map();
   for (const abs of files) {
-    let src;
-    try { src = fs.readFileSync(abs, 'utf8'); } catch { continue; }
+    try { sources.set(abs, fs.readFileSync(abs, 'utf8')); } catch { /* ilegible */ }
+  }
+
+  const vivos = reachableFiles(files, sources);
+  const muertos = [];
+
+  for (const abs of files) {
+    const src = sources.get(abs);
+    if (src === undefined) continue;
     const rel = path.relative(ROOT, abs).split(path.sep).join('/');
     if (isTestFile(rel)) continue;
 
+    // REGLA 2: un archivo que nadie importa no abre puertas.
+    if (!vivos.has(abs)) {
+      if (extractStrings(src).some((s) => s.value.startsWith('/'))) muertos.push(rel);
+      continue;
+    }
+
+    const lines = src.split('\n');
+    const aliases = navAliases(src);
     for (const raw of extractStrings(src)) {
-      if (!raw.startsWith('/')) continue;
+      if (!raw.value.startsWith('/')) continue;
+      // REGLA 1: mencionar no es navegar.
+      if (!hasNavForm(lines, raw.line, aliases)) continue;
       // Recortar query y hash: `/onboarding/voice-config?mode=backfill` → la ruta.
-      const clean = normalizeRoute(raw.split('?')[0].split('#')[0]);
+      const clean = normalizeRoute(raw.value.split('?')[0].split('#')[0]);
       if (!clean.startsWith('/')) continue;
       if (!refs.has(clean)) refs.set(clean, new Set());
       refs.get(clean).add(rel);
@@ -238,7 +424,7 @@ function collectReferences() {
     }
   }
 
-  return { refs, tabRegistrations };
+  return { refs, tabRegistrations, muertos };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -247,7 +433,7 @@ function collectReferences() {
 
 function audit() {
   const routes = collectRoutes();
-  const { refs, tabRegistrations } = collectReferences();
+  const { refs, tabRegistrations, muertos } = collectReferences();
 
   const staticRouteSet = new Set();
   for (const r of routes) {
@@ -300,6 +486,7 @@ function audit() {
     result.push({ ...r, sources: [...sources], reached: sources.size > 0 });
   }
 
+  result.muertos = muertos;
   return result;
 }
 
@@ -429,6 +616,13 @@ function main() {
     console.log('');
   }
 
+  if (routes.muertos.length > 0) {
+    console.log('  AVISO · archivos con rutas dentro que NADIE importa');
+    console.log('  (no cuentan como puerta; o se cablean o se borran)');
+    for (const m of routes.muertos) console.log(`    ! ${m}`);
+    console.log('');
+  }
+
   if (nuevas.length > 0) {
     console.log(`  HUÉRFANAS NUEVAS: ${nuevas.length}`);
     for (const o of nuevas) console.log(`    ✗ ${o.noGroups}   (app/${o.file})`);
@@ -443,4 +637,15 @@ function main() {
   process.exit(0);
 }
 
-main();
+// Solo corre si se invoca directo. Al importarlo (los tests) se exponen las
+// piezas sin ejecutar nada: el audit encontró que el guardián no tenía quien
+// lo guardara, y las dos reglas de abajo son las que dejaron pasar el
+// bloqueador de MB-19.
+module.exports = {
+  hasNavForm, navAliases, NAV_FORMS, NAV_WINDOW,
+  extractStrings, normalizeRoute, fileToRoute,
+  resolveImport, importedFiles,
+  audit, collectRoutes, collectReferences,
+};
+
+if (require.main === module) main();

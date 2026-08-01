@@ -49,12 +49,19 @@ export interface AppEntry {
 }
 
 /**
- * Las 24 apps. El brief pedía 25 e incluía f.lux: no existe pantalla y no se
+ * Las 25 apps. El brief pedía 25 e incluía f.lux: no existe pantalla y no se
  * inventa una puerta a un lugar que no está construido (la nav honesta es
- * doctrina desde MB-12). Entra cuando exista, con su icono.
+ * doctrina desde MB-12). Entra cuando exista, con su icono. Su lugar lo ocupa
+ * el hub del pilar Mente, que el audit encontró sin puerta (ver abajo).
  */
 export const APP_REGISTRY: AppEntry[] = [
   // ── Mente ──
+  // El hub del pilar va PRIMERO en su sección: es la casa, y las seis de abajo
+  // son sus cuartos. Era la novena card de habits-portal y fue la única que no
+  // se absorbió al retirarlo, así que /mente y /mente/progreso (rachas de
+  // journal, respiración, meditación y check-in, más las medallas de 7, 30, 90
+  // y 365 días) se quedaron inalcanzables. Nada de eso vive en otro lado.
+  { key: 'mente', label: 'Mente', icon: 'mente', section: 'mente', route: '/mente', installable: false, alias: ['pilar', 'hub', 'rachas', 'medallas', 'progreso mental'] },
   { key: 'meditar', label: 'Meditar', icon: 'meditar', section: 'mente', route: '/meditation', installable: true, alias: ['meditación', 'nsdr', 'calma'] },
   { key: 'respirar', label: 'Respirar', icon: 'respirar', section: 'mente', route: '/breathing', installable: true, alias: ['respiración', 'breathwork', 'wim hof'] },
   { key: 'emociones', label: 'Emociones', icon: 'emociones', section: 'mente', route: '/emotions', installable: true, alias: ['check-in', 'ánimo', 'humor', 'sentir'] },

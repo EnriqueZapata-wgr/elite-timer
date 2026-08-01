@@ -6,22 +6,22 @@ función quedó sin acceso.
 
 | Ruta | Se llega desde |
 |---|---|
-| `/(tabs)` | src/components/argos/argos-floating-core · src/components/argos/argos-intro-core · src/components/layout/TopBannerPersistent · src/components/onboarding/OnboardingCompletion y más |
-| `/` | src/components/argos/argos-floating-core · src/components/argos/argos-intro-core · src/components/layout/TopBannerPersistent · src/components/onboarding/OnboardingCompletion y más |
+| `/(tabs)` | src/components/layout/TopBannerPersistent · src/components/ui/GlobalTopBar · src/hooks/use-cycle-gate · argos/meet y más |
+| `/` | src/components/layout/TopBannerPersistent · src/components/ui/GlobalTopBar · src/hooks/use-cycle-gate · (tab en _layout) |
 | `/afiliados/aplicar` | afiliados/dashboard · settings/conexiones |
 | `/afiliados/dashboard` | afiliados/aplicar |
 | `/afiliados/mi-codigo` | afiliados/dashboard |
 | `/agenda` | notifications · src/components/agenda/AgendaPreviewCard · supabase/functions/dispatch-agenda-notifications/index |
-| `/(tabs)/argos` | src/components/argos/argos-floating-core · (tab en _layout) |
+| `/(tabs)/argos` | (tab en _layout) |
 | `/argos-chat` | argos/conversations · notifications · nutrition · solar y más |
 | `/argos-recipes` | nutrition |
 | `/argos/conversations` | argos-chat |
-| `/argos/meet` | settings/dev · src/components/argos/MeetArgosGate · src/services/onboarding-v2-service |
+| `/argos/meet` | settings/dev · src/components/argos/MeetArgosGate |
 | `/atp-orden` | **ATP** |
 | `/(tabs)/biblioteca` | shared-routine · (tab en _layout) |
 | `/braverman` | braverman-premium · quizzes · salud/mis-evaluaciones/index |
 | `/braverman-premium` | braverman · economy/shop |
-| `/breathing` | mente · src/components/argos/argos-floating-core · src/constants/app-registry · src/constants/hoy-cards y más |
+| `/breathing` | mente · src/constants/app-registry · src/constants/hoy-cards · src/data/emotion-navigation y más |
 | `/builder` | fitness-hiit · fitness-train · my-routines |
 | `/cardio-import` | fitness-cardio |
 | `/checkin` | emotion-exploration · emotion-profile · emotions · mente y más |
@@ -100,19 +100,19 @@ función quedó sin acceso.
 | `/historia-clinica/[category]` | historia-clinica/index · quizzes · salud/mis-evaluaciones/index · solar y más |
 | `/history` | fitness-my |
 | `/hoy-habitos` | **HOY** |
-| `/hydration` | src/components/hoy/HoyEditorialSection · src/constants/app-registry · src/constants/hoy-cards · src/services/hoy/score-coaching-core |
+| `/hydration` | src/components/hoy/HoyEditorialSection · src/constants/app-registry · src/constants/hoy-cards |
 | `/journal` | journal-history · mente · src/components/hoy/HoyEditorialSection · src/constants/app-registry y más |
 | `/journal-history` | journal · mente |
 | `/ketones-log` | salud/mis-datos/index · src/constants/app-registry · src/constants/salud-puertas |
-| `/(tabs)/kit` | src/components/argos/argos-floating-core · src/components/hoy/HoyEditorialSection · src/components/ui/home-floating-core · src/services/day-compiler y más |
-| `/labs-guide` | edad-atp/index · salud/diagnostico/index · src/components/global/TopBanner · src/constants/app-registry y más |
+| `/(tabs)/kit` | src/components/hoy/HoyEditorialSection · (tab en _layout) |
+| `/labs-guide` | edad-atp/index · src/components/global/TopBanner · src/constants/app-registry · src/constants/salud-puertas |
 | `/lista-compra` | my-recipes · src/constants/app-registry |
-| `/log-cardio` | cardio-import · fitness-cardio · src/components/hoy/HoyEditorialSection · src/services/hoy/day-booleans y más |
+| `/log-cardio` | cardio-import · fitness-cardio · src/components/hoy/HoyEditorialSection |
 | `/log-exercise` | fitness-strength · fitness-train · src/components/training/MetodosAtpInfo · src/constants/app-registry |
 | `/login` | index · onboarding/v2/profile · reset-password · settings/cuenta y más |
-| `/meditation` | mente · src/components/argos/argos-floating-core · src/constants/app-registry · src/constants/hoy-cards y más |
-| `/mente` | src/components/argos/argos-floating-core |
-| `/mente/nback` | mente · src/constants/app-registry · src/services/day-compiler · src/services/hoy/day-booleans y más |
+| `/meditation` | mente · src/constants/app-registry · src/constants/hoy-cards · src/services/day-compiler y más |
+| `/mente` | src/constants/app-registry |
+| `/mente/nback` | mente · src/constants/app-registry · src/services/day-compiler |
 | `/mente/nback/como-jugar` | mente/nback/index |
 | `/mente/nback/personalizar` | mente/nback/index |
 | `/mente/nback/saber-mas` | mente/nback/index |
@@ -135,7 +135,7 @@ función quedó sin acceso.
 | `/onboarding/v2/positioning` | src/services/onboarding-v2-core |
 | `/onboarding/v2/privacy` | src/services/onboarding-v2-core |
 | `/onboarding/v2/profile` | src/services/onboarding-v2-core |
-| `/onboarding/v2/welcome` | index · register |
+| `/onboarding/v2/welcome` | register |
 | `/onboarding/voice-config` | index |
 | `/paywall` | breathing · meditation · mente/player · settings/subscription y más |
 | `/(tabs)/perfil` | (tab en _layout) |
@@ -147,19 +147,19 @@ función quedó sin acceso.
 | `/quiz/chronotype` | my-chronotype · salud/mis-evaluaciones/index · settings/salud · src/components/yo/YoEditorialSection |
 | `/quizzes` | salud/diagnostico/index · salud/mis-evaluaciones/index |
 | `/redeem-code` | paywall · settings/subscription |
-| `/register` | login · src/components/argos/argos-floating-core |
+| `/register` | login |
 | `/reports` | src/components/yo/YoEditorialSection · src/constants/salud-puertas |
 | `/reset-password` | _layout |
 | `/routine-generator` | fitness-hub · fitness-train · mobility-assessment |
-| `/(tabs)/salud` | src/components/argos/argos-floating-core · (tab en _layout) |
+| `/(tabs)/salud` | (tab en _layout) |
 | `/salud/cuestionario-maestro` | salud/mis-evaluaciones/index · src/constants/salud-puertas |
 | `/salud/diagnostico` | salud/intervenciones/index · salud/intervenciones/rationale · src/constants/salud-puertas |
 | `/salud/evolucion` | src/constants/salud-puertas |
 | `/salud/expediente` | src/constants/salud-puertas |
 | `/salud/hoy` | src/constants/salud-puertas |
-| `/salud/intervenciones` | **HOY** · salud/cuestionario-maestro/index · salud/diagnostico/index · src/components/interventions/MyProtocolCard y más |
+| `/salud/intervenciones` | **HOY** · salud/cuestionario-maestro/index · salud/diagnostico/index · src/constants/app-registry y más |
 | `/salud/intervenciones/[key]` | salud/intervenciones/index |
-| `/salud/intervenciones/rationale` | salud/intervenciones/index · src/components/interventions/MyProtocolCard |
+| `/salud/intervenciones/rationale` | salud/intervenciones/index |
 | `/salud/mi-expediente` | src/constants/salud-puertas |
 | `/salud/mis-datos` | src/constants/salud-puertas |
 | `/salud/mis-evaluaciones` | src/constants/salud-puertas |
@@ -177,12 +177,12 @@ función quedó sin acceso.
 | `/settings/privacy` | settings/cuenta · settings |
 | `/settings/salud` | settings |
 | `/settings/subscription` | settings/cuenta |
-| `/sleep` | src/components/hoy/HoyEditorialSection · src/constants/app-registry · src/services/hoy/score-coaching-core |
+| `/sleep` | src/components/hoy/HoyEditorialSection · src/constants/app-registry |
 | `/solar` | src/components/hoy/HoyEditorialSection · src/constants/app-registry · src/constants/hoy-cards · src/constants/salud-puertas y más |
 | `/strength-session` | builder · exercise-detail · fitness-hub · my-routines y más |
 | `/supplements` | food-scan · nutrition · src/components/hoy/HoyEditorialSection · src/constants/app-registry y más |
-| `/(tabs)/tribu` | src/components/argos/argos-floating-core · (tab en _layout) |
-| `/(tabs)/yo` | src/components/ui/home-floating-core · (tab en _layout) |
+| `/(tabs)/tribu` | (tab en _layout) |
+| `/(tabs)/yo` | (tab en _layout) |
 
 ## Sin puerta, a propósito (8)
 

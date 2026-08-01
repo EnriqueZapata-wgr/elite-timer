@@ -17,6 +17,7 @@ export type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 export const ICON_MAP: Record<string, IoniconName> = {
   // ── Mente ──
+  mente: 'sparkles-outline',
   meditar: 'flower-outline',
   respirar: 'cloud-outline',
   emociones: 'heart-outline',

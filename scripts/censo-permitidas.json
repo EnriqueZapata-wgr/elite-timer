@@ -1,6 +1,6 @@
 {
   "_lee_esto": "Lista blanca del censo de rutas. Cada entrada es una pantalla de app/ que NO tiene puerta desde ninguna otra pantalla, y el motivo por el que eso está bien. Si agregas una, escribe el motivo de verdad: 'pendiente' sin explicación es como no tenerla. `npm run censo` falla si aparece una huérfana que no esté aquí.",
-  "_medido": "2026-08-01 · MB-19 PIEZA 0. Línea base al abrir el run: 14 sin puerta de 183 rutas, contra las 15 que estimaba el brief. Afinado el detector (los tests dejan de contar como puerta; una referencia de plantilla como v2Route() sí cuenta), la foto real es 8 de 180. Los pasos de onboarding NO son huérfanos: v2Route() los abre a todos.",
+  "_medido": "2026-08-01 · MB-19. Números medidos con el detector endurecido tras el audit, que es el único que separa navegar de mencionar. Línea base en main (c4fe260): 13 sin puerta de 183. Cierre de la rama: 8 de 185. Los pasos de onboarding NO son huérfanos: v2Route() los abre a todos. Las cifras que reportó el brief del run (14 y 15) salieron del detector viejo y estaban mal.",
   "permitidas": {
     "/economy/challenges": "Apagada por bandera en MB-12 hasta que exista su backend. La pantalla se conserva para cuando se encienda.",
     "/economy/referrals": "Apagada por bandera en MB-12 hasta que exista su backend. La pantalla se conserva para cuando se encienda.",
