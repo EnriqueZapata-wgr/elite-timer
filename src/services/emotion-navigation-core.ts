@@ -25,7 +25,7 @@ import {
   TOOLS_REENCUADRAR, TOOLS_SUBIR,
   FRAMING_PHRASES, MOVE_QUESTIONS, MOVE_SUBTEXT,
 } from '../data/emotion-navigation';
-import { fnv1a } from './emotion-map-core';
+import { fnv1a } from './emotion-plane-core';
 import { parseLocalDate, toLocalDateString } from '../utils/date-helpers';
 
 const BY_ID = new Map(EMOTIONS.map((e) => [e.id, e]));

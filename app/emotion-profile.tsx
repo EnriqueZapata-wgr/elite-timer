@@ -18,11 +18,11 @@ import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { EMOTIONS, QUADRANTS, type QuadrantKey } from '@/src/data/emotions-library';
 import { computeEmotionProfile, buildShareText, PROFILE_PERIOD_DAYS, type EmotionProfile } from '@/src/services/emotion-profile-core';
 import { loadHistoryData, type HistoryCheckinRecord } from '@/src/services/emotion-history-service';
-import { colorAtPoint, emotionGradient, normX, normY, isLightColor, QUADRANT_CENTERS } from '@/src/services/emotion-map-core';
+import { emotionCanonColor, emotionCanonGradient, isLightColor, quadrantCanonColor } from '@/src/services/emotion-plane-core';
 import { haptic } from '@/src/utils/haptics';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SURFACES, TEXT_COLORS, ATP_BRAND, withOpacity, BG } from '@/src/constants/brand';
+import { SURFACES, TEXT_COLORS, ATP_BRAND, CATEGORY_COLORS, withOpacity, BG } from '@/src/constants/brand';
 
 const EMOTION_BY_ID = new Map(EMOTIONS.map(e => [e.id, e]));
 
@@ -51,9 +51,10 @@ export default function EmotionProfileScreen() {
 
   const heroColor = useMemo(() => {
     const key = profile.archetype?.key;
-    if (!key || key === 'mixed') return colorAtPoint(0, 0.15);
-    const c = QUADRANT_CENTERS[key as QuadrantKey];
-    return colorAtPoint(c.nx, c.ny);
+    // MB-17: sin cuadrante dominante no hay celda que herede — el ambiente
+    // del módulo (violeta Mente) es el color honesto para "mezclado".
+    if (!key || key === 'mixed') return CATEGORY_COLORS.mind;
+    return quadrantCanonColor(key as QuadrantKey);
   }, [profile]);
 
   const handleShare = async () => {
@@ -158,10 +159,9 @@ export default function EmotionProfileScreen() {
               {profile.topEmotions.map(t => {
                 const e = EMOTION_BY_ID.get(t.emotionId);
                 if (!e) return null;
-                const nx = normX(e.quadrant, e.intensity);
-                const ny = normY(e.energy);
-                const [gTop, gBottom] = emotionGradient(nx, ny);
-                const base = colorAtPoint(nx, ny);
+                // MB-17: los chips heredan el color canónico de su celda.
+                const [gTop, gBottom] = emotionCanonGradient(e);
+                const base = emotionCanonColor(e);
                 const chipText = isLightColor(base) ? TEXT_COLORS.onAccent : TEXT_COLORS.primary;
                 return (
                   <LinearGradient key={t.emotionId} colors={[gTop, gBottom]} style={styles.topChip}>

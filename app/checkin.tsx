@@ -26,13 +26,13 @@ import {
 } from '@/src/data/emotions-library';
 import { MoodPlane, type MoodPlaneHandle } from '@/src/components/checkin/MoodPlane';
 import { BodyCheck } from '@/src/components/checkin/BodyCheck';
-import { NAMING_MECHANISM_LINE } from '@/src/data/emotion-wheel-config';
+import { NAMING_MECHANISM_LINE } from '@/src/data/checkin-config';
 import { GRID_HINT } from '@/src/data/emotion-grid-config';
 import { shouldOfferBodyMap } from '@/src/services/emotion-grid-core';
 import { closingPhraseForDate } from '@/src/data/checkin-closing-phrases';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
-import { searchEmotions } from '@/src/services/emotion-map-core';
+import { searchEmotions } from '@/src/services/emotion-plane-core';
 import { INVITE_TITLE, INVITE_SUBTEXT, INVITE_YES, INVITE_NO } from '@/src/data/emotion-navigation';
 import { shareMood, unshareMood } from '@/src/services/community/mood-share-service';
 import { isCrisisOrigin, isCrisisHotline, hasCrisisTrajectory } from '@/src/services/emotion-navigation-core';
@@ -629,7 +629,7 @@ export default function CheckinScreen() {
                 </View>
                 <EliteText variant="body" style={styles.defDesc}>{sheetEmotion.description}</EliteText>
                 {/* A.6: el mecanismo, nombrado — no es copy motivacional, es
-                    Lieberman (2007). Vive en emotion-wheel-config. */}
+                    Lieberman (2007). Vive en checkin-config. */}
                 <EliteText variant="caption" style={styles.defMechanism}>{NAMING_MECHANISM_LINE}</EliteText>
                 {/* B.1: la segunda emoción ya no se ofrece aquí — CONTINUAR
                     abre la oferta (o sigue de largo si ya hay dos). */}

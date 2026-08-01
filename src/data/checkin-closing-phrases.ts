@@ -20,7 +20,7 @@
  * Sin imports de react-native → testeable en Vitest node.
  */
 import type { QuadrantKey } from './emotions-library';
-import { fnv1a } from '../services/emotion-map-core';
+import { fnv1a } from '../services/emotion-plane-core';
 
 export const CLOSING_PHRASES: Record<QuadrantKey, readonly string[]> = {
   // ── Alta energía · Desagradable (enojo, ansiedad, estrés, miedo) ──

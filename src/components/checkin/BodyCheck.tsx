@@ -17,7 +17,7 @@ import { useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
-import { BODY_ZONES, type BodyZone } from '@/src/data/emotion-wheel-config';
+import { BODY_ZONES, type BodyZone } from '@/src/data/checkin-config';
 import {
   BODY_STEP_TITLE, BODY_STEP_SUB, BODY_STEP_SKIP, BODY_STEP_CONTINUE,
 } from '@/src/data/emotion-grid-config';

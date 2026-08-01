@@ -33,7 +33,7 @@ import { saveCheckin, getRecentCheckins } from '@/src/services/checkin-service';
 import { deriveCheckinAxes } from '@/src/services/checkin-axes-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { STAY_COPY, type RegulationTool } from '@/src/data/emotion-navigation';
-import { planeAccentColor } from '@/src/services/emotion-plane-core';
+import { emotionCanonColor } from '@/src/services/emotion-plane-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -97,7 +97,7 @@ export default function EmotionNavigationScreen() {
   const move = plan?.moves[moveIndex];
 
   const originColor = origin
-    ? planeAccentColor(origin.gridCol, origin.gridRow)
+    ? emotionCanonColor(origin)
     : TEXT_COLORS.secondary;
 
   // Al entrar al mapa: volver a SU emoción (ahí donde se registró).
@@ -259,7 +259,7 @@ export default function EmotionNavigationScreen() {
 
   const focusEmotion = EMOTIONS.find(e => e.id === focusId);
   const focusColor = focusEmotion
-    ? planeAccentColor(focusEmotion.gridCol, focusEmotion.gridRow)
+    ? emotionCanonColor(focusEmotion)
     : originColor;
 
   return (

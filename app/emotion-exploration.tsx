@@ -20,7 +20,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { MoodPlane, type MoodPlaneHandle } from '@/src/components/checkin/MoodPlane';
 import type { Emotion } from '@/src/data/emotions-library';
-import { planeAccentColor, quadrantFromCell } from '@/src/services/emotion-plane-core';
+import { emotionCanonColor, quadrantFromCell } from '@/src/services/emotion-plane-core';
 import { QUADRANT_FEEL } from '@/src/data/emotion-grid-config';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -32,7 +32,7 @@ export default function EmotionExplorationScreen() {
   const [selected, setSelected] = useState<Emotion | null>(null);
 
   const color = selected
-    ? planeAccentColor(selected.gridCol, selected.gridRow)
+    ? emotionCanonColor(selected)
     : TEXT_COLORS.secondary;
 
   // Dónde vive la palabra: en el plano, la zona ES el significado.

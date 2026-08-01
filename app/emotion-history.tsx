@@ -30,7 +30,7 @@ import {
 } from '@/src/services/emotion-stats-core';
 import { loadNavigationLogs } from '@/src/services/emotion-stats-service';
 import { loadHistoryData, type HistoryData, type HistoryCheckinRecord } from '@/src/services/emotion-history-service';
-import { colorAtPoint, emotionGradient, normX, normY, isLightColor } from '@/src/services/emotion-map-core';
+import { emotionCanonColor, emotionCanonGradient, isLightColor } from '@/src/services/emotion-plane-core';
 import { PHASES } from '@/src/services/cycle-service';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -187,10 +187,10 @@ export default function EmotionHistoryScreen() {
               {mosaic.map((m, i) => {
                 const emotion = EMOTION_BY_ID.get(m.emotionId);
                 if (!emotion) return null;
-                const nx = normX(emotion.quadrant, emotion.intensity);
-                const ny = normY(emotion.energy);
-                const [gTop, gBottom] = emotionGradient(nx, ny);
-                const base = colorAtPoint(nx, ny);
+                // MB-17: la coordenada bautiza el color — el mosaico hereda
+                // el color de la celda de cada emoción en el plano.
+                const [gTop, gBottom] = emotionCanonGradient(emotion);
+                const base = emotionCanonColor(emotion);
                 // Tamaño = frecuencia (44 → 76 px)
                 const size = 44 + Math.round((m.count / maxCount) * 32);
                 return (

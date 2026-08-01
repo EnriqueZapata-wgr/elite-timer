@@ -21,10 +21,12 @@ import {
   PLANE_FONT_SIZE, PLANE_MIN_SCALE, PLANE_MAX_SCALE,
   PLANE_TONE_MIN, PLANE_TONE_MAX,
   cellRect, cellCenter, isPleasantCol, isHighRow, quadrantFromCell,
-  planeToneOpacity, planeCellColor, planeAccentColor, planeFitScale, clampScale, clampAxis,
+  planeToneT, planeToneOpacity, planeCellColor, planeFitScale, clampScale, clampAxis,
   cameraFor, quadrantCenter, QUADRANT_ZOOM_FACTOR, FOCUS_ZOOM_FACTOR,
+  emotionCanonColor, emotionCanonGradient, quadrantCanonColor,
+  mixHex, isLightColor, fnv1a, searchEmotions,
 } from '../emotion-plane-core';
-import { EMOTIONS, QUADRANTS, type QuadrantKey } from '../../data/emotions-library';
+import { EMOTIONS, QUADRANTS, type Emotion, type QuadrantKey } from '../../data/emotions-library';
 
 const ALL_QUADRANTS = Object.keys(QUADRANTS) as QuadrantKey[];
 
@@ -77,12 +79,9 @@ describe('regla 4 — el color sale de la POSICIÓN, no de la emoción', () => {
     }
   });
 
-  it('planeAccentColor (MB-16): familia posicional a tono pleno, sin alpha horneado', () => {
+  it('emotionCanonColor (MB-17): hex pleno apto para withOpacity, CTA y texto', () => {
     for (const e of EMOTIONS) {
-      const accent = planeAccentColor(e.gridCol, e.gridRow);
-      // Acento = el color del cuadrante tal cual: apto para withOpacity, CTA y texto.
-      expect(accent).toBe(family(e.gridCol, e.gridRow));
-      expect(accent).toMatch(/^#[0-9a-fA-F]{6}$/);
+      expect(emotionCanonColor(e)).toMatch(/^#[0-9a-fA-F]{6}$/);
     }
   });
 
@@ -118,6 +117,104 @@ describe('regla 4 — el color sale de la POSICIÓN, no de la emoción', () => {
       expect(o).toBeGreaterThanOrEqual(PLANE_TONE_MIN);
       expect(o).toBeLessThanOrEqual(PLANE_TONE_MAX);
     }
+  });
+});
+
+describe('MB-17 — la coordenada bautiza el color (color canónico)', () => {
+  const family = (col: number, row: number) => QUADRANTS[quadrantFromCell(col, row)].color;
+  const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const lum = (hex: string) => rgb(hex).reduce((a, b) => a + b, 0);
+  const at = (col: number, row: number) => EMOTIONS.find((x) => x.gridCol === col && x.gridRow === row)!;
+
+  it('mismas coordenadas, mismo color, siempre — la emoción no aporta nada', () => {
+    for (const e of EMOTIONS) {
+      // Un doble con la MISMA celda pero todo lo demás distinto hereda idéntico:
+      // el color sale de gridCol/gridRow y de nada más.
+      const doble = { ...e, id: 'doble', energy: 1, intensity: 1 } as Emotion;
+      expect(emotionCanonColor(doble)).toBe(emotionCanonColor(e));
+      expect(emotionCanonGradient(doble)).toEqual(emotionCanonGradient(e));
+    }
+  });
+
+  it('las 144 producen color del matiz de su mitad (nada amarillo con col < 7)', () => {
+    for (const e of EMOTIONS) {
+      const fam = rgb(family(e.gridCol, e.gridRow));
+      const canon = rgb(emotionCanonColor(e));
+      // Solo profundidad, jamás tinte: cada canal ≤ el de su familia posicional...
+      for (let i = 0; i < 3; i++) expect(canon[i]).toBeLessThanOrEqual(fam[i]);
+      // ...y las proporciones entre canales se conservan (mismo matiz).
+      expect(Math.abs(canon[0] * fam[1] - canon[1] * fam[0])).toBeLessThanOrEqual(300);
+      expect(Math.abs(canon[1] * fam[2] - canon[2] * fam[1])).toBeLessThanOrEqual(300);
+    }
+  });
+
+  it('la esquina va a plena fuerza; hacia el centro el color se hunde', () => {
+    for (const [col, row] of [[1, 1], [1, 12], [12, 1], [12, 12]] as const) {
+      // mixHex normaliza a minúsculas; el valor es el de la familia tal cual.
+      expect(emotionCanonColor(at(col, row))).toBe(family(col, row).toLowerCase());
+    }
+    // Más lejos del centro, más fuerza (la curva es planeToneT, la del mapa).
+    expect(lum(emotionCanonColor(at(12, 12)))).toBeGreaterThan(lum(emotionCanonColor(at(7, 7))));
+    expect(lum(emotionCanonColor(at(1, 1)))).toBeGreaterThan(lum(emotionCanonColor(at(6, 6))));
+    expect(planeToneT(12, 12)).toBe(1);
+    expect(planeToneT(6, 7)).toBe(0);
+  });
+
+  it('el degradado canónico arranca en el color de la celda y profundiza hacia el fondo', () => {
+    for (const e of EMOTIONS) {
+      const [top, bottom] = emotionCanonGradient(e);
+      expect(top).toBe(emotionCanonColor(e));
+      expect(bottom).not.toBe(top);
+      const t = rgb(top);
+      const b = rgb(bottom);
+      for (let i = 0; i < 3; i++) expect(b[i]).toBeLessThanOrEqual(t[i]);
+    }
+  });
+
+  it('quadrantCanonColor: cada cuadrante hereda su familia, los cuatro distintos', () => {
+    const seen = new Set<string>();
+    for (const q of ALL_QUADRANTS) {
+      const c = quadrantCanonColor(q);
+      seen.add(c);
+      const fam = rgb(QUADRANTS[q].color);
+      const cc = rgb(c);
+      for (let i = 0; i < 3; i++) expect(cc[i]).toBeLessThanOrEqual(fam[i]);
+      expect(Math.abs(cc[0] * fam[1] - cc[1] * fam[0])).toBeLessThanOrEqual(300);
+    }
+    expect(seen.size).toBe(ALL_QUADRANTS.length);
+  });
+});
+
+describe('utilidades mudadas del mapa circular en su retiro (MB-17)', () => {
+  it('mixHex interpola en RGB', () => {
+    expect(mixHex('#000000', '#ffffff', 0.5)).toBe('#808080');
+    expect(mixHex('#ff0000', '#00ff00', 0)).toBe('#ff0000');
+    expect(mixHex('#ff0000', '#00ff00', 1)).toBe('#00ff00');
+  });
+
+  it('isLightColor decide texto negro sobre claro, blanco sobre oscuro', () => {
+    expect(isLightColor('#ffffff')).toBe(true);
+    expect(isLightColor('#000000')).toBe(false);
+  });
+
+  it('buscador: acentos y mayúsculas no importan; label pesa más que descripción', () => {
+    const porAnsia = searchEmotions(EMOTIONS, 'ANSIEDAD');
+    expect(porAnsia[0]?.id).toBe('anxious');
+    const conAcento = searchEmotions(EMOTIONS, 'ánimo');
+    expect(conAcento.length).toBeGreaterThan(0);
+    expect(searchEmotions(EMOTIONS, 'x')).toHaveLength(0); // < 2 chars
+  });
+
+  it('Track G (MB-10) · escritura parcial: la palabra a medias ya encuentra', () => {
+    expect(searchEmotions(EMOTIONS, 'frustr')[0]?.id).toBe('frustrated');
+    expect(searchEmotions(EMOTIONS, 'agob').some((e) => e.id === 'overwhelmed')).toBe(true);
+    // Y también busca en la DESCRIPCIÓN, no solo en el nombre.
+    expect(searchEmotions(EMOTIONS, 'piloto autom').some((e) => e.id === 'disconnected')).toBe(true);
+  });
+
+  it('fnv1a es estable', () => {
+    expect(fnv1a('furia')).toBe(fnv1a('furia'));
+    expect(fnv1a('a')).not.toBe(fnv1a('b'));
   });
 });
 
