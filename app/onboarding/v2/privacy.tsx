@@ -11,7 +11,7 @@
  * Patrón "privacidad como alivio": consentimiento = control, no letra chica.
  */
 import { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -76,12 +76,15 @@ export default function V2PrivacyScreen() {
           {AVISO_SIMPLIFICADO.paragraphs.map((p, i) => (
             <EliteText key={i} style={[s.noticeText, i > 0 && { marginTop: 10 }]}>{p}</EliteText>
           ))}
+          {/* MB-17: los documentos completos se leen en la web publicada —
+              las pantallas /legal/* quedan de respaldo mientras el texto
+              in-app tenga corchetes de razón social. */}
           <View style={s.linksRow}>
-            <AnimatedPressable style={s.linkBtn} onPress={() => { haptic.light(); router.push('/legal/aviso'); }}>
+            <AnimatedPressable style={s.linkBtn} onPress={() => { haptic.light(); Linking.openURL('https://somosatp.com/privacidad').catch(() => {}); }}>
               <Ionicons name="document-text-outline" size={14} color={ATP_BRAND.teal} />
               <EliteText style={s.linkText}>Aviso completo</EliteText>
             </AnimatedPressable>
-            <AnimatedPressable style={s.linkBtn} onPress={() => { haptic.light(); router.push('/legal/terminos'); }}>
+            <AnimatedPressable style={s.linkBtn} onPress={() => { haptic.light(); Linking.openURL('https://somosatp.com/terminos').catch(() => {}); }}>
               <Ionicons name="document-text-outline" size={14} color={ATP_BRAND.teal} />
               <EliteText style={s.linkText}>Términos y Condiciones</EliteText>
             </AnimatedPressable>

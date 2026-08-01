@@ -10,7 +10,7 @@
  * reintenta en el muro de consentimiento del onboarding.
  */
 import { useState } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Alert, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthScreen } from '@/src/components/auth/AuthScreen';
@@ -160,7 +160,10 @@ export default function RegisterScreen() {
               accentColor={ATP_BRAND.teal}
             />
 
-            {/* CB-1 · Términos + Aviso de Privacidad (obligatorio, NO pre-marcado) */}
+            {/* CB-1 · Términos + Aviso de Privacidad (obligatorio, NO pre-marcado).
+                MB-17: abren la web publicada (misma fuente que el paywall) —
+                las pantallas /legal/* quedan de respaldo, nadie navega a ellas
+                mientras el texto in-app tenga corchetes de razón social. */}
             <Pressable
               onPress={() => { haptic.light(); setTermsAccepted(a => !a); }}
               style={styles.consentRow}
@@ -175,7 +178,7 @@ export default function RegisterScreen() {
                 <EliteText
                   variant="caption"
                   style={styles.consentLink}
-                  onPress={() => router.push('/legal/terminos')}
+                  onPress={() => Linking.openURL('https://somosatp.com/terminos').catch(() => {})}
                 >
                   Términos y Condiciones
                 </EliteText>
@@ -183,7 +186,7 @@ export default function RegisterScreen() {
                 <EliteText
                   variant="caption"
                   style={styles.consentLink}
-                  onPress={() => router.push('/legal/aviso')}
+                  onPress={() => Linking.openURL('https://somosatp.com/privacidad').catch(() => {})}
                 >
                   Aviso de Privacidad
                 </EliteText>
