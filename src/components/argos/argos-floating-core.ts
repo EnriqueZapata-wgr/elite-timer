@@ -18,6 +18,21 @@ export function isMentePillarPath(pathname: string | null | undefined): boolean 
   return p.startsWith('/mente') || p === '/meditation' || p === '/breathing';
 }
 
+/**
+ * ¿La ruta es una de las cinco salas del tab bar? (MB-19 PIEZA 4).
+ *
+ * Ahí la ORBE ya está al centro de la barra: el botón flotante sería un segundo
+ * ARGOS en la misma pantalla. Fuera de las salas (una pantalla empujada, una
+ * función) el flotante sigue siendo el único acceso y se queda.
+ */
+const RUTAS_DE_TAB = new Set(['/', '/kit', '/salud', '/tribu', '/argos']);
+
+export function isTabRootPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const p = pathname.toLowerCase().replace(/\/$/, '') || '/';
+  return RUTAS_DE_TAB.has(p);
+}
+
 /** ¿La ruta es parte del onboarding? (ahí el floating no debe aparecer). */
 export function isOnboardingPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
@@ -41,14 +56,16 @@ export interface FloatingVisibilityInput {
  *  2. Ocultado manualmente por la pantalla → oculto.
  *  3. Onboarding/auth → oculto.
  *  4. Pilar Mente (banner fijo propio + player full-focus) → oculto (A3/A4).
- *  5. En el chat ARGOS mismo → oculto (redundante).
- *  6. Teclado abierto → oculto (no tapar inputs).
+ *  5. Una de las cinco salas del tab bar → oculto: la orbe ya está ahí (MB-19).
+ *  6. En el chat ARGOS mismo → oculto (redundante).
+ *  7. Teclado abierto → oculto (no tapar inputs).
  */
 export function shouldHideFloatingButton(input: FloatingVisibilityInput): boolean {
   if (!input.introduced) return true;
   if (input.manualHidden) return true;
   if (isOnboardingPath(input.pathname)) return true;
   if (isMentePillarPath(input.pathname)) return true;
+  if (isTabRootPath(input.pathname)) return true;
   const screen: ArgosScreen = screenFromPath(input.pathname);
   if (screen === 'argos') return true;
   if (input.keyboardVisible) return true;

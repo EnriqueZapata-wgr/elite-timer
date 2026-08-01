@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   isMentePillarPath,
   isOnboardingPath,
+  isTabRootPath,
   shouldHideFloatingButton,
 } from '@/src/components/argos/argos-floating-core';
 
@@ -43,7 +44,33 @@ describe('isMentePillarPath (Overhaul Mente A3/A4)', () => {
   });
 });
 
+describe('isTabRootPath (MB-19: la orbe vive en el tab bar)', () => {
+  it('detecta las cinco salas', () => {
+    for (const p of ['/', '/kit', '/salud', '/tribu', '/argos']) {
+      expect(isTabRootPath(p), p).toBe(true);
+    }
+  });
+
+  it('una pantalla empujada NO es una sala: ahí el flotante es el único acceso', () => {
+    for (const p of ['/nutrition', '/salud/hoy', '/comunidad/ranking', '/atp-orden', '/health-hub']) {
+      expect(isTabRootPath(p), p).toBe(false);
+    }
+  });
+
+  it('tolera la diagonal final y las mayúsculas', () => {
+    expect(isTabRootPath('/kit/')).toBe(true);
+    expect(isTabRootPath('/SALUD')).toBe(true);
+    expect(isTabRootPath(null)).toBe(false);
+  });
+});
+
 describe('shouldHideFloatingButton', () => {
+  it('oculto en las cinco salas: la orbe ya está al centro de la barra', () => {
+    for (const p of ['/', '/kit', '/salud', '/tribu']) {
+      expect(shouldHideFloatingButton({ ...base, pathname: p }), p).toBe(true);
+    }
+  });
+
   it('visible en una pantalla normal, presentado, sin teclado', () => {
     expect(shouldHideFloatingButton(base)).toBe(false);
   });

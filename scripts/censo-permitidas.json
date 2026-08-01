@@ -8,8 +8,6 @@
     "/legal/terminos": "Cerrada en MB-17: el texto tiene corchetes sin datos fiscales. Se reabre cuando el legal cierre la razón social.",
     "/admin/reports": "Detrás del gate de admin. No lleva puerta en la navegación del usuario a propósito.",
     "/session-summary": "Se llega al terminar un entrenamiento, no desde un menú. La abre el motor de ejecución.",
-    "/salud": "EN TRÁNSITO · MB-19. La pantalla del tab SALUD ya existe (PIEZA 3) pero el tab que la monta lo pone la PIEZA 4. Esta entrada se borra ahí. Mientras tanto su contenido sí es alcanzable: /health-hub monta el mismo hub.",
-    "/comunidad/ranking": "EN TRÁNSITO · MB-19. Su puerta era la card COMUNIDAD de la vieja pantalla Mi ATP, que la PIEZA 2 convirtió en la sala de apps. Su casa nueva es el tab TRIBU, que monta la PIEZA 4. Esta entrada se borra ahí: el censo avisa solo cuando sobra.",
     "/clinical-system": "DECISIÓN PENDIENTE DE ENRIQUE. 353 líneas vivas (drill-down por sistema funcional: síntomas con severidad, timeline y correlación con labs) que se quedaron sin puerta cuando Mega-Sprint B B6 la absorbió en Salud Funcional. O se borra, o se le abre puerta desde el mapa funcional (tocar un sistema entra a su drill-down). No se decide en un run de carcasa.",
     "/shared-routine": "Landing de un link compartido de rutina: entra por deep link con el parámetro code. No es un destino de navegación interna."
   }
