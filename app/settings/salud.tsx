@@ -2,7 +2,7 @@
  * AJUSTES › SALUD Y PROTOCOLO (#137) — cronotipo, protocolos, fitness,
  * nutrición, ciclo e historia clínica.
  */
-import { View, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -15,6 +15,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { getInsightsEnabled, setInsightsEnabled } from '@/src/services/argos-nutrition-insights';
+import { loadModoDenso, saveModoDenso, SALUD_DENSO_EVENT } from '@/src/services/salud-denso-store';
 import { getFitnessLevel, setFitnessLevel } from '@/src/services/fitness/fitness-profile-service';
 import { NIVELES_USUARIO, type NivelUsuario } from '@/src/constants/exercise-matrix';
 import { SectionLabel, Divider, SettingRow, ui } from '@/src/components/settings/settings-ui';
@@ -43,6 +44,17 @@ export default function SettingsSaludScreen() {
   // T6 NUTRICIÓN: insights post-comida de ARGOS (opt-in, default OFF)
   const [insights, setInsights] = useState(false);
   useEffect(() => { getInsightsEnabled().then(setInsights); }, []);
+  // MB-19: modo denso de SALUD (default OFF — la versión curada recibe a todos).
+  const [modoDenso, setModoDenso] = useState(false);
+  useEffect(() => { loadModoDenso().then(setModoDenso); }, []);
+
+  function onToggleDenso(v: boolean) {
+    haptic.light();
+    setModoDenso(v);
+    saveModoDenso(v);
+    // El hub puede estar montado detrás: que se entere sin remontarse.
+    DeviceEventEmitter.emit(SALUD_DENSO_EVENT, v);
+  }
 
   function onToggleComplete(v: boolean) {
     haptic.light();
@@ -149,6 +161,17 @@ export default function SettingsSaludScreen() {
             label="Salud Funcional"
             sub="Mapa funcional, datos, síntomas y expediente"
             onPress={() => { haptic.medium(); router.push('/health-hub'); }}
+          />
+          <Divider />
+          {/* MB-19 PIEZA 3: la válvula de escape del rediseño. SALUD se curó a
+              cuatro puertas; quien ya sabe lo que busca puede pedir la lista
+              completa y saltárselas. Garmin curó su app sin esta salida y sus
+              veteranos la rechazaron por costarles más clics. */}
+          <EliteToggle
+            label="Modo denso"
+            description="Salud te recibe con cuatro puertas. Enciéndelo para ver todas sus secciones en una sola lista."
+            value={modoDenso}
+            onValueChange={onToggleDenso}
           />
         </Animated.View>
 

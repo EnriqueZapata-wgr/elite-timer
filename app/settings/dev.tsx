@@ -41,6 +41,14 @@ export default function SettingsDevScreen() {
             sub="Captura de datos del modelo v2"
             onPress={() => { haptic.medium(); router.push('/edad-atp'); }}
           />
+          {/* MB-19 PIEZA 4: su única puerta era el tab YO, que sale del tab bar.
+              Es una herramienta de admin y este es su lugar natural. */}
+          <SettingRow
+            icon="chatbox-ellipses-outline"
+            label="Feedback Dashboard"
+            sub="Reportes que mandan los testers"
+            onPress={() => { haptic.medium(); router.push('/feedback-dashboard'); }}
+          />
           {/* T3 MAGIA 2.0: test aid — reproducir la cinemática sin resetear el flag en DB */}
           <SettingRow
             icon="eye-outline"

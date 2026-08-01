@@ -10,12 +10,23 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '@/src/contexts/auth-context';
 import { hasArgosBeenIntroduced } from '@/src/services/argos-intro-service';
+import type { ArgosOrbState } from './argos-orb-core';
 
 interface ArgosPresenceValue {
   hidden: boolean;
   setHidden: (v: boolean) => void;
   introduced: boolean;
   setIntroduced: (v: boolean) => void;
+  /**
+   * MB-19: el estado de la orbe del tab bar. Pasa a 'alerta' cuando ARGOS
+   * tiene algo que decir (notificación sin leer, insight nuevo).
+   *
+   * Este run entrega el mecanismo, no el disparador: cualquier pantalla puede
+   * llamar setOrbState('alerta') y la orbe reacciona. QUÉ lo dispara se afina
+   * en MB-20, cuando exista la lógica de insights proactivos.
+   */
+  orbState: ArgosOrbState;
+  setOrbState: (s: ArgosOrbState) => void;
 }
 
 const ArgosPresenceContext = createContext<ArgosPresenceValue | null>(null);
@@ -30,6 +41,7 @@ export function ArgosPresenceProvider({
   const { user } = useAuth();
   const [hidden, setHidden] = useState(false);
   const [introduced, setIntroduced] = useState(initialIntroduced);
+  const [orbState, setOrbState] = useState<ArgosOrbState>('idle');
 
   // T6: la verdad durable es profiles.argos_introduced_at. Usuarios existentes
   // (backfilleados en migración 163) → true; usuarios nuevos → false hasta que
@@ -44,8 +56,8 @@ export function ArgosPresenceProvider({
   }, [user?.id]);
 
   const value = useMemo<ArgosPresenceValue>(
-    () => ({ hidden, setHidden, introduced, setIntroduced }),
-    [hidden, introduced],
+    () => ({ hidden, setHidden, introduced, setIntroduced, orbState, setOrbState }),
+    [hidden, introduced, orbState],
   );
 
   return <ArgosPresenceContext.Provider value={value}>{children}</ArgosPresenceContext.Provider>;
@@ -55,7 +67,11 @@ export function ArgosPresenceProvider({
 export function useArgosPresence(): ArgosPresenceValue {
   const ctx = useContext(ArgosPresenceContext);
   if (!ctx) {
-    return { hidden: false, setHidden: () => {}, introduced: true, setIntroduced: () => {} };
+    return {
+      hidden: false, setHidden: () => {},
+      introduced: true, setIntroduced: () => {},
+      orbState: 'idle', setOrbState: () => {},
+    };
   }
   return ctx;
 }

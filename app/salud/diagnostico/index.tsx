@@ -61,7 +61,11 @@ function LevelBadge({ level }: { level: number }) {
     <View style={styles.levelBadge}>
       <EliteText style={styles.levelNum}>{level}</EliteText>
       <View>
-        <EliteText style={styles.levelCaption}>NIVEL DE DIAGNÓSTICO</EliteText>
+        {/* MB-19 A2: era "NIVEL DE DIAGNÓSTICO". La cadena ya existía, pero
+            vivía enterrada bajo un hub de catorce cards; ahora la puerta TU
+            EVOLUCIÓN le apunta directo y ATP no diagnostica. Lo que el número
+            mide es cuánto sabemos de ti, no un dictamen clínico. */}
+        <EliteText style={styles.levelCaption}>NIVEL DE DETALLE</EliteText>
         <EliteText style={styles.levelName}>{LEVEL_LABELS[level] ?? '—'}</EliteText>
       </View>
       <View style={styles.levelDots}>

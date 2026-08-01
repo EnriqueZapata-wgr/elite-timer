@@ -1,0 +1,14 @@
+{
+  "_lee_esto": "Lista blanca del censo de rutas. Cada entrada es una pantalla de app/ que NO tiene puerta desde ninguna otra pantalla, y el motivo por el que eso está bien. Si agregas una, escribe el motivo de verdad: 'pendiente' sin explicación es como no tenerla. `npm run censo` falla si aparece una huérfana que no esté aquí.",
+  "_medido": "2026-08-01 · MB-19. Números medidos con el detector endurecido tras el audit, que es el único que separa navegar de mencionar. Línea base en main (c4fe260): 13 sin puerta de 183. Cierre de la rama: 8 de 185. Los pasos de onboarding NO son huérfanos: v2Route() los abre a todos. Las cifras que reportó el brief del run (14 y 15) salieron del detector viejo y estaban mal.",
+  "permitidas": {
+    "/economy/challenges": "Apagada por bandera en MB-12 hasta que exista su backend. La pantalla se conserva para cuando se encienda.",
+    "/economy/referrals": "Apagada por bandera en MB-12 hasta que exista su backend. La pantalla se conserva para cuando se encienda.",
+    "/legal/aviso": "Cerrada en MB-17: el texto tiene corchetes sin datos fiscales. Se reabre cuando el legal cierre la razón social.",
+    "/legal/terminos": "Cerrada en MB-17: el texto tiene corchetes sin datos fiscales. Se reabre cuando el legal cierre la razón social.",
+    "/admin/reports": "Detrás del gate de admin. No lleva puerta en la navegación del usuario a propósito.",
+    "/session-summary": "Se llega al terminar un entrenamiento, no desde un menú. La abre el motor de ejecución.",
+    "/clinical-system": "DECISIÓN PENDIENTE DE ENRIQUE. 353 líneas vivas (drill-down por sistema funcional: síntomas con severidad, timeline y correlación con labs) que se quedaron sin puerta cuando Mega-Sprint B B6 la absorbió en Salud Funcional. O se borra, o se le abre puerta desde el mapa funcional (tocar un sistema entra a su drill-down). No se decide en un run de carcasa.",
+    "/shared-routine": "Landing de un link compartido de rutina: entra por deep link con el parámetro code. No es un destino de navegación interna."
+  }
+}

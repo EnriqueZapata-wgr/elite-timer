@@ -13,7 +13,7 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, withOpacity } from '@/src/constants/brand';
 
 // MB-3.6: Fuerza y Récords FUSIONADAS (un dato = un lugar); Movilidad
 // reactivada — la evaluación real vive en /mobility-assessment (Bloque 2).
@@ -21,6 +21,11 @@ const ITEMS = [
   { name: 'Fuerza y récords', subtitle: 'Benchmarks · variantes · todos tus PRs', icon: 'barbell-outline' as const, color: CATEGORY_COLORS.fitness, route: '/fitness-strength' as const },
   { name: 'Cardio', subtitle: 'Sesiones · distancias · tiempos', icon: 'pulse-outline' as const, color: SEMANTIC.error, route: '/fitness-cardio' as const },
   { name: 'Movilidad', subtitle: 'Evalúate · rutinas de movilidad', icon: 'body-outline' as const, color: CATEGORY_COLORS.mind, route: '/mobility-assessment' as const },
+  // MB-19 PIEZA 0: el censo las encontró sin puerta. Son features vivas (historial de
+  // sesiones desde execution_logs, y resumen mensual con gráficas), no redirects viejos.
+  // Su casa es Mi Fitness: las dos leen entrenamientos.
+  { name: 'Mi progreso', subtitle: 'Resumen del mes · frecuencia · volumen', icon: 'trending-up-outline' as const, color: ATP_BRAND.teal, route: '/progress' as const },
+  { name: 'Historial', subtitle: 'Todas tus sesiones, por fecha', icon: 'time-outline' as const, color: SEMANTIC.info, route: '/history' as const },
 ];
 
 export default function FitnessMyScreen() {

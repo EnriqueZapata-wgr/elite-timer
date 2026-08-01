@@ -1,12 +1,22 @@
 /**
- * Tab Layout — Navegación principal con 3 tabs:
- * HOY | Yo | Mi ATP
+ * Tab Layout — la carcasa de la arquitectura V2 (MB-19 PIEZA 4).
  *
- * Si el usuario es coach Y la pantalla es ancha (>1024px),
- * muestra el CoachPanelLayout en vez de las tabs normales.
+ *   ┌──────┬─────┬───────┬───────┬───────┐
+ *   │ HOY  │ ATP │ ORBE  │ SALUD │ TRIBU │
+ *   └──────┴─────┴───────┴───────┴───────┘
  *
- * Las pantallas antiguas (biblioteca, progreso, perfil) siguen existiendo
- * como archivos para no romper rutas, pero están ocultas del tab bar.
+ * La ORBE es ARGOS. Va al centro, SIN palabra, y respira. No es un tab más:
+ * es la presencia del coach, siempre a un toque, en cualquier sala. Reacciona
+ * pasando a 'alerta' cuando tiene algo que decir (calma con presencia: nunca
+ * parpadea rápido ni se pone roja).
+ *
+ * Los tabs viejos (yo, biblioteca, progreso, perfil) NO se borran: pasan a
+ * href: null y siguen siendo rutas válidas para deep links. Su contenido se
+ * repartió: lo de YO vive en SALUD y en Ajustes, y lo que era KIT es la sala
+ * ATP. `npm run censo` verifica que nada quedó sin puerta.
+ *
+ * Si el usuario es coach Y la pantalla es ancha (>1024px), muestra el
+ * CoachPanelLayout en vez de las tabs normales.
  */
 import { useState } from 'react';
 import { useWindowDimensions, View, Pressable, StyleSheet } from 'react-native';
@@ -21,8 +31,29 @@ import { CoachPanelLayout } from '@/src/screens/coach/CoachPanelLayout';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { ATP_BRAND, SURFACES, CATEGORY_COLORS } from '@/src/constants/brand';
 import { FeedbackButton } from '@/src/components/FeedbackButton';
+import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
+import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
+
+/**
+ * El icono de la ORBE. Vive aquí y no en ArgosOrb porque lo específico del tab
+ * bar es el tamaño y el que NO lleve palabra debajo; la esfera es la misma que
+ * usa el modo de voz.
+ *
+ * Un poco más grande que los demás iconos y con el hueco de la etiqueta que no
+ * tiene: así queda ópticamente centrada en la fila.
+ */
+function OrbTabIcon() {
+  const { orbState } = useArgosPresence();
+  return (
+    <View style={styles.orbSlot}>
+      <ArgosOrb state={orbState} size={ORB_TAB_SIZE} />
+    </View>
+  );
+}
+
+const ORB_TAB_SIZE = 46;
 
 export default function TabLayout() {
   const { width } = useWindowDimensions();
@@ -76,7 +107,7 @@ export default function TabLayout() {
             fontSize: 11,
           },
         }}>
-        {/* ── Tabs visibles ── */}
+        {/* ── Los cinco ── */}
         <Tabs.Screen
           name="index"
           options={{
@@ -87,28 +118,49 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="yo"
-          options={{
-            title: 'Yo',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="person-outline" size={size} color={color} />
-            ),
-          }}
-        />
-        <Tabs.Screen
           name="kit"
           options={{
-            title: 'Mi ATP',
+            title: 'ATP',
             tabBarIcon: ({ color, size }) => (
               <Ionicons name="grid-outline" size={size} color={color} />
             ),
           }}
         />
-        {/* ── Tabs ocultas (siguen como rutas válidas pero no aparecen en el tab bar) ── */}
-        {/* MAGIA 2.0 T4: ARGOS sale del tab bar (redundante con el floating
-            button). La ruta /argos sigue viva para deep links. */}
+        {/* La ORBE. Sin etiqueta a propósito: no se nombra lo que se reconoce.
+            El icono lo dibuja ArgosOrb, que respira solo. */}
         <Tabs.Screen
           name="argos"
+          options={{
+            title: '',
+            tabBarLabel: () => null,
+            tabBarAccessibilityLabel: 'ARGOS',
+            tabBarIcon: () => <OrbTabIcon />,
+          }}
+        />
+        <Tabs.Screen
+          name="salud"
+          options={{
+            title: 'Salud',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="pulse-outline" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="tribu"
+          options={{
+            title: 'Tribu',
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name="people-outline" size={size} color={color} />
+            ),
+          }}
+        />
+
+        {/* ── Retiradas del tab bar, vivas como rutas ──
+            Su contenido se repartió; los archivos se quedan para no romper
+            deep links. Ver el encabezado de este archivo. */}
+        <Tabs.Screen
+          name="yo"
           options={{ href: null }}
         />
         <Tabs.Screen
@@ -131,6 +183,15 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  // La orbe no tiene etiqueta debajo: se baja para ocupar ese hueco y quedar
+  // ópticamente centrada con los otros cuatro iconos.
+  orbSlot: {
+    width: ORB_TAB_SIZE,
+    height: ORB_TAB_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+  },
   coachBanner: {
     flexDirection: 'row',
     alignItems: 'center',

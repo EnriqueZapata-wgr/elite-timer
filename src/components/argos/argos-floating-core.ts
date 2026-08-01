@@ -18,6 +18,43 @@ export function isMentePillarPath(pathname: string | null | undefined): boolean 
   return p.startsWith('/mente') || p === '/meditation' || p === '/breathing';
 }
 
+/**
+ * LA lista de qué es un tab. Fuente ÚNICA: la consumen el flotante de ARGOS y
+ * el de la casita (home-floating-core), que antes tenían cada uno la suya y se
+ * desincronizaron en cuanto MB-19 cambió el tab bar.
+ *
+ * Van TODAS las rutas del grupo `(tabs)`, no solo las cinco visibles. Las
+ * cuatro retiradas (`yo`, `biblioteca`, `progreso`, `perfil`) siguen siendo
+ * rutas válidas y se renderizan CON tab bar: si no estuvieran aquí, sobre ellas
+ * aparecerían la orbe y el flotante a la vez, que son los dos ARGOS que este
+ * run venía a evitar.
+ *
+ * Por qué importa que estén completas: sobre un tab, el flotante de la casita
+ * se pinta arriba a la izquierda y tapa el header propio de la pantalla. Ya
+ * pasó una vez: en la sala ATP, "TU ECOSISTEMA" se leía "OSISTEMA".
+ */
+export const RUTAS_DE_TAB: ReadonlySet<string> = new Set([
+  // Las cinco salas
+  '/',            // HOY
+  '/index',       // alias defensivo de la anterior
+  '/(tabs)',      // por si el pathname llega con el grupo
+  '/kit',         // ATP
+  '/argos',       // ORBE
+  '/salud',
+  '/tribu',
+  // Retiradas del tab bar pero vivas como ruta (href: null)
+  '/yo',
+  '/biblioteca',
+  '/progreso',
+  '/perfil',
+]);
+
+export function isTabRootPath(pathname: string | null | undefined): boolean {
+  if (!pathname) return false;
+  const p = pathname.toLowerCase().replace(/\/$/, '') || '/';
+  return RUTAS_DE_TAB.has(p);
+}
+
 /** ¿La ruta es parte del onboarding? (ahí el floating no debe aparecer). */
 export function isOnboardingPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
@@ -41,14 +78,16 @@ export interface FloatingVisibilityInput {
  *  2. Ocultado manualmente por la pantalla → oculto.
  *  3. Onboarding/auth → oculto.
  *  4. Pilar Mente (banner fijo propio + player full-focus) → oculto (A3/A4).
- *  5. En el chat ARGOS mismo → oculto (redundante).
- *  6. Teclado abierto → oculto (no tapar inputs).
+ *  5. Una de las cinco salas del tab bar → oculto: la orbe ya está ahí (MB-19).
+ *  6. En el chat ARGOS mismo → oculto (redundante).
+ *  7. Teclado abierto → oculto (no tapar inputs).
  */
 export function shouldHideFloatingButton(input: FloatingVisibilityInput): boolean {
   if (!input.introduced) return true;
   if (input.manualHidden) return true;
   if (isOnboardingPath(input.pathname)) return true;
   if (isMentePillarPath(input.pathname)) return true;
+  if (isTabRootPath(input.pathname)) return true;
   const screen: ArgosScreen = screenFromPath(input.pathname);
   if (screen === 'argos') return true;
   if (input.keyboardVisible) return true;

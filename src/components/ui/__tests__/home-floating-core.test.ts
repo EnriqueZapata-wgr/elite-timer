@@ -13,6 +13,21 @@ describe('shouldHideHomeButton (#26)', () => {
     expect(visible('/kit')).toBe(false);
   });
 
+  it('MB-19: también en las tres salas nuevas', () => {
+    // La lista local se quedó atrás cuando el tab bar pasó a cinco salas y la
+    // casita iba a taparles el header, igual que le pasó a "TU ECOSISTEMA".
+    // Ahora sale de RUTAS_DE_TAB y no puede volver a desincronizarse.
+    expect(visible('/salud')).toBe(false);
+    expect(visible('/tribu')).toBe(false);
+    expect(visible('/argos')).toBe(false);
+  });
+
+  it('MB-19: y en las cuatro retiradas del tab bar, que siguen renderizando con tabs', () => {
+    expect(visible('/biblioteca')).toBe(false);
+    expect(visible('/progreso')).toBe(false);
+    expect(visible('/perfil')).toBe(false);
+  });
+
   it('visible en pantallas profundas del Stack', () => {
     expect(visible('/supplements')).toBe(true);
     expect(visible('/reports')).toBe(true);
