@@ -4,16 +4,17 @@
 import { describe, it, expect } from 'vitest';
 import {
   ORB_STATES, orbSpecForState, waveformBars, orbStateFromAvatar,
+  ORB_LIME, ORB_TEAL,
 } from '../argos-orb-core';
 
 describe('orbSpecForState', () => {
-  it('4 estados canónicos', () => {
-    expect(ORB_STATES).toEqual(['idle', 'escuchando', 'pensando', 'hablando']);
+  it('5 estados canónicos (MB-19 suma alerta)', () => {
+    expect(ORB_STATES).toEqual(['idle', 'alerta', 'escuchando', 'pensando', 'hablando']);
   });
 
-  it('idle respira lento (~4s), casi quieto', () => {
+  it('idle respira en 3.6s, casi quieto', () => {
     const s = orbSpecForState('idle');
-    expect(s.breathMs).toBe(4000);
+    expect(s.breathMs).toBe(3600);
     expect(s.animated).toBe(true);
     expect(s.waveform).toBe(false);
     expect(s.rotate).toBe(false);
@@ -36,9 +37,40 @@ describe('orbSpecForState', () => {
 
   it('hablando tiene waveform (y solo ese)', () => {
     expect(orbSpecForState('hablando').waveform).toBe(true);
-    for (const st of ['idle', 'escuchando', 'pensando'] as const) {
+    for (const st of ['idle', 'alerta', 'escuchando', 'pensando'] as const) {
       expect(orbSpecForState(st).waveform, st).toBe(false);
     }
+  });
+
+  // ── MB-19: la orbe del tab bar ──
+
+  it('alerta NUNCA parpadea rápido: respira más lento que escuchando', () => {
+    // La regla del brief es "calma con presencia". Un ciclo corto se lee como
+    // parpadeo y es exactamente lo que no queremos en una barra permanente.
+    const alerta = orbSpecForState('alerta');
+    expect(alerta.breathMs).toBeGreaterThan(orbSpecForState('escuchando').breathMs);
+    expect(alerta.breathMs).toBeGreaterThanOrEqual(2800);
+  });
+
+  it('alerta se nota por brillo, no por tamaño', () => {
+    const idle = orbSpecForState('idle');
+    const alerta = orbSpecForState('alerta');
+    expect(alerta.glowMax).toBeGreaterThan(idle.glowMax);
+    // La amplitud crece poco: no da un brinco.
+    expect(alerta.scaleMax - alerta.scaleMin).toBeLessThan(0.1);
+  });
+
+  it('ningún estado se pone rojo: la orbe solo es lime→teal', () => {
+    expect(ORB_LIME.toLowerCase()).toBe('#a8e02a');
+    expect(ORB_TEAL.toLowerCase()).toBe('#1abc9c');
+  });
+
+  it('los nombres en inglés del brief entran por el mapeo', () => {
+    expect(orbStateFromAvatar('alert')).toBe('alerta');
+    expect(orbStateFromAvatar('listening')).toBe('escuchando');
+    expect(orbStateFromAvatar('thinking')).toBe('pensando');
+    expect(orbStateFromAvatar('idle')).toBe('idle');
+    expect(orbStateFromAvatar(null)).toBe('idle');
   });
 
   it('reduced-motion: sin animación continua, sin apagarse (glow > 0)', () => {
@@ -53,7 +85,7 @@ describe('orbSpecForState', () => {
     }
   });
 
-  it('reduced-motion: los 4 estados son DISTINGUIBLES sin animación (auditoría MB-4)', () => {
+  it('reduced-motion: todos los estados son DISTINGUIBLES sin animación (auditoría MB-4)', () => {
     // Antes idle=pensando (0.4) y escuchando=hablando (0.6) — indistinguibles.
     const glows = ORB_STATES.map((st) => orbSpecForState(st, true).glowMin);
     expect(new Set(glows).size).toBe(ORB_STATES.length);

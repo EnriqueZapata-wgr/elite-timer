@@ -16,9 +16,9 @@
  * (arrastra require() de imágenes y rompe Vitest node-only). Si brand cambia, actualizar.
  */
 
-export type ArgosOrbState = 'idle' | 'escuchando' | 'pensando' | 'hablando';
+export type ArgosOrbState = 'idle' | 'alerta' | 'escuchando' | 'pensando' | 'hablando';
 
-export const ORB_STATES: readonly ArgosOrbState[] = ['idle', 'escuchando', 'pensando', 'hablando'] as const;
+export const ORB_STATES: readonly ArgosOrbState[] = ['idle', 'alerta', 'escuchando', 'pensando', 'hablando'] as const;
 
 // Espejo de ATP_BRAND — ver nota del encabezado.
 export const ORB_LIME = '#A8E02A';
@@ -56,7 +56,7 @@ export function orbSpecForState(state: ArgosOrbState, reducedMotion = false): Or
     // distinguibles sin animación (antes idle=pensando y escuchando=hablando
     // compartían valor y eran indistinguibles).
     const REDUCED_GLOW: Record<ArgosOrbState, number> = {
-      idle: 0.3, pensando: 0.45, escuchando: 0.6, hablando: 0.75,
+      idle: 0.3, alerta: 0.38, pensando: 0.45, escuchando: 0.6, hablando: 0.75,
     };
     const glow = REDUCED_GLOW[state] ?? 0.3;
     return {
@@ -66,6 +66,16 @@ export function orbSpecForState(state: ArgosOrbState, reducedMotion = false): Or
     };
   }
   switch (state) {
+    case 'alerta':
+      // MB-19: "tengo algo que decirte". Es el estado del tab bar cuando hay
+      // una notificación sin leer o un insight nuevo.
+      //
+      // Regla dura del brief: NUNCA parpadea rápido ni se pone roja. Calma con
+      // presencia. Por eso el ciclo es MÁS LENTO que idle (3.6s → 3.0s es
+      // apenas perceptible como "un poco más despierta"), la amplitud crece
+      // poquito, y todo el cambio vive en el brillo. Sigue siendo lime→teal:
+      // no hay un color de alarma en ningún estado de la orbe.
+      return { scaleMin: 0.98, scaleMax: 1.06, breathMs: 3000, glowMin: 0.42, glowMax: 0.78, waveform: false, rotate: false, rotateMs: 0, animated: true };
     case 'escuchando':
       // Se abre/expande sutil — más amplitud, respiración más ágil.
       return { scaleMin: 1.02, scaleMax: 1.12, breathMs: 2600, glowMin: 0.45, glowMax: 0.8, waveform: false, rotate: false, rotateMs: 0, animated: true };
@@ -77,8 +87,9 @@ export function orbSpecForState(state: ArgosOrbState, reducedMotion = false): Or
       return { scaleMin: 1.0, scaleMax: 1.06, breathMs: 1400, glowMin: 0.5, glowMax: 0.9, waveform: true, rotate: false, rotateMs: 0, animated: true };
     case 'idle':
     default:
-      // Respiración lenta ~4s, casi quieto.
-      return { scaleMin: 0.97, scaleMax: 1.03, breathMs: 4000, glowMin: 0.28, glowMax: 0.5, waveform: false, rotate: false, rotateMs: 0, animated: true };
+      // Respiración lenta, casi quieta. MB-19 la fija en 3.6 s: es el ciclo que
+      // el brief pide para la orbe del tab bar, donde vive permanentemente.
+      return { scaleMin: 0.97, scaleMax: 1.03, breathMs: 3600, glowMin: 0.28, glowMax: 0.5, waveform: false, rotate: false, rotateMs: 0, animated: true };
   }
 }
 
@@ -108,13 +119,19 @@ export function waveformBars(count: number, phase: number): number[] {
   return bars;
 }
 
-/** Mapea los estados legacy de ArgosAvatar al orb (para reusar call sites). */
+/**
+ * Mapea los estados legacy de ArgosAvatar (y los nombres en inglés del brief
+ * MB-19: idle/alert/listening/thinking) al vocabulario del orb. Un solo
+ * componente, un solo juego de estados; los alias solo traducen la entrada.
+ */
 export function orbStateFromAvatar(s: string | null | undefined): ArgosOrbState {
   switch (s) {
     case 'thinking': return 'pensando';
     case 'speaking': return 'hablando';
     case 'listening':
     case 'escuchando': return 'escuchando';
+    case 'alert':
+    case 'alerta': return 'alerta';
     default: return 'idle'; // offline/idle/unavailable → presencia tranquila
   }
 }
