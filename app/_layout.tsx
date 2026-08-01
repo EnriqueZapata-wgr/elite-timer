@@ -190,7 +190,9 @@ function RootLayout() {
                 <Stack.Screen name="afiliados/dashboard" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="afiliados/mi-codigo" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="log-exercise" options={{ animation: 'slide_from_bottom' }} />
-                <Stack.Screen name="personal-records" />
+                {/* MB-19 PIEZA 0: /personal-records y /training-methods eran redirects
+                    vacíos de MB-3.6 (a /fitness-strength y /exercise-library). El censo
+                    los encontró sin puerta; se borraron con su registro. */}
                 <Stack.Screen name="progress" />
                 <Stack.Screen name="history" />
                 <Stack.Screen name="shared-routine" options={{ animation: 'slide_from_bottom' }} />
