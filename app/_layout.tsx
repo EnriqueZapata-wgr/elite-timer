@@ -212,7 +212,9 @@ function RootLayout() {
                 <Stack.Screen name="mente/nback/sesion" options={{ headerShown: false, animation: 'fade', gestureEnabled: false }} />
                 <Stack.Screen name="mente/nback/stats" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="mente/nback/como-jugar" options={{ headerShown: false, animation: 'slide_from_right' }} />
-                <Stack.Screen name="habits-portal" options={{ animation: 'slide_from_right' }} />
+                {/* MB-19 PIEZA 2: /habits-portal se absorbio en la sala ATP. Sus 9
+                    destinos son apps del registro; sus cards se retiraron. */}
+                <Stack.Screen name="atp-orden" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz/chronotype" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-scan" options={{ animation: 'slide_from_bottom' }} />
