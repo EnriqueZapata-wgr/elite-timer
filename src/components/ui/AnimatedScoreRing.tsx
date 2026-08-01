@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet, Easing } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { getScoreColor } from '@/src/constants/brand';
+import { getScoreColor, getScoreLabel } from '@/src/constants/brand';
 
 interface Props {
   score: number;
@@ -22,6 +22,9 @@ interface Props {
   showScore?: boolean;
   /** Bloom suave alrededor del arco (glow cross-platform via arcos SVG translúcidos). */
   glow?: boolean;
+  /** MB-17: la etiqueta de nivel (ÓPTIMO/…) es la segunda señal — el estado
+   *  del score nunca depende solo del color (deuteranopia). */
+  showLevel?: boolean;
 }
 
 export function AnimatedScoreRing({
@@ -32,6 +35,7 @@ export function AnimatedScoreRing({
   showLabel = true,
   showScore = true,
   glow = true,
+  showLevel = true,
 }: Props) {
   const animatedScore = useRef(new Animated.Value(0)).current;
   const [displayScore, setDisplayScore] = useState(0);
@@ -106,6 +110,11 @@ export function AnimatedScoreRing({
       {showScore && (
         <View style={styles.center}>
           <Text style={[styles.score, { fontSize: size * 0.28, color }]}>{displayScore}</Text>
+          {showLevel && (
+            <Text style={[styles.level, { color, fontSize: Math.max(size * 0.07, 9) }]}>
+              {getScoreLabel(score)}
+            </Text>
+          )}
           {showLabel && (
             <Text style={[styles.label, { color, fontSize: Math.max(size * 0.055, 8) }]}>{label}</Text>
           )}
@@ -133,5 +142,10 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     fontWeight: '600',
     marginTop: 2,
+  },
+  level: {
+    letterSpacing: 1.5,
+    fontWeight: '800',
+    marginTop: 1,
   },
 });

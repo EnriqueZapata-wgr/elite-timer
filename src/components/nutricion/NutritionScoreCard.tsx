@@ -10,7 +10,7 @@ import { EliteText } from '@/components/elite-text';
 import { scoreColor, type ScoreBreakdown } from '@/src/services/nutrition-score-core';
 import type { ScoreTrendPoint } from '@/src/services/nutrition-score-service';
 import type { NutritionMode } from '@/src/services/nutrition-mode-core';
-import { ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { ELEVATION, TEXT, withOpacity, getScoreLabel } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 interface Props {
@@ -34,6 +34,10 @@ export function NutritionScoreCard({ breakdown, mode, trend, proteinG, waterMl }
         <View>
           <EliteText style={s.label}>SCORE DEL DÍA</EliteText>
           <EliteText style={[s.score, { color }]}>{score === null ? '—' : score}</EliteText>
+          {/* MB-17: etiqueta de nivel — el estado del score nunca es solo color. */}
+          {score !== null && (
+            <EliteText style={[s.levelLabel, { color }]}>{getScoreLabel(score)}</EliteText>
+          )}
           <EliteText style={s.sub}>
             {breakdown
               ? `${Math.round(proteinG)}/${breakdown.proteinTargetG}g proteína · ${(waterMl / 1000).toFixed(1)}/${(breakdown.waterGoalMl / 1000).toFixed(1)}L agua`
@@ -87,6 +91,7 @@ const s = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   label: { fontSize: 11, fontFamily: Fonts.bold, color: TEXT.secondary, letterSpacing: 2 },
   score: { fontSize: 56, fontFamily: Fonts.extraBold, lineHeight: 60, marginTop: 2 },
+  levelLabel: { fontSize: 11, fontFamily: Fonts.bold, letterSpacing: 1.5, marginTop: -2 },
   sub: { fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: TEXT.secondary },
   trendBox: { alignItems: 'flex-end', gap: 4, paddingTop: 4 },
   trendRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 3, height: TREND_H },

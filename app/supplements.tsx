@@ -22,7 +22,7 @@ import { DOSE_PATTERNS, DOSE_TIME_LABELS, doseCountFor, isCustomDoseTime, normal
 import { normalizeSupplementName } from '@/src/services/supplements-plan-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
-import { getScoreColor } from '@/src/constants/brand';
+import { getScoreColor, getScoreLabel } from '@/src/constants/brand';
 
 const TIMING_OPTIONS = [
   { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -505,11 +505,12 @@ export default function SupplementsScreen() {
                       </Text>
                       {/* ATP Functional Score (211): chip numérico 0-100.
                           Scans legados (solo bha_status binario) muestran chip
-                          neutro "Evaluado" hasta re-escanear — cero adjetivos. */}
+                          neutro "Evaluado" hasta re-escanear — cero adjetivos.
+                          MB-17: la etiqueta de nivel acompaña SIEMPRE al color. */}
                       {supp.functional_score != null ? (
                         <View style={{ backgroundColor: `${getScoreColor(supp.functional_score)}1F`, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
                           <Text style={{ color: getScoreColor(supp.functional_score), fontSize: 8, fontWeight: '800' }}>
-                            SCORE {supp.functional_score}
+                            SCORE {supp.functional_score} · {getScoreLabel(supp.functional_score)}
                           </Text>
                         </View>
                       ) : supp.bha_status ? (

@@ -19,7 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from '@/src/utils/haptics';
-import { ELEVATION, TEXT, getScoreColor } from '@/src/constants/brand';
+import { ELEVATION, TEXT, getScoreColor, getScoreLabel } from '@/src/constants/brand';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { getBhaScanQuote, persistFunctionalScore, runBhaScan } from '@/src/services/bha-service';
 import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
@@ -270,7 +270,11 @@ export function BhaScanSheet({ visible, userId, supplement, onClose, onSealPersi
                 }}>
                   <Text style={{ color: scoreColor, fontSize: 34, fontWeight: '800' }}>{result.score}</Text>
                 </View>
-                <Text style={{ color: TEXT.primary, fontSize: 16, fontWeight: '800', marginTop: 12, letterSpacing: 0.5 }}>
+                {/* MB-17: etiqueta de nivel — el estado nunca es solo color. */}
+                <Text style={{ color: scoreColor, fontSize: 12, fontWeight: '800', marginTop: 8, letterSpacing: 1.5 }}>
+                  {getScoreLabel(result.score)}
+                </Text>
+                <Text style={{ color: TEXT.primary, fontSize: 16, fontWeight: '800', marginTop: 6, letterSpacing: 0.5 }}>
                   ATP FUNCTIONAL SCORE
                 </Text>
                 {supplement && (
