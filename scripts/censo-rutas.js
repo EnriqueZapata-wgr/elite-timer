@@ -26,7 +26,12 @@
  *   - código 0 si toda huérfana está en la lista blanca con su motivo escrito.
  *   - código 1 si aparece una huérfana NUEVA.
  *
- * Uso: `npm run censo` · `npm run censo -- --json` para volcado completo.
+ * Uso:
+ *   npm run censo                el reporte y el código de salida
+ *   npm run censo -- --json      volcado completo, para analizar
+ *   npm run censo -- --recorrido la lista de "ruta → desde dónde se llega",
+ *                                que es con lo que se hace el recorrido en
+ *                                dispositivo: llegar a TODAS las funciones.
  */
 'use strict';
 
@@ -332,10 +337,56 @@ function loadAllowlist() {
   }
 }
 
+/**
+ * Las cinco salas del tab bar. Nombrarlas hace legible el recorrido: lo que
+ * importa al caminar la app no es qué archivo abre una ruta, sino desde cuál
+ * de las cinco puertas de entrada se llega.
+ */
+const SALAS = {
+  'app/(tabs)/index.tsx': 'HOY',
+  'app/(tabs)/kit.tsx': 'ATP',
+  'app/(tabs)/salud.tsx': 'SALUD',
+  'app/(tabs)/tribu.tsx': 'TRIBU',
+  'app/(tabs)/argos.tsx': 'ORBE',
+};
+
+/** El recorrido en Markdown: una fila por ruta con sus puertas. */
+function printRecorrido(routes, allowed) {
+  const orphans = routes.filter((r) => !r.reached);
+  console.log(`# Recorrido de las ${routes.length} rutas de ATP`);
+  console.log('');
+  console.log('Generado con `npm run censo -- --recorrido`. Cada renglón dice desde dónde');
+  console.log('se llega. Es la lista con la que se camina la app para comprobar que ninguna');
+  console.log('función quedó sin acceso.');
+  console.log('');
+  console.log('| Ruta | Se llega desde |');
+  console.log('|---|---|');
+  for (const r of routes) {
+    if (!r.reached) continue;
+    const via = r.sources
+      .map((sc) => (SALAS[sc] ? `**${SALAS[sc]}**` : sc.replace(/^app\//, '').replace(/\.tsx?$/, '')))
+      .slice(0, 4)
+      .join(' · ');
+    // Se imprime la forma CON grupo: `/` y `/(tabs)` son dos archivos distintos
+    // (el redirect de arranque y el HOY) y en la lista sin grupos se ven igual.
+    console.log(`| \`${r.withGroups}\` | ${via}${r.sources.length > 4 ? ' y más' : ''} |`);
+  }
+  console.log('');
+  console.log(`## Sin puerta, a propósito (${orphans.length})`);
+  console.log('');
+  for (const o of orphans) console.log(`- \`${o.noGroups}\` — ${allowed[o.noGroups] ?? 'SIN MOTIVO ESCRITO'}`);
+}
+
 function main() {
   const wantJson = process.argv.includes('--json');
+  const wantRecorrido = process.argv.includes('--recorrido');
   const routes = audit();
   const allowed = loadAllowlist();
+
+  if (wantRecorrido) {
+    printRecorrido(routes, allowed);
+    process.exit(0);
+  }
 
   const orphans = routes.filter((r) => !r.reached);
   const nuevas = orphans.filter((r) => !allowed[r.noGroups]);
