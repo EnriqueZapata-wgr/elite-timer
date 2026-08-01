@@ -26,6 +26,9 @@ export interface HistoryCheckinRecord {
   context_who: string | null;
   context_doing: string | null;
   note: string | null;
+  /** MB-17 (mig 245): zona del cuerpo elegida en BodyCheck. null = paso
+   *  saltado, o remoto sin la columna todavía (fallback de fetchCheckins). */
+  body_zone?: string | null;
   created_at: string;
 }
 
@@ -116,15 +119,22 @@ export async function loadHistoryData(): Promise<HistoryData> {
 }
 
 async function fetchCheckins(userId: string): Promise<HistoryCheckinRecord[]> {
-  const { data, error } = await supabase
+  const base = 'id, quadrant, emotions, pleasantness, energy_level, context_where, context_who, context_doing, note, created_at';
+  const query = (cols: string) => supabase
     .from('emotional_checkins')
-    .select('id, quadrant, emotions, pleasantness, energy_level, context_where, context_who, context_doing, note, created_at')
+    .select(cols)
     .eq('user_id', userId)
     .gte('created_at', sinceIso(HISTORY_WINDOW_DAYS))
     .order('created_at', { ascending: false })
     .limit(1000);
-  if (error) throw error;
-  return data ?? [];
+  const { data, error } = await query(`${base}, body_zone`);
+  if (!error) return (data ?? []) as unknown as HistoryCheckinRecord[];
+  // Columna fantasma (mig 245 sin aplicar): el historial completo jamás se
+  // pierde por una etiqueta — reintento sin body_zone.
+  logWarn('[emotion-history] body_zone fetch failed, retrying without it', error);
+  const retry = await query(base);
+  if (retry.error) throw retry.error;
+  return (retry.data ?? []) as unknown as HistoryCheckinRecord[];
 }
 
 async function fetchSleep(userId: string, since: string): Promise<{ date: string; hours: number }[]> {

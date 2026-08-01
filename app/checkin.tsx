@@ -75,6 +75,9 @@ export default function CheckinScreen() {
   // Pieza 2 (MB-14): el mapa corporal ya NO es puerta de entrada — es un paso
   // opcional entre nombrar y contexto, solo tras emoción desagradable intensa.
   const [bodyStepOpen, setBodyStepOpen] = useState(false);
+  // MB-17 Pieza 5: la zona elegida en BodyCheck se guarda (mig 245). null =
+  // paso saltado o sin paso — el dato es sagrado: no se infiere, no se rellena.
+  const [bodyZone, setBodyZone] = useState<string | null>(null);
   // Track E: por qué puerta se llegó a la palabra. Todas escriben el mismo
   // registro; esto solo etiqueta el camino (la última ayuda usada gana).
   // MB-14: 'rueda' etiqueta ahora la puerta DEFAULT (la cuadrícula) — el CHECK
@@ -214,6 +217,9 @@ export default function CheckinScreen() {
   // emoción elegida es de cuadrante desagradable con intensidad alta. En
   // cualquier otro caso se sigue de largo (a quien está bien, no le aplica).
   const proceedToContext = useCallback(() => {
+    // MB-17: cada pasada re-decide la zona — una elegida antes (con otra
+    // emoción o en un intento previo) jamás se arrastra al registro.
+    setBodyZone(null);
     if (shouldOfferBodyMap(selectedEmotions)) setBodyStepOpen(true);
     else setStep(2);
   }, [selectedEmotions]);
@@ -305,6 +311,8 @@ export default function CheckinScreen() {
         note: note.trim() || undefined,
         // Track E: la puerta viaja en el mismo registro (mig 238).
         entry_gate: entryGate,
+        // MB-17 Pieza 5: la zona del cuerpo, solo si el usuario la eligió.
+        body_zone: bodyZone ?? undefined,
       });
       // MB-4 Bloque 4: el id habilita el share opt-in del cierre.
       setSavedCheckinId(newCheckinId);
@@ -549,7 +557,7 @@ export default function CheckinScreen() {
       {step === 1 && bodyStepOpen && (
         <BodyCheck
           color={qColor}
-          onDone={() => { setBodyStepOpen(false); setStep(2); }}
+          onDone={(zoneKey) => { setBodyZone(zoneKey); setBodyStepOpen(false); setStep(2); }}
         />
       )}
 

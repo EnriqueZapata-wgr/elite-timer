@@ -39,6 +39,13 @@ export interface BodyZone {
   families: EmotionFamily[];
 }
 
+/** Etiqueta corta de una zona guardada (historial). null si la clave no
+ *  existe o el paso se saltó — jamás se inventa. */
+export function bodyZoneLabel(key: string | null | undefined): string | null {
+  if (!key) return null;
+  return BODY_ZONES.find((z) => z.key === key)?.label ?? null;
+}
+
 /** Zonas grandes en lenguaje de cuerpo (default del brief, editable aquí). */
 export const BODY_ZONES: BodyZone[] = [
   {

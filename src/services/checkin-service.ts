@@ -31,6 +31,9 @@ export interface CheckinData {
   note?: string;
   /** Requiere migración 238 (columna entry_gate). */
   entry_gate?: CheckinEntryGate;
+  /** MB-17 Pieza 5 (mig 245): zona del cuerpo elegida en BodyCheck
+   *  (pecho / cabeza / estomago / apagado). Ausente = el paso se saltó. */
+  body_zone?: string;
 }
 
 export interface CheckinRecord {
@@ -48,9 +51,10 @@ export interface CheckinRecord {
  * Guarda el check-in y devuelve su id (MB-4 Bloque 4: el share opt-in del
  * cierre lo necesita para ligar mood_shares.checkin_id — cascada de borrado).
  *
- * Track E (MB-10): si el remoto aún no tiene la columna entry_gate (mig 238
- * sin aplicar — gotcha de columna fantasma con 400), se reintenta SIN la
- * puerta: perder la etiqueta jamás puede costar el check-in.
+ * Track E (MB-10) + MB-17: si el remoto aún no tiene alguna columna opcional
+ * (entry_gate mig 238, body_zone mig 245 — gotcha de columna fantasma con
+ * 400), se reintenta SIN las opcionales: perder una etiqueta jamás puede
+ * costar el check-in.
  */
 export async function saveCheckin(data: CheckinData): Promise<string | null> {
   const user = await getAuthenticatedUser();
@@ -60,10 +64,12 @@ export async function saveCheckin(data: CheckinData): Promise<string | null> {
     .select('id')
     .single();
   if (error) {
-    const ghostColumn = data.entry_gate != null &&
-      (error.code === 'PGRST204' || error.code === '42703' || /entry_gate/.test(error.message ?? ''));
+    const hasOptional = data.entry_gate != null || data.body_zone != null;
+    const ghostColumn = hasOptional &&
+      (error.code === 'PGRST204' || error.code === '42703' ||
+        /entry_gate|body_zone/.test(error.message ?? ''));
     if (!ghostColumn) throw error;
-    const { entry_gate: _gate, ...rest } = data;
+    const { entry_gate: _gate, body_zone: _zone, ...rest } = data;
     const retry = await supabase
       .from('emotional_checkins')
       .insert({ user_id: user.id, ...rest })

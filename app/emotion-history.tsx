@@ -31,6 +31,7 @@ import {
 import { loadNavigationLogs } from '@/src/services/emotion-stats-service';
 import { loadHistoryData, type HistoryData, type HistoryCheckinRecord } from '@/src/services/emotion-history-service';
 import { emotionCanonColor, emotionCanonGradient, isLightColor } from '@/src/services/emotion-plane-core';
+import { bodyZoneLabel } from '@/src/data/checkin-config';
 import { PHASES } from '@/src/services/cycle-service';
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -425,6 +426,9 @@ function CheckinRow({ checkin, expanded, onToggle }: {
   const context = [checkin.context_where, checkin.context_who, checkin.context_doing]
     .filter(Boolean)
     .join(' · ');
+  // MB-17 Pieza 5: si el check-in trae zona del cuerpo, su etiqueta corta
+  // acompaña la fecha en la tarjeta. Sin zona, nada — no se inventa.
+  const zoneLabel = bodyZoneLabel(checkin.body_zone);
   return (
     <Pressable onPress={onToggle} style={[styles.rowCard, { borderLeftColor: qInfo.color }]}>
       <View style={styles.rowHeader}>
@@ -436,6 +440,7 @@ function CheckinRow({ checkin, expanded, onToggle }: {
             {new Date(checkin.created_at).toLocaleDateString('es-MX', {
               day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
             })}
+            {zoneLabel ? ` · ${zoneLabel}` : ''}
           </EliteText>
         </View>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={14} color={TEXT_COLORS.secondary} />
