@@ -40,9 +40,10 @@ const PUERTA_IMAGES: Record<string, any> = {
   ciclo: require('@/assets/images/cycle/ciclo-01.png'),
 };
 
-const PUERTA_ICON: Record<string, string> = {
-  hoy: '🫀', datos: '📊', evolucion: '🧬', expediente: '🗂', ciclo: '🌙',
-};
+// MB-19.2 PIEZA 3: murieron los emojis de las puertas (PUERTA_ICON). Las
+// cuatro puertas son la cara de SALUD y se dibujan del set vía <AppIcon>
+// (p.icon = salud-hoy/datos/evolucion/expediente/ciclo), no con emojis del
+// sistema que se ven distintos en cada teléfono.
 
 export function SaludHub() {
   const router = useRouter();
@@ -111,7 +112,8 @@ export function SaludHub() {
           <Animated.View key={p.key} entering={FadeInUp.delay(80 + i * 50).springify()}>
             <EditorialCard
               cardKey={`salud_${p.key}`}
-              icon={PUERTA_ICON[p.key]}
+              icon={p.icon}
+              iconName={p.icon}
               title={p.title}
               subtitle={p.subtitle}
               gradient={p.gradient}
