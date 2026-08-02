@@ -12,13 +12,16 @@ describe('orbSpecForState', () => {
     expect(ORB_STATES).toEqual(['idle', 'alerta', 'escuchando', 'pensando', 'hablando']);
   });
 
-  it('idle respira en 3.6s, casi quieto', () => {
+  it('idle respira en 3.6s, con recorrido visible', () => {
     const s = orbSpecForState('idle');
     expect(s.breathMs).toBe(3600);
     expect(s.animated).toBe(true);
     expect(s.waveform).toBe(false);
     expect(s.rotate).toBe(false);
-    expect(s.scaleMax - s.scaleMin).toBeLessThan(0.1); // amplitud sutil
+    // 19.1: el doble de amplitud (0.06 → 0.12), mismo centro y mismo ritmo —
+    // device test Enrique: la respiración no se veía.
+    expect(s.scaleMax - s.scaleMin).toBeCloseTo(0.12, 5);
+    expect((s.scaleMax + s.scaleMin) / 2).toBeCloseTo(1.0, 5); // centro intacto
   });
 
   it('escuchando expande más que idle', () => {
@@ -52,12 +55,21 @@ describe('orbSpecForState', () => {
     expect(alerta.breathMs).toBeGreaterThanOrEqual(2800);
   });
 
-  it('alerta se nota por brillo, no por tamaño', () => {
+  it('alerta contra idle: más brillo y más recorrido, nunca un brinco', () => {
+    // 19.1: el test anterior ("por brillo, no por tamaño") pasaba afirmando
+    // algo falso — con la amplitud al doble, alerta SÍ crece más que idle.
+    // Un test que miente es peor que no tenerlo; este dice la decisión real:
+    // el brillo manda, el recorrido acompaña, y escuchando sigue siendo el
+    // estado más abierto (orden relativo intacto).
+    const amp = (st: 'idle' | 'alerta' | 'escuchando') => {
+      const s = orbSpecForState(st);
+      return s.scaleMax - s.scaleMin;
+    };
     const idle = orbSpecForState('idle');
     const alerta = orbSpecForState('alerta');
     expect(alerta.glowMax).toBeGreaterThan(idle.glowMax);
-    // La amplitud crece poco: no da un brinco.
-    expect(alerta.scaleMax - alerta.scaleMin).toBeLessThan(0.1);
+    expect(amp('alerta')).toBeGreaterThan(amp('idle'));
+    expect(amp('alerta')).toBeLessThan(amp('escuchando'));
   });
 
   it('ningún estado se pone rojo: la orbe solo es lime→teal', () => {

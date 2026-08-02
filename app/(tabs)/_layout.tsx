@@ -53,7 +53,9 @@ function OrbTabIcon() {
   );
 }
 
-const ORB_TAB_SIZE = 46;
+// 19.1: 42 y no 46 — la orbe ahora respira al doble de amplitud y el hueco
+// útil de la barra es 48 px: 42 × 1.12 (alerta en su punto más ancho) = 47.
+const ORB_TAB_SIZE = 42;
 
 export default function TabLayout() {
   const { width } = useWindowDimensions();
@@ -183,14 +185,14 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  // La orbe no tiene etiqueta debajo: se baja para ocupar ese hueco y quedar
-  // ópticamente centrada con los otros cuatro iconos.
+  // 19.1: sin marginTop — con tabBarLabel: () => null no hay hueco de etiqueta
+  // que compensar, y esos 6 px eran justo lo que sacaba a la orbe de la barra
+  // al respirar con más amplitud.
   orbSlot: {
     width: ORB_TAB_SIZE,
     height: ORB_TAB_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
   },
   coachBanner: {
     flexDirection: 'row',
