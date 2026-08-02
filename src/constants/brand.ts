@@ -68,6 +68,23 @@ export const CATEGORY_COLORS = {
   cycle: '#D4537E',      // Rosa ciclo (P3.12: antes hardcodeado en PillarHeader/pantallas)
 } as const;
 
+/**
+ * 19.1 · Pieza 4 — el color de cada sección de la sala ATP. Cinco bloques de
+ * color se leen como sistema; veinticinco serían confeti. Todo sale de
+ * CATEGORY_COLORS (nunca un hex escrito a mano en un componente) y se aplica
+ * en capas: fondo del mosaico al 10%, borde al 22%, icono y encabezado de
+ * sección al 100%; la etiqueta se queda gris (TEXT.secondary).
+ * Contraste verificado sobre #0A0A0A: mind 5.27:1, fitness 9.04, nutrition
+ * 6.69, metrics 5.85, sistema 5.58 — todos ≥ 4.5:1 (WCAG AA).
+ */
+export const APP_SECTION_COLORS = {
+  mente: CATEGORY_COLORS.mind,
+  cuerpo: CATEGORY_COLORS.fitness,
+  diario: CATEGORY_COLORS.nutrition,
+  salud: CATEGORY_COLORS.metrics,
+  sistema: TEXT_COLORS.secondary,
+} as const;
+
 // ═══ COLORES SEMÁNTICOS ═══
 
 export const SEMANTIC = {
