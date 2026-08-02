@@ -32,11 +32,19 @@
  *   npm run censo -- --recorrido la lista de "ruta → desde dónde se llega",
  *                                que es con lo que se hace el recorrido en
  *                                dispositivo: llegar a TODAS las funciones.
+ *   npm run censo -- --cambiadas <ref>
+ *                                el recorrido CORTO (19.1 · Pieza 6): compara
+ *                                el mapa de puertas de hoy contra el de un
+ *                                commit anterior y lista solo las rutas cuya
+ *                                puerta cambió. Las 185 completas son para la
+ *                                máquina; esta lista es para una persona.
  */
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const APP_DIR = path.join(ROOT, 'app');
@@ -85,9 +93,10 @@ const isDynamic = (seg) => /^\[.+\]$/.test(seg);
 /**
  * Un archivo de `app/` → su ruta pública, en dos formas: con grupos
  * (`/(tabs)/kit`) y sin ellos (`/kit`). Las dos se aceptan como referencia.
+ * (El parámetro appDir permite auditar un snapshot de otro commit — Pieza 6.)
  */
-function fileToRoute(abs) {
-  const rel = path.relative(APP_DIR, abs).split(path.sep).join('/');
+function fileToRoute(abs, appDir = APP_DIR) {
+  const rel = path.relative(appDir, abs).split(path.sep).join('/');
   const noExt = rel.replace(/\.(tsx|ts|jsx|js)$/, '');
   const segs = noExt.split('/');
   if (segs[segs.length - 1] === 'index') segs.pop();
@@ -103,15 +112,16 @@ function fileToRoute(abs) {
   };
 }
 
-function collectRoutes() {
-  return walk(APP_DIR)
+function collectRoutes(root = ROOT) {
+  const appDir = path.join(root, 'app');
+  return walk(appDir)
     .filter((f) => SOURCE_EXT.has(path.extname(f)))
     .filter((f) => {
       const base = path.basename(f);
       // `_layout`, `+not-found`, `+html` y demás archivos especiales no son destinos.
       return !base.startsWith('_') && !base.startsWith('+');
     })
-    .map(fileToRoute)
+    .map((f) => fileToRoute(f, appDir))
     .sort((a, b) => a.noGroups.localeCompare(b.noGroups));
 }
 
@@ -319,9 +329,9 @@ function navAliases(src) {
  * ahí es un punto de entrada por sí mismo) y las edge functions. Desde ahí se
  * sigue el grafo de imports.
  */
-function resolveImport(fromAbs, spec) {
+function resolveImport(fromAbs, spec, root = ROOT) {
   let base;
-  if (spec.startsWith('@/')) base = path.join(ROOT, spec.slice(2));
+  if (spec.startsWith('@/')) base = path.join(root, spec.slice(2));
   else if (spec.startsWith('.')) base = path.resolve(path.dirname(fromAbs), spec);
   else return null; // paquete de node_modules
 
@@ -338,23 +348,23 @@ function resolveImport(fromAbs, spec) {
 
 const IMPORT_RE = /(?:^|\n)\s*(?:import|export)[\s\S]{0,300}?from\s*['"]([^'"]+)['"]|\brequire\s*\(\s*['"]([^'"]+)['"]\s*\)|\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
-function importedFiles(abs, src) {
+function importedFiles(abs, src, root = ROOT) {
   const out = [];
   IMPORT_RE.lastIndex = 0;
   let m;
   while ((m = IMPORT_RE.exec(src)) !== null) {
     const spec = m[1] || m[2] || m[3];
     if (!spec) continue;
-    const resolved = resolveImport(abs, spec);
+    const resolved = resolveImport(abs, spec, root);
     if (resolved && SOURCE_EXT.has(path.extname(resolved))) out.push(resolved);
   }
   return out;
 }
 
 /** Los archivos alcanzables desde una pantalla o una edge function. */
-function reachableFiles(allFiles, sources) {
+function reachableFiles(allFiles, sources, root = ROOT) {
   const isRoot = (abs) => {
-    const rel = path.relative(ROOT, abs).split(path.sep).join('/');
+    const rel = path.relative(root, abs).split(path.sep).join('/');
     return rel.startsWith('app/') || rel.startsWith('supabase/functions/');
   };
   const seen = new Set();
@@ -364,18 +374,18 @@ function reachableFiles(allFiles, sources) {
     const abs = queue.shift();
     const src = sources.get(abs);
     if (src === undefined) continue;
-    for (const dep of importedFiles(abs, src)) {
+    for (const dep of importedFiles(abs, src, root)) {
       if (!seen.has(dep)) { seen.add(dep); queue.push(dep); }
     }
   }
   return seen;
 }
 
-function collectReferences() {
+function collectReferences(root = ROOT) {
   const refs = new Map(); // ruta normalizada → Set de archivos que la citan
   const tabRegistrations = new Set();
 
-  const files = SOURCE_DIRS.flatMap((d) => walk(path.join(ROOT, d))).filter((f) =>
+  const files = SOURCE_DIRS.flatMap((d) => walk(path.join(root, d))).filter((f) =>
     SOURCE_EXT.has(path.extname(f))
   );
 
@@ -384,13 +394,13 @@ function collectReferences() {
     try { sources.set(abs, fs.readFileSync(abs, 'utf8')); } catch { /* ilegible */ }
   }
 
-  const vivos = reachableFiles(files, sources);
+  const vivos = reachableFiles(files, sources, root);
   const muertos = [];
 
   for (const abs of files) {
     const src = sources.get(abs);
     if (src === undefined) continue;
-    const rel = path.relative(ROOT, abs).split(path.sep).join('/');
+    const rel = path.relative(root, abs).split(path.sep).join('/');
     if (isTestFile(rel)) continue;
 
     // REGLA 2: un archivo que nadie importa no abre puertas.
@@ -414,7 +424,7 @@ function collectReferences() {
 
     // Registro de tabs: `app/(tabs)/_layout.tsx` + name="kit" → `/(tabs)/kit`.
     if (path.basename(abs).startsWith('_layout')) {
-      const dirRel = path.relative(APP_DIR, path.dirname(abs)).split(path.sep).join('/');
+      const dirRel = path.relative(path.join(root, 'app'), path.dirname(abs)).split(path.sep).join('/');
       for (const name of extractTabNames(src)) {
         const joined = normalizeRoute('/' + [dirRel, name].filter(Boolean).join('/'));
         const segs = joined.slice(1).split('/').filter(Boolean);
@@ -431,9 +441,9 @@ function collectReferences() {
 // 3 · Cruzar rutas contra referencias
 // ─────────────────────────────────────────────────────────────────────────────
 
-function audit() {
-  const routes = collectRoutes();
-  const { refs, tabRegistrations, muertos } = collectReferences();
+function audit(root = ROOT) {
+  const routes = collectRoutes(root);
+  const { refs, tabRegistrations, muertos } = collectReferences(root);
 
   const staticRouteSet = new Set();
   for (const r of routes) {
@@ -564,9 +574,109 @@ function printRecorrido(routes, allowed) {
   for (const o of orphans) console.log(`- \`${o.noGroups}\` — ${allowed[o.noGroups] ?? 'SIN MOTIVO ESCRITO'}`);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 6 · El recorrido corto (19.1 · Pieza 6): --cambiadas <ref>
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * El mapa de puertas de un audit: ruta (con grupos, para no confundir `/` con
+ * `/(tabs)`) → sus puertas legibles, ordenadas. Una ruta sin puerta aparece
+ * con lista vacía: que una ruta se QUEDE sin puerta también es un cambio.
+ */
+function puertasMap(routes) {
+  const map = {};
+  for (const r of routes) {
+    map[r.withGroups] = r.sources
+      .map((sc) => SALAS[sc] || sc.replace(/^app\//, '').replace(/\.tsx?$/, ''))
+      .sort();
+  }
+  return map;
+}
+
+/**
+ * Las rutas cuya puerta cambió entre dos mapas. Pura y exportada: es la pieza
+ * que se testea sin git. `antes`/`ahora` en null = la ruta no existía / ya no
+ * existe.
+ */
+function diffPuertas(before, after) {
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort();
+  const out = [];
+  for (const k of keys) {
+    const a = before[k] ?? null;
+    const b = after[k] ?? null;
+    if (JSON.stringify(a) !== JSON.stringify(b)) out.push({ route: k, antes: a, ahora: b });
+  }
+  return out;
+}
+
+/** Snapshot del árbol de un commit en un dir temporal (solo carpetas fuente). */
+function snapshotRef(ref) {
+  execSync(`git rev-parse --verify --quiet ${JSON.stringify(ref + '^{commit}')}`, { cwd: ROOT, stdio: 'pipe' });
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'censo-cambiadas-'));
+  // Solo las carpetas que el censo mira Y que existen en ese commit: git
+  // archive truena con un pathspec que no matchea nada.
+  const top = execSync(`git ls-tree --name-only ${JSON.stringify(ref)}`, { cwd: ROOT, encoding: 'utf8' })
+    .split('\n').filter(Boolean);
+  const wanted = SOURCE_DIRS.map((d) => d.split('/')[0]);
+  const specs = [...new Set(wanted.filter((d) => top.includes(d)))];
+  execSync(
+    `git archive ${JSON.stringify(ref)} -- ${specs.map((s) => JSON.stringify(s)).join(' ')} | tar -x -C ${JSON.stringify(tmp.split(path.sep).join('/'))}`,
+    { cwd: ROOT, stdio: 'pipe', shell: true }
+  );
+  return tmp;
+}
+
+const puertaLegible = (list) =>
+  list === null ? '' : list.length === 0 ? '(sin puerta)' : list.slice(0, 4).join(' · ') + (list.length > 4 ? ' y más' : '');
+
+function runCambiadas(ref) {
+  let tmp;
+  try {
+    tmp = snapshotRef(ref);
+  } catch {
+    console.error(`No pude leer el commit "${ref}". Uso: npm run censo -- --cambiadas <ref>`);
+    process.exit(1);
+  }
+  try {
+    const antes = puertasMap(audit(tmp));
+    const ahora = puertasMap(audit(ROOT));
+    const cambios = diffPuertas(antes, ahora);
+    const total = Object.keys(ahora).length;
+
+    console.log(`# Rutas cuya puerta cambió desde \`${ref}\``);
+    console.log('');
+    console.log(`${cambios.length} de ${total} rutas. Esto es lo que hay que caminar en dispositivo;`);
+    console.log('el resto de la app llega por las mismas puertas que ya se probaron.');
+    console.log('');
+    if (cambios.length === 0) {
+      console.log('Ninguna puerta cambió.');
+      return;
+    }
+    console.log('| Ruta | Antes | Ahora |');
+    console.log('|---|---|---|');
+    for (const c of cambios) {
+      const antesTxt = c.antes === null ? '*(no existía)*' : puertaLegible(c.antes);
+      const ahoraTxt = c.ahora === null ? '*(ya no existe)*' : puertaLegible(c.ahora);
+      console.log(`| \`${c.route}\` | ${antesTxt} | ${ahoraTxt} |`);
+    }
+  } finally {
+    if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 function main() {
   const wantJson = process.argv.includes('--json');
   const wantRecorrido = process.argv.includes('--recorrido');
+  const cambiadasAt = process.argv.indexOf('--cambiadas');
+  if (cambiadasAt !== -1) {
+    const ref = process.argv[cambiadasAt + 1];
+    if (!ref || ref.startsWith('--')) {
+      console.error('Falta el commit de comparación. Uso: npm run censo -- --cambiadas <ref>');
+      process.exit(1);
+    }
+    runCambiadas(ref);
+    process.exit(0);
+  }
   const routes = audit();
   const allowed = loadAllowlist();
 
@@ -646,6 +756,7 @@ module.exports = {
   extractStrings, normalizeRoute, fileToRoute,
   resolveImport, importedFiles,
   audit, collectRoutes, collectReferences,
+  puertasMap, diffPuertas,
 };
 
 if (require.main === module) main();

@@ -198,3 +198,50 @@ describe('normalizeRoute', () => {
     expect(normalizeRoute('/')).toBe('/');
   });
 });
+
+/**
+ * 19.1 · Pieza 6 — el recorrido corto. `--cambiadas <ref>` compara el mapa de
+ * puertas de hoy contra el de un commit anterior; la pieza comparable y pura
+ * es diffPuertas, y aquí se fija su contrato: solo cambios, con el antes y el
+ * ahora, y quedarse sin puerta también es un cambio.
+ */
+describe('diffPuertas (--cambiadas)', () => {
+  const { puertasMap, diffPuertas } = censo;
+
+  it('una puerta igual no aparece', () => {
+    expect(diffPuertas({ '/kit': ['HOY'] }, { '/kit': ['HOY'] })).toEqual([]);
+  });
+
+  it('reporta puerta cambiada con antes y ahora', () => {
+    expect(diffPuertas({ '/mente/progreso': ['mente'] }, { '/mente/progreso': ['ATP'] }))
+      .toEqual([{ route: '/mente/progreso', antes: ['mente'], ahora: ['ATP'] }]);
+  });
+
+  it('ruta nueva y ruta borrada aparecen con null', () => {
+    const d = diffPuertas({ '/mente': ['ATP'] }, { '/rachas': ['ATP'] });
+    expect(d).toEqual([
+      { route: '/mente', antes: ['ATP'], ahora: null },
+      { route: '/rachas', antes: null, ahora: ['ATP'] },
+    ]);
+  });
+
+  it('quedarse sin puerta TAMBIÉN es un cambio (huérfana nueva)', () => {
+    expect(diffPuertas({ '/x': ['HOY'] }, { '/x': [] }))
+      .toEqual([{ route: '/x', antes: ['HOY'], ahora: [] }]);
+  });
+
+  it('el orden interno de las puertas no genera falsos cambios', () => {
+    // puertasMap ordena las fuentes: dos audits con el mismo contenido dan el
+    // mismo mapa aunque los Sets iteren distinto.
+    const a = puertasMap([{ withGroups: '/kit', sources: ['app/b.tsx', 'app/a.tsx'] }]);
+    const b = puertasMap([{ withGroups: '/kit', sources: ['app/a.tsx', 'app/b.tsx'] }]);
+    expect(diffPuertas(a, b)).toEqual([]);
+  });
+
+  it('puertasMap traduce las salas y limpia rutas de archivo', () => {
+    const m = puertasMap([
+      { withGroups: '/solar', sources: ['app/(tabs)/kit.tsx', 'app/supplements.tsx'] },
+    ]);
+    expect(m['/solar']).toEqual(['ATP', 'supplements']);
+  });
+});
