@@ -79,11 +79,13 @@ export default function MenteProgresoScreen() {
   return (
     <SafeAreaView style={s.screen}>
       <StatusBar style="light" />
+      {/* 19.1: se llega desde la sala ATP como la app "Rachas" (el hub del
+          pilar se retiró) — el título dice lo que la puerta promete. */}
       <View style={s.header}>
         <BackButton onPress={() => router.back()} />
         <View>
           <EliteText style={s.kicker}>MENTE</EliteText>
-          <EliteText style={s.title}>Progreso</EliteText>
+          <EliteText style={s.title}>Rachas</EliteText>
         </View>
       </View>
 
