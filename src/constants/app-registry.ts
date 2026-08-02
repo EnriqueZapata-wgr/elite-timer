@@ -13,6 +13,7 @@
  * es darle acceso a esa pantalla.
  */
 import type { Href } from 'expo-router';
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 
 /** Las secciones de la sala ATP, en orden de render. */
 export type AppSection = 'mente' | 'cuerpo' | 'diario' | 'salud' | 'sistema';
@@ -32,8 +33,9 @@ export interface AppEntry {
   key: string;
   /** Como se lee bajo el icono. Corto: la cuadrícula da poco ancho. */
   label: string;
-  /** Nombre del icono en el registro (ver AppIcon.tsx). Hoy resuelve a relleno. */
-  icon: string;
+  /** Nombre del icono en el registro (ver AppIcon.tsx). Hoy resuelve a relleno.
+   * Tipado contra la lista real: un typo aquí ya no compila. */
+  icon: AppIconName;
   section: AppSection;
   route: Href;
   /**

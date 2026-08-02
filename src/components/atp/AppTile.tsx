@@ -14,7 +14,7 @@
 import { View, StyleSheet } from 'react-native';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
-import { AppIcon } from '@/src/components/ui/AppIcon';
+import { AppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
 import { APP_SECTION_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
 import type { AppSection } from '@/src/constants/app-registry';
 import { Fonts } from '@/constants/theme';
@@ -24,7 +24,7 @@ import { haptic } from '@/src/utils/haptics';
 export const TILE_COLUMNS = 4;
 
 interface Props {
-  icon: string;
+  icon: AppIconName;
   label: string;
   section: AppSection;
   onPress: () => void;

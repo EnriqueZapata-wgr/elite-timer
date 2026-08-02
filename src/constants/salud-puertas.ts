@@ -21,13 +21,14 @@
  *     `npm run censo` lo confirma desde el otro lado.
  */
 import type { Href } from 'expo-router';
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 
 export type PuertaKey = 'hoy' | 'datos' | 'evolucion' | 'expediente' | 'ciclo';
 
 export interface Puerta {
   key: PuertaKey;
   /** Nombre del icono en el registro de AppIcon. */
-  icon: string;
+  icon: AppIconName;
   title: string;
   /** La pregunta que contesta, en el lenguaje del usuario. */
   subtitle: string;

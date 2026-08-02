@@ -10,7 +10,7 @@ import {
   APP_REGISTRY, APP_BY_KEY, SECTION_ORDER, SECTION_LABELS,
   visibleApps, searchApps, normalizeForSearch,
 } from '../app-registry';
-import { hasAppIcon, ICON_MAP } from '@/src/components/ui/app-icon-map';
+import { hasAppIcon, APP_ICON_NAMES } from '@/src/components/ui/app-icon-names';
 
 describe('APP_REGISTRY', () => {
   it('las llaves son únicas', () => {
@@ -107,9 +107,9 @@ describe('cobertura de iconos', () => {
   it('el mapa no arrastra iconos de apps que ya no existen', () => {
     const usados = new Set<string>(APP_REGISTRY.map((a) => a.icon));
     // Las puertas de SALUD comparten el mapa sin ser apps de la sala.
-    const puertasSalud = Object.keys(ICON_MAP).filter((k) => k.startsWith('salud-'));
+    const puertasSalud = APP_ICON_NAMES.filter((k) => k.startsWith('salud-'));
     for (const p of puertasSalud) usados.add(p);
-    const huerfanos = Object.keys(ICON_MAP).filter((k) => !usados.has(k));
+    const huerfanos = APP_ICON_NAMES.filter((k) => !usados.has(k));
     expect(huerfanos).toEqual([]);
   });
 });

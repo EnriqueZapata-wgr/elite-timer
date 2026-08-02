@@ -1,29 +1,36 @@
 /**
- * AppIcon — el ÚNICO lugar donde una app se convierte en un dibujo.
+ * AppIcon — el ÚNICO lugar donde una función de la app se convierte en dibujo.
  *
  *   <AppIcon name="meditar" size={24} color={ATP_BRAND.lime} />
  *
  * ⚠️ La regla que hace barato el cambio de set: **ninguna pantalla importa un
- * icono directo para representar una app.** Todas pasan por aquí. Un
+ * icono directo para representar una función.** Todas pasan por aquí. Un
  * `<Ionicons>` suelto dibujando "Meditar" es deuda: hay que traerlo al mapa.
  *
- * Los `<Ionicons>` de chrome (flechas, cerrar, chevrons, lupa) NO son apps y se
- * quedan donde están: esto es el registro de las funciones, no de la UI.
+ * Los `<Ionicons>` de chrome (flechas, cerrar, chevrons, lupa) NO son
+ * funciones y se quedan donde están.
  *
- * El mapa vive aparte, en `app-icon-map.ts`: es el archivo que se sustituye
- * cuando lleguen los SVG.
+ * `name` está tipado contra la lista real: `<AppIcon name="meditarr" />` ya no
+ * compila (antes pintaba un signo de interrogación en silencio). El fallback
+ * runtime sigue existiendo para los datos que llegan como string.
+ *
+ * El mapa vive aparte, en `app-icon-map.tsx`: es el archivo que se sustituye
+ * cuando lleguen los SVG. El color entra por fill Y por stroke (ver contrato
+ * de glifo ahí mismo).
  */
-import { Ionicons } from '@expo/vector-icons';
-import { iconFor } from './app-icon-map';
+import { glyphFor } from './app-icon-map';
+import type { AppIconName } from './app-icon-names';
 
-export { hasAppIcon, APP_ICON_NAMES } from './app-icon-map';
+export { hasAppIcon, APP_ICON_NAMES } from './app-icon-names';
+export type { AppIconName } from './app-icon-names';
 
 export interface AppIconProps {
-  name: string;
+  name: AppIconName;
   size?: number;
   color?: string;
 }
 
 export function AppIcon({ name, size = 24, color = '#FFFFFF' }: AppIconProps) {
-  return <Ionicons name={iconFor(name)} size={size} color={color} />;
+  const Glyph = glyphFor(name);
+  return <Glyph size={size} color={color} />;
 }
