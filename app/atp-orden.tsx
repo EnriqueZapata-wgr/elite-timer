@@ -16,6 +16,7 @@ import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
+import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
@@ -70,6 +71,11 @@ export default function AtpOrdenScreen() {
   const apps = visibleApps(isFemale);
   const rows = order.keys.map((k) => APP_BY_KEY[k]).filter(Boolean);
 
+  // Pieza 5: mismo criterio que la cuadrícula — con "reducir movimiento" del
+  // sistema, la fila se mueve sin rebote (LinearTransition lisa).
+  const reducedMotion = useSystemReducedMotion();
+  const rowLayout = reducedMotion ? LinearTransition : LinearTransition.springify().damping(18);
+
   return (
     <Screen>
       <StatusBar style="light" />
@@ -84,7 +90,7 @@ export default function AtpOrdenScreen() {
           <Animated.View
             key={app.key}
             entering={FadeInUp.delay(Math.min(i, 12) * 24).springify()}
-            layout={LinearTransition.springify().damping(18)}
+            layout={rowLayout}
             style={s.row}
           >
             <EliteText style={s.position}>{i + 1}</EliteText>

@@ -13,8 +13,9 @@
  * values). La waveform de 'hablando' se muestrea con una fase animada. Si en
  * device gama media no llega a 60fps, simplificar (menos barras) antes que jankear.
  */
-import { useEffect, useState } from 'react';
-import { View, StyleSheet, AccessibilityInfo, type ViewStyle } from 'react-native';
+import { useEffect } from 'react';
+import { View, StyleSheet, type ViewStyle } from 'react-native';
+import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
 import Svg, { Defs, RadialGradient, Stop, Circle, Rect } from 'react-native-svg';
 import Animated, {
   useSharedValue,
@@ -46,14 +47,9 @@ const WAVE_BARS = 5;
 
 export function ArgosOrb({ state = 'idle', size = 160, style, reducedMotion }: Props) {
   // Accesibilidad: respetar reduce-motion del sistema si no se fuerza por prop.
-  const [sysReduced, setSysReduced] = useState(false);
-  useEffect(() => {
-    if (reducedMotion !== undefined) return;
-    let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled?.().then((v) => { if (alive) setSysReduced(!!v); }).catch(() => {});
-    const sub = AccessibilityInfo.addEventListener?.('reduceMotionChanged', (v) => setSysReduced(!!v));
-    return () => { alive = false; sub?.remove?.(); };
-  }, [reducedMotion]);
+  // 19.1 (Pieza 5): la señal vive en useSystemReducedMotion — compartida con
+  // la cuadrícula de la sala ATP, no duplicada.
+  const sysReduced = useSystemReducedMotion();
   const reduced = reducedMotion ?? sysReduced;
 
   const spec = orbSpecForState(state, reduced);

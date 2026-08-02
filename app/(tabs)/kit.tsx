@@ -24,6 +24,7 @@ import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
 import { AppTile } from '@/src/components/atp/AppTile';
 import { AtpEditorialCard } from '@/src/components/atp/AtpEditorialCard';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -104,9 +105,14 @@ export default function SalaAtpScreen() {
   );
   const groups = useMemo(() => groupBySection(listed), [listed]);
 
+  // Pieza 5: el rebote se queda, pero con "reducir movimiento" del sistema la
+  // transición es lisa (sin springify). Misma señal que usa la orbe, en vivo.
+  const reducedMotion = useSystemReducedMotion();
+  const tileLayout = reducedMotion ? LinearTransition : LinearTransition.springify().damping(18);
+
   const renderTile = (app: AppEntry) => (
     // La transición de layout es lo que hace que el icono VUELE al reordenar.
-    <Animated.View key={app.key} layout={LinearTransition.springify().damping(18)} style={s.tileSlot}>
+    <Animated.View key={app.key} layout={tileLayout} style={s.tileSlot}>
       <AppTile icon={app.icon} label={app.label} section={app.section} onPress={() => open(app)} />
     </Animated.View>
   );
