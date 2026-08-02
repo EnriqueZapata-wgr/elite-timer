@@ -35,6 +35,7 @@ import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { userErrorMessage } from '@/src/utils/user-error';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 /** Edad cronológica derivada de la fecha de nacimiento (null si inválida). */
 function ageFromDob(dob: string | null): number | null {
@@ -48,6 +49,10 @@ function ageFromDob(dob: string | null): number | null {
 }
 
 export default function ProfileScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const router = useRouter();
   const { user } = useAuth();
 

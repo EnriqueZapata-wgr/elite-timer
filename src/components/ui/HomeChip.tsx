@@ -5,7 +5,7 @@
  */
 import { Pressable, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { HomeIcon } from './HomeIcon';
 import { haptic } from '@/src/utils/haptics';
 
 export function HomeChip({ style }: { style?: StyleProp<ViewStyle> }) {
@@ -20,7 +20,7 @@ export function HomeChip({ style }: { style?: StyleProp<ViewStyle> }) {
       hitSlop={8}
       style={({ pressed }) => [s.chip, pressed && s.pressed, style]}
     >
-      <Ionicons name="home-outline" size={18} color="#fff" />
+      <HomeIcon size={18} />
     </Pressable>
   );
 }

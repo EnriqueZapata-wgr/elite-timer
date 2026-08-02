@@ -38,6 +38,7 @@ import { rankTierLabel } from '@/src/services/economy/rank';
 import { REPORT_REASONS, type ReportReasonKey } from '@/src/constants/community';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 interface RelationInfo {
   state: FriendState;
@@ -55,6 +56,10 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 export default function CommunityPublicProfileScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { userId } = useLocalSearchParams<{ userId: string }>();

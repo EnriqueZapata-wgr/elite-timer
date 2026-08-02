@@ -21,6 +21,7 @@ import {
 } from '@/src/services/notification-prefs-service';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 /** 'HH:MM[:SS]' → hora entera (fallback def). */
 function hourOf(t: string | null, def: number): number {
@@ -31,6 +32,10 @@ function hourOf(t: string | null, def: number): number {
 const fmtHour = (h: number) => `${String(h).padStart(2, '0')}:00`;
 
 export default function SettingsNotificationsScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);

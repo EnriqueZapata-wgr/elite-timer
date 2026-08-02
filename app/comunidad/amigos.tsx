@@ -28,6 +28,7 @@ import {
 import { rankTierLabel } from '@/src/services/economy/rank';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 function openProfile(userId: string) {
   router.push(`/comunidad/perfil/${userId}`);   // expo-router typegen post-beta
@@ -97,6 +98,10 @@ function FriendItem({ row }: { row: FriendRow }) {
 }
 
 export default function CommunityFriendsScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const [friends, setFriends] = useState<FriendRow[]>([]);
   const [incoming, setIncoming] = useState<PendingRequestRow[]>([]);

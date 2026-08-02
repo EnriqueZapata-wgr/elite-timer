@@ -28,6 +28,7 @@ import {
 import { type UserSearchResult } from '@/src/services/community/public-profile-service';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const DEBOUNCE_MS = 400;
 const MIN_CHARS = 2; // espejo del server (length < 2 → vacío)
@@ -66,6 +67,10 @@ function ResultRow({ row, state, onAdd }: {
 }
 
 export default function CommunitySearchScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserSearchResult[]>([]);

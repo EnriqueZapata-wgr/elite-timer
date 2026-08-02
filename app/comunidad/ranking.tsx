@@ -30,6 +30,7 @@ import {
 import { rankTierLabel } from '@/src/services/economy/rank';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const TOP_SIZE = 20;
 
@@ -83,6 +84,10 @@ function LeaderRow({ row, highlight }: { row: RankedLeaderboardRow; highlight?: 
 }
 
 export default function CommunityRankingScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const [rows, setRows] = useState<RankedLeaderboardRow[]>([]);
   const [me, setMe] = useState<MyPosition | null>(null);

@@ -29,6 +29,7 @@ import { logConsent, getConsentStatus, type ConsentStatus } from '@/src/services
 import { CONSENT_SHORT_TITLES, REVOKE_CORE_WARNING, type ConsentCheckboxId } from '@/src/constants/consent-copy';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, SEMANTIC, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 interface ExportRow {
   id: string;
@@ -61,6 +62,10 @@ const EXPORT_STATUS_LABEL: Record<string, string> = {
 };
 
 export default function SettingsPrivacyScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const posthog = usePostHog();

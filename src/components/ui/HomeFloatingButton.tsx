@@ -9,11 +9,10 @@ import { useEffect, useState } from 'react';
 import { Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { shouldHideHomeButton } from './home-floating-core';
 import { useHasOwnNav } from './useOwnNavPresence';
-import { ATP_BRAND } from '@/src/constants/brand';
+import { HomeIcon } from './HomeIcon';
 
 export function HomeFloatingButton() {
   const pathname = usePathname();
@@ -59,19 +58,21 @@ export function HomeFloatingButton() {
           borderRadius: 22,
           backgroundColor: '#0A0A0A',
           borderWidth: 1,
-          borderColor: `${ATP_BRAND.lime}55`,
+          // 19.1 (1.2): la casita deja el lima — es acento y aquí no hay dato
+          // heroico. Mismo vocabulario glass que HomeChip.
+          borderColor: 'rgba(255,255,255,0.15)',
           alignItems: 'center',
           justifyContent: 'center',
           opacity: pressed ? 0.85 : 1,
           transform: [{ scale: pressed ? 0.94 : 1 }],
-          shadowColor: ATP_BRAND.lime,
+          shadowColor: '#000',
           shadowOpacity: 0.3,
           shadowRadius: 14,
           shadowOffset: { width: 0, height: 0 },
           elevation: 10,
         })}
       >
-        <Ionicons name="home" size={20} color={ATP_BRAND.lime} />
+        <HomeIcon size={20} />
       </Pressable>
     </View>
   );

@@ -35,6 +35,7 @@ import {
 } from '@/src/services/community/admin-core';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const RESOLUTION_ACTIONS: { key: ReportResolution; label: string }[] = [
   { key: 'reviewed', label: 'Revisado' },
@@ -112,6 +113,10 @@ function ReportCard({
 }
 
 export default function AdminReportsScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null); // null = verificando
   const [reports, setReports] = useState<AdminReportRow[]>([]);

@@ -18,6 +18,7 @@ import { haptic } from '@/src/utils/haptics';
 import { MEDICAL_DISCLAIMER_VERSION } from '@/src/constants/medical-disclaimers';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ELEVATION, TEXT } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 // Sprint Compliance 2: los documentos viven in-app (/legal/*) en staging con
 // placeholder [RAZÓN SOCIAL]. Al publicarse en somosatp.com (cuando llegue la
@@ -38,6 +39,10 @@ function fmtDate(iso: string | null): string {
 }
 
 export default function SettingsLegalScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [consent, setConsent] = useState<ConsentRow | null>(null);

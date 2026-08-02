@@ -17,10 +17,15 @@ import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { Colors, Spacing } from '@/constants/theme';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 type Phase = 'validating' | 'ready' | 'invalid';
 
 export default function ResetPasswordScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const router = useRouter();
   const params = useLocalSearchParams<{ access_token?: string; refresh_token?: string }>();
 

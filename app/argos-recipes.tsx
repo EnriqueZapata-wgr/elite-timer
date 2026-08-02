@@ -16,6 +16,7 @@ import { buildRecipeAdvancedContext } from '../src/services/recipe-context-servi
 import { EliteToggle } from '@/components/elite-toggle';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { argosRateLimitMessage } from '@/src/services/argos-stream-core';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const MEAL_TYPES = [
   { id: 'desayuno', label: 'Desayuno', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -36,6 +37,10 @@ const GOALS = [
 ];
 
 export default function ArgosRecipesScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<'menu' | 'generating' | 'recipe' | 'shoppingResult'>('menu');
   const [selectedMeal, setSelectedMeal] = useState('');

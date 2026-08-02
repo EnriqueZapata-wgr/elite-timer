@@ -36,6 +36,7 @@ import {
 } from '@/src/services/nback-service';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 type Phase = 'loading' | 'countdown' | 'playing' | 'paused' | 'saving' | 'results';
 
@@ -63,6 +64,10 @@ interface ResultsView {
 }
 
 export default function NBackSessionScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
