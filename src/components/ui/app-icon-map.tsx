@@ -84,6 +84,27 @@ export const ICON_MAP: Record<AppIconName, AppIconGlyph> = {
   'salud-evolucion': ion('trending-up-outline'),
   'salud-expediente': ion('folder-open-outline'),
   'salud-ciclo': ion('ellipse-outline'),
+
+  // ── Hábitos del HOY sin app propia ──
+  'bano-frio': ion('snow-outline'),
+  grounding: ion('leaf-outline'),
+  'sin-alcohol': ion('wine-outline'),
+  'lentes-rojos': ion('glasses-outline'),
+  pasos: ion('footsteps-outline'),
+  'sin-procesados': ion('nutrition-outline'),
+  'off-pantallas': ion('phone-portrait-outline'),
+
+  // ── Destinos de SALUD sin app propia ──
+  // Mismos rellenos que tenían sus filas antes del enchufe: cero churn visual.
+  sintomas: ion('medkit-outline'),
+  diagnostico: ion('git-network-outline'),
+  'edad-atp': ion('hourglass-outline'),
+  reportes: ion('bar-chart-outline'),
+  cronotipo: ion('moon-outline'),
+  'historia-clinica': ion('document-text-outline'),
+  cuestionario: ion('list-outline'),
+  evaluaciones: ion('checkbox-outline'),
+  padecimientos: ion('bandage-outline'),
 };
 
 /** El dibujo cuando un nombre no está en el mapa. Visible, para que se note. */

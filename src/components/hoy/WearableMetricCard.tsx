@@ -4,12 +4,13 @@
  * El servicio de wearable hoy es un stub (ver COWORK_REPORT) → normalmente null.
  */
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { AppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CARD } from '@/src/constants/brand';
 
 interface Props {
-  icon: keyof typeof Ionicons.glyphMap;
+  /** MB-19.2: nombre lógico del AppIcon (cardio, pasos) — no un Ionicon. */
+  icon: AppIconName;
   color: string;
   label: string;
   value: string | null;
@@ -21,7 +22,7 @@ export function WearableMetricCard({ icon, color, label, value, unit }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Ionicons name={icon} size={14} color={color} />
+        <AppIcon name={icon} size={14} color={color} />
         <Text style={styles.label}>{label}</Text>
       </View>
       <View style={styles.valueRow}>

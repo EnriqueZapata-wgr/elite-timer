@@ -7,62 +7,64 @@
 
 // Sprint 2 E: color por concepto desde la fuente única (audit §3 — un concepto = un color).
 import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
+// MB-19.2: `icon` es un nombre lógico del AppIcon (app-icon-names), NO un Ionicon.
+// Quien lo pinte pasa por <AppIcon>. Un dibujo a mano aquí es la deuda que este run pagó.
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 
 // === PESOS POR FUENTE ===
 
 export const ELECTRON_WEIGHTS = {
   // Booleanos diarios (1/día)
-  cold_shower:  { weight: 3.0, name: 'Baño frío',       icon: 'snow-outline',          color: '#38bdf8' },
-  meditation:   { weight: 2.5, name: 'Meditación',      icon: 'flower-outline',        color: '#c084fc' },
-  strength:     { weight: 3.0, name: 'Fuerza',          icon: 'barbell-outline',       color: CONCEPT_COLORS.fitness.color },
-  no_alcohol:   { weight: 1.0, name: 'Sin alcohol',     icon: 'wine-outline',          color: '#f87171' },
-  sunlight:     { weight: 1.5, name: 'Luz solar',       icon: 'sunny-outline',         color: CONCEPT_COLORS.sol.color },
-  grounding:    { weight: 1.5, name: 'Grounding',       icon: 'leaf-outline',          color: '#34d399' },
-  supplements:  { weight: 1.0, name: 'Suplementos',     icon: 'medical-outline',       color: CONCEPT_COLORS.suplementos.color },
-  breathwork:   { weight: 1.0, name: 'Breathwork',      icon: 'cloud-outline',         color: '#60a5fa' },
-  red_glasses:  { weight: 1.0, name: 'Lentes rojos',    icon: 'glasses-outline',       color: '#f87171' },
-  period_log:   { weight: 1.0, name: 'Registrar ciclo', icon: 'calendar-outline',      color: '#fb7185' },
-  // #cableado-final 3.1: nuevos electrones booleanos (icon = nombre Ionicons; el emoji decorativo
-  // vive en el spec de hoy-cards). El `type`/`description` del buzón no aplican: el shape real es
+  cold_shower:  { weight: 3.0, name: 'Baño frío',       icon: 'bano-frio',     color: '#38bdf8' },
+  meditation:   { weight: 2.5, name: 'Meditación',      icon: 'meditar',       color: '#c084fc' },
+  strength:     { weight: 3.0, name: 'Fuerza',          icon: 'entrenar',      color: CONCEPT_COLORS.fitness.color },
+  no_alcohol:   { weight: 1.0, name: 'Sin alcohol',     icon: 'sin-alcohol',   color: '#f87171' },
+  sunlight:     { weight: 1.5, name: 'Luz solar',       icon: 'sol',           color: CONCEPT_COLORS.sol.color },
+  grounding:    { weight: 1.5, name: 'Grounding',       icon: 'grounding',     color: '#34d399' },
+  supplements:  { weight: 1.0, name: 'Suplementos',     icon: 'suplementos',   color: CONCEPT_COLORS.suplementos.color },
+  breathwork:   { weight: 1.0, name: 'Breathwork',      icon: 'respirar',      color: '#60a5fa' },
+  red_glasses:  { weight: 1.0, name: 'Lentes rojos',    icon: 'lentes-rojos',  color: '#f87171' },
+  period_log:   { weight: 1.0, name: 'Registrar ciclo', icon: 'ciclo',         color: '#fb7185' },
+  // #cableado-final 3.1: el `type`/`description` del buzón no aplican: el shape real es
   // {weight,name,icon,color}.
-  no_processed_foods:  { weight: 2.0, name: 'Sin procesados',           icon: 'nutrition-outline',       color: '#34d399' },
-  screen_time_cutoff:  { weight: 1.0, name: 'Off-pantallas pre-sueño',  icon: 'phone-portrait-outline',  color: '#94a3b8' },
+  no_processed_foods:  { weight: 2.0, name: 'Sin procesados',           icon: 'sin-procesados', color: '#34d399' },
+  screen_time_cutoff:  { weight: 1.0, name: 'Off-pantallas pre-sueño',  icon: 'off-pantallas',  color: '#94a3b8' },
   // #v13e 3.A.3: cardio booleano VERIFICADO (completed = ≥1 sesión en cardio_sessions hoy). El award
   // sucede al guardar en /log-cardio + reconcileVerifiedLedger lo mantiene honesto.
-  cardio:              { weight: 2.5, name: 'Cardio',                   icon: 'heart-half-outline',      color: '#fb7185' },
+  cardio:              { weight: 2.5, name: 'Cardio',                   icon: 'cardio',         color: '#fb7185' },
   // dx-f3: compleción diaria de una intervención de Mi Protocolo. NO es toggle del HOY (no va en
   // MANDATORY_BOOLEANS): el award sale de logCompletion con idempotencyKey por intervención+día.
-  intervention:        { weight: 1.5, name: 'Intervención',             icon: 'medkit-outline',          color: '#1D9E75' },
+  intervention:        { weight: 1.5, name: 'Intervención',             icon: 'protocolos',     color: '#1D9E75' },
   // N-Back (spec 2026-07-23): verificado — completed = ≥1 round completado hoy
   // (nback_sessions). Peso 2.5 = mismo esfuerzo cognitivo que meditación
   // (spec #6). El award sale de completeNBackRound con key determinística.
-  nback:               { weight: 2.5, name: 'N-Back',                   icon: 'grid-outline',            color: '#7F77DD' },
+  nback:               { weight: 2.5, name: 'N-Back',                   icon: 'nback',          color: '#7F77DD' },
 
   // Cuantitativos diarios (proporcional al %)
-  protein:      { weight: 2.0, name: 'Proteína',        icon: 'restaurant-outline',    color: CONCEPT_COLORS.nutricion.color },
-  steps:        { weight: 3.0, name: 'Pasos',           icon: 'footsteps-outline',     color: '#ffc54c' },
-  water:        { weight: 1.5, name: 'Agua',            icon: 'water-outline',         color: CONCEPT_COLORS.agua.color },
-  sleep:        { weight: 3.0, name: 'Sueño',           icon: 'moon-outline',          color: '#818cf8' },
+  protein:      { weight: 2.0, name: 'Proteína',        icon: 'comida',        color: CONCEPT_COLORS.nutricion.color },
+  steps:        { weight: 3.0, name: 'Pasos',           icon: 'pasos',         color: '#ffc54c' },
+  water:        { weight: 1.5, name: 'Agua',            icon: 'hidratacion',   color: CONCEPT_COLORS.agua.color },
+  sleep:        { weight: 3.0, name: 'Sueño',           icon: 'sueno',         color: '#818cf8' },
 
   // Por evento
-  checkin:      { weight: 2.0, name: 'Check-in emocional', icon: 'heart-circle-outline', color: '#f472b6' },
-  journal:      { weight: 1.5, name: 'Journal',            icon: 'book-outline',          color: '#c084fc' },
-  glucose_log:  { weight: 1.0, name: 'Registro glucosa',   icon: 'analytics-outline',     color: '#fb923c' },
+  checkin:      { weight: 2.0, name: 'Check-in emocional', icon: 'emociones',  color: '#f472b6' },
+  journal:      { weight: 1.5, name: 'Journal',            icon: 'journal',    color: '#c084fc' },
+  glucose_log:  { weight: 1.0, name: 'Registro glucosa',   icon: 'glucosa',    color: '#fb923c' },
   // E-7 (MB-12): el GKI necesita las DOS lecturas — cetonas premia igual que glucosa.
-  ketones_log:  { weight: 1.0, name: 'Registro cetonas',   icon: 'flask-outline',         color: '#38bdf8' },
-  lab_upload:   { weight: 10.0, name: 'Lab upload',        icon: 'document-outline',      color: '#c084fc' },
+  ketones_log:  { weight: 1.0, name: 'Registro cetonas',   icon: 'cetonas',    color: '#38bdf8' },
+  lab_upload:   { weight: 10.0, name: 'Lab upload',        icon: 'labs',       color: '#c084fc' },
 
   // Ayuno (por sesión completada)
-  fasting_12h:  { weight: 1.0, name: 'Ayuno 12h',       icon: 'timer-outline',         color: '#fbbf24' },
-  fasting_16h:  { weight: 2.0, name: 'Ayuno 16h',       icon: 'timer-outline',         color: '#fb923c' },
-  fasting_24h:  { weight: 3.0, name: 'Ayuno 24h',       icon: 'flame-outline',         color: '#ef4444' },
+  fasting_12h:  { weight: 1.0, name: 'Ayuno 12h',       icon: 'ayuno',         color: '#fbbf24' },
+  fasting_16h:  { weight: 2.0, name: 'Ayuno 16h',       icon: 'ayuno',         color: '#fb923c' },
+  fasting_24h:  { weight: 3.0, name: 'Ayuno 24h',       icon: 'ayuno',         color: '#ef4444' },
 
   // Evaluaciones funcionales (por evento)
-  functional_quiz: { weight: 5.0, name: 'Evaluación funcional', icon: 'clipboard-outline', color: '#c084fc' },
+  functional_quiz: { weight: 5.0, name: 'Evaluación funcional', icon: 'evaluaciones', color: '#c084fc' },
 
   // ATP SOL — exposición solar consciente
-  sun_awareness:   { weight: 1.0, name: 'Consciencia solar',  icon: 'eye-outline',    color: '#fbbf24' },
-} as const;
+  sun_awareness:   { weight: 1.0, name: 'Consciencia solar',  icon: 'sol',     color: '#fbbf24' },
+} as const satisfies Record<string, { weight: number; name: string; icon: AppIconName; color: string }>;
 
 export type ElectronSource = keyof typeof ELECTRON_WEIGHTS;
 

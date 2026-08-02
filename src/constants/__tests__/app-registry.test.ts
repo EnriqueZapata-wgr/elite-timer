@@ -11,6 +11,10 @@ import {
   visibleApps, searchApps, normalizeForSearch,
 } from '../app-registry';
 import { hasAppIcon, APP_ICON_NAMES } from '@/src/components/ui/app-icon-names';
+import { PUERTAS, DESTINOS_TODOS } from '../salud-puertas';
+import { ELECTRON_WEIGHTS } from '../electrons';
+import { HOY_CARD_SPECS } from '../hoy-cards';
+import { ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/services/hoy/day-booleans';
 
 describe('APP_REGISTRY', () => {
   it('las llaves son únicas', () => {
@@ -104,11 +108,19 @@ describe('cobertura de iconos', () => {
     }
   });
 
-  it('el mapa no arrastra iconos de apps que ya no existen', () => {
-    const usados = new Set<string>(APP_REGISTRY.map((a) => a.icon));
-    // Las puertas de SALUD comparten el mapa sin ser apps de la sala.
-    const puertasSalud = APP_ICON_NAMES.filter((k) => k.startsWith('salud-'));
-    for (const p of puertasSalud) usados.add(p);
+  it('el mapa no arrastra iconos que ningún registro usa', () => {
+    // MB-19.2: murió la lista blanca que eximía a los cinco salud-* — ahora la
+    // cobertura es real: TODOS los registros que declaran iconos cuentan como
+    // uso. Un nombre que ninguno referencia es un icono muerto y truena aquí.
+    const usados = new Set<string>([
+      ...APP_REGISTRY.map((a) => a.icon),
+      ...PUERTAS.map((p) => p.icon),
+      ...DESTINOS_TODOS.map((d) => d.icon),
+      ...Object.values(ELECTRON_WEIGHTS).map((e) => e.icon),
+      ...HOY_CARD_SPECS.map((c) => c.icon),
+      ...ALL_BOOLEAN_OPTIONS.map((o) => o.icon),
+      ...ALL_QUANT_OPTIONS.map((o) => o.icon),
+    ]);
     const huerfanos = APP_ICON_NAMES.filter((k) => !usados.has(k));
     expect(huerfanos).toEqual([]);
   });

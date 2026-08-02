@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { AppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
 import { pickAgendaImage } from '@/src/utils/agenda-image-picker';
 import { pickInterventionImage } from '@/src/utils/intervention-image-picker';
 import { agendaCategoryToFolder } from '@/src/utils/image-pick-core';
@@ -40,12 +41,15 @@ const CATEGORY_TINT: Record<string, [string, string]> = {
   otros:           ['#7F77DD', '#4B5563'],
 };
 
-/** Icono por folder para el placeholder cuando el evento no tiene imagen. */
-const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  comida: 'restaurant', entrenar: 'barbell', cardio: 'bicycle',
-  meditacion: 'leaf', suplementos: 'medkit', sleep: 'moon',
-  hidratacion: 'water', despertar: 'sunny', 'sol-am': 'sunny',
-  'sol-pm': 'partly-sunny', 'off-pantallas': 'phone-portrait-outline', otros: 'ellipse-outline',
+/** Icono por folder para el placeholder cuando el evento no tiene imagen.
+ * MB-19.2: son funciones del registro → nombres lógicos del AppIcon (la misma
+ * función se dibuja igual aquí, en HOY y en la sala ATP). `otros` no es una
+ * función: se queda como bala de chrome. */
+const CATEGORY_ICON: Record<string, AppIconName> = {
+  comida: 'comida', entrenar: 'entrenar', cardio: 'cardio',
+  meditacion: 'meditar', suplementos: 'suplementos', sleep: 'sueno',
+  hidratacion: 'hidratacion', despertar: 'sol', 'sol-am': 'sol',
+  'sol-pm': 'sol', 'off-pantallas': 'off-pantallas',
 };
 
 function getCategoryTint(folder: string): [string, string] {
@@ -77,7 +81,7 @@ export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
   const past = !done && !skipped && !snoozed &&
     new Date(event.scheduledAt).getTime() < Date.now();
   const tint = getCategoryTint(folder);
-  const icon = CATEGORY_ICON[folder] ?? CATEGORY_ICON.otros;
+  const icon: AppIconName | undefined = CATEGORY_ICON[folder];
 
   return (
     <AnimatedPressable
@@ -93,7 +97,11 @@ export function AgendaMiniCard({ event, onTap, compact, seedKey }: Props) {
           <Image source={image} style={styles.photoImg} contentFit="cover" transition={150} cachePolicy="memory-disk" />
         ) : (
           <View style={styles.photoPlaceholder}>
-            <Ionicons name={icon} size={compact ? 20 : 26} color={`${tint[0]}66`} />
+            {icon ? (
+              <AppIcon name={icon} size={compact ? 20 : 26} color={`${tint[0]}66`} />
+            ) : (
+              <Ionicons name="ellipse-outline" size={compact ? 20 : 26} color={`${tint[0]}66`} />
+            )}
           </View>
         )}
         {done ? (

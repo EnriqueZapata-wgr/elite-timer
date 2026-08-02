@@ -15,6 +15,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -92,7 +93,8 @@ export default function HoyHabitosScreen() {
           style={[s.row, active && { borderColor: withOpacity(o.color, 0.5) }]}
         >
           <View style={[s.iconWrap, { backgroundColor: withOpacity(o.color, 0.14) }]}>
-            <Ionicons name={o.icon as any} size={18} color={o.color} />
+            {/* MB-19.2: el hábito se dibuja desde el registro de iconos, no a mano. */}
+            <AppIcon name={o.icon} size={18} color={o.color} />
           </View>
           <View style={{ flex: 1 }}>
             <EliteText style={s.rowName}>{o.name}</EliteText>

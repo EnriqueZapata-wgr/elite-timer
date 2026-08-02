@@ -23,6 +23,19 @@ export const APP_ICON_NAMES = [
   // No son apps de la sala, pero comparten el mismo enchufe: el día del cambio
   // de set no se quedan fuera.
   'salud-hoy', 'salud-datos', 'salud-evolucion', 'salud-expediente', 'salud-ciclo',
+
+  // ── Hábitos del HOY sin app propia (PIEZA 2.3) ──
+  // Electrones que se practican pero no se abren: no tienen pantalla ni entrada
+  // en app-registry, y no se les inventa una. Tienen dibujo porque el HOY y
+  // /hoy-habitos los pintan igual que a los demás.
+  'bano-frio', 'grounding', 'sin-alcohol', 'lentes-rojos', 'pasos',
+  'sin-procesados', 'off-pantallas',
+
+  // ── Destinos de SALUD sin app propia ──
+  // Las filas detrás de las puertas (salud-puertas.ts). Mismo razonamiento:
+  // el mapa es más grande que el registro de apps, y está bien.
+  'sintomas', 'diagnostico', 'edad-atp', 'reportes', 'cronotipo',
+  'historia-clinica', 'cuestionario', 'evaluaciones', 'padecimientos',
 ] as const;
 
 export type AppIconName = (typeof APP_ICON_NAMES)[number];

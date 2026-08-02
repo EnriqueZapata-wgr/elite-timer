@@ -17,6 +17,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EdadAtpHeroCard } from '@/src/components/edad-atp/EdadAtpHeroCard';
@@ -90,7 +91,8 @@ export function SaludHub() {
                 onPress={() => { haptic.light(); router.push(d.route); }}
               >
                 <View style={[s.densoIcon, { backgroundColor: d.color + '1A' }]}>
-                  <Ionicons name={d.icon as any} size={18} color={d.color} />
+                  {/* MB-19.2: misma función = mismo dibujo que en la sala ATP. */}
+                  <AppIcon name={d.icon} size={18} color={d.color} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <EliteText style={s.densoTitle}>{d.title}</EliteText>
