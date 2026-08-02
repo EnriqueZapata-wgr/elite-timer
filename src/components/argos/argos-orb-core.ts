@@ -75,21 +75,24 @@ export function orbSpecForState(state: ArgosOrbState, reducedMotion = false): Or
       // apenas perceptible como "un poco más despierta"), la amplitud crece
       // poquito, y todo el cambio vive en el brillo. Sigue siendo lime→teal:
       // no hay un color de alarma en ningún estado de la orbe.
-      return { scaleMin: 0.98, scaleMax: 1.06, breathMs: 3000, glowMin: 0.42, glowMax: 0.78, waveform: false, rotate: false, rotateMs: 0, animated: true };
+      // 19.1: el doble de amplitud (device test Enrique: "podría pasar a 12").
+      // El ritmo (breathMs) no se toca: lo que faltaba era recorrido.
+      return { scaleMin: 0.96, scaleMax: 1.12, breathMs: 3000, glowMin: 0.42, glowMax: 0.78, waveform: false, rotate: false, rotateMs: 0, animated: true };
     case 'escuchando':
       // Se abre/expande sutil — más amplitud, respiración más ágil.
-      return { scaleMin: 1.02, scaleMax: 1.12, breathMs: 2600, glowMin: 0.45, glowMax: 0.8, waveform: false, rotate: false, rotateMs: 0, animated: true };
+      return { scaleMin: 1.02, scaleMax: 1.22, breathMs: 2600, glowMin: 0.45, glowMax: 0.8, waveform: false, rotate: false, rotateMs: 0, animated: true };
     case 'pensando':
       // Energía concentrada: rotación interna lenta, respiración contenida.
-      return { scaleMin: 0.98, scaleMax: 1.04, breathMs: 2200, glowMin: 0.35, glowMax: 0.65, waveform: false, rotate: true, rotateMs: 3600, animated: true };
+      return { scaleMin: 0.96, scaleMax: 1.08, breathMs: 2200, glowMin: 0.35, glowMax: 0.65, waveform: false, rotate: true, rotateMs: 3600, animated: true };
     case 'hablando':
       // Waveform reactiva mientras habla.
-      return { scaleMin: 1.0, scaleMax: 1.06, breathMs: 1400, glowMin: 0.5, glowMax: 0.9, waveform: true, rotate: false, rotateMs: 0, animated: true };
+      return { scaleMin: 1.0, scaleMax: 1.12, breathMs: 1400, glowMin: 0.5, glowMax: 0.9, waveform: true, rotate: false, rotateMs: 0, animated: true };
     case 'idle':
     default:
       // Respiración lenta, casi quieta. MB-19 la fija en 3.6 s: es el ciclo que
       // el brief pide para la orbe del tab bar, donde vive permanentemente.
-      return { scaleMin: 0.97, scaleMax: 1.03, breathMs: 3600, glowMin: 0.28, glowMax: 0.5, waveform: false, rotate: false, rotateMs: 0, animated: true };
+      // 19.1: amplitud al doble (0.06 → 0.12), mismo centro, mismo ritmo.
+      return { scaleMin: 0.94, scaleMax: 1.06, breathMs: 3600, glowMin: 0.28, glowMax: 0.5, waveform: false, rotate: false, rotateMs: 0, animated: true };
   }
 }
 

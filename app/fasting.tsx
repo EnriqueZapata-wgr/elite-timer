@@ -33,6 +33,7 @@ import { FASTING_ALERTS } from '@/src/constants/attestation-copy';
 import { fastingGateDecision, fastingAlertForHours, type GateDecision } from '@/src/services/safety/protocol-gate-core';
 import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
 import { getSafetyParams, DEFAULT_SAFETY_PARAMS, type FastingSafetyParams } from '@/src/services/safety/safety-params-service';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 // Presets rápidos para los wheel pickers (reemplazan mode="datetime").
 const START_PRESETS = [
@@ -168,6 +169,10 @@ function safeDate(value: unknown): Date | null {
 }
 
 export default function FastingScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const analytics = useAnalytics();
   const [userId, setUserId] = useState('');

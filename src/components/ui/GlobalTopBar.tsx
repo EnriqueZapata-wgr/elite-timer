@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { BackButton } from '@/src/components/ui/BackButton';
+import { HomeIcon } from '@/src/components/ui/HomeIcon';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
 import { haptic } from '@/src/utils/haptics';
@@ -65,7 +66,7 @@ export function GlobalTopBar({ title, showBack, onBellPress, onBack }: GlobalTop
             onPress={() => { haptic.light(); router.replace('/'); }}
             style={styles.iconBtn}
           >
-            <Ionicons name="home-outline" size={22} color={TEXT.primary} />
+            <HomeIcon size={22} />
           </AnimatedPressable>
         )}
       </View>

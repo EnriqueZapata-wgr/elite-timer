@@ -26,8 +26,13 @@ import {
   FITZPATRICK_TYPES,
   type UVData,
 } from '../src/services/uv-service';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 export default function Solar() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const [uvData, setUvData] = useState<UVData | null>(null);
   const [skinType, setSkinType] = useState(3);

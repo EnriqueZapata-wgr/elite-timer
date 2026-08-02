@@ -21,6 +21,7 @@ import { TABATA_ROUTINE, GUINNESS_ROUTINE } from '@/src/engine/testData';
 import { Colors, Fonts, Spacing, FontSizes, Radius, BlockColors } from '@/constants/theme';
 import { SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, BLOCK_COLORS, CATEGORY_COLORS, PILLAR_GRADIENTS, brandGradient, withOpacity } from '@/src/constants/brand';
 import type { Routine as EngineRoutine, ExecutionStep } from '@/src/engine/types';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 // === COLORES POR TIPO DE STEP ===
 
@@ -58,6 +59,10 @@ function getStepGradient(step: ExecutionStep | null): readonly [string, string] 
 // === PANTALLA PRINCIPAL ===
 
 export default function ExecutionScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const router = useRouter();
   const params = useLocalSearchParams<{ testId?: string; routine?: string }>();
 

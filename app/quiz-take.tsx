@@ -26,11 +26,16 @@ import {
 import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, SEMANTIC, SURFACES, TEXT_COLORS, ATP_BRAND, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 // Color principal de la pantalla
 const TEAL = CATEGORY_COLORS.metrics;
 
 export default function QuizTakeScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const router = useRouter();
   const { quiz_id } = useLocalSearchParams<{ quiz_id: string }>();
   const { user } = useAuth();

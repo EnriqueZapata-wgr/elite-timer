@@ -30,10 +30,15 @@ import {
 } from '@/src/services/onboarding-v2-service';
 import { Fonts, FontSizes, Spacing } from '@/constants/theme';
 import { ATP_BRAND } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const TOTAL = VOICE_CONFIG_QUESTIONS.length;
 
 export default function VoiceConfigOnboardingScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const router = useRouter();
   const { user } = useAuth();
   // Step COACH 7.2/N: backfill para founders pre-COACH-4/N (sin fila en

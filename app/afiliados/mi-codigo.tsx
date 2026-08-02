@@ -22,10 +22,15 @@ import {
 } from '@/src/services/affiliate-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const REFERRAL_URL_BASE = 'https://somosatp.com';
 
 export default function AfiliadosMiCodigoScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [affiliate, setAffiliate] = useState<Affiliate | null>(null);

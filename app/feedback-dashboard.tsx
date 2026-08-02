@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from '../src/lib/supabase';
 import { isAdmin as checkIsAdmin } from '../src/constants/admin-config';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const STATUS_OPTIONS = [
   { id: 'new', label: 'Nuevo', color: '#60a5fa' },
@@ -34,6 +35,10 @@ const SEVERITY_EMOJIS: Record<string, string> = {
 };
 
 export default function FeedbackDashboard() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const [feedback, setFeedback] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>('new');

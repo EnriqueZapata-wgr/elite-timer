@@ -25,12 +25,17 @@ import {
 import { getAffiliate, applyAsAffiliate, type Affiliate } from '@/src/services/affiliate-service';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#fbbf24', approved: '#4ade80', rejected: '#ef4444', suspended: '#f97316',
 };
 
 export default function AfiliadosAplicarScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 

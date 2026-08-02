@@ -13,10 +13,15 @@ import { supabase } from '../src/lib/supabase';
 import { getQuizById } from '../src/constants/functional-quizzes';
 import { awardBooleanElectron } from '../src/services/electron-service';
 import { MedicalDisclaimerGate } from '../src/components/legal/MedicalDisclaimerGate';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 type Screen = 'intro' | 'quiz' | 'results';
 
 export default function FunctionalQuizScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { quiz_id } = useLocalSearchParams();
   const quiz = getQuizById(quiz_id as string);

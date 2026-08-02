@@ -36,6 +36,7 @@ import {
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { advancePosition, retreatPosition, canRetreat } from '@/src/utils/braverman-nav';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const PART1 = BRAVERMAN_QUESTIONS.filter(q => q.part === 'dominance');
 const PART2 = BRAVERMAN_QUESTIONS.filter(q => q.part === 'deficiency');
@@ -858,6 +859,10 @@ function BravermanTest() {
 
 // #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
 export default function BravermanTestGated() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   return (
     <MedicalDisclaimerGate>
       <BravermanTest />

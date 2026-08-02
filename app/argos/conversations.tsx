@@ -16,6 +16,7 @@ import { haptic } from '@/src/utils/haptics';
 import { loadConversations, deleteConversation } from '@/src/services/argos-service';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 interface ConvRow {
   id: string;
@@ -34,6 +35,10 @@ function fmtDate(iso: string): string {
 }
 
 export default function ArgosConversationsScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [convs, setConvs] = useState<ConvRow[]>([]);

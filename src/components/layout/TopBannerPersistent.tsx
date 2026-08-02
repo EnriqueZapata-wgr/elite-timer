@@ -9,11 +9,10 @@
  */
 import { View, Pressable, StyleSheet } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
+import { HomeIcon } from '@/src/components/ui/HomeIcon';
 import { isHomePath } from '@/src/components/ui/global-topbar-utils';
 import { haptic } from '@/src/utils/haptics';
-import { ATP_BRAND } from '@/src/constants/brand';
 import { Spacing } from '@/constants/theme';
 
 export function TopBannerPersistent() {
@@ -25,7 +24,7 @@ export function TopBannerPersistent() {
     <View style={styles.banner}>
       {!home ? (
         <Pressable onPress={() => { haptic.light(); router.replace('/'); }} style={styles.homeBtn} hitSlop={8}>
-          <Ionicons name="home" size={20} color={ATP_BRAND.lime} />
+          <HomeIcon size={20} />
         </Pressable>
       ) : (
         <View style={styles.homeBtn} />

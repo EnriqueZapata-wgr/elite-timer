@@ -39,6 +39,7 @@ import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rat
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 // Rule override de react-native-markdown-display: hace el texto seleccionable
 // (la lib no expone selectable como prop directa).
@@ -787,6 +788,10 @@ function ArgosChat() {
 
 // #42: gate de disclaimers médicos — modal en primera visita (o bump de versión).
 export default function ArgosChatGated() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   return (
     <MedicalDisclaimerGate>
       <ArgosChat />

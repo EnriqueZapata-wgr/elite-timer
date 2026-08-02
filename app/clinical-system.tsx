@@ -39,6 +39,7 @@ import {
   collapseLanguageDuplicates,
   type CanonicalMap,
 } from '@/src/services/edad-atp/lab-values-service';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 /** parameter_key → nombre legible (fallback: humanizar la key) */
 function humanizeLabKey(key: string): string {
@@ -52,6 +53,10 @@ function formatDate(iso: string): string {
 }
 
 export default function ClinicalSystemScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const params = useLocalSearchParams<{ system?: string }>();

@@ -24,6 +24,7 @@ import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
 import { AppTile } from '@/src/components/atp/AppTile';
 import { AtpEditorialCard } from '@/src/components/atp/AtpEditorialCard';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -39,7 +40,7 @@ import {
   loadUsage, recordOpen, loadCustomOrder, loadOrderMode, saveOrderMode,
 } from '@/src/services/atp-room-store';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT, ELEVATION, PILL } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, PILL } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 
 export default function SalaAtpScreen() {
@@ -104,10 +105,15 @@ export default function SalaAtpScreen() {
   );
   const groups = useMemo(() => groupBySection(listed), [listed]);
 
+  // Pieza 5: el rebote se queda, pero con "reducir movimiento" del sistema la
+  // transición es lisa (sin springify). Misma señal que usa la orbe, en vivo.
+  const reducedMotion = useSystemReducedMotion();
+  const tileLayout = reducedMotion ? LinearTransition : LinearTransition.springify().damping(18);
+
   const renderTile = (app: AppEntry) => (
     // La transición de layout es lo que hace que el icono VUELE al reordenar.
-    <Animated.View key={app.key} layout={LinearTransition.springify().damping(18)} style={s.tileSlot}>
-      <AppTile icon={app.icon} label={app.label} onPress={() => open(app)} />
+    <Animated.View key={app.key} layout={tileLayout} style={s.tileSlot}>
+      <AppTile icon={app.icon} label={app.label} section={app.section} onPress={() => open(app)} />
     </Animated.View>
   );
 
@@ -196,7 +202,11 @@ export default function SalaAtpScreen() {
             {order === 'categoria' ? (
               groups.map((g) => (
                 <View key={g.section}>
-                  <EliteText style={s.sectionTitle}>{g.label.toUpperCase()}</EliteText>
+                  {/* Pieza 4: el encabezado lleva el color de su sección al
+                      100% — es lo que hace legible el bloque de un vistazo. */}
+                  <EliteText style={[s.sectionTitle, { color: APP_SECTION_COLORS[g.section] }]}>
+                    {g.label.toUpperCase()}
+                  </EliteText>
                   <View style={s.grid}>{g.apps.map(renderTile)}</View>
                 </View>
               ))

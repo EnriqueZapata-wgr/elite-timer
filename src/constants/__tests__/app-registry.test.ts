@@ -78,7 +78,11 @@ describe('las nueve cards de habits-portal', () => {
     { card: 'FITNESS', route: '/fitness-hub' },
     { card: 'AYUNO', route: '/fasting' },
     { card: 'SUEÑO', route: '/sleep' },
-    { card: 'MENTE', route: '/mente' },
+    // 19.1: el hub /mente se retiró (sus seis cuartos ya son apps de la sala).
+    // La deuda de esta card era lo que SOLO vivía tras el hub: las rachas y
+    // medallas de /mente/progreso. Eso es lo que tiene que seguir teniendo
+    // puerta, y hoy la tiene como la app Rachas.
+    { card: 'MENTE', route: '/mente/progreso' },
     { card: 'CICLO', route: '/cycle' },
     { card: 'HIDRATACIÓN', route: '/hydration' },
     { card: 'ATP SOL', route: '/solar' },

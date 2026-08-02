@@ -23,6 +23,7 @@ import { normalizeSupplementName } from '@/src/services/supplements-plan-core';
 import { isPregnancyActive } from '@/src/services/supplements-service';
 import { BhaScanSheet } from '@/src/components/supplements/BhaScanSheet';
 import { getScoreColor, getScoreLabel } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const TIMING_OPTIONS = [
   { id: 'morning', label: 'Mañana', icon: 'sunny-outline' as const, color: '#fbbf24' },
@@ -42,6 +43,10 @@ const FORM_OPTIONS = [
 ] as const;
 
 export default function SupplementsScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const [userId, setUserId] = useState('');
   const [supplements, setSupplements] = useState<any[]>([]);

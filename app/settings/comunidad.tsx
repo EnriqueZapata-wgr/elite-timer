@@ -20,6 +20,7 @@ import { type PublicProfileRow } from '@/src/services/community/public-profile-c
 import { type VisibilityFlags } from '@/src/constants/community';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity, SKOOL_URL } from '@/src/constants/brand';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 const APPEAR_TOGGLES: { key: keyof VisibilityFlags; title: string; desc: string }[] = [
   { key: 'discoverable', title: 'Aparecer en el buscador', desc: 'Otras personas pueden encontrarte por nombre.' },
@@ -37,6 +38,10 @@ const SHOW_TOGGLES: { key: keyof VisibilityFlags; title: string; desc: string }[
 ];
 
 export default function SettingsComunidadScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [profile, setProfile] = useState<PublicProfileRow | null>(null);

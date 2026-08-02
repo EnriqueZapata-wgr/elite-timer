@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ElectronBadge } from '@/src/components/ui/ElectronBadge';
+import { HomeIcon } from '@/src/components/ui/HomeIcon';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing } from '@/constants/theme';
@@ -86,7 +87,7 @@ export function StickyPillarBanner({ scrolled, onBack, hideBack, rightExtra }: P
           hitSlop={8}
           style={({ pressed }) => [s.chip, pressed && s.pressed]}
         >
-          <Ionicons name="home-outline" size={18} color="#fff" />
+          <HomeIcon size={18} />
         </Pressable>
         <View style={{ flex: 1 }} />
         {rightExtra}

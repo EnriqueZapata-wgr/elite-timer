@@ -20,6 +20,7 @@ import {
   calculateChronotypeScores, determineChronotype,
   type QuizTemplate, type QuizQuestion, type Chronotype, type ChronotypeInfo,
 } from '@/src/services/quiz-service';
+import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
 
 // === CONSTANTES ===
 
@@ -43,6 +44,10 @@ const ANIMAL_NAMES: Record<Chronotype, string> = {
 type Phase = 'quiz' | 'result';
 
 export default function ChronotypeQuizScreen() {
+  // 19.1: esta pantalla dibuja su propia flecha — registra nav propia y la
+  // casita flotante global se retira sola (ver useOwnNavPresence).
+  useRegisterOwnNav();
+
   const router = useRouter();
   const params = useLocalSearchParams<{ from?: string }>();
   const [quiz, setQuiz] = useState<QuizTemplate | null>(null);
