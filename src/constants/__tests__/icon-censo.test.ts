@@ -135,38 +135,76 @@ describe('emojis de función', () => {
 
 // ─── 4. Ratchet de glifos de función ────────────────────────────────────────
 
-/** Todos los rellenos del mapa + los tres glifos divergentes que este run mató. */
+// Los rellenos vigentes se DERIVAN del mapa: si el mapa cambia, el ratchet
+// cambia solo. El .tsx no es importable bajo node (monta Ionicons y SVG), así
+// que se lee como texto, igual que el resto del censo.
+const MAP_SRC = read('src/components/ui/app-icon-map.tsx');
+const FILLS = [...new Set([...MAP_SRC.matchAll(/\bion\('([a-z-]+)'\)/g)].map((m) => m[1]))];
+
+/** Exclusiones documentadas en el header (genéricos) + el fallback del mapa. */
+const EXCLUIDOS = new Set(['ellipse-outline', 'help-circle-outline']);
+
+/** Divergencias que MB-19.2 mató: ya no están en el mapa, siguen vetadas. */
+const DIVERGENTES = [
+  'trophy-outline', 'medical-outline', 'heart-half-outline', 'heart-circle-outline',
+];
+
+/** Glifos que dibujaban funciones ANTES del enchufe (evidencia: 58ed030).
+ * Un archivo nuevo que los use ya no pasa verde. `flash-outline` queda fuera
+ * a conciencia: es insignia de rango en ELECTRON_RANKS y chrome de energía en
+ * ~18 archivos, y no hay evidencia de que haya dibujado una función. */
+const LEGACY_OUTLINE = [
+  'timer-outline', 'document-outline', 'calendar-outline', 'eye-outline',
+  'sparkles-outline', 'journal-outline',
+];
+
+/** Rellenos pelones pre-enchufe (el mapa de AgendaMiniCard). Chocan con IDs
+ * legítimos ('water' es electrón, 'barbell' es equipo), así que solo se cazan
+ * ligados a posición icon/name. Punto ciego documentado: un ternario
+ * `name={x ? 'water' : 'moon'}` no matchea; hoy hay cero casos así. */
+const LEGACY_FILL = [
+  'restaurant', 'barbell', 'bicycle', 'leaf', 'medkit', 'moon', 'water',
+  'sunny', 'partly-sunny',
+];
+
 const GLIFOS_DE_FUNCION = [
-  'flower-outline', 'cloud-outline', 'book-outline', 'moon-outline',
-  'grid-outline', 'medal-outline', 'barbell-outline', 'pulse-outline',
-  'body-outline', 'trophy-outline', 'ribbon-outline', 'restaurant-outline',
-  'water-outline', 'hourglass-outline', 'medkit-outline', 'reader-outline',
-  'cart-outline', 'sunny-outline', 'analytics-outline', 'flame-outline',
-  'flask-outline', 'clipboard-outline', 'settings-outline', 'today-outline',
-  'stats-chart-outline', 'trending-up-outline', 'folder-open-outline',
-  'snow-outline', 'leaf-outline', 'wine-outline', 'glasses-outline',
-  'footsteps-outline', 'nutrition-outline', 'phone-portrait-outline',
-  'git-network-outline', 'bar-chart-outline', 'document-text-outline',
-  'list-outline', 'checkbox-outline', 'bandage-outline',
-  'medical-outline', 'heart-half-outline', 'heart-circle-outline',
+  ...FILLS.filter((g) => !EXCLUIDOS.has(g)),
+  ...DIVERGENTES,
+  ...LEGACY_OUTLINE,
 ];
 
 describe('ratchet de glifos', () => {
-  it('los usos directos de glifos de función coinciden con el inventario auditado', () => {
-    const pares: string[] = [];
+  it('la derivación del mapa funciona (guard del regex)', () => {
+    expect(FILLS).toContain('flower-outline');
+    expect(FILLS.length).toBeGreaterThanOrEqual(38);
+  });
+
+  it('los usos de glifos de función coinciden con el inventario auditado', () => {
+    // Se cuentan USOS, no pares archivo-glifo: un segundo uso del mismo glifo
+    // en un archivo ya inventariado también es un uso nuevo que auditar.
+    // Formato: 'archivo::glifo' = 1 uso; 'archivo::glifo::xN' = N usos.
+    const usos: string[] = [];
+    const count = (src: string, needle: string) => src.split(needle).length - 1;
     for (const f of FILES) {
       if (f.includes('app-icon-map')) continue; // el mapa ES el lugar del dibujo
       const src = read(f);
       for (const g of GLIFOS_DE_FUNCION) {
-        if (src.includes(`'${g}'`) || src.includes(`"${g}"`)) pares.push(`${f}::${g}`);
+        const n = count(src, `'${g}'`) + count(src, `"${g}"`);
+        if (n === 1) usos.push(`${f}::${g}`);
+        else if (n > 1) usos.push(`${f}::${g}::x${n}`);
+      }
+      for (const g of LEGACY_FILL) {
+        const n = (src.match(new RegExp(`(?:\\bicon\\w*|\\bname)\\s*[:=]\\s*["']${g}["']`, 'g')) ?? []).length;
+        if (n === 1) usos.push(`${f}::${g}`);
+        else if (n > 1) usos.push(`${f}::${g}::x${n}`);
       }
     }
-    pares.sort();
+    usos.sort();
     // Diferencias legibles: qué apareció y qué murió.
     const inventario = new Set(GLYPH_INVENTORY);
-    const nuevos = pares.filter((p) => !inventario.has(p));
-    const muertos = GLYPH_INVENTORY.filter((p) => !pares.includes(p));
+    const nuevos = usos.filter((p) => !inventario.has(p));
+    const muertos = GLYPH_INVENTORY.filter((p) => !usos.includes(p));
     expect(nuevos, 'glifo de función dibujado a mano — usa <AppIcon> o inventaría a conciencia').toEqual([]);
-    expect(muertos, 'el inventario arrastra pares que ya no existen — pódalo').toEqual([]);
+    expect(muertos, 'el inventario arrastra usos que ya no existen — pódalo').toEqual([]);
   });
 });
