@@ -56,19 +56,19 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
 // #138: hero editorial del pilar (require estático · Metro).
-const HERO_RESPIRACION = require('@/assets/images/intervenciones/respiracion.jpg');
+const HERO_RESPIRACION = require('@/assets/images/intervenciones/respiracion.webp');
 
 // V1.5.2 (#4): imágenes editoriales LOCALES por técnica (molde meditación:
 // imagen + gradiente + velo). Todo del bundle → cero red, cero parpadeo.
 const BREATH_CARD_IMAGES: Record<string, any> = {
-  'box-4': require('@/assets/images/intervenciones/cognitivo.jpg'),
-  '478-relaxation': require('@/assets/images/intervenciones/naturaleza.jpg'),
-  'coherent-5': require('@/assets/images/intervenciones/respiracion.jpg'),
-  'energize-2': require('@/assets/images/intervenciones/calor.jpg'),
-  'wim-hof-lite': require('@/assets/images/intervenciones/frio.jpg'),
-  'physiological-sigh': require('@/assets/images/intervenciones/grounding.jpg'),
+  'box-4': require('@/assets/images/intervenciones/cognitivo.webp'),
+  '478-relaxation': require('@/assets/images/intervenciones/naturaleza.webp'),
+  'coherent-5': require('@/assets/images/intervenciones/respiracion.webp'),
+  'energize-2': require('@/assets/images/intervenciones/calor.webp'),
+  'wim-hof-lite': require('@/assets/images/intervenciones/frio.webp'),
+  'physiological-sigh': require('@/assets/images/intervenciones/grounding.webp'),
 };
-const BREATH_CARD_FALLBACK = require('@/assets/images/mente/cards/card_respiracion.jpg');
+const BREATH_CARD_FALLBACK = require('@/assets/images/mente/cards/card_respiracion.webp');
 
 const PURPLE = CATEGORY_COLORS.mind;
 const BLUE = '#60a5fa';

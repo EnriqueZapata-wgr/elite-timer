@@ -33,11 +33,11 @@ import { haptic } from '@/src/utils/haptics';
 
 /** Foto por puerta. Todas ya viven en assets: no se movió ni se borró ninguna. */
 const PUERTA_IMAGES: Record<string, any> = {
-  hoy: require('@/assets/images/health-hub/mi-salud.png'),
-  datos: require('@/assets/images/salud-funcional/mis-datos.jpg'),
-  evolucion: require('@/assets/images/health-hub/diagnostico.png'),
-  expediente: require('@/assets/images/salud-funcional/mi-expediente.jpg'),
-  ciclo: require('@/assets/images/cycle/ciclo-01.png'),
+  hoy: require('@/assets/images/health-hub/mi-salud.webp'),
+  datos: require('@/assets/images/salud-funcional/mis-datos.webp'),
+  evolucion: require('@/assets/images/health-hub/diagnostico.webp'),
+  expediente: require('@/assets/images/salud-funcional/mi-expediente.webp'),
+  ciclo: require('@/assets/images/cycle/ciclo-01.webp'),
 };
 
 // MB-19.2 PIEZA 3: murieron los emojis de las puertas (PUERTA_ICON). Las

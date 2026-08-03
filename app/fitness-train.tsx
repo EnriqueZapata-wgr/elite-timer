@@ -55,7 +55,7 @@ export default function FitnessTrainScreen() {
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <AnimatedPressable onPress={() => { haptic.medium(); router.push('/routine-generator'); }}>
             <ImageBackground
-              source={require('@/assets/images/agenda/entrenar/entrenar-02.png')}
+              source={require('@/assets/images/agenda/entrenar/entrenar-02.webp')}
               style={s.heroCard}
               imageStyle={s.heroImg}
             >

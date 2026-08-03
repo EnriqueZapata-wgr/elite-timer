@@ -34,17 +34,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PURPLE = CATEGORY_COLORS.mind;
 // #138: hero editorial del pilar (require estático · Metro). Journal reusa mente.jpg.
-const HERO_MENTE = require('@/assets/images/intervenciones/mente.jpg');
+const HERO_MENTE = require('@/assets/images/intervenciones/mente.webp');
 
 // V1.5 (3.3): JOURNAL_TYPES vive en src/constants/journal-types.ts — fuente
 // única compartida con journal-history (mata el TYPE_META duplicado).
 
 // Portadas MJ dedicadas por práctica (assets/images/mente/cards).
 const JOURNAL_CARD_ART: Record<string, ImageSourcePropType> = {
-  gratitude: require('@/assets/images/mente/cards/journal_gratitud.jpg'),
-  vision: require('@/assets/images/mente/cards/journal_vision.jpg'),
-  stoic: require('@/assets/images/mente/cards/journal_estoico.jpg'),
-  work_dump: require('@/assets/images/mente/cards/journal_descarga.jpg'),
+  gratitude: require('@/assets/images/mente/cards/journal_gratitud.webp'),
+  vision: require('@/assets/images/mente/cards/journal_vision.webp'),
+  stoic: require('@/assets/images/mente/cards/journal_estoico.webp'),
+  work_dump: require('@/assets/images/mente/cards/journal_descarga.webp'),
 };
 
 const STOIC_QUESTIONS = [

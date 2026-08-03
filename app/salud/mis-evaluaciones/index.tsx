@@ -23,7 +23,7 @@ import { Spacing, Fonts, FontSizes, Radius } from '@/constants/theme';
 import { TEXT_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
 
 // Batch 3 (#11): imagen editorial del hero (require estático · Metro).
-const HERO_EVALUACIONES = require('@/assets/images/health-hub/tests-evaluaciones.png');
+const HERO_EVALUACIONES = require('@/assets/images/health-hub/tests-evaluaciones.webp');
 
 type Eval = { key: string; title: string; blurb: string; icon: string; color: string; route: Href };
 

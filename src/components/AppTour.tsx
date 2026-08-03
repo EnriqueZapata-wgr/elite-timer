@@ -27,14 +27,14 @@ const { height } = Dimensions.get('window');
 // Imágenes editoriales por pilar (require estático · Metro). El core puro no las
 // referencia (rompería vitest); aquí se mapea imageKey → asset.
 const IMG: Record<TourImageKey, any> = {
-  hoy: require('@/assets/images/yo/disciplina-semanal.jpg'),
-  fitness: require('@/assets/images/hoy-extra/cardio-01.png'),
-  nutricion: require('@/assets/images/hoy-extra/proteina.png'),
-  mente: require('@/assets/images/intervenciones/mente.jpg'),
-  salud: require('@/assets/images/health-hub/mi-salud.png'),
-  ciclo: require('@/assets/images/cycle/ciclo-01.png'),
-  comunidad: require('@/assets/images/pillars/comunidad.png'),
-  tests: require('@/assets/images/health-hub/tests-evaluaciones.png'),
+  hoy: require('@/assets/images/yo/disciplina-semanal.webp'),
+  fitness: require('@/assets/images/hoy-extra/cardio-01.webp'),
+  nutricion: require('@/assets/images/hoy-extra/proteina.webp'),
+  mente: require('@/assets/images/intervenciones/mente.webp'),
+  salud: require('@/assets/images/health-hub/mi-salud.webp'),
+  ciclo: require('@/assets/images/cycle/ciclo-01.webp'),
+  comunidad: require('@/assets/images/pillars/comunidad.webp'),
+  tests: require('@/assets/images/health-hub/tests-evaluaciones.webp'),
 };
 
 interface Props {

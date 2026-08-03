@@ -170,7 +170,7 @@ export default function Solar() {
               style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' }}
             >
               <ImageBackground
-                source={require('@/assets/images/health-hub/fitzpatrick.png')}
+                source={require('@/assets/images/health-hub/fitzpatrick.webp')}
                 resizeMode="cover"
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: 'rgba(0,0,0,0.55)' }}>

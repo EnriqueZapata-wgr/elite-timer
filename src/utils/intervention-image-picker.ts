@@ -12,17 +12,17 @@ import { INTERVENTION_BY_KEY } from '@/src/constants/interventions-catalog';
 import { interventionImageKey, type InterventionImageKey } from '@/src/utils/image-pick-core';
 
 const IMAGES: Record<InterventionImageKey, ImageSourcePropType> = {
-  grounding: require('@/assets/images/intervenciones/grounding.jpg'),
-  frio: require('@/assets/images/intervenciones/frio.jpg'),
-  calor: require('@/assets/images/intervenciones/calor.jpg'),
-  respiracion: require('@/assets/images/intervenciones/respiracion.jpg'),
-  oral: require('@/assets/images/intervenciones/oral.jpg'),
-  lentes: require('@/assets/images/intervenciones/lentes.jpg'),
-  'luz-roja': require('@/assets/images/intervenciones/luz-roja.jpg'),
-  audio: require('@/assets/images/intervenciones/audio.jpg'),
-  naturaleza: require('@/assets/images/intervenciones/naturaleza.jpg'),
-  mente: require('@/assets/images/intervenciones/mente.jpg'),
-  cognitivo: require('@/assets/images/intervenciones/cognitivo.jpg'),
+  grounding: require('@/assets/images/intervenciones/grounding.webp'),
+  frio: require('@/assets/images/intervenciones/frio.webp'),
+  calor: require('@/assets/images/intervenciones/calor.webp'),
+  respiracion: require('@/assets/images/intervenciones/respiracion.webp'),
+  oral: require('@/assets/images/intervenciones/oral.webp'),
+  lentes: require('@/assets/images/intervenciones/lentes.webp'),
+  'luz-roja': require('@/assets/images/intervenciones/luz-roja.webp'),
+  audio: require('@/assets/images/intervenciones/audio.webp'),
+  naturaleza: require('@/assets/images/intervenciones/naturaleza.webp'),
+  mente: require('@/assets/images/intervenciones/mente.webp'),
+  cognitivo: require('@/assets/images/intervenciones/cognitivo.webp'),
 };
 
 /**

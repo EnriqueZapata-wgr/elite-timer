@@ -24,15 +24,15 @@ import { supabase } from '@/src/lib/supabase';
 import type { AudioPiece } from '@/src/services/mente-audio-service';
 
 const MEDITACION_COVERS = [
-  require('@/assets/images/agenda/meditacion/meditacion-01.png'),
-  require('@/assets/images/agenda/meditacion/meditacion-02.png'),
-  require('@/assets/images/agenda/meditacion/meditacion-03.png'),
+  require('@/assets/images/agenda/meditacion/meditacion-01.webp'),
+  require('@/assets/images/agenda/meditacion/meditacion-02.webp'),
+  require('@/assets/images/agenda/meditacion/meditacion-03.webp'),
 ];
 const DESCANSO_COVERS = [
-  require('@/assets/images/agenda/sleep/sleep-01.png'),
-  require('@/assets/images/agenda/sleep/sleep-02.png'),
+  require('@/assets/images/agenda/sleep/sleep-01.webp'),
+  require('@/assets/images/agenda/sleep/sleep-02.webp'),
 ];
-const RESPIRACION_COVER = require('@/assets/images/intervenciones/respiracion.jpg');
+const RESPIRACION_COVER = require('@/assets/images/intervenciones/respiracion.webp');
 
 /** Fallback local determinístico (misma pieza → misma imagen). */
 export function localCoverFor(piece: Pick<AudioPiece, 'categoria' | 'orden'>): ImageSourcePropType {

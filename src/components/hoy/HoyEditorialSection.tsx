@@ -53,29 +53,29 @@ function formatFastDuration(startISO: string | null): string {
 // #asset-swap: requires ESTÁTICOS (Metro no soporta dinámico). Viven aquí (componente, NO en
 // hoy-cards.ts que los tests importan — require('.png') rompe el resolver de vitest).
 const HOY_EXTRA_IMAGES = {
-  uv: require('@/assets/images/hoy-extra/uv.png'),
-  checkin: require('@/assets/images/hoy-extra/checkin.png'),
-  proteina: require('@/assets/images/hoy-extra/proteina.png'),
-  agua: require('@/assets/images/hoy-extra/agua.png'),
-  pasos: require('@/assets/images/hoy-extra/pasos.png'),
+  uv: require('@/assets/images/hoy-extra/uv.webp'),
+  checkin: require('@/assets/images/hoy-extra/checkin.webp'),
+  proteina: require('@/assets/images/hoy-extra/proteina.webp'),
+  agua: require('@/assets/images/hoy-extra/agua.webp'),
+  pasos: require('@/assets/images/hoy-extra/pasos.webp'),
   // #cableado-final 3.3: imágenes nuevas.
-  ayuno: require('@/assets/images/hoy-extra/ayuno.png'),
-  sueno: require('@/assets/images/hoy-extra/sueno.png'),
-  journal: require('@/assets/images/hoy-extra/journal.png'),
-  no_alcohol: require('@/assets/images/hoy-extra/no-alcohol.png'),
-  no_procesados: require('@/assets/images/hoy-extra/no-procesados.png'),
-  screen_cutoff: require('@/assets/images/hoy-extra/screen-cutoff.png'),
+  ayuno: require('@/assets/images/hoy-extra/ayuno.webp'),
+  sueno: require('@/assets/images/hoy-extra/sueno.webp'),
+  journal: require('@/assets/images/hoy-extra/journal.webp'),
+  no_alcohol: require('@/assets/images/hoy-extra/no-alcohol.webp'),
+  no_procesados: require('@/assets/images/hoy-extra/no-procesados.webp'),
+  screen_cutoff: require('@/assets/images/hoy-extra/screen-cutoff.webp'),
 } as const;
 
 const ELECTRON_IMAGES: Record<string, any> = {
-  luz_solar: require('@/assets/images/electrons/luz-solar.png'),
-  meditacion: require('@/assets/images/electrons/meditacion.png'),
-  suplementos: require('@/assets/images/electrons/suplementos.png'),
-  bano_frio: require('@/assets/images/electrons/bano-frio.png'),
-  grounding: require('@/assets/images/electrons/grounding.png'),
-  fuerza: require('@/assets/images/electrons/fuerza.png'),
-  breathwork: require('@/assets/images/electrons/breathwork.png'),
-  lentes_rojos: require('@/assets/images/electrons/lentes-rojos.png'),
+  luz_solar: require('@/assets/images/electrons/luz-solar.webp'),
+  meditacion: require('@/assets/images/electrons/meditacion.webp'),
+  suplementos: require('@/assets/images/electrons/suplementos.webp'),
+  bano_frio: require('@/assets/images/electrons/bano-frio.webp'),
+  grounding: require('@/assets/images/electrons/grounding.webp'),
+  fuerza: require('@/assets/images/electrons/fuerza.webp'),
+  breathwork: require('@/assets/images/electrons/breathwork.webp'),
+  lentes_rojos: require('@/assets/images/electrons/lentes-rojos.webp'),
 };
 
 /** Mapa cardKey editorial → `source` del electrón booleano en day.booleanElectrons. */

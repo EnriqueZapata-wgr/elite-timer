@@ -36,7 +36,7 @@ import { ELEVATION, TEXT, TEXT_COLORS, ATP_BRAND, SEMANTIC, withOpacity } from '
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 
 // Batch 3 (#10): imagen editorial del hero (require estático · Metro).
-const HERO_MIS_DATOS = require('@/assets/images/health-hub/biomarcadores.png');
+const HERO_MIS_DATOS = require('@/assets/images/health-hub/biomarcadores.webp');
 
 const LEVEL_COLOR: Record<'ok' | 'warn' | 'high', string> = {
   ok: '#4ade80', warn: SEMANTIC.acceptable, high: '#ef4444',

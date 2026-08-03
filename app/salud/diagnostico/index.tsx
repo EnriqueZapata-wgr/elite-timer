@@ -42,7 +42,7 @@ import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 
 const LEVEL_LABELS: Record<number, string> = DX_LEVEL_LABELS;
 // #71 (MB-8): imagen editorial de la Card A (antes sin imagen, card pelona).
-const HERO_DIAGNOSTICO = require('@/assets/images/health-hub/diagnostico.png');
+const HERO_DIAGNOSTICO = require('@/assets/images/health-hub/diagnostico.webp');
 
 /** hotfix 2da pasada: cada fuente faltante es un CTA navegable, no un chip muerto. */
 const MISSING_ROUTES: Partial<Record<DxMissingKey, Href>> = {
