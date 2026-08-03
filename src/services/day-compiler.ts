@@ -4,7 +4,6 @@
  * compileDay() recopila todos los datos del día (protocolos, electrones,
  * nutrición, ayuno, etc.) y devuelve un objeto unificado listo para renderizar.
  */
-import type { Href } from 'expo-router';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, getLocalHour, toLocalDateString } from '@/src/utils/date-helpers';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
@@ -64,8 +63,8 @@ export interface BoolElectronState {
   color: string;
   weight: number;
   completed: boolean;
-  description: string;
-  pillarRoute: Href;
+  // MB-20.3 P5.3: description y pillarRoute salieron — su único consumidor
+  // era HoyEditorialSection.tsx, huérfano desde MB-20.1 (borrado con ellos).
 }
 
 export interface QuantElectronState {
@@ -143,14 +142,6 @@ const ELECTRON_DESCRIPTIONS: Record<string, string> = {
   breathwork: 'Activa el nervio vago y regula el sistema nervioso.',
   red_glasses: 'Bloquear luz azul mejora producción de melatonina.',
   period_log: 'Registrar tu ciclo ayuda a entender patrones.',
-};
-
-const ELECTRON_ROUTES: Record<string, Href> = {
-  sunlight: '/my-health', meditation: '/meditation', supplements: '/supplements',
-  cold_shower: '/my-health', grounding: '/my-health', no_alcohol: '/nutrition',
-  strength: '/fitness-hub', breathwork: '/breathing', red_glasses: '/my-health',
-  period_log: '/cycle', checkin: '/checkin', journal: '/journal',
-  nback: '/mente/nback',
 };
 
 const TIME_WINDOWS: Record<string, [number, number]> = {
@@ -238,9 +229,13 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // MB-20.3 P1: nback_sessions.date también es nullable sin default (218:23).
     // Hoy no hay nulos en producción, pero es la misma bomba que exercise_logs:
     // se desactiva igual, antes de que detone.
+    // MB-20.3 P5.2: se ordena por el MISMO campo que decide (`date`, el día
+    // LOCAL del cliente) — ordenar por completed_at desalineaba una sesión
+    // que cruza medianoche. completed_at solo desempata dentro del día.
     supabase.from('nback_sessions').select('date, n_level')
       .eq('user_id', userId).not('completed_at', 'is', null).not('date', 'is', null)
-      .order('completed_at', { ascending: false }).limit(1).maybeSingle(),
+      .order('date', { ascending: false }).order('completed_at', { ascending: false })
+      .limit(1).maybeSingle(),
     // La ÚNICA consulta nueva del run (2.3): minutos de la última meditación.
     supabase.from('mind_sessions').select('date, duration_seconds')
       .eq('user_id', userId).eq('type', 'meditation')
@@ -405,8 +400,6 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
         color: cfg.color,
         weight: cfg.weight,
         completed,
-        description: ELECTRON_DESCRIPTIONS[k] ?? '',
-        pillarRoute: ELECTRON_ROUTES[k] ?? '/kit',
       };
     });
 
@@ -537,7 +530,8 @@ function pickNextElectron(bools: BoolElectronState[], quants: QuantElectronState
 
   if (pending.length > 0) {
     const n = pending[0];
-    return { source: n.source, name: n.name, description: n.description, weight: n.weight, icon: n.icon, color: n.color };
+    // P5.3: la descripción vive en el mapa, ya no viaja en cada BoolElectronState.
+    return { source: n.source, name: n.name, description: ELECTRON_DESCRIPTIONS[n.source] ?? '', weight: n.weight, icon: n.icon, color: n.color };
   }
 
   const pq = quants.filter(e => e.current < e.target).sort((a, b) => (a.current / a.target) - (b.current / b.target));
