@@ -59,6 +59,17 @@ export function parseLegacyWindow(s: string): MealWindow | null {
   return start && end ? { start, end } : null;
 }
 
+/** Default de meal_type por hora del reloj (NOCTURNO B7: antes vivía
+ * duplicado idéntico en food-scan y food-text). Rangos heredados tal cual:
+ * nunca devuelve 'snack_am' (10:00-11:00 cae dentro de desayuno). */
+export function defaultMealTypeByHour(hour: number = new Date().getHours()): string {
+  if (hour >= 5 && hour < 11) return 'breakfast';
+  if (hour >= 11 && hour < 15) return 'lunch';
+  if (hour >= 15 && hour < 17) return 'snack_pm';
+  if (hour >= 17 && hour < 21) return 'dinner';
+  return 'snack_pm';
+}
+
 /** ¿En qué comida estamos AHORA según los horarios del usuario y su timezone real (IANA)? */
 export function getCurrentMeal(mealTimes: MealTimes, timezone: string): MealId | null {
   let h = 0, m = 0;

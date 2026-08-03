@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getCurrentMeal, formatMealWindow, normalizeMealTimes, DEFAULT_MEAL_TIMES, type MealTimes } from '@/src/services/meal-times-core';
+import { getCurrentMeal, formatMealWindow, normalizeMealTimes, defaultMealTypeByHour, DEFAULT_MEAL_TIMES, type MealTimes } from '@/src/services/meal-times-core';
 
 describe('meal-times-service — funciones puras', () => {
   describe('formatMealWindow', () => {
@@ -53,6 +53,20 @@ describe('meal-times-service — funciones puras', () => {
       // Solo es null si la hora actual UTC no es exactamente 00:00; aceptamos ambos resultados deterministas.
       const r = getCurrentMeal(none, 'UTC');
       expect(r === null || r === 'breakfast').toBe(true);
+    });
+  });
+
+  describe('defaultMealTypeByHour (NOCTURNO B7)', () => {
+    it('respeta los rangos heredados de food-scan/food-text', () => {
+      expect(defaultMealTypeByHour(5)).toBe('breakfast');
+      expect(defaultMealTypeByHour(10)).toBe('breakfast');
+      expect(defaultMealTypeByHour(11)).toBe('lunch');
+      expect(defaultMealTypeByHour(14)).toBe('lunch');
+      expect(defaultMealTypeByHour(15)).toBe('snack_pm');
+      expect(defaultMealTypeByHour(17)).toBe('dinner');
+      expect(defaultMealTypeByHour(20)).toBe('dinner');
+      expect(defaultMealTypeByHour(23)).toBe('snack_pm');
+      expect(defaultMealTypeByHour(2)).toBe('snack_pm');
     });
   });
 });

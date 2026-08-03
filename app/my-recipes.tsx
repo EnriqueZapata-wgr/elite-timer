@@ -14,6 +14,7 @@ import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { saveFoodLog } from '@/src/services/food-log-service';
+import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -75,7 +76,9 @@ export default function MyRecipesScreen() {
     const result = await saveFoodLog({
       userId: user.id,
       mealTime: now,
-      mealType: recipe.meal_type || 'snack_am',
+      // B7: sin tipo en la receta, el default es por hora (antes caía SIEMPRE
+      // en snack_am porque createRecipe nunca escribe meal_type).
+      mealType: recipe.meal_type || defaultMealTypeByHour(),
       description: recipe.name,
       source: 'recipe',
       calories: recipe.total_calories,
