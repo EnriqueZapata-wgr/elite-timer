@@ -16,18 +16,22 @@ import {
   EXPERIENCIA_SOURCES,
   EXPERIENCIA_CAPTURA,
   EXPERIENCIA_REGISTRO,
+  routeForBool,
   type TareasInput,
 } from '@/src/services/hoy/tareas-core';
 import {
   VERIFIED_ELECTRON_KEYS,
+  VERIFIED_ELECTRON_ROUTES,
   DEFAULT_BOOLEANS,
   MANDATORY_BOOLEANS,
 } from '@/src/services/hoy/day-booleans';
+import { ELECTRONS_SIN_APP, ELECTRON_TO_APP } from '@/src/constants/electron-app-bridge';
+import { APP_BY_KEY } from '@/src/constants/app-registry';
 
 function boolE(source: string, completed = false) {
   return {
     source, name: source, icon: 'meditar', color: '#fff',
-    weight: 2, completed, pillarRoute: '/x',
+    weight: 2, completed,
   };
 }
 
@@ -216,6 +220,54 @@ describe('agendaLens', () => {
     expect(lens.length).toBe(r.global.total);
     const times = lens.map((t) => t.time);
     expect([...times].sort()).toEqual(times);
+  });
+});
+
+describe('routeForBool (MB-20.2 · 2.5)', () => {
+  it('luz solar abre /solar: la app del electrón vía el puente, no el hub del pilar', () => {
+    expect(routeForBool('sunlight')).toBe('/solar');
+  });
+
+  it('los verificados conservan su ruta granular (device test: funcionan bien)', () => {
+    for (const [key, route] of Object.entries(VERIFIED_ELECTRON_ROUTES)) {
+      expect(routeForBool(key), key).toBe(route);
+    }
+  });
+
+  it('todo electrón sin app va SIN ruta: cero puertas inventadas', () => {
+    // Baño frío, grounding, sin alcohol, lentes rojos, sin procesados,
+    // off-pantallas… la lista completa del puente, no solo lo que el device
+    // test alcanzó a tocar.
+    for (const source of ELECTRONS_SIN_APP) {
+      expect(routeForBool(source), source).toBeUndefined();
+    }
+  });
+
+  it('la tarea compilada refleja la regla (sin ruta ⇒ ni el tap navega)', () => {
+    const r = buildTareas(
+      {
+        booleanElectrons: [boolE('sunlight'), boolE('cold_shower'), boolE('no_alcohol'), boolE('red_glasses')],
+        quantitativeElectrons: [],
+        agendaItems: [],
+      },
+      9,
+    );
+    const items = r.blocks.flatMap((b) => b.items);
+    expect(items.find((t) => t.key === 'sunlight')?.route).toBe('/solar');
+    expect(items.find((t) => t.key === 'cold_shower')?.route).toBeUndefined();
+    expect(items.find((t) => t.key === 'no_alcohol')?.route).toBeUndefined();
+    expect(items.find((t) => t.key === 'red_glasses')?.route).toBeUndefined();
+  });
+
+  it('todo electrón del puente resuelve a una ruta real del registro', () => {
+    for (const [source, app] of Object.entries(ELECTRON_TO_APP)) {
+      const route = routeForBool(source);
+      expect(route, `${source} → ${app}`).toBeTruthy();
+    }
+    // Y las apps del puente existen en el registro (nada apunta al vacío).
+    for (const app of new Set(Object.values(ELECTRON_TO_APP))) {
+      expect(APP_BY_KEY[app!], `app ${app}`).toBeTruthy();
+    }
   });
 });
 

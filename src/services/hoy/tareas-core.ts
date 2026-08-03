@@ -14,6 +14,9 @@ import {
   VERIFIED_ELECTRON_KEYS,
   VERIFIED_ELECTRON_ROUTES,
 } from '@/src/services/hoy/day-booleans';
+import { APP_BY_KEY } from '@/src/constants/app-registry';
+import { ELECTRON_TO_APP } from '@/src/constants/electron-app-bridge';
+import type { ElectronSource } from '@/src/constants/electrons';
 
 // ── Shapes estructurales (espejo type-only de day-compiler) ──
 
@@ -27,7 +30,6 @@ export interface TareaBoolLike {
   color: string;
   weight: number;
   completed: boolean;
-  pillarRoute?: TareaRoute;
 }
 
 export interface TareaQuantLike {
@@ -198,10 +200,29 @@ const QUANT_ROUTES: Record<string, string> = {
   sleep: '/sleep',
 };
 
+/**
+ * MB-20.2 · 2.5: la ruta de un hábito sale del puente electrón→app
+ * (electron-app-bridge, la fuente única de MB-19.2), nunca de un fallback
+ * que invente destinos. Prioridad:
+ *   1. Ruta granular del verificado (doctrina #1/#90 y device test de
+ *      Enrique: checkin → /checkin, cardio → /log-cardio).
+ *   2. La app del electrón según el puente, con su ruta del app-registry
+ *      (sunlight → 'sol' → /solar).
+ *   3. Nada. Los ELECTRONS_SIN_APP no están en el puente → sin ruta: se
+ *      practican, no se abren (navegación honesta, cero puertas a lugares
+ *      que no existen). El test del puente obliga a clasificar todo
+ *      electrón nuevo, así que aquí no hay hueco posible.
+ */
+export function routeForBool(source: string): TareaRoute | undefined {
+  const granular = (VERIFIED_ELECTRON_ROUTES as Record<string, TareaRoute>)[source];
+  if (granular) return granular;
+  const app = ELECTRON_TO_APP[source as ElectronSource];
+  return app ? (APP_BY_KEY[app]?.route as TareaRoute | undefined) : undefined;
+}
+
 function boolToTarea(e: TareaBoolLike): Tarea {
   const gesto = gestoForBool(e.source);
-  const route: TareaRoute | undefined =
-    (VERIFIED_ELECTRON_ROUTES as Record<string, string>)[e.source] ?? e.pillarRoute;
+  const route = routeForBool(e.source);
   return {
     key: e.source,
     kind: 'bool',

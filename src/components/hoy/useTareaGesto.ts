@@ -78,12 +78,16 @@ export function useTareaGesto(
     }
     // navegar / inline / experiencia completada: el tap largo nunca regala
     // un check — se comporta como el tap.
+    if (!tarea.route) return;
     haptic.light();
     onNavigate(tarea);
   }
 
   function handlePress() {
     if (consumedRef.current) { consumedRef.current = false; return; }
+    // MB-20.2 · 2.5: una tarea sin ruta no navega a ningún lado — tampoco
+    // vibra como si fuera a pasar algo. Solo responde al tap largo.
+    if (!tarea.route) return;
     haptic.light();
     onNavigate(tarea);
   }
