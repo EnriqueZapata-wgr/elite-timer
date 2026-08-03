@@ -41,7 +41,7 @@ MB-19.2 entra junto o antes.**
 
 | Commit | Pieza | Qué |
 |---|---|---|
-| 49c502f | P1 | **TAREAS y AGENDA, una lista dos lentes.** `tareas-core` puro (bloques mañana/tarde/noche espejo de /agenda, hora canónica por hábito, clasificación de gestos) + `TareaRow` (tap navega; tap largo palomea con llenado 350 ms cancelable + vibración + atenuado; reduce motion degrada) + paloma inteligente (meditar/respirar/cardio registran sesión REAL: mind_sessions / cardio_sessions manual; journal/nback/entrenar navegan a su registro real) + hidratación inline +250 ml + ayuno navega y fin + card de la orbe colapsable con memoria por día + recordatorio contextual (3 idas sin completar → burbuja, máx 1/semana, contador local) + auto-foco en el bloque actual + progreso por bloque y global. El ATP Score sale de HOY; el motor sigue intacto en compileDay. Contrato de escritura extraído a `tarea-actions` (dual write + ledger idempotente + espejo Agenda + emit). |
+| 49c502f | P1 | **TAREAS y AGENDA, una lista dos lentes.** `tareas-core` puro (bloques mañana/tarde/noche espejo de /agenda, hora canónica por hábito, clasificación de gestos) + `TareaRow` (tap navega; tap largo palomea con llenado 350 ms cancelable + vibración + atenuado; reduce motion degrada) + paloma inteligente (meditar/respirar/cardio registran sesión REAL: mind_sessions / cardio_sessions manual; journal/nback/entrenar quedaron con un modal de UN solo botón "IR AHORA", sin SÍ — corregido en NOCTURNO-FIX Pieza 2) + hidratación inline +250 ml + ayuno navega y fin + card de la orbe colapsable con memoria por día + recordatorio contextual (3 idas sin completar → burbuja, máx 1/semana, contador local) + auto-foco en el bloque actual + progreso por bloque y global. El ATP Score sale de HOY; el motor sigue intacto en compileDay. Contrato de escritura extraído a `tarea-actions` (dual write + ledger idempotente + espejo Agenda + emit). |
 | 6b7a6f8 | P2 | **Instalar = activar.** Mosaicos con estado (punto lima), tap largo instala/desinstala, `+ agregar` abre modo instalación (tap directo instala). Núcleo puro: apps con toggles / fijas (MANDATORY: journal, cardio) / sin toggle activable (ayuno, sueño, glucosa, cetonas → installed_apps). Desinstalar JAMÁS borra datos. |
 | 9582162 | P3 | Mig **247**: `installed_apps TEXT[]` en user_day_preferences (idempotente, RLS heredado, NOTIFY pgrst). Cliente tolera su ausencia (retry de columna fantasma). Lo demás es local a propósito (orbe colapsada, contador del nudge). |
 | 27a56b4 | P4 | **Tour de la orbe (12 pasos)** sobre pantallas reales, no-bloqueante (se puede probar el gesto), Terminar tour en todos, retomable desde Ajustes, llave nueva a propósito, guion blindado por test (cero em dash, siglas explicadas), analytics. **4.3:** el disparador de `alerta` ya existe (inbox sin leer → orbe en alerta; jamás roja). **4.4:** nace `ArgosMark` (Svg puro), ArgosAvatar RETIRADO (chat y botón flotante pasan a la orbe; el estado rojo muere: orbe apagada + RateLimitCard con palabras), ojos Ionicons migrados en 5 pantallas, y `brand-palette` es el módulo puro que brand.ts y la orbe comparten (fin del espejo a mano). |
@@ -115,8 +115,10 @@ Borrarlos arrastra imágenes, tests e imports: mejor con ojos humanos en el audi
   TAREAS solo entran los SMART accionables (romper ayuno). Unificación total de las
   dos fuentes (electrones vs agenda_event_logs) = run propio.
 - Paloma inteligente con captura real SOLO donde existe writer limpio (meditar,
-  respirar, cardio). Journal/N-Back/Entrenar: el SÍ navega a su registro real —
-  fabricar un journal o un N-Back desde un modal sería registro deshonesto.
+  respirar, cardio). **CORRECCIÓN (NOCTURNO-FIX):** este reporte afirmaba que en
+  Journal/N-Back/Entrenar "el SÍ navega a su registro real". Eso NO estaba en el
+  código: el modal tenía un único botón "IR AHORA" (mismo destino que el tap
+  simple). El SÍ que navega al registro real existe desde NOCTURNO-FIX Pieza 2.
 - La línea UV del boceto quedó como chip simple (UV + ventana de vitamina D).
 
 **MB-20 P2 · V1:** instalar usa defaults inteligentes SIN las dos preguntas del brief

@@ -21,7 +21,7 @@ import { TareaRow } from '@/src/components/hoy/TareaRow';
 import { SmartCheckModal } from '@/src/components/hoy/SmartCheckModal';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
-  buildTareas, agendaLens, type Tarea, type Momento,
+  buildTareas, agendaLens, EXPERIENCIA_REGISTRO, type Tarea, type Momento,
 } from '@/src/services/hoy/tareas-core';
 import {
   persistBooleanToggle, registrarExperiencia, type ExperienciaExterna,
@@ -144,6 +144,14 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
       Alert.alert('No se pudo guardar', 'Inténtalo de nuevo en un momento.');
     });
   }, [userId, day]);
+
+  // SÍ de una experiencia sin captura: directo a su pantalla de registro real.
+  // No cuenta para el nudge: quien llegó aquí ya usa el tap largo.
+  const handleIrRegistro = useCallback((t: Tarea) => {
+    const route = EXPERIENCIA_REGISTRO[t.key];
+    if (!route) return;
+    router.push(route as never);
+  }, [router]);
 
   const handleRegistrar = useCallback(async (t: Tarea, minutes: number) => {
     if (!userId) return false;
@@ -272,6 +280,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         onClose={() => setSmartTarea(null)}
         onNavigate={handleNavigate}
         onRegistrar={handleRegistrar}
+        onIrRegistro={handleIrRegistro}
       />
     </View>
   );

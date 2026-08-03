@@ -2,11 +2,14 @@
  * SmartCheckModal — la paloma inteligente (MB-20 Pieza 1.3).
  *
  * Palomear una experiencia no regala el check: pregunta primero.
- *   SÍ → captura de minutos → se registra la sesión de verdad.
- *   NO → navega a la función.
- * Para experiencias sin captura externa limpia (Journal, N-Back, Entrenar),
- * el SÍ también navega: su registro real ES su pantalla, y el check honesto
- * nace de la actividad, no de la declaración.
+ *   Con captura externa (meditar, respirar, cardio):
+ *     SÍ → captura de minutos → se registra la sesión de verdad.
+ *     NO → navega a la función.
+ *   Sin captura externa (Entrenar, Journal, N-Back):
+ *     SÍ → navega a su pantalla de registro real (el check honesto nace de la
+ *     actividad, no de la declaración).
+ *     NO → cierra sin más.
+ * Nunca un solo botón: un gesto que no ofrece opción no debería preguntar.
  */
 import { useState } from 'react';
 import { Modal, View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
@@ -30,13 +33,15 @@ const MINUTOS = [5, 10, 15, 20, 30, 45, 60];
 interface Props {
   tarea: Tarea | null;
   onClose: () => void;
-  /** NO (o SÍ sin captura): ir a la función. */
+  /** NO de una capturable: ir a la función. */
   onNavigate: (t: Tarea) => void;
   /** SÍ con captura: registrar la sesión externa. */
   onRegistrar: (t: Tarea, minutes: number) => Promise<boolean>;
+  /** SÍ sin captura: ir a la pantalla de registro real (EXPERIENCIA_REGISTRO). */
+  onIrRegistro: (t: Tarea) => void;
 }
 
-export function SmartCheckModal({ tarea, onClose, onNavigate, onRegistrar }: Props) {
+export function SmartCheckModal({ tarea, onClose, onNavigate, onRegistrar, onIrRegistro }: Props) {
   const [fase, setFase] = useState<'pregunta' | 'minutos'>('pregunta');
   const [minutos, setMinutos] = useState(15);
   const [saving, setSaving] = useState(false);
@@ -70,23 +75,36 @@ export function SmartCheckModal({ tarea, onClose, onNavigate, onRegistrar }: Pro
               <EliteText style={s.subtitle}>
                 {capturable
                   ? 'Si lo hiciste por fuera, se registra igual: el check es honesto.'
-                  : `El registro de ${tarea.name} se hace en su pantalla.`}
+                  : 'El check nace de la actividad real: SÍ te lleva directo a registrarla.'}
               </EliteText>
               <View style={s.rowBtns}>
-                <Pressable
-                  style={({ pressed }) => [s.btn, s.btnQuiet, pressed && s.pressed]}
-                  onPress={() => { haptic.light(); const t = tarea; close(); onNavigate(t); }}
-                >
-                  <EliteText style={s.btnQuietText}>{capturable ? 'NO, VOY' : 'IR AHORA'}</EliteText>
-                </Pressable>
-                {capturable && (
+                {capturable ? (
                   <Pressable
-                    style={({ pressed }) => [s.btn, s.btnLime, pressed && s.pressed]}
-                    onPress={() => { haptic.light(); setFase('minutos'); }}
+                    style={({ pressed }) => [s.btn, s.btnQuiet, pressed && s.pressed]}
+                    onPress={() => { haptic.light(); const t = tarea; close(); onNavigate(t); }}
                   >
-                    <EliteText style={s.btnLimeText}>SÍ</EliteText>
+                    <EliteText style={s.btnQuietText}>NO, VOY</EliteText>
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={({ pressed }) => [s.btn, s.btnQuiet, pressed && s.pressed]}
+                    onPress={() => { haptic.light(); close(); }}
+                  >
+                    <EliteText style={s.btnQuietText}>NO</EliteText>
                   </Pressable>
                 )}
+                <Pressable
+                  style={({ pressed }) => [s.btn, s.btnLime, pressed && s.pressed]}
+                  onPress={() => {
+                    haptic.light();
+                    if (capturable) { setFase('minutos'); return; }
+                    const t = tarea;
+                    close();
+                    onIrRegistro(t);
+                  }}
+                >
+                  <EliteText style={s.btnLimeText}>SÍ</EliteText>
+                </Pressable>
               </View>
             </>
           ) : (

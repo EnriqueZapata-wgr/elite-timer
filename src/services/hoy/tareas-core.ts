@@ -130,11 +130,20 @@ export const EXPERIENCIA_SOURCES: readonly string[] = [
 ];
 
 /** Experiencias con captura externa limpia (existe writer real de sesión):
- * mind_sessions para meditar/respirar, cardio_sessions manual para cardio.
- * Journal, N-Back y Entrenar registran EN su pantalla: el SÍ navega. */
+ * mind_sessions para meditar/respirar, cardio_sessions manual para cardio. */
 export const EXPERIENCIA_CAPTURA: readonly string[] = [
   'meditation', 'breathwork', 'cardio',
 ];
+
+/** Experiencias SIN captura externa: su registro real ES una pantalla, y el SÍ
+ * del modal navega ahí (la partida de N-Back, la entrada de journal, el logger
+ * de fuerza que escribe exercise_logs). Toda EXPERIENCIA_SOURCES debe estar en
+ * EXPERIENCIA_CAPTURA o aquí: el modal nunca tiene un solo botón (hay test). */
+export const EXPERIENCIA_REGISTRO: Record<string, string> = {
+  strength: '/log-exercise',
+  journal: '/journal',
+  nback: '/mente/nback/sesion',
+};
 
 export function gestoForBool(source: string): TareaGesto {
   if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) {

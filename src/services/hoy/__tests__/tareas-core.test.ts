@@ -12,6 +12,7 @@ import {
   TAREA_TIME,
   EXPERIENCIA_SOURCES,
   EXPERIENCIA_CAPTURA,
+  EXPERIENCIA_REGISTRO,
   type TareasInput,
 } from '@/src/services/hoy/tareas-core';
 import {
@@ -90,6 +91,25 @@ describe('gestos', () => {
   it('la captura externa es subconjunto de las experiencias', () => {
     for (const k of EXPERIENCIA_CAPTURA) {
       expect(EXPERIENCIA_SOURCES).toContain(k);
+    }
+  });
+
+  it('el modal nunca tiene un solo botón: toda experiencia captura o tiene registro real', () => {
+    // Si una experiencia no está en EXPERIENCIA_CAPTURA ni en
+    // EXPERIENCIA_REGISTRO, su SÍ no tendría a dónde ir. Un gesto que no
+    // ofrece opción no debería preguntar: se detecta aquí, no en el device.
+    for (const k of EXPERIENCIA_SOURCES) {
+      const capturable = (EXPERIENCIA_CAPTURA as readonly string[]).includes(k);
+      const registro = EXPERIENCIA_REGISTRO[k];
+      expect(capturable || Boolean(registro), `${k} sin captura ni registro`).toBe(true);
+      if (registro) expect(registro.startsWith('/'), `${k} → ${registro}`).toBe(true);
+    }
+  });
+
+  it('el registro real es solo para las no capturables', () => {
+    for (const k of Object.keys(EXPERIENCIA_REGISTRO)) {
+      expect(EXPERIENCIA_SOURCES).toContain(k);
+      expect(EXPERIENCIA_CAPTURA).not.toContain(k);
     }
   });
 });
