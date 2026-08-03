@@ -13,9 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { TRAINING_METHODS } from '../../constants/training-methods';
 import { Fonts, Radius } from '@/constants/theme';
-import { ELEVATION, TEXT } from '@/src/constants/brand';
+import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 
-const AMBAR = '#fbbf24';
+// B9: el único amarillo de la casa es ATP_BRAND.amber (doctrina MB-3.6).
+const AMBAR = ATP_BRAND.amber;
 
 interface Props {
   exerciseName: string;
@@ -155,7 +156,7 @@ export function Method35({ exerciseName, userLevel, lastWeight, onComplete, onCu
 }
 
 const s = StyleSheet.create({
-  headerCard: { backgroundColor: 'rgba(251,191,36,0.1)', borderRadius: Radius.card, padding: 16, marginBottom: 20 },
+  headerCard: { backgroundColor: withOpacity(ATP_BRAND.amber, 0.1), borderRadius: Radius.card, padding: 16, marginBottom: 20 },
   headerTitle: { color: AMBAR, fontSize: 15, fontFamily: Fonts.extraBold },
   headerBody: { color: '#ccc', fontSize: 13, lineHeight: 20, fontFamily: Fonts.regular },
 

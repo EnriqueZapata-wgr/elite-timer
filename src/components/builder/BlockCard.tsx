@@ -20,7 +20,7 @@ import { AddBlockButton } from './AddBlockButton';
 
 const COLOR_PALETTE = [
   Colors.textSecondary, Colors.neonGreen, Colors.info, Colors.warning,
-  Colors.error, '#9B59B6', ATP_BRAND.teal2, '#F39C12',
+  Colors.error, '#9B59B6', ATP_BRAND.teal2, ATP_BRAND.amber,
 ];
 
 // === COLORES POR TIPO DE BLOQUE ===
