@@ -258,7 +258,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
           </Pressable>
         ) : <View />}
         <Pressable
-          onPress={() => { haptic.light(); router.push('/kit'); }}
+          onPress={() => { haptic.light(); router.push({ pathname: '/kit', params: { agregar: '1' } }); }}
           style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.6 }]}
           accessibilityLabel="Agregar hábito"
         >

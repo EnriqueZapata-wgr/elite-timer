@@ -12,10 +12,11 @@
  * degradado es territorio de la molécula y de la orbe.
  */
 import { View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
-import { APP_SECTION_COLORS, TEXT, withOpacity } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
 import type { AppSection } from '@/src/constants/app-registry';
 import { Fonts } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
@@ -28,12 +29,21 @@ interface Props {
   label: string;
   section: AppSection;
   onPress: () => void;
+  /** MB-20: la app está instalada (su hábito vive en TAREAS). */
+  installed?: boolean;
+  /** MB-20: tap largo — instalar/desinstalar el hábito. */
+  onLongPress?: () => void;
 }
 
-export function AppTile({ icon, label, section, onPress }: Props) {
+export function AppTile({ icon, label, section, onPress, installed, onLongPress }: Props) {
   const color = APP_SECTION_COLORS[section];
   return (
-    <AnimatedPressable style={s.wrap} onPress={() => { haptic.light(); onPress(); }}>
+    <AnimatedPressable
+      style={s.wrap}
+      onPress={() => { haptic.light(); onPress(); }}
+      onLongPress={onLongPress}
+      delayLongPress={350}
+    >
       <View
         style={[
           s.tile,
@@ -41,6 +51,11 @@ export function AppTile({ icon, label, section, onPress }: Props) {
         ]}
       >
         <AppIcon name={icon} size={26} color={color} />
+        {installed && (
+          <View style={s.installedDot}>
+            <Ionicons name="checkmark" size={9} color="#000" />
+          </View>
+        )}
       </View>
       <EliteText style={s.label} numberOfLines={1}>{label}</EliteText>
     </AnimatedPressable>
@@ -64,5 +79,18 @@ const s = StyleSheet.create({
     color: TEXT.secondary,
     textAlign: 'center',
     maxWidth: 74,
+  },
+  installedDot: {
+    position: 'absolute',
+    right: -3,
+    bottom: -3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: ATP_BRAND.lime,
+    borderWidth: 2,
+    borderColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
