@@ -5,6 +5,7 @@
  * Ningún archivo debe hardcodear un color; debe importar de aquí.
  */
 import { hoyBgBucket } from '@/src/utils/time-of-day';
+import { BRAND_LIME, BRAND_TEAL } from '@/src/constants/brand-palette';
 
 // ═══ PALETA PRINCIPAL ═══
 
@@ -15,12 +16,14 @@ import { hoyBgBucket } from '@/src/utils/time-of-day';
 // (ver ACCENT_ROLES: >3 elementos lima en una pantalla = sobra acento).
 export const ATP_BRAND = {
   black: '#000000',
-  lime: '#A8E02A',       // Lima ATP — acento primario (CTAs, dato heroico; máx 1-2 por vista)
+  // MB-20 4.4: lime/teal viven en brand-palette (módulo puro) para que los
+  // *-core.ts (orbe) los importen sin arrastrar los require() de imágenes.
+  lime: BRAND_LIME,      // Lima ATP — acento primario (CTAs, dato heroico; máx 1-2 por vista)
   green1: '#6DCC48',     // Verde intermedio claro
   green2: '#3DBF6E',     // Verde medio
   teal1: '#2EC28A',      // Teal intermedio
-  teal2: '#1ABC9C',      // Teal profundo
-  teal: '#1ABC9C',       // Teal de acento (= el más bajo del molecule gradient) — acentos auth/UI
+  teal2: BRAND_TEAL,     // Teal profundo
+  teal: BRAND_TEAL,      // Teal de acento (= el más bajo del molecule gradient) — acentos auth/UI
   // Amarillo secundario ATP — acento terciario, NUNCA principal (lime+teal mandan).
   // ÚNICO amarillo de marca: SEMANTIC.acceptable y SCORE_COLORS.stable apuntan aquí.
   amber: '#EFD54F',

@@ -20,9 +20,11 @@ export type ArgosOrbState = 'idle' | 'alerta' | 'escuchando' | 'pensando' | 'hab
 
 export const ORB_STATES: readonly ArgosOrbState[] = ['idle', 'alerta', 'escuchando', 'pensando', 'hablando'] as const;
 
-// Espejo de ATP_BRAND — ver nota del encabezado.
-export const ORB_LIME = '#A8E02A';
-export const ORB_TEAL = '#1ABC9C';
+// MB-20 4.4: ya no es espejo a mano — brand-palette es el módulo puro que
+// brand.ts y este core comparten. Un solo lugar que cambiar.
+import { BRAND_LIME, BRAND_TEAL } from '@/src/constants/brand-palette';
+export const ORB_LIME = BRAND_LIME;
+export const ORB_TEAL = BRAND_TEAL;
 
 export interface OrbSpec {
   /** Escala base de la esfera respirando (min→max del ciclo). */

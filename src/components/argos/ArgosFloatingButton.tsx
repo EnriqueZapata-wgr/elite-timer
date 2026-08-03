@@ -13,7 +13,7 @@ import { Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { ArgosAvatar } from './ArgosAvatar';
+import { ArgosOrb } from './ArgosOrb';
 import { useArgosPresence } from './ArgosPresenceContext';
 import { shouldHideFloatingButton } from './argos-floating-core';
 import { screenFromPath } from '@/src/hooks/argos-screen-context-core';
@@ -79,7 +79,8 @@ export function ArgosFloatingButton() {
           elevation: 10,
         })}
       >
-        <ArgosAvatar state="idle" size={40} />
+        {/* MB-20 4.4: la orbe es ARGOS en todas partes (avatar retirado). */}
+        <ArgosOrb state="idle" size={40} />
       </Pressable>
     </View>
   );

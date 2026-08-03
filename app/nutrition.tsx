@@ -34,6 +34,7 @@ import { NutritionScoreCard } from '@/src/components/nutricion/NutritionScoreCar
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { CATEGORY_COLORS, TEXT_COLORS } from '@/src/constants/brand';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { ArgosMark } from '@/src/components/argos/ArgosMark';
 
 const BLUE = CATEGORY_COLORS.nutrition;
 
@@ -259,7 +260,7 @@ export default function NutritionScreen() {
         {insight && (
           <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.sm }}>
             <View style={s.insightCard}>
-              <Ionicons name="eye" size={14} color="#a8e02a" style={{ marginTop: 2 }} />
+              <ArgosMark size={14} style={{ marginTop: 2 }} />
               <EliteText style={s.insightText}>{insight.text}</EliteText>
             </View>
           </Animated.View>
@@ -267,7 +268,7 @@ export default function NutritionScreen() {
 
         {/* T6: ARGOS nutricional — chat con contexto del pilar pre-cargado */}
         <Animated.View entering={FadeInUp.delay(85).springify()} style={{ marginTop: Spacing.sm }}>
-          <NavCard icon="eye-outline" color="#a8e02a" title="Hablar con ARGOS"
+          <NavCard mark color="#a8e02a" title="Hablar con ARGOS"
             subtitle="Sobre tu nutrición de hoy — conoce tus datos"
             onPress={() => { haptic.light(); router.push('/argos-chat?from=nutrition'); }} />
         </Animated.View>
@@ -285,7 +286,7 @@ export default function NutritionScreen() {
                 width: 40, height: 40, borderRadius: 20,
                 backgroundColor: 'rgba(56,189,248,0.12)', justifyContent: 'center', alignItems: 'center',
               }}>
-                <Ionicons name="eye-outline" size={22} color="#38bdf8" />
+                <ArgosMark size={22} />
               </View>
               <View style={{ flex: 1 }}>
                 <EliteText style={{ color: '#38bdf8', fontSize: 14, fontWeight: '700' }}>Recetas + Lista de super</EliteText>
@@ -359,8 +360,8 @@ export default function NutritionScreen() {
 }
 
 // ═══ NAV CARD COMPONENT ═══
-function NavCard({ icon, color, title, subtitle, badge, badgeColor, onPress }: {
-  icon: string; color: string; title: string; subtitle: string;
+function NavCard({ icon, mark, color, title, subtitle, badge, badgeColor, onPress }: {
+  icon?: string; mark?: boolean; color: string; title: string; subtitle: string;
   badge?: string; badgeColor?: string; onPress: () => void;
 }) {
   return (
@@ -368,7 +369,8 @@ function NavCard({ icon, color, title, subtitle, badge, badgeColor, onPress }: {
       <GradientCard gradient={{ start: `${color}12`, end: `${color}04` }} accentColor={color} accentPosition="left" padding={16}>
         <View style={s.navRow}>
           <View style={[s.navIcon, { backgroundColor: `${color}15` }]}>
-            <Ionicons name={icon as any} size={22} color={color} />
+            {/* MB-20 4.4: la orbe es ARGOS en todas partes — mark dibuja ArgosMark. */}
+            {mark ? <ArgosMark size={22} /> : <Ionicons name={icon as any} size={22} color={color} />}
           </View>
           <View style={{ flex: 1 }}>
             <EliteText style={s.navTitle}>{title}</EliteText>

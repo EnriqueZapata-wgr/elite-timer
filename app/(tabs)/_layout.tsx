@@ -18,11 +18,12 @@
  * Si el usuario es coach Y la pantalla es ancha (>1024px), muestra el
  * CoachPanelLayout en vez de las tabs normales.
  */
-import { useState } from 'react';
-import { useWindowDimensions, View, Pressable, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { useWindowDimensions, View, Pressable, StyleSheet, DeviceEventEmitter } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EliteText } from '@/components/elite-text';
 import { useCoachStatus } from '@/src/hooks/useCoachStatus';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -33,6 +34,9 @@ import { ATP_BRAND, SURFACES, CATEGORY_COLORS } from '@/src/constants/brand';
 import { FeedbackButton } from '@/src/components/FeedbackButton';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import { useArgosPresence } from '@/src/components/argos/ArgosPresenceContext';
+import { OrbTour } from '@/src/components/tour/OrbTour';
+import { ORB_TOUR_DONE_KEY, ORB_TOUR_RESTART_EVENT } from '@/src/components/tour/orb-tour-core';
+import { countUnreadInbox } from '@/src/services/user-notifications-service';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
 
@@ -65,6 +69,37 @@ export default function TabLayout() {
   const [forceAthleteView, setForceAthleteView] = useState(false);
   // N3: la burbuja de feedback solo en DEV (no en build de producción ni para admins).
   const showFeedback = __DEV__;
+  const { setOrbState } = useArgosPresence();
+  const [showTour, setShowTour] = useState(false);
+
+  // MB-20 Pieza 4: el tour de la orbe. Llave nueva a propósito (los usuarios
+  // del carrusel viejo también ven esta arquitectura por primera vez). El
+  // delay secuencia con la celebración de onboarding (~2.3 s en HOY).
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(ORB_TOUR_DONE_KEY).then((v) => {
+      if (!alive || v === 'true') return;
+      setTimeout(() => { if (alive) setShowTour(true); }, 3000);
+    });
+    const sub = DeviceEventEmitter.addListener(ORB_TOUR_RESTART_EVENT, () => setShowTour(true));
+    return () => { alive = false; sub.remove(); };
+  }, []);
+
+  // MB-20 4.3: el disparador de 'alerta' que MB-19 dejó pendiente. Algo sin
+  // leer en el inbox (insight nuevo, notificación) → la orbe respira distinto.
+  // Nunca pisa los estados vivos de voz (esos son locales del modo voz).
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    const check = async () => {
+      const unread = await countUnreadInbox(user.id);
+      if (alive) setOrbState(unread > 0 ? 'alerta' : 'idle');
+    };
+    check();
+    const sub = DeviceEventEmitter.addListener('notifications_changed', check);
+    const interval = setInterval(check, 5 * 60 * 1000);
+    return () => { alive = false; sub.remove(); clearInterval(interval); };
+  }, [user?.id, setOrbState]);
 
   const showCoachPanel = width >= COACH_PANEL_MIN_WIDTH && isCoach && !forceAthleteView;
 
@@ -180,6 +215,15 @@ export default function TabLayout() {
       </Tabs>
 
       {showFeedback && <FeedbackButton />}
+
+      {/* MB-20 Pieza 4: el tour vive AQUÍ (sobre las tabs) para sobrevivir la
+          navegación entre pantallas sin secuestrar el toque (box-none). */}
+      {showTour && (
+        <OrbTour
+          bottomOffset={60 + insets.bottom}
+          onDone={() => setShowTour(false)}
+        />
+      )}
     </View>
   );
 }

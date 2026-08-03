@@ -30,6 +30,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay } from '@/src/services/day-compiler';
 import { SplashLoader } from '@/src/components/SplashLoader';
 import { NotificationBellIcon } from '@/src/components/hoy/NotificationBellIcon';
+import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { TareasView } from '@/src/components/hoy/TareasView';
 import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
@@ -45,7 +46,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TopBanner } from '@/src/components/global/TopBanner';
 // hotfix-ux FIX 4: toast de reacción ARGOS + atribución al ganar electrones.
 import { ArgosReactionToast } from '@/src/components/economy/ArgosReactionToast';
-import { AppTour } from '@/src/components/AppTour';
 import { Colors, Spacing, Fonts, Radius, FontSizes } from '@/constants/theme';
 
 // LayoutAnimation lo usan cards hijas (HoyEditorialSection) — el enable global vive aquí.
@@ -68,10 +68,7 @@ export default function TodayScreen() {
   const [progressLabel, setProgressLabel] = useState('Iniciando…');
   // F3 (AGENDA-COMPLETE): la campana ahora es NotificationBellIcon (self-contained,
   // badge = user_notifications sin leer, tap → /notifications).
-  const [showTour, setShowTour] = useState(false);
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
-  // Gate de género para electrones (period_log) — null hasta que carga.
-  const [userSex, setUserSex] = useState<string | null>(null);
   const [weeklyInsight, setWeeklyInsight] = useState<WeeklyInsightData | null>(null);
   const [weeklyInsightDismissed, setWeeklyInsightDismissed] = useState(false);
   // MB-20: auto-foco — el scroll aterriza en el bloque de la hora actual.
@@ -144,28 +141,12 @@ export default function TodayScreen() {
     // las filas de TAREAS salen de compileDay (prefs del usuario) directamente.
   }, [loadDay]));
 
-  // --- Tour de onboarding ---
-  useEffect(() => {
-    AsyncStorage.getItem('@atp/tour_completed').then(v => {
-      if (v !== 'true') setShowTour(true);
-    });
-  }, []);
+  // MB-20 Pieza 4: el tour ya no vive aquí — la orbe lo guía desde la carcasa
+  // de tabs (OrbTour en app/(tabs)/_layout.tsx) sobre las pantallas reales.
 
   // Sexo biológico para gate de electrones (period_log).
-  useEffect(() => {
-    if (!user?.id) return;
-    supabase
-      .from('client_profiles')
-      .select('biological_sex')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        // MB-11 A: en error NO pisar el gate con null "falso" — se queda el
-        // estado previo (null inicial = gate conservador) y queda registro.
-        if (error) { logWarn('[HOY] client_profiles query failed', error); return; }
-        setUserSex((data as any)?.biological_sex ?? null);
-      });
-  }, [user?.id]);
+  // MB-20: el gate de sexo (period_log) vive dentro de compileDay; el consumidor
+  // local (AppTour) se retiró con el tour viejo.
 
   // MB-11 B: el efecto de Daily Review (3 queries nocturnas vía buildDailyReview)
   // era código muerto — su card se retiró del render en v13e 3.C y el mini-reporte
@@ -361,7 +342,7 @@ export default function TodayScreen() {
             <View style={s.weeklyCard}>
               <View style={s.weeklyHeader}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="eye" size={14} color="#a8e02a" />
+                  <ArgosMark size={14} />
                   <Text style={s.weeklyLabel}>LECTURA DE LA SEMANA</Text>
                 </View>
                 {/* MB-1.5 §1: pressed visible (antes Pressable sin feedback) */}
@@ -471,9 +452,6 @@ export default function TodayScreen() {
         {/* Espaciado inferior para tab bar */}
         <View style={{ height: 120 }} />
       </ScrollView>
-
-      {/* Tour de onboarding (MB-10: editorial, sex decide la pantalla de Ciclo) */}
-      {showTour && <AppTour onComplete={() => setShowTour(false)} sex={userSex} />}
 
       {/* F3 (AGENDA-COMPLETE): el modal de la campana se retiró — el inbox vive en /notifications
           (el INSIGHT ARGOS del día se muestra ahí, fijado arriba). */}
