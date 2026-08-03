@@ -21,7 +21,8 @@ interface Props {
   tarea: Tarea;
   /** Color de su sección (APP_SECTION_COLORS via seccionForTarea). */
   sectionColor: string;
-  /** Dato de cierre (la meta compilada: "2.0L de 3.5L", "+2 e-"). */
+  /** Dato de cierre ("12 min", "5.2 km · 32 min", "3 de 5"). Sin él, solo
+   * el nombre tachado — nunca el electrón (+2 e-), que es economía. */
   dato?: string;
   reducedMotion?: boolean;
   onNavigate: (t: Tarea) => void;

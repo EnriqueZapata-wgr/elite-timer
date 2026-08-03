@@ -31,7 +31,7 @@ import {
   type Tarea, type Momento,
 } from '@/src/services/hoy/tareas-core';
 import {
-  seccionForTarea, datoForTarea, pickHeroTarea,
+  seccionForTarea, datoForTarea, datoCierreForTarea, pickHeroTarea,
 } from '@/src/services/hoy/tareas-editorial-core';
 import {
   persistBooleanToggle, registrarExperiencia, type ExperienciaExterna,
@@ -271,7 +271,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
             <TareaHechaRow
               tarea={t}
               sectionColor={colorDeSeccion(t)}
-              dato={t.meta}
+              dato={datoCierreForTarea(t, day.datosVivos, hoy)}
               reducedMotion={reducedMotion}
               onNavigate={handleNavigate}
               onPalomear={handlePalomear}
@@ -371,13 +371,18 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               onInline={handleInline}
             />
           ) : null}
-          {/* Bandas editoriales por bloque; las filas se quedan compactas. */}
+          {/* Bandas editoriales por bloque; las filas se quedan compactas.
+              MB-20.2 · 3.1: la tarea del héroe NO se repite como fila — dos
+              superficies palomeables para lo mismo era un bug de honestidad.
+              El contador de la banda sí la incluye (es progreso real). */}
           {result.blocks.map((b) => (
             <View key={b.momento}>
               <MomentoBanda momento={b.momento} label={b.label} done={b.done} total={b.total} />
-              {b.items.map((t) => (
-                <TareaRow key={t.key} tarea={t} lens="agenda" accentColor={colorDeSeccion(t)} {...rowProps} />
-              ))}
+              {b.items
+                .filter((t) => t.key !== heroTarea?.key)
+                .map((t) => (
+                  <TareaRow key={t.key} tarea={t} lens="agenda" accentColor={colorDeSeccion(t)} {...rowProps} />
+                ))}
             </View>
           ))}
           <Pressable

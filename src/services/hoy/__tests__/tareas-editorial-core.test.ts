@@ -9,6 +9,7 @@ import {
   seccionForTarea,
   datoForTarea,
   datoVivoForTarea,
+  datoCierreForTarea,
   pickHeroTarea,
   HERO_VENTANA_MIN,
   type TareaSeccion,
@@ -138,6 +139,48 @@ describe('datoVivoForTarea (MB-20.2 · Pieza 2)', () => {
   });
 });
 
+describe('datoCierreForTarea (MB-20.2 · 3.2)', () => {
+  const HOY = '2026-08-03';
+  const vivos: DatosVivos = {
+    supplements: { taken: 3, total: 5 },
+    cardio: { lastDate: HOY, distanceMeters: 5200, durationSeconds: 1920 },
+    meditation: { lastDate: HOY, durationSeconds: 720 },
+    nback: { lastDate: HOY, nLevel: 2 },
+    checkin: { lastDate: HOY, quadrant: 'low_pleasant' },
+  };
+
+  it('el cierre es el dato real, nunca el electrón', () => {
+    expect(datoCierreForTarea({ key: 'meditation', kind: 'bool', meta: '+2.5 e-', time: '07:00' }, vivos, HOY))
+      .toBe('12 min');
+    expect(datoCierreForTarea({ key: 'cardio', kind: 'bool', meta: '+2 e-', time: '17:00' }, vivos, HOY))
+      .toBe('5.2 km · 32 min');
+    expect(datoCierreForTarea({ key: 'supplements', kind: 'bool', meta: '+1 e-', time: '08:00' }, vivos, HOY))
+      .toBe('3 de 5');
+    expect(datoCierreForTarea({ key: 'nback', kind: 'bool', meta: '+2.5 e-', time: '18:00' }, vivos, HOY))
+      .toBe('Nivel 2');
+  });
+
+  it('cuantitativos y ayuno cierran con su meta compilada', () => {
+    expect(datoCierreForTarea({ key: 'water', kind: 'quant', meta: '2.5L de 2.5L', time: '08:30' }, vivos, HOY))
+      .toBe('2.5L de 2.5L');
+    expect(datoCierreForTarea({ key: 'agenda-smart-fast', kind: 'agenda', meta: 'Ayuno 16h', time: '13:40' }, vivos, HOY))
+      .toBe('Ayuno 16h');
+  });
+
+  it('sin dato de cierre va solo el nombre tachado (undefined, no +e-)', () => {
+    expect(datoCierreForTarea({ key: 'sunlight', kind: 'bool', meta: '+1.5 e-', time: '07:30' }, vivos, HOY))
+      .toBeUndefined();
+    expect(datoCierreForTarea({ key: 'journal', kind: 'bool', meta: '+2 e-', time: '21:30' }, vivos, HOY))
+      .toBeUndefined();
+    // Un dato vivo de AYER no es un cierre de HOY.
+    expect(datoCierreForTarea(
+      { key: 'meditation', kind: 'bool', meta: '+2.5 e-', time: '07:00' },
+      { meditation: { lastDate: '2026-08-02', durationSeconds: 720 } },
+      HOY,
+    )).toBeUndefined();
+  });
+});
+
 describe('pickHeroTarea', () => {
   const t = (time: string, completed = false) => ({ time, completed });
 
@@ -161,11 +204,20 @@ describe('pickHeroTarea', () => {
     expect(pickHeroTarea([t('07:30', true), t('21:00', true)], 12 * 60)).toBeNull();
   });
 
-  it('la ventana mide exactamente HERO_VENTANA_MIN', () => {
+  it('la ventana mide exactamente 90 minutos (el contrato, no la constante)', () => {
+    // MB-20.2 · 3.3: el test anterior sumaba HERO_VENTANA_MIN, así que
+    // pasaba valiera lo que valiera. El 90 va literal: cambiar la ventana
+    // debe romper aquí a propósito.
+    expect(HERO_VENTANA_MIN).toBe(90);
     const tareas = [t('07:30'), t('12:00')];
     // A las 09:00 el sol (07:30) lleva justo 90 min: sigue en ventana.
-    expect(pickHeroTarea(tareas, 7 * 60 + 30 + HERO_VENTANA_MIN)).toEqual(t('07:30'));
-    // Un minuto después ya no: gana la próxima.
-    expect(pickHeroTarea(tareas, 7 * 60 + 31 + HERO_VENTANA_MIN)).toEqual(t('12:00'));
+    expect(pickHeroTarea(tareas, 9 * 60)).toEqual(t('07:30'));
+    // A las 09:01 ya no: gana la próxima.
+    expect(pickHeroTarea(tareas, 9 * 60 + 1)).toEqual(t('12:00'));
+  });
+
+  it('el borde de entrada: la tarea justo en su minuto (delta 0) ya está en ventana', () => {
+    const tareas = [t('07:30'), t('12:00')];
+    expect(pickHeroTarea(tareas, 7 * 60 + 30)).toEqual(t('07:30'));
   });
 });

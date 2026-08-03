@@ -196,6 +196,48 @@ export function datoForTarea(
   return datoVivoForTarea(t.key, vivos, hoy);
 }
 
+/**
+ * El dato de CIERRE de una tarea hecha (la cinta de HECHAS, MB-20.2 · 3.2):
+ * "12 min", "5.2 km · 32 min", "3 de 5" — nunca el electrón (+1.5 e-), que
+ * es economía y no cierre. Cuantitativos y ayuno cierran con su meta
+ * compilada; los booleanos con su dato vivo SI es de hoy. Sin dato de
+ * cierre → undefined: va solo el nombre tachado.
+ */
+export function datoCierreForTarea(
+  t: TareaDato,
+  vivos?: DatosVivos | null,
+  hoy?: string,
+): string | undefined {
+  if (t.kind === 'quant' || t.kind === 'agenda') return t.meta || undefined;
+  if (!vivos || !hoy) return undefined;
+  switch (t.key) {
+    case 'meditation': {
+      const m = vivos.meditation;
+      return m?.lastDate === hoy ? fmtMin(m.durationSeconds) ?? undefined : undefined;
+    }
+    case 'cardio': {
+      const c = vivos.cardio;
+      if (c?.lastDate !== hoy) return undefined;
+      const partes = [fmtKm(c.distanceMeters), fmtMin(c.durationSeconds)].filter(Boolean);
+      return partes.length > 0 ? partes.join(' · ') : undefined;
+    }
+    case 'supplements': {
+      const s = vivos.supplements;
+      return s && s.total > 0 ? `${s.taken} de ${s.total}` : undefined;
+    }
+    case 'nback': {
+      const n = vivos.nback;
+      return n?.lastDate === hoy && Number.isFinite(Number(n.nLevel)) ? `Nivel ${n.nLevel}` : undefined;
+    }
+    case 'checkin': {
+      const c = vivos.checkin;
+      return c?.lastDate === hoy ? quadrantLabel(c.quadrant) ?? undefined : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
 // ── El héroe de AGENDA ──
 
 /** Una tarea "está en su ventana" si arrancó hace menos de esto. */
