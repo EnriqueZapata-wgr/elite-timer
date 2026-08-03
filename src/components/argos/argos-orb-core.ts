@@ -12,8 +12,9 @@
  * mínimo por opacidad/color, sin animación continua que maree (doctrina spec §2.3).
  *
  * Separado del componente para testear el mapeo estado→spec sin renderizar RN.
- * NOTA COLORES: espejo de brand.ts (ATP_BRAND.lime/teal). No se importa brand.ts
- * (arrastra require() de imágenes y rompe Vitest node-only). Si brand cambia, actualizar.
+ * NOTA COLORES: vienen de brand-palette, el módulo puro que brand.ts y este
+ * core comparten (MB-20 4.4). No se importa brand.ts porque arrastra require()
+ * de imágenes y rompe Vitest node-only.
  */
 
 export type ArgosOrbState = 'idle' | 'alerta' | 'escuchando' | 'pensando' | 'hablando';

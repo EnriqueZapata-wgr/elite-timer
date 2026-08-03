@@ -8,7 +8,8 @@
  * 3. Economía self-gated (ProBoostCard + HPlusExplainerCard)
  * 4. Lectura de la semana (domingo ≥19h, cacheada)
  * 5. CTAs quiet: Mi Protocolo · Mis hábitos
- * Overlays: TopBanner · AppTour · ArgosReactionToast.
+ * Overlays: TopBanner · ArgosReactionToast (el tour de la orbe vive en la
+ * carcasa de tabs, no aquí).
  *
  * MB-20: el hero fotográfico, la card AHORA, la card TU DÍA (ATP Score) y
  * el AgendaPreviewCard salieron de HOY — el motor del score sigue vivo en

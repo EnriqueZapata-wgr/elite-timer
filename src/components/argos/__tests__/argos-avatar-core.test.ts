@@ -9,12 +9,13 @@ import {
   ringRadii,
   waveHeights,
   starPath,
-  crossLines,
   rayLines,
   STATE_TRANSITION_MS,
 } from '@/src/components/argos/argos-avatar-core';
 
-describe('avatarSpecForState — 5 estados dramáticos (T1 MAGIA 2.0)', () => {
+// NOCTURNO-FIX 7.2: 'unavailable' (tache X rojo) se retiró con su spec y su
+// geometría — la presencia jamás se pinta roja (doctrina MB-20 4.4).
+describe('avatarSpecForState — 4 estados dramáticos (T1 MAGIA 2.0)', () => {
   it('cada estado tiene una FORMA distinta (distinguible a golpe de vista)', () => {
     const shapes = AVATAR_STATES.map((st) => avatarSpecForState(st).shape);
     expect(new Set(shapes).size).toBe(AVATAR_STATES.length);
@@ -22,7 +23,7 @@ describe('avatarSpecForState — 5 estados dramáticos (T1 MAGIA 2.0)', () => {
 
   it('cada estado animado tiene un COLOR distinto del offline (gris)', () => {
     const offline = avatarSpecForState('offline');
-    (['idle', 'thinking', 'speaking', 'unavailable'] as const).forEach((st) => {
+    (['idle', 'thinking', 'speaking'] as const).forEach((st) => {
       expect(avatarSpecForState(st).color).not.toBe(offline.color);
     });
   });
@@ -56,10 +57,12 @@ describe('avatarSpecForState — 5 estados dramáticos (T1 MAGIA 2.0)', () => {
     });
   });
 
-  it('unavailable: tache X rojo', () => {
-    const s = avatarSpecForState('unavailable');
-    expect(s.shape).toBe('cross');
-    expect(s.color).toBe('#fb7185');
+  it('ningún estado se pinta rojo (el rojo murió con unavailable)', () => {
+    AVATAR_STATES.forEach((st) => {
+      const s = avatarSpecForState(st);
+      expect(s.color.toLowerCase()).not.toBe('#fb7185');
+      expect(s.glowColor.toLowerCase()).not.toBe('#fb7185');
+    });
   });
 
   it('todos los specs son válidos (glowMin <= glowMax, cycleMs >= 0)', () => {
@@ -134,19 +137,6 @@ describe('starPath — estrella SVG', () => {
   it('la punta superior está en (cx, cy - outerR)', () => {
     const p = starPath(50, 50, 30, 14, 5);
     expect(p.startsWith('M50,20')).toBe(true);
-  });
-});
-
-describe('crossLines — tache X', () => {
-  it('dos diagonales simétricas dentro del radio', () => {
-    const [l1, l2] = crossLines(50, 50, 20);
-    // Diagonal 1: ↘  Diagonal 2: ↗
-    expect(l1.x1).toBeLessThan(l1.x2);
-    expect(l1.y1).toBeLessThan(l1.y2);
-    expect(l2.y1).toBeGreaterThan(l2.y2);
-    // Ambas del mismo largo (simetría)
-    const len = (l: typeof l1) => Math.hypot(l.x2 - l.x1, l.y2 - l.y1);
-    expect(len(l1)).toBeCloseTo(len(l2), 5);
   });
 });
 

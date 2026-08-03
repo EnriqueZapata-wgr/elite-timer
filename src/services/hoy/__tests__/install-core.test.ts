@@ -116,9 +116,13 @@ describe('applyInstall / applyUninstall', () => {
     }
   });
 
-  it('sol enciende sus dos electrones y los apaga juntos', () => {
+  it('sol enciende sunlight; sun_awareness no es activable y no se inventa', () => {
+    // El test viejo ("sol enciende sus dos electrones") comparaba el resultado
+    // contra sí mismo filtrado: pasaba siempre. La verdad: sun_awareness no
+    // está en ningún catálogo activable, así que instalar sol NO lo enciende.
+    expect(togglesForApp('sol').booleans).toEqual(['sunlight']);
     const on = applyInstall('sol', EMPTY);
-    expect(on.booleans.sort()).toEqual(['sun_awareness', 'sunlight'].filter((k) => on.booleans.includes(k)).sort());
+    expect(on.booleans).toEqual(['sunlight']);
     const off = applyUninstall('sol', on);
     expect(off.booleans).toEqual([]);
   });

@@ -6,9 +6,12 @@
  * ArgosOrb (gradiente #EAFFC0 → lime → teal + brillo especular), sin halo.
  *
  * En listas se monta N veces (una por mensaje de ARGOS): el id del gradiente
- * es único por instancia para no colisionar defs.
+ * es único por instancia para no colisionar defs. NOCTURNO-FIX 7.3: el id sale
+ * de un contador propio, no de useId() — useId produce ":r3:" y los dos puntos
+ * son sintaxis inválida dentro de url(#...) en SVG estricto (el mark se
+ * pintaba en riesgo de caer a negro).
  */
-import { useId } from 'react';
+import { useRef } from 'react';
 import { View, type ViewStyle, type StyleProp } from 'react-native';
 import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import { ORB_LIME, ORB_TEAL } from './argos-orb-core';
@@ -18,8 +21,10 @@ interface Props {
   style?: StyleProp<ViewStyle>;
 }
 
+let markSeq = 0;
+
 export function ArgosMark({ size = 16, style }: Props) {
-  const gid = `argosMark-${useId()}`;
+  const gid = useRef(`argosMark-${++markSeq}`).current;
   const c = size / 2;
   return (
     <View

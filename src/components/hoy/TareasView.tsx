@@ -102,14 +102,26 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   };
 
   // ── Recordatorio contextual del tap largo (1.4) ──
+  // NOCTURNO-FIX 7.4: al recuperar foco el compilado AÚN es el viejo (loadDay
+  // es async), así que comparar ahí contaba "regresó sin hacer nada" aunque
+  // sí hubiera hecho. El foco solo ARMA la evaluación; se decide cuando llega
+  // el compile fresco (cambia `day`).
   const tapNavRef = useRef<{ key: string; completedAtNav: number } | null>(null);
+  const pendingEvalRef = useRef<{ key: string; completedAtNav: number } | null>(null);
   const bounceCountRef = useRef(0);
+  const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const completedNow = result.global.done;
   useFocusEffect(useCallback(() => {
-    const pending = tapNavRef.current;
-    tapNavRef.current = null;
+    if (tapNavRef.current) {
+      pendingEvalRef.current = tapNavRef.current;
+      tapNavRef.current = null;
+    }
+  }, []));
+  useEffect(() => {
+    const pending = pendingEvalRef.current;
     if (!pending) return;
-    if (completedNow > pending.completedAtNav) { bounceCountRef.current = 0; return; }
+    pendingEvalRef.current = null;
+    if (result.global.done > pending.completedAtNav) { bounceCountRef.current = 0; return; }
     bounceCountRef.current += 1;
     if (bounceCountRef.current >= NUDGE_THRESHOLD) {
       bounceCountRef.current = 0;
@@ -117,11 +129,15 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         if (!can) return;
         markNudgeShown();
         setNudgeVisible(true);
-        setTimeout(() => setNudgeVisible(false), 8000);
+        if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+        nudgeTimerRef.current = setTimeout(() => setNudgeVisible(false), 8000);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [completedNow]));
+  }, [day]);
+  useEffect(() => () => {
+    if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+  }, []);
 
   // ── Handlers de gesto ──
   const handleNavigate = useCallback((t: Tarea) => {

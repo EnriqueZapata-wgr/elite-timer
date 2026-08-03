@@ -1,7 +1,8 @@
 /**
  * Onboarding v2 — Paso 7: Permiso de notificaciones (explicación clara ANTES
  * del prompt del sistema). Al terminar (con o sin permiso) el onboarding se
- * marca 'completed' → HOY, donde AppTour arranca solo la primera vez.
+ * marca 'completed' → HOY; el tour de la orbe (OrbTour, carcasa de tabs)
+ * arranca solo la primera vez.
  */
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';

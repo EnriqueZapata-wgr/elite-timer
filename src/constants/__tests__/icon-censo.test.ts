@@ -16,9 +16,11 @@
  *      entrada consciente al inventario.
  *
  * Exclusiones deliberadas del ratchet (documentadas, no lista blanca ciega):
- *   · `ellipse-outline` y `heart-outline`: demasiado genéricos — son radios,
- *     bullets y likes de chrome en decenas de pantallas; su versión-función
- *     (ciclo, emociones) ya está protegida por los candados 1 y 2.
+ *   · `ellipse-outline`: demasiado genérico — radios y bullets de chrome en
+ *     decenas de pantallas; su versión-función ya está protegida por los
+ *     candados 1 y 2.
+ *   · `help-circle-outline`: es el fallback del propio mapa (glifo de "icono
+ *     no encontrado"), no una función del registro.
  *   · `❤️` a secas: los dominios de Edad ATP (cardiovascular) lo usan como
  *     contenido propio; el emoji que dibujaba cardio (`❤️‍🔥`) SÍ está vetado.
  */

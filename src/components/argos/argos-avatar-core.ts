@@ -8,7 +8,10 @@
  *   idle        → círculos concéntricos "alive" (respiración desfasada), lima
  *   thinking    → olas en movimiento (barras senoidales fluyendo), azul
  *   speaking    → estrella 5 puntas pulsante + rayos radiales, lima brillante
- *   unavailable → tache X (dos líneas cruzadas), rojo tenue
+ *
+ * El estado 'unavailable' (tache X rojo) se retiró en NOCTURNO-FIX 7.2: la
+ * doctrina de MB-20 4.4 es que la presencia jamás se pinta roja (orbe apagada
+ * + RateLimitCard con palabras).
  *
  * Separada del componente para testear el mapeo estado→spec y la geometría
  * SVG sin renderizar RN (convención del repo: lógica pura en *-core.ts).
@@ -18,15 +21,15 @@
  * harness Vitest node-only. Si brand cambia, actualizar aquí.
  */
 
-export type ArgosAvatarState = 'offline' | 'idle' | 'thinking' | 'speaking' | 'unavailable';
+export type ArgosAvatarState = 'offline' | 'idle' | 'thinking' | 'speaking';
 export type ArgosAvatarVariant = 'compact' | 'full';
 
 export const AVATAR_STATES: readonly ArgosAvatarState[] = [
-  'offline', 'idle', 'thinking', 'speaking', 'unavailable',
+  'offline', 'idle', 'thinking', 'speaking',
 ] as const;
 
 /** Forma dominante que dibuja cada estado. */
-export type AvatarShape = 'bullseye' | 'rings' | 'waves' | 'star' | 'cross';
+export type AvatarShape = 'bullseye' | 'rings' | 'waves' | 'star';
 
 export interface AvatarStateSpec {
   shape: AvatarShape;
@@ -47,7 +50,6 @@ export interface AvatarStateSpec {
 const LIME = '#A8E02A';
 const LIME_BRIGHT = '#C6F94B'; // lima brillante para speaking (más luz que el base)
 const BLUE = '#5B9BD5';        // SEMANTIC.info / CATEGORY_COLORS.nutrition
-const RED = '#fb7185';         // SEMANTIC.error
 const GRAY = '#555555';        // TEXT_COLORS.muted
 
 /** Duración del crossfade entre estados (spec: 200-400ms). */
@@ -65,8 +67,6 @@ export function avatarSpecForState(state: ArgosAvatarState): AvatarStateSpec {
       return { shape: 'waves', color: BLUE, glowColor: BLUE, glowMin: 0.22, glowMax: 0.5, cycleMs: 520, animated: true };
     case 'speaking':
       return { shape: 'star', color: LIME_BRIGHT, glowColor: LIME, glowMin: 0.35, glowMax: 0.75, cycleMs: 420, animated: true };
-    case 'unavailable':
-      return { shape: 'cross', color: RED, glowColor: RED, glowMin: 0.12, glowMax: 0.22, cycleMs: 1400, animated: true };
     case 'idle':
     default:
       return { shape: 'rings', color: LIME, glowColor: LIME, glowMin: 0.14, glowMax: 0.34, cycleMs: 1500, animated: true };
@@ -149,15 +149,6 @@ export function starPath(cx: number, cy: number, outerRadius: number, innerRadiu
 
 export interface Line {
   x1: number; y1: number; x2: number; y2: number;
-}
-
-/** Las dos líneas a 45° del tache X (unavailable), dentro de radio r. */
-export function crossLines(cx: number, cy: number, r: number): [Line, Line] {
-  const d = round2(r * Math.SQRT1_2);
-  return [
-    { x1: round2(cx - d), y1: round2(cy - d), x2: round2(cx + d), y2: round2(cy + d) },
-    { x1: round2(cx - d), y1: round2(cy + d), x2: round2(cx + d), y2: round2(cy - d) },
-  ];
 }
 
 /**

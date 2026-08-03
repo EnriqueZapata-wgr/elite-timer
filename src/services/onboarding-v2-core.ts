@@ -14,8 +14,9 @@
  * sanos" (§2 versión precisa) ANTES del consentimiento — el usuario entiende
  * qué es ATP (y qué NO es) antes de otorgar nada.
  *
- * El tour post-onboarding NO es un step: AppTour se auto-dispara en la primera
- * visita a HOY (AsyncStorage @atp/tour_completed), igual que antes.
+ * El tour post-onboarding NO es un step: el tour de la orbe (OrbTour) se
+ * auto-dispara en la primera visita a las tabs (AsyncStorage
+ * @atp/tour_v2_completed).
  */
 // Type-only: se borra en compilación — el núcleo sigue siendo puro para vitest.
 import type { Href } from 'expo-router';
