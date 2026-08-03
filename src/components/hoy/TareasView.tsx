@@ -8,21 +8,27 @@
  * Los horarios finos y las notificaciones por evento se editan en /agenda
  * (la puerta vive en la lente AGENDA).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View, Pressable, StyleSheet, Alert, LayoutChangeEvent } from 'react-native';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import { TareaRow } from '@/src/components/hoy/TareaRow';
+import { TareaCard } from '@/src/components/hoy/TareaCard';
+import { TareaHechaRow } from '@/src/components/hoy/TareaHechaRow';
+import { tareaImage } from '@/src/components/hoy/tarea-images';
 import { SmartCheckModal } from '@/src/components/hoy/SmartCheckModal';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
   buildTareas, agendaLens, EXPERIENCIA_REGISTRO, type Tarea, type Momento,
 } from '@/src/services/hoy/tareas-core';
+import { seccionForTarea, datoForTarea } from '@/src/services/hoy/tareas-editorial-core';
 import {
   persistBooleanToggle, registrarExperiencia, type ExperienciaExterna,
 } from '@/src/services/hoy/tarea-actions';
@@ -30,7 +36,7 @@ import { addWater } from '@/src/services/hydration-service';
 import { canShowNudge, markNudgeShown, NUDGE_THRESHOLD } from '@/src/services/hoy/nudge-store';
 import type { CompiledDay } from '@/src/services/day-compiler';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
 
 type Lens = 'tareas' | 'agenda';
 
@@ -87,6 +93,16 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
 
   const agendaItems = useMemo(() => agendaLens(result), [result]);
 
+  // ── MB-20.1: el muro encoge — hechas arriba como cinta, bloques solo con
+  // pendientes. La fuente sigue siendo la misma (result); esto es reparto. ──
+  const hechas = useMemo(() => agendaLens(result).filter((t) => t.completed), [result]);
+  const pendingBlocks = useMemo(
+    () => result.blocks
+      .map((b) => ({ ...b, pending: b.items.filter((t) => !t.completed) }))
+      .filter((b) => b.pending.length > 0),
+    [result],
+  );
+
   // ── Auto-foco en el bloque actual (una sola vez) ──
   const blockYs = useRef<Partial<Record<Momento, number>>>({});
   const focusedRef = useRef(false);
@@ -94,8 +110,9 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
     blockYs.current[momento] = e.nativeEvent.layout.y;
     if (!focusedRef.current && momento === result.focusMomento && lens === 'tareas') {
       focusedRef.current = true;
-      // Solo si el bloque actual no es el primero (nada que scrollear si sí).
-      if (result.blocks[0]?.momento !== result.focusMomento) {
+      // MB-20.1: HECHAS vive arriba y nunca recibe el foco. Se scrollea si
+      // hay cinta encima o si el bloque actual no es el que abre la lista.
+      if (hechas.length > 0 || pendingBlocks[0]?.momento !== result.focusMomento) {
         onRequestScroll?.(e.nativeEvent.layout.y);
       }
     }
@@ -200,6 +217,72 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
 
   const pctGlobal = result.global.total > 0 ? result.global.done / result.global.total : 0;
 
+  // ── MB-20.1 · Pieza 1: la lente TAREAS con piel editorial ──
+  // Al palomear, la card encoge hasta su renglón y VIAJA al bloque de hechas
+  // con la transición de layout de la sala ATP. Para que reanimated anime el
+  // viaje, todos los elementos viven PLANOS bajo un mismo padre con llave
+  // estable (un wrapper por bloque rompería la continuidad del instance).
+  const rowLayout = reducedMotion ? LinearTransition : LinearTransition.springify().damping(18);
+  const seedBase = `${userId ?? ''}-${getLocalToday()}`;
+  const colorDeSeccion = (t: Tarea) => APP_SECTION_COLORS[seccionForTarea(t.key)];
+
+  const tareasChildren: ReactNode[] = [];
+  if (lens === 'tareas') {
+    if (hechas.length > 0) {
+      tareasChildren.push(
+        <Animated.View key="header-hechas" layout={rowLayout} style={s.blockHeader}>
+          <EliteText style={s.blockLabel}>HECHAS</EliteText>
+          <EliteText style={s.blockCount}>{hechas.length}</EliteText>
+        </Animated.View>,
+      );
+      for (const t of hechas) {
+        tareasChildren.push(
+          <Animated.View key={t.key} layout={rowLayout}>
+            <TareaHechaRow
+              tarea={t}
+              sectionColor={colorDeSeccion(t)}
+              dato={t.meta}
+              reducedMotion={reducedMotion}
+              onNavigate={handleNavigate}
+              onPalomear={handlePalomear}
+              onExperiencia={setSmartTarea}
+            />
+          </Animated.View>,
+        );
+      }
+    }
+    for (const b of pendingBlocks) {
+      tareasChildren.push(
+        <Animated.View
+          key={`header-${b.momento}`}
+          layout={rowLayout}
+          onLayout={captureBlockY(b.momento)}
+          style={s.blockHeader}
+        >
+          <EliteText style={s.blockLabel}>{b.label}</EliteText>
+          <EliteText style={s.blockCount}>{b.done} de {b.total}</EliteText>
+        </Animated.View>,
+      );
+      for (const t of b.pending) {
+        tareasChildren.push(
+          <Animated.View key={t.key} layout={rowLayout}>
+            <TareaCard
+              tarea={t}
+              sectionColor={colorDeSeccion(t)}
+              image={tareaImage(t.key, `${seedBase}-${t.key}`)}
+              dato={datoForTarea(t, uvMini)}
+              reducedMotion={reducedMotion}
+              onNavigate={handleNavigate}
+              onPalomear={handlePalomear}
+              onExperiencia={setSmartTarea}
+              onInline={handleInline}
+            />
+          </Animated.View>,
+        );
+      }
+    }
+  }
+
   return (
     <View>
       {/* Lentes */}
@@ -240,19 +323,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
       <OrbCard userId={userId} />
 
       {lens === 'tareas' ? (
-        <>
-          {result.blocks.map((b) => (
-            <View key={b.momento} onLayout={captureBlockY(b.momento)}>
-              <View style={s.blockHeader}>
-                <EliteText style={s.blockLabel}>{b.label}</EliteText>
-                <EliteText style={s.blockCount}>{b.done} de {b.total}</EliteText>
-              </View>
-              {b.items.map((t) => (
-                <TareaRow key={t.key} tarea={t} lens="tareas" {...rowProps} />
-              ))}
-            </View>
-          ))}
-        </>
+        <View>{tareasChildren}</View>
       ) : (
         <>
           {agendaItems.map((t) => (

@@ -86,6 +86,9 @@ export const APP_SECTION_COLORS = {
   diario: CATEGORY_COLORS.nutrition,
   salud: CATEGORY_COLORS.metrics,
   sistema: TEXT_COLORS.secondary,
+  // MB-20.1: el ciclo pinta con su propio rosa (manual), no con el teal de
+  // salud — las cards de TAREAS lo necesitan como sección propia.
+  ciclo: CATEGORY_COLORS.cycle,
 } as const;
 
 // ═══ COLORES SEMÁNTICOS ═══
