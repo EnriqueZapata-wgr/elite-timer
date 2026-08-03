@@ -390,7 +390,8 @@ function BoxConfigScreen({ template, onStart, onBack }: {
 
         <View style={styles.configDivider} />
 
-        <ConfigRow label="Ciclos" value={cycles} onChange={setCycles} min={1} max={50} />
+        {/* Ciclos son repeticiones, no segundos: sin unidad. */}
+        <ConfigRow label="Ciclos" value={cycles} onChange={setCycles} min={1} max={50} unit="" />
 
         <EliteText variant="caption" style={styles.configTotal}>
           Tiempo total: {totalMin > 0 ? `${totalMin}m ` : ''}{totalSec > 0 ? `${totalSec}s` : ''}
@@ -403,8 +404,8 @@ function BoxConfigScreen({ template, onStart, onBack }: {
   );
 }
 
-function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
-  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number;
+function ConfigRow({ label, value, onChange, min = 1, max = 30, unit = 's' }: {
+  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; unit?: string;
 }) {
   return (
     <View style={styles.configRow}>
@@ -417,7 +418,7 @@ function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
         >
           <Ionicons name="remove" size={18} color={ATP_BRAND.teal} />
         </Pressable>
-        <EliteText style={styles.configStepValue}>{value}<EliteText style={styles.configStepUnit}>s</EliteText></EliteText>
+        <EliteText style={styles.configStepValue}>{value}{unit ? <EliteText style={styles.configStepUnit}>{unit}</EliteText> : null}</EliteText>
         <Pressable
           onPress={() => { haptic.light(); onChange(Math.min(max, value + 1)); }}
           disabled={value >= max}
