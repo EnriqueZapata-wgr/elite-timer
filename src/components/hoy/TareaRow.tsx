@@ -10,9 +10,14 @@
  *     al completarse, y la fila se atenúa. Soltar antes revierte el llenado.
  *
  * Con reduce motion el llenado se omite; el tap largo sigue funcionando.
+ *
+ * MB-20.1 (Pieza 2): la fila sigue compacta (AGENDA es la lente que se
+ * opera); el mosaico del icono lleva el degradado de su sección
+ * (accentColor desde APP_SECTION_COLORS). El gesto es el mismo de siempre.
  */
 import { Pressable, View, StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AppIcon } from '@/src/components/ui/AppIcon';
@@ -29,6 +34,8 @@ interface Props {
   tarea: Tarea;
   lens: 'tareas' | 'agenda';
   reducedMotion?: boolean;
+  /** MB-20.1: color de sección (APP_SECTION_COLORS). Sin él, el de la tarea. */
+  accentColor?: string;
   /** Tap simple: navegar a la función. */
   onNavigate: (t: Tarea) => void;
   /** Tap largo en fila palomeable (toggle on/off). */
@@ -40,12 +47,12 @@ interface Props {
 }
 
 export function TareaRow({
-  tarea, lens, reducedMotion, onNavigate, onPalomear, onExperiencia, onInline,
+  tarea, lens, reducedMotion, accentColor, onNavigate, onPalomear, onExperiencia, onInline,
 }: Props) {
   const { fillStyle, handlePress, handlePressIn, handlePressOut, handleLongPress } =
     useTareaGesto(tarea, reducedMotion, { onNavigate, onPalomear, onExperiencia });
 
-  const accent = tarea.color || ATP_BRAND.lime;
+  const accent = accentColor || tarea.color || ATP_BRAND.lime;
 
   return (
     <Pressable
@@ -73,9 +80,15 @@ export function TareaRow({
         )}
       </View>
 
-      <View style={[s.iconChip, { backgroundColor: withOpacity(accent, 0.14) }]}>
+      {/* Mosaico del icono con el degradado de su sección (MB-20.1 · 2.3) */}
+      <LinearGradient
+        colors={[withOpacity(accent, 0.32), withOpacity(accent, 0.08)]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={s.iconChip}
+      >
         <AppIcon name={tarea.icon as AppIconName} size={16} color={accent} />
-      </View>
+      </LinearGradient>
 
       <View style={{ flex: 1 }}>
         <EliteText style={[s.name, tarea.completed && s.nameDone]}>{tarea.name}</EliteText>
@@ -154,6 +167,7 @@ const s = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   name: {
     color: '#fff',

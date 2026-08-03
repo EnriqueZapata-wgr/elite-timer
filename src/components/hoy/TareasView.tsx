@@ -23,12 +23,15 @@ import { TareaRow } from '@/src/components/hoy/TareaRow';
 import { TareaCard } from '@/src/components/hoy/TareaCard';
 import { TareaHechaRow } from '@/src/components/hoy/TareaHechaRow';
 import { tareaImage } from '@/src/components/hoy/tarea-images';
+import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
 import { SmartCheckModal } from '@/src/components/hoy/SmartCheckModal';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
   buildTareas, agendaLens, EXPERIENCIA_REGISTRO, type Tarea, type Momento,
 } from '@/src/services/hoy/tareas-core';
-import { seccionForTarea, datoForTarea } from '@/src/services/hoy/tareas-editorial-core';
+import {
+  seccionForTarea, datoForTarea, pickHeroTarea,
+} from '@/src/services/hoy/tareas-editorial-core';
 import {
   persistBooleanToggle, registrarExperiencia, type ExperienciaExterna,
 } from '@/src/services/hoy/tarea-actions';
@@ -92,6 +95,12 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   }, [day]);
 
   const agendaItems = useMemo(() => agendaLens(result), [result]);
+
+  // ── MB-20.1 · 2.1: el héroe de AGENDA — lo que importa ahora, por hora ──
+  const heroTarea = useMemo(() => {
+    const now = new Date();
+    return pickHeroTarea(agendaItems, now.getHours() * 60 + now.getMinutes());
+  }, [agendaItems]);
 
   // ── MB-20.1: el muro encoge — hechas arriba como cinta, bloques solo con
   // pendientes. La fuente sigue siendo la misma (result); esto es reparto. ──
@@ -326,8 +335,29 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         <View>{tareasChildren}</View>
       ) : (
         <>
-          {agendaItems.map((t) => (
-            <TareaRow key={t.key} tarea={t} lens="agenda" {...rowProps} />
+          {/* El héroe editorial: una sola card grande que cambia con la hora. */}
+          {heroTarea ? (
+            <TareaCard
+              tarea={heroTarea}
+              sectionColor={colorDeSeccion(heroTarea)}
+              image={tareaImage(heroTarea.key, `${seedBase}-${heroTarea.key}`)}
+              dato={datoForTarea(heroTarea, uvMini)}
+              badge="AHORA"
+              reducedMotion={reducedMotion}
+              onNavigate={handleNavigate}
+              onPalomear={handlePalomear}
+              onExperiencia={setSmartTarea}
+              onInline={handleInline}
+            />
+          ) : null}
+          {/* Bandas editoriales por bloque; las filas se quedan compactas. */}
+          {result.blocks.map((b) => (
+            <View key={b.momento}>
+              <MomentoBanda momento={b.momento} label={b.label} done={b.done} total={b.total} />
+              {b.items.map((t) => (
+                <TareaRow key={t.key} tarea={t} lens="agenda" accentColor={colorDeSeccion(t)} {...rowProps} />
+              ))}
+            </View>
           ))}
           <Pressable
             onPress={() => { haptic.light(); router.push('/agenda'); }}
