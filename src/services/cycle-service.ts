@@ -3,6 +3,7 @@
  */
 import { parseLocalDate } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
+import { cycleLengthsFromPeriods } from '@/src/services/cycle/cycle-length-core';
 
 // ═══ FASES ═══
 
@@ -83,11 +84,9 @@ export function getPhase(day: number, cycleLen = 28, periodLen = 5): string {
 
 export function predictNext(periods: { start_date: string }[]): { date: Date; daysUntil: number; confidence: string } {
   if (!periods.length) return { date: new Date(), daysUntil: 0, confidence: 'sin datos' };
-  const lengths: number[] = [];
-  for (let i = 1; i < Math.min(periods.length, 6); i++) {
-    const d = Math.floor((parseLocalDate(periods[i - 1].start_date).getTime() - parseLocalDate(periods[i].start_date).getTime()) / 86400000);
-    if (d > 20 && d < 45) lengths.push(d);
-  }
+  // M3.b: el cálculo de duraciones vive en cycle-length-core, compartido con
+  // la pantalla de ciclo (que antes ignoraba lo observado y decía "de 28").
+  const lengths = cycleLengthsFromPeriods(periods);
   const avg = lengths.length > 0 ? Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length) : 28;
   const next = parseLocalDate(periods[0].start_date);
   next.setDate(next.getDate() + avg);
