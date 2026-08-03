@@ -12,6 +12,7 @@ import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { TabScreen } from '@/src/components/ui/TabScreen';
 import { SectionTitle } from '@/src/components/ui/SectionTitle';
 import { UserAvatar } from '@/src/components/ui/UserAvatar';
@@ -209,7 +210,7 @@ export default function YoScreen() {
             {/* 2.4: pill cronotipo eliminado (redundante con la card CRONOTIPO del feed editorial).
                 Queda el acceso a settings. */}
             <AnimatedPressable onPress={() => { haptic.light(); router.push('/settings'); }} style={s.settingsBtn}>
-              <Ionicons name="settings-outline" size={20} color={TEXT_COLORS.muted} />
+              <AppIcon name="ajustes" size={20} color={TEXT_COLORS.muted} />
             </AnimatedPressable>
           </View>
         </Animated.View>

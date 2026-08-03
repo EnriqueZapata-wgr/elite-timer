@@ -21,7 +21,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/(tabs)/index.tsx::checkbox-outline',
   'app/(tabs)/yo.tsx::leaf-outline',
   'app/(tabs)/yo.tsx::moon-outline',
-  'app/(tabs)/yo.tsx::settings-outline',
   'app/(tabs)/yo.tsx::sunny-outline',
   'app/(tabs)/yo.tsx::water-outline',
   'app/admin/reports.tsx::eye-outline',
