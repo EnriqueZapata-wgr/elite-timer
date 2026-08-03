@@ -25,14 +25,14 @@ describe('togglesForApp', () => {
     expect(togglesForApp('hidratacion').quants).toEqual(['water']);
   });
 
-  it('emociones enciende checkin (vive en DEFAULT_BOOLEANS, no en el catálogo)', () => {
-    expect(togglesForApp('emociones').booleans).toEqual(['checkin']);
-  });
-
-  it('journal y cardio no tienen toggles: son MANDATORY', () => {
+  it('journal, cardio y emociones no tienen toggles: sus electrones son MANDATORY', () => {
+    // Bug Mariana M1: checkin entró a MANDATORY (misma red que journal/cardio),
+    // así que emociones dejó de ser instalable/desinstalable — es fija.
     expect(togglesForApp('journal').booleans).toEqual([]);
     expect(togglesForApp('cardio').booleans).toEqual([]);
+    expect(togglesForApp('emociones').booleans).toEqual([]);
     expect((MANDATORY_BOOLEANS as readonly string[]).includes('journal')).toBe(true);
+    expect((MANDATORY_BOOLEANS as readonly string[]).includes('checkin')).toBe(true);
   });
 
   it('ayuno no tiene toggle activable (sus tiers van por eventos)', () => {
@@ -45,6 +45,7 @@ describe('appInstallState', () => {
   it('fija para apps cuyo único electrón es MANDATORY', () => {
     expect(appInstallState('journal', EMPTY)).toBe('fija');
     expect(appInstallState('cardio', EMPTY)).toBe('fija');
+    expect(appInstallState('emociones', EMPTY)).toBe('fija');
   });
 
   it('instalada si su electrón está activo en prefs', () => {
@@ -95,11 +96,14 @@ describe('applyInstall / applyUninstall', () => {
       expect(installAlertBody(app)).toContain('No agrega fila en TAREAS');
       expect(uninstallAlertBody(app)).not.toContain('Su fila sale');
     }
-    for (const app of ['meditar', 'respirar', 'emociones', 'nback', 'entrenar', 'comida', 'hidratacion', 'suplementos', 'sol', 'ciclo']) {
+    for (const app of ['meditar', 'respirar', 'nback', 'entrenar', 'comida', 'hidratacion', 'suplementos', 'sol', 'ciclo']) {
       expect(installCreatesRow(app), `${app} debería crear fila`).toBe(true);
       expect(installAlertBody(app)).toContain('Aparece su fila en TAREAS');
       expect(uninstallAlertBody(app)).toContain('Su fila sale de TAREAS');
     }
+    // emociones ya no está aquí: con checkin MANDATORY (bug Mariana M1) es
+    // fija, y el prompt de instalar/desinstalar nunca se le muestra.
+    expect(appInstallState('emociones', EMPTY)).toBe('fija');
   });
 
   it('toda instalable del registro o crea fila o es fija o es una de las cuatro sin fila', () => {

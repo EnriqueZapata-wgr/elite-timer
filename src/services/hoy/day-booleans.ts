@@ -31,14 +31,21 @@ export const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_
  * protocol-config (ALL_ELECTRONS) NO ofrece journal/no_processed_foods/screen_time_cutoff como
  * toggleables. Así que esos keys NUNCA entran a la lista persistida → nunca entran a booleanElectrons
  * → al tocar la card, el toggle escribe un electron_log huérfano + un blob sin el key, y al recompilar
- * la card no tiene estado (`completed` undefined) → se queda en "pending" para siempre. (no_alcohol y
- * checkin SÍ palomean porque ambos sí son seleccionables / viven en la lista persistida.)
+ * la card no tiene estado (`completed` undefined) → se queda en "pending" para siempre. (no_alcohol
+ * sí palomea porque es seleccionable y vive en el default de la columna.)
  *
  * FIX sin migración: estos hábitos son "core" (no deseleccionables) → viven en código, no en prefs.
  * Se fuerzan SIEMPRE en activeBoolKeys vía unión, respetando la (de)selección de los seleccionables.
  * `cardio` (#v13e 3.A.3) es verificado y tampoco es seleccionable → también va aquí.
+ *
+ * `checkin` (bug Mariana M1, 2026-08-03): cayó EXACTAMENTE en este hueco. Este comentario
+ * afirmaba que "checkin sí palomea porque es seleccionable" y era falso: nunca estuvo en
+ * ALL_BOOLEAN_OPTIONS ni en el default de la columna, así que cualquier usuaria con fila
+ * persistida (la crean editar meta de agua/ayuno, quitar un evento, el backfill 063) perdía la
+ * card para siempre, sin forma de reactivarla. Es el hábito raíz de Mente y verificado como
+ * journal/cardio → entra a MANDATORY. La migración 248 repara las filas ya rotas y el default.
  */
-export const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio'];
+export const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio', 'checkin'];
 // N-Back (decisión Enrique 2026-07-23): NO es hábito universal — es opt-in.
 // Salió de MANDATORY (ya no suma 2.5 al denominador de todos) y entró a
 // ALL_BOOLEAN_OPTIONS: quien lo activa en sus hábitos conserva card verificada

@@ -252,8 +252,8 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   }
 
   // #v13e 3.A.1: unión persistido + MANDATORY (core no-deseleccionables). Sin esto, los hábitos
-  // que no viven en active_boolean_electrons (journal/no_processed_foods/screen_time_cutoff/cardio)
-  // nunca entraban a booleanElectrons → su card nunca palomeaba. Set para dedupe.
+  // que no viven en active_boolean_electrons (journal/no_processed_foods/screen_time_cutoff/
+  // cardio/checkin) nunca entraban a booleanElectrons → su card nunca palomeaba. Set para dedupe.
   const persistedBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
   const activeBoolKeys: string[] = Array.from(new Set([...persistedBoolKeys, ...MANDATORY_BOOLEANS]));
   const activeQuantKeys: string[] = (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)

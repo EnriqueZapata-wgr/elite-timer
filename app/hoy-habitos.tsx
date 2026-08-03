@@ -39,6 +39,7 @@ const MANDATORY_LABELS: Record<string, string> = {
   no_processed_foods: 'Sin procesados',
   screen_time_cutoff: 'Off pantallas',
   cardio: 'Cardio',
+  checkin: 'Check-in',
 };
 
 export default function HoyHabitosScreen() {
