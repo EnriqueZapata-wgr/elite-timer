@@ -8,10 +8,16 @@
  *
  * V1 sin recorte de spotlight: la burbuja señala con palabras y vive anclada
  * sobre la barra de tabs, junto a la orbe que lo narra.
+ *
+ * NOCTURNO-FIX P5: el tour no secuestra. Si el usuario navega por su cuenta a
+ * otra pantalla, el tour SE PAUSA (la burbuja se esconde y queda una pastilla
+ * discreta para seguir). Jamás lo regresa a la fuerza; volver a la pantalla
+ * del paso también reanuda solo.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -33,8 +39,14 @@ interface Props {
 
 export function OrbTour({ bottomOffset, onDone }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const { track } = useAnalytics();
   const [index, setIndex] = useState(0);
+  // El usuario se fue por su cuenta: burbuja escondida, pastilla para seguir.
+  const [paused, setPaused] = useState(false);
+  // Ruta que el TOUR pidió y aún no se refleja en pathname: ese desfase no es
+  // navegación del usuario y no debe pausar.
+  const navTargetRef = useRef<string | null>(null);
   const step = ORB_TOUR_STEPS[index];
 
   useEffect(() => {
@@ -46,11 +58,39 @@ export function OrbTour({ bottomOffset, onDone }: Props) {
   useEffect(() => {
     if (!step) return;
     track(ATP_EVENTS.TOUR_STEP_VIEWED, { step: step.id, index });
+    navTargetRef.current = step.route;
     try {
       router.navigate(step.route as never);
-    } catch { /* la burbuja sigue siendo válida aunque no navegue */ }
+    } catch {
+      // La burbuja sigue siendo válida aunque no navegue, pero el desfase
+      // deja de ser nuestro: que el watcher decida con la ruta real.
+      navTargetRef.current = null;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
+
+  // El watcher del secuestro: si la ruta actual dejó de ser la del paso y no
+  // fue el tour quien navegó, se pausa. Volver a la ruta del paso reanuda.
+  useEffect(() => {
+    if (!step) return;
+    if (pathname === step.route) {
+      navTargetRef.current = null;
+      setPaused(false);
+      return;
+    }
+    if (navTargetRef.current === step.route) return; // navegación nuestra en vuelo
+    setPaused(true);
+  }, [pathname, step]);
+
+  function resume() {
+    haptic.light();
+    if (!step) return;
+    setPaused(false);
+    navTargetRef.current = step.route;
+    try {
+      router.navigate(step.route as never);
+    } catch { navTargetRef.current = null; }
+  }
 
   function finish(completed: boolean) {
     AsyncStorage.setItem(ORB_TOUR_DONE_KEY, 'true').catch(() => {});
@@ -67,6 +107,30 @@ export function OrbTour({ bottomOffset, onDone }: Props) {
   }
 
   if (!step) return null;
+
+  if (paused) {
+    return (
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <Animated.View
+          entering={FadeInDown.springify().damping(18)}
+          style={[s.pausedWrap, { bottom: bottomOffset + 10 }]}
+        >
+          <Pressable onPress={resume} style={s.pausedPill} accessibilityRole="button">
+            <ArgosOrb size={20} reducedMotion />
+            <EliteText style={s.pausedText}>Seguir tour</EliteText>
+          </Pressable>
+          <Pressable
+            onPress={() => { haptic.light(); finish(false); }}
+            hitSlop={10}
+            style={s.pausedClose}
+            accessibilityLabel="Terminar tour"
+          >
+            <Ionicons name="close" size={14} color={TEXT.secondary} />
+          </Pressable>
+        </Animated.View>
+      </View>
+    );
+  }
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -167,5 +231,38 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xs,
     fontFamily: Fonts.bold,
     letterSpacing: 1,
+  },
+  pausedWrap: {
+    position: 'absolute',
+    right: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pausedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#0d0d0d',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: withOpacity(ATP_BRAND.lime, 0.35),
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  pausedText: {
+    color: ATP_BRAND.lime,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+  },
+  pausedClose: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#0d0d0d',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
