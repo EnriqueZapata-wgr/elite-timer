@@ -40,7 +40,7 @@ import { GradientCTA } from '@/src/components/ui/GradientCTA';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
-import { generateDailyInsight, invalidateDailyInsight } from '@/src/services/argos-service';
+import { generateDailyInsight, invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-service';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TopBanner } from '@/src/components/global/TopBanner';
@@ -235,6 +235,10 @@ export default function TodayScreen() {
           // MB-11 A: si el upsert falla, el insight se regenera (y se cobra) en
           // cada visita — el log es la única evidencia del leak.
           if (upsertErr) logWarn('[HOY] argos_daily_insights upsert failed', upsertErr);
+          // NOCTURNO-FIX P3: la card del insight (OrbCard) lee en paralelo a esta
+          // generación; sin la señal, en la primera entrada del día pierde la
+          // carrera y se queda invisible hasta el siguiente montaje del tab.
+          if (!upsertErr) DeviceEventEmitter.emit(ARGOS_INSIGHT_CHANGED_EVENT);
         }
       } catch (_) { /* silencioso */ }
     })();
