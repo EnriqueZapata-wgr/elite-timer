@@ -16,10 +16,18 @@ import { HEALTH_SOURCES } from '../health-import-core';
 const readMig = (file: string) =>
   readFileSync(resolve(process.cwd(), 'supabase/migrations', file), 'utf8');
 
-/** SQL ejecutable: fuera comentarios `--` (contaminan el regex del CHECK). */
+/**
+ * SQL ejecutable: fuera comentarios `--` (contaminan el regex del CHECK).
+ *
+ * ⚠️ El split va con /\r?\n/ y NO con '\n': en un checkout con CRLF cada línea
+ * quedaba terminada en `\r`, y como en JavaScript el punto NO matchea `\r`,
+ * el `/--.*$/` no quitaba UN SOLO comentario. El regex del CHECK encontraba
+ * entonces el set VIEJO escrito en la cabecera de 246 y el test fallaba en
+ * Windows mientras pasaba en el CI de Linux. La peor combinación posible.
+ */
 const exec = (sql: string) =>
   sql
-    .split('\n')
+    .split(/\r?\n/)
     .map((l) => l.replace(/--.*$/, ''))
     .join('\n');
 
