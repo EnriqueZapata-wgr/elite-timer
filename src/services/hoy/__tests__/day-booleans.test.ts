@@ -15,11 +15,14 @@ import {
   DEFAULT_BOOLEANS,
   MANDATORY_BOOLEANS,
   VERIFIED_ELECTRON_KEYS,
-  VERIFIED_ELECTRON_ROUTES,
   ALL_BOOLEAN_OPTIONS,
   ALL_QUANT_OPTIONS,
 } from '../day-booleans';
 import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
+// MB-20.3 P4: la ruta de tap ya no vive en un mapa completo — las granulares
+// quedaron en dos y el resto resuelve por el puente. La pregunta correcta es
+// routeForBool, la misma que responde el runtime.
+import { routeForBool } from '@/src/services/hoy/tareas-core';
 
 /**
  * Espejo EXACTO del runtime (day-compiler): el universo de UNA usuaria es
@@ -46,9 +49,9 @@ describe('patrón 3 lugares — electrones booleanos', () => {
     expect(ELECTRON_WEIGHTS.journal?.weight).toBeGreaterThan(0);
     // Lugar 3a: SIEMPRE activo (mandatory → no depende de prefs persistidas)
     expect(MANDATORY_BOOLEANS).toContain('journal');
-    // Lugar 3b: verificado con conteo real + ruta de tap
+    // Lugar 3b: verificado con conteo real + ruta de tap (vía el puente)
     expect(VERIFIED_ELECTRON_KEYS).toContain('journal');
-    expect(VERIFIED_ELECTRON_ROUTES.journal).toBe('/journal');
+    expect(routeForBool('journal')).toBe('/journal');
   });
 
   it('checkin sobrevive una fila persistida vieja (bug Mariana M1)', () => {
@@ -89,15 +92,15 @@ describe('patrón 3 lugares — electrones booleanos', () => {
     // …pero sigue en el universo seleccionable (lugar 3a vía prefs persistidas;
     // MB-11 E: sin UI que las escriba hoy — ver nota en day-booleans.ts)…
     expect(ALL_BOOLEAN_OPTIONS.map((o) => o.key)).toContain('nback');
-    // …y conserva conteo real + ruta de tap (lugar 3b).
+    // …y conserva conteo real + ruta de tap (lugar 3b, vía el puente).
     expect(VERIFIED_ELECTRON_KEYS).toContain('nback');
-    expect(VERIFIED_ELECTRON_ROUTES.nback).toBe('/mente/nback');
+    expect(routeForBool('nback')).toBe('/mente/nback');
   });
 
   it('todo electrón verificado tiene definición, ruta y entrada al universo', () => {
     for (const key of VERIFIED_ELECTRON_KEYS) {
       expect(ELECTRON_WEIGHTS[key]?.weight, key).toBeGreaterThan(0);
-      expect(VERIFIED_ELECTRON_ROUTES[key], `ruta de ${key}`).toBeTruthy();
+      expect(routeForBool(key), `ruta de ${key}`).toBeTruthy();
       const alcanzable = universeFor(FILA_043).has(key) || SELECCIONABLES.has(key);
       expect(alcanzable, `${key} inalcanzable para una fila 043`).toBe(true);
     }

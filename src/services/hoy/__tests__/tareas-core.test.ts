@@ -228,10 +228,24 @@ describe('routeForBool (MB-20.2 · 2.5)', () => {
     expect(routeForBool('sunlight')).toBe('/solar');
   });
 
-  it('los verificados conservan su ruta granular (device test: funcionan bien)', () => {
-    for (const [key, route] of Object.entries(VERIFIED_ELECTRON_ROUTES)) {
-      expect(routeForBool(key), key).toBe(route);
-    }
+  it('las DOS granulares que divergen del puente, y nada más (MB-20.3 P4)', () => {
+    // El test viejo iteraba VERIFIED_ELECTRON_ROUTES y comparaba contra la
+    // primera capa de routeForBool — la misma constante: no podía fallar
+    // (mutación probada: una ruta inventada dejaba 55 tests en verde). Los
+    // literales de aquí están escritos A MANO, no derivados del mapa.
+    expect(routeForBool('checkin')).toBe('/checkin'); // el puente diría /emotions
+    expect(routeForBool('cardio')).toBe('/log-cardio'); // el puente diría /fitness-cardio
+    expect(Object.keys(VERIFIED_ELECTRON_ROUTES).sort()).toEqual(['cardio', 'checkin']);
+  });
+
+  it('los demás verificados resuelven por el puente, sin capa duplicada', () => {
+    expect(routeForBool('meditation')).toBe('/meditation');
+    expect(routeForBool('breathwork')).toBe('/breathing');
+    expect(routeForBool('strength')).toBe('/fitness-hub');
+    expect(routeForBool('supplements')).toBe('/supplements');
+    expect(routeForBool('period_log')).toBe('/cycle');
+    expect(routeForBool('journal')).toBe('/journal');
+    expect(routeForBool('nback')).toBe('/mente/nback');
   });
 
   it('todo electrón sin app va SIN ruta: cero puertas inventadas', () => {

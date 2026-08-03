@@ -67,19 +67,21 @@ export const VERIFIED_ELECTRON_KEYS = ['meditation', 'breathwork', 'strength', '
   'nback'] as const;
 export type VerifiedElectronKey = typeof VERIFIED_ELECTRON_KEYS[number];
 
-/** Ruta de tap para cada electrón verificado.
- * Routing GRANULAR (#1/#90): tap → pantalla específica de la actividad
- * (meditación → /meditation, checkin → /checkin); ejercicio sigue a /fitness-hub. */
-export const VERIFIED_ELECTRON_ROUTES: Record<VerifiedElectronKey, Href> = {
-  meditation: '/meditation',
-  breathwork: '/breathing',
-  strength: '/fitness-hub',
-  supplements: '/supplements',
-  period_log: '/cycle',
+/** Rutas granulares de tap SOLO donde divergen del puente electrón→app.
+ *
+ * MB-20.3 P4: siete de las nueve entradas eran duplicado exacto de lo que ya
+ * resuelve el puente (electron-app-bridge → app-registry): el día que el
+ * registro moviera una app, TAREAS habría seguido mandando a la ruta vieja y
+ * nada habría avisado. Quedan solo las dos que dicen algo que el puente no
+ * sabe; todo lo demás resuelve por routeForBool (tareas-core). El test
+ * rutas-pantallas-reales cruza cada ruta contra los archivos de app/. */
+export const VERIFIED_ELECTRON_ROUTES: Partial<Record<VerifiedElectronKey, Href>> = {
+  // El puente diría /emotions (el hub del módulo); la card manda al FLUJO
+  // de check-in. Device test Enrique MB-20.2: checkin → /checkin.
   checkin: '/checkin',
-  cardio: '/log-cardio', // FIT-3 (MB-3): directo a registrar sesión
-  journal: '/journal',
-  nback: '/mente/nback', // home del módulo (desde ahí Start session)
+  // El puente diría /fitness-cardio (el hub); la card manda DIRECTO a
+  // registrar sesión. FIT-3 (MB-3): cardio → /log-cardio.
+  cardio: '/log-cardio',
 };
 
 /** Electrones que solo se ofrecen a un subconjunto de usuarios. */

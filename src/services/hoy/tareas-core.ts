@@ -193,7 +193,9 @@ export interface TareaBlock {
   total: number;
 }
 
-const QUANT_ROUTES: Record<string, string> = {
+/** Rutas de los cuantitativos. Export MB-20.3 P4: el test
+ * rutas-pantallas-reales las cruza contra los archivos de app/. */
+export const QUANT_ROUTES: Record<string, string> = {
   water: '/hydration',
   protein: '/nutrition',
   steps: '/reports',
@@ -204,8 +206,9 @@ const QUANT_ROUTES: Record<string, string> = {
  * MB-20.2 · 2.5: la ruta de un hábito sale del puente electrón→app
  * (electron-app-bridge, la fuente única de MB-19.2), nunca de un fallback
  * que invente destinos. Prioridad:
- *   1. Ruta granular del verificado (doctrina #1/#90 y device test de
- *      Enrique: checkin → /checkin, cardio → /log-cardio).
+ *   1. Ruta granular del verificado — MB-20.3 P4: solo las DOS que divergen
+ *      del puente (checkin → /checkin, cardio → /log-cardio), con su motivo
+ *      escrito en day-booleans. Lo demás ya no se duplica aquí.
  *   2. La app del electrón según el puente, con su ruta del app-registry
  *      (sunlight → 'sol' → /solar).
  *   3. Nada. Los ELECTRONS_SIN_APP no están en el puente → sin ruta: se
