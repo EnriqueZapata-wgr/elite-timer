@@ -12,7 +12,7 @@
  * de crisis (tramo A MB-12).
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, StyleSheet, Pressable, TextInput, DeviceEventEmitter, Linking, BackHandler, Alert } from 'react-native';
+import { View, StyleSheet, Pressable, TextInput, DeviceEventEmitter, Linking, BackHandler, Alert, ScrollView } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import Animated, { FadeIn, SlideInDown, SlideOutDown, SlideInRight } from 'react-native-reanimated';
@@ -383,8 +383,17 @@ export default function CheckinScreen() {
 
   // === DONE ===
   if (step === 3) {
+    // MARIANA-M2: el cierre crece condicionalmente (racha, banner de crisis,
+    // dos cards, puente a Tribu) y "Volver" es el último hijo. Sin scroll y
+    // con flex:1 centrado, lo que sobraba se recortaba arriba y abajo. Ahora:
+    // scrollea cuando no cabe, se centra cuando sí, y reserva el área segura
+    // inferior (edges bottom) para que "Volver" nunca quede cortado.
     return (
-      <Screen keyboard>
+      <Screen keyboard edges={['top', 'bottom']}>
+        <ScrollView
+          contentContainerStyle={styles.doneScroll}
+          showsVerticalScrollIndicator={false}
+        >
         <Animated.View entering={FadeIn.duration(400)} style={styles.doneContainer}>
           <View style={[styles.donePulse, { backgroundColor: qColor + '20' }]}>
             <View style={[styles.doneDot, { backgroundColor: qColor }]} />
@@ -523,6 +532,7 @@ export default function CheckinScreen() {
             <EliteText variant="body" style={[styles.doneBtnText, { color: qColor }]}>Volver</EliteText>
           </Pressable>
         </Animated.View>
+        </ScrollView>
       </Screen>
     );
   }
@@ -922,7 +932,10 @@ const styles = StyleSheet.create({
   registerCta: { alignSelf: 'center', marginTop: Spacing.lg },
 
   // Done
-  doneContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
+  // M2: flexGrow (no flex) — si el contenido cabe, se centra; si no, scrollea
+  // desde arriba en vez de recortarse por ambos lados.
+  doneScroll: { flexGrow: 1, justifyContent: 'center', paddingVertical: Spacing.xl, paddingBottom: Spacing.xxl },
+  doneContainer: { alignItems: 'center', gap: Spacing.md },
   donePulse: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   doneDot: { width: 32, height: 32, borderRadius: Radius.md },
   doneTitle: { fontSize: FontSizes.xxl, fontFamily: Fonts.extraBold },
