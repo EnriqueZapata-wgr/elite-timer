@@ -1,67 +1,47 @@
 /**
- * HOY — Dashboard diario compilado.
+ * HOY = TAREAS — tu checklist del día. Fin. Nada más. (MB-20 Pieza 1)
  *
- * Usa compileDay() como única fuente de datos. Estructura real (MB-11 B.4):
- * 1. Hero editorial (foto por hora + saludo + card AHORA + TU DÍA editorial)
- * 2. AgendaPreviewCard (→ /agenda)
+ * Usa compileDay() como única fuente de datos. Estructura:
+ * 1. Header: saludo + fecha + campana + pill de economía
+ * 2. TareasView: dos lentes (Tareas por momento / Agenda por hora),
+ *    card de la orbe colapsable, progreso global y por bloque
  * 3. Economía self-gated (ProBoostCard + HPlusExplainerCard)
- * 4. HoyEditorialSection (cards editoriales, visibilidad por usuario)
- * 5. Lectura de la semana (domingo ≥19h, cacheada)
- * 6. CTA "Ajustar Mi Protocolo" (→ /salud/intervenciones)
+ * 4. Lectura de la semana (domingo ≥19h, cacheada)
+ * 5. CTAs quiet: Mi Protocolo · Mis hábitos
  * Overlays: TopBanner · AppTour · ArgosReactionToast.
  *
- * Las secciones legacy (próximo electrón, grids de electrones, sugerencia,
- * agenda triple, suplementos, journal inline, daily review, quick-voice)
- * se retiraron del render en v13d-v13e y su código murió aquí en MB-11 B.
+ * MB-20: el hero fotográfico, la card AHORA, la card TU DÍA (ATP Score) y
+ * el AgendaPreviewCard salieron de HOY — el motor del score sigue vivo en
+ * compileDay y la agenda completa vive en /agenda (puerta en la lente).
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Text,
-  DeviceEventEmitter, ImageBackground,
-  Platform, UIManager, Alert,
+  DeviceEventEmitter,
+  Platform, UIManager,
 } from 'react-native';
 import { warn as logWarn } from '@/src/lib/logger';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/src/contexts/auth-context';
 import { compileDay, type CompiledDay } from '@/src/services/day-compiler';
 import { SplashLoader } from '@/src/components/SplashLoader';
 import { NotificationBellIcon } from '@/src/components/hoy/NotificationBellIcon';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
-import { HoyEditorialSection } from '@/src/components/hoy/HoyEditorialSection';
-import { AgendaPreviewCard } from '@/src/components/agenda/AgendaPreviewCard';
+import { TareasView } from '@/src/components/hoy/TareasView';
 import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
 import { HPlusExplainerCard } from '@/src/components/economy/HPlusExplainerCard';
-import { getEffectiveCardsVisible } from '@/src/services/hoy/visibility-service';
-import { HOY_CARD_ORDER_DEFAULT } from '@/src/constants/hoy-cards';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
-import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCTA } from '@/src/components/ui/GradientCTA';
-import { getHoyBackgroundRequire } from '@/src/constants/brand';
-import { topScoreMover } from '@/src/services/hoy/score-coaching-core';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight } from '@/src/services/argos-service';
-import { addWater } from '@/src/services/hydration-service';
-import { getCurrentStreak } from '@/src/services/adherence-service';
-import {
-  getHeroRecommendation, HERO_CACHE_MS,
-  type HeroContext, type HeroRecommendation, type CyclePhase,
-} from '@/src/services/hero-recommendation-service';
-import { edadDeltaYears } from '@/src/services/edad-atp/edad-delta-core';
-import { MOTOR_V2_VERSION } from '@/src/constants/edad-atp-motor-v2-config';
-import { getCycleInfo } from '@/src/services/cycle-service';
-import { getActiveFast } from '@/src/services/fasting-service';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// #v13d 2.7: HoyDayCard legacy → HoyDayCardEditorial (imagen B/N + tipografía display).
-import { HoyDayCardEditorial } from '@/src/components/economy/HoyDayCardEditorial';
 import { TopBanner } from '@/src/components/global/TopBanner';
 // hotfix-ux FIX 4: toast de reacción ARGOS + atribución al ganar electrones.
 import { ArgosReactionToast } from '@/src/components/economy/ArgosReactionToast';
@@ -88,140 +68,30 @@ export default function TodayScreen() {
   const [progressLabel, setProgressLabel] = useState('Iniciando…');
   // F3 (AGENDA-COMPLETE): la campana ahora es NotificationBellIcon (self-contained,
   // badge = user_notifications sin leer, tap → /notifications).
-  // #tabs-redesign V1.3: visibilidad de las cards editoriales (default: todas).
-  const [cardsVisible, setCardsVisible] = useState<Set<string>>(new Set(HOY_CARD_ORDER_DEFAULT));
   const [showTour, setShowTour] = useState(false);
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
-  const [streak, setStreak] = useState<number | null>(null);
   // Gate de género para electrones (period_log) — null hasta que carga.
   const [userSex, setUserSex] = useState<string | null>(null);
   const [weeklyInsight, setWeeklyInsight] = useState<WeeklyInsightData | null>(null);
   const [weeklyInsightDismissed, setWeeklyInsightDismissed] = useState(false);
-  // (MB-11 B: isTogglingRef/recompileTimeoutRef murieron con toggleBoolean —
-  // los toggles y sus guards viven ahora dentro de las cards editoriales.)
-  // #68: recomendación HERO dinámica + timestamp del último cómputo (cache 15
-  // min para que la recomendación no cambie de forma errática entre focus).
-  const [heroRec, setHeroRec] = useState<HeroRecommendation | null>(null);
-  const heroRecAtRef = useRef(0);
-  // #136: estado optimista de la card AHORA — check inmediato al registrar
-  // inline; se limpia cuando el recompute (post day_changed) trae la nueva rec.
-  const [heroResolved, setHeroResolved] = useState(false);
-
-  /**
-   * #68: arma el contexto (mayormente ya cargado en CompiledDay) + 3 señales
-   * baratas (ciclo/ayuno/última Edad ATP) y evalúa las reglas locales.
-   * `force` ignora el cache (lo usa loadDay cuando el día cambió de verdad).
-   */
-  const computeHeroRec = useCallback(async (compiled: CompiledDay, streakVal: number | null, force = false) => {
-    if (!user?.id) return;
-    const now = Date.now();
-    if (!force && heroRecAtRef.current && now - heroRecAtRef.current < HERO_CACHE_MS) return;
-    heroRecAtRef.current = now;
-
-    // Señales extra (baratas, en paralelo; cualquiera puede fallar sin romper)
-    let cyclePhase: CyclePhase | null = null;
-    let fastingActive = false;
-    let edadAtpDelta: number | null = null;
-    const [cycleRes, fastRes, edadRes] = await Promise.allSettled([
-      userSex === 'female' ? getCycleInfo(user.id) : Promise.resolve(null),
-      getActiveFast(user.id),
-      supabase.from('edad_atp_calculations')
-        .select('chronological_age, edad_integral')
-        .eq('user_id', user.id)
-        // mig 234: solo registros del motor actual — los 111 previos al
-        // 2026-06-12 son del motor v1 y no deben alimentar la señal de ARGOS.
-        .eq('motor_version', MOTOR_V2_VERSION)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
-    if (cycleRes.status === 'fulfilled' && cycleRes.value?.currentPhase) {
-      cyclePhase = cycleRes.value.currentPhase as CyclePhase;
-    }
-    if (fastRes.status === 'fulfilled') fastingActive = !!fastRes.value;
-    // MB-11 A: supabase-js no lanza en 4xx — el fallo viene en { error } y sin
-    // este check la señal degrada a "sin datos" sin dejar rastro.
-    if (edadRes.status === 'fulfilled' && edadRes.value?.error) {
-      logWarn('[HOY] edad_atp_calculations query failed', edadRes.value.error);
-    }
-    if (edadRes.status === 'fulfilled' && edadRes.value?.data?.edad_integral != null) {
-      // P1.6: signo del delta desde el core (anti-reinversión del número estrella).
-      edadAtpDelta = edadDeltaYears(
-        Number(edadRes.value.data.chronological_age),
-        Number(edadRes.value.data.edad_integral),
-      );
-    }
-
-    const quant = (k: string) => compiled.quantitativeElectrons.find(e => e.source === k);
-    const bool = (k: string) => compiled.booleanElectrons.find(e => e.source === k);
-    const ctx: HeroContext = {
-      hour: new Date().getHours(),
-      score: compiled.electronProgress.percentage,
-      streak: streakVal ?? 0,
-      waterMl: quant('water')?.current ?? 0,
-      waterTargetMl: quant('water')?.target ?? 0,
-      proteinG: quant('protein')?.current ?? 0,
-      proteinTargetG: quant('protein')?.target ?? 0,
-      sunDone: bool('sunlight')?.completed ?? false,
-      meditationDone: bool('meditation')?.completed ?? false,
-      journalDone: bool('journal')?.completed ?? false,
-      fastingActive,
-      sex: userSex === 'female' || userSex === 'male' ? userSex : null,
-      cyclePhase,
-      edadAtpDelta,
-    };
-    setHeroRec(getHeroRecommendation(ctx));
-    // #136: el recompute con datos frescos cierra el ciclo optimista
-    setHeroResolved(false);
-  }, [user?.id, userSex]);
-
-  /**
-   * #136: quick action de la card AHORA (agua) — optimistic update:
-   * check inmediato, endpoint en background, revert + alert si falla.
-   * addWater emite day_changed → loadDay(true) trae la siguiente rec.
-   */
-  const handleHeroQuickAction = useCallback(async (rec: HeroRecommendation) => {
-    if (!user?.id || rec.quickAction?.type !== 'water') return;
-    haptic.success();
-    setHeroResolved(true);
-    try {
-      const result = await addWater(user.id, rec.quickAction.amountMl);
-      if (result === null) throw new Error('addWater returned null');
-    } catch (e) {
-      logWarn('[HOY] hero quick action failed', e);
-      setHeroResolved(false);
-      Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
-    }
-  }, [user?.id]);
+  // MB-20: auto-foco — el scroll aterriza en el bloque de la hora actual.
+  const scrollRef = useRef<ScrollView>(null);
+  const tareasYRef = useRef(0);
 
   // --- Carga de datos ---
-  // #136: forceHero salta el cache de 15 min del HERO — se usa cuando los
-  // datos del día REALMENTE cambiaron (day_changed/electrons_changed).
-  const loadDay = useCallback(async (forceHero = false) => {
+  // MB-20: la card AHORA (hero-recommendation) y la racha salieron de HOY con
+  // el hero; compileDay queda como la única carga. El parámetro se conserva
+  // por los listeners (day_changed/electrons_changed fuerzan recarga igual).
+  const loadDay = useCallback(async (_force = false) => {
     if (!user?.id) return;
-    let compiledForHero: CompiledDay | null = null;
-    let streakForHero: number | null = null;
     try {
       const compiled = await compileDay(user.id, (pct, label) => { setProgress(pct); setProgressLabel(label); });
-      if (compiled) { setDay(compiled); compiledForHero = compiled; }
+      if (compiled) setDay(compiled);
     } catch (e) {
       console.warn('Error compiling day:', e);
     }
-    try {
-      const s = await getCurrentStreak(user.id);
-      setStreak(s);
-      streakForHero = s;
-    } catch { /* silencioso */ }
-    // #68: recomputar la recomendación HERO (respeta el cache de 15 min,
-    // salvo forceHero #136).
-    if (compiledForHero) {
-      computeHeroRec(compiledForHero, streakForHero, forceHero).catch(() => { /* silencioso */ });
-    }
-    // MB-11 B: aquí vivían 3 queries (user_supplements, supplement_logs,
-    // journal_entries) que alimentaban las secciones de suplementos y journal
-    // retiradas del render en v13e — se fueron con su UI.
     setLoading(false);
-  }, [user?.id, computeHeroRec]);
+  }, [user?.id]);
 
   useEffect(() => {
     setLoading(true);
@@ -270,17 +140,9 @@ export default function TodayScreen() {
   // cambio de meta agua, toggle de electrón en config, edición de wake_time.
   useFocusEffect(useCallback(() => {
     loadDay();
-    // #tabs-redesign V1.3: refrescar visibilidad al enfocar (#3b: efectiva = protocolo si flag ON).
-    if (user?.id) getEffectiveCardsVisible(user.id).then(setCardsVisible).catch(() => {});
-  }, [loadDay, user?.id]));
-
-  // #tabs-redesign V1.3: re-cargar visibilidad cuando otra pantalla la togglea.
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener('hoy_visibility_changed', () => {
-      if (user?.id) getEffectiveCardsVisible(user.id).then(setCardsVisible).catch(() => {});
-    });
-    return () => sub.remove();
-  }, [user?.id]);
+    // MB-20: la visibilidad de cards editoriales murió con HoyEditorialSection —
+    // las filas de TAREAS salen de compileDay (prefs del usuario) directamente.
+  }, [loadDay]));
 
   // --- Tour de onboarding ---
   useEffect(() => {
@@ -404,11 +266,6 @@ export default function TodayScreen() {
   // (HoyEditorialSection), la agenda completa en /agenda, suplementos en
   // /supplements, journal en /journal y la voz en el tab ARGOS.
 
-  // --- Derivados ---
-  const hour = new Date().getHours();
-  const pct = day?.electronProgress.percentage ?? 0;
-  const heroBg = getHoyBackgroundRequire(hour, pct);
-
   // ═══ RENDER ═══
 
   // Carga unificada: misma identidad visual que el splash nativo + barra de progreso REAL
@@ -441,121 +298,52 @@ export default function TodayScreen() {
       <StatusBar style="light" />
       {/* #23: banner contextual flotante (racha / protones / notifs / insight) */}
       <TopBanner offset={44} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
         {/* ═══════════════════════════════════════
-            SECCIÓN 1: HERO
+            HEADER: saludo + fecha + campana
         ═══════════════════════════════════════ */}
-        <ImageBackground source={heroBg} style={s.heroBg} imageStyle={s.heroBgImage} resizeMode="cover">
-          <BlurView intensity={15} tint="dark" style={StyleSheet.absoluteFill} />
-          <LinearGradient
-            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.88)', '#000']}
-            locations={[0, 0.3, 0.7, 1]}
-            style={[s.heroGradient, { paddingTop: insets.top + 8 }]}
-          >
-            {/* Top bar */}
-            <Animated.View entering={FadeInUp.delay(50).springify()}>
-              <View style={s.topBar}>
-                <View style={s.topBarLeft}>
-                  <Text style={s.brandLabel}>ATP DAILY</Text>
-                  {/* #hoy-redesign Parte 1: ElectronBadge viejo retirado del header (HoyDayCard ya
-                      muestra los E- del día). El engrane se movió al botón del final del scroll. */}
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                  {/* F3 (AGENDA-COMPLETE): campana con badge real (user_notifications) → /notifications. */}
-                  <NotificationBellIcon />
-                </View>
+        <View style={[s.header, { paddingTop: insets.top + 8 }]}>
+          <Animated.View entering={FadeInUp.delay(50).springify()}>
+            <View style={s.topBar}>
+              <View style={s.topBarLeft}>
+                <Text style={s.brandLabel}>ATP DAILY</Text>
               </View>
-              {/* P6: pill E-/H+/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
-              <EconomyHeaderPill />
-            </Animated.View>
-
-            {/* Saludo */}
-            <Animated.View entering={FadeInUp.delay(80).springify()} style={s.heroGreetingWrap}>
-              <Text style={s.heroGreeting}>{day.greeting}</Text>
-              <Text style={s.heroName}>{day.userName}</Text>
-              <Text style={s.heroDate}>{day.date}</Text>
-              <View style={{ marginTop: 10 }}>
-                <CommunityPresence pillar="hoy" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                {/* F3 (AGENDA-COMPLETE): campana con badge real (user_notifications) → /notifications. */}
+                <NotificationBellIcon />
               </View>
-            </Animated.View>
+            </View>
+            {/* P6: pill E-/H+/Rank (self-gated por LAB_ECONOMY_ENABLED; null si OFF) */}
+            <EconomyHeaderPill />
+          </Animated.View>
 
-            {/* Sprint 1.5 B: protocol pill ELIMINADA del feed (doctrina DX
-                intervenciones core: los protocolos legacy no drivean HOY; la
-                biblioteca vive en Salud Funcional → protocol-explorer). */}
+          {/* Saludo */}
+          <Animated.View entering={FadeInUp.delay(80).springify()} style={s.heroGreetingWrap}>
+            <Text style={s.heroGreeting}>{day.greeting}</Text>
+            <Text style={s.heroName}>{day.userName}</Text>
+            <Text style={s.heroDate}>{day.date}</Text>
+            <View style={{ marginTop: 10 }}>
+              <CommunityPresence pillar="hoy" />
+            </View>
+          </Animated.View>
+        </View>
 
-            {/* #68: recomendación HERO dinámica — la primera regla que matchea
-                (hora + hábitos + ciclo + ayuno + racha + Edad ATP) */}
-            {heroRec && (
-              <Animated.View
-                key={`${heroRec.id}${heroResolved ? '-ok' : ''}`}
-                entering={FadeInUp.delay(110).springify()}
-              >
-                <AnimatedPressable
-                  onPress={() => {
-                    if (heroResolved) return;
-                    // #136: acción inline (agua) → optimistic update sin navegar
-                    if (heroRec.quickAction) { handleHeroQuickAction(heroRec); return; }
-                    if (heroRec.route) {
-                      haptic.light();
-                      // #136: al volver de la pantalla destino el próximo
-                      // loadDay recomputa sin esperar los 15 min de cache
-                      heroRecAtRef.current = 0;
-                      router.push(heroRec.route);
-                    }
-                  }}
-                  disabled={heroResolved || (!heroRec.route && !heroRec.quickAction)}
-                  style={s.heroRecCard}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.heroRecKicker}>AHORA</Text>
-                    {heroResolved && heroRec.quickAction ? (
-                      <>
-                        <Text style={s.heroRecTitle}>Registrado ✓</Text>
-                        <Text style={s.heroRecSubtitle}>+{heroRec.quickAction.amountMl} ml de agua — bien ahí.</Text>
-                      </>
-                    ) : (
-                      <>
-                        <Text style={s.heroRecTitle}>{heroRec.title}</Text>
-                        <Text style={s.heroRecSubtitle}>{heroRec.subtitle}</Text>
-                      </>
-                    )}
-                  </View>
-                  {heroResolved ? (
-                    <Ionicons name="checkmark-circle" size={22} color="#a8e02a" />
-                  ) : (heroRec.route || heroRec.quickAction) ? (
-                    <View style={s.heroRecCta}>
-                      {heroRec.cta ? <Text style={s.heroRecCtaText}>{heroRec.cta}</Text> : null}
-                      <Ionicons
-                        name={heroRec.quickAction ? 'add-circle-outline' : 'chevron-forward'}
-                        size={14}
-                        color="#a8e02a"
-                      />
-                    </View>
-                  ) : null}
-                </AnimatedPressable>
-              </Animated.View>
-            )}
-
-            {/* TU DÍA — #v13d 2.7: card editorial (imagen B/N despertar + número display + barra).
-                MB-1.5 §3 (patrón Whoop): el tap lleva a la acción pendiente que MÁS mueve el
-                score hoy (topScoreMover); con el día completo cae a /economy/admin (progreso). */}
-            <Animated.View entering={FadeInUp.delay(120).springify()}>
-              <HoyDayCardEditorial
-                percentage={pct}
-                seedKey={user?.id}
-                streak={streak}
-                completedCount={day.booleanElectrons.filter(e => e.completed).length}
-                totalCount={day.booleanElectrons.length}
-                coaching={topScoreMover(day.booleanElectrons, day.quantitativeElectrons)}
-              />
-            </Animated.View>
-          </LinearGradient>
-        </ImageBackground>
-
-        {/* #v13g F3: bloque AGENDA DE HOY entre TU DÍA y las sub-secciones — navega a /agenda. */}
-        <View style={{ paddingHorizontal: Spacing.md }}>
-          <AgendaPreviewCard userId={user?.id} />
+        {/* ═══════════════════════════════════════
+            TAREAS — el checklist del día, dos lentes (MB-20)
+        ═══════════════════════════════════════ */}
+        <View
+          style={{ paddingHorizontal: Spacing.md }}
+          onLayout={(e) => { tareasYRef.current = e.nativeEvent.layout.y; }}
+        >
+          <TareasView
+            day={day}
+            userId={user?.id}
+            uvMini={uvMini}
+            onRequestScroll={(y) => {
+              scrollRef.current?.scrollTo({ y: tareasYRef.current + y - 8, animated: true });
+            }}
+          />
         </View>
 
         {/* Task #133: Boost H+ — 24h de Pro con Protones (solo tier base / countdown si activo).
@@ -564,17 +352,6 @@ export default function TodayScreen() {
 
         {/* #99: nudge one-shot "¿Qué son los H+?" → /economy/how-to-earn */}
         <HPlusExplainerCard />
-
-        {/* #tabs-redesign V1.3 Parte 1: tira de cards editoriales (aditiva, gated por visibility).
-            El cleanup de las secciones viejas queda para auditoría visual (ver COWORK_REPORT). */}
-        <View style={{ paddingHorizontal: Spacing.md, marginTop: Spacing.md }}>
-          <HoyEditorialSection day={day} uvMini={uvMini} cardsVisible={cardsVisible} userId={user?.id} seedKey={user?.id} />
-        </View>
-
-        {/* Insight ARGOS movido a notificaciones (campana) */}
-
-        {/* #hoy-funcionalidad 4.9: SECCIÓN 2 "PRÓXIMO ELECTRÓN" (botón COMPLETAR) eliminada
-            — reemplazada por HeroAgendaCard en HoyEditorialSection. */}
 
         {/* ═══════════════════════════════════════
             WEEKLY INSIGHT — Domingo ≥19h (cacheado por semana)
@@ -743,14 +520,10 @@ const s = StyleSheet.create({
     fontFamily: Fonts.bold,
   },
 
-  // ── HERO ──
-  heroBg: {},
-  heroBgImage: {
-    opacity: 0.85,
-  },
-  heroGradient: {
+  // ── HEADER (MB-20: el hero fotográfico salió; saludo sobre negro) ──
+  header: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
   heroGreetingWrap: {
     marginTop: Spacing.lg,
@@ -784,49 +557,6 @@ const s = StyleSheet.create({
     marginTop: 4,
     textTransform: 'uppercase',
   },
-  // #68: card de recomendación HERO dinámica (glass sutil sobre la foto)
-  heroRecCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.14)',
-    borderRadius: Radius.md,
-    padding: 14,
-    marginBottom: Spacing.md,
-  },
-  heroRecKicker: {
-    color: '#a8e02a',
-    fontSize: 9,
-    fontFamily: Fonts.semiBold,
-    letterSpacing: 2,
-    marginBottom: 3,
-  },
-  heroRecTitle: {
-    color: '#fff',
-    fontSize: FontSizes.lg,
-    fontFamily: Fonts.semiBold,
-    lineHeight: 22,
-  },
-  heroRecSubtitle: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: FontSizes.sm,
-    fontFamily: Fonts.regular,
-    marginTop: 2,
-    lineHeight: 17,
-  },
-  heroRecCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  heroRecCtaText: {
-    color: '#a8e02a',
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.bold,
-  },
-
   // ── Secciones ──
   section: {
     paddingHorizontal: Spacing.md,
