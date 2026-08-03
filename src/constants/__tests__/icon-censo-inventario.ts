@@ -9,11 +9,10 @@
  *   · aparece un uso nuevo → o pasa por <AppIcon> o se agrega aquí, a conciencia.
  *   · desaparece un uso → se poda de aquí (el inventario no arrastra muertos).
  *
- * Divergencia VIVA inventariada a conciencia (pendiente de migrar a nombres
- * lógicos, no chrome): las entradas de sparkles-outline, journal-outline y
- * leaf-outline en src/services/mente-streaks-core.ts dibujan categorías de
- * Mente con glifos que en el mapa significan otra función. Su gemelo
- * mente-hub-core.ts ya se migró en NOCTURNO A3.
+ * La divergencia de mente-streaks-core.ts (sparkles/journal/leaf-outline
+ * dibujando categorías de Mente) murió en NOCTURNO-FIX P6: migrada a nombres
+ * lógicos como su gemelo mente-hub-core.ts (NOCTURNO A3). Ambos archivos están
+ * ahora en REGISTRY_FILES_SIN_IONICON: no pueden recaer.
  */
 export const GLYPH_INVENTORY: readonly string[] = [
   'app/(tabs)/_layout.tsx::grid-outline',
@@ -291,9 +290,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/services/cycle-service.ts::water-outline',
   'src/services/fitness/mobility-core.ts::body-outline',
   'src/services/fitness/mobility-core.ts::trending-up-outline',
-  'src/services/mente-streaks-core.ts::journal-outline',
-  'src/services/mente-streaks-core.ts::leaf-outline',
-  'src/services/mente-streaks-core.ts::sparkles-outline',
   'src/services/onboarding-v2-core.ts::barbell-outline',
   'src/services/onboarding-v2-core.ts::body-outline',
   'src/services/onboarding-v2-core.ts::flower-outline',

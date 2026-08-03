@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
 import { BackButton } from '@/src/components/ui/BackButton';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { supabase } from '@/src/lib/supabase';
 import {
   fetchMenteStreaks,
@@ -113,7 +114,9 @@ export default function MenteProgresoScreen() {
             <Animated.View key={cat} entering={FadeInUp.delay(50 + idx * 60).springify()}>
               <View style={s.streakCard}>
                 <View style={s.streakLeft}>
-                  <Ionicons name={copy.icon as any} size={20} color={streak > 0 ? ATP_BRAND.lime : TEXT.tertiary} />
+                  {/* P6: nombre lógico del registro, no un Ionicon a mano —
+                      leaf-outline significaba Grounding, no Respiración. */}
+                  <AppIcon name={copy.icon} size={20} color={streak > 0 ? ATP_BRAND.lime : TEXT.tertiary} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <EliteText style={s.streakLabel}>{copy.label}</EliteText>

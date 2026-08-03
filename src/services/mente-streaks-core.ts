@@ -6,6 +6,11 @@
  * racha → medallas y el copy editorial.
  */
 
+// NOCTURNO-FIX P6 (misma clase que A3): `icon` es un nombre lógico del AppIcon
+// (app-icon-names), NO un Ionicon. Quien lo pinte pasa por <AppIcon>. El import
+// es de tipo: el módulo sigue siendo node-testeable.
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
+
 export type MenteCategory = 'journal' | 'breathing' | 'meditation' | 'checkin';
 export type MedalTier = '7d' | '30d' | '90d' | '365d';
 
@@ -20,21 +25,21 @@ export const MEDAL_TIERS: readonly { tier: MedalTier; days: number; label: strin
   { tier: '365d', days: 365, label: '1 año' },
 ] as const;
 
-export const CATEGORY_COPY: Record<MenteCategory, { label: string; icon: string; motivation: string }> = {
+export const CATEGORY_COPY: Record<MenteCategory, { label: string; icon: AppIconName; motivation: string }> = {
   journal: {
-    label: 'Journal', icon: 'journal-outline',
+    label: 'Journal', icon: 'journal',
     motivation: 'Lo que se escribe, se entiende.',
   },
   breathing: {
-    label: 'Respiración', icon: 'leaf-outline',
+    label: 'Respiración', icon: 'respirar',
     motivation: 'Tu sistema nervioso se entrena una respiración a la vez.',
   },
   meditation: {
-    label: 'Meditación', icon: 'sparkles-outline',
+    label: 'Meditación', icon: 'meditar',
     motivation: 'Parar también es entrenar.',
   },
   checkin: {
-    label: 'Check-in', icon: 'heart-outline',
+    label: 'Check-in', icon: 'emociones',
     motivation: 'Escucharte a diario es el hábito raíz.',
   },
 };
