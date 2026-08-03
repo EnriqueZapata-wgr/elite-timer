@@ -76,7 +76,7 @@ describe('datoForTarea', () => {
 
   it('ayuno: meta compilada + a qué hora rompe (la hora del smart item)', () => {
     expect(datoForTarea({ key: 'agenda-smart-fast-break', kind: 'agenda', meta: 'Ayuno 16h', time: '13:40' }))
-      .toBe('Ayuno 16h · rompe a las 13:40');
+      .toBe('Ayuno 16h · Rompe a las 13:40');
   });
 
   it('bool con dato vivo lo muestra; sin dato vivo va SIN dato (fin del folleto)', () => {

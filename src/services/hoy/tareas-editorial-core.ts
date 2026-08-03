@@ -191,7 +191,7 @@ export function datoForTarea(
   }
   if (t.kind === 'quant') return t.meta;
   if (t.kind === 'agenda') {
-    return t.meta ? `${t.meta} · rompe a las ${t.time}` : `Rompe a las ${t.time}`;
+    return t.meta ? `${t.meta} · Rompe a las ${t.time}` : `Rompe a las ${t.time}`;
   }
   return datoVivoForTarea(t.key, vivos, hoy);
 }

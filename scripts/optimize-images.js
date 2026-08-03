@@ -32,6 +32,11 @@ const path = require('path');
 const glob = require('glob');
 
 const TARGET_DIR = 'assets/images';
+// MB-20.2 (nota del audit): assets/backgrounds no lo cubría ningún guard y
+// llegó a 35 MB. El modo normal ahora también lo barre (in-place, mismas
+// rutas .jpg: los require() de brand.ts y MomentoBanda no cambian). El modo
+// WebP NO lo toca: renombraría archivos que el código requiere por extensión.
+const EXTRA_DIRS = ['assets/backgrounds'];
 const MAX_WIDTH = 2048;       // resize si dimensión > esto
 const PNG_QUALITY = 85;       // 0-100 (sharp PNG palette quality)
 const JPEG_QUALITY = 85;      // q85 = sweet spot foto (94% menos que PNG-palette)
@@ -82,7 +87,10 @@ async function optimizeOne(file) {
   }
 
   const ext = path.extname(file).toLowerCase();
-  const img = sharp(file);
+  // Buffer primero: en Windows, sharp(ruta) mantiene el archivo abierto y el
+  // writeFileSync in-place truena con UNKNOWN -4094 (reproducido en MB-20.2).
+  const input = fs.readFileSync(file);
+  const img = sharp(input);
   const metadata = await img.metadata();
 
   let pipeline = img;
@@ -100,7 +108,7 @@ async function optimizeOne(file) {
     // proponer un `.jpg` hermano (no renombramos: rompería los require('.png')).
     const pngGainPct = ((origBytes - buffer.length) / origBytes) * 100;
     if (isPhotoFolder(file) || pngGainPct < PNG_MIN_GAIN_PCT) {
-      const jpgBuffer = await sharp(file)
+      const jpgBuffer = await sharp(input)
         .resize(metadata.width > MAX_WIDTH ? { width: MAX_WIDTH, withoutEnlargement: true } : undefined)
         .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
         .toBuffer();
@@ -143,8 +151,11 @@ async function optimizeOne(file) {
 
 /** Modo WebP: convierte a .webp q82 máx 1200px y borra el original. */
 async function webpOne(file) {
-  const origBytes = fs.statSync(file).size;
-  const img = sharp(file);
+  // Mismo buffer-primero que optimizeOne: el unlink del original también
+  // truena en Windows si sharp aún tiene el archivo abierto.
+  const input = fs.readFileSync(file);
+  const origBytes = input.length;
+  const img = sharp(input);
   const metadata = await img.metadata();
 
   let pipeline = img;
@@ -199,15 +210,16 @@ async function mainWebp() {
 
 async function main() {
   if (WEBP_MODE) return mainWebp();
+  const roots = [TARGET_DIR, ...EXTRA_DIRS];
   console.log(`\n📸 Optimize images — sharp pipeline\n`);
-  console.log(`${DIM}Target:${RESET} ${TARGET_DIR}/**/*.{png,jpg,jpeg}`);
+  console.log(`${DIM}Target:${RESET} {${roots.join(',')}}/**/*.{png,jpg,jpeg}`);
   console.log(`${DIM}Max width:${RESET} ${MAX_WIDTH}px`);
   console.log(`${DIM}PNG quality:${RESET} ${PNG_QUALITY}`);
   console.log(`${DIM}Skip if <${RESET} ${SKIP_IF_SMALLER_KB}KB\n`);
 
-  const files = glob.sync(`${TARGET_DIR}/**/*.{png,jpg,jpeg,PNG,JPG,JPEG}`);
+  const files = roots.flatMap((dir) => glob.sync(`${dir}/**/*.{png,jpg,jpeg,PNG,JPG,JPEG}`));
   if (files.length === 0) {
-    console.log(`${YELLOW}No images found in ${TARGET_DIR}${RESET}`);
+    console.log(`${YELLOW}No images found in ${roots.join(', ')}${RESET}`);
     process.exit(0);
   }
 

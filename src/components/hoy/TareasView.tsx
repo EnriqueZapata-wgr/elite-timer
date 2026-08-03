@@ -251,7 +251,10 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   // con la transición de layout de la sala ATP. Para que reanimated anime el
   // viaje, todos los elementos viven PLANOS bajo un mismo padre con llave
   // estable (un wrapper por bloque rompería la continuidad del instance).
-  const rowLayout = reducedMotion ? LinearTransition : LinearTransition.springify().damping(18);
+  // Con reduce motion NO hay transición de layout (undefined), no "una más
+  // sobria": LinearTransition pelón seguía animando 300 ms y el código decía
+  // una cosa haciendo otra (nota del audit MB-20.2).
+  const rowLayout = reducedMotion ? undefined : LinearTransition.springify().damping(18);
   const hoy = getLocalToday();
   const seedBase = `${userId ?? ''}-${hoy}`;
   const colorDeSeccion = (t: Tarea) => APP_SECTION_COLORS[seccionForTarea(t.key)];
