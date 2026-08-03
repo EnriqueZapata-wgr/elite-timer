@@ -90,7 +90,7 @@ export default function HydrationScreen() {
               style={StyleSheet.absoluteFill}
             />
             <View style={s.heroContent}>
-              <EliteText style={s.heroKicker}>NUTRICIÓN</EliteText>
+              <EliteText style={s.heroKicker}>HIDRATACIÓN</EliteText>
               <EliteText variant="caption" style={s.heroSub}>{epigeneticHint}</EliteText>
             </View>
           </ImageBackground>
