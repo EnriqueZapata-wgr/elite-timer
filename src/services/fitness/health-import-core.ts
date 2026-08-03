@@ -73,6 +73,21 @@ export function disciplineFromHealthKit(activityType: number): CardioDiscipline 
   return HEALTHKIT_TYPES[activityType] ?? 'other';
 }
 
+// ── Reglas de import (NOCTURNO B2) ──
+
+/** Menos de 5 minutos no es un entrenamiento: es una caminata al súper. */
+export const MIN_IMPORT_DURATION_SECONDS = 300;
+
+/** Reglas que separan entrenamiento de ruido:
+ *  · duración mínima 5 min;
+ *  · lo no mapeado ('other') sin distancia no se importa — una actividad
+ *    desconocida CON distancia (caminata larga con GPS) sí califica. */
+export function esImportable(w: NormalizedWorkout): boolean {
+  if (w.durationSeconds < MIN_IMPORT_DURATION_SECONDS) return false;
+  if (w.discipline === 'other' && (w.distanceMeters == null || w.distanceMeters <= 0)) return false;
+  return true;
+}
+
 // ── Dedupe ──
 
 /** Tolerancia de duración para considerar "el mismo entrenamiento": ±10% o ±90 s (lo mayor). */

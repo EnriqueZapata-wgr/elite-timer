@@ -10,6 +10,7 @@ import {
   disciplineFromHealthConnect,
   disciplineFromHealthKit,
   importOtorgaElectron,
+  esImportable,
   type NormalizedWorkout,
   type ExistingSessionLike,
 } from '../health-import-core';
@@ -105,5 +106,25 @@ describe('economía del import', () => {
     expect(importOtorgaElectron([w({ dateLocal: '2026-07-20' }), w({ dateLocal: '2026-07-21' })], hoy)).toBe(false);
     expect(importOtorgaElectron([w({ dateLocal: hoy })], hoy)).toBe(true);
     expect(importOtorgaElectron([], hoy)).toBe(false);
+  });
+});
+
+describe('reglas de import (NOCTURNO B2)', () => {
+  it('la frontera de duración es 5 minutos exactos', () => {
+    expect(esImportable(w({ durationSeconds: 299 }))).toBe(false);
+    expect(esImportable(w({ durationSeconds: 300 }))).toBe(true);
+  });
+
+  it("'other' sin distancia no se importa", () => {
+    expect(esImportable(w({ discipline: 'other', distanceMeters: null }))).toBe(false);
+    expect(esImportable(w({ discipline: 'other', distanceMeters: 0 }))).toBe(false);
+  });
+
+  it("'other' CON distancia sí califica (caminata larga con GPS)", () => {
+    expect(esImportable(w({ discipline: 'other', distanceMeters: 3000 }))).toBe(true);
+  });
+
+  it('una disciplina reconocida sin distancia sí entra', () => {
+    expect(esImportable(w({ discipline: 'running', distanceMeters: null }))).toBe(true);
   });
 });
