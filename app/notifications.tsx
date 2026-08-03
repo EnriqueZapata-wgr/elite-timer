@@ -21,6 +21,7 @@ import {
   listNotifications, markNotificationRead, markAllNotificationsRead, type UserNotification,
 } from '@/src/services/user-notifications-service';
 import { ATP_BRAND } from '@/src/constants/brand';
+import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 
 /** "hace 5 min" / "hace 2 h" / "ayer" / "3 jul". */
@@ -139,7 +140,7 @@ export default function NotificationsScreen() {
           {insight ? (
             <Pressable style={styles.insightCard} onPress={() => { haptic.light(); router.push('/argos-chat'); }}>
               <View style={styles.insightIcon}>
-                <Ionicons name="eye" size={14} color={ATP_BRAND.lime} />
+                <ArgosMark size={14} />
               </View>
               <View style={{ flex: 1 }}>
                 <EliteText style={styles.insightLabel}>INSIGHT ARGOS</EliteText>

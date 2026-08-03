@@ -24,6 +24,7 @@ import { analyzeFoodText as analyzeWithAI } from '@/src/services/nutrition-servi
 import { saveFoodLog } from '@/src/services/food-log-service';
 import { FoodReviewEditor, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
+import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import { maybeGeneratePostMealInsight } from '@/src/services/argos-nutrition-insights';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
@@ -69,15 +70,6 @@ interface SelectedIngredient {
 
 // === UTILIDADES ===
 
-/** Detecta tipo de comida por hora actual */
-function autoMealType(): string {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 11) return 'breakfast';
-  if (h >= 11 && h < 15) return 'lunch';
-  if (h >= 15 && h < 17) return 'snack_pm';
-  if (h >= 17 && h < 21) return 'dinner';
-  return 'snack_pm';
-}
 
 /** Hora actual formateada */
 function currentTime(): { hh: string; mm: string } {
@@ -146,7 +138,7 @@ export default function FoodTextScreen() {
   // --- Estado de búsqueda ---
   const [query, setQuery] = useState('');
   const [ingredients, setIngredients] = useState<SelectedIngredient[]>([]);
-  const [mealType, setMealType] = useState(params.mealType || autoMealType);
+  const [mealType, setMealType] = useState(params.mealType || defaultMealTypeByHour);
   const [timeHH, setTimeHH] = useState(currentTime().hh);
   const [timeMM, setTimeMM] = useState(currentTime().mm);
   const [saving, setSaving] = useState(false);

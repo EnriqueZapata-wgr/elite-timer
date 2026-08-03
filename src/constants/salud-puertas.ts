@@ -21,13 +21,14 @@
  *     `npm run censo` lo confirma desde el otro lado.
  */
 import type { Href } from 'expo-router';
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 
 export type PuertaKey = 'hoy' | 'datos' | 'evolucion' | 'expediente' | 'ciclo';
 
 export interface Puerta {
   key: PuertaKey;
   /** Nombre del icono en el registro de AppIcon. */
-  icon: string;
+  icon: AppIconName;
   title: string;
   /** La pregunta que contesta, en el lenguaje del usuario. */
   subtitle: string;
@@ -93,8 +94,9 @@ export interface Destino {
   key: string;
   title: string;
   subtitle: string;
-  /** Ionicon de chrome: estos son elementos de lista, no apps del lanzador. */
-  icon: string;
+  /** Nombre lógico del AppIcon (MB-19.2). Las filas se pintan con <AppIcon>:
+   * la misma función se dibuja igual aquí y en la sala ATP. */
+  icon: AppIconName;
   color: string;
   route: Href;
   femaleOnly?: boolean;
@@ -102,30 +104,32 @@ export interface Destino {
 
 /** HOY EN TU CUERPO — lo que está pasando ahora mismo. */
 export const DESTINOS_HOY: Destino[] = [
-  { key: 'glucosa', title: 'Glucosa', subtitle: 'Registra y revisa tus mediciones', icon: 'analytics-outline', color: '#22C55E', route: '/glucose-log' },
-  { key: 'cetonas', title: 'Cetonas', subtitle: 'Tu estado de cetosis', icon: 'flame-outline', color: '#EF9F27', route: '/ketones-log' },
-  { key: 'sol', title: 'Sol y UV', subtitle: 'Tu ventana de luz de hoy', icon: 'sunny-outline', color: '#FBBF24', route: '/solar' },
-  { key: 'sintomas', title: 'Mis síntomas', subtitle: 'Qué sientes, desde cuándo y cuánto', icon: 'medkit-outline', color: '#1D9E75', route: '/salud/mis-sintomas' },
-  { key: 'ciclo_hoy', title: 'Tu ciclo hoy', subtitle: 'En qué fase estás', icon: 'ellipse-outline', color: '#D4537E', route: '/cycle', femaleOnly: true },
+  { key: 'glucosa', title: 'Glucosa', subtitle: 'Registra y revisa tus mediciones', icon: 'glucosa', color: '#22C55E', route: '/glucose-log' },
+  { key: 'cetonas', title: 'Cetonas', subtitle: 'Tu estado de cetosis', icon: 'cetonas', color: '#EF9F27', route: '/ketones-log' },
+  { key: 'sol', title: 'Sol y UV', subtitle: 'Tu ventana de luz de hoy', icon: 'sol', color: '#FBBF24', route: '/solar' },
+  { key: 'sintomas', title: 'Mis síntomas', subtitle: 'Qué sientes, desde cuándo y cuánto', icon: 'sintomas', color: '#1D9E75', route: '/salud/mis-sintomas' },
+  { key: 'ciclo_hoy', title: 'Tu ciclo hoy', subtitle: 'En qué fase estás', icon: 'ciclo', color: '#D4537E', route: '/cycle', femaleOnly: true },
 ];
 
 /** TU EVOLUCIÓN — a dónde vas y por qué. */
 export const DESTINOS_EVOLUCION: Destino[] = [
-  { key: 'diagnostico', title: 'Mi mapa funcional', subtitle: 'Raíces detectadas y su nivel', icon: 'git-network-outline', color: '#1D9E75', route: '/salud/diagnostico' },
-  { key: 'protocolo', title: 'Mi protocolo', subtitle: 'Tus intervenciones activas', icon: 'clipboard-outline', color: '#A8E02A', route: '/salud/intervenciones' },
-  { key: 'edad_atp', title: 'Tu Edad ATP a detalle', subtitle: 'De dónde sale el número y cómo mejorarlo', icon: 'hourglass-outline', color: '#0EA5E9', route: '/edad-atp/result-preview' },
-  { key: 'reportes', title: 'Reportes', subtitle: 'Tu semana y tu mes en números', icon: 'bar-chart-outline', color: '#5B9BD5', route: '/reports' },
-  { key: 'cronotipo', title: 'Mi cronotipo', subtitle: 'A qué hora rinde tu cuerpo', icon: 'moon-outline', color: '#7F77DD', route: '/my-chronotype' },
+  { key: 'diagnostico', title: 'Mi mapa funcional', subtitle: 'Raíces detectadas y su nivel', icon: 'diagnostico', color: '#1D9E75', route: '/salud/diagnostico' },
+  { key: 'protocolo', title: 'Mi protocolo', subtitle: 'Tus intervenciones activas', icon: 'protocolos', color: '#A8E02A', route: '/salud/intervenciones' },
+  { key: 'edad_atp', title: 'Tu Edad ATP a detalle', subtitle: 'De dónde sale el número y cómo mejorarlo', icon: 'edad-atp', color: '#0EA5E9', route: '/edad-atp/result-preview' },
+  { key: 'reportes', title: 'Reportes', subtitle: 'Tu semana y tu mes en números', icon: 'reportes', color: '#5B9BD5', route: '/reports' },
+  { key: 'cronotipo', title: 'Mi cronotipo', subtitle: 'A qué hora rinde tu cuerpo', icon: 'cronotipo', color: '#7F77DD', route: '/my-chronotype' },
 ];
 
 /** MI EXPEDIENTE — lo archivístico: se llena una vez, se consulta poco. */
 export const DESTINOS_EXPEDIENTE: Destino[] = [
-  { key: 'timeline', title: 'Mi expediente', subtitle: 'Tu línea de tiempo: síntomas, labs, hitos', icon: 'folder-open-outline', color: '#38BDF8', route: '/salud/mi-expediente' },
-  { key: 'historia', title: 'Historia clínica', subtitle: 'Antecedentes por categoría', icon: 'document-text-outline', color: '#3B82F6', route: '/historia-clinica' },
-  { key: 'cuestionario', title: 'Cuestionario maestro', subtitle: 'La evaluación que alimenta tu mapa', icon: 'list-outline', color: '#C084FC', route: '/salud/cuestionario-maestro' },
-  { key: 'evaluaciones', title: 'Mis evaluaciones', subtitle: 'Tus cuestionarios y pruebas', icon: 'checkbox-outline', color: '#8B5CF6', route: '/salud/mis-evaluaciones' },
-  { key: 'padecimientos', title: 'Mis padecimientos', subtitle: 'Condiciones diagnosticadas y episodios', icon: 'bandage-outline', color: '#F59E0B', route: '/salud/padecimientos' },
-  { key: 'labs_guide', title: 'Guía de labs', subtitle: 'Qué estudios hacerte y cuánto cuestan', icon: 'book-outline', color: '#60A5FA', route: '/labs-guide' },
+  { key: 'timeline', title: 'Mi expediente', subtitle: 'Tu línea de tiempo: síntomas, labs, hitos', icon: 'salud-expediente', color: '#38BDF8', route: '/salud/mi-expediente' },
+  { key: 'historia', title: 'Historia clínica', subtitle: 'Antecedentes por categoría', icon: 'historia-clinica', color: '#3B82F6', route: '/historia-clinica' },
+  { key: 'cuestionario', title: 'Cuestionario maestro', subtitle: 'La evaluación que alimenta tu mapa', icon: 'cuestionario', color: '#C084FC', route: '/salud/cuestionario-maestro' },
+  { key: 'evaluaciones', title: 'Mis evaluaciones', subtitle: 'Tus cuestionarios y pruebas', icon: 'evaluaciones', color: '#8B5CF6', route: '/salud/mis-evaluaciones' },
+  { key: 'padecimientos', title: 'Mis padecimientos', subtitle: 'Condiciones diagnosticadas y episodios', icon: 'padecimientos', color: '#F59E0B', route: '/salud/padecimientos' },
+  // MB-19.2: divergencia #1 pagada — Labs se dibujaba book-outline aquí y
+  // flask-outline en la sala ATP, con la MISMA ruta. Ahora es una sola función.
+  { key: 'labs_guide', title: 'Guía de labs', subtitle: 'Qué estudios hacerte y cuánto cuestan', icon: 'labs', color: '#60A5FA', route: '/labs-guide' },
 ];
 
 export const DESTINOS_POR_PUERTA: Record<'hoy' | 'evolucion' | 'expediente', Destino[]> = {
@@ -147,7 +151,7 @@ export const DESTINOS_POR_PUERTA: Record<'hoy' | 'evolucion' | 'expediente', Des
  */
 export const DESTINOS_TODOS: Destino[] = [
   ...DESTINOS_HOY,
-  { key: 'mis_datos', title: 'Mis datos', subtitle: 'Labs, biomarcadores, composición, vitals', icon: 'stats-chart-outline', color: '#22C55E', route: '/salud/mis-datos' },
+  { key: 'mis_datos', title: 'Mis datos', subtitle: 'Labs, biomarcadores, composición, vitals', icon: 'salud-datos', color: '#22C55E', route: '/salud/mis-datos' },
   ...DESTINOS_EVOLUCION,
   ...DESTINOS_EXPEDIENTE,
 ];

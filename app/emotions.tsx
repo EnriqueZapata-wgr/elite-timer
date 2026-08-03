@@ -22,7 +22,7 @@ import { Colors, Spacing, FontSizes } from '@/constants/theme';
 
 // F12: portada MJ del check-in (única con arte dedicado hoy; explorar e
 // historia van con ícono hasta que lleguen sus portadas).
-const CARD_CHECKIN = require('@/assets/images/mente/cards/card_checkin.jpg');
+const CARD_CHECKIN = require('@/assets/images/mente/cards/card_checkin.webp');
 
 export default function EmotionsHubScreen() {
   const router = useRouter();

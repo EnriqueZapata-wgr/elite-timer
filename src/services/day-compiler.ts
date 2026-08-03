@@ -252,8 +252,8 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   }
 
   // #v13e 3.A.1: unión persistido + MANDATORY (core no-deseleccionables). Sin esto, los hábitos
-  // que no viven en active_boolean_electrons (journal/no_processed_foods/screen_time_cutoff/cardio)
-  // nunca entraban a booleanElectrons → su card nunca palomeaba. Set para dedupe.
+  // que no viven en active_boolean_electrons (journal/no_processed_foods/screen_time_cutoff/
+  // cardio/checkin) nunca entraban a booleanElectrons → su card nunca palomeaba. Set para dedupe.
   const persistedBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
   const activeBoolKeys: string[] = Array.from(new Set([...persistedBoolKeys, ...MANDATORY_BOOLEANS]));
   const activeQuantKeys: string[] = (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)
@@ -712,7 +712,9 @@ async function buildAgenda(
       if (!hasBreak) {
         items.push({
           id: 'smart-fast-break',
-          time: `${breakTime.getHours()}:${String(breakTime.getMinutes()).padStart(2, '0')}`,
+          // NOCTURNO-FIX P4: sin padStart en la hora, "9:30" ordenaba como
+          // string después de "22:30" y la fila se iba al final del día.
+          time: `${String(breakTime.getHours()).padStart(2, '0')}:${String(breakTime.getMinutes()).padStart(2, '0')}`,
           name: 'Romper ayuno',
           subtitle: `Ayuno ${target}h`,
           category: 'nutrition',

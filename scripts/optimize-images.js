@@ -17,8 +17,13 @@
  *
  * Uso: npm run optimize-images
  *
- * Para WebP en futuro: cambiar .png({...}) por .webp({ quality: 80, effort: 6 })
- * y renombrar archivos en código (require('./xxx.webp')).
+ * MODO WEBP (NOCTURNO A5): `node scripts/optimize-images.js --webp`
+ * Convierte TODO png/jpg de las SUBCARPETAS de assets/images a .webp q82,
+ * resize máx 1200px, y BORRA el original (git lo conserva). La raíz de
+ * assets/images no se toca: ahí viven los PNG RGBA de marca y los cinco
+ * assets que app.json exige como PNG (icon, splash, adaptive-icon, favicon).
+ * Después de correrlo hay que recablear los require() a '.webp' — el test
+ * assets-references verifica que ninguna referencia quede rota.
  */
 
 const sharp = require('sharp');
@@ -32,6 +37,12 @@ const PNG_QUALITY = 85;       // 0-100 (sharp PNG palette quality)
 const JPEG_QUALITY = 85;      // q85 = sweet spot foto (94% menos que PNG-palette)
 const SKIP_IF_SMALLER_KB = 200; // skip si ya está bajo este tamaño
 const PNG_MIN_GAIN_PCT = 30;  // si el palette-PNG no gana esto → probar JPEG (foto)
+
+// Modo WebP: subcarpetas completas, sin umbral de skip (extensiones uniformes
+// por carpeta = recableado mecánico de require()).
+const WEBP_MODE = process.argv.includes('--webp');
+const WEBP_QUALITY = 82;      // 82-85 indistinguible en foto; 82 = mejor peso
+const WEBP_MAX_WIDTH = 1200;  // ninguna card necesita más de 1200px de ancho
 
 // Carpetas cuyas PNG son FOTOGRÁFICAS (MJ, degradados) → siempre proponer JPEG.
 // Añade aquí cualquier carpeta de imágenes generadas/fotográficas nuevas.
@@ -130,7 +141,64 @@ async function optimizeOne(file) {
   return { saved, skipped: false };
 }
 
+/** Modo WebP: convierte a .webp q82 máx 1200px y borra el original. */
+async function webpOne(file) {
+  const origBytes = fs.statSync(file).size;
+  const img = sharp(file);
+  const metadata = await img.metadata();
+
+  let pipeline = img;
+  if (metadata.width > WEBP_MAX_WIDTH) {
+    pipeline = pipeline.resize({ width: WEBP_MAX_WIDTH, withoutEnlargement: true });
+  }
+
+  const buffer = await pipeline.webp({ quality: WEBP_QUALITY, effort: 6 }).toBuffer();
+  const webpPath = file.replace(/\.(png|jpe?g)$/i, '.webp');
+  fs.writeFileSync(webpPath, buffer);
+  fs.unlinkSync(file);
+
+  const pct = (((origBytes - buffer.length) / origBytes) * 100).toFixed(0);
+  console.log(`${GREEN}✓${RESET} ${file} → ${path.basename(webpPath)}  ${fmtKB(origBytes)}KB → ${fmtKB(buffer.length)}KB  ${GREEN}(-${pct}%)${RESET}`);
+  return { saved: origBytes - buffer.length, skipped: false };
+}
+
+async function mainWebp() {
+  console.log(`\n📸 Optimize images — modo WebP (subcarpetas)\n`);
+  console.log(`${DIM}Target:${RESET} ${TARGET_DIR}/*/**/*.{png,jpg,jpeg}`);
+  console.log(`${DIM}Max width:${RESET} ${WEBP_MAX_WIDTH}px | ${DIM}quality:${RESET} ${WEBP_QUALITY}\n`);
+
+  // Solo subcarpetas: la raíz (marca + app.json) no se toca.
+  const files = glob.sync(`${TARGET_DIR}/*/**/*.{png,jpg,jpeg,PNG,JPG,JPEG}`);
+  if (files.length === 0) {
+    console.log(`${YELLOW}No images found in ${TARGET_DIR} subfolders${RESET}`);
+    process.exit(0);
+  }
+  console.log(`Found ${files.length} images.\n`);
+
+  let totalSaved = 0;
+  let processed = 0;
+  let failed = 0;
+  for (const file of files) {
+    try {
+      const result = await webpOne(file);
+      totalSaved += result.saved;
+      processed++;
+    } catch (e) {
+      failed++;
+      console.error(`${RED}✗ ERROR${RESET} ${file}: ${e.message}`);
+    }
+  }
+
+  console.log(`\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}`);
+  console.log(`${GREEN}✅ Done${RESET}`);
+  console.log(`Converted: ${processed} | Errors: ${failed}`);
+  console.log(`Total saved: ${GREEN}${fmtMB(totalSaved)}MB${RESET}`);
+  console.log(`${YELLOW}Recablea los require() a '.webp' (el test assets-references lo vigila).${RESET}\n`);
+  if (failed > 0) process.exit(1);
+}
+
 async function main() {
+  if (WEBP_MODE) return mainWebp();
   console.log(`\n📸 Optimize images — sharp pipeline\n`);
   console.log(`${DIM}Target:${RESET} ${TARGET_DIR}/**/*.{png,jpg,jpeg}`);
   console.log(`${DIM}Max width:${RESET} ${MAX_WIDTH}px`);

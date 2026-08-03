@@ -22,27 +22,27 @@ import { CONCEPT_COLORS } from '@/src/constants/concept-colors';
 /** require() estático: Metro necesita la ruta literal. */
 const MOMENT_IMAGES: Record<MomentKey, any[]> = {
   amanecer: [
-    require('@/assets/images/hoy-extra/tu-dia/amanecer-01.png'),
-    require('@/assets/images/hoy-extra/tu-dia/amanecer-02.png'),
-    require('@/assets/images/hoy-extra/tu-dia/amanecer-03.jpg'),
+    require('@/assets/images/hoy-extra/tu-dia/amanecer-01.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/amanecer-02.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/amanecer-03.webp'),
   ],
   'medio-dia': [
-    require('@/assets/images/hoy-extra/tu-dia/medio-dia-01.png'),
-    require('@/assets/images/hoy-extra/tu-dia/medio-dia-02.png'),
-    require('@/assets/images/hoy-extra/tu-dia/medio-dia-03.png'),
-    require('@/assets/images/hoy-extra/tu-dia/medio-dia-04.jpg'),
+    require('@/assets/images/hoy-extra/tu-dia/medio-dia-01.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/medio-dia-02.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/medio-dia-03.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/medio-dia-04.webp'),
   ],
   atardecer: [
-    require('@/assets/images/hoy-extra/tu-dia/atardecer-01.png'),
-    require('@/assets/images/hoy-extra/tu-dia/atardecer-02.png'),
-    require('@/assets/images/hoy-extra/tu-dia/atardecer-03.png'),
-    require('@/assets/images/hoy-extra/tu-dia/atardecer-04.jpg'),
+    require('@/assets/images/hoy-extra/tu-dia/atardecer-01.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/atardecer-02.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/atardecer-03.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/atardecer-04.webp'),
   ],
   noche: [
-    require('@/assets/images/hoy-extra/tu-dia/noche-01.png'),
-    require('@/assets/images/hoy-extra/tu-dia/noche-02.png'),
-    require('@/assets/images/hoy-extra/tu-dia/noche-03.png'),
-    require('@/assets/images/hoy-extra/tu-dia/noche-04.jpg'),
+    require('@/assets/images/hoy-extra/tu-dia/noche-01.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/noche-02.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/noche-03.webp'),
+    require('@/assets/images/hoy-extra/tu-dia/noche-04.webp'),
   ],
 };
 

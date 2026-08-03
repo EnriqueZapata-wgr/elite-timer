@@ -27,6 +27,8 @@ import {
   importOtorgaElectron,
   disciplineFromHealthConnect,
   disciplineFromHealthKit,
+  esImportable,
+  MIN_IMPORT_DURATION_SECONDS,
   type NormalizedWorkout,
   type ExistingSessionLike,
 } from './health-import-core';
@@ -202,7 +204,9 @@ async function leerAndroid(desdeISO: string, hastaISO: string): Promise<Normaliz
     const start = new Date(r.startTime);
     const end = new Date(r.endTime);
     const durationSeconds = Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
-    if (durationSeconds <= 0) continue;
+    // Corte temprano: ahorra los 3 aggregate por sesión corta. La red central
+    // es esImportable en leerEntrenamientos.
+    if (durationSeconds < MIN_IMPORT_DURATION_SECONDS) continue;
     // Distancia / FC / calorías por sesión vía aggregate en su ventana —
     // fail-soft por métrica (sin el permiso o sin dato → null, no truena).
     let distanceMeters: number | null = null;
@@ -267,8 +271,9 @@ export async function leerEntrenamientos(diasAtras = 14): Promise<NormalizedWork
   const desde = new Date();
   desde.setDate(desde.getDate() - diasAtras);
   try {
-    if (Platform.OS === 'android') return await leerAndroid(desde.toISOString(), new Date().toISOString());
-    if (Platform.OS === 'ios') return await leerIOS(desde);
+    // esImportable aquí y no en la pantalla: el auto-sync hereda el filtro.
+    if (Platform.OS === 'android') return (await leerAndroid(desde.toISOString(), new Date().toISOString())).filter(esImportable);
+    if (Platform.OS === 'ios') return (await leerIOS(desde)).filter(esImportable);
   } catch (e) {
     logWarn('[health-import] lectura:', e);
   }

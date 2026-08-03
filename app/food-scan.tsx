@@ -35,6 +35,7 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { SURFACES, TEXT_COLORS, CATEGORY_COLORS, SEMANTIC, ATP_BRAND } from '@/src/constants/brand';
 import { FoodReviewEditor, parseAIToReview, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
+import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import { addSupplementToPlan } from '@/src/services/supplements-plan-service';
 import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { useAuth } from '@/src/contexts/auth-context';
@@ -166,14 +167,6 @@ function getTagColor(tag: string): { bg: string; text: string } {
   return { bg: 'rgba(255,255,255,0.06)', text: TEXT_COLORS.secondary };
 }
 
-function autoMealType(): string {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 11) return 'breakfast';
-  if (h >= 11 && h < 15) return 'lunch';
-  if (h >= 15 && h < 17) return 'snack_pm';
-  if (h >= 17 && h < 21) return 'dinner';
-  return 'snack_pm';
-}
 
 function scoreToColor(s: number): string {
   if (s >= 90) return ATP_BRAND.lime;
@@ -329,7 +322,7 @@ export default function FoodScanScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [photoBase64, setPhotoBase64] = useState<string | null>(null);
 
-  const [mealType, setMealType] = useState(mealParam || autoMealType());
+  const [mealType, setMealType] = useState(mealParam || defaultMealTypeByHour());
   const [description, setDescription] = useState('');
   const [hungerKey, setHungerKey] = useState<string | null>(null);
   const [productName, setProductName] = useState('');
@@ -696,7 +689,7 @@ export default function FoodScanScreen() {
     setResult(null); setPhotoUri(null); setPhotoBase64(null);
     setSaved(false); setDescription(''); setProductName(''); setUseCtx(null);
     setAddedToPlan(false); setAddingToPlan(false);
-    setHungerKey(null); setMealType(autoMealType()); setStep('capture');
+    setHungerKey(null); setMealType(defaultMealTypeByHour()); setStep('capture');
     // Reset nuevos estados de food editable
     setTextInput(''); setInputType('photo'); setIngredients([]);
     setEditedTotals(null); setWasEdited(false);

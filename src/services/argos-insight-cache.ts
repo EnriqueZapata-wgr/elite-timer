@@ -7,6 +7,15 @@ import { supabase } from '@/src/lib/supabase';
 import { getLocalToday } from '@/src/utils/date-helpers';
 
 /**
+ * Evento DeviceEventEmitter: el insight diario cambió en el cache (se generó o
+ * regeneró uno nuevo). Lo emite quien escribe argos_daily_insights (HOY tras el
+ * upsert); lo escucha quien lo pinta (OrbCard) para no depender del orden de
+ * montaje frente a la generación. Solo la constante vive aquí: este módulo se
+ * testea en node y no puede importar react-native.
+ */
+export const ARGOS_INSIGHT_CHANGED_EVENT = 'argos_insight_changed';
+
+/**
  * H7: invalida el insight diario cacheado del usuario. Marca la fila de HOY como vieja
  * (created_at → epoch) para que el próximo load la considere fuera de la ventana de 6h y
  * REGENERE. Se llama al emitirse `day_changed` (nutrición/ayuno/hidratación cambian el

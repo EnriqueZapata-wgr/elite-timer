@@ -6,6 +6,7 @@
  * EMOM Auto: estrés metabólico con deuda.
  * Myo Reps: activación + sobrecargas hasta fallo.
  */
+import { ATP_BRAND } from '@/src/constants/brand';
 
 export const TRAINING_METHODS = {
   standard: {
@@ -20,7 +21,7 @@ export const TRAINING_METHODS = {
     name: 'Método 3-5',
     description: 'Palancas de fuerza. Peso máximo para tu rango de reps.',
     icon: 'flash-outline',
-    color: '#fbbf24',
+    color: ATP_BRAND.amber,
     rules: {
       beginner: { targetReps: 6, hint: 'Si salen 7 → sube peso. Si salen 5 → baja.' },
       intermediate: { targetReps: 4, hint: 'Si salen 5 → sube peso. Si salen 3 → baja.' },

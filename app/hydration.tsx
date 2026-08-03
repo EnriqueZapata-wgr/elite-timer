@@ -25,7 +25,7 @@ import { TEXT_COLORS } from '@/src/constants/brand';
 
 const WATER_COLOR = '#38bdf8';
 // P2-3 (MB-8): hero editorial — la pantalla estaba pelona (una card sola sobre negro).
-const HERO_HIDRATACION = require('@/assets/images/agenda/hidratacion/hidratacion-01.png');
+const HERO_HIDRATACION = require('@/assets/images/agenda/hidratacion/hidratacion-01.webp');
 
 export default function HydrationScreen() {
   const { user } = useAuth();
@@ -90,7 +90,7 @@ export default function HydrationScreen() {
               style={StyleSheet.absoluteFill}
             />
             <View style={s.heroContent}>
-              <EliteText style={s.heroKicker}>NUTRICIÓN</EliteText>
+              <EliteText style={s.heroKicker}>HIDRATACIÓN</EliteText>
               <EliteText variant="caption" style={s.heroSub}>{epigeneticHint}</EliteText>
             </View>
           </ImageBackground>

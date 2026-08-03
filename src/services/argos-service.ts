@@ -1668,7 +1668,7 @@ No uses emojis. No saludes. Ve directo al insight.${cycleGuard}${protocolGuard}$
 
 // H7: invalidación del insight diario. Vive en módulo aislado (argos-insight-cache) para
 // ser testeable sin el grafo pesado de este servicio; se re-exporta para import estable.
-export { invalidateDailyInsight } from './argos-insight-cache';
+export { invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from './argos-insight-cache';
 
 // === PERSISTENCIA DE CONVERSACIONES ===
 

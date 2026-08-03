@@ -16,8 +16,8 @@
  * La ruta sigue siendo /kit para no romper deep links.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp, LinearTransition } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -39,6 +39,10 @@ import {
 import {
   loadUsage, recordOpen, loadCustomOrder, loadOrderMode, saveOrderMode,
 } from '@/src/services/atp-room-store';
+import { getInstallPrefs, installApp, uninstallApp } from '@/src/services/hoy/install-service';
+import {
+  appInstallState, installAlertBody, uninstallAlertBody, type InstallPrefs,
+} from '@/src/services/hoy/install-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, PILL } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -46,6 +50,9 @@ import { haptic } from '@/src/utils/haptics';
 export default function SalaAtpScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // MB-20: "+ agregar" en TAREAS abre la sala en modo instalación.
+  const { agregar } = useLocalSearchParams<{ agregar?: string }>();
+  const modoAgregar = agregar === '1';
 
   const [isFemale, setIsFemale] = useState(false);
   const [query, setQuery] = useState('');
@@ -53,6 +60,8 @@ export default function SalaAtpScreen() {
   const [usage, setUsage] = useState<AppUsage>({});
   const [custom, setCustom] = useState<CustomOrder>({ keys: [] });
   const [editorial, setEditorial] = useState<EditorialPick | null>(null);
+  // null = aún sin leer o lectura fallida: sin badges, no defaults engañosos.
+  const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);
 
   // El gate del ciclo. Sin perfil, la app no se muestra: es el default seguro.
   useEffect(() => {
@@ -76,8 +85,59 @@ export default function SalaAtpScreen() {
     setUsage(u);
     setCustom(c);
     setOrder(m);
-  }, []);
+    if (user?.id) setInstallPrefs(await getInstallPrefs(user.id));
+  }, [user?.id]);
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+
+  // MB-20: instalar/desinstalar desde el mosaico (tap largo, o tap en modo agregar).
+  const promptInstall = useCallback((app: AppEntry) => {
+    if (!user?.id || !installPrefs) return;
+    if (!app.installable) {
+      Alert.alert(app.label, 'Esta función se abre cuando la necesitas: no genera hábito en TAREAS.');
+      return;
+    }
+    const state = appInstallState(app.key, installPrefs);
+    if (state === 'fija') {
+      Alert.alert(app.label, 'Este hábito es parte del núcleo de tu día: siempre está en TAREAS.');
+      return;
+    }
+    if (state === 'instalada') {
+      Alert.alert(
+        `Desinstalar ${app.label}`,
+        uninstallAlertBody(app.key),
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Desinstalar',
+            style: 'destructive',
+            onPress: async () => {
+              haptic.medium();
+              const r = await uninstallApp(user.id, app.key);
+              if (!r.ok) { Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.'); return; }
+              refresh();
+            },
+          },
+        ],
+      );
+      return;
+    }
+    Alert.alert(
+      `Instalar ${app.label}`,
+      installAlertBody(app.key),
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Instalar',
+          onPress: async () => {
+            haptic.success();
+            const r = await installApp(user.id, app.key);
+            if (!r.ok) { Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.'); return; }
+            refresh();
+          },
+        },
+      ],
+    );
+  }, [user?.id, installPrefs, refresh]);
 
   // La card se calcula con el reloj de ESTE render, no con un intervalo: la
   // pantalla se vuelve a montar cada vez que entras y eso basta.
@@ -87,9 +147,15 @@ export default function SalaAtpScreen() {
   }, [apps, usage]);
 
   const open = useCallback((app: AppEntry) => {
+    // Modo agregar: el tap sobre una instalable no instalada INSTALA (el gesto
+    // que promete el botón "+ agregar"); el resto abre normal.
+    if (modoAgregar && installPrefs && app.installable && appInstallState(app.key, installPrefs) === 'no') {
+      promptInstall(app);
+      return;
+    }
     recordOpen(app.key);
     router.push(app.route);
-  }, [router]);
+  }, [router, modoAgregar, installPrefs, promptInstall]);
 
   const changeOrder = (next: AtpOrder) => {
     haptic.light();
@@ -113,7 +179,14 @@ export default function SalaAtpScreen() {
   const renderTile = (app: AppEntry) => (
     // La transición de layout es lo que hace que el icono VUELE al reordenar.
     <Animated.View key={app.key} layout={tileLayout} style={s.tileSlot}>
-      <AppTile icon={app.icon} label={app.label} section={app.section} onPress={() => open(app)} />
+      <AppTile
+        icon={app.icon}
+        label={app.label}
+        section={app.section}
+        onPress={() => open(app)}
+        installed={installPrefs ? appInstallState(app.key, installPrefs) !== 'no' : false}
+        onLongPress={() => promptInstall(app)}
+      />
     </Animated.View>
   );
 
@@ -129,6 +202,16 @@ export default function SalaAtpScreen() {
           <EliteText style={s.eyebrow}>TUS FUNCIONES</EliteText>
           <EliteText style={s.title}>ATP</EliteText>
         </Animated.View>
+
+        {/* MB-20: modo agregar — instalar es un gesto, no un formulario. */}
+        {modoAgregar && (
+          <Animated.View entering={FadeInUp.delay(60).springify()} style={s.agregarBanner}>
+            <Ionicons name="add-circle-outline" size={16} color={ATP_BRAND.lime} />
+            <EliteText style={s.agregarText}>
+              Toca una app para instalarla en tu día. Desinstalar nunca borra tus datos.
+            </EliteText>
+          </Animated.View>
+        )}
 
         {/* El momento con foto de esta pantalla. UNA card: ni carrusel ni feed. */}
         {!searching && editorial && (
@@ -285,4 +368,22 @@ const s = StyleSheet.create({
 
   emptySearch: { width: '100%', paddingVertical: Spacing.xl, alignItems: 'center' },
   emptyText: { color: TEXT.tertiary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+
+  agregarBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(168,224,42,0.08)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(168,224,42,0.3)',
+    borderRadius: 12,
+    padding: 12,
+  },
+  agregarText: {
+    flex: 1,
+    color: TEXT.primary,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+    lineHeight: 16,
+  },
 });

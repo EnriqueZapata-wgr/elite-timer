@@ -71,6 +71,11 @@ export const ATP_EVENTS = {
   BHA_SCAN_COMPLETED: 'bha_scan_completed',
   // B.4 — narrativa ARGOS "¿por qué estas intervenciones?" (solo cobros reales)
   INTERVENTION_RATIONALE_PURCHASED: 'intervention_rationale_purchased',
+  // MB-20 — tour guiado por la orbe (12 pasos sobre pantallas reales)
+  TOUR_STARTED: 'tour_started',
+  TOUR_STEP_VIEWED: 'tour_step_viewed',
+  TOUR_COMPLETED: 'tour_completed',
+  TOUR_SKIPPED: 'tour_skipped',
 } as const;
 
 export type AtpEventName = typeof ATP_EVENTS[keyof typeof ATP_EVENTS];

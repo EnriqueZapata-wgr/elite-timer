@@ -56,19 +56,19 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
 // #138: hero editorial del pilar (require estático · Metro).
-const HERO_RESPIRACION = require('@/assets/images/intervenciones/respiracion.jpg');
+const HERO_RESPIRACION = require('@/assets/images/intervenciones/respiracion.webp');
 
 // V1.5.2 (#4): imágenes editoriales LOCALES por técnica (molde meditación:
 // imagen + gradiente + velo). Todo del bundle → cero red, cero parpadeo.
 const BREATH_CARD_IMAGES: Record<string, any> = {
-  'box-4': require('@/assets/images/intervenciones/cognitivo.jpg'),
-  '478-relaxation': require('@/assets/images/intervenciones/naturaleza.jpg'),
-  'coherent-5': require('@/assets/images/intervenciones/respiracion.jpg'),
-  'energize-2': require('@/assets/images/intervenciones/calor.jpg'),
-  'wim-hof-lite': require('@/assets/images/intervenciones/frio.jpg'),
-  'physiological-sigh': require('@/assets/images/intervenciones/grounding.jpg'),
+  'box-4': require('@/assets/images/intervenciones/cognitivo.webp'),
+  '478-relaxation': require('@/assets/images/intervenciones/naturaleza.webp'),
+  'coherent-5': require('@/assets/images/intervenciones/respiracion.webp'),
+  'energize-2': require('@/assets/images/intervenciones/calor.webp'),
+  'wim-hof-lite': require('@/assets/images/intervenciones/frio.webp'),
+  'physiological-sigh': require('@/assets/images/intervenciones/grounding.webp'),
 };
-const BREATH_CARD_FALLBACK = require('@/assets/images/mente/cards/card_respiracion.jpg');
+const BREATH_CARD_FALLBACK = require('@/assets/images/mente/cards/card_respiracion.webp');
 
 const PURPLE = CATEGORY_COLORS.mind;
 const BLUE = '#60a5fa';
@@ -390,7 +390,8 @@ function BoxConfigScreen({ template, onStart, onBack }: {
 
         <View style={styles.configDivider} />
 
-        <ConfigRow label="Ciclos" value={cycles} onChange={setCycles} min={1} max={50} />
+        {/* Ciclos son repeticiones, no segundos: sin unidad. */}
+        <ConfigRow label="Ciclos" value={cycles} onChange={setCycles} min={1} max={50} unit="" />
 
         <EliteText variant="caption" style={styles.configTotal}>
           Tiempo total: {totalMin > 0 ? `${totalMin}m ` : ''}{totalSec > 0 ? `${totalSec}s` : ''}
@@ -403,8 +404,8 @@ function BoxConfigScreen({ template, onStart, onBack }: {
   );
 }
 
-function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
-  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number;
+function ConfigRow({ label, value, onChange, min = 1, max = 30, unit = 's' }: {
+  label: string; value: number; onChange: (v: number) => void; min?: number; max?: number; unit?: string;
 }) {
   return (
     <View style={styles.configRow}>
@@ -417,7 +418,7 @@ function ConfigRow({ label, value, onChange, min = 1, max = 30 }: {
         >
           <Ionicons name="remove" size={18} color={ATP_BRAND.teal} />
         </Pressable>
-        <EliteText style={styles.configStepValue}>{value}<EliteText style={styles.configStepUnit}>s</EliteText></EliteText>
+        <EliteText style={styles.configStepValue}>{value}{unit ? <EliteText style={styles.configStepUnit}>{unit}</EliteText> : null}</EliteText>
         <Pressable
           onPress={() => { haptic.light(); onChange(Math.min(max, value + 1)); }}
           disabled={value >= max}

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
+import { AppIcon, hasAppIcon, type AppIconName } from '@/src/components/ui/AppIcon';
 import { ATP_BRAND, TEXT } from '@/src/constants/brand';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 import { haptic } from '@/src/utils/haptics';
@@ -36,7 +37,12 @@ const SIZE_ASPECT: Record<EditorialCardSize, number> = {
 
 export interface EditorialCardProps {
   cardKey: string;
+  /** MB-19.2: nombre lógico del AppIcon (preferido) o emoji legacy. Solo se ve
+   * en el placeholder sin imagen; con nombre lógico se pinta con <AppIcon>. */
   icon: string;
+  /** MB-19.2 (SALUD): icono del set visible en la esquina sup-izq de la card.
+   * Solo se pinta si la card no lleva círculo checkable. */
+  iconName?: AppIconName;
   title: string;
   subtitle?: string;
   message?: string;
@@ -73,7 +79,7 @@ function CheckCircle({ done }: { done: boolean }) {
 }
 
 export function EditorialCard({
-  cardKey, icon, title, subtitle, message, imageBn, gradient, state = 'pending', size = 'normal', badge, ctaLabel, onTap,
+  cardKey, icon, iconName, title, subtitle, message, imageBn, gradient, state = 'pending', size = 'normal', badge, ctaLabel, onTap,
   progress, electronsValue, quickActions, showCheckCircle, infoText, onInfoPress,
 }: EditorialCardProps) {
   const done = state === 'done';
@@ -100,7 +106,14 @@ export function EditorialCard({
           card era un hueco negro (RN Image transparente + overlay alpha). */}
       <View style={StyleSheet.absoluteFill}>
         <View style={[StyleSheet.absoluteFill, { backgroundColor: gradient[0], opacity: 0.25 }]} />
-        {!imageBn && <EliteText style={styles.placeholderIcon}>{icon}</EliteText>}
+        {/* MB-19.2: nombre lógico → glifo del set; emoji legacy → texto, como antes. */}
+        {!imageBn && (hasAppIcon(icon) ? (
+          <View style={styles.placeholderGlyph}>
+            <AppIcon name={icon} size={64} color="#FFFFFF" />
+          </View>
+        ) : (
+          <EliteText style={styles.placeholderIcon}>{icon}</EliteText>
+        ))}
       </View>
       {imageBn ? (
         <Image
@@ -138,8 +151,13 @@ export function EditorialCard({
 
       <View style={styles.content}>
         <View style={styles.topRow}>
-          {/* 2.1: círculo checkable en vez del emoji (que se eliminó del topRow). */}
-          {showCheckCircle ? <CheckCircle done={done} /> : <View />}
+          {/* 2.1: círculo checkable en vez del emoji (que se eliminó del topRow).
+              MB-19.2: si no hay círculo y la card declara iconName, el set ocupa el slot. */}
+          {showCheckCircle ? <CheckCircle done={done} /> : iconName ? (
+            <View style={styles.iconChip}>
+              <AppIcon name={iconName} size={19} color="#FFFFFF" />
+            </View>
+          ) : <View />}
           <View style={styles.topRight}>
             {/* #v13e 3.D: botón "i" → Alert con copy de cómo se gana el electrón. */}
             {infoText ? (
@@ -207,6 +225,15 @@ const styles = StyleSheet.create({
     shadowColor: ATP_BRAND.lime, shadowOpacity: 0.35, shadowRadius: 16, shadowOffset: { width: 0, height: 0 }, elevation: 8,
   },
   placeholderIcon: { position: 'absolute', alignSelf: 'center', top: '30%', fontSize: 64, opacity: 0.35 },
+  placeholderGlyph: { position: 'absolute', alignSelf: 'center', top: '30%', opacity: 0.35 },
+  // MB-19.2 — chip del icono del set (puertas de SALUD): velo oscuro para que
+  // el glifo blanco lea sobre cualquier foto.
+  iconChip: {
+    width: 34, height: 34, borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.22)',
+    alignItems: 'center', justifyContent: 'center',
+  },
   doneVeil: { backgroundColor: 'rgba(0,0,0,0.55)' },
   // flex:1 hace que el content llene la card (cuyo height ya viene de aspectRatio en el padre).
   // SIN minHeight: si lo dejamos, fuerza altura > la del aspectRatio y rompe el ratio.

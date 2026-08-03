@@ -53,29 +53,29 @@ function formatFastDuration(startISO: string | null): string {
 // #asset-swap: requires ESTÁTICOS (Metro no soporta dinámico). Viven aquí (componente, NO en
 // hoy-cards.ts que los tests importan — require('.png') rompe el resolver de vitest).
 const HOY_EXTRA_IMAGES = {
-  uv: require('@/assets/images/hoy-extra/uv.png'),
-  checkin: require('@/assets/images/hoy-extra/checkin.png'),
-  proteina: require('@/assets/images/hoy-extra/proteina.png'),
-  agua: require('@/assets/images/hoy-extra/agua.png'),
-  pasos: require('@/assets/images/hoy-extra/pasos.png'),
+  uv: require('@/assets/images/hoy-extra/uv.webp'),
+  checkin: require('@/assets/images/hoy-extra/checkin.webp'),
+  proteina: require('@/assets/images/hoy-extra/proteina.webp'),
+  agua: require('@/assets/images/hoy-extra/agua.webp'),
+  pasos: require('@/assets/images/hoy-extra/pasos.webp'),
   // #cableado-final 3.3: imágenes nuevas.
-  ayuno: require('@/assets/images/hoy-extra/ayuno.png'),
-  sueno: require('@/assets/images/hoy-extra/sueno.png'),
-  journal: require('@/assets/images/hoy-extra/journal.png'),
-  no_alcohol: require('@/assets/images/hoy-extra/no-alcohol.png'),
-  no_procesados: require('@/assets/images/hoy-extra/no-procesados.png'),
-  screen_cutoff: require('@/assets/images/hoy-extra/screen-cutoff.png'),
+  ayuno: require('@/assets/images/hoy-extra/ayuno.webp'),
+  sueno: require('@/assets/images/hoy-extra/sueno.webp'),
+  journal: require('@/assets/images/hoy-extra/journal.webp'),
+  no_alcohol: require('@/assets/images/hoy-extra/no-alcohol.webp'),
+  no_procesados: require('@/assets/images/hoy-extra/no-procesados.webp'),
+  screen_cutoff: require('@/assets/images/hoy-extra/screen-cutoff.webp'),
 } as const;
 
 const ELECTRON_IMAGES: Record<string, any> = {
-  luz_solar: require('@/assets/images/electrons/luz-solar.png'),
-  meditacion: require('@/assets/images/electrons/meditacion.png'),
-  suplementos: require('@/assets/images/electrons/suplementos.png'),
-  bano_frio: require('@/assets/images/electrons/bano-frio.png'),
-  grounding: require('@/assets/images/electrons/grounding.png'),
-  fuerza: require('@/assets/images/electrons/fuerza.png'),
-  breathwork: require('@/assets/images/electrons/breathwork.png'),
-  lentes_rojos: require('@/assets/images/electrons/lentes-rojos.png'),
+  luz_solar: require('@/assets/images/electrons/luz-solar.webp'),
+  meditacion: require('@/assets/images/electrons/meditacion.webp'),
+  suplementos: require('@/assets/images/electrons/suplementos.webp'),
+  bano_frio: require('@/assets/images/electrons/bano-frio.webp'),
+  grounding: require('@/assets/images/electrons/grounding.webp'),
+  fuerza: require('@/assets/images/electrons/fuerza.webp'),
+  breathwork: require('@/assets/images/electrons/breathwork.webp'),
+  lentes_rojos: require('@/assets/images/electrons/lentes-rojos.webp'),
 };
 
 /** Mapa cardKey editorial → `source` del electrón booleano en day.booleanElectrons. */
@@ -378,7 +378,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           : undefined;
         return (
           <EditorialCard
-            cardKey="uv" size="hero" icon="☀️"
+            cardKey="uv" size="hero" icon="sol"
             title={uv != null ? `UV INDEX ${uv}` : 'UV INDEX'}
             subtitle={uv != null ? `${uvMini?.level ?? ''}${hint}`.trim() || 'Sin datos' : 'Sin datos'}
             message={message}
@@ -392,7 +392,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         // #v13d 2.2: checkin NO togglea desde card → navega a /checkin (el award sucede dentro).
         return (
           <EditorialCard
-            cardKey="checkin" icon="❤️" title="CHECK-IN EMOCIONAL"
+            cardKey="checkin" icon="emociones" title="CHECK-IN EMOCIONAL"
             subtitle={isDone('checkin') ? 'Registrado hoy' : '¿Cómo te sientes hoy?'}
             gradient={['#1ABC9C', '#9B59B6']}
             imageBn={HOY_EXTRA_IMAGES.checkin}
@@ -426,7 +426,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         if (!protein) return null;
         return (
           <EditorialCard
-            cardKey="proteina" icon="🍳" title="PROTEÍNA"
+            cardKey="proteina" icon="comida" title="PROTEÍNA"
             subtitle={`${protein.displayCurrent} / ${protein.displayTarget}`}
             message={protein.current < protein.target ? `Te faltan ${Math.max(0, Math.round(protein.target - protein.current))}g` : 'Meta lograda ✓'}
             gradient={['#FF8C00', '#C0392B']}
@@ -447,7 +447,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         const done = ml >= water.target;
         return (
           <EditorialCard
-            cardKey="agua" icon="💧" title="AGUA"
+            cardKey="agua" icon="hidratacion" title="AGUA"
             subtitle={`${fmtMl(ml)} / ${water.displayTarget}`}
             message={done ? 'Meta superada' : 'Sigue hidratándote'}
             gradient={['#3498DB', '#1ABC9C']}
@@ -476,7 +476,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         const fastDone = !!activeFast && hoursActive >= targetHours;
         return (
           <EditorialCard
-            cardKey="ayuno" icon="⏳" title="AYUNO"
+            cardKey="ayuno" icon="ayuno" title="AYUNO"
             subtitle={activeFast
               ? `Ayunando · ${formatFastDuration(activeFast.fast_start)} de ${targetHours}h meta`
               : 'Sin ayuno activo'}
@@ -527,7 +527,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           : (done ? 'Hecho hoy' : 'Sin sesión hoy · registrar');
         return (
           <EditorialCard
-            cardKey="cardio" icon="❤️‍🔥" title="CARDIO"
+            cardKey="cardio" icon="cardio" title="CARDIO"
             subtitle={subtitle}
             gradient={['#E74C3C', '#FFA500']}
             imageBn={pickCardioImage(`${seedKey ?? ''}-cardio-${today}`)}
@@ -546,7 +546,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
         const hasSteps = !!steps && steps.current > 0;
         return (
           <EditorialCard
-            cardKey="pasos" icon="🚶" title="PASOS"
+            cardKey="pasos" icon="pasos" title="PASOS"
             subtitle={hasSteps ? `${steps!.displayCurrent} / ${steps!.displayTarget}` : 'Sin datos · conecta Health Connect'}
             gradient={['#27AE60', '#8B4513']}
             imageBn={HOY_EXTRA_IMAGES.pasos}
@@ -570,7 +570,7 @@ export function HoyEditorialSection({ day, uvMini, cardsVisible, userId, seedKey
           : 'Conecta tu wearable para personalizar tu hora de dormir';
         return (
           <EditorialCard
-            cardKey="sleep" icon="🌙" title="SUEÑO"
+            cardKey="sleep" icon="sueno" title="SUEÑO"
             subtitle={subtitle} message={message}
             gradient={['#2C3E50', '#1A1A2E']}
             imageBn={HOY_EXTRA_IMAGES.sueno}

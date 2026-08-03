@@ -3,7 +3,9 @@
  * vibración, pantalla y zona de prueba. (Antes: 6 secciones del monolito.)
  */
 import { useState, useEffect } from 'react';
-import { View, ScrollView, Pressable, Switch, StyleSheet } from 'react-native';
+import { View, ScrollView, Pressable, Switch, StyleSheet, DeviceEventEmitter } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ORB_TOUR_DONE_KEY, ORB_TOUR_RESTART_EVENT } from '@/src/components/tour/orb-tour-core';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { StatusBar } from 'expo-status-bar';
@@ -61,6 +63,17 @@ export default function SettingsExperienciaScreen() {
             right={<EliteText variant="caption" style={{ color: Colors.neonGreen }}>Español</EliteText>} />
           <SettingRow icon="resize-outline" label="Unidades"
             right={<EliteText variant="caption" style={{ color: Colors.neonGreen }}>Métrico</EliteText>} />
+          {/* MB-20 Pieza 4: retomar el tour de la orbe cuando quieras. */}
+          <SettingRow
+            icon="play-circle-outline"
+            label="Volver a ver el tour"
+            onPress={async () => {
+              haptic.light();
+              await AsyncStorage.removeItem(ORB_TOUR_DONE_KEY).catch(() => {});
+              DeviceEventEmitter.emit(ORB_TOUR_RESTART_EVENT);
+              router.replace('/');
+            }}
+          />
           <Divider />
         </Animated.View>
 

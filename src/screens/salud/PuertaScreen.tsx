@@ -18,6 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { EliteText } from '@/components/elite-text';
 import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
@@ -67,7 +68,8 @@ export function PuertaScreen({ title, intro, destinos }: Props) {
               onPress={() => { haptic.medium(); router.push(d.route); }}
             >
               <View style={[s.icon, { backgroundColor: d.color + '1A' }]}>
-                <Ionicons name={d.icon as any} size={20} color={d.color} />
+                {/* MB-19.2: misma función = mismo dibujo que en la sala ATP. */}
+                <AppIcon name={d.icon} size={20} color={d.color} />
               </View>
               <View style={{ flex: 1 }}>
                 <EliteText style={s.title}>{d.title}</EliteText>

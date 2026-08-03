@@ -26,7 +26,7 @@ const PUERTAS = [
     subtitle: 'Comunidad, no competencia. Celebramos la constancia.',
     gradient: ['#7F77DD', '#5B9BD5'] as [string, string],
     route: '/comunidad/ranking' as const,
-    image: require('@/assets/images/pillars/comunidad.png'),
+    image: require('@/assets/images/pillars/comunidad.webp'),
   },
   {
     key: 'amigos',
@@ -35,7 +35,7 @@ const PUERTAS = [
     subtitle: 'Tu gente, su ánimo y sus perfiles',
     gradient: ['#5B9BD5', '#1ABC9C'] as [string, string],
     route: '/comunidad/amigos' as const,
-    image: require('@/assets/images/pillars/comunidad-tribu.png'),
+    image: require('@/assets/images/pillars/comunidad-tribu.webp'),
   },
 ];
 

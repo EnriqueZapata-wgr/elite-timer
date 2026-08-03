@@ -4,7 +4,7 @@
  * Muestra fase actual, calendario interactivo mensual, modal de registro
  * diario (DayEditorModal) y navegación a gráficas, historial y ajustes.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Alert, Modal,
   TextInput, Dimensions, KeyboardAvoidingView, Platform,
@@ -33,6 +33,7 @@ import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { derivePregnancyProgress, type PregnancyStatus } from '@/src/utils/pregnancy';
 import { userErrorMessage } from '@/src/utils/user-error';
+import { observedCycleLength, type PeriodStartLike } from '@/src/services/cycle/cycle-length-core';
 
 // ═══ CONSTANTES ═══
 
@@ -190,6 +191,9 @@ export default function CycleScreen() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [logs, setLogs] = useState<DayLog[]>([]);
   const [settings, setSettings] = useState({ avg_cycle_length: 28, avg_period_length: 5 });
+  // M3.b: los inicios de periodo observados (cycle_periods) alimentan la
+  // predicción cuando hay suficientes ciclos; antes todo salía del ajuste manual.
+  const [periods, setPeriods] = useState<PeriodStartLike[]>([]);
   // MB-7: máscara ATP Embarazo — estado desde cycle_settings.pregnancy_status.
   const [pregnancyStatus, setPregnancyStatus] = useState<PregnancyStatus | null>(null);
   const [calMonth, setCalMonth] = useState(() => {
@@ -210,7 +214,7 @@ export default function CycleScreen() {
     setLoading(true);
     try {
       const ninetyAgo = addDays(today, -90);
-      const [logsRes, settingsRes] = await Promise.all([
+      const [logsRes, settingsRes, periodsRes] = await Promise.all([
         supabase
           .from('cycle_daily_logs')
           .select('date,is_period,flow_level,had_sex,sex_protected,energy,mood,appetite,libido,cramps,bloating,temperature_c,hrv_ms,notes')
@@ -222,10 +226,19 @@ export default function CycleScreen() {
           .select('avg_cycle_length,avg_period_length,pregnancy_status')
           .eq('user_id', userId)
           .maybeSingle(),
+        supabase
+          .from('cycle_periods')
+          .select('start_date')
+          .eq('user_id', userId)
+          .order('start_date', { ascending: false })
+          .limit(6),
       ]);
       // D-2 (MB-12): con error de red no se pinta "Sin datos de ciclo".
       if (logsRes.error) setLoadFailed(true);
       else { setLoadFailed(false); setLogs((logsRes.data ?? []) as DayLog[]); }
+      // Fallo aquí no tumba la pantalla: sin observados manda el ajuste manual.
+      if (periodsRes.error) logWarn('[cycle] cycle_periods query failed', periodsRes.error);
+      else setPeriods((periodsRes.data ?? []) as PeriodStartLike[]);
       if (settingsRes.data) {
         setSettings({
           avg_cycle_length: settingsRes.data.avg_cycle_length ?? 28,
@@ -257,19 +270,26 @@ export default function CycleScreen() {
     [pregnancyStatus],
   );
 
+  // M3.b: la longitud del ciclo APRENDE de lo registrado. Con ≥2 ciclos
+  // válidos observados manda su promedio; si no, el ajuste manual. La card
+  // de fase SIEMPRE dice de dónde salió el número (nunca cambia en silencio).
+  const observed = useMemo(() => observedCycleLength(periods), [periods]);
+  const cycleLen = observed?.length ?? settings.avg_cycle_length;
+
   const phaseInfo = useMemo<PhaseInfo | null>(() => {
     if (!lastPeriodStart) return null;
     const day = diffDays(lastPeriodStart, today) + 1;
-    if (day < 1 || day > settings.avg_cycle_length + 14) return null;
-    return calcPhase(day, settings.avg_cycle_length, settings.avg_period_length);
-  }, [lastPeriodStart, today, settings]);
+    if (day < 1 || day > cycleLen + 14) return null;
+    return calcPhase(day, cycleLen, settings.avg_period_length);
+  }, [lastPeriodStart, today, settings, cycleLen]);
 
   // Predicciones: próximo período, ovulación y ventana fértil
   const predictions = useMemo(() => {
     // MB-7: en modo embarazo NO se predice menstruación (doctrina 080).
     if (pregnancy) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
     if (!lastPeriodStart) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
-    const { avg_cycle_length: cl, avg_period_length: pl } = settings;
+    const cl = cycleLen;
+    const pl = settings.avg_period_length;
     // Próximo período predicho
     const nextStart = addDays(lastPeriodStart, cl);
     const pDays = new Set<string>();
@@ -279,7 +299,7 @@ export default function CycleScreen() {
     const fDays = new Set<string>();
     for (let i = -3; i <= 1; i++) fDays.add(addDays(ovDate, i));
     return { periodDays: pDays, ovDay: ovDate, fertileDays: fDays };
-  }, [lastPeriodStart, settings]);
+  }, [lastPeriodStart, settings, cycleLen, pregnancy]);
 
   // Calendario: días del mes visible
   const monthDays = useMemo(() => getMonthDays(calMonth.year, calMonth.month), [calMonth]);
@@ -300,16 +320,39 @@ export default function CycleScreen() {
 
   // ── Editor modal: abrir, actualizar, guardar ──
 
+  // M3.a: baseline de lo que se abrió, para detectar cambios sin guardar.
+  const editorBaselineRef = useRef('{}');
+
   const openEditor = (date: string) => {
     haptic.medium();
     const existing = logsMap.get(date);
+    const initial = existing ? { ...existing } : { is_period: false, had_sex: false };
     setEditorDate(date);
-    setEditorData(existing ? { ...existing } : { is_period: false, had_sex: false });
+    setEditorData(initial);
+    editorBaselineRef.current = JSON.stringify(initial);
     setEditorVisible(true);
   };
 
   const updateEditor = (field: string, value: any) => {
     setEditorData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // M3.a: tocar fuera, Cancelar o el back cerraban tirando los cambios en
+  // silencio, y el unico escritor es Guardar al fondo del sheet. Cerrar con
+  // cambios ahora avisa; sin cambios, cierra directo como siempre.
+  const closeEditor = () => {
+    if (JSON.stringify(editorData) !== editorBaselineRef.current) {
+      Alert.alert(
+        'Cambios sin guardar',
+        'Lo que marcaste en este día no se ha guardado.',
+        [
+          { text: 'Seguir editando', style: 'cancel' },
+          { text: 'Descartar', style: 'destructive', onPress: () => setEditorVisible(false) },
+        ],
+      );
+      return;
+    }
+    setEditorVisible(false);
   };
 
   const saveEditor = async () => {
@@ -493,7 +536,7 @@ export default function CycleScreen() {
               <View style={st.phaseRow}>
                 <View style={{ flex: 1 }}>
                   <EliteText style={st.phaseDay}>
-                    DÍA {phaseInfo.cycleDay} DE {settings.avg_cycle_length}
+                    DÍA {phaseInfo.cycleDay} DE {cycleLen}
                   </EliteText>
                   <View style={st.phaseNameRow}>
                     <Ionicons name={phaseInfo.icon as any} size={22} color={phaseInfo.color} />
@@ -520,10 +563,18 @@ export default function CycleScreen() {
               {/* Barra de progreso del ciclo */}
               <View style={st.bar}>
                 <View style={[st.barFill, {
-                  width: `${Math.min(100, (phaseInfo.cycleDay / settings.avg_cycle_length) * 100)}%`,
+                  width: `${Math.min(100, (phaseInfo.cycleDay / cycleLen) * 100)}%`,
                   backgroundColor: phaseInfo.color,
                 }]} />
               </View>
+              {/* M3.b: de dónde sale el número. Si la app aprende de sus
+                  registros, se le dice; nunca cambia un dato de su cuerpo en
+                  silencio. */}
+              <EliteText style={st.cycleSrc}>
+                {observed
+                  ? `Ciclo de ${cycleLen} días: promedio de tus últimos ${observed.cyclesUsed} ciclos registrados.`
+                  : `Ciclo de ${cycleLen} días, según tus ajustes. Con más registros el número se afina solo.`}
+              </EliteText>
               <EliteText style={st.phaseDesc}>{phaseInfo.description}</EliteText>
             </GradientCard>
           ) : (
@@ -695,12 +746,18 @@ export default function CycleScreen() {
         visible={editorVisible}
         transparent
         animationType="slide"
-        onRequestClose={() => setEditorVisible(false)}
+        onRequestClose={closeEditor}
       >
-        <Pressable style={st.overlay} onPress={() => setEditorVisible(false)}>
+        <Pressable style={st.overlay} onPress={closeEditor}>
+          {/* M3.a: flex 1 le da al KeyboardAvoidingView altura RESUELTA. Sin
+              eso, el maxHeight 90% del sheet era inerte (porcentaje contra
+              padre de altura automática), el sheet crecía con el contenido y
+              el desborde se iba por arriba, donde vive "¿Tienes periodo hoy?".
+              El área vacía sobre el sheet sigue cerrando (el toque burbujea
+              al overlay). */}
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={{ justifyContent: 'flex-end' }}
+            style={{ flex: 1, justifyContent: 'flex-end' }}
           >
             <Pressable style={st.sheet} onPress={() => {}}>
               <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
@@ -877,7 +934,7 @@ export default function CycleScreen() {
                   </EliteText>
                 </AnimatedPressable>
 
-                <AnimatedPressable onPress={() => setEditorVisible(false)} style={st.cancelBtn}>
+                <AnimatedPressable onPress={closeEditor} style={st.cancelBtn}>
                   <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.sm }}>Cancelar</EliteText>
                 </AnimatedPressable>
 
@@ -901,6 +958,7 @@ const st = StyleSheet.create({
   phaseName: { fontFamily: Fonts.bold, fontSize: FontSizes.xl },
   bar: { height: 5, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: Radius.xs, overflow: 'hidden', marginTop: Spacing.sm },
   barFill: { height: '100%', borderRadius: Radius.xs },
+  cycleSrc: { color: TEXT_COLORS.muted, fontSize: FontSizes.xs, marginTop: 6, lineHeight: 15 },
   phaseDesc: { color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, marginTop: Spacing.sm, lineHeight: 18 },
 
   // ── Calendario ──

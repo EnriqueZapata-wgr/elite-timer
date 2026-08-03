@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../src/lib/supabase';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
+import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import {
   fetchUVData,
   getCurrentLocation,
@@ -170,7 +171,7 @@ export default function Solar() {
               style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.3)' }}
             >
               <ImageBackground
-                source={require('@/assets/images/health-hub/fitzpatrick.png')}
+                source={require('@/assets/images/health-hub/fitzpatrick.webp')}
                 resizeMode="cover"
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: 'rgba(0,0,0,0.55)' }}>
@@ -374,7 +375,7 @@ export default function Solar() {
           {/* ARGOS LINK */}
           <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/argos-chat'); }}>
             <View style={{ backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(168,224,42,0.12)', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <Ionicons name="eye-outline" size={20} color="#a8e02a" />
+              <ArgosMark size={20} />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: '#a8e02a', fontSize: 13, fontWeight: '600' }}>Pregunta a ARGOS sobre tu sol</Text>
                 <Text style={{ color: '#666', fontSize: 11 }}>{'"¿A qué hora debo tomar sol hoy para vitamina D?"'}</Text>

@@ -89,7 +89,7 @@ export function YoEditorialSection({ sex, chronotype, chronotypeRawScores, edadR
           Con resultado: edad biológica + delta → result-preview. Sin CE suficiente:
           CTA de cálculo → hub edad-atp. */}
       <EditorialCard
-        cardKey="yo_edad_atp" icon="🧬" title="EDAD ATP"
+        cardKey="yo_edad_atp" icon="edad-atp" title="EDAD ATP"
         subtitle={edadResult ? `${edadResult.edad_integral.toFixed(1)} años biológicos` : '¿Cuántos años tiene tu cuerpo?'}
         message={edadDeltaMsg ?? 'Calcula tu edad biológica integral'}
         gradient={['#1ABC9C', '#16A085']}
@@ -110,7 +110,9 @@ export function YoEditorialSection({ sex, chronotype, chronotypeRawScores, edadR
 
       {/* 2. CRONOTIPO — con resultado: TU tipo → vista de tu cronotipo; sin: test */}
       <EditorialCard
-        cardKey="yo_cronotipo" icon={chrono?.emoji ?? '🌙'}
+        // MB-19.2: la función se dibuja del set (el emoji del cronotipo era
+        // placeholder invisible: la card siempre lleva foto).
+        cardKey="yo_cronotipo" icon="cronotipo"
         title={chrono ? `CRONOTIPO ${chrono.name.toUpperCase()}` : 'CRONOTIPO'}
         subtitle={chronoDesc ?? 'Descubre tu cronotipo'}
         message={chrono ? 'Qué significa y cómo aprovecharlo' : 'Test de 5 minutos'}
@@ -131,7 +133,7 @@ export function YoEditorialSection({ sex, chronotype, chronotypeRawScores, edadR
 
       {/* 4. VER REPORTES — la única puerta al hub crudo de análisis */}
       <EditorialCard
-        cardKey="yo_reportes" icon="📊" title="VER REPORTES"
+        cardKey="yo_reportes" icon="reportes" title="VER REPORTES"
         subtitle="Análisis profundo de tu data" message="Gráficas + correlaciones + insights"
         gradient={['#3498DB', '#1ABC9C']}
         imageBn={YO_STATIC_IMAGES.reports}

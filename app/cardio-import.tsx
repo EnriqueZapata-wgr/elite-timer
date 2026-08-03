@@ -9,7 +9,7 @@
  * tal cual — sin culpar al usuario y sin prometer lo que no hay.
  */
 import { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, Switch, DeviceEventEmitter } from 'react-native';
+import { View, ScrollView, StyleSheet, Switch, Pressable, DeviceEventEmitter } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -50,6 +50,8 @@ export default function CardioImportScreen() {
   const [fase, setFase] = useState<Fase>('cargando');
   const [plataforma, setPlataforma] = useState<HealthPlatform | null>(null);
   const [workouts, setWorkouts] = useState<NormalizedWorkout[]>([]);
+  // B2: selección previa al import, keyed por externalId (candado #1 del dedupe).
+  const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [resultado, setResultado] = useState<ImportResult | null>(null);
   const [autoSync, setAutoSyncState] = useState(false);
   const [importando, setImportando] = useState(false);
@@ -79,6 +81,7 @@ export default function CardioImportScreen() {
     }
     const ws = await leerEntrenamientos(14);
     setWorkouts(ws);
+    setSeleccion(new Set(ws.map((x) => x.externalId)));
     setFase('lista');
   }
 
@@ -89,17 +92,28 @@ export default function CardioImportScreen() {
     if (await permisosYaConcedidos()) {
       const ws = await leerEntrenamientos(14);
       setWorkouts(ws);
+      setSeleccion(new Set(ws.map((x) => x.externalId)));
       setFase('lista');
     } else {
       setFase('permiso_manual');
     }
   }
 
+  function toggleSeleccion(id: string) {
+    haptic.light();
+    setSeleccion((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   async function importar() {
     if (!user || importando) return;
     haptic.medium();
     setImportando(true);
-    const res = await importarEntrenamientos(user.id, workouts);
+    const res = await importarEntrenamientos(user.id, workouts.filter((x) => seleccion.has(x.externalId)));
     setImportando(false);
     setResultado(res);
     if (res.ok && res.electronHoy) {
@@ -240,45 +254,62 @@ export default function CardioImportScreen() {
                 </View>
                 <EliteText style={s.cardTitle}>Sin entrenamientos en 14 días</EliteText>
                 <EliteText style={s.cardBody}>
-                  {nombre} no tiene entrenamientos recientes que leer. Si tu app
-                  (Strava, Garmin…) no sincroniza con {nombre}, actívalo en la
-                  configuración de esa app — ahí es donde ATP puede leerlos.
+                  {nombre} no tiene entrenamientos recientes que leer. Se
+                  importan sesiones de 5 minutos o más; las actividades sin
+                  disciplina reconocida y sin distancia se quedan fuera. Si tu
+                  app (Strava, Garmin…) no sincroniza con {nombre}, actívalo en
+                  la configuración de esa app: ahí es donde ATP puede leerlos.
                 </EliteText>
               </Animated.View>
             ) : (
               <>
                 <EliteText style={s.sectionLabel}>ÚLTIMOS 14 DÍAS · {workouts.length} ENTRENAMIENTOS</EliteText>
-                {workouts.map((w, i) => (
-                  <Animated.View key={w.externalId} entering={FadeInUp.delay(40 + i * 30).springify()} style={s.workoutRow}>
-                    <View style={[s.iconSmall, { backgroundColor: withOpacity(ATP_BRAND.teal, 0.12) }]}>
-                      <Ionicons
-                        name={w.discipline === 'cycling' ? 'bicycle-outline' : w.discipline === 'swimming' ? 'water-outline' : w.discipline === 'rowing' ? 'boat-outline' : 'walk-outline'}
-                        size={16}
-                        color={ATP_BRAND.teal}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <EliteText style={s.workoutName}>
-                        {DISCIPLINA_LABELS[w.discipline]} · {formatDuration(w.durationSeconds)}
-                      </EliteText>
-                      <EliteText style={s.workoutMeta}>
-                        {w.dateLocal}
-                        {w.distanceMeters ? ` · ${(w.distanceMeters / 1000).toFixed(2)} km` : ''}
-                        {w.avgHeartRate ? ` · ${w.avgHeartRate} bpm` : ''}
-                      </EliteText>
-                    </View>
-                  </Animated.View>
-                ))}
+                {workouts.map((w, i) => {
+                  const marcado = seleccion.has(w.externalId);
+                  return (
+                    <Animated.View key={w.externalId} entering={FadeInUp.delay(40 + i * 30).springify()}>
+                      <Pressable
+                        onPress={() => toggleSeleccion(w.externalId)}
+                        style={[s.workoutRow, !marcado && { opacity: 0.45 }]}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: marcado }}
+                      >
+                        <View style={[s.iconSmall, { backgroundColor: withOpacity(ATP_BRAND.teal, 0.12) }]}>
+                          <Ionicons
+                            name={w.discipline === 'cycling' ? 'bicycle-outline' : w.discipline === 'swimming' ? 'water-outline' : w.discipline === 'rowing' ? 'boat-outline' : 'walk-outline'}
+                            size={16}
+                            color={ATP_BRAND.teal}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <EliteText style={s.workoutName}>
+                            {DISCIPLINA_LABELS[w.discipline]} · {formatDuration(w.durationSeconds)}
+                          </EliteText>
+                          <EliteText style={s.workoutMeta}>
+                            {w.dateLocal}
+                            {w.distanceMeters ? ` · ${(w.distanceMeters / 1000).toFixed(2)} km` : ''}
+                            {w.avgHeartRate ? ` · ${w.avgHeartRate} bpm` : ''}
+                          </EliteText>
+                        </View>
+                        <Ionicons
+                          name={marcado ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={22}
+                          color={marcado ? ATP_BRAND.lime : TEXT.muted}
+                        />
+                      </Pressable>
+                    </Animated.View>
+                  );
+                })}
                 <View style={{ marginTop: Spacing.md }}>
                   <GradientCTA
-                    label={importando ? 'IMPORTANDO…' : `IMPORTAR ${workouts.length} ENTRENAMIENTO${workouts.length === 1 ? '' : 'S'}`}
+                    label={importando ? 'IMPORTANDO…' : `IMPORTAR ${seleccion.size} ENTRENAMIENTO${seleccion.size === 1 ? '' : 'S'}`}
                     pillar="fitness"
                     icon="download-outline"
-                    disabled={importando}
+                    disabled={importando || seleccion.size === 0}
                     onPress={importar}
                   />
                   <EliteText style={s.dedupeNote}>
-                    Los que ya registraste (a mano o en un import anterior) se detectan y NO se duplican.
+                    Toca un entrenamiento para desmarcarlo. Los que ya registraste (a mano o en un import anterior) se detectan y NO se duplican.
                   </EliteText>
                 </View>
               </>

@@ -15,7 +15,7 @@ import {
   DESTINOS_HOY, DESTINOS_EVOLUCION, DESTINOS_EXPEDIENTE, DESTINOS_TODOS,
   DESTINOS_POR_PUERTA,
 } from '../salud-puertas';
-import { hasAppIcon } from '@/src/components/ui/app-icon-map';
+import { hasAppIcon } from '@/src/components/ui/app-icon-names';
 
 /**
  * Los ocho destinos del hub viejo (health-hub antes de MB-19) más lo que

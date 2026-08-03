@@ -16,7 +16,10 @@
  */
 import type { CardioDiscipline } from '@/src/services/fitness-service';
 
-export type HealthSource = 'health_connect' | 'healthkit';
+/** Valores de `source` que el import puede mandar — el contrato contra el
+ * CHECK de cardio_sessions vive en health-import-source-contract.test.ts. */
+export const HEALTH_SOURCES = ['health_connect', 'healthkit'] as const;
+export type HealthSource = (typeof HEALTH_SOURCES)[number];
 
 /** Entrenamiento normalizado desde la plataforma de salud. */
 export interface NormalizedWorkout {
@@ -68,6 +71,21 @@ export function disciplineFromHealthConnect(exerciseType: number): CardioDiscipl
 
 export function disciplineFromHealthKit(activityType: number): CardioDiscipline {
   return HEALTHKIT_TYPES[activityType] ?? 'other';
+}
+
+// ── Reglas de import (NOCTURNO B2) ──
+
+/** Menos de 5 minutos no es un entrenamiento: es una caminata al súper. */
+export const MIN_IMPORT_DURATION_SECONDS = 300;
+
+/** Reglas que separan entrenamiento de ruido:
+ *  · duración mínima 5 min;
+ *  · lo no mapeado ('other') sin distancia no se importa — una actividad
+ *    desconocida CON distancia (caminata larga con GPS) sí califica. */
+export function esImportable(w: NormalizedWorkout): boolean {
+  if (w.durationSeconds < MIN_IMPORT_DURATION_SECONDS) return false;
+  if (w.discipline === 'other' && (w.distanceMeters == null || w.distanceMeters <= 0)) return false;
+  return true;
 }
 
 // ── Dedupe ──

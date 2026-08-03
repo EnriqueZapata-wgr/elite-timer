@@ -13,6 +13,7 @@
  * es darle acceso a esa pantalla.
  */
 import type { Href } from 'expo-router';
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 
 /** Las secciones de la sala ATP, en orden de render. */
 export type AppSection = 'mente' | 'cuerpo' | 'diario' | 'salud' | 'sistema';
@@ -32,8 +33,9 @@ export interface AppEntry {
   key: string;
   /** Como se lee bajo el icono. Corto: la cuadrícula da poco ancho. */
   label: string;
-  /** Nombre del icono en el registro (ver AppIcon.tsx). Hoy resuelve a relleno. */
-  icon: string;
+  /** Nombre del icono en el registro (ver AppIcon.tsx). Hoy resuelve a relleno.
+   * Tipado contra la lista real: un typo aquí ya no compila. */
+  icon: AppIconName;
   section: AppSection;
   route: Href;
   /**
@@ -75,7 +77,8 @@ export const APP_REGISTRY: AppEntry[] = [
   // ── Cuerpo ──
   { key: 'entrenar', label: 'Entrenar', icon: 'entrenar', section: 'cuerpo', route: '/fitness-hub', installable: true, alias: ['fitness', 'rutina', 'gym', 'fuerza', 'hiit'] },
   { key: 'cardio', label: 'Cardio', icon: 'cardio', section: 'cuerpo', route: '/fitness-cardio', installable: true, alias: ['correr', 'bici', 'caminar', 'zona 2'] },
-  { key: 'movilidad', label: 'Movilidad', icon: 'movilidad', section: 'cuerpo', route: '/mobility-assessment', installable: true, alias: ['flexibilidad', 'estiramiento', 'evaluación'] },
+  // Evaluación puntual, no hábito diario: no tiene electrón que activar.
+  { key: 'movilidad', label: 'Movilidad', icon: 'movilidad', section: 'cuerpo', route: '/mobility-assessment', installable: false, alias: ['flexibilidad', 'estiramiento', 'evaluación'] },
   { key: 'rm', label: '1RM', icon: 'rm', section: 'cuerpo', route: '/log-exercise', installable: false, alias: ['levantamiento', 'registrar', 'series', 'peso'] },
   { key: 'records', label: 'Récords', icon: 'records', section: 'cuerpo', route: '/fitness-strength', installable: false, alias: ['pr', 'benchmarks', 'marcas'] },
 

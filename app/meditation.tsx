@@ -49,7 +49,7 @@ import { BackButton } from '@/src/components/ui/BackButton';
 import { MenteHero } from '@/src/components/mente/MenteHero';
 
 // #138: hero editorial del pilar (require estático · Metro). Reusa mente.jpg.
-const HERO_MENTE = require('@/assets/images/intervenciones/mente.jpg');
+const HERO_MENTE = require('@/assets/images/intervenciones/mente.webp');
 
 const PURPLE = CATEGORY_COLORS.mind;
 

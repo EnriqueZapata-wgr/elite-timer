@@ -25,7 +25,7 @@ import { ATP_BRAND, TEXT_COLORS, SURFACES, SEMANTIC, withOpacity } from '@/src/c
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
 // Asset editorial del pilar (require estático · Metro).
-const HERO_SUENO = require('@/assets/images/habits-portal/sueno.jpg');
+const HERO_SUENO = require('@/assets/images/habits-portal/sueno.webp');
 
 const REST = '#5B9BD5'; // acento descanso (azul suave, no punitivo)
 

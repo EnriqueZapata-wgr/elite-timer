@@ -29,7 +29,8 @@ import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerG
 import { TopBanner } from '@/src/components/global/TopBanner';
 import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
 import { detectCrisisContent } from '@/src/services/crisis-detection-core';
-import { ArgosAvatar } from '@/src/components/argos/ArgosAvatar';
+import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
+import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import { ArgosVoiceMode } from '@/src/components/argos/ArgosVoiceMode';
 import { getArgosVoice } from '@/src/services/argos-voice-service';
 import { ContextualConsentModal } from '@/src/components/legal/ContextualConsentModal';
@@ -456,16 +457,16 @@ function ArgosChat() {
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </Pressable>
           )}
-          {/* T1+T2+T5: unavailable en rate limit · speaking en stream · thinking procesando */}
-          <ArgosAvatar
-            state={
-              rateLimit && !boostJustActivated ? 'unavailable'
-                : streaming ? 'speaking'
-                : loading ? 'thinking'
-                : 'idle'
-            }
-            size={36}
-          />
+          {/* MB-20 4.4: la orbe es ARGOS en todas partes. Sin tache rojo: si no
+              está disponible se dice con palabras (RateLimitCard) y la orbe se
+              apaga (estática y atenuada). */}
+          <View style={{ opacity: rateLimit && !boostJustActivated ? 0.35 : 1 }}>
+            <ArgosOrb
+              state={streaming ? 'hablando' : loading ? 'pensando' : 'idle'}
+              size={36}
+              reducedMotion={rateLimit && !boostJustActivated ? true : undefined}
+            />
+          </View>
           <View>
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>ARGOS</Text>
             <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>
@@ -533,7 +534,7 @@ function ArgosChat() {
         {/* Estado vacío — sugerencias */}
         {messages.length === 0 && (
           <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-            <ArgosAvatar state="idle" size={80} variant="full" style={{ marginBottom: 16 }} />
+            <ArgosOrb state="idle" size={80} style={{ marginBottom: 16 }} />
             <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 4 }}>
               Hola, soy ARGOS
             </Text>
@@ -584,7 +585,7 @@ function ArgosChat() {
                   backgroundColor: 'rgba(168,224,42,0.15)',
                   justifyContent: 'center', alignItems: 'center',
                 }}>
-                  <Ionicons name="eye" size={10} color="#a8e02a" />
+                  <ArgosMark size={12} />
                 </View>
                 <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700' }}>ARGOS</Text>
               </View>

@@ -31,7 +31,7 @@ const DAY_LETTERS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
 // V1.5.2 (#1): hero editorial con la portada MJ del módulo (molde MenteHero:
 // imagen + overlay gradiente + acento morado del pilar — fuera header plano).
-const HERO_NBACK = require('@/assets/images/mente/cards/card_nback.jpg');
+const HERO_NBACK = require('@/assets/images/mente/cards/card_nback.webp');
 
 function lastNDates(n: number): string[] {
   const out: string[] = [];

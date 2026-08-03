@@ -6,6 +6,11 @@
  * RN/supabase — testeable en el harness node.
  */
 
+// NOCTURNO A3: `icon` es un nombre lógico del AppIcon (app-icon-names), NO un
+// Ionicon. Quien lo pinte pasa por <AppIcon>. app-icon-names es datos puros:
+// el módulo sigue siendo node-testeable.
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
+
 export type MenteActivityKind = 'breathing' | 'meditation' | 'checkin' | 'journal';
 
 export interface MenteActivity {
@@ -17,11 +22,11 @@ export interface MenteActivity {
   durationSeconds?: number;
 }
 
-export const ACTIVITY_META: Record<MenteActivityKind, { label: string; icon: string }> = {
-  breathing: { label: 'Respiración', icon: 'leaf-outline' },
-  meditation: { label: 'Meditación', icon: 'sparkles-outline' },
-  checkin: { label: 'Check-in', icon: 'heart-outline' },
-  journal: { label: 'Journal', icon: 'journal-outline' },
+export const ACTIVITY_META: Record<MenteActivityKind, { label: string; icon: AppIconName }> = {
+  breathing: { label: 'Respiración', icon: 'respirar' },
+  meditation: { label: 'Meditación', icon: 'meditar' },
+  checkin: { label: 'Check-in', icon: 'emociones' },
+  journal: { label: 'Journal', icon: 'journal' },
 };
 
 /** Mezcla fuentes de actividad y devuelve las `limit` más recientes. */

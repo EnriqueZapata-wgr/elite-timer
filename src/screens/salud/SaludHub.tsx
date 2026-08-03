@@ -17,6 +17,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
+import { AppIcon } from '@/src/components/ui/AppIcon';
 import { EditorialCard } from '@/src/components/hoy/EditorialCard';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { EdadAtpHeroCard } from '@/src/components/edad-atp/EdadAtpHeroCard';
@@ -32,16 +33,17 @@ import { haptic } from '@/src/utils/haptics';
 
 /** Foto por puerta. Todas ya viven en assets: no se movió ni se borró ninguna. */
 const PUERTA_IMAGES: Record<string, any> = {
-  hoy: require('@/assets/images/health-hub/mi-salud.png'),
-  datos: require('@/assets/images/salud-funcional/mis-datos.jpg'),
-  evolucion: require('@/assets/images/health-hub/diagnostico.png'),
-  expediente: require('@/assets/images/salud-funcional/mi-expediente.jpg'),
-  ciclo: require('@/assets/images/cycle/ciclo-01.png'),
+  hoy: require('@/assets/images/health-hub/mi-salud.webp'),
+  datos: require('@/assets/images/salud-funcional/mis-datos.webp'),
+  evolucion: require('@/assets/images/health-hub/diagnostico.webp'),
+  expediente: require('@/assets/images/salud-funcional/mi-expediente.webp'),
+  ciclo: require('@/assets/images/cycle/ciclo-01.webp'),
 };
 
-const PUERTA_ICON: Record<string, string> = {
-  hoy: '🫀', datos: '📊', evolucion: '🧬', expediente: '🗂', ciclo: '🌙',
-};
+// MB-19.2 PIEZA 3: murieron los emojis de las puertas (PUERTA_ICON). Las
+// cuatro puertas son la cara de SALUD y se dibujan del set vía <AppIcon>
+// (p.icon = salud-hoy/datos/evolucion/expediente/ciclo), no con emojis del
+// sistema que se ven distintos en cada teléfono.
 
 export function SaludHub() {
   const router = useRouter();
@@ -90,7 +92,8 @@ export function SaludHub() {
                 onPress={() => { haptic.light(); router.push(d.route); }}
               >
                 <View style={[s.densoIcon, { backgroundColor: d.color + '1A' }]}>
-                  <Ionicons name={d.icon as any} size={18} color={d.color} />
+                  {/* MB-19.2: misma función = mismo dibujo que en la sala ATP. */}
+                  <AppIcon name={d.icon} size={18} color={d.color} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <EliteText style={s.densoTitle}>{d.title}</EliteText>
@@ -109,7 +112,8 @@ export function SaludHub() {
           <Animated.View key={p.key} entering={FadeInUp.delay(80 + i * 50).springify()}>
             <EditorialCard
               cardKey={`salud_${p.key}`}
-              icon={PUERTA_ICON[p.key]}
+              icon={p.icon}
+              iconName={p.icon}
               title={p.title}
               subtitle={p.subtitle}
               gradient={p.gradient}

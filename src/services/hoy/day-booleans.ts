@@ -12,6 +12,8 @@
  * (falla en silencio). Ver regresión en __tests__/day-booleans.test.ts.
  */
 import type { Href } from 'expo-router';
+// MB-19.2: `icon` es nombre lógico del AppIcon, no un Ionicon. Se pinta con <AppIcon>.
+import type { AppIconName } from '@/src/components/ui/app-icon-names';
 
 export const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_shower', 'grounding', 'no_alcohol',
   // #cableado-final 3.1: nuevos hábitos booleanos para que sus cards reflejen estado (completed/weight).
@@ -29,14 +31,21 @@ export const DEFAULT_BOOLEANS = ['sunlight', 'meditation', 'supplements', 'cold_
  * protocol-config (ALL_ELECTRONS) NO ofrece journal/no_processed_foods/screen_time_cutoff como
  * toggleables. Así que esos keys NUNCA entran a la lista persistida → nunca entran a booleanElectrons
  * → al tocar la card, el toggle escribe un electron_log huérfano + un blob sin el key, y al recompilar
- * la card no tiene estado (`completed` undefined) → se queda en "pending" para siempre. (no_alcohol y
- * checkin SÍ palomean porque ambos sí son seleccionables / viven en la lista persistida.)
+ * la card no tiene estado (`completed` undefined) → se queda en "pending" para siempre. (no_alcohol
+ * sí palomea porque es seleccionable y vive en el default de la columna.)
  *
  * FIX sin migración: estos hábitos son "core" (no deseleccionables) → viven en código, no en prefs.
  * Se fuerzan SIEMPRE en activeBoolKeys vía unión, respetando la (de)selección de los seleccionables.
  * `cardio` (#v13e 3.A.3) es verificado y tampoco es seleccionable → también va aquí.
+ *
+ * `checkin` (bug Mariana M1, 2026-08-03): cayó EXACTAMENTE en este hueco. Este comentario
+ * afirmaba que "checkin sí palomea porque es seleccionable" y era falso: nunca estuvo en
+ * ALL_BOOLEAN_OPTIONS ni en el default de la columna, así que cualquier usuaria con fila
+ * persistida (la crean editar meta de agua/ayuno, quitar un evento, el backfill 063) perdía la
+ * card para siempre, sin forma de reactivarla. Es el hábito raíz de Mente y verificado como
+ * journal/cardio → entra a MANDATORY. La migración 248 repara las filas ya rotas y el default.
  */
-export const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio'];
+export const MANDATORY_BOOLEANS = ['journal', 'no_processed_foods', 'screen_time_cutoff', 'cardio', 'checkin'];
 // N-Back (decisión Enrique 2026-07-23): NO es hábito universal — es opt-in.
 // Salió de MANDATORY (ya no suma 2.5 al denominador de todos) y entró a
 // ALL_BOOLEAN_OPTIONS: quien lo activa en sus hábitos conserva card verificada
@@ -84,29 +93,29 @@ export const FEMALE_ONLY_ELECTRONS = new Set<string>(['period_log']);
 export interface ElectronOption {
   key: string;
   name: string;
-  icon: string;
+  icon: AppIconName;
   color: string;
   weight: number;
 }
 
 // Todos los electrones disponibles (el usuario elige cuáles trackear)
 export const ALL_BOOLEAN_OPTIONS: ElectronOption[] = [
-  { key: 'sunlight',     name: 'Luz solar',     icon: 'sunny-outline',   color: '#fbbf24', weight: 1.5 },
-  { key: 'meditation',   name: 'Meditación',    icon: 'flower-outline',  color: '#c084fc', weight: 2.5 },
-  { key: 'supplements',  name: 'Suplementos',   icon: 'medical-outline', color: '#a8e02a', weight: 1.0 },
-  { key: 'cold_shower',  name: 'Baño frío',     icon: 'snow-outline',    color: '#38bdf8', weight: 3.0 },
-  { key: 'grounding',    name: 'Grounding',     icon: 'leaf-outline',    color: '#34d399', weight: 1.5 },
-  { key: 'no_alcohol',   name: 'Sin alcohol',   icon: 'wine-outline',    color: '#f87171', weight: 1.0 },
-  { key: 'strength',     name: 'Fuerza',        icon: 'barbell-outline', color: '#a8e02a', weight: 3.0 },
-  { key: 'breathwork',   name: 'Breathwork',    icon: 'cloud-outline',   color: '#60a5fa', weight: 1.0 },
-  { key: 'red_glasses',  name: 'Lentes rojos',  icon: 'glasses-outline', color: '#f87171', weight: 1.0 },
-  { key: 'period_log',   name: 'Registrar ciclo', icon: 'calendar-outline', color: '#fb7185', weight: 1.0 },
-  { key: 'nback',        name: 'N-Back',        icon: 'grid-outline',    color: '#7F77DD', weight: 2.5 },
+  { key: 'sunlight',     name: 'Luz solar',     icon: 'sol',          color: '#fbbf24', weight: 1.5 },
+  { key: 'meditation',   name: 'Meditación',    icon: 'meditar',      color: '#c084fc', weight: 2.5 },
+  { key: 'supplements',  name: 'Suplementos',   icon: 'suplementos',  color: '#a8e02a', weight: 1.0 },
+  { key: 'cold_shower',  name: 'Baño frío',     icon: 'bano-frio',    color: '#38bdf8', weight: 3.0 },
+  { key: 'grounding',    name: 'Grounding',     icon: 'grounding',    color: '#34d399', weight: 1.5 },
+  { key: 'no_alcohol',   name: 'Sin alcohol',   icon: 'sin-alcohol',  color: '#f87171', weight: 1.0 },
+  { key: 'strength',     name: 'Fuerza',        icon: 'entrenar',     color: '#a8e02a', weight: 3.0 },
+  { key: 'breathwork',   name: 'Breathwork',    icon: 'respirar',     color: '#60a5fa', weight: 1.0 },
+  { key: 'red_glasses',  name: 'Lentes rojos',  icon: 'lentes-rojos', color: '#f87171', weight: 1.0 },
+  { key: 'period_log',   name: 'Registrar ciclo', icon: 'ciclo',      color: '#fb7185', weight: 1.0 },
+  { key: 'nback',        name: 'N-Back',        icon: 'nback',        color: '#7F77DD', weight: 2.5 },
 ];
 
 export const ALL_QUANT_OPTIONS: ElectronOption[] = [
-  { key: 'protein', name: 'Proteína', icon: 'restaurant-outline', color: '#a6c8ff', weight: 2.0 },
-  { key: 'steps',   name: 'Pasos',    icon: 'footsteps-outline',  color: '#ffc54c', weight: 3.0 },
-  { key: 'water',   name: 'Agua',     icon: 'water-outline',      color: '#60a5fa', weight: 1.5 },
-  { key: 'sleep',   name: 'Sueño',    icon: 'moon-outline',       color: '#818cf8', weight: 3.0 },
+  { key: 'protein', name: 'Proteína', icon: 'comida',      color: '#a6c8ff', weight: 2.0 },
+  { key: 'steps',   name: 'Pasos',    icon: 'pasos',       color: '#ffc54c', weight: 3.0 },
+  { key: 'water',   name: 'Agua',     icon: 'hidratacion', color: '#60a5fa', weight: 1.5 },
+  { key: 'sleep',   name: 'Sueño',    icon: 'sueno',       color: '#818cf8', weight: 3.0 },
 ];
