@@ -202,8 +202,14 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // dato. Ahora la MISMA consulta trae la última fila: `completed` se deriva
     // de si esa fila es de hoy, y la card gana su dato vivo. Cero round trips
     // extra (salvo mind_sessions, la única consulta nueva del run).
+    // MB-20.3 P1: exercise_logs.date es nullable sin default (045:38) y en
+    // producción la mitad de las filas son nulas. ORDER BY date DESC pone
+    // NULLS FIRST: una sola fila nula se lleva el limit(1), `strength` da
+    // false siempre y el reconcile borra el e- del día. Los nulos NO son
+    // evidencia de nada → fuera de la consulta.
     supabase.from('exercise_logs').select('date')
-      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
+      .eq('user_id', userId).not('date', 'is', null)
+      .order('date', { ascending: false }).limit(1).maybeSingle(),
     // Suplementos: user_supplements + logs de hoy embebidos (FK de 055) en UNA
     // consulta — da "X de Y tomados" con el mismo criterio que /supplements
     // (supplementsTodayProgress). Antes solo contaba logs taken=true.
@@ -219,8 +225,11 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     supabase.from('journal_entries').select('date')
       .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
     // N-Back: la última partida completada trae su nivel.
+    // MB-20.3 P1: nback_sessions.date también es nullable sin default (218:23).
+    // Hoy no hay nulos en producción, pero es la misma bomba que exercise_logs:
+    // se desactiva igual, antes de que detone.
     supabase.from('nback_sessions').select('date, n_level')
-      .eq('user_id', userId).not('completed_at', 'is', null)
+      .eq('user_id', userId).not('completed_at', 'is', null).not('date', 'is', null)
       .order('completed_at', { ascending: false }).limit(1).maybeSingle(),
     // La ÚNICA consulta nueva del run (2.3): minutos de la última meditación.
     supabase.from('mind_sessions').select('date, duration_seconds')
