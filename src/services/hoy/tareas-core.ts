@@ -69,6 +69,18 @@ export function momentoForHour(hour: number): Momento {
   return 'noche';
 }
 
+/** Minutos desde medianoche de una hora "HH:MM". El orden es numérico y no
+ * puede romperse con horas sin cero a la izquierda ("9:30") ni clasificar mal
+ * la medianoche ("00:30" es hora 0, no un falsy que caiga a mediodía).
+ * Hora ilegible → mediodía, el mismo default neutro de siempre. */
+export function minutesFromMidnight(time: string): number {
+  const [h, m] = time.split(':');
+  const hh = parseInt(h, 10);
+  const mm = parseInt(m, 10);
+  if (!Number.isFinite(hh)) return 12 * 60;
+  return hh * 60 + (Number.isFinite(mm) ? mm : 0);
+}
+
 /** Momento canónico por hábito. El boceto de MB-20 manda: Entrenar vive en
  * la mañana; el cierre (journal, pantallas, lentes) en la noche. */
 export const TAREA_MOMENTO: Record<string, Momento> = {
@@ -237,7 +249,7 @@ function smartAgendaTareas(items: TareaAgendaLike[]): Tarea[] {
       icon: 'ayuno',
       name: i.name,
       color: '#EFD54F',
-      momento: momentoForHour(parseInt(i.time.slice(0, 2), 10) || 12),
+      momento: momentoForHour(Math.floor(minutesFromMidnight(i.time) / 60)),
       time: i.time,
       completed: i.completed,
       meta: i.subtitle,
@@ -268,7 +280,7 @@ export function buildTareas(input: TareasInput, hour: number): TareasResult {
   const blocks: TareaBlock[] = MOMENTOS.map((m) => {
     const items = all
       .filter((t) => t.momento === m)
-      .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : a.key.localeCompare(b.key)));
+      .sort((a, b) => minutesFromMidnight(a.time) - minutesFromMidnight(b.time) || a.key.localeCompare(b.key));
     return {
       momento: m,
       label: MOMENTO_LABELS[m],
@@ -291,5 +303,5 @@ export function buildTareas(input: TareasInput, hour: number): TareasResult {
 export function agendaLens(result: TareasResult): Tarea[] {
   return result.blocks
     .flatMap((b) => b.items)
-    .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : a.key.localeCompare(b.key)));
+    .sort((a, b) => minutesFromMidnight(a.time) - minutesFromMidnight(b.time) || a.key.localeCompare(b.key));
 }

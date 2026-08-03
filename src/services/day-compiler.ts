@@ -712,7 +712,9 @@ async function buildAgenda(
       if (!hasBreak) {
         items.push({
           id: 'smart-fast-break',
-          time: `${breakTime.getHours()}:${String(breakTime.getMinutes()).padStart(2, '0')}`,
+          // NOCTURNO-FIX P4: sin padStart en la hora, "9:30" ordenaba como
+          // string después de "22:30" y la fila se iba al final del día.
+          time: `${String(breakTime.getHours()).padStart(2, '0')}:${String(breakTime.getMinutes()).padStart(2, '0')}`,
           name: 'Romper ayuno',
           subtitle: `Ayuno ${target}h`,
           category: 'nutrition',

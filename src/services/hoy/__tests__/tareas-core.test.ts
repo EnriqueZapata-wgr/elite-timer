@@ -8,6 +8,7 @@ import {
   agendaLens,
   gestoForBool,
   momentoForHour,
+  minutesFromMidnight,
   TAREA_MOMENTO,
   TAREA_TIME,
   EXPERIENCIA_SOURCES,
@@ -66,6 +67,56 @@ describe('momentos', () => {
       expect(TAREA_MOMENTO[k], `momento de ${k}`).toBeTruthy();
       expect(TAREA_TIME[k], `hora de ${k}`).toMatch(/^\d{2}:\d{2}$/);
     }
+  });
+});
+
+describe('minutesFromMidnight (audit nocturno P4)', () => {
+  it('ordena numérico: "9:30" antes de "22:30" aunque el string diga otra cosa', () => {
+    expect(minutesFromMidnight('9:30')).toBe(9 * 60 + 30);
+    expect(minutesFromMidnight('09:30')).toBe(9 * 60 + 30);
+    expect(minutesFromMidnight('22:30')).toBe(22 * 60 + 30);
+    expect(minutesFromMidnight('9:30')).toBeLessThan(minutesFromMidnight('22:30'));
+  });
+
+  it('medianoche no es falsy: "00:30" es hora 0, no mediodía', () => {
+    expect(minutesFromMidnight('00:30')).toBe(30);
+    expect(momentoForHour(Math.floor(minutesFromMidnight('00:30') / 60))).toBe('manana');
+  });
+
+  it('hora ilegible cae al default neutro de mediodía', () => {
+    expect(minutesFromMidnight('')).toBe(12 * 60);
+    expect(minutesFromMidnight('sin hora')).toBe(12 * 60);
+  });
+
+  it('romper ayuno a las 9:30 se queda en la mañana y en su lugar de AGENDA', () => {
+    const input: TareasInput = {
+      ...INPUT,
+      agendaItems: [
+        { id: 'smart-fast', time: '9:30', name: 'Romper ayuno', completed: false, isSmart: true, route: '/fasting' },
+      ],
+    };
+    const r = buildTareas(input, 10);
+    const manana = r.blocks.find((b) => b.momento === 'manana')!;
+    expect(manana.items.some((t) => t.key === 'agenda-smart-fast')).toBe(true);
+    const lens = agendaLens(r);
+    const idx = lens.findIndex((t) => t.key === 'agenda-smart-fast');
+    const nocturnas = lens.map((t, i) => ({ t, i })).filter((x) => minutesFromMidnight(x.t.time) >= 20 * 60);
+    for (const n of nocturnas) {
+      expect(idx, `romper ayuno debe ir antes de ${n.t.key}`).toBeLessThan(n.i);
+    }
+  });
+
+  it('medianoche y media entra al bloque de la mañana, no al de la tarde', () => {
+    const input: TareasInput = {
+      booleanElectrons: [],
+      quantitativeElectrons: [],
+      agendaItems: [
+        { id: 'smart-fast', time: '00:30', name: 'Romper ayuno', completed: false, isSmart: true, route: '/fasting' },
+      ],
+    };
+    const r = buildTareas(input, 1);
+    expect(r.blocks).toHaveLength(1);
+    expect(r.blocks[0].momento).toBe('manana');
   });
 });
 
