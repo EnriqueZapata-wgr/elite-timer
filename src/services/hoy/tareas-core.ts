@@ -27,9 +27,6 @@ export interface TareaBoolLike {
   color: string;
   weight: number;
   completed: boolean;
-  /** Descripción compilada del electrón (MB-20.1: la card editorial la
-   * muestra cuando el hábito no tiene dato vivo en CompiledDay). */
-  description?: string;
   pillarRoute?: TareaRoute;
 }
 
@@ -180,8 +177,6 @@ export interface Tarea {
   time: string;
   completed: boolean;
   meta?: string;
-  /** Descripción compilada (solo bools; MB-20.1, fallback de dato en card). */
-  desc?: string;
   route?: TareaRoute;
   weight?: number;
   /** 0..1 para cuantitativos. */
@@ -218,7 +213,6 @@ function boolToTarea(e: TareaBoolLike): Tarea {
     time: TAREA_TIME[e.source] ?? '12:00',
     completed: e.completed,
     meta: `+${e.weight} e-`,
-    desc: e.description,
     route,
     weight: e.weight,
   };

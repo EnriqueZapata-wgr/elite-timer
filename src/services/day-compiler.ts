@@ -20,6 +20,9 @@ import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import { selectAgendaDrivers, anchorTimes, interventionAgendaItems, canonicalConcept } from '@/src/services/interventions/intervention-agenda-core';
 import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 import { buildDoneIndex, applyDoneFromLogs } from '@/src/services/hoy/day-state-core';
+import { supplementsTodayProgress } from '@/src/services/supplements-adherence-core';
+// MB-20.2 · Pieza 2: el dato de verdad de cada card. Import type: se borra al compilar.
+import type { DatosVivos } from '@/src/services/hoy/tareas-editorial-core';
 
 // MB-5: listas de booleanos/verificados extraídas a módulo PURO (testeable sin
 // supabase) — el patrón "3 lugares" tiene regresión en day-booleans.test.ts.
@@ -46,6 +49,8 @@ export interface CompiledDay {
   quantitativeElectrons: QuantElectronState[];
   suggestion: Suggestion | null;
   agendaItems: AgendaItem[];
+  /** MB-20.2 · Pieza 2: el dato de verdad de cada card (de las mismas queries). */
+  datosVivos: DatosVivos;
 }
 
 export interface BoolElectronState {
@@ -171,8 +176,8 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   // electrones verificados — ver VERIFIED_ELECTRON_KEYS).
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
-    meditationCountRes, breathingCountRes, exerciseCountRes, supplementCountRes, cycleLogCountRes,
-    cardioCountRes, journalCountRes, nbackCountRes,
+    meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, cycleLogCountRes,
+    lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -184,7 +189,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     supabase.from('emotional_checkins').select('pleasantness, quadrant, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('glucose_logs').select('value_mg_dl, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
-    // Conteo de actividad real del día para los electrones verificados.
+    // Actividad real del día para los electrones verificados.
     // Delta economía 2026-07-23: meditación/breathwork ya NO cuentan
     // mind_sessions (una sesión <80% se registra pero no palomea) — la card se
     // marca con el 1er e- del día en electron_logs (award gateado por ≥80% en
@@ -193,24 +198,49 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
       .eq('user_id', userId).eq('date', today).eq('source', 'meditation').eq('category', 'boolean_daily'),
     supabase.from('electron_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today).eq('source', 'breathwork').eq('category', 'boolean_daily'),
-    supabase.from('exercise_logs').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today),
-    supabase.from('supplement_logs').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today).eq('taken', true),
+    // MB-20.2 · Pieza 2: estas queries eran conteos head:true que tiraban el
+    // dato. Ahora la MISMA consulta trae la última fila: `completed` se deriva
+    // de si esa fila es de hoy, y la card gana su dato vivo. Cero round trips
+    // extra (salvo mind_sessions, la única consulta nueva del run).
+    supabase.from('exercise_logs').select('date')
+      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
+    // Suplementos: user_supplements + logs de hoy embebidos (FK de 055) en UNA
+    // consulta — da "X de Y tomados" con el mismo criterio que /supplements
+    // (supplementsTodayProgress). Antes solo contaba logs taken=true.
+    supabase.from('user_supplements')
+      .select('id, dose_times, supplement_logs(supplement_id, dose_index, taken)')
+      .eq('user_id', userId).eq('is_active', true).eq('supplement_logs.date', today),
     supabase.from('cycle_daily_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today),
-    // #v13e 3.A.3: ¿hubo ≥1 sesión de cardio hoy? → card CARDIO verificada palomea.
-    supabase.from('cardio_sessions').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today),
-    // #17: ¿hubo ≥1 entrada de journal hoy? → card JOURNAL verificada palomea.
-    supabase.from('journal_entries').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today),
-    // N-Back: ¿≥1 round completado hoy? → card N-BACK verificada palomea.
-    supabase.from('nback_sessions').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today).not('completed_at', 'is', null),
+    // #v13e 3.A.3: cardio verificado — la última sesión trae distancia y tiempo.
+    supabase.from('cardio_sessions').select('date, distance_meters, duration_seconds')
+      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
+    // #17: journal verificado — la última entrada da la recencia de la card.
+    supabase.from('journal_entries').select('date')
+      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
+    // N-Back: la última partida completada trae su nivel.
+    supabase.from('nback_sessions').select('date, n_level')
+      .eq('user_id', userId).not('completed_at', 'is', null)
+      .order('completed_at', { ascending: false }).limit(1).maybeSingle(),
+    // La ÚNICA consulta nueva del run (2.3): minutos de la última meditación.
+    supabase.from('mind_sessions').select('date, duration_seconds')
+      .eq('user_id', userId).eq('type', 'meditation')
+      .order('date', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
+
+  // Suplementos con multi-dosis: total/tomadas por el core puro (MB-2/188).
+  // supabase-js no lanza en 4xx: si el embed falla se loguea y cae a {0,0}.
+  if (suppRes.error) logWarn('[compileDay] user_supplements embed failed', suppRes.error);
+  const suppRows = (suppRes.data ?? []) as {
+    id: string; dose_times?: string[] | null;
+    supplement_logs?: { supplement_id: string; dose_index?: number | null; taken: boolean }[];
+  }[];
+  const suppProgress = supplementsTodayProgress(
+    suppRows,
+    suppRows.flatMap((s) => s.supplement_logs ?? []),
+  );
 
   // Para los verificados: derivar `completed` de actividad real, NO del blob.
   // checkin: el último emotional_checkin (moodRes) es de HOY (no requiere query extra).
@@ -220,13 +250,44 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const verifiedCompleted: Record<string, boolean> = {
     meditation: (meditationCountRes.count ?? 0) >= 1,
     breathwork: (breathingCountRes.count ?? 0) >= 1,
-    strength: (exerciseCountRes.count ?? 0) >= 1,
-    supplements: (supplementCountRes.count ?? 0) >= 1,
+    strength: (lastExerciseRes.data as any)?.date === today,
+    supplements: suppProgress.taken >= 1,
     period_log: (cycleLogCountRes.count ?? 0) >= 1,
     checkin: lastCheckinDate === today,
-    cardio: (cardioCountRes.count ?? 0) >= 1, // #v13e 3.A.3
-    journal: (journalCountRes.count ?? 0) >= 1, // #17: derivado de journal_entries, no del blob
-    nback: (nbackCountRes.count ?? 0) >= 1, // ≥1 round completado hoy
+    cardio: (lastCardioRes.data as any)?.date === today, // #v13e 3.A.3
+    journal: (lastJournalRes.data as any)?.date === today, // #17: derivado de journal_entries, no del blob
+    nback: (lastNbackRes.data as any)?.date === today, // ≥1 round completado hoy
+  };
+
+  // MB-20.2 · Pieza 2: el dato de verdad de cada card, de las filas que las
+  // queries de arriba ya traen. Campo null = sin dato → card sin línea de dato.
+  const datosVivos: DatosVivos = {
+    supplements: suppProgress.total > 0 ? suppProgress : null,
+    strength: (lastExerciseRes.data as any)?.date
+      ? { lastDate: (lastExerciseRes.data as any).date }
+      : null,
+    cardio: (lastCardioRes.data as any)?.date
+      ? {
+          lastDate: (lastCardioRes.data as any).date,
+          distanceMeters: (lastCardioRes.data as any).distance_meters,
+          durationSeconds: (lastCardioRes.data as any).duration_seconds,
+        }
+      : null,
+    journal: (lastJournalRes.data as any)?.date
+      ? { lastDate: (lastJournalRes.data as any).date }
+      : null,
+    nback: (lastNbackRes.data as any)?.date
+      ? { lastDate: (lastNbackRes.data as any).date, nLevel: (lastNbackRes.data as any).n_level }
+      : null,
+    checkin: lastCheckinDate
+      ? { lastDate: lastCheckinDate, quadrant: (moodRes.data as any)?.quadrant }
+      : null,
+    meditation: (lastMindRes.data as any)?.date
+      ? {
+          lastDate: (lastMindRes.data as any).date,
+          durationSeconds: (lastMindRes.data as any).duration_seconds,
+        }
+      : null,
   };
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;
@@ -384,7 +445,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     greeting, date, userName, protocol,
     electronProgress: { earned, possible, percentage },
     nextElectron, booleanElectrons, quantitativeElectrons,
-    suggestion, agendaItems,
+    suggestion, agendaItems, datosVivos,
   };
 }
 

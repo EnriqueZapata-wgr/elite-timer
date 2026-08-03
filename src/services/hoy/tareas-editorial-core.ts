@@ -17,6 +17,7 @@
 import { APP_BY_KEY, type AppSection } from '@/src/constants/app-registry';
 import { ELECTRON_TO_APP } from '@/src/constants/electron-app-bridge';
 import type { ElectronSource } from '@/src/constants/electrons';
+import { QUADRANTS, type QuadrantKey } from '@/src/data/emotions-library';
 import { minutesFromMidnight, type Tarea } from '@/src/services/hoy/tareas-core';
 
 // ── Sección de cada tarea ──
@@ -62,15 +63,129 @@ export interface UvDato {
   vitaminD?: string;
 }
 
-type TareaDato = Pick<Tarea, 'key' | 'kind' | 'meta' | 'time' | 'desc'>;
+/**
+ * El dato de VERDAD de cada hábito (MB-20.2 · Pieza 2), compilado por
+ * day-compiler desde las mismas queries que ya deciden `completed` (que
+ * dejaron de tirar la fila con head:true) — más el último check-in que ya
+ * viajaba en memoria y una sola consulta nueva (mind_sessions, ver 2.3).
+ * Cualquier campo puede faltar: sin dato, la card va sin línea de dato.
+ */
+export interface DatosVivos {
+  /** Tomas de suplementos: registradas hoy contra las del protocolo. */
+  supplements?: { taken: number; total: number } | null;
+  /** Última sesión de fuerza (exercise_logs). */
+  strength?: { lastDate: string } | null;
+  /** Última sesión de cardio con su distancia y tiempo. */
+  cardio?: { lastDate: string; distanceMeters?: number | null; durationSeconds?: number | null } | null;
+  /** Última entrada de journal. */
+  journal?: { lastDate: string } | null;
+  /** Última partida completada de N-Back y su nivel. */
+  nback?: { lastDate: string; nLevel?: number | null } | null;
+  /** Dónde terminó el último check-in (cuadrante del circumplejo). */
+  checkin?: { lastDate: string; quadrant?: string | null } | null;
+  /** Última sesión de meditación (mind_sessions). */
+  meditation?: { lastDate: string; durationSeconds?: number | null } | null;
+}
+
+/** Días entre dos fechas locales YYYY-MM-DD (hoy - fecha). Ilegible → null. */
+function diasDesde(fecha: string | undefined | null, hoy: string | undefined): number | null {
+  if (!fecha || !hoy) return null;
+  const a = Date.parse(`${fecha}T00:00:00Z`);
+  const b = Date.parse(`${hoy}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return Math.round((b - a) / 86400000);
+}
+
+/** "hoy" / "ayer" / "hace N días". Fecha ilegible o futura → null. */
+function etiquetaDias(fecha: string | undefined | null, hoy: string | undefined): string | null {
+  const d = diasDesde(fecha, hoy);
+  if (d == null || d < 0) return null;
+  if (d === 0) return 'hoy';
+  if (d === 1) return 'ayer';
+  return `hace ${d} días`;
+}
+
+function fmtKm(meters: number | null | undefined): string | null {
+  if (!meters || meters <= 0) return null;
+  const km = meters / 1000;
+  const v = km >= 10 ? Math.round(km) : Math.round(km * 10) / 10;
+  return `${v} km`;
+}
+
+function fmtMin(seconds: number | null | undefined): string | null {
+  if (!seconds || seconds <= 0) return null;
+  return `${Math.max(1, Math.round(seconds / 60))} min`;
+}
+
+/** La etiqueta canónica del cuadrante (QUADRANTS de la biblioteca RULER). */
+function quadrantLabel(q: string | null | undefined): string | null {
+  if (!q) return null;
+  return QUADRANTS[q as QuadrantKey]?.label ?? null;
+}
+
+/**
+ * El dato vivo de un hábito booleano. Solo cifras reales de DatosVivos:
+ * si el dato no está, devuelve undefined y la card va sin línea de dato
+ * (decisión de Enrique: "luego lo imaginamos", nunca folleto).
+ */
+export function datoVivoForTarea(
+  key: string,
+  vivos?: DatosVivos | null,
+  hoy?: string,
+): string | undefined {
+  if (!vivos) return undefined;
+  switch (key) {
+    case 'supplements': {
+      const s = vivos.supplements;
+      return s && s.total > 0 ? `${s.taken} de ${s.total} tomados` : undefined;
+    }
+    case 'strength': {
+      const rel = etiquetaDias(vivos.strength?.lastDate, hoy);
+      return rel ? `Última sesión: ${rel}` : undefined;
+    }
+    case 'cardio': {
+      const c = vivos.cardio;
+      if (!c) return undefined;
+      const partes = [fmtKm(c.distanceMeters), fmtMin(c.durationSeconds)].filter(Boolean);
+      return partes.length > 0 ? `Última: ${partes.join(' · ')}` : undefined;
+    }
+    case 'journal': {
+      const rel = etiquetaDias(vivos.journal?.lastDate, hoy);
+      return rel ? `Última entrada: ${rel}` : undefined;
+    }
+    case 'nback': {
+      const n = vivos.nback?.nLevel;
+      if (Number.isFinite(Number(n))) return `Último nivel: ${n}`;
+      const rel = etiquetaDias(vivos.nback?.lastDate, hoy);
+      return rel ? `Última partida: ${rel}` : undefined;
+    }
+    case 'checkin': {
+      const label = quadrantLabel(vivos.checkin?.quadrant);
+      return label ? `Última vez: ${label}` : undefined;
+    }
+    case 'meditation': {
+      const min = fmtMin(vivos.meditation?.durationSeconds);
+      return min ? `Última sesión: ${min}` : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
+type TareaDato = Pick<Tarea, 'key' | 'kind' | 'meta' | 'time'>;
 
 /**
  * El dato que hace que la card merezca media pantalla. Sale de lo que YA
- * llega a la vista: meta compilada (cuantitativos y ayuno) o el uvMini que
- * el HOY ya carga para el sol. Los hábitos sin dato vivo muestran su
- * descripción compilada (CompiledDay la trae; no es cifra inventada).
+ * llega a la vista: meta compilada (cuantitativos y ayuno), el uvMini que
+ * el HOY ya carga para el sol, o el dato vivo compilado (DatosVivos).
+ * Sin dato, la card va sin dato: aquí no se inventan cifras ni folletos.
  */
-export function datoForTarea(t: TareaDato, uv?: UvDato | null): string | undefined {
+export function datoForTarea(
+  t: TareaDato,
+  uv?: UvDato | null,
+  vivos?: DatosVivos | null,
+  hoy?: string,
+): string | undefined {
   if (t.key === 'sunlight' && uv) {
     return `UV ${uv.current} ahora${uv.vitaminD ? ` · ${uv.vitaminD}` : ''}`;
   }
@@ -78,7 +193,7 @@ export function datoForTarea(t: TareaDato, uv?: UvDato | null): string | undefin
   if (t.kind === 'agenda') {
     return t.meta ? `${t.meta} · rompe a las ${t.time}` : `Rompe a las ${t.time}`;
   }
-  return t.desc;
+  return datoVivoForTarea(t.key, vivos, hoy);
 }
 
 // ── El héroe de AGENDA ──

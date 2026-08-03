@@ -252,7 +252,8 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   // viaje, todos los elementos viven PLANOS bajo un mismo padre con llave
   // estable (un wrapper por bloque rompería la continuidad del instance).
   const rowLayout = reducedMotion ? LinearTransition : LinearTransition.springify().damping(18);
-  const seedBase = `${userId ?? ''}-${getLocalToday()}`;
+  const hoy = getLocalToday();
+  const seedBase = `${userId ?? ''}-${hoy}`;
   const colorDeSeccion = (t: Tarea) => APP_SECTION_COLORS[seccionForTarea(t.key)];
 
   const tareasChildren: ReactNode[] = [];
@@ -299,7 +300,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               tarea={t}
               sectionColor={colorDeSeccion(t)}
               image={tareaImage(t.key, `${seedBase}-${t.key}`)}
-              dato={datoForTarea(t, uvMini)}
+              dato={datoForTarea(t, uvMini, day.datosVivos, hoy)}
               reducedMotion={reducedMotion}
               onNavigate={handleNavigate}
               onPalomear={handlePalomear}
@@ -361,7 +362,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               tarea={heroTarea}
               sectionColor={colorDeSeccion(heroTarea)}
               image={tareaImage(heroTarea.key, `${seedBase}-${heroTarea.key}`)}
-              dato={datoForTarea(heroTarea, uvMini)}
+              dato={datoForTarea(heroTarea, uvMini, day.datosVivos, hoy)}
               badge="AHORA"
               reducedMotion={reducedMotion}
               onNavigate={handleNavigate}
