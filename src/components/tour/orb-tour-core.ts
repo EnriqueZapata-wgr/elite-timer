@@ -56,7 +56,7 @@ export const ORB_TOUR_STEPS: readonly OrbTourStep[] = [
     id: 'instalar',
     route: '/kit',
     kicker: 'INSTALAR = ACTIVAR',
-    copy: 'Instalar una app activa su hábito: aparece su fila en tu día. Desinstalar nunca borra tu historia.',
+    copy: 'Instalar activa el hábito: muchas apps suman su fila a tu día y otras registran dentro de la propia app. Desinstalar nunca borra tu historia.',
   },
   {
     id: 'salud',

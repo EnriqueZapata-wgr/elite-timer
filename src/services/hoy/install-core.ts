@@ -49,6 +49,31 @@ export function togglesForApp(appKey: string): AppToggles {
   };
 }
 
+/**
+ * true si instalar la app enciende al menos un electrón activable, es decir,
+ * si su fila nace en TAREAS en el siguiente compile. Es el MISMO cruce de
+ * togglesForApp: el copy de instalar sale de aquí (installAlertBody), nunca de
+ * una constante aparte, para que texto y comportamiento no se desincronicen.
+ */
+export function installCreatesRow(appKey: string): boolean {
+  const t = togglesForApp(appKey);
+  return t.booleans.length > 0 || t.quants.length > 0;
+}
+
+/** Cuerpo del Alert de instalar: promete solo lo que de verdad pasa. */
+export function installAlertBody(appKey: string): string {
+  return installCreatesRow(appKey)
+    ? 'Aparece su fila en TAREAS y su hábito empieza a contar desde hoy.'
+    : 'Queda activa entre tus funciones y su registro vive dentro de la app. No agrega fila en TAREAS.';
+}
+
+/** Cuerpo del Alert de desinstalar: mismo cruce, misma honestidad. */
+export function uninstallAlertBody(appKey: string): string {
+  return installCreatesRow(appKey)
+    ? 'Su fila sale de TAREAS. Tus datos históricos no se tocan: si la reinstalas, tu historia sigue ahí.'
+    : 'Se retira de tus funciones activas. Tus datos históricos no se tocan: si la reinstalas, tu historia sigue ahí.';
+}
+
 export type InstallState = 'instalada' | 'fija' | 'no';
 
 export interface InstallPrefs {

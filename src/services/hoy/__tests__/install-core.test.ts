@@ -9,8 +9,12 @@ import {
   appInstallState,
   applyInstall,
   applyUninstall,
+  installCreatesRow,
+  installAlertBody,
+  uninstallAlertBody,
   type InstallPrefs,
 } from '@/src/services/hoy/install-core';
+import { APP_REGISTRY } from '@/src/constants/app-registry';
 import { MANDATORY_BOOLEANS } from '@/src/services/hoy/day-booleans';
 
 const EMPTY: InstallPrefs = { booleans: [], quants: [], installedApps: [] };
@@ -80,6 +84,36 @@ describe('applyInstall / applyUninstall', () => {
     expect(out.booleans).toEqual(['sunlight']);
     expect(out.quants).toEqual(['water']);
     expect(out.installedApps).toEqual(['sol']);
+  });
+
+  it('el copy de instalar sale del mismo cruce que decide si hay fila', () => {
+    // Las cuatro apps instalables sin electrón activable: instalarlas NO crea
+    // fila en TAREAS, y su copy tiene prohibido prometerla.
+    for (const app of ['sueno', 'ayuno', 'glucosa', 'cetonas']) {
+      expect(installCreatesRow(app), `${app} no debería crear fila`).toBe(false);
+      expect(installAlertBody(app)).not.toContain('Aparece su fila');
+      expect(installAlertBody(app)).toContain('No agrega fila en TAREAS');
+      expect(uninstallAlertBody(app)).not.toContain('Su fila sale');
+    }
+    for (const app of ['meditar', 'respirar', 'emociones', 'nback', 'entrenar', 'comida', 'hidratacion', 'suplementos', 'sol', 'ciclo']) {
+      expect(installCreatesRow(app), `${app} debería crear fila`).toBe(true);
+      expect(installAlertBody(app)).toContain('Aparece su fila en TAREAS');
+      expect(uninstallAlertBody(app)).toContain('Su fila sale de TAREAS');
+    }
+  });
+
+  it('toda instalable del registro o crea fila o es fija o es una de las cuatro sin fila', () => {
+    // Ratchet: si alguien vuelve instalable una app sin electrón activable
+    // (como pasó con movilidad), este test la obliga a declararse aquí.
+    const SIN_FILA_DECLARADAS = new Set(['sueno', 'ayuno', 'glucosa', 'cetonas']);
+    for (const app of APP_REGISTRY.filter((a) => a.installable)) {
+      const fija = appInstallState(app.key, EMPTY) === 'fija';
+      const conFila = installCreatesRow(app.key);
+      expect(
+        fija || conFila || SIN_FILA_DECLARADAS.has(app.key),
+        `${app.key} es instalable pero no crea fila ni está declarada sin fila`,
+      ).toBe(true);
+    }
   });
 
   it('sol enciende sus dos electrones y los apaga juntos', () => {

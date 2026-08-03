@@ -40,7 +40,9 @@ import {
   loadUsage, recordOpen, loadCustomOrder, loadOrderMode, saveOrderMode,
 } from '@/src/services/atp-room-store';
 import { getInstallPrefs, installApp, uninstallApp } from '@/src/services/hoy/install-service';
-import { appInstallState, type InstallPrefs } from '@/src/services/hoy/install-core';
+import {
+  appInstallState, installAlertBody, uninstallAlertBody, type InstallPrefs,
+} from '@/src/services/hoy/install-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, PILL } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -102,7 +104,7 @@ export default function SalaAtpScreen() {
     if (state === 'instalada') {
       Alert.alert(
         `Desinstalar ${app.label}`,
-        'Su fila sale de TAREAS. Tus datos históricos no se tocan: si la reinstalas, tu historia sigue ahí.',
+        uninstallAlertBody(app.key),
         [
           { text: 'Cancelar', style: 'cancel' },
           {
@@ -121,7 +123,7 @@ export default function SalaAtpScreen() {
     }
     Alert.alert(
       `Instalar ${app.label}`,
-      'Aparece su fila en TAREAS y su hábito empieza a contar desde hoy.',
+      installAlertBody(app.key),
       [
         { text: 'Cancelar', style: 'cancel' },
         {
