@@ -46,6 +46,10 @@ const MIND_PURPLE = CATEGORY_COLORS.mind;
 type ExpoAudio = typeof import('expo-audio');
 type AudioPlayer = import('expo-audio').AudioPlayer;
 
+// NOCTURNO B8: instancia única a nivel módulo — nunca dos audios (doble push,
+// carreras de unmount). Mismo patrón que el singleton de argos-tts.
+let ACTIVE_PLAYER: AudioPlayer | null = null;
+
 const CATEGORY_LABEL: Record<AudioPiece['categoria'], string> = {
   meditacion: 'MEDITACIÓN',
   respiracion: 'RESPIRACIÓN',
@@ -194,8 +198,17 @@ export default function MenteAudioPlayerScreen() {
         });
       } catch { /* modo por default */ }
 
+      // B8: los dos awaits de arriba no tenían check — si el usuario salía en
+      // esa ventana nacía un player huérfano sonando sin dueño.
+      if (cancelled) return;
+      if (ACTIVE_PLAYER) {
+        try { ACTIVE_PLAYER.pause(); } catch { /* no-op */ }
+        try { ACTIVE_PLAYER.remove(); } catch { /* no-op */ }
+        ACTIVE_PLAYER = null;
+      }
       const player = mod.createAudioPlayer({ uri: urlResult.url }, { updateInterval: 500 });
       playerRef.current = player;
+      ACTIVE_PLAYER = player;
       player.addListener('playbackStatusUpdate', (st) => {
         if (finishedRef.current) return;
         if (!scrubbingRef.current) setCurrentTime(st.currentTime);
@@ -258,6 +271,9 @@ export default function MenteAudioPlayerScreen() {
         player.setActiveForLockScreen(true, lockScreenMetaRef.current);
       } catch { /* binarios sin NowPlaying: sigue sonando igual */ }
 
+      // B8: si el unmount cayó en los awaits de arriba, el cleanup ya liberó
+      // el player; play() sobre un objeto liberado era unhandled rejection.
+      if (cancelled) return;
       player.play();
       setLoading(false);
     })();
@@ -274,8 +290,13 @@ export default function MenteAudioPlayerScreen() {
             effectiveListenedAt(positionRef.current, startPosRef.current, netSkipRef.current, priorListenedRef.current),
           );
         }
+        // B8: pause explícito ANTES del remove — es síncrono y detiene el
+        // sonido aunque el release nativo se difiera (Android lo corre en
+        // una corrutina de mainQueue).
+        try { player.pause(); } catch { /* no-op */ }
         try { player.clearLockScreenControls(); } catch { /* no-op */ }
         try { player.remove(); } catch { /* no-op */ }
+        if (ACTIVE_PLAYER === player) ACTIVE_PLAYER = null;
         playerRef.current = null;
       }
     };
@@ -495,10 +516,13 @@ export default function MenteAudioPlayerScreen() {
               onLayout={(e) => { scrubberWidthRef.current = Math.max(1, e.nativeEvent.layout.width); }}
               {...panResponder.panHandlers}
             >
-              <View style={s.track}>
+              {/* B8: hijos fuera del hit-testing — locationX del PanResponder
+                  era relativo al hijo tocado; agarrar el thumb daba ratio ~0
+                  y la barra "reiniciaba" en vez de adelantar. */}
+              <View style={s.track} pointerEvents="none">
                 <View style={[s.trackFill, { width: `${progress * 100}%` }]} />
               </View>
-              <View style={[s.thumb, { left: `${progress * 100}%` }]} />
+              <View style={[s.thumb, { left: `${progress * 100}%` }]} pointerEvents="none" />
             </View>
             <View style={s.timeRow}>
               <EliteText style={s.timeText}>{fmt(currentTime)}</EliteText>
