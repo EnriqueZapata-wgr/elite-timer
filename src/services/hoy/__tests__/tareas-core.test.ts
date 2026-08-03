@@ -6,6 +6,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildTareas,
   agendaLens,
+  repartoTareas,
+  pickFocusMomento,
   gestoForBool,
   momentoForHour,
   minutesFromMidnight,
@@ -214,5 +216,64 @@ describe('agendaLens', () => {
     expect(lens.length).toBe(r.global.total);
     const times = lens.map((t) => t.time);
     expect([...times].sort()).toEqual(times);
+  });
+});
+
+describe('repartoTareas (MB-20.2 · 1.3)', () => {
+  const r = buildTareas(INPUT, 14);
+  const lens = agendaLens(r);
+  const { hechas, pendingBlocks } = repartoTareas(lens, r.blocks);
+
+  it('las hechas van a la cinta, en orden cronológico', () => {
+    expect(hechas.map((t) => t.key)).toEqual(['sunlight', 'protein']);
+    expect(hechas.every((t) => t.completed)).toBe(true);
+  });
+
+  it('abajo solo bloques con pendientes, sin las hechas dentro', () => {
+    for (const b of pendingBlocks) {
+      expect(b.pending.length).toBeGreaterThan(0);
+      expect(b.pending.every((t) => !t.completed)).toBe(true);
+    }
+    const enBloques = pendingBlocks.flatMap((b) => b.pending.map((t) => t.key));
+    expect(enBloques).not.toContain('sunlight');
+    expect(enBloques).not.toContain('protein');
+  });
+
+  it('cinta + pendientes = la lista completa (nada se pierde en el reparto)', () => {
+    const total = hechas.length + pendingBlocks.reduce((s, b) => s + b.pending.length, 0);
+    expect(total).toBe(r.global.total);
+  });
+
+  it('un bloque 100% hecho desaparece de abajo, pero conserva su done/total', () => {
+    const input: TareasInput = {
+      booleanElectrons: [boolE('sunlight', true), boolE('meditation', true), boolE('journal')],
+      quantitativeElectrons: [],
+      agendaItems: [],
+    };
+    const res = buildTareas(input, 10);
+    const parts = repartoTareas(agendaLens(res), res.blocks);
+    expect(parts.pendingBlocks.map((b) => b.momento)).toEqual(['noche']);
+    expect(parts.hechas.map((t) => t.key)).toEqual(['meditation', 'sunlight']);
+  });
+});
+
+describe('pickFocusMomento (MB-20.2 · 1.2)', () => {
+  it('el bloque de la hora, si tiene pendientes', () => {
+    expect(pickFocusMomento(['manana', 'tarde', 'noche'], 'tarde')).toBe('tarde');
+  });
+
+  it('bloque de la hora completo: el siguiente con pendientes', () => {
+    // El escenario del muro que encoge a media tarde.
+    expect(pickFocusMomento(['noche'], 'tarde')).toBe('noche');
+    expect(pickFocusMomento(['manana', 'noche'], 'tarde')).toBe('noche');
+  });
+
+  it('sin pendientes hacia adelante: el primero que siga pendiente', () => {
+    expect(pickFocusMomento(['manana'], 'noche')).toBe('manana');
+  });
+
+  it('día terminado: no hay foco, se ve la cinta completa', () => {
+    expect(pickFocusMomento([], 'tarde')).toBeNull();
+    expect(pickFocusMomento([], 'noche')).toBeNull();
   });
 });

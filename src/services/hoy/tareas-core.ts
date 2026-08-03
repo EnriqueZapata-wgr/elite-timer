@@ -311,3 +311,45 @@ export function agendaLens(result: TareasResult): Tarea[] {
     .flatMap((b) => b.items)
     .sort((a, b) => minutesFromMidnight(a.time) - minutesFromMidnight(b.time) || a.key.localeCompare(b.key));
 }
+
+// ── El reparto de la lente TAREAS (MB-20.2 · 1.3) ──
+
+export interface TareaBlockPendiente extends TareaBlock {
+  /** Solo los items sin completar (los hechos viven en la cinta de arriba). */
+  pending: Tarea[];
+}
+
+/**
+ * HECHAS arriba como cinta (en orden cronológico) y abajo solo bloques con
+ * pendientes. Recibe la lista de agenda ya calculada para no re-ordenar dos
+ * veces la misma fuente. Los contadores done/total del bloque se conservan
+ * completos: el encabezado dice "2 de 5" aunque solo pinte las 3 pendientes.
+ */
+export function repartoTareas(agendaItems: Tarea[], blocks: TareaBlock[]): {
+  hechas: Tarea[];
+  pendingBlocks: TareaBlockPendiente[];
+} {
+  return {
+    hechas: agendaItems.filter((t) => t.completed),
+    pendingBlocks: blocks
+      .map((b) => ({ ...b, pending: b.items.filter((t) => !t.completed) }))
+      .filter((b) => b.pending.length > 0),
+  };
+}
+
+/**
+ * A qué bloque va el auto-foco (MB-20.2 · 1.2). El bloque de la hora si tiene
+ * pendientes; si ya quedó completo, el siguiente con pendientes; si hacia
+ * adelante no queda ninguno pero atrás sí, el primero que siga pendiente.
+ * Con el día terminado no hay foco (null): el usuario merece ver la cinta
+ * de hechas completa, sin scroll.
+ */
+export function pickFocusMomento(
+  pendientes: readonly Momento[],
+  focusMomento: Momento,
+): Momento | null {
+  if (pendientes.includes(focusMomento)) return focusMomento;
+  const idx = MOMENTOS.indexOf(focusMomento);
+  const siguiente = MOMENTOS.slice(idx + 1).find((m) => pendientes.includes(m));
+  return siguiente ?? pendientes[0] ?? null;
+}

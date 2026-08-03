@@ -27,7 +27,8 @@ import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
 import { SmartCheckModal } from '@/src/components/hoy/SmartCheckModal';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
-  buildTareas, agendaLens, EXPERIENCIA_REGISTRO, type Tarea, type Momento,
+  buildTareas, agendaLens, repartoTareas, pickFocusMomento, EXPERIENCIA_REGISTRO,
+  type Tarea, type Momento,
 } from '@/src/services/hoy/tareas-core';
 import {
   seccionForTarea, datoForTarea, pickHeroTarea,
@@ -103,26 +104,45 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   }, [agendaItems]);
 
   // ── MB-20.1: el muro encoge — hechas arriba como cinta, bloques solo con
-  // pendientes. La fuente sigue siendo la misma (result); esto es reparto. ──
-  const hechas = useMemo(() => agendaLens(result).filter((t) => t.completed), [result]);
-  const pendingBlocks = useMemo(
-    () => result.blocks
-      .map((b) => ({ ...b, pending: b.items.filter((t) => !t.completed) }))
-      .filter((b) => b.pending.length > 0),
-    [result],
+  // pendientes. La fuente sigue siendo la misma (result); esto es reparto
+  // puro en tareas-core (MB-20.2 · 1.3, con test). ──
+  const { hechas, pendingBlocks } = useMemo(
+    () => repartoTareas(agendaItems, result.blocks),
+    [agendaItems, result.blocks],
   );
 
-  // ── Auto-foco en el bloque actual (una sola vez) ──
-  const blockYs = useRef<Partial<Record<Momento, number>>>({});
+  // ── Auto-foco (una sola vez, MB-20.2 · 1.1/1.2) ──
+  // El consumidor (index.tsx) espera una `y` relativa a la RAÍZ de esta vista,
+  // pero los bloques viven dentro de un <View> interno que tiene encima las
+  // lentes, la fila global, el nudge y OrbCard: hay que sumar la `y` de ese
+  // contenedor. Los dos onLayout llegan en orden no garantizado, así que el
+  // que llega primero deja el dato y el segundo dispara el scroll.
+  const focusTarget = useMemo(
+    () => pickFocusMomento(pendingBlocks.map((b) => b.momento), result.focusMomento),
+    [pendingBlocks, result.focusMomento],
+  );
   const focusedRef = useRef(false);
+  const containerYRef = useRef<number | null>(null);
+  const pendingFocusYRef = useRef<number | null>(null);
+  const captureContainerY = (e: LayoutChangeEvent) => {
+    containerYRef.current = e.nativeEvent.layout.y;
+    if (pendingFocusYRef.current != null) {
+      const blockY = pendingFocusYRef.current;
+      pendingFocusYRef.current = null;
+      onRequestScroll?.(containerYRef.current + blockY);
+    }
+  };
   const captureBlockY = (momento: Momento) => (e: LayoutChangeEvent) => {
-    blockYs.current[momento] = e.nativeEvent.layout.y;
-    if (!focusedRef.current && momento === result.focusMomento && lens === 'tareas') {
+    if (!focusedRef.current && momento === focusTarget && lens === 'tareas') {
       focusedRef.current = true;
-      // MB-20.1: HECHAS vive arriba y nunca recibe el foco. Se scrollea si
-      // hay cinta encima o si el bloque actual no es el que abre la lista.
-      if (hechas.length > 0 || pendingBlocks[0]?.momento !== result.focusMomento) {
-        onRequestScroll?.(e.nativeEvent.layout.y);
+      // HECHAS vive arriba y nunca recibe el foco. Se scrollea si hay cinta
+      // encima o si el bloque del foco no es el que abre la lista.
+      if (hechas.length > 0 || pendingBlocks[0]?.momento !== focusTarget) {
+        if (containerYRef.current != null) {
+          onRequestScroll?.(containerYRef.current + e.nativeEvent.layout.y);
+        } else {
+          pendingFocusYRef.current = e.nativeEvent.layout.y;
+        }
       }
     }
   };
@@ -332,7 +352,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
       <OrbCard userId={userId} />
 
       {lens === 'tareas' ? (
-        <View>{tareasChildren}</View>
+        <View onLayout={captureContainerY}>{tareasChildren}</View>
       ) : (
         <>
           {/* El héroe editorial: una sola card grande que cambia con la hora. */}
