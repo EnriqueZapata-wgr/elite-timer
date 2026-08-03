@@ -37,10 +37,10 @@ describe('contrato: ledger de suplementos vs card', () => {
   });
 
   it('la evidencia de supplements sale del count, nunca de suppProgress', () => {
-    // Solo el bloque de verifiedCompleted (el que alimenta al reconcile);
+    // Solo el bloque de evidencia (el que alimenta al reconcile);
     // datosVivos sí usa suppProgress y debe seguir usándolo.
-    const bloque = compiler.match(/const verifiedCompleted[\s\S]*?\};/);
-    expect(bloque, 'verifiedCompleted desapareció — actualiza este contrato').toBeTruthy();
+    const bloque = compiler.match(/const verifiedEvidencia[\s\S]*?\};/);
+    expect(bloque, 'verifiedEvidencia desapareció — actualiza este contrato').toBeTruthy();
     expect(bloque![0]).toMatch(/supplements:.*suppTakenCountRes/);
     expect(bloque![0]).not.toMatch(/suppProgress/);
   });

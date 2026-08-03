@@ -21,6 +21,10 @@ import { selectAgendaDrivers, anchorTimes, interventionAgendaItems, canonicalCon
 import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 import { buildDoneIndex, applyDoneFromLogs } from '@/src/services/hoy/day-state-core';
 import { supplementsTodayProgress } from '@/src/services/supplements-adherence-core';
+// MB-20.3 P3: el seguro del reconcile — evidencia tri-estado y plan, puros.
+import {
+  evidenciaDeConteo, evidenciaDeUltimaFecha, planReconcile, type Evidencia,
+} from '@/src/services/hoy/reconcile-core';
 // MB-20.2 · Pieza 2: el dato de verdad de cada card. Import type: se borra al compilar.
 import type { DatosVivos } from '@/src/services/hoy/tareas-editorial-core';
 
@@ -257,23 +261,26 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     suppRows.flatMap((s) => s.supplement_logs ?? []),
   );
 
-  // Para los verificados: derivar `completed` de actividad real, NO del blob.
+  // Para los verificados: derivar la EVIDENCIA de actividad real, NO del blob.
+  // MB-20.3 P3: tres estados, no dos. Una consulta que falla o trae una fila
+  // ilegible es 'no_se_sabe' — y con no_se_sabe el reconcile no toca el
+  // ledger (la ausencia de evidencia no es evidencia de ausencia).
   // checkin: el último emotional_checkin (moodRes) es de HOY (no requiere query extra).
   const lastCheckinDate = (moodRes.data as any)?.created_at
     ? toLocalDateString(new Date((moodRes.data as any).created_at))
     : null;
-  const verifiedCompleted: Record<string, boolean> = {
-    meditation: (meditationCountRes.count ?? 0) >= 1,
-    breathwork: (breathingCountRes.count ?? 0) >= 1,
-    strength: (lastExerciseRes.data as any)?.date === today,
+  const verifiedEvidencia: Record<string, Evidencia> = {
+    meditation: evidenciaDeConteo(meditationCountRes),
+    breathwork: evidenciaDeConteo(breathingCountRes),
+    strength: evidenciaDeUltimaFecha(lastExerciseRes, (lastExerciseRes.data as any)?.date, today),
     // MB-20.3 P2: del count directo, NO de suppProgress (que filtra activos y
     // es asunto de la card). Si te lo tomaste, te lo tomaste.
-    supplements: (suppTakenCountRes.count ?? 0) >= 1,
-    period_log: (cycleLogCountRes.count ?? 0) >= 1,
-    checkin: lastCheckinDate === today,
-    cardio: (lastCardioRes.data as any)?.date === today, // #v13e 3.A.3
-    journal: (lastJournalRes.data as any)?.date === today, // #17: derivado de journal_entries, no del blob
-    nback: (lastNbackRes.data as any)?.date === today, // ≥1 round completado hoy
+    supplements: evidenciaDeConteo(suppTakenCountRes),
+    period_log: evidenciaDeConteo(cycleLogCountRes),
+    checkin: evidenciaDeUltimaFecha(moodRes, lastCheckinDate, today),
+    cardio: evidenciaDeUltimaFecha(lastCardioRes, (lastCardioRes.data as any)?.date, today), // #v13e 3.A.3
+    journal: evidenciaDeUltimaFecha(lastJournalRes, (lastJournalRes.data as any)?.date, today), // #17
+    nback: evidenciaDeUltimaFecha(lastNbackRes, (lastNbackRes.data as any)?.date, today), // ≥1 round hoy
   };
 
   // MB-20.2 · Pieza 2: el dato de verdad de cada card, de las filas que las
@@ -386,9 +393,11 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     .filter(k => !FEMALE_ONLY_ELECTRONS.has(k) || biologicalSex === 'female')
     .map(k => {
       const cfg = (ELECTRON_WEIGHTS as any)[k];
-      // Para los 4 verificados, `completed` viene de actividad real (no del blob).
-      // El blob para estos keys queda vestigial — se ignora aquí.
-      const completed = k in verifiedCompleted ? verifiedCompleted[k] : boolStates[k] === true;
+      // Para los verificados, `completed` viene de actividad real (no del blob).
+      // El blob para estos keys queda vestigial — se ignora aquí. La card solo
+      // palomea con evidencia positiva; 'no_se_sabe' pinta pendiente, pero el
+      // ledger no se toca (esa es la diferencia con el modelo de dos estados).
+      const completed = k in verifiedEvidencia ? verifiedEvidencia[k] === 'hecho' : boolStates[k] === true;
       return {
         source: k,
         name: cfg.name,
@@ -409,7 +418,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   // award del reconcile brincaría el gate de ≥80%; además el revoke borraría
   // los 3 e- del día de un source capeado.
   // Fire-and-forget: no bloquea el compile si la reconciliación falla.
-  const { meditation: _m, breathwork: _b, ...reconcilable } = verifiedCompleted;
+  const { meditation: _m, breathwork: _b, ...reconcilable } = verifiedEvidencia;
   reconcileVerifiedLedger(userId, today, reconcilable).catch(e => {
     logWarn('[compileDay] reconcileVerifiedLedger failed', e);
   });
@@ -470,16 +479,18 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
 
 /**
  * Para los electrones verificados, alinea `electron_logs` con la actividad
- * real del día. Solo escribe cuando hay desajuste (raro): si el usuario
- * completó la actividad pero no hay log → award; si el log existe pero la
- * actividad fue borrada → revoke. Ambos helpers son idempotentes.
+ * real del día. Solo escribe cuando hay desajuste (raro): actividad real sin
+ * log → award; evidencia POSITIVA de ausencia con log presente → revoke.
+ * Con 'no_se_sabe' (consulta rota, fila ilegible) el ledger no se toca:
+ * el dato del usuario gana. La decisión vive en planReconcile (pura, con
+ * test de mutación); aquí solo se ejecuta y se deja rastro.
  */
 async function reconcileVerifiedLedger(
   userId: string,
   date: string,
-  desired: Record<string, boolean>,
+  evidencias: Record<string, Evidencia>,
 ): Promise<void> {
-  const keys = Object.keys(desired);
+  const keys = Object.keys(evidencias);
   if (keys.length === 0) return;
   const { data, error } = await supabase
     .from('electron_logs')
@@ -488,16 +499,24 @@ async function reconcileVerifiedLedger(
     .eq('date', date)
     .in('source', keys);
   if (error) {
+    // Sin lectura confiable del ledger tampoco hay reconcile: salir sin tocar.
     logWarn('[compileDay] reconcile select failed', error);
     return;
   }
   const awarded = new Set((data ?? []).map((r: any) => r.source as string));
-  for (const [src, completed] of Object.entries(desired)) {
-    if (completed && !awarded.has(src)) {
-      await awardBooleanElectron(userId, src as ElectronSource);
-    } else if (!completed && awarded.has(src)) {
-      await revokeBooleanElectron(userId, src as ElectronSource);
-    }
+  const plan = planReconcile(evidencias, awarded);
+  for (const src of plan.award) {
+    await awardBooleanElectron(userId, src as ElectronSource);
+  }
+  for (const src of plan.revoke) {
+    // Toda revocación deja rastro (llave + motivo): si un día volvemos a
+    // borrar electrones sin querer, que se pueda ver en Sentry/console.
+    logWarn('[reconcile] revoca electrón', {
+      source: src,
+      date,
+      motivo: 'evidencia positiva de ausencia (no_hecho) con log presente',
+    });
+    await revokeBooleanElectron(userId, src as ElectronSource);
   }
 }
 
