@@ -176,7 +176,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   // electrones verificados — ver VERIFIED_ELECTRON_KEYS).
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
-    meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, cycleLogCountRes,
+    meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, suppTakenCountRes, cycleLogCountRes,
     lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
@@ -210,12 +210,18 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     supabase.from('exercise_logs').select('date')
       .eq('user_id', userId).not('date', 'is', null)
       .order('date', { ascending: false }).limit(1).maybeSingle(),
-    // Suplementos: user_supplements + logs de hoy embebidos (FK de 055) en UNA
-    // consulta — da "X de Y tomados" con el mismo criterio que /supplements
-    // (supplementsTodayProgress). Antes solo contaba logs taken=true.
+    // Suplementos — DOS preguntas que nunca debieron ser una (MB-20.3 P2):
+    // 1) El embed de ACTIVOS alimenta la CARD ("X de Y tomados", criterio de
+    //    /supplements). Solo presentación.
     supabase.from('user_supplements')
       .select('id, dose_times, supplement_logs(supplement_id, dose_index, taken)')
       .eq('user_id', userId).eq('is_active', true).eq('supplement_logs.date', today),
+    // 2) El LEDGER pregunta si TE LO TOMASTE: cualquier log taken=true de hoy,
+    //    aunque después desactivaras ese suplemento. En producción hay 143 logs
+    //    tomados de suplementos hoy inactivos — con el filtro de activos como
+    //    única fuente, `completed` caía a false y el reconcile borraba el e-.
+    supabase.from('supplement_logs').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('date', today).eq('taken', true),
     supabase.from('cycle_daily_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today),
     // #v13e 3.A.3: cardio verificado — la última sesión trae distancia y tiempo.
@@ -260,7 +266,9 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     meditation: (meditationCountRes.count ?? 0) >= 1,
     breathwork: (breathingCountRes.count ?? 0) >= 1,
     strength: (lastExerciseRes.data as any)?.date === today,
-    supplements: suppProgress.taken >= 1,
+    // MB-20.3 P2: del count directo, NO de suppProgress (que filtra activos y
+    // es asunto de la card). Si te lo tomaste, te lo tomaste.
+    supplements: (suppTakenCountRes.count ?? 0) >= 1,
     period_log: (cycleLogCountRes.count ?? 0) >= 1,
     checkin: lastCheckinDate === today,
     cardio: (lastCardioRes.data as any)?.date === today, // #v13e 3.A.3
