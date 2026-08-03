@@ -31,6 +31,7 @@ import { PUERTAS, DESTINOS_TODOS } from '../salud-puertas';
 import { ELECTRON_WEIGHTS } from '../electrons';
 import { HOY_CARD_SPECS } from '../hoy-cards';
 import { ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/services/hoy/day-booleans';
+import { ACTIVITY_META } from '@/src/components/mente/mente-hub-core';
 import { GLYPH_INVENTORY } from './icon-censo-inventario';
 
 // ─── El árbol que se recorre ────────────────────────────────────────────────
@@ -62,6 +63,7 @@ describe('los registros declaran nombres lógicos, no dibujos', () => {
     ['HOY_CARD_SPECS', HOY_CARD_SPECS],
     ['ALL_BOOLEAN_OPTIONS', ALL_BOOLEAN_OPTIONS],
     ['ALL_QUANT_OPTIONS', ALL_QUANT_OPTIONS],
+    ['ACTIVITY_META', Object.values(ACTIVITY_META)],
   ];
 
   it.each(REGISTROS)('%s: todo icono resuelve en el mapa', (_nombre, entradas) => {
@@ -82,6 +84,7 @@ const REGISTRY_FILES_SIN_IONICON = [
   'src/constants/salud-puertas.ts',
   'src/constants/hoy-cards.ts',
   'src/services/hoy/day-booleans.ts',
+  'src/components/mente/mente-hub-core.ts',
 ];
 
 const REGISTRY_FILES_SIN_EMOJI = [...REGISTRY_FILES_SIN_IONICON, 'src/constants/electrons.ts'];

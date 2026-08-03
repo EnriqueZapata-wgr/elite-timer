@@ -9,10 +9,11 @@
  *   · aparece un uso nuevo → o pasa por <AppIcon> o se agrega aquí, a conciencia.
  *   · desaparece un uso → se poda de aquí (el inventario no arrastra muertos).
  *
- * Divergencias VIVAS inventariadas a conciencia (pendientes de migrar a
- * nombres lógicos, no chrome): las entradas de sparkles-outline, journal-outline
- * y leaf-outline en src/services/mente-streaks-core.ts dibujan categorías de
- * Mente con glifos que en el mapa significan otra función.
+ * Divergencia VIVA inventariada a conciencia (pendiente de migrar a nombres
+ * lógicos, no chrome): las entradas de sparkles-outline, journal-outline y
+ * leaf-outline en src/services/mente-streaks-core.ts dibujan categorías de
+ * Mente con glifos que en el mapa significan otra función. Su gemelo
+ * mente-hub-core.ts ya se migró en NOCTURNO A3.
  */
 export const GLYPH_INVENTORY: readonly string[] = [
   'app/(tabs)/_layout.tsx::grid-outline',
@@ -232,9 +233,6 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'src/components/interventions/MyProtocolCard.tsx::sparkles-outline',
   'src/components/interventions/PrescriptionCard.tsx::moon-outline',
   'src/components/legal/MedicalDisclaimerModal.tsx::medkit-outline',
-  'src/components/mente/mente-hub-core.ts::journal-outline',
-  'src/components/mente/mente-hub-core.ts::leaf-outline',
-  'src/components/mente/mente-hub-core.ts::sparkles-outline',
   'src/components/nutrition/BreakFastGuide.tsx::restaurant-outline',
   'src/components/tests/TestInputScreen.tsx::clipboard-outline',
   'src/components/training/ExerciseClip.tsx::barbell-outline',

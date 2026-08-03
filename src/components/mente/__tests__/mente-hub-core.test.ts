@@ -7,6 +7,7 @@ import {
   ACTIVITY_META,
   type MenteActivity,
 } from '@/src/components/mente/mente-hub-core';
+import { hasAppIcon } from '@/src/components/ui/app-icon-names';
 
 const NOW = new Date('2026-07-10T18:00:00.000Z');
 
@@ -71,5 +72,11 @@ describe('lastActivitySubtitle', () => {
 describe('ACTIVITY_META', () => {
   it('cubre los 4 tipos del ecosistema', () => {
     expect(Object.keys(ACTIVITY_META).sort()).toEqual(['breathing', 'checkin', 'journal', 'meditation']);
+  });
+
+  it('todo icono es un nombre lógico que resuelve en el mapa', () => {
+    for (const m of Object.values(ACTIVITY_META)) {
+      expect(hasAppIcon(m.icon), m.label).toBe(true);
+    }
   });
 });
