@@ -16,7 +16,10 @@
  */
 import type { CardioDiscipline } from '@/src/services/fitness-service';
 
-export type HealthSource = 'health_connect' | 'healthkit';
+/** Valores de `source` que el import puede mandar — el contrato contra el
+ * CHECK de cardio_sessions vive en health-import-source-contract.test.ts. */
+export const HEALTH_SOURCES = ['health_connect', 'healthkit'] as const;
+export type HealthSource = (typeof HEALTH_SOURCES)[number];
 
 /** Entrenamiento normalizado desde la plataforma de salud. */
 export interface NormalizedWorkout {
