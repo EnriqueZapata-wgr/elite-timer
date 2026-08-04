@@ -59,6 +59,18 @@ describe('useTareaGesto — el contrato invertido (MB-20.4)', () => {
     expect(largo.indexOf('haptic')).toBeGreaterThan(guard);
   });
 
+  it('Pieza 3: la vibración del umbral suena ANTES de navegar', () => {
+    const largo = cuerpo('handleLongPress');
+    expect(largo.indexOf('haptic.')).toBeLessThan(largo.indexOf('onNavigate(tarea)'));
+  });
+
+  it('Pieza 3: palomear vibra al instante, y deshacer no celebra', () => {
+    const press = cuerpo('handlePress');
+    // La vibración va antes del toggle, y el despalomeo usa la suave.
+    expect(press.indexOf('haptic.')).toBeLessThan(press.indexOf('onPalomear(tarea)'));
+    expect(press).toMatch(/if \(tarea\.completed\) haptic\.light\(\);\s*\n\s*else haptic\.success\(\)/);
+  });
+
   it('el llenado de 350 ms está muerto: era la señal del gesto viejo', () => {
     expect(hook).not.toContain('useSharedValue');
     expect(hook).not.toContain('withTiming');

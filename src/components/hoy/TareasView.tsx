@@ -243,13 +243,17 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   const pctGlobal = result.global.total > 0 ? result.global.done / result.global.total : 0;
 
   // ── MB-20.1 · Pieza 1: la lente TAREAS con piel editorial ──
-  // Al palomear, la card encoge hasta su renglón y VIAJA al bloque de hechas
-  // con la transición de layout de la sala ATP. Para que reanimated anime el
-  // viaje, todos los elementos viven PLANOS bajo un mismo padre con llave
-  // estable (un wrapper por bloque rompería la continuidad del instance).
+  // MB-20.4 · Pieza 3: este viaje ES la confirmación del palomeo. Con el tap
+  // no hay hold ni llenado: al palomear, la card encoge hasta su renglón y
+  // VIAJA al bloque de hechas (imposible no verlo); al despalomear desde
+  // HECHAS, el camino inverso. En AGENDA, que no reordena, confirman la
+  // paloma pintada y la fila atenuada. Para que reanimated anime el viaje,
+  // todos los elementos viven PLANOS bajo un mismo padre con llave estable
+  // (un wrapper por bloque rompería la continuidad del instance).
   // Con reduce motion NO hay transición de layout (undefined), no "una más
   // sobria": LinearTransition pelón seguía animando 300 ms y el código decía
-  // una cosa haciendo otra (nota del audit MB-20.2).
+  // una cosa haciendo otra (nota del audit MB-20.2). La confirmación queda
+  // en la vibración y el cambio de estado instantáneo.
   const rowLayout = reducedMotion ? undefined : LinearTransition.springify().damping(18);
   const hoy = getLocalToday();
   const seedBase = `${userId ?? ''}-${hoy}`;

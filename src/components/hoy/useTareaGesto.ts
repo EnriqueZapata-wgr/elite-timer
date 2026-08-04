@@ -49,14 +49,19 @@ export function useTareaGesto(
     // Sin ruta no hay a dónde ir: el tap largo no hace nada — tampoco vibra
     // como si fuera a pasar algo (MB-20.2 · 2.5, navegación honesta).
     if (!tarea.route) return;
-    haptic.light();
+    // Pieza 3: vibración al cruzar el umbral, ANTES de navegar. Sin el
+    // llenado viejo, esta es la única señal de que el hold registró algo.
+    haptic.medium();
     onNavigate(tarea);
   }
 
   function handlePress() {
     if (consumedRef.current) { consumedRef.current = false; return; }
     if (tarea.gesto === 'palomear') {
-      haptic.success();
+      // Pieza 3: la vibración es la mitad de la confirmación; la otra mitad
+      // es el viaje de la card a HECHAS (TareasView). Deshacer no celebra.
+      if (tarea.completed) haptic.light();
+      else haptic.success();
       onPalomear(tarea);
       return;
     }
