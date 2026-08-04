@@ -6,8 +6,9 @@
  * nombre va tachado y el dato de cierre queda a la derecha. Así el bloque
  * HECHAS se lee como una cinta de colores del día.
  *
- * Los gestos son los de siempre (useTareaGesto): tap navega, tap largo
- * destacha si la tarea es palomeable. Nada de comportamiento nuevo.
+ * Los gestos son los del contrato único (useTareaGesto, invertido en
+ * MB-20.4): un toque destacha si la tarea es palomeable — deshacer cuesta
+ * lo mismo que hacer (Pieza 4.1) — y el tap largo navega a la función.
  */
 import { Pressable, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -24,23 +25,23 @@ interface Props {
   /** Dato de cierre ("12 min", "5.2 km · 32 min", "3 de 5"). Sin él, solo
    * el nombre tachado — nunca el electrón (+2 e-), que es economía. */
   dato?: string;
-  reducedMotion?: boolean;
+  /** Tap largo: navegar a la función. */
   onNavigate: (t: Tarea) => void;
+  /** Tap simple: destachar (si es palomeable). */
   onPalomear: (t: Tarea) => void;
   onExperiencia: (t: Tarea) => void;
 }
 
 export function TareaHechaRow({
-  tarea, sectionColor, dato, reducedMotion, onNavigate, onPalomear, onExperiencia,
+  tarea, sectionColor, dato, onNavigate, onPalomear, onExperiencia,
 }: Props) {
-  const { handlePress, handlePressIn, handlePressOut, handleLongPress } =
-    useTareaGesto(tarea, reducedMotion, { onNavigate, onPalomear, onExperiencia });
+  const { handlePress, handlePressIn, handleLongPress } =
+    useTareaGesto(tarea, { onNavigate, onPalomear, onExperiencia });
 
   return (
     <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       onLongPress={handleLongPress}
       delayLongPress={LONG_PRESS_MS}
       accessibilityRole="button"

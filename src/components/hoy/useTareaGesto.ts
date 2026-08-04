@@ -1,71 +1,60 @@
 /**
- * useTareaGesto (MB-20.1) — el contrato de gestos de una tarea, extraído
- * VERBATIM de TareaRow para que la fila, la card editorial y el renglón de
- * hechas compartan exactamente la misma mecánica (MB-20 Pieza 1):
+ * useTareaGesto (MB-20.1) — el contrato de gestos de una tarea, compartido
+ * por la fila, la card editorial y el renglón de hechas: una sola mecánica
+ * en un solo lugar.
  *
- *   · Tap simple NAVEGA a la función.
- *   · Tap largo PALOMEA (o pregunta, si es experiencia) con llenado
- *     progresivo ~350 ms; soltar antes revierte el llenado.
- *   · Con reduce motion el llenado se omite; el tap largo sigue funcionando.
+ * MB-20.4 · Pieza 1 — EL GESTO SE INVIERTE (decisión de Enrique; revierte la
+ * arquitectura V2). HOY es un checklist: la acción principal es palomear y
+ * pagaba el gesto caro (hold de 350 ms, diecisiete veces al día); navegar es
+ * la secundaria y tenía el gesto barato. Ahora:
  *
- * Esto es una extracción, no un cambio: el comportamiento es el de MB-20.
+ *   · Tap simple PALOMEA (o pregunta, si es experiencia). En hechas, el
+ *     mismo tap despalomea: deshacer cuesta lo mismo que hacer (Pieza 4.1).
+ *   · Tap largo NAVEGA a la función. Sin ruta (ELECTRONS_SIN_APP) no hace
+ *     nada: cero puertas a lugares que no existen.
+ *
+ * El llenado progresivo de 350 ms murió con el hold-palomea: enseñaba el
+ * gesto viejo. La retroalimentación nueva vive en la Pieza 3: vibración
+ * inmediata + el viaje de la card a HECHAS para el tap; vibración al cruzar
+ * el umbral para el tap largo.
  */
 import { useRef } from 'react';
-import {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  cancelAnimation,
-} from 'react-native-reanimated';
 import { haptic } from '@/src/utils/haptics';
 import type { Tarea } from '@/src/services/hoy/tareas-core';
 
 export const LONG_PRESS_MS = 350;
 
 export interface TareaGestoCallbacks {
-  /** Tap simple: navegar a la función. */
+  /** Tap largo: navegar a la función. */
   onNavigate: (t: Tarea) => void;
-  /** Tap largo en fila palomeable (toggle on/off). */
+  /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
-  /** Tap largo en experiencia: abre la paloma inteligente. */
+  /** Tap simple en experiencia pendiente: abre la paloma inteligente. */
   onExperiencia: (t: Tarea) => void;
 }
 
 export function useTareaGesto(
   tarea: Tarea,
-  reducedMotion: boolean | undefined,
   { onNavigate, onPalomear, onExperiencia }: TareaGestoCallbacks,
 ) {
-  const fill = useSharedValue(0);
   // El tap largo consumió este ciclo de press: el onPress del release se ignora.
   const consumedRef = useRef(false);
 
-  const llenable = !tarea.completed && (tarea.gesto === 'palomear' || tarea.gesto === 'experiencia');
-  const destachable = tarea.completed && tarea.gesto === 'palomear';
-
-  const fillStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: fill.value }],
-    opacity: fill.value,
-  }));
-
   function handlePressIn() {
     consumedRef.current = false;
-    if (reducedMotion) return;
-    if (llenable || destachable) {
-      fill.value = withTiming(1, { duration: LONG_PRESS_MS });
-    }
-  }
-
-  function handlePressOut() {
-    if (!consumedRef.current) {
-      cancelAnimation(fill);
-      fill.value = withTiming(0, { duration: 150 });
-    }
   }
 
   function handleLongPress() {
     consumedRef.current = true;
-    fill.value = 0;
+    // Sin ruta no hay a dónde ir: el tap largo no hace nada — tampoco vibra
+    // como si fuera a pasar algo (MB-20.2 · 2.5, navegación honesta).
+    if (!tarea.route) return;
+    haptic.light();
+    onNavigate(tarea);
+  }
+
+  function handlePress() {
+    if (consumedRef.current) { consumedRef.current = false; return; }
     if (tarea.gesto === 'palomear') {
       haptic.success();
       onPalomear(tarea);
@@ -76,21 +65,9 @@ export function useTareaGesto(
       onExperiencia(tarea);
       return;
     }
-    // navegar / inline / experiencia completada: el tap largo nunca regala
-    // un check — se comporta como el tap.
-    if (!tarea.route) return;
-    haptic.light();
-    onNavigate(tarea);
+    // navegar / inline / experiencia completada: el tap nunca navega ni
+    // regala un check — la navegación vive en el tap largo.
   }
 
-  function handlePress() {
-    if (consumedRef.current) { consumedRef.current = false; return; }
-    // MB-20.2 · 2.5: una tarea sin ruta no navega a ningún lado — tampoco
-    // vibra como si fuera a pasar algo. Solo responde al tap largo.
-    if (!tarea.route) return;
-    haptic.light();
-    onNavigate(tarea);
-  }
-
-  return { fillStyle, handlePress, handlePressIn, handlePressOut, handleLongPress };
+  return { handlePress, handlePressIn, handleLongPress };
 }

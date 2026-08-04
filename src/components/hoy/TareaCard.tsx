@@ -2,9 +2,10 @@
  * TareaCard (MB-20.1 · Pieza 1) — la card editorial de una tarea pendiente.
  *
  * Piel, no esqueleto: el contrato de gestos es EXACTAMENTE el de TareaRow
- * (useTareaGesto): tap simple navega, tap largo palomea o abre la paloma
- * inteligente, con el llenado progresivo de ~350 ms en el círculo y reversa
- * al soltar. Lo único nuevo es cómo se ve.
+ * (useTareaGesto, invertido en MB-20.4): tap simple palomea o abre la
+ * paloma inteligente; tap largo navega a la función. La confirmación del
+ * tap es el viaje de la card al bloque de HECHAS (Pieza 3). Lo único
+ * propio de esta card es cómo se ve.
  *
  * Receta visual = el molde editorial de siempre (EditorialCard): foto de
  * fondo + degradado diagonal del COLOR DE SECCIÓN (APP_SECTION_COLORS) +
@@ -13,7 +14,6 @@
  * atenúa el texto). Sin foto cae al placeholder de degradado con glifo.
  */
 import { Pressable, View, StyleSheet, type ImageSourcePropType } from 'react-native';
-import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
@@ -34,26 +34,27 @@ interface Props {
   dato?: string;
   /** Badge superior (el héroe de AGENDA lleva "AHORA"). */
   badge?: string;
-  reducedMotion?: boolean;
+  /** Tap largo: navegar a la función. */
   onNavigate: (t: Tarea) => void;
+  /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
+  /** Tap simple en experiencia: abre la paloma inteligente. */
   onExperiencia: (t: Tarea) => void;
   /** Acción inline (hidratación +250 ml), el mismo handler de la fila. */
   onInline?: (t: Tarea) => void;
 }
 
 export function TareaCard({
-  tarea, sectionColor, image, dato, badge, reducedMotion,
+  tarea, sectionColor, image, dato, badge,
   onNavigate, onPalomear, onExperiencia, onInline,
 }: Props) {
-  const { fillStyle, handlePress, handlePressIn, handlePressOut, handleLongPress } =
-    useTareaGesto(tarea, reducedMotion, { onNavigate, onPalomear, onExperiencia });
+  const { handlePress, handlePressIn, handleLongPress } =
+    useTareaGesto(tarea, { onNavigate, onPalomear, onExperiencia });
 
   return (
     <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       onLongPress={handleLongPress}
       delayLongPress={LONG_PRESS_MS}
       accessibilityRole="button"
@@ -97,10 +98,9 @@ export function TareaCard({
 
       <View style={s.content}>
         <View style={s.topRow}>
-          {/* El mismo círculo palomeable de la fila, con su llenado. */}
-          <View style={s.check}>
-            <Animated.View style={[s.checkFill, fillStyle]} />
-          </View>
+          {/* El mismo círculo palomeable de la fila: vacío hasta que el tap
+              lo llena de golpe y la card viaja a HECHAS (MB-20.4). */}
+          <View style={s.check} />
           <View style={s.topRight}>
             {badge ? (
               <View style={s.badge}><EliteText style={s.badgeText}>{badge}</EliteText></View>
@@ -157,15 +157,6 @@ const s = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.8)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  checkFill: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: ATP_BRAND.lime,
   },
   badge: {
     backgroundColor: ATP_BRAND.lime,

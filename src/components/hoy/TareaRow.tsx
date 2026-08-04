@@ -2,21 +2,18 @@
  * TareaRow — una fila del checklist del día (MB-20 Pieza 1).
  *
  * Los dos gestos, que son el corazón de la pieza, viven en useTareaGesto
- * (MB-20.1 los extrajo SIN cambiarlos para compartirlos con la card
- * editorial y el renglón de hechas):
- *   · Tap simple NAVEGA a la función.
- *   · Tap largo PALOMEA (o pregunta, si es experiencia) con retroalimentación
- *     en tres capas: el círculo se llena progresivamente (~350 ms), vibración
- *     al completarse, y la fila se atenúa. Soltar antes revierte el llenado.
- *
- * Con reduce motion el llenado se omite; el tap largo sigue funcionando.
+ * (un solo lugar para la fila, la card editorial y el renglón de hechas).
+ * MB-20.4 los invirtió:
+ *   · Tap simple PALOMEA (o pregunta, si es experiencia): vibración
+ *     inmediata y la fila se atenúa con su paloma puesta.
+ *   · Tap largo NAVEGA a la función, con vibración al cruzar el umbral.
+ *     Sin ruta, no hace nada.
  *
  * MB-20.1 (Pieza 2): la fila sigue compacta (AGENDA es la lente que se
  * opera); el mosaico del icono lleva el degradado de su sección
- * (accentColor desde APP_SECTION_COLORS). El gesto es el mismo de siempre.
+ * (accentColor desde APP_SECTION_COLORS).
  */
 import { Pressable, View, StyleSheet } from 'react-native';
-import Animated from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
@@ -33,24 +30,23 @@ export { LONG_PRESS_MS };
 interface Props {
   tarea: Tarea;
   lens: 'tareas' | 'agenda';
-  reducedMotion?: boolean;
   /** MB-20.1: color de sección (APP_SECTION_COLORS). Sin él, el de la tarea. */
   accentColor?: string;
-  /** Tap simple: navegar a la función. */
+  /** Tap largo: navegar a la función. */
   onNavigate: (t: Tarea) => void;
-  /** Tap largo en fila palomeable (toggle on/off). */
+  /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
-  /** Tap largo en experiencia: abre la paloma inteligente. */
+  /** Tap simple en experiencia: abre la paloma inteligente. */
   onExperiencia: (t: Tarea) => void;
   /** Acción inline (hidratación +250 ml). */
   onInline?: (t: Tarea) => void;
 }
 
 export function TareaRow({
-  tarea, lens, reducedMotion, accentColor, onNavigate, onPalomear, onExperiencia, onInline,
+  tarea, lens, accentColor, onNavigate, onPalomear, onExperiencia, onInline,
 }: Props) {
-  const { fillStyle, handlePress, handlePressIn, handlePressOut, handleLongPress } =
-    useTareaGesto(tarea, reducedMotion, { onNavigate, onPalomear, onExperiencia });
+  const { handlePress, handlePressIn, handleLongPress } =
+    useTareaGesto(tarea, { onNavigate, onPalomear, onExperiencia });
 
   const accent = accentColor || tarea.color || ATP_BRAND.lime;
 
@@ -58,7 +54,6 @@ export function TareaRow({
     <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       onLongPress={handleLongPress}
       delayLongPress={LONG_PRESS_MS}
       accessibilityRole="button"
@@ -69,15 +64,14 @@ export function TareaRow({
         <EliteText style={s.time}>{tarea.time}</EliteText>
       )}
 
-      {/* Círculo palomeable con llenado progresivo */}
+      {/* Círculo palomeable: vacío pendiente, paloma al completar (el tap
+          lo llena de golpe — ya no hay llenado progresivo, MB-20.4). */}
       <View style={[s.check, { borderColor: tarea.completed ? ATP_BRAND.lime : withOpacity('#FFFFFF', 0.25) }]}>
         {tarea.completed ? (
           <View style={s.checkDone}>
             <Ionicons name="checkmark" size={13} color="#000" />
           </View>
-        ) : (
-          <Animated.View style={[s.checkFill, fillStyle]} />
-        )}
+        ) : null}
       </View>
 
       {/* Mosaico del icono con el degradado de su sección (MB-20.1 · 2.3) */}
@@ -146,12 +140,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  checkFill: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: ATP_BRAND.lime,
   },
   checkDone: {
     width: 24,

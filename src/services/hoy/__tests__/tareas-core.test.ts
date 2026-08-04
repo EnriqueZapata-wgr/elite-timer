@@ -257,7 +257,7 @@ describe('routeForBool (MB-20.2 · 2.5)', () => {
     }
   });
 
-  it('la tarea compilada refleja la regla (sin ruta ⇒ ni el tap navega)', () => {
+  it('la tarea compilada refleja la regla (sin ruta ⇒ ni el tap largo navega)', () => {
     const r = buildTareas(
       {
         booleanElectrons: [boolE('sunlight'), boolE('cold_shower'), boolE('no_alcohol'), boolE('red_glasses')],

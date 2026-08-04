@@ -237,7 +237,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   }, [userId]);
 
   const rowProps = {
-    reducedMotion,
     onNavigate: handleNavigate,
     onPalomear: handlePalomear,
     onExperiencia: setSmartTarea,
@@ -275,7 +274,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               tarea={t}
               sectionColor={colorDeSeccion(t)}
               dato={datoCierreForTarea(t, day.datosVivos, hoy)}
-              reducedMotion={reducedMotion}
               onNavigate={handleNavigate}
               onPalomear={handlePalomear}
               onExperiencia={setSmartTarea}
@@ -304,7 +302,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               sectionColor={colorDeSeccion(t)}
               image={tareaImage(t.key, `${seedBase}-${t.key}`)}
               dato={datoForTarea(t, uvMini, day.datosVivos, hoy)}
-              reducedMotion={reducedMotion}
               onNavigate={handleNavigate}
               onPalomear={handlePalomear}
               onExperiencia={setSmartTarea}
@@ -367,7 +364,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               image={tareaImage(heroTarea.key, `${seedBase}-${heroTarea.key}`)}
               dato={datoForTarea(heroTarea, uvMini, day.datosVivos, hoy)}
               badge="AHORA"
-              reducedMotion={reducedMotion}
               onNavigate={handleNavigate}
               onPalomear={handlePalomear}
               onExperiencia={setSmartTarea}
