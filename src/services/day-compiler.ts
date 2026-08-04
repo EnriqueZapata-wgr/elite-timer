@@ -4,7 +4,6 @@
  * compileDay() recopila todos los datos del día (protocolos, electrones,
  * nutrición, ayuno, etc.) y devuelve un objeto unificado listo para renderizar.
  */
-import type { Href } from 'expo-router';
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, getLocalHour, toLocalDateString } from '@/src/utils/date-helpers';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
@@ -20,6 +19,13 @@ import { INTERVENTIONS_DRIVE_HOY } from '@/src/constants/flags';
 import { selectAgendaDrivers, anchorTimes, interventionAgendaItems, canonicalConcept } from '@/src/services/interventions/intervention-agenda-core';
 import { getMyProtocol, getTodayCompletions, getChronotypeSchedule } from '@/src/services/interventions/intervention-service';
 import { buildDoneIndex, applyDoneFromLogs } from '@/src/services/hoy/day-state-core';
+import { supplementsTodayProgress } from '@/src/services/supplements-adherence-core';
+// MB-20.3 P3: el seguro del reconcile — evidencia tri-estado y plan, puros.
+import {
+  evidenciaDeConteo, evidenciaDeUltimaFecha, planReconcile, type Evidencia,
+} from '@/src/services/hoy/reconcile-core';
+// MB-20.2 · Pieza 2: el dato de verdad de cada card. Import type: se borra al compilar.
+import type { DatosVivos } from '@/src/services/hoy/tareas-editorial-core';
 
 // MB-5: listas de booleanos/verificados extraídas a módulo PURO (testeable sin
 // supabase) — el patrón "3 lugares" tiene regresión en day-booleans.test.ts.
@@ -46,6 +52,8 @@ export interface CompiledDay {
   quantitativeElectrons: QuantElectronState[];
   suggestion: Suggestion | null;
   agendaItems: AgendaItem[];
+  /** MB-20.2 · Pieza 2: el dato de verdad de cada card (de las mismas queries). */
+  datosVivos: DatosVivos;
 }
 
 export interface BoolElectronState {
@@ -55,8 +63,8 @@ export interface BoolElectronState {
   color: string;
   weight: number;
   completed: boolean;
-  description: string;
-  pillarRoute: Href;
+  // MB-20.3 P5.3: description y pillarRoute salieron — su único consumidor
+  // era HoyEditorialSection.tsx, huérfano desde MB-20.1 (borrado con ellos).
 }
 
 export interface QuantElectronState {
@@ -136,14 +144,6 @@ const ELECTRON_DESCRIPTIONS: Record<string, string> = {
   period_log: 'Registrar tu ciclo ayuda a entender patrones.',
 };
 
-const ELECTRON_ROUTES: Record<string, Href> = {
-  sunlight: '/my-health', meditation: '/meditation', supplements: '/supplements',
-  cold_shower: '/my-health', grounding: '/my-health', no_alcohol: '/nutrition',
-  strength: '/fitness-hub', breathwork: '/breathing', red_glasses: '/my-health',
-  period_log: '/cycle', checkin: '/checkin', journal: '/journal',
-  nback: '/mente/nback',
-};
-
 const TIME_WINDOWS: Record<string, [number, number]> = {
   sunlight: [6, 10], meditation: [6, 9], supplements: [7, 9],
   strength: [8, 18], breathwork: [6, 22], cold_shower: [6, 12],
@@ -171,8 +171,8 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   // electrones verificados — ver VERIFIED_ELECTRON_KEYS).
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
-    meditationCountRes, breathingCountRes, exerciseCountRes, supplementCountRes, cycleLogCountRes,
-    cardioCountRes, journalCountRes, nbackCountRes,
+    meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, suppTakenCountRes, cycleLogCountRes,
+    lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -184,7 +184,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     supabase.from('emotional_checkins').select('pleasantness, quadrant, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('glucose_logs').select('value_mg_dl, context, created_at').eq('user_id', userId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
-    // Conteo de actividad real del día para los electrones verificados.
+    // Actividad real del día para los electrones verificados.
     // Delta economía 2026-07-23: meditación/breathwork ya NO cuentan
     // mind_sessions (una sesión <80% se registra pero no palomea) — la card se
     // marca con el 1er e- del día en electron_logs (award gateado por ≥80% en
@@ -193,40 +193,120 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
       .eq('user_id', userId).eq('date', today).eq('source', 'meditation').eq('category', 'boolean_daily'),
     supabase.from('electron_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today).eq('source', 'breathwork').eq('category', 'boolean_daily'),
-    supabase.from('exercise_logs').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today),
+    // MB-20.2 · Pieza 2: estas queries eran conteos head:true que tiraban el
+    // dato. Ahora la MISMA consulta trae la última fila: `completed` se deriva
+    // de si esa fila es de hoy, y la card gana su dato vivo. Cero round trips
+    // extra (salvo mind_sessions, la única consulta nueva del run).
+    // MB-20.3 P1: exercise_logs.date es nullable sin default (045:38) y en
+    // producción la mitad de las filas son nulas. ORDER BY date DESC pone
+    // NULLS FIRST: una sola fila nula se lleva el limit(1), `strength` da
+    // false siempre y el reconcile borra el e- del día. Los nulos NO son
+    // evidencia de nada → fuera de la consulta.
+    supabase.from('exercise_logs').select('date')
+      .eq('user_id', userId).not('date', 'is', null)
+      .order('date', { ascending: false }).limit(1).maybeSingle(),
+    // Suplementos — DOS preguntas que nunca debieron ser una (MB-20.3 P2):
+    // 1) El embed de ACTIVOS alimenta la CARD ("X de Y tomados", criterio de
+    //    /supplements). Solo presentación.
+    supabase.from('user_supplements')
+      .select('id, dose_times, supplement_logs(supplement_id, dose_index, taken)')
+      .eq('user_id', userId).eq('is_active', true).eq('supplement_logs.date', today),
+    // 2) El LEDGER pregunta si TE LO TOMASTE: cualquier log taken=true de hoy,
+    //    aunque después desactivaras ese suplemento. En producción hay 143 logs
+    //    tomados de suplementos hoy inactivos — con el filtro de activos como
+    //    única fuente, `completed` caía a false y el reconcile borraba el e-.
     supabase.from('supplement_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today).eq('taken', true),
     supabase.from('cycle_daily_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', userId).eq('date', today),
-    // #v13e 3.A.3: ¿hubo ≥1 sesión de cardio hoy? → card CARDIO verificada palomea.
-    supabase.from('cardio_sessions').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today),
-    // #17: ¿hubo ≥1 entrada de journal hoy? → card JOURNAL verificada palomea.
-    supabase.from('journal_entries').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today),
-    // N-Back: ¿≥1 round completado hoy? → card N-BACK verificada palomea.
-    supabase.from('nback_sessions').select('id', { count: 'exact', head: true })
-      .eq('user_id', userId).eq('date', today).not('completed_at', 'is', null),
+    // #v13e 3.A.3: cardio verificado — la última sesión trae distancia y tiempo.
+    supabase.from('cardio_sessions').select('date, distance_meters, duration_seconds')
+      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
+    // #17: journal verificado — la última entrada da la recencia de la card.
+    supabase.from('journal_entries').select('date')
+      .eq('user_id', userId).order('date', { ascending: false }).limit(1).maybeSingle(),
+    // N-Back: la última partida completada trae su nivel.
+    // MB-20.3 P1: nback_sessions.date también es nullable sin default (218:23).
+    // Hoy no hay nulos en producción, pero es la misma bomba que exercise_logs:
+    // se desactiva igual, antes de que detone.
+    // MB-20.3 P5.2: se ordena por el MISMO campo que decide (`date`, el día
+    // LOCAL del cliente) — ordenar por completed_at desalineaba una sesión
+    // que cruza medianoche. completed_at solo desempata dentro del día.
+    supabase.from('nback_sessions').select('date, n_level')
+      .eq('user_id', userId).not('completed_at', 'is', null).not('date', 'is', null)
+      .order('date', { ascending: false }).order('completed_at', { ascending: false })
+      .limit(1).maybeSingle(),
+    // La ÚNICA consulta nueva del run (2.3): minutos de la última meditación.
+    supabase.from('mind_sessions').select('date, duration_seconds')
+      .eq('user_id', userId).eq('type', 'meditation')
+      .order('date', { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
 
-  // Para los verificados: derivar `completed` de actividad real, NO del blob.
+  // Suplementos con multi-dosis: total/tomadas por el core puro (MB-2/188).
+  // supabase-js no lanza en 4xx: si el embed falla se loguea y cae a {0,0}.
+  if (suppRes.error) logWarn('[compileDay] user_supplements embed failed', suppRes.error);
+  const suppRows = (suppRes.data ?? []) as {
+    id: string; dose_times?: string[] | null;
+    supplement_logs?: { supplement_id: string; dose_index?: number | null; taken: boolean }[];
+  }[];
+  const suppProgress = supplementsTodayProgress(
+    suppRows,
+    suppRows.flatMap((s) => s.supplement_logs ?? []),
+  );
+
+  // Para los verificados: derivar la EVIDENCIA de actividad real, NO del blob.
+  // MB-20.3 P3: tres estados, no dos. Una consulta que falla o trae una fila
+  // ilegible es 'no_se_sabe' — y con no_se_sabe el reconcile no toca el
+  // ledger (la ausencia de evidencia no es evidencia de ausencia).
   // checkin: el último emotional_checkin (moodRes) es de HOY (no requiere query extra).
   const lastCheckinDate = (moodRes.data as any)?.created_at
     ? toLocalDateString(new Date((moodRes.data as any).created_at))
     : null;
-  const verifiedCompleted: Record<string, boolean> = {
-    meditation: (meditationCountRes.count ?? 0) >= 1,
-    breathwork: (breathingCountRes.count ?? 0) >= 1,
-    strength: (exerciseCountRes.count ?? 0) >= 1,
-    supplements: (supplementCountRes.count ?? 0) >= 1,
-    period_log: (cycleLogCountRes.count ?? 0) >= 1,
-    checkin: lastCheckinDate === today,
-    cardio: (cardioCountRes.count ?? 0) >= 1, // #v13e 3.A.3
-    journal: (journalCountRes.count ?? 0) >= 1, // #17: derivado de journal_entries, no del blob
-    nback: (nbackCountRes.count ?? 0) >= 1, // ≥1 round completado hoy
+  const verifiedEvidencia: Record<string, Evidencia> = {
+    meditation: evidenciaDeConteo(meditationCountRes),
+    breathwork: evidenciaDeConteo(breathingCountRes),
+    strength: evidenciaDeUltimaFecha(lastExerciseRes, (lastExerciseRes.data as any)?.date, today),
+    // MB-20.3 P2: del count directo, NO de suppProgress (que filtra activos y
+    // es asunto de la card). Si te lo tomaste, te lo tomaste.
+    supplements: evidenciaDeConteo(suppTakenCountRes),
+    period_log: evidenciaDeConteo(cycleLogCountRes),
+    checkin: evidenciaDeUltimaFecha(moodRes, lastCheckinDate, today),
+    cardio: evidenciaDeUltimaFecha(lastCardioRes, (lastCardioRes.data as any)?.date, today), // #v13e 3.A.3
+    journal: evidenciaDeUltimaFecha(lastJournalRes, (lastJournalRes.data as any)?.date, today), // #17
+    nback: evidenciaDeUltimaFecha(lastNbackRes, (lastNbackRes.data as any)?.date, today), // ≥1 round hoy
+  };
+
+  // MB-20.2 · Pieza 2: el dato de verdad de cada card, de las filas que las
+  // queries de arriba ya traen. Campo null = sin dato → card sin línea de dato.
+  const datosVivos: DatosVivos = {
+    supplements: suppProgress.total > 0 ? suppProgress : null,
+    strength: (lastExerciseRes.data as any)?.date
+      ? { lastDate: (lastExerciseRes.data as any).date }
+      : null,
+    cardio: (lastCardioRes.data as any)?.date
+      ? {
+          lastDate: (lastCardioRes.data as any).date,
+          distanceMeters: (lastCardioRes.data as any).distance_meters,
+          durationSeconds: (lastCardioRes.data as any).duration_seconds,
+        }
+      : null,
+    journal: (lastJournalRes.data as any)?.date
+      ? { lastDate: (lastJournalRes.data as any).date }
+      : null,
+    nback: (lastNbackRes.data as any)?.date
+      ? { lastDate: (lastNbackRes.data as any).date, nLevel: (lastNbackRes.data as any).n_level }
+      : null,
+    checkin: lastCheckinDate
+      ? { lastDate: lastCheckinDate, quadrant: (moodRes.data as any)?.quadrant }
+      : null,
+    meditation: (lastMindRes.data as any)?.date
+      ? {
+          lastDate: (lastMindRes.data as any).date,
+          durationSeconds: (lastMindRes.data as any).duration_seconds,
+        }
+      : null,
   };
 
   const biologicalSex = (clientProfileRes.data as any)?.biological_sex ?? null;
@@ -308,9 +388,11 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     .filter(k => !FEMALE_ONLY_ELECTRONS.has(k) || biologicalSex === 'female')
     .map(k => {
       const cfg = (ELECTRON_WEIGHTS as any)[k];
-      // Para los 4 verificados, `completed` viene de actividad real (no del blob).
-      // El blob para estos keys queda vestigial — se ignora aquí.
-      const completed = k in verifiedCompleted ? verifiedCompleted[k] : boolStates[k] === true;
+      // Para los verificados, `completed` viene de actividad real (no del blob).
+      // El blob para estos keys queda vestigial — se ignora aquí. La card solo
+      // palomea con evidencia positiva; 'no_se_sabe' pinta pendiente, pero el
+      // ledger no se toca (esa es la diferencia con el modelo de dos estados).
+      const completed = k in verifiedEvidencia ? verifiedEvidencia[k] === 'hecho' : boolStates[k] === true;
       return {
         source: k,
         name: cfg.name,
@@ -318,8 +400,6 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
         color: cfg.color,
         weight: cfg.weight,
         completed,
-        description: ELECTRON_DESCRIPTIONS[k] ?? '',
-        pillarRoute: ELECTRON_ROUTES[k] ?? '/kit',
       };
     });
 
@@ -331,7 +411,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   // award del reconcile brincaría el gate de ≥80%; además el revoke borraría
   // los 3 e- del día de un source capeado.
   // Fire-and-forget: no bloquea el compile si la reconciliación falla.
-  const { meditation: _m, breathwork: _b, ...reconcilable } = verifiedCompleted;
+  const { meditation: _m, breathwork: _b, ...reconcilable } = verifiedEvidencia;
   reconcileVerifiedLedger(userId, today, reconcilable).catch(e => {
     logWarn('[compileDay] reconcileVerifiedLedger failed', e);
   });
@@ -384,7 +464,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     greeting, date, userName, protocol,
     electronProgress: { earned, possible, percentage },
     nextElectron, booleanElectrons, quantitativeElectrons,
-    suggestion, agendaItems,
+    suggestion, agendaItems, datosVivos,
   };
 }
 
@@ -392,16 +472,18 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
 
 /**
  * Para los electrones verificados, alinea `electron_logs` con la actividad
- * real del día. Solo escribe cuando hay desajuste (raro): si el usuario
- * completó la actividad pero no hay log → award; si el log existe pero la
- * actividad fue borrada → revoke. Ambos helpers son idempotentes.
+ * real del día. Solo escribe cuando hay desajuste (raro): actividad real sin
+ * log → award; evidencia POSITIVA de ausencia con log presente → revoke.
+ * Con 'no_se_sabe' (consulta rota, fila ilegible) el ledger no se toca:
+ * el dato del usuario gana. La decisión vive en planReconcile (pura, con
+ * test de mutación); aquí solo se ejecuta y se deja rastro.
  */
 async function reconcileVerifiedLedger(
   userId: string,
   date: string,
-  desired: Record<string, boolean>,
+  evidencias: Record<string, Evidencia>,
 ): Promise<void> {
-  const keys = Object.keys(desired);
+  const keys = Object.keys(evidencias);
   if (keys.length === 0) return;
   const { data, error } = await supabase
     .from('electron_logs')
@@ -410,16 +492,24 @@ async function reconcileVerifiedLedger(
     .eq('date', date)
     .in('source', keys);
   if (error) {
+    // Sin lectura confiable del ledger tampoco hay reconcile: salir sin tocar.
     logWarn('[compileDay] reconcile select failed', error);
     return;
   }
   const awarded = new Set((data ?? []).map((r: any) => r.source as string));
-  for (const [src, completed] of Object.entries(desired)) {
-    if (completed && !awarded.has(src)) {
-      await awardBooleanElectron(userId, src as ElectronSource);
-    } else if (!completed && awarded.has(src)) {
-      await revokeBooleanElectron(userId, src as ElectronSource);
-    }
+  const plan = planReconcile(evidencias, awarded);
+  for (const src of plan.award) {
+    await awardBooleanElectron(userId, src as ElectronSource);
+  }
+  for (const src of plan.revoke) {
+    // Toda revocación deja rastro (llave + motivo): si un día volvemos a
+    // borrar electrones sin querer, que se pueda ver en Sentry/console.
+    logWarn('[reconcile] revoca electrón', {
+      source: src,
+      date,
+      motivo: 'evidencia positiva de ausencia (no_hecho) con log presente',
+    });
+    await revokeBooleanElectron(userId, src as ElectronSource);
   }
 }
 
@@ -440,7 +530,8 @@ function pickNextElectron(bools: BoolElectronState[], quants: QuantElectronState
 
   if (pending.length > 0) {
     const n = pending[0];
-    return { source: n.source, name: n.name, description: n.description, weight: n.weight, icon: n.icon, color: n.color };
+    // P5.3: la descripción vive en el mapa, ya no viaja en cada BoolElectronState.
+    return { source: n.source, name: n.name, description: ELECTRON_DESCRIPTIONS[n.source] ?? '', weight: n.weight, icon: n.icon, color: n.color };
   }
 
   const pq = quants.filter(e => e.current < e.target).sort((a, b) => (a.current / a.target) - (b.current / b.target));

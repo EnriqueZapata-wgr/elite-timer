@@ -24,14 +24,34 @@
  * assets que app.json exige como PNG (icon, splash, adaptive-icon, favicon).
  * Después de correrlo hay que recablear los require() a '.webp' — el test
  * assets-references verifica que ninguna referencia quede rota.
+ *
+ * GUARD GENERACIONAL (MB-20.3 P5.1): el skip por tamaño no frena una
+ * re-corrida — 7 de los 11 JPEG quedaron arriba de 200KB y cada corrida los
+ * re-encodeaba q85 sobre q85 (pérdida acumulada que el guard de "solo si
+ * bajó" no detiene, porque cada re-encode baja unos KB). Ahora hay marca de
+ * "ya optimizado": scripts/optimized-images-manifest.json guarda el sha1 del
+ * archivo tal como quedó; si el archivo no cambió desde entonces, se salta
+ * SIN re-encodear. Un asset nuevo o re-exportado (hash distinto) sí entra.
+ * El manifest se commitea junto con las imágenes optimizadas.
+ *
+ * FORMATO DECLARADO (MB-20.3 P5.4): los JPEG salen PROGRESIVOS — es el
+ * default de mozjpeg y quedó así desde Mega-Sprint C. expo-image los
+ * decodifica bien; si un consumidor futuro necesita baseline, hay que
+ * apagar mozjpeg o pasar progressive:false explícito.
  */
 
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
+const crypto = require('crypto');
 
 const TARGET_DIR = 'assets/images';
+// MB-20.2 (nota del audit): assets/backgrounds no lo cubría ningún guard y
+// llegó a 35 MB. El modo normal ahora también lo barre (in-place, mismas
+// rutas .jpg: los require() de brand.ts y MomentoBanda no cambian). El modo
+// WebP NO lo toca: renombraría archivos que el código requiere por extensión.
+const EXTRA_DIRS = ['assets/backgrounds'];
 const MAX_WIDTH = 2048;       // resize si dimensión > esto
 const PNG_QUALITY = 85;       // 0-100 (sharp PNG palette quality)
 const JPEG_QUALITY = 85;      // q85 = sweet spot foto (94% menos que PNG-palette)
@@ -56,6 +76,30 @@ function isPhotoFolder(file) {
   return PHOTO_FOLDERS.some((f) => norm.includes(`/${f}/`) || norm.includes(`${TARGET_DIR}/${f}/`));
 }
 
+// ─── Guard generacional (MB-20.3 P5.1) ───
+// sha1 del archivo tal como quedó tras la última corrida. Coincide → el
+// archivo no ha cambiado desde que se optimizó → skip sin re-encodear.
+const MANIFEST_PATH = 'scripts/optimized-images-manifest.json';
+const sha1 = (buf) => crypto.createHash('sha1').update(buf).digest('hex');
+const manifestKey = (file) => file.replace(/\\/g, '/');
+
+function loadManifest() {
+  try {
+    return JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+/** Poda entradas de archivos que ya no existen y guarda ordenado (diff estable). */
+function saveManifest(manifest) {
+  const vivo = {};
+  for (const key of Object.keys(manifest).sort()) {
+    if (fs.existsSync(key)) vivo[key] = manifest[key];
+  }
+  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(vivo, null, 2) + '\n');
+}
+
 // ───────────────────────────────────────────────────────────────────
 
 const GREEN = '\x1b[32m';
@@ -71,7 +115,7 @@ function fmtMB(bytes) {
   return (bytes / 1024 / 1024).toFixed(2);
 }
 
-async function optimizeOne(file) {
+async function optimizeOne(file, manifest) {
   const origBytes = fs.statSync(file).size;
   const origKB = origBytes / 1024;
 
@@ -82,7 +126,19 @@ async function optimizeOne(file) {
   }
 
   const ext = path.extname(file).toLowerCase();
-  const img = sharp(file);
+  // Buffer primero: en Windows, sharp(ruta) mantiene el archivo abierto y el
+  // writeFileSync in-place truena con UNKNOWN -4094 (reproducido en MB-20.2).
+  const input = fs.readFileSync(file);
+
+  // Guard generacional: mismo contenido que dejó la última corrida → no
+  // re-encodear (q85 sobre q85 acumula pérdida y el guard de tamaño no la ve).
+  const key = manifestKey(file);
+  if (manifest[key] === sha1(input)) {
+    console.log(`${DIM}⊘ skip${RESET} ${file} (sin cambios desde la última corrida — manifest)`);
+    return { saved: 0, skipped: true };
+  }
+
+  const img = sharp(input);
   const metadata = await img.metadata();
 
   let pipeline = img;
@@ -100,20 +156,28 @@ async function optimizeOne(file) {
     // proponer un `.jpg` hermano (no renombramos: rompería los require('.png')).
     const pngGainPct = ((origBytes - buffer.length) / origBytes) * 100;
     if (isPhotoFolder(file) || pngGainPct < PNG_MIN_GAIN_PCT) {
-      const jpgBuffer = await sharp(file)
+      const jpgBuffer = await sharp(input)
         .resize(metadata.width > MAX_WIDTH ? { width: MAX_WIDTH, withoutEnlargement: true } : undefined)
         .jpeg({ quality: JPEG_QUALITY, mozjpeg: true })
         .toBuffer();
       // Solo si el JPEG mejora claramente contra el mejor PNG posible.
       if (jpgBuffer.length < buffer.length * 0.7) {
         const jpgPath = file.replace(/\.png$/i, '.jpg');
-        if (!fs.existsSync(jpgPath)) fs.writeFileSync(jpgPath, jpgBuffer);
+        if (!fs.existsSync(jpgPath)) {
+          fs.writeFileSync(jpgPath, jpgBuffer);
+          manifest[manifestKey(jpgPath)] = sha1(jpgBuffer);
+        }
         console.log(
           `${YELLOW}⚑ FOTO→JPEG${RESET} ${file}  PNG ${fmtKB(buffer.length)}KB → JPEG ${fmtKB(jpgBuffer.length)}KB\n` +
           `   ${DIM}Generé ${path.basename(jpgPath)}. Recablea el require() a '.jpg' y borra el '.png'.${RESET}`,
         );
         // Optimizamos el PNG in-place igual (por si el dev aún no recablea).
-        if (buffer.length < origBytes) fs.writeFileSync(file, buffer);
+        if (buffer.length < origBytes) {
+          fs.writeFileSync(file, buffer);
+          manifest[key] = sha1(buffer);
+        } else {
+          manifest[key] = sha1(input);
+        }
         return { saved: origBytes - jpgBuffer.length, skipped: false, jpegProposed: true };
       }
     }
@@ -129,10 +193,13 @@ async function optimizeOne(file) {
   // Solo reemplazar si bajó tamaño
   if (buffer.length >= origBytes) {
     console.log(`${DIM}⊘ no gain${RESET} ${file} (${fmtKB(origBytes)}KB)`);
+    // El archivo no cambió: marcarlo evaluado para no re-encodear cada corrida.
+    manifest[key] = sha1(input);
     return { saved: 0, skipped: true };
   }
 
   fs.writeFileSync(file, buffer);
+  manifest[key] = sha1(buffer);
   const newBytes = buffer.length;
   const saved = origBytes - newBytes;
   const pct = ((saved / origBytes) * 100).toFixed(0);
@@ -143,8 +210,11 @@ async function optimizeOne(file) {
 
 /** Modo WebP: convierte a .webp q82 máx 1200px y borra el original. */
 async function webpOne(file) {
-  const origBytes = fs.statSync(file).size;
-  const img = sharp(file);
+  // Mismo buffer-primero que optimizeOne: el unlink del original también
+  // truena en Windows si sharp aún tiene el archivo abierto.
+  const input = fs.readFileSync(file);
+  const origBytes = input.length;
+  const img = sharp(input);
   const metadata = await img.metadata();
 
   let pipeline = img;
@@ -199,27 +269,29 @@ async function mainWebp() {
 
 async function main() {
   if (WEBP_MODE) return mainWebp();
+  const roots = [TARGET_DIR, ...EXTRA_DIRS];
   console.log(`\n📸 Optimize images — sharp pipeline\n`);
-  console.log(`${DIM}Target:${RESET} ${TARGET_DIR}/**/*.{png,jpg,jpeg}`);
+  console.log(`${DIM}Target:${RESET} {${roots.join(',')}}/**/*.{png,jpg,jpeg}`);
   console.log(`${DIM}Max width:${RESET} ${MAX_WIDTH}px`);
   console.log(`${DIM}PNG quality:${RESET} ${PNG_QUALITY}`);
   console.log(`${DIM}Skip if <${RESET} ${SKIP_IF_SMALLER_KB}KB\n`);
 
-  const files = glob.sync(`${TARGET_DIR}/**/*.{png,jpg,jpeg,PNG,JPG,JPEG}`);
+  const files = roots.flatMap((dir) => glob.sync(`${dir}/**/*.{png,jpg,jpeg,PNG,JPG,JPEG}`));
   if (files.length === 0) {
-    console.log(`${YELLOW}No images found in ${TARGET_DIR}${RESET}`);
+    console.log(`${YELLOW}No images found in ${roots.join(', ')}${RESET}`);
     process.exit(0);
   }
 
   console.log(`Found ${files.length} images.\n`);
 
+  const manifest = loadManifest();
   let totalSaved = 0;
   let processed = 0;
   let skipped = 0;
 
   for (const file of files) {
     try {
-      const result = await optimizeOne(file);
+      const result = await optimizeOne(file, manifest);
       totalSaved += result.saved;
       if (result.skipped) skipped++;
       else processed++;
@@ -228,10 +300,13 @@ async function main() {
     }
   }
 
+  saveManifest(manifest);
+
   console.log(`\n${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}`);
   console.log(`${GREEN}✅ Done${RESET}`);
   console.log(`Processed: ${processed} | Skipped: ${skipped}`);
-  console.log(`Total saved: ${GREEN}${fmtMB(totalSaved)}MB${RESET}\n`);
+  console.log(`Total saved: ${GREEN}${fmtMB(totalSaved)}MB${RESET}`);
+  console.log(`${DIM}Manifest actualizado (${MANIFEST_PATH}) — commitéalo con las imágenes.${RESET}\n`);
 }
 
 main().catch((e) => {

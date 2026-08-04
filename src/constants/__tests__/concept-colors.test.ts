@@ -1,11 +1,12 @@
 /**
  * Sprint 2 E — guard de la fuente única de color por concepto (audit §3).
  * Un concepto = UN color en toda la app: si alguien vuelve a hardcodear un hex
- * distinto en hoy-cards/electrons para un concepto canónico, esto truena.
+ * distinto en electrons para un concepto canónico, esto truena.
+ * (MB-20.4: el bloque de hoy-cards se fue con HOY_CARD_BY_KEY — registro
+ * muerto sin consumidor de producción; el HOY vivo pinta por sección.)
  */
 import { describe, it, expect } from 'vitest';
 import { CONCEPT_COLORS } from '../concept-colors';
-import { HOY_CARD_BY_KEY } from '../hoy-cards';
 import { ELECTRON_WEIGHTS } from '../electrons';
 
 const HEX = /^#[0-9A-Fa-f]{6}$/;
@@ -24,23 +25,6 @@ describe('CONCEPT_COLORS (fuente única)', () => {
     expect(CONCEPT_COLORS.fitness.color).toBe('#A8E02A');
     expect(CONCEPT_COLORS.nutricion.color).toBe('#5B9BD5');
   });
-});
-
-describe('HOY (hoy-cards) lee del canónico', () => {
-  const cases: [string, keyof typeof CONCEPT_COLORS][] = [
-    ['suplementos', 'suplementos'],
-    ['fuerza', 'fitness'],
-    ['proteina', 'nutricion'],
-    ['agua', 'agua'],
-    ['luz_solar', 'sol'],
-    ['uv', 'sol'],
-    ['cardio', 'cardio'],
-  ];
-  for (const [cardKey, concept] of cases) {
-    it(`card ${cardKey} → CONCEPT_COLORS.${concept}`, () => {
-      expect(HOY_CARD_BY_KEY[cardKey].gradient).toBe(CONCEPT_COLORS[concept].gradient);
-    });
-  }
 });
 
 describe('electrones leen del canónico (antes: suplementos lima, proteína azul claro)', () => {

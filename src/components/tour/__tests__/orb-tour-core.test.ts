@@ -26,6 +26,14 @@ describe('guion del tour', () => {
     }
   });
 
+  it('el paso 2 enseña la regla de DOS tipos (MB-20.5): palomea o abre', () => {
+    // Si esto truena, la app está enseñando lo contrario de lo que hace.
+    const gestos = ORB_TOUR_STEPS.find((s) => s.id === 'gestos')!;
+    expect(gestos.copy).toMatch(/^Un toque palomea los hábitos y abre las funciones/);
+    expect(gestos.copy).toContain('Mantener presionado abre el módulo');
+    expect(gestos.copy).toContain('Pruébalo aquí mismo');
+  });
+
   it('las siglas se explican la primera vez', () => {
     const electrones = ORB_TOUR_STEPS.find((s) => s.id === 'electrones')!;
     expect(electrones.copy).toContain('electrones (e-)');

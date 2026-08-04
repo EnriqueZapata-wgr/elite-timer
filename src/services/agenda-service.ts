@@ -671,6 +671,9 @@ export async function syncElectronFromEvent(
     if (completed) {
       await awardBooleanElectron(userId, source, { idempotencyKey: `${userId}:${source}:${today}` });
     } else {
+      // MB-20.4 (nota del audit): toda revocación deja rastro — si un electrón
+      // vuelve a desaparecer, las tres puertas al borrado deben verse en el log.
+      logWarn('[agenda] revoca electrón', { source, motivo: 'evento des-completado en Agenda' });
       await revokeBooleanElectron(userId, source);
     }
     DeviceEventEmitter.emit('electrons_changed');

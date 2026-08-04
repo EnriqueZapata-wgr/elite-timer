@@ -31,7 +31,6 @@ import { hasAppIcon } from '@/src/components/ui/app-icon-names';
 import { APP_REGISTRY } from '../app-registry';
 import { PUERTAS, DESTINOS_TODOS } from '../salud-puertas';
 import { ELECTRON_WEIGHTS } from '../electrons';
-import { HOY_CARD_SPECS } from '../hoy-cards';
 import { ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/services/hoy/day-booleans';
 import { ACTIVITY_META } from '@/src/components/mente/mente-hub-core';
 import { CATEGORY_COPY } from '@/src/services/mente-streaks-core';
@@ -63,7 +62,6 @@ describe('los registros declaran nombres lógicos, no dibujos', () => {
     ['PUERTAS', PUERTAS],
     ['DESTINOS_TODOS', DESTINOS_TODOS],
     ['ELECTRON_WEIGHTS', Object.values(ELECTRON_WEIGHTS)],
-    ['HOY_CARD_SPECS', HOY_CARD_SPECS],
     ['ALL_BOOLEAN_OPTIONS', ALL_BOOLEAN_OPTIONS],
     ['ALL_QUANT_OPTIONS', ALL_QUANT_OPTIONS],
     ['ACTIVITY_META', Object.values(ACTIVITY_META)],

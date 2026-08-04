@@ -6,26 +6,29 @@ import { describe, it, expect } from 'vitest';
 import {
   buildTareas,
   agendaLens,
+  repartoTareas,
+  pickFocusMomento,
   gestoForBool,
   momentoForHour,
   minutesFromMidnight,
   TAREA_MOMENTO,
   TAREA_TIME,
-  EXPERIENCIA_SOURCES,
-  EXPERIENCIA_CAPTURA,
-  EXPERIENCIA_REGISTRO,
+  routeForBool,
   type TareasInput,
 } from '@/src/services/hoy/tareas-core';
 import {
   VERIFIED_ELECTRON_KEYS,
+  VERIFIED_ELECTRON_ROUTES,
   DEFAULT_BOOLEANS,
   MANDATORY_BOOLEANS,
 } from '@/src/services/hoy/day-booleans';
+import { ELECTRONS_SIN_APP, ELECTRON_TO_APP } from '@/src/constants/electron-app-bridge';
+import { APP_BY_KEY } from '@/src/constants/app-registry';
 
 function boolE(source: string, completed = false) {
   return {
     source, name: source, icon: 'meditar', color: '#fff',
-    weight: 2, completed, pillarRoute: '/x',
+    weight: 2, completed,
   };
 }
 
@@ -126,42 +129,19 @@ describe('gestos', () => {
     expect(gestoForBool('no_alcohol')).toBe('palomear');
   });
 
-  it('experiencias verificadas → paloma inteligente, nunca check regalado', () => {
-    for (const k of EXPERIENCIA_SOURCES) {
-      expect(gestoForBool(k), k).toBe('experiencia');
-      expect((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(k), k).toBe(true);
+  it('TODO verificado → navegar: el check nace de actividad real en su módulo (MB-20.5)', () => {
+    // El modal murió: las seis ex-experiencias (meditación, respiración,
+    // fuerza, journal, N-Back, cardio) abren su pantalla como cualquier
+    // otro verificado. El registro manual vive DENTRO del módulo.
+    for (const k of VERIFIED_ELECTRON_KEYS) {
+      expect(gestoForBool(k), k).toBe('navegar');
     }
-  });
-
-  it('verificados sin experiencia (suplementos, checkin, ciclo) → navegar', () => {
-    expect(gestoForBool('supplements')).toBe('navegar');
-    expect(gestoForBool('checkin')).toBe('navegar');
-    expect(gestoForBool('period_log')).toBe('navegar');
-  });
-
-  it('la captura externa es subconjunto de las experiencias', () => {
-    for (const k of EXPERIENCIA_CAPTURA) {
-      expect(EXPERIENCIA_SOURCES).toContain(k);
-    }
-  });
-
-  it('el modal nunca tiene un solo botón: toda experiencia captura o tiene registro real', () => {
-    // Si una experiencia no está en EXPERIENCIA_CAPTURA ni en
-    // EXPERIENCIA_REGISTRO, su SÍ no tendría a dónde ir. Un gesto que no
-    // ofrece opción no debería preguntar: se detecta aquí, no en el device.
-    for (const k of EXPERIENCIA_SOURCES) {
-      const capturable = (EXPERIENCIA_CAPTURA as readonly string[]).includes(k);
-      const registro = EXPERIENCIA_REGISTRO[k];
-      expect(capturable || Boolean(registro), `${k} sin captura ni registro`).toBe(true);
-      if (registro) expect(registro.startsWith('/'), `${k} → ${registro}`).toBe(true);
-    }
-  });
-
-  it('el registro real es solo para las no capturables', () => {
-    for (const k of Object.keys(EXPERIENCIA_REGISTRO)) {
-      expect(EXPERIENCIA_SOURCES).toContain(k);
-      expect(EXPERIENCIA_CAPTURA).not.toContain(k);
-    }
+    expect(gestoForBool('meditation')).toBe('navegar');
+    expect(gestoForBool('breathwork')).toBe('navegar');
+    expect(gestoForBool('strength')).toBe('navegar');
+    expect(gestoForBool('journal')).toBe('navegar');
+    expect(gestoForBool('nback')).toBe('navegar');
+    expect(gestoForBool('cardio')).toBe('navegar');
   });
 });
 
@@ -214,5 +194,126 @@ describe('agendaLens', () => {
     expect(lens.length).toBe(r.global.total);
     const times = lens.map((t) => t.time);
     expect([...times].sort()).toEqual(times);
+  });
+});
+
+describe('routeForBool (MB-20.2 · 2.5)', () => {
+  it('luz solar abre /solar: la app del electrón vía el puente, no el hub del pilar', () => {
+    expect(routeForBool('sunlight')).toBe('/solar');
+  });
+
+  it('las DOS granulares que divergen del puente, y nada más (MB-20.3 P4)', () => {
+    // El test viejo iteraba VERIFIED_ELECTRON_ROUTES y comparaba contra la
+    // primera capa de routeForBool — la misma constante: no podía fallar
+    // (mutación probada: una ruta inventada dejaba 55 tests en verde). Los
+    // literales de aquí están escritos A MANO, no derivados del mapa.
+    expect(routeForBool('checkin')).toBe('/checkin'); // el puente diría /emotions
+    expect(routeForBool('cardio')).toBe('/log-cardio'); // el puente diría /fitness-cardio
+    expect(Object.keys(VERIFIED_ELECTRON_ROUTES).sort()).toEqual(['cardio', 'checkin']);
+  });
+
+  it('los demás verificados resuelven por el puente, sin capa duplicada', () => {
+    expect(routeForBool('meditation')).toBe('/meditation');
+    expect(routeForBool('breathwork')).toBe('/breathing');
+    expect(routeForBool('strength')).toBe('/fitness-hub');
+    expect(routeForBool('supplements')).toBe('/supplements');
+    expect(routeForBool('period_log')).toBe('/cycle');
+    expect(routeForBool('journal')).toBe('/journal');
+    expect(routeForBool('nback')).toBe('/mente/nback');
+  });
+
+  it('todo electrón sin app va SIN ruta: cero puertas inventadas', () => {
+    // Baño frío, grounding, sin alcohol, lentes rojos, sin procesados,
+    // off-pantallas… la lista completa del puente, no solo lo que el device
+    // test alcanzó a tocar.
+    for (const source of ELECTRONS_SIN_APP) {
+      expect(routeForBool(source), source).toBeUndefined();
+    }
+  });
+
+  it('la tarea compilada refleja la regla (sin ruta ⇒ ni el tap largo navega)', () => {
+    const r = buildTareas(
+      {
+        booleanElectrons: [boolE('sunlight'), boolE('cold_shower'), boolE('no_alcohol'), boolE('red_glasses')],
+        quantitativeElectrons: [],
+        agendaItems: [],
+      },
+      9,
+    );
+    const items = r.blocks.flatMap((b) => b.items);
+    expect(items.find((t) => t.key === 'sunlight')?.route).toBe('/solar');
+    expect(items.find((t) => t.key === 'cold_shower')?.route).toBeUndefined();
+    expect(items.find((t) => t.key === 'no_alcohol')?.route).toBeUndefined();
+    expect(items.find((t) => t.key === 'red_glasses')?.route).toBeUndefined();
+  });
+
+  it('todo electrón del puente resuelve a una ruta real del registro', () => {
+    for (const [source, app] of Object.entries(ELECTRON_TO_APP)) {
+      const route = routeForBool(source);
+      expect(route, `${source} → ${app}`).toBeTruthy();
+    }
+    // Y las apps del puente existen en el registro (nada apunta al vacío).
+    for (const app of new Set(Object.values(ELECTRON_TO_APP))) {
+      expect(APP_BY_KEY[app!], `app ${app}`).toBeTruthy();
+    }
+  });
+});
+
+describe('repartoTareas (MB-20.2 · 1.3)', () => {
+  const r = buildTareas(INPUT, 14);
+  const lens = agendaLens(r);
+  const { hechas, pendingBlocks } = repartoTareas(lens, r.blocks);
+
+  it('las hechas van a la cinta, en orden cronológico', () => {
+    expect(hechas.map((t) => t.key)).toEqual(['sunlight', 'protein']);
+    expect(hechas.every((t) => t.completed)).toBe(true);
+  });
+
+  it('abajo solo bloques con pendientes, sin las hechas dentro', () => {
+    for (const b of pendingBlocks) {
+      expect(b.pending.length).toBeGreaterThan(0);
+      expect(b.pending.every((t) => !t.completed)).toBe(true);
+    }
+    const enBloques = pendingBlocks.flatMap((b) => b.pending.map((t) => t.key));
+    expect(enBloques).not.toContain('sunlight');
+    expect(enBloques).not.toContain('protein');
+  });
+
+  it('cinta + pendientes = la lista completa (nada se pierde en el reparto)', () => {
+    const total = hechas.length + pendingBlocks.reduce((s, b) => s + b.pending.length, 0);
+    expect(total).toBe(r.global.total);
+  });
+
+  it('un bloque 100% hecho desaparece de abajo, pero conserva su done/total', () => {
+    const input: TareasInput = {
+      booleanElectrons: [boolE('sunlight', true), boolE('meditation', true), boolE('journal')],
+      quantitativeElectrons: [],
+      agendaItems: [],
+    };
+    const res = buildTareas(input, 10);
+    const parts = repartoTareas(agendaLens(res), res.blocks);
+    expect(parts.pendingBlocks.map((b) => b.momento)).toEqual(['noche']);
+    expect(parts.hechas.map((t) => t.key)).toEqual(['meditation', 'sunlight']);
+  });
+});
+
+describe('pickFocusMomento (MB-20.2 · 1.2)', () => {
+  it('el bloque de la hora, si tiene pendientes', () => {
+    expect(pickFocusMomento(['manana', 'tarde', 'noche'], 'tarde')).toBe('tarde');
+  });
+
+  it('bloque de la hora completo: el siguiente con pendientes', () => {
+    // El escenario del muro que encoge a media tarde.
+    expect(pickFocusMomento(['noche'], 'tarde')).toBe('noche');
+    expect(pickFocusMomento(['manana', 'noche'], 'tarde')).toBe('noche');
+  });
+
+  it('sin pendientes hacia adelante: el primero que siga pendiente', () => {
+    expect(pickFocusMomento(['manana'], 'noche')).toBe('manana');
+  });
+
+  it('día terminado: no hay foco, se ve la cinta completa', () => {
+    expect(pickFocusMomento([], 'tarde')).toBeNull();
+    expect(pickFocusMomento([], 'noche')).toBeNull();
   });
 });

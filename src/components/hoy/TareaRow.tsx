@@ -1,22 +1,17 @@
 /**
  * TareaRow — una fila del checklist del día (MB-20 Pieza 1).
  *
- * Los dos gestos, que son el corazón de la pieza:
- *   · Tap simple NAVEGA a la función.
- *   · Tap largo PALOMEA (o pregunta, si es experiencia) con retroalimentación
- *     en tres capas: el círculo se llena progresivamente (~350 ms), vibración
- *     al completarse, y la fila se atenúa. Soltar antes revierte el llenado.
+ * Los gestos viven en useTareaGesto (un solo lugar para la fila, la card
+ * editorial y el renglón de hechas). MB-20.5: el TAP hace LA ACCIÓN
+ * PRINCIPAL de la fila — palomear o navegar — y el tap largo solo es atajo
+ * a la función en palomear, con vibración al cruzar el umbral.
  *
- * Con reduce motion el llenado se omite; el tap largo sigue funcionando.
+ * MB-20.1 (Pieza 2): la fila sigue compacta (AGENDA es la lente que se
+ * opera); el mosaico del icono lleva el degradado de su sección
+ * (accentColor desde APP_SECTION_COLORS).
  */
-import { useRef } from 'react';
 import { Pressable, View, StyleSheet } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  cancelAnimation,
-} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { AppIcon } from '@/src/components/ui/AppIcon';
@@ -24,86 +19,37 @@ import type { AppIconName } from '@/src/components/ui/app-icon-names';
 import { haptic } from '@/src/utils/haptics';
 import { Fonts, FontSizes, Radius } from '@/constants/theme';
 import { ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { useTareaGesto, LONG_PRESS_MS } from '@/src/components/hoy/useTareaGesto';
 import type { Tarea } from '@/src/services/hoy/tareas-core';
 
-export const LONG_PRESS_MS = 350;
+export { LONG_PRESS_MS };
 
 interface Props {
   tarea: Tarea;
   lens: 'tareas' | 'agenda';
-  reducedMotion?: boolean;
-  /** Tap simple: navegar a la función. */
+  /** MB-20.1: color de sección (APP_SECTION_COLORS). Sin él, el de la tarea. */
+  accentColor?: string;
+  /** Navegar a la función (tap en navegar/inline; tap largo como atajo en
+   * palomear). */
   onNavigate: (t: Tarea) => void;
-  /** Tap largo en fila palomeable (toggle on/off). */
+  /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
-  /** Tap largo en experiencia: abre la paloma inteligente. */
-  onExperiencia: (t: Tarea) => void;
-  /** Acción inline (hidratación +250 ml). */
-  onInline?: (t: Tarea) => void;
+  /** Captura inline de hidratación (deltaMl con signo). */
+  onInline?: (t: Tarea, deltaMl: number) => void;
 }
 
 export function TareaRow({
-  tarea, lens, reducedMotion, onNavigate, onPalomear, onExperiencia, onInline,
+  tarea, lens, accentColor, onNavigate, onPalomear, onInline,
 }: Props) {
-  const fill = useSharedValue(0);
-  // El tap largo consumió este ciclo de press: el onPress del release se ignora.
-  const consumedRef = useRef(false);
+  const { handlePress, handlePressIn, handleLongPress } =
+    useTareaGesto(tarea, { onNavigate, onPalomear });
 
-  const llenable = !tarea.completed && (tarea.gesto === 'palomear' || tarea.gesto === 'experiencia');
-  const destachable = tarea.completed && tarea.gesto === 'palomear';
-
-  const fillStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: fill.value }],
-    opacity: fill.value,
-  }));
-
-  function handlePressIn() {
-    consumedRef.current = false;
-    if (reducedMotion) return;
-    if (llenable || destachable) {
-      fill.value = withTiming(1, { duration: LONG_PRESS_MS });
-    }
-  }
-
-  function handlePressOut() {
-    if (!consumedRef.current) {
-      cancelAnimation(fill);
-      fill.value = withTiming(0, { duration: 150 });
-    }
-  }
-
-  function handleLongPress() {
-    consumedRef.current = true;
-    fill.value = 0;
-    if (tarea.gesto === 'palomear') {
-      haptic.success();
-      onPalomear(tarea);
-      return;
-    }
-    if (tarea.gesto === 'experiencia' && !tarea.completed) {
-      haptic.medium();
-      onExperiencia(tarea);
-      return;
-    }
-    // navegar / inline / experiencia completada: el tap largo nunca regala
-    // un check — se comporta como el tap.
-    haptic.light();
-    onNavigate(tarea);
-  }
-
-  function handlePress() {
-    if (consumedRef.current) { consumedRef.current = false; return; }
-    haptic.light();
-    onNavigate(tarea);
-  }
-
-  const accent = tarea.color || ATP_BRAND.lime;
+  const accent = accentColor || tarea.color || ATP_BRAND.lime;
 
   return (
     <Pressable
       onPress={handlePress}
       onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       onLongPress={handleLongPress}
       delayLongPress={LONG_PRESS_MS}
       accessibilityRole="button"
@@ -114,20 +60,32 @@ export function TareaRow({
         <EliteText style={s.time}>{tarea.time}</EliteText>
       )}
 
-      {/* Círculo palomeable con llenado progresivo */}
-      <View style={[s.check, { borderColor: tarea.completed ? ATP_BRAND.lime : withOpacity('#FFFFFF', 0.25) }]}>
-        {tarea.completed ? (
-          <View style={s.checkDone}>
-            <Ionicons name="checkmark" size={13} color="#000" />
-          </View>
-        ) : (
-          <Animated.View style={[s.checkFill, fillStyle]} />
-        )}
-      </View>
+      {/* Hecha: paloma pintada (estado, para todos los gestos). Pendiente,
+          la pista es la forma (MB-20.5 P3): círculo donde un toque lo llena
+          (palomear), CHEVRON donde el toque te lleva a otro lado (navegar /
+          inline). Mismo slot, mismo tamaño, mismo peso visual — solo cambia
+          la forma, y la columna conserva su alineación. */}
+      {tarea.completed ? (
+        <View style={s.checkDone}>
+          <Ionicons name="checkmark" size={13} color="#000" />
+        </View>
+      ) : tarea.gesto === 'palomear' ? (
+        <View style={[s.check, { borderColor: withOpacity('#FFFFFF', 0.25) }]} />
+      ) : (
+        <View style={s.checkSlot}>
+          <Ionicons name="chevron-forward" size={15} color={withOpacity('#FFFFFF', 0.3)} />
+        </View>
+      )}
 
-      <View style={[s.iconChip, { backgroundColor: withOpacity(accent, 0.14) }]}>
+      {/* Mosaico del icono con el degradado de su sección (MB-20.1 · 2.3) */}
+      <LinearGradient
+        colors={[withOpacity(accent, 0.32), withOpacity(accent, 0.08)]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={s.iconChip}
+      >
         <AppIcon name={tarea.icon as AppIconName} size={16} color={accent} />
-      </View>
+      </LinearGradient>
 
       <View style={{ flex: 1 }}>
         <EliteText style={[s.name, tarea.completed && s.nameDone]}>{tarea.name}</EliteText>
@@ -139,17 +97,19 @@ export function TareaRow({
         )}
       </View>
 
+      {/* La fila compacta de AGENDA conserva solo +250 (no cabe la
+          botonera); los TRES botones viven en la card grande. El chevron
+          del borde derecho murió: la pista de navegación vive en el slot
+          del check (P3), no en dos lugares. */}
       {tarea.gesto === 'inline' && onInline && !tarea.completed ? (
         <Pressable
-          onPress={() => { haptic.success(); onInline(tarea); }}
+          onPress={() => { haptic.success(); onInline(tarea, 250); }}
           hitSlop={8}
           style={({ pressed }) => [s.inlineBtn, pressed && { opacity: 0.6 }]}
           accessibilityLabel="Agregar 250 mililitros"
         >
           <EliteText style={s.inlineBtnText}>+250 ml</EliteText>
         </Pressable>
-      ) : tarea.gesto === 'navegar' || tarea.gesto === 'experiencia' ? (
-        <Ionicons name="chevron-forward" size={14} color={TEXT.muted} />
       ) : null}
     </Pressable>
   );
@@ -186,12 +146,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  checkFill: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: ATP_BRAND.lime,
-  },
+  checkSlot: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   checkDone: {
     width: 24,
     height: 24,
@@ -206,6 +161,7 @@ const s = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   name: {
     color: '#fff',

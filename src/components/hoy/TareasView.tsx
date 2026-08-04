@@ -8,29 +8,39 @@
  * Los horarios finos y las notificaciones por evento se editan en /agenda
  * (la puerta vive en la lente AGENDA).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View, Pressable, StyleSheet, Alert, LayoutChangeEvent } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import Animated, { LinearTransition } from 'react-native-reanimated';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { useSystemReducedMotion } from '@/src/components/ui/useSystemReducedMotion';
 import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
 import { TareaRow } from '@/src/components/hoy/TareaRow';
-import { SmartCheckModal } from '@/src/components/hoy/SmartCheckModal';
+import { TareaCard } from '@/src/components/hoy/TareaCard';
+import { TareaHechaRow } from '@/src/components/hoy/TareaHechaRow';
+import { tareaImage } from '@/src/components/hoy/tarea-images';
+import { NUDGE_COPY } from '@/src/components/hoy/tarea-gesto-core';
+import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
-  buildTareas, agendaLens, EXPERIENCIA_REGISTRO, type Tarea, type Momento,
+  buildTareas, agendaLens, repartoTareas, pickFocusMomento,
+  type Tarea, type Momento,
 } from '@/src/services/hoy/tareas-core';
 import {
-  persistBooleanToggle, registrarExperiencia, type ExperienciaExterna,
-} from '@/src/services/hoy/tarea-actions';
+  seccionForTarea, datoForTarea, datoCierreForTarea, pickHeroTarea,
+} from '@/src/services/hoy/tareas-editorial-core';
+import { persistBooleanToggle } from '@/src/services/hoy/tarea-actions';
 import { addWater } from '@/src/services/hydration-service';
-import { canShowNudge, markNudgeShown, NUDGE_THRESHOLD } from '@/src/services/hoy/nudge-store';
+import {
+  canShowNudge, markNudgeShown, NUDGE_THRESHOLD, RECHECK_ACCIDENTE_MS,
+} from '@/src/services/hoy/nudge-store';
 import type { CompiledDay } from '@/src/services/day-compiler';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
-import { ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
 
 type Lens = 'tareas' | 'agenda';
 
@@ -52,7 +62,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   const reducedMotion = useSystemReducedMotion();
   const [lens, setLens] = useState<Lens>('tareas');
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
-  const [smartTarea, setSmartTarea] = useState<Tarea | null>(null);
   const [nudgeVisible, setNudgeVisible] = useState(false);
 
   // ── Fuente única + overrides optimistas ──
@@ -87,54 +96,77 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
 
   const agendaItems = useMemo(() => agendaLens(result), [result]);
 
-  // ── Auto-foco en el bloque actual (una sola vez) ──
-  const blockYs = useRef<Partial<Record<Momento, number>>>({});
+  // ── MB-20.1 · 2.1: el héroe de AGENDA — lo que importa ahora, por hora ──
+  const heroTarea = useMemo(() => {
+    const now = new Date();
+    return pickHeroTarea(agendaItems, now.getHours() * 60 + now.getMinutes());
+  }, [agendaItems]);
+
+  // ── MB-20.1: el muro encoge — hechas arriba como cinta, bloques solo con
+  // pendientes. La fuente sigue siendo la misma (result); esto es reparto
+  // puro en tareas-core (MB-20.2 · 1.3, con test). ──
+  const { hechas, pendingBlocks } = useMemo(
+    () => repartoTareas(agendaItems, result.blocks),
+    [agendaItems, result.blocks],
+  );
+
+  // ── Auto-foco (una sola vez, MB-20.2 · 1.1/1.2) ──
+  // El consumidor (index.tsx) espera una `y` relativa a la RAÍZ de esta vista,
+  // pero los bloques viven dentro de un <View> interno que tiene encima las
+  // lentes, la fila global, el nudge y OrbCard: hay que sumar la `y` de ese
+  // contenedor. Los dos onLayout llegan en orden no garantizado, así que el
+  // que llega primero deja el dato y el segundo dispara el scroll.
+  const focusTarget = useMemo(
+    () => pickFocusMomento(pendingBlocks.map((b) => b.momento), result.focusMomento),
+    [pendingBlocks, result.focusMomento],
+  );
   const focusedRef = useRef(false);
+  const containerYRef = useRef<number | null>(null);
+  const pendingFocusYRef = useRef<number | null>(null);
+  const captureContainerY = (e: LayoutChangeEvent) => {
+    containerYRef.current = e.nativeEvent.layout.y;
+    if (pendingFocusYRef.current != null) {
+      const blockY = pendingFocusYRef.current;
+      pendingFocusYRef.current = null;
+      onRequestScroll?.(containerYRef.current + blockY);
+    }
+  };
   const captureBlockY = (momento: Momento) => (e: LayoutChangeEvent) => {
-    blockYs.current[momento] = e.nativeEvent.layout.y;
-    if (!focusedRef.current && momento === result.focusMomento && lens === 'tareas') {
+    if (!focusedRef.current && momento === focusTarget && lens === 'tareas') {
       focusedRef.current = true;
-      // Solo si el bloque actual no es el primero (nada que scrollear si sí).
-      if (result.blocks[0]?.momento !== result.focusMomento) {
-        onRequestScroll?.(e.nativeEvent.layout.y);
+      // HECHAS vive arriba y nunca recibe el foco. Se scrollea si hay cinta
+      // encima o si el bloque del foco no es el que abre la lista.
+      if (hechas.length > 0 || pendingBlocks[0]?.momento !== focusTarget) {
+        if (containerYRef.current != null) {
+          onRequestScroll?.(containerYRef.current + e.nativeEvent.layout.y);
+        } else {
+          pendingFocusYRef.current = e.nativeEvent.layout.y;
+        }
       }
     }
   };
 
-  // ── Recordatorio contextual del tap largo (1.4) ──
-  // NOCTURNO-FIX 7.4: al recuperar foco el compilado AÚN es el viejo (loadDay
-  // es async), así que comparar ahí contaba "regresó sin hacer nada" aunque
-  // sí hubiera hecho. El foco solo ARMA la evaluación; se decide cuando llega
-  // el compile fresco (cambia `day`).
-  const tapNavRef = useRef<{ key: string; completedAtNav: number } | null>(null);
-  const pendingEvalRef = useRef<{ key: string; completedAtNav: number } | null>(null);
+  // ── La burbuja contextual del gesto (1.4, invertida en MB-20.4) ──
+  // El patrón viejo (tap → navegar → regresar sin completar) murió con el
+  // gesto: en las palomeables el tap ya no navega. La señal de confusión que
+  // queda (MB-20.5, con el modal muerto) es la del toque accidental:
+  // despalomear una fila hecha y re-palomearla en segundos (tocó el ledger),
+  // detectada en handlePalomear.
   const bounceCountRef = useRef(0);
+  const uncheckAtRef = useRef<Record<string, number>>({});
   const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const completedNow = result.global.done;
-  useFocusEffect(useCallback(() => {
-    if (tapNavRef.current) {
-      pendingEvalRef.current = tapNavRef.current;
-      tapNavRef.current = null;
-    }
-  }, []));
-  useEffect(() => {
-    const pending = pendingEvalRef.current;
-    if (!pending) return;
-    pendingEvalRef.current = null;
-    if (result.global.done > pending.completedAtNav) { bounceCountRef.current = 0; return; }
+  const senalGesto = useCallback(() => {
     bounceCountRef.current += 1;
-    if (bounceCountRef.current >= NUDGE_THRESHOLD) {
-      bounceCountRef.current = 0;
-      canShowNudge().then((can) => {
-        if (!can) return;
-        markNudgeShown();
-        setNudgeVisible(true);
-        if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
-        nudgeTimerRef.current = setTimeout(() => setNudgeVisible(false), 8000);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day]);
+    if (bounceCountRef.current < NUDGE_THRESHOLD) return;
+    bounceCountRef.current = 0;
+    canShowNudge().then((can) => {
+      if (!can) return;
+      markNudgeShown();
+      setNudgeVisible(true);
+      if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+      nudgeTimerRef.current = setTimeout(() => setNudgeVisible(false), 8000);
+    });
+  }, []);
   useEffect(() => () => {
     if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
   }, []);
@@ -142,15 +174,21 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   // ── Handlers de gesto ──
   const handleNavigate = useCallback((t: Tarea) => {
     if (!t.route) return;
-    if (t.gesto === 'palomear' || t.gesto === 'experiencia') {
-      tapNavRef.current = { key: t.key, completedAtNav: completedNow };
-    }
     router.push(t.route as never);
-  }, [router, completedNow]);
+  }, [router]);
 
   const handlePalomear = useCallback((t: Tarea) => {
     if (!userId) return;
     const next = !t.completed;
+    // Señal del nudge: despalomeo que se corrige en segundos = toque
+    // accidental sobre una hecha.
+    if (!next) {
+      uncheckAtRef.current[t.key] = Date.now();
+    } else {
+      const uncheckedAt = uncheckAtRef.current[t.key];
+      delete uncheckAtRef.current[t.key];
+      if (uncheckedAt != null && Date.now() - uncheckedAt <= RECHECK_ACCIDENTE_MS) senalGesto();
+    }
     setOverrides((prev) => ({ ...prev, [t.key]: next }));
     const currentStates: Record<string, boolean> = {};
     for (const e of day.booleanElectrons) currentStates[e.source] = e.completed;
@@ -159,30 +197,14 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
       logWarn('[TareasView] palomeo failed, reverted', e);
       Alert.alert('No se pudo guardar', 'Inténtalo de nuevo en un momento.');
     });
-  }, [userId, day]);
+  }, [userId, day, senalGesto]);
 
-  // SÍ de una experiencia sin captura: directo a su pantalla de registro real.
-  // No cuenta para el nudge: quien llegó aquí ya usa el tap largo.
-  const handleIrRegistro = useCallback((t: Tarea) => {
-    const route = EXPERIENCIA_REGISTRO[t.key];
-    if (!route) return;
-    router.push(route as never);
-  }, [router]);
-
-  const handleRegistrar = useCallback(async (t: Tarea, minutes: number) => {
-    if (!userId) return false;
-    const res = await registrarExperiencia(userId, t.key as ExperienciaExterna, minutes);
-    if (!res.ok) {
-      Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
-      return false;
-    }
-    return true;
-  }, [userId]);
-
-  const handleInline = useCallback(async (t: Tarea) => {
+  // Los tres botones de la card de agua (+250/+500/−250, decisión de
+  // Enrique) pasan su delta con signo; addWater clampa en 0.
+  const handleInline = useCallback(async (t: Tarea, deltaMl: number) => {
     if (!userId || t.key !== 'water') return;
     try {
-      const r = await addWater(userId, 250);
+      const r = await addWater(userId, deltaMl);
       if (r === null) throw new Error('addWater returned null');
     } catch (e) {
       logWarn('[TareasView] addWater failed', e);
@@ -191,14 +213,82 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   }, [userId]);
 
   const rowProps = {
-    reducedMotion,
     onNavigate: handleNavigate,
     onPalomear: handlePalomear,
-    onExperiencia: setSmartTarea,
     onInline: handleInline,
   };
 
   const pctGlobal = result.global.total > 0 ? result.global.done / result.global.total : 0;
+
+  // ── MB-20.1 · Pieza 1: la lente TAREAS con piel editorial ──
+  // MB-20.4 · Pieza 3: este viaje ES la confirmación del palomeo. Con el tap
+  // no hay hold ni llenado: al palomear, la card encoge hasta su renglón y
+  // VIAJA al bloque de hechas (imposible no verlo); al despalomear desde
+  // HECHAS, el camino inverso. En AGENDA, que no reordena, confirman la
+  // paloma pintada y la fila atenuada. Para que reanimated anime el viaje,
+  // todos los elementos viven PLANOS bajo un mismo padre con llave estable
+  // (un wrapper por bloque rompería la continuidad del instance).
+  // Con reduce motion NO hay transición de layout (undefined), no "una más
+  // sobria": LinearTransition pelón seguía animando 300 ms y el código decía
+  // una cosa haciendo otra (nota del audit MB-20.2). La confirmación queda
+  // en la vibración y el cambio de estado instantáneo.
+  const rowLayout = reducedMotion ? undefined : LinearTransition.springify().damping(18);
+  const hoy = getLocalToday();
+  const seedBase = `${userId ?? ''}-${hoy}`;
+  const colorDeSeccion = (t: Tarea) => APP_SECTION_COLORS[seccionForTarea(t.key)];
+
+  const tareasChildren: ReactNode[] = [];
+  if (lens === 'tareas') {
+    if (hechas.length > 0) {
+      tareasChildren.push(
+        <Animated.View key="header-hechas" layout={rowLayout} style={s.blockHeader}>
+          <EliteText style={s.blockLabel}>HECHAS</EliteText>
+          <EliteText style={s.blockCount}>{hechas.length}</EliteText>
+        </Animated.View>,
+      );
+      for (const t of hechas) {
+        tareasChildren.push(
+          <Animated.View key={t.key} layout={rowLayout}>
+            <TareaHechaRow
+              tarea={t}
+              sectionColor={colorDeSeccion(t)}
+              dato={datoCierreForTarea(t, day.datosVivos, hoy)}
+              onNavigate={handleNavigate}
+              onPalomear={handlePalomear}
+            />
+          </Animated.View>,
+        );
+      }
+    }
+    for (const b of pendingBlocks) {
+      tareasChildren.push(
+        <Animated.View
+          key={`header-${b.momento}`}
+          layout={rowLayout}
+          onLayout={captureBlockY(b.momento)}
+          style={s.blockHeader}
+        >
+          <EliteText style={s.blockLabel}>{b.label}</EliteText>
+          <EliteText style={s.blockCount}>{b.done} de {b.total}</EliteText>
+        </Animated.View>,
+      );
+      for (const t of b.pending) {
+        tareasChildren.push(
+          <Animated.View key={t.key} layout={rowLayout}>
+            <TareaCard
+              tarea={t}
+              sectionColor={colorDeSeccion(t)}
+              image={tareaImage(t.key, `${seedBase}-${t.key}`)}
+              dato={datoForTarea(t, uvMini, day.datosVivos, hoy)}
+              onNavigate={handleNavigate}
+              onPalomear={handlePalomear}
+              onInline={handleInline}
+            />
+          </Animated.View>,
+        );
+      }
+    }
+  }
 
   return (
     <View>
@@ -229,34 +319,47 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         </EliteText>
       </View>
 
-      {/* Burbuja del gesto (1.4) */}
+      {/* Burbuja del gesto (1.4): el copy vive en tarea-gesto-core junto a
+          la tabla que describe, amarrado con test (P5.2). */}
       {nudgeVisible && (
         <View style={s.nudge}>
           <ArgosOrb size={18} reducedMotion />
-          <EliteText style={s.nudgeText}>Para palomear un hábito, mantén presionado.</EliteText>
+          <EliteText style={s.nudgeText}>{NUDGE_COPY}</EliteText>
         </View>
       )}
 
       <OrbCard userId={userId} />
 
       {lens === 'tareas' ? (
-        <>
-          {result.blocks.map((b) => (
-            <View key={b.momento} onLayout={captureBlockY(b.momento)}>
-              <View style={s.blockHeader}>
-                <EliteText style={s.blockLabel}>{b.label}</EliteText>
-                <EliteText style={s.blockCount}>{b.done} de {b.total}</EliteText>
-              </View>
-              {b.items.map((t) => (
-                <TareaRow key={t.key} tarea={t} lens="tareas" {...rowProps} />
-              ))}
-            </View>
-          ))}
-        </>
+        <View onLayout={captureContainerY}>{tareasChildren}</View>
       ) : (
         <>
-          {agendaItems.map((t) => (
-            <TareaRow key={t.key} tarea={t} lens="agenda" {...rowProps} />
+          {/* El héroe editorial: una sola card grande que cambia con la hora. */}
+          {heroTarea ? (
+            <TareaCard
+              tarea={heroTarea}
+              sectionColor={colorDeSeccion(heroTarea)}
+              image={tareaImage(heroTarea.key, `${seedBase}-${heroTarea.key}`)}
+              dato={datoForTarea(heroTarea, uvMini, day.datosVivos, hoy)}
+              badge="AHORA"
+              onNavigate={handleNavigate}
+              onPalomear={handlePalomear}
+              onInline={handleInline}
+            />
+          ) : null}
+          {/* Bandas editoriales por bloque; las filas se quedan compactas.
+              MB-20.2 · 3.1: la tarea del héroe NO se repite como fila — dos
+              superficies palomeables para lo mismo era un bug de honestidad.
+              El contador de la banda sí la incluye (es progreso real). */}
+          {result.blocks.map((b) => (
+            <View key={b.momento}>
+              <MomentoBanda momento={b.momento} label={b.label} done={b.done} total={b.total} />
+              {b.items
+                .filter((t) => t.key !== heroTarea?.key)
+                .map((t) => (
+                  <TareaRow key={t.key} tarea={t} lens="agenda" accentColor={colorDeSeccion(t)} {...rowProps} />
+                ))}
+            </View>
           ))}
           <Pressable
             onPress={() => { haptic.light(); router.push('/agenda'); }}
@@ -290,14 +393,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
           <EliteText style={s.addText}>agregar</EliteText>
         </Pressable>
       </View>
-
-      <SmartCheckModal
-        tarea={smartTarea}
-        onClose={() => setSmartTarea(null)}
-        onNavigate={handleNavigate}
-        onRegistrar={handleRegistrar}
-        onIrRegistro={handleIrRegistro}
-      />
     </View>
   );
 }

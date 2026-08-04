@@ -13,7 +13,6 @@ import {
 import { hasAppIcon, APP_ICON_NAMES } from '@/src/components/ui/app-icon-names';
 import { PUERTAS, DESTINOS_TODOS } from '../salud-puertas';
 import { ELECTRON_WEIGHTS } from '../electrons';
-import { HOY_CARD_SPECS } from '../hoy-cards';
 import { ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/services/hoy/day-booleans';
 
 describe('APP_REGISTRY', () => {
@@ -117,7 +116,6 @@ describe('cobertura de iconos', () => {
       ...PUERTAS.map((p) => p.icon),
       ...DESTINOS_TODOS.map((d) => d.icon),
       ...Object.values(ELECTRON_WEIGHTS).map((e) => e.icon),
-      ...HOY_CARD_SPECS.map((c) => c.icon),
       ...ALL_BOOLEAN_OPTIONS.map((o) => o.icon),
       ...ALL_QUANT_OPTIONS.map((o) => o.icon),
     ]);

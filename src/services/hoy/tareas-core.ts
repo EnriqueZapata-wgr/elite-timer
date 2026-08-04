@@ -14,6 +14,9 @@ import {
   VERIFIED_ELECTRON_KEYS,
   VERIFIED_ELECTRON_ROUTES,
 } from '@/src/services/hoy/day-booleans';
+import { APP_BY_KEY } from '@/src/constants/app-registry';
+import { ELECTRON_TO_APP } from '@/src/constants/electron-app-bridge';
+import type { ElectronSource } from '@/src/constants/electrons';
 
 // ── Shapes estructurales (espejo type-only de day-compiler) ──
 
@@ -27,7 +30,6 @@ export interface TareaBoolLike {
   color: string;
   weight: number;
   completed: boolean;
-  pillarRoute?: TareaRoute;
 }
 
 export interface TareaQuantLike {
@@ -133,35 +135,19 @@ export const TAREA_TIME: Record<string, string> = {
 
 // ── Gestos ──
 
-/** Qué hace el tap largo en cada fila. El tap simple SIEMPRE navega. */
-export type TareaGesto = 'palomear' | 'experiencia' | 'inline' | 'navegar';
+/** El TAP hace LA ACCIÓN PRINCIPAL de cada fila (MB-20.5: solo DOS tipos —
+ * el modal murió; el registro manual vive dentro de cada módulo):
+ *   'palomear' → tap palomea; tap largo navega si hay ruta.
+ *   'navegar'  → tap navega (su única acción); tap largo nada.
+ *   'inline'   → los botones capturan; el tap del resto navega. */
+export type TareaGesto = 'palomear' | 'inline' | 'navegar';
 
-/** Experiencias: palomear no regala el check — pregunta primero. */
-export const EXPERIENCIA_SOURCES: readonly string[] = [
-  'meditation', 'breathwork', 'strength', 'journal', 'nback', 'cardio',
-];
-
-/** Experiencias con captura externa limpia (existe writer real de sesión):
- * mind_sessions para meditar/respirar, cardio_sessions manual para cardio. */
-export const EXPERIENCIA_CAPTURA: readonly string[] = [
-  'meditation', 'breathwork', 'cardio',
-];
-
-/** Experiencias SIN captura externa: su registro real ES una pantalla, y el SÍ
- * del modal navega ahí (la partida de N-Back, la entrada de journal, el logger
- * de fuerza que escribe exercise_logs). Toda EXPERIENCIA_SOURCES debe estar en
- * EXPERIENCIA_CAPTURA o aquí: el modal nunca tiene un solo botón (hay test). */
-export const EXPERIENCIA_REGISTRO: Record<string, string> = {
-  strength: '/log-exercise',
-  journal: '/journal',
-  nback: '/mente/nback/sesion',
-};
-
+/** Verificado ⇒ su check nace de actividad real: el tap abre el módulo (ahí
+ * vive también el registro manual). Lo demás se palomea por declaración. */
 export function gestoForBool(source: string): TareaGesto {
-  if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) {
-    return (EXPERIENCIA_SOURCES as readonly string[]).includes(source) ? 'experiencia' : 'navegar';
-  }
-  return 'palomear';
+  return (VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)
+    ? 'navegar'
+    : 'palomear';
 }
 
 // ── La fila unificada ──
@@ -191,17 +177,39 @@ export interface TareaBlock {
   total: number;
 }
 
-const QUANT_ROUTES: Record<string, string> = {
+/** Rutas de los cuantitativos. Export MB-20.3 P4: el test
+ * rutas-pantallas-reales las cruza contra los archivos de app/. */
+export const QUANT_ROUTES: Record<string, string> = {
   water: '/hydration',
   protein: '/nutrition',
   steps: '/reports',
   sleep: '/sleep',
 };
 
+/**
+ * MB-20.2 · 2.5: la ruta de un hábito sale del puente electrón→app
+ * (electron-app-bridge, la fuente única de MB-19.2), nunca de un fallback
+ * que invente destinos. Prioridad:
+ *   1. Ruta granular del verificado — MB-20.3 P4: solo las DOS que divergen
+ *      del puente (checkin → /checkin, cardio → /log-cardio), con su motivo
+ *      escrito en day-booleans. Lo demás ya no se duplica aquí.
+ *   2. La app del electrón según el puente, con su ruta del app-registry
+ *      (sunlight → 'sol' → /solar).
+ *   3. Nada. Los ELECTRONS_SIN_APP no están en el puente → sin ruta: se
+ *      practican, no se abren (navegación honesta, cero puertas a lugares
+ *      que no existen). El test del puente obliga a clasificar todo
+ *      electrón nuevo, así que aquí no hay hueco posible.
+ */
+export function routeForBool(source: string): TareaRoute | undefined {
+  const granular = (VERIFIED_ELECTRON_ROUTES as Record<string, TareaRoute>)[source];
+  if (granular) return granular;
+  const app = ELECTRON_TO_APP[source as ElectronSource];
+  return app ? (APP_BY_KEY[app]?.route as TareaRoute | undefined) : undefined;
+}
+
 function boolToTarea(e: TareaBoolLike): Tarea {
   const gesto = gestoForBool(e.source);
-  const route: TareaRoute | undefined =
-    (VERIFIED_ELECTRON_ROUTES as Record<string, string>)[e.source] ?? e.pillarRoute;
+  const route = routeForBool(e.source);
   return {
     key: e.source,
     kind: 'bool',
@@ -238,7 +246,8 @@ function quantToTarea(q: TareaQuantLike): Tarea {
 
 /** De los items de agenda del compile solo entran los SMART accionables
  * (romper ayuno). Los eventos máquina viven en /agenda; los informativos
- * (comidas, sueño) no son tareas. Ayuno navega a su pantalla y fin. */
+ * (comidas, sueño) no son tareas. Ayuno es 'navegar': su acción principal
+ * (y única) es abrirse, así que el tap navega y fin (ajuste MB-20.4). */
 function smartAgendaTareas(items: TareaAgendaLike[]): Tarea[] {
   return items
     .filter((i) => i.isSmart && !i.informational)
@@ -304,4 +313,46 @@ export function agendaLens(result: TareasResult): Tarea[] {
   return result.blocks
     .flatMap((b) => b.items)
     .sort((a, b) => minutesFromMidnight(a.time) - minutesFromMidnight(b.time) || a.key.localeCompare(b.key));
+}
+
+// ── El reparto de la lente TAREAS (MB-20.2 · 1.3) ──
+
+export interface TareaBlockPendiente extends TareaBlock {
+  /** Solo los items sin completar (los hechos viven en la cinta de arriba). */
+  pending: Tarea[];
+}
+
+/**
+ * HECHAS arriba como cinta (en orden cronológico) y abajo solo bloques con
+ * pendientes. Recibe la lista de agenda ya calculada para no re-ordenar dos
+ * veces la misma fuente. Los contadores done/total del bloque se conservan
+ * completos: el encabezado dice "2 de 5" aunque solo pinte las 3 pendientes.
+ */
+export function repartoTareas(agendaItems: Tarea[], blocks: TareaBlock[]): {
+  hechas: Tarea[];
+  pendingBlocks: TareaBlockPendiente[];
+} {
+  return {
+    hechas: agendaItems.filter((t) => t.completed),
+    pendingBlocks: blocks
+      .map((b) => ({ ...b, pending: b.items.filter((t) => !t.completed) }))
+      .filter((b) => b.pending.length > 0),
+  };
+}
+
+/**
+ * A qué bloque va el auto-foco (MB-20.2 · 1.2). El bloque de la hora si tiene
+ * pendientes; si ya quedó completo, el siguiente con pendientes; si hacia
+ * adelante no queda ninguno pero atrás sí, el primero que siga pendiente.
+ * Con el día terminado no hay foco (null): el usuario merece ver la cinta
+ * de hechas completa, sin scroll.
+ */
+export function pickFocusMomento(
+  pendientes: readonly Momento[],
+  focusMomento: Momento,
+): Momento | null {
+  if (pendientes.includes(focusMomento)) return focusMomento;
+  const idx = MOMENTOS.indexOf(focusMomento);
+  const siguiente = MOMENTOS.slice(idx + 1).find((m) => pendientes.includes(m));
+  return siguiente ?? pendientes[0] ?? null;
 }
