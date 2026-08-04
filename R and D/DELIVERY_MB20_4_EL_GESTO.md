@@ -15,6 +15,83 @@
 
 ---
 
+# 🔁 AJUSTE (post-run, decisión de Enrique) · "El tap hace la acción principal"
+
+El flag del primer reporte era correcto: el tap en filas `navegar` quedaba mudo.
+La regla no es "tap palomea" — es **el tap hace la acción principal de esa fila**:
+
+| Gesto | Tap | Tap largo |
+|---|---|---|
+| palomear | palomea (en hechas destacha) | navega si hay ruta; sin ruta nada |
+| navegar | **NAVEGA** (su única acción) | **nada** |
+| experiencia | abre la paloma inteligente | va directo a la función |
+| agua (inline) | sus botones capturan; el tap del resto navega a hidratación | nada |
+
+Todo sigue en `useTareaGesto` (un solo lugar) y el contrato se reescribió a la
+regla nueva: ninguna fila con ruta queda muda al toque; el tap largo solo es
+atajo donde el tap hace otra cosa.
+
+## Las tres decisiones que no se pierden
+
+1. **La card grande de hidratación lleva LOS TRES botones**: +250 ml, +500 ml
+   y −250 ml. `onInline` ahora pasa el delta con signo y `addWater` ya clampa
+   en 0 (la resta corrige el toque de más y no celebra al vibrar). ⚠️ La fila
+   compacta de AGENDA conserva solo +250 — no cabe la botonera; los tres viven
+   en la card. Si los tres deben ir también ahí, es un cambio de layout de la
+   fila (decide Enrique).
+2. **Todas las tareas son cards editoriales**: intacto — en la lente TAREAS
+   toda pendiente es `TareaCard` sin excepción (palomear, navegar, experiencia
+   y agua con su botonera); nada se degradó a versión chica con este ajuste.
+   *Interpretación aplicada:* la cinta de HECHAS (colapsada por decisión
+   MB-20.1) y las filas compactas de la lente AGENDA ("la lente que se opera",
+   MB-20.1) se conservan como estaban. Si "sin versión chica" también aplica a
+   AGENDA, es rediseño de esa lente: se decide aparte.
+3. **Toda card con dato disponible lo muestra**: intacto — `datoForTarea`
+   sigue igual (dato real o card sin línea de dato, nunca texto de catálogo).
+
+## El círculo palomeable — propuesta aplicada
+
+**El círculo es la promesa de que un toque lo llena; solo las palomeables la
+cumplen.** En verificadas (`navegar`, `experiencia`) y cuantitativas el check
+nace de actividad real: un círculo que nada llena mentía. Lo aplicado:
+
+- **Pendientes palomeables** → círculo vacío, como hoy (el tap lo llena).
+- **Pendientes verificadas y cuantitativas** → **el círculo no va**. La card
+  queda como puerta con su dato; la fila de AGENDA conserva la alineación con
+  un slot invisible del mismo ancho.
+- **Hechas (todas)** → la paloma pintada se queda: ahí es **estado**, no
+  promesa de gesto (la cinta de colores y el `checkDone` de AGENDA no cambian).
+
+Alternativa considerada y descartada: círculo punteado ("check que se gana con
+actividad") — `borderStyle: 'dashed'` + `borderRadius` pinta mal en Android y
+agregaba un tercer lenguaje visual. Si en device se extraña una señal de
+"esto también cuenta para tu día" en las verificadas, la vuelta es un glifo
+distinto, no el círculo.
+
+## El copy describe la regla, no "un toque palomea" a secas
+
+- **Tour paso 2:** *"Un toque hace lo principal: palomear el hábito o abrir su
+  función. Mantener presionado abre los que se palomean. Pruébalo aquí
+  mismo."* (test actualizado que amarra este copy).
+- **Burbuja:** *"Un toque hace la acción principal de cada fila. Los hábitos
+  que se palomean se abren manteniendo presionado."* (header de nudge-store
+  actualizado; disparadores sin cambio: siguen detectando el despalomeo
+  accidental y el descarte de la paloma inteligente).
+
+## Device test — puntos que cambian con el ajuste
+
+- (5′) Tap en Ayuno **abre su pantalla** (antes: no abría); tap largo en Ayuno
+  no hace nada.
+- (nuevo) Tap en Suplementos / Check-in / Ciclo / Proteína / Pasos / Sueño
+  abre su pantalla; tap largo en ellas no hace nada.
+- (nuevo) Card de agua: +250, +500 y −250 funcionan, −250 no baja de 0, y el
+  tap fuera de los botones abre Hidratación.
+- (nuevo) Las cards de verificadas y cuantitativas **no pintan círculo**; las
+  palomeables sí; las hechas conservan su paloma.
+- Los demás puntos del run original siguen igual (1-4, 6-9).
+
+---
+
 ## 📋 La lista pedida: TODOS los lugares donde se invirtió el copy del gesto
 
 ### Copy que VE el usuario (2)
@@ -106,4 +183,5 @@ El patrón viejo (tap → navegar → regresar sin completar) murió con el gest
 
 **Flags para Enrique:**
 - El disparador (b) del nudge cuenta solo backdrop/atrás como "sin elegir"; contestar NO no cuenta. Si en device se siente que el nudge tarda en salir, el umbral (3) vive en `NUDGE_THRESHOLD`.
-- Con el tap simple muerto en filas `navegar` (suplementos, check-in, ciclo, ayuno, cuantitativos), el chevron sigue siendo la única pista visual de "esto se abre". Si en device se siente mudo el tap ahí, es decisión de producto (¿vibración sutil? ¿hint?), no de este run.
+- ~~El tap simple muda en filas `navegar`~~ → **resuelto por el AJUSTE de
+  arriba**: el tap ahora navega en ellas (la acción principal).
