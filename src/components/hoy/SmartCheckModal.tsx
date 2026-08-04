@@ -39,9 +39,16 @@ interface Props {
   onRegistrar: (t: Tarea, minutes: number) => Promise<boolean>;
   /** SÍ sin captura: ir a la pantalla de registro real (EXPERIENCIA_REGISTRO). */
   onIrRegistro: (t: Tarea) => void;
+  /** Backdrop / botón atrás: se descartó la pregunta SIN elegir. Alimenta la
+   * burbuja contextual del gesto (MB-20.4): quien huye de la pregunta
+   * probablemente quería abrir la función, no palomearla. Contestar NO es
+   * elegir y no pasa por aquí. */
+  onDismissSinElegir?: () => void;
 }
 
-export function SmartCheckModal({ tarea, onClose, onNavigate, onRegistrar, onIrRegistro }: Props) {
+export function SmartCheckModal({
+  tarea, onClose, onNavigate, onRegistrar, onIrRegistro, onDismissSinElegir,
+}: Props) {
   const [fase, setFase] = useState<'pregunta' | 'minutos'>('pregunta');
   const [minutos, setMinutos] = useState(15);
   const [saving, setSaving] = useState(false);
@@ -57,6 +64,9 @@ export function SmartCheckModal({ tarea, onClose, onNavigate, onRegistrar, onIrR
 
   function close() { reset(); onClose(); }
 
+  /** Cierre por backdrop / botón atrás: sin elección. */
+  function dismiss() { close(); onDismissSinElegir?.(); }
+
   async function registrar() {
     if (!tarea || saving) return;
     setSaving(true);
@@ -66,8 +76,8 @@ export function SmartCheckModal({ tarea, onClose, onNavigate, onRegistrar, onIrR
   }
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={close}>
-      <Pressable style={s.backdrop} onPress={close}>
+    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
+      <Pressable style={s.backdrop} onPress={dismiss}>
         <Pressable style={s.card} onPress={() => {}}>
           {fase === 'pregunta' ? (
             <>

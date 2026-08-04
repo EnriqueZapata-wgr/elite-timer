@@ -23,10 +23,11 @@ export const ORB_TOUR_STEPS: readonly OrbTourStep[] = [
     copy: 'Esto es tu día. Todo lo que te toca, en una sola lista.',
   },
   {
+    // MB-20.4: el gesto se invirtió — este paso enseña (y hace probar) el NUEVO.
     id: 'gestos',
     route: '/',
     kicker: 'LOS DOS GESTOS',
-    copy: 'Tocar una fila te lleva a su función. Mantener presionado la palomea. Pruébalo aquí mismo.',
+    copy: 'Tocar una fila la palomea. Mantener presionado te lleva a su función. Pruébalo aquí mismo.',
   },
   {
     id: 'inline',

@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { View, Pressable, StyleSheet, Alert, LayoutChangeEvent } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { EliteText } from '@/components/elite-text';
 import { warn as logWarn } from '@/src/lib/logger';
@@ -37,7 +37,9 @@ import {
   persistBooleanToggle, registrarExperiencia, type ExperienciaExterna,
 } from '@/src/services/hoy/tarea-actions';
 import { addWater } from '@/src/services/hydration-service';
-import { canShowNudge, markNudgeShown, NUDGE_THRESHOLD } from '@/src/services/hoy/nudge-store';
+import {
+  canShowNudge, markNudgeShown, NUDGE_THRESHOLD, RECHECK_ACCIDENTE_MS,
+} from '@/src/services/hoy/nudge-store';
 import type { CompiledDay } from '@/src/services/day-compiler';
 import { Fonts, FontSizes, Radius, Spacing } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, TEXT, withOpacity } from '@/src/constants/brand';
@@ -147,40 +149,29 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
     }
   };
 
-  // ── Recordatorio contextual del tap largo (1.4) ──
-  // NOCTURNO-FIX 7.4: al recuperar foco el compilado AÚN es el viejo (loadDay
-  // es async), así que comparar ahí contaba "regresó sin hacer nada" aunque
-  // sí hubiera hecho. El foco solo ARMA la evaluación; se decide cuando llega
-  // el compile fresco (cambia `day`).
-  const tapNavRef = useRef<{ key: string; completedAtNav: number } | null>(null);
-  const pendingEvalRef = useRef<{ key: string; completedAtNav: number } | null>(null);
+  // ── La burbuja contextual del gesto (1.4, invertida en MB-20.4) ──
+  // El patrón viejo (tap → navegar → regresar sin completar) murió con el
+  // gesto: el tap ya no navega. Las señales de confusión nuevas son las del
+  // que espera que el toque ABRA la función:
+  //   a) despalomear una fila hecha y re-palomearla en segundos (el toque
+  //      accidental que tocó el ledger), detectada en handlePalomear;
+  //   b) descartar la paloma inteligente sin elegir (backdrop / atrás),
+  //      reportada por SmartCheckModal.onDismissSinElegir.
   const bounceCountRef = useRef(0);
+  const uncheckAtRef = useRef<Record<string, number>>({});
   const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const completedNow = result.global.done;
-  useFocusEffect(useCallback(() => {
-    if (tapNavRef.current) {
-      pendingEvalRef.current = tapNavRef.current;
-      tapNavRef.current = null;
-    }
-  }, []));
-  useEffect(() => {
-    const pending = pendingEvalRef.current;
-    if (!pending) return;
-    pendingEvalRef.current = null;
-    if (result.global.done > pending.completedAtNav) { bounceCountRef.current = 0; return; }
+  const senalGesto = useCallback(() => {
     bounceCountRef.current += 1;
-    if (bounceCountRef.current >= NUDGE_THRESHOLD) {
-      bounceCountRef.current = 0;
-      canShowNudge().then((can) => {
-        if (!can) return;
-        markNudgeShown();
-        setNudgeVisible(true);
-        if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
-        nudgeTimerRef.current = setTimeout(() => setNudgeVisible(false), 8000);
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [day]);
+    if (bounceCountRef.current < NUDGE_THRESHOLD) return;
+    bounceCountRef.current = 0;
+    canShowNudge().then((can) => {
+      if (!can) return;
+      markNudgeShown();
+      setNudgeVisible(true);
+      if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
+      nudgeTimerRef.current = setTimeout(() => setNudgeVisible(false), 8000);
+    });
+  }, []);
   useEffect(() => () => {
     if (nudgeTimerRef.current) clearTimeout(nudgeTimerRef.current);
   }, []);
@@ -188,15 +179,21 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   // ── Handlers de gesto ──
   const handleNavigate = useCallback((t: Tarea) => {
     if (!t.route) return;
-    if (t.gesto === 'palomear' || t.gesto === 'experiencia') {
-      tapNavRef.current = { key: t.key, completedAtNav: completedNow };
-    }
     router.push(t.route as never);
-  }, [router, completedNow]);
+  }, [router]);
 
   const handlePalomear = useCallback((t: Tarea) => {
     if (!userId) return;
     const next = !t.completed;
+    // Señal (a) del nudge: despalomeo que se corrige en segundos = toque
+    // accidental sobre una hecha.
+    if (!next) {
+      uncheckAtRef.current[t.key] = Date.now();
+    } else {
+      const uncheckedAt = uncheckAtRef.current[t.key];
+      delete uncheckAtRef.current[t.key];
+      if (uncheckedAt != null && Date.now() - uncheckedAt <= RECHECK_ACCIDENTE_MS) senalGesto();
+    }
     setOverrides((prev) => ({ ...prev, [t.key]: next }));
     const currentStates: Record<string, boolean> = {};
     for (const e of day.booleanElectrons) currentStates[e.source] = e.completed;
@@ -205,10 +202,10 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
       logWarn('[TareasView] palomeo failed, reverted', e);
       Alert.alert('No se pudo guardar', 'Inténtalo de nuevo en un momento.');
     });
-  }, [userId, day]);
+  }, [userId, day, senalGesto]);
 
   // SÍ de una experiencia sin captura: directo a su pantalla de registro real.
-  // No cuenta para el nudge: quien llegó aquí ya usa el tap largo.
+  // No cuenta para el nudge: quien llegó aquí ya eligió en la pregunta.
   const handleIrRegistro = useCallback((t: Tarea) => {
     const route = EXPERIENCIA_REGISTRO[t.key];
     if (!route) return;
@@ -342,11 +339,11 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         </EliteText>
       </View>
 
-      {/* Burbuja del gesto (1.4) */}
+      {/* Burbuja del gesto (1.4 · MB-20.4: enseña el gesto NUEVO) */}
       {nudgeVisible && (
         <View style={s.nudge}>
           <ArgosOrb size={18} reducedMotion />
-          <EliteText style={s.nudgeText}>Para palomear un hábito, mantén presionado.</EliteText>
+          <EliteText style={s.nudgeText}>Un toque palomea. Para abrir la función, mantén presionado.</EliteText>
         </View>
       )}
 
@@ -423,6 +420,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         onNavigate={handleNavigate}
         onRegistrar={handleRegistrar}
         onIrRegistro={handleIrRegistro}
+        onDismissSinElegir={senalGesto}
       />
     </View>
   );

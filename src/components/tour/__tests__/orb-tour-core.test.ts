@@ -26,6 +26,14 @@ describe('guion del tour', () => {
     }
   });
 
+  it('el paso 2 enseña el gesto NUEVO (MB-20.4): tocar palomea, mantener navega', () => {
+    // Si esto truena, la app está enseñando lo contrario de lo que hace.
+    const gestos = ORB_TOUR_STEPS.find((s) => s.id === 'gestos')!;
+    expect(gestos.copy).toMatch(/^Tocar una fila la palomea\./);
+    expect(gestos.copy).toContain('Mantener presionado te lleva a su función');
+    expect(gestos.copy).toContain('Pruébalo aquí mismo');
+  });
+
   it('las siglas se explican la primera vez', () => {
     const electrones = ORB_TOUR_STEPS.find((s) => s.id === 'electrones')!;
     expect(electrones.copy).toContain('electrones (e-)');
