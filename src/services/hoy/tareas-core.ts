@@ -135,10 +135,11 @@ export const TAREA_TIME: Record<string, string> = {
 
 // ── Gestos ──
 
-/** Qué hace el TAP SIMPLE en cada fila (MB-20.4 lo invirtió: palomear es la
- * acción principal y merece el gesto barato). El tap largo SIEMPRE navega a
- * la función — y sin ruta, no hace nada. 'navegar' = solo se abre (con tap
- * largo); su tap simple no hace nada. */
+/** El TAP hace LA ACCIÓN PRINCIPAL de cada fila (ajuste MB-20.4):
+ *   'palomear'    → tap palomea; tap largo navega si hay ruta.
+ *   'navegar'     → tap navega (su única acción); tap largo nada.
+ *   'experiencia' → tap pregunta (paloma inteligente); tap largo directo.
+ *   'inline'      → los botones capturan; el tap del resto navega. */
 export type TareaGesto = 'palomear' | 'experiencia' | 'inline' | 'navegar';
 
 /** Experiencias: palomear no regala el check — pregunta primero. */
@@ -265,8 +266,8 @@ function quantToTarea(q: TareaQuantLike): Tarea {
 
 /** De los items de agenda del compile solo entran los SMART accionables
  * (romper ayuno). Los eventos máquina viven en /agenda; los informativos
- * (comidas, sueño) no son tareas. Ayuno solo navega a su pantalla — con el
- * tap largo, como todo lo demás (MB-20.4). */
+ * (comidas, sueño) no son tareas. Ayuno es 'navegar': su acción principal
+ * (y única) es abrirse, así que el tap navega y fin (ajuste MB-20.4). */
 function smartAgendaTareas(items: TareaAgendaLike[]): Tarea[] {
   return items
     .filter((i) => i.isSmart && !i.informational)

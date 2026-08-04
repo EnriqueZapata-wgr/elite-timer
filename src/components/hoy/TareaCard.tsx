@@ -2,10 +2,11 @@
  * TareaCard (MB-20.1 · Pieza 1) — la card editorial de una tarea pendiente.
  *
  * Piel, no esqueleto: el contrato de gestos es EXACTAMENTE el de TareaRow
- * (useTareaGesto, invertido en MB-20.4): tap simple palomea o abre la
- * paloma inteligente; tap largo navega a la función. La confirmación del
- * tap es el viaje de la card al bloque de HECHAS (Pieza 3). Lo único
- * propio de esta card es cómo se ve.
+ * (useTareaGesto, ajuste MB-20.4): el tap hace la acción principal de la
+ * tarea — palomear, navegar o preguntar — y el tap largo es el atajo a la
+ * función en palomear/experiencia. La confirmación del palomeo es el viaje
+ * de la card al bloque de HECHAS (Pieza 3). Lo único propio de esta card
+ * es cómo se ve.
  *
  * Receta visual = el molde editorial de siempre (EditorialCard): foto de
  * fondo + degradado diagonal del COLOR DE SECCIÓN (APP_SECTION_COLORS) +
@@ -34,14 +35,17 @@ interface Props {
   dato?: string;
   /** Badge superior (el héroe de AGENDA lleva "AHORA"). */
   badge?: string;
-  /** Tap largo: navegar a la función. */
+  /** Navegar a la función (tap en navegar/inline; tap largo como atajo en
+   * palomear/experiencia). */
   onNavigate: (t: Tarea) => void;
   /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
   /** Tap simple en experiencia: abre la paloma inteligente. */
   onExperiencia: (t: Tarea) => void;
-  /** Acción inline (hidratación +250 ml), el mismo handler de la fila. */
-  onInline?: (t: Tarea) => void;
+  /** Captura inline de hidratación (deltaMl con signo), el mismo handler
+   * de la fila. Decisión de Enrique: la card grande lleva LOS TRES botones
+   * (+250 / +500 / −250). */
+  onInline?: (t: Tarea, deltaMl: number) => void;
 }
 
 export function TareaCard({
@@ -98,9 +102,12 @@ export function TareaCard({
 
       <View style={s.content}>
         <View style={s.topRow}>
-          {/* El mismo círculo palomeable de la fila: vacío hasta que el tap
-              lo llena de golpe y la card viaja a HECHAS (MB-20.4). */}
-          <View style={s.check} />
+          {/* El círculo es la promesa de que un toque lo llena, y solo las
+              palomeables la cumplen. En verificadas y cuantitativas el check
+              nace de actividad real: círculo fuera (ajuste MB-20.4) — el
+              hecho se ve en el viaje a HECHAS con su paloma pintada. El View
+              vacío conserva los badges a la derecha (space-between). */}
+          {tarea.gesto === 'palomear' ? <View style={s.check} /> : <View />}
           <View style={s.topRight}>
             {badge ? (
               <View style={s.badge}><EliteText style={s.badgeText}>{badge}</EliteText></View>
@@ -119,16 +126,25 @@ export function TareaCard({
               <View style={[s.trackFill, { width: `${Math.round(tarea.progress * 100)}%` }]} />
             </View>
           ) : null}
+          {/* Decisión de Enrique: la card grande lleva LOS TRES botones,
+              no solo el de sumar. La resta corrige el toque de más (el
+              servicio clampa en 0) y no celebra al vibrar. */}
           {tarea.gesto === 'inline' && onInline && !tarea.completed ? (
             <View style={s.quickRow}>
-              <Pressable
-                onPress={() => { haptic.success(); onInline(tarea); }}
-                hitSlop={8}
-                style={({ pressed }) => [s.quickBtn, pressed && { opacity: 0.6 }]}
-                accessibilityLabel="Agregar 250 mililitros"
-              >
-                <EliteText style={s.quickBtnText}>+250 ml</EliteText>
-              </Pressable>
+              {([[250, '+250 ml'], [500, '+500 ml'], [-250, '-250 ml']] as const).map(([delta, label]) => (
+                <Pressable
+                  key={label}
+                  onPress={() => {
+                    if (delta > 0) haptic.success(); else haptic.light();
+                    onInline(tarea, delta);
+                  }}
+                  hitSlop={8}
+                  style={({ pressed }) => [s.quickBtn, pressed && { opacity: 0.6 }]}
+                  accessibilityLabel={delta > 0 ? `Agregar ${delta} mililitros` : `Quitar ${-delta} mililitros`}
+                >
+                  <EliteText style={s.quickBtnText}>{label}</EliteText>
+                </Pressable>
+              ))}
             </View>
           ) : null}
         </View>

@@ -10,9 +10,10 @@
  *   b) Descarta la paloma inteligente sin elegir (backdrop / botón atrás).
  *      Contestar NO sí es elegir: solo el descarte cuenta.
  *
- * NUDGE_THRESHOLD señales en una sesión → se enseña una vez: "Un toque
- * palomea. Para abrir la función, mantén presionado." Máximo una vez por
- * semana. Contador local: no se envía a ningún lado.
+ * NUDGE_THRESHOLD señales en una sesión → se enseña la regla una vez: "Un
+ * toque hace la acción principal de cada fila. Los hábitos que se palomean
+ * se abren manteniendo presionado." Máximo una vez por semana. Contador
+ * local: no se envía a ningún lado.
  *
  * Llave nueva a propósito: la burbuja vieja enseñaba el gesto viejo — quien
  * ya la vio merece ver la nueva una vez.

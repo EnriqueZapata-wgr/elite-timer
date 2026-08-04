@@ -6,9 +6,10 @@
  * nombre va tachado y el dato de cierre queda a la derecha. Así el bloque
  * HECHAS se lee como una cinta de colores del día.
  *
- * Los gestos son los del contrato único (useTareaGesto, invertido en
- * MB-20.4): un toque destacha si la tarea es palomeable — deshacer cuesta
- * lo mismo que hacer (Pieza 4.1) — y el tap largo navega a la función.
+ * Los gestos son los del contrato único (useTareaGesto, ajuste MB-20.4):
+ * un toque destacha si la tarea es palomeable — deshacer cuesta lo mismo
+ * que hacer (Pieza 4.1) — y en las demás (su check nace de actividad real)
+ * el toque abre la función.
  */
 import { Pressable, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +26,7 @@ interface Props {
   /** Dato de cierre ("12 min", "5.2 km · 32 min", "3 de 5"). Sin él, solo
    * el nombre tachado — nunca el electrón (+2 e-), que es economía. */
   dato?: string;
-  /** Tap largo: navegar a la función. */
+  /** Abrir la función (tap en las no palomeables; tap largo en palomeables). */
   onNavigate: (t: Tarea) => void;
   /** Tap simple: destachar (si es palomeable). */
   onPalomear: (t: Tarea) => void;

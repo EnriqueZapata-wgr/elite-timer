@@ -1,7 +1,12 @@
 /**
- * MB-20.4 · Pieza 1 — el gesto se invierte, y este contrato lo amarra:
- * TAP palomea (o pregunta, si es experiencia), TAP LARGO navega, y sin ruta
- * el tap largo no hace nada.
+ * MB-20.4 (con el ajuste de Enrique) — el contrato del gesto: el TAP hace
+ * LA ACCIÓN PRINCIPAL de cada fila, y el tap largo solo es atajo donde el
+ * tap hace otra cosa.
+ *
+ *   · palomear    → tap palomea; tap largo navega si hay ruta.
+ *   · navegar     → tap navega (su única acción); tap largo nada.
+ *   · experiencia → tap pregunta (paloma inteligente); tap largo directo.
+ *   · inline      → botones capturan; el tap del resto navega; largo nada.
  *
  * Vitest node no monta React Native, así que el contrato se lee del SOURCE
  * del hook único (el mismo patrón que reconcile-core.test.ts usa con
@@ -30,12 +35,25 @@ function cuerpo(nombre: string): string {
   return m![1];
 }
 
-describe('useTareaGesto — el contrato invertido (MB-20.4)', () => {
-  it('el TAP palomea o abre la paloma inteligente — nunca navega', () => {
+describe('useTareaGesto — el tap hace la acción principal (ajuste MB-20.4)', () => {
+  it('TAP en palomeable: palomea ANTES de cualquier navegación', () => {
     const press = cuerpo('handlePress');
-    expect(press).toContain('onPalomear(tarea)');
-    expect(press).toContain('onExperiencia(tarea)');
-    expect(press).not.toContain('onNavigate');
+    const palomea = press.indexOf('onPalomear(tarea)');
+    const navega = press.indexOf('onNavigate(tarea)');
+    expect(palomea).toBeGreaterThanOrEqual(0);
+    // El fallback de navegación existe (navegar/inline) pero va DESPUÉS de
+    // las ramas palomear y experiencia: ninguna fila palomeable navega con tap.
+    expect(navega).toBeGreaterThan(palomea);
+    expect(press.indexOf('onExperiencia(tarea)')).toBeLessThan(navega);
+  });
+
+  it('TAP en navegar/inline: navega — ninguna fila con ruta queda muda al toque', () => {
+    const press = cuerpo('handlePress');
+    expect(press).toContain('onNavigate(tarea)');
+    // Y sin ruta, el tap no hace nada (ni vibra): el guard va antes.
+    const guard = press.indexOf('if (!tarea.route) return');
+    expect(guard).toBeGreaterThanOrEqual(0);
+    expect(press.indexOf('onNavigate(tarea)')).toBeGreaterThan(guard);
   });
 
   it('la paloma inteligente solo abre en experiencia PENDIENTE', () => {
@@ -43,11 +61,16 @@ describe('useTareaGesto — el contrato invertido (MB-20.4)', () => {
     expect(press).toMatch(/gesto === 'experiencia' && !tarea\.completed/);
   });
 
-  it('el TAP LARGO navega — nunca palomea ni pregunta', () => {
+  it('el TAP LARGO es solo el atajo de palomear/experiencia — nunca palomea ni pregunta', () => {
     const largo = cuerpo('handleLongPress');
     expect(largo).toContain('onNavigate(tarea)');
     expect(largo).not.toContain('onPalomear');
     expect(largo).not.toContain('onExperiencia');
+    // En navegar e inline el tap ya navega: el hold no tiene papel. El
+    // guard de gesto va ANTES de navegar.
+    const gestoGuard = largo.indexOf("gesto !== 'palomear' && tarea.gesto !== 'experiencia'");
+    expect(gestoGuard).toBeGreaterThanOrEqual(0);
+    expect(largo.indexOf('onNavigate(tarea)')).toBeGreaterThan(gestoGuard);
   });
 
   it('sin ruta, el tap largo no hace nada (y no vibra): el guard va ANTES', () => {

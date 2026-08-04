@@ -222,10 +222,12 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
     return true;
   }, [userId]);
 
-  const handleInline = useCallback(async (t: Tarea) => {
+  // Los tres botones de la card de agua (+250/+500/−250, decisión de
+  // Enrique) pasan su delta con signo; addWater clampa en 0.
+  const handleInline = useCallback(async (t: Tarea, deltaMl: number) => {
     if (!userId || t.key !== 'water') return;
     try {
-      const r = await addWater(userId, 250);
+      const r = await addWater(userId, deltaMl);
       if (r === null) throw new Error('addWater returned null');
     } catch (e) {
       logWarn('[TareasView] addWater failed', e);
@@ -343,11 +345,14 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         </EliteText>
       </View>
 
-      {/* Burbuja del gesto (1.4 · MB-20.4: enseña el gesto NUEVO) */}
+      {/* Burbuja del gesto (1.4 · ajuste MB-20.4: enseña la regla, no
+          "un toque palomea" a secas) */}
       {nudgeVisible && (
         <View style={s.nudge}>
           <ArgosOrb size={18} reducedMotion />
-          <EliteText style={s.nudgeText}>Un toque palomea. Para abrir la función, mantén presionado.</EliteText>
+          <EliteText style={s.nudgeText}>
+            Un toque hace la acción principal de cada fila. Los hábitos que se palomean se abren manteniendo presionado.
+          </EliteText>
         </View>
       )}
 

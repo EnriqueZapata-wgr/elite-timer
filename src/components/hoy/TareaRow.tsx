@@ -1,13 +1,11 @@
 /**
  * TareaRow — una fila del checklist del día (MB-20 Pieza 1).
  *
- * Los dos gestos, que son el corazón de la pieza, viven en useTareaGesto
- * (un solo lugar para la fila, la card editorial y el renglón de hechas).
- * MB-20.4 los invirtió:
- *   · Tap simple PALOMEA (o pregunta, si es experiencia): vibración
- *     inmediata y la fila se atenúa con su paloma puesta.
- *   · Tap largo NAVEGA a la función, con vibración al cruzar el umbral.
- *     Sin ruta, no hace nada.
+ * Los gestos viven en useTareaGesto (un solo lugar para la fila, la card
+ * editorial y el renglón de hechas). Ajuste MB-20.4: el TAP hace LA ACCIÓN
+ * PRINCIPAL de la fila — palomear, navegar (si es su única acción) o abrir
+ * la paloma inteligente — y el tap largo solo es atajo a la función en
+ * palomear/experiencia, con vibración al cruzar el umbral.
  *
  * MB-20.1 (Pieza 2): la fila sigue compacta (AGENDA es la lente que se
  * opera); el mosaico del icono lleva el degradado de su sección
@@ -32,14 +30,15 @@ interface Props {
   lens: 'tareas' | 'agenda';
   /** MB-20.1: color de sección (APP_SECTION_COLORS). Sin él, el de la tarea. */
   accentColor?: string;
-  /** Tap largo: navegar a la función. */
+  /** Navegar a la función (tap en navegar/inline; tap largo como atajo en
+   * palomear/experiencia). */
   onNavigate: (t: Tarea) => void;
   /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
   /** Tap simple en experiencia: abre la paloma inteligente. */
   onExperiencia: (t: Tarea) => void;
-  /** Acción inline (hidratación +250 ml). */
-  onInline?: (t: Tarea) => void;
+  /** Captura inline de hidratación (deltaMl con signo). */
+  onInline?: (t: Tarea, deltaMl: number) => void;
 }
 
 export function TareaRow({
@@ -64,15 +63,20 @@ export function TareaRow({
         <EliteText style={s.time}>{tarea.time}</EliteText>
       )}
 
-      {/* Círculo palomeable: vacío pendiente, paloma al completar (el tap
-          lo llena de golpe — ya no hay llenado progresivo, MB-20.4). */}
-      <View style={[s.check, { borderColor: tarea.completed ? ATP_BRAND.lime : withOpacity('#FFFFFF', 0.25) }]}>
-        {tarea.completed ? (
-          <View style={s.checkDone}>
-            <Ionicons name="checkmark" size={13} color="#000" />
-          </View>
-        ) : null}
-      </View>
+      {/* Hecha: paloma pintada (estado, para todos los gestos). Pendiente:
+          el círculo solo va donde un toque lo llena (palomear); en
+          verificadas y cuantitativas el check nace de actividad real y el
+          círculo mentía (ajuste MB-20.4). El slot vacío conserva la
+          alineación de la columna. */}
+      {tarea.completed ? (
+        <View style={s.checkDone}>
+          <Ionicons name="checkmark" size={13} color="#000" />
+        </View>
+      ) : tarea.gesto === 'palomear' ? (
+        <View style={[s.check, { borderColor: withOpacity('#FFFFFF', 0.25) }]} />
+      ) : (
+        <View style={s.checkSlot} />
+      )}
 
       {/* Mosaico del icono con el degradado de su sección (MB-20.1 · 2.3) */}
       <LinearGradient
@@ -94,9 +98,11 @@ export function TareaRow({
         )}
       </View>
 
+      {/* La fila compacta de AGENDA conserva solo +250 (no cabe la
+          botonera); los TRES botones viven en la card grande. */}
       {tarea.gesto === 'inline' && onInline && !tarea.completed ? (
         <Pressable
-          onPress={() => { haptic.success(); onInline(tarea); }}
+          onPress={() => { haptic.success(); onInline(tarea, 250); }}
           hitSlop={8}
           style={({ pressed }) => [s.inlineBtn, pressed && { opacity: 0.6 }]}
           accessibilityLabel="Agregar 250 mililitros"
@@ -141,6 +147,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  checkSlot: { width: 24, height: 24 },
   checkDone: {
     width: 24,
     height: 24,

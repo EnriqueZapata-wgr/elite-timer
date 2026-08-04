@@ -3,20 +3,25 @@
  * por la fila, la card editorial y el renglón de hechas: una sola mecánica
  * en un solo lugar.
  *
- * MB-20.4 · Pieza 1 — EL GESTO SE INVIERTE (decisión de Enrique; revierte la
- * arquitectura V2). HOY es un checklist: la acción principal es palomear y
- * pagaba el gesto caro (hold de 350 ms, diecisiete veces al día); navegar es
- * la secundaria y tenía el gesto barato. Ahora:
+ * MB-20.4 (ajuste de Enrique): el TAP hace LA ACCIÓN PRINCIPAL de cada
+ * fila — no "palomear" a secas. Ninguna fila queda muda al toque salvo la
+ * que de verdad no tiene a dónde ir:
  *
- *   · Tap simple PALOMEA (o pregunta, si es experiencia). En hechas, el
- *     mismo tap despalomea: deshacer cuesta lo mismo que hacer (Pieza 4.1).
- *   · Tap largo NAVEGA a la función. Sin ruta (ELECTRONS_SIN_APP) no hace
- *     nada: cero puertas a lugares que no existen.
+ *   · palomear    → tap palomea (en hechas, destacha); tap largo navega si
+ *                   hay ruta. Sin ruta (ELECTRONS_SIN_APP) el tap largo no
+ *                   hace nada: se practican, no se abren.
+ *   · navegar     → tap NAVEGA: es su única acción. El tap largo no hace
+ *                   nada.
+ *   · experiencia → tap abre la paloma inteligente; tap largo va DIRECTO a
+ *                   la función. Completada, lo que queda es abrir: tap
+ *                   navega.
+ *   · inline      → los botones de la card capturan (+250/+500/−250); el
+ *                   tap en el resto navega a su pantalla. El tap largo no
+ *                   hace nada.
  *
- * El llenado progresivo de 350 ms murió con el hold-palomea: enseñaba el
- * gesto viejo. La retroalimentación nueva vive en la Pieza 3: vibración
- * inmediata + el viaje de la card a HECHAS para el tap; vibración al cruzar
- * el umbral para el tap largo.
+ * El llenado progresivo de 350 ms murió con el hold-palomea (P1): la
+ * confirmación del palomeo es la vibración y el viaje de la card a HECHAS;
+ * la señal del atajo largo es la vibración al cruzar el umbral (P3).
  */
 import { useRef } from 'react';
 import { haptic } from '@/src/utils/haptics';
@@ -25,7 +30,8 @@ import type { Tarea } from '@/src/services/hoy/tareas-core';
 export const LONG_PRESS_MS = 350;
 
 export interface TareaGestoCallbacks {
-  /** Tap largo: navegar a la función. */
+  /** Navegar a la función (tap en navegar/inline; tap largo como atajo en
+   * palomear/experiencia). */
   onNavigate: (t: Tarea) => void;
   /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
@@ -46,8 +52,12 @@ export function useTareaGesto(
 
   function handleLongPress() {
     consumedRef.current = true;
-    // Sin ruta no hay a dónde ir: el tap largo no hace nada — tampoco vibra
-    // como si fuera a pasar algo (MB-20.2 · 2.5, navegación honesta).
+    // El tap largo solo es ATAJO a la función donde el tap hace otra cosa
+    // (palomear / experiencia). En navegar e inline el tap ya navega: el
+    // hold no tiene papel y no hace nada.
+    if (tarea.gesto !== 'palomear' && tarea.gesto !== 'experiencia') return;
+    // Sin ruta no hay a dónde ir: tampoco vibra como si fuera a pasar algo
+    // (MB-20.2 · 2.5, navegación honesta).
     if (!tarea.route) return;
     // Pieza 3: vibración al cruzar el umbral, ANTES de navegar. Sin el
     // llenado viejo, esta es la única señal de que el hold registró algo.
@@ -70,8 +80,11 @@ export function useTareaGesto(
       onExperiencia(tarea);
       return;
     }
-    // navegar / inline / experiencia completada: el tap nunca navega ni
-    // regala un check — la navegación vive en el tap largo.
+    // navegar / inline / experiencia completada: la acción principal (o la
+    // única que queda) es abrir la función.
+    if (!tarea.route) return;
+    haptic.light();
+    onNavigate(tarea);
   }
 
   return { handlePress, handlePressIn, handleLongPress };

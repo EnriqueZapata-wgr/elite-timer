@@ -23,11 +23,12 @@ export const ORB_TOUR_STEPS: readonly OrbTourStep[] = [
     copy: 'Esto es tu día. Todo lo que te toca, en una sola lista.',
   },
   {
-    // MB-20.4: el gesto se invirtió — este paso enseña (y hace probar) el NUEVO.
+    // MB-20.4 (ajuste): el tap hace LA ACCIÓN PRINCIPAL de cada fila — el
+    // paso enseña la regla, no "un toque palomea" a secas.
     id: 'gestos',
     route: '/',
     kicker: 'LOS DOS GESTOS',
-    copy: 'Tocar una fila la palomea. Mantener presionado te lleva a su función. Pruébalo aquí mismo.',
+    copy: 'Un toque hace lo principal: palomear el hábito o abrir su función. Mantener presionado abre los que se palomean. Pruébalo aquí mismo.',
   },
   {
     id: 'inline',
