@@ -2,11 +2,10 @@
  * TareaCard (MB-20.1 · Pieza 1) — la card editorial de una tarea pendiente.
  *
  * Piel, no esqueleto: el contrato de gestos es EXACTAMENTE el de TareaRow
- * (useTareaGesto, ajuste MB-20.4): el tap hace la acción principal de la
- * tarea — palomear, navegar o preguntar — y el tap largo es el atajo a la
- * función en palomear/experiencia. La confirmación del palomeo es el viaje
- * de la card al bloque de HECHAS (Pieza 3). Lo único propio de esta card
- * es cómo se ve.
+ * (useTareaGesto, MB-20.5): el tap hace la acción principal de la tarea —
+ * palomear o navegar — y el tap largo es el atajo a la función en
+ * palomear. La confirmación del palomeo es el viaje de la card al bloque
+ * de HECHAS (Pieza 3). Lo único propio de esta card es cómo se ve.
  *
  * Receta visual = el molde editorial de siempre (EditorialCard): foto de
  * fondo + degradado diagonal del COLOR DE SECCIÓN (APP_SECTION_COLORS) +

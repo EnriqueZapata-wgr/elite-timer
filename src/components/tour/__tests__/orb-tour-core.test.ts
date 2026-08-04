@@ -26,12 +26,11 @@ describe('guion del tour', () => {
     }
   });
 
-  it('el paso 2 enseña la regla NUEVA (ajuste MB-20.4): el toque hace lo principal', () => {
+  it('el paso 2 enseña la regla de DOS tipos (MB-20.5): palomea o abre', () => {
     // Si esto truena, la app está enseñando lo contrario de lo que hace.
     const gestos = ORB_TOUR_STEPS.find((s) => s.id === 'gestos')!;
-    expect(gestos.copy).toMatch(/^Un toque hace lo principal/);
-    expect(gestos.copy).toContain('palomear el hábito o abrir su función');
-    expect(gestos.copy).toContain('Mantener presionado abre los que se palomean');
+    expect(gestos.copy).toMatch(/^Un toque palomea los hábitos y abre las funciones/);
+    expect(gestos.copy).toContain('Mantener presionado abre el módulo');
     expect(gestos.copy).toContain('Pruébalo aquí mismo');
   });
 

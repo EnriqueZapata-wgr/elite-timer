@@ -47,6 +47,7 @@ export function accionTapLargo(t: TareaGestoInput): GestoAccion {
 }
 
 /** El copy de la burbuja contextual del gesto (P5.2: vivía suelto en el JSX
- * de TareasView; amarrado como el guion del tour). */
+ * de TareasView; amarrado como el guion del tour). P6: describe la regla de
+ * DOS tipos — es espejo del paso 2 del tour (orb-tour-core). */
 export const NUDGE_COPY =
-  'Un toque hace la acción principal de cada fila. Los hábitos que se palomean se abren manteniendo presionado.';
+  'Un toque palomea los hábitos y abre las funciones. Mantener presionado abre el módulo de un hábito que además tiene pantalla.';

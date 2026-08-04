@@ -120,9 +120,9 @@ describe('el hook despacha la tabla — no decide (P5.1)', () => {
 });
 
 describe('el copy de la burbuja, amarrado como el del tour (P5.2)', () => {
-  it('describe el gesto real: el toque hace, mantener presionado abre', () => {
-    expect(NUDGE_COPY).toMatch(/^Un toque /);
-    expect(NUDGE_COPY).toContain('presionado');
+  it('enseña la regla de DOS tipos (P6): palomea los hábitos, abre las funciones', () => {
+    expect(NUDGE_COPY).toMatch(/^Un toque palomea los hábitos y abre las funciones/);
+    expect(NUDGE_COPY).toContain('Mantener presionado abre el módulo');
   });
 
   it('cero em dash y de largo razonable (es copy de usuario)', () => {

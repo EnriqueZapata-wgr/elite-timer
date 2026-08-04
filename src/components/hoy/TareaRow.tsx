@@ -2,10 +2,9 @@
  * TareaRow — una fila del checklist del día (MB-20 Pieza 1).
  *
  * Los gestos viven en useTareaGesto (un solo lugar para la fila, la card
- * editorial y el renglón de hechas). Ajuste MB-20.4: el TAP hace LA ACCIÓN
- * PRINCIPAL de la fila — palomear, navegar (si es su única acción) o abrir
- * la paloma inteligente — y el tap largo solo es atajo a la función en
- * palomear/experiencia, con vibración al cruzar el umbral.
+ * editorial y el renglón de hechas). MB-20.5: el TAP hace LA ACCIÓN
+ * PRINCIPAL de la fila — palomear o navegar — y el tap largo solo es atajo
+ * a la función en palomear, con vibración al cruzar el umbral.
  *
  * MB-20.1 (Pieza 2): la fila sigue compacta (AGENDA es la lente que se
  * opera); el mosaico del icono lleva el degradado de su sección

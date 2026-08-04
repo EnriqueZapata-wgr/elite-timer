@@ -23,12 +23,12 @@ export const ORB_TOUR_STEPS: readonly OrbTourStep[] = [
     copy: 'Esto es tu día. Todo lo que te toca, en una sola lista.',
   },
   {
-    // MB-20.4 (ajuste): el tap hace LA ACCIÓN PRINCIPAL de cada fila — el
-    // paso enseña la regla, no "un toque palomea" a secas.
+    // MB-20.5: con el modal muerto quedan DOS tipos de card — el paso
+    // enseña esa regla, y el copy es espejo de NUDGE_COPY (tarea-gesto-core).
     id: 'gestos',
     route: '/',
     kicker: 'LOS DOS GESTOS',
-    copy: 'Un toque hace lo principal: palomear el hábito o abrir su función. Mantener presionado abre los que se palomean. Pruébalo aquí mismo.',
+    copy: 'Un toque palomea los hábitos y abre las funciones. Mantener presionado abre el módulo de un hábito que además tiene pantalla. Pruébalo aquí mismo.',
   },
   {
     id: 'inline',

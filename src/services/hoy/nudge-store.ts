@@ -2,18 +2,15 @@
  * La burbuja contextual del gesto (MB-20 Pieza 1.4, invertida en MB-20.4).
  *
  * El patrón viejo (tap → navegar → regresar sin completar) murió con el
- * gesto: ahora el tap palomea. La confusión que se detecta es la del que
- * espera que el toque ABRA la función:
+ * gesto: en las palomeables el tap palomea. La señal de confusión que
+ * queda (MB-20.5, con el modal muerto) es la del toque accidental:
+ * despalomear una fila hecha y re-palomearla en segundos — tocó el ledger
+ * (RECHECK_ACCIDENTE_MS).
  *
- *   a) Despalomea una fila hecha y la vuelve a palomear en segundos — el
- *      toque accidental que tocó el ledger (RECHECK_ACCIDENTE_MS).
- *   b) Descarta la paloma inteligente sin elegir (backdrop / botón atrás).
- *      Contestar NO sí es elegir: solo el descarte cuenta.
- *
- * NUDGE_THRESHOLD señales en una sesión → se enseña la regla una vez: "Un
- * toque hace la acción principal de cada fila. Los hábitos que se palomean
- * se abren manteniendo presionado." Máximo una vez por semana. Contador
- * local: no se envía a ningún lado.
+ * NUDGE_THRESHOLD señales en una sesión → se enseña la regla una vez (el
+ * copy vive en tarea-gesto-core NUDGE_COPY, junto a la tabla que
+ * describe, con test). Máximo una vez por semana. Contador local: no se
+ * envía a ningún lado.
  *
  * Llave nueva a propósito: la burbuja vieja enseñaba el gesto viejo — quien
  * ya la vio merece ver la nueva una vez.

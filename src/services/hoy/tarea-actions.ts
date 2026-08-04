@@ -6,11 +6,10 @@
  *    daily_electrons + electron_logs idempotente + espejo HOY→Agenda + emit.
  *    Saltarse cualquier pata rompe `completed` en el siguiente compile.
  * 2. registrarExperiencia: el registro manual de los módulos (MB-20.5: el
- *    botón "Ya medité"/"Ya respiré" de meditación y respiración; antes era
- *    la paloma inteligente de HOY). Una sesión hecha POR FUERA se registra
- *    como sesión REAL (mind_sessions / cardio_sessions); un insert suelto a
- *    electron_logs lo revocaría reconcileVerifiedLedger en el siguiente
- *    compile.
+ *    botón "Ya medité"/"Ya respiré" de meditación y respiración). Una
+ *    sesión hecha POR FUERA se registra como sesión REAL (mind_sessions /
+ *    cardio_sessions); un insert suelto a electron_logs lo revocaría
+ *    reconcileVerifiedLedger en el siguiente compile.
  */
 import { DeviceEventEmitter } from 'react-native';
 import { supabase } from '@/src/lib/supabase';
