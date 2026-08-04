@@ -13,9 +13,6 @@ import {
   minutesFromMidnight,
   TAREA_MOMENTO,
   TAREA_TIME,
-  EXPERIENCIA_SOURCES,
-  EXPERIENCIA_CAPTURA,
-  EXPERIENCIA_REGISTRO,
   routeForBool,
   type TareasInput,
 } from '@/src/services/hoy/tareas-core';
@@ -132,42 +129,19 @@ describe('gestos', () => {
     expect(gestoForBool('no_alcohol')).toBe('palomear');
   });
 
-  it('experiencias verificadas → paloma inteligente, nunca check regalado', () => {
-    for (const k of EXPERIENCIA_SOURCES) {
-      expect(gestoForBool(k), k).toBe('experiencia');
-      expect((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(k), k).toBe(true);
+  it('TODO verificado → navegar: el check nace de actividad real en su módulo (MB-20.5)', () => {
+    // El modal murió: las seis ex-experiencias (meditación, respiración,
+    // fuerza, journal, N-Back, cardio) abren su pantalla como cualquier
+    // otro verificado. El registro manual vive DENTRO del módulo.
+    for (const k of VERIFIED_ELECTRON_KEYS) {
+      expect(gestoForBool(k), k).toBe('navegar');
     }
-  });
-
-  it('verificados sin experiencia (suplementos, checkin, ciclo) → navegar', () => {
-    expect(gestoForBool('supplements')).toBe('navegar');
-    expect(gestoForBool('checkin')).toBe('navegar');
-    expect(gestoForBool('period_log')).toBe('navegar');
-  });
-
-  it('la captura externa es subconjunto de las experiencias', () => {
-    for (const k of EXPERIENCIA_CAPTURA) {
-      expect(EXPERIENCIA_SOURCES).toContain(k);
-    }
-  });
-
-  it('el modal nunca tiene un solo botón: toda experiencia captura o tiene registro real', () => {
-    // Si una experiencia no está en EXPERIENCIA_CAPTURA ni en
-    // EXPERIENCIA_REGISTRO, su SÍ no tendría a dónde ir. Un gesto que no
-    // ofrece opción no debería preguntar: se detecta aquí, no en el device.
-    for (const k of EXPERIENCIA_SOURCES) {
-      const capturable = (EXPERIENCIA_CAPTURA as readonly string[]).includes(k);
-      const registro = EXPERIENCIA_REGISTRO[k];
-      expect(capturable || Boolean(registro), `${k} sin captura ni registro`).toBe(true);
-      if (registro) expect(registro.startsWith('/'), `${k} → ${registro}`).toBe(true);
-    }
-  });
-
-  it('el registro real es solo para las no capturables', () => {
-    for (const k of Object.keys(EXPERIENCIA_REGISTRO)) {
-      expect(EXPERIENCIA_SOURCES).toContain(k);
-      expect(EXPERIENCIA_CAPTURA).not.toContain(k);
-    }
+    expect(gestoForBool('meditation')).toBe('navegar');
+    expect(gestoForBool('breathwork')).toBe('navegar');
+    expect(gestoForBool('strength')).toBe('navegar');
+    expect(gestoForBool('journal')).toBe('navegar');
+    expect(gestoForBool('nback')).toBe('navegar');
+    expect(gestoForBool('cardio')).toBe('navegar');
   });
 });
 

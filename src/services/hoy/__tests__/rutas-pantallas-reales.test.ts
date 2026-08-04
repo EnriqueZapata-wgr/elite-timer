@@ -17,7 +17,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES } from '../day-booleans';
-import { QUANT_ROUTES, EXPERIENCIA_REGISTRO, routeForBool } from '../tareas-core';
+import { QUANT_ROUTES, routeForBool } from '../tareas-core';
 import { APP_REGISTRY } from '@/src/constants/app-registry';
 
 const require_ = createRequire(import.meta.url);
@@ -64,12 +64,6 @@ describe('rutas contra los archivos reales de app/', () => {
   it('las 25 puertas del registro de apps existen', () => {
     for (const app of APP_REGISTRY) {
       expect(existe(app.route), `${app.key} → ${String(app.route)}`).toBe(true);
-    }
-  });
-
-  it('los registros de experiencia (el SÍ del modal) existen', () => {
-    for (const [key, route] of Object.entries(EXPERIENCIA_REGISTRO)) {
-      expect(existe(route), `${key} → ${route}`).toBe(true);
     }
   });
 });

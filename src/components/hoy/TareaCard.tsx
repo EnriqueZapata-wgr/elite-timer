@@ -36,12 +36,10 @@ interface Props {
   /** Badge superior (el héroe de AGENDA lleva "AHORA"). */
   badge?: string;
   /** Navegar a la función (tap en navegar/inline; tap largo como atajo en
-   * palomear/experiencia). */
+   * palomear). */
   onNavigate: (t: Tarea) => void;
   /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
-  /** Tap simple en experiencia: abre la paloma inteligente. */
-  onExperiencia: (t: Tarea) => void;
   /** Captura inline de hidratación (deltaMl con signo), el mismo handler
    * de la fila. Decisión de Enrique: la card grande lleva LOS TRES botones
    * (+250 / +500 / −250). */
@@ -50,10 +48,10 @@ interface Props {
 
 export function TareaCard({
   tarea, sectionColor, image, dato, badge,
-  onNavigate, onPalomear, onExperiencia, onInline,
+  onNavigate, onPalomear, onInline,
 }: Props) {
   const { handlePress, handlePressIn, handleLongPress } =
-    useTareaGesto(tarea, { onNavigate, onPalomear, onExperiencia });
+    useTareaGesto(tarea, { onNavigate, onPalomear });
 
   return (
     <Pressable

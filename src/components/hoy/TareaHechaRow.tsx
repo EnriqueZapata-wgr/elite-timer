@@ -30,14 +30,13 @@ interface Props {
   onNavigate: (t: Tarea) => void;
   /** Tap simple: destachar (si es palomeable). */
   onPalomear: (t: Tarea) => void;
-  onExperiencia: (t: Tarea) => void;
 }
 
 export function TareaHechaRow({
-  tarea, sectionColor, dato, onNavigate, onPalomear, onExperiencia,
+  tarea, sectionColor, dato, onNavigate, onPalomear,
 }: Props) {
   const { handlePress, handlePressIn, handleLongPress } =
-    useTareaGesto(tarea, { onNavigate, onPalomear, onExperiencia });
+    useTareaGesto(tarea, { onNavigate, onPalomear });
 
   return (
     <Pressable

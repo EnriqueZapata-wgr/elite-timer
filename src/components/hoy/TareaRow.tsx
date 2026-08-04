@@ -31,21 +31,19 @@ interface Props {
   /** MB-20.1: color de sección (APP_SECTION_COLORS). Sin él, el de la tarea. */
   accentColor?: string;
   /** Navegar a la función (tap en navegar/inline; tap largo como atajo en
-   * palomear/experiencia). */
+   * palomear). */
   onNavigate: (t: Tarea) => void;
   /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
-  /** Tap simple en experiencia: abre la paloma inteligente. */
-  onExperiencia: (t: Tarea) => void;
   /** Captura inline de hidratación (deltaMl con signo). */
   onInline?: (t: Tarea, deltaMl: number) => void;
 }
 
 export function TareaRow({
-  tarea, lens, accentColor, onNavigate, onPalomear, onExperiencia, onInline,
+  tarea, lens, accentColor, onNavigate, onPalomear, onInline,
 }: Props) {
   const { handlePress, handlePressIn, handleLongPress } =
-    useTareaGesto(tarea, { onNavigate, onPalomear, onExperiencia });
+    useTareaGesto(tarea, { onNavigate, onPalomear });
 
   const accent = accentColor || tarea.color || ATP_BRAND.lime;
 
@@ -109,7 +107,7 @@ export function TareaRow({
         >
           <EliteText style={s.inlineBtnText}>+250 ml</EliteText>
         </Pressable>
-      ) : tarea.gesto === 'navegar' || tarea.gesto === 'experiencia' ? (
+      ) : tarea.gesto === 'navegar' ? (
         <Ionicons name="chevron-forward" size={14} color={TEXT.muted} />
       ) : null}
     </Pressable>

@@ -3,21 +3,16 @@
  * por la fila, la card editorial y el renglón de hechas: una sola mecánica
  * en un solo lugar.
  *
- * MB-20.4 (ajuste de Enrique): el TAP hace LA ACCIÓN PRINCIPAL de cada
- * fila — no "palomear" a secas. Ninguna fila queda muda al toque salvo la
- * que de verdad no tiene a dónde ir:
+ * MB-20.5: con el modal muerto quedan DOS tipos (y agua como caso propio).
+ * El TAP hace LA ACCIÓN PRINCIPAL de cada fila — ninguna queda muda al
+ * toque salvo la que de verdad no tiene a dónde ir:
  *
- *   · palomear    → tap palomea (en hechas, destacha); tap largo navega si
- *                   hay ruta. Sin ruta (ELECTRONS_SIN_APP) el tap largo no
- *                   hace nada: se practican, no se abren.
- *   · navegar     → tap NAVEGA: es su única acción. El tap largo no hace
- *                   nada.
- *   · experiencia → tap abre la paloma inteligente; tap largo va DIRECTO a
- *                   la función. Completada, lo que queda es abrir: tap
- *                   navega.
- *   · inline      → los botones de la card capturan (+250/+500/−250); el
- *                   tap en el resto navega a su pantalla. El tap largo no
- *                   hace nada.
+ *   · palomear → tap palomea (en hechas, destacha); tap largo navega si
+ *                hay ruta. Sin ruta (ELECTRONS_SIN_APP) el tap largo no
+ *                hace nada: se practican, no se abren.
+ *   · navegar  → tap NAVEGA: es su única acción. El tap largo no hace nada.
+ *   · inline   → los botones de la card capturan (+250/+500/−250); el tap
+ *                en el resto navega a su pantalla. El tap largo no hace nada.
  *
  * El llenado progresivo de 350 ms murió con el hold-palomea (P1): la
  * confirmación del palomeo es la vibración y el viaje de la card a HECHAS;
@@ -31,17 +26,15 @@ export const LONG_PRESS_MS = 350;
 
 export interface TareaGestoCallbacks {
   /** Navegar a la función (tap en navegar/inline; tap largo como atajo en
-   * palomear/experiencia). */
+   * palomear). */
   onNavigate: (t: Tarea) => void;
   /** Tap simple en fila palomeable (toggle on/off). */
   onPalomear: (t: Tarea) => void;
-  /** Tap simple en experiencia pendiente: abre la paloma inteligente. */
-  onExperiencia: (t: Tarea) => void;
 }
 
 export function useTareaGesto(
   tarea: Tarea,
-  { onNavigate, onPalomear, onExperiencia }: TareaGestoCallbacks,
+  { onNavigate, onPalomear }: TareaGestoCallbacks,
 ) {
   // El tap largo consumió este ciclo de press: el onPress del release se ignora.
   const consumedRef = useRef(false);
@@ -53,9 +46,9 @@ export function useTareaGesto(
   function handleLongPress() {
     consumedRef.current = true;
     // El tap largo solo es ATAJO a la función donde el tap hace otra cosa
-    // (palomear / experiencia). En navegar e inline el tap ya navega: el
-    // hold no tiene papel y no hace nada.
-    if (tarea.gesto !== 'palomear' && tarea.gesto !== 'experiencia') return;
+    // (palomear). En navegar e inline el tap ya navega: el hold no tiene
+    // papel y no hace nada.
+    if (tarea.gesto !== 'palomear') return;
     // Sin ruta no hay a dónde ir: tampoco vibra como si fuera a pasar algo
     // (MB-20.2 · 2.5, navegación honesta).
     if (!tarea.route) return;
@@ -75,13 +68,7 @@ export function useTareaGesto(
       onPalomear(tarea);
       return;
     }
-    if (tarea.gesto === 'experiencia' && !tarea.completed) {
-      haptic.medium();
-      onExperiencia(tarea);
-      return;
-    }
-    // navegar / inline / experiencia completada: la acción principal (o la
-    // única que queda) es abrir la función.
+    // navegar / inline: la acción principal es abrir la función.
     if (!tarea.route) return;
     haptic.light();
     onNavigate(tarea);

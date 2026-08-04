@@ -135,39 +135,19 @@ export const TAREA_TIME: Record<string, string> = {
 
 // ── Gestos ──
 
-/** El TAP hace LA ACCIÓN PRINCIPAL de cada fila (ajuste MB-20.4):
- *   'palomear'    → tap palomea; tap largo navega si hay ruta.
- *   'navegar'     → tap navega (su única acción); tap largo nada.
- *   'experiencia' → tap pregunta (paloma inteligente); tap largo directo.
- *   'inline'      → los botones capturan; el tap del resto navega. */
-export type TareaGesto = 'palomear' | 'experiencia' | 'inline' | 'navegar';
+/** El TAP hace LA ACCIÓN PRINCIPAL de cada fila (MB-20.5: solo DOS tipos —
+ * el modal murió; el registro manual vive dentro de cada módulo):
+ *   'palomear' → tap palomea; tap largo navega si hay ruta.
+ *   'navegar'  → tap navega (su única acción); tap largo nada.
+ *   'inline'   → los botones capturan; el tap del resto navega. */
+export type TareaGesto = 'palomear' | 'inline' | 'navegar';
 
-/** Experiencias: palomear no regala el check — pregunta primero. */
-export const EXPERIENCIA_SOURCES: readonly string[] = [
-  'meditation', 'breathwork', 'strength', 'journal', 'nback', 'cardio',
-];
-
-/** Experiencias con captura externa limpia (existe writer real de sesión):
- * mind_sessions para meditar/respirar, cardio_sessions manual para cardio. */
-export const EXPERIENCIA_CAPTURA: readonly string[] = [
-  'meditation', 'breathwork', 'cardio',
-];
-
-/** Experiencias SIN captura externa: su registro real ES una pantalla, y el SÍ
- * del modal navega ahí (la partida de N-Back, la entrada de journal, el logger
- * de fuerza que escribe exercise_logs). Toda EXPERIENCIA_SOURCES debe estar en
- * EXPERIENCIA_CAPTURA o aquí: el modal nunca tiene un solo botón (hay test). */
-export const EXPERIENCIA_REGISTRO: Record<string, string> = {
-  strength: '/log-exercise',
-  journal: '/journal',
-  nback: '/mente/nback/sesion',
-};
-
+/** Verificado ⇒ su check nace de actividad real: el tap abre el módulo (ahí
+ * vive también el registro manual). Lo demás se palomea por declaración. */
 export function gestoForBool(source: string): TareaGesto {
-  if ((VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)) {
-    return (EXPERIENCIA_SOURCES as readonly string[]).includes(source) ? 'experiencia' : 'navegar';
-  }
-  return 'palomear';
+  return (VERIFIED_ELECTRON_KEYS as readonly string[]).includes(source)
+    ? 'navegar'
+    : 'palomear';
 }
 
 // ── La fila unificada ──

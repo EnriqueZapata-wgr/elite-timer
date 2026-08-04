@@ -24,18 +24,15 @@ import { TareaCard } from '@/src/components/hoy/TareaCard';
 import { TareaHechaRow } from '@/src/components/hoy/TareaHechaRow';
 import { tareaImage } from '@/src/components/hoy/tarea-images';
 import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
-import { SmartCheckModal } from '@/src/components/hoy/SmartCheckModal';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
-  buildTareas, agendaLens, repartoTareas, pickFocusMomento, EXPERIENCIA_REGISTRO,
+  buildTareas, agendaLens, repartoTareas, pickFocusMomento,
   type Tarea, type Momento,
 } from '@/src/services/hoy/tareas-core';
 import {
   seccionForTarea, datoForTarea, datoCierreForTarea, pickHeroTarea,
 } from '@/src/services/hoy/tareas-editorial-core';
-import {
-  persistBooleanToggle, registrarExperiencia, type ExperienciaExterna,
-} from '@/src/services/hoy/tarea-actions';
+import { persistBooleanToggle } from '@/src/services/hoy/tarea-actions';
 import { addWater } from '@/src/services/hydration-service';
 import {
   canShowNudge, markNudgeShown, NUDGE_THRESHOLD, RECHECK_ACCIDENTE_MS,
@@ -64,7 +61,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   const reducedMotion = useSystemReducedMotion();
   const [lens, setLens] = useState<Lens>('tareas');
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
-  const [smartTarea, setSmartTarea] = useState<Tarea | null>(null);
   const [nudgeVisible, setNudgeVisible] = useState(false);
 
   // ── Fuente única + overrides optimistas ──
@@ -151,12 +147,10 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
 
   // ── La burbuja contextual del gesto (1.4, invertida en MB-20.4) ──
   // El patrón viejo (tap → navegar → regresar sin completar) murió con el
-  // gesto: el tap ya no navega. Las señales de confusión nuevas son las del
-  // que espera que el toque ABRA la función:
-  //   a) despalomear una fila hecha y re-palomearla en segundos (el toque
-  //      accidental que tocó el ledger), detectada en handlePalomear;
-  //   b) descartar la paloma inteligente sin elegir (backdrop / atrás),
-  //      reportada por SmartCheckModal.onDismissSinElegir.
+  // gesto: en las palomeables el tap ya no navega. La señal de confusión que
+  // queda (MB-20.5, con el modal muerto) es la del toque accidental:
+  // despalomear una fila hecha y re-palomearla en segundos (tocó el ledger),
+  // detectada en handlePalomear.
   const bounceCountRef = useRef(0);
   const uncheckAtRef = useRef<Record<string, number>>({});
   const nudgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -185,7 +179,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   const handlePalomear = useCallback((t: Tarea) => {
     if (!userId) return;
     const next = !t.completed;
-    // Señal (a) del nudge: despalomeo que se corrige en segundos = toque
+    // Señal del nudge: despalomeo que se corrige en segundos = toque
     // accidental sobre una hecha.
     if (!next) {
       uncheckAtRef.current[t.key] = Date.now();
@@ -204,24 +198,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
     });
   }, [userId, day, senalGesto]);
 
-  // SÍ de una experiencia sin captura: directo a su pantalla de registro real.
-  // No cuenta para el nudge: quien llegó aquí ya eligió en la pregunta.
-  const handleIrRegistro = useCallback((t: Tarea) => {
-    const route = EXPERIENCIA_REGISTRO[t.key];
-    if (!route) return;
-    router.push(route as never);
-  }, [router]);
-
-  const handleRegistrar = useCallback(async (t: Tarea, minutes: number) => {
-    if (!userId) return false;
-    const res = await registrarExperiencia(userId, t.key as ExperienciaExterna, minutes);
-    if (!res.ok) {
-      Alert.alert('No se pudo registrar', 'Inténtalo de nuevo en un momento.');
-      return false;
-    }
-    return true;
-  }, [userId]);
-
   // Los tres botones de la card de agua (+250/+500/−250, decisión de
   // Enrique) pasan su delta con signo; addWater clampa en 0.
   const handleInline = useCallback(async (t: Tarea, deltaMl: number) => {
@@ -238,7 +214,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
   const rowProps = {
     onNavigate: handleNavigate,
     onPalomear: handlePalomear,
-    onExperiencia: setSmartTarea,
     onInline: handleInline,
   };
 
@@ -279,7 +254,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               dato={datoCierreForTarea(t, day.datosVivos, hoy)}
               onNavigate={handleNavigate}
               onPalomear={handlePalomear}
-              onExperiencia={setSmartTarea}
             />
           </Animated.View>,
         );
@@ -307,7 +281,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               dato={datoForTarea(t, uvMini, day.datosVivos, hoy)}
               onNavigate={handleNavigate}
               onPalomear={handlePalomear}
-              onExperiencia={setSmartTarea}
               onInline={handleInline}
             />
           </Animated.View>,
@@ -372,7 +345,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
               badge="AHORA"
               onNavigate={handleNavigate}
               onPalomear={handlePalomear}
-              onExperiencia={setSmartTarea}
               onInline={handleInline}
             />
           ) : null}
@@ -422,15 +394,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
           <EliteText style={s.addText}>agregar</EliteText>
         </Pressable>
       </View>
-
-      <SmartCheckModal
-        tarea={smartTarea}
-        onClose={() => setSmartTarea(null)}
-        onNavigate={handleNavigate}
-        onRegistrar={handleRegistrar}
-        onIrRegistro={handleIrRegistro}
-        onDismissSinElegir={senalGesto}
-      />
     </View>
   );
 }
