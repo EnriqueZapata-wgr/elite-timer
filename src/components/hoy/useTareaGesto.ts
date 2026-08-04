@@ -3,16 +3,10 @@
  * por la fila, la card editorial y el renglón de hechas: una sola mecánica
  * en un solo lugar.
  *
- * MB-20.5: con el modal muerto quedan DOS tipos (y agua como caso propio).
- * El TAP hace LA ACCIÓN PRINCIPAL de cada fila — ninguna queda muda al
- * toque salvo la que de verdad no tiene a dónde ir:
- *
- *   · palomear → tap palomea (en hechas, destacha); tap largo navega si
- *                hay ruta. Sin ruta (ELECTRONS_SIN_APP) el tap largo no
- *                hace nada: se practican, no se abren.
- *   · navegar  → tap NAVEGA: es su única acción. El tap largo no hace nada.
- *   · inline   → los botones de la card capturan (+250/+500/−250); el tap
- *                en el resto navega a su pantalla. El tap largo no hace nada.
+ * MB-20.5 (P5): la DECISIÓN vive en tarea-gesto-core (la tabla pura, con
+ * test que la instancia completa). Este hook solo despacha: qué callback,
+ * qué vibración. No re-deriva nada del gesto por su cuenta — el contrato
+ * lo vigila.
  *
  * El llenado progresivo de 350 ms murió con el hold-palomea (P1): la
  * confirmación del palomeo es la vibración y el viaje de la card a HECHAS;
@@ -20,6 +14,7 @@
  */
 import { useRef } from 'react';
 import { haptic } from '@/src/utils/haptics';
+import { accionTap, accionTapLargo } from '@/src/components/hoy/tarea-gesto-core';
 import type { Tarea } from '@/src/services/hoy/tareas-core';
 
 export const LONG_PRESS_MS = 350;
@@ -45,13 +40,9 @@ export function useTareaGesto(
 
   function handleLongPress() {
     consumedRef.current = true;
-    // El tap largo solo es ATAJO a la función donde el tap hace otra cosa
-    // (palomear). En navegar e inline el tap ya navega: el hold no tiene
-    // papel y no hace nada.
-    if (tarea.gesto !== 'palomear') return;
-    // Sin ruta no hay a dónde ir: tampoco vibra como si fuera a pasar algo
-    // (MB-20.2 · 2.5, navegación honesta).
-    if (!tarea.route) return;
+    // Sin atajo (o sin ruta) no pasa nada — y tampoco vibra como si fuera
+    // a pasar algo (navegación honesta).
+    if (accionTapLargo(tarea) !== 'navegar') return;
     // Pieza 3: vibración al cruzar el umbral, ANTES de navegar. Sin el
     // llenado viejo, esta es la única señal de que el hold registró algo.
     haptic.medium();
@@ -60,7 +51,8 @@ export function useTareaGesto(
 
   function handlePress() {
     if (consumedRef.current) { consumedRef.current = false; return; }
-    if (tarea.gesto === 'palomear') {
+    const accion = accionTap(tarea);
+    if (accion === 'palomear') {
       // Pieza 3: la vibración es la mitad de la confirmación; la otra mitad
       // es el viaje de la card a HECHAS (TareasView). Deshacer no celebra.
       if (tarea.completed) haptic.light();
@@ -68,8 +60,7 @@ export function useTareaGesto(
       onPalomear(tarea);
       return;
     }
-    // navegar / inline: la acción principal es abrir la función.
-    if (!tarea.route) return;
+    if (accion !== 'navegar') return;
     haptic.light();
     onNavigate(tarea);
   }

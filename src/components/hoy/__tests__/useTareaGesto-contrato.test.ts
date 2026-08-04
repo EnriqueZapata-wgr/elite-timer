@@ -1,22 +1,21 @@
 /**
- * MB-20.4 (ajuste de Enrique) + MB-20.5 (muere el modal) — el contrato del
- * gesto: el TAP hace LA ACCIÓN PRINCIPAL de cada fila, y el tap largo solo
- * es atajo donde el tap hace otra cosa.
+ * MB-20.5 P5 — el contrato del gesto que SÍ prueba el mapeo.
  *
- *   · palomear → tap palomea; tap largo navega si hay ruta.
- *   · navegar  → tap navega (su única acción); tap largo nada.
- *   · inline   → botones capturan; el tap del resto navega; largo nada.
- *
- * Vitest node no monta React Native, así que el contrato se lee del SOURCE
- * del hook único (el mismo patrón que reconcile-core.test.ts usa con
- * day-compiler): si alguien re-invierte un handler, esto truena antes que
- * el device test. También amarra que las TRES superficies (fila, card,
- * renglón de hechas) sigan pasando por useTareaGesto — el cambio de gesto
- * debe vivir en un solo lugar.
+ * El test viejo leía el orden de los strings en el source: cambiar
+ * 'palomear' por 'navegar' en el hook dejaba los 9 tests en verde. Ahora la
+ * tabla vive en tarea-gesto-core (pura), se INSTANCIA aquí y se afirma
+ * completa por tipo: esa mutación truena. Del source solo se vigila lo que
+ * no puede instanciarse en node — que el hook despache la tabla (sin
+ * re-derivar de gesto), las vibraciones y que las TRES superficies pasen
+ * por useTareaGesto.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import {
+  accionTap, accionTapLargo, TAREA_GESTOS, NUDGE_COPY, type GestoAccion,
+} from '@/src/components/hoy/tarea-gesto-core';
+import type { TareaGesto } from '@/src/services/hoy/tareas-core';
 
 // Sin comentarios y CRLF-safe: el contrato lee código, no prosa.
 const leer = (rel: string) =>
@@ -27,31 +26,62 @@ const leer = (rel: string) =>
 
 const hook = leer('src/components/hoy/useTareaGesto.ts');
 
-/** El cuerpo de una función declarada al nivel del hook (indentación de 2). */
-function cuerpo(nombre: string): string {
-  const m = hook.match(new RegExp(`function ${nombre}\\(\\) \\{([\\s\\S]*?)\\n  \\}`));
-  expect(m, `function ${nombre}() no está en useTareaGesto`).toBeTruthy();
-  return m![1];
-}
+describe('la tabla del gesto, instanciada y completa (P5.1)', () => {
+  // tipo × con/sin ruta → [tap, tap largo]. Escrita A MANO, no derivada del
+  // código: si alguien invierte la tabla en el core, esto truena.
+  const TABLA: Array<[TareaGesto, ruta: boolean, tap: GestoAccion, largo: GestoAccion]> = [
+    ['palomear', true,  'palomear', 'navegar'],
+    ['palomear', false, 'palomear', 'nada'],
+    ['navegar',  true,  'navegar',  'nada'],
+    ['navegar',  false, 'nada',     'nada'],
+    ['inline',   true,  'navegar',  'nada'],
+    ['inline',   false, 'nada',     'nada'],
+  ];
 
-describe('useTareaGesto — el tap hace la acción principal (ajuste MB-20.4)', () => {
-  it('TAP en palomeable: palomea ANTES de cualquier navegación', () => {
-    const press = cuerpo('handlePress');
-    const palomea = press.indexOf('onPalomear(tarea)');
-    const navega = press.indexOf('onNavigate(tarea)');
-    expect(palomea).toBeGreaterThanOrEqual(0);
-    // El fallback de navegación existe (navegar/inline) pero va DESPUÉS de
-    // la rama palomear: ninguna fila palomeable navega con tap.
-    expect(navega).toBeGreaterThan(palomea);
+  it('cada celda de la tabla es la que Enrique decidió', () => {
+    for (const [gesto, conRuta, tap, largo] of TABLA) {
+      const t = { gesto, route: conRuta ? '/x' : undefined };
+      expect(accionTap(t), `tap de ${gesto}${conRuta ? '' : ' sin ruta'}`).toBe(tap);
+      expect(accionTapLargo(t), `largo de ${gesto}${conRuta ? '' : ' sin ruta'}`).toBe(largo);
+    }
   });
 
-  it('TAP en navegar/inline: navega — ninguna fila con ruta queda muda al toque', () => {
-    const press = cuerpo('handlePress');
-    expect(press).toContain('onNavigate(tarea)');
-    // Y sin ruta, el tap no hace nada (ni vibra): el guard va antes.
-    const guard = press.indexOf('if (!tarea.route) return');
-    expect(guard).toBeGreaterThanOrEqual(0);
-    expect(press.indexOf('onNavigate(tarea)')).toBeGreaterThan(guard);
+  it('la tabla cubre TODOS los tipos (con y sin ruta): cero celdas sin ley', () => {
+    expect(new Set(TABLA.map(([g]) => g))).toEqual(new Set(TAREA_GESTOS));
+    for (const gesto of TAREA_GESTOS) {
+      const conRuta = TABLA.filter(([g, r]) => g === gesto && r);
+      const sinRuta = TABLA.filter(([g, r]) => g === gesto && !r);
+      expect(conRuta.length, `${gesto} con ruta`).toBe(1);
+      expect(sinRuta.length, `${gesto} sin ruta`).toBe(1);
+    }
+  });
+
+  it('ninguna fila con ruta queda muda al tap, y sin ruta nada navega', () => {
+    for (const gesto of TAREA_GESTOS) {
+      expect(accionTap({ gesto, route: '/x' })).not.toBe('nada');
+      expect(accionTap({ gesto, route: undefined })).not.toBe('navegar');
+      expect(accionTapLargo({ gesto, route: undefined })).not.toBe('navegar');
+    }
+  });
+
+  it('el tap largo nunca palomea: solo es atajo de navegación', () => {
+    for (const gesto of TAREA_GESTOS) {
+      for (const route of ['/x', undefined]) {
+        expect(accionTapLargo({ gesto, route })).not.toBe('palomear');
+      }
+    }
+  });
+});
+
+describe('el hook despacha la tabla — no decide (P5.1)', () => {
+  it('handlePress y handleLongPress consultan el core', () => {
+    expect(hook).toContain('accionTap(tarea)');
+    expect(hook).toContain('accionTapLargo(tarea)');
+  });
+
+  it('el hook no re-deriva NADA de tarea.gesto: la tabla vive en UN lugar', () => {
+    expect(hook).not.toContain('tarea.gesto');
+    expect(hook).not.toContain('tarea.route');
   });
 
   it('la paloma inteligente está muerta: el hook ya no pregunta (MB-20.5)', () => {
@@ -59,36 +89,14 @@ describe('useTareaGesto — el tap hace la acción principal (ajuste MB-20.4)', 
     expect(hook).not.toContain("'experiencia'");
   });
 
-  it('el TAP LARGO es solo el atajo de palomear — nunca palomea', () => {
-    const largo = cuerpo('handleLongPress');
-    expect(largo).toContain('onNavigate(tarea)');
-    expect(largo).not.toContain('onPalomear');
-    // En navegar e inline el tap ya navega: el hold no tiene papel. El
-    // guard de gesto va ANTES de navegar.
-    const gestoGuard = largo.indexOf("if (tarea.gesto !== 'palomear') return");
-    expect(gestoGuard).toBeGreaterThanOrEqual(0);
-    expect(largo.indexOf('onNavigate(tarea)')).toBeGreaterThan(gestoGuard);
+  it('palomear vibra al instante, y deshacer no celebra', () => {
+    expect(hook).toMatch(/if \(tarea\.completed\) haptic\.light\(\);\s*\n\s*else haptic\.success\(\);\s*\n\s*onPalomear\(tarea\)/);
   });
 
-  it('sin ruta, el tap largo no hace nada (y no vibra): el guard va ANTES', () => {
-    const largo = cuerpo('handleLongPress');
-    const guard = largo.indexOf('if (!tarea.route) return');
-    const nav = largo.indexOf('onNavigate(tarea)');
-    expect(guard).toBeGreaterThanOrEqual(0);
-    expect(nav).toBeGreaterThan(guard);
-    expect(largo.indexOf('haptic')).toBeGreaterThan(guard);
-  });
-
-  it('Pieza 3: la vibración del umbral suena ANTES de navegar', () => {
-    const largo = cuerpo('handleLongPress');
-    expect(largo.indexOf('haptic.')).toBeLessThan(largo.indexOf('onNavigate(tarea)'));
-  });
-
-  it('Pieza 3: palomear vibra al instante, y deshacer no celebra', () => {
-    const press = cuerpo('handlePress');
-    // La vibración va antes del toggle, y el despalomeo usa la suave.
-    expect(press.indexOf('haptic.')).toBeLessThan(press.indexOf('onPalomear(tarea)'));
-    expect(press).toMatch(/if \(tarea\.completed\) haptic\.light\(\);\s*\n\s*else haptic\.success\(\)/);
+  it('la vibración del umbral suena ANTES de navegar (tap largo)', () => {
+    const largo = hook.match(/function handleLongPress\(\) \{([\s\S]*?)\n  \}/)![1];
+    expect(largo.indexOf('haptic.medium()')).toBeGreaterThanOrEqual(0);
+    expect(largo.indexOf('haptic.medium()')).toBeLessThan(largo.indexOf('onNavigate(tarea)'));
   });
 
   it('el llenado de 350 ms está muerto: era la señal del gesto viejo', () => {
@@ -108,5 +116,22 @@ describe('useTareaGesto — el tap hace la acción principal (ajuste MB-20.4)', 
       expect(src, `${rel} debe cablear onLongPress al hook`).toContain('onLongPress={handleLongPress}');
       expect(src, `${rel} debe cablear onPress al hook`).toContain('onPress={handlePress}');
     }
+  });
+});
+
+describe('el copy de la burbuja, amarrado como el del tour (P5.2)', () => {
+  it('describe el gesto real: el toque hace, mantener presionado abre', () => {
+    expect(NUDGE_COPY).toMatch(/^Un toque /);
+    expect(NUDGE_COPY).toContain('presionado');
+  });
+
+  it('cero em dash y de largo razonable (es copy de usuario)', () => {
+    expect(NUDGE_COPY.includes('—')).toBe(false);
+    expect(NUDGE_COPY.length).toBeLessThanOrEqual(150);
+  });
+
+  it('TareasView pinta ESTE copy, no uno suelto en el JSX', () => {
+    const vista = leer('src/components/hoy/TareasView.tsx');
+    expect(vista).toContain('{NUDGE_COPY}');
   });
 });

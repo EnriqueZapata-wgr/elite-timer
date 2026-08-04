@@ -23,6 +23,7 @@ import { TareaRow } from '@/src/components/hoy/TareaRow';
 import { TareaCard } from '@/src/components/hoy/TareaCard';
 import { TareaHechaRow } from '@/src/components/hoy/TareaHechaRow';
 import { tareaImage } from '@/src/components/hoy/tarea-images';
+import { NUDGE_COPY } from '@/src/components/hoy/tarea-gesto-core';
 import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
@@ -318,14 +319,12 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         </EliteText>
       </View>
 
-      {/* Burbuja del gesto (1.4 · ajuste MB-20.4: enseña la regla, no
-          "un toque palomea" a secas) */}
+      {/* Burbuja del gesto (1.4): el copy vive en tarea-gesto-core junto a
+          la tabla que describe, amarrado con test (P5.2). */}
       {nudgeVisible && (
         <View style={s.nudge}>
           <ArgosOrb size={18} reducedMotion />
-          <EliteText style={s.nudgeText}>
-            Un toque hace la acción principal de cada fila. Los hábitos que se palomean se abren manteniendo presionado.
-          </EliteText>
+          <EliteText style={s.nudgeText}>{NUDGE_COPY}</EliteText>
         </View>
       )}
 
