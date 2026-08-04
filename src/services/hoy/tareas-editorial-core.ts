@@ -223,7 +223,12 @@ export function datoCierreForTarea(
     }
     case 'supplements': {
       const s = vivos.supplements;
-      return s && s.total > 0 ? `${s.taken} de ${s.total}` : undefined;
+      if (!s || s.total <= 0) return undefined;
+      // MB-20.4 (nota del audit): consecuencia aceptada de separar las dos
+      // preguntas (MB-20.3 P2) — si desactivas un suplemento que ya tomaste,
+      // el electrón se queda (correcto) pero la lista activa cuenta 0. Un
+      // "0 de N" junto a la paloma miente; se dice lo que pasó.
+      return s.taken > 0 ? `${s.taken} de ${s.total}` : 'fuera de tu lista actual';
     }
     case 'nback': {
       const n = vivos.nback;

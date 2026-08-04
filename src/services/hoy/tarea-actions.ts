@@ -43,6 +43,9 @@ export async function persistBooleanToggle(
       idempotencyKey: `${userId}:${source}:${today}`,
     });
   } else {
+    // MB-20.4 (nota del audit): toda revocación deja rastro — si un electrón
+    // vuelve a desaparecer, las tres puertas al borrado deben verse en el log.
+    logWarn('[tareas] revoca electrón', { source, motivo: 'despalomeo del usuario en HOY' });
     await revokeBooleanElectron(userId, source as never);
   }
   await syncCompletionFromElectron(userId, source, next).catch((e) => {

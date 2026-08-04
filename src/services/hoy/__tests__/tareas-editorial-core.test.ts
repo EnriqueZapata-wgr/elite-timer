@@ -160,6 +160,22 @@ describe('datoCierreForTarea (MB-20.2 · 3.2)', () => {
       .toBe('Nivel 2');
   });
 
+  it('paloma con lista activa en 0: se dice lo que pasó, no un "0 de N" que miente (MB-20.4)', () => {
+    // Desactivar un suplemento ya tomado hoy conserva el electrón (MB-20.3
+    // P2) pero la lista activa cuenta 0 — consecuencia aceptada, con copy.
+    expect(datoCierreForTarea(
+      { key: 'supplements', kind: 'bool', meta: '+1 e-', time: '08:00' },
+      { supplements: { taken: 0, total: 4 } },
+      HOY,
+    )).toBe('fuera de tu lista actual');
+    // Sin protocolo no hay línea: solo el nombre tachado.
+    expect(datoCierreForTarea(
+      { key: 'supplements', kind: 'bool', meta: '+1 e-', time: '08:00' },
+      { supplements: { taken: 0, total: 0 } },
+      HOY,
+    )).toBeUndefined();
+  });
+
   it('cuantitativos y ayuno cierran con su meta compilada', () => {
     expect(datoCierreForTarea({ key: 'water', kind: 'quant', meta: '2.5L de 2.5L', time: '08:30' }, vivos, HOY))
       .toBe('2.5L de 2.5L');
