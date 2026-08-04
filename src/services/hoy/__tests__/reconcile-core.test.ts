@@ -31,6 +31,9 @@ const filaHoy = { data: { date: TODAY }, error: null };
 const filaVieja = { data: { date: AYER }, error: null };
 const vacioReal = { data: null, error: null };
 const filaIlegible = { data: { date: null }, error: null }; // el bug P1: fila sin fecha
+// MB-20.4 P5.2: la fecha malformada — un created_at con basura sale de
+// toLocalDateString como "NaN-NaN-NaN", truthy y distinto de hoy.
+const filaMalformada = { data: { date: 'NaN-NaN-NaN' }, error: null };
 const consultaRota = { data: null, error: { message: 'column does not exist', code: '42703' } };
 
 describe('evidenciaDeConteo', () => {
@@ -65,6 +68,14 @@ describe('evidenciaDeUltimaFecha', () => {
   it('fila con fecha ilegible = no_se_sabe (hay actividad, no sabemos de cuándo)', () => {
     expect(evidenciaDeUltimaFecha(filaIlegible, null, TODAY)).toBe('no_se_sabe');
     expect(evidenciaDeUltimaFecha({ data: { date: undefined }, error: null }, undefined, TODAY)).toBe('no_se_sabe');
+  });
+
+  it('fecha malformada = no_se_sabe — NaN-NaN-NaN no es evidencia de ausencia (P5.2)', () => {
+    // Un string truthy distinto de hoy que el !== today viejo leía como
+    // "no lo hizo": la misma clase de bug que el tri-estado vino a cerrar.
+    expect(evidenciaDeUltimaFecha(filaMalformada, 'NaN-NaN-NaN', TODAY)).toBe('no_se_sabe');
+    expect(evidenciaDeUltimaFecha({ data: { date: 'no-es-fecha' }, error: null }, 'no-es-fecha', TODAY)).toBe('no_se_sabe');
+    expect(evidenciaDeUltimaFecha({ data: { date: '2026-8-3' }, error: null }, '2026-8-3', TODAY)).toBe('no_se_sabe');
   });
 });
 
@@ -105,7 +116,10 @@ type Res = { queries: {
 } };
 
 function evidenciasComoElCompilador({ queries: q }: Res): Record<string, Evidencia> {
-  const lastCheckinDate = q.mood.data?.created_at ? TODAY : null; // toLocalDateString espejo
+  // toLocalDateString espejo: un created_at con basura sale como NaN-NaN-NaN.
+  const lastCheckinDate = q.mood.data?.created_at
+    ? (Number.isNaN(Date.parse(q.mood.data.created_at)) ? 'NaN-NaN-NaN' : TODAY)
+    : null;
   return {
     strength: evidenciaDeUltimaFecha(q.exercise, q.exercise.data?.date, TODAY),
     supplements: evidenciaDeConteo(q.suppTakenCount),
@@ -159,9 +173,12 @@ describe('mutación: una consulta rota no borra NINGÚN electrón', () => {
     expect(plan.revoke).toEqual([]);
   });
 
-  it('CADA consulta, rota una por una (error Y forma nula) → cero revocaciones', () => {
+  it('CADA consulta, rota una por una (error, forma nula Y fecha malformada) → cero revocaciones', () => {
     for (const key of ['exercise', 'mood', 'cardio', 'journal', 'nback'] as const) {
-      for (const rota of [{ ...consultaRota }, { ...filaIlegible }]) {
+      const malformada = key === 'mood'
+        ? { data: { created_at: 'no-es-fecha' }, error: null } // basura → NaN-NaN-NaN
+        : { ...filaMalformada };
+      for (const rota of [{ ...consultaRota }, { ...filaIlegible }, malformada]) {
         const res = todoSano();
         res.queries[key] = rota;
         const plan = planReconcile(evidenciasComoElCompilador(res), LEDGER_LLENO);

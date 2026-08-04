@@ -42,10 +42,18 @@ export function evidenciaDeConteo(res: {
  *
  *   · error                → no_se_sabe (la fuente no está disponible).
  *   · sin fila, sin error  → no_hecho (vacío REAL: nunca ha habido actividad).
- *   · fila con fecha nula  → no_se_sabe (fila ilegible — la familia del bug
+ *   · fila con fecha nula
+ *     o malformada         → no_se_sabe (fila ilegible — la familia del bug
  *     de exercise_logs: hay actividad pero no sabemos de cuándo).
  *   · fecha === hoy        → hecho; fecha vieja → no_hecho.
  */
+
+/** MB-20.4 P5.2: un created_at con basura pasa por toLocalDateString como
+ * "NaN-NaN-NaN" — un string truthy distinto de hoy que el `!== today` leía
+ * como evidencia positiva de ausencia, la misma clase de bug que este módulo
+ * vino a cerrar. Si la fecha no tiene forma de fecha, es no_se_sabe. */
+const FECHA_LOCAL_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export function evidenciaDeUltimaFecha(
   res: { data: unknown; error: unknown },
   fecha: string | null | undefined,
@@ -53,7 +61,7 @@ export function evidenciaDeUltimaFecha(
 ): Evidencia {
   if (res.error) return 'no_se_sabe';
   if (res.data == null) return 'no_hecho';
-  if (!fecha) return 'no_se_sabe';
+  if (!fecha || !FECHA_LOCAL_RE.test(fecha)) return 'no_se_sabe';
   return fecha === today ? 'hecho' : 'no_hecho';
 }
 

@@ -26,7 +26,6 @@ import type {
   PersonalRecord,
   ExerciseFilters,
   PRFilters,
-  LogSetData,
 } from '@/src/types/exercise';
 
 // === EJERCICIOS ===
@@ -103,65 +102,12 @@ export async function createExercise(data: {
 }
 
 // === LOGGING DE SETS ===
-
-/** Registrar un set de ejercicio (durante ejecución o manual) */
-export async function logExerciseSet(data: LogSetData): Promise<void> {
-  try {
-    const user = await getAuthenticatedUser();
-
-    const row = {
-      id: generateUUID(),
-      user_id: user.id,
-      exercise_id: data.exercise_id,
-      execution_log_id: data.execution_log_id ?? null,
-      block_id: data.block_id ?? null,
-      set_number: data.set_number,
-      reps: data.reps,
-      weight_kg: data.weight_kg ?? null,
-      rpe: data.rpe ?? null,
-      rir: data.rir ?? null,
-      notes: data.notes ?? '',
-      logged_at: new Date().toISOString(),
-    };
-
-    const { error } = await supabase.from('exercise_logs').insert(row);
-
-    if (error) throw new Error(error.message);
-    // El trigger de la DB actualiza personal_records automáticamente
-  } catch (err) {
-    if (__DEV__) console.error('Error al registrar set:', err);
-    throw err;
-  }
-}
-
-/** Registrar múltiples sets de un ejercicio (para entrada manual) */
-export async function logExerciseSets(sets: LogSetData[]): Promise<void> {
-  try {
-    const user = await getAuthenticatedUser();
-
-    const rows = sets.map(data => ({
-      id: generateUUID(),
-      user_id: user.id,
-      exercise_id: data.exercise_id,
-      execution_log_id: data.execution_log_id ?? null,
-      block_id: data.block_id ?? null,
-      set_number: data.set_number,
-      reps: data.reps,
-      weight_kg: data.weight_kg ?? null,
-      rpe: data.rpe ?? null,
-      rir: data.rir ?? null,
-      notes: data.notes ?? '',
-      logged_at: new Date().toISOString(),
-    }));
-
-    const { error } = await supabase.from('exercise_logs').insert(rows);
-
-    if (error) throw new Error(error.message);
-  } catch (err) {
-    if (__DEV__) console.error('Error al registrar sets:', err);
-    throw err;
-  }
-}
+// MB-20.4 P5.1: logExerciseSet / logExerciseSets BORRADAS. Insertaban en
+// exercise_logs SIN `date` — la fábrica exacta de las 110 filas nulas que
+// originaron el bug del ledger (MB-20.3) — y no tenían un solo llamador.
+// Las tres rutas vivas (log-exercise.tsx y workout-session-service) escriben
+// `date: getLocalToday()`, y el contrato de escritura lo vigila
+// (exercise-logs-escritura.test.ts): todo insert nuevo debe llevar fecha.
 
 // === HISTORIAL ===
 

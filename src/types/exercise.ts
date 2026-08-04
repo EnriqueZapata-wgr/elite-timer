@@ -59,19 +59,6 @@ export interface PRFilters {
   exercise_id?: string;
 }
 
-/** Datos para registrar un set */
-export interface LogSetData {
-  exercise_id: string;
-  reps: number;
-  weight_kg?: number | null;
-  rpe?: number | null;
-  rir?: number | null;
-  execution_log_id?: string | null;
-  block_id?: string | null;
-  set_number: number;
-  notes?: string;
-}
-
 /** Resumen de ejercicio para la pantalla post-rutina */
 export interface ExerciseSummary {
   exercise_id: string;
