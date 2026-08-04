@@ -40,6 +40,7 @@ import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-se
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
 import { prefetchAudioCovers } from '@/src/components/mente/audio-cover';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
+import { RegistroManualCard } from '@/src/components/mente/RegistroManualCard';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import {
@@ -260,6 +261,11 @@ function SelectorScreen({ onSelect, onBack }: {
           subtitle={`${BREATHING_LIBRARY.length} ejercicios · calma, foco y energía`}
         />
         <View style={styles.selectorContent}>
+
+        {/* MB-20.5 P2: el registro manual vive en el módulo (el modal de
+            HOY murió). Escribe mind_sessions por registrarExperiencia:
+            el electrón se otorga por el camino de siempre. */}
+        <RegistroManualCard type="breathwork" label="Ya respiré" />
 
         {pieces.length > 0 && (
           <>

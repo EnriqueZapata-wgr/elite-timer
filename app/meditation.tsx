@@ -40,6 +40,7 @@ import {
 import { fetchAudioPieces, fetchFavoriteSlugs, type AudioPiece } from '@/src/services/mente-audio-service';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
+import { RegistroManualCard } from '@/src/components/mente/RegistroManualCard';
 import { useSubscription } from '@/src/hooks/useSubscription';
 import { StickyPillarBanner } from '@/src/components/layout/StickyPillarBanner';
 import { phaseIndexAt } from '@/src/services/meditation-core';
@@ -167,6 +168,11 @@ function LibraryScreen({ onSelect, onBack }: {
         />
 
         <View style={styles.libBody}>
+          {/* MB-20.5 P2: el registro manual vive en el módulo (el modal de
+              HOY murió). Escribe mind_sessions por registrarExperiencia:
+              el electrón se otorga por el camino de siempre. */}
+          <RegistroManualCard type="meditation" label="Ya medité" />
+
           {/* Ajuste v2: Favoritas arriba (join audio_favorites × catálogo).
               Vacía → no se muestra. */}
           {favoritas.length > 0 && (

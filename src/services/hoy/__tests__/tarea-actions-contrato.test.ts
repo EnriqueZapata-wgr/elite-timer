@@ -84,3 +84,34 @@ describe('4.2 · el otorgamiento es idempotente por día', () => {
     expect(ledger.size).toBe(1);
   });
 });
+
+describe('MB-20.5 P2 · el registro manual escribe en la MISMA tabla que la sesión real', () => {
+  const cardManual = leer('src/components/mente/RegistroManualCard.tsx');
+
+  it('el botón del módulo pasa por registrarExperiencia — nunca una ruta paralela', () => {
+    expect(cardManual).toContain('registrarExperiencia(');
+    // Cero escrituras propias: ni sesiones ni electrones directos. La ruta
+    // paralela es exactamente lo que rompe el ledger.
+    expect(cardManual).not.toContain(".from('mind_sessions')");
+    expect(cardManual).not.toContain(".from('cardio_sessions')");
+    expect(cardManual).not.toContain(".from('electron_logs')");
+    expect(cardManual).not.toContain('awardPracticeElectron');
+    expect(cardManual).not.toContain('awardBooleanElectron');
+  });
+
+  it('registrarExperiencia converge con la sesión real: mind_sessions y el writer de cardio', () => {
+    expect(acciones).toContain(".from('mind_sessions')");
+    expect(acciones).toContain('logCardioSession(');
+    // La sesión real de meditación escribe la misma tabla: un solo camino
+    // al electrón verificado, venga del timer o del botón manual.
+    expect(leer('app/meditation.tsx')).toContain(".from('mind_sessions')");
+    expect(leer('app/breathing.tsx')).toContain(".from('mind_sessions')");
+  });
+
+  it('meditación y respiración montan el botón; journal y N-Back NO (hacer ES registrar)', () => {
+    expect(leer('app/meditation.tsx')).toContain('<RegistroManualCard type="meditation"');
+    expect(leer('app/breathing.tsx')).toContain('<RegistroManualCard type="breathwork"');
+    expect(leer('app/journal.tsx')).not.toContain('RegistroManualCard');
+    expect(leer('app/mente/nback/index.tsx')).not.toContain('RegistroManualCard');
+  });
+});
