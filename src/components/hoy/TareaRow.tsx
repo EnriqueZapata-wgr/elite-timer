@@ -61,11 +61,11 @@ export function TareaRow({
         <EliteText style={s.time}>{tarea.time}</EliteText>
       )}
 
-      {/* Hecha: paloma pintada (estado, para todos los gestos). Pendiente:
-          el círculo solo va donde un toque lo llena (palomear); en
-          verificadas y cuantitativas el check nace de actividad real y el
-          círculo mentía (ajuste MB-20.4). El slot vacío conserva la
-          alineación de la columna. */}
+      {/* Hecha: paloma pintada (estado, para todos los gestos). Pendiente,
+          la pista es la forma (MB-20.5 P3): círculo donde un toque lo llena
+          (palomear), CHEVRON donde el toque te lleva a otro lado (navegar /
+          inline). Mismo slot, mismo tamaño, mismo peso visual — solo cambia
+          la forma, y la columna conserva su alineación. */}
       {tarea.completed ? (
         <View style={s.checkDone}>
           <Ionicons name="checkmark" size={13} color="#000" />
@@ -73,7 +73,9 @@ export function TareaRow({
       ) : tarea.gesto === 'palomear' ? (
         <View style={[s.check, { borderColor: withOpacity('#FFFFFF', 0.25) }]} />
       ) : (
-        <View style={s.checkSlot} />
+        <View style={s.checkSlot}>
+          <Ionicons name="chevron-forward" size={15} color={withOpacity('#FFFFFF', 0.3)} />
+        </View>
       )}
 
       {/* Mosaico del icono con el degradado de su sección (MB-20.1 · 2.3) */}
@@ -97,7 +99,9 @@ export function TareaRow({
       </View>
 
       {/* La fila compacta de AGENDA conserva solo +250 (no cabe la
-          botonera); los TRES botones viven en la card grande. */}
+          botonera); los TRES botones viven en la card grande. El chevron
+          del borde derecho murió: la pista de navegación vive en el slot
+          del check (P3), no en dos lugares. */}
       {tarea.gesto === 'inline' && onInline && !tarea.completed ? (
         <Pressable
           onPress={() => { haptic.success(); onInline(tarea, 250); }}
@@ -107,8 +111,6 @@ export function TareaRow({
         >
           <EliteText style={s.inlineBtnText}>+250 ml</EliteText>
         </Pressable>
-      ) : tarea.gesto === 'navegar' ? (
-        <Ionicons name="chevron-forward" size={14} color={TEXT.muted} />
       ) : null}
     </Pressable>
   );
@@ -145,7 +147,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  checkSlot: { width: 24, height: 24 },
+  checkSlot: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   checkDone: {
     width: 24,
     height: 24,

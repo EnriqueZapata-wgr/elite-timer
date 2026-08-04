@@ -16,6 +16,7 @@
  */
 import { Pressable, View, StyleSheet, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { EliteText } from '@/components/elite-text';
 import { AppIcon, hasAppIcon } from '@/src/components/ui/AppIcon';
@@ -100,12 +101,18 @@ export function TareaCard({
 
       <View style={s.content}>
         <View style={s.topRow}>
-          {/* El círculo es la promesa de que un toque lo llena, y solo las
-              palomeables la cumplen. En verificadas y cuantitativas el check
-              nace de actividad real: círculo fuera (ajuste MB-20.4) — el
-              hecho se ve en el viaje a HECHAS con su paloma pintada. El View
-              vacío conserva los badges a la derecha (space-between). */}
-          {tarea.gesto === 'palomear' ? <View style={s.check} /> : <View />}
+          {/* La pista es la forma (MB-20.5 P3): el círculo es la promesa de
+              que un toque lo llena (palomear); el CHEVRON es la forma que
+              todo el mundo lee como "esto te lleva a algún lado" (navegar /
+              inline). Mismo tamaño, misma posición, mismo peso visual — y
+              el slot conserva los badges a la derecha (space-between). */}
+          {tarea.gesto === 'palomear' ? (
+            <View style={s.check} />
+          ) : (
+            <View style={s.chevronSlot}>
+              <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.8)" />
+            </View>
+          )}
           <View style={s.topRight}>
             {badge ? (
               <View style={s.badge}><EliteText style={s.badgeText}>{badge}</EliteText></View>
@@ -171,6 +178,12 @@ const s = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.8)',
+  },
+  chevronSlot: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   badge: {
     backgroundColor: ATP_BRAND.lime,
