@@ -103,6 +103,16 @@ export function appInstallState(appKey: string, prefs: InstallPrefs): InstallSta
 }
 
 /**
+ * MB-22.1 P3 — el set inicial que NO emerge de los defaults del HOY.
+ * Decisión de Enrique: Respirar para todos y Ciclo (modo propio) para
+ * usuarias. Entran a la cuadrícula SIN encender electrones: cero filas
+ * nuevas en TAREAS — activar el hábito sigue siendo decisión del usuario.
+ */
+export function initialSeedApps(isFemale: boolean): string[] {
+  return ['respirar', ...(isFemale ? ['ciclo'] : [])];
+}
+
+/**
  * MB-22 P4: instalar SOLO a la cuadrícula, sin encender ningún electrón.
  * Es la instalación del Ciclo en modo acompañante: el calendario de otra
  * persona JAMÁS genera fila en TAREAS ni hábito del usuario (period_log

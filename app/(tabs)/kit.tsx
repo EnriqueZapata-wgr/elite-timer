@@ -43,7 +43,7 @@ import {
 import {
   loadUsage, recordOpen, loadCustomOrder, loadOrderMode, saveOrderMode,
 } from '@/src/services/atp-room-store';
-import { getInstallPrefs, uninstallApp } from '@/src/services/hoy/install-service';
+import { getInstallPrefs, seedInitialApps, uninstallApp } from '@/src/services/hoy/install-service';
 import { getCycleAppMode } from '@/src/services/app-mode-service';
 import {
   appInstallState, gridApps, uninstallAlertBody, type InstallPrefs,
@@ -84,8 +84,17 @@ export default function SalaAtpScreen() {
           getCycleAppMode(user.id),
         ]);
         if (!alive) return;
-        setIsFemale((data as any)?.biological_sex === 'female');
+        const female = (data as any)?.biological_sex === 'female';
+        setIsFemale(female);
         setCycleModeSet(mode != null);
+        // MB-22.1 P3: siembra one-shot del set inicial (Respirar + Ciclo para
+        // usuarias). Si escribió, se releen prefs para pintar la cuadrícula.
+        const seeded = await seedInitialApps(user.id, female);
+        if (!alive) return;
+        if (seeded) {
+          setInstallPrefs(await getInstallPrefs(user.id));
+          if (female && mode == null) setCycleModeSet(true);
+        }
       } catch { /* sin perfil: el ciclo queda oculto */ }
     })();
     return () => { alive = false; };

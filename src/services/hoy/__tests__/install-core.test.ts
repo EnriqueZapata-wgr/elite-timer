@@ -14,6 +14,7 @@ import {
   installAlertBody,
   uninstallAlertBody,
   gridApps,
+  initialSeedApps,
   FIXED_APPS,
   type InstallPrefs,
 } from '@/src/services/hoy/install-core';
@@ -188,5 +189,22 @@ describe('gridApps — MB-22 Pieza 1: la cuadrícula solo lista lo instalado', (
   it('instalar una app sin toggle la mete a la cuadrícula', () => {
     const conAyuno = applyInstall('ayuno', NUEVO);
     expect(gridApps(APP_REGISTRY, conAyuno).some((a) => a.key === 'ayuno')).toBe(true);
+  });
+
+  // MB-22.1 P3 — decisión de Enrique: Respirar para todos y Ciclo (propio)
+  // para usuarias entran al set inicial, SIN encender electrones.
+  it('la siembra agrega Respirar a todos y Ciclo a usuarias, sin tocar TAREAS', () => {
+    expect(initialSeedApps(false)).toEqual(['respirar']);
+    expect(initialSeedApps(true)).toEqual(['respirar', 'ciclo']);
+
+    const sembrado = initialSeedApps(true).reduce(
+      (p, k) => applyInstallGridOnly(k, p), NUEVO,
+    );
+    const grid = gridApps(APP_REGISTRY, sembrado).map((a) => a.key);
+    expect(grid).toContain('respirar');
+    expect(grid).toContain('ciclo');
+    // Grid-only de verdad: cero electrones nuevos → cero filas en TAREAS.
+    expect(sembrado.booleans).toEqual(NUEVO.booleans);
+    expect(sembrado.quants).toEqual(NUEVO.quants);
   });
 });
