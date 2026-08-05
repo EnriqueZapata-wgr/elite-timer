@@ -19,6 +19,7 @@ import { generateUUID } from '@/src/utils/uuid';
 import { buildPersonalityInjection, buildTimeContextInjection } from './argos-personality';
 import { buildScreenContextInjection, type ArgosScreen } from '@/src/hooks/argos-screen-context-core';
 import { parseRateLimitInfo, type RateLimitInfo } from './argos-rate-limit-core';
+import { buildHistoryWindow } from './argos-history-core';
 
 // === MODELOS ===
 const MODEL_CHAT = ATP_LLM.PRIMARY_MODEL;
@@ -1414,7 +1415,7 @@ async function prepareChatTurn(
   userId: string,
   messages: ArgosMessage[],
   options?: ArgosChatOptions,
-): Promise<{ systemPrompt: string; dynamicSystem: string; gateResult: CoachGateResult | null; conversationId: string | null }> {
+): Promise<{ systemPrompt: string; dynamicSystem: string; gateResult: CoachGateResult | null; conversationId: string | null; llmMessages: ArgosMessage[] }> {
   // Coach-engine gate (Step COACH 7/N): corre ANTES del LLM. Defensa graceful —
   // si el gate revienta, el chat continúa con un system prompt sin gate.
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user')?.content ?? '';
@@ -1454,12 +1455,17 @@ async function prepareChatTurn(
   // como bloque sin cache detrás del cerebro cacheado. El systemPrompt legacy
   // completo se sigue mandando ≥1 release (cinturón y tirantes: bundles viejos
   // y proxy con flag OFF lo usan tal cual).
+  // MB-21 P6: techo explícito de la ventana — últimos N turnos completos;
+  // lo anterior viaja resumido en el system prompt (ARGOS puede decirlo).
+  // Punto único: stream y no-stream mandan EXACTAMENTE la misma ventana.
+  const historyWindow = buildHistoryWindow(messages);
   const dynamicSystem =
     cycleGuard + protocolGuard + voiceInjection +
-    coachGateInjection + presenceInjection + timeInjection + screenInjection + contextPrompt;
+    coachGateInjection + presenceInjection + timeInjection + screenInjection +
+    historyWindow.summaryInjection + contextPrompt;
   const systemPrompt = ARGOS_SYSTEM_PROMPT + dynamicSystem;
 
-  return { systemPrompt, dynamicSystem, gateResult, conversationId };
+  return { systemPrompt, dynamicSystem, gateResult, conversationId, llmMessages: historyWindow.messages };
 }
 
 export async function chatWithArgosEx(
@@ -1467,14 +1473,14 @@ export async function chatWithArgosEx(
   messages: ArgosMessage[],
   options?: ArgosChatOptions,
 ): Promise<ArgosChatResult> {
-  const { systemPrompt, dynamicSystem, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
+  const { systemPrompt, dynamicSystem, gateResult, conversationId, llmMessages } = await prepareChatTurn(userId, messages, options);
   const model = options?.model || MODEL_CHAT;
 
   const meta = await getArgosCallMetadata({ requestType: 'chat', idempotencyKey: options?.idempotencyKey });
   let data;
   try {
     data = await callAnthropic(
-      messages.map(m => ({ role: m.role, content: m.content })),
+      llmMessages.map(m => ({ role: m.role, content: m.content })),
       // MAX_TOKENS_DEFAULT (antes 1024): Sonnet 5 con adaptive thinking cuenta
       // thinking + texto contra el cap → 1024 truncaba respuestas de chat.
       ATP_LLM.MAX_TOKENS_DEFAULT,
@@ -1577,14 +1583,14 @@ export async function* generateResponseStream(
   messages: ArgosMessage[],
   options?: ArgosChatOptions,
 ): AsyncGenerator<string, void, void> {
-  const { systemPrompt, dynamicSystem, gateResult, conversationId } = await prepareChatTurn(userId, messages, options);
+  const { systemPrompt, dynamicSystem, gateResult, conversationId, llmMessages } = await prepareChatTurn(userId, messages, options);
   const model = options?.model || MODEL_CHAT;
   // MB-4 J5: el modo voz factura como 'voice_turn' (más caro); default 'chat'.
   const meta = await getArgosCallMetadata({ requestType: options?.requestType ?? 'chat', idempotencyKey: options?.idempotencyKey });
 
   let full = '';
   for await (const evt of callAnthropicStream(
-    messages.map(m => ({ role: m.role, content: m.content })),
+    llmMessages.map(m => ({ role: m.role, content: m.content })),
     // MAX_TOKENS_DEFAULT (antes 1024): mismo fix que chatWithArgosEx — el cap
     // total incluye thinking; 1024 cortaba el stream a media frase.
     ATP_LLM.MAX_TOKENS_DEFAULT,
