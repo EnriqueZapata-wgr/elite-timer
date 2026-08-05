@@ -52,6 +52,18 @@ describe('APP_REGISTRY', () => {
     for (const a of APP_REGISTRY) {
       expect(a.label.includes('—'), a.key).toBe(false);
       expect(a.label.includes('–'), a.key).toBe(false);
+      expect(a.description?.includes('—') ?? false, a.key).toBe(false);
+      expect(a.description?.includes('–') ?? false, a.key).toBe(false);
+    }
+  });
+
+  it('MB-22: toda app lleva descripción honesta para su ficha del Centro', () => {
+    // Ratchet: una app nueva no entra sin decir qué es. Si de verdad no hay
+    // copy aprobado, se deja sin descripción Y se reporta — pero eso se decide
+    // aquí, a conciencia, no por omisión.
+    for (const a of APP_REGISTRY) {
+      expect(a.description, `${a.key} sin descripción`).toBeTruthy();
+      expect(a.description!.length, `${a.key} descripción muy corta`).toBeGreaterThanOrEqual(40);
     }
   });
 

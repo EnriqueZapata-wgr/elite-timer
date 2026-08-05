@@ -65,11 +65,11 @@ export default function CycleHistoryScreen() {
 
   // MB-7: no renderizar historial de ciclo hasta confirmar acceso (female).
   // D-2 (MB-12): durante 'checking' la pantalla mostraba vacío indefinido.
-  if (gate !== 'allowed') {
+  if (gate.state !== 'allowed') {
     return (
       <Screen>
         <PillarHeader pillar="cycle" title="Historial" />
-        {gate === 'checking' && (
+        {gate.state === 'checking' && (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator color="#fb7185" />
           </View>

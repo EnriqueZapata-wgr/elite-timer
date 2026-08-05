@@ -215,6 +215,9 @@ function RootLayout() {
                 {/* MB-19 PIEZA 2: /habits-portal se absorbio en la sala ATP. Sus 9
                     destinos son apps del registro; sus cards se retiraron. */}
                 <Stack.Screen name="atp-orden" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                {/* MB-22: el Centro ATP — instalador y configurador de apps */}
+                <Stack.Screen name="centro/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="centro/[appKey]" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz/chronotype" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-scan" options={{ animation: 'slide_from_bottom' }} />

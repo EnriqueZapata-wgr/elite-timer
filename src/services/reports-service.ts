@@ -6,6 +6,8 @@
  */
 import { supabase } from '@/src/lib/supabase';
 import { getLocalToday, parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
+import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
+import { getCycleAppMode } from '@/src/services/app-mode-service';
 
 // MB-11 C (SPEC Zero→ATP): toggle Semana/Mes/Año — 'year' entra al contrato.
 export type ReportPeriod = 'week' | 'month' | '3month' | 'year' | 'all';
@@ -451,6 +453,19 @@ export async function getCycleReport(period: ReportPeriod): Promise<CycleReport>
   try {
     const userId = await getUserId();
     if (!userId) return empty;
+
+    // MB-22.1 P1 — LA FUGA. Esta query a cycle_daily_logs nació sin gate y
+    // era inofensiva mientras un hombre no podía crear filas ahí; MB-22 abrió
+    // esa puerta (modo acompañante) y los días de periodo, energía y humor de
+    // OTRA persona aparecían como métricas del usuario en sus reportes.
+    // Regla única de lo propio: canAccessCycle(sex, mode). Sin propio → vacío
+    // (logsCount 0 = la sección Ciclo no se pinta).
+    const [{ data: prof }, mode] = await Promise.all([
+      supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
+      getCycleAppMode(userId),
+    ]);
+    if (!canAccessCycle((prof as any)?.biological_sex, mode)) return empty;
+
     const days = periodDays(period);
     const startDate = buildDateRange(days)[0];
 

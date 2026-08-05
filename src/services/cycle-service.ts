@@ -4,6 +4,7 @@
 import { parseLocalDate } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { cycleLengthsFromPeriods } from '@/src/services/cycle/cycle-length-core';
+import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
 
 // ═══ FASES ═══
 
@@ -102,9 +103,17 @@ export async function getCycleInfo(userId: string) {
   // nació de una fuente de datos de ciclo que NO se auto-protegía y confiaba
   // en que cada caller gateara. Aquí se cierra en la raíz: sin 'female' → null,
   // pase lo que pase aguas arriba. (Los callers gateados no pagan la query.)
-  const { data: prof } = await supabase
-    .from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle();
-  if ((prof as any)?.biological_sex !== 'female') return null;
+  //
+  // MB-22 Pieza 4 — el gate se extiende con el MODO: en 'acompanante' el
+  // calendario es de OTRA persona y NUNCA sale de la app de Ciclo. Todos los
+  // consumidores de salud (ARGOS, day-compiler, recetas, prescripción,
+  // emociones) pasan por aquí, así que este null los cierra todos. Las
+  // pantallas de Ciclo NO usan esta función: leen sus tablas directo.
+  const [{ data: prof }, mode] = await Promise.all([
+    supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
+    import('@/src/services/app-mode-service').then((m) => m.getCycleAppMode(userId)),
+  ]);
+  if (!canAccessCycle((prof as any)?.biological_sex, mode)) return null;
 
   const [periodsRes, settingsRes] = await Promise.all([
     supabase.from('cycle_periods').select('*').eq('user_id', userId).order('start_date', { ascending: false }).limit(6),

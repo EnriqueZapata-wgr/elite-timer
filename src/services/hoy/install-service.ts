@@ -12,9 +12,12 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { DEFAULT_BOOLEANS } from '@/src/services/hoy/day-booleans';
 import {
   applyInstall,
+  applyInstallGridOnly,
   applyUninstall,
+  initialSeedApps,
   type InstallPrefs,
 } from '@/src/services/hoy/install-core';
+import { getCycleAppMode, setCycleAppMode } from '@/src/services/app-mode-service';
 
 const DEFAULT_QUANTS = ['protein', 'water'];
 
@@ -69,8 +72,79 @@ export async function installApp(userId: string, appKey: string): Promise<{ ok: 
   return writePrefs(userId, applyInstall(appKey, prefs));
 }
 
+/**
+ * MB-22 P4: instalación SOLO a la cuadrícula (Ciclo en modo acompañante).
+ * Cero electrones: no nace fila en TAREAS, no se toca ningún hábito.
+ */
+export async function installAppGridOnly(userId: string, appKey: string): Promise<{ ok: boolean }> {
+  const prefs = await getInstallPrefs(userId);
+  if (!prefs) return { ok: false };
+  return writePrefs(userId, applyInstallGridOnly(appKey, prefs));
+}
+
 export async function uninstallApp(userId: string, appKey: string): Promise<{ ok: boolean }> {
   const prefs = await getInstallPrefs(userId);
   if (!prefs) return { ok: false };
   return writePrefs(userId, applyUninstall(appKey, prefs));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MB-22.1 P3 — siembra del set inicial que no emerge de los defaults.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Bandera one-shot en goals: la siembra corre UNA vez por usuario. */
+const SEED_FLAG = 'mb22_seed_v1';
+
+/**
+ * Siembra Respirar (todos) y Ciclo en propio (usuarias) a la cuadrícula, SIN
+ * encender electrones — cero filas nuevas en TAREAS. Para usuarios ya
+ * sembrados por las migraciones 250/251 solo deja la bandera.
+ *
+ * · Idempotente: goals.mb22_seed_v1 la corta para siempre.
+ * · Fail-soft: cualquier error deja todo como estaba y se reintenta en el
+ *   siguiente focus (la bandera solo se escribe si el write entró).
+ * · NUNCA pisa un modo de ciclo ya elegido (solo escribe propio si no hay).
+ *
+ * Devuelve true si escribió algo (el caller decide releer).
+ */
+export async function seedInitialApps(userId: string, isFemale: boolean): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_day_preferences')
+    .select('installed_apps, goals')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) {
+    logWarn('[install] seed read failed', error);
+    return false;
+  }
+  const goals = (data?.goals as Record<string, unknown>) ?? {};
+  if (goals[SEED_FLAG]) return false;
+
+  const current = (data?.installed_apps as string[]) ?? [];
+  const add = initialSeedApps(isFemale).filter((k) => !current.includes(k));
+
+  const { error: writeErr } = await supabase
+    .from('user_day_preferences')
+    .upsert(
+      {
+        user_id: userId,
+        installed_apps: [...current, ...add],
+        goals: { ...goals, [SEED_FLAG]: true },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' },
+    );
+  if (writeErr) {
+    // Remoto sin mig 247/250: sin bandera, se reintenta después. Nada a medias.
+    logWarn('[install] seed write failed', writeErr);
+    return false;
+  }
+
+  // Usuaria nueva: su Ciclo queda en propio EXPLÍCITO. Si ya hay un modo
+  // elegido (backfill 249/251 o decisión previa), no se toca.
+  if (isFemale) {
+    const mode = await getCycleAppMode(userId);
+    if (mode == null) await setCycleAppMode(userId, 'propio');
+  }
+  return add.length > 0;
 }

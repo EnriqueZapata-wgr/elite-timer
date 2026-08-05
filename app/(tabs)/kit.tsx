@@ -14,6 +14,10 @@
  *
  * Absorbió a /habits-portal: sus cards se retiraron y sus destinos son apps.
  * La ruta sigue siendo /kit para no romper deep links.
+ *
+ * MB-22: la cuadrícula lista SOLO lo instalado. Todo lo demás vive en el
+ * Centro (/centro), que es donde se instala, se desinstala y se configura.
+ * Las 17 apps que no usas no necesitan un distintivo: necesitan no estar.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable, Alert } from 'react-native';
@@ -39,9 +43,10 @@ import {
 import {
   loadUsage, recordOpen, loadCustomOrder, loadOrderMode, saveOrderMode,
 } from '@/src/services/atp-room-store';
-import { getInstallPrefs, installApp, uninstallApp } from '@/src/services/hoy/install-service';
+import { getInstallPrefs, seedInitialApps, uninstallApp } from '@/src/services/hoy/install-service';
+import { getCycleAppMode } from '@/src/services/app-mode-service';
 import {
-  appInstallState, installAlertBody, uninstallAlertBody, type InstallPrefs,
+  appInstallState, gridApps, uninstallAlertBody, type InstallPrefs,
 } from '@/src/services/hoy/install-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, PILL } from '@/src/constants/brand';
@@ -50,7 +55,9 @@ import { haptic } from '@/src/utils/haptics';
 export default function SalaAtpScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  // MB-20: "+ agregar" en TAREAS abre la sala en modo instalación.
+  // MB-20: "+ agregar" en TAREAS llegaba aquí en modo instalación. MB-22:
+  // instalar vive en el Centro — el deep link se respeta redirigiendo, la
+  // pantalla de TAREAS no se toca.
   const { agregar } = useLocalSearchParams<{ agregar?: string }>();
   const modoAgregar = agregar === '1';
 
@@ -64,20 +71,41 @@ export default function SalaAtpScreen() {
   const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);
 
   // El gate del ciclo. Sin perfil, la app no se muestra: es el default seguro.
+  // MB-22 P4: con modo instalado (acompañante) el Ciclo también se ve, sea
+  // quien sea — el modo viene de user_app_modes (fail-soft null = solo female).
+  const [cycleModeSet, setCycleModeSet] = useState(false);
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
     (async () => {
       try {
-        const { data } = await supabase
-          .from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle();
-        if (alive) setIsFemale((data as any)?.biological_sex === 'female');
+        const [{ data }, mode] = await Promise.all([
+          supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle(),
+          getCycleAppMode(user.id),
+        ]);
+        if (!alive) return;
+        const female = (data as any)?.biological_sex === 'female';
+        setIsFemale(female);
+        setCycleModeSet(mode != null);
+        // MB-22.1 P3: siembra one-shot del set inicial (Respirar + Ciclo para
+        // usuarias). Si escribió, se releen prefs para pintar la cuadrícula.
+        const seeded = await seedInitialApps(user.id, female);
+        if (!alive) return;
+        if (seeded) {
+          setInstallPrefs(await getInstallPrefs(user.id));
+          if (female && mode == null) setCycleModeSet(true);
+        }
       } catch { /* sin perfil: el ciclo queda oculto */ }
     })();
     return () => { alive = false; };
   }, [user?.id]);
 
-  const apps = useMemo(() => visibleApps(isFemale), [isFemale]);
+  const apps = useMemo(() => visibleApps(isFemale || cycleModeSet), [isFemale, cycleModeSet]);
+
+  // MB-22: el deep link viejo de "+ agregar" aterriza donde hoy se instala.
+  useEffect(() => {
+    if (modoAgregar) router.replace('/centro');
+  }, [modoAgregar, router]);
 
   // Al volver a la sala se relee todo: si acabas de editar tu orden, ya está.
   const refresh = useCallback(async () => {
@@ -89,48 +117,27 @@ export default function SalaAtpScreen() {
   }, [user?.id]);
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
-  // MB-20: instalar/desinstalar desde el mosaico (tap largo, o tap en modo agregar).
-  const promptInstall = useCallback((app: AppEntry) => {
+  // MB-22: la cuadrícula solo tiene instaladas → el tap largo es el atajo a
+  // desinstalar. Instalar vive en el Centro (la ficha de cada app).
+  const promptUninstall = useCallback((app: AppEntry) => {
     if (!user?.id || !installPrefs) return;
-    if (!app.installable) {
-      Alert.alert(app.label, 'Esta función se abre cuando la necesitas: no genera hábito en TAREAS.');
-      return;
-    }
     const state = appInstallState(app.key, installPrefs);
     if (state === 'fija') {
-      Alert.alert(app.label, 'Este hábito es parte del núcleo de tu día: siempre está en TAREAS.');
+      Alert.alert(app.label, 'Esta función es parte del núcleo: siempre está en tu cuadrícula.');
       return;
     }
-    if (state === 'instalada') {
-      Alert.alert(
-        `Desinstalar ${app.label}`,
-        uninstallAlertBody(app.key),
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Desinstalar',
-            style: 'destructive',
-            onPress: async () => {
-              haptic.medium();
-              const r = await uninstallApp(user.id, app.key);
-              if (!r.ok) { Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.'); return; }
-              refresh();
-            },
-          },
-        ],
-      );
-      return;
-    }
+    if (state !== 'instalada') return;
     Alert.alert(
-      `Instalar ${app.label}`,
-      installAlertBody(app.key),
+      `Desinstalar ${app.label}`,
+      uninstallAlertBody(app.key),
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Instalar',
+          text: 'Desinstalar',
+          style: 'destructive',
           onPress: async () => {
-            haptic.success();
-            const r = await installApp(user.id, app.key);
+            haptic.medium();
+            const r = await uninstallApp(user.id, app.key);
             if (!r.ok) { Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.'); return; }
             refresh();
           },
@@ -139,23 +146,21 @@ export default function SalaAtpScreen() {
     );
   }, [user?.id, installPrefs, refresh]);
 
+  // MB-22 Pieza 1: la cuadrícula lista SOLO lo instalado y lo fijo.
+  const instaladas = useMemo(() => gridApps(apps, installPrefs), [apps, installPrefs]);
+
   // La card se calcula con el reloj de ESTE render, no con un intervalo: la
-  // pantalla se vuelve a montar cada vez que entras y eso basta.
+  // pantalla se vuelve a montar cada vez que entras y eso basta. Invita solo
+  // a lo instalado: el descubrimiento es asunto del Centro.
   useEffect(() => {
     const now = new Date();
-    setEditorial(pickEditorial(apps, usage, now.getTime(), now.getHours()));
-  }, [apps, usage]);
+    setEditorial(pickEditorial(instaladas, usage, now.getTime(), now.getHours()));
+  }, [instaladas, usage]);
 
   const open = useCallback((app: AppEntry) => {
-    // Modo agregar: el tap sobre una instalable no instalada INSTALA (el gesto
-    // que promete el botón "+ agregar"); el resto abre normal.
-    if (modoAgregar && installPrefs && app.installable && appInstallState(app.key, installPrefs) === 'no') {
-      promptInstall(app);
-      return;
-    }
     recordOpen(app.key);
     router.push(app.route);
-  }, [router, modoAgregar, installPrefs, promptInstall]);
+  }, [router]);
 
   const changeOrder = (next: AtpOrder) => {
     haptic.light();
@@ -164,10 +169,12 @@ export default function SalaAtpScreen() {
   };
 
   const searching = query.trim().length > 0;
-  const results = useMemo(() => searchApps(apps, query), [apps, query]);
+  // El buscador busca SOLO entre las instaladas; si no aparece, se ofrece el
+  // Centro — la forma natural de descubrir que existe algo más.
+  const results = useMemo(() => searchApps(instaladas, query), [instaladas, query]);
   const listed = useMemo(
-    () => orderedApps(apps, order, usage, reconcileOrder(custom, apps)),
-    [apps, order, usage, custom]
+    () => orderedApps(instaladas, order, usage, reconcileOrder(custom, instaladas)),
+    [instaladas, order, usage, custom]
   );
   const groups = useMemo(() => groupBySection(listed), [listed]);
 
@@ -184,8 +191,7 @@ export default function SalaAtpScreen() {
         label={app.label}
         section={app.section}
         onPress={() => open(app)}
-        installed={installPrefs ? appInstallState(app.key, installPrefs) !== 'no' : false}
-        onLongPress={() => promptInstall(app)}
+        onLongPress={() => promptUninstall(app)}
       />
     </Animated.View>
   );
@@ -203,15 +209,23 @@ export default function SalaAtpScreen() {
           <EliteText style={s.title}>ATP</EliteText>
         </Animated.View>
 
-        {/* MB-20: modo agregar — instalar es un gesto, no un formulario. */}
-        {modoAgregar && (
-          <Animated.View entering={FadeInUp.delay(60).springify()} style={s.agregarBanner}>
-            <Ionicons name="add-circle-outline" size={16} color={ATP_BRAND.lime} />
-            <EliteText style={s.agregarText}>
-              Toca una app para instalarla en tu día. Desinstalar nunca borra tus datos.
-            </EliteText>
-          </Animated.View>
-        )}
+        {/* MB-22: la entrada al Centro, visible SIN scroll. Si alguien no la
+            encuentra, no puede instalar nada y la app se le queda chica. */}
+        <Animated.View entering={FadeInUp.delay(60).springify()}>
+          <AnimatedPressable
+            style={s.centroCard}
+            onPress={() => { haptic.light(); router.push('/centro'); }}
+          >
+            <View style={s.centroIcon}>
+              <Ionicons name="apps-outline" size={18} color={ATP_BRAND.lime} />
+            </View>
+            <View style={s.centroBody}>
+              <EliteText style={s.centroTitle}>Centro ATP</EliteText>
+              <EliteText style={s.centroSub}>Todas las funciones: instala y configura</EliteText>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={TEXT.tertiary} />
+          </AnimatedPressable>
+        </Animated.View>
 
         {/* El momento con foto de esta pantalla. UNA card: ni carrusel ni feed. */}
         {!searching && editorial && (
@@ -252,7 +266,17 @@ export default function SalaAtpScreen() {
               ? results.map(renderTile)
               : (
                 <View style={s.emptySearch}>
-                  <EliteText style={s.emptyText}>Nada con ese nombre</EliteText>
+                  <EliteText style={s.emptyText}>No está en tu cuadrícula</EliteText>
+                  <AnimatedPressable
+                    style={s.emptyCta}
+                    onPress={() => {
+                      haptic.light();
+                      router.push({ pathname: '/centro', params: { q: query.trim() } });
+                    }}
+                  >
+                    <Ionicons name="apps-outline" size={14} color={ATP_BRAND.lime} />
+                    <EliteText style={s.emptyCtaText}>Buscarla en el Centro</EliteText>
+                  </AnimatedPressable>
                 </View>
               )}
           </View>
@@ -366,24 +390,44 @@ const s = StyleSheet.create({
   gridFlat: { marginTop: Spacing.md },
   tileSlot: { width: '25%' },
 
-  emptySearch: { width: '100%', paddingVertical: Spacing.xl, alignItems: 'center' },
+  emptySearch: { width: '100%', paddingVertical: Spacing.xl, alignItems: 'center', gap: Spacing.md },
   emptyText: { color: TEXT.tertiary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-
-  agregarBanner: {
+  emptyCta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: 'rgba(168,224,42,0.08)',
+    gap: 6,
+    backgroundColor: 'rgba(168,224,42,0.10)',
     borderWidth: 0.5,
     borderColor: 'rgba(168,224,42,0.3)',
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    height: 34,
   },
-  agregarText: {
-    flex: 1,
-    color: TEXT.primary,
-    fontSize: FontSizes.xs,
-    fontFamily: Fonts.semiBold,
-    lineHeight: 16,
+  emptyCtaText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.xs, letterSpacing: 0.5 },
+
+  centroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: ELEVATION[1].bg,
+    borderWidth: 0.5,
+    borderColor: ELEVATION[1].border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: Spacing.md,
   },
+  centroIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: 'rgba(168,224,42,0.10)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(168,224,42,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centroBody: { flex: 1 },
+  centroTitle: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.sm },
+  centroSub: { color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: FontSizes.xs, marginTop: 1 },
 });
