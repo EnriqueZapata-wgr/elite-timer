@@ -10,7 +10,7 @@
  *  - Sesiones (P2): abrir en frío = en blanco; mismo proceso = retoma.
  */
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { View, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, FlatList, KeyboardAvoidingView, Platform, AppState } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -39,9 +39,10 @@ import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
 import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
 import { getArgosSessionId, startNewArgosSession } from '@/src/services/argos-session';
-import { shouldAttemptResume, resumeTarget } from '@/src/services/argos-session-core';
+import { shouldAttemptResume, resumeTarget, sessionRotatedAway } from '@/src/services/argos-session-core';
 import {
-  resolveTurn, persistPlan, filterForLLM, buildChatListItems, type ChatListItem,
+  resolveTurn, persistPlan, filterForLLM, buildChatListItems, createSendGuard,
+  runTurnWithFallback, type ChatListItem,
 } from '@/src/services/argos-chat-core';
 import { buildTodaySuggestions, DEFAULT_SUGGESTIONS, type ChatSuggestion } from '@/src/services/argos-suggestions-core';
 import { loadTodaySignals } from '@/src/services/argos-suggestions';
@@ -62,10 +63,13 @@ function ArgosChat() {
   // N1: solo mostrar back-arrow si hay a dónde volver (deep link / push).
   const canGoBack = navigation.canGoBack();
   const params = useLocalSearchParams<{ conversationId?: string; new?: string; from?: string }>();
-  // Guard de re-entrancy (#71): un ref (síncrono) atrapa el doble-tap/re-render
-  // ANTES de que `loading` (state, async) actualice — 1ª línea de defensa del
-  // doble cobro H+ (el server además es idempotente).
-  const sendingRef = useRef(false);
+  // Guard de re-entrada (#71) — la lógica vive en argos-chat-core (con tests);
+  // aquí solo la instancia por pantalla.
+  const sendGuard = useRef(createSendGuard()).current;
+  // MB-21: ancla de la sesión a la que pertenece el contenido EN PANTALLA.
+  // Si el ancla global rota por debajo (background largo), la pantalla se
+  // limpia en vez de adoptar la conversación vieja en la sesión nueva.
+  const screenSessionRef = useRef<string | null>(null);
   const analytics = useAnalytics();
   const [messages, setMessages] = useState<ArgosMessage[]>([]);
   const [input, setInput] = useState('');
@@ -116,34 +120,70 @@ function ArgosChat() {
           const msgs = await loadConversation(params.conversationId);
           setMessages(msgs);
           setConversationId(params.conversationId);
+          // Abrir del historial adopta la conversación en la sesión actual.
+          screenSessionRef.current = getArgosSessionId();
         }
       }
     })();
   }, [params.conversationId]);
 
+  /** Limpia la pantalla si el ancla global rotó por debajo. Devuelve si limpió. */
+  function clearIfSessionRotated(): boolean {
+    if (!sessionRotatedAway(screenSessionRef.current, getArgosSessionId())) return false;
+    setMessages([]);
+    setConversationId(null);
+    screenSessionRef.current = null;
+    return true;
+  }
+
+  // MB-21: rotar por background debe LIMPIAR la pantalla abierta — si no, el
+  // siguiente envío adoptaba la conversación vieja en la sesión nueva. La
+  // conversación no se pierde: sigue en el historial.
+  useEffect(() => {
+    // Fuerza la suscripción del rotador de sesión ANTES que este listener:
+    // así, al volver a 'active', el ancla ya rotó cuando comparamos.
+    getArgosSessionId();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') clearIfSessionRotated();
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Detener TTS al salir de la pantalla + retomar por sesión al enfocar.
   useFocusEffect(useCallback(() => {
-    if (userId) autoLoadRecent();
+    // Cubre la instancia vieja que quedó en el stack: al re-enfocarla tras una
+    // rotación (p. ej. "nueva" desde el panel), se limpia en vez de resucitar.
+    const cleared = clearIfSessionRotated();
+    if (userId) autoLoadRecent(cleared);
     // Leak fix (auditoría MB-4): stopSpeaking solo corta el TTS legacy del SO;
     // la voz nueva (expo-audio vía argos-tts) seguía sonando al salir.
     return () => { stopSpeaking(); stopPlayback().catch(() => {}); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]));
 
   // MB-21 P2: una sesión de app es una conversación. Solo se retoma la más
   // reciente si pertenece a la sesión actual (ancla session_id, migración 253).
-  async function autoLoadRecent() {
+  // `screenCleared` = la pantalla se acaba de limpiar por rotación: el gate de
+  // shouldAttemptResume evalúa estado ya viejo y se salta.
+  async function autoLoadRecent(screenCleared = false) {
     if (!userId) return;
-    if (!shouldAttemptResume({
+    if (!screenCleared && !shouldAttemptResume({
       hasMessages: messages.length > 0,
       activeConversationId: conversationId,
+      // Abrir una conversación específica del panel manda: autoLoadRecent no
+      // debe pisarla (llegaba después y la sobrescribía).
+      requestedConversation: params.conversationId != null,
       requestedNew: params.new === '1',
     })) return;
-    const convs = await loadConversations(userId, 1);
-    const targetId = resumeTarget(convs[0] ?? null, getArgosSessionId());
+    const { rows, error } = await loadConversations(userId, 1);
+    if (error) return; // no pude leer ≠ no hay nada: sin resume, sin romper.
+    const targetId = resumeTarget(rows[0] ?? null, getArgosSessionId());
     if (targetId) {
       const msgs = await loadConversation(targetId);
       setMessages(msgs);
       setConversationId(targetId);
+      screenSessionRef.current = getArgosSessionId();
     }
   }
 
@@ -152,13 +192,17 @@ function ArgosChat() {
    * Devuelve el texto completo, o null si el stream no está disponible —
    * el caller cae al modo no-stream. ArgosRateLimitError se propaga (T5).
    */
-  async function tryStreamingTurn(cleanForLLM: ArgosMessage[], idempotencyKey: string): Promise<string | null> {
+  async function tryStreamingTurn(
+    cleanForLLM: ArgosMessage[],
+    idempotencyKey: string,
+    turnConversationId: string | null,
+  ): Promise<string | null> {
     if (!userId) return null;
     let full = '';
     let appended = false;
     try {
       const stream = generateResponseStream(userId, cleanForLLM, {
-        conversationId,
+        conversationId: turnConversationId,
         idempotencyKey,
         screenContext: coerceScreen(params.from),
       });
@@ -196,8 +240,7 @@ function ArgosChat() {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
     // #71: atrapar doble-tap/re-render de forma SÍNCRONA (antes del primer await).
-    if (sendingRef.current) return;
-    sendingRef.current = true;
+    if (!sendGuard.tryAcquire()) return;
     // C5-002: se evalúa ANTES de cualquier red/LLM — funciona incluso offline.
     if (detectCrisisContent(messageText)) setCrisisDetected(true);
     // Una sola idempotency_key para TODO este turno (incluye retries internos).
@@ -211,10 +254,17 @@ function ArgosChat() {
       // igual responde 402 como guard real server-side.
       withPreflight('chat', async () => true),
     ]);
-    const base = messages;
+    // MB-21: si la sesión rotó con la pantalla abierta (el listener de AppState
+    // pudo no alcanzar a limpiar), este turno arranca conversación NUEVA — no
+    // adopta la vieja en la sesión nueva.
+    const rotatedAway = sessionRotatedAway(screenSessionRef.current, getArgosSessionId());
+    if (rotatedAway) setConversationId(null);
+    const base = rotatedAway ? [] : messages;
+    const turnConversationId = rotatedAway ? null : conversationId;
+    screenSessionRef.current = getArgosSessionId();
     const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
     if (!online) {
-      sendingRef.current = false;
+      sendGuard.release();
       setOffline(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       setInput('');
@@ -225,7 +275,7 @@ function ArgosChat() {
       return;
     }
     if (offline) setOffline(false);
-    if (wasAborted(gate)) { sendingRef.current = false; return; }
+    if (wasAborted(gate)) { sendGuard.release(); return; }
 
     // Detener si ARGOS estaba hablando
     if (getIsSpeaking()) await stopSpeaking();
@@ -247,49 +297,49 @@ function ArgosChat() {
 
     let resolved: ReturnType<typeof resolveTurn> | null = null;
     try {
-      // T2: primero STREAMING; null = no disponible → fallback no-stream.
-      const streamedText = await tryStreamingTurn(cleanForLLM, idempotencyKey);
-
-      if (streamedText !== null) {
-        resolved = resolveTurn(base, userTurn, { kind: 'streamed', text: streamedText }, Date.now());
-        setMessages(resolved.messages);
-        if (autoSpeak) speakArgos(streamedText);
-      } else {
-        setLoading(true); // el intento de stream pudo haber apagado el indicador
-        const result = await chatWithArgosEx(userId, cleanForLLM, {
-          conversationId,
+      // T2/T5: la orquestación stream→no-stream vive en argos-chat-core (con
+      // tests); aquí solo los efectos de pantalla por desenlace.
+      const run = await runTurnWithFallback({
+        stream: () => tryStreamingTurn(cleanForLLM, idempotencyKey, turnConversationId),
+        reply: () => chatWithArgosEx(userId, cleanForLLM, {
+          conversationId: turnConversationId,
           idempotencyKey,
           // T4: si el chat se abrió desde una pantalla, ARGOS lo sabe.
           screenContext: coerceScreen(params.from),
-        });
-        if (result.rateLimit) {
+        }),
+        // El intento de stream pudo haber apagado el indicador "pensando".
+        onFallback: () => setLoading(true),
+      });
+      switch (run.kind) {
+        case 'streamed':
+          resolved = resolveTurn(base, userTurn, { kind: 'streamed', text: run.text }, Date.now());
+          setMessages(resolved.messages);
+          if (autoSpeak) speakArgos(run.text);
+          break;
+        case 'reply':
+          resolved = resolveTurn(base, userTurn, {
+            kind: 'reply', text: run.text, degraded: run.degraded,
+          }, Date.now());
+          setMessages(resolved.messages);
+          if (!run.degraded && autoSpeak) speakArgos(run.text);
+          break;
+        case 'rate_limited': {
           // T5: rate limit → RateLimitCard (boost H+) en vez de burbuja genérica.
           resolved = resolveTurn(base, userTurn, { kind: 'rate_limited' }, Date.now());
           setMessages(resolved.messages);
-          setRateLimit(result.rateLimit);
-        } else {
-          resolved = resolveTurn(base, userTurn, {
-            kind: 'reply', text: result.text, degraded: result.degraded,
-          }, Date.now());
-          setMessages(resolved.messages);
-          if (!result.degraded && autoSpeak) speakArgos(result.text);
+          const info = run.info ?? parseRateLimitInfo(run.payload);
+          if (info) setRateLimit(info);
+          break;
         }
-      }
-    } catch (e) {
-      if (e instanceof ArgosRateLimitError) {
-        // T5: rate limit detectado durante el stream — misma UX que no-stream.
-        const info = parseRateLimitInfo(e.payload);
-        resolved = resolveTurn(base, userTurn, { kind: 'rate_limited' }, Date.now());
-        setMessages(resolved.messages);
-        if (info) setRateLimit(info);
-      } else {
-        console.error('ARGOS chat error:', e);
-        resolved = resolveTurn(base, userTurn, { kind: 'client_error' }, Date.now());
-        setMessages(resolved.messages);
+        case 'client_error':
+          console.error('ARGOS chat error:', run.error);
+          resolved = resolveTurn(base, userTurn, { kind: 'client_error' }, Date.now());
+          setMessages(resolved.messages);
+          break;
       }
     } finally {
       setLoading(false);
-      sendingRef.current = false; // #71: liberar el guard al terminar el turno
+      sendGuard.release(); // #71: liberar el guard al terminar el turno
       // T5 HARDENING: respuesta recibida (degraded=true si fue rate limit/error).
       analytics.track(ATP_EVENTS.ARGOS_MESSAGE_RECEIVED, { degraded: resolved?.wasDegraded ?? true });
       // F2.3: feedback háptico sutil al terminar de "pensar"
@@ -301,7 +351,7 @@ function ArgosChat() {
       const plan = persistPlan(resolved.messages, resolved.wasDegraded);
       if (plan.persist) {
         try {
-          const id = await saveConversation(userId, plan.clean, conversationId, getArgosSessionId());
+          const id = await saveConversation(userId, plan.clean, turnConversationId, getArgosSessionId());
           if (id) setConversationId(id);
         } catch (e) {
           console.warn('ARGOS saveConversation error:', e);
@@ -314,6 +364,7 @@ function ArgosChat() {
     stopSpeaking();
     setMessages([]);
     setConversationId(null);
+    screenSessionRef.current = null; // pantalla en blanco: sin ancla.
     // MB-21 P2: cerrar DE VERDAD. Rotar el ancla de sesión hace que la
     // conversación anterior deje de ser retomable por foco. No se borra nada.
     startNewArgosSession();
@@ -455,7 +506,9 @@ function ArgosChat() {
         onClose={() => setVoiceMode(false)}
         userId={userId ?? undefined}
         voice={argosVoice}
-        history={messages.map(m => ({ role: m.role, content: m.content }))}
+        // ARG-1/ARG-8: los turnos degradados tampoco entran al contexto del
+        // modelo por la vía de voz (mismo filtro que el turno de texto).
+        history={filterForLLM(messages).map(m => ({ role: m.role, content: m.content }))}
         onTurnComplete={(userText, argosText) => {
           // C5-002: los turnos de voz también pasan por el guardarraíl.
           if (detectCrisisContent(userText)) setCrisisDetected(true);
@@ -465,6 +518,7 @@ function ArgosChat() {
             { role: 'assistant', content: argosText, ts: Date.now() },
           ];
           setMessages(next);
+          screenSessionRef.current = getArgosSessionId();
           // M5 (re-auditoría MB-4): los turnos de voz también se persisten.
           if (userId) {
             saveConversation(userId, next.filter(m => !m.degraded), conversationId, getArgosSessionId())

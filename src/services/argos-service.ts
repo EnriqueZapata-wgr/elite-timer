@@ -1527,16 +1527,27 @@ export async function saveConversation(
   return data?.id || null;
 }
 
-export async function loadConversations(userId: string, limit: number = 20, offset: number = 0): Promise<any[]> {
+export async function loadConversations(
+  userId: string,
+  limit: number = 20,
+  offset: number = 0,
+): Promise<{ rows: any[]; error: string | null }> {
   // MB-21: session_id viaja para la regla de sesiones (autoLoadRecent);
-  // offset habilita la paginación del panel (Pieza 3).
-  const { data } = await supabase
+  // offset habilita la paginación del panel (Pieza 3). El error NO se traga:
+  // "no hay conversaciones" (rows []) y "no pude leer" (error) son cosas
+  // distintas — sin la migración 253 este select falla y el panel se veía
+  // vacío, como si el historial se hubiera perdido.
+  const { data, error } = await supabase
     .from('argos_conversations')
     .select('id, title, messages, updated_at, session_id')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
     .range(offset, offset + limit - 1);
-  return data || [];
+  if (error) {
+    console.warn('[argos] loadConversations:', error.message);
+    return { rows: [], error: error.message };
+  }
+  return { rows: data || [], error: null };
 }
 
 /** MB-21 P3: renombrar una conversación (el título editable del panel). */

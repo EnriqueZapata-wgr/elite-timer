@@ -8,13 +8,17 @@
  */
 import { router } from 'expo-router';
 import type { ArgosScreen } from '@/src/hooks/argos-screen-context-core';
+import { startNewArgosSession } from './argos-session';
 
 export interface OpenArgosChatOptions {
   /** Pantalla de origen — ARGOS abre sabiendo de dónde vienes (T4). */
   from?: ArgosScreen;
   /** Abrir una conversación específica del historial. */
   conversationId?: string;
-  /** Arrancar en blanco (no auto-retomar la de la sesión). */
+  /**
+   * Arrancar en blanco Y cerrar de verdad: rota el ancla de sesión, así la
+   * conversación anterior deja de ser retomable por foco (no solo ?new=1).
+   */
   startNew?: boolean;
 }
 
@@ -24,6 +28,11 @@ export function openArgosChat(options: OpenArgosChatOptions = {}): void {
     params.from = options.from;
   }
   if (options.conversationId) params.conversationId = options.conversationId;
-  if (options.startNew) params.new = '1';
+  if (options.startNew) {
+    // Sin esta rotación, "nueva" desde el panel solo abría en blanco: al
+    // cambiar de tab, la conversación vieja resucitaba (el ancla no rotó).
+    startNewArgosSession();
+    params.new = '1';
+  }
   router.push({ pathname: '/argos-chat', params });
 }

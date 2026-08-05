@@ -12,6 +12,7 @@ import {
   ARGOS_SESSION_BACKGROUND_THRESHOLD_MS,
   shouldRotateSession,
   shouldAttemptResume,
+  sessionRotatedAway,
   resumeTarget,
 } from '@/src/services/argos-session-core';
 
@@ -46,7 +47,12 @@ describe('shouldRotateSession — volver del background', () => {
 });
 
 describe('shouldAttemptResume — cuándo ni intentar', () => {
-  const base = { hasMessages: false, activeConversationId: null, requestedNew: false };
+  const base = {
+    hasMessages: false,
+    activeConversationId: null,
+    requestedNew: false,
+    requestedConversation: false,
+  };
 
   it('pantalla en blanco sin pedido de nueva → sí intenta', () => {
     expect(shouldAttemptResume(base)).toBe(true);
@@ -56,12 +62,32 @@ describe('shouldAttemptResume — cuándo ni intentar', () => {
     expect(shouldAttemptResume({ ...base, requestedNew: true })).toBe(false);
   });
 
+  it('se pidió una conversación específica (?conversationId=) → no', () => {
+    // El bug: el load explícito es async; autoLoadRecent llegaba con la
+    // pantalla aún vacía, pasaba el gate y pisaba la conversación pedida.
+    expect(shouldAttemptResume({ ...base, requestedConversation: true })).toBe(false);
+  });
+
   it('ya hay mensajes en pantalla → no', () => {
     expect(shouldAttemptResume({ ...base, hasMessages: true })).toBe(false);
   });
 
   it('ya hay conversación activa → no', () => {
     expect(shouldAttemptResume({ ...base, activeConversationId: 'c1' })).toBe(false);
+  });
+});
+
+describe('sessionRotatedAway — la sesión rotó por debajo de la pantalla', () => {
+  it('pantalla sin contenido anclado (null) → nada que limpiar', () => {
+    expect(sessionRotatedAway(null, 's1')).toBe(false);
+  });
+
+  it('el contenido pertenece a la sesión actual → no se limpia', () => {
+    expect(sessionRotatedAway('s1', 's1')).toBe(false);
+  });
+
+  it('background largo rotó el ancla → se limpia (el envío NO adopta la vieja)', () => {
+    expect(sessionRotatedAway('s1', 's2-rotada-por-background')).toBe(true);
   });
 });
 

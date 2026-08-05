@@ -8,6 +8,8 @@
  * cliente) y los separadores de tiempo. Sin RN, sin supabase — node puro.
  */
 import type { ArgosMessage } from './argos-service';
+import { ArgosRateLimitError } from './argos-stream-core';
+import type { RateLimitInfo } from './argos-rate-limit-core';
 
 /** F2.3: gap mínimo entre mensajes para pintar separador temporal. */
 export const TIMESTAMP_GAP_MS = 5 * 60 * 1000;
@@ -27,6 +29,30 @@ export function filterForLLM(messages: ArgosMessage[]): ArgosMessage[] {
 /** ARG-2: lo que se persiste. Mismo criterio: degradados fuera. */
 export function filterForSave(messages: ArgosMessage[]): ArgosMessage[] {
   return messages.filter((m) => !m.degraded);
+}
+
+/**
+ * #71: guard de re-entrada del envío — un solo turno en vuelo por pantalla.
+ * Síncrono a propósito: atrapa el doble-tap/re-render ANTES del primer await,
+ * cuando `loading` (state, async) todavía no actualizó. Primera línea de
+ * defensa del doble cobro H+ (el server además es idempotente).
+ */
+export interface SendGuard {
+  /** true = turno adquirido; false = ya hay uno en vuelo, no enviar. */
+  tryAcquire: () => boolean;
+  release: () => void;
+}
+
+export function createSendGuard(): SendGuard {
+  let sending = false;
+  return {
+    tryAcquire: () => {
+      if (sending) return false;
+      sending = true;
+      return true;
+    },
+    release: () => { sending = false; },
+  };
 }
 
 /** El desenlace de un turno, visto desde la pantalla. */
@@ -107,6 +133,41 @@ export function persistPlan(
 ): { persist: boolean; clean: ArgosMessage[] } {
   const clean = filterForSave(finalMessages);
   return { persist: clean.length > 0 && !wasDegraded, clean };
+}
+
+/** Resultado del turno completo: stream con caída a no-stream (T2/T5). */
+export type TurnRun =
+  | { kind: 'streamed'; text: string }
+  | { kind: 'reply'; text: string; degraded: boolean }
+  /** info si vino parseada del no-stream; payload crudo si el stream lanzó. */
+  | { kind: 'rate_limited'; info?: RateLimitInfo | null; payload?: unknown }
+  | { kind: 'client_error'; error: unknown };
+
+/**
+ * T2: orquesta el turno — primero STREAMING; si el stream "no está
+ * disponible" (null), cae al modo no-stream. Vivía inline en la pantalla y la
+ * caída no tenía test. Reglas:
+ *  - stream completo → 'streamed' (el no-stream NI SE LLAMA: sería doble cobro).
+ *  - stream null → onFallback (la pantalla reenciende "pensando") + reply.
+ *  - ArgosRateLimitError (del stream) o reply.rateLimit → 'rate_limited'.
+ *  - cualquier otra excepción → 'client_error'.
+ */
+export async function runTurnWithFallback(deps: {
+  stream: () => Promise<string | null>;
+  reply: () => Promise<{ text: string; degraded: boolean; rateLimit?: RateLimitInfo | null }>;
+  onFallback?: () => void;
+}): Promise<TurnRun> {
+  try {
+    const streamed = await deps.stream();
+    if (streamed !== null) return { kind: 'streamed', text: streamed };
+    deps.onFallback?.();
+    const result = await deps.reply();
+    if (result.rateLimit) return { kind: 'rate_limited', info: result.rateLimit };
+    return { kind: 'reply', text: result.text, degraded: result.degraded };
+  } catch (e) {
+    if (e instanceof ArgosRateLimitError) return { kind: 'rate_limited', payload: e.payload };
+    return { kind: 'client_error', error: e };
+  }
 }
 
 export interface ChatListItem {

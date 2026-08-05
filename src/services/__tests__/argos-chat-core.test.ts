@@ -3,7 +3,7 @@
  * sin un solo test: filtrado de degradados (ARG-1/ARG-2/ARG-8), resolución
  * por desenlace, plan de persistencia y separadores de la lista invertida.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   TIMESTAMP_GAP_MS,
   CLIENT_ERROR_COPY,
@@ -12,7 +12,11 @@ import {
   resolveTurn,
   persistPlan,
   buildChatListItems,
+  createSendGuard,
+  runTurnWithFallback,
 } from '@/src/services/argos-chat-core';
+import { ArgosRateLimitError } from '@/src/services/argos-stream-core';
+import type { RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import type { ArgosMessage } from '@/src/services/argos-service';
 
 const NOW = 1_800_000_000_000;
@@ -129,5 +133,99 @@ describe('buildChatListItems — lista invertida con separadores', () => {
   it('mensajes viejos sin ts simplemente no muestran separador', () => {
     const items = buildChatListItems([user('a'), argos('b')]);
     expect(items.every(i => !i.showTimestamp)).toBe(true);
+  });
+});
+
+describe('createSendGuard — guard de re-entrada (#71)', () => {
+  it('el doble-tap NO entra: solo el primer envío adquiere el turno', () => {
+    const guard = createSendGuard();
+    expect(guard.tryAcquire()).toBe(true);
+    // Segundo tap mientras el turno sigue en vuelo — LA mutación que este
+    // test entierra: quitar el guard y cobrar H+ dos veces.
+    expect(guard.tryAcquire()).toBe(false);
+    expect(guard.tryAcquire()).toBe(false);
+  });
+
+  it('release libera y el siguiente turno vuelve a entrar', () => {
+    const guard = createSendGuard();
+    guard.tryAcquire();
+    guard.release();
+    expect(guard.tryAcquire()).toBe(true);
+  });
+
+  it('release sin adquirir no rompe ni deja el guard tomado', () => {
+    const guard = createSendGuard();
+    guard.release();
+    expect(guard.tryAcquire()).toBe(true);
+  });
+
+  it('cada pantalla tiene su propio guard (instancias independientes)', () => {
+    const a = createSendGuard();
+    const b = createSendGuard();
+    a.tryAcquire();
+    expect(b.tryAcquire()).toBe(true);
+  });
+});
+
+describe('runTurnWithFallback — la caída de streaming a no-streaming (T2/T5)', () => {
+  const RL_INFO: RateLimitInfo = {
+    tier: 'free', limitDaily: 10, usedToday: 10, resetsAt: null, boostOption: null,
+  };
+
+  it('stream completo → streamed, y el no-stream NI SE LLAMA (sería doble cobro)', async () => {
+    const reply = vi.fn();
+    const run = await runTurnWithFallback({
+      stream: async () => 'texto completo',
+      reply,
+    });
+    expect(run).toEqual({ kind: 'streamed', text: 'texto completo' });
+    expect(reply).not.toHaveBeenCalled();
+  });
+
+  it('stream no disponible (null) → cae a no-stream, avisando a la pantalla', async () => {
+    // LA caída del brief: el proxy sin stream no debe dejar el turno mudo.
+    const onFallback = vi.fn();
+    const run = await runTurnWithFallback({
+      stream: async () => null,
+      reply: async () => ({ text: 'respuesta plana', degraded: false }),
+      onFallback,
+    });
+    expect(run).toEqual({ kind: 'reply', text: 'respuesta plana', degraded: false });
+    expect(onFallback).toHaveBeenCalledTimes(1);
+  });
+
+  it('el fallback conserva degraded=true (proveedores caídos)', async () => {
+    const run = await runTurnWithFallback({
+      stream: async () => null,
+      reply: async () => ({ text: 'caído', degraded: true }),
+    });
+    expect(run).toEqual({ kind: 'reply', text: 'caído', degraded: true });
+  });
+
+  it('rate limit durante el stream → rate_limited con el payload, sin llamar no-stream', async () => {
+    const reply = vi.fn();
+    const run = await runTurnWithFallback({
+      stream: async () => { throw new ArgosRateLimitError({ _rate_limited: true }); },
+      reply,
+    });
+    expect(run).toMatchObject({ kind: 'rate_limited', payload: { _rate_limited: true } });
+    expect(reply).not.toHaveBeenCalled();
+  });
+
+  it('rate limit en el no-stream → rate_limited con la info ya parseada', async () => {
+    const run = await runTurnWithFallback({
+      stream: async () => null,
+      reply: async () => ({ text: '', degraded: true, rateLimit: RL_INFO }),
+    });
+    expect(run).toEqual({ kind: 'rate_limited', info: RL_INFO });
+  });
+
+  it('excepción real del no-stream → client_error con el error original', async () => {
+    const boom = new Error('red rota');
+    const run = await runTurnWithFallback({
+      stream: async () => null,
+      reply: async () => { throw boom; },
+    });
+    expect(run).toEqual({ kind: 'client_error', error: boom });
   });
 });

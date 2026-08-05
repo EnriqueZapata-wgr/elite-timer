@@ -29,17 +29,35 @@ export function shouldRotateSession(
 
 /**
  * ¿El foco del chat debe siquiera intentar retomar una conversación?
- * No si ya hay una activa en pantalla, ni si se pidió una nueva (new=1).
+ * No si ya hay una activa en pantalla, ni si se pidió una nueva (new=1), ni
+ * si se pidió abrir una específica (?conversationId=) — en ese caso el load
+ * explícito manda y autoLoadRecent no debe pisarlo (llega después y ganaría).
  */
 export function shouldAttemptResume(input: {
   hasMessages: boolean;
   activeConversationId: string | null;
   requestedNew: boolean;
+  requestedConversation: boolean;
 }): boolean {
   if (input.requestedNew) return false;
+  if (input.requestedConversation) return false;
   if (input.hasMessages) return false;
   if (input.activeConversationId) return false;
   return true;
+}
+
+/**
+ * ¿La sesión rotó por debajo de la pantalla? Pasa cuando la app vuelve de un
+ * background largo con el chat abierto: el ancla global ya rotó pero el
+ * contenido en pantalla sigue anclado a la sesión anterior. Si es así, la
+ * pantalla se limpia — el siguiente envío NO debe adoptar la conversación
+ * vieja en la sesión nueva. Ancla null = pantalla sin contenido anclado.
+ */
+export function sessionRotatedAway(
+  anchorSessionId: string | null,
+  currentSessionId: string,
+): boolean {
+  return anchorSessionId != null && anchorSessionId !== currentSessionId;
 }
 
 export interface RecentConversationRef {

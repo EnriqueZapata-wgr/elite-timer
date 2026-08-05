@@ -49,6 +49,9 @@ export default function ArgosConversationsScreen() {
   const params = useLocalSearchParams<{ current?: string }>();
   const [convs, setConvs] = useState<ConversationListRow[]>([]);
   const [loading, setLoading] = useState(true);
+  // "No pude leer" ≠ "no hay conversaciones": sin esto, un error de lectura
+  // (p. ej. migración 253 sin aplicar) se veía como pérdida total del historial.
+  const [loadError, setLoadError] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [more, setMore] = useState(false);
   const [query, setQuery] = useState('');
@@ -60,9 +63,12 @@ export default function ArgosConversationsScreen() {
   const reload = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
-    const rows = await loadConversations(user.id, CONVERSATIONS_PAGE_SIZE, 0);
-    setConvs(rows as ConversationListRow[]);
-    setMore(hasMorePages(rows.length));
+    const { rows, error } = await loadConversations(user.id, CONVERSATIONS_PAGE_SIZE, 0);
+    setLoadError(error != null);
+    if (error == null) {
+      setConvs(rows as ConversationListRow[]);
+      setMore(hasMorePages(rows.length));
+    }
     setLoading(false);
   }, [user?.id]);
 
@@ -71,12 +77,14 @@ export default function ArgosConversationsScreen() {
   async function loadMore() {
     if (!user?.id || loadingMore) return;
     setLoadingMore(true);
-    const rows = await loadConversations(user.id, CONVERSATIONS_PAGE_SIZE, convs.length);
-    setConvs(prev => {
-      const seen = new Set(prev.map(r => r.id));
-      return [...prev, ...(rows as ConversationListRow[]).filter(r => !seen.has(r.id))];
-    });
-    setMore(hasMorePages(rows.length));
+    const { rows, error } = await loadConversations(user.id, CONVERSATIONS_PAGE_SIZE, convs.length);
+    if (error == null) {
+      setConvs(prev => {
+        const seen = new Set(prev.map(r => r.id));
+        return [...prev, ...(rows as ConversationListRow[]).filter(r => !seen.has(r.id))];
+      });
+      setMore(hasMorePages(rows.length));
+    }
     setLoadingMore(false);
   }
 
@@ -180,7 +188,18 @@ export default function ArgosConversationsScreen() {
         {loading && convs.length === 0 && (
           <Text style={s.empty}>Cargando…</Text>
         )}
-        {!loading && convs.length === 0 && (
+        {!loading && loadError && convs.length === 0 && (
+          <View>
+            <Text style={s.empty}>
+              No pude cargar tu historial. Tus conversaciones siguen guardadas —
+              revisa tu conexión e intenta de nuevo.
+            </Text>
+            <Pressable onPress={reload} style={s.moreBtn}>
+              <Text style={s.moreBtnText}>Reintentar</Text>
+            </Pressable>
+          </View>
+        )}
+        {!loading && !loadError && convs.length === 0 && (
           <Text style={s.empty}>
             Aún no hay conversaciones. Pregúntale algo a ARGOS y aparecerá aquí.
           </Text>
