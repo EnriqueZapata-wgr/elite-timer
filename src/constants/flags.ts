@@ -55,5 +55,9 @@ export const INTERVENTIONS_DRIVE_HOY = true;
  *  cetosis, NUNCA como afirmación de autofagia (doctrina Track D).
  *
  * CÓMO ENCENDERLO: `true` aquí → `npx tsc --noEmit` → `eas update --branch preview`.
+ *
+ * NOMBRE PARA EL USUARIO (MB-23 P4.3): cuando esto gane superficie de UI, el
+ * concepto es el mismo "simple contra completo" de nutrición y salud —
+ * estimado = simple, medido = completo. Un concepto que se aprende una vez.
  */
 export const FASTING_MEASURED_MODE = false;

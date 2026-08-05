@@ -37,6 +37,13 @@ import {
 import { getUserWaterGoal, setUserWaterGoal } from '@/src/services/hydration-service';
 import { getFastingGoalHours, setFastingGoalHours } from '@/src/services/fasting-service';
 import {
+  getProteinGoalG, setProteinGoalG,
+  PROTEIN_GOAL_MIN_G, PROTEIN_GOAL_MAX_G, PROTEIN_GOAL_STEP_G,
+} from '@/src/services/protein-goal-service';
+import { getHabitTime, setHabitTime } from '@/src/services/hoy/habit-times-service';
+import { TAREA_TIME, MOMENTO_LABELS, momentoForHour, minutesFromMidnight } from '@/src/services/hoy/tareas-core';
+import { electronsForApp } from '@/src/constants/electron-app-bridge';
+import {
   getAppAviso, updateAppAviso, AVISO_APP_KEYS, type AvisoAppKey,
 } from '@/src/services/app-avisos-service';
 import type { AppAvisoPref } from '@/src/services/notification-prefs-core';
@@ -256,6 +263,10 @@ export default function FichaAppScreen() {
         {/* Configuración — solo lo que ya existía, movido aquí. */}
         {app.key === 'hidratacion' && <ConfigHidratacion userId={user?.id} />}
         {app.key === 'ayuno' && <ConfigAyuno userId={user?.id} />}
+        {/* MB-23 P4: la meta de proteína perdió su editor cuando murió ATP
+            PROTOCOLOS (2026-07-14) — vuelve aquí, sobre la misma fuente
+            (goals.protein_goal_g) que leen HOY y adherencia. */}
+        {app.key === 'comida' && <ConfigProteina userId={user?.id} />}
         {app.key === 'suplementos' && (
           <ConfigLinkRow
             label="Fichas y horarios de toma"
@@ -263,6 +274,16 @@ export default function FichaAppScreen() {
             onPress={() => { haptic.light(); router.push('/supplements'); }}
           />
         )}
+
+        {/* MB-23 P4: en qué momento del día vive el hábito — la hora canónica
+            estaba en el código y nadie podía moverla. Solo apps cuyo hábito
+            es UN electrón con hora canónica. */}
+        {(() => {
+          const conHora = electronsForApp(app.key).filter((src) => TAREA_TIME[src]);
+          return conHora.length === 1
+            ? <ConfigHorario userId={user?.id} source={conHora[0]} />
+            : null;
+        })()}
 
         {/* MB-23 P3: los avisos de la ficha — si avisa, a qué hora y bajo qué
             condición. V1: hora fija + "solo si no lo has hecho hoy", para las
@@ -532,6 +553,128 @@ function ConfigAviso({ userId, appKey }: { userId?: string; appKey: AvisoAppKey 
   );
 }
 
+/**
+ * MB-23 P4: el editor de la meta de proteína — el stepper del viejo
+ * protocol-config (±10 g, piso 50), sobre la fuente de siempre
+ * (goals.protein_goal_g). setProteinGoalG emite day_changed: HOY la refleja.
+ */
+function ConfigProteina({ userId }: { userId?: string }) {
+  const [grams, setGrams] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    getProteinGoalG(userId).then(setGrams);
+  }, [userId]);
+
+  const apply = async (next: number) => {
+    if (!userId || grams == null) return;
+    const clamped = Math.max(PROTEIN_GOAL_MIN_G, Math.min(PROTEIN_GOAL_MAX_G, next));
+    if (clamped === grams) return;
+    haptic.light();
+    const prev = grams;
+    setGrams(clamped);
+    const ok = await setProteinGoalG(userId, clamped);
+    if (!ok) {
+      setGrams(prev);
+      Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.');
+    }
+  };
+
+  return (
+    <Animated.View entering={FadeInUp.delay(180).springify()}>
+      <SectionTitleText>Meta de proteína</SectionTitleText>
+      <View style={s.configCard}>
+        <View style={s.stepperRow}>
+          <AnimatedPressable
+            style={[s.stepBtn, grams != null && grams <= PROTEIN_GOAL_MIN_G && { opacity: 0.35 }]}
+            onPress={() => grams != null && apply(grams - PROTEIN_GOAL_STEP_G)}
+          >
+            <Ionicons name="remove" size={18} color={TEXT.primary} />
+          </AnimatedPressable>
+          <EliteText style={s.stepperValue}>
+            {grams != null ? `${grams} g al día` : '…'}
+          </EliteText>
+          <AnimatedPressable
+            style={[s.stepBtn, grams != null && grams >= PROTEIN_GOAL_MAX_G && { opacity: 0.35 }]}
+            onPress={() => grams != null && apply(grams + PROTEIN_GOAL_STEP_G)}
+          >
+            <Ionicons name="add" size={18} color={TEXT.primary} />
+          </AnimatedPressable>
+        </View>
+        <EliteText style={s.configHint}>
+          La meta que ves en HOY y en tu adherencia. Se registra en la app,
+          aquí solo se ajusta el objetivo.
+        </EliteText>
+      </View>
+    </Animated.View>
+  );
+}
+
+/**
+ * MB-23 P4: en qué momento del día vive el hábito. La hora manda: moverla
+ * cambia el bloque (mañana/tarde/noche) de su fila en TAREAS y su lugar en
+ * la lente AGENDA. Override en goals.habit_times; sin él, la canónica.
+ */
+function ConfigHorario({ userId, source }: { userId?: string; source: string }) {
+  const [time, setTime] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    getHabitTime(userId, source).then(setTime);
+  }, [userId, source]);
+
+  if (!time) return null;
+
+  const momento = momentoForHour(Math.floor(minutesFromMidnight(time) / 60));
+
+  const confirm = async (date: Date) => {
+    if (!userId) return;
+    const t = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    setPickerOpen(false);
+    const prev = time;
+    setTime(t);
+    const ok = await setHabitTime(userId, source, t);
+    if (!ok) {
+      setTime(prev);
+      Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.');
+      return;
+    }
+    haptic.success();
+  };
+
+  return (
+    <Animated.View entering={FadeInUp.delay(180).springify()}>
+      <SectionTitleText>Momento del día</SectionTitleText>
+      <View style={s.configCard}>
+        <AnimatedPressable
+          style={s.switchRow}
+          onPress={() => { haptic.light(); setPickerOpen(true); }}
+        >
+          <EliteText style={s.switchLabel}>Hora</EliteText>
+          <EliteText style={s.timeValue}>{time} · {MOMENTO_LABELS[momento]}</EliteText>
+          <Ionicons name="chevron-forward" size={15} color={TEXT.muted} style={{ marginLeft: 8 }} />
+        </AnimatedPressable>
+        <EliteText style={s.configHint}>
+          Mueve la hora y su tarea cambia de bloque en HOY y de lugar en la
+          agenda del día.
+        </EliteText>
+      </View>
+      <TimeWheelPicker
+        visible={pickerOpen}
+        initialValue={(() => {
+          const d = new Date();
+          d.setHours(parseInt(time.split(':')[0]), parseInt(time.split(':')[1]), 0, 0);
+          return d;
+        })()}
+        title="Momento del día"
+        onConfirm={confirm}
+        onCancel={() => setPickerOpen(false)}
+      />
+    </Animated.View>
+  );
+}
+
 function ConfigLinkRow({ label, hint, onPress }: { label: string; hint: string; onPress: () => void }) {
   return (
     <Animated.View entering={FadeInUp.delay(180).springify()}>
@@ -690,6 +833,18 @@ const s = StyleSheet.create({
   claimText: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.sm },
 
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ELEVATION[2].bg,
+    borderWidth: 0.5,
+    borderColor: ELEVATION[2].border,
+  },
+  stepperValue: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.md, fontVariant: ['tabular-nums'] },
   switchLabel: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
   timeRow: {
     flexDirection: 'row',

@@ -10,6 +10,7 @@ import {
   gestoForBool,
   momentoForHour,
   minutesFromMidnight,
+  tareaTiming,
   TAREA_MOMENTO,
   TAREA_TIME,
   routeForBool,
@@ -119,6 +120,38 @@ describe('minutesFromMidnight (audit nocturno P4)', () => {
     const r = buildTareas(input);
     expect(r.blocks).toHaveLength(1);
     expect(r.blocks[0].momento).toBe('manana');
+  });
+});
+
+describe('tareaTiming (MB-23 P4 · momento del día editable)', () => {
+  it('sin override: hora y momento canónicos, idénticos a hoy', () => {
+    expect(tareaTiming('sunlight')).toEqual({ momento: 'manana', time: '07:30' });
+    expect(tareaTiming('journal', {})).toEqual({ momento: 'noche', time: '21:30' });
+  });
+
+  it('con override la hora manda y el momento se DERIVA de ella', () => {
+    expect(tareaTiming('meditation', { meditation: '20:00' })).toEqual({ momento: 'noche', time: '20:00' });
+    expect(tareaTiming('journal', { journal: '08:15' })).toEqual({ momento: 'manana', time: '08:15' });
+  });
+
+  it('override inválido se ignora: la canónica sigue mandando', () => {
+    expect(tareaTiming('sunlight', { sunlight: 'basura' })).toEqual({ momento: 'manana', time: '07:30' });
+    expect(tareaTiming('sunlight', { sunlight: '25:99' } as any).time).toBe('07:30');
+  });
+
+  it('hábito sin hora canónica cae al default neutro', () => {
+    expect(tareaTiming('inexistente')).toEqual({ momento: 'tarde', time: '12:00' });
+  });
+
+  it('buildTareas respeta el override de punta a punta: cambia de bloque', () => {
+    const r = buildTareas({
+      booleanElectrons: [boolE('meditation')],
+      quantitativeElectrons: [],
+      agendaItems: [],
+      habitTimes: { meditation: '20:00' },
+    });
+    expect(r.blocks).toHaveLength(1);
+    expect(r.blocks[0].momento).toBe('noche');
   });
 });
 

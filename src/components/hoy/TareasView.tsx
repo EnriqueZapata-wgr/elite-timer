@@ -71,6 +71,7 @@ export function TareasView({ day, userId, uvMini }: Props) {
       booleanElectrons: boolWithOverrides,
       quantitativeElectrons: day.quantitativeElectrons,
       agendaItems: day.agendaItems,
+      habitTimes: day.habitTimes,
     });
   }, [day, overrides]);
 
