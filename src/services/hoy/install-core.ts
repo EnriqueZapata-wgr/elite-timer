@@ -12,6 +12,7 @@
  *    sin fuente, glucosa/cetonas por registro) — su instalación se recuerda en
  *    installed_apps (mig 247) y hoy no genera fila propia en TAREAS.
  */
+import type { AppEntry } from '@/src/constants/app-registry';
 import { electronsForApp } from '@/src/constants/electron-app-bridge';
 import {
   ALL_BOOLEAN_OPTIONS,
@@ -19,6 +20,12 @@ import {
   DEFAULT_BOOLEANS,
   MANDATORY_BOOLEANS,
 } from '@/src/services/hoy/day-booleans';
+
+/**
+ * MB-22: apps que SIEMPRE viven en la cuadrícula, aunque no tengan electrón.
+ * Ajustes es la puerta a tu cuenta: quitarla dejaría al usuario sin salida.
+ */
+export const FIXED_APPS: ReadonlySet<string> = new Set(['ajustes']);
 
 /** Cuantitativos sin fuente conectada (espejo de hoy-habitos). */
 const QUANTS_SIN_FUENTE = new Set(['steps', 'sleep']);
@@ -83,6 +90,7 @@ export interface InstallPrefs {
 }
 
 export function appInstallState(appKey: string, prefs: InstallPrefs): InstallState {
+  if (FIXED_APPS.has(appKey)) return 'fija';
   const electrons = electronsForApp(appKey) as readonly string[];
   const mandatory = electrons.filter((e) => (MANDATORY_BOOLEANS as readonly string[]).includes(e));
   // Todos sus electrones son core no-deseleccionables → siempre está en tu día.
@@ -106,6 +114,17 @@ export function applyInstall(appKey: string, prefs: InstallPrefs): InstallPrefs 
     quants: add(prefs.quants, t.quants),
     installedApps: add(prefs.installedApps, [appKey]),
   };
+}
+
+/**
+ * MB-22 Pieza 1: la cuadrícula de la sala ATP lista SOLO lo instalado (y lo
+ * fijo). null = la lectura de prefs falló → se muestran todas: una sala con
+ * apps de más se corrige sola al siguiente focus; una sala vacía es una app
+ * rota.
+ */
+export function gridApps(apps: AppEntry[], prefs: InstallPrefs | null): AppEntry[] {
+  if (!prefs) return apps;
+  return apps.filter((a) => appInstallState(a.key, prefs) !== 'no');
 }
 
 /** Listas nuevas tras desinstalar. Los MANDATORY no se apagan (fijas). */

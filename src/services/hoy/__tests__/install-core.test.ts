@@ -12,12 +12,21 @@ import {
   installCreatesRow,
   installAlertBody,
   uninstallAlertBody,
+  gridApps,
+  FIXED_APPS,
   type InstallPrefs,
 } from '@/src/services/hoy/install-core';
 import { APP_REGISTRY } from '@/src/constants/app-registry';
-import { MANDATORY_BOOLEANS } from '@/src/services/hoy/day-booleans';
+import { DEFAULT_BOOLEANS, MANDATORY_BOOLEANS } from '@/src/services/hoy/day-booleans';
 
 const EMPTY: InstallPrefs = { booleans: [], quants: [], installedApps: [] };
+
+/** Espejo exacto de los defaults de getInstallPrefs (usuario sin fila). */
+const NUEVO: InstallPrefs = {
+  booleans: [...DEFAULT_BOOLEANS],
+  quants: ['protein', 'water'],
+  installedApps: [],
+};
 
 describe('togglesForApp', () => {
   it('meditar enciende meditation; hidratacion enciende water', () => {
@@ -120,6 +129,11 @@ describe('applyInstall / applyUninstall', () => {
     }
   });
 
+  it('ajustes es fija: la puerta a tu cuenta no se puede desinstalar', () => {
+    expect(FIXED_APPS.has('ajustes')).toBe(true);
+    expect(appInstallState('ajustes', EMPTY)).toBe('fija');
+  });
+
   it('sol enciende sunlight; sun_awareness no es activable y no se inventa', () => {
     // El test viejo ("sol enciende sus dos electrones") comparaba el resultado
     // contra sí mismo filtrado: pasaba siempre. La verdad: sun_awareness no
@@ -129,5 +143,36 @@ describe('applyInstall / applyUninstall', () => {
     expect(on.booleans).toEqual(['sunlight']);
     const off = applyUninstall('sol', on);
     expect(off.booleans).toEqual([]);
+  });
+});
+
+describe('gridApps — MB-22 Pieza 1: la cuadrícula solo lista lo instalado', () => {
+  it('un usuario nuevo NUNCA ve una cuadrícula vacía: el set inicial emerge de los defaults del HOY', () => {
+    // Este es el set inicial propuesto (pendiente de approve de Enrique): las
+    // apps cuyos hábitos YA vienen encendidos por default + las fijas. Cambiar
+    // DEFAULT_BOOLEANS cambia este set — el test lo hace visible.
+    const grid = gridApps(APP_REGISTRY, NUEVO).map((a) => a.key);
+    expect(grid).toEqual([
+      'meditar', 'emociones', 'journal',            // mente
+      'cardio',                                      // cuerpo
+      'comida', 'hidratacion', 'suplementos',        // hábitos diarios
+      'sol',                                         // salud
+      'ajustes',                                     // sistema (fija)
+    ]);
+  });
+
+  it('null (lectura fallida) muestra todas: una sala vacía es una app rota', () => {
+    expect(gridApps(APP_REGISTRY, null)).toEqual(APP_REGISTRY);
+  });
+
+  it('desinstalar todo deja las fijas: la sala nunca queda en cero', () => {
+    const grid = gridApps(APP_REGISTRY, EMPTY);
+    expect(grid.length).toBeGreaterThan(0);
+    expect(grid.every((a) => appInstallState(a.key, EMPTY) === 'fija')).toBe(true);
+  });
+
+  it('instalar una app sin toggle la mete a la cuadrícula', () => {
+    const conAyuno = applyInstall('ayuno', NUEVO);
+    expect(gridApps(APP_REGISTRY, conAyuno).some((a) => a.key === 'ayuno')).toBe(true);
   });
 });

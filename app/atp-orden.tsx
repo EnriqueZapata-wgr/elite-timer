@@ -27,6 +27,8 @@ import {
   reconcileOrder, moveInOrder, pinToTop, type CustomOrder,
 } from '@/src/services/atp-room-core';
 import { loadCustomOrder, saveCustomOrder } from '@/src/services/atp-room-store';
+import { getInstallPrefs } from '@/src/services/hoy/install-service';
+import { gridApps } from '@/src/services/hoy/install-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT, ELEVATION } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -34,7 +36,7 @@ import { haptic } from '@/src/utils/haptics';
 export default function AtpOrdenScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const [isFemale, setIsFemale] = useState(false);
+  const [apps, setApps] = useState(() => visibleApps(false));
   const [order, setOrder] = useState<CustomOrder>({ keys: [] });
   const [ready, setReady] = useState(false);
 
@@ -50,11 +52,14 @@ export default function AtpOrdenScreen() {
         } catch { /* sin perfil: el ciclo queda fuera */ }
       }
       const stored = await loadCustomOrder();
+      // MB-22: se ordena lo que está en la cuadrícula — solo instaladas.
+      const prefs = user?.id ? await getInstallPrefs(user.id) : null;
       if (!alive) return;
-      setIsFemale(female);
+      const enCuadricula = gridApps(visibleApps(female), prefs);
+      setApps(enCuadricula);
       // Siembra con el registro: la primera vez la lista sale completa y en
       // orden de catálogo, no vacía.
-      setOrder(reconcileOrder(stored, visibleApps(female)));
+      setOrder(reconcileOrder(stored, enCuadricula));
       setReady(true);
     })();
     return () => { alive = false; };
@@ -68,8 +73,9 @@ export default function AtpOrdenScreen() {
   const move = (key: string, dir: -1 | 1) => { haptic.light(); commit(moveInOrder(order, key, dir)); };
   const pin = (key: string) => { haptic.medium(); commit(pinToTop(order, key)); };
 
-  const apps = visibleApps(isFemale);
-  const rows = order.keys.map((k) => APP_BY_KEY[k]).filter(Boolean);
+  // Solo las llaves de apps en la cuadrícula: una desinstalada no se ordena.
+  const enGrid = new Set(apps.map((a) => a.key));
+  const rows = order.keys.filter((k) => enGrid.has(k)).map((k) => APP_BY_KEY[k]).filter(Boolean);
 
   // Pieza 5: mismo criterio que la cuadrícula — con "reducir movimiento" del
   // sistema, la fila se mueve sin rebote (LinearTransition lisa).
