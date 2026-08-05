@@ -54,10 +54,10 @@ interface AvisoAppMeta {
 }
 
 export const AVISO_APPS: AvisoAppMeta[] = [
-  { appKey: 'meditar', source: 'meditation', defaultTime: '07:00', title: 'ATP — Meditación', body: 'Tu momento para meditar. Unos minutos bastan.' },
-  { appKey: 'respirar', source: 'breathwork', defaultTime: '18:30', title: 'ATP — Respirar', body: 'Una ronda de respiración. Dos minutos.' },
-  { appKey: 'journal', source: 'journal', defaultTime: '21:00', title: 'ATP — Descarga mental', body: '¿Cómo estuvo tu día? Tómate 5 minutos para escribir.' },
-  { appKey: 'sol', source: 'sunlight', defaultTime: '07:30', title: 'ATP — Sol', body: 'Tu luz del día. Protección física primero.' },
+  { appKey: 'meditar', source: 'meditation', defaultTime: '07:00', title: 'ATP · Meditación', body: 'Tu momento para meditar. Unos minutos bastan.' },
+  { appKey: 'respirar', source: 'breathwork', defaultTime: '18:30', title: 'ATP · Respirar', body: 'Una ronda de respiración. Dos minutos.' },
+  { appKey: 'journal', source: 'journal', defaultTime: '21:00', title: 'ATP · Descarga mental', body: '¿Cómo estuvo tu día? Tómate 5 minutos para escribir.' },
+  { appKey: 'sol', source: 'sunlight', defaultTime: '07:30', title: 'ATP · Sol', body: 'Tu luz del día. Protección física primero.' },
 ];
 
 export const AVISO_APP_KEYS: AvisoAppKey[] = AVISO_APPS.map((a) => a.appKey);
@@ -130,8 +130,10 @@ export async function updateAppAviso(
     return { ok: false };
   }
   try {
+    // Prefs ilegibles (null) = no se agenda nada; el próximo sync global con
+    // lectura sana re-agenda esta ficha.
     const prefs = await getNotificationPrefs(userId);
-    await syncOne(appKey, next, prefs, false);
+    if (prefs) await syncOne(appKey, next, prefs, false);
     lastSyncSignature = null; // la ficha cambió: el próximo sync global no se salta
   } catch (e) {
     logWarn('[app-avisos] resync after update failed', e);
@@ -260,6 +262,11 @@ export async function syncAppAvisos(
         .select('app_key, enabled, notify_time, condition')
         .eq('user_id', userId),
     ]);
+    // Prefs ilegibles = no se agenda nada (regla dura: ante la duda, silencio).
+    if (!prefs) {
+      logWarn('[app-avisos] prefs ilegibles — no se agenda nada');
+      return;
+    }
     if (rowsRes.error) {
       logWarn('[app-avisos] sync read failed', rowsRes.error);
       return;

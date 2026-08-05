@@ -64,7 +64,7 @@ export const ONBOARDING_COPY = {
     subtitleFemale:
       'ATP adapta entrenamiento, nutrición y protocolos a tu fase. Elige la modalidad que refleja tu momento actual.',
     subtitleMale:
-      'ATP incluye un módulo de ciclo menstrual. Puedes desactivarlo o vincularte con tu pareja para recibir insights de compañero.',
+      'ATP incluye un módulo de ciclo menstrual. Puedes desactivarlo si no lo necesitas.',
     hint: 'Puedes cambiar esto cuando quieras en Ajustes de Ciclo.',
   },
 
