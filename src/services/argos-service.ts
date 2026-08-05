@@ -1733,6 +1733,55 @@ export async function loadConversations(userId: string, limit: number = 20, offs
   return data || [];
 }
 
+/** MB-21 P3: renombrar una conversación (el título editable del panel). */
+export async function renameConversation(conversationId: string, title: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('argos_conversations')
+    .update({ title })
+    .eq('id', conversationId);
+  if (error) {
+    console.warn('[argos] renameConversation:', error.message);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * MB-21 P3: ARGOS propone un título corto para una conversación con sustancia.
+ * Acción EXPLÍCITA del usuario (botón en el renombrar): el proxy cobra
+ * requestType desconocido al costo de 'chat', así que no es gratis ni
+ * automática. Devuelve null si el LLM no responde.
+ */
+export async function suggestConversationTitle(
+  userId: string,
+  messages: ArgosMessage[],
+): Promise<string | null> {
+  const sample = messages
+    .filter((m) => !m.degraded)
+    .slice(0, 8)
+    .map((m) => `${m.role === 'user' ? 'Usuario' : 'ARGOS'}: ${m.content.slice(0, 300)}`)
+    .join('\n');
+  if (!sample) return null;
+  try {
+    const meta = await getArgosCallMetadata({ callerUserId: userId, requestType: 'title' });
+    const data = await callAnthropic(
+      [{ role: 'user', content: `Dame SOLO un título corto (máximo 6 palabras, sin comillas, sin punto final) para esta conversación:\n\n${sample}` }],
+      ATP_LLM.MAX_TOKENS_ESTIMATE,
+      MODEL_ESTIMATE,
+      'Eres ARGOS. Respondes únicamente el título pedido, nada más.',
+      meta,
+    );
+    const raw = extractResponseText(data)?.trim();
+    if (!raw) return null;
+    // Primera línea, sin comillas ni markdown, con tope (mismo criterio que el título manual).
+    const title = raw.split('\n')[0].replace(/^["'«#*\s]+|["'»*\s]+$/g, '').slice(0, 80);
+    return title || null;
+  } catch (e) {
+    console.warn('[argos] suggestConversationTitle:', e);
+    return null;
+  }
+}
+
 /** F2 (#93): eliminar una conversación (pantalla de historial). */
 export async function deleteConversation(conversationId: string): Promise<boolean> {
   const { error } = await supabase

@@ -518,8 +518,9 @@ function ArgosChat() {
               color={autoSpeak ? '#a8e02a' : '#666'}
             />
           </Pressable>
-          {/* F2.2: historial → pantalla dedicada */}
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/argos/conversations'); }} hitSlop={12}>
+          {/* F2.2: historial → pantalla dedicada. MB-21 P3: viaja la conversación
+              abierta para marcarla en la lista. */}
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push({ pathname: '/argos/conversations', params: conversationId ? { current: conversationId } : {} }); }} hitSlop={12}>
             <Ionicons name="time-outline" size={22} color="#999" />
           </Pressable>
           <Pressable onPress={startNewConversation} hitSlop={12}>
