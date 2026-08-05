@@ -9,7 +9,7 @@
  * (la puerta vive en la lente AGENDA).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { View, Pressable, StyleSheet, Alert, LayoutChangeEvent } from 'react-native';
+import { View, Pressable, StyleSheet, Alert } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,8 +27,8 @@ import { NUDGE_COPY } from '@/src/components/hoy/tarea-gesto-core';
 import { MomentoBanda } from '@/src/components/hoy/MomentoBanda';
 import { OrbCard } from '@/src/components/hoy/OrbCard';
 import {
-  buildTareas, agendaLens, repartoTareas, pickFocusMomento,
-  type Tarea, type Momento,
+  buildTareas, agendaLens, repartoTareas,
+  type Tarea,
 } from '@/src/services/hoy/tareas-core';
 import {
   seccionForTarea, datoForTarea, datoCierreForTarea, pickHeroTarea,
@@ -53,11 +53,9 @@ interface Props {
   day: CompiledDay;
   userId?: string;
   uvMini?: UvMini | null;
-  /** Auto-foco: pide al scroll padre posicionarse en el bloque actual. */
-  onRequestScroll?: (yWithinView: number) => void;
 }
 
-export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
+export function TareasView({ day, userId, uvMini }: Props) {
   const router = useRouter();
   const reducedMotion = useSystemReducedMotion();
   const [lens, setLens] = useState<Lens>('tareas');
@@ -69,14 +67,12 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
     const boolWithOverrides = day.booleanElectrons.map((e) =>
       overrides[e.source] != null ? { ...e, completed: overrides[e.source] } : e,
     );
-    return buildTareas(
-      {
-        booleanElectrons: boolWithOverrides,
-        quantitativeElectrons: day.quantitativeElectrons,
-        agendaItems: day.agendaItems,
-      },
-      new Date().getHours(),
-    );
+    return buildTareas({
+      booleanElectrons: boolWithOverrides,
+      quantitativeElectrons: day.quantitativeElectrons,
+      agendaItems: day.agendaItems,
+      habitTimes: day.habitTimes,
+    });
   }, [day, overrides]);
 
   // Los overrides se sueltan cuando el compilado los alcanza.
@@ -109,42 +105,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
     () => repartoTareas(agendaItems, result.blocks),
     [agendaItems, result.blocks],
   );
-
-  // ── Auto-foco (una sola vez, MB-20.2 · 1.1/1.2) ──
-  // El consumidor (index.tsx) espera una `y` relativa a la RAÍZ de esta vista,
-  // pero los bloques viven dentro de un <View> interno que tiene encima las
-  // lentes, la fila global, el nudge y OrbCard: hay que sumar la `y` de ese
-  // contenedor. Los dos onLayout llegan en orden no garantizado, así que el
-  // que llega primero deja el dato y el segundo dispara el scroll.
-  const focusTarget = useMemo(
-    () => pickFocusMomento(pendingBlocks.map((b) => b.momento), result.focusMomento),
-    [pendingBlocks, result.focusMomento],
-  );
-  const focusedRef = useRef(false);
-  const containerYRef = useRef<number | null>(null);
-  const pendingFocusYRef = useRef<number | null>(null);
-  const captureContainerY = (e: LayoutChangeEvent) => {
-    containerYRef.current = e.nativeEvent.layout.y;
-    if (pendingFocusYRef.current != null) {
-      const blockY = pendingFocusYRef.current;
-      pendingFocusYRef.current = null;
-      onRequestScroll?.(containerYRef.current + blockY);
-    }
-  };
-  const captureBlockY = (momento: Momento) => (e: LayoutChangeEvent) => {
-    if (!focusedRef.current && momento === focusTarget && lens === 'tareas') {
-      focusedRef.current = true;
-      // HECHAS vive arriba y nunca recibe el foco. Se scrollea si hay cinta
-      // encima o si el bloque del foco no es el que abre la lista.
-      if (hechas.length > 0 || pendingBlocks[0]?.momento !== focusTarget) {
-        if (containerYRef.current != null) {
-          onRequestScroll?.(containerYRef.current + e.nativeEvent.layout.y);
-        } else {
-          pendingFocusYRef.current = e.nativeEvent.layout.y;
-        }
-      }
-    }
-  };
 
   // ── La burbuja contextual del gesto (1.4, invertida en MB-20.4) ──
   // El patrón viejo (tap → navegar → regresar sin completar) murió con el
@@ -265,7 +225,6 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
         <Animated.View
           key={`header-${b.momento}`}
           layout={rowLayout}
-          onLayout={captureBlockY(b.momento)}
           style={s.blockHeader}
         >
           <EliteText style={s.blockLabel}>{b.label}</EliteText>
@@ -331,7 +290,7 @@ export function TareasView({ day, userId, uvMini, onRequestScroll }: Props) {
       <OrbCard userId={userId} />
 
       {lens === 'tareas' ? (
-        <View onLayout={captureContainerY}>{tareasChildren}</View>
+        <View>{tareasChildren}</View>
       ) : (
         <>
           {/* El héroe editorial: una sola card grande que cambia con la hora. */}

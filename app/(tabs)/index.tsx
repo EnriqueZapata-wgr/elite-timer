@@ -15,7 +15,7 @@
  * el AgendaPreviewCard salieron de HOY — el motor del score sigue vivo en
  * compileDay y la agenda completa vive en /agenda (puerta en la lente).
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Text,
   DeviceEventEmitter,
@@ -43,6 +43,7 @@ import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-service';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
+import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TopBanner } from '@/src/components/global/TopBanner';
 // hotfix-ux FIX 4: toast de reacción ARGOS + atribución al ganar electrones.
@@ -72,9 +73,6 @@ export default function TodayScreen() {
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const [weeklyInsight, setWeeklyInsight] = useState<WeeklyInsightData | null>(null);
   const [weeklyInsightDismissed, setWeeklyInsightDismissed] = useState(false);
-  // MB-20: auto-foco — el scroll aterriza en el bloque de la hora actual.
-  const scrollRef = useRef<ScrollView>(null);
-  const tareasYRef = useRef(0);
 
   // --- Carga de datos ---
   // MB-20: la card AHORA (hero-recommendation) y la racha salieron de HOY con
@@ -84,7 +82,15 @@ export default function TodayScreen() {
     if (!user?.id) return;
     try {
       const compiled = await compileDay(user.id, (pct, label) => { setProgress(pct); setProgressLabel(label); });
-      if (compiled) setDay(compiled);
+      if (compiled) {
+        setDay(compiled);
+        // MB-23 P3: los avisos por app se re-evalúan con el hecho/no-hecho
+        // real del día (la condición "solo si no lo has hecho hoy"). Los
+        // eventos electrons_changed/day_changed recompilan → re-sincronizan.
+        const done: Record<string, boolean> = {};
+        for (const e of compiled.booleanElectrons) done[e.source] = e.completed;
+        syncAppAvisos(user.id, done).catch(() => {});
+      }
     } catch (e) {
       console.warn('Error compiling day:', e);
     }
@@ -284,7 +290,7 @@ export default function TodayScreen() {
       <StatusBar style="light" />
       {/* #23: banner contextual flotante (racha / protones / notifs / insight) */}
       <TopBanner offset={44} />
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
         {/* ═══════════════════════════════════════
             HEADER: saludo + fecha + campana
@@ -318,18 +324,8 @@ export default function TodayScreen() {
         {/* ═══════════════════════════════════════
             TAREAS — el checklist del día, dos lentes (MB-20)
         ═══════════════════════════════════════ */}
-        <View
-          style={{ paddingHorizontal: Spacing.md }}
-          onLayout={(e) => { tareasYRef.current = e.nativeEvent.layout.y; }}
-        >
-          <TareasView
-            day={day}
-            userId={user?.id}
-            uvMini={uvMini}
-            onRequestScroll={(y) => {
-              scrollRef.current?.scrollTo({ y: tareasYRef.current + y - 8, animated: true });
-            }}
-          />
+        <View style={{ paddingHorizontal: Spacing.md }}>
+          <TareasView day={day} userId={user?.id} uvMini={uvMini} />
         </View>
 
         {/* Task #133: Boost H+ — 24h de Pro con Protones (solo tier base / countdown si activo).

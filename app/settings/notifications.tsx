@@ -19,6 +19,7 @@ import {
   MODE_META, CHANNEL_META,
   type NotificationPrefs, type NotificationMode,
 } from '@/src/services/notification-prefs-service';
+import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import { Fonts, FontSizes, Spacing, Radius } from '@/constants/theme';
 import { ATP_BRAND, ELEVATION, TEXT, withOpacity } from '@/src/constants/brand';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
@@ -51,7 +52,10 @@ export default function SettingsNotificationsScreen() {
     const prev = prefs;
     setPrefs({ ...prefs, ...p }); // optimista
     const ok = await updateNotificationPrefs(user.id, p);
-    if (!ok) setPrefs(prev);
+    if (!ok) { setPrefs(prev); return; }
+    // MB-23 P3: EL MAESTRO MANDA también sobre los avisos por app — cambiar
+    // modo o silencio re-agenda (o cancela) los locales ya programados.
+    syncAppAvisos(user.id, null).catch(() => {});
   }, [user?.id, prefs]);
 
   const quietEnabled = !!(prefs?.quiet_hours_start && prefs?.quiet_hours_end);

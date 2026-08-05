@@ -207,7 +207,29 @@ export function routeForBool(source: string): TareaRoute | undefined {
   return app ? (APP_BY_KEY[app]?.route as TareaRoute | undefined) : undefined;
 }
 
-function boolToTarea(e: TareaBoolLike): Tarea {
+/**
+ * MB-23 P4: hora y momento efectivos de un hábito. La hora canónica vivía
+ * SOLO en el código; ahora el usuario puede moverla por hábito
+ * (user_day_preferences.goals.habit_times, sin migración: mismo jsonb de
+ * siempre). Con override el momento se DERIVA de la hora — mover meditación
+ * a las 20:00 la lleva al bloque NOCHE; sin override, todo igual que hoy.
+ */
+export function tareaTiming(
+  source: string,
+  habitTimes?: Record<string, string>,
+): { momento: Momento; time: string } {
+  const override = habitTimes?.[source];
+  const m = override ? /^(\d{1,2}):(\d{2})$/.exec(override) : null;
+  if (m && parseInt(m[1], 10) <= 23 && parseInt(m[2], 10) <= 59) {
+    return {
+      momento: momentoForHour(Math.floor(minutesFromMidnight(override!) / 60)),
+      time: override!,
+    };
+  }
+  return { momento: TAREA_MOMENTO[source] ?? 'tarde', time: TAREA_TIME[source] ?? '12:00' };
+}
+
+function boolToTarea(e: TareaBoolLike, habitTimes?: Record<string, string>): Tarea {
   const gesto = gestoForBool(e.source);
   const route = routeForBool(e.source);
   return {
@@ -217,8 +239,7 @@ function boolToTarea(e: TareaBoolLike): Tarea {
     icon: e.icon,
     name: e.name,
     color: e.color,
-    momento: TAREA_MOMENTO[e.source] ?? 'tarde',
-    time: TAREA_TIME[e.source] ?? '12:00',
+    ...tareaTiming(e.source, habitTimes),
     completed: e.completed,
     meta: `+${e.weight} e-`,
     route,
@@ -226,7 +247,7 @@ function boolToTarea(e: TareaBoolLike): Tarea {
   };
 }
 
-function quantToTarea(q: TareaQuantLike): Tarea {
+function quantToTarea(q: TareaQuantLike, habitTimes?: Record<string, string>): Tarea {
   const progress = q.target > 0 ? Math.min(1, q.current / q.target) : 0;
   return {
     key: q.source,
@@ -235,8 +256,7 @@ function quantToTarea(q: TareaQuantLike): Tarea {
     icon: q.icon,
     name: q.name,
     color: q.color,
-    momento: TAREA_MOMENTO[q.source] ?? 'tarde',
-    time: TAREA_TIME[q.source] ?? '12:00',
+    ...tareaTiming(q.source, habitTimes),
     completed: progress >= 1,
     meta: `${q.displayCurrent} de ${q.displayTarget}`,
     route: QUANT_ROUTES[q.source],
@@ -270,20 +290,20 @@ export interface TareasInput {
   booleanElectrons: TareaBoolLike[];
   quantitativeElectrons: TareaQuantLike[];
   agendaItems: TareaAgendaLike[];
+  /** MB-23 P4: overrides de hora por hábito (source → 'HH:MM'). */
+  habitTimes?: Record<string, string>;
 }
 
 export interface TareasResult {
   blocks: TareaBlock[];
-  /** Bloque de la hora actual (auto-foco al abrir). */
-  focusMomento: Momento;
   global: { done: number; total: number };
 }
 
 /** La lente TAREAS: bloques por momento, con progreso por bloque y global. */
-export function buildTareas(input: TareasInput, hour: number): TareasResult {
+export function buildTareas(input: TareasInput): TareasResult {
   const all: Tarea[] = [
-    ...input.booleanElectrons.map(boolToTarea),
-    ...input.quantitativeElectrons.map(quantToTarea),
+    ...input.booleanElectrons.map((e) => boolToTarea(e, input.habitTimes)),
+    ...input.quantitativeElectrons.map((q) => quantToTarea(q, input.habitTimes)),
     ...smartAgendaTareas(input.agendaItems),
   ];
   const blocks: TareaBlock[] = MOMENTOS.map((m) => {
@@ -300,7 +320,6 @@ export function buildTareas(input: TareasInput, hour: number): TareasResult {
   }).filter((b) => b.total > 0);
   return {
     blocks,
-    focusMomento: momentoForHour(hour),
     global: {
       done: all.filter((t) => t.completed).length,
       total: all.length,
@@ -338,21 +357,4 @@ export function repartoTareas(agendaItems: Tarea[], blocks: TareaBlock[]): {
       .map((b) => ({ ...b, pending: b.items.filter((t) => !t.completed) }))
       .filter((b) => b.pending.length > 0),
   };
-}
-
-/**
- * A qué bloque va el auto-foco (MB-20.2 · 1.2). El bloque de la hora si tiene
- * pendientes; si ya quedó completo, el siguiente con pendientes; si hacia
- * adelante no queda ninguno pero atrás sí, el primero que siga pendiente.
- * Con el día terminado no hay foco (null): el usuario merece ver la cinta
- * de hechas completa, sin scroll.
- */
-export function pickFocusMomento(
-  pendientes: readonly Momento[],
-  focusMomento: Momento,
-): Momento | null {
-  if (pendientes.includes(focusMomento)) return focusMomento;
-  const idx = MOMENTOS.indexOf(focusMomento);
-  const siguiente = MOMENTOS.slice(idx + 1).find((m) => pendientes.includes(m));
-  return siguiente ?? pendientes[0] ?? null;
 }

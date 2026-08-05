@@ -59,10 +59,13 @@ export default function SettingsSaludScreen() {
   function onToggleComplete(v: boolean) {
     haptic.light();
     if (!v) { setMode('simple'); return; }
-    // Opt-in consciente (filosofía "guiado no prisionero")
+    // Opt-in consciente (filosofía "guiado no prisionero"). MB-23 P4.3: el
+    // copy promete SOLO lo que el modo hace de verdad — el registro rápido
+    // (texto/guardados) no cambia; cambian el hub, la revisión al guardar
+    // por foto y el score.
     Alert.alert(
       'Activar modo completo',
-      'Más data, más ruido: macros completos, micros, timing y calidad. Puedes volver al modo simple cuando quieras.',
+      'Se abren todas las secciones del hub (recetas, suplementos, glucosa, escáner), la revisión de macros al guardar por foto y el score con micros. Puedes volver al modo simple cuando quieras.',
       [
         { text: 'Ahora no', style: 'cancel' },
         { text: 'Activar', onPress: () => setMode('complete') },
@@ -125,9 +128,11 @@ export default function SettingsSaludScreen() {
 
         <Animated.View entering={FadeInUp.delay(140).springify()}>
           <SectionLabel>NUTRICIÓN</SectionLabel>
+          {/* MB-23 P4.3: UN concepto en toda la app — simple contra completo.
+              Y el copy dice lo que el modo HACE: el registro rápido no cambia. */}
           <EliteToggle
             label="Modo completo"
-            description="Modo simple: solo score y proteína. Modo completo: todo el detalle de macros, micros, timing y calidad."
+            description="Simple: score, proteína y registro directo. Completo: todas las secciones del hub, revisión de macros al guardar por foto y score con micros."
             value={isComplete}
             onValueChange={onToggleComplete}
           />
@@ -166,10 +171,12 @@ export default function SettingsSaludScreen() {
           {/* MB-19 PIEZA 3: la válvula de escape del rediseño. SALUD se curó a
               cuatro puertas; quien ya sabe lo que busca puede pedir la lista
               completa y saltárselas. Garmin curó su app sin esta salida y sus
-              veteranos la rechazaron por costarles más clics. */}
+              veteranos la rechazaron por costarles más clics.
+              MB-23 P4.3: se llamaba "Modo denso" — mismo concepto que
+              nutrición, mismo nombre: simple contra completo. */}
           <EliteToggle
-            label="Modo denso"
-            description="Salud te recibe con cuatro puertas. Enciéndelo para ver todas sus secciones en una sola lista."
+            label="Modo completo"
+            description="Simple: Salud te recibe con cuatro puertas. Completo: todas sus secciones en una sola lista."
             value={modoDenso}
             onValueChange={onToggleDenso}
           />

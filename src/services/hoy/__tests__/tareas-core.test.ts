@@ -7,10 +7,10 @@ import {
   buildTareas,
   agendaLens,
   repartoTareas,
-  pickFocusMomento,
   gestoForBool,
   momentoForHour,
   minutesFromMidnight,
+  tareaTiming,
   TAREA_MOMENTO,
   TAREA_TIME,
   routeForBool,
@@ -98,7 +98,7 @@ describe('minutesFromMidnight (audit nocturno P4)', () => {
         { id: 'smart-fast', time: '9:30', name: 'Romper ayuno', completed: false, isSmart: true, route: '/fasting' },
       ],
     };
-    const r = buildTareas(input, 10);
+    const r = buildTareas(input);
     const manana = r.blocks.find((b) => b.momento === 'manana')!;
     expect(manana.items.some((t) => t.key === 'agenda-smart-fast')).toBe(true);
     const lens = agendaLens(r);
@@ -117,9 +117,41 @@ describe('minutesFromMidnight (audit nocturno P4)', () => {
         { id: 'smart-fast', time: '00:30', name: 'Romper ayuno', completed: false, isSmart: true, route: '/fasting' },
       ],
     };
-    const r = buildTareas(input, 1);
+    const r = buildTareas(input);
     expect(r.blocks).toHaveLength(1);
     expect(r.blocks[0].momento).toBe('manana');
+  });
+});
+
+describe('tareaTiming (MB-23 P4 · momento del día editable)', () => {
+  it('sin override: hora y momento canónicos, idénticos a hoy', () => {
+    expect(tareaTiming('sunlight')).toEqual({ momento: 'manana', time: '07:30' });
+    expect(tareaTiming('journal', {})).toEqual({ momento: 'noche', time: '21:30' });
+  });
+
+  it('con override la hora manda y el momento se DERIVA de ella', () => {
+    expect(tareaTiming('meditation', { meditation: '20:00' })).toEqual({ momento: 'noche', time: '20:00' });
+    expect(tareaTiming('journal', { journal: '08:15' })).toEqual({ momento: 'manana', time: '08:15' });
+  });
+
+  it('override inválido se ignora: la canónica sigue mandando', () => {
+    expect(tareaTiming('sunlight', { sunlight: 'basura' })).toEqual({ momento: 'manana', time: '07:30' });
+    expect(tareaTiming('sunlight', { sunlight: '25:99' } as any).time).toBe('07:30');
+  });
+
+  it('hábito sin hora canónica cae al default neutro', () => {
+    expect(tareaTiming('inexistente')).toEqual({ momento: 'tarde', time: '12:00' });
+  });
+
+  it('buildTareas respeta el override de punta a punta: cambia de bloque', () => {
+    const r = buildTareas({
+      booleanElectrons: [boolE('meditation')],
+      quantitativeElectrons: [],
+      agendaItems: [],
+      habitTimes: { meditation: '20:00' },
+    });
+    expect(r.blocks).toHaveLength(1);
+    expect(r.blocks[0].momento).toBe('noche');
   });
 });
 
@@ -146,7 +178,7 @@ describe('gestos', () => {
 });
 
 describe('buildTareas', () => {
-  const r = buildTareas(INPUT, 20);
+  const r = buildTareas(INPUT);
 
   it('agrupa por momento y solo bloques con contenido', () => {
     const labels = r.blocks.map((b) => b.momento);
@@ -161,11 +193,6 @@ describe('buildTareas', () => {
     // global: 8 tareas (5 bool + 2 quant + 1 smart), 2 completas (sunlight + protein)
     expect(r.global.total).toBe(8);
     expect(r.global.done).toBe(2);
-  });
-
-  it('el foco es el bloque de la hora actual', () => {
-    expect(r.focusMomento).toBe('noche');
-    expect(buildTareas(INPUT, 9).focusMomento).toBe('manana');
   });
 
   it('el cuantitativo lleva progreso y el completo palomea', () => {
@@ -189,7 +216,7 @@ describe('buildTareas', () => {
 
 describe('agendaLens', () => {
   it('la MISMA lista, ordenada por hora', () => {
-    const r = buildTareas(INPUT, 9);
+    const r = buildTareas(INPUT);
     const lens = agendaLens(r);
     expect(lens.length).toBe(r.global.total);
     const times = lens.map((t) => t.time);
@@ -232,14 +259,11 @@ describe('routeForBool (MB-20.2 · 2.5)', () => {
   });
 
   it('la tarea compilada refleja la regla (sin ruta ⇒ ni el tap largo navega)', () => {
-    const r = buildTareas(
-      {
-        booleanElectrons: [boolE('sunlight'), boolE('cold_shower'), boolE('no_alcohol'), boolE('red_glasses')],
-        quantitativeElectrons: [],
-        agendaItems: [],
-      },
-      9,
-    );
+    const r = buildTareas({
+      booleanElectrons: [boolE('sunlight'), boolE('cold_shower'), boolE('no_alcohol'), boolE('red_glasses')],
+      quantitativeElectrons: [],
+      agendaItems: [],
+    });
     const items = r.blocks.flatMap((b) => b.items);
     expect(items.find((t) => t.key === 'sunlight')?.route).toBe('/solar');
     expect(items.find((t) => t.key === 'cold_shower')?.route).toBeUndefined();
@@ -260,7 +284,7 @@ describe('routeForBool (MB-20.2 · 2.5)', () => {
 });
 
 describe('repartoTareas (MB-20.2 · 1.3)', () => {
-  const r = buildTareas(INPUT, 14);
+  const r = buildTareas(INPUT);
   const lens = agendaLens(r);
   const { hechas, pendingBlocks } = repartoTareas(lens, r.blocks);
 
@@ -290,30 +314,9 @@ describe('repartoTareas (MB-20.2 · 1.3)', () => {
       quantitativeElectrons: [],
       agendaItems: [],
     };
-    const res = buildTareas(input, 10);
+    const res = buildTareas(input);
     const parts = repartoTareas(agendaLens(res), res.blocks);
     expect(parts.pendingBlocks.map((b) => b.momento)).toEqual(['noche']);
     expect(parts.hechas.map((t) => t.key)).toEqual(['meditation', 'sunlight']);
-  });
-});
-
-describe('pickFocusMomento (MB-20.2 · 1.2)', () => {
-  it('el bloque de la hora, si tiene pendientes', () => {
-    expect(pickFocusMomento(['manana', 'tarde', 'noche'], 'tarde')).toBe('tarde');
-  });
-
-  it('bloque de la hora completo: el siguiente con pendientes', () => {
-    // El escenario del muro que encoge a media tarde.
-    expect(pickFocusMomento(['noche'], 'tarde')).toBe('noche');
-    expect(pickFocusMomento(['manana', 'noche'], 'tarde')).toBe('noche');
-  });
-
-  it('sin pendientes hacia adelante: el primero que siga pendiente', () => {
-    expect(pickFocusMomento(['manana'], 'noche')).toBe('manana');
-  });
-
-  it('día terminado: no hay foco, se ve la cinta completa', () => {
-    expect(pickFocusMomento([], 'tarde')).toBeNull();
-    expect(pickFocusMomento([], 'noche')).toBeNull();
   });
 });

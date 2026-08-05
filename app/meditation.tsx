@@ -31,7 +31,7 @@ import { supabase } from '@/src/lib/supabase';
 import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { vibrateMedium, haptic } from '@/src/utils/haptics';
-import { playBeep, initAudio } from '@/src/utils/sounds';
+import { playChime, initAudio } from '@/src/utils/sounds';
 import {
   MEDITATION_LIBRARY,
   type MeditationTemplate,
@@ -317,10 +317,13 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
     if (status === 'finished' && !completed) handleComplete();
   }, [status]);
 
+  // MB-23 P5: se llamaba "bowl" pero sonaba playBeep — el beep 8-bits del
+  // timer de Fitness. Ahora suena el cuenco real (chime.wav, el de
+  // Respiración): campana honesta al empezar, cambiar de fase y terminar.
   const playBowl = (volume: number) => {
     try {
       initAudio();
-      playBeep(volume);
+      playChime(volume);
       vibrateMedium();
     } catch { vibrateMedium(); }
   };

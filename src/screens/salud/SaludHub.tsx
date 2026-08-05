@@ -104,7 +104,7 @@ export function SaludHub() {
             </Animated.View>
           ))}
           <EliteText style={s.densoHint}>
-            Modo denso encendido. Se apaga en Ajustes › Salud y protocolo.
+            Modo completo encendido. Se apaga en Ajustes › Salud y protocolo.
           </EliteText>
         </>
       ) : (

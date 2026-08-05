@@ -36,6 +36,10 @@ import {
   type AudioPiece, type AudioElectronOutcome,
 } from '@/src/services/mente-audio-service';
 import { applySeekToSkip, effectiveListenedAt } from '@/src/services/mente-audio-core';
+import { initAudio, playChime } from '@/src/utils/sounds';
+import {
+  loadMenteAudioPrefs, saveMenteAudioPrefs, MENTE_AUDIO_DEFAULTS, type MenteAudioPrefs,
+} from '@/src/services/mente-audio-prefs';
 import { Image as ExpoImage } from 'expo-image';
 import { localCoverFor, resolveCoverSource, resolveRemoteCoverUrl } from '@/src/components/mente/audio-cover';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -99,6 +103,11 @@ export default function MenteAudioPlayerScreen() {
   const [gateNeeded, setGateNeeded] = useState(false);
   const [gateAck, setGateAck] = useState(false);
   const [gateAccepted, setGateAccepted] = useState(false);
+  // MB-23 P5: volumen de la pieza + campana (o silencio), persistidos local.
+  // ⚠️ UNA sola perilla: la pieza es un archivo YA MEZCLADO — deslizadores
+  // separados de voz y ambiente moverían lo mismo (control que miente).
+  const [audioPrefs, setAudioPrefs] = useState<MenteAudioPrefs>(MENTE_AUDIO_DEFAULTS);
+  const audioPrefsRef = useRef<MenteAudioPrefs>(MENTE_AUDIO_DEFAULTS);
 
   const playerRef = useRef<AudioPlayer | null>(null);
   const audioModRef = useRef<ExpoAudio | null>(null);
@@ -206,7 +215,13 @@ export default function MenteAudioPlayerScreen() {
         try { ACTIVE_PLAYER.remove(); } catch { /* no-op */ }
         ACTIVE_PLAYER = null;
       }
+      // MB-23 P5: el player nace con el volumen elegido (existía en expo-audio
+      // y no estaba expuesto). Cambios en vivo via changeVolume.
+      const menteAudio = await loadMenteAudioPrefs();
+      audioPrefsRef.current = menteAudio;
+      setAudioPrefs(menteAudio);
       const player = mod.createAudioPlayer({ uri: urlResult.url }, { updateInterval: 500 });
+      player.volume = menteAudio.volume;
       playerRef.current = player;
       ACTIVE_PLAYER = player;
       player.addListener('playbackStatusUpdate', (st) => {
@@ -274,6 +289,11 @@ export default function MenteAudioPlayerScreen() {
       // B8: si el unmount cayó en los awaits de arriba, el cleanup ya liberó
       // el player; play() sobre un objeto liberado era unhandled rejection.
       if (cancelled) return;
+      // MB-23 P5: campana al empezar (o silencio). El cuenco de Respiración,
+      // escalado al volumen de la pieza para no reventar sesiones de descanso.
+      if (menteAudio.bellEnabled) {
+        try { initAudio(); playChime(0.6 * menteAudio.volume); } catch { /* sin campana */ }
+      }
       player.play();
       setLoading(false);
     })();
@@ -305,6 +325,10 @@ export default function MenteAudioPlayerScreen() {
 
   const handleFinished = useCallback(async (totalSeconds: number) => {
     haptic.success();
+    // MB-23 P5: campana al terminar (o silencio), pareja de la de inicio.
+    if (audioPrefsRef.current.bellEnabled) {
+      try { playChime(0.6 * audioPrefsRef.current.volume); } catch { /* sin campana */ }
+    }
     setPlaying(false);
     setCompleted(true);
     setCurrentTime(totalSeconds);
@@ -376,6 +400,29 @@ export default function MenteAudioPlayerScreen() {
       player.play();
     }
   }, [completed]);
+
+  // MB-23 P5: la única perilla de volumen — pasos de 10%, en vivo sobre el
+  // player y persistida para la siguiente sesión.
+  const changeVolume = useCallback((delta: number) => {
+    const cur = audioPrefsRef.current.volume;
+    const next = Math.round(Math.min(1, Math.max(0, cur + delta)) * 10) / 10;
+    if (next === cur) return;
+    haptic.light();
+    const updated = { ...audioPrefsRef.current, volume: next };
+    audioPrefsRef.current = updated;
+    setAudioPrefs(updated);
+    const player = playerRef.current;
+    if (player) { try { player.volume = next; } catch { /* binario viejo */ } }
+    saveMenteAudioPrefs({ volume: next });
+  }, []);
+
+  const toggleBell = useCallback(() => {
+    haptic.light();
+    const updated = { ...audioPrefsRef.current, bellEnabled: !audioPrefsRef.current.bellEnabled };
+    audioPrefsRef.current = updated;
+    setAudioPrefs(updated);
+    saveMenteAudioPrefs({ bellEnabled: updated.bellEnabled });
+  }, []);
 
   const skip = useCallback((delta: number) => {
     const player = playerRef.current;
@@ -549,6 +596,32 @@ export default function MenteAudioPlayerScreen() {
               </AnimatedPressable>
             </View>
 
+            {/* MB-23 P5: volumen de la pieza + campana al empezar/terminar.
+                ⚠️ NO hay deslizadores de voz y ambiente por separado: el
+                archivo viene mezclado y moverían lo mismo. */}
+            <View style={s.audioPrefsRow}>
+              <View style={s.volGroup}>
+                <Ionicons name="volume-medium-outline" size={16} color="rgba(255,255,255,0.65)" />
+                <AnimatedPressable style={s.volBtn} onPress={() => changeVolume(-0.1)}>
+                  <Ionicons name="remove" size={16} color="#fff" />
+                </AnimatedPressable>
+                <EliteText style={s.volText}>{Math.round(audioPrefs.volume * 100)}%</EliteText>
+                <AnimatedPressable style={s.volBtn} onPress={() => changeVolume(0.1)}>
+                  <Ionicons name="add" size={16} color="#fff" />
+                </AnimatedPressable>
+              </View>
+              <AnimatedPressable style={s.bellToggle} onPress={toggleBell}>
+                <Ionicons
+                  name={audioPrefs.bellEnabled ? 'notifications-outline' : 'notifications-off-outline'}
+                  size={15}
+                  color={audioPrefs.bellEnabled ? ATP_BRAND.lime : 'rgba(255,255,255,0.45)'}
+                />
+                <EliteText style={[s.bellText, !audioPrefs.bellEnabled && { color: 'rgba(255,255,255,0.45)' }]}>
+                  Campana
+                </EliteText>
+              </AnimatedPressable>
+            </View>
+
             {completed && (
               <EliteText style={s.completedText}>
                 {piece?.categoria === 'binaural'
@@ -605,6 +678,25 @@ const s = StyleSheet.create({
     fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: ATP_BRAND.lime,
     textAlign: 'center', marginTop: Spacing.md,
   },
+  audioPrefsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginTop: Spacing.md,
+  },
+  volGroup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  volBtn: {
+    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)',
+  },
+  volText: {
+    fontSize: FontSizes.xs, fontFamily: Fonts.bold, color: 'rgba(255,255,255,0.85)',
+    minWidth: 38, textAlign: 'center', fontVariant: ['tabular-nums'],
+  },
+  bellToggle: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  bellText: { fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, color: 'rgba(255,255,255,0.85)' },
 
   // Hard gate (Ajuste v2 · 5)
   gateBox: {

@@ -53,6 +53,12 @@ export async function syncAgendaLocalNotifications(userId: string, date?: string
       getAgendaForDate(userId, date),
       getNotificationPrefs(userId),
     ]);
+    // Prefs ilegibles = no se agenda nada (los previos ya se cancelaron arriba).
+    if (!prefs) {
+      logWarn('[agenda-local-notifications] prefs ilegibles — no se agenda nada');
+      await AsyncStorage.setItem(AGENDA_NOTIF_IDS_KEY, JSON.stringify({}));
+      return;
+    }
     const next: Record<string, string> = {};
     const now = Date.now();
     for (const ev of events) {

@@ -2,7 +2,7 @@
  * Onboarding v2 — Paso 4: Modalidad de Ciclo (task #111).
  * Opciones según sexo biológico (capturado en el paso 2):
  *   mujer: regular / embarazo / peri-menopausia / sin ciclo
- *   hombre: desactivar módulo (default) / vincular con pareja
+ *   hombre: desactivar módulo (default; 'partner' retirado de la UI — E-5 MB-12)
  * También configurable después en Ajustes de Ciclo.
  */
 import { useState, useEffect } from 'react';

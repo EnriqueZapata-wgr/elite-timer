@@ -54,6 +54,8 @@ export interface CompiledDay {
   agendaItems: AgendaItem[];
   /** MB-20.2 · Pieza 2: el dato de verdad de cada card (de las mismas queries). */
   datosVivos: DatosVivos;
+  /** MB-23 P4: overrides de hora por hábito (goals.habit_times, source → 'HH:MM'). */
+  habitTimes: Record<string, string>;
 }
 
 export interface BoolElectronState {
@@ -364,6 +366,15 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
       ? userGoals.wake_time
       : undefined;
 
+  // MB-23 P4: overrides de hora por hábito (editados en la ficha de cada
+  // app del Centro). Solo entradas válidas 'HH:MM'; el resto se ignora.
+  const habitTimes: Record<string, string> = {};
+  if (userGoals.habit_times && typeof userGoals.habit_times === 'object') {
+    for (const [k, v] of Object.entries(userGoals.habit_times)) {
+      if (typeof v === 'string' && /^\d{1,2}:\d{2}$/.test(v)) habitTimes[k] = v;
+    }
+  }
+
   // Protocol
   let protocol: CompiledDay['protocol'] = null;
   const prot = protRes.data?.[0];
@@ -474,7 +485,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     greeting, date, userName, protocol,
     electronProgress: { earned, possible, percentage },
     nextElectron, booleanElectrons, quantitativeElectrons,
-    suggestion, agendaItems, datosVivos,
+    suggestion, agendaItems, datosVivos, habitTimes,
   };
 }
 
