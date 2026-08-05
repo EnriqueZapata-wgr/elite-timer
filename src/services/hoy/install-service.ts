@@ -73,8 +73,10 @@ export async function installApp(userId: string, appKey: string): Promise<{ ok: 
 }
 
 /**
- * MB-22 P4: instalación SOLO a la cuadrícula (Ciclo en modo acompañante).
- * Cero electrones: no nace fila en TAREAS, no se toca ningún hábito.
+ * MB-22 P4: instalación SOLO a la cuadrícula. Cero electrones: no nace fila
+ * en TAREAS, no se toca ningún hábito. MB-23 P2 retiró su único caller (el
+ * install de Ciclo acompañante); se queda con su core y sus tests para el
+ * proyecto de permisos de ciclo, que instala vistas sin hábito propio.
  */
 export async function installAppGridOnly(userId: string, appKey: string): Promise<{ ok: boolean }> {
   const prefs = await getInstallPrefs(userId);

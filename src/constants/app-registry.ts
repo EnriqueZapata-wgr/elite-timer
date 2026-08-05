@@ -128,8 +128,8 @@ export const APP_REGISTRY: AppEntry[] = [
     description: 'Registra tu glucosa con contexto (ayunas, antes o después de comer) y ve tu historial con rangos visuales.' },
   { key: 'cetonas', label: 'Cetonas', icon: 'cetonas', section: 'salud', route: '/ketones-log', installable: true, alias: ['keto', 'cetosis'],
     description: 'Registra cetonas de sangre, aliento u orina, con contexto y el historial de tu día.' },
-  { key: 'ciclo', label: 'Ciclo', icon: 'ciclo', section: 'salud', route: '/cycle', installable: true, femaleOnly: true, alias: ['menstrual', 'periodo', 'regla', 'fase', 'acompañante', 'pareja'],
-    description: 'Calendario de ciclo: periodos, síntomas, fase del día y predicción. Propio, o de acompañante para seguir el de otra persona con lo que tú sabes.' },
+  { key: 'ciclo', label: 'Ciclo', icon: 'ciclo', section: 'salud', route: '/cycle', installable: true, femaleOnly: true, alias: ['menstrual', 'periodo', 'regla', 'fase'],
+    description: 'Calendario de tu ciclo: periodos, síntomas, fase del día y predicción.' },
   { key: 'labs', label: 'Labs', icon: 'labs', section: 'salud', route: '/labs-guide', installable: false, alias: ['laboratorios', 'estudios', 'análisis', 'sangre'],
     description: 'La guía de qué laboratorios pedir y cuándo, para leer en la app o llevar en PDF a tu consulta.' },
   { key: 'protocolos', label: 'Protocolos', icon: 'protocolos', section: 'salud', route: '/salud/intervenciones', installable: false, alias: ['intervenciones', 'plan', 'tratamiento'],
@@ -149,8 +149,9 @@ export const APP_BY_KEY: Record<string, AppEntry> = Object.fromEntries(
  * Las apps visibles para este usuario (respeta el gate del ciclo).
  *
  * MB-22 P4: el parámetro ya no es solo "es female" — es "puede ver Ciclo":
- * female (propio de siempre) O cualquiera con modo instalado (acompañante).
- * El Centro pasa `true`: ahí Ciclo se descubre y se instala por cualquiera.
+ * female (propio de siempre) O cualquiera con fila de modo heredada del
+ * acompañante retirado (MB-23 P2: conserva su tile hasta que decida).
+ * El Centro pasa `true`: ahí Ciclo se descubre; instalar exige modo propio.
  */
 export function visibleApps(cycleVisible: boolean): AppEntry[] {
   return APP_REGISTRY.filter((a) => !a.femaleOnly || cycleVisible);
