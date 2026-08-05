@@ -29,6 +29,7 @@ import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { isFeatureVisible } from '@/src/services/nutrition-mode-core';
 import { computeAndSaveDailyScore, getScoreTrend, type ScoreTrendPoint } from '@/src/services/nutrition-score-service';
 import { getTodayInsight, NUTRITION_INSIGHT_EVENT, type CachedInsight } from '@/src/services/argos-nutrition-insights';
+import { openArgosChat } from '@/src/services/argos-nav';
 import type { ScoreBreakdown } from '@/src/services/nutrition-score-core';
 import { NutritionScoreCard } from '@/src/components/nutricion/NutritionScoreCard';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
@@ -270,7 +271,7 @@ export default function NutritionScreen() {
         <Animated.View entering={FadeInUp.delay(85).springify()} style={{ marginTop: Spacing.sm }}>
           <NavCard mark color="#a8e02a" title="Hablar con ARGOS"
             subtitle="Sobre tu nutrición de hoy — conoce tus datos"
-            onPress={() => { haptic.light(); router.push('/argos-chat?from=nutrition'); }} />
+            onPress={() => { haptic.light(); openArgosChat({ from: 'nutrition' }); }} />
         </Animated.View>
 
         {/* ARGOS recetas */}

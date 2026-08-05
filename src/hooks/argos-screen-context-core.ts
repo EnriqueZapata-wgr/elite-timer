@@ -18,6 +18,7 @@ export type ArgosScreen =
   | 'mind'
   | 'health'
   | 'cycle'
+  | 'notifications'
   | 'argos'
   | 'other';
 
@@ -35,13 +36,18 @@ export function screenFromPath(pathname: string | null | undefined): ArgosScreen
   if (!pathname) return 'other';
   const p = pathname.toLowerCase();
 
-  // El chat de ARGOS mismo — el floating no aporta contexto aquí.
-  if (p.includes('argos')) return 'argos';
+  // El chat de ARGOS mismo — el floating no aporta contexto aquí. Corte por
+  // RUTA, no por subcadena (MB-21 P5): /argos-recipes ES una pantalla de
+  // recetas; con includes('argos') se clasificaba como 'argos', el flotante
+  // se escondía y ahí no quedaba NINGUNA forma de abrir ARGOS.
+  if (p === '/argos' || p === '/argos-chat' || p.startsWith('/argos/') || p.endsWith('/argos')) {
+    return 'argos';
+  }
 
   // HOY es la home de tabs: '/', '/(tabs)', '/index'.
   if (p === '/' || p === '/index' || p.includes('(tabs)') || p.endsWith('/hoy')) return 'hoy';
 
-  if (p.includes('nutrition') || p.includes('food') || p.includes('fasting') || p.includes('hydration')) {
+  if (p.includes('nutrition') || p.includes('food') || p.includes('fasting') || p.includes('hydration') || p.includes('recipe')) {
     return 'nutrition';
   }
   if (p.includes('fitness') || p.includes('training') || p.includes('routine') || p.includes('execution') || p.includes('timer')) {
@@ -50,10 +56,11 @@ export function screenFromPath(pathname: string | null | undefined): ArgosScreen
   if (p.includes('mind') || p.includes('journal') || p.includes('breathing') || p.includes('meditation') || p.includes('checkin')) {
     return 'mind';
   }
-  if (p.includes('health') || p.includes('clinical') || p.includes('glucose') || p.includes('labs') || p.includes('edad-atp') || p.includes('protocol')) {
+  if (p.includes('health') || p.includes('clinical') || p.includes('glucose') || p.includes('labs') || p.includes('edad-atp') || p.includes('protocol') || p.includes('solar')) {
     return 'health';
   }
   if (p.includes('cycle')) return 'cycle';
+  if (p.includes('notification')) return 'notifications';
 
   return 'other';
 }
@@ -65,12 +72,13 @@ const LABELS: Record<ArgosScreen, string> = {
   mind: 'Mente',
   health: 'Salud',
   cycle: 'Ciclo',
+  notifications: 'Notificaciones',
   argos: 'ARGOS',
   other: 'la app',
 };
 
 const VALID_SCREENS = new Set<ArgosScreen>([
-  'hoy', 'nutrition', 'fitness', 'mind', 'health', 'cycle', 'argos', 'other',
+  'hoy', 'nutrition', 'fitness', 'mind', 'health', 'cycle', 'notifications', 'argos', 'other',
 ]);
 
 /** Valida un string arbitrario (ej. route param) como ArgosScreen. */

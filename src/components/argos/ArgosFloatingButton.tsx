@@ -10,13 +10,14 @@
  */
 import { useEffect, useState } from 'react';
 import { Keyboard, Platform, Pressable, StyleSheet, View } from 'react-native';
-import { router, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { ArgosOrb } from './ArgosOrb';
 import { useArgosPresence } from './ArgosPresenceContext';
 import { shouldHideFloatingButton } from './argos-floating-core';
 import { screenFromPath } from '@/src/hooks/argos-screen-context-core';
+import { openArgosChat } from '@/src/services/argos-nav';
 import { ATP_BRAND } from '@/src/constants/brand';
 
 export function ArgosFloatingButton() {
@@ -45,7 +46,7 @@ export function ArgosFloatingButton() {
 
   function openArgos() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    router.push(`/argos-chat?from=${from}`);
+    openArgosChat({ from });
   }
 
   return (

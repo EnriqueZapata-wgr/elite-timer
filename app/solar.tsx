@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../src/lib/supabase';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { ArgosMark } from '@/src/components/argos/ArgosMark';
+import { openArgosChat } from '@/src/services/argos-nav';
 import {
   fetchUVData,
   getCurrentLocation,
@@ -373,7 +374,7 @@ export default function Solar() {
           )}
 
           {/* ARGOS LINK */}
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/argos-chat'); }}>
+          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); openArgosChat({ from: 'health' }); }}>
             <View style={{ backgroundColor: 'rgba(168,224,42,0.06)', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(168,224,42,0.12)', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <ArgosMark size={20} />
               <View style={{ flex: 1 }}>
