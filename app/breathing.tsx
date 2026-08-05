@@ -28,6 +28,9 @@ import {
 import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
 import { getSafetyParams, DEFAULT_SAFETY_PARAMS } from '@/src/services/safety/safety-params-service';
 import { playChime, initAudio } from '@/src/utils/sounds';
+// MB-23 P5: vibración en vez de sonido — respiración con el teléfono en
+// silencio, que es como se usa de verdad.
+import { loadMenteAudioPrefs, saveMenteAudioPrefs } from '@/src/services/mente-audio-prefs';
 // V1.5.1 (#6): radial real con SVG — el LinearGradient diagonal seguía leyendo
 // plano en device; el radial (highlight arriba-izq → color → borde oscuro) da
 // volumen de esfera de verdad.
@@ -467,6 +470,22 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
   // MB-5: guard — handleComplete puede dispararse por el tick final Y por
   // "TERMINAR" casi simultáneos; solo el primero registra la sesión.
   const completedRef = useRef(false);
+  // MB-23 P5: vibración en vez de sonido (persistida; ver mente-audio-prefs).
+  const [vibrateOnly, setVibrateOnly] = useState(false);
+  useEffect(() => { loadMenteAudioPrefs().then((p) => setVibrateOnly(p.breathVibrateOnly)); }, []);
+  const toggleVibrateOnly = () => {
+    haptic.light();
+    setVibrateOnly((v) => {
+      saveMenteAudioPrefs({ breathVibrateOnly: !v });
+      return !v;
+    });
+  };
+  // El cue de la sesión: cuenco, o vibración si así se pidió (y vibración
+  // como fallback si el audio no puede).
+  const cue = () => {
+    if (vibrateOnly) { vibrateMedium(); return; }
+    try { playChime(0.6); } catch { vibrateMedium(); }
+  };
 
   // Animación del círculo
   const scaleAnim = useRef(new RNAnimated.Value(1)).current;
@@ -544,7 +563,8 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     const t = setTimeout(() => {
       if (prepLeft > 1) { setPrepLeft(p => p - 1); return; }
       // G14 (V1.5): cuenco suave — fuera el beep 8-bits del timer de Fitness.
-      try { playChime(0.6); } catch { vibrateMedium(); }
+      // MB-23 P5: o vibración, si el usuario respira con el teléfono en silencio.
+      cue();
       setStatus('running');
     }, 1000);
     return () => clearTimeout(t);
@@ -560,9 +580,12 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     if (completedRef.current) return;
     completedRef.current = true;
     setStatus('completed');
-    try { initAudio(); playChime(0.6); } catch { /* */ }
+    if (!vibrateOnly) { try { initAudio(); playChime(0.6); } catch { /* */ } }
     vibrateMedium();
-    setTimeout(() => { try { playChime(0.6); } catch { /* */ } vibrateMedium(); }, 1500);
+    setTimeout(() => {
+      if (!vibrateOnly) { try { playChime(0.6); } catch { /* */ } }
+      vibrateMedium();
+    }, 1500);
 
     // Protocolo
     if (protocolItemId) {
@@ -777,6 +800,28 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             <EliteText variant="caption" style={styles.idleInfo}>
               {template.durationMinutes} min · {template.cycles} ciclos · {template.phases.map(p => p.seconds + 's').join('-')}
             </EliteText>
+            {/* MB-23 P5: vibración en vez de sonido — con el teléfono en
+                silencio, que es como se respira de verdad. */}
+            <Pressable
+              onPress={toggleVibrateOnly}
+              style={styles.vibrateRow}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: vibrateOnly }}
+            >
+              <Ionicons
+                name={vibrateOnly ? 'volume-mute' : 'volume-medium-outline'}
+                size={15}
+                color={vibrateOnly ? '#a8e02a' : 'rgba(255,255,255,0.5)'}
+              />
+              <EliteText style={[styles.vibrateText, vibrateOnly && { color: '#a8e02a' }]}>
+                Vibración en vez de sonido
+              </EliteText>
+              <Ionicons
+                name={vibrateOnly ? 'checkbox' : 'square-outline'}
+                size={17}
+                color={vibrateOnly ? '#a8e02a' : 'rgba(255,255,255,0.4)'}
+              />
+            </Pressable>
             {/* T2 MENTE: contraindicaciones ANTES de iniciar (Wim Hof et al) */}
             {template.contraindications && template.contraindications.length > 0 && (
               <View style={styles.contraCard}>
@@ -890,6 +935,14 @@ const styles = StyleSheet.create({
   },
   totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: Radius.xs },
   idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.md, fontSize: FontSizes.md },
+  // MB-23 P5: toggle de vibración en vez de sonido (pre-sesión)
+  vibrateRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999,
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.05)', marginBottom: Spacing.md,
+  },
+  vibrateText: { color: 'rgba(255,255,255,0.7)', fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   // T2 MENTE: advertencia de contraindicaciones antes de iniciar
   contraCard: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
