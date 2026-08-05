@@ -179,6 +179,19 @@ export default function FichaAppScreen() {
           )}
         </Animated.View>
 
+        {/* MB-22.1 §5.2: el MODO va ANTES del botón de instalar. Una mujer
+            que quiere seguir el ciclo de su hija, si instalara primero, se
+            instalaría como propio y le nacería fila en TAREAS antes de poder
+            corregir. Primero se decide de quién es el calendario. */}
+        {esCiclo && (
+          <ConfigCiclo
+            userId={user?.id}
+            info={ciclo}
+            installed={state === 'instalada'}
+            onChanged={refresh}
+          />
+        )}
+
         {/* Instalar / desinstalar */}
         <Animated.View entering={FadeInUp.delay(120).springify()}>
           {state === 'fija' ? (
@@ -228,14 +241,6 @@ export default function FichaAppScreen() {
         </Animated.View>
 
         {/* Configuración — solo lo que ya existía, movido aquí. */}
-        {esCiclo && (
-          <ConfigCiclo
-            userId={user?.id}
-            info={ciclo}
-            installed={state === 'instalada'}
-            onChanged={refresh}
-          />
-        )}
         {app.key === 'hidratacion' && <ConfigHidratacion userId={user?.id} />}
         {app.key === 'ayuno' && <ConfigAyuno userId={user?.id} />}
         {app.key === 'journal' && <ConfigJournal />}
@@ -315,7 +320,7 @@ function ConfigCiclo({ userId, info, installed, onChanged }: {
   ];
 
   return (
-    <Animated.View entering={FadeInUp.delay(165).springify()}>
+    <Animated.View entering={FadeInUp.delay(100).springify()}>
       <SectionTitleText>Modo</SectionTitleText>
       <View style={s.configCard}>
         {opciones.map((o) => {
@@ -413,7 +418,7 @@ function ConfigAyuno({ userId }: { userId?: string }) {
       <View style={s.configCard}>
         <EliteText style={s.configValue}>
           {hours != null
-            ? `${FASTING_PROTOCOLS.find((p) => p.hours === hours)?.label ?? `${hours} h`} — ${hours} horas`
+            ? `${FASTING_PROTOCOLS.find((p) => p.hours === hours)?.label ?? `${hours} h`} · ${hours} horas`
             : '…'}
         </EliteText>
         <View style={s.chipRow}>

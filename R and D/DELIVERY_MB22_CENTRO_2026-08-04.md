@@ -80,9 +80,12 @@ calendario con lo que él sabe.**
    propio aunque diga 'propio'. Test de regresión explícito.
 2. **`getCycleInfo` (la raíz)** devuelve `null` en acompañante. Por ahí pasan TODOS los
    consumidores de salud: **ARGOS** (context.cycleInfo), **day-compiler** (cross-pillar),
-   recetas, prescripción, emoción-historia. **Edad ATP verificado: hoy no consume ciclo
-   por ninguna vía** (cero referencias en `src/services/edad-atp/`), y si algún día lo
-   hace, pasará por esta misma raíz.
+   recetas, prescripción, emoción-historia. **[CORREGIDO en MB-22.1 §5.4]** La versión
+   original de este punto afirmaba que la Edad ATP "no consume ciclo por ninguna vía" —
+   **falso**: `app/edad-atp/biomarkers.tsx:28,101` llama `getCycleInfo` (el grep original
+   solo miró `src/services/edad-atp/`, no `app/`). El **comportamiento sí es correcto**
+   (en acompañante recibe null y cae a "fase desconocida"), pero porque pasa por la
+   raíz, no porque no consuma. No usar la frase vieja como premisa.
 3. **Cinturones extra:** day-compiler no ofrece ni palomea `period_log` en acompañante
    (un registro del ciclo de otra persona no puede dar e- de "registré mi ciclo"); la
    puerta "Tu ciclo hoy" de SALUD solo aparece con ciclo **propio**; instalar en

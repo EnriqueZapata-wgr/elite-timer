@@ -72,6 +72,10 @@ export const APP_REGISTRY: AppEntry[] = [
   // ── Mente ──
   { key: 'meditar', label: 'Meditar', icon: 'meditar', section: 'mente', route: '/meditation', installable: true, alias: ['meditación', 'nsdr', 'calma'],
     description: 'Sesiones guiadas, audios para descansar y un timer en silencio. Cada sesión queda registrada y suma a tu racha.' },
+  // "Wim Hof" en copy visible: nombra la TÉCNICA (así se llama el protocolo
+  // en /breathing), no promociona a la persona. Decisión escrita MB-22.1
+  // §5.5 — la regla "nombres propios fuera del copy" tiene esta excepción,
+  // igual que Braverman.
   { key: 'respirar', label: 'Respirar', icon: 'respirar', section: 'mente', route: '/breathing', installable: true, alias: ['respiración', 'breathwork', 'wim hof'],
     description: 'Ejercicios de respiración guiados con animación: inhala, retén, exhala. Del ritmo suave al Wim Hof.' },
   { key: 'emociones', label: 'Emociones', icon: 'emociones', section: 'mente', route: '/emotions', installable: true, alias: ['check-in', 'ánimo', 'humor', 'sentir'],
@@ -91,8 +95,10 @@ export const APP_REGISTRY: AppEntry[] = [
   // ── Cuerpo ──
   { key: 'entrenar', label: 'Entrenar', icon: 'entrenar', section: 'cuerpo', route: '/fitness-hub', installable: true, alias: ['fitness', 'rutina', 'gym', 'fuerza', 'hiit'],
     description: 'Tu sesión de hoy, tus rutinas y la biblioteca de ejercicios. Genera la sesión, ejecútala y regístrala.' },
+  // MB-22.1 §5.1: las disciplinas son las CUATRO de fitness-cardio.tsx —
+  // decir "caminar" (que no existe) y omitir natación era inventar.
   { key: 'cardio', label: 'Cardio', icon: 'cardio', section: 'cuerpo', route: '/fitness-cardio', installable: true, alias: ['correr', 'bici', 'caminar', 'zona 2'],
-    description: 'Correr, bici, caminar y remo: registra tus sesiones y ve tus marcas por distancia.' },
+    description: 'Correr, ciclismo, natación y remo: registra tus sesiones y ve tus marcas por distancia.' },
   // Evaluación puntual, no hábito diario: no tiene electrón que activar.
   { key: 'movilidad', label: 'Movilidad', icon: 'movilidad', section: 'cuerpo', route: '/mobility-assessment', installable: false, alias: ['flexibilidad', 'estiramiento', 'evaluación'],
     description: 'Evaluación guiada de movilidad en siete tests, con lectura por test, asimetrías y comparación contra tu anterior.' },
