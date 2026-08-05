@@ -8,6 +8,7 @@ import {
   togglesForApp,
   appInstallState,
   applyInstall,
+  applyInstallGridOnly,
   applyUninstall,
   installCreatesRow,
   installAlertBody,
@@ -132,6 +133,19 @@ describe('applyInstall / applyUninstall', () => {
   it('ajustes es fija: la puerta a tu cuenta no se puede desinstalar', () => {
     expect(FIXED_APPS.has('ajustes')).toBe(true);
     expect(appInstallState('ajustes', EMPTY)).toBe('fija');
+  });
+
+  it('MB-22 P4: grid-only NO enciende electrones — ciclo acompañante sin fila en TAREAS', () => {
+    // applyInstall('ciclo') encendería period_log (fila "Registrar ciclo").
+    // En modo acompañante eso implicaría "registré MI ciclo" con el calendario
+    // de OTRA persona: grid-only instala a la cuadrícula y nada más.
+    const out = applyInstallGridOnly('ciclo', EMPTY);
+    expect(out.installedApps).toEqual(['ciclo']);
+    expect(out.booleans).toEqual([]);
+    expect(out.quants).toEqual([]);
+    expect(appInstallState('ciclo', out)).toBe('instalada');
+    // Idempotente: instalar dos veces no duplica.
+    expect(applyInstallGridOnly('ciclo', out).installedApps).toEqual(['ciclo']);
   });
 
   it('sol enciende sunlight; sun_awareness no es activable y no se inventa', () => {

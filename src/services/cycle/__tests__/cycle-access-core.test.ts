@@ -7,9 +7,9 @@
  * capitalización, o basura residual — puede abrir el pilar.
  */
 import { describe, it, expect } from 'vitest';
-import { canAccessCycle } from '../cycle-access-core';
+import { canAccessCycle, canOpenCycleApp, parseCycleMode } from '../cycle-access-core';
 
-describe('canAccessCycle', () => {
+describe('canAccessCycle (ciclo PROPIO — la puerta a salud)', () => {
   it("SOLO 'female' entra", () => {
     expect(canAccessCycle('female')).toBe(true);
   });
@@ -30,5 +30,48 @@ describe('canAccessCycle', () => {
     expect(canAccessCycle('f')).toBe(false);
     expect(canAccessCycle('other')).toBe(false);
     expect(canAccessCycle('intersex')).toBe(false);
+  });
+
+  // MB-22 P4 — LO MÁS DELICADO DEL RUN: un ciclo de acompañante NUNCA es
+  // propio. Ni para una usuaria female. Si esto se rompe, datos de otra
+  // persona entran a la Edad ATP y al contexto de ARGOS del usuario.
+  it('acompañante JAMÁS es propio, ni siendo female', () => {
+    expect(canAccessCycle('female', 'acompanante')).toBe(false);
+    expect(canAccessCycle('male', 'acompanante')).toBe(false);
+    expect(canAccessCycle(null, 'acompanante')).toBe(false);
+  });
+
+  it('modo propio no abre la puerta a un hombre (female sigue siendo requisito)', () => {
+    expect(canAccessCycle('male', 'propio')).toBe(false);
+  });
+
+  it('female sin fila de modo = propio (comportamiento de siempre + backfill 249)', () => {
+    expect(canAccessCycle('female', null)).toBe(true);
+    expect(canAccessCycle('female', undefined)).toBe(true);
+    expect(canAccessCycle('female', 'propio')).toBe(true);
+  });
+});
+
+describe('canOpenCycleApp (abrir las pantallas, sin acceso a salud)', () => {
+  it('propio y acompañante entran; nadie más', () => {
+    expect(canOpenCycleApp('female', null)).toBe(true);
+    expect(canOpenCycleApp('female', 'propio')).toBe(true);
+    expect(canOpenCycleApp('female', 'acompanante')).toBe(true);
+    expect(canOpenCycleApp('male', 'acompanante')).toBe(true);
+    expect(canOpenCycleApp('male', null)).toBe(false);
+    expect(canOpenCycleApp('male', 'propio')).toBe(false);
+    expect(canOpenCycleApp(null, null)).toBe(false);
+  });
+});
+
+describe('parseCycleMode', () => {
+  it('solo acepta los dos modos reales', () => {
+    expect(parseCycleMode('propio')).toBe('propio');
+    expect(parseCycleMode('acompanante')).toBe('acompanante');
+    expect(parseCycleMode('companion')).toBe(null);
+    expect(parseCycleMode('')).toBe(null);
+    expect(parseCycleMode(null)).toBe(null);
+    expect(parseCycleMode(undefined)).toBe(null);
+    expect(parseCycleMode(42)).toBe(null);
   });
 });

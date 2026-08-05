@@ -172,7 +172,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, suppTakenCountRes, cycleLogCountRes,
-    lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes,
+    lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes, cycleModeRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -240,6 +240,11 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     supabase.from('mind_sessions').select('date, duration_seconds')
       .eq('user_id', userId).eq('type', 'meditation')
       .order('date', { ascending: false }).limit(1).maybeSingle(),
+    // MB-22 P4: modo del Ciclo (mig 249). En 'acompanante' el calendario es de
+    // OTRA persona: period_log no se ofrece ni palomea con esos registros.
+    // Tabla ausente en remoto → {error} (no lanza) → modo null = hoy.
+    supabase.from('user_app_modes').select('mode')
+      .eq('user_id', userId).eq('app_key', 'ciclo').maybeSingle(),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
@@ -381,11 +386,16 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     protocol = { name: prot.name ?? prot.template?.name ?? 'Protocolo', dayNumber: dayNum, totalDays };
   }
 
+  // MB-22 P4: en modo acompañante el calendario de Ciclo es de OTRA persona.
+  // period_log no puede palomear (ni contar en el score) con esos registros.
+  const cycleMode = (cycleModeRes.data as any)?.mode ?? null;
+
   // Boolean electrons
   const booleanElectrons: BoolElectronState[] = activeBoolKeys
     .filter(k => (ELECTRON_WEIGHTS as any)[k])
     // Gate de género: period_log solo para usuarias que menstrúan.
     .filter(k => !FEMALE_ONLY_ELECTRONS.has(k) || biologicalSex === 'female')
+    .filter(k => k !== 'period_log' || cycleMode !== 'acompanante')
     .map(k => {
       const cfg = (ELECTRON_WEIGHTS as any)[k];
       // Para los verificados, `completed` viene de actividad real (no del blob).

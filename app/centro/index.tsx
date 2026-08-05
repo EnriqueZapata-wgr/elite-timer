@@ -9,7 +9,7 @@
  * entras cuando quieres cambiar algo. Es el patrón de Ajustes de iOS, no el
  * de un panel que te recibe.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, TextInput, Pressable } from 'react-native';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +21,6 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { useAuth } from '@/src/contexts/auth-context';
-import { supabase } from '@/src/lib/supabase';
 import {
   visibleApps, searchApps, type AppEntry,
 } from '@/src/constants/app-registry';
@@ -44,22 +43,8 @@ export default function CentroScreen() {
   // El buscador de la sala manda aquí su término cuando no lo encontró.
   const { q } = useLocalSearchParams<{ q?: string }>();
 
-  const [isFemale, setIsFemale] = useState(false);
   const [query, setQuery] = useState(typeof q === 'string' ? q : '');
   const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    let alive = true;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle();
-        if (alive) setIsFemale((data as any)?.biological_sex === 'female');
-      } catch { /* sin perfil: el ciclo queda oculto */ }
-    })();
-    return () => { alive = false; };
-  }, [user?.id]);
 
   // Al volver de una ficha, el estado (instalada/no) puede haber cambiado.
   const refresh = useCallback(async () => {
@@ -67,7 +52,10 @@ export default function CentroScreen() {
   }, [user?.id]);
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
-  const apps = useMemo(() => visibleApps(isFemale), [isFemale]);
+  // MB-22 P4: el Centro lista TODAS las apps para todos. Ciclo es instalable
+  // por cualquiera (su ficha resuelve el modo); ocultarla aquí impediría que
+  // un acompañante siquiera supiera que existe.
+  const apps = useMemo(() => visibleApps(true), []);
   const searching = query.trim().length > 0;
   const listed = useMemo(() => searchApps(apps, query), [apps, query]);
   const groups = useMemo(() => groupBySection(listed), [listed]);

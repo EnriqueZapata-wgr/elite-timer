@@ -102,6 +102,17 @@ export function appInstallState(appKey: string, prefs: InstallPrefs): InstallSta
   return 'no';
 }
 
+/**
+ * MB-22 P4: instalar SOLO a la cuadrícula, sin encender ningún electrón.
+ * Es la instalación del Ciclo en modo acompañante: el calendario de otra
+ * persona JAMÁS genera fila en TAREAS ni hábito del usuario (period_log
+ * implicaría "registré MI ciclo" y alimentaría su score).
+ */
+export function applyInstallGridOnly(appKey: string, prefs: InstallPrefs): InstallPrefs {
+  if (prefs.installedApps.includes(appKey)) return prefs;
+  return { ...prefs, installedApps: [...prefs.installedApps, appKey] };
+}
+
 /** Listas nuevas tras instalar. Conserva orden; nunca duplica. */
 export function applyInstall(appKey: string, prefs: InstallPrefs): InstallPrefs {
   const t = togglesForApp(appKey);

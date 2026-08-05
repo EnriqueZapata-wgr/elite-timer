@@ -12,6 +12,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { DEFAULT_BOOLEANS } from '@/src/services/hoy/day-booleans';
 import {
   applyInstall,
+  applyInstallGridOnly,
   applyUninstall,
   type InstallPrefs,
 } from '@/src/services/hoy/install-core';
@@ -67,6 +68,16 @@ export async function installApp(userId: string, appKey: string): Promise<{ ok: 
   const prefs = await getInstallPrefs(userId);
   if (!prefs) return { ok: false };
   return writePrefs(userId, applyInstall(appKey, prefs));
+}
+
+/**
+ * MB-22 P4: instalación SOLO a la cuadrícula (Ciclo en modo acompañante).
+ * Cero electrones: no nace fila en TAREAS, no se toca ningún hábito.
+ */
+export async function installAppGridOnly(userId: string, appKey: string): Promise<{ ok: boolean }> {
+  const prefs = await getInstallPrefs(userId);
+  if (!prefs) return { ok: false };
+  return writePrefs(userId, applyInstallGridOnly(appKey, prefs));
 }
 
 export async function uninstallApp(userId: string, appKey: string): Promise<{ ok: boolean }> {

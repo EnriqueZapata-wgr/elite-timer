@@ -22,9 +22,14 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { TimeWheelPicker } from '@/src/components/ui/TimeWheelPicker';
 import { useAuth } from '@/src/contexts/auth-context';
+import { supabase } from '@/src/lib/supabase';
 import { APP_BY_KEY, SECTION_LABELS } from '@/src/constants/app-registry';
 import { FASTING_PROTOCOLS } from '@/src/constants/fasting-protocols';
-import { getInstallPrefs, installApp, uninstallApp } from '@/src/services/hoy/install-service';
+import {
+  getInstallPrefs, installApp, installAppGridOnly, uninstallApp,
+} from '@/src/services/hoy/install-service';
+import { getCycleAppMode, setCycleAppMode } from '@/src/services/app-mode-service';
+import type { CycleMode } from '@/src/services/cycle/cycle-access-core';
 import {
   appInstallState, installAlertBody, uninstallAlertBody, installCreatesRow,
   type InstallPrefs, type InstallState,
@@ -40,6 +45,11 @@ import { haptic } from '@/src/utils/haptics';
 
 const WATER_PRESETS_ML = [1500, 2000, 2500, 3000, 3500];
 
+// MB-22 P4: el copy de instalar Ciclo como acompañante dice TODA la verdad.
+const CICLO_ACOMP_INSTALL_BODY =
+  'Sigues el ciclo de otra persona: el calendario lo llevas tú, con lo que sabes. ' +
+  'No se conecta con ninguna cuenta, no entra a tu Edad ATP ni a ARGOS, y no agrega fila en TAREAS.';
+
 export default function FichaAppScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -48,10 +58,26 @@ export default function FichaAppScreen() {
 
   const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);
   const [busy, setBusy] = useState(false);
+  // MB-22 P4: solo para la ficha de Ciclo — sexo + modo deciden el flujo.
+  const [ciclo, setCiclo] = useState<{ isFemale: boolean; mode: CycleMode | null } | null>(null);
+
+  const esCiclo = app?.key === 'ciclo';
 
   const refresh = useCallback(async () => {
-    if (user?.id) setInstallPrefs(await getInstallPrefs(user.id));
-  }, [user?.id]);
+    if (!user?.id) return;
+    setInstallPrefs(await getInstallPrefs(user.id));
+    if (esCiclo) {
+      try {
+        const [{ data }, mode] = await Promise.all([
+          supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle(),
+          getCycleAppMode(user.id),
+        ]);
+        setCiclo({ isFemale: (data as any)?.biological_sex === 'female', mode });
+      } catch {
+        setCiclo({ isFemale: false, mode: null });
+      }
+    }
+  }, [user?.id, esCiclo]);
   useEffect(() => { refresh(); }, [refresh]);
 
   // Llave desconocida (deep link viejo o typo): fuera, sin inventar pantalla.
@@ -66,18 +92,38 @@ export default function FichaAppScreen() {
 
   const color = APP_SECTION_COLORS[app.section];
   const state: InstallState = installPrefs ? appInstallState(app.key, installPrefs) : 'no';
-  const creaFila = installCreatesRow(app.key);
+  // MB-22 P4: el modo efectivo del Ciclo — sin fila de modo, female = propio
+  // (lo de siempre) y cualquier otro caso = acompañante.
+  const cicloModoEfectivo: CycleMode | null = esCiclo
+    ? (ciclo?.mode ?? (ciclo?.isFemale ? 'propio' : 'acompanante'))
+    : null;
+  const cicloAcomp = cicloModoEfectivo === 'acompanante';
+  const creaFila = installCreatesRow(app.key) && !cicloAcomp;
 
   const doInstall = () => {
     if (!user?.id) return;
-    Alert.alert(`Instalar ${app.label}`, installAlertBody(app.key), [
+    const body = cicloAcomp ? CICLO_ACOMP_INSTALL_BODY : installAlertBody(app.key);
+    Alert.alert(`Instalar ${app.label}`, body, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Instalar',
         onPress: async () => {
           setBusy(true);
           haptic.success();
-          const r = await installApp(user.id, app.key);
+          // Ciclo: el modo queda EXPLÍCITO al instalar. Para acompañante es
+          // obligatorio (sin fila de modo, el gate no lo dejaría entrar);
+          // para propio es backfill-friendly (female sin fila ya es propio).
+          if (esCiclo && cicloModoEfectivo) {
+            const mr = await setCycleAppMode(user.id, cicloModoEfectivo);
+            if (!mr.ok && cicloAcomp) {
+              setBusy(false);
+              Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.');
+              return;
+            }
+          }
+          const r = cicloAcomp
+            ? await installAppGridOnly(user.id, app.key)
+            : await installApp(user.id, app.key);
           setBusy(false);
           if (!r.ok) { Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.'); return; }
           refresh();
@@ -182,6 +228,14 @@ export default function FichaAppScreen() {
         </Animated.View>
 
         {/* Configuración — solo lo que ya existía, movido aquí. */}
+        {esCiclo && (
+          <ConfigCiclo
+            userId={user?.id}
+            info={ciclo}
+            installed={state === 'instalada'}
+            onChanged={refresh}
+          />
+        )}
         {app.key === 'hidratacion' && <ConfigHidratacion userId={user?.id} />}
         {app.key === 'ayuno' && <ConfigAyuno userId={user?.id} />}
         {app.key === 'journal' && <ConfigJournal />}
@@ -206,6 +260,91 @@ export default function FichaAppScreen() {
 
 function SectionTitleText({ children }: { children: string }) {
   return <EliteText style={s.configTitle}>{children.toUpperCase()}</EliteText>;
+}
+
+/**
+ * MB-22 P4: el modo del Ciclo. Lo más delicado del run — cada transición
+ * dice la verdad completa y ninguna borra datos:
+ *  · → acompañante: nada del calendario entra a métricas de salud, y el
+ *    hábito "Registrar ciclo" sale de TAREAS (uninstall+grid-only).
+ *  · → propio (solo usuarias): TODO el calendario pasa a contar como su
+ *    ciclo — se confirma explícito, porque es el cambio con dientes.
+ */
+function ConfigCiclo({ userId, info, installed, onChanged }: {
+  userId?: string;
+  info: { isFemale: boolean; mode: CycleMode | null } | null;
+  installed: boolean;
+  onChanged: () => void;
+}) {
+  if (!info) return null;
+  const efectivo: CycleMode = info.mode ?? (info.isFemale ? 'propio' : 'acompanante');
+
+  const cambiar = (destino: CycleMode) => {
+    if (!userId || destino === efectivo) return;
+    const aviso = destino === 'acompanante'
+      ? 'El calendario es uno solo y tus registros no se borran. En modo acompañante nada de este calendario entra a tu Edad ATP, a ARGOS ni a tus métricas, y el hábito "Registrar ciclo" sale de TAREAS.'
+      : 'Todo lo registrado en este calendario contará como TU ciclo: fases, predicción y tu contexto de salud. Confirma solo si este calendario es tuyo.';
+    Alert.alert(destino === 'acompanante' ? 'Cambiar a acompañante' : 'Cambiar a propio', aviso, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Cambiar',
+        onPress: async () => {
+          haptic.medium();
+          const mr = await setCycleAppMode(userId, destino);
+          if (!mr.ok) { Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.'); return; }
+          if (installed) {
+            // Reinstalar bajo el modo nuevo: acompañante apaga el electrón
+            // (sin fila en TAREAS), propio lo vuelve a encender. El historial
+            // no se toca jamás.
+            await uninstallApp(userId, 'ciclo');
+            if (destino === 'acompanante') await installAppGridOnly(userId, 'ciclo');
+            else await installApp(userId, 'ciclo');
+          }
+          onChanged();
+        },
+      },
+    ]);
+  };
+
+  const opciones: { value: CycleMode; label: string; desc: string }[] = [
+    // Propio SOLO se ofrece a usuarias: el predicado de salud exige female.
+    ...(info.isFemale
+      ? [{ value: 'propio' as CycleMode, label: 'Propio', desc: 'Es mi ciclo. Entra a mis métricas y a mi contexto de salud, como siempre.' }]
+      : []),
+    { value: 'acompanante', label: 'Acompañante', desc: 'Sigo el ciclo de otra persona. Lo llevo yo, con lo que sé: sin conexión entre cuentas y fuera de mis métricas.' },
+  ];
+
+  return (
+    <Animated.View entering={FadeInUp.delay(165).springify()}>
+      <SectionTitleText>Modo</SectionTitleText>
+      <View style={s.configCard}>
+        {opciones.map((o) => {
+          const activo = efectivo === o.value;
+          return (
+            <AnimatedPressable
+              key={o.value}
+              style={[s.modeRow, activo && s.modeRowActive]}
+              onPress={() => cambiar(o.value)}
+            >
+              <Ionicons
+                name={activo ? 'radio-button-on' : 'radio-button-off'}
+                size={18}
+                color={activo ? ATP_BRAND.lime : TEXT.muted}
+              />
+              <View style={{ flex: 1 }}>
+                <EliteText style={s.modeLabel}>{o.label}</EliteText>
+                <EliteText style={s.modeDesc}>{o.desc}</EliteText>
+              </View>
+            </AnimatedPressable>
+          );
+        })}
+        <EliteText style={s.configHint}>
+          Lo que registras aquí lo registras tú. No se comparten datos entre
+          cuentas: conectar cuentas no existe.
+        </EliteText>
+      </View>
+    </Animated.View>
+  );
 }
 
 function ConfigHidratacion({ userId }: { userId?: string }) {
@@ -510,6 +649,18 @@ const s = StyleSheet.create({
   chipActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.45)' },
   chipText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.xs },
   chipTextActive: { color: ATP_BRAND.lime },
+
+  modeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+  },
+  modeRowActive: { backgroundColor: 'rgba(168,224,42,0.06)' },
+  modeLabel: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  modeDesc: { color: TEXT.tertiary, fontFamily: Fonts.regular, fontSize: FontSizes.xs, lineHeight: 16, marginTop: 1 },
 
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   switchLabel: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },

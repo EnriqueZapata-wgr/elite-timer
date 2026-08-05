@@ -44,6 +44,7 @@ import {
   loadUsage, recordOpen, loadCustomOrder, loadOrderMode, saveOrderMode,
 } from '@/src/services/atp-room-store';
 import { getInstallPrefs, uninstallApp } from '@/src/services/hoy/install-service';
+import { getCycleAppMode } from '@/src/services/app-mode-service';
 import {
   appInstallState, gridApps, uninstallAlertBody, type InstallPrefs,
 } from '@/src/services/hoy/install-core';
@@ -70,20 +71,27 @@ export default function SalaAtpScreen() {
   const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);
 
   // El gate del ciclo. Sin perfil, la app no se muestra: es el default seguro.
+  // MB-22 P4: con modo instalado (acompañante) el Ciclo también se ve, sea
+  // quien sea — el modo viene de user_app_modes (fail-soft null = solo female).
+  const [cycleModeSet, setCycleModeSet] = useState(false);
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
     (async () => {
       try {
-        const { data } = await supabase
-          .from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle();
-        if (alive) setIsFemale((data as any)?.biological_sex === 'female');
+        const [{ data }, mode] = await Promise.all([
+          supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle(),
+          getCycleAppMode(user.id),
+        ]);
+        if (!alive) return;
+        setIsFemale((data as any)?.biological_sex === 'female');
+        setCycleModeSet(mode != null);
       } catch { /* sin perfil: el ciclo queda oculto */ }
     })();
     return () => { alive = false; };
   }, [user?.id]);
 
-  const apps = useMemo(() => visibleApps(isFemale), [isFemale]);
+  const apps = useMemo(() => visibleApps(isFemale || cycleModeSet), [isFemale, cycleModeSet]);
 
   // MB-22: el deep link viejo de "+ agregar" aterriza donde hoy se instala.
   useEffect(() => {

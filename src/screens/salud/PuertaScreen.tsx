@@ -23,6 +23,8 @@ import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { visibleDestinos, type Destino } from '@/src/constants/salud-puertas';
+import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
+import { getCycleAppMode } from '@/src/services/app-mode-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { TEXT, ELEVATION } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -43,9 +45,14 @@ export function PuertaScreen({ title, intro, destinos }: Props) {
     let alive = true;
     (async () => {
       try {
-        const { data } = await supabase
-          .from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle();
-        if (alive) setIsFemale((data as any)?.biological_sex === 'female');
+        // MB-22 P4: "Tu ciclo hoy" es superficie de salud DEL usuario — solo
+        // ciclo propio. En modo acompañante esta puerta no se muestra (el
+        // calendario de otra persona vive en la app de Ciclo, no en SALUD).
+        const [{ data }, mode] = await Promise.all([
+          supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle(),
+          getCycleAppMode(user.id),
+        ]);
+        if (alive) setIsFemale(canAccessCycle((data as any)?.biological_sex, mode));
       } catch { /* sin perfil: el ciclo queda fuera */ }
     })();
     return () => { alive = false; };

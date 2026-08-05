@@ -36,7 +36,10 @@ const COMPANION_MODE_ENABLED = false;
 export default function CycleSettingsScreen() {
   const { user } = useAuth();
   // E-5 (MB-12): era la ÚNICA pantalla del pilar sin useCycleGate.
+  // MB-22 P4: en acompañante se esconden modalidad y embarazo — esos hablan
+  // del cuerpo del usuario, no del calendario que lleva de otra persona.
   const gate = useCycleGate();
+  const acompanante = gate.mode === 'acompanante';
   const [avgCycle, setAvgCycle] = useState('28');
   const [avgPeriod, setAvgPeriod] = useState('5');
   const [mode, setMode] = useState<'full' | 'companion'>('full');
@@ -116,7 +119,7 @@ export default function CycleSettingsScreen() {
   };
 
   // E-5 (MB-12): mismo patrón que cycle-charts/cycle-history.
-  if (gate !== 'allowed') {
+  if (gate.state !== 'allowed') {
     return (
       <Screen>
         <PillarHeader pillar="cycle" title="Configuración" />
@@ -157,7 +160,10 @@ export default function CycleSettingsScreen() {
           </GradientCard>
         </Animated.View>
 
-        {/* F2.1 (task #111): modalidad de ciclo — espejo del paso 4 del onboarding v2 */}
+        {/* F2.1 (task #111): modalidad de ciclo — espejo del paso 4 del onboarding v2.
+            MB-22 P4: NO en acompañante — escribe client_profiles.cycle_modality,
+            que es del cuerpo del usuario. */}
+        {!acompanante && (
         <Animated.View entering={FadeInUp.delay(80).springify()} style={{ marginTop: Spacing.md }}>
           <GradientCard gradient={GRADIENT} padding={20}>
             <SectionTitle>MODALIDAD DE CICLO</SectionTitle>
@@ -179,9 +185,12 @@ export default function CycleSettingsScreen() {
             })}
           </GradientCard>
         </Animated.View>
+        )}
 
-        {/* MB-7: máscara embarazo — captura de la FPP (solo si modalidad = embarazo) */}
-        {modality === 'pregnancy' && (
+        {/* MB-7: máscara embarazo — captura de la FPP (solo si modalidad = embarazo).
+            MB-22 P4: jamás en acompañante — el embarazo de otra persona no se
+            captura aquí (escribiría cycle_settings.pregnancy_status DEL usuario). */}
+        {modality === 'pregnancy' && !acompanante && (
           <Animated.View entering={FadeInUp.delay(90).springify()} style={{ marginTop: Spacing.md }}>
             <GradientCard gradient={GRADIENT} padding={20}>
               <SectionTitle>EMBARAZO</SectionTitle>

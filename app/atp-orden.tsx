@@ -29,6 +29,7 @@ import {
 import { loadCustomOrder, saveCustomOrder } from '@/src/services/atp-room-store';
 import { getInstallPrefs } from '@/src/services/hoy/install-service';
 import { gridApps } from '@/src/services/hoy/install-core';
+import { getCycleAppMode } from '@/src/services/app-mode-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT, ELEVATION } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -43,19 +44,22 @@ export default function AtpOrdenScreen() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      let female = false;
+      let cycleVisible = false;
       if (user?.id) {
         try {
-          const { data } = await supabase
-            .from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle();
-          female = (data as any)?.biological_sex === 'female';
+          const [{ data }, mode] = await Promise.all([
+            supabase.from('client_profiles').select('biological_sex').eq('user_id', user.id).maybeSingle(),
+            getCycleAppMode(user.id),
+          ]);
+          // MB-22 P4: female (propio) o modo instalado (acompañante).
+          cycleVisible = (data as any)?.biological_sex === 'female' || mode != null;
         } catch { /* sin perfil: el ciclo queda fuera */ }
       }
       const stored = await loadCustomOrder();
       // MB-22: se ordena lo que está en la cuadrícula — solo instaladas.
       const prefs = user?.id ? await getInstallPrefs(user.id) : null;
       if (!alive) return;
-      const enCuadricula = gridApps(visibleApps(female), prefs);
+      const enCuadricula = gridApps(visibleApps(cycleVisible), prefs);
       setApps(enCuadricula);
       // Siembra con el registro: la primera vez la lista sale completa y en
       // orden de catálogo, no vacía.

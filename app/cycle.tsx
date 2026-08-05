@@ -181,7 +181,11 @@ export default function CycleScreen() {
   const { user } = useAuth();
   const router = useRouter();
   // MB-7: gate biological_sex — cierra el deep-link a /cycle para no-female.
+  // MB-22 P4: el gate trae el MODO; en acompañante el calendario es de OTRA
+  // persona — se esconde lo que habla al cuerpo del usuario (embarazo, copy
+  // de fase) y el banner lo deja clarísimo.
   const gate = useCycleGate();
+  const acompanante = gate.mode === 'acompanante';
   const userId = user?.id ?? '';
   const today = getLocalToday();
 
@@ -265,9 +269,11 @@ export default function CycleScreen() {
   // MB-7: máscara embarazo — si está activo, el pilar muestra semana gestacional
   // + trimestre, NUNCA predicción de menstruación (doctrina 080). Sensibilidad
   // extra: cero lenguaje de riesgo, solo la etapa.
+  // MB-22 P4: en acompañante NUNCA se deriva embarazo — ese estado es del
+  // cuerpo del usuario, no del calendario que lleva de otra persona.
   const pregnancy = useMemo(
-    () => derivePregnancyProgress(pregnancyStatus, new Date()),
-    [pregnancyStatus],
+    () => (acompanante ? null : derivePregnancyProgress(pregnancyStatus, new Date())),
+    [pregnancyStatus, acompanante],
   );
 
   // M3.b: la longitud del ciclo APRENDE de lo registrado. Con ≥2 ciclos
@@ -483,7 +489,7 @@ export default function CycleScreen() {
   // ═══ RENDER: LOADING ═══
   // MB-7: mientras el gate verifica o bloquea (no-female), no renderizar
   // contenido de ciclo — solo el loader neutro.
-  if (loading || gate !== 'allowed') {
+  if (loading || gate.state !== 'allowed') {
     return (
       <Screen>
         <PillarHeader pillar="cycle" title="Ciclo" />
@@ -506,6 +512,18 @@ export default function CycleScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: Spacing.md, paddingBottom: Spacing.xxl * 2 }}
       >
+        {/* ── MB-22 P4: banner de modo acompañante — la verdad, clarísima. ── */}
+        {acompanante && (
+          <Animated.View entering={FadeInUp.springify()} style={st.acompBanner}>
+            <Ionicons name="people-outline" size={16} color={ROSE} />
+            <EliteText style={st.acompText}>
+              Modo acompañante: este calendario es de otra persona y lo llevas
+              tú, con lo que sabes. No se conecta con ninguna cuenta, y nada de
+              aquí entra a tu Edad ATP ni a ARGOS.
+            </EliteText>
+          </Animated.View>
+        )}
+
         {/* ── 1. Card de fase actual (o máscara embarazo) ── */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           {pregnancy ? (
@@ -575,7 +593,11 @@ export default function CycleScreen() {
                   ? `Ciclo de ${cycleLen} días: promedio de tus últimos ${observed.cyclesUsed} ciclos registrados.`
                   : `Ciclo de ${cycleLen} días, según tus ajustes. Con más registros el número se afina solo.`}
               </EliteText>
-              <EliteText style={st.phaseDesc}>{phaseInfo.description}</EliteText>
+              {/* MB-22 P4: el copy de fase le habla al cuerpo de quien cicla
+                  ("tu ventana", "métele") — en acompañante no aplica. */}
+              {!acompanante && (
+                <EliteText style={st.phaseDesc}>{phaseInfo.description}</EliteText>
+              )}
             </GradientCard>
           ) : (
             <GradientCard gradient={PILLAR_GRADIENTS.cycle} style={{ marginBottom: Spacing.sm }} padding={Spacing.lg}>
@@ -587,7 +609,9 @@ export default function CycleScreen() {
                 <EliteText style={{ color: TEXT_COLORS.secondary, fontSize: FontSizes.sm, textAlign: 'center' }}>
                   {loadFailed
                     ? 'Tus registros siguen guardados. Revisa tu conexión y vuelve a entrar.'
-                    : 'Registra tu primer día de período para comenzar el tracking.'}
+                    : acompanante
+                      ? 'Registra el primer día de período para comenzar el calendario.'
+                      : 'Registra tu primer día de período para comenzar el tracking.'}
                 </EliteText>
               </View>
             </GradientCard>
@@ -951,6 +975,26 @@ export default function CycleScreen() {
 // ═══ ESTILOS ═══
 
 const st = StyleSheet.create({
+  // ── MB-22 P4: banner de modo acompañante ──
+  acompBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: withOpacity('#D4537E', 0.10),
+    borderWidth: 0.5,
+    borderColor: withOpacity('#D4537E', 0.3),
+    borderRadius: Radius.card,
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  acompText: {
+    flex: 1,
+    color: TEXT_COLORS.secondary,
+    fontSize: FontSizes.xs,
+    fontFamily: Fonts.semiBold,
+    lineHeight: 17,
+  },
+
   // ── Fase ──
   phaseRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   phaseDay: { color: TEXT_COLORS.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold, letterSpacing: 1 },
