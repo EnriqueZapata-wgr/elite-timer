@@ -1676,6 +1676,10 @@ export async function saveConversation(
   userId: string,
   messages: ArgosMessage[],
   existingId?: string | null,
+  // MB-21 Pieza 2: ancla de sesión (migración 253). El update TAMBIÉN la
+  // escribe: retomar una conversación vieja desde el historial la adopta en
+  // la sesión actual, y volver al tab la retoma como se espera.
+  sessionId?: string | null,
 ): Promise<string | null> {
   const title = messages[0]?.content?.slice(0, 50) || 'Conversación';
 
@@ -1683,7 +1687,10 @@ export async function saveConversation(
     // Actualizar conversación existente
     const { error } = await supabase
       .from('argos_conversations')
-      .update({ messages, title, updated_at: new Date().toISOString() })
+      .update({
+        messages, title, updated_at: new Date().toISOString(),
+        ...(sessionId ? { session_id: sessionId } : {}),
+      })
       .eq('id', existingId);
     if (error) console.error('Update conversation error:', error);
     return existingId;
@@ -1696,6 +1703,7 @@ export async function saveConversation(
       user_id: userId,
       title,
       messages,
+      ...(sessionId ? { session_id: sessionId } : {}),
     })
     .select('id')
     .single();
@@ -1707,13 +1715,15 @@ export async function saveConversation(
   return data?.id || null;
 }
 
-export async function loadConversations(userId: string, limit: number = 20): Promise<any[]> {
+export async function loadConversations(userId: string, limit: number = 20, offset: number = 0): Promise<any[]> {
+  // MB-21: session_id viaja para la regla de sesiones (autoLoadRecent);
+  // offset habilita la paginación del panel (Pieza 3).
   const { data } = await supabase
     .from('argos_conversations')
-    .select('id, title, messages, updated_at')
+    .select('id, title, messages, updated_at, session_id')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
   return data || [];
 }
 

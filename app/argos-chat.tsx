@@ -38,6 +38,8 @@ import { logConsent, getConsentStatus } from '@/src/services/consent-log-service
 import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
 import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
+import { getArgosSessionId, startNewArgosSession } from '@/src/services/argos-session';
+import { shouldAttemptResume, resumeTarget } from '@/src/services/argos-session-core';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
@@ -180,16 +182,23 @@ function ArgosChat() {
     return () => { stopSpeaking(); stopPlayback().catch(() => {}); };
   }, [userId]));
 
-  // Auto-cargar la conversación más reciente si no hay una activa
-  // (salvo que se haya pedido conversación nueva desde el historial: new=1).
+  // MB-21 Pieza 2: una sesión de app es una conversación. Solo se retoma la
+  // conversación más reciente si pertenece a la sesión actual (ancla en
+  // session_id, migración 253). Abrir la app en frío = sesión nueva = chat en
+  // blanco; salir del tab y volver dentro de la misma sesión = retomar.
   async function autoLoadRecent() {
-    if (!userId || params.new === '1') return;
-    if (messages.length > 0 || conversationId) return;
+    if (!userId) return;
+    if (!shouldAttemptResume({
+      hasMessages: messages.length > 0,
+      activeConversationId: conversationId,
+      requestedNew: params.new === '1',
+    })) return;
     const convs = await loadConversations(userId, 1);
-    if (convs[0]) {
-      const msgs = await loadConversation(convs[0].id);
+    const targetId = resumeTarget(convs[0] ?? null, getArgosSessionId());
+    if (targetId) {
+      const msgs = await loadConversation(targetId);
       setMessages(msgs);
-      setConversationId(convs[0].id);
+      setConversationId(targetId);
     }
   }
 
@@ -395,7 +404,7 @@ function ArgosChat() {
       // Solo guardar si hay al menos un par válido (no guardar conversación vacía).
       if (cleanForSave.length > 0 && !wasDegraded) {
         try {
-          const id = await saveConversation(userId, cleanForSave, conversationId);
+          const id = await saveConversation(userId, cleanForSave, conversationId, getArgosSessionId());
           if (id) setConversationId(id);
         } catch (e) {
           console.warn('ARGOS saveConversation error:', e);
@@ -408,6 +417,11 @@ function ArgosChat() {
     stopSpeaking();
     setMessages([]);
     setConversationId(null);
+    // MB-21 Pieza 2: cerrar DE VERDAD. Rotar el ancla de sesión hace que la
+    // conversación anterior deje de ser retomable por foco (el bug era:
+    // cambiar de tab y volver la resucitaba). No se borra nada: sigue en el
+    // historial.
+    startNewArgosSession();
   }
 
   function handleVoiceTranscript(text: string) {
@@ -756,7 +770,7 @@ function ArgosChat() {
           // antes solo el flujo de texto llamaba saveConversation y una
           // conversación 100% de voz se perdía al salir de la pantalla.
           if (userId) {
-            saveConversation(userId, next.filter(m => !m.degraded), conversationId)
+            saveConversation(userId, next.filter(m => !m.degraded), conversationId, getArgosSessionId())
               .then((id) => { if (id) setConversationId(id); })
               .catch((e) => console.warn('ARGOS saveConversation (voz) error:', e));
           }
