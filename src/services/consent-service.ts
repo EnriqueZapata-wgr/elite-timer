@@ -54,14 +54,26 @@ export function invalidateArgosConsentCache(userId?: string) {
 /**
  * ¿El usuario permite que ARGOS use contexto histórico rico?
  * Si false: argos-service manda solo el mensaje actual (sin expediente).
- * Fail-open a `true` (default del schema) si la query falla.
+ *
+ * MB-21 P7: query directa (no getConsent) para DISTINGUIR "no hay fila"
+ * (default del schema: ON) de "la query falló". Un fallo LANZA — supabase-js
+ * no lanza en 4xx (MB-6), así que {error} es la señal — y el caller decide;
+ * el gate de ARGOS decide CERRADO (sin verificación no viajan datos de
+ * salud). Antes getConsent devolvía defaults ante error y un usuario que
+ * revocó quedaba fail-open. Un fallo no se cachea.
  */
 export async function hasArgosMemoryConsent(userId: string): Promise<boolean> {
   const now = Date.now();
   if (argosConsentCache && argosConsentCache.userId === userId && now - argosConsentCache.at < ARGOS_CONSENT_TTL_MS) {
     return argosConsentCache.value;
   }
-  const consent = await getConsent(userId);
-  argosConsentCache = { userId, value: consent.argos_persistent_memory, at: now };
-  return consent.argos_persistent_memory;
+  const { data, error } = await supabase
+    .from('user_consent')
+    .select('argos_persistent_memory')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw new Error(`[consent] query failed: ${error.message}`);
+  const value = data ? !!data.argos_persistent_memory : CONSENT_DEFAULTS.argos_persistent_memory;
+  argosConsentCache = { userId, value, at: now };
+  return value;
 }
