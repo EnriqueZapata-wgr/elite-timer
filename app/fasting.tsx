@@ -34,6 +34,9 @@ import { fastingGateDecision, fastingAlertForHours, type GateDecision } from '@/
 import { getSafetyState } from '@/src/services/safety/protocol-gate-service';
 import { getSafetyParams, DEFAULT_SAFETY_PARAMS, type FastingSafetyParams } from '@/src/services/safety/safety-params-service';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
+// MB-22: la lista de protocolos vive en constants (fuente única, compartida
+// con la ficha de Ayuno del Centro).
+import { FASTING_PROTOCOLS } from '@/src/constants/fasting-protocols';
 
 // Presets rápidos para los wheel pickers (reemplazan mode="datetime").
 const START_PRESETS = [
@@ -96,17 +99,6 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const OVERTIME_RADIUS = RADIUS - STROKE_WIDTH / 2 - 4;
 const OVERTIME_CIRCUMFERENCE = 2 * Math.PI * OVERTIME_RADIUS;
 
-// Protocolos de ayuno (copy es-MX — E.3: toda sigla se explica)
-const FASTING_PROTOCOLS = [
-  { id: '12:12', hours: 12, label: '12:12', description: 'Para empezar — 12 h de ayuno, 12 de alimentación', color: '#22c55e' },
-  { id: '14:10', hours: 14, label: '14:10', description: 'Intermedio — 14 h de ayuno, 10 de alimentación', color: '#38bdf8' },
-  { id: '16:8', hours: 16, label: '16:8', description: 'El clásico — 16 h de ayuno, 8 de alimentación', color: '#a8e02a' },
-  { id: '18:6', hours: 18, label: '18:6', description: 'Avanzado — 18 h de ayuno, 6 de alimentación', color: '#f59e0b' },
-  { id: '20:4', hours: 20, label: '20:4', description: 'Exigente — 20 h de ayuno, 4 de alimentación', color: '#f97316' },
-  { id: '24:0', hours: 24, label: 'OMAD', description: 'Una comida al día — 24 h de ayuno', color: '#ef4444' },
-  { id: '36:0', hours: 36, label: '36 h', description: 'Extendido — 36 horas, requiere experiencia', color: '#c084fc' },
-  { id: '72:0', hours: 72, label: '72 h', description: 'Prolongado — 72 horas, con protocolo de seguridad', color: '#ec4899' },
-];
 
 // MB-8 Track F.1: las fases metabólicas viven parametrizadas en UN solo lugar
 // (src/constants/fasting-phases — ventanas PROVISIONALES, las cierra Enrique).
@@ -242,20 +234,15 @@ export default function FastingScreen() {
   }, []);
 
   // Sprint 1.5 B/C: el timer arrancaba SIEMPRE 16:8 hardcoded. Ahora inicializa
-  // del goal del user (user_day_preferences.goals.fasting_hours). Con la muerte
-  // de protocol-config, el picker de ESTA pantalla es el writer del goal.
+  // del goal del user. MB-22: lectura y escritura viven en fasting-service
+  // (getFastingGoalHours/setFastingGoalHours), compartidas con la ficha de
+  // Ayuno del Centro — un dato, un writer.
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      try {
-        const { data } = await supabase
-          .from('user_day_preferences').select('goals').eq('user_id', userId).maybeSingle();
-        const hours = (data?.goals as any)?.fasting_hours;
-        if (typeof hours === 'number') {
-          const match = FASTING_PROTOCOLS.find(p => p.hours === hours);
-          if (match) setSelectedProtocol(prev => (activeFast ? prev : match));
-        }
-      } catch { /* default 16:8 */ }
+      const hours = await fastingService.getFastingGoalHours(userId);
+      const match = FASTING_PROTOCOLS.find(p => p.hours === hours);
+      if (match) setSelectedProtocol(prev => (activeFast ? prev : match));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -263,15 +250,7 @@ export default function FastingScreen() {
   /** Persiste el protocolo elegido como goal (merge sobre goals existentes). */
   const persistFastingGoal = useCallback(async (hours: number) => {
     if (!userId) return;
-    try {
-      const { data, error: readErr } = await supabase
-        .from('user_day_preferences').select('goals').eq('user_id', userId).maybeSingle();
-      if (readErr) logWarn('[fasting] goals read failed:', readErr.message);
-      const goals = { ...((data?.goals as any) ?? {}), fasting_hours: hours };
-      // MB-8 Track B (G8): el try/catch no atrapa 4xx — chequear {error}.
-      const { error } = await supabase.from('user_day_preferences').upsert({ user_id: userId, goals });
-      if (error) logWarn('[fasting] goal upsert failed:', error.message);
-    } catch (e) { logWarn('[fasting] persistFastingGoal failed:', e); }
+    await fastingService.setFastingGoalHours(userId, hours);
   }, [userId]);
 
   useFocusEffect(useCallback(() => {

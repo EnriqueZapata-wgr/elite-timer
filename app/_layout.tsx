@@ -217,6 +217,7 @@ function RootLayout() {
                 <Stack.Screen name="atp-orden" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 {/* MB-22: el Centro ATP — instalador y configurador de apps */}
                 <Stack.Screen name="centro/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
+                <Stack.Screen name="centro/[appKey]" options={{ headerShown: false, animation: 'slide_from_right' }} />
                 <Stack.Screen name="quiz/chronotype" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="nutrition" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="food-scan" options={{ animation: 'slide_from_bottom' }} />

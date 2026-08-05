@@ -27,8 +27,9 @@ import { JOURNAL_TYPES } from '@/src/constants/journal-types';
 import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
 import { Screen } from '@/src/components/ui/Screen';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import * as Notifications from 'expo-notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  getJournalReminder, setJournalReminderEnabled, setJournalReminderTime,
+} from '@/src/services/journal-reminder-service';
 
 // ═══ CONSTANTES ═══
 
@@ -109,66 +110,32 @@ export default function JournalScreen() {
   const [reminderTime, setReminderTime] = useState('21:00');
   const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
 
-  // Cargar preferencia de recordatorio + hora guardada
-  useEffect(() => {
-    AsyncStorage.getItem('@atp/journal_reminder').then(v => {
-      if (v === 'true') setReminderEnabled(true);
+  // MB-22: la lógica del recordatorio vive en journal-reminder-service
+  // (compartida con la ficha de Journal del Centro). Al enfocar se relee:
+  // si lo cambiaste en el Centro, aquí ya está.
+  useFocusEffect(useCallback(() => {
+    getJournalReminder().then((r) => {
+      setReminderEnabled(r.enabled);
+      setReminderTime(r.time);
     });
-    AsyncStorage.getItem('@atp/journal_reminder_time').then(v => {
-      if (v) setReminderTime(v);
-    });
-  }, []);
-
-  // #28: cancelar SOLO el recordatorio propio (identifier namespaced). cancelAll
-  // borraría las notificaciones locales de agenda (@atp/agenda_notif_ids) y viceversa.
-  async function cancelJournalReminder() {
-    const prevId = await AsyncStorage.getItem('@atp/journal_notif_id');
-    if (prevId) {
-      try { await Notifications.cancelScheduledNotificationAsync(prevId); } catch { /* ya no existe */ }
-      await AsyncStorage.removeItem('@atp/journal_notif_id');
-    }
-  }
-
-  async function scheduleReminder(timeStr: string) {
-    await cancelJournalReminder();
-    const identifier = await Notifications.scheduleNotificationAsync({
-      content: {
-        title: 'ATP — Descarga mental',
-        body: '¿Cómo estuvo tu día? Tómate 5 minutos para escribir.',
-        sound: true,
-      },
-      trigger: {
-        type: Notifications.SchedulableTriggerInputTypes.DAILY,
-        hour: parseInt(timeStr.split(':')[0]),
-        minute: parseInt(timeStr.split(':')[1]),
-      },
-    });
-    await AsyncStorage.setItem('@atp/journal_notif_id', identifier);
-  }
+  }, []));
 
   async function toggleReminder(enabled: boolean) {
     setReminderEnabled(enabled);
-    await AsyncStorage.setItem('@atp/journal_reminder', enabled ? 'true' : 'false');
-    if (enabled) {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permiso necesario', 'Necesitamos permiso de notificaciones para el recordatorio.');
-        setReminderEnabled(false);
-        return;
-      }
-      await scheduleReminder(reminderTime);
-      haptic.success();
-    } else {
-      await cancelJournalReminder();
+    const r = await setJournalReminderEnabled(enabled, reminderTime);
+    if (!r.ok) {
+      Alert.alert('Permiso necesario', 'Necesitamos permiso de notificaciones para el recordatorio.');
+      setReminderEnabled(false);
+      return;
     }
+    if (enabled) haptic.success();
   }
 
   async function handleReminderTimeConfirm(date: Date) {
     const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     setReminderTime(timeStr);
     setReminderPickerOpen(false);
-    await AsyncStorage.setItem('@atp/journal_reminder_time', timeStr);
-    if (reminderEnabled) await scheduleReminder(timeStr);
+    await setJournalReminderTime(timeStr, reminderEnabled);
     haptic.success();
   }
 

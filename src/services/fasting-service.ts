@@ -299,3 +299,50 @@ export async function autoCloseAtLimit(params: {
   }
   return { ok: true, data: data[0] as FastingLog };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Meta de ayuno (MB-22 Pieza 3) — misma llave que escribe el picker de
+// app/fasting.tsx: user_day_preferences.goals.fasting_hours. La ficha de
+// Ayuno del Centro edita ESTA meta; el ayuno activo no se toca desde ahí
+// (su target se cambia en el timer, que corre el gate de seguridad).
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const DEFAULT_FASTING_GOAL_HOURS = 16;
+
+export async function getFastingGoalHours(userId: string): Promise<number> {
+  try {
+    const { data } = await supabase
+      .from('user_day_preferences')
+      .select('goals')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const hours = (data?.goals as any)?.fasting_hours;
+    if (typeof hours === 'number' && hours > 0) return hours;
+    return DEFAULT_FASTING_GOAL_HOURS;
+  } catch {
+    return DEFAULT_FASTING_GOAL_HOURS;
+  }
+}
+
+export async function setFastingGoalHours(userId: string, hours: number): Promise<boolean> {
+  try {
+    const { data, error: readErr } = await supabase
+      .from('user_day_preferences')
+      .select('goals')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (readErr) logWarn('[fasting-service] goals read failed:', readErr.message);
+    const goals = { ...((data?.goals as any) ?? {}), fasting_hours: hours };
+    const { error } = await supabase
+      .from('user_day_preferences')
+      .upsert({ user_id: userId, goals }, { onConflict: 'user_id' });
+    if (error) {
+      logWarn('[fasting-service] goal upsert failed:', error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    logWarn('[fasting-service] setFastingGoalHours failed:', e);
+    return false;
+  }
+}
