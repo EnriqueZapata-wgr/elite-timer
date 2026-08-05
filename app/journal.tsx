@@ -27,9 +27,9 @@ import { JOURNAL_TYPES } from '@/src/constants/journal-types';
 import { MenteHubCard } from '@/src/components/mente/MenteHubCard';
 import { Screen } from '@/src/components/ui/Screen';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import {
-  getJournalReminder, setJournalReminderEnabled, setJournalReminderTime,
-} from '@/src/services/journal-reminder-service';
+// MB-23 P3: el recordatorio es un aviso por app (app-avisos-service). El
+// maestro y las horas de silencio de Ajustes general mandan sobre él.
+import { getAppAviso, updateAppAviso } from '@/src/services/app-avisos-service';
 
 // ═══ CONSTANTES ═══
 
@@ -110,21 +110,25 @@ export default function JournalScreen() {
   const [reminderTime, setReminderTime] = useState('21:00');
   const [reminderPickerOpen, setReminderPickerOpen] = useState(false);
 
-  // MB-22: la lógica del recordatorio vive en journal-reminder-service
-  // (compartida con la ficha de Journal del Centro). Al enfocar se relee:
-  // si lo cambiaste en el Centro, aquí ya está.
+  // MB-23 P3: el recordatorio vive en app-avisos-service (compartido con la
+  // ficha de Journal del Centro). Al enfocar se relee: si lo cambiaste en el
+  // Centro, aquí ya está.
   useFocusEffect(useCallback(() => {
-    getJournalReminder().then((r) => {
+    if (!user?.id) return;
+    getAppAviso(user.id, 'journal').then((r) => {
       setReminderEnabled(r.enabled);
       setReminderTime(r.time);
     });
-  }, []));
+  }, [user?.id]));
 
   async function toggleReminder(enabled: boolean) {
+    if (!user?.id) return;
     setReminderEnabled(enabled);
-    const r = await setJournalReminderEnabled(enabled, reminderTime);
+    const r = await updateAppAviso(user.id, 'journal', { enabled });
     if (!r.ok) {
-      Alert.alert('Permiso necesario', 'Necesitamos permiso de notificaciones para el recordatorio.');
+      if (r.reason === 'permission') {
+        Alert.alert('Permiso necesario', 'Necesitamos permiso de notificaciones para el recordatorio.');
+      }
       setReminderEnabled(false);
       return;
     }
@@ -132,10 +136,11 @@ export default function JournalScreen() {
   }
 
   async function handleReminderTimeConfirm(date: Date) {
+    if (!user?.id) return;
     const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     setReminderTime(timeStr);
     setReminderPickerOpen(false);
-    await setJournalReminderTime(timeStr, reminderEnabled);
+    await updateAppAviso(user.id, 'journal', { time: timeStr });
     haptic.success();
   }
 

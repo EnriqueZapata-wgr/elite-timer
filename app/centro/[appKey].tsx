@@ -37,8 +37,9 @@ import {
 import { getUserWaterGoal, setUserWaterGoal } from '@/src/services/hydration-service';
 import { getFastingGoalHours, setFastingGoalHours } from '@/src/services/fasting-service';
 import {
-  getJournalReminder, setJournalReminderEnabled, setJournalReminderTime,
-} from '@/src/services/journal-reminder-service';
+  getAppAviso, updateAppAviso, AVISO_APP_KEYS, type AvisoAppKey,
+} from '@/src/services/app-avisos-service';
+import type { AppAvisoPref } from '@/src/services/notification-prefs-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -255,13 +256,19 @@ export default function FichaAppScreen() {
         {/* Configuración — solo lo que ya existía, movido aquí. */}
         {app.key === 'hidratacion' && <ConfigHidratacion userId={user?.id} />}
         {app.key === 'ayuno' && <ConfigAyuno userId={user?.id} />}
-        {app.key === 'journal' && <ConfigJournal />}
         {app.key === 'suplementos' && (
           <ConfigLinkRow
             label="Fichas y horarios de toma"
-            hint="Cada suplemento lleva su momento del día u hora exacta; se editan en su propia pantalla."
+            hint="Cada suplemento lleva su momento del día u hora exacta; se editan en su propia pantalla. Sus avisos de toma viajan con la agenda."
             onPress={() => { haptic.light(); router.push('/supplements'); }}
           />
+        )}
+
+        {/* MB-23 P3: los avisos de la ficha — si avisa, a qué hora y bajo qué
+            condición. V1: hora fija + "solo si no lo has hecho hoy", para las
+            apps cuyo hecho/no-hecho es un electrón del día. */}
+        {(AVISO_APP_KEYS as string[]).includes(app.key) && (
+          <ConfigAviso userId={user?.id} appKey={app.key as AvisoAppKey} />
         )}
 
         <View style={{ height: Spacing.xxl }} />
@@ -431,68 +438,94 @@ function ConfigAyuno({ userId }: { userId?: string }) {
   );
 }
 
-function ConfigJournal() {
-  const [enabled, setEnabled] = useState(false);
-  const [time, setTime] = useState('21:00');
+/**
+ * MB-23 P3: la sección de avisos de la ficha — si avisa, a qué hora y bajo
+ * qué condición. La decisión final NO vive aquí: el interruptor general y
+ * las horas de silencio de Ajustes mandan (planAppAviso, core con test).
+ * Para journal reemplaza al viejo ConfigJournal (el recordatorio legacy se
+ * importa solo, una vez, en el primer sync).
+ */
+function ConfigAviso({ userId, appKey }: { userId?: string; appKey: AvisoAppKey }) {
+  const [pref, setPref] = useState<AppAvisoPref | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   useEffect(() => {
-    getJournalReminder().then((r) => {
-      setEnabled(r.enabled);
-      setTime(r.time);
-    });
-  }, []);
+    if (!userId) return;
+    getAppAviso(userId, appKey).then(setPref);
+  }, [userId, appKey]);
 
-  const toggle = async (next: boolean) => {
-    setEnabled(next);
-    const r = await setJournalReminderEnabled(next, time);
+  if (!pref) return null;
+
+  const apply = async (patch: Partial<AppAvisoPref>) => {
+    if (!userId) return;
+    const prev = pref;
+    setPref({ ...pref, ...patch });
+    const r = await updateAppAviso(userId, appKey, patch);
     if (!r.ok) {
-      Alert.alert('Permiso necesario', 'Necesitamos permiso de notificaciones para el recordatorio.');
-      setEnabled(false);
+      setPref(prev);
+      Alert.alert(
+        r.reason === 'permission' ? 'Permiso necesario' : 'No se pudo',
+        r.reason === 'permission'
+          ? 'Necesitamos permiso de notificaciones para avisarte.'
+          : 'Inténtalo de nuevo en un momento.',
+      );
       return;
     }
-    if (next) haptic.success();
-  };
-
-  const confirmTime = async (date: Date) => {
-    const t = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-    setTime(t);
-    setPickerOpen(false);
-    await setJournalReminderTime(t, enabled);
     haptic.success();
   };
 
   return (
     <Animated.View entering={FadeInUp.delay(180).springify()}>
-      <SectionTitleText>Recordatorio</SectionTitleText>
+      <SectionTitleText>Avisos</SectionTitleText>
       <View style={s.configCard}>
         <View style={s.switchRow}>
-          <EliteText style={s.switchLabel}>Recordatorio diario</EliteText>
+          <EliteText style={s.switchLabel}>Aviso diario</EliteText>
           <Switch
-            value={enabled}
-            onValueChange={toggle}
+            value={pref.enabled}
+            onValueChange={(v) => apply({ enabled: v })}
             trackColor={{ true: ATP_BRAND.teal, false: '#333' }}
             thumbColor="#fff"
           />
         </View>
-        <AnimatedPressable
-          style={s.timeRow}
-          onPress={() => { haptic.light(); setPickerOpen(true); }}
-        >
-          <EliteText style={s.switchLabel}>Hora</EliteText>
-          <EliteText style={s.timeValue}>{time}</EliteText>
-          <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
-        </AnimatedPressable>
+        {pref.enabled && (
+          <>
+            <AnimatedPressable
+              style={s.timeRow}
+              onPress={() => { haptic.light(); setPickerOpen(true); }}
+            >
+              <EliteText style={s.switchLabel}>Hora</EliteText>
+              <EliteText style={s.timeValue}>{pref.time}</EliteText>
+              <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+            </AnimatedPressable>
+            <View style={[s.switchRow, s.timeRow]}>
+              <EliteText style={s.switchLabel}>Solo si no lo has hecho</EliteText>
+              <Switch
+                value={pref.condition === 'not_done_today'}
+                onValueChange={(v) => apply({ condition: v ? 'not_done_today' : 'always' })}
+                trackColor={{ true: ATP_BRAND.teal, false: '#333' }}
+                thumbColor="#fff"
+              />
+            </View>
+          </>
+        )}
+        <EliteText style={s.configHint}>
+          El interruptor general y las horas de silencio de Ajustes mandan:
+          si están apagados o en silencio, este aviso también se calla.
+        </EliteText>
       </View>
       <TimeWheelPicker
         visible={pickerOpen}
         initialValue={(() => {
           const d = new Date();
-          d.setHours(parseInt(time.split(':')[0]), parseInt(time.split(':')[1]), 0, 0);
+          d.setHours(parseInt(pref.time.split(':')[0]), parseInt(pref.time.split(':')[1]), 0, 0);
           return d;
         })()}
-        title="Hora del recordatorio"
-        onConfirm={confirmTime}
+        title="Hora del aviso"
+        onConfirm={(date: Date) => {
+          const t = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          setPickerOpen(false);
+          apply({ time: t });
+        }}
         onCancel={() => setPickerOpen(false)}
       />
     </Animated.View>

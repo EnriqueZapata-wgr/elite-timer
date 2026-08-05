@@ -4,7 +4,10 @@ import {
   timeToMinutes,
   isInQuietHours,
   shouldNotify,
+  planAppAviso,
+  parseAvisoCondition,
   type NotificationPrefs,
+  type AppAvisoPref,
 } from '../notification-prefs-core';
 
 function prefs(p: Partial<NotificationPrefs> = {}): NotificationPrefs {
@@ -80,5 +83,61 @@ describe('shouldNotify (#61 enforcement)', () => {
     const p = prefs({ mode: 'adaptive_argos' });
     expect(shouldNotify(p, 'agenda', MIN(10))).toBe(true);
     expect(shouldNotify(p, 'argos', MIN(10))).toBe(true);
+  });
+});
+
+describe('planAppAviso (MB-23 P3 · avisos por app)', () => {
+  const aviso = (a: Partial<AppAvisoPref> = {}): AppAvisoPref => ({
+    enabled: true,
+    time: '21:00',
+    condition: 'not_done_today',
+    ...a,
+  });
+
+  it('⚠️ EL MAESTRO MANDA: en silent ninguna app avisa, diga lo que diga su ficha', () => {
+    const p = prefs({ mode: 'silent' });
+    expect(planAppAviso(p, aviso(), MIN(10), false)).toBeNull();
+    expect(planAppAviso(p, aviso({ condition: 'always' }), MIN(10), false)).toBeNull();
+    expect(planAppAviso(p, aviso({ time: '09:00' }), MIN(20), true)).toBeNull();
+  });
+
+  it('las horas de silencio aplican a todo: hora de aviso dentro de la ventana → nunca', () => {
+    const p = prefs({ quiet_hours_start: '22:00', quiet_hours_end: '07:00' });
+    expect(planAppAviso(p, aviso({ time: '23:00' }), MIN(10), false)).toBeNull();
+    expect(planAppAviso(p, aviso({ time: '06:30' }), MIN(10), false)).toBeNull();
+    // Fuera de la ventana sí pasa.
+    expect(planAppAviso(p, aviso({ time: '21:00' }), MIN(10), false)).toBe('today');
+  });
+
+  it('ficha apagada → nada, aunque el maestro esté prendido', () => {
+    expect(planAppAviso(prefs(), aviso({ enabled: false }), MIN(10), false)).toBeNull();
+  });
+
+  it('hora futura y no hecho → hoy; hora pasada → mañana', () => {
+    expect(planAppAviso(prefs(), aviso(), MIN(10), false)).toBe('today');
+    expect(planAppAviso(prefs(), aviso(), MIN(22), false)).toBe('tomorrow');
+    // La hora exacta ya no es futura: va a mañana, no dispara al agendar.
+    expect(planAppAviso(prefs(), aviso(), MIN(21), false)).toBe('tomorrow');
+  });
+
+  it('"solo si no lo has hecho hoy": hecho → salta a mañana, que arranca sin hacer', () => {
+    expect(planAppAviso(prefs(), aviso(), MIN(10), true)).toBe('tomorrow');
+  });
+
+  it('condición always: avisa hoy aunque ya lo hayas hecho', () => {
+    expect(planAppAviso(prefs(), aviso({ condition: 'always' }), MIN(10), true)).toBe('today');
+  });
+
+  it('hora inválida → nada (jamás un Date corrupto)', () => {
+    expect(planAppAviso(prefs(), aviso({ time: 'basura' }), MIN(10), false)).toBeNull();
+  });
+});
+
+describe('parseAvisoCondition', () => {
+  it('estricto: basura en DB cae al default seguro', () => {
+    expect(parseAvisoCondition('always')).toBe('always');
+    expect(parseAvisoCondition('not_done_today')).toBe('not_done_today');
+    expect(parseAvisoCondition('siempre')).toBe('not_done_today');
+    expect(parseAvisoCondition(null)).toBe('not_done_today');
   });
 });

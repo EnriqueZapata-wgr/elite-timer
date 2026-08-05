@@ -92,3 +92,50 @@ export function shouldNotify(prefs: NotificationPrefs, channel: NotificationChan
     default: return true;
   }
 }
+
+// ── MB-23 P3 · Avisos por app (modelo mixto) ──
+
+export type AppAvisoCondition = 'not_done_today' | 'always';
+
+export interface AppAvisoPref {
+  enabled: boolean;
+  /** 'HH:MM' — hora fija del aviso. */
+  time: string;
+  condition: AppAvisoCondition;
+}
+
+/** Parse estricto de la condición (basura en DB → default seguro). */
+export function parseAvisoCondition(v: unknown): AppAvisoCondition {
+  return v === 'always' ? 'always' : 'not_done_today';
+}
+
+/**
+ * ¿Cuándo se agenda el próximo aviso de una app? La hora del aviso es FIJA,
+ * así que toda la decisión se toma al agendar (los avisos son notificaciones
+ * locales: no hay código corriendo al disparar).
+ *
+ * ⚠️ EL MAESTRO MANDA: con el modo silent ninguna app avisa, diga lo que
+ * diga su ficha. Y las horas de silencio aplican a todo: una hora de aviso
+ * que cae dentro de la ventana de silencio no suena nunca.
+ *
+ *   'today'    → agenda hoy a aviso.time (la hora aún no pasa y la condición
+ *                lo permite)
+ *   'tomorrow' → agenda mañana (hoy ya pasó la hora, o ya lo hiciste hoy y
+ *                la condición es 'solo si no lo has hecho')
+ *   null       → no se agenda nada (maestro apagado, ficha apagada, hora en
+ *                silencio o inválida)
+ */
+export function planAppAviso(
+  prefs: NotificationPrefs,
+  aviso: AppAvisoPref,
+  minutesNow: number,
+  doneToday: boolean,
+): 'today' | 'tomorrow' | null {
+  if (prefs.mode === 'silent') return null;
+  if (!aviso.enabled) return null;
+  const t = timeToMinutes(aviso.time);
+  if (t == null) return null;
+  if (isInQuietHours(prefs, t)) return null;
+  if (t > minutesNow && !(aviso.condition === 'not_done_today' && doneToday)) return 'today';
+  return 'tomorrow';
+}

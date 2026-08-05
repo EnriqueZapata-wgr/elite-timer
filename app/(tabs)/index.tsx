@@ -15,7 +15,7 @@
  * el AgendaPreviewCard salieron de HOY — el motor del score sigue vivo en
  * compileDay y la agenda completa vive en /agenda (puerta en la lente).
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View, StyleSheet, ScrollView, Pressable, Text,
   DeviceEventEmitter,
@@ -43,6 +43,7 @@ import { supabase } from '@/src/lib/supabase';
 import { haptic } from '@/src/utils/haptics';
 import { generateDailyInsight, invalidateDailyInsight, ARGOS_INSIGHT_CHANGED_EVENT } from '@/src/services/argos-service';
 import { getWeeklyInsight, isWeeklyInsightTime, type WeeklyInsightData } from '@/src/services/weekly-insight-service';
+import { syncAppAvisos } from '@/src/services/app-avisos-service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TopBanner } from '@/src/components/global/TopBanner';
 // hotfix-ux FIX 4: toast de reacción ARGOS + atribución al ganar electrones.
@@ -81,7 +82,15 @@ export default function TodayScreen() {
     if (!user?.id) return;
     try {
       const compiled = await compileDay(user.id, (pct, label) => { setProgress(pct); setProgressLabel(label); });
-      if (compiled) setDay(compiled);
+      if (compiled) {
+        setDay(compiled);
+        // MB-23 P3: los avisos por app se re-evalúan con el hecho/no-hecho
+        // real del día (la condición "solo si no lo has hecho hoy"). Los
+        // eventos electrons_changed/day_changed recompilan → re-sincronizan.
+        const done: Record<string, boolean> = {};
+        for (const e of compiled.booleanElectrons) done[e.source] = e.completed;
+        syncAppAvisos(user.id, done).catch(() => {});
+      }
     } catch (e) {
       console.warn('Error compiling day:', e);
     }
