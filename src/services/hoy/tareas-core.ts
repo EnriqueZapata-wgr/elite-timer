@@ -274,13 +274,11 @@ export interface TareasInput {
 
 export interface TareasResult {
   blocks: TareaBlock[];
-  /** Bloque de la hora actual (auto-foco al abrir). */
-  focusMomento: Momento;
   global: { done: number; total: number };
 }
 
 /** La lente TAREAS: bloques por momento, con progreso por bloque y global. */
-export function buildTareas(input: TareasInput, hour: number): TareasResult {
+export function buildTareas(input: TareasInput): TareasResult {
   const all: Tarea[] = [
     ...input.booleanElectrons.map(boolToTarea),
     ...input.quantitativeElectrons.map(quantToTarea),
@@ -300,7 +298,6 @@ export function buildTareas(input: TareasInput, hour: number): TareasResult {
   }).filter((b) => b.total > 0);
   return {
     blocks,
-    focusMomento: momentoForHour(hour),
     global: {
       done: all.filter((t) => t.completed).length,
       total: all.length,
@@ -338,21 +335,4 @@ export function repartoTareas(agendaItems: Tarea[], blocks: TareaBlock[]): {
       .map((b) => ({ ...b, pending: b.items.filter((t) => !t.completed) }))
       .filter((b) => b.pending.length > 0),
   };
-}
-
-/**
- * A qué bloque va el auto-foco (MB-20.2 · 1.2). El bloque de la hora si tiene
- * pendientes; si ya quedó completo, el siguiente con pendientes; si hacia
- * adelante no queda ninguno pero atrás sí, el primero que siga pendiente.
- * Con el día terminado no hay foco (null): el usuario merece ver la cinta
- * de hechas completa, sin scroll.
- */
-export function pickFocusMomento(
-  pendientes: readonly Momento[],
-  focusMomento: Momento,
-): Momento | null {
-  if (pendientes.includes(focusMomento)) return focusMomento;
-  const idx = MOMENTOS.indexOf(focusMomento);
-  const siguiente = MOMENTOS.slice(idx + 1).find((m) => pendientes.includes(m));
-  return siguiente ?? pendientes[0] ?? null;
 }

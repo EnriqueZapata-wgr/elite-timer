@@ -72,9 +72,6 @@ export default function TodayScreen() {
   const [uvMini, setUvMini] = useState<{ current: number; level: string; color: string; emoji: string; advice: string; vitaminD?: string } | null>(null);
   const [weeklyInsight, setWeeklyInsight] = useState<WeeklyInsightData | null>(null);
   const [weeklyInsightDismissed, setWeeklyInsightDismissed] = useState(false);
-  // MB-20: auto-foco — el scroll aterriza en el bloque de la hora actual.
-  const scrollRef = useRef<ScrollView>(null);
-  const tareasYRef = useRef(0);
 
   // --- Carga de datos ---
   // MB-20: la card AHORA (hero-recommendation) y la racha salieron de HOY con
@@ -284,7 +281,7 @@ export default function TodayScreen() {
       <StatusBar style="light" />
       {/* #23: banner contextual flotante (racha / protones / notifs / insight) */}
       <TopBanner offset={44} />
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scrollContent}>
 
         {/* ═══════════════════════════════════════
             HEADER: saludo + fecha + campana
@@ -318,18 +315,8 @@ export default function TodayScreen() {
         {/* ═══════════════════════════════════════
             TAREAS — el checklist del día, dos lentes (MB-20)
         ═══════════════════════════════════════ */}
-        <View
-          style={{ paddingHorizontal: Spacing.md }}
-          onLayout={(e) => { tareasYRef.current = e.nativeEvent.layout.y; }}
-        >
-          <TareasView
-            day={day}
-            userId={user?.id}
-            uvMini={uvMini}
-            onRequestScroll={(y) => {
-              scrollRef.current?.scrollTo({ y: tareasYRef.current + y - 8, animated: true });
-            }}
-          />
+        <View style={{ paddingHorizontal: Spacing.md }}>
+          <TareasView day={day} userId={user?.id} uvMini={uvMini} />
         </View>
 
         {/* Task #133: Boost H+ — 24h de Pro con Protones (solo tier base / countdown si activo).

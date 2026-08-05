@@ -7,7 +7,6 @@ import {
   buildTareas,
   agendaLens,
   repartoTareas,
-  pickFocusMomento,
   gestoForBool,
   momentoForHour,
   minutesFromMidnight,
@@ -98,7 +97,7 @@ describe('minutesFromMidnight (audit nocturno P4)', () => {
         { id: 'smart-fast', time: '9:30', name: 'Romper ayuno', completed: false, isSmart: true, route: '/fasting' },
       ],
     };
-    const r = buildTareas(input, 10);
+    const r = buildTareas(input);
     const manana = r.blocks.find((b) => b.momento === 'manana')!;
     expect(manana.items.some((t) => t.key === 'agenda-smart-fast')).toBe(true);
     const lens = agendaLens(r);
@@ -117,7 +116,7 @@ describe('minutesFromMidnight (audit nocturno P4)', () => {
         { id: 'smart-fast', time: '00:30', name: 'Romper ayuno', completed: false, isSmart: true, route: '/fasting' },
       ],
     };
-    const r = buildTareas(input, 1);
+    const r = buildTareas(input);
     expect(r.blocks).toHaveLength(1);
     expect(r.blocks[0].momento).toBe('manana');
   });
@@ -146,7 +145,7 @@ describe('gestos', () => {
 });
 
 describe('buildTareas', () => {
-  const r = buildTareas(INPUT, 20);
+  const r = buildTareas(INPUT);
 
   it('agrupa por momento y solo bloques con contenido', () => {
     const labels = r.blocks.map((b) => b.momento);
@@ -161,11 +160,6 @@ describe('buildTareas', () => {
     // global: 8 tareas (5 bool + 2 quant + 1 smart), 2 completas (sunlight + protein)
     expect(r.global.total).toBe(8);
     expect(r.global.done).toBe(2);
-  });
-
-  it('el foco es el bloque de la hora actual', () => {
-    expect(r.focusMomento).toBe('noche');
-    expect(buildTareas(INPUT, 9).focusMomento).toBe('manana');
   });
 
   it('el cuantitativo lleva progreso y el completo palomea', () => {
@@ -189,7 +183,7 @@ describe('buildTareas', () => {
 
 describe('agendaLens', () => {
   it('la MISMA lista, ordenada por hora', () => {
-    const r = buildTareas(INPUT, 9);
+    const r = buildTareas(INPUT);
     const lens = agendaLens(r);
     expect(lens.length).toBe(r.global.total);
     const times = lens.map((t) => t.time);
@@ -232,14 +226,11 @@ describe('routeForBool (MB-20.2 · 2.5)', () => {
   });
 
   it('la tarea compilada refleja la regla (sin ruta ⇒ ni el tap largo navega)', () => {
-    const r = buildTareas(
-      {
-        booleanElectrons: [boolE('sunlight'), boolE('cold_shower'), boolE('no_alcohol'), boolE('red_glasses')],
-        quantitativeElectrons: [],
-        agendaItems: [],
-      },
-      9,
-    );
+    const r = buildTareas({
+      booleanElectrons: [boolE('sunlight'), boolE('cold_shower'), boolE('no_alcohol'), boolE('red_glasses')],
+      quantitativeElectrons: [],
+      agendaItems: [],
+    });
     const items = r.blocks.flatMap((b) => b.items);
     expect(items.find((t) => t.key === 'sunlight')?.route).toBe('/solar');
     expect(items.find((t) => t.key === 'cold_shower')?.route).toBeUndefined();
@@ -260,7 +251,7 @@ describe('routeForBool (MB-20.2 · 2.5)', () => {
 });
 
 describe('repartoTareas (MB-20.2 · 1.3)', () => {
-  const r = buildTareas(INPUT, 14);
+  const r = buildTareas(INPUT);
   const lens = agendaLens(r);
   const { hechas, pendingBlocks } = repartoTareas(lens, r.blocks);
 
@@ -290,30 +281,9 @@ describe('repartoTareas (MB-20.2 · 1.3)', () => {
       quantitativeElectrons: [],
       agendaItems: [],
     };
-    const res = buildTareas(input, 10);
+    const res = buildTareas(input);
     const parts = repartoTareas(agendaLens(res), res.blocks);
     expect(parts.pendingBlocks.map((b) => b.momento)).toEqual(['noche']);
     expect(parts.hechas.map((t) => t.key)).toEqual(['meditation', 'sunlight']);
-  });
-});
-
-describe('pickFocusMomento (MB-20.2 · 1.2)', () => {
-  it('el bloque de la hora, si tiene pendientes', () => {
-    expect(pickFocusMomento(['manana', 'tarde', 'noche'], 'tarde')).toBe('tarde');
-  });
-
-  it('bloque de la hora completo: el siguiente con pendientes', () => {
-    // El escenario del muro que encoge a media tarde.
-    expect(pickFocusMomento(['noche'], 'tarde')).toBe('noche');
-    expect(pickFocusMomento(['manana', 'noche'], 'tarde')).toBe('noche');
-  });
-
-  it('sin pendientes hacia adelante: el primero que siga pendiente', () => {
-    expect(pickFocusMomento(['manana'], 'noche')).toBe('manana');
-  });
-
-  it('día terminado: no hay foco, se ve la cinta completa', () => {
-    expect(pickFocusMomento([], 'tarde')).toBeNull();
-    expect(pickFocusMomento([], 'noche')).toBeNull();
   });
 });
