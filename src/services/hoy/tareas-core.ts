@@ -17,6 +17,8 @@ import {
 import { APP_BY_KEY } from '@/src/constants/app-registry';
 import { ELECTRON_TO_APP } from '@/src/constants/electron-app-bridge';
 import type { ElectronSource } from '@/src/constants/electrons';
+// MB-26 P6: de dónde salió la hora (se borra al compilar; solo el tipo).
+import type { HoraFuente } from '@/src/services/hoy/habit-times-core';
 
 // ── Shapes estructurales (espejo type-only de day-compiler) ──
 
@@ -229,7 +231,19 @@ export function tareaTiming(
   return { momento: TAREA_MOMENTO[source] ?? 'tarde', time: TAREA_TIME[source] ?? '12:00' };
 }
 
-function boolToTarea(e: TareaBoolLike, habitTimes?: Record<string, string>): Tarea {
+/** MB-26 P6: la fila del sol dice de dónde salió su hora — honestidad de
+ *  la degradación ('sin dato UV' cuando cayó a despertar + 30). */
+function notaFuente(fuente?: HoraFuente): string {
+  if (fuente === 'uv') return ' · ventana UV';
+  if (fuente === 'uv_fallback') return ' · sin dato UV';
+  return '';
+}
+
+function boolToTarea(
+  e: TareaBoolLike,
+  habitTimes?: Record<string, string>,
+  horaFuentes?: Record<string, HoraFuente>,
+): Tarea {
   const gesto = gestoForBool(e.source);
   const route = routeForBool(e.source);
   return {
@@ -241,7 +255,7 @@ function boolToTarea(e: TareaBoolLike, habitTimes?: Record<string, string>): Tar
     color: e.color,
     ...tareaTiming(e.source, habitTimes),
     completed: e.completed,
-    meta: `+${e.weight} e-`,
+    meta: `+${e.weight} e-${notaFuente(horaFuentes?.[e.source])}`,
     route,
     weight: e.weight,
   };
@@ -292,6 +306,8 @@ export interface TareasInput {
   agendaItems: TareaAgendaLike[];
   /** MB-23 P4: overrides de hora por hábito (source → 'HH:MM'). */
   habitTimes?: Record<string, string>;
+  /** MB-26 P6: fuente de cada hora (la fila del sol dice si cayó al respaldo). */
+  horaFuentes?: Record<string, HoraFuente>;
 }
 
 export interface TareasResult {
@@ -302,7 +318,7 @@ export interface TareasResult {
 /** La lente TAREAS: bloques por momento, con progreso por bloque y global. */
 export function buildTareas(input: TareasInput): TareasResult {
   const all: Tarea[] = [
-    ...input.booleanElectrons.map((e) => boolToTarea(e, input.habitTimes)),
+    ...input.booleanElectrons.map((e) => boolToTarea(e, input.habitTimes, input.horaFuentes)),
     ...input.quantitativeElectrons.map((q) => quantToTarea(q, input.habitTimes)),
     ...smartAgendaTareas(input.agendaItems),
   ];

@@ -51,6 +51,9 @@ import { getHistorialBooleanos, procesarRecaidas } from '@/src/services/hoy/grad
 import {
   esHoraHHMM, resolverHabitTimes, type HoraFuente,
 } from '@/src/services/hoy/habit-times-core';
+// MB-26 Pieza 6: el sol se ancla a la ventana UV real del día (dato que ya
+// pagamos). Sin permiso/red/dato → null → despertar + 30, nunca sin hora.
+import { getUvInicioHoy } from '@/src/services/sun-window-service';
 
 export { VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, FEMALE_ONLY_ELECTRONS };
 export type { VerifiedElectronKey };
@@ -203,7 +206,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, suppTakenCountRes, cycleLogCountRes,
     lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes, cycleModeRes, habitStatesRes,
-    historialRes, chronoHorarioRes,
+    historialRes, chronoHorarioRes, uvInicioHoy,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -287,6 +290,9 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // resolver las horas-regla de los hábitos.
     supabase.from('user_chronotype').select('wake_time, sleep_time')
       .eq('user_id', userId).maybeSingle(),
+    // MB-26 P6: la ventana UV de hoy (cacheada, timeout corto). Si llega
+    // tarde, el servicio emite un recompile y el sol se recoloca solo.
+    getUvInicioHoy(),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
@@ -445,13 +451,13 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const despertar = wakeFromPrefs ?? horaDeDb(chronoHorario.wake_time) ?? '07:00';
   const dormir = horaDeDb(userGoals.sleep_time) ?? horaDeDb(chronoHorario.sleep_time) ?? '23:00';
 
-  // MB-23 P4 + MB-26 P5: entradas de goals.habit_times (fijas 'HH:MM' o
-  // reglas {ancla, offsetMin}) → horas absolutas del día. El sol sin
-  // entrada se ancla al UV (Pieza 6); hoy el contexto UV llega null y cae
-  // a despertar + 30 con fuente 'uv_fallback' (nunca sin hora).
+  // MB-23 P4 + MB-26 P5/P6: entradas de goals.habit_times (fijas 'HH:MM'
+  // o reglas {ancla, offsetMin}) → horas absolutas del día. El sol sin
+  // entrada del usuario se ancla a la ventana UV real; sin dato cae a
+  // despertar + 30 con fuente 'uv_fallback' (nunca sin hora).
   const { times: habitTimes, fuentes: horaFuentes } = resolverHabitTimes(
     userGoals.habit_times,
-    { despertar, dormir, uvInicio: null },
+    { despertar, dormir, uvInicio: uvInicioHoy },
   );
 
   // Protocol

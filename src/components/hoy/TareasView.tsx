@@ -72,6 +72,7 @@ export function TareasView({ day, userId, uvMini }: Props) {
       quantitativeElectrons: day.quantitativeElectrons,
       agendaItems: day.agendaItems,
       habitTimes: day.habitTimes,
+      horaFuentes: day.horaFuentes,
     });
   }, [day, overrides]);
 

@@ -324,6 +324,12 @@ export default function ArmarScreen() {
                     momento, dentro de su app.
                   </EliteText>
                 )}
+                {plan.habitReglas.sunlight?.ancla === 'uv' && (
+                  <EliteText style={s.resumenNota}>
+                    Luz solar se ancla cada día a tu ventana buena de UV. Sin
+                    dato de ubicación cae a media hora después de despertar.
+                  </EliteText>
+                )}
               </View>
             </Animated.View>
 
