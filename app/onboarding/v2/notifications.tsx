@@ -6,7 +6,7 @@
  */
 import { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { EliteText } from '@/components/elite-text';
@@ -24,13 +24,18 @@ import { ONBOARDING_COPY } from '@/src/constants/onboarding-copy';
 
 const COPY = ONBOARDING_COPY.notifications;
 
+// MB-25 P3: el enlace de salida del onboarding hacia la entrada de tres
+// preguntas. El onboarding NO se rehace: terminar sigue marcando
+// 'completed'; solo cambia a dónde sales.
+const ARMAR_ROUTE: Href = '/packs/armar?origen=onboarding';
+
 export default function V2NotificationsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const analytics = useAnalytics();
   const [loading, setLoading] = useState(false);
 
-  async function finish(withPrompt: boolean) {
+  async function finish(withPrompt: boolean, destino?: Href) {
     if (!user?.id || loading) return;
     setLoading(true);
     try {
@@ -42,7 +47,9 @@ export default function V2NotificationsScreen() {
       // T5 HARDENING: último paso completado → funnel core. notifications es el
       // paso final del flow v2 (completeV2Step marcó 'completed' y enruta a meet).
       analytics.track(ATP_EVENTS.ONBOARDING_COMPLETED, { notifications_enabled: withPrompt });
-      router.replace(next);
+      // MB-25 P3: el enlace de "ármala por mí" sale hacia las tres preguntas;
+      // ese flujo regresa a /argos/meet al terminar (el destino de siempre).
+      router.replace(destino ?? next);
     } finally {
       setLoading(false);
     }
@@ -87,6 +94,13 @@ export default function V2NotificationsScreen() {
         <AnimatedPressable style={s.skipBtn} onPress={() => finish(false)} disabled={loading}>
           <EliteText style={s.skipText}>{COPY.skip}</EliteText>
         </AnimatedPressable>
+        <AnimatedPressable
+          style={s.armarBtn}
+          onPress={() => finish(false, ARMAR_ROUTE)}
+          disabled={loading}
+        >
+          <EliteText style={s.armarText}>{COPY.armarLink}</EliteText>
+        </AnimatedPressable>
       </View>
     </OnboardingShell>
   );
@@ -122,4 +136,6 @@ const s = StyleSheet.create({
   continueBtnText: { fontSize: FontSizes.md, fontFamily: Fonts.bold, color: '#000', letterSpacing: 1 },
   skipBtn: { alignItems: 'center', paddingVertical: 12 },
   skipText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: '#666' },
+  armarBtn: { alignItems: 'center', paddingVertical: 4 },
+  armarText: { fontSize: FontSizes.sm, fontFamily: Fonts.semiBold, color: withOpacity(ATP_BRAND.lime, 0.85) },
 });

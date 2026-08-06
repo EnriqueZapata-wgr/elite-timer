@@ -130,6 +130,8 @@ export const ONBOARDING_COPY = {
     ],
     cta: 'ACTIVAR NOTIFICACIONES',
     skip: 'Ahora no',
+    // MB-25 P3: el enlace de salida hacia la entrada de tres preguntas.
+    armarLink: '¿Quieres que armemos tu app por ti?',
   },
 } as const;
 
