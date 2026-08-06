@@ -91,6 +91,46 @@ Plan completo: **`R and D/PLAN_MAESTRO_V2_A_V21.md`**. Resumen:
 
 ---
 
+# 🛫 MODO REMOTO · vigente del 6 al 9 de agosto de 2026
+
+**Enrique está fuera 3 días y trabaja desde tablet. Su PC está apagada.**
+
+CC corre en `claude.ai/code` (nube, sobre el repo de GitHub), no en la máquina de Enrique.
+Cowork audita las ramas por el conector de GitHub.
+
+## Lo que NO se puede hacer en modo remoto
+
+**Nada que necesite las credenciales locales de Enrique.** En concreto:
+
+- ❌ `npx supabase db push` — la migración se escribe, **no se aplica**
+- ❌ `eas update` — **no hay OTA**, así que nadie puede ver los cambios en el teléfono
+- ❌ Cualquier cosa que dependa de `.env` (está ignorado por git y **no viaja a la nube**,
+  que es lo correcto)
+
+## Las reglas del modo remoto
+
+1. 🚨 **NO se mergea a `main`. Todo se queda en su rama.**
+   Si `main` avanza y no se puede correr `db push` ni el OTA, `main` y lo que trae el
+   teléfono de Enrique se desincronizan. **Con todo en ramas, nada puede romperse en vivo.**
+2. **CC entrega así:** commits por pieza → `git push` de **su rama** → **se detiene**.
+   Sin merge, sin `db push`, sin OTA. El protocolo de cierre normal **queda suspendido**.
+3. **Las migraciones se escriben pero no se aplican.** Que CC lo diga clarísimo en su
+   reporte: *"la migración NNN queda pendiente de `db push`"*.
+4. **Si un test truena por variables de entorno faltantes**, no es el código: es que `.env`
+   no está en la nube. Reportarlo y seguir, no inventar valores.
+5. **El audit de Cowork sigue igual de estricto**, solo que leyendo la rama por GitHub en
+   vez de por disco.
+
+## Al volver a casa, en este orden exacto
+
+1. `git merge` de las ramas ya auditadas
+2. **`npx supabase db push`** ← primero la base
+3. **`eas update --branch preview`** ← después el OTA
+
+⚠️ **Si el OTA sale antes que la migración, la app truena buscando tablas que no existen.**
+
+---
+
 # CÓMO SEGUIR SIN PERDER RITMO
 
 **Desde cualquier dispositivo**, quien retome debe:
