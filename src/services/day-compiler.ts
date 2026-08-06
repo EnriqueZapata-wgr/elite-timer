@@ -42,6 +42,10 @@ import {
 import {
   estadosPorKey, keysActivas, ledgerKeys, type HabitEstado,
 } from '@/src/services/hoy/habit-states-core';
+// MB-26 Pieza 2: graduación (30/35 propone; recaída 5/7 del verificado
+// graduado vuelve sola a activo). El historial es el ledger de siempre.
+import { propuestasDeGraduacion, ultimasFechas, GRADUACION } from '@/src/services/hoy/graduacion-core';
+import { getHistorialBooleanos, procesarRecaidas } from '@/src/services/hoy/graduacion-service';
 
 export { VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, FEMALE_ONLY_ELECTRONS };
 export type { VerifiedElectronKey };
@@ -66,6 +70,9 @@ export interface CompiledDay {
   /** MB-26 P1: estado por hábito (sin entrada = activo). Alimenta el estante
    *  de graduados y las propuestas; el filtro de renglones ya se aplicó. */
   habitStates: Record<string, HabitEstado>;
+  /** MB-26 P2: hábitos activos con 30/35 cumplidos — la app PROPONE aquí;
+   *  aceptar (graduarHabito) es del usuario, nunca del compile. */
+  graduacionPropuestas: string[];
 }
 
 export interface BoolElectronState {
@@ -177,6 +184,8 @@ export type CompileProgress = (pct: number, label: string) => void;
 export async function compileDay(userId: string, onProgress?: CompileProgress): Promise<CompiledDay> {
   const today = getLocalToday();
   const hour = getLocalHour();
+  // MB-26 P2: la ventana de graduación (35 días) sale del ledger de siempre.
+  const desdeGraduacion = ultimasFechas(today, GRADUACION.dias)[0];
   onProgress?.(10, 'Cargando tu perfil');
 
   // Parallelizar queries (incluye verificación de actividad real para los
@@ -185,6 +194,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, suppTakenCountRes, cycleLogCountRes,
     lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes, cycleModeRes, habitStatesRes,
+    historialRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -261,6 +271,9 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // (no lanza) → sin estados = todos activos: nadie pierde nada.
     supabase.from('user_habit_states').select('habit_key, state')
       .eq('user_id', userId),
+    // MB-26 P2: historial de hechos (electron_logs 35 días) para graduación
+    // y recaídas. null = fallo de lectura, NUNCA "todo fallado".
+    getHistorialBooleanos(userId, desdeGraduacion),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
@@ -373,6 +386,19 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
       .filter((k: string) => k !== 'steps' && k !== 'sleep'), // Sin fuente hasta wearables
     habitEstados,
   );
+
+  // MB-26 P2: propuestas de graduación (solo activos con 30/35) y recaídas
+  // (verificado graduado con 5/7 fallados vuelve solo, con aviso sin
+  // regaño). GUARD: con historial null (lectura fallida) NO se calcula
+  // nada — ceros falsos propondrían recaídas que no existen.
+  const graduacionPropuestas = historialRes
+    ? propuestasDeGraduacion(activeBoolKeys, historialRes, today)
+    : [];
+  if (historialRes) {
+    procesarRecaidas(userId, habitEstados, historialRes, today).catch((e) => {
+      logWarn('[compileDay] procesarRecaidas failed', e);
+    });
+  }
 
   // Metas personalizadas del usuario (si guardó en protocol-config)
   const userGoals = (prefs?.goals as any) || {};
@@ -515,6 +541,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     nextElectron, booleanElectrons, quantitativeElectrons,
     suggestion, agendaItems, datosVivos, habitTimes,
     habitStates: habitEstados,
+    graduacionPropuestas,
   };
 }
 

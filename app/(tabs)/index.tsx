@@ -34,6 +34,7 @@ import { NotificationBellIcon } from '@/src/components/hoy/NotificationBellIcon'
 import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import { CommunityPresence } from '@/src/components/community/CommunityPresence';
 import { TareasView } from '@/src/components/hoy/TareasView';
+import { GraduacionCard } from '@/src/components/hoy/GraduacionCard';
 import { ProBoostCard } from '@/src/components/economy/ProBoostCard';
 import { HPlusExplainerCard } from '@/src/components/economy/HPlusExplainerCard';
 import { EconomyHeaderPill } from '@/src/components/economy/EconomyHeaderPill';
@@ -327,6 +328,10 @@ export default function TodayScreen() {
         <View style={{ paddingHorizontal: Spacing.md }}>
           <TareasView day={day} userId={user?.id} uvMini={uvMini} />
         </View>
+
+        {/* MB-26 P2: la propuesta de graduación (30/35). La app propone,
+            el usuario acepta; "Ahora no" la duerme 7 días. */}
+        <GraduacionCard userId={user?.id} propuestas={day.graduacionPropuestas} />
 
         {/* Task #133: Boost H+ — 24h de Pro con Protones (solo tier base / countdown si activo).
             La card trae su propio wrapper: si no aplica no deja hueco. */}
