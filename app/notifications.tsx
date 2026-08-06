@@ -22,6 +22,7 @@ import {
 } from '@/src/services/user-notifications-service';
 import { ATP_BRAND } from '@/src/constants/brand';
 import { ArgosMark } from '@/src/components/argos/ArgosMark';
+import { openArgosChat } from '@/src/services/argos-nav';
 import { Spacing, FontSizes, Fonts, Radius } from '@/constants/theme';
 
 /** "hace 5 min" / "hace 2 h" / "ayer" / "3 jul". */
@@ -138,7 +139,7 @@ export default function NotificationsScreen() {
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
           {/* INSIGHT ARGOS del día — fijado arriba (preservado del modal viejo de la campana). */}
           {insight ? (
-            <Pressable style={styles.insightCard} onPress={() => { haptic.light(); router.push('/argos-chat'); }}>
+            <Pressable style={styles.insightCard} onPress={() => { haptic.light(); openArgosChat({ from: 'notifications' }); }}>
               <View style={styles.insightIcon}>
                 <ArgosMark size={14} />
               </View>

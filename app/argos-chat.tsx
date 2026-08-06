@@ -1,17 +1,20 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import {
-  View, Text, TextInput, ScrollView, Pressable,
-  Keyboard, Platform, Alert,
-} from 'react-native';
+/**
+ * ARGOS Chat — pantalla orquestadora (MB-21 Pieza 4).
+ *
+ * Era un archivo de 800 líneas con estilos a mano y hex crudos. Ahora:
+ *  - Piezas de UI en src/components/argos/chat/ (burbuja, header, input,
+ *    estado vacío, typing, menú de long-press).
+ *  - La resolución del turno en argos-chat-core.ts (pura, con tests).
+ *  - Lista virtualizada (FlatList inverted — el auto-scroll sale gratis).
+ *  - Teclado con el patrón estándar de la app (KEY-1), no listener propio.
+ *  - Sesiones (P2): abrir en frío = en blanco; mismo proceso = retoma.
+ */
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { View, FlatList, KeyboardAvoidingView, Platform, AppState } from 'react-native';
 import { router, useFocusEffect, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Clipboard from 'expo-clipboard';
-import Markdown from 'react-native-markdown-display';
-import Animated, {
-  useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming, withDelay,
-} from 'react-native-reanimated';
 import { supabase } from '../src/lib/supabase';
 import {
   chatWithArgosEx, generateResponseStream, saveConversation, loadConversations,
@@ -23,14 +26,11 @@ import { stopPlayback } from '../src/services/argos-tts';
 import { withPreflight, wasAborted } from '../src/services/economy/with-preflight';
 import { isOnline } from '../src/services/connectivity';
 import { buildOfflineArgosMessage } from '../src/services/argos-offline-core';
-import { VoiceButton } from '../src/components/VoiceButton';
 import { generateUUID } from '../src/utils/uuid';
 import { MedicalDisclaimerGate } from '@/src/components/legal/MedicalDisclaimerGate';
 import { TopBanner } from '@/src/components/global/TopBanner';
 import { CrisisSupportBanner } from '@/src/components/global/CrisisSupportBanner';
 import { detectCrisisContent } from '@/src/services/crisis-detection-core';
-import { ArgosOrb } from '@/src/components/argos/ArgosOrb';
-import { ArgosMark } from '@/src/components/argos/ArgosMark';
 import { ArgosVoiceMode } from '@/src/components/argos/ArgosVoiceMode';
 import { getArgosVoice } from '@/src/services/argos-voice-service';
 import { ContextualConsentModal } from '@/src/components/legal/ContextualConsentModal';
@@ -38,79 +38,38 @@ import { logConsent, getConsentStatus } from '@/src/services/consent-log-service
 import { RateLimitCard } from '@/src/components/argos/RateLimitCard';
 import { parseRateLimitInfo, type RateLimitInfo } from '@/src/services/argos-rate-limit-core';
 import { coerceScreen } from '@/src/hooks/argos-screen-context-core';
+import { getArgosSessionId, startNewArgosSession } from '@/src/services/argos-session';
+import { shouldAttemptResume, resumeTarget, sessionRotatedAway } from '@/src/services/argos-session-core';
+import {
+  resolveTurn, persistPlan, filterForLLM, buildChatListItems, createSendGuard,
+  runTurnWithFallback, type ChatListItem,
+} from '@/src/services/argos-chat-core';
+import { buildTodaySuggestions, DEFAULT_SUGGESTIONS, type ChatSuggestion } from '@/src/services/argos-suggestions-core';
+import { loadTodaySignals } from '@/src/services/argos-suggestions';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useRegisterOwnNav } from '@/src/components/ui/useOwnNavPresence';
-
-// Rule override de react-native-markdown-display: hace el texto seleccionable
-// (la lib no expone selectable como prop directa).
-const MARKDOWN_RULES = {
-  text: (node: any, _children: any, _parent: any, styles: any, inheritedStyles: any = {}) => (
-    <Text key={node.key} selectable style={[inheritedStyles, styles.text]}>
-      {node.content}
-    </Text>
-  ),
-};
-
-// F2.3 (#93): un punto del indicador "ARGOS está pensando..." — pulso con
-// delay escalonado para el efecto de ola.
-function TypingDot({ delay }: { delay: number }) {
-  const opacity = useSharedValue(0.25);
-  useEffect(() => {
-    opacity.value = withDelay(delay, withRepeat(
-      withSequence(
-        withTiming(1, { duration: 320 }),
-        withTiming(0.25, { duration: 320 }),
-      ),
-      -1,
-    ));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  return (
-    <Animated.View style={[{
-      width: 6, height: 6, borderRadius: 3, backgroundColor: '#a8e02a',
-    }, style]} />
-  );
-}
-
-/** F2.3: etiqueta del separador temporal entre mensajes (>5 min de gap). */
-function timestampLabel(ts: number): string {
-  const d = new Date(ts);
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  const time = d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
-  if (sameDay) return time;
-  return `${d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })} · ${time}`;
-}
-
-const TIMESTAMP_GAP_MS = 5 * 60 * 1000;
-
-// Sugerencias rápidas
-const QUICK_SUGGESTIONS = [
-  { label: '¿Qué debería comer?', icon: 'restaurant-outline' as const },
-  { label: '¿Cómo mejorar mi sueño?', icon: 'moon-outline' as const },
-  { label: 'Genera una rutina para hoy', icon: 'barbell-outline' as const },
-  { label: '¿Cómo va mi progreso?', icon: 'trending-up-outline' as const },
-  { label: 'Interpreta mi glucosa', icon: 'analytics-outline' as const },
-  { label: 'Receta alta en proteína', icon: 'nutrition-outline' as const },
-];
+import { ChatHeader } from '@/src/components/argos/chat/ChatHeader';
+import { ChatInput } from '@/src/components/argos/chat/ChatInput';
+import { ChatEmptyState } from '@/src/components/argos/chat/ChatEmptyState';
+import { MessageBubble } from '@/src/components/argos/chat/MessageBubble';
+import { TypingIndicator } from '@/src/components/argos/chat/TypingIndicator';
+import { MessageActionsMenu } from '@/src/components/argos/chat/MessageActionsMenu';
+import { BG } from '@/src/constants/brand';
 
 function ArgosChat() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  // N1: solo mostrar back-arrow si hay a dónde volver (deep link / push). Como tab raíz
-  // no hay historial → canGoBack() es false y se oculta. En main ARGOS es ruta pusheada
-  // (canGoBack true → back visible, sin cambio); el guard ya queda correcto para cuando
-  // ARGOS pase a ser tab (p8). DRY: una sola pantalla sirve a ambos accesos.
+  // N1: solo mostrar back-arrow si hay a dónde volver (deep link / push).
   const canGoBack = navigation.canGoBack();
-  // F2.2: `new=1` (desde el historial) arranca en blanco sin auto-cargar la última conversación.
   const params = useLocalSearchParams<{ conversationId?: string; new?: string; from?: string }>();
-  const scrollRef = useRef<ScrollView>(null);
-  // Guard de re-entrancy (#71): un ref (síncrono) atrapa el doble-tap/re-render ANTES de que
-  // `loading` (state, async) actualice. Sin esto, dos taps a 42ms disparaban 2 requests → doble
-  // cobro H+. El server además es idempotente (spend_protons v2), esto es la 1ª línea de defensa.
-  const sendingRef = useRef(false);
+  // Guard de re-entrada (#71) — la lógica vive en argos-chat-core (con tests);
+  // aquí solo la instancia por pantalla.
+  const sendGuard = useRef(createSendGuard()).current;
+  // MB-21: ancla de la sesión a la que pertenece el contenido EN PANTALLA.
+  // Si el ancla global rota por debajo (background largo), la pantalla se
+  // limpia en vez de adoptar la conversación vieja en la sesión nueva.
+  const screenSessionRef = useRef<string | null>(null);
   const analytics = useAnalytics();
   const [messages, setMessages] = useState<ArgosMessage[]>([]);
   const [input, setInput] = useState('');
@@ -118,37 +77,28 @@ function ArgosChat() {
   const [userId, setUserId] = useState<string | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [autoSpeak, setAutoSpeak] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  // T5 MAGIA 2.0: rate limit contextual — card con boost H+ + avatar 'unavailable'.
+  // T5 MAGIA 2.0: rate limit contextual — card con boost H+ + orbe apagada.
   const [rateLimit, setRateLimit] = useState<RateLimitInfo | null>(null);
   const [boostJustActivated, setBoostJustActivated] = useState(false);
-  // T2 MAGIA 2.0: true mientras llegan chunks del stream — avatar 'speaking'.
+  // T2 MAGIA 2.0: true mientras llegan chunks del stream — orbe 'hablando'.
   const [streaming, setStreaming] = useState(false);
-  // Bug #8: estado offline detectado en el último submit — botón send en modo
-  // warning (sigue tocable para reintentar; cada tap re-verifica la red).
+  // Bug #8: estado offline detectado en el último submit.
   const [offline, setOffline] = useState(false);
-  // Nombre para el copy offline ("Se me fue la señal, {nombre}").
   const [userName, setUserName] = useState<string | null>(null);
   // MB-4 J5: modo voz (full-screen) + voz elegida por el user.
   const [voiceMode, setVoiceMode] = useState(false);
   const [argosVoice, setArgosVoice] = useState<string | null>(null);
-  // CB-6 (Sprint Compliance 2): consentimiento de voz — gate antes del modo voz.
+  // CB-6: consentimiento de voz — gate antes del modo voz.
   const [voiceConsented, setVoiceConsented] = useState(false);
   const [voiceConsentModal, setVoiceConsentModal] = useState(false);
   const [voiceConsentSaving, setVoiceConsentSaving] = useState(false);
-  // C5-002: guardarraíl determinístico — al detectar tema de crisis en un
-  // mensaje del usuario, el banner Línea de la Vida queda fijo en la sesión
-  // (no depende de lo que responda el LLM).
+  // C5-002: guardarraíl determinístico — banner Línea de la Vida fijo en la
+  // sesión al detectar tema de crisis (no depende del LLM).
   const [crisisDetected, setCrisisDetected] = useState(false);
-
-  useEffect(() => {
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvt, (e) =>
-      setKeyboardHeight(e.endCoordinates?.height ?? 0));
-    const hideSub = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
-    return () => { showSub.remove(); hideSub.remove(); };
-  }, []);
+  // MB-21 P4.4: sugerencias del día para el estado vacío.
+  const [suggestions, setSuggestions] = useState<ChatSuggestion[]>(DEFAULT_SUGGESTIONS);
+  // MB-21 P4.4: menú propio de long-press (antes Alert nativo).
+  const [selected, setSelected] = useState<ChatListItem | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -157,54 +107,102 @@ function ArgosChat() {
         setUserId(user.id);
         // Bug #8: nombre para el copy offline (metadata local, sin fetch extra).
         setUserName((user.user_metadata as any)?.full_name ?? null);
-        // MB-4 J5: voz elegida por el user (para el modo voz).
         getArgosVoice(user.id).then(setArgosVoice).catch(() => {});
         // CB-6: ¿ya consintió el tratamiento de voz?
         getConsentStatus(user.id)
           .then(st => setVoiceConsented(st['CB-6']?.action === 'accepted'))
           .catch(() => {});
+        // Sugerencias de HOY (fail-soft: quedan los defaults).
+        loadTodaySignals(user.id)
+          .then(signals => setSuggestions(buildTodaySuggestions(signals)))
+          .catch(() => {});
         if (params.conversationId) {
           const msgs = await loadConversation(params.conversationId);
           setMessages(msgs);
           setConversationId(params.conversationId);
+          // Abrir del historial adopta la conversación en la sesión actual.
+          screenSessionRef.current = getArgosSessionId();
         }
       }
     })();
   }, [params.conversationId]);
 
-  // Detener TTS al salir de la pantalla
+  /** Limpia la pantalla si el ancla global rotó por debajo. Devuelve si limpió. */
+  function clearIfSessionRotated(): boolean {
+    if (!sessionRotatedAway(screenSessionRef.current, getArgosSessionId())) return false;
+    setMessages([]);
+    setConversationId(null);
+    screenSessionRef.current = null;
+    return true;
+  }
+
+  // MB-21: rotar por background debe LIMPIAR la pantalla abierta — si no, el
+  // siguiente envío adoptaba la conversación vieja en la sesión nueva. La
+  // conversación no se pierde: sigue en el historial.
+  useEffect(() => {
+    // Fuerza la suscripción del rotador de sesión ANTES que este listener:
+    // así, al volver a 'active', el ancla ya rotó cuando comparamos.
+    getArgosSessionId();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') clearIfSessionRotated();
+    });
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Detener TTS al salir de la pantalla + retomar por sesión al enfocar.
   useFocusEffect(useCallback(() => {
-    if (userId) autoLoadRecent();
+    // Cubre la instancia vieja que quedó en el stack: al re-enfocarla tras una
+    // rotación (p. ej. "nueva" desde el panel), se limpia en vez de resucitar.
+    const cleared = clearIfSessionRotated();
+    if (userId) autoLoadRecent(cleared);
     // Leak fix (auditoría MB-4): stopSpeaking solo corta el TTS legacy del SO;
     // la voz nueva (expo-audio vía argos-tts) seguía sonando al salir.
     return () => { stopSpeaking(); stopPlayback().catch(() => {}); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]));
 
-  // Auto-cargar la conversación más reciente si no hay una activa
-  // (salvo que se haya pedido conversación nueva desde el historial: new=1).
-  async function autoLoadRecent() {
-    if (!userId || params.new === '1') return;
-    if (messages.length > 0 || conversationId) return;
-    const convs = await loadConversations(userId, 1);
-    if (convs[0]) {
-      const msgs = await loadConversation(convs[0].id);
+  // MB-21 P2: una sesión de app es una conversación. Solo se retoma la más
+  // reciente si pertenece a la sesión actual (ancla session_id, migración 253).
+  // `screenCleared` = la pantalla se acaba de limpiar por rotación: el gate de
+  // shouldAttemptResume evalúa estado ya viejo y se salta.
+  async function autoLoadRecent(screenCleared = false) {
+    if (!userId) return;
+    if (!screenCleared && !shouldAttemptResume({
+      hasMessages: messages.length > 0,
+      activeConversationId: conversationId,
+      // Abrir una conversación específica del panel manda: autoLoadRecent no
+      // debe pisarla (llegaba después y la sobrescribía).
+      requestedConversation: params.conversationId != null,
+      requestedNew: params.new === '1',
+    })) return;
+    const { rows, error } = await loadConversations(userId, 1);
+    if (error) return; // no pude leer ≠ no hay nada: sin resume, sin romper.
+    const targetId = resumeTarget(rows[0] ?? null, getArgosSessionId());
+    if (targetId) {
+      const msgs = await loadConversation(targetId);
       setMessages(msgs);
-      setConversationId(convs[0].id);
+      setConversationId(targetId);
+      screenSessionRef.current = getArgosSessionId();
     }
   }
 
   /**
-   * T2: corre el turno en modo STREAMING (typing effect real, avatar speaking).
+   * T2: corre el turno en modo STREAMING (typing effect real, orbe hablando).
    * Devuelve el texto completo, o null si el stream no está disponible —
    * el caller cae al modo no-stream. ArgosRateLimitError se propaga (T5).
    */
-  async function tryStreamingTurn(cleanForLLM: ArgosMessage[], idempotencyKey: string): Promise<string | null> {
+  async function tryStreamingTurn(
+    cleanForLLM: ArgosMessage[],
+    idempotencyKey: string,
+    turnConversationId: string | null,
+  ): Promise<string | null> {
     if (!userId) return null;
     let full = '';
     let appended = false;
     try {
       const stream = generateResponseStream(userId, cleanForLLM, {
-        conversationId,
+        conversationId: turnConversationId,
         idempotencyKey,
         screenContext: coerceScreen(params.from),
       });
@@ -242,38 +240,47 @@ function ArgosChat() {
     const messageText = text || input.trim();
     if (!messageText || !userId) return;
     // #71: atrapar doble-tap/re-render de forma SÍNCRONA (antes del primer await).
-    if (sendingRef.current) return;
-    sendingRef.current = true;
+    if (!sendGuard.tryAcquire()) return;
     // C5-002: se evalúa ANTES de cualquier red/LLM — funciona incluso offline.
     if (detectCrisisContent(messageText)) setCrisisDetected(true);
-    // Una sola idempotency_key para TODO este turno (incluye los retries internos de callAnthropic).
+    // Una sola idempotency_key para TODO este turno (incluye retries internos).
     const idempotencyKey = generateUUID();
 
-    // Bug #8: submit sin conexión no daba NINGÚN feedback. Ping fail-fast
-    // (2.5s, sin deps nativas) en paralelo con el preflight de economía.
-    // Si no hay red: feedback inmediato en el chat (copy aprobado) y ambos
-    // turnos degraded (no se persisten ni entran al contexto del LLM).
+    // Bug #8: submit sin conexión no daba NINGÚN feedback. Ping fail-fast en
+    // paralelo con el preflight de economía.
     const [online, gate] = await Promise.all([
       isOnline(),
-      // Economía: pre-flight H+ (no-op + byte-idéntico si LAB_ECONOMY_ENABLED=false). Si no
-      // alcanza, aborta ANTES del update optimista (ofrece ir a la tienda). El proxy igual
-      // responde 402 como guard real server-side.
+      // Economía: pre-flight H+ (no-op si LAB_ECONOMY_ENABLED=false). El proxy
+      // igual responde 402 como guard real server-side.
       withPreflight('chat', async () => true),
     ]);
+    // MB-21: si la sesión rotó con la pantalla abierta (el listener de AppState
+    // pudo no alcanzar a limpiar), este turno arranca conversación NUEVA — no
+    // adopta la vieja en la sesión nueva.
+    const rotatedAway = sessionRotatedAway(screenSessionRef.current, getArgosSessionId());
+    if (rotatedAway) setConversationId(null);
+    const base = rotatedAway ? [] : messages;
+    const turnConversationId = rotatedAway ? null : conversationId;
+    // Fuga del turno en vuelo: si la sesión rota MIENTRAS el LLM responde
+    // (background > umbral con el turno en el aire), guardar con el ancla
+    // global ya rotada adoptaría la conversación vieja en la sesión nueva.
+    // El turno entero queda anclado a la sesión con la que ARRANCÓ.
+    const turnSessionId = getArgosSessionId();
+    screenSessionRef.current = turnSessionId;
+    const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
     if (!online) {
-      sendingRef.current = false;
+      sendGuard.release();
       setOffline(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       setInput('');
-      setMessages([
-        ...messages,
-        { role: 'user', content: messageText, degraded: true, ts: Date.now() },
-        { role: 'assistant', content: buildOfflineArgosMessage(userName), degraded: true, ts: Date.now() },
-      ]);
+      // Ambos turnos degraded: no se persisten ni entran al contexto del LLM.
+      setMessages(resolveTurn(base, userTurn, {
+        kind: 'reply', text: buildOfflineArgosMessage(userName), degraded: true,
+      }, Date.now()).messages);
       return;
     }
     if (offline) setOffline(false);
-    if (wasAborted(gate)) { sendingRef.current = false; return; }
+    if (wasAborted(gate)) { sendGuard.release(); return; }
 
     // Detener si ARGOS estaba hablando
     if (getIsSpeaking()) await stopSpeaking();
@@ -281,8 +288,7 @@ function ArgosChat() {
     setInput('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
-    const newMessages: ArgosMessage[] = [...messages, userTurn];
+    const newMessages: ArgosMessage[] = [...base, userTurn];
     setMessages(newMessages);
     // T5 HARDENING: funnel core — mensaje enviado (sin contenido, solo metadata).
     analytics.track(ATP_EVENTS.ARGOS_MESSAGE_SENT, { turn_index: newMessages.length });
@@ -290,112 +296,72 @@ function ArgosChat() {
     // T5: nuevo intento limpia el estado de rate limit anterior
     setRateLimit(null);
     setBoostJustActivated(false);
-    // Auto-scroll: lo maneja onContentSizeChange del ScrollView (F2.1)
 
-    // ARG-1/ARG-8: filtrar turnos degradados ANTES de mandarlos al LLM —
-    // un turno marcado como degraded (rate-limited, ambos providers caídos,
-    // error de cliente) no debe volver a entrar al contexto del modelo.
-    const cleanForLLM = newMessages.filter(m => !m.degraded);
+    // ARG-1/ARG-8: turnos degradados fuera del contexto del modelo.
+    const cleanForLLM = filterForLLM(newMessages);
 
-    let finalMessages: ArgosMessage[] | null = null;
-    let wasDegraded = false;
+    let resolved: ReturnType<typeof resolveTurn> | null = null;
     try {
-      // T2: primero STREAMING (typing effect + avatar speaking). Devuelve null
-      // si el stream no está disponible → fallback graceful al modo no-stream.
-      const streamedText = await tryStreamingTurn(cleanForLLM, idempotencyKey);
-
-      if (streamedText !== null) {
-        const assistantTurn: ArgosMessage = { role: 'assistant', content: streamedText, ts: Date.now() };
-        finalMessages = [...newMessages, assistantTurn];
-        setMessages(finalMessages);
-        if (autoSpeak) {
-          speakArgos(streamedText);
-        }
-      } else {
-        setLoading(true); // el intento de stream pudo haber apagado el indicador
-        const result = await chatWithArgosEx(userId, cleanForLLM, {
-          conversationId,
+      // T2/T5: la orquestación stream→no-stream vive en argos-chat-core (con
+      // tests); aquí solo los efectos de pantalla por desenlace.
+      const run = await runTurnWithFallback({
+        stream: () => tryStreamingTurn(cleanForLLM, idempotencyKey, turnConversationId),
+        reply: () => chatWithArgosEx(userId, cleanForLLM, {
+          conversationId: turnConversationId,
           idempotencyKey,
-          // T4: si el chat se abrió desde una pantalla (floating button), ARGOS lo sabe.
+          // T4: si el chat se abrió desde una pantalla, ARGOS lo sabe.
           screenContext: coerceScreen(params.from),
-        });
-        wasDegraded = result.degraded;
-
-        const assistantTurn: ArgosMessage = wasDegraded
-          ? { role: 'assistant', content: result.text, degraded: true, ts: Date.now() }
-          : { role: 'assistant', content: result.text, ts: Date.now() };
-
-        if (result.rateLimit) {
+        }),
+        // El intento de stream pudo haber apagado el indicador "pensando".
+        onFallback: () => setLoading(true),
+      });
+      switch (run.kind) {
+        case 'streamed':
+          resolved = resolveTurn(base, userTurn, { kind: 'streamed', text: run.text }, Date.now());
+          setMessages(resolved.messages);
+          if (autoSpeak) speakArgos(run.text);
+          break;
+        case 'reply':
+          resolved = resolveTurn(base, userTurn, {
+            kind: 'reply', text: run.text, degraded: run.degraded,
+          }, Date.now());
+          setMessages(resolved.messages);
+          if (!run.degraded && autoSpeak) speakArgos(run.text);
+          break;
+        case 'rate_limited': {
           // T5: rate limit → RateLimitCard (boost H+) en vez de burbuja genérica.
-          // El turno del usuario queda visible pero degraded (no se persiste ni
-          // se reenvía al LLM — patrón ARG-2).
-          const baseMessages = newMessages.slice(0, -1);
-          finalMessages = [...baseMessages, { ...userTurn, degraded: true }];
-          setMessages(finalMessages);
-          setRateLimit(result.rateLimit);
-        } else if (wasDegraded) {
-          // ARG-2: una respuesta degradada NO debe ensuciar contexto futuro.
-          // Marcamos AMBOS turnos (pregunta + respuesta) como degraded → quedan
-          // visibles en la UI pero el filtro de cleanForLLM y de cleanForSave
-          // los excluye en próximos turnos y al persistir.
-          const baseMessages = newMessages.slice(0, -1);
-          finalMessages = [
-            ...baseMessages,
-            { ...userTurn, degraded: true },
-            assistantTurn,
-          ];
-          setMessages(finalMessages);
-          // No invocar speakArgos en respuestas degradadas — son mensajes de error.
-        } else {
-          finalMessages = [...newMessages, assistantTurn];
-          setMessages(finalMessages);
-          if (autoSpeak) {
-            speakArgos(result.text);
-          }
+          resolved = resolveTurn(base, userTurn, { kind: 'rate_limited' }, Date.now());
+          setMessages(resolved.messages);
+          const info = run.info ?? parseRateLimitInfo(run.payload);
+          if (info) setRateLimit(info);
+          break;
         }
-      }
-    } catch (e) {
-      if (e instanceof ArgosRateLimitError) {
-        // T5: rate limit detectado durante el stream — misma UX que no-stream.
-        const info = parseRateLimitInfo(e.payload);
-        const baseMessages = newMessages.slice(0, -1);
-        finalMessages = [...baseMessages, { ...userTurn, degraded: true }];
-        setMessages(finalMessages);
-        if (info) setRateLimit(info);
-        wasDegraded = true;
-      } else {
-        console.error('ARGOS chat error:', e);
-        // Excepción real (no devolución degradada): marcar también como degraded
-        // para no persistir/reenviar este turno fallido.
-        const baseMessages = newMessages.slice(0, -1);
-        const errored: ArgosMessage[] = [
-          ...baseMessages,
-          { ...userTurn, degraded: true },
-          // Copy aprobado por Mariana (doc 06, errores ARGOS >> "se cayó la red").
-          { role: 'assistant', content: 'Se me fue la señal. Reintenta en unos minutos.', degraded: true, ts: Date.now() },
-        ];
-        setMessages(errored);
-        finalMessages = errored;
-        wasDegraded = true;
+        case 'client_error':
+          console.error('ARGOS chat error:', run.error);
+          resolved = resolveTurn(base, userTurn, { kind: 'client_error' }, Date.now());
+          setMessages(resolved.messages);
+          break;
       }
     } finally {
       setLoading(false);
-      sendingRef.current = false; // #71: liberar el guard al terminar el turno
+      sendGuard.release(); // #71: liberar el guard al terminar el turno
       // T5 HARDENING: respuesta recibida (degraded=true si fue rate limit/error).
-      analytics.track(ATP_EVENTS.ARGOS_MESSAGE_RECEIVED, { degraded: wasDegraded });
+      analytics.track(ATP_EVENTS.ARGOS_MESSAGE_RECEIVED, { degraded: resolved?.wasDegraded ?? true });
       // F2.3: feedback háptico sutil al terminar de "pensar"
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
-    // ARG-2: persistir SOLO los turnos no degradados. Si todo el turno fue
-    // degradado, finalMessages.filter(!degraded) puede no haber cambiado
-    // respecto a `messages` (state previo) — saveConversation funciona igual.
-    if (finalMessages) {
-      const cleanForSave = finalMessages.filter(m => !m.degraded);
-      // Solo guardar si hay al menos un par válido (no guardar conversación vacía).
-      if (cleanForSave.length > 0 && !wasDegraded) {
+    // ARG-2: persistir SOLO turnos limpios (persistPlan decide).
+    if (resolved) {
+      // Cerrar el turno restaura el ancla: los setMessages de arriba volvieron
+      // a pintar contenido de la sesión del turno. Si el listener de AppState
+      // limpió la pantalla en pleno vuelo (ancla en null), el siguiente
+      // foco/envío debe poder detectar que este contenido es de la vieja.
+      screenSessionRef.current = turnSessionId;
+      const plan = persistPlan(resolved.messages, resolved.wasDegraded);
+      if (plan.persist) {
         try {
-          const id = await saveConversation(userId, cleanForSave, conversationId);
+          const id = await saveConversation(userId, plan.clean, turnConversationId, turnSessionId);
           if (id) setConversationId(id);
         } catch (e) {
           console.warn('ARGOS saveConversation error:', e);
@@ -408,333 +374,141 @@ function ArgosChat() {
     stopSpeaking();
     setMessages([]);
     setConversationId(null);
+    screenSessionRef.current = null; // pantalla en blanco: sin ancla.
+    // MB-21 P2: cerrar DE VERDAD. Rotar el ancla de sesión hace que la
+    // conversación anterior deje de ser retomable por foco. No se borra nada.
+    startNewArgosSession();
   }
 
+  /** MB-21 P4.4: el dictado DEPOSITA el texto en el input; el usuario decide. */
   function handleVoiceTranscript(text: string) {
-    sendMessage(text);
+    setInput(prev => (prev.trim() ? `${prev.trim()} ${text}` : text));
   }
 
-  /** F2.3: long-press en burbuja → copiar / (user) editar y reenviar. */
-  function handleMessageLongPress(msg: ArgosMessage, index: number) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const actions: { text: string; onPress?: () => void; style?: 'cancel' }[] = [
-      {
-        text: 'Copiar',
-        onPress: async () => {
-          await Clipboard.setStringAsync(msg.content);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        },
-      },
-    ];
-    if (msg.role === 'user' && !loading) {
-      actions.push({
-        text: 'Editar y reenviar',
-        onPress: () => {
-          // Truncar desde este turno: al reenviar, saveConversation sobreescribe
-          // la conversación con el historial editado (mismo conversationId).
-          setMessages(messages.slice(0, index));
-          setInput(msg.content);
-        },
-      });
-    }
-    actions.push({ text: 'Cancelar', style: 'cancel' });
-    Alert.alert('Mensaje', undefined, actions);
+  function handleCopy() {
+    if (!selected) return;
+    Clipboard.setStringAsync(selected.msg.content)
+      .then(() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success))
+      .catch(() => {});
+    setSelected(null);
   }
+
+  function handleEditResend() {
+    if (!selected) return;
+    // Truncar desde este turno: al reenviar, saveConversation sobreescribe
+    // la conversación con el historial editado (mismo conversationId).
+    setMessages(messages.slice(0, selected.index));
+    setInput(selected.msg.content);
+    setSelected(null);
+  }
+
+  // Lista invertida: el más nuevo primero (los separadores se calculan en el
+  // orden cronológico dentro del core).
+  const listItems = useMemo(() => buildChatListItems(messages), [messages]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ flex: 1, backgroundColor: BG.screen }}>
       {/* #23: banner contextual flotante (debajo del header de ARGOS) */}
       <TopBanner offset={60} />
-      {/* Header */}
-      <View style={{
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingHorizontal: 20, paddingTop: insets.top + 8, paddingBottom: 12,
-        borderBottomWidth: 0.5, borderBottomColor: '#1a1a1a',
-      }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {canGoBack && (
-            <Pressable onPress={() => { stopSpeaking(); router.back(); }} hitSlop={12}>
-              <Ionicons name="arrow-back" size={24} color="#fff" />
-            </Pressable>
-          )}
-          {/* MB-20 4.4: la orbe es ARGOS en todas partes. Sin tache rojo: si no
-              está disponible se dice con palabras (RateLimitCard) y la orbe se
-              apaga (estática y atenuada). */}
-          <View style={{ opacity: rateLimit && !boostJustActivated ? 0.35 : 1 }}>
-            <ArgosOrb
-              state={streaming ? 'hablando' : loading ? 'pensando' : 'idle'}
-              size={36}
-              reducedMotion={rateLimit && !boostJustActivated ? true : undefined}
-            />
-          </View>
-          <View>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>ARGOS</Text>
-            <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '600', letterSpacing: 1 }}>
-              SALUD FUNCIONAL
-            </Text>
-          </View>
-        </View>
+      <ChatHeader
+        topInset={insets.top}
+        canGoBack={canGoBack}
+        onBack={() => { stopSpeaking(); router.back(); }}
+        orbState={streaming ? 'hablando' : loading ? 'pensando' : 'idle'}
+        orbDimmed={!!rateLimit && !boostJustActivated}
+        onVoiceMode={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          stopSpeaking();
+          if (voiceConsented) setVoiceMode(true);
+          else setVoiceConsentModal(true);
+        }}
+        autoSpeak={autoSpeak}
+        onToggleAutoSpeak={() => {
+          setAutoSpeak(!autoSpeak);
+          if (getIsSpeaking()) stopSpeaking();
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }}
+        onHistory={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push({ pathname: '/argos/conversations', params: conversationId ? { current: conversationId } : {} });
+        }}
+        onNewConversation={startNewConversation}
+      />
 
-        <View style={{ flexDirection: 'row', gap: 12 }}>
-          {/* MB-4 J5: modo voz full-screen (hablar con ARGOS).
-              CB-6: la primera vez pide consentimiento contextual de voz. */}
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              stopSpeaking();
-              if (voiceConsented) setVoiceMode(true);
-              else setVoiceConsentModal(true);
-            }}
-            hitSlop={12}
-          >
-            <Ionicons name="mic-circle-outline" size={24} color="#a8e02a" />
-          </Pressable>
-          {/* Toggle auto-speak */}
-          <Pressable
-            onPress={() => {
-              setAutoSpeak(!autoSpeak);
-              if (getIsSpeaking()) stopSpeaking();
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            }}
-            hitSlop={12}
-          >
-            <Ionicons
-              name={autoSpeak ? 'volume-high-outline' : 'volume-mute-outline'}
-              size={22}
-              color={autoSpeak ? '#a8e02a' : '#666'}
-            />
-          </Pressable>
-          {/* F2.2: historial → pantalla dedicada */}
-          <Pressable onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/argos/conversations'); }} hitSlop={12}>
-            <Ionicons name="time-outline" size={22} color="#999" />
-          </Pressable>
-          <Pressable onPress={startNewConversation} hitSlop={12}>
-            <Ionicons name="add-circle-outline" size={22} color="#a8e02a" />
-          </Pressable>
-        </View>
-      </View>
-
-      {/* C5-002: banner fijo Línea de la Vida al detectar tema de crisis —
-          guardarraíl determinístico, siempre visible sobre la conversación */}
+      {/* C5-002: banner fijo Línea de la Vida al detectar tema de crisis */}
       {crisisDetected && (
         <CrisisSupportBanner style={{ marginHorizontal: 16, marginTop: 8 }} />
       )}
 
-      {/* Área de mensajes — F2.1: auto-scroll al crecer el contenido (mensaje
-          nuevo, indicador de typing o conversación cargada del historial) */}
-      <ScrollView
-        ref={scrollRef}
+      {/* KEY-1: el contenido se desplaza con la curva nativa del teclado (iOS);
+          Android ya redimensiona (softwareKeyboardLayoutMode resize). */}
+      <KeyboardAvoidingView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 20 }}
-        keyboardShouldPersistTaps="handled"
-        onContentSizeChange={() => {
-          if (messages.length > 0 || loading) scrollRef.current?.scrollToEnd({ animated: true });
-        }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Estado vacío — sugerencias */}
-        {messages.length === 0 && (
-          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-            <ArgosOrb state="idle" size={80} style={{ marginBottom: 16 }} />
-            <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', marginBottom: 4 }}>
-              Hola, soy ARGOS
-            </Text>
-            <Text style={{ color: '#999', fontSize: 13, textAlign: 'center', marginBottom: 24, paddingHorizontal: 20 }}>
-              Tu sistema de inteligencia en salud funcional. Conozco tu historial, tus datos y tus objetivos. Pregúntame lo que quieras.
-            </Text>
-
-            {/* Sugerencias rápidas */}
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-              {QUICK_SUGGESTIONS.map(s => (
-                <Pressable
-                  key={s.label}
-                  onPress={() => sendMessage(s.label)}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: 6,
-                    backgroundColor: '#0a0a0a', borderRadius: 20,
-                    paddingVertical: 10, paddingHorizontal: 14,
-                    borderWidth: 1, borderColor: '#1a1a1a',
-                  }}
-                >
-                  <Ionicons name={s.icon} size={14} color="#a8e02a" />
-                  <Text style={{ color: '#ccc', fontSize: 12 }}>{s.label}</Text>
-                </Pressable>
-              ))}
+        {messages.length === 0 && !loading ? (
+          <View style={{ flex: 1 }}>
+            <ChatEmptyState suggestions={suggestions} onPick={(label) => sendMessage(label)} />
+            <View style={{ paddingHorizontal: 20 }}>
+              {rateLimit && (
+                <RateLimitCard info={rateLimit} onBoostActivated={() => setBoostJustActivated(true)} />
+              )}
+              {/* B-5 (MB-12): disclaimer ARGOS — copy de fuente única */}
+              <MedicalDisclaimer feature="argos" compact />
             </View>
           </View>
-        )}
-
-        {/* Burbujas de mensajes */}
-        {messages.map((msg, index) => (
-          <View key={index} style={{
-            marginBottom: 12,
-            alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
-          }}>
-            {/* F2.3: separador temporal discreto cuando el gap es >5 min */}
-            {msg.ts != null && (index === 0 || (messages[index - 1]?.ts != null && msg.ts - messages[index - 1].ts! > TIMESTAMP_GAP_MS)) && (
-              <Text style={{
-                alignSelf: 'center', color: '#555', fontSize: 10,
-                letterSpacing: 1, marginVertical: 8,
-              }}>
-                {timestampLabel(msg.ts)}
-              </Text>
+        ) : (
+          <FlatList
+            inverted
+            data={listItems}
+            keyExtractor={(item) => String(item.index)}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 20 }}
+            keyboardShouldPersistTaps="handled"
+            // 4.2: virtualizada — cien mensajes hacen scroll fluido. Inverted
+            // resuelve el auto-scroll sin el truco de onContentSizeChange.
+            renderItem={({ item }) => (
+              <MessageBubble
+                msg={item.msg}
+                showTimestamp={item.showTimestamp}
+                onLongPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  setSelected(item);
+                }}
+              />
             )}
-            {msg.role === 'assistant' && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <View style={{
-                  width: 20, height: 20, borderRadius: 10,
-                  backgroundColor: 'rgba(168,224,42,0.15)',
-                  justifyContent: 'center', alignItems: 'center',
-                }}>
-                  <ArgosMark size={12} />
-                </View>
-                <Text style={{ color: '#a8e02a', fontSize: 10, fontWeight: '700' }}>ARGOS</Text>
+            // Con inverted, el header de la lista es el borde INFERIOR (lo más nuevo).
+            ListHeaderComponent={
+              <View>
+                {rateLimit && (
+                  <RateLimitCard info={rateLimit} onBoostActivated={() => setBoostJustActivated(true)} />
+                )}
+                {loading && <TypingIndicator />}
+                <MedicalDisclaimer feature="argos" compact />
               </View>
-            )}
-            {/* Burbuja del mensaje — selectable; long-press → copiar / editar y reenviar (F2.3) */}
-            <Pressable
-              onLongPress={() => handleMessageLongPress(msg, index)}
-              delayLongPress={350}
-              style={{
-                maxWidth: '85%',
-                backgroundColor: msg.role === 'user' ? '#a8e02a' : '#0a0a0a',
-                borderRadius: 18,
-                borderBottomRightRadius: msg.role === 'user' ? 4 : 18,
-                borderBottomLeftRadius: msg.role === 'assistant' ? 4 : 18,
-                padding: 14,
-                borderWidth: msg.role === 'assistant' ? 1 : 0,
-                borderColor: '#1a1a1a',
-              }}
-            >
-              {msg.role === 'assistant' ? (
-                <Markdown
-                  style={{
-                    body: { color: '#e2e2e2', fontSize: 14, lineHeight: 21 },
-                    heading2: { color: '#a8e02a', fontSize: 16, fontWeight: '800', marginTop: 12, marginBottom: 6 },
-                    heading3: { color: '#a8e02a', fontSize: 14, fontWeight: '700', marginTop: 10, marginBottom: 4 },
-                    strong: { color: '#fff', fontWeight: '700' },
-                    bullet_list: { marginLeft: 8 },
-                    list_item: { color: '#e2e2e2', marginBottom: 4 },
-                    hr: { backgroundColor: '#333', height: 0.5, marginVertical: 12 },
-                    em: { color: '#ccc', fontStyle: 'italic' },
-                    paragraph: { color: '#e2e2e2', fontSize: 14, lineHeight: 21, marginBottom: 8 },
-                    // Dark-mode para TODO elemento con default claro de la librería
-                    // (blockquote, code y fences renderizan caja casi blanca / ilegible por defecto).
-                    blockquote: {
-                      backgroundColor: '#111',
-                      borderLeftColor: '#a8e02a',
-                      borderLeftWidth: 3,
-                      borderRadius: 8,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      marginVertical: 8,
-                    },
-                    code_inline: {
-                      backgroundColor: '#1a1a1a',
-                      color: '#e2e2e2',
-                      borderWidth: 0,
-                      fontSize: 13,
-                    },
-                    code_block: {
-                      backgroundColor: '#111',
-                      color: '#e2e2e2',
-                      borderColor: '#1f1f1f',
-                      borderWidth: 0.5,
-                      borderRadius: 8,
-                      padding: 12,
-                    },
-                    fence: {
-                      backgroundColor: '#111',
-                      color: '#e2e2e2',
-                      borderColor: '#1f1f1f',
-                      borderWidth: 0.5,
-                      borderRadius: 8,
-                      padding: 12,
-                    },
-                  }}
-                  rules={MARKDOWN_RULES}
-                >
-                  {msg.content}
-                </Markdown>
-              ) : (
-                <Text selectable style={{ color: '#000', fontSize: 14, lineHeight: 21 }}>
-                  {msg.content}
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        ))}
-
-        {/* T5: card de rate limit con salida transaccional (boost H+) */}
-        {rateLimit && (
-          <RateLimitCard
-            info={rateLimit}
-            onBoostActivated={() => setBoostJustActivated(true)}
+            }
           />
         )}
 
-        {/* F2.3: indicador "ARGOS está pensando..." con dots animados */}
-        {loading && (
-          <View style={{
-            flexDirection: 'row', alignItems: 'center', gap: 10,
-            backgroundColor: '#0a0a0a', borderRadius: 18, borderBottomLeftRadius: 4,
-            padding: 14, alignSelf: 'flex-start', maxWidth: '70%',
-            borderWidth: 1, borderColor: '#1a1a1a',
-          }}>
-            <View style={{ flexDirection: 'row', gap: 4 }}>
-              <TypingDot delay={0} />
-              <TypingDot delay={160} />
-              <TypingDot delay={320} />
-            </View>
-            <Text style={{ color: '#999', fontSize: 13 }}>ARGOS está pensando...</Text>
-          </View>
-        )}
-
-        {/* B-5 (MB-12): disclaimer ARGOS — copy de fuente única */}
-        <MedicalDisclaimer feature="argos" compact />
-      </ScrollView>
-
-      {/* Área de input */}
-      <View style={{
-        flexDirection: 'row', alignItems: 'flex-end', gap: 8,
-        paddingHorizontal: 16, paddingVertical: 12,
-        paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : insets.bottom + 12,
-        borderTopWidth: 0.5, borderTopColor: '#1a1a1a',
-        backgroundColor: '#000',
-      }}>
-        {/* Mic button */}
-        <VoiceButton onTranscript={handleVoiceTranscript} variant="inline" />
-
-        <TextInput
+        <ChatInput
           value={input}
           onChangeText={setInput}
-          placeholder="Pregunta a ARGOS..."
-          placeholderTextColor="#444"
-          multiline
-          maxLength={1000}
-          style={{
-            flex: 1, backgroundColor: '#0a0a0a', color: '#fff',
-            fontSize: 15, borderRadius: 22, paddingHorizontal: 18, paddingVertical: 12,
-            maxHeight: 100, borderWidth: 1, borderColor: '#1a1a1a',
-          }}
+          onSend={() => sendMessage()}
+          loading={loading}
+          offline={offline}
+          bottomInset={insets.bottom}
+          onVoiceTranscript={handleVoiceTranscript}
         />
-        <Pressable
-          onPress={() => sendMessage()}
-          disabled={!input.trim() || loading}
-          style={{
-            width: 44, height: 44, borderRadius: 22,
-            // Bug #8: sin red el botón pasa a warning (ámbar). Sigue tocable:
-            // cada tap re-verifica la conexión y limpia el estado si volvió.
-            backgroundColor: input.trim() && !loading ? (offline ? '#e0a02a' : '#a8e02a') : '#1a1a1a',
-            justifyContent: 'center', alignItems: 'center',
-          }}
-        >
-          <Ionicons
-            name={offline ? 'cloud-offline-outline' : 'arrow-up'}
-            size={22}
-            color={input.trim() && !loading ? '#000' : '#444'}
-          />
-        </Pressable>
-      </View>
+      </KeyboardAvoidingView>
+
+      {/* MB-21 P4.4: menú propio de long-press (Copiar / Editar y reenviar) */}
+      <MessageActionsMenu
+        visible={selected != null}
+        canEdit={selected?.msg.role === 'user' && !loading}
+        onCopy={handleCopy}
+        onEdit={handleEditResend}
+        onClose={() => setSelected(null)}
+      />
 
       {/* MB-4 J5: modo voz full-screen */}
       <ArgosVoiceMode
@@ -742,7 +516,9 @@ function ArgosChat() {
         onClose={() => setVoiceMode(false)}
         userId={userId ?? undefined}
         voice={argosVoice}
-        history={messages.map(m => ({ role: m.role, content: m.content }))}
+        // ARG-1/ARG-8: los turnos degradados tampoco entran al contexto del
+        // modelo por la vía de voz (mismo filtro que el turno de texto).
+        history={filterForLLM(messages).map(m => ({ role: m.role, content: m.content }))}
         onTurnComplete={(userText, argosText) => {
           // C5-002: los turnos de voz también pasan por el guardarraíl.
           if (detectCrisisContent(userText)) setCrisisDetected(true);
@@ -752,11 +528,10 @@ function ArgosChat() {
             { role: 'assistant', content: argosText, ts: Date.now() },
           ];
           setMessages(next);
-          // M5 (re-auditoría MB-4): los turnos de voz también se persisten —
-          // antes solo el flujo de texto llamaba saveConversation y una
-          // conversación 100% de voz se perdía al salir de la pantalla.
+          screenSessionRef.current = getArgosSessionId();
+          // M5 (re-auditoría MB-4): los turnos de voz también se persisten.
           if (userId) {
-            saveConversation(userId, next.filter(m => !m.degraded), conversationId)
+            saveConversation(userId, next.filter(m => !m.degraded), conversationId, getArgosSessionId())
               .then((id) => { if (id) setConversationId(id); })
               .catch((e) => console.warn('ARGOS saveConversation (voz) error:', e));
           }

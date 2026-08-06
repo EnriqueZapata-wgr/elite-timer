@@ -156,7 +156,7 @@ export const TOOLS_VOLTEAR: Record<CognitiveStrategy, RegulationTool[]> = {
 
 /** El foso: tu propia evidencia — ARGOS como espejo. Se ofrece al final de todo voltear. */
 export const TOOL_EVIDENCIA: RegulationTool =
-  T('argos', 'Habla con ARGOS', 'Ya pasaste por cosas así antes. ARGOS tiene tu evidencia.', { pathname: '/argos-chat' });
+  T('argos', 'Habla con ARGOS', 'Ya pasaste por cosas así antes. ARGOS tiene tu evidencia.', { pathname: '/argos-chat', params: { from: 'mind' } });
 
 /** Alta energía · agradable → canalizarla (no hay nada que arreglar). */
 export const TOOLS_CANALIZAR: RegulationTool[] = [

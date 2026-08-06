@@ -29,11 +29,21 @@ describe('screenFromPath — mapea ruta → pantalla canónica', () => {
     ['/cycle-charts', 'cycle'],
     ['/argos-chat', 'argos'],
     ['/argos/conversations', 'argos'],
+    ['/argos', 'argos'],
+    ['/(tabs)/argos', 'argos'],
+    ['/solar', 'health'],
+    ['/notifications', 'notifications'],
     ['/settings', 'other'],
     ['/paywall', 'other'],
   ];
   it.each(cases)('%s → %s', (path, expected) => {
     expect(screenFromPath(path)).toBe(expected);
+  });
+
+  it('/argos-recipes es NUTRICIÓN, no argos — el bug que dejaba ARGOS inalcanzable (MB-21 P5)', () => {
+    // Con includes('argos'), /argos-recipes se clasificaba como el chat: el
+    // botón flotante se escondía y en recetas no había forma de abrir ARGOS.
+    expect(screenFromPath('/argos-recipes')).toBe('nutrition');
   });
 
   it('null/undefined/empty → other', () => {
