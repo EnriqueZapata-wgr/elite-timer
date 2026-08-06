@@ -25,6 +25,8 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EliteText } from '@/components/elite-text';
+import { AppIcon } from '@/src/components/ui/AppIcon';
+import { TAB_BAR_ICONS } from '@/src/constants/tab-bar';
 import { useCoachStatus } from '@/src/hooks/useCoachStatus';
 import { useAuth } from '@/src/contexts/auth-context';
 import { isAdmin } from '@/src/constants/admin-config';
@@ -39,6 +41,14 @@ import { ORB_TOUR_DONE_KEY, ORB_TOUR_RESTART_EVENT } from '@/src/components/tour
 import { countUnreadInbox } from '@/src/services/user-notifications-service';
 
 const COACH_PANEL_MIN_WIDTH = 1024;
+
+/** El tabBarIcon de una sala: reposo o '-fill' según focused, del registro. */
+function tabIcon(tab: keyof typeof TAB_BAR_ICONS) {
+  const t = TAB_BAR_ICONS[tab];
+  return ({ color, size, focused }: { color: string; size: number; focused: boolean }) => (
+    <AppIcon name={focused ? t.activo : t.reposo} size={size} color={color} />
+  );
+}
 
 /**
  * El icono de la ORBE. Vive aquí y no en ArgosOrb porque lo específico del tab
@@ -144,23 +154,21 @@ export default function TabLayout() {
             fontSize: 11,
           },
         }}>
-        {/* ── Los cinco ── */}
+        {/* ── Los cinco ──
+            Iconos del set SVG vía AppIcon: línea en reposo, '-fill' al estar
+            parado en la sala. Los nombres viven en TAB_BAR_ICONS (registro). */}
         <Tabs.Screen
           name="index"
           options={{
             title: 'Hoy',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? 'flash' : 'flash-outline'} size={24} color={color} />
-            ),
+            tabBarIcon: tabIcon('hoy'),
           }}
         />
         <Tabs.Screen
           name="kit"
           options={{
             title: 'ATP',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="grid-outline" size={size} color={color} />
-            ),
+            tabBarIcon: tabIcon('atp'),
           }}
         />
         {/* La ORBE. Sin etiqueta a propósito: no se nombra lo que se reconoce.
@@ -178,18 +186,14 @@ export default function TabLayout() {
           name="salud"
           options={{
             title: 'Salud',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="pulse-outline" size={size} color={color} />
-            ),
+            tabBarIcon: tabIcon('salud'),
           }}
         />
         <Tabs.Screen
           name="tribu"
           options={{
             title: 'Tribu',
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name="people-outline" size={size} color={color} />
-            ),
+            tabBarIcon: tabIcon('tribu'),
           }}
         />
 

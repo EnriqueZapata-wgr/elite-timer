@@ -1,18 +1,20 @@
 /**
- * app-icon-map — EL archivo que se cambia el día que lleguen los SVG.
+ * app-icon-map — nombre lógico → COMPONENTE que lo dibuja.
  *
- * Una línea por nombre lógico: nombre → COMPONENTE que lo dibuja. Hoy casi
- * todos son envoltorios de un Ionicon de relleno, a propósito: Enrique
- * resuelve el set (Phosphor) en paralelo y este run entrega el enchufe, no el
- * icono definitivo. Cuando lleguen, se sustituyen los `ion(...)` por los
- * componentes SVG y los iconos cambian TODOS a la vez, sin tocar pantallas.
+ * El set SVG (assets/icons/) YA está montado: los glifos de relleno pasan por
+ * `svg(...)` — un path de icon-paths.ts, extraído 1:1 del asset; el censo
+ * verifica que no diverjan — y los dos de trazo (`emociones`, `rm`) son
+ * componentes a mano. Los `ion(...)` que quedan son los nombres SIN asset
+ * todavía (puertas de SALUD, hábitos sin app propia, destinos): cuando
+ * lleguen sus SVG se sustituyen aquí y cambian todos a la vez, sin tocar
+ * pantallas.
  *
- * Dos entradas ya son SVG reales (`emociones`, `rm`) y son el caso de prueba
- * del footgun de color: el set que viene pinta con `fill="currentColor"`,
- * pero los dibujados a mano pintan con `stroke="currentColor"`. El contrato
- * de un glifo es: recibe `{ size, color }` y ese ÚNICO color tiene que entrar
- * por fill Y por stroke (via `color` en el root del Svg + `currentColor`).
- * Un glifo que solo respete una de las dos propiedades sale invisible.
+ * El footgun de color sigue vivo: el set pinta con `fill="currentColor"`,
+ * pero `emociones` y `rm` son 100% trazo (`stroke="currentColor"`) — si el
+ * color solo entrara por fill, saldrían negros. El contrato de un glifo es:
+ * recibe `{ size, color }` y ese ÚNICO color tiene que entrar por fill Y por
+ * stroke (via `color` en el root del Svg + `currentColor`). El censo vigila
+ * que los assets de trazo no acaben en el factory de relleno.
  *
  * La lista de nombres vive aparte (`app-icon-names.ts`, datos puros) para que
  * los tests node verifiquen cobertura sin montar React Native. TypeScript
@@ -20,7 +22,9 @@
  */
 import type { ComponentProps } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path } from 'react-native-svg';
 import type { AppIconName } from './app-icon-names';
+import { ICON_PATHS, type SvgPathIconName } from './icons/icon-paths';
 import { IconEmociones } from './icons/IconEmociones';
 import { Icon1Rm } from './icons/Icon1Rm';
 
@@ -34,7 +38,7 @@ export interface AppIconGlyphProps {
 
 export type AppIconGlyph = (props: AppIconGlyphProps) => React.JSX.Element;
 
-/** Envoltorio del Ionicon de relleno. Se borra del mapa el día del montaje. */
+/** Envoltorio del Ionicon de relleno. Queda SOLO para nombres sin asset. */
 function ion(name: IoniconName): AppIconGlyph {
   const Glyph: AppIconGlyph = ({ size, color }) => (
     <Ionicons name={name} size={size} color={color} />
@@ -42,41 +46,68 @@ function ion(name: IoniconName): AppIconGlyph {
   return Glyph;
 }
 
+/**
+ * Glifo del set SVG: un path de relleno sobre viewBox 256 (Phosphor). El
+ * `color` entra por el root del Svg y el path lo toma vía `currentColor` —
+ * mismo mecanismo que usan los componentes de trazo para el stroke. SOLO
+ * para assets de relleno: uno 100% trazo aquí saldría negro (censo lo veta).
+ */
+function svg(name: SvgPathIconName): AppIconGlyph {
+  const Glyph: AppIconGlyph = ({ size, color }) => (
+    <Svg width={size} height={size} viewBox="0 0 256 256" color={color}>
+      <Path d={ICON_PATHS[name]} fill="currentColor" />
+    </Svg>
+  );
+  return Glyph;
+}
+
 export const ICON_MAP: Record<AppIconName, AppIconGlyph> = {
   // ── Mente ──
-  meditar: ion('flower-outline'),
-  respirar: ion('cloud-outline'),
+  meditar: svg('meditar'),
+  respirar: svg('respirar'),
   emociones: IconEmociones,
-  journal: ion('book-outline'),
-  sueno: ion('moon-outline'),
-  nback: ion('grid-outline'),
-  rachas: ion('medal-outline'),
+  journal: svg('journal'),
+  sueno: svg('sueno'),
+  nback: svg('nback'),
+  rachas: svg('rachas'),
 
   // ── Cuerpo ──
-  entrenar: ion('barbell-outline'),
-  cardio: ion('pulse-outline'),
-  movilidad: ion('body-outline'),
+  entrenar: svg('entrenar'),
+  cardio: svg('cardio'),
+  movilidad: svg('movilidad'),
   rm: Icon1Rm,
-  records: ion('ribbon-outline'),
+  records: svg('records'),
 
   // ── Hábitos diarios ──
-  comida: ion('restaurant-outline'),
-  hidratacion: ion('water-outline'),
-  ayuno: ion('hourglass-outline'),
-  suplementos: ion('medkit-outline'),
-  recetas: ion('reader-outline'),
-  'lista-compra': ion('cart-outline'),
+  comida: svg('comida'),
+  hidratacion: svg('hidratacion'),
+  ayuno: svg('ayuno'),
+  suplementos: svg('suplementos'),
+  recetas: svg('recetas'),
+  'lista-compra': svg('lista-compra'),
 
   // ── Salud ──
-  sol: ion('sunny-outline'),
-  glucosa: ion('analytics-outline'),
-  cetonas: ion('flame-outline'),
-  ciclo: ion('ellipse-outline'),
-  labs: ion('flask-outline'),
-  protocolos: ion('clipboard-outline'),
+  sol: svg('sol'),
+  glucosa: svg('glucosa'),
+  cetonas: svg('cetonas'),
+  ciclo: svg('ciclo'),
+  labs: svg('labs'),
+  protocolos: svg('protocolos'),
 
   // ── Sistema ──
-  ajustes: ion('settings-outline'),
+  ajustes: svg('ajustes'),
+
+  // ── Tab bar ──
+  // Las cuatro salas: línea en reposo, '-fill' en activo (lo decide el
+  // tabBarIcon del layout con `focused`). La orbe no está aquí: es ArgosOrb.
+  'tab-hoy': svg('tab-hoy'),
+  'tab-hoy-fill': svg('tab-hoy-fill'),
+  'tab-atp': svg('tab-atp'),
+  'tab-atp-fill': svg('tab-atp-fill'),
+  'tab-salud': svg('tab-salud'),
+  'tab-salud-fill': svg('tab-salud-fill'),
+  'tab-tribu': svg('tab-tribu'),
+  'tab-tribu-fill': svg('tab-tribu-fill'),
 
   // ── Puertas de SALUD ──
   'salud-hoy': ion('today-outline'),

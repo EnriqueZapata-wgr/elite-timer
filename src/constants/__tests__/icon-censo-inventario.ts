@@ -15,8 +15,8 @@
  * ahora en REGISTRY_FILES_SIN_IONICON: no pueden recaer.
  */
 export const GLYPH_INVENTORY: readonly string[] = [
-  'app/(tabs)/_layout.tsx::grid-outline',
-  'app/(tabs)/_layout.tsx::pulse-outline',
+  // (los grid/pulse-outline del tab bar murieron con el montaje del set SVG:
+  // las cuatro salas dibujan con <AppIcon name="tab-*">)
   'app/(tabs)/index.tsx::checkbox-outline',
   'app/(tabs)/yo.tsx::leaf-outline',
   'app/(tabs)/yo.tsx::moon-outline',
