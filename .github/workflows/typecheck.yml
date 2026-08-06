@@ -10,6 +10,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # MB-26: typed routes en frío (scripts/regen-router-types.js) — el
+      # router.d.ts jamás vuelve a quedarse viejo: se regenera SIEMPRE
+      # antes del typecheck, sin arrancar expo.
+      - run: npm run tipos:rutas
       - run: npx tsc --noEmit
       - run: npm test
       - run: npm run censo

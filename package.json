@@ -9,6 +9,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "censo": "node scripts/censo-rutas.js",
+    "tipos:rutas": "node scripts/regen-router-types.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "optimize-images": "node scripts/optimize-images.js",
