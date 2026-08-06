@@ -32,8 +32,11 @@ import { getCycleAppMode, setCycleAppMode } from '@/src/services/app-mode-servic
 import type { CycleMode } from '@/src/services/cycle/cycle-access-core';
 import {
   appInstallState, installAlertBody, uninstallAlertBody, installCreatesRow,
+  togglesForApp,
   type InstallPrefs, type InstallState,
 } from '@/src/services/hoy/install-core';
+import { setHabitState } from '@/src/services/hoy/habit-states-service';
+import { evaluarTechoEncendido } from '@/src/services/hoy/techo-service';
 import { getUserWaterGoal, setUserWaterGoal } from '@/src/services/hydration-service';
 import { getFastingGoalHours, setFastingGoalHours } from '@/src/services/fasting-service';
 import {
@@ -109,7 +112,42 @@ export default function FichaAppScreen() {
   const cicloInstalable = !esCiclo || (ciclo?.isFemale ?? false);
   const creaFila = installCreatesRow(app.key) && !(cicloAcompLegacy && state === 'instalada');
 
-  const doInstall = () => {
+  const doInstall = async () => {
+    if (!user?.id) return;
+    const userId = user.id;
+    // MB-26 P3: instalar enciende hábitos — si eso rebasa los 8 renglones,
+    // se avisa y se ofrece qué mandar a reposo. Guiado, no prisionero.
+    const t = togglesForApp(app.key);
+    const aviso = await evaluarTechoEncendido(userId, [...t.booleans, ...t.quants]);
+    if (aviso) {
+      const sugerido = aviso.candidatos[0] ?? null;
+      Alert.alert(
+        'Tu día ya está lleno',
+        `Instalar ${app.label} te deja en ${aviso.total} hábitos activos y el techo que protege tu día es ${aviso.techo}. ` +
+          'Puedes mandar algo a reposo: nada se borra y vuelve cuando quieras.' +
+          (aviso.candidatos.length > 0
+            ? ` Lo que más te ha costado: ${aviso.candidatos.map((c) => c.name).join(', ')}.`
+            : ''),
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          ...(sugerido
+            ? [{
+                text: `Reposar ${sugerido.name}`,
+                onPress: async () => {
+                  await setHabitState(userId, sugerido.key, 'reposo');
+                  confirmarInstalar();
+                },
+              }]
+            : []),
+          { text: 'Instalar igual', onPress: () => confirmarInstalar() },
+        ],
+      );
+      return;
+    }
+    confirmarInstalar();
+  };
+
+  const confirmarInstalar = () => {
     if (!user?.id) return;
     // Ciclo con fila acompañante heredada: instalar ES pasar a propio, y ese
     // cambio tiene dientes — usa el copy de siempre y exige confirmación.

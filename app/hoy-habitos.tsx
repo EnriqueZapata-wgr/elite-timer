@@ -28,7 +28,8 @@ import {
 import {
   getElectronPrefs, setElectronPrefs, applyElectronToggle, type ElectronPrefs,
 } from '@/src/services/hoy/electron-prefs-service';
-import { reactivarHabitos } from '@/src/services/hoy/habit-states-service';
+import { reactivarHabitos, setHabitState } from '@/src/services/hoy/habit-states-service';
+import { evaluarTechoEncendido, type AvisoTecho } from '@/src/services/hoy/techo-service';
 import { ELEVATION, TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -66,22 +67,59 @@ export default function HoyHabitosScreen() {
   async function toggle(kind: 'booleans' | 'quants', option: ElectronOption, active: boolean) {
     if (!user?.id || !prefs) return;
     haptic.light();
+    const userId = user.id;
     const canonical = (kind === 'booleans' ? ALL_BOOLEAN_OPTIONS : ALL_QUANT_OPTIONS).map((o) => o.key);
     const next: ElectronPrefs = {
       ...prefs,
       [kind]: applyElectronToggle(prefs[kind], option.key, active, canonical),
     };
     const prev = prefs;
-    setPrefs(next); // optimista
-    // MB-26 P1: encender un hábito graduado o en reposo lo regresa a activo
-    // ANTES de escribir prefs (que emite el recompile). Sin esto, el filtro
-    // de estados seguiría quitando su card: toggle silencioso clase checkin.
-    if (active) await reactivarHabitos(user.id, [option.key]);
-    const res = await setElectronPrefs(user.id, next);
-    if (!res.ok) {
-      setPrefs(prev); // revertir — nunca confirmar en falso
-      Alert.alert('No se pudo guardar', 'Revisa tu conexión e intenta de nuevo.');
+
+    const ejecutar = async () => {
+      setPrefs(next); // optimista
+      // MB-26 P1: encender un hábito graduado o en reposo lo regresa a activo
+      // ANTES de escribir prefs (que emite el recompile). Sin esto, el filtro
+      // de estados seguiría quitando su card: toggle silencioso clase checkin.
+      if (active) await reactivarHabitos(userId, [option.key]);
+      const res = await setElectronPrefs(userId, next);
+      if (!res.ok) {
+        setPrefs(prev); // revertir — nunca confirmar en falso
+        Alert.alert('No se pudo guardar', 'Revisa tu conexión e intenta de nuevo.');
+      }
+    };
+
+    // MB-26 P3: el techo del día. Encender el noveno avisa y ofrece qué
+    // mandar a reposo; el usuario puede pasarse si insiste (guiado, no
+    // prisionero). Apagar nunca avisa.
+    const aviso: AvisoTecho | null = active
+      ? await evaluarTechoEncendido(userId, [option.key])
+      : null;
+    if (!aviso) {
+      await ejecutar();
+      return;
     }
+    const sugerido = aviso.candidatos[0] ?? null;
+    Alert.alert(
+      'Tu día ya está lleno',
+      `Con ${option.name} quedarías en ${aviso.total} hábitos activos y el techo que protege tu día es ${aviso.techo}. ` +
+        'Puedes mandar algo a reposo: nada se borra y vuelve cuando quieras.' +
+        (aviso.candidatos.length > 0
+          ? ` Lo que más te ha costado: ${aviso.candidatos.map((c) => c.name).join(', ')}.`
+          : ''),
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        ...(sugerido
+          ? [{
+              text: `Reposar ${sugerido.name}`,
+              onPress: async () => {
+                await setHabitState(userId, sugerido.key, 'reposo');
+                await ejecutar();
+              },
+            }]
+          : []),
+        { text: 'Encender igual', onPress: () => { ejecutar(); } },
+      ],
+    );
   }
 
   const booleanOptions = ALL_BOOLEAN_OPTIONS.filter(
