@@ -56,6 +56,7 @@ function aplicar(estado: EstadoActual, w: PackWrites): EstadoActual {
   }
   for (const b of w.bools) if (!prefs.booleans.includes(b)) prefs.booleans.push(b);
   for (const q of w.quants) if (!prefs.quants.includes(q)) prefs.quants.push(q);
+  // MB-26 P5: lo que se escribe son REGLAS (setHabitTimeRegla).
   const metas = { ...estado.metas };
   for (const m of w.metas) {
     if (m.tipo === 'proteina_g') metas.proteina_g = m.valor;
@@ -66,7 +67,7 @@ function aplicar(estado: EstadoActual, w: PackWrites): EstadoActual {
   for (const a of w.avisos) avisos[a.app] = { enabled: true, time: a.time };
   return {
     prefs,
-    habitTimes: { ...estado.habitTimes, ...w.habitTimes },
+    habitTimes: { ...estado.habitTimes, ...w.habitReglas },
     metas,
     avisos,
   };
@@ -135,13 +136,28 @@ describe('idempotencia de la activación', () => {
   it('no pisa una hora que el usuario movió a mano después de activar', () => {
     const plan = buildPackPlan('dormir-mejor', 'con_todo', '07:00', '23:00');
     const estado1 = aplicar(estadoBase(), reconcilarPack(plan, null, estadoBase()));
-    // El usuario movió su corte de pantallas a las 21:00.
+    // El usuario fijó su corte de pantallas a las 21:00 (override absoluto).
     estado1.habitTimes.screen_time_cutoff = '21:00';
-    // Re-activa con OTRO horario: todo se re-ancla menos lo suyo.
+    // Re-activa con OTRO horario: las REGLAS no cambian (el recorrido de
+    // horas lo hace el compile, MB-26 P5), y lo fijado a mano es del
+    // usuario: cero escrituras de horas.
     const plan2 = buildPackPlan('dormir-mejor', 'con_todo', '06:00', '22:00');
     const w = reconcilarPack(plan2, plan, estado1);
-    expect(w.habitTimes.screen_time_cutoff).toBeUndefined();
-    expect(w.habitTimes.sunlight).toBe('06:30');
+    expect(w.habitReglas.screen_time_cutoff).toBeUndefined();
+    expect(Object.keys(w.habitReglas)).toEqual([]);
+    // Y el override fijo sobrevive tal cual en el estado.
+    expect(estado1.habitTimes.screen_time_cutoff).toBe('21:00');
+  });
+
+  it('MB-25 legacy: una hora absoluta escrita por la activación vieja se conserva', () => {
+    // Antes de MB-26 el pack escribía '22:00' absoluto. Ese usuario
+    // re-aplica hoy: la entrada fija difiere de la regla del plan previo →
+    // cuenta como manual y NO se pisa con la regla nueva.
+    const plan = buildPackPlan('dormir-mejor', 'con_todo', '07:00', '23:00');
+    const estado = estadoBase();
+    estado.habitTimes.screen_time_cutoff = '22:00';
+    const w = reconcilarPack(plan, plan, estado);
+    expect(w.habitReglas.screen_time_cutoff).toBeUndefined();
   });
 
   it('no re-enciende un hábito que el usuario apagó después de activar', () => {

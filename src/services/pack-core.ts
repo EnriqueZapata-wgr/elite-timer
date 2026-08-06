@@ -48,6 +48,28 @@ import type { AvisoAppKey } from '@/src/services/app-avisos-service';
 
 // ─── Anclaje de horas ───────────────────────────────────────────────────────
 
+/**
+ * MB-26 P5: una entrada de goals.habit_times es hora FIJA ('HH:MM') o
+ * REGLA relativa ({ ancla, offsetMin }, superset de PackHora con 'uv').
+ * La forma canónica vive en habit-times-core; aquí el shape estructural
+ * para no crear ciclo de imports (habit-times-core ya importa anclarHora).
+ */
+export interface HoraReglaLike {
+  ancla: 'despertar' | 'dormir' | 'uv';
+  offsetMin: number;
+}
+export type HabitTimeEntryLike = string | HoraReglaLike;
+
+/** ¿Dos entradas son la misma regla? (fija ≠ relativa, siempre.) */
+export function reglaIgual(
+  a: HabitTimeEntryLike | null | undefined,
+  b: HabitTimeEntryLike | null | undefined,
+): boolean {
+  if (a == null || b == null) return false;
+  if (typeof a === 'string' || typeof b === 'string') return a === b;
+  return a.ancla === b.ancla && a.offsetMin === b.offsetMin;
+}
+
 export function esHoraValida(t: string): boolean {
   const m = /^(\d{1,2}):(\d{2})$/.exec(t);
   return !!m && parseInt(m[1], 10) <= 23 && parseInt(m[2], 10) <= 59;
@@ -101,8 +123,12 @@ export interface PackPlan {
   boolsPrefs: string[];
   /** Cuantitativos con fuente sin app en el pack → electron-prefs. */
   quantsPrefs: string[];
-  /** Hora absoluta por hábito (solo los que tienen hora canónica y fila). */
+  /** Hora absoluta por hábito con el horario dado — SOLO para mostrar el
+   *  resumen. Lo que se escribe son las reglas (habitReglas, MB-26 P5). */
   habitTimes: Record<string, string>;
+  /** MB-26 P5: la REGLA por hábito (lo que de verdad se persiste). El sol
+   *  va anclado al UV del día (Pieza 6), no a que despiertes. */
+  habitReglas: Record<string, HoraReglaLike>;
   metas: PackMetaDef[];
   avisos: { app: AvisoAppKey; time: string }[];
   /** Para el resumen: hábitos que quedan encendidos en TAREAS. */
@@ -130,6 +156,7 @@ export function buildPackPlan(
   const boolsPrefs: string[] = [];
   const quantsPrefs: string[] = [];
   const habitTimes: Record<string, string> = {};
+  const habitReglas: Record<string, HoraReglaLike> = {};
   const encendidos: string[] = [];
   const enModulo: string[] = [];
 
@@ -168,8 +195,14 @@ export function buildPackPlan(
     // La hora solo se ancla donde hay fila que la use (hora canónica en
     // TAREAS y fuente conectada). Anclar horas de hábitos sin fila sería
     // escribir datos muertos.
+    // MB-26 P5: lo que se persiste es la REGLA (el compile la vuelve
+    // absoluta cada día contra el horario real: el pack no reescribe horas
+    // cuando cambia tu vida). habitTimes queda como preview del resumen.
+    // El sol se ancla al UV del día (Pieza 6, espejo de REGLA_SOL_DEFAULT),
+    // no a que despiertes: es dato que ya pagamos.
     if (h.hora && TAREA_TIME[key] && !QUANTS_SIN_FUENTE.has(key)) {
       habitTimes[key] = anclarHora(h.hora, despertar, dormir);
+      habitReglas[key] = key === 'sunlight' ? { ancla: 'uv', offsetMin: 0 } : h.hora;
     }
   }
 
@@ -189,6 +222,7 @@ export function buildPackPlan(
     boolsPrefs,
     quantsPrefs,
     habitTimes,
+    habitReglas,
     metas: pack.metas,
     avisos,
     encendidos,
@@ -200,8 +234,8 @@ export function buildPackPlan(
 
 export interface EstadoActual {
   prefs: InstallPrefs;
-  /** goals.habit_times del usuario (source → 'HH:MM'). */
-  habitTimes: Record<string, string>;
+  /** goals.habit_times del usuario: fija 'HH:MM' o regla (MB-26 P5). */
+  habitTimes: Record<string, HabitTimeEntryLike>;
   /** Valores actuales de las metas con writer. */
   metas: { proteina_g: number; agua_ml: number; ayuno_h: number };
   /** Preferencia de aviso actual por app del pack (sin fila = disabled). */
@@ -213,7 +247,8 @@ export interface PackWrites {
   gridApps: string[];
   bools: string[];
   quants: string[];
-  habitTimes: Record<string, string>;
+  /** MB-26 P5: se escriben REGLAS, no horas absolutas. */
+  habitReglas: Record<string, HoraReglaLike>;
   metas: PackMetaDef[];
   avisos: { app: AvisoAppKey; time: string }[];
 }
@@ -224,7 +259,7 @@ export function sinEscrituras(w: PackWrites): boolean {
     w.gridApps.length === 0 &&
     w.bools.length === 0 &&
     w.quants.length === 0 &&
-    Object.keys(w.habitTimes).length === 0 &&
+    Object.keys(w.habitReglas).length === 0 &&
     w.metas.length === 0 &&
     w.avisos.length === 0
   );
@@ -286,12 +321,16 @@ export function reconcilarPack(
     (q) => !prefs.quants.includes(q) && !previo?.quantsPrefs.includes(q),
   );
 
-  const habitTimes: Record<string, string> = {};
-  for (const [src, t] of Object.entries(nuevo.habitTimes)) {
+  // MB-26 P5: se comparan REGLAS. Compatibilidad: quien traiga un override
+  // absoluto ('HH:MM', incluidas las horas que MB-25 escribió absolutas)
+  // difiere de cualquier regla del plan previo → cuenta como manual y SE
+  // CONSERVA. Nadie pierde su hora al actualizar.
+  const habitReglas: Record<string, HoraReglaLike> = {};
+  for (const [src, regla] of Object.entries(nuevo.habitReglas)) {
     const cur = actual.habitTimes[src];
-    if (cur === t) continue; // ya está
-    if (previo && cur != null && cur !== previo.habitTimes[src]) continue; // manual
-    habitTimes[src] = t;
+    if (reglaIgual(cur, regla)) continue; // ya está
+    if (previo && cur != null && !reglaIgual(cur, previo.habitReglas[src])) continue; // manual
+    habitReglas[src] = regla;
   }
 
   const metas = nuevo.metas.filter((m) => {
@@ -310,7 +349,7 @@ export function reconcilarPack(
     return true;
   });
 
-  return { installApps, gridApps, bools, quants, habitTimes, metas, avisos };
+  return { installApps, gridApps, bools, quants, habitReglas, metas, avisos };
 }
 
 // ─── Desactivar ─────────────────────────────────────────────────────────────

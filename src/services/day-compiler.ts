@@ -46,6 +46,11 @@ import {
 // graduado vuelve sola a activo). El historial es el ledger de siempre.
 import { propuestasDeGraduacion, ultimasFechas, GRADUACION } from '@/src/services/hoy/graduacion-core';
 import { getHistorialBooleanos, procesarRecaidas } from '@/src/services/hoy/graduacion-service';
+// MB-26 Pieza 5: las horas de los hábitos son REGLAS (fija 'HH:MM' o
+// {ancla, offsetMin}) y aquí se vuelven absolutas contra el horario real.
+import {
+  esHoraHHMM, resolverHabitTimes, type HoraFuente,
+} from '@/src/services/hoy/habit-times-core';
 
 export { VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, FEMALE_ONLY_ELECTRONS };
 export type { VerifiedElectronKey };
@@ -65,8 +70,12 @@ export interface CompiledDay {
   agendaItems: AgendaItem[];
   /** MB-20.2 · Pieza 2: el dato de verdad de cada card (de las mismas queries). */
   datosVivos: DatosVivos;
-  /** MB-23 P4: overrides de hora por hábito (goals.habit_times, source → 'HH:MM'). */
+  /** MB-23 P4 + MB-26 P5: horas por hábito YA RESUELTAS (source → 'HH:MM').
+   *  Las reglas relativas se volvieron absolutas contra el horario real. */
   habitTimes: Record<string, string>;
+  /** MB-26 P5/P6: de dónde salió cada hora (fija/ancla/uv/uv_fallback) —
+   *  la UI honesta del sol dice cuando cayó al respaldo. */
+  horaFuentes: Record<string, HoraFuente>;
   /** MB-26 P1: estado por hábito (sin entrada = activo). Alimenta el estante
    *  de graduados y las propuestas; el filtro de renglones ya se aplicó. */
   habitStates: Record<string, HabitEstado>;
@@ -194,7 +203,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, suppTakenCountRes, cycleLogCountRes,
     lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes, cycleModeRes, habitStatesRes,
-    historialRes,
+    historialRes, chronoHorarioRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -274,6 +283,10 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // MB-26 P2: historial de hechos (electron_logs 35 días) para graduación
     // y recaídas. null = fallo de lectura, NUNCA "todo fallado".
     getHistorialBooleanos(userId, desdeGraduacion),
+    // MB-26 P5: horario del cronotipo — la base que pisan las prefs para
+    // resolver las horas-regla de los hábitos.
+    supabase.from('user_chronotype').select('wake_time, sleep_time')
+      .eq('user_id', userId).maybeSingle(),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
@@ -420,14 +433,26 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
       ? userGoals.wake_time
       : undefined;
 
-  // MB-23 P4: overrides de hora por hábito (editados en la ficha de cada
-  // app del Centro). Solo entradas válidas 'HH:MM'; el resto se ignora.
-  const habitTimes: Record<string, string> = {};
-  if (userGoals.habit_times && typeof userGoals.habit_times === 'object') {
-    for (const [k, v] of Object.entries(userGoals.habit_times)) {
-      if (typeof v === 'string' && /^\d{1,2}:\d{2}$/.test(v)) habitTimes[k] = v;
-    }
-  }
+  // MB-26 P5: el horario REAL del usuario — lo que editó en config (goals)
+  // pisa al cronotipo, y el cronotipo al default. Contra este contexto se
+  // resuelven las horas-regla; cambiar tu despertar recorre todo solo.
+  const horaDeDb = (v: unknown): string | null => {
+    if (typeof v !== 'string') return null;
+    const t = v.slice(0, 5);
+    return esHoraHHMM(t) ? t : null;
+  };
+  const chronoHorario = (chronoHorarioRes.data as Record<string, unknown>) ?? {};
+  const despertar = wakeFromPrefs ?? horaDeDb(chronoHorario.wake_time) ?? '07:00';
+  const dormir = horaDeDb(userGoals.sleep_time) ?? horaDeDb(chronoHorario.sleep_time) ?? '23:00';
+
+  // MB-23 P4 + MB-26 P5: entradas de goals.habit_times (fijas 'HH:MM' o
+  // reglas {ancla, offsetMin}) → horas absolutas del día. El sol sin
+  // entrada se ancla al UV (Pieza 6); hoy el contexto UV llega null y cae
+  // a despertar + 30 con fuente 'uv_fallback' (nunca sin hora).
+  const { times: habitTimes, fuentes: horaFuentes } = resolverHabitTimes(
+    userGoals.habit_times,
+    { despertar, dormir, uvInicio: null },
+  );
 
   // Protocol
   let protocol: CompiledDay['protocol'] = null;
@@ -539,7 +564,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     greeting, date, userName, protocol,
     electronProgress: { earned, possible, percentage },
     nextElectron, booleanElectrons, quantitativeElectrons,
-    suggestion, agendaItems, datosVivos, habitTimes,
+    suggestion, agendaItems, datosVivos, habitTimes, horaFuentes,
     habitStates: habitEstados,
     graduacionPropuestas,
   };

@@ -37,7 +37,9 @@ import {
   setElectronPrefs,
   applyElectronToggle,
 } from '@/src/services/hoy/electron-prefs-service';
-import { setHabitTime } from '@/src/services/hoy/habit-times-service';
+import { setHabitTimeRegla } from '@/src/services/hoy/habit-times-service';
+import { parseHabitTimeEntry } from '@/src/services/hoy/habit-times-core';
+import { reactivarHabitos } from '@/src/services/hoy/habit-states-service';
 import { DEFAULT_BOOLEANS, ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/services/hoy/day-booleans';
 import { setProteinGoalG, DEFAULT_PROTEIN_GOAL_G } from '@/src/services/protein-goal-service';
 import { setUserWaterGoal, HYDRATION_DEFAULTS } from '@/src/services/hydration-service';
@@ -83,11 +85,14 @@ async function leerEstadoActual(userId: string, avisoApps: string[]): Promise<Es
     quants: (data?.active_quantitative_electrons as string[]) ?? ['protein', 'water'],
     installedApps: (data?.installed_apps as string[]) ?? [],
   };
-  const habitTimes: Record<string, string> = {};
+  // MB-26 P5: las entradas pueden ser fijas 'HH:MM' o reglas — ambas
+  // cuentan para el reconcile (una fija manual JAMÁS se pisa).
+  const habitTimes: EstadoActual['habitTimes'] = {};
   const ht = goals.habit_times as Record<string, unknown> | undefined;
   if (ht) {
     for (const [k, v] of Object.entries(ht)) {
-      if (typeof v === 'string') habitTimes[k] = v;
+      const entry = parseHabitTimeEntry(v);
+      if (entry != null) habitTimes[k] = entry;
     }
   }
   const num = (v: unknown, def: number) => (typeof v === 'number' && v > 0 ? v : def);
@@ -163,6 +168,12 @@ export async function activatePack(
   const escrituras = reconcilarPack(plan, previo, estado);
   const pasos: PasoResultado[] = [];
 
+  // MB-26 P1: aplicar un pack ENCIENDE sus hábitos — los que estuvieran
+  // graduados o en reposo vuelven a activo antes de cualquier escritura.
+  // Sin esto el filtro de estados seguiría quitando sus renglones y el
+  // pack quedaría "aplicado" sin aparecer (toggle silencioso clase checkin).
+  await reactivarHabitos(userId, plan.encendidos);
+
   // 1 · Apps: el camino de siempre. installApp enciende su hábito;
   //     installAppGridOnly solo suma a la cuadrícula.
   {
@@ -209,11 +220,13 @@ export async function activatePack(
     pasos.push({ paso: 'habitos', ok, ...(detalle ? { detalle } : {}) });
   }
 
-  // 3 · Horas ancladas a tu vida.
+  // 3 · Horas ancladas a tu vida — como REGLA (MB-26 P5): el compile las
+  //     vuelve absolutas cada día; viajar o cambiar tu despertar las
+  //     recorre solas y el pack no las reescribe cuando cambia tu vida.
   {
     const fallidas: string[] = [];
-    for (const [src, t] of Object.entries(escrituras.habitTimes)) {
-      const ok = await setHabitTime(userId, src, t);
+    for (const [src, regla] of Object.entries(escrituras.habitReglas)) {
+      const ok = await setHabitTimeRegla(userId, src, regla);
       if (!ok) fallidas.push(src);
     }
     pasos.push(
