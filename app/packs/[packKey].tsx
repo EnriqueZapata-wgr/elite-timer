@@ -1,11 +1,13 @@
 /**
- * La ficha del pack (MB-25 Pieza 5) — qué es, qué instala, qué enciende,
- * y el botón que arranca las tres preguntas (la primera ya viene
- * contestada al entrar por aquí).
+ * La ficha del pack (MB-25 Pieza 5, corregida en MB-26 Pieza 7) — qué es,
+ * qué instala, qué enciende, y el botón que arranca las dos preguntas (la
+ * primera ya viene contestada al entrar por aquí).
  *
- * Si el pack está activo: desde cuándo, con qué intensidad, y su botón de
- * desactivar con el copy honesto de la doctrina: desactivar = dejar de
- * agrupar y medir. NADA se desinstala, NADA se borra.
+ * Un pack NO es un modo, es un instalador: se aplica y se acumula.
+ * "Desactivar" murió (un botón que mentía por omisión). Si el pack está
+ * aplicado, la ficha muestra su etapa: con los 3 base sostenidos 14 de 21
+ * días la app PROPONE encender el resto, y el usuario puede adelantarlo
+ * cuando quiera.
  *
  * argosFoco se guarda en el registro pero NO se muestra: su consumo en
  * contexto es de MB-31 y prometer comportamiento que aún no existe va
@@ -23,25 +25,21 @@ import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { AppIcon } from '@/src/components/ui/AppIcon';
 import { useAuth } from '@/src/contexts/auth-context';
-import {
-  PACK_BY_KEY, INTENSIDAD_LABELS, habitosPorIntensidad,
-} from '@/src/constants/packs';
+import { PACK_BY_KEY, habitosPorIntensidad } from '@/src/constants/packs';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
-import {
-  getUserPacks, deactivatePack,
-} from '@/src/services/pack-service';
-import { packActivo, type UserPackRow } from '@/src/services/pack-core';
+import { getUserPacks, avanzarPackEtapa } from '@/src/services/pack-service';
+import { packAplicado, type UserPackRow } from '@/src/services/pack-core';
+import { etapaDelPack } from '@/src/services/pack-etapas-core';
+import { getHistorialBooleanos } from '@/src/services/hoy/graduacion-service';
+import { ultimasFechas, ETAPA_PACK, type HistorialHabitos } from '@/src/services/hoy/graduacion-core';
+import { getLocalToday } from '@/src/utils/date-helpers';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 
 const nombreElectron = (key: string) =>
   ELECTRON_WEIGHTS[key as ElectronSource]?.name ?? key;
-
-const COPY_DESACTIVAR =
-  'El pack deja de figurar como activo. Nada se desinstala y nada se borra: ' +
-  'tus apps, hábitos, metas y avisos quedan exactamente como están, y tú decides.';
 
 function fechaLegible(iso: string): string {
   try {
@@ -58,10 +56,18 @@ export default function FichaPackScreen() {
   const pack = typeof packKey === 'string' ? PACK_BY_KEY[packKey] : undefined;
 
   const [filas, setFilas] = useState<UserPackRow[] | null>(null);
+  const [historial, setHistorial] = useState<HistorialHabitos | null>(null);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    if (user?.id) setFilas(await getUserPacks(user.id));
+    if (!user?.id) return;
+    const hoy = getLocalToday();
+    const [rows, hist] = await Promise.all([
+      getUserPacks(user.id),
+      getHistorialBooleanos(user.id, ultimasFechas(hoy, ETAPA_PACK.dias)[0]),
+    ]);
+    setFilas(rows);
+    setHistorial(hist);
   }, [user?.id]);
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
@@ -78,31 +84,38 @@ export default function FichaPackScreen() {
     );
   }
 
-  const activo = packActivo(filas);
-  const esActivo = activo?.pack_key === pack.key;
+  const fila = packAplicado(filas, pack.key);
+  const etapa = fila ? etapaDelPack(fila, historial ?? {}, getLocalToday()) : null;
   const core = habitosPorIntensidad(pack, 'suave');
   const extra = pack.enciende.filter((h) => !h.core);
 
-  const doDesactivar = () => {
+  // Etapa 2: encender el resto del pack — la app lo propone al sostener
+  // los core 14/21, y el usuario puede adelantarlo cuando quiera.
+  const doAvanzar = () => {
     if (!user?.id || busy) return;
-    Alert.alert(`Desactivar ${pack.nombre}`, COPY_DESACTIVAR, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Desactivar',
-        style: 'destructive',
-        onPress: async () => {
-          setBusy(true);
-          haptic.medium();
-          const r = await deactivatePack(user.id, pack.key);
-          setBusy(false);
-          if (!r.ok) {
-            Alert.alert('No se pudo', 'Inténtalo de nuevo en un momento.');
-            return;
-          }
-          refresh();
+    const userId = user.id;
+    Alert.alert(
+      'Encender el resto',
+      `Se encienden ${extra.map((h) => nombreElectron(h.electron)).join(', ')}, con su hora anclada a tu vida. Lo que ya moviste a mano no se toca.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Encender',
+          onPress: async () => {
+            setBusy(true);
+            haptic.medium();
+            const r = await avanzarPackEtapa(userId, pack.key);
+            setBusy(false);
+            if (!r.ok) {
+              Alert.alert('Casi', 'Algo no entró completo. Inténtalo de nuevo en un momento.');
+            } else {
+              haptic.success();
+            }
+            refresh();
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   return (
@@ -129,44 +142,55 @@ export default function FichaPackScreen() {
 
         {/* Estado / acción principal */}
         <Animated.View entering={FadeInUp.delay(120).springify()}>
-          {esActivo && activo ? (
+          {fila ? (
             <View style={s.activoCard}>
               <View style={s.activoRow}>
                 <Ionicons name="checkmark-circle" size={16} color={ATP_BRAND.lime} />
                 <EliteText style={s.activoText}>
-                  Activo desde el {fechaLegible(activo.activated_at)}
-                  {activo.intensidad ? ` · ${INTENSIDAD_LABELS[activo.intensidad]}` : ''}
+                  Aplicado el {fechaLegible(fila.activated_at)}
                 </EliteText>
               </View>
+              {etapa?.etapa === 1 ? (
+                <>
+                  <EliteText style={s.etapaText}>
+                    {etapa.sostiene
+                      ? 'Ya sostienes los hábitos base. ¿Encendemos el resto?'
+                      : `Encendidos sus ${core.length} hábitos base. Los demás llegan cuando los sostengas ${ETAPA_PACK.minimo} de ${ETAPA_PACK.dias} días` +
+                        (etapa.progreso ? ` (vas en ${etapa.progreso.cumplidos} de ${etapa.progreso.objetivo}).` : '. Puedes adelantarlos cuando quieras.')}
+                  </EliteText>
+                  <AnimatedPressable
+                    style={etapa.sostiene ? s.reajustarBtn : s.quietBtn}
+                    onPress={doAvanzar}
+                    disabled={busy}
+                  >
+                    <EliteText style={etapa.sostiene ? s.reajustarText : s.quietText}>
+                      {etapa.sostiene ? 'Encender el resto' : 'Encenderlos ahora'}
+                    </EliteText>
+                  </AnimatedPressable>
+                </>
+              ) : (
+                <EliteText style={s.etapaText}>
+                  El pack completo está encendido.
+                </EliteText>
+              )}
               <AnimatedPressable
-                style={s.reajustarBtn}
+                style={s.quietBtn}
                 onPress={() => { haptic.light(); router.push(`/packs/armar?pack=${pack.key}`); }}
               >
-                <EliteText style={s.reajustarText}>Volver a sintonizar</EliteText>
-              </AnimatedPressable>
-              <AnimatedPressable style={s.desactivarBtn} onPress={doDesactivar} disabled={busy}>
-                <EliteText style={s.desactivarText}>Desactivar</EliteText>
+                <EliteText style={s.quietText}>Volver a sintonizar</EliteText>
               </AnimatedPressable>
               <EliteText style={s.nota}>
-                Desactivar nunca borra ni desinstala nada: tus apps y hábitos
-                quedan como están.
+                Los packs se acumulan: puedes aplicar varios. Aplicar nunca
+                borra ni desinstala nada.
               </EliteText>
             </View>
           ) : (
-            <>
-              <AnimatedPressable
-                style={s.cta}
-                onPress={() => { haptic.light(); router.push(`/packs/armar?pack=${pack.key}`); }}
-              >
-                <EliteText style={s.ctaText}>Armar mi app con este pack</EliteText>
-              </AnimatedPressable>
-              {activo && PACK_BY_KEY[activo.pack_key] && (
-                <EliteText style={s.nota}>
-                  Tienes activo {PACK_BY_KEY[activo.pack_key].nombre}. Al cambiar,
-                  nada se desinstala: tu día solo se vuelve a sintonizar.
-                </EliteText>
-              )}
-            </>
+            <AnimatedPressable
+              style={s.cta}
+              onPress={() => { haptic.light(); router.push(`/packs/armar?pack=${pack.key}`); }}
+            >
+              <EliteText style={s.ctaText}>Armar mi app con este pack</EliteText>
+            </AnimatedPressable>
           )}
         </Animated.View>
 
@@ -190,15 +214,16 @@ export default function FichaPackScreen() {
             </EliteText>
             {extra.length > 0 && (
               <>
-                <EliteText style={[s.cardLabel, { marginTop: 10 }]}>Con todo</EliteText>
+                <EliteText style={[s.cardLabel, { marginTop: 10 }]}>Llegan después</EliteText>
                 <EliteText style={s.cardTexto}>
                   {extra.map((h) => nombreElectron(h.electron)).join(' · ')}
                 </EliteText>
               </>
             )}
             <EliteText style={s.nota}>
-              Cada hábito queda con hora anclada a tu horario de despertar y
-              dormir. Todo se puede ajustar después, hábito por hábito.
+              Cada hábito queda con su hora anclada a tu vida (despertar,
+              dormir o tu ventana de sol) y se recorre sola si tu horario
+              cambia. Todo se puede ajustar después, hábito por hábito.
             </EliteText>
           </View>
         </Animated.View>
@@ -291,6 +316,13 @@ const s = StyleSheet.create({
   },
   activoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   activoText: { color: TEXT.primary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  etapaText: {
+    color: TEXT.secondary,
+    fontFamily: Fonts.regular,
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
+    marginTop: 8,
+  },
   reajustarBtn: {
     backgroundColor: withOpacity(ATP_BRAND.lime, 0.14),
     borderWidth: 0.5,
@@ -301,7 +333,7 @@ const s = StyleSheet.create({
     marginTop: Spacing.md,
   },
   reajustarText: { color: ATP_BRAND.lime, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
-  desactivarBtn: {
+  quietBtn: {
     borderWidth: 0.5,
     borderColor: ELEVATION[2].border,
     borderRadius: 12,
@@ -309,7 +341,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  desactivarText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
+  quietText: { color: TEXT.secondary, fontFamily: Fonts.semiBold, fontSize: FontSizes.sm },
 
   seccion: {
     color: TEXT.tertiary,

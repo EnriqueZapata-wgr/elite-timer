@@ -1,23 +1,21 @@
 /**
- * Tests que amarran el motor de packs (MB-25 Pieza 6).
+ * Tests que amarran el motor de packs (MB-25 Pieza 6, corregidos en
+ * MB-26 Pieza 7: aplicar en vez de activar, etapas, cero desactivar).
  *
- *  2 · Idempotencia: activar dos veces = mismo estado (cero escrituras la
+ *  2 · Idempotencia: aplicar dos veces = mismo estado (cero escrituras la
  *      segunda vez). La mutación que quite el guard truena aquí.
  *  3 · Anclaje de horas: relativas → absolutas con recorte a la ventana.
- *  4 · Desactivar no destruye: las listas de writesAlDesactivar están
- *      vacías. La mutación que desinstale truena aquí.
- *  5 · Suave contra con todo: suave enciende solo los core.
+ *  5 · Etapas: aplicar (etapa 1) enciende solo los 3 core.
  */
 import { describe, it, expect } from 'vitest';
 import {
   anclarHora,
   buildPackPlan,
   esHoraValida,
-  packActivo,
+  packAplicado,
   planDeFila,
   reconcilarPack,
   sinEscrituras,
-  writesAlDesactivar,
   type EstadoActual,
   type PackPlan,
   type PackWrites,
@@ -198,35 +196,9 @@ describe('idempotencia de la activación', () => {
   });
 });
 
-// ─── 4 · Desactivar no destruye ─────────────────────────────────────────────
+// ─── 5 · Etapas: aplicar enciende solo los core ─────────────────────────────
 
-describe('desactivar no destruye', () => {
-  it.each(PACKS.map((p) => [p.key] as const))('%s: desactivar no desinstala ni apaga nada', (key) => {
-    const w = writesAlDesactivar(PACK_BY_KEY[key]);
-    expect(w.desinstala).toEqual([]);
-    expect(w.apaga).toEqual([]);
-  });
-
-  it('después de desactivar, installedApps y hábitos siguen igual', () => {
-    const plan = buildPackPlan('dormir-mejor', 'con_todo', '07:00', '23:00');
-    const estado1 = aplicar(estadoBase(), reconcilarPack(plan, null, estadoBase()));
-    // Desactivar = ejecutar writesAlDesactivar sobre el estado.
-    const w = writesAlDesactivar(PACK_BY_KEY['dormir-mejor']);
-    const despues = {
-      ...estado1,
-      prefs: {
-        booleans: estado1.prefs.booleans.filter((b) => !w.apaga.includes(b)),
-        quants: estado1.prefs.quants.filter((q) => !w.apaga.includes(q)),
-        installedApps: estado1.prefs.installedApps.filter((a) => !w.desinstala.includes(a)),
-      },
-    };
-    expect(despues).toEqual(estado1);
-  });
-});
-
-// ─── 5 · Suave contra con todo ──────────────────────────────────────────────
-
-describe('suave contra con todo', () => {
+describe('etapa 1 (suave) contra etapa 2 (con todo)', () => {
   it('suave enciende solo los core', () => {
     const suave = buildPackPlan('dormir-mejor', 'suave', '07:00', '23:00');
     const todo = buildPackPlan('dormir-mejor', 'con_todo', '07:00', '23:00');
@@ -270,7 +242,7 @@ describe('suave contra con todo', () => {
 
 // ─── Registro ───────────────────────────────────────────────────────────────
 
-describe('el registro de activaciones', () => {
+describe('el registro de aplicaciones', () => {
   const fila = (over: Partial<UserPackRow>): UserPackRow => ({
     pack_key: 'dormir-mejor',
     intensidad: 'suave',
@@ -281,11 +253,11 @@ describe('el registro de activaciones', () => {
     ...over,
   });
 
-  it('packActivo encuentra el activo y tolera lectura fallida', () => {
-    expect(packActivo(null)).toBeNull();
-    expect(packActivo([])).toBeNull();
-    expect(packActivo([fila({ active: false })])).toBeNull();
-    expect(packActivo([fila({})])?.pack_key).toBe('dormir-mejor');
+  it('packAplicado encuentra la fila y tolera lectura fallida', () => {
+    expect(packAplicado(null, 'dormir-mejor')).toBeNull();
+    expect(packAplicado([], 'dormir-mejor')).toBeNull();
+    expect(packAplicado([fila({})], 'foco-claridad')).toBeNull();
+    expect(packAplicado([fila({})], 'dormir-mejor')?.pack_key).toBe('dormir-mejor');
   });
 
   it('planDeFila reconstruye el plan y rechaza basura', () => {

@@ -1,12 +1,18 @@
 /**
- * Ármala por mí — la entrada de tres preguntas (MB-25 Pieza 3).
+ * Ármala por mí — la entrada de dos preguntas (MB-25 Pieza 3, en etapas
+ * desde MB-26 Pieza 7).
  *
- * Tres preguntas y la app queda armada para TU dolor:
+ * Dos preguntas y la app queda armada para TU dolor:
  *   1. ¿Qué quieres cambiar primero?  → elige el pack.
  *   2. ¿A qué hora despiertas y a qué hora te duermes? → ancla TODAS las
- *      horas del pack a tu vida (la diferencia entre un aviso útil y uno
- *      que se ignora).
- *   3. ¿Cuánto quieres que te empuje? → suave (3 hábitos base) o con todo.
+ *      horas del pack a tu vida (como regla: viajar o cambiar tu horario
+ *      las recorre solas).
+ *
+ * La pregunta de intensidad murió (menos decisiones): el pack entra POR
+ * ETAPAS — aplicar enciende sus 3 hábitos base y los demás llegan cuando
+ * los sostienes 14 de 21 días, o antes si los adelantas en la ficha.
+ * Aplicar respeta el techo de 8 renglones (avisa y ofrece reposo; el
+ * usuario puede pasarse si insiste).
  *
  * Una acción por pantalla. Al confirmar, el resumen dice lo que DE VERDAD
  * pasó (pack-service reporta paso por paso): esto se instaló, esto se
@@ -32,19 +38,19 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import {
   PACKS, PACK_BY_KEY, habitosPorIntensidad,
-  type PackDef, type PackIntensidad,
+  type PackDef,
 } from '@/src/constants/packs';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
-import { esHoraValida } from '@/src/services/pack-core';
-import {
-  activatePack, getPackActivo, type ResultadoActivacion,
-} from '@/src/services/pack-service';
+import { buildPackPlan, esHoraValida } from '@/src/services/pack-core';
+import { aplicarPack, type ResultadoActivacion } from '@/src/services/pack-service';
+import { evaluarTechoEncendido } from '@/src/services/hoy/techo-service';
+import { setHabitState } from '@/src/services/hoy/habit-states-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 
-type Paso = 'pack' | 'horario' | 'intensidad' | 'resumen';
+type Paso = 'pack' | 'horario' | 'resumen';
 
 const nombreElectron = (key: string) =>
   ELECTRON_WEIGHTS[key as ElectronSource]?.name ?? key;
@@ -102,15 +108,17 @@ export default function ArmarScreen() {
 
   const atras = () => {
     if (paso === 'horario' && !packInicial) setPaso('pack');
-    else if (paso === 'intensidad') setPaso('horario');
     else salir();
   };
 
-  const ejecutar = async (intensidad: PackIntensidad) => {
+  // Aplicar = etapa 1: los 3 core del pack. Los demás llegan al sostenerlos
+  // 14 de 21 días (o antes, desde la ficha). Los packs se acumulan: aplicar
+  // uno jamás toca lo que otro dejó.
+  const ejecutar = async () => {
     if (!user?.id || !pack || busy) return;
     setBusy(true);
     try {
-      const r = await activatePack(user.id, pack.key, { intensidad, despertar, dormir });
+      const r = await aplicarPack(user.id, pack.key, { intensidad: 'suave', despertar, dormir });
       setResultado(r);
       setPaso('resumen');
       if (r.ok) haptic.success();
@@ -119,22 +127,40 @@ export default function ArmarScreen() {
     }
   };
 
-  const confirmarIntensidad = async (intensidad: PackIntensidad) => {
+  // MB-26 P7.3: aplicar respeta el techo de 8 renglones — avisa, ofrece
+  // reposo con candidato sugerido y respeta la decisión si insiste.
+  const confirmarAplicar = async () => {
     if (!user?.id || !pack || busy) return;
     haptic.medium();
-    const activo = await getPackActivo(user.id);
-    if (activo && activo.pack_key !== pack.key && PACK_BY_KEY[activo.pack_key]) {
-      Alert.alert(
-        'Cambiar de pack',
-        `${PACK_BY_KEY[activo.pack_key].nombre} deja de estar activo. Nada se desinstala y nada se borra: tu día solo se vuelve a sintonizar.`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Cambiar', onPress: () => ejecutar(intensidad) },
-        ],
-      );
+    const plan = buildPackPlan(pack.key, 'suave', despertar, dormir);
+    const aviso = await evaluarTechoEncendido(user.id, plan.encendidos);
+    if (!aviso) {
+      ejecutar();
       return;
     }
-    ejecutar(intensidad);
+    const userId = user.id;
+    const sugerido = aviso.candidatos[0] ?? null;
+    Alert.alert(
+      'Tu día ya está lleno',
+      `Con este pack quedarías en ${aviso.total} hábitos activos y el techo que protege tu día es ${aviso.techo}. ` +
+        'Puedes mandar algo a reposo: nada se borra y vuelve cuando quieras.' +
+        (aviso.candidatos.length > 0
+          ? ` Lo que más te ha costado: ${aviso.candidatos.map((c) => c.name).join(', ')}.`
+          : ''),
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        ...(sugerido
+          ? [{
+              text: `Reposar ${sugerido.name}`,
+              onPress: async () => {
+                await setHabitState(userId, sugerido.key, 'reposo');
+                ejecutar();
+              },
+            }]
+          : []),
+        { text: 'Aplicar igual', onPress: () => { ejecutar(); } },
+      ],
+    );
   };
 
   // ─── Paso 1 · el pack ───
@@ -198,73 +224,34 @@ export default function ArmarScreen() {
           <EliteText style={s.horaValor}>{dormir}</EliteText>
         </AnimatedPressable>
       </Animated.View>
+      {pack && (
+        <Animated.View entering={FadeInUp.delay(130).springify()}>
+          <EliteText style={s.etapaNota}>
+            Se encienden los {habitosPorIntensidad(pack, 'suave').length} hábitos
+            base: {habitosPorIntensidad(pack, 'suave').map((h) => nombreElectron(h.electron)).join(' · ')}.
+            Los demás llegan cuando los sostengas 14 de 21 días, o antes si
+            los adelantas desde la ficha del pack.
+          </EliteText>
+        </Animated.View>
+      )}
       <Animated.View entering={FadeInUp.delay(140).springify()}>
         <AnimatedPressable
           style={s.cta}
-          onPress={() => { haptic.light(); setPaso('intensidad'); }}
+          onPress={() => confirmarAplicar()}
+          disabled={busy}
         >
-          <EliteText style={s.ctaText}>Continuar</EliteText>
+          <EliteText style={s.ctaText}>Aplicar pack</EliteText>
         </AnimatedPressable>
       </Animated.View>
+      {busy && (
+        <View style={s.busyRow}>
+          <ActivityIndicator color={ATP_BRAND.lime} />
+          <EliteText style={s.busyText}>Armando tu app…</EliteText>
+        </View>
+      )}
       <View style={{ height: Spacing.xxl }} />
     </ScrollView>
   );
-
-  // ─── Paso 3 · la intensidad ───
-
-  const renderIntensidad = () => {
-    if (!pack) return null;
-    const core = habitosPorIntensidad(pack, 'suave');
-    const todos = pack.enciende;
-    return (
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
-        <Animated.View entering={FadeInUp.delay(40).springify()}>
-          <EliteText style={s.pregunta}>¿Cuánto quieres que te empuje?</EliteText>
-          <EliteText style={s.hint}>
-            Puedes empezar suave y subir después. Nada de esto es una
-            promesa médica: son hábitos y registros tuyos.
-          </EliteText>
-        </Animated.View>
-        <Animated.View entering={FadeInUp.delay(100).springify()}>
-          <AnimatedPressable
-            style={s.intensidadCard}
-            onPress={() => confirmarIntensidad('suave')}
-            disabled={busy}
-          >
-            <EliteText style={s.intensidadTitulo}>Suave</EliteText>
-            <EliteText style={s.intensidadDesc}>
-              Enciende los {core.length} hábitos base del pack.
-            </EliteText>
-            <EliteText style={s.intensidadLista}>
-              {core.map((h) => nombreElectron(h.electron)).join(' · ')}
-            </EliteText>
-          </AnimatedPressable>
-        </Animated.View>
-        <Animated.View entering={FadeInUp.delay(140).springify()}>
-          <AnimatedPressable
-            style={s.intensidadCard}
-            onPress={() => confirmarIntensidad('con_todo')}
-            disabled={busy}
-          >
-            <EliteText style={s.intensidadTitulo}>Con todo</EliteText>
-            <EliteText style={s.intensidadDesc}>
-              Enciende los {todos.length} hábitos del pack.
-            </EliteText>
-            <EliteText style={s.intensidadLista}>
-              {todos.map((h) => nombreElectron(h.electron)).join(' · ')}
-            </EliteText>
-          </AnimatedPressable>
-        </Animated.View>
-        {busy && (
-          <View style={s.busyRow}>
-            <ActivityIndicator color={ATP_BRAND.lime} />
-            <EliteText style={s.busyText}>Armando tu app…</EliteText>
-          </View>
-        )}
-        <View style={{ height: Spacing.xxl }} />
-      </ScrollView>
-    );
-  };
 
   // ─── El resumen: lo que DE VERDAD pasó ───
 
@@ -280,7 +267,7 @@ export default function ArmarScreen() {
           </EliteText>
           <EliteText style={s.hint}>
             {resultado.ok
-              ? `${pack.nombre} está activo. Esto fue lo que se configuró:`
+              ? `${pack.nombre} quedó aplicado. Esto fue lo que se configuró:`
               : 'Esto fue lo que sí entró y lo que faltó. Puedes intentar de nuevo cuando quieras.'}
           </EliteText>
         </Animated.View>
@@ -328,6 +315,12 @@ export default function ArmarScreen() {
                   <EliteText style={s.resumenNota}>
                     Luz solar se ancla cada día a tu ventana buena de UV. Sin
                     dato de ubicación cae a media hora después de despertar.
+                  </EliteText>
+                )}
+                {pack.enciende.some((h) => !h.core) && (
+                  <EliteText style={s.resumenNota}>
+                    Los demás hábitos del pack llegan cuando sostengas estos
+                    14 de 21 días. Puedes adelantarlos en la ficha del pack.
                   </EliteText>
                 )}
               </View>
@@ -393,7 +386,6 @@ export default function ArmarScreen() {
       />
       {paso === 'pack' && renderPack()}
       {paso === 'horario' && renderHorario()}
-      {paso === 'intensidad' && renderIntensidad()}
       {paso === 'resumen' && renderResumen()}
 
       <TimeWheelPicker
@@ -485,27 +477,12 @@ const s = StyleSheet.create({
   horaLabel: { flex: 1, color: TEXT.primary, fontFamily: Fonts.regular, fontSize: FontSizes.sm },
   horaValor: { color: ATP_BRAND.lime, fontFamily: Fonts.bold, fontSize: FontSizes.md },
 
-  intensidadCard: {
-    backgroundColor: ELEVATION[1].bg,
-    borderWidth: 0.5,
-    borderColor: ELEVATION[1].border,
-    borderRadius: 14,
-    padding: Spacing.md,
-    marginBottom: 10,
-  },
-  intensidadTitulo: { color: TEXT.primary, fontFamily: Fonts.bold, fontSize: FontSizes.lg },
-  intensidadDesc: {
-    color: TEXT.secondary,
-    fontFamily: Fonts.regular,
-    fontSize: FontSizes.sm,
-    marginTop: 4,
-  },
-  intensidadLista: {
+  etapaNota: {
     color: TEXT.tertiary,
     fontFamily: Fonts.regular,
     fontSize: FontSizes.xs,
     lineHeight: 18,
-    marginTop: 8,
+    marginBottom: Spacing.xs,
   },
 
   busyRow: {

@@ -352,26 +352,19 @@ export function reconcilarPack(
   return { installApps, gridApps, bools, quants, habitReglas, metas, avisos };
 }
 
-// ─── Desactivar ─────────────────────────────────────────────────────────────
+// ─── El registro de aplicaciones ────────────────────────────────────────────
 
 /**
- * Lo que desactivar un pack toca en la configuración del usuario: NADA.
- *
- * Desactivar = dejar de agrupar y medir. Nada se desinstala, nada se borra,
- * ningún hábito se apaga: es la doctrina de intervenciones (el dato del
- * usuario es sagrado). pack-service ejecuta ESTAS listas al desactivar; que
- * estén vacías es el contrato — la mutación que las llene truena en test y,
- * de pasar, desinstalaría de verdad: por eso el servicio las consume en vez
- * de ignorarlas.
+ * MB-26 P7.1: un pack NO es un modo, es un INSTALADOR. "Desactivar" murió
+ * (era un botón que mentía por omisión: no hacía nada visible). Los packs
+ * se aplican y se ACUMULAN; la fila se queda para siempre — hace
+ * idempotente el re-aplicar y la va a leer ARGOS (MB-32). La columna
+ * `active` quedó vestigial (siempre true al aplicar): retirarla sería una
+ * migración sin ganancia.
  */
-export function writesAlDesactivar(_pack: PackDef): { desinstala: string[]; apaga: string[] } {
-  return { desinstala: [], apaga: [] };
-}
-
-// ─── El registro de activaciones ────────────────────────────────────────────
-
 export interface UserPackRow {
   pack_key: string;
+  /** Etapa aplicada: 'suave' = etapa 1 (3 core), 'con_todo' = etapa 2. */
   intensidad: PackIntensidad;
   wake_time: string;
   sleep_time: string;
@@ -379,12 +372,12 @@ export interface UserPackRow {
   activated_at: string;
 }
 
-/** El pack activo del usuario (doctrina: UNO a la vez), o null. */
-export function packActivo(rows: UserPackRow[] | null): UserPackRow | null {
-  return rows?.find((r) => r.active) ?? null;
+/** ¿Este pack ya fue aplicado? (la fila es la memoria). */
+export function packAplicado(rows: UserPackRow[] | null, packKey: string): UserPackRow | null {
+  return rows?.find((r) => r.pack_key === packKey) ?? null;
 }
 
-/** Reconstruye el plan de una activación previa desde su fila. */
+/** Reconstruye el plan de una aplicación previa desde su fila. */
 export function planDeFila(row: UserPackRow): PackPlan | null {
   if (!PACK_BY_KEY[row.pack_key]) return null;
   if (!esHoraValida(row.wake_time) || !esHoraValida(row.sleep_time)) return null;

@@ -29,7 +29,7 @@ import { groupBySection } from '@/src/services/atp-room-core';
 import { getInstallPrefs } from '@/src/services/hoy/install-service';
 import { appInstallState, type InstallPrefs, type InstallState } from '@/src/services/hoy/install-core';
 import { getUserPacks } from '@/src/services/pack-service';
-import { packActivo, type UserPackRow } from '@/src/services/pack-core';
+import { packAplicado, type UserPackRow } from '@/src/services/pack-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -48,9 +48,9 @@ export default function CentroScreen() {
 
   const [query, setQuery] = useState(typeof q === 'string' ? q : '');
   const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);
-  // MB-25 P5: el pack activo pinta su chip en la sección de arriba.
-  // Fail-soft: si la lectura falla (o la mig 254 no está), la sección vive
-  // igual, solo sin estado.
+  // MB-25 P5 / MB-26 P7.1: los packs APLICADOS pintan su chip (se
+  // acumulan; el concepto de "pack activo" murió). Fail-soft: si la
+  // lectura falla (o la mig 254 no está), la sección vive igual.
   const [packs, setPacks] = useState<UserPackRow[] | null>(null);
 
   // Al volver de una ficha, el estado (instalada/no) puede haber cambiado.
@@ -111,8 +111,8 @@ export default function CentroScreen() {
           <Animated.View entering={FadeInUp.delay(20).springify()}>
             <EliteText style={s.packsTitle}>ÁRMALA POR MÍ</EliteText>
             <EliteText style={s.packsHint}>
-              Contesta tres preguntas y tu app queda armada para lo que
-              quieres cambiar primero.
+              Contesta dos preguntas y tu app queda armada para lo que
+              quieres cambiar primero. Los packs se aplican y se acumulan.
             </EliteText>
             {/* MB-26 P4: la puerta de Ordenar mi día también vive aquí — el
                 Centro es donde se cambia la configuración. */}
@@ -135,7 +135,7 @@ export default function CentroScreen() {
             </View>
             <View style={[s.group, { marginBottom: Spacing.md }]}>
               {PACKS.map((p, i) => {
-                const esActivo = packActivo(packs)?.pack_key === p.key;
+                const esAplicado = packAplicado(packs, p.key) != null;
                 return (
                   <AnimatedPressable
                     key={p.key}
@@ -149,7 +149,7 @@ export default function CentroScreen() {
                       <EliteText style={s.rowLabel} numberOfLines={1}>{p.nombre}</EliteText>
                       <EliteText style={s.packParaQuien} numberOfLines={1}>{p.paraQuien}</EliteText>
                     </View>
-                    {esActivo && <EliteText style={s.packActivoChip}>ACTIVO</EliteText>}
+                    {esAplicado && <EliteText style={s.packAplicadoChip}>APLICADO</EliteText>}
                     <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
                   </AnimatedPressable>
                 );
@@ -238,7 +238,7 @@ const s = StyleSheet.create({
     fontSize: FontSizes.xs,
     marginTop: 1,
   },
-  packActivoChip: {
+  packAplicadoChip: {
     color: ATP_BRAND.lime,
     fontFamily: Fonts.bold,
     fontSize: 10,

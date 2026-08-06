@@ -1,19 +1,25 @@
 /**
- * pack-service — el motor de packs, capa con efectos (MB-25 Pieza 2).
+ * pack-service — el motor de packs, capa con efectos (MB-25 Pieza 2,
+ * corregido en MB-26 Pieza 7).
  *
  * Ejecuta el plan que decide pack-core por los caminos que YA existen:
  * installApp / installAppGridOnly (instalar = activar, MB-20),
- * electron-prefs (hábitos sin app), habit-times (horas), los writers de
- * metas (proteína, agua, ayuno) y updateAppAviso (avisos por app, con el
- * maestro general mandando). Cero rutas paralelas.
+ * electron-prefs (hábitos sin app), habit-times (horas como REGLA), los
+ * writers de metas (proteína, agua, ayuno) y updateAppAviso (avisos por
+ * app, con el maestro general mandando). Cero rutas paralelas.
  *
- * Si un paso falla a media activación se reporta el estado real, paso por
+ * Un pack NO es un modo, es un INSTALADOR: se aplica, se acumula con los
+ * demás y entra POR ETAPAS (aplicar enciende los 3 core; el resto llega
+ * al sostenerlos 14/21, o antes si el usuario los adelanta). "Desactivar"
+ * murió en MB-26 P7.1: no había nada honesto que hacer al desactivar.
+ *
+ * Si un paso falla a media aplicación se reporta el estado real, paso por
  * paso: nunca dejamos al usuario creyendo que tiene un pack a medias sin
  * saberlo.
  *
- * Registro en user_packs (migración 254): la fila guarda pack, intensidad
- * y horario. Con ella pack-core reconstruye el plan de la activación
- * anterior y la re-activación no pisa lo que el usuario cambió a mano.
+ * Registro en user_packs (migración 254): la fila guarda pack, etapa
+ * (columna intensidad) y horario. Con ella pack-core reconstruye el plan
+ * previo y re-aplicar no pisa lo que el usuario cambió a mano.
  * ⚠️ Clase {error}: supabase-js no lanza en 4xx — cada lectura se revisa.
  */
 import { supabase } from '@/src/lib/supabase';
@@ -22,16 +28,15 @@ import { PACK_BY_KEY, type PackIntensidad } from '@/src/constants/packs';
 import {
   buildPackPlan,
   esHoraValida,
-  packActivo,
+  packAplicado,
   planDeFila,
   reconcilarPack,
-  writesAlDesactivar,
   type EstadoActual,
   type PackPlan,
   type PackWrites,
   type UserPackRow,
 } from '@/src/services/pack-core';
-import { installApp, installAppGridOnly, uninstallApp } from '@/src/services/hoy/install-service';
+import { installApp, installAppGridOnly } from '@/src/services/hoy/install-service';
 import {
   getElectronPrefs,
   setElectronPrefs,
@@ -62,9 +67,9 @@ export async function getUserPacks(userId: string): Promise<UserPackRow[] | null
   return (data ?? []) as UserPackRow[];
 }
 
-/** El pack activo del usuario, o null (también null si la lectura falló). */
-export async function getPackActivo(userId: string): Promise<UserPackRow | null> {
-  return packActivo(await getUserPacks(userId));
+/** La fila de un pack aplicado, o null (también null si la lectura falló). */
+export async function getPackAplicado(userId: string, packKey: string): Promise<UserPackRow | null> {
+  return packAplicado(await getUserPacks(userId), packKey);
 }
 
 // ─── Estado actual (para reconciliar) ───────────────────────────────────────
@@ -110,7 +115,7 @@ async function leerEstadoActual(userId: string, avisoApps: string[]): Promise<Es
   return { prefs, habitTimes, metas, avisos };
 }
 
-// ─── Activar ────────────────────────────────────────────────────────────────
+// ─── Aplicar ────────────────────────────────────────────────────────────────
 
 export type PasoActivacion = 'apps' | 'habitos' | 'horas' | 'metas' | 'avisos' | 'registro';
 
@@ -134,13 +139,12 @@ function fallo(paso: PasoActivacion, detalle: string): ResultadoActivacion {
 }
 
 /**
- * Activa un pack: instala, enciende, ancla horas, fija metas, configura
- * avisos y registra. Idempotente y respetuoso de lo manual (pack-core).
- * UN pack activo a la vez: el anterior queda inactivo pero NADA suyo se
- * desinstala — solo se re-sintoniza. Preguntar antes de cambiar es trabajo
- * de la UI; aquí ya se ejecuta.
+ * Aplica un pack: instala, enciende (la etapa dada), ancla horas como
+ * regla, fija metas, configura avisos y registra. Idempotente y
+ * respetuoso de lo manual (pack-core). Los packs se ACUMULAN: aplicar uno
+ * jamás toca lo que otro dejó.
  */
-export async function activatePack(
+export async function aplicarPack(
   userId: string,
   packKey: string,
   opts: { intensidad: PackIntensidad; despertar: string; dormir: string },
@@ -283,22 +287,12 @@ export async function activatePack(
     });
   }
 
-  // 6 · Registro: UN pack activo a la vez. El anterior queda inactivo,
-  //     nada suyo se toca.
+  // 6 · Registro: la fila se queda para siempre (idempotencia + la
+  //     memoria que va a leer ARGOS en MB-32). Los packs se acumulan:
+  //     aquí nadie toca las filas de otros packs.
   {
     let ok = true;
     let detalle: string | undefined;
-    const { error: offErr } = await supabase
-      .from('user_packs')
-      .update({ active: false, updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .neq('pack_key', packKey)
-      .eq('active', true);
-    if (offErr) {
-      ok = false;
-      detalle = 'No pude actualizar el pack anterior.';
-      logWarn('[packs] deactivate others failed', offErr);
-    }
     const { error: upErr } = await supabase.from('user_packs').upsert(
       {
         user_id: userId,
@@ -307,15 +301,15 @@ export async function activatePack(
         wake_time: opts.despertar,
         sleep_time: opts.dormir,
         active: true,
-        // Re-activar un pack ya activo conserva su "desde cuándo".
-        activated_at: filaPrevia?.active ? filaPrevia.activated_at : new Date().toISOString(),
+        // Re-aplicar un pack conserva su "desde cuándo".
+        activated_at: filaPrevia?.activated_at ?? new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,pack_key' },
     );
     if (upErr) {
       ok = false;
-      detalle = 'La configuración entró pero el pack no quedó registrado como activo.';
+      detalle = 'La configuración entró pero el pack no quedó registrado.';
       logWarn('[packs] upsert failed', upErr);
     }
     pasos.push({ paso: 'registro', ok, ...(detalle ? { detalle } : {}) });
@@ -324,40 +318,20 @@ export async function activatePack(
   return { ok: pasos.every((p) => p.ok), plan, escrituras, pasos };
 }
 
-// ─── Desactivar ─────────────────────────────────────────────────────────────
+// ─── Etapa 2: los demás hábitos del pack ────────────────────────────────────
 
 /**
- * Desactivar = dejar de agrupar y medir. El servicio ejecuta las listas de
- * writesAlDesactivar — que por doctrina están vacías: NADA se desinstala,
- * NADA se apaga, NADA se borra. Las apps y hábitos quedan como estén y el
- * usuario decide.
+ * Enciende el resto del pack (etapa 2), con el horario de la fila. Es la
+ * misma aplicación de siempre con la etapa completa: idempotente y sin
+ * pisar lo manual. La usa la ficha cuando sostienes los core 14/21 (la
+ * app propone) o cuando el usuario los adelanta.
  */
-export async function deactivatePack(userId: string, packKey: string): Promise<{ ok: boolean }> {
-  const pack = PACK_BY_KEY[packKey];
-  if (!pack) return { ok: false };
-
-  const w = writesAlDesactivar(pack);
-  for (const app of w.desinstala) {
-    await uninstallApp(userId, app);
-  }
-  if (w.apaga.length > 0) {
-    const prefs = await getElectronPrefs(userId);
-    if (prefs) {
-      await setElectronPrefs(userId, {
-        booleans: prefs.booleans.filter((b) => !w.apaga.includes(b)),
-        quants: prefs.quants.filter((q) => !w.apaga.includes(q)),
-      });
-    }
-  }
-
-  const { error } = await supabase
-    .from('user_packs')
-    .update({ active: false, updated_at: new Date().toISOString() })
-    .eq('user_id', userId)
-    .eq('pack_key', packKey);
-  if (error) {
-    logWarn('[packs] deactivate failed', error);
-    return { ok: false };
-  }
-  return { ok: true };
+export async function avanzarPackEtapa(userId: string, packKey: string): Promise<ResultadoActivacion> {
+  const fila = await getPackAplicado(userId, packKey);
+  if (!fila) return fallo('registro', 'Ese pack no está aplicado.');
+  return aplicarPack(userId, packKey, {
+    intensidad: 'con_todo',
+    despertar: fila.wake_time,
+    dormir: fila.sleep_time,
+  });
 }
