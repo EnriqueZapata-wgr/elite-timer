@@ -18,6 +18,8 @@ export const GLYPH_INVENTORY: readonly string[] = [
   // (los grid/pulse-outline del tab bar murieron con el montaje del set SVG:
   // las cuatro salas dibujan con <AppIcon name="tab-*">)
   'app/(tabs)/index.tsx::checkbox-outline',
+  // MB-26 P4: CTA quiet "Ordenar mi día" — chip de acción, no lanzador.
+  'app/(tabs)/index.tsx::sparkles-outline',
   'app/(tabs)/yo.tsx::leaf-outline',
   'app/(tabs)/yo.tsx::moon-outline',
   'app/(tabs)/yo.tsx::sunny-outline',
@@ -41,6 +43,8 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/builder.tsx::timer-outline',
   'app/cardio-import.tsx::settings-outline',
   'app/cardio-import.tsx::water-outline',
+  // MB-26 P4: fila "Ordenar mi día" en el Centro — chip de acción, no lanzador.
+  'app/centro/index.tsx::sparkles-outline',
   'app/comunidad/amigos.tsx::pulse-outline',
   'app/comunidad/perfil/[userId].tsx::hourglass-outline',
   'app/cycle-charts.tsx::analytics-outline',

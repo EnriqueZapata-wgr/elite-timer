@@ -114,6 +114,25 @@ export default function CentroScreen() {
               Contesta tres preguntas y tu app queda armada para lo que
               quieres cambiar primero.
             </EliteText>
+            {/* MB-26 P4: la puerta de Ordenar mi día también vive aquí — el
+                Centro es donde se cambia la configuración. */}
+            <View style={[s.group, { marginBottom: Spacing.xs }]}>
+              <AnimatedPressable
+                style={s.row}
+                onPress={() => { haptic.light(); router.push('/ordenar-dia'); }}
+              >
+                <View style={s.packIcon}>
+                  <Ionicons name="sparkles-outline" size={16} color={TEXT.secondary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <EliteText style={s.rowLabel} numberOfLines={1}>Ordenar mi día</EliteText>
+                  <EliteText style={s.packParaQuien} numberOfLines={1}>
+                    Graduar, reposar o empezar de cero. Nada se borra.
+                  </EliteText>
+                </View>
+                <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+              </AnimatedPressable>
+            </View>
             <View style={[s.group, { marginBottom: Spacing.md }]}>
               {PACKS.map((p, i) => {
                 const esActivo = packActivo(packs)?.pack_key === p.key;

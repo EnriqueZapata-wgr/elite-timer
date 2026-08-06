@@ -438,6 +438,16 @@ export default function TodayScreen() {
           style={s.editDayBtn}
         />
 
+        {/* MB-26 P4: la salida al desmadre — graduar, reposar, empezar de
+            cero o dejar que ARGOS proponga. Nada se borra ni se desinstala. */}
+        <GradientCTA
+          label="Ordenar mi día"
+          variant="quiet"
+          icon="sparkles-outline"
+          onPress={() => { haptic.light(); router.push('/ordenar-dia'); }}
+          style={s.editDayBtn}
+        />
+
         {/* E-3 (MB-12): la puerta de los electrones — sin ella todo usuario
             quedaba clavado en los 6 booleanos del default (mig 043). */}
         <GradientCTA
