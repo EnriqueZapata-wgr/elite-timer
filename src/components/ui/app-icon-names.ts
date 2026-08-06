@@ -19,6 +19,11 @@ export const APP_ICON_NAMES = [
   'sol', 'glucosa', 'cetonas', 'ciclo', 'labs', 'protocolos',
   // ── Sistema ──
   'ajustes',
+  // ── Tab bar ──
+  // Las cuatro salas del tab bar: versión de línea en reposo y '-fill' para
+  // el estado activo. La orbe (ARGOS) no está aquí: es componente, no glifo.
+  'tab-hoy', 'tab-hoy-fill', 'tab-atp', 'tab-atp-fill',
+  'tab-salud', 'tab-salud-fill', 'tab-tribu', 'tab-tribu-fill',
   // ── Puertas de SALUD ──
   // No son apps de la sala, pero comparten el mismo enchufe: el día del cambio
   // de set no se quedan fuera.

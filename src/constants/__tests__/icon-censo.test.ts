@@ -28,12 +28,14 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import { hasAppIcon } from '@/src/components/ui/app-icon-names';
+import { ICON_PATHS } from '@/src/components/ui/icons/icon-paths';
 import { APP_REGISTRY } from '../app-registry';
 import { PUERTAS, DESTINOS_TODOS } from '../salud-puertas';
 import { ELECTRON_WEIGHTS } from '../electrons';
 import { ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/services/hoy/day-booleans';
 import { ACTIVITY_META } from '@/src/components/mente/mente-hub-core';
 import { CATEGORY_COPY } from '@/src/services/mente-streaks-core';
+import { TAB_BAR_ICONS } from '../tab-bar';
 import { GLYPH_INVENTORY } from './icon-censo-inventario';
 
 // ─── El árbol que se recorre ────────────────────────────────────────────────
@@ -66,6 +68,9 @@ describe('los registros declaran nombres lógicos, no dibujos', () => {
     ['ALL_QUANT_OPTIONS', ALL_QUANT_OPTIONS],
     ['ACTIVITY_META', Object.values(ACTIVITY_META)],
     ['CATEGORY_COPY', Object.values(CATEGORY_COPY)],
+    ['TAB_BAR_ICONS', Object.values(TAB_BAR_ICONS).flatMap((t) => [
+      { icon: t.reposo }, { icon: t.activo },
+    ])],
   ];
 
   it.each(REGISTROS)('%s: todo icono resuelve en el mapa', (_nombre, entradas) => {
@@ -85,6 +90,7 @@ const REGISTRY_FILES_SIN_IONICON = [
   'src/constants/app-registry.ts',
   'src/constants/salud-puertas.ts',
   'src/constants/hoy-cards.ts',
+  'src/constants/tab-bar.ts',
   'src/services/hoy/day-booleans.ts',
   'src/components/mente/mente-hub-core.ts',
   'src/services/mente-streaks-core.ts',
@@ -173,16 +179,29 @@ const LEGACY_FILL = [
   'sunny', 'partly-sunny',
 ];
 
-const GLIFOS_DE_FUNCION = [
-  ...FILLS.filter((g) => !EXCLUIDOS.has(g)),
-  ...DIVERGENTES,
-  ...LEGACY_OUTLINE,
+/** Los Ionicons que el MONTAJE del set SVG sacó del mapa. Ya no se derivan
+ * (sus nombres lógicos dibujan con `svg(...)`), pero siguen vetados: un
+ * `ion('flower-outline')` nuevo dibujando Meditar a mano es la misma deuda
+ * de siempre. Los que siguen vivos en el mapa (moon/hourglass/medkit, de
+ * nombres aún sin asset) igual entran por FILLS — el Set dedupea. */
+const REEMPLAZADOS_POR_SVG = [
+  'flower-outline', 'cloud-outline', 'book-outline', 'moon-outline',
+  'grid-outline', 'medal-outline', 'barbell-outline', 'pulse-outline',
+  'body-outline', 'ribbon-outline', 'restaurant-outline', 'water-outline',
+  'hourglass-outline', 'medkit-outline', 'reader-outline', 'cart-outline',
+  'sunny-outline', 'analytics-outline', 'flame-outline', 'ellipse-outline',
+  'flask-outline', 'clipboard-outline', 'settings-outline',
 ];
+
+const GLIFOS_DE_FUNCION = [
+  ...new Set([...FILLS, ...REEMPLAZADOS_POR_SVG, ...DIVERGENTES, ...LEGACY_OUTLINE]),
+].filter((g) => !EXCLUIDOS.has(g));
 
 describe('ratchet de glifos', () => {
   it('la derivación del mapa funciona (guard del regex)', () => {
-    expect(FILLS).toContain('flower-outline');
-    expect(FILLS.length).toBeGreaterThanOrEqual(38);
+    // Post-montaje quedan los ion() de nombres sin asset (+ el fallback).
+    expect(FILLS).toContain('today-outline');
+    expect(FILLS.length).toBeGreaterThanOrEqual(20);
   });
 
   it('los usos de glifos de función coinciden con el inventario auditado', () => {
@@ -212,5 +231,65 @@ describe('ratchet de glifos', () => {
     const muertos = GLYPH_INVENTORY.filter((p) => !usos.includes(p));
     expect(nuevos, 'glifo de función dibujado a mano — usa <AppIcon> o inventaría a conciencia').toEqual([]);
     expect(muertos, 'el inventario arrastra usos que ya no existen — pódalo').toEqual([]);
+  });
+});
+
+// ─── 5. El set SVG montado: asset ↔ mapa, sin divergencia ni invisibles ─────
+
+// El montaje copió cada trazado de assets/icons/ a icon-paths.ts (datos puros,
+// importables aquí). Este candado impide que diverjan: si un SVG cambia y el
+// path montado no, truena; si alguien monta un asset 100% de trazo por el
+// factory de relleno (saldría negro — el footgun de color), truena también.
+describe('el set SVG está montado y no diverge de assets/icons', () => {
+  const SVG_DIR = 'assets/icons';
+  const assets = readdirSync(SVG_DIR).filter((f) => f.endsWith('.svg')).sort();
+
+  /** Los dos assets 100% de trazo del set: entran como componente a mano. */
+  const TRAZO: Record<string, string> = {
+    '1rm': 'src/components/ui/icons/Icon1Rm.tsx',
+    emociones: 'src/components/ui/icons/IconEmociones.tsx',
+  };
+
+  it('el set completo está en el repo (33 SVG)', () => {
+    expect(assets.length).toBe(33);
+  });
+
+  it.each(assets)('%s montado sin divergencia', (file) => {
+    const name = file.replace(/\.svg$/, '');
+    const src = read(`${SVG_DIR}/${file}`);
+    if (TRAZO[name]) {
+      // Footgun de color: el asset pinta con stroke, no con fill. Va por
+      // componente (stroke="currentColor" + color en el root), NUNCA por
+      // icon-paths — si el color solo entrara por fill, saldría negro.
+      expect(src).toContain('stroke="currentColor"');
+      expect(name in ICON_PATHS, `${name} es de trazo: no va en icon-paths`).toBe(false);
+      const comp = read(TRAZO[name]);
+      expect(comp).toContain('stroke="currentColor"');
+      expect(comp).toContain('color={color}');
+      return;
+    }
+    // Relleno: un solo path con fill=currentColor, copiado 1:1 al montaje.
+    expect(src, `${file} no pinta con fill=currentColor`).toMatch(/<svg [^>]*fill="currentColor"/);
+    const d = src.match(/<path d="([^"]+)"\/>/)?.[1];
+    expect(d, `${file}: no pude extraer su path`).toBeTruthy();
+    expect(ICON_PATHS[name as keyof typeof ICON_PATHS], `${file} diverge de icon-paths.ts`).toBe(d);
+  });
+
+  it('cada glifo de relleno del set está enchufado en el mapa', () => {
+    for (const name of Object.keys(ICON_PATHS)) {
+      expect(MAP_SRC, `svg('${name}') no está en app-icon-map`).toContain(`svg('${name}')`);
+    }
+  });
+
+  it('los de trazo entran como componente, nunca por el factory de relleno', () => {
+    expect(MAP_SRC).toContain('emociones: IconEmociones');
+    expect(MAP_SRC).toContain('rm: Icon1Rm');
+    expect(MAP_SRC).not.toContain("svg('emociones')");
+    expect(MAP_SRC).not.toContain("svg('1rm')");
+  });
+
+  it('el factory de relleno pasa el color por el root + currentColor', () => {
+    expect(MAP_SRC).toContain('color={color}');
+    expect(MAP_SRC).toContain('fill="currentColor"');
   });
 });

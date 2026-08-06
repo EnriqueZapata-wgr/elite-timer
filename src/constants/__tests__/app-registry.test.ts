@@ -14,6 +14,7 @@ import { hasAppIcon, APP_ICON_NAMES } from '@/src/components/ui/app-icon-names';
 import { PUERTAS, DESTINOS_TODOS } from '../salud-puertas';
 import { ELECTRON_WEIGHTS } from '../electrons';
 import { ALL_BOOLEAN_OPTIONS, ALL_QUANT_OPTIONS } from '@/src/services/hoy/day-booleans';
+import { TAB_BAR_ICONS } from '../tab-bar';
 
 describe('APP_REGISTRY', () => {
   it('las llaves son únicas', () => {
@@ -130,6 +131,8 @@ describe('cobertura de iconos', () => {
       ...Object.values(ELECTRON_WEIGHTS).map((e) => e.icon),
       ...ALL_BOOLEAN_OPTIONS.map((o) => o.icon),
       ...ALL_QUANT_OPTIONS.map((o) => o.icon),
+      // El tab bar también es un registro: sus dos glifos por sala son uso real.
+      ...Object.values(TAB_BAR_ICONS).flatMap((t) => [t.reposo, t.activo]),
     ]);
     const huerfanos = APP_ICON_NAMES.filter((k) => !usados.has(k));
     expect(huerfanos).toEqual([]);
