@@ -6,6 +6,7 @@
  * en ELECTRON_WEIGHTS. Mutar una llave a algo inexistente truena.
  */
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { PACKS, PACK_BY_KEY, habitosPorIntensidad } from '@/src/constants/packs';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
 import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
@@ -82,14 +83,21 @@ describe('contrato del registro de packs', () => {
     }
   });
 
+  // Regla del brief: cero em dash en copy visible, y ningún pack nombra
+  // enfermedad, diagnóstico ni tratamiento — ni en nombre, ni en copy, ni
+  // en comentario de código visible (criterio MedicalDisclaimer).
+  const prohibidas = /diabetes|ansiedad|insomnio|depresi[oó]n|hipertensi|tiroid|resistencia a la insulina|tratamiento|diagn[oó]stico|enfermedad|\bcurar?\b/i;
+
   it('el copy no usa em dash ni nombra padecimientos', () => {
-    // Regla del brief: cero em dash en copy visible, y ningún pack nombra
-    // enfermedad, diagnóstico ni tratamiento (criterio MedicalDisclaimer).
-    const prohibidas = /diabetes|ansiedad|insomnio|depresi|hipertensi|tiroid|resistencia a la insulina|tratamiento|diagn[oó]stico|enfermedad|curar?/i;
     for (const pack of PACKS) {
       const copy = [pack.nombre, pack.paraQuien, pack.queEsperar, pack.argosFoco].join(' ');
       expect(copy.includes('—'), `em dash en ${pack.key}`).toBe(false);
       expect(prohibidas.test(copy), `palabra roja en ${pack.key}: ${copy.match(prohibidas)?.[0] ?? ''}`).toBe(false);
     }
+  });
+
+  it('el archivo completo (comentarios incluidos) no nombra padecimientos', () => {
+    const src = readFileSync('src/constants/packs.ts', 'utf8');
+    expect(prohibidas.test(src), `palabra roja en packs.ts: ${src.match(prohibidas)?.[0] ?? ''}`).toBe(false);
   });
 });

@@ -16,8 +16,9 @@
  *    __tests__/packs-registry.test.ts: una llave rota truena en CI.
  *  · Las horas son RELATIVAS a la vida del usuario (despertar / dormir) y
  *    se vuelven absolutas en la entrada de tres preguntas (pack-core).
- *  · Ningún pack nombra enfermedad, diagnóstico ni tratamiento. Mismo
- *    criterio de MedicalDisclaimer: no cura, te optimiza.
+ *  · La regla de nombres es dura: cero padecimientos en llaves, copy y
+ *    comentarios de este archivo (criterio MedicalDisclaimer, y hay un
+ *    test que barre el archivo completo).
  *
  * Módulo de datos puros: los imports de tipos se borran en compilación.
  * Testeable en node sin montar nada.
@@ -114,10 +115,19 @@ export const INTENSIDAD_LABELS: Record<PackIntensidad, string> = {
 /**
  * Los cinco packs sin bloqueo estructural (CASOS_DE_USO_10_PERFILES).
  *
- * ⚠️ TODO el copy (nombre, paraQuien, queEsperar, argosFoco) queda marcado
- * para revisión de Enrique y Mariana antes de tiendas. Las horas relativas
- * y los valores de metas son propuesta inicial con los defaults de la app,
- * también a revisión.
+ * Criterio del copy (el de la ficha del Centro): honesto, del cuerpo, sin
+ * jerga y sin promesas. Describe lo que la app HACE, verificable en su
+ * código, nunca un beneficio inventado. Donde hay hueco se dice (la hora
+ * de dormir es lo accionable sin wearable; el score de N-Back se registra,
+ * no se promete que suba).
+ *
+ * ⚠️ PEND-FIRMA (Enrique + Mariana) antes de tiendas:
+ *   · los cinco `nombre` (la regla de nombres: cero padecimientos),
+ *   · `paraQuien` y `queEsperar` de cada pack,
+ *   · `argosFoco` (se guarda hoy, lo consume MB-31),
+ *   · horas relativas y valores de metas (propuesta con los defaults
+ *     actuales de la app: proteína 150 g, agua 2500 ml).
+ * Cambiar cualquier texto firmado = cambiar un string; la `key` no se toca.
  *
  * Longevidad: el brief pedía instalar `edad-atp`, que aún no es app
  * instalable (eso es de MB-28). El pack instala lo que SÍ existe y el hueco
