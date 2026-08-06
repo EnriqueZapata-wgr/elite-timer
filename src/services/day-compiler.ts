@@ -35,6 +35,13 @@ import {
   VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, FEMALE_ONLY_ELECTRONS,
   type VerifiedElectronKey,
 } from '@/src/services/hoy/day-booleans';
+// MB-26 Pieza 1: los tres estados del hábito (activo/graduado/reposo). El
+// filtro vive en UN punto (aquí) y toca SOLO el renglón; el ledger de los
+// verificados lo ignora a propósito (ledgerKeys): graduar quita el renglón,
+// nunca el crédito.
+import {
+  estadosPorKey, keysActivas, ledgerKeys, type HabitEstado,
+} from '@/src/services/hoy/habit-states-core';
 
 export { VERIFIED_ELECTRON_KEYS, VERIFIED_ELECTRON_ROUTES, FEMALE_ONLY_ELECTRONS };
 export type { VerifiedElectronKey };
@@ -56,6 +63,9 @@ export interface CompiledDay {
   datosVivos: DatosVivos;
   /** MB-23 P4: overrides de hora por hábito (goals.habit_times, source → 'HH:MM'). */
   habitTimes: Record<string, string>;
+  /** MB-26 P1: estado por hábito (sin entrada = activo). Alimenta el estante
+   *  de graduados y las propuestas; el filtro de renglones ya se aplicó. */
+  habitStates: Record<string, HabitEstado>;
 }
 
 export interface BoolElectronState {
@@ -174,7 +184,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const [
     prefsRes, dailyERes, userRes, protRes, foodRes, hydRes, fastRes, moodRes, glucoseRes, clientProfileRes,
     meditationCountRes, breathingCountRes, lastExerciseRes, suppRes, suppTakenCountRes, cycleLogCountRes,
-    lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes, cycleModeRes,
+    lastCardioRes, lastJournalRes, lastNbackRes, lastMindRes, cycleModeRes, habitStatesRes,
   ] = await Promise.all([
     supabase.from('user_day_preferences').select('*').eq('user_id', userId).maybeSingle(),
     supabase.from('daily_electrons').select('electrons').eq('user_id', userId).eq('date', today).maybeSingle(),
@@ -247,6 +257,10 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     // Tabla ausente en remoto → {error} (no lanza) → modo null = hoy.
     supabase.from('user_app_modes').select('mode')
       .eq('user_id', userId).eq('app_key', 'ciclo').maybeSingle(),
+    // MB-26 P1: estados del hábito (mig 255). Tabla ausente o error → {error}
+    // (no lanza) → sin estados = todos activos: nadie pierde nada.
+    supabase.from('user_habit_states').select('habit_key, state')
+      .eq('user_id', userId),
   ]);
 
   onProgress?.(45, 'Cargando métricas');
@@ -338,13 +352,27 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     userName = userRes.data.user?.email?.split('@')[0]?.toUpperCase() || '';
   }
 
+  // MB-26 P1: estado por hábito. {error} (mig 255 pendiente, red) → null →
+  // sin estados = todos activos, el comportamiento de siempre.
+  if (habitStatesRes.error) logWarn('[compileDay] user_habit_states query failed', habitStatesRes.error);
+  const habitEstados = estadosPorKey(habitStatesRes.error ? null : (habitStatesRes.data as any[]));
+
   // #v13e 3.A.1: unión persistido + MANDATORY (core no-deseleccionables). Sin esto, los hábitos
   // que no viven en active_boolean_electrons (journal/no_processed_foods/screen_time_cutoff/
   // cardio/checkin) nunca entraban a booleanElectrons → su card nunca palomeaba. Set para dedupe.
+  // MB-26 P1: después de la unión, el filtro de estados — graduado y reposo salen del
+  // RENGLÓN (display + score del día). Los MANDATORY también pueden graduarse y reposar:
+  // lo que no pueden es desaparecer sin rastro (su historial sigue en electron_logs y lo
+  // siguen contando reportes y Edad ATP; el ledger verificado ni pasa por este filtro).
   const persistedBoolKeys: string[] = prefs?.active_boolean_electrons ?? DEFAULT_BOOLEANS;
-  const activeBoolKeys: string[] = Array.from(new Set([...persistedBoolKeys, ...MANDATORY_BOOLEANS]));
-  const activeQuantKeys: string[] = (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)
-    .filter((k: string) => k !== 'steps' && k !== 'sleep'); // Sin fuente hasta wearables
+  const activeBoolKeys: string[] = keysActivas(
+    Array.from(new Set([...persistedBoolKeys, ...MANDATORY_BOOLEANS])), habitEstados,
+  );
+  const activeQuantKeys: string[] = keysActivas(
+    (prefs?.active_quantitative_electrons ?? DEFAULT_QUANTS)
+      .filter((k: string) => k !== 'steps' && k !== 'sleep'), // Sin fuente hasta wearables
+    habitEstados,
+  );
 
   // Metas personalizadas del usuario (si guardó en protocol-config)
   const userGoals = (prefs?.goals as any) || {};
@@ -486,6 +514,7 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
     electronProgress: { earned, possible, percentage },
     nextElectron, booleanElectrons, quantitativeElectrons,
     suggestion, agendaItems, datosVivos, habitTimes,
+    habitStates: habitEstados,
   };
 }
 
@@ -504,7 +533,10 @@ async function reconcileVerifiedLedger(
   date: string,
   evidencias: Record<string, Evidencia>,
 ): Promise<void> {
-  const keys = Object.keys(evidencias);
+  // MB-26 P1: ledgerKeys IGNORA los estados del hábito a propósito — un
+  // verificado graduado o en reposo con actividad real sigue ganando su
+  // electrón. Graduar quita el renglón, nunca el crédito.
+  const keys = ledgerKeys(evidencias);
   if (keys.length === 0) return;
   const { data, error } = await supabase
     .from('electron_logs')

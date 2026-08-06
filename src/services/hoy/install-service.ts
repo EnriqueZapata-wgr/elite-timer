@@ -15,8 +15,10 @@ import {
   applyInstallGridOnly,
   applyUninstall,
   initialSeedApps,
+  togglesForApp,
   type InstallPrefs,
 } from '@/src/services/hoy/install-core';
+import { reactivarHabitos } from '@/src/services/hoy/habit-states-service';
 import { getCycleAppMode, setCycleAppMode } from '@/src/services/app-mode-service';
 
 const DEFAULT_QUANTS = ['protein', 'water'];
@@ -69,6 +71,11 @@ async function writePrefs(userId: string, prefs: InstallPrefs): Promise<{ ok: bo
 export async function installApp(userId: string, appKey: string): Promise<{ ok: boolean }> {
   const prefs = await getInstallPrefs(userId);
   if (!prefs) return { ok: false };
+  // MB-26 P1: instalar ES encender — si el hábito estaba graduado o en
+  // reposo, vuelve a activo ANTES del write que recompila. Sin esto, la
+  // card jamás reaparecería (toggle silencioso clase checkin).
+  const t = togglesForApp(appKey);
+  await reactivarHabitos(userId, [...t.booleans, ...t.quants]);
   return writePrefs(userId, applyInstall(appKey, prefs));
 }
 

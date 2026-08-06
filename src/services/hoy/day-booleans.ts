@@ -10,6 +10,12 @@
  *
  * Si el lugar 3 falta, el electrón "se otorga" pero su card jamás palomea
  * (falla en silencio). Ver regresión en __tests__/day-booleans.test.ts.
+ *
+ * MB-26 P1: sobre el lugar 3 se aplica ADEMÁS el filtro de estados
+ * (habit-states-core): graduado y reposo salen del renglón sin borrar nada.
+ * El hueco simétrico al de checkin es encender un hábito filtrado sin
+ * devolverlo a activo — por eso toda puerta que enciende (installApp,
+ * hoy-habitos, aplicar pack) llama reactivarHabitos. Contrato con test.
  */
 import type { Href } from 'expo-router';
 // MB-19.2: `icon` es nombre lógico del AppIcon, no un Ionicon. Se pinta con <AppIcon>.

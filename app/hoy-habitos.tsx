@@ -28,6 +28,7 @@ import {
 import {
   getElectronPrefs, setElectronPrefs, applyElectronToggle, type ElectronPrefs,
 } from '@/src/services/hoy/electron-prefs-service';
+import { reactivarHabitos } from '@/src/services/hoy/habit-states-service';
 import { ELEVATION, TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -72,6 +73,10 @@ export default function HoyHabitosScreen() {
     };
     const prev = prefs;
     setPrefs(next); // optimista
+    // MB-26 P1: encender un hábito graduado o en reposo lo regresa a activo
+    // ANTES de escribir prefs (que emite el recompile). Sin esto, el filtro
+    // de estados seguiría quitando su card: toggle silencioso clase checkin.
+    if (active) await reactivarHabitos(user.id, [option.key]);
     const res = await setElectronPrefs(user.id, next);
     if (!res.ok) {
       setPrefs(prev); // revertir — nunca confirmar en falso
