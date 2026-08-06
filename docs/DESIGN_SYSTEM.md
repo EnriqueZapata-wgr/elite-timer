@@ -8,6 +8,40 @@
 
 ---
 
+## ⬆️ Por encima de este documento: el Manual de marca
+
+**`ATP_Manual_de_Marca.pdf`** (carpeta ATP · versión 2 · julio 2026) es la autoridad de
+marca: símbolo, variantes del logo, área de respeto, doctrina de color, voz verbal y lo
+que la marca nunca hace. Este documento cubre la **aplicación** de esa marca en producto.
+
+**Si el manual y el código se contradicen, gana el manual y el código se corrige.**
+
+### Dos cosas del logo NO coinciden con el producto (pendientes de decisión)
+
+1. **Hay dos limas.** Los seis archivos SVG del logo usan **`#A7C834`**; la app usa
+   **`#A8E02A`** (`ATP_BRAND.lime`). Uno de los dos tiene que ceder. Lo natural es
+   actualizar el logo al lima del producto, pero **el manual original es de Patricia
+   Aguilar y el cambio se decide con ella.**
+2. **La firma del logo es de otra época.** `Logo-vertical_*.svg` trae vectorizado
+   *"activa tu energía y salud"*, mientras el producto usa *"tu sistema operativo de
+   rendimiento"*. **Mientras no se resuelva, usar el ícono sin firma.**
+
+### Deuda medida contra estas reglas (julio 2026)
+
+| Qué | Cuánto |
+|---|---|
+| Colores escritos a mano en `app/` + `src/components/` | **1,782** ocurrencias |
+| Pantallas con el kit viejo (`elite-*`) | 141, contra 154 con el kit nuevo |
+| Radios de card distintos en `brand.ts` | 2 (`CARD_STYLE` 12 · `CARD` 16) |
+| Rojos sin criterio que los separe | 2 (`SEMANTIC.error` #FB7185 · `SCORE_COLORS.critical` #EF4444) |
+| Modo claro | No existe |
+
+Fuera de paleta, los más repetidos: `#FBBF24` (49), `#38BDF8` (18), `#22C55E` (16),
+`#C084FC` (14), `#FB923C` (12). **Estandarizar = cambiarlos por tokens, por pantalla,
+no de golpe.**
+
+---
+
 ## 0. Filosofía (por qué se siente "vivo" o "muerto")
 
 El "wow" es una propiedad **del sistema completo**, no de cada pantalla. Cuatro ejes lo gobiernan;
