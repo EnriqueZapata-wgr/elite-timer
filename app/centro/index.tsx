@@ -24,11 +24,14 @@ import { useAuth } from '@/src/contexts/auth-context';
 import {
   visibleApps, searchApps, type AppEntry,
 } from '@/src/constants/app-registry';
+import { PACKS } from '@/src/constants/packs';
 import { groupBySection } from '@/src/services/atp-room-core';
 import { getInstallPrefs } from '@/src/services/hoy/install-service';
 import { appInstallState, type InstallPrefs, type InstallState } from '@/src/services/hoy/install-core';
+import { getUserPacks } from '@/src/services/pack-service';
+import { packActivo, type UserPackRow } from '@/src/services/pack-core';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { APP_SECTION_COLORS, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
+import { APP_SECTION_COLORS, ATP_BRAND, TEXT, ELEVATION, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
 
 const STATE_LABEL: Record<InstallState, string> = {
@@ -45,10 +48,16 @@ export default function CentroScreen() {
 
   const [query, setQuery] = useState(typeof q === 'string' ? q : '');
   const [installPrefs, setInstallPrefs] = useState<InstallPrefs | null>(null);
+  // MB-25 P5: el pack activo pinta su chip en la sección de arriba.
+  // Fail-soft: si la lectura falla (o la mig 254 no está), la sección vive
+  // igual, solo sin estado.
+  const [packs, setPacks] = useState<UserPackRow[] | null>(null);
 
   // Al volver de una ficha, el estado (instalada/no) puede haber cambiado.
   const refresh = useCallback(async () => {
-    if (user?.id) setInstallPrefs(await getInstallPrefs(user.id));
+    if (!user?.id) return;
+    setInstallPrefs(await getInstallPrefs(user.id));
+    setPacks(await getUserPacks(user.id));
   }, [user?.id]);
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
@@ -96,6 +105,40 @@ export default function CentroScreen() {
         contentContainerStyle={s.scroll}
         keyboardShouldPersistTaps="handled"
       >
+        {/* MB-25 P5: la sección de packs, arriba. Un pack arma la app
+            completa; buscar una función la esconde para no estorbar. */}
+        {!searching && (
+          <Animated.View entering={FadeInUp.delay(20).springify()}>
+            <EliteText style={s.packsTitle}>ÁRMALA POR MÍ</EliteText>
+            <EliteText style={s.packsHint}>
+              Contesta tres preguntas y tu app queda armada para lo que
+              quieres cambiar primero.
+            </EliteText>
+            <View style={[s.group, { marginBottom: Spacing.md }]}>
+              {PACKS.map((p, i) => {
+                const esActivo = packActivo(packs)?.pack_key === p.key;
+                return (
+                  <AnimatedPressable
+                    key={p.key}
+                    style={[s.row, i < PACKS.length - 1 && s.rowDivider]}
+                    onPress={() => { haptic.light(); router.push(`/packs/${p.key}`); }}
+                  >
+                    <View style={s.packIcon}>
+                      <AppIcon name={p.icon} size={18} color={TEXT.secondary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <EliteText style={s.rowLabel} numberOfLines={1}>{p.nombre}</EliteText>
+                      <EliteText style={s.packParaQuien} numberOfLines={1}>{p.paraQuien}</EliteText>
+                    </View>
+                    {esActivo && <EliteText style={s.packActivoChip}>ACTIVO</EliteText>}
+                    <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+                  </AnimatedPressable>
+                );
+              })}
+            </View>
+          </Animated.View>
+        )}
+
         <EliteText style={s.hint}>
           Todas las funciones de ATP. Entra a una para ver qué hace, instalarla
           en tu cuadrícula o ajustarla. Desinstalar nunca borra tus datos.
@@ -146,6 +189,42 @@ export default function CentroScreen() {
 
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm },
+  packsTitle: {
+    color: TEXT.tertiary,
+    fontSize: 11,
+    fontFamily: Fonts.bold,
+    letterSpacing: 2,
+    marginBottom: 4,
+  },
+  packsHint: {
+    color: TEXT.secondary,
+    fontFamily: Fonts.regular,
+    fontSize: FontSizes.sm,
+    lineHeight: 20,
+    marginBottom: Spacing.xs,
+  },
+  packIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: ELEVATION[1].border,
+    backgroundColor: withOpacity('#ffffff', 0.05),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  packParaQuien: {
+    color: TEXT.secondary,
+    fontFamily: Fonts.regular,
+    fontSize: FontSizes.xs,
+    marginTop: 1,
+  },
+  packActivoChip: {
+    color: ATP_BRAND.lime,
+    fontFamily: Fonts.bold,
+    fontSize: 10,
+    letterSpacing: 1.5,
+  },
   hint: {
     color: TEXT.secondary,
     fontFamily: Fonts.regular,
