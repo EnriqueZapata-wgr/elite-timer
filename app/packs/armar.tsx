@@ -43,7 +43,7 @@ import {
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
 import { buildPackPlan, esHoraValida } from '@/src/services/pack-core';
-import { aplicarPack, type ResultadoActivacion } from '@/src/services/pack-service';
+import { aplicarPack, type ResultadoAplicacion } from '@/src/services/pack-service';
 import { evaluarTechoEncendido } from '@/src/services/hoy/techo-service';
 import { setHabitState } from '@/src/services/hoy/habit-states-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
@@ -77,7 +77,7 @@ export default function ArmarScreen() {
   const [dormir, setDormir] = useState('23:00');
   const [picker, setPicker] = useState<'despertar' | 'dormir' | null>(null);
   const [busy, setBusy] = useState(false);
-  const [resultado, setResultado] = useState<ResultadoActivacion | null>(null);
+  const [resultado, setResultado] = useState<ResultadoAplicacion | null>(null);
 
   // Pregunta 2 con ventaja: si ya hay cronotipo, sus horas son el punto de
   // partida y el usuario solo confirma o ajusta.

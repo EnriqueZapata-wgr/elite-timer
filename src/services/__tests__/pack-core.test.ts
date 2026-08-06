@@ -118,20 +118,20 @@ describe('anclaje de horas', () => {
 
 // ─── 2 · Idempotencia ───────────────────────────────────────────────────────
 
-describe('idempotencia de la activación', () => {
-  it.each(PACKS.map((p) => [p.key] as const))('%s: activar dos veces = mismo estado', (key) => {
+describe('idempotencia de la aplicación', () => {
+  it.each(PACKS.map((p) => [p.key] as const))('%s: aplicar dos veces = mismo estado', (key) => {
     const plan = buildPackPlan(key, 'con_todo', '07:00', '23:00');
     const estado0 = estadoBase();
     const w1 = reconcilarPack(plan, null, estado0);
     const estado1 = aplicar(estado0, w1);
-    // Segunda activación, mismo pack, mismo horario: cero escrituras.
+    // Segunda aplicación, mismo pack, mismo horario: cero escrituras.
     const w2 = reconcilarPack(plan, plan, estado1);
-    expect(sinEscrituras(w2), `re-activación de ${key} escribe: ${JSON.stringify(w2)}`).toBe(true);
+    expect(sinEscrituras(w2), `re-aplicación de ${key} escribe: ${JSON.stringify(w2)}`).toBe(true);
     // Y el estado no cambia ni aplicándolas.
     expect(aplicar(estado1, w2)).toEqual(estado1);
   });
 
-  it('no pisa una hora que el usuario movió a mano después de activar', () => {
+  it('no pisa una hora que el usuario movió a mano después de aplicar', () => {
     const plan = buildPackPlan('dormir-mejor', 'con_todo', '07:00', '23:00');
     const estado1 = aplicar(estadoBase(), reconcilarPack(plan, null, estadoBase()));
     // El usuario fijó su corte de pantallas a las 21:00 (override absoluto).
@@ -147,7 +147,7 @@ describe('idempotencia de la activación', () => {
     expect(estado1.habitTimes.screen_time_cutoff).toBe('21:00');
   });
 
-  it('MB-25 legacy: una hora absoluta escrita por la activación vieja se conserva', () => {
+  it('MB-25 legacy: una hora absoluta escrita por la aplicación vieja se conserva', () => {
     // Antes de MB-26 el pack escribía '22:00' absoluto. Ese usuario
     // re-aplica hoy: la entrada fija difiere de la regla del plan previo →
     // cuenta como manual y NO se pisa con la regla nueva.
@@ -158,7 +158,7 @@ describe('idempotencia de la activación', () => {
     expect(w.habitReglas.screen_time_cutoff).toBeUndefined();
   });
 
-  it('no re-enciende un hábito que el usuario apagó después de activar', () => {
+  it('no re-enciende un hábito que el usuario apagó después de aplicar', () => {
     const plan = buildPackPlan('dormir-mejor', 'con_todo', '07:00', '23:00');
     const estado1 = aplicar(estadoBase(), reconcilarPack(plan, null, estadoBase()));
     // El usuario apagó lentes rojos y desinstaló Respirar.
@@ -179,7 +179,7 @@ describe('idempotencia de la activación', () => {
     expect(w.avisos).toEqual([]);
   });
 
-  it('no pisa una meta que el usuario cambió después de activar', () => {
+  it('no pisa una meta que el usuario cambió después de aplicar', () => {
     const plan = buildPackPlan('energia-estable', 'con_todo', '07:00', '23:00');
     const estado1 = aplicar(estadoBase(), reconcilarPack(plan, null, estadoBase()));
     estado1.metas.agua_ml = 3000; // la subió a mano
@@ -187,7 +187,7 @@ describe('idempotencia de la activación', () => {
     expect(w.metas.find((m) => m.tipo === 'agua_ml')).toBeUndefined();
   });
 
-  it('la primera activación sí fija todo (para eso es el pack)', () => {
+  it('la primera aplicación sí fija todo (para eso es el pack)', () => {
     const plan = buildPackPlan('energia-estable', 'con_todo', '07:00', '23:00');
     const estado = estadoBase();
     estado.metas.agua_ml = 1500; // valor previo del usuario, SIN pack de por medio

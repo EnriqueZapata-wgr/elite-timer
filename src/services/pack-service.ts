@@ -117,16 +117,16 @@ async function leerEstadoActual(userId: string, avisoApps: string[]): Promise<Es
 
 // ─── Aplicar ────────────────────────────────────────────────────────────────
 
-export type PasoActivacion = 'apps' | 'habitos' | 'horas' | 'metas' | 'avisos' | 'registro';
+export type PasoAplicacion = 'apps' | 'habitos' | 'horas' | 'metas' | 'avisos' | 'registro';
 
 export interface PasoResultado {
-  paso: PasoActivacion;
+  paso: PasoAplicacion;
   ok: boolean;
   /** Qué falló exactamente, en lenguaje del usuario. */
   detalle?: string;
 }
 
-export interface ResultadoActivacion {
+export interface ResultadoAplicacion {
   /** true solo si TODOS los pasos entraron. */
   ok: boolean;
   plan: PackPlan | null;
@@ -134,7 +134,7 @@ export interface ResultadoActivacion {
   pasos: PasoResultado[];
 }
 
-function fallo(paso: PasoActivacion, detalle: string): ResultadoActivacion {
+function fallo(paso: PasoAplicacion, detalle: string): ResultadoAplicacion {
   return { ok: false, plan: null, escrituras: null, pasos: [{ paso, ok: false, detalle }] };
 }
 
@@ -148,7 +148,7 @@ export async function aplicarPack(
   userId: string,
   packKey: string,
   opts: { intensidad: PackIntensidad; despertar: string; dormir: string },
-): Promise<ResultadoActivacion> {
+): Promise<ResultadoAplicacion> {
   const pack = PACK_BY_KEY[packKey];
   if (!pack) return fallo('registro', 'Ese pack no existe en esta versión.');
   if (!esHoraValida(opts.despertar) || !esHoraValida(opts.dormir)) {
@@ -326,7 +326,7 @@ export async function aplicarPack(
  * pisar lo manual. La usa la ficha cuando sostienes los core 14/21 (la
  * app propone) o cuando el usuario los adelanta.
  */
-export async function avanzarPackEtapa(userId: string, packKey: string): Promise<ResultadoActivacion> {
+export async function avanzarPackEtapa(userId: string, packKey: string): Promise<ResultadoAplicacion> {
   const fila = await getPackAplicado(userId, packKey);
   if (!fila) return fallo('registro', 'Ese pack no está aplicado.');
   return aplicarPack(userId, packKey, {

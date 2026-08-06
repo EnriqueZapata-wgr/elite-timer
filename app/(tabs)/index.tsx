@@ -425,18 +425,12 @@ export default function TodayScreen() {
         {/* #v13d 2.4: SECCIÓN 5 "SUGERENCIA INTELIGENTE" (IA recommended) eliminada — decisión
             Enrique: las cards editoriales contextuales (Hero/AYUNO/UV) ya cubren esto. */}
 
-        {/* Sprint 1.5 B: protocol-config murió — configurar el día ES activar
-            intervenciones (Mi Protocolo = HOY cards = Agenda, doctrina fusión).
-            MB-11 B.1: al molde GradientCTA (quiet: acción secundaria). El
-            EditDayModal que vivía aquí nunca se abría (visible siempre false)
-            — retirado junto con su componente huérfano. */}
-        <GradientCTA
-          label="Ajustar Mi Protocolo"
-          variant="quiet"
-          icon="options-outline"
-          onPress={() => { haptic.light(); router.push('/salud/intervenciones'); }}
-          style={s.editDayBtn}
-        />
+        {/* MB-26 P8: "Ajustar Mi Protocolo" se retiró — nombre muerto desde
+            que murió ATP PROTOCOLOS y chocaba de frente con los packs. Su
+            destino (/salud/intervenciones) conserva sus puertas propias: la
+            puerta "Mi protocolo" del pilar SALUD, el registro de apps y el
+            diagnóstico. El pie de HOY queda para el día: ordenarlo y elegir
+            hábitos. */}
 
         {/* MB-26 P4: la salida al desmadre — graduar, reposar, empezar de
             cero o dejar que ARGOS proponga. Nada se borra ni se desinstala. */}

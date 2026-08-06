@@ -11,11 +11,11 @@
  *     −90) y aquí se vuelven absolutas con el horario del usuario. Una hora
  *     que caería fuera de la ventana despierto se recorta a la ventana.
  *
- *  2. PLAN DETERMINISTA. buildPackPlan(pack, intensidad, despertar, dormir)
+ *  2. PLAN DETERMINISTA. buildPackPlan(pack, etapa, despertar, dormir)
  *     produce siempre lo mismo. Eso permite reconstruir el plan de la
- *     activación ANTERIOR desde la fila de user_packs y compararlo con el
- *     estado actual: si el usuario movió algo a mano después de activar, la
- *     re-activación NO lo pisa.
+ *     aplicación ANTERIOR desde la fila de user_packs y compararlo con el
+ *     estado actual: si el usuario movió algo a mano después de aplicar,
+ *     re-aplicar NO lo pisa.
  *
  *  3. ENCENDER = EL CAMINO DE SIEMPRE. Un hábito con app se enciende
  *     instalando su app (installApp, instalar = activar, MB-20). Solo los
@@ -138,7 +138,7 @@ export interface PackPlan {
 }
 
 /**
- * El plan completo de una activación. Determinista: mismo pack + intensidad
+ * El plan completo de una aplicación. Determinista: mismo pack + etapa
  * + horario → mismo plan, siempre. Sobre esa propiedad se construye la
  * idempotencia (reconcilarPack).
  */
@@ -284,18 +284,18 @@ function appEncendida(appKey: string, prefs: InstallPrefs): boolean {
 }
 
 /**
- * Decide qué se escribe DE VERDAD al activar. Las dos reglas duras del
+ * Decide qué se escribe DE VERDAD al aplicar. Las dos reglas duras del
  * brief viven aquí:
  *
- *  · Re-activar es idempotente: lo que ya está como el plan lo pide, no se
- *    vuelve a escribir. Activar dos veces = mismo estado, cero escrituras
+ *  · Re-aplicar es idempotente: lo que ya está como el plan lo pide, no se
+ *    vuelve a escribir. Aplicar dos veces = mismo estado, cero escrituras
  *    la segunda vez.
  *
- *  · No pisa lo manual: si hay plan previo (la activación anterior,
+ *  · No pisa lo manual: si hay plan previo (la aplicación anterior,
  *    reconstruida desde user_packs) y el valor actual difiere de lo que
- *    aquel plan dejó, el usuario lo cambió a mano después de activar y ES
- *    SUYO: no se toca. Sin plan previo (primera activación) el pack sí
- *    fija todo: para eso lo activaste.
+ *    aquel plan dejó, el usuario lo cambió a mano después de aplicar y ES
+ *    SUYO: no se toca. Sin plan previo (primera aplicación) el pack sí
+ *    fija todo: para eso lo aplicaste.
  */
 export function reconcilarPack(
   nuevo: PackPlan,
