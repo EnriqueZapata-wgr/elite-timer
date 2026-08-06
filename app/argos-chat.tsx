@@ -261,7 +261,12 @@ function ArgosChat() {
     if (rotatedAway) setConversationId(null);
     const base = rotatedAway ? [] : messages;
     const turnConversationId = rotatedAway ? null : conversationId;
-    screenSessionRef.current = getArgosSessionId();
+    // Fuga del turno en vuelo: si la sesión rota MIENTRAS el LLM responde
+    // (background > umbral con el turno en el aire), guardar con el ancla
+    // global ya rotada adoptaría la conversación vieja en la sesión nueva.
+    // El turno entero queda anclado a la sesión con la que ARRANCÓ.
+    const turnSessionId = getArgosSessionId();
+    screenSessionRef.current = turnSessionId;
     const userTurn: ArgosMessage = { role: 'user', content: messageText, ts: Date.now() };
     if (!online) {
       sendGuard.release();
@@ -348,10 +353,15 @@ function ArgosChat() {
 
     // ARG-2: persistir SOLO turnos limpios (persistPlan decide).
     if (resolved) {
+      // Cerrar el turno restaura el ancla: los setMessages de arriba volvieron
+      // a pintar contenido de la sesión del turno. Si el listener de AppState
+      // limpió la pantalla en pleno vuelo (ancla en null), el siguiente
+      // foco/envío debe poder detectar que este contenido es de la vieja.
+      screenSessionRef.current = turnSessionId;
       const plan = persistPlan(resolved.messages, resolved.wasDegraded);
       if (plan.persist) {
         try {
-          const id = await saveConversation(userId, plan.clean, turnConversationId, getArgosSessionId());
+          const id = await saveConversation(userId, plan.clean, turnConversationId, turnSessionId);
           if (id) setConversationId(id);
         } catch (e) {
           console.warn('ARGOS saveConversation error:', e);

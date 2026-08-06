@@ -191,8 +191,8 @@ export default function ArgosConversationsScreen() {
         {!loading && loadError && convs.length === 0 && (
           <View>
             <Text style={s.empty}>
-              No pude cargar tu historial. Tus conversaciones siguen guardadas —
-              revisa tu conexión e intenta de nuevo.
+              No pude cargar tu historial. Tus conversaciones siguen guardadas.
+              Revisa tu conexión e intenta de nuevo.
             </Text>
             <Pressable onPress={reload} style={s.moreBtn}>
               <Text style={s.moreBtnText}>Reintentar</Text>
