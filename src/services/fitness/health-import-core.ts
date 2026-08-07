@@ -41,6 +41,15 @@ export interface NormalizedWorkout {
    * testeable sin cargar catálogos nativos.
    */
   esCaminata: boolean;
+  /**
+   * Audit B8: en Android la distancia NO viene del workout — es el
+   * aggregate de la ventana (suma la caminata ambiental de pasos). Un nado
+   * de alberca de 40 min con 120 m de ruido ambiental NO puede tronar el
+   * piso de distancia. true = la distancia es del PROPIO ejercicio (iOS
+   * per-workout, o tipo crudo outdoor con GPS en Android); false = agregado
+   * ruidoso, y el piso no aplica.
+   */
+  distanciaPropia: boolean;
 }
 
 /** Sesión existente mínima para dedupear (shape de cardio_sessions). */
@@ -94,6 +103,19 @@ export function esCaminataHealthKit(activityType: number): boolean {
   return HEALTHKIT_CAMINATAS.has(activityType);
 }
 
+/**
+ * Audit B8 — Android: tipos crudos donde la distancia SÍ es del ejercicio
+ * (GPS del propio deporte al aire libre): BIKING (8), ROWING (53), RUNNING
+ * (56), SWIMMING_OPEN_WATER (73). En los bajo techo (caminadora 57, bici
+ * fija 9, remo en máquina 54, alberca 74) y en lo desconocido, el aggregate
+ * de Distance de la ventana es ruido ambiental — el piso no aplica ahí.
+ */
+const HEALTH_CONNECT_DISTANCIA_PROPIA = new Set([8, 53, 56, 73]);
+
+export function distanciaEsPropiaHealthConnect(exerciseType: number): boolean {
+  return HEALTH_CONNECT_DISTANCIA_PROPIA.has(exerciseType);
+}
+
 // ── Reglas de import (NOCTURNO B2 · afinadas en MB-27 P4.2) ──
 
 /** Menos de 5 minutos no es un entrenamiento: es una caminata al súper. */
@@ -112,12 +134,18 @@ export const MIN_IMPORT_DISTANCE_METERS = 150;
  *  · caminatas y senderismo FUERA aunque traigan GPS (test 11) — para eso
  *    viaja el tipo crudo clasificado (esCaminata);
  *  · lo no mapeado ('other') sin distancia no se importa;
- *  · distancia positiva pero diminuta = ruido de GPS, fuera. */
+ *  · distancia positiva pero diminuta = ruido de GPS, fuera — SOLO donde
+ *    la distancia es señal del propio ejercicio (audit B8: el aggregate
+ *    de Android en indoor es ruido ambiental y no descalifica nada). */
 export function esImportable(w: NormalizedWorkout): boolean {
   if (w.durationSeconds < MIN_IMPORT_DURATION_SECONDS) return false;
   if (w.esCaminata) return false;
   if (w.discipline === 'other' && (w.distanceMeters == null || w.distanceMeters <= 0)) return false;
-  if (w.distanceMeters != null && w.distanceMeters > 0 && w.distanceMeters < MIN_IMPORT_DISTANCE_METERS) return false;
+  if (
+    w.distanciaPropia &&
+    w.distanceMeters != null && w.distanceMeters > 0 &&
+    w.distanceMeters < MIN_IMPORT_DISTANCE_METERS
+  ) return false;
   return true;
 }
 

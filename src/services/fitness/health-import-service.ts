@@ -27,6 +27,7 @@ import {
   importOtorgaElectron,
   disciplineFromHealthConnect,
   disciplineFromHealthKit,
+  distanciaEsPropiaHealthConnect,
   esCaminataHealthConnect,
   esCaminataHealthKit,
   esImportable,
@@ -242,6 +243,10 @@ async function leerAndroid(desdeISO: string, hastaISO: string): Promise<Normaliz
       // MB-27 P4.2: el tipo crudo se clasifica aquí — colapsado a 'other'
       // una caminata con GPS era indistinguible de un desconocido legítimo.
       esCaminata: esCaminataHealthConnect(r.exerciseType),
+      // Audit B8: la distancia de este camino es el AGGREGATE de la ventana
+      // (ruido ambiental incluido) — solo cuenta como señal propia en los
+      // tipos outdoor con GPS.
+      distanciaPropia: distanciaEsPropiaHealthConnect(r.exerciseType),
     });
   }
   return out;
@@ -267,6 +272,9 @@ async function leerIOS(desde: Date): Promise<NormalizedWorkout[]> {
       calories: sample.totalEnergyBurned ? Math.round(sample.totalEnergyBurned.quantity) : null,
       source: 'healthkit',
       esCaminata: esCaminataHealthKit(sample.workoutActivityType as unknown as number),
+      // Audit B8: HealthKit reporta totalDistance DEL propio workout — la
+      // distancia sí es señal aquí.
+      distanciaPropia: true,
     });
   }
   return out;

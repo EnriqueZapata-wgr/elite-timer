@@ -9,6 +9,7 @@ import {
   duracionesAproximadas,
   disciplineFromHealthConnect,
   disciplineFromHealthKit,
+  distanciaEsPropiaHealthConnect,
   esCaminataHealthConnect,
   esCaminataHealthKit,
   importOtorgaElectron,
@@ -29,6 +30,7 @@ function w(over: Partial<NormalizedWorkout> = {}): NormalizedWorkout {
     calories: null,
     source: 'health_connect',
     esCaminata: false,
+    distanciaPropia: true,
     ...over,
   };
 }
@@ -151,5 +153,37 @@ describe('reglas de import (NOCTURNO B2 · MB-27 P4.2 = mutación 11)', () => {
     expect(esCaminataHealthKit(52)).toBe(true);      // walking
     expect(esCaminataHealthKit(24)).toBe(true);      // hiking
     expect(esCaminataHealthKit(37)).toBe(false);     // running
+  });
+
+  // Audit B8: el piso SOLO aplica donde la distancia es señal del ejercicio.
+  it('B8: el nado en alberca con 120 m de agregado ambiental SÍ entra (la regresión, cerrada)', () => {
+    // Android SWIMMING_POOL: la "distancia" es el aggregate de la ventana
+    // (caminata ambiental de pasos), no del nado — distanciaPropia false.
+    expect(distanciaEsPropiaHealthConnect(74)).toBe(false);
+    expect(esImportable(w({
+      discipline: 'swimming', durationSeconds: 2400,
+      distanceMeters: 120, distanciaPropia: false,
+    }))).toBe(true);
+    // Mismo caso remo en máquina (54) y caminadora (57):
+    expect(distanciaEsPropiaHealthConnect(54)).toBe(false);
+    expect(distanciaEsPropiaHealthConnect(57)).toBe(false);
+    expect(esImportable(w({
+      discipline: 'rowing', durationSeconds: 1800,
+      distanceMeters: 90, distanciaPropia: false,
+    }))).toBe(true);
+  });
+
+  it('B8: donde la distancia SÍ es propia (GPS outdoor, iOS), el piso sigue vivo', () => {
+    // Outdoor en Android: BIKING/ROWING/RUNNING/OPEN_WATER llevan GPS propio.
+    expect(distanciaEsPropiaHealthConnect(56)).toBe(true);
+    expect(distanciaEsPropiaHealthConnect(8)).toBe(true);
+    expect(distanciaEsPropiaHealthConnect(53)).toBe(true);
+    expect(distanciaEsPropiaHealthConnect(73)).toBe(true);
+    // El registro de 10 metros en 6 minutos (test 11) sigue fuera:
+    expect(esImportable(w({ durationSeconds: 360, distanceMeters: 10, distanciaPropia: true }))).toBe(false);
+    // Y en iOS (per-workout, distanciaPropia true) igual:
+    expect(esImportable(w({
+      source: 'healthkit', durationSeconds: 360, distanceMeters: 10, distanciaPropia: true,
+    }))).toBe(false);
   });
 });
