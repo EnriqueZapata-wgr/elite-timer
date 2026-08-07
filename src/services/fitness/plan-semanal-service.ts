@@ -12,6 +12,7 @@
  * no enciende strength ni acredita su electrón. El aviso de reposo vive en
  * la UI, con decisión explícita del usuario (reactivarHabitos solo ahí).
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
@@ -19,6 +20,33 @@ import {
   asignacionDeHoy, planDeFilas, proximaAsignacion, rutinasPorDia,
   type AsignacionRow, type PlanSemanal, type ProximaAsignacion,
 } from './plan-semanal-core';
+
+/**
+ * Audit V2 B5 — caché LOCAL de las asignaciones del día: la respuesta de
+ * la mañana no puede cambiar a la 1pm porque el gimnasio no tiene señal.
+ * Lectura exitosa → se cachea con usuario y fecha local; lectura fallida →
+ * se sirve el caché SOLO si es del mismo usuario y del mismo día (mañana
+ * es otro día y otra asignación). Guardar el plan INVALIDA el caché: un
+ * fallo de red después de guardar degrada a null (pref del generador), no
+ * a servir el plan que el usuario acaba de cambiar.
+ */
+const ASIGNACIONES_CACHE_KEY = 'plan_asignaciones_dia_v1';
+
+interface AsignacionesCache {
+  userId: string;
+  date: string;
+  rows: AsignacionRow[];
+}
+
+async function leerCacheAsignaciones(userId: string): Promise<AsignacionRow[] | null> {
+  try {
+    const raw = await AsyncStorage.getItem(ASIGNACIONES_CACHE_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw) as AsignacionesCache;
+    if (c?.userId === userId && c?.date === getLocalToday() && Array.isArray(c.rows)) return c.rows;
+  } catch { /* caché corrupto = sin caché */ }
+  return null;
+}
 
 /** Todas las filas activas del usuario (enfoque Y rutina, para resolver hoy).
  *  Audit B7: ORDER BY created_at — la entrada llega determinista; la
@@ -33,9 +61,15 @@ export async function getAsignaciones(userId: string): Promise<AsignacionRow[] |
     .order('created_at', { ascending: true });
   if (error) {
     logWarn('[plan-semanal] read failed', error);
+    // Audit V2 B5: la red no decide qué te toca hoy — el caché del día sí.
+    const cacheadas = await leerCacheAsignaciones(userId);
+    if (cacheadas) {
+      logWarn('[plan-semanal] sirviendo asignaciones del caché del día');
+      return cacheadas;
+    }
     return null;
   }
-  return ((data ?? []) as any[]).map((r) => ({
+  const rows: AsignacionRow[] = ((data ?? []) as any[]).map((r) => ({
     id: r.id,
     schedule_type: r.schedule_type,
     day_of_week: r.day_of_week,
@@ -46,6 +80,11 @@ export async function getAsignaciones(userId: string): Promise<AsignacionRow[] |
     is_active: r.is_active,
     created_at: r.created_at ?? null,
   }));
+  AsyncStorage.setItem(
+    ASIGNACIONES_CACHE_KEY,
+    JSON.stringify({ userId, date: getLocalToday(), rows } satisfies AsignacionesCache),
+  ).catch(() => {});
+  return rows;
 }
 
 export interface EstadoAsignacionHoy {
@@ -160,5 +199,8 @@ export async function savePlanSemanal(
       return { ok: false };
     }
   }
+  // Audit V2 B5: el plan cambió — el caché del día ya no representa la
+  // verdad y se invalida (el siguiente read exitoso lo repuebla).
+  await AsyncStorage.removeItem(ASIGNACIONES_CACHE_KEY).catch(() => {});
   return { ok: true };
 }

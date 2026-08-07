@@ -126,6 +126,21 @@ describe('mutación 8 + audit B3 (contrato): la asignación avisa, pasa por el t
   // (arriba): revivir strength exige el sí explícito, sin techo de por medio.
 });
 
+describe('audit V2 B5 (contrato): la red no decide qué te toca hoy', () => {
+  it('getAsignaciones cachea el día y sirve el caché SOLO mismo usuario + mismo día', () => {
+    const src = read('src/services/fitness/plan-semanal-service.ts');
+    // Lectura exitosa escribe el caché con usuario y fecha local:
+    expect(src).toMatch(/AsyncStorage\.setItem\(\s*ASIGNACIONES_CACHE_KEY/);
+    expect(src).toMatch(/c\?\.userId === userId && c\?\.date === getLocalToday\(\)/);
+    // Lectura fallida consulta el caché ANTES de rendirse a null:
+    const ramaError = src.slice(src.indexOf("logWarn('[plan-semanal] read failed'"));
+    expect(ramaError).toMatch(/leerCacheAsignaciones\(userId\)/);
+    // Y guardar el plan invalida el caché (no se sirve el plan recién cambiado):
+    const bodySave = src.slice(src.indexOf('export async function savePlanSemanal'));
+    expect(bodySave).toMatch(/AsyncStorage\.removeItem\(ASIGNACIONES_CACHE_KEY\)/);
+  });
+});
+
 describe('audit B5 (contrato): la asignación manda en la puerta real', () => {
   it('el estado de hoy del hub consulta la asignación y genera con ella', () => {
     const src = read('src/services/fitness/today-session-service.ts');
