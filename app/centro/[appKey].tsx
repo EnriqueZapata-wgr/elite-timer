@@ -32,7 +32,7 @@ import { getCycleAppMode, setCycleAppMode } from '@/src/services/app-mode-servic
 import type { CycleMode } from '@/src/services/cycle/cycle-access-core';
 import {
   appInstallState, installAlertBody, uninstallAlertBody, installCreatesRow,
-  togglesForApp,
+  habitosQueEnciende,
   type InstallPrefs, type InstallState,
 } from '@/src/services/hoy/install-core';
 import { setHabitState } from '@/src/services/hoy/habit-states-service';
@@ -117,8 +117,11 @@ export default function FichaAppScreen() {
     const userId = user.id;
     // MB-26 P3: instalar enciende hábitos — si eso rebasa los 8 renglones,
     // se avisa y se ofrece qué mandar a reposo. Guiado, no prisionero.
-    const t = togglesForApp(app.key);
-    const aviso = await evaluarTechoEncendido(userId, [...t.booleans, ...t.quants]);
+    // Audit B2: el techo evalúa EXACTAMENTE la lista que installApp va a
+    // encender (habitosQueEnciende: toggles + MANDATORY de la app). La
+    // lista vieja excluía los MANDATORY: instalar Cardio con cardio en
+    // reposo evaluaba vacío y el noveno renglón entraba sin aviso.
+    const aviso = await evaluarTechoEncendido(userId, habitosQueEnciende(app.key));
     if (aviso) {
       const sugerido = aviso.candidatos[0] ?? null;
       Alert.alert(

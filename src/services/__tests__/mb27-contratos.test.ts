@@ -35,6 +35,16 @@ describe('mutación 3: Mis hábitos ve los tres estados', () => {
   });
 });
 
+describe('audit B2 (contrato): el techo evalúa la lista que se enciende', () => {
+  it('la ficha del Centro evalúa con habitosQueEnciende, no con togglesForApp', () => {
+    const src = read('app/centro/[appKey].tsx');
+    expect(src).toMatch(/evaluarTechoEncendido\(userId, habitosQueEnciende\(app\.key\)\)/);
+    // togglesForApp evaluaba una lista que EXCLUYE los MANDATORY mientras
+    // installApp los enciende: se evaluaba una lista y se encendía otra.
+    expect(src).not.toMatch(/togglesForApp/);
+  });
+});
+
 describe('mutación 6 (contrato): capturar dos veces el mismo día NO duplica fila', () => {
   it('las dos puertas de escritura upsertean con onConflict user_id,date', () => {
     // La unicidad vive en la base (UNIQUE de la mig 030); el cliente la

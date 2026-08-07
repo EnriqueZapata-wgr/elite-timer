@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   TECHO_RENGLONES, renglonesDeHoy, evaluarEncendido, diasSinHacer, candidatosAReposo,
 } from '@/src/services/hoy/techo-core';
+import { habitosQueEnciende, togglesForApp } from '@/src/services/hoy/install-core';
 import { MANDATORY_BOOLEANS } from '@/src/services/hoy/day-booleans';
 import { ultimasFechas } from '@/src/services/hoy/graduacion-core';
 import type { HabitEstado } from '@/src/services/hoy/habit-states-core';
@@ -76,6 +77,32 @@ describe('el techo de 8 renglones (mutación 4)', () => {
     const prefs = { booleans: ['sleep', ...MANDATORY_BOOLEANS], quants: ['water', 'steps'] };
     // sleep y steps fuera; 5 MANDATORY + water = 6.
     expect(renglonesDeHoy(prefs, {})).toHaveLength(6);
+  });
+
+  // Audit B2: el techo evalúa EXACTAMENTE la lista que instalar enciende.
+  it('B2: instalar Cardio con cardio en reposo avisa el noveno — togglesForApp lo dejaba pasar', () => {
+    // 8 renglones activos (cardio en reposo no cuenta) + 3 extras para
+    // compensar: 4 MANDATORY activos + sunlight, no_alcohol, red_glasses,
+    // grounding = 8 activos.
+    const prefs = {
+      booleans: ['sunlight', 'no_alcohol', 'red_glasses', 'grounding', ...MANDATORY_BOOLEANS],
+      quants: [],
+    };
+    const estados = { cardio: 'reposo' as const };
+    expect(renglonesDeHoy(prefs, estados)).toHaveLength(8);
+
+    // La lista que installApp va a encender incluye el MANDATORY:
+    const seEnciende = habitosQueEnciende('cardio');
+    const ev = evaluarEncendido(prefs, estados, seEnciende);
+    expect(ev.total).toBe(9);
+    expect(ev.excede).toBe(true);
+
+    // La lista vieja (togglesForApp) es vacía para cardio: evaluaba 8 y el
+    // noveno entraba SIN aviso. La mutación que regrese a togglesForApp en
+    // la ficha del Centro truena aquí y en el contrato de fuente.
+    const listaVieja = togglesForApp('cardio');
+    const evViejo = evaluarEncendido(prefs, estados, [...listaVieja.booleans, ...listaVieja.quants]);
+    expect(evViejo.excede).toBe(false); // el salto silencioso que B2 cierra
   });
 
   it('evaluar JAMÁS cambia nada: forzar es decisión del usuario', () => {
