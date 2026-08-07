@@ -9,8 +9,11 @@ import {
   duracionesAproximadas,
   disciplineFromHealthConnect,
   disciplineFromHealthKit,
+  esCaminataHealthConnect,
+  esCaminataHealthKit,
   importOtorgaElectron,
   esImportable,
+  MIN_IMPORT_DISTANCE_METERS,
   type NormalizedWorkout,
   type ExistingSessionLike,
 } from '../health-import-core';
@@ -25,6 +28,7 @@ function w(over: Partial<NormalizedWorkout> = {}): NormalizedWorkout {
     avgHeartRate: null,
     calories: null,
     source: 'health_connect',
+    esCaminata: false,
     ...over,
   };
 }
@@ -109,7 +113,7 @@ describe('economía del import', () => {
   });
 });
 
-describe('reglas de import (NOCTURNO B2)', () => {
+describe('reglas de import (NOCTURNO B2 · MB-27 P4.2 = mutación 11)', () => {
   it('la frontera de duración es 5 minutos exactos', () => {
     expect(esImportable(w({ durationSeconds: 299 }))).toBe(false);
     expect(esImportable(w({ durationSeconds: 300 }))).toBe(true);
@@ -120,11 +124,32 @@ describe('reglas de import (NOCTURNO B2)', () => {
     expect(esImportable(w({ discipline: 'other', distanceMeters: 0 }))).toBe(false);
   });
 
-  it("'other' CON distancia sí califica (caminata larga con GPS)", () => {
-    expect(esImportable(w({ discipline: 'other', distanceMeters: 3000 }))).toBe(true);
+  it("mutación 11: una caminata NO entra, aunque traiga GPS y 'other' con distancia", () => {
+    // El hueco viejo: WALKING caía en 'other' y con distancia pasaba limpio.
+    expect(esImportable(w({ discipline: 'other', distanceMeters: 3000, esCaminata: true }))).toBe(false);
+    // Un desconocido legítimo (no caminata) con distancia real sigue entrando.
+    expect(esImportable(w({ discipline: 'other', distanceMeters: 3000, esCaminata: false }))).toBe(true);
   });
 
-  it('una disciplina reconocida sin distancia sí entra', () => {
+  it('mutación 11: 10 metros en 6 minutos NO entra; correr 2 km sí', () => {
+    expect(esImportable(w({ durationSeconds: 360, distanceMeters: 10 }))).toBe(false);
+    expect(esImportable(w({ durationSeconds: 720, distanceMeters: 2000 }))).toBe(true);
+    // La frontera exacta.
+    expect(esImportable(w({ distanceMeters: MIN_IMPORT_DISTANCE_METERS - 1 }))).toBe(false);
+    expect(esImportable(w({ distanceMeters: MIN_IMPORT_DISTANCE_METERS }))).toBe(true);
+  });
+
+  it('distancia ausente o en cero NO descalifica (caminadora, remo bajo techo)', () => {
     expect(esImportable(w({ discipline: 'running', distanceMeters: null }))).toBe(true);
+    expect(esImportable(w({ discipline: 'running', distanceMeters: 0 }))).toBe(true);
+  });
+
+  it('el tipo crudo clasifica caminata y senderismo en ambas plataformas', () => {
+    expect(esCaminataHealthConnect(79)).toBe(true);  // WALKING
+    expect(esCaminataHealthConnect(37)).toBe(true);  // HIKING
+    expect(esCaminataHealthConnect(56)).toBe(false); // RUNNING
+    expect(esCaminataHealthKit(52)).toBe(true);      // walking
+    expect(esCaminataHealthKit(24)).toBe(true);      // hiking
+    expect(esCaminataHealthKit(37)).toBe(false);     // running
   });
 });

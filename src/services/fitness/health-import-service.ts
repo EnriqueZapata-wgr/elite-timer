@@ -27,6 +27,8 @@ import {
   importOtorgaElectron,
   disciplineFromHealthConnect,
   disciplineFromHealthKit,
+  esCaminataHealthConnect,
+  esCaminataHealthKit,
   esImportable,
   MIN_IMPORT_DURATION_SECONDS,
   type NormalizedWorkout,
@@ -237,6 +239,9 @@ async function leerAndroid(desdeISO: string, hastaISO: string): Promise<Normaliz
       avgHeartRate,
       calories,
       source: 'health_connect',
+      // MB-27 P4.2: el tipo crudo se clasifica aquí — colapsado a 'other'
+      // una caminata con GPS era indistinguible de un desconocido legítimo.
+      esCaminata: esCaminataHealthConnect(r.exerciseType),
     });
   }
   return out;
@@ -261,6 +266,7 @@ async function leerIOS(desde: Date): Promise<NormalizedWorkout[]> {
       avgHeartRate: null, // FC media requiere query extra por workout — omitido (minimización)
       calories: sample.totalEnergyBurned ? Math.round(sample.totalEnergyBurned.quantity) : null,
       source: 'healthkit',
+      esCaminata: esCaminataHealthKit(sample.workoutActivityType as unknown as number),
     });
   }
   return out;

@@ -253,10 +253,13 @@ export default function CardioImportScreen() {
                   <Ionicons name="file-tray-outline" size={26} color={ATP_BRAND.teal} />
                 </View>
                 <EliteText style={s.cardTitle}>Sin entrenamientos en 14 días</EliteText>
+                {/* MB-27 P4.2: el copy promete LAS reglas reales de esImportable —
+                    si cambian las reglas, cambia este texto en el mismo commit. */}
                 <EliteText style={s.cardBody}>
                   {nombre} no tiene entrenamientos recientes que leer. Se
-                  importan sesiones de 5 minutos o más; las actividades sin
-                  disciplina reconocida y sin distancia se quedan fuera. Si tu
+                  importan sesiones de 5 minutos o más; las caminatas, los
+                  registros de unos cuantos metros y las actividades sin
+                  disciplina reconocida ni distancia se quedan fuera. Si tu
                   app (Strava, Garmin…) no sincroniza con {nombre}, actívalo en
                   la configuración de esa app: ahí es donde ATP puede leerlos.
                 </EliteText>
