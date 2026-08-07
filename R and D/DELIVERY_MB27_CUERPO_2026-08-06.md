@@ -157,3 +157,40 @@ Suite completa tras restaurar: **270 archivos · 2946 tests · 0 fallas.**
   censo de iconos.
 - `PLAN_MAESTRO_V2_A_V21.md` lleva ahora la nota de numeración (los MB de
   Cuerpo en adelante corren +1; `ESTADO_CONTINUIDAD.md` manda).
+
+---
+
+# 🔁 ADDENDUM · Vuelta del audit rojo (mismo día)
+
+Los 8 bloqueantes y los 10 menores del
+`AUDITORIA_PREMERGE_MB27_2026-08-06.md`, cerrados en commits nuevos sobre la
+misma rama. El caso concreto probado por bloqueante está en el mensaje de
+cada commit y en el reporte del run.
+
+**Corrección a este delivery (menor 10):** donde este documento y el commit
+de la Pieza 0 dicen que instalar una app "revive sus MANDATORY", lo preciso
+es: revive los MANDATORY **con app** (cardio, journal, checkin vía sus apps).
+`no_processed_foods` y `screen_time_cutoff` viven en ELECTRONS_SIN_APP:
+ninguna instalación los alcanza jamás — su ruta de rescate del reposo es
+`/ordenar-dia`. No es callejón sin salida, pero la afirmación era más ancha
+que el código.
+
+**Decisiones tomadas en la vuelta (para el audit):**
+
+- **B1**: la fuente que manda es `cycle_periods` (fallback a logs SOLO sin
+  periods), el largo observado gana al ajuste manual (M3.b) y la guarda de
+  frescura vive DENTRO de `resolverCiclo`. `getCycleDay` murió.
+- **B5**: las dos superficies contestan lo mismo y la que manda es el hub
+  (la ruta real de la app Entrenar): genera y anuncia con la asignación.
+- **B7**: precedencia = específica > semanal; rutina concreta > enfoque;
+  entre rutinas la más antigua; entre enfoques el guardado más nuevo.
+  El editor DICE los días con rutina agendada.
+- **B8**: el piso de 150 m solo aplica donde la distancia es del propio
+  ejercicio (iOS per-workout; Android solo tipos outdoor con GPS). El
+  agregado ambiental de Android ya no descalifica indoor.
+- **NOTA**: `CycleCalendar.tsx` se BORRÓ — cero importadores vivos; el
+  ratchet dejó de amarrar un componente muerto. Si renace, el test de
+  consumidores lo exige sobre `resolverCiclo`.
+
+Migraciones: siguen siendo SOLO la 256 y la 257, pendientes de `db push`.
+La vuelta no agregó migraciones nuevas.

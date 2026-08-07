@@ -57,11 +57,14 @@ export default function FitnessTrainScreen() {
     let alive = true;
     if (!user?.id) return () => { alive = false; };
     getAsignacionHoy(user.id).then((estado) => { if (alive) setAsignacion(estado); });
+    // MB-27 menor 7: fail-CLOSED — info null (acompañante, sin datos, dato
+    // viejo) LIMPIA la tira; antes el estado anterior se quedaba pintado al
+    // cambiar de modo sin desmontar.
     getCycleInfo(user.id)
       .then((info) => {
-        if (alive && info) setFase({ phase: info.currentPhase, day: info.currentDay });
+        if (alive) setFase(info ? { phase: info.currentPhase, day: info.currentDay } : null);
       })
-      .catch(() => {});
+      .catch(() => { if (alive) setFase(null); });
     return () => { alive = false; };
   }, [user?.id]));
 
@@ -81,7 +84,9 @@ export default function FitnessTrainScreen() {
     if (hoy?.focus && esEnfoquePlan(hoy.focus)) {
       router.push(`/routine-generator?enfoque=${hoy.focus}`);
     } else if (hoy?.routine_id) {
-      router.push('/my-routines');
+      // MB-27 menor 9: abre LA rutina asignada directo (auto-open en
+      // /my-routines), no la lista para volver a buscarla.
+      router.push({ pathname: '/my-routines', params: { abrir: hoy.routine_id } });
     } else {
       router.push('/routine-generator');
     }

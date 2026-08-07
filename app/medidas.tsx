@@ -25,7 +25,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
 import { getMeasurementHistory } from '@/src/services/health-measurement-service';
 import {
-  serieDePeso, ultimoPeso, resumenMedidas,
+  serieDePeso, ultimoPeso, resumenMedidas, ultimaGrasa,
   type MedicionRow, type PuntoPeso, type UltimoPeso, type MedidaResumen,
 } from '@/src/services/cuerpo/medidas-core';
 import { ELEVATION, TEXT, ATP_BRAND } from '@/src/constants/brand';
@@ -36,6 +36,8 @@ export default function MedidasScreen() {
   const [serie, setSerie] = useState<PuntoPeso[]>([]);
   const [ultimo, setUltimo] = useState<UltimoPeso | null>(null);
   const [medidas, setMedidas] = useState<MedidaResumen[]>([]);
+  // MB-27 menor 8: el alias 'grasa' promete → la pantalla cumple.
+  const [grasa, setGrasa] = useState<{ pct: number; date: string } | null>(null);
   const [cargado, setCargado] = useState(false);
 
   useFocusEffect(useCallback(() => {
@@ -47,6 +49,7 @@ export default function MedidasScreen() {
       setSerie(serieDePeso(data));
       setUltimo(ultimoPeso(data));
       setMedidas(resumenMedidas(data));
+      setGrasa(ultimaGrasa(data));
       setCargado(true);
     }).catch(() => { if (alive) setCargado(true); });
     return () => { alive = false; };
@@ -108,6 +111,12 @@ export default function MedidasScreen() {
         {/* ── Las medidas: lentas y ocasionales, sin competir con el peso ── */}
         <Animated.View entering={FadeInUp.delay(90).springify()} style={s.card}>
           <EliteText style={s.sectionTitle}>MEDIDAS</EliteText>
+          {grasa != null && (
+            <View style={[s.fila, (medidas.length > 0) && s.filaDivider]}>
+              <EliteText style={s.filaLabel}>Grasa corporal</EliteText>
+              <EliteText style={s.filaValor}>{grasa.pct} %</EliteText>
+            </View>
+          )}
           {medidas.length > 0 ? (
             medidas.map((m, i) => (
               <View key={m.key} style={[s.fila, i < medidas.length - 1 && s.filaDivider]}>

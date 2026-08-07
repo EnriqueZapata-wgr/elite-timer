@@ -13,6 +13,7 @@ export interface MedicionRow {
   /** 'YYYY-MM-DD' (columna date de health_measurements). */
   date: string;
   weight_kg?: number | null;
+  body_fat_pct?: number | null;
   waist_cm?: number | null;
   hip_cm?: number | null;
   neck_cm?: number | null;
@@ -73,6 +74,19 @@ export function ultimoPeso(rows: MedicionRow[]): UltimoPeso | null {
     date: ultimo.date,
     deltaKg: previo ? Math.round((ultimo.value - previo.value) * 10) / 10 : null,
   };
+}
+
+/**
+ * MB-27 menor 8: el alias 'grasa' de la app Medidas promete y la pantalla
+ * cumple — el % de grasa más reciente, del mismo coalesce que las medidas.
+ */
+export function ultimaGrasa(rows: MedicionRow[]): { pct: number; date: string } | null {
+  for (const r of rows) {
+    if (typeof r?.body_fat_pct === 'number' && Number.isFinite(r.body_fat_pct) && r.body_fat_pct > 0 && r.date) {
+      return { pct: r.body_fat_pct, date: r.date };
+    }
+  }
+  return null;
 }
 
 export interface PesoFechado {

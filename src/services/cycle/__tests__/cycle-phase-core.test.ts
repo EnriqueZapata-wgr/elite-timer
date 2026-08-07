@@ -134,9 +134,10 @@ describe('audit B1: UNA resolución de {inicio, largo, periodo} para todas las s
 });
 
 describe('mutación 9: los umbrales viven en UN solo lugar', () => {
+  // Nota del audit: CycleCalendar.tsx murió (cero importadores vivos — el
+  // ratchet amarraba un componente muerto). Si renace, entra a esta lista.
   const CONSUMIDORES = [
     'app/cycle.tsx',
-    'src/components/cycle/CycleCalendar.tsx',
     'src/services/cycle-service.ts',
     'app/fitness-train.tsx',
   ];
@@ -157,7 +158,8 @@ describe('mutación 9: los umbrales viven en UN solo lugar', () => {
       expect(src, `${rel}: ${msg}`).toMatch(patron);
     };
     // La card de /cycle y getCycleInfo (Entrenar/day-compiler/motor) pasan
-    // por resolverCiclo: mismo inicio, mismo largo, misma guarda.
+    // por resolverCiclo: mismo inicio, mismo largo, misma guarda. (El viejo
+    // CycleCalendar.tsx se borró: cero importadores vivos.)
     usaCore('app/cycle.tsx', /resolverCiclo/, 'la card debe resolver con resolverCiclo');
     usaCore('src/services/cycle-service.ts', /resolverCiclo/, 'getCycleInfo debe resolver con resolverCiclo');
     // Y la resolución paralela vieja no puede volver:

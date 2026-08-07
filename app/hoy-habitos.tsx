@@ -103,36 +103,55 @@ export default function HoyHabitosScreen() {
     // MB-26 P3: el techo del día. Encender el noveno avisa y ofrece qué
     // mandar a reposo; el usuario puede pasarse si insiste (guiado, no
     // prisionero). Apagar nunca avisa.
-    const aviso: AvisoTecho | null = active
-      ? await evaluarTechoEncendido(userId, [option.key])
-      : null;
-    if (!aviso) {
-      await ejecutar();
+    const continuar = async () => {
+      const aviso: AvisoTecho | null = active
+        ? await evaluarTechoEncendido(userId, [option.key])
+        : null;
+      if (!aviso) {
+        await ejecutar();
+        return;
+      }
+      const sugerido = aviso.candidatos[0] ?? null;
+      Alert.alert(
+        'Tu día ya está lleno',
+        `Con ${option.name} quedarías en ${aviso.total} hábitos activos y el techo que protege tu día es ${aviso.techo}. ` +
+          'Puedes mandar algo a reposo: nada se borra y vuelve cuando quieras.' +
+          (aviso.candidatos.length > 0
+            ? ` Lo que más te ha costado: ${aviso.candidatos.map((c) => c.name).join(', ')}.`
+            : ''),
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          ...(sugerido
+            ? [{
+                text: `Reposar ${sugerido.name}`,
+                onPress: async () => {
+                  await setHabitState(userId, sugerido.key, 'reposo');
+                  setEstados((e) => ({ ...e, [sugerido.key]: 'reposo' }));
+                  await ejecutar();
+                },
+              }]
+            : []),
+          { text: 'Encender igual', onPress: () => { ejecutar(); } },
+        ],
+      );
+    };
+
+    // MB-27 menor 5: reactivar un GRADUADO pierde graduated_at — en una
+    // pantalla cuyo gesto natural es prender y apagar, eso no puede irse
+    // en un toque. Confirmación explícita; el reposo sí es de un toque
+    // (volver de reposo es su gesto de siempre).
+    if (active && estadoDe(option.key, estados) === 'graduado') {
+      Alert.alert(
+        `${option.name} está graduado`,
+        'Graduado no es archivado: se sigue midiendo sin ocupar renglón. ¿Lo regresas a tu día como hábito activo?',
+        [
+          { text: 'Dejarlo graduado', style: 'cancel' },
+          { text: 'Volverlo a activo', onPress: () => { continuar(); } },
+        ],
+      );
       return;
     }
-    const sugerido = aviso.candidatos[0] ?? null;
-    Alert.alert(
-      'Tu día ya está lleno',
-      `Con ${option.name} quedarías en ${aviso.total} hábitos activos y el techo que protege tu día es ${aviso.techo}. ` +
-        'Puedes mandar algo a reposo: nada se borra y vuelve cuando quieras.' +
-        (aviso.candidatos.length > 0
-          ? ` Lo que más te ha costado: ${aviso.candidatos.map((c) => c.name).join(', ')}.`
-          : ''),
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        ...(sugerido
-          ? [{
-              text: `Reposar ${sugerido.name}`,
-              onPress: async () => {
-                await setHabitState(userId, sugerido.key, 'reposo');
-                setEstados((e) => ({ ...e, [sugerido.key]: 'reposo' }));
-                await ejecutar();
-              },
-            }]
-          : []),
-        { text: 'Encender igual', onPress: () => { ejecutar(); } },
-      ],
-    );
+    await continuar();
   }
 
   const booleanOptions = ALL_BOOLEAN_OPTIONS.filter(
