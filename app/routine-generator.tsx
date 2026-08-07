@@ -109,9 +109,14 @@ export default function RoutineGeneratorScreen() {
   const router = useRouter();
   const { user } = useAuth();
   // MB-3.6 Bloque 2: la evaluación de movilidad entra con ?objetivo=movilidad.
-  const params = useLocalSearchParams<{ objetivo?: string }>();
+  // MB-27 P2: la asignación del día entra con ?enfoque= (Entrenar contesta
+  // "hoy te toca X" y este deep-link trae el enfoque ya elegido).
+  const params = useLocalSearchParams<{ objetivo?: string; enfoque?: string }>();
   const objetivoParam = OBJETIVOS.some((o) => o.key === params.objetivo)
     ? (params.objetivo as Objetivo)
+    : null;
+  const enfoqueParam = ENFOQUES.some((e) => e.key === params.enfoque)
+    ? (params.enfoque as EnfoquePatron)
     : null;
 
   const [puerta, setPuerta] = useState<'auto' | 'explorar'>('auto');
@@ -120,7 +125,7 @@ export default function RoutineGeneratorScreen() {
   // "apagado" (opacity 0.4) para siempre si la red fallaba, sin explicación.
   const [catalogoError, setCatalogoError] = useState(false);
   const [objetivo, setObjetivo] = useState<Objetivo>(objetivoParam ?? 'hipertrofia');
-  const [enfoque, setEnfoque] = useState<EnfoquePatron>('full_body');
+  const [enfoque, setEnfoque] = useState<EnfoquePatron>(enfoqueParam ?? 'full_body');
   const [broSplit, setBroSplit] = useState(false);
   const [musculos, setMusculos] = useState<string[]>([]);
   const [equipo, setEquipo] = useState<string[]>(['Mancuerna']);
@@ -160,9 +165,9 @@ export default function RoutineGeneratorScreen() {
         setTiempoMin(p.tiempoMin);
         setFlags(p.flags);
         setUnidades(p.unidades);
-        // El deep-link (?objetivo=) manda sobre la última pref.
+        // El deep-link (?objetivo= / ?enfoque=) manda sobre la última pref.
         if (!objetivoParam) setObjetivo(p.objetivo);
-        setEnfoque(p.enfoque);
+        if (!enfoqueParam) setEnfoque(p.enfoque);
       }
       // El perfil manda sobre la pref legacy.
       if (user) {
@@ -175,7 +180,7 @@ export default function RoutineGeneratorScreen() {
       ayerFueSesionPesada(user.id).then((ayerPesado) => setContexto((prev) => ({ ...prev, ayerPesado })));
       getSlugsRecientes(user.id).then((recientes) => setContexto((prev) => ({ ...prev, recientes })));
     }
-  }, [user, objetivoParam]);
+  }, [user, objetivoParam, enfoqueParam]);
 
   // Persistir prefs (equipo/senior/tiempo/flags/unidades/objetivo/enfoque + nivel
   // como caché legacy — el hub regenera "hoy" con esto).

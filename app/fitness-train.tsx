@@ -10,8 +10,9 @@
  *  · Timer rápido retirado como destino (duplicaba a HIIT, que trae Tabata/EMOM/
  *    AMRAP/30-30 con voz); /timer sigue ruteado para deep-links.
  */
+import { useCallback, useState } from 'react';
 import { View, ScrollView, StyleSheet, ImageBackground } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +22,12 @@ import { Screen } from '@/src/components/ui/Screen';
 import { PillarHeader } from '@/src/components/ui/PillarHeader';
 import { AnimatedPressable } from '@/src/components/ui/AnimatedPressable';
 import { GradientCard } from '@/src/components/ui/GradientCard';
+import { useAuth } from '@/src/contexts/auth-context';
 import { haptic } from '@/src/utils/haptics';
+import {
+  DIA_LABELS, esEnfoquePlan, tituloDeAsignacion, diaSemanaLocal,
+} from '@/src/services/fitness/plan-semanal-core';
+import { getAsignacionHoy, type EstadoAsignacionHoy } from '@/src/services/fitness/plan-semanal-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
 
@@ -36,6 +42,17 @@ const SECUNDARIOS = [
 
 export default function FitnessTrainScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  // MB-27 P2: la asignación del día. null = sin leer o lectura fallida —
+  // la pantalla se comporta EXACTAMENTE como antes (degrada callada).
+  const [asignacion, setAsignacion] = useState<EstadoAsignacionHoy | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    let alive = true;
+    if (!user?.id) return () => { alive = false; };
+    getAsignacionHoy(user.id).then((estado) => { if (alive) setAsignacion(estado); });
+    return () => { alive = false; };
+  }, [user?.id]));
 
   function nav(item: typeof SECUNDARIOS[number]) {
     haptic.medium();
@@ -46,6 +63,31 @@ export default function FitnessTrainScreen() {
     }
   }
 
+  // El hero contesta: hoy toca X / hoy descansas / configura tu plan.
+  const hoy = asignacion?.hoy ?? null;
+  const empezarHoy = () => {
+    haptic.medium();
+    if (hoy?.focus && esEnfoquePlan(hoy.focus)) {
+      router.push(`/routine-generator?enfoque=${hoy.focus}`);
+    } else if (hoy?.routine_id) {
+      router.push('/my-routines');
+    } else {
+      router.push('/routine-generator');
+    }
+  };
+  const heroKicker = hoy
+    ? 'TU PLAN DE HOY'
+    : asignacion?.tienePlan
+      ? 'HOY DESCANSAS'
+      : 'OBJETIVO + EQUIPO + TIEMPO';
+  const heroTitle = hoy ? `HOY TE TOCA ${tituloDeAsignacion(hoy).toUpperCase()}` : 'EMPEZAR SESIÓN DE HOY';
+  const proxima = asignacion?.proxima ?? null;
+  const heroCta = hoy
+    ? 'Empezar'
+    : proxima
+      ? `Próximo: ${DIA_LABELS[diaSemanaLocal(proxima.date)]} · ${tituloDeAsignacion(proxima.row)}`
+      : 'Generar mi rutina';
+
   return (
     <Screen>
       <PillarHeader pillar="fitness" title="Entrenar" />
@@ -53,7 +95,7 @@ export default function FitnessTrainScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         {/* LA acción primaria: sesión de hoy (molde editorial, protagonista) */}
         <Animated.View entering={FadeInUp.delay(50).springify()}>
-          <AnimatedPressable onPress={() => { haptic.medium(); router.push('/routine-generator'); }}>
+          <AnimatedPressable onPress={empezarHoy}>
             <ImageBackground
               source={require('@/assets/images/agenda/entrenar/entrenar-02.webp')}
               style={s.heroCard}
@@ -64,14 +106,28 @@ export default function FitnessTrainScreen() {
                 style={StyleSheet.absoluteFill}
               />
               <View style={s.heroInner}>
-                <EliteText style={s.heroKicker}>OBJETIVO + EQUIPO + TIEMPO</EliteText>
-                <EliteText style={s.heroTitle}>EMPEZAR SESIÓN DE HOY</EliteText>
+                <EliteText style={s.heroKicker}>{heroKicker}</EliteText>
+                <EliteText style={s.heroTitle}>{heroTitle}</EliteText>
                 <View style={s.heroCtaRow}>
-                  <EliteText style={s.heroCtaText}>Generar mi rutina</EliteText>
+                  <EliteText style={s.heroCtaText}>{heroCta}</EliteText>
                   <Ionicons name="arrow-forward" size={16} color={ATP_BRAND.lime} />
                 </View>
               </View>
             </ImageBackground>
+          </AnimatedPressable>
+        </Animated.View>
+
+        {/* La salida clara: cambiar el plan, no prisionero. */}
+        <Animated.View entering={FadeInUp.delay(90).springify()}>
+          <AnimatedPressable
+            style={s.planLink}
+            onPress={() => { haptic.light(); router.push('/plan-entrenamiento'); }}
+          >
+            <Ionicons name="calendar-outline" size={16} color={TEXT_COLORS.secondary} />
+            <EliteText style={s.planLinkText}>
+              {asignacion?.tienePlan ? 'Cambiar mi plan de días' : 'Dí qué días entrenas y Entrenar te contesta'}
+            </EliteText>
+            <Ionicons name="chevron-forward" size={14} color={TEXT_COLORS.muted} />
           </AnimatedPressable>
         </Animated.View>
 
@@ -118,6 +174,14 @@ const s = StyleSheet.create({
   heroTitle: { fontSize: 24, fontFamily: Fonts.extraBold, color: TEXT_COLORS.primary, lineHeight: 30 },
   heroCtaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   heroCtaText: { color: ATP_BRAND.lime, fontSize: 14, fontFamily: Fonts.bold },
+
+  // MB-27 P2: la fila quiet hacia el plan (salida clara, no protagonista).
+  planLink: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: Spacing.sm, paddingHorizontal: 4,
+    marginTop: -Spacing.sm, marginBottom: Spacing.md,
+  },
+  planLinkText: { flex: 1, fontSize: FontSizes.sm, color: TEXT_COLORS.secondary },
 
   sectionLabel: {
     fontSize: 11, fontFamily: Fonts.bold, color: TEXT_COLORS.secondary,

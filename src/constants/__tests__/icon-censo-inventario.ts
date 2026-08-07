@@ -99,6 +99,8 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/fitness-my.tsx::trending-up-outline',
   'app/fitness-strength.tsx::barbell-outline::x2',
   'app/fitness-strength.tsx::trophy-outline',
+  // MB-27 P2: la fila quiet hacia el plan de días — chip de acción, no lanzador.
+  'app/fitness-train.tsx::calendar-outline',
   'app/fitness-train.tsx::flame-outline',
   'app/fitness-train.tsx::list-outline',
   'app/food-preferences.tsx::flame-outline',
