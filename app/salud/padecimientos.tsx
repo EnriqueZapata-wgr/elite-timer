@@ -182,7 +182,7 @@ export default function PadecimientosScreen() {
               <Card variant="elevated">
                 <EliteText style={styles.introLabel}>TU EXPEDIENTE</EliteText>
                 <EliteText style={styles.introText}>
-                  Registra las condiciones que has vivido — desde una gripe hasta algo
+                  Registra las condiciones que has vivido: desde una gripe hasta algo
                   crónico. La frecuencia y duración de los episodios le dan mucha señal
                   a tu Mapa Funcional.
                 </EliteText>
@@ -199,8 +199,8 @@ export default function PadecimientosScreen() {
               <Animated.View entering={FadeInUp.delay(90).springify()}>
                 <Card variant="elevated" style={{ marginTop: Spacing.sm }}>
                   <EliteText style={styles.emptyText}>
-                    Aún no registras padecimientos. Es tu registro personal — no un
-                    diagnóstico — y ayuda a ARGOS a entender tu historia.
+                    Aún no registras padecimientos. Es tu registro personal (no un
+                    diagnóstico) y ayuda a ARGOS a entender tu historia.
                   </EliteText>
                 </Card>
               </Animated.View>

@@ -224,7 +224,7 @@ export default function NBackSessionScreen() {
         setLitCell(null);
         setCoach(
           needV && needA
-            ? { title: 'Doble match', body: `La celda Y la letra que vienen se repiten respecto a hace ${round.n}. Presiona POSICIÓN y SONIDO — los dos cuentan.` }
+            ? { title: 'Doble match', body: `La celda Y la letra que vienen se repiten respecto a hace ${round.n}. Presiona POSICIÓN y SONIDO: los dos cuentan.` }
             : needV
               ? { title: 'Match de posición', body: `La celda que se va a iluminar es la MISMA de hace ${round.n}. Cuando la veas, presiona POSICIÓN.` }
               : { title: 'Match de sonido', body: `La letra que vas a escuchar es la MISMA de hace ${round.n}. Cuando la oigas, presiona SONIDO.` }

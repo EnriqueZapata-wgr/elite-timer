@@ -169,7 +169,7 @@ export default function SintomasScreen() {
                 />
 
                 <EliteText style={styles.fieldLabel}>
-                  SEVERIDAD (OPCIONAL){severity ? ` — ${severity}/5` : ''}
+                  SEVERIDAD (OPCIONAL){severity ? `: ${severity}/5` : ''}
                 </EliteText>
                 <View style={styles.severityRow}>
                   {[1, 2, 3, 4, 5].map((lvl) => {
@@ -213,7 +213,7 @@ export default function SintomasScreen() {
               <Animated.View entering={FadeInUp.delay(90).springify()}>
                 <Card variant="elevated" style={{ marginTop: Spacing.sm }}>
                   <EliteText style={styles.emptyText}>
-                    Aún no registras síntomas aislados. Un toque en un chip y a registrar —
+                    Aún no registras síntomas aislados. Un toque en un chip y a registrar:
                     con el tiempo, los patrones le dan señal a ARGOS.
                   </EliteText>
                 </Card>

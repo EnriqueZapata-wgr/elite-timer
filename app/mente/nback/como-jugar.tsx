@@ -40,7 +40,7 @@ const STEPS: { icon: string; title: string; body: string }[] = [
   {
     icon: 'headset-outline',
     title: 'El sonido es obligatorio',
-    body: 'Usa auriculares o pon el altavoz claro — necesitas distinguir las letras con precisión. Si tu teléfono está en silencio, reactiva el sonido antes de empezar.',
+    body: 'Usa auriculares o pon el altavoz claro: necesitas distinguir las letras con precisión. Si tu teléfono está en silencio, reactiva el sonido antes de empezar.',
   },
   {
     icon: 'flash-outline',

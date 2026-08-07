@@ -454,7 +454,7 @@ export default function FoodTextScreen() {
                 )}
                 <View style={{ flex: 1 }}>
                   <EliteText style={s.aiSearchTitle}>Estimar con IA</EliteText>
-                  <EliteText style={s.aiSearchSub}>{`"${query.trim()}" — calcular macros`}</EliteText>
+                  <EliteText style={s.aiSearchSub}>{`"${query.trim()}" · calcular macros`}</EliteText>
                 </View>
               </AnimatedPressable>
             </Animated.View>

@@ -197,7 +197,7 @@ export default function IntervencionesScreen() {
                     {(() => {
                       const top = [...(dx.roots_detected ?? [])].sort((a: any, b: any) => (b.severity ?? 0) - (a.severity ?? 0))[0] as any;
                       const label = top ? (ROOT_LABELS[top.root_key as InterventionRoot] ?? top.root_key) : null;
-                      return label ? ` — raíz principal: ${label}` : '';
+                      return label ? ` · raíz principal: ${label}` : '';
                     })()}
                   </EliteText>
                   <EliteText style={styles.dxBreadcrumbLink}>Ver mi DX ↗</EliteText>
@@ -217,7 +217,7 @@ export default function IntervencionesScreen() {
                 <View style={styles.emptyBox}>
                   <EliteText style={styles.emptyText}>
                     Aún no tienes intervenciones activas. Abajo están las que ATP
-                    propone para tu perfil — actívalas con un tap y tu día se arma solo.
+                    propone para tu perfil: actívalas con un tap y tu día se arma solo.
                   </EliteText>
                 </View>
               )}
@@ -282,7 +282,7 @@ export default function IntervencionesScreen() {
                 return (
                   <EliteText style={styles.humbyHint}>
                     Trabajas {load.activeCount} a la vez. Un protocolo de 5-7 se
-                    cumple más — la consistencia gana a la cantidad.
+                    cumple más: la consistencia gana a la cantidad.
                   </EliteText>
                 );
               }
@@ -290,7 +290,7 @@ export default function IntervencionesScreen() {
                 return (
                   <EliteText style={[styles.humbyHint, styles.humbyWarn]}>
                     Trabajas {load.activeCount} a la vez. Si esta semana alguna no
-                    va contigo, páusala sin culpa — sigue aquí para cuando toque.
+                    va contigo, páusala sin culpa: sigue aquí para cuando toque.
                     Enfocarte en 5-7 hace que se cumplan.
                   </EliteText>
                 );
@@ -365,7 +365,7 @@ export default function IntervencionesScreen() {
                       {/* B.4 · cierre en positivo: por qué ESTAS y no las otras 83 */}
                       <EliteText style={styles.rxClosing}>
                         Estas son las {prescriptions.length} que más mueven TU aguja hoy, según
-                        tus datos. El resto del catálogo sigue disponible abajo — y cuando tus
+                        tus datos. El resto del catálogo sigue disponible abajo, y cuando tus
                         datos cambien, ATP actualiza la selección.
                       </EliteText>
                     </>

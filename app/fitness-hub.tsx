@@ -302,7 +302,7 @@ export default function FitnessHubScreen() {
           <EliteText style={s.heroKicker}>TU SESIÓN DE HOY</EliteText>
           <EliteText style={s.heroTitle}>Genera tu sesión</EliteText>
           <EliteText style={s.heroBody}>
-            Dinos objetivo, equipo y tiempo — el motor arma tu rutina del día. Desde mañana, el hub te la tiene lista.
+            Dinos objetivo, equipo y tiempo: el motor arma tu rutina del día. Desde mañana, el hub te la tiene lista.
           </EliteText>
           <View style={{ marginTop: Spacing.md }}>
             <GradientCTA

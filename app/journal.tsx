@@ -273,7 +273,7 @@ export default function JournalScreen() {
           'No se pudo guardar',
           isAuth ? 'Tu sesión expiró. Vuelve a iniciar sesión.' :
           isRLS ? 'Permiso denegado al guardar. Reporta a soporte.' :
-          isNet ? 'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.' :
+          isNet ? 'Tu entrada sigue aquí: revisa tu conexión e inténtalo de nuevo.' :
           // Track F (MB-7): el detalle técnico ya quedó en logs — a pantalla, copy genérico.
           'No se pudo guardar tu entrada. Inténtalo de nuevo.'
         );
@@ -300,7 +300,7 @@ export default function JournalScreen() {
       Alert.alert(
         'No se pudo guardar',
         isNet
-          ? 'Tu entrada sigue aquí — revisa tu conexión e inténtalo de nuevo.'
+          ? 'Tu entrada sigue aquí: revisa tu conexión e inténtalo de nuevo.'
           : 'No se pudo guardar tu entrada. Inténtalo de nuevo.'
       );
     }
@@ -399,7 +399,7 @@ export default function JournalScreen() {
               color="#fff"
               tips={[
                 'Elige entre 4 tipos: Gratitud, Visión, Estoico o Descarga',
-                'Escribe libremente — no hay longitud mínima',
+                'Escribe libremente: no hay longitud mínima',
                 'El reloj (arriba) abre tu historial completo con filtros',
                 'Activa el recordatorio diario para no olvidar tu descarga mental',
               ]}

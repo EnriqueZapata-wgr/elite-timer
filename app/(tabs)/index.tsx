@@ -382,7 +382,7 @@ export default function TodayScreen() {
               {/* Texto ARGOS o degradación */}
               {weeklyInsight.argosFailed ? (
                 <Text style={s.weeklyFallback}>
-                  No pudimos generar el insight reflexivo esta semana — los números arriba ya cuentan tu historia.
+                  No pudimos generar el insight reflexivo esta semana: los números arriba ya cuentan tu historia.
                 </Text>
               ) : (
                 <>

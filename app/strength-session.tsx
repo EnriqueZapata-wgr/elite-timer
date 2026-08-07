@@ -140,7 +140,7 @@ function StandardBlockRunner({ block, onCue, onDone, onSetLogged, initialLogged 
           <Text style={s.serieLabel}>{esDistancia ? `INTENTO ${serie} DE ${block.series}` : `SERIE ${serie} DE ${block.series}`}</Text>
           <Text style={s.serieMeta}>
             {esDistancia
-              ? 'Salto horizontal máximo — mide la distancia talón a talón'
+              ? 'Salto horizontal máximo: mide la distancia talón a talón'
               : block.esIsometrico ? `Aguante objetivo: ${block.reps} s` : `Objetivo: ${block.reps} reps`}
             {!esDistancia && block.esUnilateral ? ' · por lado' : ''}
           </Text>
@@ -610,7 +610,7 @@ export default function StrengthSessionScreen() {
               {edadSignal.alimentado.map((a) => (
                 <View key={a} style={s.edadRow}>
                   <Ionicons name="checkmark-circle" size={15} color={ATP_BRAND.lime} />
-                  <Text style={s.edadText}>{a} — verdad medida, alimentó tu score de fitness.</Text>
+                  <Text style={s.edadText}>{a} · verdad medida, alimentó tu score de fitness.</Text>
                 </View>
               ))}
               {edadSignal.proyeccion?.texto && (

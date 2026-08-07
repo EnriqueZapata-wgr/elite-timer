@@ -166,7 +166,7 @@ export default function EmotionHistoryScreen() {
           <View style={{ flex: 1 }}>
             <EliteText variant="body" style={styles.profileLinkTitle}>Tu clima emocional</EliteText>
             <EliteText variant="caption" style={styles.profileLinkSub}>
-              El perfil de tus últimos 30 días — foto del periodo, no etiqueta
+              El perfil de tus últimos 30 días: foto del periodo, no etiqueta
             </EliteText>
           </View>
           <Ionicons name="chevron-forward" size={16} color={TEXT_COLORS.secondary} />

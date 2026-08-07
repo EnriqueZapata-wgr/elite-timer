@@ -90,7 +90,7 @@ function ReportCard({
             color={report.reported_discoverable ? ATP_BRAND.lime : TEXT.tertiary}
           />
           <EliteText style={s.discText}>
-            {report.reported_discoverable ? 'Visible — ocultar' : 'Oculto — restaurar'}
+            {report.reported_discoverable ? 'Visible: ocultar' : 'Oculto: restaurar'}
           </EliteText>
         </Pressable>
       </View>
@@ -192,7 +192,7 @@ export default function AdminReportsScreen() {
           </Pressable>
         </View>
         <EliteText style={s.title}>Reports</EliteText>
-        <EliteText style={s.subtitle}>Revisión manual de la comunidad. Solo identidad pública — cero datos clínicos.</EliteText>
+        <EliteText style={s.subtitle}>Revisión manual de la comunidad. Solo identidad pública: cero datos clínicos.</EliteText>
       </View>
 
       {/* Filtro por estado */}

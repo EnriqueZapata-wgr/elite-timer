@@ -252,7 +252,7 @@ export default function NutritionScreen() {
           <Animated.View entering={FadeInUp.delay(75).springify()} style={{ marginTop: Spacing.sm }}>
             {/* E.2: sin dato duro — las horas viven en /fasting */}
             <NavCard icon="timer-outline" color="#fbbf24" title="Ayuno activo"
-              subtitle="En curso — toca para ver tu progreso"
+              subtitle="En curso: toca para ver tu progreso"
               onPress={() => { haptic.light(); router.push('/fasting'); }} />
           </Animated.View>
         )}
@@ -270,7 +270,7 @@ export default function NutritionScreen() {
         {/* T6: ARGOS nutricional — chat con contexto del pilar pre-cargado */}
         <Animated.View entering={FadeInUp.delay(85).springify()} style={{ marginTop: Spacing.sm }}>
           <NavCard mark color="#a8e02a" title="Hablar con ARGOS"
-            subtitle="Sobre tu nutrición de hoy — conoce tus datos"
+            subtitle="Sobre tu nutrición de hoy: conoce tus datos"
             onPress={() => { haptic.light(); openArgosChat({ from: 'nutrition' }); }} />
         </Animated.View>
 

@@ -91,7 +91,7 @@ export default function ListaCompraScreen() {
       <PillarHeader pillar="nutrition" title="Lista de compra" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.content}>
         <EliteText variant="caption" style={s.subtitle}>
-          Elige las recetas de tu semana — agregamos los ingredientes por ti
+          Elige las recetas de tu semana: agregamos los ingredientes por ti
         </EliteText>
 
         {/* Selección de recetas */}
@@ -155,7 +155,7 @@ export default function ListaCompraScreen() {
                   />
                   <View style={{ flex: 1 }}>
                     <EliteText style={[s.itemName, done && s.itemDone]}>
-                      {item.name}{item.detail ? ` — ${item.detail}` : ''}
+                      {item.name}{item.detail ? ` · ${item.detail}` : ''}
                     </EliteText>
                     <EliteText style={s.itemFrom} numberOfLines={1}>
                       {item.fromRecipes.join(' · ')}

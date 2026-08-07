@@ -485,7 +485,7 @@ export default function FoodScanScreen() {
       setAddedToPlan(true);
       Alert.alert(
         'Ya está en tu plan',
-        `Ya tienes una ficha de ${outcome.existingName} — no se creó un duplicado. Edítala desde Suplementos con el ✏️.`,
+        `Ya tienes una ficha de ${outcome.existingName}: no se creó un duplicado. Edítala desde Suplementos con el ✏️.`,
         [
           { text: 'Ver mi plan', onPress: () => router.replace('/supplements') },
           { text: 'Seguir aquí', style: 'cancel' },

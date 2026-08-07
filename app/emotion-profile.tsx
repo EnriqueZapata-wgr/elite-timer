@@ -83,7 +83,7 @@ export default function EmotionProfileScreen() {
             <EliteText style={styles.insufficientTitle}>Tu perfil se está armando</EliteText>
             <EliteText variant="body" style={styles.insufficientText}>
               Llevas {profile.have} {profile.have === 1 ? 'check-in' : 'check-ins'} en los últimos {profile.periodDays} días.
-              Con {profile.needed} o más, el perfil se arma solo — antes de eso sería inventar.
+              Con {profile.needed} o más, el perfil se arma solo: antes de eso sería inventar.
             </EliteText>
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${Math.min(100, (profile.have / profile.needed) * 100)}%` }]} />
@@ -124,7 +124,7 @@ export default function EmotionProfileScreen() {
           </EliteText>
           {/* La regla que lo hace honesto, en la cara del usuario: */}
           <EliteText variant="caption" style={styles.heroHonest}>
-            Esto no es quién eres. Es cómo estuviste estos días — se recalcula solo y cambia contigo.
+            Esto no es quién eres. Es cómo estuviste estos días: se recalcula solo y cambia contigo.
           </EliteText>
         </Animated.View>
 

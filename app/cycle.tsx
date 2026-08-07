@@ -141,7 +141,7 @@ const PHASE_META: Record<Phase, { label: string; icon: string; color: string; de
   // MB-7: copy BIDIRECCIONAL — el ciclo es una ventaja que un hombre no tiene.
   menstrual: {
     label: 'Menstrual', icon: 'water', color: RED,
-    description: 'Empieza tu ciclo nuevo. Afina y escucha señales — entrena con lo de hoy, baja el ego no la ambición.',
+    description: 'Empieza tu ciclo nuevo. Afina y escucha señales: entrena con lo de hoy, baja el ego no la ambición.',
   },
   follicular: {
     label: 'Folicular', icon: 'leaf-outline', color: GREEN,
@@ -153,7 +153,7 @@ const PHASE_META: Record<Phase, { label: string; icon: string; color: string; de
   },
   luteal: {
     label: 'Lútea', icon: 'moon-outline', color: VIOLET,
-    description: 'Progesterona al mando: sostener y consolidar. Sigues fuerte, con otra marcha — ajusta volumen, no intención.',
+    description: 'Progesterona al mando: sostener y consolidar. Sigues fuerte, con otra marcha: ajusta volumen, no intención.',
   },
 };
 

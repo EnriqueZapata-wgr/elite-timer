@@ -286,7 +286,7 @@ export default function LabConfirmationScreen() {
                   {/* Multi-foto: varios candidatos para el mismo biomarker → elegir lado a lado. */}
                   {!isEditing && (review.duplicates?.[it.key]?.length ?? 0) > 1 && (
                     <View style={styles.dupWrap}>
-                      <EliteText variant="caption" style={styles.dupHint}>Detectado en varias fotos — elige cuál usar:</EliteText>
+                      <EliteText variant="caption" style={styles.dupHint}>Detectado en varias fotos, elige cuál usar:</EliteText>
                       <View style={styles.dupChips}>
                         {review.duplicates![it.key].map((c, i) => {
                           const selected = currentValue(it) === c.value;

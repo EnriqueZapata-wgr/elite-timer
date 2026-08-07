@@ -174,7 +174,7 @@ export default function DiagnosticoScreen() {
       return;
     }
     haptic.warning();
-    Alert.alert('Algo no salió', 'ARGOS no pudo actualizar tu mapa funcional. Suele ser cosa de red — intenta de nuevo.');
+    Alert.alert('Algo no salió', 'ARGOS no pudo actualizar tu mapa funcional. Suele ser cosa de red: intenta de nuevo.');
   }, [user?.id, generating, quote?.cost, load, sharePdf]);
 
   const quality = dx ? computeDxQuality(presenceFromSnapshot(dx.sources_snapshot)) : null;
@@ -316,7 +316,7 @@ export default function DiagnosticoScreen() {
                       Ver las intervenciones que ATP te sugiere
                     </EliteText>
                     <EliteText style={styles.protocolCtaSub}>
-                      Tu DX alimenta Mi Protocolo — de la raíz a la acción diaria
+                      Tu DX alimenta Mi Protocolo: de la raíz a la acción diaria
                     </EliteText>
                   </View>
                   <EliteText style={styles.protocolCtaArrow}>→</EliteText>
@@ -383,7 +383,7 @@ export default function DiagnosticoScreen() {
                 <EliteText style={styles.ctaHint}>
                   {quote?.isFirstFree
                     // Bug #6: hint visible también para Pro cuando es el 1er DX.
-                    ? 'Regalo — tu primer mapa funcional es sin costo de H+.'
+                    ? 'Regalo: tu primer mapa funcional es sin costo de H+.'
                     : `${quote?.balance == null ? '' : `Tu balance: ${formatFull(quote.balance)} H+ · `}Se cobra sólo si hay datos nuevos.`}
                 </EliteText>
               )}

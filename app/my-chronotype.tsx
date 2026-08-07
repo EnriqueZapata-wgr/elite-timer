@@ -44,7 +44,7 @@ const CHRONO_INFO: Record<string, ChronoInfo> = {
     meaning:
       'Tu cortisol (la hormona que te enciende en la mañana) sube antes que en la mayoría: despiertas con energía sin alarma y tu pico mental llega temprano. A cambio, la energía cae fuerte en la tarde-noche.',
     tips: [
-      'Agenda lo más demandante entre 8 y 12 de la mañana — ahí está tu mejor cerebro.',
+      'Agenda lo más demandante entre 8 y 12 de la mañana: ahí está tu mejor cerebro.',
       'Entrena temprano: tu cuerpo ya está listo al despertar.',
       'Protege tu hora de dormir: trasnochar te cuesta más que a otros cronotipos.',
     ],
@@ -53,7 +53,7 @@ const CHRONO_INFO: Record<string, ChronoInfo> = {
     emoji: '🐻', name: 'Oso', color: '#a8e02a',
     headline: 'Ritmo solar',
     meaning:
-      'Tu reloj interno sigue al sol: energía estable de media mañana a media tarde, con un bajón natural después de comer. Es el cronotipo más común — el mundo laboral está diseñado para ti.',
+      'Tu reloj interno sigue al sol: energía estable de media mañana a media tarde, con un bajón natural después de comer. Es el cronotipo más común: el mundo laboral está diseñado para ti.',
     tips: [
       'Tu ventana de foco fuerte es de 10 de la mañana a 2 de la tarde.',
       'El bajón de las 3 pm es fisiológico, no flojera: camina 10 minutos o toma sol en vez de azúcar.',
@@ -64,10 +64,10 @@ const CHRONO_INFO: Record<string, ChronoInfo> = {
     emoji: '🐺', name: 'Lobo', color: '#7F77DD',
     headline: 'Noctámbulo creativo',
     meaning:
-      'Tu melatonina (la hormona del sueño) se libera más tarde: arrancas lento en la mañana y tu mejor energía llega en la tarde-noche. No es desorden — es tu biología.',
+      'Tu melatonina (la hormona del sueño) se libera más tarde: arrancas lento en la mañana y tu mejor energía llega en la tarde-noche. No es desorden: es tu biología.',
     tips: [
       'No pelees con tus mañanas: usa esas horas para tareas mecánicas, no creativas.',
-      'Tu pico creativo es de 5 pm en adelante — agenda ahí lo importante.',
+      'Tu pico creativo es de 5 pm en adelante: agenda ahí lo importante.',
       'Corta pantallas 1 hora antes de dormir: tu melatonina tardía necesita esa ayuda extra.',
     ],
   },
@@ -75,11 +75,11 @@ const CHRONO_INFO: Record<string, ChronoInfo> = {
     emoji: '🐬', name: 'Delfín', color: '#5B9BD5',
     headline: 'Estado temporal · sueño ligero',
     meaning:
-      'Duermes ligero y tu mente tarda en apagarse — como los delfines, que descansan con medio cerebro alerta. Delfín NO es tu cronotipo de raíz: es un estado transitorio de sueño irregular que se resuelve. Debajo hay un León, un Oso o un Lobo esperando.',
+      'Duermes ligero y tu mente tarda en apagarse, como los delfines, que descansan con medio cerebro alerta. Delfín NO es tu cronotipo de raíz: es un estado transitorio de sueño irregular que se resuelve. Debajo hay un León, un Oso o un Lobo esperando.',
     tips: [
       'Un ritual de cierre (respiración, journal) le da a tu mente la señal de apagado que le falta.',
       'Evita cafeína después de mediodía: tu sueño ligero la resiente doble.',
-      'Horarios CONSISTENTES de dormir y despertar son tu palanca #1 — más que cualquier suplemento.',
+      'Horarios CONSISTENTES de dormir y despertar son tu palanca #1, más que cualquier suplemento.',
     ],
   },
 };
@@ -186,7 +186,7 @@ export default function MyChronotypeScreen() {
             <EliteText style={s.emptyEmoji}>🌙</EliteText>
             <EliteText style={s.emptyTitle}>Aún no conocemos tu cronotipo</EliteText>
             <EliteText style={s.emptySub}>
-              Un test de 5 minutos nos dice si eres León, Oso, Lobo o Delfín — y con eso
+              Un test de 5 minutos nos dice si eres León, Oso, Lobo o Delfín, y con eso
               ajustamos tu agenda a tu ritmo biológico real.
             </EliteText>
             <AnimatedPressable
@@ -245,7 +245,7 @@ export default function MyChronotypeScreen() {
                 <View style={s.tipRow}>
                   <View style={[s.tipDot, { backgroundColor: info.color }]} />
                   <EliteText style={s.tipText}>
-                    Foco profundo: {fmtHora(focusStart)}{focusEnd ? ` – ${fmtHora(focusEnd)}` : ''} — agenda ahí lo importante.
+                    Foco profundo: {fmtHora(focusStart)}{focusEnd ? ` – ${fmtHora(focusEnd)}` : ''}. Agenda ahí lo importante.
                   </EliteText>
                 </View>
               )}
@@ -253,7 +253,7 @@ export default function MyChronotypeScreen() {
                 <View style={s.tipRow}>
                   <View style={[s.tipDot, { backgroundColor: info.color }]} />
                   <EliteText style={s.tipText}>
-                    Pico físico: {fmtHora(physicalStart)} — tu mejor hora para entrenar.
+                    Pico físico: {fmtHora(physicalStart)}, tu mejor hora para entrenar.
                   </EliteText>
                 </View>
               )}
@@ -275,10 +275,10 @@ export default function MyChronotypeScreen() {
               <Animated.View entering={FadeInUp.delay(170).springify()} style={s.blockCard}>
                 <EliteText style={[s.blockKicker, { color: '#EF9F27' }]}>TU CRONOTIPO DE BASE</EliteText>
                 <EliteText style={s.blockBody}>
-                  Hoy estás en patrón Delfín — es un estado, no lo que eres. Tu cronotipo
+                  Hoy estás en patrón Delfín: es un estado, no lo que eres. Tu cronotipo
                   de base es {mother.name} {mother.emoji}. Vamos hacia allá: tu plan ya usa
-                  el ancla del {mother.name} — horarios estables de sueño, luz solar temprano
-                  y rutina de cierre. Cuando lleves 2-3 semanas durmiendo mejor, repite el
+                  el ancla del {mother.name} (horarios estables de sueño, luz solar temprano
+                  y rutina de cierre). Cuando lleves 2-3 semanas durmiendo mejor, repite el
                   test para confirmarlo.
                 </EliteText>
               </Animated.View>

@@ -137,7 +137,7 @@ export default function ExerciseDetailScreen() {
                 {bench.alimentaDirecto
                   ? 'Registrar este ejercicio en tu sesión ES el test: tu mejor set alimenta directo tu Edad ATP de fitness (norma clínica).'
                   : ex.benchmark.tier === 'A'
-                    ? 'Variante de un benchmark clínico. La norma se mide con el movimiento estándar — esta versión entrena la cualidad, el estándar alimenta el score.'
+                    ? 'Variante de un benchmark clínico. La norma se mide con el movimiento estándar: esta versión entrena la cualidad, el estándar alimenta el score.'
                     : 'Referencia de experto (Attia/Galpin), no norma clínica: registrarlo mueve tu PROYECCIÓN de Edad ATP de forma acotada. Confírmalo con tus benchmarks medidos.'}
               </Text>
             </View>

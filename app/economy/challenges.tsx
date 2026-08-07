@@ -47,7 +47,7 @@ export default function ChallengesScreen() {
     if (r.success) {
       haptic.success();
       DeviceEventEmitter.emit('balance_changed');
-      Alert.alert('¡Te uniste!', `${c.name} — entrada ${r.cost ?? 0} H+`);
+      Alert.alert('¡Te uniste!', `${c.name} · entrada ${r.cost ?? 0} H+`);
       load();
     } else {
       const msg = r.error === 'insufficient_protons' ? 'No tienes H+ suficientes para la entrada.' : (r.error ?? 'Intenta de nuevo.');

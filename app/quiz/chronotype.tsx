@@ -291,7 +291,7 @@ export default function ChronotypeQuizScreen() {
                 DELFÍN ES UN ESTADO TEMPORAL
               </EliteText>
               <EliteText variant="body" style={{ fontSize: 13, lineHeight: 19, color: 'rgba(255,255,255,0.85)' }}>
-                Hoy estás en patrón Delfín — es un estado, no lo que eres. Tu cronotipo
+                Hoy estás en patrón Delfín: es un estado, no lo que eres. Tu cronotipo
                 de base es {ANIMAL_EMOJIS[mother]} {ANIMAL_NAMES[mother]}: tu plan usa esa
                 ancla mientras estabilizas horarios. En 2-3 semanas de dormir mejor,
                 repite el test para confirmarlo.

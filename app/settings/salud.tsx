@@ -102,7 +102,7 @@ export default function SettingsSaludScreen() {
           <SectionLabel>FITNESS</SectionLabel>
           <View style={fitnessStyles.nivelBox}>
             <EliteText variant="caption" style={fitnessStyles.nivelHint}>
-              Nivel de entrenamiento — define el volumen y los ejercicios que el generador te prescribe.
+              Nivel de entrenamiento: define el volumen y los ejercicios que el generador te prescribe.
             </EliteText>
             <View style={fitnessStyles.nivelRow}>
               {NIVELES_USUARIO.map((n) => (

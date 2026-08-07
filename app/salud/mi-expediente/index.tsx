@@ -78,7 +78,7 @@ function MiExpedienteScreen() {
           <EmptyState
             icon="document-text-outline"
             title="Tu expediente está vacío"
-            subtitle="Registra síntomas, activa intervenciones o sube labs — cada acción queda aquí, en orden cronológico."
+            subtitle="Registra síntomas, activa intervenciones o sube labs: cada acción queda aquí, en orden cronológico."
             actionLabel="Registrar un síntoma"
             onAction={() => router.push('/salud/sintomas')}
             color="#1D9E75"

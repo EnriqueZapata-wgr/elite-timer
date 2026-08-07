@@ -38,12 +38,12 @@ export default function TestsHub() {
       const r = ft[key];
       if (r) return `${Math.round(r.value)}${unit} · hace ${daysAgo(r.measured_at)}d`;
     }
-    return 'Pendiente — captura tu resultado';
+    return 'Pendiente: captura tu resultado';
   };
 
   const ROWS = [
     { icon: '🧠', title: 'Reaction Time', sub: ftLast(['reaction_time_choice'], 'ms'), route: '/edad-atp/tests/reaction-time' as const },
-    { icon: '🏃', title: 'Cooper 12 min · VO2max', sub: vo2 != null ? `VO2max ${vo2} ml/kg/min` : 'Pendiente — captura tu resultado', route: '/edad-atp/tests/cooper' as const },
+    { icon: '🏃', title: 'Cooper 12 min · VO2max', sub: vo2 != null ? `VO2max ${vo2} ml/kg/min` : 'Pendiente: captura tu resultado', route: '/edad-atp/tests/cooper' as const },
     { icon: '🦾', title: 'Push-ups máximas', sub: ftLast(['push_ups_max'], ' reps'), route: '/edad-atp/tests/push-ups' as const },
     { icon: '⚖️', title: 'Balance · Plank · Old Man · BOLT · Sentadilla · Recovery HR', sub: ftLast(['test_de_equilibrio_en_un_pie', 'one_leg_balance'], 's'), route: '/edad-atp/tests/balance' as const },
     { icon: '💪', title: 'Grip (dinamómetro)', sub: 'Se captura en Composición', route: '/edad-atp/composition' as const },

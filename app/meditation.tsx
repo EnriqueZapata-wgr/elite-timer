@@ -196,7 +196,7 @@ function LibraryScreen({ onSelect, onBack }: {
           ) : (
             <EliteText variant="caption" style={styles.libEmpty}>
               {loaded
-                ? 'El catálogo no cargó — revisa tu conexión e intenta de nuevo.'
+                ? 'El catálogo no cargó: revisa tu conexión e intenta de nuevo.'
                 : 'Cargando catálogo…'}
             </EliteText>
           )}
@@ -242,7 +242,7 @@ function LibraryScreen({ onSelect, onBack }: {
             <>
               <EliteText style={styles.libSection}>BINAURALES</EliteText>
               <EliteText variant="caption" style={styles.libHint}>
-                Mejor con auriculares — el efecto binaural los necesita.
+                Mejor con auriculares: el efecto binaural los necesita.
               </EliteText>
               <View style={styles.libGrid}>
                 {binaurales.map(piece => (
@@ -386,7 +386,7 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
     const m = Math.floor(elapsed / 60);
     const s = elapsed % 60;
     const timeStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
-    Alert.alert('¿Terminar meditación?', `Llevas ${timeStr} — se registra tu tiempo real.`, [
+    Alert.alert('¿Terminar meditación?', `Llevas ${timeStr}. Se registra tu tiempo real.`, [
       { text: 'Continuar', style: 'cancel' },
       { text: 'Terminar', onPress: handleComplete },
     ]);
@@ -433,7 +433,7 @@ function PhasedTimerScreen({ meditation, protocolItemId, onBack, onComplete }: {
           {(electronStatus === 'cap_reached' || electronStatus === 'spacing') && (
             <View style={styles.electronCard}>
               <EliteText variant="caption" style={styles.electronLabel}>
-                Ya registraste tu práctica — vuelve en un rato para sumar otro electrón.
+                Ya registraste tu práctica. Vuelve en un rato para sumar otro electrón.
               </EliteText>
             </View>
           )}

@@ -134,7 +134,7 @@ export default function CycleHistoryScreen() {
                   <View style={{ flex: 1 }}>
                     <EliteText style={s.cycleTitle}>Ciclo {cycles.length - idx}</EliteText>
                     <EliteText style={s.cycleDates}>
-                      {fmtDate(cycle.start_date)} — {cycle.end_date ? fmtDate(cycle.end_date) : 'en curso'}
+                      {fmtDate(cycle.start_date)} – {cycle.end_date ? fmtDate(cycle.end_date) : 'en curso'}
                     </EliteText>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>

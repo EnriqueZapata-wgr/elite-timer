@@ -66,7 +66,7 @@ export default function SettingsDevScreen() {
             onPress={() => {
               haptic.warning();
               const marker = `sentry-verify ${new Date().toISOString()}`;
-              Sentry.captureException(new Error(`[T6 HARDENING] Test error manual — ${marker}`));
+              Sentry.captureException(new Error(`[T6 HARDENING] Test error manual: ${marker}`));
               Alert.alert(
                 'Test enviado',
                 __DEV__

@@ -93,7 +93,7 @@ function MisSintomasScreen() {
 
         <Animated.View entering={FadeInUp.delay(50).springify()}>
           <EliteText variant="caption" style={s.subtitle}>
-            Registra lo que sientes con su inicio. Al resolverlo verás cuánto duró — todo alimenta tu mapa funcional.
+            Registra lo que sientes con su inicio. Al resolverlo verás cuánto duró. Todo alimenta tu mapa funcional.
           </EliteText>
         </Animated.View>
 
@@ -169,7 +169,7 @@ function MisSintomasScreen() {
               ))}
             </View>
 
-            <Text style={s.fieldLabel}>SEVERIDAD — {SEVERITY_LABELS[severity]}</Text>
+            <Text style={s.fieldLabel}>SEVERIDAD: {SEVERITY_LABELS[severity]}</Text>
             <View style={s.sevRow}>
               {[1, 2, 3, 4, 5].map(lvl => (
                 <Pressable key={lvl} onPress={() => { haptic.light(); setSeverity(lvl); }}

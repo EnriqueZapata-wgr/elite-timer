@@ -168,7 +168,7 @@ export default function SleepScreen() {
             <EliteText style={s.blockBody}>
               Cada noche tu cuerpo recorre 4-5 ciclos de ~90 minutos: el sueño profundo repara
               músculo y tejido, y el sueño REM (la fase de los sueños) ordena lo que aprendiste
-              en el día. Cortar un ciclo a la mitad — dormir 6 horas en vez de 7.5 — es despertar
+              en el día. Cortar un ciclo a la mitad (dormir 6 horas en vez de 7.5) es despertar
               a media reparación.
             </EliteText>
           </Animated.View>

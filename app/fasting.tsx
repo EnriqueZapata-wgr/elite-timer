@@ -78,12 +78,12 @@ const FAST_MILESTONES: { hours: number; title: string; message: string }[] = [
   {
     hours: 24,
     title: '24 horas de ayuno',
-    message: 'Tu cuerpo agotó el glucógeno y entró en cetosis — ya estás quemando grasa. Mantén la hidratación.',
+    message: 'Tu cuerpo agotó el glucógeno y entró en cetosis: ya estás quemando grasa. Mantén la hidratación.',
   },
   {
     hours: 48,
     title: '48 horas de ayuno',
-    message: 'Entras en ayuno prolongado: la grasa domina como combustible. Asegura electrolitos —sodio, potasio, magnesio— e hidrátate bien.',
+    message: 'Entras en ayuno prolongado: la grasa domina como combustible. Asegura electrolitos (sodio, potasio, magnesio) e hidrátate bien.',
   },
   // 120h se maneja vía cierre automático (ver autoCloseAtLimit).
 ];

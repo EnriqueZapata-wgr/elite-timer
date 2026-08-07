@@ -131,7 +131,7 @@ export default function MyRoutinesScreen() {
     if (seleccion.size === 0) return;
     Alert.alert(
       'Eliminar definitivamente',
-      `Se eliminarán ${seleccion.size} rutina${seleccion.size === 1 ? '' : 's'} PARA SIEMPRE (sin recuperación). Si tienes duda, usa Archivar — ese sí es reversible.`,
+      `Se eliminarán ${seleccion.size} rutina${seleccion.size === 1 ? '' : 's'} PARA SIEMPRE (sin recuperación). Si tienes duda, usa Archivar: ese sí es reversible.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -297,7 +297,7 @@ export default function MyRoutinesScreen() {
               <View style={{ flex: 1 }}>
                 <EliteText style={s.limpiezaTitle}>Limpieza de rutinas</EliteText>
                 <EliteText style={s.limpiezaSub}>
-                  {candidatas.size} vacía{candidatas.size === 1 ? '' : 's'}, duplicada{candidatas.size === 1 ? '' : 's'} o del patrón viejo — revisar
+                  {candidatas.size} vacía{candidatas.size === 1 ? '' : 's'}, duplicada{candidatas.size === 1 ? '' : 's'} o del patrón viejo: revisar
                 </EliteText>
               </View>
               <Ionicons name="chevron-forward" size={18} color={TEXT.tertiary} />

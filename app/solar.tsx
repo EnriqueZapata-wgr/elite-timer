@@ -164,7 +164,7 @@ export default function Solar() {
         <View style={{ paddingHorizontal: 20 }}>
           <View style={{ backgroundColor: '#0a0a0a', borderRadius: 20, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)' }}>
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Tu tipo de piel</Text>
-            <Text style={{ color: '#999', fontSize: 12, marginBottom: 16 }}>Escala Fitzpatrick — determina tu tiempo de quemadura</Text>
+            <Text style={{ color: '#999', fontSize: 12, marginBottom: 16 }}>Escala Fitzpatrick: determina tu tiempo de quemadura</Text>
             {/* Sprint 2 A: CTA del cuestionario como banner editorial B/N (fitzpatrick.png
                 estaba en disco sin cablear). Overlay fuerte para legibilidad (DS §3). */}
             <Pressable
@@ -247,7 +247,7 @@ export default function Solar() {
                 <Ionicons name="sunny" size={18} color="#fbbf24" />
                 <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '700', letterSpacing: 2 }}>VENTANA DE VITAMINA D</Text>
               </View>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{uvData.vitaminDWindow.start} — {uvData.vitaminDWindow.end}</Text>
+              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{uvData.vitaminDWindow.start} – {uvData.vitaminDWindow.end}</Text>
               <Text style={{ color: '#ccc', fontSize: 13, marginTop: 6, lineHeight: 20 }}>
                 Exponte 10-15 min sin protección en este horario para sintetizar vitamina D3. Brazos y piernas al sol.
               </Text>
@@ -264,7 +264,7 @@ export default function Solar() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="moon-outline" size={18} color="#60a5fa" />
                 <Text style={{ color: '#60a5fa', fontSize: 13, fontWeight: '600' }}>
-                  {uvData.currentUV === 0 ? 'Sin UV ahora — revisa mañana para tu ventana de vitamina D' : 'UV insuficiente para sintetizar vitamina D hoy'}
+                  {uvData.currentUV === 0 ? 'Sin UV ahora: revisa mañana para tu ventana de vitamina D' : 'UV insuficiente para sintetizar vitamina D hoy'}
                 </Text>
               </View>
             </View>
@@ -329,8 +329,8 @@ export default function Solar() {
           {uvData.dangerousFrom && (
             <View style={{ backgroundColor: 'rgba(239,68,68,0.06)', borderRadius: 16, padding: 20, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.12)' }}>
               <Text style={{ color: '#ef4444', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 6 }}>PROTECCIÓN NECESARIA</Text>
-              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>{uvData.dangerousFrom} — {uvData.dangerousUntil || uvData.sunset}</Text>
-              <Text style={{ color: '#999', fontSize: 12, marginTop: 4 }}>UV ≥ 3 — protégete con métodos físicos</Text>
+              <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>{uvData.dangerousFrom} – {uvData.dangerousUntil || uvData.sunset}</Text>
+              <Text style={{ color: '#999', fontSize: 12, marginTop: 4 }}>UV ≥ 3: protégete con métodos físicos</Text>
             </View>
           )}
 

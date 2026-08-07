@@ -166,7 +166,7 @@ export default function NBackStatsScreen() {
               <EliteText style={s.cardTitle}>Leaderboard de la comunidad</EliteText>
               <EliteText style={s.empty}>
                 Compite por N máximo y racha, estilo Strava. Llega con el módulo
-                Comunidad — tus datos cognitivos son privados y solo entran al
+                Comunidad. Tus datos cognitivos son privados y solo entran al
                 ranking si tú decides compartirlos (opt-in).
               </EliteText>
             </View>

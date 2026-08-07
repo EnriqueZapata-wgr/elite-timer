@@ -151,7 +151,7 @@ export default function CardioImportScreen() {
                 <EliteText style={s.cardTitle}>Llega con la próxima versión</EliteText>
                 <EliteText style={s.cardBody}>
                   Esta versión de la app aún no trae el módulo de {nombre}. Se activa
-                  con la siguiente actualización de la tienda — tus entrenamientos no
+                  con la siguiente actualización de la tienda. Tus entrenamientos no
                   se pierden: cuando conectes, se importan.
                 </EliteText>
               </>
@@ -170,7 +170,7 @@ export default function CardioImportScreen() {
                 <EliteText style={s.cardTitle}>No disponible en este dispositivo</EliteText>
                 <EliteText style={s.cardBody}>
                   La plataforma de salud del sistema no está disponible aquí. El
-                  registro manual sigue siendo tuyo — 2 taps y listo.
+                  registro manual sigue siendo tuyo: 2 taps y listo.
                 </EliteText>
               </>
             )}
@@ -189,8 +189,8 @@ export default function CardioImportScreen() {
               <EliteText style={s.cardTitle}>Una conexión, todas tus apps</EliteText>
               <EliteText style={s.cardBody}>
                 {plataforma?.os === 'ios'
-                  ? `Strava, Garmin y tus demás apps de entrenamiento escriben en ${nombre} (Apple Health). ATP los lee de ahí — sin integrar cuenta por cuenta.`
-                  : `Strava, Garmin, Samsung Health y Google Fit escriben sus entrenamientos en ${nombre}. ATP los lee de ahí — sin integrar cuenta por cuenta.`}
+                  ? `Strava, Garmin y tus demás apps de entrenamiento escriben en ${nombre} (Apple Health). ATP los lee de ahí, sin integrar cuenta por cuenta.`
+                  : `Strava, Garmin, Samsung Health y Google Fit escriben sus entrenamientos en ${nombre}. ATP los lee de ahí, sin integrar cuenta por cuenta.`}
               </EliteText>
             </Animated.View>
 
@@ -239,7 +239,7 @@ export default function CardioImportScreen() {
             </EliteText>
             <GradientCTA label="ABRIR HEALTH CONNECT" pillar="fitness" icon="settings-outline"
               onPress={() => { haptic.light(); abrirAjustesHealthConnect(); }} style={{ marginTop: Spacing.sm }} />
-            <GradientCTA label="Ya di el permiso — leer" variant="quiet" icon="refresh-outline"
+            <GradientCTA label="Ya di el permiso: leer" variant="quiet" icon="refresh-outline"
               onPress={verificarPermisoManual} style={{ marginTop: Spacing.xs }} />
           </Animated.View>
         )}
@@ -342,7 +342,7 @@ export default function CardioImportScreen() {
                   <EliteText style={s.cardBody}>
                     {resultado.duplicados > 0 ? `${resultado.duplicados} ya estaban registrados y se omitieron. ` : ''}
                     {resultado.electronHoy
-                      ? 'El de hoy cuenta para tu día (mismo electrón que el registro manual — 1 al día, sin retroactivos). '
+                      ? 'El de hoy cuenta para tu día (mismo electrón que el registro manual: 1 al día, sin retroactivos). '
                       : resultado.importados > 0
                         ? 'Ninguno es de hoy: se guardan en tu historial sin mover la economía de hoy (sin retroactivos). '
                         : ''}

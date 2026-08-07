@@ -744,7 +744,7 @@ export default function CheckinScreen() {
               style={styles.noteInput}
               value={note}
               onChangeText={setNote}
-              placeholder="Respóndelo aquí si quieres — se guarda en tu journal"
+              placeholder="Respóndelo aquí si quieres: se guarda en tu journal"
               placeholderTextColor={Colors.textSecondary + '50'}
               multiline
               scrollEnabled={false}

@@ -638,7 +638,7 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
     const s = totalElapsed % 60;
     Alert.alert(
       '¿Terminar sesión?',
-      `Llevas ${m > 0 ? `${m}m ${s}s` : `${s}s`} — se registra tu tiempo real.`,
+      `Llevas ${m > 0 ? `${m}m ${s}s` : `${s}s`}. Se registra tu tiempo real.`,
       [
         { text: 'Continuar', style: 'cancel' },
         { text: 'Terminar', onPress: handleComplete },
@@ -700,7 +700,7 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
             ) : (
               <Text style={{ color: '#999', fontSize: 12, fontFamily: Fonts.regular, textAlign: 'center' }}>
                 {electronStatus === 'cap_reached' || electronStatus === 'spacing'
-                  ? 'Ya registraste tu práctica — vuelve en un rato para sumar otro electrón.'
+                  ? 'Ya registraste tu práctica. Vuelve en un rato para sumar otro electrón.'
                   : electronStatus === 'not_eligible'
                     ? 'Registramos tu tiempo real. Completa al menos el 80% para sumar tu electrón.'
                     : 'Sesión registrada.'}

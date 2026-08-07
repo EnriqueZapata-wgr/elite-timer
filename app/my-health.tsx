@@ -143,7 +143,7 @@ function MyHealthScreen() {
     if (!DocumentPicker) {
       Alert.alert(
         'PDF no disponible en esta versión',
-        'Toma una foto del documento con la cámara — la IA puede leerlo igual de bien.',
+        'Toma una foto del documento con la cámara: la IA puede leerlo igual de bien.',
         [
           { text: 'Tomar foto', onPress: () => handlePickImage(true) },
           { text: 'Galería', onPress: () => handlePickImage(false) },
@@ -238,7 +238,7 @@ function MyHealthScreen() {
         // Composición y tipos 3-7 → guardado como respaldo/contexto, sin extraer a valores.
         const label = type?.label ?? 'Archivo';
         setResult({ context: route.target === 'composition'
-          ? `${label} guardado. La composición por archivo aún no se extrae automáticamente — captúrala en Composición.`
+          ? `${label} guardado. La composición por archivo aún no se extrae automáticamente: captúrala en Composición.`
           : `${label} guardado como respaldo de contexto. No alimenta tu Edad ATP.` });
       }
       loadData();
@@ -344,7 +344,7 @@ function MyHealthScreen() {
               Sube tu estudio de laboratorio
             </EliteText>
             <EliteText variant="caption" style={{ color: Colors.textSecondary, marginTop: 4, textAlign: 'center' }}>
-              Toma foto o sube PDF — la IA extrae los valores automáticamente
+              Toma foto o sube PDF: la IA extrae los valores automáticamente
             </EliteText>
 
             <View style={s.uploadBtns}>
@@ -448,7 +448,7 @@ function MyHealthScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
                   <Ionicons name="alert-circle" size={16} color={SEMANTIC.error} />
                   <EliteText variant="caption" style={{ color: Colors.textSecondary, flex: 1, fontSize: FontSizes.sm }}>
-                    {u.file_name ?? 'Archivo'} — {u.status === 'failed' ? 'Fallido' : 'Procesando'}
+                    {u.file_name ?? 'Archivo'} · {u.status === 'failed' ? 'Fallido' : 'Procesando'}
                   </EliteText>
                   {u.status === 'failed' && (
                     <Pressable onPress={() => retryExtraction(u.id)} style={{ padding: 6 }}>

@@ -43,9 +43,9 @@ type Summary = { simple: number; choice: number; gngRt: number; errRate: number;
 
 const MODE_ORDER: Mode[] = ['simple', 'choice', 'gng'];
 const MODE_COPY: Record<Mode, { title: string; instr: string }> = {
-  simple: { title: 'Fase 1 — Reacción simple', instr: 'Toca la pantalla en cuanto el recuadro se ponga VERDE. No te adelantes: tocar antes no cuenta. Primero 2 intentos de práctica.' },
-  choice: { title: 'Fase 2 — Elección (4 opciones)', instr: 'Toca el recuadro que se ILUMINE entre los 4. Rápido y preciso. Primero 2 intentos de práctica.' },
-  gng: { title: 'Fase 3 — Go / No-Go', instr: 'Toca cuando el estímulo sea VERDE (Go). Si es ROJO (No-Go), NO toques: retén y el trial avanza solo. Mide tu inhibición. Primero 2 intentos de práctica.' },
+  simple: { title: 'Fase 1: Reacción simple', instr: 'Toca la pantalla en cuanto el recuadro se ponga VERDE. No te adelantes: tocar antes no cuenta. Primero 2 intentos de práctica.' },
+  choice: { title: 'Fase 2: Elección (4 opciones)', instr: 'Toca el recuadro que se ILUMINE entre los 4. Rápido y preciso. Primero 2 intentos de práctica.' },
+  gng: { title: 'Fase 3: Go / No-Go', instr: 'Toca cuando el estímulo sea VERDE (Go). Si es ROJO (No-Go), NO toques: retén y el trial avanza solo. Mide tu inhibición. Primero 2 intentos de práctica.' },
 };
 
 export default function ReactionTimeTest() {

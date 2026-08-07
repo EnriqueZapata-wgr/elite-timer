@@ -147,7 +147,7 @@ export default function VoiceConfigOnboardingScreen() {
         <Animated.View key={animKey} entering={SlideInRight.duration(250).springify()}>
           {isBackfill && currentQ === 0 && (
             <EliteText style={s.backfillBanner}>
-              Tu coach necesita conocerte mejor — 16 preguntas rápidas (3-5 min).
+              Tu coach necesita conocerte mejor: 16 preguntas rápidas (3-5 min).
             </EliteText>
           )}
           <EliteText style={s.questionText}>{q.text}</EliteText>

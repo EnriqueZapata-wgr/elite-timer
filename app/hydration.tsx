@@ -74,7 +74,7 @@ export default function HydrationScreen() {
   const epigeneticHint = pct >= 100
     ? 'Meta cumplida. La hidratación sostiene el volumen plasmático y el transporte de nutrientes a la célula.'
     : pct >= 50
-      ? 'Vas a la mitad. El agua es el medio de casi toda reacción metabólica — la deshidratación leve ya sube el cortisol.'
+      ? 'Vas a la mitad. El agua es el medio de casi toda reacción metabólica: la deshidratación leve ya sube el cortisol.'
       : 'El agua regula temperatura, presión y detox hepática. Empezar temprano evita el pico de cortisol por deshidratación.';
 
   return (

@@ -137,7 +137,7 @@ export default function BravermanPremiumScreen() {
                 onPress={() => { haptic.light(); router.push('/economy/shop'); }}
                 style={styles.shopLink}
               >
-                <EliteText style={styles.shopLinkText}>Te faltan H+ — conseguir más →</EliteText>
+                <EliteText style={styles.shopLinkText}>Te faltan H+: conseguir más →</EliteText>
               </AnimatedPressable>
             )}
             <EliteText style={styles.lockHint}>
@@ -177,7 +177,7 @@ export default function BravermanPremiumScreen() {
         <View style={styles.loadingContainer}>
           <EliteText style={styles.lockTitle}>Algo no salió</EliteText>
           <EliteText style={styles.lockBody}>
-            ARGOS no pudo generar tu reporte. Suele ser cosa de red — intenta de nuevo.
+            ARGOS no pudo generar tu reporte. Suele ser cosa de red: intenta de nuevo.
           </EliteText>
           <AnimatedPressable onPress={generate} style={styles.lockCtaPrimary}>
             <EliteText style={styles.lockCtaPrimaryText}>Reintentar</EliteText>
@@ -195,7 +195,7 @@ export default function BravermanPremiumScreen() {
               {/* #143: comunica cache permanente — releer nunca vuelve a costar */}
               <View style={styles.ownedBadge}>
                 <EliteText style={styles.ownedBadgeText}>
-                  {wasCached ? '✓ Ya lo tienes' : '✓ Tuyo para siempre'} — releer es gratis
+                  {wasCached ? '✓ Ya lo tienes' : '✓ Tuyo para siempre'} · releer es gratis
                 </EliteText>
               </View>
             </View>

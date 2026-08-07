@@ -202,7 +202,7 @@ export default function NBackHomeScreen() {
             <View style={s.audioHint}>
               <Ionicons name="headset-outline" size={13} color={TEXT.tertiary} />
               <EliteText style={s.audioHintText}>
-                Usa auriculares o pon el altavoz claro — necesitas escuchar las letras con precisión.
+                Usa auriculares o pon el altavoz claro: necesitas escuchar las letras con precisión.
               </EliteText>
             </View>
           </Animated.View>

@@ -30,9 +30,9 @@ type Eval = { key: string; title: string; blurb: string; icon: string; color: st
 // Evaluaciones que YA existen (intocadas · B4 solo las agrupa).
 const EVALUACIONES: Eval[] = [
   { key: 'braverman', title: 'Test de Braverman', blurb: 'Perfil de neurotransmisores (dopamina · acetilcolina · GABA · serotonina)', icon: 'flash-outline', color: '#c084fc', route: '/braverman' },
-  { key: 'cronotipo', title: 'Cronotipo', blurb: 'León · Oso · Lobo — tu ritmo circadiano y horarios óptimos', icon: 'sunny-outline', color: '#fbbf24', route: '/quiz/chronotype' },
-  { key: 'fitzpatrick', title: 'Tipo de piel (Fitzpatrick)', blurb: 'Tu fototipo — determina tu tiempo de exposición solar segura', icon: 'color-palette-outline', color: '#fb923c', route: '/historia-clinica/fitzpatrick' },
-  { key: 'funcionales', title: 'Cuestionarios funcionales', blurb: 'Evaluaciones por área — sueño, digestión, hormonal, inflamación y más', icon: 'clipboard-outline', color: '#5B9BD5', route: '/quizzes' },
+  { key: 'cronotipo', title: 'Cronotipo', blurb: 'León · Oso · Lobo: tu ritmo circadiano y horarios óptimos', icon: 'sunny-outline', color: '#fbbf24', route: '/quiz/chronotype' },
+  { key: 'fitzpatrick', title: 'Tipo de piel (Fitzpatrick)', blurb: 'Tu fototipo: determina tu tiempo de exposición solar segura', icon: 'color-palette-outline', color: '#fb923c', route: '/historia-clinica/fitzpatrick' },
+  { key: 'funcionales', title: 'Cuestionarios funcionales', blurb: 'Evaluaciones por área: sueño, digestión, hormonal, inflamación y más', icon: 'clipboard-outline', color: '#5B9BD5', route: '/quizzes' },
   { key: 'cognitivo', title: 'Test cognitivo', blurb: 'Tiempo de reacción y agilidad mental', icon: 'bulb-outline', color: '#7F77DD', route: '/edad-atp/cognitive' },
   { key: 'cinematicas', title: 'Pruebas cinemáticas', blurb: 'Plank · BOLT · Old Man Test · Recovery HR', icon: 'body-outline', color: '#22D3EE', route: '/edad-atp/cinematic-tests-index' },
 ];

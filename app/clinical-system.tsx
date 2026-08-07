@@ -247,7 +247,7 @@ export default function ClinicalSystemScreen() {
                     }} />
                     <Text style={{ color: '#ccc', fontSize: 12, fontFamily: Fonts.regular, flex: 1 }}>
                       {SEVERITY_LABELS[log.severity]}
-                      {log.note ? ` — ${log.note}` : ''}
+                      {log.note ? ` · ${log.note}` : ''}
                     </Text>
                     <Text style={{ color: TEXT.muted, fontSize: 11, fontFamily: Fonts.regular }}>
                       {formatDate(log.logged_at)}

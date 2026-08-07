@@ -291,7 +291,7 @@ export default function ReportsScreen() {
             </View>
             {identity != null && identity.totalFasts === 0 && identity.totalWorkouts === 0 && (
               <EliteText style={s.emptyHint}>
-                Tu historia empieza hoy — cada entreno y cada ayuno que registres se quedan aquí.
+                Tu historia empieza hoy: cada entreno y cada ayuno que registres se quedan aquí.
               </EliteText>
             )}
           </GradientCard>

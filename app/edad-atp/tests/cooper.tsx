@@ -77,7 +77,7 @@ export default function CooperTest() {
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.desc}>
           Cómo hacerlo: en pista o caminadora, corre/camina la MAYOR distancia posible en
-          12 minutos. Hazlo cuando quieras — aquí solo capturas tu resultado.
+          12 minutos. Hazlo cuando quieras: aquí solo capturas tu resultado.
         </EliteText>
 
         <View style={styles.card}>
@@ -93,7 +93,7 @@ export default function CooperTest() {
         <View style={styles.card}>
           <NumberInputRow
             label="VO2max directo" unit="ml/kg/min" value={vo2Direct} onChangeText={setVo2Direct}
-            helper="Opcional — de tu wearable o prueba de esfuerzo. Si lo llenas, gana."
+            helper="Opcional: de tu wearable o prueba de esfuerzo. Si lo llenas, gana."
             badge={current != null ? `actual ${current}` : undefined}
           />
         </View>

@@ -210,7 +210,7 @@ export default function MobilityAssessmentScreen() {
                 <View style={s.prevRow}>
                   <Ionicons name="time-outline" size={14} color={TEXT.secondary} />
                   <EliteText style={s.prevText}>
-                    Tu última evaluación ({anterior.date}): {anterior.overall_score}/10 — hoy comparamos contra eso.
+                    Tu última evaluación ({anterior.date}): {anterior.overall_score}/10. Hoy comparamos contra eso.
                   </EliteText>
                 </View>
               )}
@@ -290,7 +290,7 @@ export default function MobilityAssessmentScreen() {
                 </EliteText>
               </>
             ) : (
-              <EliteText style={s.heroBody}>No capturaste ningún test — no hay score que inventar.</EliteText>
+              <EliteText style={s.heroBody}>No capturaste ningún test: no hay score que inventar.</EliteText>
             )}
             {errorGuardado && (
               <View style={s.errorRow}>
@@ -311,7 +311,7 @@ export default function MobilityAssessmentScreen() {
                   <EliteText style={s.testName}>{spec.nombre}</EliteText>
                   <EliteText style={s.testReading}>
                     {READING_LABELS[lecturaDe(t.score!)]}
-                    {t.asimetria ? ' · asimetría izq/der — vale la pena trabajarla' : ''}
+                    {t.asimetria ? ' · asimetría izq/der, vale la pena trabajarla' : ''}
                     {delta != null ? `  (${delta > 0 ? '+' : ''}${delta.toFixed(1)})` : ''}
                   </EliteText>
                 </View>

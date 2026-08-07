@@ -144,11 +144,11 @@ export default function InterventionRationaleScreen() {
                 onPress={() => { haptic.light(); router.push('/economy/shop'); }}
                 style={styles.shopLink}
               >
-                <EliteText style={styles.shopLinkText}>Te faltan H+ — conseguir más →</EliteText>
+                <EliteText style={styles.shopLinkText}>Te faltan H+: conseguir más →</EliteText>
               </AnimatedPressable>
             )}
             <EliteText style={styles.lockHint}>
-              Queda tuya mientras no cambie tu protocolo ni tu mapa funcional — releer es gratis.
+              Queda tuya mientras no cambie tu protocolo ni tu mapa funcional: releer es gratis.
             </EliteText>
           </Animated.View>
         </View>
@@ -201,7 +201,7 @@ export default function InterventionRationaleScreen() {
         <View style={styles.loadingContainer}>
           <EliteText style={styles.lockTitle}>Algo no salió</EliteText>
           <EliteText style={styles.lockBody}>
-            ARGOS no pudo generar tu explicación. Suele ser cosa de red — intenta de nuevo.
+            ARGOS no pudo generar tu explicación. Suele ser cosa de red: intenta de nuevo.
           </EliteText>
           <AnimatedPressable onPress={generate} style={styles.lockCtaPrimary}>
             <EliteText style={styles.lockCtaPrimaryText}>Reintentar</EliteText>
@@ -218,7 +218,7 @@ export default function InterventionRationaleScreen() {
               </View>
               <View style={styles.ownedBadge}>
                 <EliteText style={styles.ownedBadgeText}>
-                  {wasCached ? '✓ Ya la tienes' : '✓ Tuya'} — releer es gratis
+                  {wasCached ? '✓ Ya la tienes' : '✓ Tuya'} · releer es gratis
                 </EliteText>
               </View>
             </View>

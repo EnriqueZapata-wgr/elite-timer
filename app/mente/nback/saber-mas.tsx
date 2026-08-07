@@ -31,14 +31,14 @@ const SECTIONS: Section[] = [
   {
     title: 'Qué es, en una frase',
     paragraphs: [
-      'El N-Back es un ejercicio para entrenar tu memoria de trabajo: esa "RAM mental" que sostiene información viva mientras la usas — el número que retienes mientras haces una cuenta, el hilo de una conversación mientras piensas tu respuesta, los tres pendientes que malabareas antes de anotarlos.',
-      'En el dual N-Back entrenas dos flujos a la vez: una posición que aparece en la cuadrícula y una letra que escuchas. Tu trabajo es marcar cuándo el estímulo de ahora coincide con el de N turnos atrás. En N=2 comparas con hace dos turnos; en N=3, con hace tres. Suena simple. No lo es — y ahí está el entrenamiento.',
+      'El N-Back es un ejercicio para entrenar tu memoria de trabajo: esa "RAM mental" que sostiene información viva mientras la usas. El número que retienes mientras haces una cuenta, el hilo de una conversación mientras piensas tu respuesta, los tres pendientes que malabareas antes de anotarlos.',
+      'En el dual N-Back entrenas dos flujos a la vez: una posición que aparece en la cuadrícula y una letra que escuchas. Tu trabajo es marcar cuándo el estímulo de ahora coincide con el de N turnos atrás. En N=2 comparas con hace dos turnos; en N=3, con hace tres. Suena simple. No lo es, y ahí está el entrenamiento.',
     ],
   },
   {
     title: 'De dónde viene',
     paragraphs: [
-      'La tarea N-back la propuso Wayne Kirchner en 1958 para estudiar la memoria a corto plazo. Vivió medio siglo en los laboratorios hasta que, en 2008, un estudio de Jaeggi y colegas en PNAS la volvió famosa: reportaron que entrenar la memoria de trabajo con dual N-back mejoraba la inteligencia fluida (la capacidad de razonar y resolver problemas nuevos), y —lo más llamativo— que a más días de entrenamiento, mayor la mejora. Eso sacudió una creencia vieja: que la inteligencia fluida era casi fija.',
+      'La tarea N-back la propuso Wayne Kirchner en 1958 para estudiar la memoria a corto plazo. Vivió medio siglo en los laboratorios hasta que, en 2008, un estudio de Jaeggi y colegas en PNAS la volvió famosa: reportaron que entrenar la memoria de trabajo con dual N-back mejoraba la inteligencia fluida (la capacidad de razonar y resolver problemas nuevos), y (lo más llamativo) que a más días de entrenamiento, mayor la mejora. Eso sacudió una creencia vieja: que la inteligencia fluida era casi fija.',
     ],
   },
   {
@@ -47,8 +47,8 @@ const SECTIONS: Section[] = [
       'Aquí somos honestos, porque es lo que nos separa: la ciencia del N-back es real, y también es matizada.',
     ],
     bullets: [
-      'Lo que sí está sólido (transferencia cercana): el N-back mejora tu memoria de trabajo — la tarea entrenada y medidas relacionadas de memoria de trabajo. Esto se repite en los estudios. Un meta-análisis de Soveri y colegas (2017) que juntó decenas de estudios de N-back lo confirma: hay ganancias fiables en memoria de trabajo.',
-      'Lo que está en debate (transferencia lejana): ¿ese entrenamiento te vuelve "más inteligente" en general? Ahí los científicos no se ponen de acuerdo. El meta-análisis de Au y colegas (2015) encontró un efecto pequeño pero real sobre la inteligencia fluida (~un cuarto de desviación estándar). Pero Redick (2013) y Melby-Lervåg, Redick y Hulme (2016) —revisando 87 publicaciones— concluyeron que, cuando se usan buenos grupos de control, esa transferencia a la inteligencia general no es convincente.',
+      'Lo que sí está sólido (transferencia cercana): el N-back mejora tu memoria de trabajo (la tarea entrenada y medidas relacionadas de memoria de trabajo). Esto se repite en los estudios. Un meta-análisis de Soveri y colegas (2017) que juntó decenas de estudios de N-back lo confirma: hay ganancias fiables en memoria de trabajo.',
+      'Lo que está en debate (transferencia lejana): ¿ese entrenamiento te vuelve "más inteligente" en general? Ahí los científicos no se ponen de acuerdo. El meta-análisis de Au y colegas (2015) encontró un efecto pequeño pero real sobre la inteligencia fluida (~un cuarto de desviación estándar). Pero Redick (2013) y Melby-Lervåg, Redick y Hulme (2016), revisando 87 publicaciones, concluyeron que, cuando se usan buenos grupos de control, esa transferencia a la inteligencia general no es convincente.',
     ],
     outro: [
       'Traducción: entrenas de verdad tu memoria de trabajo. Que eso se derrame a "ser más inteligente" es posible pero incierto. Por eso en ATP te prometemos el entrenamiento, no el milagro.',
@@ -68,7 +68,7 @@ const SECTIONS: Section[] = [
       'Consistencia sobre intensidad. Los estudios que vieron efectos entrenaron varios días seguidos. El reto de 20 días existe por eso.',
       'Deja que suba el nivel. El N-back solo entrena si te cuesta. Si te sientes cómodo, no estás entrenando. Sube de N.',
       'Usa audífonos. El canal auditivo es la mitad del ejercicio; necesitas oír las letras con precisión.',
-      'Falla sin drama. Equivocarte es parte del proceso — es la señal de que estás en tu límite, que es justo donde se entrena.',
+      'Falla sin drama. Equivocarte es parte del proceso: es la señal de que estás en tu límite, que es justo donde se entrena.',
     ],
   },
 ];
@@ -100,7 +100,7 @@ export default function NBackSaberMasScreen() {
           <EliteText style={s.kicker}>N-BACK · LA CIENCIA</EliteText>
           <EliteText style={s.title}>Saber más</EliteText>
           <EliteText style={s.subtitle}>
-            Qué entrena el N-Back, de dónde viene y qué dice la evidencia — sin
+            Qué entrena el N-Back, de dónde viene y qué dice la evidencia, sin
             marketing.
           </EliteText>
         </View>

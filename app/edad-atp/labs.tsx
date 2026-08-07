@@ -153,7 +153,7 @@ function AtpLabsScreen() {
       <GlobalTopBar title="ATP Labs" />
       <ScrollView contentContainerStyle={styles.content}>
         <EliteText variant="caption" style={styles.subtitle}>
-          Tus laboratorios — el último valor de cada parámetro. Mantén apretado para saber qué es.
+          Tus laboratorios: el último valor de cada parámetro. Mantén apretado para saber qué es.
         </EliteText>
 
         {/* Filtros de orden (#13) */}
@@ -270,7 +270,7 @@ function renderRangeSummary(sex: Sex, r: Row) {
   if (!limits) {
     return (
       <EliteText variant="caption" style={styles.rangeInfoMuted}>
-        Sin banda funcional en la matriz — se muestra solo el historial.
+        Sin banda funcional en la matriz: se muestra solo el historial.
       </EliteText>
     );
   }

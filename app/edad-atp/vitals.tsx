@@ -26,7 +26,7 @@ const FIELDS: { key: string; label: string; unit: string; helper?: string; integ
   { key: 'systolic_bp', label: 'Presión sistólica', unit: 'mmHg', helper: 'En reposo, sentado, tras 5 min de calma', integer: true },
   { key: 'diastolic_bp', label: 'Presión diastólica', unit: 'mmHg', integer: true },
   { key: 'resting_hr', label: 'FC reposo matutina', unit: 'bpm', helper: 'Antes de levantarte', integer: true },
-  { key: 'vo2max_estimate', label: 'VO2max estimado', unit: 'ml/kg/min', helper: 'Opcional — de tu wearable o test Cooper' },
+  { key: 'vo2max_estimate', label: 'VO2max estimado', unit: 'ml/kg/min', helper: 'Opcional: de tu wearable o test Cooper' },
 ];
 
 function daysAgo(dateStr: string): number {

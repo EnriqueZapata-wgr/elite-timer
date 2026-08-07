@@ -315,7 +315,7 @@ export default function BiomarkersCapture() {
             if (items.length === 0) return null;
             return (
               <View key={s.section} style={styles.section}>
-                <EliteText variant="body" style={styles.pendTitle}>⚠️ {s.section} — pendiente</EliteText>
+                <EliteText variant="body" style={styles.pendTitle}>⚠️ {s.section}: pendiente</EliteText>
                 {items.map((f) => (
                   <NumberInputRow key={f.key} label={f.label} unit={f.unit} value={values[f.key] ?? ''} onChangeText={(v) => setField(f.key, v)} />
                 ))}

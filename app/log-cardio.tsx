@@ -210,7 +210,7 @@ export default function LogCardioScreen() {
                 <Ionicons name="repeat-outline" size={16} color={ATP_BRAND.teal} />
                 <EliteText style={s.lastText}>
                   La última vez: {formatDuration(ultima.duration_seconds)}
-                  {ultima.distance_meters ? ` · ${(ultima.distance_meters / 1000).toFixed(2)} km` : ''} — tocar para repetir
+                  {ultima.distance_meters ? ` · ${(ultima.distance_meters / 1000).toFixed(2)} km` : ''} · tocar para repetir
                 </EliteText>
               </AnimatedPressable>
             </Animated.View>
@@ -272,7 +272,7 @@ export default function LogCardioScreen() {
             {masDetalles && (
               <View>
                 {/* Distancia */}
-                <EliteText style={s.sublabel}>DISTANCIA — con ella detectamos PRs</EliteText>
+                <EliteText style={s.sublabel}>DISTANCIA: con ella detectamos PRs</EliteText>
                 <View style={s.row}>
                   <TextInput
                     style={[s.input, { flex: 2 }]}
@@ -392,13 +392,13 @@ function formatTime(totalSeconds: number): string {
 }
 
 function rpeLabel(rpe: number): string {
-  if (rpe <= 2) return 'Muy ligero — recuperación activa';
-  if (rpe <= 4) return 'Ligero — calentamiento, easy run';
-  if (rpe <= 6) return 'Moderado — zona aeróbica';
-  if (rpe <= 7) return 'Algo duro — tempo';
-  if (rpe <= 8) return 'Duro — umbral';
-  if (rpe <= 9) return 'Muy duro — VO2 max';
-  return 'Máximo — esfuerzo absoluto';
+  if (rpe <= 2) return 'Muy ligero: recuperación activa';
+  if (rpe <= 4) return 'Ligero: calentamiento, easy run';
+  if (rpe <= 6) return 'Moderado: zona aeróbica';
+  if (rpe <= 7) return 'Algo duro: tempo';
+  if (rpe <= 8) return 'Duro: umbral';
+  if (rpe <= 9) return 'Muy duro: VO2 max';
+  return 'Máximo: esfuerzo absoluto';
 }
 
 // === ESTILOS ===

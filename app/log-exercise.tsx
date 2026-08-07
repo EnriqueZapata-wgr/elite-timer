@@ -202,7 +202,7 @@ export default function LogExerciseScreen() {
     if (error) {
       logWarn('searchExercises error:', error.message);
       setSearchResults([]);
-      setSearchError('No se pudo buscar — revisa tu conexión.');
+      setSearchError('No se pudo buscar: revisa tu conexión.');
     } else {
       setSearchResults((data as ExerciseRow[]) || []);
     }
@@ -900,7 +900,7 @@ export default function LogExerciseScreen() {
               <View style={s.colReps}><Text style={s.colLabel}>REPS</Text></View>
               <View style={[s.colRir, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 }]}>
                 <Text style={s.colLabel}>RIR</Text>
-                <InfoButton title="RIR" explanation="Reps in Reserve — repeticiones que podrías hacer antes del fallo. RIR 2 = podrías hacer 2 más." color={TEXT.secondary} size={11} />
+                <InfoButton title="RIR" explanation="Reps in Reserve: repeticiones que podrías hacer antes del fallo. RIR 2 = podrías hacer 2 más." color={TEXT.secondary} size={11} />
               </View>
               <View style={s.col1rm}><Text style={s.colLabel}>1RM</Text></View>
               <View style={{ width: 28 }} />

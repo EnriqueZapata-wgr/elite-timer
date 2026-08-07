@@ -109,7 +109,7 @@ export default function NBackPersonalizarScreen() {
           <View style={s.settingRow}>
             <View style={{ flex: 1, paddingRight: Spacing.sm }}>
               <EliteText style={s.settingLabel}>Flash acierto/error</EliteText>
-              <EliteText style={s.settingHint}>Verde al acertar, rojo al fallar — apágalo si te distrae.</EliteText>
+              <EliteText style={s.settingHint}>Verde al acertar, rojo al fallar: apágalo si te distrae.</EliteText>
             </View>
             {toggle('feedbackFlash')}
           </View>

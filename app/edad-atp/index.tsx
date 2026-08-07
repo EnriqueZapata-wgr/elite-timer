@@ -158,7 +158,7 @@ export default function EdadAtpHub() {
                 </>
               ) : (
                 <EliteText variant="caption" style={styles.heroSub}>
-                  Aún sin calcular — completa tu evaluación abajo y el número aparece aquí.
+                  Aún sin calcular: completa tu evaluación abajo y el número aparece aquí.
                 </EliteText>
               )}
               <View style={styles.heroStars}>

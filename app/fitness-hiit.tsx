@@ -78,12 +78,12 @@ const HIIT_PRESETS: HIITPreset[] = [
   },
   {
     name: 'EMOM 10 min',
-    description: 'Every Minute On the Minute — 1 ejercicio cada minuto',
+    description: 'Every Minute On the Minute: 1 ejercicio cada minuto',
     params: { mode: 'emom', work: '60', rest: '0', rounds: '10' },
   },
   {
     name: 'AMRAP 15 min',
-    description: 'As Many Rounds As Possible — tantas rondas como puedas',
+    description: 'As Many Rounds As Possible: tantas rondas como puedas',
     params: { mode: 'amrap', duration: '900' },
   },
   {

@@ -313,7 +313,7 @@ export default function RoutineGeneratorScreen() {
         {objetivo === 'movilidad' ? (
           <>
             <Text style={s.sectionLabel}>ENFOQUE</Text>
-            <Text style={s.sectionHint}>Sesión de movilidad de cuerpo completo — estiramientos, movilidad y estabilidad de tu matriz.</Text>
+            <Text style={s.sectionHint}>Sesión de movilidad de cuerpo completo: estiramientos, movilidad y estabilidad de tu matriz.</Text>
           </>
         ) : (
           <>

@@ -144,7 +144,7 @@ export default function ArgosRecipesScreen() {
   async function shareShoppingList() {
     if (!shoppingList) return;
     const text = shoppingList.sections.map(s =>
-      `${s.name}\n${s.items.map(i => `  - ${i.name} — ${i.quantity}`).join('\n')}`
+      `${s.name}\n${s.items.map(i => `  - ${i.name}: ${i.quantity}`).join('\n')}`
     ).join('\n\n');
     await Share.share({ message: `Lista de super ATP (7 días)\n\n${text}\n\nGenerada por ARGOS` });
   }
