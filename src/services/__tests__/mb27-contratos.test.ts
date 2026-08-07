@@ -64,22 +64,35 @@ describe('mutación 6 (contrato): capturar dos veces el mismo día NO duplica fi
   });
 });
 
-describe('mutación 8 (contrato): la asignación avisa, no revive en silencio', () => {
+describe('mutación 8 + audit B3 (contrato): la asignación avisa, pasa por el techo y no revive en silencio', () => {
   it('plan-entrenamiento reactiva strength SOLO tras decisión explícita', () => {
     const src = read('app/plan-entrenamiento.tsx');
-    // El aviso existe y la reactivación vive dentro de la opción del Alert.
+    // El aviso existe con sus dos salidas.
     expect(src).toMatch(/estadoDe\('strength'/);
     expect(src).toMatch(/Volverlo a activo/);
     expect(src).toMatch(/Dejarlo así/);
-    // reactivarHabitos aparece exactamente una vez ejecutable: en el onPress
-    // del Alert (más su import). Llamarlo en el flujo de guardar sería
-    // revivir en silencio.
+    // reactivarHabitos aparece exactamente una vez: dentro del closure
+    // `reactivar`, que SOLO se invoca desde los onPress de los Alerts.
+    // Llamarlo suelto en el flujo de guardar sería revivir en silencio.
     const ejecuciones = src.match(/reactivarHabitos\(userId/g) ?? [];
     expect(ejecuciones).toHaveLength(1);
-    const idxAlert = src.indexOf("text: 'Volverlo a activo'");
-    const idxReactivar = src.indexOf('reactivarHabitos(userId');
-    expect(idxAlert).toBeGreaterThan(-1);
-    expect(idxReactivar).toBeGreaterThan(idxAlert);
+    const invocaciones = src.match(/onPress: \(\) => \{ reactivar\(\); \}/g) ?? [];
+    expect(invocaciones.length).toBeGreaterThanOrEqual(2);
+    // Y `reactivar()` no se llama fuera de un onPress:
+    const sueltas = (src.match(/reactivar\(\);/g) ?? []).length;
+    expect(sueltas).toBe(invocaciones.length);
+  });
+
+  it('B3: es puerta de encendido — evalúa el techo ANTES de ofrecer', () => {
+    const src = read('app/plan-entrenamiento.tsx');
+    expect(src).toMatch(/evaluarTechoEncendido\(userId, \['strength'\]\)/);
+    // Con el día lleno, el aviso del techo ofrece la salida honesta:
+    expect(src).toMatch(/Encenderlo igual/);
+    // El techo se evalúa antes de que exista cualquier Alert de reactivar:
+    const idxTecho = src.indexOf('evaluarTechoEncendido(userId');
+    const idxOferta = src.indexOf("text: 'Volverlo a activo'");
+    expect(idxTecho).toBeGreaterThan(-1);
+    expect(idxTecho).toBeLessThan(idxOferta);
   });
 });
 

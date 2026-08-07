@@ -31,6 +31,7 @@ import {
 import { getAsignacionHoy, savePlanSemanal } from '@/src/services/fitness/plan-semanal-service';
 import { getHabitStates, reactivarHabitos } from '@/src/services/hoy/habit-states-service';
 import { estadosPorKey, estadoDe } from '@/src/services/hoy/habit-states-core';
+import { evaluarTechoEncendido } from '@/src/services/hoy/techo-service';
 import { ELEVATION, TEXT, ATP_BRAND, withOpacity } from '@/src/constants/brand';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 
@@ -77,23 +78,41 @@ export default function PlanEntrenamientoScreen() {
 
     // Test 8: la asignación no revive strength en silencio. Si está en
     // reposo o graduado se avisa, y solo el sí del usuario lo reactiva.
+    // Audit B3: esta es una PUERTA DE ENCENDIDO — pasa por el techo ANTES
+    // de ofrecer, como las otras tres (contrato de techo-service). Si el
+    // día ya está lleno, el aviso lo dice y se respeta la decisión.
     const dias = Object.keys(plan).length;
     if (dias > 0) {
       const estados = estadosPorKey(await getHabitStates(userId));
       const estadoStrength = estadoDe('strength', estados);
       if (estadoStrength !== 'activo') {
+        const enEstado = estadoStrength === 'reposo' ? 'reposo' : 'graduado';
+        const reactivar = async () => {
+          await reactivarHabitos(userId, ['strength']);
+          router.back();
+        };
+        const avisoTecho = await evaluarTechoEncendido(userId, ['strength']);
+        if (avisoTecho) {
+          Alert.alert(
+            'Tu plan quedó guardado, y tu día ya está lleno',
+            `Volver Fuerza a activo te deja en ${avisoTecho.total} hábitos y el techo que protege tu día es ${avisoTecho.techo}. ` +
+              `Si lo dejas en ${enEstado}, Entrenar igual te dice qué toca.` +
+              (avisoTecho.candidatos.length > 0
+                ? ` Lo que más te ha costado: ${avisoTecho.candidatos.map((c) => c.name).join(', ')}.`
+                : ''),
+            [
+              { text: 'Dejarlo así', style: 'cancel', onPress: () => router.back() },
+              { text: 'Encenderlo igual', onPress: () => { reactivar(); } },
+            ],
+          );
+          return;
+        }
         Alert.alert(
-          'Tu hábito de fuerza está en ' + (estadoStrength === 'reposo' ? 'reposo' : 'graduado'),
+          'Tu hábito de fuerza está en ' + enEstado,
           'Tu plan quedó guardado. ¿Quieres que Fuerza vuelva a contar en tu día? Si lo dejas como está, Entrenar igual te dice qué toca.',
           [
             { text: 'Dejarlo así', style: 'cancel', onPress: () => router.back() },
-            {
-              text: 'Volverlo a activo',
-              onPress: async () => {
-                await reactivarHabitos(userId, ['strength']);
-                router.back();
-              },
-            },
+            { text: 'Volverlo a activo', onPress: () => { reactivar(); } },
           ],
         );
         return;
