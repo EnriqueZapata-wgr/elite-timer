@@ -20,11 +20,14 @@ interface Props {
   badge?: string;
   /** Resalta la fila (input enfocado desde "Datos por capturar" con ?focus=). */
   highlight?: boolean;
+  /** MB-27 V3 (abierto 2): abre el teclado directo — el deep-link ?focus=
+   *  promete captura inmediata, y highlight solo era tinte. */
+  autoFocus?: boolean;
   /** Si se pasa, el helper se vuelve un link tappable (ej. "haz el test Cooper →"). */
   onHelperPress?: () => void;
 }
 
-export function NumberInputRow({ label, unit, value, onChangeText, helper, placeholder, readOnly, badge, highlight, onHelperPress }: Props) {
+export function NumberInputRow({ label, unit, value, onChangeText, helper, placeholder, readOnly, badge, highlight, autoFocus, onHelperPress }: Props) {
   return (
     <View style={[styles.row, highlight && styles.rowHighlight]}>
       <View style={styles.labelCol}>
@@ -49,6 +52,7 @@ export function NumberInputRow({ label, unit, value, onChangeText, helper, place
         value={value}
         onChangeText={onChangeText}
         editable={!readOnly}
+        autoFocus={autoFocus && !readOnly}
         keyboardType="decimal-pad"
         placeholder={placeholder ?? '—'}
         placeholderTextColor={Colors.textMuted}

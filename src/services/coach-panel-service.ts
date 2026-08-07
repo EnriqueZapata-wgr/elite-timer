@@ -262,13 +262,17 @@ export async function getClientDetail(clientId: string): Promise<ClientStats> {
   };
 }
 
-/** Rutinas programadas del cliente */
+/** Rutinas programadas del cliente.
+ *  MB-27 V3 (abierto 1): el plan PROPIO de enfoques del cliente (filas con
+ *  focus, assigned_by = él mismo) NO es del coach y no se pinta como
+ *  asignación suya — el panel lista solo rutinas concretas (routine_id). */
 export async function getClientSchedule(clientId: string): Promise<ClientScheduleItem[]> {
   const { data, error } = await supabase
     .from('scheduled_routines')
     .select('id, routine_id, schedule_type, day_of_week, specific_date, assigned_by, routines(name)')
     .eq('user_id', clientId)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .is('focus', null);
 
   if (error) throw error;
   return (data ?? []).map(row => ({

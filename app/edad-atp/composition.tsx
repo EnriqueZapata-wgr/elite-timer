@@ -212,18 +212,18 @@ export default function CompositionCapture() {
           </View>
         ) : (
         <View style={styles.card}>
-          <NumberInputRow label="Peso" unit="kg" badge={prefilled.weight_kg ? badge ?? 'Salud' : undefined} value={v.weight_kg ?? ''} onChangeText={(x) => set('weight_kg', x)} highlight={focus === 'weight_kg'} />
+          <NumberInputRow label="Peso" unit="kg" badge={prefilled.weight_kg ? badge ?? 'Salud' : undefined} value={v.weight_kg ?? ''} onChangeText={(x) => set('weight_kg', x)} highlight={focus === 'weight_kg'} autoFocus={focus === 'weight_kg'} />
           {weightDiff != null ? (
             <EliteText variant="caption" style={styles.diff}>
               {weightDiff > 0 ? '+' : ''}{weightDiff} kg desde la última
             </EliteText>
           ) : null}
           <NumberInputRow label="Altura" unit="cm" badge={prefilled.height_cm ? badge ?? 'Salud' : undefined} value={v.height_cm ?? ''} onChangeText={(x) => set('height_cm', x)} />
-          <NumberInputRow label="% Grasa corporal" unit="%" badge={prefilled.body_fat_pct ? badge ?? 'Salud' : undefined} value={v.body_fat_pct ?? ''} onChangeText={(x) => set('body_fat_pct', x)} highlight={focus === 'body_fat_pct'} />
+          <NumberInputRow label="% Grasa corporal" unit="%" badge={prefilled.body_fat_pct ? badge ?? 'Salud' : undefined} value={v.body_fat_pct ?? ''} onChangeText={(x) => set('body_fat_pct', x)} highlight={focus === 'body_fat_pct'} autoFocus={focus === 'body_fat_pct'} />
           <NumberInputRow label="Masa muscular" unit="kg" badge={prefilled.muscle_mass_kg ? badge ?? 'Salud' : undefined} value={v.muscle_mass_kg ?? ''} onChangeText={(x) => set('muscle_mass_kg', x)} helper="Reportada por báscula inteligente" />
           <NumberInputRow label="Grasa visceral" badge={prefilled.visceral_fat ? badge ?? 'Salud' : undefined} value={v.visceral_fat ?? ''} onChangeText={(x) => set('visceral_fat', x)} helper="Índice típico 1–30" />
-          <NumberInputRow label="Fuerza de agarre" unit="kg" badge={prefilled.grip_strength_kg ? badge ?? 'Salud' : undefined} value={v.grip_strength_kg ?? ''} onChangeText={(x) => set('grip_strength_kg', x)} helper="Dinamómetro Camry EH101 (~$25)" highlight={focus === 'grip_strength_kg'} />
-          <NumberInputRow label="Cintura" unit="cm" badge={prefilled.waist_cm ? badge ?? 'Salud' : undefined} value={v.waist_cm ?? ''} onChangeText={(x) => set('waist_cm', x)} helper="A la altura del ombligo, sin apretar" highlight={focus === 'waist_cm'} />
+          <NumberInputRow label="Fuerza de agarre" unit="kg" badge={prefilled.grip_strength_kg ? badge ?? 'Salud' : undefined} value={v.grip_strength_kg ?? ''} onChangeText={(x) => set('grip_strength_kg', x)} helper="Dinamómetro Camry EH101 (~$25)" highlight={focus === 'grip_strength_kg'} autoFocus={focus === 'grip_strength_kg'} />
+          <NumberInputRow label="Cintura" unit="cm" badge={prefilled.waist_cm ? badge ?? 'Salud' : undefined} value={v.waist_cm ?? ''} onChangeText={(x) => set('waist_cm', x)} helper="A la altura del ombligo, sin apretar" highlight={focus === 'waist_cm'} autoFocus={focus === 'waist_cm'} />
           <NumberInputRow label="Cadera" unit="cm" badge={prefilled.hip_cm ? badge ?? 'Salud' : undefined} value={v.hip_cm ?? ''} onChangeText={(x) => set('hip_cm', x)} helper="En la parte más ancha de los glúteos" />
           <NumberInputRow label="Brazo" unit="cm" badge={prefilled.arm_cm ? badge ?? 'Salud' : undefined} value={v.arm_cm ?? ''} onChangeText={(x) => set('arm_cm', x)} helper="Relajado, en la parte más ancha" />
           <NumberInputRow label="Pierna" unit="cm" badge={prefilled.leg_cm ? badge ?? 'Salud' : undefined} value={v.leg_cm ?? ''} onChangeText={(x) => set('leg_cm', x)} helper="Muslo, en la parte más ancha" />
