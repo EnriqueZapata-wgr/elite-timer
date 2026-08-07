@@ -16,17 +16,21 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import {
-  asignacionDeHoy, planDeFilas, proximaAsignacion,
+  asignacionDeHoy, planDeFilas, proximaAsignacion, rutinasPorDia,
   type AsignacionRow, type PlanSemanal, type ProximaAsignacion,
 } from './plan-semanal-core';
 
-/** Todas las filas activas del usuario (enfoque Y rutina, para resolver hoy). */
+/** Todas las filas activas del usuario (enfoque Y rutina, para resolver hoy).
+ *  Audit B7: ORDER BY created_at — la entrada llega determinista; la
+ *  precedencia real (rutina > enfoque, más nuevo entre enfoques) la aplica
+ *  el core en cada resolución. */
 export async function getAsignaciones(userId: string): Promise<AsignacionRow[] | null> {
   const { data, error } = await supabase
     .from('scheduled_routines')
-    .select('id, schedule_type, day_of_week, specific_date, focus, routine_id, is_active, routines(name)')
+    .select('id, schedule_type, day_of_week, specific_date, focus, routine_id, is_active, created_at, routines(name)')
     .eq('user_id', userId)
-    .eq('is_active', true);
+    .eq('is_active', true)
+    .order('created_at', { ascending: true });
   if (error) {
     logWarn('[plan-semanal] read failed', error);
     return null;
@@ -40,6 +44,7 @@ export async function getAsignaciones(userId: string): Promise<AsignacionRow[] |
     routine_id: r.routine_id,
     routine_name: r.routines?.name ?? null,
     is_active: r.is_active,
+    created_at: r.created_at ?? null,
   }));
 }
 
@@ -47,7 +52,11 @@ export interface EstadoAsignacionHoy {
   hoy: AsignacionRow | null;
   proxima: ProximaAsignacion | null;
   plan: PlanSemanal;
-  /** true si el usuario ya configuró al menos un día (plan existe). */
+  /** Rutinas concretas agendadas por día (coach o propias) — audit B7:
+   *  la pantalla del plan las dice en vez de pintar "Descanso". */
+  rutinasDia: Partial<Record<number, string>>;
+  /** true si el usuario configuró SU plan de enfoques (audit B7: las filas
+   *  del coach o una fecha vencida no hacen "Cambiar mi plan"). */
   tienePlan: boolean;
 }
 
@@ -61,7 +70,8 @@ export async function getAsignacionHoy(userId: string): Promise<EstadoAsignacion
     hoy: asignacionDeHoy(rows, hoy),
     proxima: proximaAsignacion(rows, hoy),
     plan,
-    tienePlan: rows.length > 0,
+    rutinasDia: rutinasPorDia(rows),
+    tienePlan: Object.keys(plan).length > 0,
   };
 }
 

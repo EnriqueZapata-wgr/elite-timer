@@ -10,8 +10,8 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  asignacionDeHoy, proximaAsignacion, planDeFilas, diaSemanaLocal,
-  tituloDeAsignacion, esEnfoquePlan, ENFOQUE_LABELS,
+  asignacionDeHoy, proximaAsignacion, planDeFilas, rutinasPorDia, diaSemanaLocal,
+  tituloDeAsignacion, esEnfoquePlan, ENFOQUE_LABELS, precedencia,
   type AsignacionRow,
 } from '@/src/services/fitness/plan-semanal-core';
 
@@ -104,6 +104,49 @@ describe('planDeFilas (el plan editable ignora lo del coach)', () => {
       fila({ day_of_week: 5, focus: 'full_body', is_active: false }),
     ];
     expect(planDeFilas(rows)).toEqual({ 1: 'empuje' });
+  });
+});
+
+describe('audit B7: precedencia explícita, jamás el orden de Postgres', () => {
+  // El caso del audit: el coach agendó "Piernas de acero" el lunes; el
+  // usuario puso lunes = Empuje. LUNES = dow 1; 2026-08-03 es lunes.
+  const LUNES = '2026-08-03';
+  const coachLunes = fila({
+    day_of_week: 1, routine_id: 'r-coach', routine_name: 'Piernas de acero',
+    created_at: '2026-07-01T10:00:00Z',
+  });
+  const propioLunes = fila({
+    day_of_week: 1, focus: 'empuje', created_at: '2026-08-01T10:00:00Z',
+  });
+
+  it('la rutina concreta gana al enfoque, venga en el orden que venga', () => {
+    // Los dos órdenes posibles de la query dan LA MISMA respuesta.
+    const a = asignacionDeHoy([coachLunes, propioLunes], LUNES);
+    const b = asignacionDeHoy([propioLunes, coachLunes], LUNES);
+    expect(a?.routine_id).toBe('r-coach');
+    expect(b?.routine_id).toBe('r-coach');
+    expect(tituloDeAsignacion(a!)).toBe('Piernas de acero');
+  });
+
+  it('entre enfoques duplicados (poda fallida de B4) gana el guardado más nuevo', () => {
+    const viejo = fila({ day_of_week: 1, focus: 'full_body', created_at: '2026-07-20T10:00:00Z' });
+    const nuevo = fila({ day_of_week: 1, focus: 'traccion', created_at: '2026-08-02T10:00:00Z' });
+    expect(asignacionDeHoy([viejo, nuevo], LUNES)?.focus).toBe('traccion');
+    expect(asignacionDeHoy([nuevo, viejo], LUNES)?.focus).toBe('traccion');
+    // Y el editor muestra lo mismo que se resuelve:
+    expect(planDeFilas([viejo, nuevo])).toEqual({ 1: 'traccion' });
+  });
+
+  it('entre rutinas gana la más antigua (estable: nadie ve su rutina cambiar sola)', () => {
+    const r1 = fila({ day_of_week: 1, routine_id: 'r-1', routine_name: 'A', created_at: '2026-06-01T10:00:00Z' });
+    const r2 = fila({ day_of_week: 1, routine_id: 'r-2', routine_name: 'B', created_at: '2026-07-01T10:00:00Z' });
+    expect(asignacionDeHoy([r2, r1], LUNES)?.routine_id).toBe('r-1');
+    expect([r2, r1].sort(precedencia)[0].routine_id).toBe('r-1');
+  });
+
+  it('rutinasPorDia dice los días del coach (el editor ya no pinta Descanso encima)', () => {
+    expect(rutinasPorDia([coachLunes, propioLunes])).toEqual({ 1: 'Piernas de acero' });
+    expect(rutinasPorDia([propioLunes])).toEqual({});
   });
 });
 

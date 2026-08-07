@@ -38,13 +38,20 @@ import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 export default function PlanEntrenamientoScreen() {
   const { user } = useAuth();
   const [plan, setPlan] = useState<PlanSemanal>({});
+  // Audit B7: las rutinas concretas agendadas (coach o propias) se DICEN —
+  // antes este editor pintaba "Descanso" sobre un lunes que sí tenía
+  // "Piernas de acero" agendada.
+  const [rutinasDia, setRutinasDia] = useState<Partial<Record<number, string>>>({});
   const [busy, setBusy] = useState(false);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
     if (!user?.id) return () => { alive = false; };
     getAsignacionHoy(user.id).then((estado) => {
-      if (alive && estado) setPlan(estado.plan);
+      if (alive && estado) {
+        setPlan(estado.plan);
+        setRutinasDia(estado.rutinasDia);
+      }
     });
     return () => { alive = false; };
   }, [user?.id]));
@@ -135,6 +142,7 @@ export default function PlanEntrenamientoScreen() {
 
         {DIAS_ORDEN_UI.map((dow, idx) => {
           const activo = plan[dow] !== undefined;
+          const rutina = rutinasDia[dow];
           return (
             <Animated.View key={dow} entering={FadeInUp.delay(70 + idx * 30).springify()}>
               <View style={[s.diaCard, activo && s.diaCardActiva]}>
@@ -143,7 +151,7 @@ export default function PlanEntrenamientoScreen() {
                     {DIA_LABELS[dow]}
                   </EliteText>
                   <EliteText variant="caption" style={activo ? s.diaEstadoOn : s.diaEstadoOff}>
-                    {activo ? ENFOQUE_LABELS[plan[dow]!] : 'Descanso'}
+                    {activo ? ENFOQUE_LABELS[plan[dow]!] : rutina ?? 'Descanso'}
                   </EliteText>
                 </AnimatedPressable>
                 {activo && (
@@ -160,6 +168,13 @@ export default function PlanEntrenamientoScreen() {
                       </AnimatedPressable>
                     ))}
                   </View>
+                )}
+                {rutina != null && (
+                  <EliteText variant="caption" style={s.rutinaNota}>
+                    {activo
+                      ? `Este día ya tiene la rutina "${rutina}" agendada, y la rutina manda sobre el enfoque.`
+                      : `Rutina agendada: ${rutina}. Se maneja desde Mis rutinas, no desde aquí.`}
+                  </EliteText>
                 )}
               </View>
             </Animated.View>
@@ -210,6 +225,10 @@ const s = StyleSheet.create({
   chipActiva: { borderColor: ATP_BRAND.lime, backgroundColor: withOpacity(ATP_BRAND.lime, 0.12) },
   chipText: { color: TEXT.secondary, fontSize: FontSizes.xs, fontFamily: Fonts.semiBold },
   chipTextActiva: { color: ATP_BRAND.lime },
+  rutinaNota: {
+    color: TEXT.tertiary, lineHeight: 17,
+    paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm,
+  },
   nota: { color: TEXT.tertiary, lineHeight: 18, textAlign: 'center', marginTop: Spacing.xs },
   cta: { marginTop: Spacing.md },
 });

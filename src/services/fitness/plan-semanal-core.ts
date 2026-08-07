@@ -59,12 +59,39 @@ export interface AsignacionRow {
   routine_id: string | null;
   routine_name?: string | null;
   is_active: boolean;
+  /** Para el desempate determinista (audit B7). */
+  created_at?: string | null;
+}
+
+const tsDe = (r: AsignacionRow): string => r.created_at ?? '';
+
+/**
+ * Audit B7 — LA regla de precedencia, explícita y determinista:
+ *
+ *  1. Fecha específica gana sobre ciclo semanal (estructural, abajo).
+ *  2. Una RUTINA concreta (routine_id — del coach o autoagendada) gana
+ *     sobre un ENFOQUE (patrón genérico): lo específico manda sobre lo
+ *     genérico, y la pantalla del plan lo dice en el día para que no sea
+ *     silencioso. El usuario siempre tiene la salida (cambiar su plan o
+ *     quitar la rutina).
+ *  3. Entre rutinas: la más ANTIGUA (created_at ASC) — estable, nadie ve
+ *     su rutina cambiar sola.
+ *  4. Entre enfoques: el guardado más NUEVO (created_at DESC) — el último
+ *     "Guardar mi plan" es la verdad; los duplicados temporales de B4 se
+ *     resuelven solos hacia lo que el usuario acaba de decidir.
+ */
+export function precedencia(a: AsignacionRow, b: AsignacionRow): number {
+  const aRutina = a.routine_id != null ? 0 : 1;
+  const bRutina = b.routine_id != null ? 0 : 1;
+  if (aRutina !== bRutina) return aRutina - bRutina;
+  if (aRutina === 0) return tsDe(a).localeCompare(tsDe(b));
+  return tsDe(b).localeCompare(tsDe(a));
 }
 
 /**
  * La asignación de HOY: fecha específica gana sobre ciclo semanal; entre
- * iguales gana la primera (el orden de lectura es del servicio). null = hoy
- * no hay asignación (día de descanso o plan sin configurar).
+ * las que empatan el día decide `precedencia` (jamás el orden en que
+ * Postgres entregó las filas). null = descanso o plan sin configurar.
  */
 export function asignacionDeHoy(
   rows: AsignacionRow[] | null,
@@ -72,14 +99,15 @@ export function asignacionDeHoy(
 ): AsignacionRow | null {
   if (!rows || rows.length === 0) return null;
   const activas = rows.filter((r) => r?.is_active && (r.focus != null || r.routine_id != null));
-  const especifica = activas.find(
-    (r) => r.schedule_type === 'specific_date' && r.specific_date === hoyLocal,
-  );
-  if (especifica) return especifica;
+  const especificas = activas
+    .filter((r) => r.schedule_type === 'specific_date' && r.specific_date === hoyLocal)
+    .sort(precedencia);
+  if (especificas.length > 0) return especificas[0];
   const dow = diaSemanaLocal(hoyLocal);
-  return activas.find(
-    (r) => r.schedule_type === 'weekly_cycle' && r.day_of_week === dow,
-  ) ?? null;
+  const semanales = activas
+    .filter((r) => r.schedule_type === 'weekly_cycle' && r.day_of_week === dow)
+    .sort(precedencia);
+  return semanales[0] ?? null;
 }
 
 export interface ProximaAsignacion {
@@ -123,18 +151,45 @@ export function tituloDeAsignacion(row: AsignacionRow): string {
 /** El plan semanal como lo edita la UI: dow → enfoque. */
 export type PlanSemanal = Partial<Record<number, EnfoquePlan>>;
 
-/** Filas weekly de enfoque → plan editable (ignora filas de rutina/coach). */
+/** Filas weekly de enfoque → plan editable (ignora filas de rutina/coach).
+ *  Audit B7: con duplicados (poda fallida de B4) gana el guardado más
+ *  nuevo — la misma regla de `precedencia`, no el orden de la query. */
 export function planDeFilas(rows: AsignacionRow[] | null): PlanSemanal {
   const plan: PlanSemanal = {};
-  for (const r of rows ?? []) {
-    if (
+  const enfoques = (rows ?? [])
+    .filter((r) =>
       r?.is_active &&
       r.schedule_type === 'weekly_cycle' &&
       r.day_of_week != null &&
-      esEnfoquePlan(r.focus)
-    ) {
-      if (plan[r.day_of_week] === undefined) plan[r.day_of_week] = r.focus;
-    }
+      esEnfoquePlan(r.focus),
+    )
+    .sort(precedencia);
+  for (const r of enfoques) {
+    if (plan[r.day_of_week!] === undefined) plan[r.day_of_week!] = r.focus as EnfoquePlan;
   }
   return plan;
+}
+
+/**
+ * Audit B7 (relacionado): las rutinas concretas agendadas por día de la
+ * semana (coach o autoagendadas), para que /plan-entrenamiento las DIGA en
+ * vez de pintar "Descanso" sobre un día que sí tiene asignación — y para
+ * decir que ese día la rutina manda sobre el enfoque.
+ */
+export function rutinasPorDia(rows: AsignacionRow[] | null): Partial<Record<number, string>> {
+  const out: Partial<Record<number, string>> = {};
+  const rutinas = (rows ?? [])
+    .filter((r) =>
+      r?.is_active &&
+      r.schedule_type === 'weekly_cycle' &&
+      r.day_of_week != null &&
+      r.routine_id != null,
+    )
+    .sort(precedencia);
+  for (const r of rutinas) {
+    if (out[r.day_of_week!] === undefined) {
+      out[r.day_of_week!] = r.routine_name?.trim() || 'Rutina asignada';
+    }
+  }
+  return out;
 }
