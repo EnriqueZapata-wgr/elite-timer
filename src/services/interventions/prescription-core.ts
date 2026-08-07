@@ -8,7 +8,7 @@
  *  · braverman_results (conteos+primary_deficiency) → BravermanResult (low/med/high).
  *  · CanonicalMap de labs → UserLab[] (con marker del catálogo + tier).
  *  · user_chronotype (lion/bear/wolf/dolphin) → tipo doctrinal (3 + delfín transit).
- *  · fase del cycle-service ('ovulation') → fase del motor ('ovulatory').
+ *  · fase del cycle-service validada al vocabulario canónico (MB-27 P3).
  * + computePhenotypeHash para idempotencia del versionado.
  */
 import type {
@@ -152,9 +152,17 @@ export function deriveChronotype(row: {
   };
 }
 
-/** Fase del cycle-service ('ovulation') → fase del motor ('ovulatory'). */
+/**
+ * MB-27 P3: el vocabulario del motor se alineó al canónico de
+ * cycle-phase-core ('ovulation') y la traducción dejó de traducir. Se queda
+ * como frontera de validación: una fase desconocida degrada a la más
+ * conservadora (luteal escucha, nunca prohíbe) en vez de colarse cruda.
+ */
 export function normalizeCyclePhase(phase: string): CyclePhaseName {
-  return phase === 'ovulation' ? 'ovulatory' : (phase as CyclePhaseName);
+  if (phase === 'follicular' || phase === 'ovulation' || phase === 'luteal' || phase === 'menstrual') {
+    return phase;
+  }
+  return 'luteal';
 }
 
 /** Edad desde fecha de nacimiento (fail-soft a 35 si falta/inválida). */

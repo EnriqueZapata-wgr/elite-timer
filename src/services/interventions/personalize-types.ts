@@ -76,7 +76,9 @@ export interface UserChronotype {
 
 // ── 2.6 · Ciclo (solo mujeres pre-menopáusicas) ─────────────────────────────
 
-export type CyclePhaseName = 'follicular' | 'ovulatory' | 'luteal' | 'menstrual';
+// MB-27 P3: alineada al vocabulario canónico de cycle-phase-core; la
+// etiqueta vieja del motor murió y normalizeCyclePhase quedó de validación.
+export type CyclePhaseName = 'follicular' | 'ovulation' | 'luteal' | 'menstrual';
 
 export interface UserCyclePhase {
   currentPhase: CyclePhaseName;

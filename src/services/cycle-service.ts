@@ -5,6 +5,12 @@ import { parseLocalDate } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { cycleLengthsFromPeriods } from '@/src/services/cycle/cycle-length-core';
 import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
+import { getPhase } from '@/src/services/cycle/cycle-phase-core';
+
+// MB-27 P3: la función de fase vive en cycle-phase-core (ÚNICA, con test de
+// mutación). Se re-exporta para los importadores de siempre.
+export { getPhase } from '@/src/services/cycle/cycle-phase-core';
+export type { CyclePhase } from '@/src/services/cycle/cycle-phase-core';
 
 // ═══ FASES ═══
 
@@ -74,13 +80,6 @@ export const PHASES: Record<string, PhaseInfo> = {
 
 export function getCycleDay(lastPeriodStart: string): number {
   return Math.floor((Date.now() - parseLocalDate(lastPeriodStart).getTime()) / 86400000) + 1;
-}
-
-export function getPhase(day: number, cycleLen = 28, periodLen = 5): string {
-  if (day <= periodLen) return 'menstrual';
-  if (day <= Math.round(cycleLen * 0.46)) return 'follicular';
-  if (day <= Math.round(cycleLen * 0.57)) return 'ovulation';
-  return 'luteal';
 }
 
 export function predictNext(periods: { start_date: string }[]): { date: Date; daysUntil: number; confidence: string } {

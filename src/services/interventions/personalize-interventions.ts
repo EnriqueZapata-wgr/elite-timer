@@ -289,7 +289,7 @@ export function getCyclePhaseBoost(intervention: Intervention, phenotype: UserPh
   if (!highIntensity) return 0;
 
   const phase = phenotype.cyclePhase.currentPhase;
-  if (phase === 'follicular' || phase === 'ovulatory') return 20;  // intensificar
+  if (phase === 'follicular' || phase === 'ovulation') return 20;  // intensificar
   if (phase === 'luteal' || phase === 'menstrual') return -15;     // escuchar
   return 0;
 }
@@ -506,7 +506,7 @@ export function getCyclePhaseNote(intervention: Intervention, phenotype: UserPhe
 
 function phaseLabel(phase: string): string {
   return phase === 'follicular' ? 'folicular'
-    : phase === 'ovulatory' ? 'ovulatoria'
+    : phase === 'ovulation' ? 'ovulatoria'
     : phase === 'luteal' ? 'lútea'
     : 'menstrual';
 }

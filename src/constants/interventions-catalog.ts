@@ -119,7 +119,7 @@ export type RecommendationRule =
   | { source: 'profile'; field: string; equals?: string | number | boolean; in?: (string | number)[] }
   | { source: 'quiz'; questionnaire: string; score: 'low' | 'medium' | 'high' }
   | { source: 'chronotype'; type: 'leon' | 'oso' | 'lobo' | 'delfin_transitional' }
-  | { source: 'cycle_phase'; phase: 'follicular' | 'ovulatory' | 'luteal' | 'menstrual' }
+  | { source: 'cycle_phase'; phase: 'follicular' | 'ovulation' | 'luteal' | 'menstrual' }
   ;
 
 /**
@@ -1810,7 +1810,7 @@ export const INTERVENTIONS_CATALOG: Intervention[] = [
         { source: 'lab', marker: 'HOMA-IR', operator: '>=', value: 2.0 },
         { source: 'dx_level', system: 'metabolismo', operator: '<=', value: 3 },
         { source: 'cycle_phase', phase: 'follicular' },
-        { source: 'cycle_phase', phase: 'ovulatory' },
+        { source: 'cycle_phase', phase: 'ovulation' },
       ],
       excludeIf: [
         { source: 'profile', field: 'embarazo', equals: true },

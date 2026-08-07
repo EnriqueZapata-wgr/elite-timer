@@ -661,7 +661,8 @@ function pickNextElectron(bools: BoolElectronState[], quants: QuantElectronState
  *   1. Glucosa elevada reciente  → caminata post-comida (señal de salud)
  *   2. Mood bajo reciente         → respiración/meditación regenerativa
  *   3. Ayuno completado           → recordatorio de romper ayuno
- *   4. Fase lútea/menstrual       → ajuste energético (solo si no hay urgencias)
+ *   4. Fase del ciclo (bidireccional MB-27 P3: folicular/ovulación empujan,
+ *      lútea/menstrual escuchan) — solo si no hay urgencias
  *   5. Proteína <50% tras mediodía → meta cuantitativa
  *   6. Agua <30% tras 10am         → meta cuantitativa
  */
@@ -699,11 +700,27 @@ function buildSuggestion(
     }
   }
 
-  // 4. Fase lútea/menstrual — recordatorio de ajuste energético
+  // 4. Fase del ciclo — BIDIRECCIONAL desde MB-27 P3: folicular/ovulación
+  //    empujan (la mitad de arriba que faltaba), lútea/menstrual escuchan
+  //    sin prohibir. Solo si no hay urgencias arriba.
+  if (cross.cyclePhase?.phase === 'follicular') {
+    return {
+      text: `Fase folicular (día ${cross.cyclePhase.cycleDay}): tu ventana de construir. El cuerpo responde mejor al estímulo, aprovéchala.`,
+      action: 'Ver ciclo',
+      route: '/cycle',
+    };
+  }
+  if (cross.cyclePhase?.phase === 'ovulation') {
+    return {
+      text: `Ovulación (día ${cross.cyclePhase.cycleDay}): tu pico de fuerza y potencia. Gran día para ir por un récord.`,
+      action: 'Ver ciclo',
+      route: '/cycle',
+    };
+  }
   if (cross.cyclePhase?.phase === 'luteal' || cross.cyclePhase?.phase === 'menstrual') {
     const phaseLabel = cross.cyclePhase.phase === 'luteal' ? 'lútea' : 'menstrual';
     return {
-      text: `Estás en fase ${phaseLabel} (día ${cross.cyclePhase.cycleDay}). Reduce intensidad del ejercicio y prioriza descanso.`,
+      text: `Estás en fase ${phaseLabel} (día ${cross.cyclePhase.cycleDay}). Ajusta volumen, no la intención: sigues fuerte, con otra marcha.`,
       action: 'Ver ciclo',
       route: '/cycle',
     };
@@ -1030,12 +1047,20 @@ function crossPillarNoteForItem(item: AgendaItem, cross: CrossPillar): string | 
   if (cross.mood?.isLow) {
     return 'Mood bajo hoy — escucha al cuerpo, ajusta intensidad';
   }
-  // Fase lútea/menstrual → moderar
+  // MB-27 P3: el cruce de fase es BIDIRECCIONAL — antes solo restaba.
+  // Folicular/ovulación empujan (la mitad de arriba que faltaba); lútea y
+  // menstrual escuchan sin prohibir. Doctrina MB-7 en PHASES.
+  if (cross.cyclePhase?.phase === 'follicular') {
+    return 'Fase folicular — tu ventana de construir: busca progresión';
+  }
+  if (cross.cyclePhase?.phase === 'ovulation') {
+    return 'Ovulación — tu pico: gran día para ir por un récord';
+  }
   if (cross.cyclePhase?.phase === 'luteal') {
-    return 'Fase lútea — reduce volumen ~25%';
+    return 'Fase lútea — ajusta volumen, no la intención';
   }
   if (cross.cyclePhase?.phase === 'menstrual') {
-    return 'Fase menstrual — intensidad suave (~40% menos)';
+    return 'Fase menstrual — entrena con lo de hoy: baja el ego, no la ambición';
   }
   return null;
 }

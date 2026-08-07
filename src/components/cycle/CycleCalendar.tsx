@@ -14,6 +14,7 @@ import { haptic } from '@/src/utils/haptics';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { SURFACES, TEXT_COLORS } from '@/src/constants/brand';
 import { parseLocalDate } from '@/src/utils/date-helpers';
+import { getPhase } from '@/src/services/cycle/cycle-phase-core';
 
 // ═══ TIPOS ═══
 
@@ -64,7 +65,9 @@ function getMonthDays(year: number, month: number) {
   return { firstDay: adjusted, daysInMonth };
 }
 
-/** Determina la fase del ciclo para una fecha dada */
+/** Determina la fase del ciclo para una fecha dada.
+ *  MB-27 P3: el corte viene de cycle-phase-core (la función ÚNICA) — este
+ *  componente cargaba su propia copia de los umbrales. */
 function getDayPhase(
   date: Date,
   periods: Period[],
@@ -79,10 +82,8 @@ function getDayPhase(
     const diff = Math.floor((date.getTime() - start.getTime()) / 86400000);
     if (diff >= 0 && diff < cycleLen + 7) {
       const day = diff + 1;
-      if (day <= periodLen) return 'menstrual';
-      if (day <= Math.round(cycleLen * 0.46)) return 'follicular';
-      if (day <= Math.round(cycleLen * 0.57)) return 'ovulation';
-      if (day <= cycleLen) return 'luteal';
+      if (day > cycleLen) return null; // hueco entre ciclos: no inventar fase
+      return getPhase(day, cycleLen, periodLen);
     }
   }
   return null;

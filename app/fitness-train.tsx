@@ -28,8 +28,9 @@ import {
   DIA_LABELS, esEnfoquePlan, tituloDeAsignacion, diaSemanaLocal,
 } from '@/src/services/fitness/plan-semanal-core';
 import { getAsignacionHoy, type EstadoAsignacionHoy } from '@/src/services/fitness/plan-semanal-service';
+import { getCycleInfo, PHASES } from '@/src/services/cycle-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
-import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, withOpacity } from '@/src/constants/brand';
+import { ATP_BRAND, TEXT_COLORS, SEMANTIC, CATEGORY_COLORS, ELEVATION, withOpacity } from '@/src/constants/brand';
 
 // MB-3.6 §4.2: colores de brand.ts (antes hex crudos); "y timers" fuera del
 // copy — /timer murió (Bloque 1), HIIT es la casa de los intervalos.
@@ -46,11 +47,21 @@ export default function FitnessTrainScreen() {
   // MB-27 P2: la asignación del día. null = sin leer o lectura fallida —
   // la pantalla se comporta EXACTAMENTE como antes (degrada callada).
   const [asignacion, setAsignacion] = useState<EstadoAsignacionHoy | null>(null);
+  // MB-27 P3: la fase del ciclo llega a Entrenar. getCycleInfo se auto-gatea
+  // (canAccessCycle: solo mujer en modo propio, con datos). null = esta
+  // pantalla se comporta EXACTAMENTE como hoy: nada que pedir, nada que
+  // esconder — degrada callada (3.3).
+  const [fase, setFase] = useState<{ phase: string; day: number } | null>(null);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
     if (!user?.id) return () => { alive = false; };
     getAsignacionHoy(user.id).then((estado) => { if (alive) setAsignacion(estado); });
+    getCycleInfo(user.id)
+      .then((info) => {
+        if (alive && info) setFase({ phase: info.currentPhase, day: info.currentDay });
+      })
+      .catch(() => {});
     return () => { alive = false; };
   }, [user?.id]));
 
@@ -131,6 +142,31 @@ export default function FitnessTrainScreen() {
           </AnimatedPressable>
         </Animated.View>
 
+        {/* MB-27 P3: la fase, bidireccional. Folicular/ovulación EMPUJAN,
+            lútea/menstrual escuchan — el copy es PHASES[x].exercise (el
+            canónico, no un séptimo). Informa y sugiere: nada se esconde ni
+            se prohíbe por la fase. Solo cuenta propia (getCycleInfo gatea). */}
+        {fase && PHASES[fase.phase] && (
+          <Animated.View entering={FadeInUp.delay(110).springify()}>
+            <AnimatedPressable
+              style={[s.faseCard, { borderColor: withOpacity(PHASES[fase.phase].color, 0.35) }]}
+              onPress={() => { haptic.light(); router.push('/cycle'); }}
+            >
+              <Ionicons
+                name={PHASES[fase.phase].icon as any}
+                size={18}
+                color={PHASES[fase.phase].color}
+              />
+              <View style={{ flex: 1 }}>
+                <EliteText style={[s.faseTitulo, { color: PHASES[fase.phase].color }]}>
+                  Fase {PHASES[fase.phase].label.toLowerCase()} · día {fase.day}
+                </EliteText>
+                <EliteText style={s.faseCopy}>{PHASES[fase.phase].exercise}</EliteText>
+              </View>
+            </AnimatedPressable>
+          </Animated.View>
+        )}
+
         {/* Grupo secundario chico */}
         <EliteText style={s.sectionLabel}>MÁS FORMAS DE ENTRENAR</EliteText>
         {SECUNDARIOS.map((item, idx) => (
@@ -182,6 +218,16 @@ const s = StyleSheet.create({
     marginTop: -Spacing.sm, marginBottom: Spacing.md,
   },
   planLinkText: { flex: 1, fontSize: FontSizes.sm, color: TEXT_COLORS.secondary },
+
+  // MB-27 P3: la tira de fase — informativa, con el color de la fase
+  // desaturado en el borde (nunca a tope: no compite con el hero).
+  faseCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: ELEVATION[1].bg, borderWidth: 1, borderRadius: 14,
+    padding: Spacing.md, marginBottom: Spacing.lg,
+  },
+  faseTitulo: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 0.5, marginBottom: 2 },
+  faseCopy: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, lineHeight: 18 },
 
   sectionLabel: {
     fontSize: 11, fontFamily: Fonts.bold, color: TEXT_COLORS.secondary,

@@ -98,9 +98,16 @@ describe('deriveChronotype', () => {
 });
 
 describe('normalizeCyclePhase', () => {
-  it("'ovulation' del cycle-service → 'ovulatory' del motor", () => {
-    expect(normalizeCyclePhase('ovulation')).toBe('ovulatory');
+  it("MB-27 P3: el motor habla el canónico — 'ovulation' pasa derecho, sin traducción", () => {
+    expect(normalizeCyclePhase('ovulation')).toBe('ovulation');
     expect(normalizeCyclePhase('luteal')).toBe('luteal');
+    expect(normalizeCyclePhase('follicular')).toBe('follicular');
+    expect(normalizeCyclePhase('menstrual')).toBe('menstrual');
+  });
+
+  it('una fase desconocida degrada a la conservadora (luteal escucha, no prohíbe)', () => {
+    expect(normalizeCyclePhase('ovulatory')).toBe('luteal'); // el vocabulario viejo ya no existe
+    expect(normalizeCyclePhase('')).toBe('luteal');
   });
 });
 

@@ -24,6 +24,7 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
 import { getMonthDays, getWeekdayMondayFirst } from '@/src/utils/cycle-calendar';
+import { getPhase } from '@/src/services/cycle/cycle-phase-core';
 import { haptic } from '@/src/utils/haptics';
 import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
@@ -131,37 +132,34 @@ function diffDays(a: string, b: string): number {
 
 // ═══ CÁLCULO DE FASES ═══
 
-function calcPhase(day: number, cycleLen: number, periodLen: number): PhaseInfo {
-  const ovDay = Math.round(cycleLen / 2);
-  const until = Math.max(0, cycleLen - day + 1);
-
+// MB-27 P3: la DECISIÓN de fase vive en cycle-phase-core (única, con test de
+// mutación). Aquí solo queda la presentación. Antes esta pantalla cortaba con
+// la mitad del ciclo y el resto de la app con los umbrales canónicos: la
+// misma usuaria veía dos fases distintas el mismo día según la pantalla.
+const PHASE_META: Record<Phase, { label: string; icon: string; color: string; description: string }> = {
   // MB-7: copy BIDIRECCIONAL — el ciclo es una ventaja que un hombre no tiene.
-  if (day <= periodLen) {
-    return {
-      phase: 'menstrual', label: 'Menstrual', icon: 'water', color: RED,
-      cycleDay: day, daysUntilPeriod: until,
-      description: 'Empieza tu ciclo nuevo. Afina y escucha señales — entrena con lo de hoy, baja el ego no la ambición.',
-    };
-  }
-  if (day < ovDay - 2) {
-    return {
-      phase: 'follicular', label: 'Folicular', icon: 'leaf-outline', color: GREEN,
-      cycleDay: day, daysUntilPeriod: until,
-      description: 'Estrógenos en ascenso: tu ventana de construir. Métele a los bloques duros y a lo nuevo.',
-    };
-  }
-  if (day <= ovDay + 1) {
-    return {
-      phase: 'ovulation', label: 'Ovulación', icon: 'sunny-outline', color: YELLOW,
-      cycleDay: day, daysUntilPeriod: until,
-      description: 'Tu pico: fuerza, potencia y confianza al máximo. LA ventana para ir por un récord.',
-    };
-  }
-  return {
-    phase: 'luteal', label: 'Lútea', icon: 'moon-outline', color: VIOLET,
-    cycleDay: day, daysUntilPeriod: until,
+  menstrual: {
+    label: 'Menstrual', icon: 'water', color: RED,
+    description: 'Empieza tu ciclo nuevo. Afina y escucha señales — entrena con lo de hoy, baja el ego no la ambición.',
+  },
+  follicular: {
+    label: 'Folicular', icon: 'leaf-outline', color: GREEN,
+    description: 'Estrógenos en ascenso: tu ventana de construir. Métele a los bloques duros y a lo nuevo.',
+  },
+  ovulation: {
+    label: 'Ovulación', icon: 'sunny-outline', color: YELLOW,
+    description: 'Tu pico: fuerza, potencia y confianza al máximo. LA ventana para ir por un récord.',
+  },
+  luteal: {
+    label: 'Lútea', icon: 'moon-outline', color: VIOLET,
     description: 'Progesterona al mando: sostener y consolidar. Sigues fuerte, con otra marcha — ajusta volumen, no intención.',
-  };
+  },
+};
+
+function calcPhase(day: number, cycleLen: number, periodLen: number): PhaseInfo {
+  const phase = getPhase(day, cycleLen, periodLen) as Phase;
+  const until = Math.max(0, cycleLen - day + 1);
+  return { phase, ...PHASE_META[phase], cycleDay: day, daysUntilPeriod: until };
 }
 
 /** Encuentra el inicio del último bloque consecutivo de is_period=true */
@@ -671,20 +669,23 @@ export default function CycleScreen() {
                 } else if (isFert) {
                   bg = isFut ? withOpacity(GREEN, 0.1) : withOpacity(GREEN, 0.35);
                 } else if (lastPeriodStart) {
-                  // Colorear fases folicular y lútea
+                  // MB-27 P3: las bandas del calendario cortan con LA MISMA
+                  // función que la card de fase (cycle-phase-core) — antes
+                  // este bloque usaba su propia mitad del ciclo y la card los
+                  // umbrales canónicos: dos fases el mismo día aquí mismo.
                   const daysDiff = Math.floor((new Date(dateStr + 'T12:00:00').getTime() - new Date(lastPeriodStart + 'T12:00:00').getTime()) / 86400000);
                   const cycleDay = daysDiff >= 0 ? (daysDiff % settings.avg_cycle_length) + 1 : -1;
-                  const ovDay = Math.round(settings.avg_cycle_length / 2);
-                  const fertStart = ovDay - 3;
-                  const fertEnd = ovDay + 1;
                   const BLUE_PHASE = '#38bdf8';
                   const PURPLE_PHASE = '#c084fc';
-                  if (cycleDay > settings.avg_period_length && cycleDay < fertStart) {
-                    // Folicular
-                    bg = isFut ? withOpacity(BLUE_PHASE, 0.08) : withOpacity(BLUE_PHASE, 0.25);
-                  } else if (cycleDay > fertEnd && cycleDay <= settings.avg_cycle_length) {
-                    // Lútea
-                    bg = isFut ? withOpacity(PURPLE_PHASE, 0.06) : withOpacity(PURPLE_PHASE, 0.2);
+                  if (cycleDay > 0) {
+                    const fase = getPhase(cycleDay, settings.avg_cycle_length, settings.avg_period_length);
+                    if (fase === 'follicular') {
+                      bg = isFut ? withOpacity(BLUE_PHASE, 0.08) : withOpacity(BLUE_PHASE, 0.25);
+                    } else if (fase === 'luteal') {
+                      bg = isFut ? withOpacity(PURPLE_PHASE, 0.06) : withOpacity(PURPLE_PHASE, 0.2);
+                    } else if (fase === 'ovulation') {
+                      bg = isFut ? withOpacity(YELLOW, 0.08) : withOpacity(YELLOW, 0.2);
+                    }
                   }
                 }
 
