@@ -221,17 +221,54 @@ export default function FitnessHubScreen() {
     }
 
     // Sesión lista: qué toca, cuánto dura, y EMPEZAR.
+    // Audit B5: la asignación del día MANDA aquí, en la puerta real. Con
+    // rutina agendada (coach o propia) el hero la anuncia y la abre; con
+    // enfoque del plan, la sesión ya viene generada CON ese enfoque
+    // (enfoqueUsado/objetivoUsado dicen la verdad de lo generado).
     if (today.kind === 'lista') {
-      const { rutina, prefs } = today;
+      const { rutina, asignacion } = today;
       const min = Math.max(1, Math.round(rutina.tiempoTotalSeg / 60));
+      if (asignacion?.routine_id != null) {
+        const nombreRutina = asignacion.routine_name?.trim() || 'Tu rutina asignada';
+        return (
+          <ImageBackground source={heroImg} style={s.heroCard} imageStyle={s.heroImg}>
+            <LinearGradient colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.55)', 'rgba(10,10,10,0.96)']} style={StyleSheet.absoluteFill} />
+            <View style={s.heroInner}>
+              <EliteText style={s.heroKicker}>TU PLAN · HOY TOCA</EliteText>
+              <EliteText style={s.heroTitle}>{nombreRutina}</EliteText>
+              <EliteText style={s.heroBody}>
+                Tu rutina agendada para hoy, lista para ejecutar.
+              </EliteText>
+              <View style={{ marginTop: Spacing.md }}>
+                <GradientCTA
+                  label="ABRIR RUTINA"
+                  pillar="fitness"
+                  icon="play"
+                  onPress={() => {
+                    haptic.success();
+                    router.push({ pathname: '/my-routines', params: { abrir: asignacion.routine_id! } });
+                  }}
+                />
+              </View>
+              <GradientCTA
+                label="Generar otra cosa"
+                variant="quiet"
+                icon="options-outline"
+                onPress={() => { haptic.light(); router.push('/routine-generator'); }}
+                style={{ marginTop: 2 }}
+              />
+            </View>
+          </ImageBackground>
+        );
+      }
       return (
         <ImageBackground source={heroImg} style={s.heroCard} imageStyle={s.heroImg}>
           <LinearGradient colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.55)', 'rgba(10,10,10,0.96)']} style={StyleSheet.absoluteFill} />
           <View style={s.heroInner}>
-            <EliteText style={s.heroKicker}>HOY TOCA</EliteText>
+            <EliteText style={s.heroKicker}>{asignacion ? 'TU PLAN · HOY TOCA' : 'HOY TOCA'}</EliteText>
             <EliteText style={s.heroTitle}>
-              {OBJETIVO_LABELS[prefs.objetivo]}
-              {prefs.objetivo !== 'movilidad' ? ` · ${enfoqueLabel(prefs.enfoque)}` : ''}
+              {OBJETIVO_LABELS[today.objetivoUsado]}
+              {today.objetivoUsado !== 'movilidad' ? ` · ${enfoqueLabel(today.enfoqueUsado)}` : ''}
             </EliteText>
             <EliteText style={s.heroBody}>
               {rutina.bloques.length} ejercicios · ~{min} min con tu equipo de siempre
@@ -243,7 +280,13 @@ export default function FitnessHubScreen() {
               label="Ajustar sesión"
               variant="quiet"
               icon="options-outline"
-              onPress={() => { haptic.light(); router.push('/routine-generator'); }}
+              onPress={() => {
+                haptic.light();
+                // Paridad hub ↔ generador: el ajuste abre con el MISMO
+                // enfoque asignado (deep-link), no con la pref vieja.
+                if (asignacion?.focus) router.push(`/routine-generator?enfoque=${asignacion.focus}`);
+                else router.push('/routine-generator');
+              }}
               style={{ marginTop: 2 }}
             />
           </View>

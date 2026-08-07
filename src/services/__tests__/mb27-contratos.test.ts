@@ -96,6 +96,34 @@ describe('mutación 8 + audit B3 (contrato): la asignación avisa, pasa por el t
   });
 });
 
+describe('audit B5 (contrato): la asignación manda en la puerta real', () => {
+  it('el estado de hoy del hub consulta la asignación y genera con ella', () => {
+    const src = read('src/services/fitness/today-session-service.ts');
+    expect(src).toMatch(/asignacionDeHoy\(/);
+    // Lo generado dice la verdad: el hero pinta enfoqueUsado/objetivoUsado,
+    // jamás la pref cruda de AsyncStorage.
+    expect(src).toMatch(/enfoqueUsado/);
+    expect(src).toMatch(/objetivoUsado/);
+  });
+
+  it('el hero del hub pinta lo GENERADO, no la pref vieja', () => {
+    const src = read('app/fitness-hub.tsx');
+    expect(src).toMatch(/OBJETIVO_LABELS\[today\.objetivoUsado\]/);
+    expect(src).not.toMatch(/OBJETIVO_LABELS\[prefs\.objetivo\]/);
+    expect(src).toMatch(/enfoqueLabel\(today\.enfoqueUsado\)/);
+    // Con rutina agendada, el hero la abre directo:
+    expect(src).toMatch(/params: \{ abrir: asignacion\.routine_id! \}/);
+  });
+
+  it('el deep-link del generador no reescribe la pref: mirar no es elegir', () => {
+    const src = read('app/routine-generator.tsx');
+    expect(src).toMatch(/eligioEnfoqueRef/);
+    expect(src).toMatch(/eligioObjetivoRef/);
+    // Y movilidad no traiciona al hero con enfoque asignado:
+    expect(src).toMatch(/enfoqueParam && p\.objetivo === 'movilidad'/);
+  });
+});
+
 describe('audit B4 (contrato): guardar el plan jamás destruye antes de confirmar', () => {
   it('savePlanSemanal inserta ANTES de podar, y la poda es por ids leídos', () => {
     const src = read('src/services/fitness/plan-semanal-service.ts');

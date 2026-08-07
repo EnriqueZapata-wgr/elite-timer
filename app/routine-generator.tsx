@@ -151,6 +151,12 @@ export default function RoutineGeneratorScreen() {
 
   // Evita persistir antes de haber cargado (pisaría las prefs con defaults).
   const prefsListasRef = useRef(false);
+  // Audit B5 (relacionado): lo que llegó por deep-link NO es una elección
+  // del usuario — abrir "hoy te toca Empuje" desde el plan no reescribe la
+  // pref del generador. Solo tocar un chip aquí la vuelve elección.
+  const prefsCargadasRef = useRef<{ objetivo: Objetivo; enfoque: EnfoquePatron } | null>(null);
+  const eligioEnfoqueRef = useRef(false);
+  const eligioObjetivoRef = useRef(false);
 
   // Catálogo + prefs persistidas + nivel del PERFIL (224: la fuente de verdad)
   // + contexto de rotación.
@@ -165,8 +171,16 @@ export default function RoutineGeneratorScreen() {
         setTiempoMin(p.tiempoMin);
         setFlags(p.flags);
         setUnidades(p.unidades);
+        prefsCargadasRef.current = { objetivo: p.objetivo, enfoque: p.enfoque };
         // El deep-link (?objetivo= / ?enfoque=) manda sobre la última pref.
-        if (!objetivoParam) setObjetivo(p.objetivo);
+        if (!objetivoParam) {
+          // Audit B5: movilidad ignora el enfoque en el motor — con un
+          // enfoque deep-linkeado, anunciar "Empuje" y armar movilidad de
+          // cuerpo completo es traicionar el hero. El día asignado genera
+          // hipertrofia; la pref de objetivo NO se reescribe (refs abajo).
+          if (enfoqueParam && p.objetivo === 'movilidad') setObjetivo('hipertrofia');
+          else setObjetivo(p.objetivo);
+        }
         if (!enfoqueParam) setEnfoque(p.enfoque);
       }
       // El perfil manda sobre la pref legacy.
@@ -184,10 +198,23 @@ export default function RoutineGeneratorScreen() {
 
   // Persistir prefs (equipo/senior/tiempo/flags/unidades/objetivo/enfoque + nivel
   // como caché legacy — el hub regenera "hoy" con esto).
+  // Audit B5: en sesión deep-linkeada, objetivo/enfoque persisten la PREF
+  // CARGADA mientras el usuario no toque sus chips — mirar no es elegir.
   useEffect(() => {
     if (!prefsListasRef.current) return;
-    saveGeneratorPrefs({ equipo, nivel, senior, tiempoMin, flags, unidades, objetivo, enfoque });
-  }, [equipo, nivel, senior, tiempoMin, flags, unidades, objetivo, enfoque]);
+    const cargadas = prefsCargadasRef.current;
+    // La congelación SOLO aplica en sesión deep-linkeada por enfoque; el
+    // uso normal del generador persiste lo que el usuario tenga en pantalla.
+    const enDeepLink = !!enfoqueParam && !!cargadas;
+    const objetivoAPersistir =
+      !enDeepLink || objetivoParam || eligioObjetivoRef.current ? objetivo : cargadas.objetivo;
+    const enfoqueAPersistir =
+      !enDeepLink || eligioEnfoqueRef.current ? enfoque : cargadas.enfoque;
+    saveGeneratorPrefs({
+      equipo, nivel, senior, tiempoMin, flags, unidades,
+      objetivo: objetivoAPersistir, enfoque: enfoqueAPersistir,
+    });
+  }, [equipo, nivel, senior, tiempoMin, flags, unidades, objetivo, enfoque, objetivoParam, enfoqueParam]);
 
   const input = useMemo((): GeneratorInput | null => {
     if (catalogo.length === 0) return null;
@@ -277,7 +304,7 @@ export default function RoutineGeneratorScreen() {
         <Text style={s.sectionLabel}>OBJETIVO</Text>
         <View style={s.chipsRow}>
           {OBJETIVOS.map((o) => (
-            <Chip key={o.key} label={o.label} active={objetivo === o.key} onPress={() => setObjetivo(o.key)} />
+            <Chip key={o.key} label={o.label} active={objetivo === o.key} onPress={() => { eligioObjetivoRef.current = true; setObjetivo(o.key); }} />
           ))}
         </View>
 
@@ -293,7 +320,7 @@ export default function RoutineGeneratorScreen() {
             <Text style={s.sectionLabel}>ENFOQUE</Text>
             <View style={s.chipsRow}>
               {ENFOQUES.map((e) => (
-                <Chip key={e.key} label={e.label} active={!broSplit && enfoque === e.key} onPress={() => { setBroSplit(false); setEnfoque(e.key); }} />
+                <Chip key={e.key} label={e.label} active={!broSplit && enfoque === e.key} onPress={() => { eligioEnfoqueRef.current = true; setBroSplit(false); setEnfoque(e.key); }} />
               ))}
               <Chip label="Por músculo" active={broSplit} onPress={() => setBroSplit(!broSplit)} />
             </View>

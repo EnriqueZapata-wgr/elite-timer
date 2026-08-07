@@ -4,9 +4,9 @@
  * Muestra todas las rutinas (timer + routine) con nombre, modo, # bloques y fecha.
  * Tap → ejecuta la rutina. Botones al final para crear nueva rutina o timer.
  */
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, Modal } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -157,6 +157,20 @@ export default function MyRoutinesScreen() {
       loadRoutines();
     }, []),
   );
+
+  // Audit B5/menor 9: ?abrir=<routineId> abre la rutina asignada DIRECTO
+  // (el hero del hub y Entrenar deep-linkean aquí) — sin volver a buscarla.
+  // Una sola vez por entrada; si el id no existe, la lista normal.
+  const { abrir } = useLocalSearchParams<{ abrir?: string }>();
+  const abiertaRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!abrir || abiertaRef.current === abrir || routines.length === 0) return;
+    const asignada = routines.find((r) => r.id === abrir);
+    if (asignada) {
+      abiertaRef.current = abrir;
+      openRoutine(asignada);
+    }
+  }, [abrir, routines]);
 
   async function loadRoutines() {
     setLoading(true);
