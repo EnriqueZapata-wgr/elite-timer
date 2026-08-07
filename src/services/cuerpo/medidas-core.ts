@@ -119,6 +119,107 @@ export function pesoMasReciente(
   return a?.kg ?? b?.kg ?? null;
 }
 
+export interface RegistroComposicion {
+  /** 'YYYY-MM-DD' (normalizada por el caller). */
+  date: string | null;
+  weight_kg?: number | null;
+  body_fat_pct?: number | null;
+  /** % directo (body_measurements del coach). */
+  muscle_mass_pct?: number | null;
+  /** kg (health_measurements) — se convierte con el peso de SU registro. */
+  muscle_mass_kg?: number | null;
+  visceral_fat?: number | null;
+}
+
+export interface ComposicionCoherente {
+  weight_kg: number | null;
+  body_fat_pct: number | null;
+  muscle_pct: number | null;
+  visceral_fat: number | null;
+  /** Campos que NO traía el registro ganador y se completaron del otro —
+   *  declarados, para que el caller pueda decirlo o loguearlo. */
+  completadosDelOtro: string[];
+}
+
+const numValido = (v: number | null | undefined): v is number =>
+  typeof v === 'number' && Number.isFinite(v) && v > 0;
+
+/** El % de músculo de UN registro, con el peso de ESE registro (coherente). */
+function musclePctDe(r: RegistroComposicion | null): number | null {
+  if (!r) return null;
+  if (numValido(r.muscle_mass_pct)) return r.muscle_mass_pct;
+  if (numValido(r.muscle_mass_kg) && numValido(r.weight_kg)) {
+    return (r.muscle_mass_kg / r.weight_kg) * 100;
+  }
+  return null;
+}
+
+/**
+ * Audit V2 B6 — la recencia se aplica al REGISTRO, no a un campo suelto.
+ *
+ * El registro GANADOR es el más reciente que traiga PESO válido (empate o
+ * sin fechas → la canónica, primer argumento) y aporta TODOS sus campos de
+ * composición como bloque: peso y grasa de la misma medición, jamás el
+ * peso de 2026 con la grasa de 2024 en silencio.
+ *
+ * La regla de completado, explícita: un campo que el ganador NO trae se
+ * completa del otro registro y queda DECLARADO en completadosDelOtro.
+ * Defensa: si la usuaria no volvió a medir grasa, el FFMI va a mezclarse
+ * con CUALQUIER regla — el default inventado (20 %) también fabrica un
+ * FFMI que nunca existió, y el dato viejo al menos fue de su cuerpo. La
+ * diferencia con la regresión que señaló el audit es que aquí la mezcla es
+ * fallback declarado, no el camino por defecto.
+ */
+export function composicionCoherente(
+  canonico: RegistroComposicion | null,
+  coach: RegistroComposicion | null,
+): ComposicionCoherente {
+  const conPeso = (r: RegistroComposicion | null): r is RegistroComposicion =>
+    r != null && numValido(r.weight_kg);
+  const a = conPeso(canonico) ? canonico : null;
+  const b = conPeso(coach) ? coach : null;
+
+  let ganador: RegistroComposicion | null = null;
+  let otro: RegistroComposicion | null = null;
+  if (a && b) {
+    const gana = (b.date ?? '') > (a.date ?? '') ? b : a; // empate → canónica
+    ganador = gana;
+    otro = gana === a ? b : a;
+  } else {
+    ganador = a ?? b;
+    otro = a ? coach : canonico; // el que no ancló (puede aportar campos)
+    if (otro === ganador) otro = null;
+  }
+
+  const completadosDelOtro: string[] = [];
+  const campo = (
+    nombre: string,
+    delGanador: number | null,
+    delOtro: number | null,
+  ): number | null => {
+    if (delGanador != null) return delGanador;
+    if (delOtro != null) { completadosDelOtro.push(nombre); return delOtro; }
+    return null;
+  };
+
+  const g = ganador;
+  return {
+    weight_kg: g?.weight_kg ?? null,
+    body_fat_pct: campo(
+      'body_fat_pct',
+      numValido(g?.body_fat_pct) ? g!.body_fat_pct! : null,
+      numValido(otro?.body_fat_pct) ? otro!.body_fat_pct! : null,
+    ),
+    muscle_pct: campo('muscle_pct', musclePctDe(g), musclePctDe(otro)),
+    visceral_fat: campo(
+      'visceral_fat',
+      numValido(g?.visceral_fat) ? g!.visceral_fat! : null,
+      numValido(otro?.visceral_fat) ? otro!.visceral_fat! : null,
+    ),
+    completadosDelOtro,
+  };
+}
+
 export const MEDIDA_LABELS: { key: keyof MedicionRow; label: string }[] = [
   { key: 'waist_cm', label: 'Cintura' },
   { key: 'hip_cm', label: 'Cadera' },

@@ -7,7 +7,7 @@ import {
   calculateHealthScore, mapPatientDataToInput, type HealthScore, type Sex,
 } from '@/src/data/functional-health-engine';
 import { getLatestMeasurement } from '@/src/services/health-measurement-service';
-import { pesoMasReciente } from '@/src/services/cuerpo/medidas-core';
+import { composicionCoherente } from '@/src/services/cuerpo/medidas-core';
 
 /** Crea client_profile mínimo si no existe. Retorna true si ya tenía date_of_birth. */
 export async function ensureClientProfile(userId: string, dob?: string, sex?: string): Promise<boolean> {
@@ -100,11 +100,25 @@ function calculateFitnessAdjustments(
 
 export async function calculateAndSaveScore(userId: string, consultationId?: string): Promise<HealthScore> {
   // Obtener datos
-  const [labsRes, bodyRes, profileRes] = await Promise.all([
+  // Audit V2 B6: los candidatos de COMPOSICIÓN son "la última fila CON
+  // peso" de cada tabla — el mismo filtro que usa la meta de proteína
+  // (nutrition-score-service). Sin el filtro simétrico, una fila de hoy
+  // con solo cintura hacía que las dos superficies eligieran pesos
+  // distintos el mismo día. bodyRes conserva su select(*) para el resto
+  // del engine (labs/perfil), pero la composición sale del bloque abajo.
+  const [labsRes, bodyRes, profileRes, hmPesoRes] = await Promise.all([
     supabase.from('lab_results').select('*').eq('user_id', userId).order('lab_date', { ascending: false }).limit(1),
-    supabase.from('body_measurements').select('*').eq('user_id', userId).order('measured_at', { ascending: false }).limit(1),
+    supabase.from('body_measurements').select('*').eq('user_id', userId)
+      .not('weight_kg', 'is', null)
+      .order('measured_at', { ascending: false }).limit(1),
     supabase.from('client_profiles').select('*').eq('user_id', userId).single(),
+    supabase.from('health_measurements')
+      .select('weight_kg, body_fat_pct, muscle_mass_kg, visceral_fat, date')
+      .eq('user_id', userId)
+      .not('weight_kg', 'is', null)
+      .order('date', { ascending: false }).limit(1).maybeSingle(),
   ]);
+  if (hmPesoRes.error) logWarn('[health-score] health_measurements weight query failed:', hmPesoRes.error.message);
 
   const hmRes = await getLatestMeasurement(userId).catch(() => null);
   // personal_records no tiene exercise_name/reps (fantasma MB-6): el nombre
@@ -133,29 +147,45 @@ export async function calculateAndSaveScore(userId: string, consultationId?: str
 
   const inputValues = mapPatientDataToInput(labs, body, profile);
 
-  // Audit B6: el peso NO se elige por tabla sino por MEDICIÓN MÁS RECIENTE
-  // (misma regla que la meta de proteína en nutrition-score-service). El
-  // coach que midió ayer gana al onboarding viejo, y al revés también:
-  // un solo peso por persona por día en toda la app.
-  const pesoElegido = pesoMasReciente(
-    { kg: hmRes?.weight_kg ?? null, date: hmRes?.date ?? null },
-    { kg: body?.weight_kg ?? null, date: body?.measured_at ? String(body.measured_at).slice(0, 10) : null },
+  // Audit V2 B6: la recencia se aplica al REGISTRO, no a un campo suelto.
+  // El registro ganador (última fila CON peso, misma regla y mismos
+  // candidatos que la meta de proteína) aporta peso, grasa, músculo y
+  // visceral COMO BLOQUE; lo que no traiga se completa del otro registro
+  // con la regla declarada de composicionCoherente (fallback antes que
+  // default inventado). Se acabó el peso de 2026 con la grasa de 2024 en
+  // silencio — y el FFMI sale de una medición, no de un collage.
+  const hmPeso = hmPesoRes.data as {
+    weight_kg?: number; body_fat_pct?: number; muscle_mass_kg?: number;
+    visceral_fat?: number; date?: string;
+  } | null;
+  const comp = composicionCoherente(
+    hmPeso
+      ? {
+          date: hmPeso.date ?? null, weight_kg: hmPeso.weight_kg,
+          body_fat_pct: hmPeso.body_fat_pct, muscle_mass_kg: hmPeso.muscle_mass_kg,
+          visceral_fat: hmPeso.visceral_fat,
+        }
+      : null,
+    body
+      ? {
+          date: body.measured_at ? String(body.measured_at).slice(0, 10) : null,
+          weight_kg: body.weight_kg, body_fat_pct: body.body_fat_pct,
+          muscle_mass_pct: body.muscle_mass_pct, visceral_fat: body.visceral_fat,
+        }
+      : null,
   );
 
   const bodyValues: { height_m: number; weight_kg: number; body_fat_pct: number; muscle_pct: number; visceral_fat: number; grip_strength: number; [k: string]: number } = {
     height_m: profile?.height_cm ? profile.height_cm / 100 : 1.75,
-    weight_kg: pesoElegido ?? 80,
-    body_fat_pct: body?.body_fat_pct ?? 20,
-    muscle_pct: body?.muscle_mass_pct ?? 35,
-    visceral_fat: body?.visceral_fat ?? 5,
+    weight_kg: comp.weight_kg ?? 80,
+    body_fat_pct: comp.body_fat_pct ?? 20,
+    muscle_pct: comp.muscle_pct ?? 35,
+    visceral_fat: comp.visceral_fat ?? 5,
     grip_strength: profile?.grip_strength_kg ?? 40,
   };
 
-  // Complementar con health_measurements si body_measurements está vacío
+  // Complemento NO-composición (agarre, talla): el coalesce de siempre.
   if (hmRes) {
-    if (!body?.body_fat_pct && hmRes.body_fat_pct) bodyValues.body_fat_pct = hmRes.body_fat_pct;
-    if (!body?.muscle_mass_pct && hmRes.muscle_mass_kg && hmRes.weight_kg) bodyValues.muscle_pct = (hmRes.muscle_mass_kg / hmRes.weight_kg) * 100;
-    if (!body?.visceral_fat && hmRes.visceral_fat) bodyValues.visceral_fat = hmRes.visceral_fat;
     if (hmRes.grip_strength_kg) bodyValues.grip_strength = hmRes.grip_strength_kg;
     if (hmRes.height_cm) bodyValues.height_m = hmRes.height_cm / 100;
   }
