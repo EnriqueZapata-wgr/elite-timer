@@ -433,9 +433,18 @@ export default function TodayScreen() {
             hábitos. */}
 
         {/* MB-26 P4: la salida al desmadre — graduar, reposar, empezar de
-            cero o dejar que ARGOS proponga. Nada se borra ni se desinstala. */}
+            cero o dejar que ARGOS proponga. Nada se borra ni se desinstala.
+            MB-27 V3 (doctrina): el techo murió como límite; este renglón es
+            su heredero informativo — el conteo de renglones activos SIEMPRE
+            visible, sin umbral y sin juicio: el marcador de tu propio día
+            con la salida al lado. Sin conteo aún (compile en curso) se
+            muestra la acción sola: jamás un número inventado. */}
         <GradientCTA
-          label="Ordenar mi día"
+          label={(() => {
+            if (!day) return 'Ordenar mi día';
+            const n = day.booleanElectrons.length + day.quantitativeElectrons.length;
+            return `${n} ${n === 1 ? 'hábito activo' : 'hábitos activos'} · Ordenar mi día`;
+          })()}
           variant="quiet"
           icon="sparkles-outline"
           onPress={() => { haptic.light(); router.push('/ordenar-dia'); }}

@@ -11,8 +11,8 @@
  * La pregunta de intensidad murió (menos decisiones): el pack entra POR
  * ETAPAS — aplicar enciende sus 3 hábitos base y los demás llegan cuando
  * los sostienes 14 de 21 días, o antes si los adelantas en la ficha.
- * Aplicar respeta el techo de 8 renglones (avisa y ofrece reposo; el
- * usuario puede pasarse si insiste).
+ * MB-27 V3 (doctrina): el techo murió como límite — aplicar es aplicar,
+ * sin aviso; el conteo vive en HOY y la salida en /ordenar-dia.
  *
  * Una acción por pantalla. Al confirmar, el resumen dice lo que DE VERDAD
  * pasó (pack-service reporta paso por paso): esto se instaló, esto se
@@ -23,7 +23,7 @@
  * (?origen=onboarding sale hacia /argos/meet, el mismo destino de siempre).
  */
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -42,10 +42,8 @@ import {
 } from '@/src/constants/packs';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
-import { buildPackPlan, normalizarHora } from '@/src/services/pack-core';
+import { normalizarHora } from '@/src/services/pack-core';
 import { aplicarPack, type ResultadoAplicacion } from '@/src/services/pack-service';
-import { evaluarTechoEncendido } from '@/src/services/hoy/techo-service';
-import { setHabitState } from '@/src/services/hoy/habit-states-service';
 import { Spacing, Fonts, FontSizes } from '@/constants/theme';
 import { ATP_BRAND, TEXT, ELEVATION, SEMANTIC, withOpacity } from '@/src/constants/brand';
 import { haptic } from '@/src/utils/haptics';
@@ -128,40 +126,13 @@ export default function ArmarScreen() {
     }
   };
 
-  // MB-26 P7.3: aplicar respeta el techo de 8 renglones — avisa, ofrece
-  // reposo con candidato sugerido y respeta la decisión si insiste.
-  const confirmarAplicar = async () => {
+  // MB-27 V3 (doctrina): el techo murió como límite — aplicar es aplicar,
+  // cero fricción. El conteo de renglones vive en HOY como información
+  // siempre visible, y la salida (reposo/graduación) en /ordenar-dia.
+  const confirmarAplicar = () => {
     if (!user?.id || !pack || busy) return;
     haptic.medium();
-    const plan = buildPackPlan(pack.key, 'suave', despertar, dormir);
-    const aviso = await evaluarTechoEncendido(user.id, plan.encendidos);
-    if (!aviso) {
-      ejecutar();
-      return;
-    }
-    const userId = user.id;
-    const sugerido = aviso.candidatos[0] ?? null;
-    Alert.alert(
-      'Tu día ya está lleno',
-      `Con este pack quedarías en ${aviso.total} hábitos activos y el techo que protege tu día es ${aviso.techo}. ` +
-        'Puedes mandar algo a reposo: nada se borra y vuelve cuando quieras.' +
-        (aviso.candidatos.length > 0
-          ? ` Lo que más te ha costado: ${aviso.candidatos.map((c) => c.name).join(', ')}.`
-          : ''),
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        ...(sugerido
-          ? [{
-              text: `Reposar ${sugerido.name}`,
-              onPress: async () => {
-                await setHabitState(userId, sugerido.key, 'reposo');
-                ejecutar();
-              },
-            }]
-          : []),
-        { text: 'Aplicar igual', onPress: () => { ejecutar(); } },
-      ],
-    );
+    ejecutar();
   };
 
   // ─── Paso 1 · el pack ───

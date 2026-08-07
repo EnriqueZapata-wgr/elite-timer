@@ -35,13 +35,51 @@ describe('mutación 3: Mis hábitos ve los tres estados', () => {
   });
 });
 
-describe('audit B2 (contrato): el techo evalúa la lista que se enciende', () => {
-  it('la ficha del Centro evalúa con habitosQueEnciende, no con togglesForApp', () => {
-    const src = read('app/centro/[appKey].tsx');
-    expect(src).toMatch(/evaluarTechoEncendido\(userId, habitosQueEnciende\(app\.key\)\)/);
-    // togglesForApp evaluaba una lista que EXCLUYE los MANDATORY mientras
-    // installApp los enciende: se evaluaba una lista y se encendía otra.
-    expect(src).not.toMatch(/togglesForApp/);
+describe('doctrina V3 (contrato): el techo murió como límite', () => {
+  const PUERTAS = [
+    'app/centro/[appKey].tsx',
+    'app/hoy-habitos.tsx',
+    'app/packs/armar.tsx',
+    'app/plan-entrenamiento.tsx',
+  ];
+
+  it('ninguna puerta interrumpe con el techo: encender es encender', () => {
+    for (const rel of PUERTAS) {
+      const src = read(rel);
+      expect(src, `${rel} no puede volver a bloquear`).not.toMatch(/Tu día ya está lleno/);
+      expect(src, `${rel} no puede volver a evaluar el techo`).not.toMatch(/evaluarTechoEncendido/);
+    }
+  });
+
+  it('el umbral no existe en ningún lado: TECHO_RENGLONES murió', () => {
+    const dirs = ['src', 'app'];
+    const hits: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name === 'node_modules' || e.name === '.git' || e.name === '.expo' || e.name === '__tests__') continue;
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) { walk(full); continue; }
+        if (!/\.(ts|tsx)$/.test(e.name)) continue;
+        if (fs.readFileSync(full, 'utf8').includes('TECHO_RENGLONES')) {
+          hits.push(path.relative(ROOT, full).replace(/\\/g, '/'));
+        }
+      }
+    };
+    for (const d of dirs) walk(path.join(ROOT, d));
+    expect(hits, 'el umbral renació — la doctrina dice solo orientar').toEqual([]);
+  });
+
+  it('HOY pinta el conteo SIEMPRE visible, sin umbral, con la salida al lado', () => {
+    const src = read('app/(tabs)/index.tsx');
+    // El renglón heredero: número + salida, sin juicio.
+    expect(src).toMatch(/hábito activo/);
+    expect(src).toMatch(/Ordenar mi día/);
+    // Sin condición numérica alrededor del label (un umbral lo reinventaría):
+    expect(src).not.toMatch(/length\s*[><]=?\s*\d+[\s\S]{0,80}Ordenar mi día/);
+    // Y el tono: informa, no regaña.
+    for (const prohibida of ['demasiados', 'ya está lleno', 'excede', 'deberías']) {
+      expect(src, `tono prohibido: "${prohibida}"`).not.toMatch(new RegExp(prohibida));
+    }
   });
 });
 
@@ -77,23 +115,15 @@ describe('mutación 8 + audit B3 (contrato): la asignación avisa, pasa por el t
     const ejecuciones = src.match(/reactivarHabitos\(userId/g) ?? [];
     expect(ejecuciones).toHaveLength(1);
     const invocaciones = src.match(/onPress: \(\) => \{ reactivar\(\); \}/g) ?? [];
-    expect(invocaciones.length).toBeGreaterThanOrEqual(2);
+    expect(invocaciones.length).toBeGreaterThanOrEqual(1);
     // Y `reactivar()` no se llama fuera de un onPress:
     const sueltas = (src.match(/reactivar\(\);/g) ?? []).length;
     expect(sueltas).toBe(invocaciones.length);
   });
 
-  it('B3: es puerta de encendido — evalúa el techo ANTES de ofrecer', () => {
-    const src = read('app/plan-entrenamiento.tsx');
-    expect(src).toMatch(/evaluarTechoEncendido\(userId, \['strength'\]\)/);
-    // Con el día lleno, el aviso del techo ofrece la salida honesta:
-    expect(src).toMatch(/Encenderlo igual/);
-    // El techo se evalúa antes de que exista cualquier Alert de reactivar:
-    const idxTecho = src.indexOf('evaluarTechoEncendido(userId');
-    const idxOferta = src.indexOf("text: 'Volverlo a activo'");
-    expect(idxTecho).toBeGreaterThan(-1);
-    expect(idxTecho).toBeLessThan(idxOferta);
-  });
+  // B3 murió con la doctrina V3: el techo ya no evalúa en ninguna puerta.
+  // Lo que VIVE de este bloque es el consentimiento de reposo/graduación
+  // (arriba): revivir strength exige el sí explícito, sin techo de por medio.
 });
 
 describe('audit B5 (contrato): la asignación manda en la puerta real', () => {

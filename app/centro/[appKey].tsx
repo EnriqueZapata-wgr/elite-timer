@@ -32,11 +32,8 @@ import { getCycleAppMode, setCycleAppMode } from '@/src/services/app-mode-servic
 import type { CycleMode } from '@/src/services/cycle/cycle-access-core';
 import {
   appInstallState, installAlertBody, uninstallAlertBody, installCreatesRow,
-  habitosQueEnciende,
   type InstallPrefs, type InstallState,
 } from '@/src/services/hoy/install-core';
-import { setHabitState } from '@/src/services/hoy/habit-states-service';
-import { evaluarTechoEncendido } from '@/src/services/hoy/techo-service';
 import { getUserWaterGoal, setUserWaterGoal } from '@/src/services/hydration-service';
 import { getFastingGoalHours, setFastingGoalHours } from '@/src/services/fasting-service';
 import {
@@ -114,39 +111,10 @@ export default function FichaAppScreen() {
 
   const doInstall = async () => {
     if (!user?.id) return;
-    const userId = user.id;
-    // MB-26 P3: instalar enciende hábitos — si eso rebasa los 8 renglones,
-    // se avisa y se ofrece qué mandar a reposo. Guiado, no prisionero.
-    // Audit B2: el techo evalúa EXACTAMENTE la lista que installApp va a
-    // encender (habitosQueEnciende: toggles + MANDATORY de la app). La
-    // lista vieja excluía los MANDATORY: instalar Cardio con cardio en
-    // reposo evaluaba vacío y el noveno renglón entraba sin aviso.
-    const aviso = await evaluarTechoEncendido(userId, habitosQueEnciende(app.key));
-    if (aviso) {
-      const sugerido = aviso.candidatos[0] ?? null;
-      Alert.alert(
-        'Tu día ya está lleno',
-        `Instalar ${app.label} te deja en ${aviso.total} hábitos activos y el techo que protege tu día es ${aviso.techo}. ` +
-          'Puedes mandar algo a reposo: nada se borra y vuelve cuando quieras.' +
-          (aviso.candidatos.length > 0
-            ? ` Lo que más te ha costado: ${aviso.candidatos.map((c) => c.name).join(', ')}.`
-            : ''),
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          ...(sugerido
-            ? [{
-                text: `Reposar ${sugerido.name}`,
-                onPress: async () => {
-                  await setHabitState(userId, sugerido.key, 'reposo');
-                  confirmarInstalar();
-                },
-              }]
-            : []),
-          { text: 'Instalar igual', onPress: () => confirmarInstalar() },
-        ],
-      );
-      return;
-    }
+    // MB-27 V3 (doctrina): el techo murió como límite — instalar es
+    // instalar, cero fricción. El conteo de renglones vive en HOY como
+    // información siempre visible y la salida en /ordenar-dia. (B2 sigue
+    // vivo en el CONTEO: habitosQueEnciende es la lista que se enciende.)
     confirmarInstalar();
   };
 

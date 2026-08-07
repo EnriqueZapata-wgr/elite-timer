@@ -1,12 +1,14 @@
 /**
- * Tests que amarran el techo del día (MB-26 Pieza 9, mutación 4).
+ * Tests del CONTEO de renglones (MB-26 Pieza 9 · reconvertido en MB-27 V3).
  *
- * El noveno avisa; forzar se respeta (evaluar jamás cambia nada: solo la
- * UI ejecuta la decisión del usuario); los graduados NO cuentan.
+ * El techo como límite murió (doctrina Enrique: "solo orientar"). Lo que se
+ * amarra aquí es el NÚMERO honesto: espeja las reglas del compile, cuenta
+ * la misma lista que se enciende (B2), y jamás cambia estado. Los
+ * candidatos a reposo viven para /ordenar-dia.
  */
 import { describe, it, expect } from 'vitest';
 import {
-  TECHO_RENGLONES, renglonesDeHoy, evaluarEncendido, diasSinHacer, candidatosAReposo,
+  renglonesDeHoy, contarEncendido, diasSinHacer, candidatosAReposo,
 } from '@/src/services/hoy/techo-core';
 import { habitosQueEnciende, togglesForApp } from '@/src/services/hoy/install-core';
 import { MANDATORY_BOOLEANS } from '@/src/services/hoy/day-booleans';
@@ -23,54 +25,27 @@ function prefsConOcho() {
   };
 }
 
-describe('el techo de 8 renglones (mutación 4)', () => {
-  it('el default es 8: no es configuración', () => {
-    expect(TECHO_RENGLONES).toBe(8);
-  });
-
-  it('con 8 activos, encender el noveno avisa', () => {
+describe('el conteo de renglones (información, no juicio)', () => {
+  it('cuenta los activos con las reglas del compile', () => {
     const prefs = prefsConOcho();
     expect(renglonesDeHoy(prefs, {})).toHaveLength(8);
-    const ev = evaluarEncendido(prefs, {}, ['red_glasses']);
-    expect(ev.excede).toBe(true);
-    expect(ev.total).toBe(9);
+    expect(contarEncendido(prefs, {}, ['red_glasses'])).toBe(9);
   });
 
-  it('con 7 activos, el octavo entra sin aviso', () => {
+  it('reposo resta, graduado resta (graduar libera renglón: ese es el premio)', () => {
     const prefs = prefsConOcho();
-    const estados: Record<string, HabitEstado> = { no_alcohol: 'reposo' };
-    const ev = evaluarEncendido(prefs, estados, ['red_glasses']);
-    expect(ev.excede).toBe(false);
-    expect(ev.total).toBe(8);
-  });
-
-  it('los graduados NO cuentan: graduar libera renglón (ese es el premio)', () => {
-    const prefs = prefsConOcho();
-    const estados: Record<string, HabitEstado> = { journal: 'graduado' };
-    const ev = evaluarEncendido(prefs, estados, ['red_glasses']);
-    expect(ev.excede).toBe(false);
-    expect(ev.total).toBe(8);
+    expect(contarEncendido(prefs, { no_alcohol: 'reposo' }, ['red_glasses'])).toBe(8);
+    expect(contarEncendido(prefs, { journal: 'graduado' }, ['red_glasses'])).toBe(8);
   });
 
   it('re-encender algo ya activo no infla el conteo (dedup)', () => {
-    const prefs = prefsConOcho();
-    const ev = evaluarEncendido(prefs, {}, ['sunlight']);
-    expect(ev.total).toBe(8);
-    expect(ev.excede).toBe(false);
+    expect(contarEncendido(prefsConOcho(), {}, ['sunlight'])).toBe(8);
   });
 
-  // MB-27 0.2 (mutación 2): un quant sin fuente (sleep, steps) jamás pinta
-  // fila en HOY — encenderlo NO puede sumar renglón. Antes el candidato
-  // nuevo entraba por booleans sin el filtro y el aviso "tu día ya está
-  // lleno" se disparaba con 8 renglones reales, no 9.
-  it('encender un quant sin fuente NO suma renglón: el aviso sale en el noveno real', () => {
-    const prefs = prefsConOcho(); // 8 reales
-    const ev = evaluarEncendido(prefs, {}, ['sleep']);
-    expect(ev.total).toBe(8);
-    expect(ev.excede).toBe(false);
-    // El noveno real sí avisa (la regla de siempre sigue viva).
-    const ev9 = evaluarEncendido(prefs, {}, ['red_glasses']);
-    expect(ev9.excede).toBe(true);
+  // MB-27 0.2 (mutación 2): un quant sin fuente jamás pinta fila en HOY —
+  // encenderlo no puede sumar al conteo.
+  it('encender un quant sin fuente NO suma renglón', () => {
+    expect(contarEncendido(prefsConOcho(), {}, ['sleep'])).toBe(8);
   });
 
   it('un quant sin fuente persistido tampoco cuenta, venga en la lista que venga', () => {
@@ -79,46 +54,33 @@ describe('el techo de 8 renglones (mutación 4)', () => {
     expect(renglonesDeHoy(prefs, {})).toHaveLength(6);
   });
 
-  // Audit B2: el techo evalúa EXACTAMENTE la lista que instalar enciende.
-  it('B2: instalar Cardio con cardio en reposo avisa el noveno — togglesForApp lo dejaba pasar', () => {
-    // 8 renglones activos (cardio en reposo no cuenta) + 3 extras para
-    // compensar: 4 MANDATORY activos + sunlight, no_alcohol, red_glasses,
-    // grounding = 8 activos.
+  // Audit B2 (vive en el CONTEO): la lista que se cuenta es la MISMA que
+  // instalar enciende — habitosQueEnciende incluye los MANDATORY.
+  it('B2: el conteo de instalar Cardio con cardio en reposo incluye el renglón que revive', () => {
     const prefs = {
       booleans: ['sunlight', 'no_alcohol', 'red_glasses', 'grounding', ...MANDATORY_BOOLEANS],
       quants: [],
     };
     const estados = { cardio: 'reposo' as const };
     expect(renglonesDeHoy(prefs, estados)).toHaveLength(8);
-
-    // La lista que installApp va a encender incluye el MANDATORY:
-    const seEnciende = habitosQueEnciende('cardio');
-    const ev = evaluarEncendido(prefs, estados, seEnciende);
-    expect(ev.total).toBe(9);
-    expect(ev.excede).toBe(true);
-
-    // La lista vieja (togglesForApp) es vacía para cardio: evaluaba 8 y el
-    // noveno entraba SIN aviso. La mutación que regrese a togglesForApp en
-    // la ficha del Centro truena aquí y en el contrato de fuente.
-    const listaVieja = togglesForApp('cardio');
-    const evViejo = evaluarEncendido(prefs, estados, [...listaVieja.booleans, ...listaVieja.quants]);
-    expect(evViejo.excede).toBe(false); // el salto silencioso que B2 cierra
+    expect(contarEncendido(prefs, estados, habitosQueEnciende('cardio'))).toBe(9);
+    // La lista vieja (sin MANDATORY) contaría 8: el número mentiría.
+    const vieja = togglesForApp('cardio');
+    expect(contarEncendido(prefs, estados, [...vieja.booleans, ...vieja.quants])).toBe(8);
   });
 
-  it('evaluar JAMÁS cambia nada: forzar es decisión del usuario', () => {
-    // La función es consulta pura — si una mutación escribiera estados o
-    // listas desde aquí, el "aviso" se volvería candado y esto truena.
+  it('contar JAMÁS cambia nada: es consulta pura', () => {
     const prefs = Object.freeze({
       booleans: Object.freeze(['sunlight']) as unknown as string[],
       quants: Object.freeze([]) as unknown as string[],
     });
     const estados = Object.freeze({}) as Record<string, HabitEstado>;
-    expect(() => evaluarEncendido(prefs, estados, ['red_glasses'])).not.toThrow();
+    expect(() => contarEncendido(prefs, estados, ['red_glasses'])).not.toThrow();
     expect(prefs.booleans).toEqual(['sunlight']);
   });
 });
 
-describe('candidatos a reposo: los que llevas más tiempo fallando', () => {
+describe('candidatos a reposo: los que llevas más tiempo fallando (para /ordenar-dia)', () => {
   const historial = {
     sunlight: new Set(ultimasFechas(HOY, 3)), // hecho hoy
     journal: new Set([ultimasFechas(HOY, 10)[0]]), // hace 9 días

@@ -1,24 +1,27 @@
 /**
- * techo-core (MB-26 Pieza 3) — el techo del día, puro.
+ * techo-core (MB-26 Pieza 3 · reconvertido en MB-27 V3) — el CONTEO de
+ * renglones del día, puro. El techo como LÍMITE murió por decisión de
+ * Enrique: "Yo no quiero techo. Puede instalar todo si quiere. Solo
+ * orientar." Ningún Alert, ningún umbral, ninguna puerta que bloquee.
  *
- * OCHO renglones activos. No es configuración: es el default que protege
- * el día. Encender el noveno (a mano o por pack) avisa y ofrece qué mandar
- * a reposo, con candidatos sugeridos (los que llevas más tiempo fallando).
- * El usuario puede pasarse si insiste: guiado, no prisionero — se avisa y
- * se respeta la decisión. Aquí solo se cuenta y se sugiere; ningún estado
- * cambia desde este módulo.
+ * Lo que queda de aquí:
+ *  · renglonesDeHoy / contarEncendido: el número honesto de renglones
+ *    activos — HOY lo pinta SIEMPRE (sin umbral) junto a la salida
+ *    "Ordenar mi día". Espeja las reglas del compile: unión persistido +
+ *    MANDATORY, filtro de estados, cuantitativos sin fuente fuera, y la
+ *    lista que se enciende es la MISMA que reactiva installApp (B2).
+ *  · candidatosAReposo / diasSinHacer: "lo que más te ha costado" — vive
+ *    para /ordenar-dia, donde el usuario va cuando QUIERE ordenar. No se
+ *    le empuja cuando está haciendo otra cosa.
  *
- * ⚠️ El techo cuenta ACTIVOS, no graduados: graduar libera renglón (ese es
- * el premio). El conteo espeja las reglas del compile: unión persistido +
- * MANDATORY, filtro de estados, cuantitativos sin fuente fuera.
+ * Ningún estado cambia desde este módulo. La graduación, el reposo y
+ * /ordenar-dia (la puerta de salida, lo valioso de MB-26) siguen intactos.
  */
 import { MANDATORY_BOOLEANS } from '@/src/services/hoy/day-booleans';
 import {
   estadoDe, type HabitEstado,
 } from '@/src/services/hoy/habit-states-core';
 import { ultimasFechas, type HistorialHabitos } from '@/src/services/hoy/graduacion-core';
-
-export const TECHO_RENGLONES = 8;
 
 /** Espejo de day-compiler / install-core: sin fuente hasta wearables. */
 const QUANTS_SIN_FUENTE = new Set(['steps', 'sleep']);
@@ -30,7 +33,7 @@ export interface PrefsRenglones {
 
 /** Los renglones activos de hoy, con las reglas del compile.
  *  MB-27 0.2: el filtro de quants sin fuente cubre TODO el conteo, no solo
- *  prefs.quants — un candidato nuevo (evaluarEncendido mete los nuevos por
+ *  prefs.quants — un candidato nuevo (contarEncendido mete los nuevos por
  *  booleans) como 'sleep' sumaba un renglón fantasma que HOY nunca pinta. */
 export function renglonesDeHoy(
   prefs: PrefsRenglones,
@@ -42,23 +45,16 @@ export function renglonesDeHoy(
     .filter((k) => estadoDe(k, estados) === 'activo');
 }
 
-export interface EvaluacionTecho {
-  /** true si el resultado rebasa el techo (hay que avisar). */
-  excede: boolean;
-  /** Renglones activos que quedarían después de encender. */
-  total: number;
-  techo: number;
-}
-
 /**
- * ¿Encender `nuevos` rebasa el techo? Simula el encendido: las llaves
- * nuevas vuelven a activo (reactivarHabitos) y entran a la lista.
+ * ¿En cuántos renglones queda el día si se encienden `nuevos`? Simula el
+ * encendido (las llaves nuevas vuelven a activo, como reactivarHabitos) y
+ * cuenta. ES INFORMACIÓN, no un juicio: aquí no hay umbral ni "excede".
  */
-export function evaluarEncendido(
+export function contarEncendido(
   prefs: PrefsRenglones,
   estados: Record<string, HabitEstado>,
   nuevos: string[],
-): EvaluacionTecho {
+): number {
   const estadosDespues: Record<string, HabitEstado> = { ...estados };
   for (const k of nuevos) estadosDespues[k] = 'activo';
   const despues: PrefsRenglones = {
@@ -69,8 +65,7 @@ export function evaluarEncendido(
     quants: prefs.quants,
   };
   // Dedup total: una llave que viva en ambas listas cuenta UNA vez.
-  const total = new Set(renglonesDeHoy(despues, estadosDespues)).size;
-  return { excede: total > TECHO_RENGLONES, total, techo: TECHO_RENGLONES };
+  return new Set(renglonesDeHoy(despues, estadosDespues)).size;
 }
 
 /** Días desde el último hecho dentro de la ventana; ventana+1 = nunca. */
@@ -89,7 +84,8 @@ export function diasSinHacer(
 
 /**
  * Candidatos a reposo: los renglones activos que llevan MÁS tiempo sin
- * hacerse, de mayor a menor abandono. `excluir` = lo que se está por
+ * hacerse, de mayor a menor abandono. Vive para /ordenar-dia (donde el
+ * usuario va cuando QUIERE ordenar). `excluir` = lo que se está por
  * encender (sugerir reposar lo que vienes a prender sería absurdo).
  */
 export function candidatosAReposo(
