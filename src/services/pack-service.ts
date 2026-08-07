@@ -28,6 +28,7 @@ import { PACK_BY_KEY, type PackIntensidad } from '@/src/constants/packs';
 import {
   buildPackPlan,
   esHoraValida,
+  normalizarHora,
   packAplicado,
   planDeFila,
   reconcilarPack,
@@ -151,7 +152,12 @@ export async function aplicarPack(
 ): Promise<ResultadoAplicacion> {
   const pack = PACK_BY_KEY[packKey];
   if (!pack) return fallo('registro', 'Ese pack no existe en esta versión.');
-  if (!esHoraValida(opts.despertar) || !esHoraValida(opts.dormir)) {
+  // MB-27 0.1: normalizar ANTES de validar — '7:00' se vuelve '07:00' aquí
+  // y nunca llega al CHECK de user_packs (que exige dos dígitos). Lo que no
+  // normaliza no entra: la base jamás rechaza algo que el cliente aceptó.
+  const despertar = normalizarHora(opts.despertar);
+  const dormir = normalizarHora(opts.dormir);
+  if (!despertar || !dormir || !esHoraValida(despertar) || !esHoraValida(dormir)) {
     return fallo('registro', 'El horario no es válido.');
   }
 
@@ -168,7 +174,7 @@ export async function aplicarPack(
 
   const filaPrevia = rows.find((r) => r.pack_key === packKey) ?? null;
   const previo = filaPrevia ? planDeFila(filaPrevia) : null;
-  const plan = buildPackPlan(packKey, opts.intensidad, opts.despertar, opts.dormir);
+  const plan = buildPackPlan(packKey, opts.intensidad, despertar, dormir);
   const escrituras = reconcilarPack(plan, previo, estado);
   const pasos: PasoResultado[] = [];
 
@@ -298,8 +304,8 @@ export async function aplicarPack(
         user_id: userId,
         pack_key: packKey,
         intensidad: opts.intensidad,
-        wake_time: opts.despertar,
-        sleep_time: opts.dormir,
+        wake_time: despertar,
+        sleep_time: dormir,
         active: true,
         // Re-aplicar un pack conserva su "desde cuándo".
         activated_at: filaPrevia?.activated_at ?? new Date().toISOString(),

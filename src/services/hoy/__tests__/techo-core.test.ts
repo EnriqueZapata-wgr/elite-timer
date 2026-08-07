@@ -58,6 +58,26 @@ describe('el techo de 8 renglones (mutación 4)', () => {
     expect(ev.excede).toBe(false);
   });
 
+  // MB-27 0.2 (mutación 2): un quant sin fuente (sleep, steps) jamás pinta
+  // fila en HOY — encenderlo NO puede sumar renglón. Antes el candidato
+  // nuevo entraba por booleans sin el filtro y el aviso "tu día ya está
+  // lleno" se disparaba con 8 renglones reales, no 9.
+  it('encender un quant sin fuente NO suma renglón: el aviso sale en el noveno real', () => {
+    const prefs = prefsConOcho(); // 8 reales
+    const ev = evaluarEncendido(prefs, {}, ['sleep']);
+    expect(ev.total).toBe(8);
+    expect(ev.excede).toBe(false);
+    // El noveno real sí avisa (la regla de siempre sigue viva).
+    const ev9 = evaluarEncendido(prefs, {}, ['red_glasses']);
+    expect(ev9.excede).toBe(true);
+  });
+
+  it('un quant sin fuente persistido tampoco cuenta, venga en la lista que venga', () => {
+    const prefs = { booleans: ['sleep', ...MANDATORY_BOOLEANS], quants: ['water', 'steps'] };
+    // sleep y steps fuera; 5 MANDATORY + water = 6.
+    expect(renglonesDeHoy(prefs, {})).toHaveLength(6);
+  });
+
   it('evaluar JAMÁS cambia nada: forzar es decisión del usuario', () => {
     // La función es consulta pura — si una mutación escribiera estados o
     // listas desde aquí, el "aviso" se volvería candado y esto truena.

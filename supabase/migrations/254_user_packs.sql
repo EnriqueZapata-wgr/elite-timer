@@ -6,8 +6,11 @@
 -- reconstruye el plan de la activación anterior y la re-activación no pisa
 -- lo que el usuario cambió a mano (idempotencia del motor).
 --
--- Doctrina: UN pack activo a la vez (active) y desactivar NO borra la fila
--- ni desinstala nada — la fila inactiva conserva la memoria del ajuste.
+-- Doctrina (corregida en MB-26 P7.1, texto MB-27 0.6): los packs se
+-- ACUMULAN — un pack es un instalador, no un modo. Aplicar uno jamás toca
+-- lo que otro dejó y la fila se queda para siempre (idempotencia + la
+-- memoria que leerá ARGOS). La columna `active` es VESTIGIAL: siempre true
+-- al aplicar, nadie la lee. No se retira: sería una migración sin ganancia.
 --
 -- Idempotente. RLS owner-only. db push ANTES del OTA.
 

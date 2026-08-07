@@ -558,7 +558,9 @@ export async function compileDay(userId: string, onProgress?: CompileProgress): 
   const suggestion = buildSuggestion(quantitativeElectrons, fastRes.data?.[0], hour, crossPillar);
 
   // Agenda
-  const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.data?.[0], crossPillar, wakeFromPrefs);
+  // MB-27 0.5: recibe el `despertar` RESUELTO (prefs > cronotipo > default),
+  // no wakeFromPrefs crudo — agenda y tareas usan la misma hora de despertar.
+  const agendaItems = await buildAgenda(userId, today, hour, protocol, fastRes.data?.[0], crossPillar, despertar);
   onProgress?.(95, 'Generando agenda');
 
   // Greeting
@@ -786,21 +788,16 @@ async function buildAgenda(
   protocol: CompiledDay['protocol'],
   activeFast: any,
   cross: CrossPillar,
-  /** F03.7: wake_time editado desde protocol-config (vive en user_day_preferences.goals). */
-  wakeFromPrefs?: string,
+  /** MB-27 0.5: el despertar RESUELTO de compileDay (prefs > cronotipo >
+   *  default) — la agenda usa la MISMA hora que las tareas del día. El
+   *  fallback interno queda solo para un caller que no lo pase. */
+  despertarResuelto?: string,
 ): Promise<AgendaItem[]> {
   const items: AgendaItem[] = [];
 
-  // F03.7: prioridad de wake_time:
-  //   1. user_day_preferences.goals.wake_time (lo que el usuario edita en
-  //      protocol-config — fuente más reciente).
-  //   2. user_chronotype.wake_time (columna PLANA, set en onboarding).
-  //      HOTFIX schema: NO existe columna `schedule` — el select viejo daba
-  //      400 silencioso y wakeTime caía siempre al default.
-  //   3. fallback '07:00'.
   let wakeTime = '07:00';
-  if (wakeFromPrefs) {
-    wakeTime = wakeFromPrefs;
+  if (despertarResuelto) {
+    wakeTime = despertarResuelto;
   } else {
     try {
       const { data: chrono, error: chronoErr } = await supabase

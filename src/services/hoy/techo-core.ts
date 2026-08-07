@@ -28,14 +28,18 @@ export interface PrefsRenglones {
   quants: string[];
 }
 
-/** Los renglones activos de hoy, con las reglas del compile. */
+/** Los renglones activos de hoy, con las reglas del compile.
+ *  MB-27 0.2: el filtro de quants sin fuente cubre TODO el conteo, no solo
+ *  prefs.quants — un candidato nuevo (evaluarEncendido mete los nuevos por
+ *  booleans) como 'sleep' sumaba un renglón fantasma que HOY nunca pinta. */
 export function renglonesDeHoy(
   prefs: PrefsRenglones,
   estados: Record<string, HabitEstado>,
 ): string[] {
   const bools = Array.from(new Set([...prefs.booleans, ...MANDATORY_BOOLEANS]));
-  const quants = prefs.quants.filter((k) => !QUANTS_SIN_FUENTE.has(k));
-  return [...bools, ...quants].filter((k) => estadoDe(k, estados) === 'activo');
+  return [...bools, ...prefs.quants]
+    .filter((k) => !QUANTS_SIN_FUENTE.has(k))
+    .filter((k) => estadoDe(k, estados) === 'activo');
 }
 
 export interface EvaluacionTecho {

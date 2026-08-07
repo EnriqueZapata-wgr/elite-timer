@@ -12,6 +12,7 @@ import {
   anclarHora,
   buildPackPlan,
   esHoraValida,
+  normalizarHora,
   packAplicado,
   planDeFila,
   reconcilarPack,
@@ -113,6 +114,36 @@ describe('anclaje de horas', () => {
     expect(esHoraValida('23:59')).toBe(true);
     expect(esHoraValida('24:00')).toBe(false);
     expect(esHoraValida('siete')).toBe(false);
+  });
+
+  // MB-27 0.1 (mutación 1): el CHECK de user_packs exige dos dígitos.
+  // '7:00' pasaba el cliente y tronaba al guardar, en el último paso.
+  // Aflojar la regex de vuelta a \d{1,2} truena exactamente aquí.
+  it("'7:00' NO es válida: la base la rechaza y el cliente ya no la deja pasar", () => {
+    expect(esHoraValida('7:00')).toBe(false);
+    expect(esHoraValida('9:30')).toBe(false);
+    // El CHECK acepta '29:59'; la validación de RANGO es del cliente.
+    expect(esHoraValida('29:59')).toBe(false);
+  });
+
+  it('todo lo que esHoraValida acepta pasa el CHECK de la 254 (contrato con la base)', () => {
+    const CHECK_254 = /^[0-2][0-9]:[0-5][0-9]$/; // espejo literal de la migración
+    for (const t of ['00:00', '07:00', '12:34', '23:59']) {
+      expect(esHoraValida(t)).toBe(true);
+      expect(CHECK_254.test(t)).toBe(true);
+    }
+  });
+
+  it("normalizarHora: '7:00' → '07:00'; el rango inválido no se normaliza, se rechaza", () => {
+    expect(normalizarHora('7:00')).toBe('07:00');
+    expect(normalizarHora('07:00')).toBe('07:00');
+    expect(normalizarHora(' 9:30 ')).toBe('09:30');
+    expect(normalizarHora('29:59')).toBe(null);
+    expect(normalizarHora('24:00')).toBe(null);
+    expect(normalizarHora('7:60')).toBe(null);
+    expect(normalizarHora('siete')).toBe(null);
+    // Lo normalizado SIEMPRE es válido: la base jamás rechaza lo que entra.
+    expect(esHoraValida(normalizarHora('7:00')!)).toBe(true);
   });
 });
 

@@ -122,6 +122,10 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/health-input.tsx::body-outline',
   'app/health-input.tsx::moon-outline',
   'app/health-input.tsx::sparkles-outline',
+  // MB-27 0.3: indicadores de estado del hábito (reposo/graduado) en la fila
+  // de Mis hábitos — chrome de estado, no lanzador de función del registro.
+  'app/hoy-habitos.tsx::moon-outline',
+  'app/hoy-habitos.tsx::ribbon-outline',
   'app/journal-history.tsx::book-outline',
   'app/journal.tsx::book-outline',
   'app/ketones-log.tsx::moon-outline',

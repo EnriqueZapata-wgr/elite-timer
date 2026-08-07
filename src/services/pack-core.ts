@@ -70,9 +70,22 @@ export function reglaIgual(
   return a.ancla === b.ancla && a.offsetMin === b.offsetMin;
 }
 
+/**
+ * MB-27 0.1: alineada con el CHECK de user_packs (mig 254), que exige dos
+ * dígitos — '7:00' pasaba aquí y tronaba al guardar, en el último paso.
+ * El rango sigue siendo del cliente: '29:59' pasa el CHECK y aquí NO.
+ */
 export function esHoraValida(t: string): boolean {
-  const m = /^(\d{1,2}):(\d{2})$/.exec(t);
-  return !!m && parseInt(m[1], 10) <= 23 && parseInt(m[2], 10) <= 59;
+  return /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+}
+
+/** 'H:MM' (teclado, filas viejas de cronotipo) → 'HH:MM' canónico, o null. */
+export function normalizarHora(t: string): string | null {
+  const m = /^(\d{1,2}):([0-5]\d)$/.exec(t.trim());
+  if (!m) return null;
+  const hh = parseInt(m[1], 10);
+  if (hh > 23) return null;
+  return `${String(hh).padStart(2, '0')}:${m[2]}`;
 }
 
 function fmtMin(min: number): string {

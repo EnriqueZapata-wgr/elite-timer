@@ -42,7 +42,7 @@ import {
 } from '@/src/constants/packs';
 import { ELECTRON_WEIGHTS, type ElectronSource } from '@/src/constants/electrons';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
-import { buildPackPlan, esHoraValida } from '@/src/services/pack-core';
+import { buildPackPlan, normalizarHora } from '@/src/services/pack-core';
 import { aplicarPack, type ResultadoAplicacion } from '@/src/services/pack-service';
 import { evaluarTechoEncendido } from '@/src/services/hoy/techo-service';
 import { setHabitState } from '@/src/services/hoy/habit-states-service';
@@ -57,11 +57,12 @@ const nombreElectron = (key: string) =>
 
 const labelApp = (key: string) => APP_BY_KEY[key]?.label ?? key;
 
-/** 'HH:MM[:SS]' de la base → 'HH:MM' de la UI, o null si no sirve. */
+/** 'HH:MM[:SS]' de la base → 'HH:MM' de la UI, o null si no sirve.
+ *  MB-27 0.1: normaliza — un cronotipo con '7:00' entra como '07:00',
+ *  nunca llega crudo al CHECK de user_packs. */
 function horaDeDb(v: unknown): string | null {
   if (typeof v !== 'string') return null;
-  const t = v.slice(0, 5);
-  return esHoraValida(t) ? t : null;
+  return normalizarHora(v.split(':').slice(0, 2).join(':'));
 }
 
 export default function ArmarScreen() {

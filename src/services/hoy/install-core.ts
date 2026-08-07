@@ -57,6 +57,23 @@ export function togglesForApp(appKey: string): AppToggles {
 }
 
 /**
+ * MB-27 0.4: TODO lo que instalar la app debe devolver a activo — sus
+ * toggles Y sus MANDATORY. togglesForApp excluye los MANDATORY a propósito
+ * (no viven en prefs: siempre están en el día por la unión del compile),
+ * pero un MANDATORY en reposo (Ordenar mi día, Alert del techo) sí tiene
+ * fila de estado, y reinstalar su app tiene que revivirlo. Sin esto, quien
+ * mandó cardio a reposo instala la app Cardio y no ve nada: el toggle
+ * silencioso que MB-26 dice cerrar.
+ */
+export function habitosQueEnciende(appKey: string): string[] {
+  const t = togglesForApp(appKey);
+  const mandatory = (electronsForApp(appKey) as readonly string[]).filter((e) =>
+    (MANDATORY_BOOLEANS as readonly string[]).includes(e),
+  );
+  return [...t.booleans, ...t.quants, ...mandatory];
+}
+
+/**
  * true si instalar la app enciende al menos un electrón activable, es decir,
  * si su fila nace en TAREAS en el siguiente compile. Es el MISMO cruce de
  * togglesForApp: el copy de instalar sale de aquí (installAlertBody), nunca de

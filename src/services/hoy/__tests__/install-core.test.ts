@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   togglesForApp,
+  habitosQueEnciende,
   appInstallState,
   applyInstall,
   applyInstallGridOnly,
@@ -49,6 +50,23 @@ describe('togglesForApp', () => {
   it('ayuno no tiene toggle activable (sus tiers van por eventos)', () => {
     expect(togglesForApp('ayuno').booleans).toEqual([]);
     expect(togglesForApp('ayuno').quants).toEqual([]);
+  });
+});
+
+describe('habitosQueEnciende — MB-27 0.4 (mutación 4)', () => {
+  it('instalar la app Cardio revive cardio: los MANDATORY entran al alcance de reactivar', () => {
+    // togglesForApp excluye los MANDATORY (no viven en prefs), pero un
+    // MANDATORY en reposo tiene fila de estado y reinstalar su app DEBE
+    // devolverlo a activo. La mutación que recorte los MANDATORY de esta
+    // lista deja el toggle silencioso que MB-26 dice cerrar: truena aquí.
+    expect(habitosQueEnciende('cardio')).toContain('cardio');
+    expect(habitosQueEnciende('journal')).toContain('journal');
+    expect(habitosQueEnciende('emociones')).toContain('checkin');
+  });
+
+  it('en apps sin MANDATORY es exactamente togglesForApp', () => {
+    expect(habitosQueEnciende('meditar')).toEqual(['meditation']);
+    expect(habitosQueEnciende('hidratacion')).toEqual(['water']);
   });
 });
 

@@ -14,8 +14,8 @@ import {
   applyInstall,
   applyInstallGridOnly,
   applyUninstall,
+  habitosQueEnciende,
   initialSeedApps,
-  togglesForApp,
   type InstallPrefs,
 } from '@/src/services/hoy/install-core';
 import { reactivarHabitos } from '@/src/services/hoy/habit-states-service';
@@ -74,8 +74,9 @@ export async function installApp(userId: string, appKey: string): Promise<{ ok: 
   // MB-26 P1: instalar ES encender — si el hábito estaba graduado o en
   // reposo, vuelve a activo ANTES del write que recompila. Sin esto, la
   // card jamás reaparecería (toggle silencioso clase checkin).
-  const t = togglesForApp(appKey);
-  await reactivarHabitos(userId, [...t.booleans, ...t.quants]);
+  // MB-27 0.4: el alcance incluye los MANDATORY de la app (cardio, journal…):
+  // togglesForApp los excluye y reinstalar no los devolvía del reposo.
+  await reactivarHabitos(userId, habitosQueEnciende(appKey));
   return writePrefs(userId, applyInstall(appKey, prefs));
 }
 
