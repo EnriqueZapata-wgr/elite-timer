@@ -9,6 +9,8 @@
 import type { Href } from 'expo-router';
 
 export const DATA_CAPTURE_ROUTES: Record<string, Href> = {
+  // MB-27 menor 1: la app Medidas registra peso por esta puerta (<10 s).
+  weight_kg: '/edad-atp/composition?focus=weight_kg',
   grip_strength_kg: '/edad-atp/composition?focus=grip_strength_kg',
   body_fat_pct: '/edad-atp/composition?focus=body_fat_pct',
   waist_cm: '/edad-atp/composition?focus=waist_cm',

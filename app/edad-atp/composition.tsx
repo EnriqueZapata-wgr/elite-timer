@@ -34,6 +34,26 @@ function daysAgo(dateStr: string): number {
 // de captura de peso y medidas (la app Medidas la abre con ?focus).
 const FIELD_KEYS = ['weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 'visceral_fat', 'grip_strength_kg', 'waist_cm', 'hip_cm', 'arm_cm', 'leg_cm', 'chest_cm'] as const;
 
+/**
+ * MB-27 menores 2-3: rangos fisiológicos por campo. Antes -5 se guardaba
+ * (y /medidas lo filtraba: "sin medidas" tras un guardado exitoso) y 12345
+ * reventaba el DECIMAL(5,1) con un 22003 que el usuario veía como "no se
+ * pudo guardar". Fuera de rango se rechaza CON nombre; nunca en silencio.
+ */
+const RANGOS: Record<(typeof FIELD_KEYS)[number], { min: number; max: number; label: string }> = {
+  weight_kg: { min: 30, max: 300, label: 'Peso' },
+  height_cm: { min: 100, max: 230, label: 'Altura' },
+  body_fat_pct: { min: 3, max: 60, label: '% Grasa corporal' },
+  muscle_mass_kg: { min: 10, max: 100, label: 'Masa muscular' },
+  visceral_fat: { min: 1, max: 59, label: 'Grasa visceral' },
+  grip_strength_kg: { min: 5, max: 100, label: 'Fuerza de agarre' },
+  waist_cm: { min: 40, max: 180, label: 'Cintura' },
+  hip_cm: { min: 50, max: 180, label: 'Cadera' },
+  arm_cm: { min: 15, max: 80, label: 'Brazo' },
+  leg_cm: { min: 30, max: 120, label: 'Pierna' },
+  chest_cm: { min: 50, max: 200, label: 'Pecho' },
+};
+
 export default function CompositionCapture() {
   const { user } = useAuth();
   const analytics = useAnalytics();
@@ -121,8 +141,22 @@ export default function CompositionCapture() {
     for (const k of FIELD_KEYS) {
       const raw = v[k] ?? '';
       if (raw === (snapshot[k] ?? '') || raw.trim() === '') continue;
-      const n = k === 'visceral_fat' ? Math.round(Number(raw)) : num(raw);
-      if (n != null && Number.isFinite(n)) fields[k] = n;
+      // MB-27 menor 3: redondeo a 1 decimal ANTES de escribir — el
+      // DECIMAL(5,1) truncaba en silencio y el delta salía de otro número.
+      const crudo = k === 'visceral_fat' ? Math.round(Number(raw)) : num(raw);
+      const n = crudo != null && Number.isFinite(crudo) ? Math.round(crudo * 10) / 10 : null;
+      if (n == null) continue;
+      // MB-27 menor 2-3: fuera de rango se rechaza con nombre, no se guarda
+      // basura que luego "desaparece" ni un 22003 ilegible.
+      const rango = RANGOS[k];
+      if (n < rango.min || n > rango.max) {
+        Alert.alert(
+          'Revisa un valor',
+          `${rango.label}: ${raw} está fuera del rango esperado (${rango.min} a ${rango.max}). Corrígelo y vuelve a guardar.`,
+        );
+        return;
+      }
+      fields[k] = n;
     }
     if (Object.keys(fields).length === 0) {
       Alert.alert('Sin cambios', 'Modifica al menos un valor para guardar.');
@@ -178,7 +212,7 @@ export default function CompositionCapture() {
           </View>
         ) : (
         <View style={styles.card}>
-          <NumberInputRow label="Peso" unit="kg" badge={prefilled.weight_kg ? badge ?? 'Salud' : undefined} value={v.weight_kg ?? ''} onChangeText={(x) => set('weight_kg', x)} />
+          <NumberInputRow label="Peso" unit="kg" badge={prefilled.weight_kg ? badge ?? 'Salud' : undefined} value={v.weight_kg ?? ''} onChangeText={(x) => set('weight_kg', x)} highlight={focus === 'weight_kg'} />
           {weightDiff != null ? (
             <EliteText variant="caption" style={styles.diff}>
               {weightDiff > 0 ? '+' : ''}{weightDiff} kg desde la última

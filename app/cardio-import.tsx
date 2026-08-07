@@ -258,7 +258,7 @@ export default function CardioImportScreen() {
                 <EliteText style={s.cardBody}>
                   {nombre} no tiene entrenamientos recientes que leer. Se
                   importan sesiones de 5 minutos o más; las caminatas, los
-                  registros de unos cuantos metros y las actividades sin
+                  registros con GPS menor a 150 metros y las actividades sin
                   disciplina reconocida ni distancia se quedan fuera. Si tu
                   app (Strava, Garmin…) no sincroniza con {nombre}, actívalo en
                   la configuración de esa app: ahí es donde ATP puede leerlos.
@@ -341,10 +341,16 @@ export default function CardioImportScreen() {
                   <EliteText style={s.cardBody}>
                     {resultado.duplicados > 0 ? `${resultado.duplicados} ya estaban registrados y se omitieron. ` : ''}
                     {resultado.electronHoy
-                      ? 'El de hoy cuenta para tu día (mismo electrón que el registro manual — 1 al día, sin retroactivos).'
+                      ? 'El de hoy cuenta para tu día (mismo electrón que el registro manual — 1 al día, sin retroactivos). '
                       : resultado.importados > 0
-                        ? 'Ninguno es de hoy: se guardan en tu historial sin mover la economía de hoy (sin retroactivos).'
+                        ? 'Ninguno es de hoy: se guardan en tu historial sin mover la economía de hoy (sin retroactivos). '
                         : ''}
+                    {/* MB-27 menor 4: las reglas se dicen TAMBIÉN aquí — quien
+                        importó dos carreras y no ve sus tres caminatas merece
+                        saber por qué, no solo quien vio el estado vacío. */}
+                    Se importan sesiones de 5 minutos o más; las caminatas, los
+                    registros con GPS menor a 150 metros y las actividades sin
+                    disciplina reconocida ni distancia se quedan fuera.
                   </EliteText>
                 </>
               ) : (
