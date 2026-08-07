@@ -96,6 +96,23 @@ describe('mutación 8 + audit B3 (contrato): la asignación avisa, pasa por el t
   });
 });
 
+describe('audit B4 (contrato): guardar el plan jamás destruye antes de confirmar', () => {
+  it('savePlanSemanal inserta ANTES de podar, y la poda es por ids leídos', () => {
+    const src = read('src/services/fitness/plan-semanal-service.ts');
+    const body = src.slice(src.indexOf('export async function savePlanSemanal'));
+    const idxInsert = body.indexOf('.insert(');
+    const idxDelete = body.indexOf('.delete()');
+    expect(idxInsert, 'el insert debe existir').toBeGreaterThan(-1);
+    expect(idxDelete, 'la poda debe existir').toBeGreaterThan(-1);
+    // La mutación delete-primero (la que borraba el plan y luego decía
+    // "intenta de nuevo") truena aquí:
+    expect(idxInsert).toBeLessThan(idxDelete);
+    // Y la poda es quirúrgica: por los ids que ESTE guardado leyó, nunca
+    // un delete amplio que pueda llevarse lo que no conoció.
+    expect(body).toMatch(/\.in\('id', idsViejas\)/);
+  });
+});
+
 describe('mutación 12 (ratchet): nadie nuevo lee goals.habit_times crudo', () => {
   /**
    * MB-26 P5: una entrada es string | {ancla, offsetMin}. Un lector nuevo

@@ -69,22 +69,32 @@ export async function getAsignacionHoy(userId: string): Promise<EstadoAsignacion
  * Guarda el plan semanal de enfoques. Reemplaza SOLO las filas weekly de
  * enfoque del propio usuario; las filas con routine_id (coach o propias)
  * quedan intactas.
+ *
+ * Audit B4 — el dato del usuario es sagrado (regla 6): el orden es INSERT
+ * primero (una sentencia, atómica) y poda de las filas viejas DESPUÉS. Si
+ * el insert falla (red, o la migración 257 sin aplicar), el plan anterior
+ * queda intacto y "intenta de nuevo" es verdad. Si fallara la poda, quedan
+ * filas duplicadas un rato: nada se pierde, el orden determinista del core
+ * hace ganar el guardado más nuevo y el siguiente guardado las poda.
  */
 export async function savePlanSemanal(
   userId: string,
   plan: PlanSemanal,
 ): Promise<{ ok: boolean }> {
-  const { error: delErr } = await supabase
+  // 1 · Las filas viejas del plan propio, POR id — la poda de abajo no
+  //     puede tocar lo que este guardado no conoció (ni al coach jamás).
+  const { data: viejas, error: readErr } = await supabase
     .from('scheduled_routines')
-    .delete()
+    .select('id')
     .eq('user_id', userId)
     .eq('schedule_type', 'weekly_cycle')
     .not('focus', 'is', null);
-  if (delErr) {
-    logWarn('[plan-semanal] delete failed', delErr);
+  if (readErr) {
+    logWarn('[plan-semanal] read for save failed', readErr);
     return { ok: false };
   }
 
+  // 2 · INSERT del plan nuevo, primero y atómico.
   const rows = Object.entries(plan)
     .filter(([, focus]) => focus != null)
     .map(([dow, focus]) => ({
@@ -95,12 +105,28 @@ export async function savePlanSemanal(
       day_of_week: Number(dow),
       focus,
     }));
-  if (rows.length === 0) return { ok: true };
+  if (rows.length > 0) {
+    const { error: insErr } = await supabase.from('scheduled_routines').insert(rows);
+    if (insErr) {
+      // El plan viejo sigue completo: reintentarlo es seguro.
+      logWarn('[plan-semanal] insert failed (plan viejo intacto)', insErr);
+      return { ok: false };
+    }
+  }
 
-  const { error } = await supabase.from('scheduled_routines').insert(rows);
-  if (error) {
-    logWarn('[plan-semanal] insert failed', error);
-    return { ok: false };
+  // 3 · Poda de las filas viejas, solo con el plan nuevo ya adentro.
+  const idsViejas = (viejas ?? []).map((r: { id: string }) => r.id);
+  if (idsViejas.length > 0) {
+    const { error: delErr } = await supabase
+      .from('scheduled_routines')
+      .delete()
+      .eq('user_id', userId)
+      .in('id', idsViejas);
+    if (delErr) {
+      // Duplicado temporal, jamás pérdida: el core ordena el más nuevo
+      // primero y el próximo guardado limpia.
+      logWarn('[plan-semanal] prune failed (duplicado temporal, nada perdido)', delErr);
+    }
   }
   return { ok: true };
 }
