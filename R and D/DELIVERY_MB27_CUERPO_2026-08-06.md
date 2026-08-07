@@ -194,3 +194,122 @@ que el código.
 
 Migraciones: siguen siendo SOLO la 256 y la 257, pendientes de `db push`.
 La vuelta no agregó migraciones nuevas.
+
+---
+
+# 🔁 ADDENDUM 2 · Vuelta 3 (audit V2, mismo día)
+
+Doctrina del techo aplicada + N1 + B1/B4/B5/B6 reabiertos + 2 abiertos de la
+vuelta 1. Migraciones: siguen siendo SOLO 256 y 257 — esta vuelta no agregó
+ninguna. Suite: 270 archivos · 2979 tests · censo en verde en cada commit.
+
+## 1 · El copy del renglón de conteo en HOY
+
+**`"20 hábitos activos · Ordenar mi día"`** (singular: `"1 hábito activo"`),
+sobre el chip quiet que ya existía (GradientCTA `variant="quiet"`, jerarquía
+de renglón, no card). Sin compile aún: `"Ordenar mi día"` a secas — jamás un
+número inventado.
+
+Por qué ese: es la forma exacta del ejemplo del brief — el NÚMERO primero
+(el marcador del propio día, cero adjetivos, cero juicio) y la SALIDA al
+lado con el nombre literal de la pantalla destino. No hay palabra que
+califique (nada de "demasiados/lleno/excede/deberías" — vetadas por
+contrato de test) y no hay umbral: se pinta siempre. El conteo sale de lo
+que el compile ya pintó (booleanos + cuantitativos activos), sin query
+nueva.
+
+## 2 · Enumeración de casos por cada línea tocada
+
+**Doctrina techo (4 puertas):** (a) instalar app con toggles → enciende
+directo; (b) instalar app cuyo MANDATORY está en reposo → revive directo
+(0.4 vivo, sin aviso); (c) instalar app sin electrón → instala directo (el
+aviso falso murió); (d) encender hábito en Mis hábitos → directo; (e)
+encender un GRADUADO → la confirmación de graduación SIGUE (es doctrina de
+graduación, no de techo); (f) aplicar pack → directo; (g) guardar plan con
+strength en reposo → el consentimiento SIGUE (doctrina de reposo); (h)
+usuario nuevo con 8+ renglones de arranque → cero avisos (el techo
+inalcanzable murió). El conteo (B2) vive: `contarEncendido` cuenta la misma
+lista que enciende installApp, con test de que la lista vieja mentiría.
+
+**N1 (esImportable):** (1) pesas/yoga/pilates/básquet ('other', 20 m
+agregados) → FUERA, y con ello el electrón de cardio por pesas; (2)
+deporte desconocido con GPS real ('other', ≥150 m) → entra; (3) 'other'
+sin distancia → fuera; (4) caminata/senderismo → fuera siempre; (5)
+alberca/remo máquina/caminadora Android con agregado ambiental → ENTRAN
+(B8 vivo); (6) outdoor 10 m en 6 min → fuera (ruido); (7) outdoor 40 m en
+30 min → ENTRA (salvavidas); (8) mapeado sin distancia o en 0 → entra;
+(9) iOS espejo de 6-7; (10) <5 min → fuera. Fronteras exactas en test:
+150 m y 1200 s.
+
+**B1 (recalcPeriods + anclas + frescura):** (1) marcar → reconstruye (como
+siempre); (2) desmarcar → reconstruye (el zombi muere); (3) desmarcar el
+último día con período → la tabla se LIMPIA (el return temprano murió);
+(4) editar síntomas sin tocar is_period → no reconstruye (nada cambió);
+(5) fase de hoy con dato viejo → null en TODAS las superficies; (6)
+overlay histórico de emotion-history → getCycleBasics sin guarda de hoy,
+su guarda por fecha sigue; (7) bandas + predicción de período + punto de
+ovulación → UNA ancla (inicioCalendario); (8) procedencia del largo → se
+dice en /cycle Y en Entrenar. El test ejecuta el caso del audit por los
+dos caminos de entrada y demuestra la corrupción vieja (Día 1 Menstrual,
+observado 30 en vez de 31).
+
+**B4 (savePlanSemanal):** los 6 casos — normal ok; insert falla → intacto
++ false; apagar día + poda falla → ROLLBACK a estado exacto + false;
+vaciar + poda falla → false (el usuario ve el error, no un éxito con el
+plan vivo); poda y rollback fallan → duplicados temporales + false (B7
+resuelve al más nuevo, el siguiente guardado poda); lectura falla → false
+sin tocar nada. `ok: true` existe UNA vez en el cuerpo (contrato).
+
+**B5 (caché):** lectura ok → cachea {usuario, fecha local, filas}; red
+caída mismo día → sirve caché (misma rutina, mismo kicker que en la
+mañana); otro día / otro usuario / caché corrupto → null (mañana es otra
+asignación); guardar plan ok → INVALIDA (no se sirve el plan recién
+cambiado); guardar falla → caché intacto (el plan viejo sigue siendo la
+verdad). Cubre hub y fitness-train (ambos pasan por getAsignaciones).
+
+**B6 (composición):** (1) filtro asimétrico muerto: ambos candidatos son
+"última fila CON peso" (health-score ganó el `.not('weight_kg','is',null)`
+que ya tenía nutrition) → mismo peso en ambas superficies, verificado en
+test contra pesoMasReciente; (2) ganador con bloque completo → todo de la
+misma medición, cero collage; (3) ganador sin un campo → se completa del
+otro registro DECLARADO en `completadosDelOtro`; (4) músculo en kg → % con
+el peso de SU registro; (5) un solo registro → sin inventos; (6) ninguno →
+nulls (defaults solo en el engine); (7) empate de fecha → canónica.
+
+## 3 · Las tres decisiones defendidas
+
+**recalcPeriods:** reconstrucción completa ante CUALQUIER cambio de
+`is_period` (comparado contra el valor previo del log). Costo: 1 select +
+1 delete + 1 insert batch por edición de período — barato. Compra: la
+tabla derivada JAMÁS diverge de los logs, que son la fuente del gesto. La
+alternativa (parchar solo el grupo tocado) ahorra un query y reabre los
+estados intermedios corruptos que REG-2 ya había enterrado.
+
+**Salvavidas del GPS fallido:** SÍ, por duración — en disciplina MAPEADA
+con distancia propia diminuta, ≥20 min entra. Defensa: el TIPO del
+proveedor ya es evidencia de ejercicio (alguien/algo lo etiquetó carrera);
+con duración sustancial, el GPS casi en cero es sensor muerto y no ruido.
+20 min separa limpio: el glitch corto típico (paseo al súper mal
+etiquetado, arranque accidental) no llega; una carrera real sí o sí.
+'other' NO tiene salvavidas: sin tipo confiable, la distancia es su único
+discriminante y el piso es absoluto.
+
+**Completar campos entre registros de distinta fecha:** el registro
+ganador (última fila CON peso) aporta su bloque completo; el campo que no
+trae se completa del otro registro y queda DECLARADO en
+`completadosDelOtro`. Defensa: si la usuaria no volvió a medir grasa,
+cualquier regla mezcla épocas para el FFMI — el default inventado (20 %)
+también fabrica uno que nunca existió, y el dato viejo al menos fue de su
+cuerpo. La diferencia con la regresión señalada: la mezcla dejó de ser el
+camino por defecto y silencioso; es fallback explícito, visible al caller.
+
+## Cierre de la vuelta
+
+- B3 murió con la doctrina (la mitad viva — el consentimiento de reposo —
+  quedó y está en contrato).
+- El copy de cardio-import dice las reglas nuevas en sus DOS superficies.
+- El panel del coach ya no pinta el plan propio del cliente como chips de
+  rutina asignada (`.is('focus', null)`; asume la 257, mismo contrato
+  merge → db push → OTA de todo el run).
+- `?focus=` abre el teclado (autoFocus en los 4 campos ruteados); peso es
+  el primer campo del form, el scroll no aplica ahí.
