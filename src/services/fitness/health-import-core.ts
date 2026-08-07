@@ -129,22 +129,40 @@ export const MIN_IMPORT_DURATION_SECONDS = 300;
  */
 export const MIN_IMPORT_DISTANCE_METERS = 150;
 
-/** Reglas que separan entrenamiento de ruido:
- *  · duración mínima 5 min;
- *  · caminatas y senderismo FUERA aunque traigan GPS (test 11) — para eso
- *    viaja el tipo crudo clasificado (esCaminata);
- *  · lo no mapeado ('other') sin distancia no se importa;
- *  · distancia positiva pero diminuta = ruido de GPS, fuera — SOLO donde
- *    la distancia es señal del propio ejercicio (audit B8: el aggregate
- *    de Android en indoor es ruido ambiental y no descalifica nada). */
+/**
+ * Audit V2 N1 — salvavidas del GPS fallido: en disciplina MAPEADA, una
+ * sesión de esta duración o más con GPS casi en cero es GPS muerto, no
+ * ruido (el tipo del proveedor ya es evidencia de ejercicio). La carrera
+ * real de 30 min con 40 m se salva; los 10 m en 6 min siguen fuera.
+ */
+export const SALVAVIDAS_GPS_SECONDS = 1200;
+
+/**
+ * Reglas que separan entrenamiento de ruido. Audit V2 N1: son DOS
+ * preguntas distintas y cada una tiene su rama:
+ *
+ *  1. ¿'other' tiene evidencia de ser ejercicio? La distancia es su ÚNICO
+ *     discriminante → el piso de 150 m aplica SIEMPRE ahí, propia o
+ *     agregada. Los 20 m de caminar entre máquinas no vuelven cardio una
+ *     sesión de pesas (tipo 80), yoga, pilates ni básquet.
+ *  2. ¿La distancia es ruido ambiental? Solo en lo MAPEADO: el aggregate
+ *     de Android en indoor (alberca, remo de máquina, caminadora) no
+ *     descalifica nada (B8); el GPS propio (outdoor/iOS) sí corta, con el
+ *     salvavidas de duración para el GPS fallido.
+ *
+ *  Y siempre: duración mínima 5 min; caminatas y senderismo fuera.
+ */
 export function esImportable(w: NormalizedWorkout): boolean {
   if (w.durationSeconds < MIN_IMPORT_DURATION_SECONDS) return false;
   if (w.esCaminata) return false;
-  if (w.discipline === 'other' && (w.distanceMeters == null || w.distanceMeters <= 0)) return false;
+  if (w.discipline === 'other') {
+    return w.distanceMeters != null && w.distanceMeters >= MIN_IMPORT_DISTANCE_METERS;
+  }
   if (
     w.distanciaPropia &&
     w.distanceMeters != null && w.distanceMeters > 0 &&
-    w.distanceMeters < MIN_IMPORT_DISTANCE_METERS
+    w.distanceMeters < MIN_IMPORT_DISTANCE_METERS &&
+    w.durationSeconds < SALVAVIDAS_GPS_SECONDS
   ) return false;
   return true;
 }

@@ -257,9 +257,10 @@ export default function CardioImportScreen() {
                     si cambian las reglas, cambia este texto en el mismo commit. */}
                 <EliteText style={s.cardBody}>
                   {nombre} no tiene entrenamientos recientes que leer. Se
-                  importan sesiones de 5 minutos o más; las caminatas, los
-                  registros con GPS menor a 150 metros y las actividades sin
-                  disciplina reconocida ni distancia se quedan fuera. Si tu
+                  importan sesiones de 5 minutos o más. Fuera quedan: las
+                  caminatas, las actividades sin disciplina reconocida que no
+                  traen una distancia real (150 m o más), y las salidas
+                  cortas al aire libre cuyo GPS quedó casi en cero. Si tu
                   app (Strava, Garmin…) no sincroniza con {nombre}, actívalo en
                   la configuración de esa app: ahí es donde ATP puede leerlos.
                 </EliteText>
@@ -348,9 +349,10 @@ export default function CardioImportScreen() {
                     {/* MB-27 menor 4: las reglas se dicen TAMBIÉN aquí — quien
                         importó dos carreras y no ve sus tres caminatas merece
                         saber por qué, no solo quien vio el estado vacío. */}
-                    Se importan sesiones de 5 minutos o más; las caminatas, los
-                    registros con GPS menor a 150 metros y las actividades sin
-                    disciplina reconocida ni distancia se quedan fuera.
+                    Se importan sesiones de 5 minutos o más. Fuera quedan: las
+                    caminatas, las actividades sin disciplina reconocida que no
+                    traen una distancia real (150 m o más), y las salidas
+                    cortas al aire libre cuyo GPS quedó casi en cero.
                   </EliteText>
                 </>
               ) : (

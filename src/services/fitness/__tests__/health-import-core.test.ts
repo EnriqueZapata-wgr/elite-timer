@@ -15,6 +15,7 @@ import {
   importOtorgaElectron,
   esImportable,
   MIN_IMPORT_DISTANCE_METERS,
+  SALVAVIDAS_GPS_SECONDS,
   type NormalizedWorkout,
   type ExistingSessionLike,
 } from '../health-import-core';
@@ -133,12 +134,45 @@ describe('reglas de import (NOCTURNO B2 · MB-27 P4.2 = mutación 11)', () => {
     expect(esImportable(w({ discipline: 'other', distanceMeters: 3000, esCaminata: false }))).toBe(true);
   });
 
+  // Audit V2 N1: el piso de 'other' aplica SIEMPRE — la distancia es su
+  // único discriminante, propia o agregada.
+  it('N1: la sesión de pesas (other, 45 min, 20 m de agregado) NO entra como cardio', () => {
+    expect(esImportable(w({
+      discipline: 'other', durationSeconds: 2700,
+      distanceMeters: 20, distanciaPropia: false,
+    }))).toBe(false);
+    // Igual yoga/pilates/básquet: other + distancia diminuta = fuera,
+    // sin importar la bandera de procedencia de la distancia.
+    expect(esImportable(w({
+      discipline: 'other', durationSeconds: 3600,
+      distanceMeters: 149, distanciaPropia: true,
+    }))).toBe(false);
+    // La frontera exacta de 'other':
+    expect(esImportable(w({ discipline: 'other', distanceMeters: MIN_IMPORT_DISTANCE_METERS }))).toBe(true);
+  });
+
+  it('N1: el salvavidas — carrera outdoor de 30 min con GPS fallido (40 m) SÍ entra', () => {
+    expect(esImportable(w({
+      discipline: 'running', durationSeconds: 1800,
+      distanceMeters: 40, distanciaPropia: true,
+    }))).toBe(true);
+    // La frontera del salvavidas: bajo 20 min el GPS diminuto sigue siendo ruido.
+    expect(esImportable(w({
+      discipline: 'running', durationSeconds: SALVAVIDAS_GPS_SECONDS,
+      distanceMeters: 40, distanciaPropia: true,
+    }))).toBe(true);
+    expect(esImportable(w({
+      discipline: 'running', durationSeconds: SALVAVIDAS_GPS_SECONDS - 1,
+      distanceMeters: 40, distanciaPropia: true,
+    }))).toBe(false);
+  });
+
   it('mutación 11: 10 metros en 6 minutos NO entra; correr 2 km sí', () => {
     expect(esImportable(w({ durationSeconds: 360, distanceMeters: 10 }))).toBe(false);
     expect(esImportable(w({ durationSeconds: 720, distanceMeters: 2000 }))).toBe(true);
-    // La frontera exacta.
-    expect(esImportable(w({ distanceMeters: MIN_IMPORT_DISTANCE_METERS - 1 }))).toBe(false);
-    expect(esImportable(w({ distanceMeters: MIN_IMPORT_DISTANCE_METERS }))).toBe(true);
+    // La frontera exacta (en mapeado, corto y con GPS propio).
+    expect(esImportable(w({ durationSeconds: 720, distanceMeters: MIN_IMPORT_DISTANCE_METERS - 1 }))).toBe(false);
+    expect(esImportable(w({ durationSeconds: 720, distanceMeters: MIN_IMPORT_DISTANCE_METERS }))).toBe(true);
   });
 
   it('distancia ausente o en cero NO descalifica (caminadora, remo bajo techo)', () => {
