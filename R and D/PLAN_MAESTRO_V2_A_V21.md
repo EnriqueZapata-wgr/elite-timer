@@ -1,6 +1,13 @@
 # 🗺️ Plan maestro · de donde estamos a V2.1
 
 **Fecha:** 5-ago-2026 · Enrique + Cowork
+
+> 📌 **Nota de numeración (MB-27, 6-ago).** Este plan quedó corrido UN número
+> desde MB-26: aquí "MB-26" es Cuerpo y "MB-27" es Nutrición, pero
+> `ESTADO_CONTINUIDAD.md` (más reciente) manda: **MB-26 fue el día
+> inteligente, MB-27 es Cuerpo, MB-28 Nutrición, MB-29 Salud fino, MB-30
+> Sueño+build, MB-31 la piel, MB-32 DIFY.** Al leer los bloques de abajo,
+> súmale uno al número desde Cuerpo en adelante.
 **Principio rector:** la distancia entre dolor y solución es implementación.
 DIY (low ticket) → DIWY (medium) → DIFY (high). **V2.0 sube la app de DIY a DIWY.
 La capa DIFY es ARGOS operando los packs, y va al final a propósito: necesita datos
