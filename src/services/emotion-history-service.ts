@@ -9,7 +9,7 @@
  * "sin datos" en vez de tirar la pantalla completa.
  */
 import { supabase } from '@/src/lib/supabase';
-import { getCycleInfo, getPhase } from '@/src/services/cycle-service';
+import { getCycleBasics, getPhase } from '@/src/services/cycle-service';
 import { parseLocalDate, toLocalDateString } from '@/src/utils/date-helpers';
 import { warn as logWarn } from '@/src/lib/logger';
 import type { QuadrantKey } from '@/src/data/emotions-library';
@@ -206,11 +206,16 @@ async function fetchSunDates(userId: string, since: string): Promise<string[]> {
  * Fase del ciclo por fecha local, usando los periodos reales registrados
  * (últimos 6) + la fase pura de cycle-service. Días más allá de la longitud
  * del ciclo desde el último periodo conocido quedan SIN fase (no se inventa).
- * getCycleInfo ya trae el auto-gate por biological_sex (devuelve null si no aplica).
+ *
+ * Audit V2 B1: consume getCycleBasics, NO getCycleInfo — la guarda de
+ * frescura protege la afirmación "HOY estás en fase X", no el mapeo
+ * histórico: una usuaria con último inicio hace 46 días conserva el
+ * overlay de los días pasados que sí se resuelven (la guarda por fecha de
+ * abajo sigue cortando lo que no). El gate viene incluido igual.
  */
 async function fetchPhaseByDate(userId: string): Promise<Record<string, string> | null> {
   try {
-    const info = await getCycleInfo(userId);
+    const info = await getCycleBasics(userId);
     if (!info || !info.periods?.length) return null;
     const periods: { start_date: string }[] = [...info.periods]
       .sort((a, b) => (a.start_date < b.start_date ? 1 : -1)); // desc

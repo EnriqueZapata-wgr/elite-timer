@@ -51,7 +51,10 @@ export default function FitnessTrainScreen() {
   // (canAccessCycle: solo mujer en modo propio, con datos). null = esta
   // pantalla se comporta EXACTAMENTE como hoy: nada que pedir, nada que
   // esconder — degrada callada (3.3).
-  const [fase, setFase] = useState<{ phase: string; day: number } | null>(null);
+  const [fase, setFase] = useState<{
+    phase: string; day: number; cycleLen: number;
+    largoFuente: 'observado' | 'ajuste'; cyclesUsed: number;
+  } | null>(null);
 
   useFocusEffect(useCallback(() => {
     let alive = true;
@@ -62,7 +65,12 @@ export default function FitnessTrainScreen() {
     // cambiar de modo sin desmontar.
     getCycleInfo(user.id)
       .then((info) => {
-        if (alive) setFase(info ? { phase: info.currentPhase, day: info.currentDay } : null);
+        if (alive) {
+          setFase(info ? {
+            phase: info.currentPhase, day: info.currentDay, cycleLen: info.cycleLen,
+            largoFuente: info.largoFuente, cyclesUsed: info.cyclesUsed,
+          } : null);
+        }
       })
       .catch(() => { if (alive) setFase(null); });
     return () => { alive = false; };
@@ -167,6 +175,13 @@ export default function FitnessTrainScreen() {
                   Fase {PHASES[fase.phase].label.toLowerCase()} · día {fase.day}
                 </EliteText>
                 <EliteText style={s.faseCopy}>{PHASES[fase.phase].exercise}</EliteText>
+                {/* Audit V2 B1: el número SIEMPRE dice de dónde sale — regla
+                    de la casa desde M3.b, ahora también fuera de /cycle. */}
+                <EliteText style={s.faseFuente}>
+                  {fase.largoFuente === 'observado'
+                    ? `Ciclo de ${fase.cycleLen} días: promedio de tus últimos ${fase.cyclesUsed} ciclos registrados.`
+                    : `Ciclo de ${fase.cycleLen} días: tu ajuste manual.`}
+                </EliteText>
               </View>
             </AnimatedPressable>
           </Animated.View>
@@ -233,6 +248,7 @@ const s = StyleSheet.create({
   },
   faseTitulo: { fontSize: FontSizes.xs, fontFamily: Fonts.bold, letterSpacing: 0.5, marginBottom: 2 },
   faseCopy: { fontSize: FontSizes.sm, color: TEXT_COLORS.secondary, lineHeight: 18 },
+  faseFuente: { fontSize: FontSizes.xs, color: TEXT_COLORS.muted, marginTop: 4 },
 
   sectionLabel: {
     fontSize: 11, fontFamily: Fonts.bold, color: TEXT_COLORS.secondary,

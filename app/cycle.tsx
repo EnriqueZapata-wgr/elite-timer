@@ -25,6 +25,7 @@ import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
 import { getMonthDays, getWeekdayMondayFirst } from '@/src/utils/cycle-calendar';
 import { getPhase, resolverCiclo, largoDeCiclo } from '@/src/services/cycle/cycle-phase-core';
+import { agruparPeriodos } from '@/src/services/cycle/cycle-periods-core';
 import { haptic } from '@/src/utils/haptics';
 import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
@@ -302,23 +303,29 @@ export default function CycleScreen() {
     return calcPhase(resolucion.day, resolucion.cycleLen, resolucion.periodLen);
   }, [resolucion]);
 
+  // Audit V2 B1: UNA sola ancla para TODO el calendario — la misma de la
+  // resolución (periods manda, logs de fallback). Antes las bandas usaban
+  // resolucion.inicio y las predicciones lastPeriodStart de logs: card
+  // "Día 1" con el punto de ovulación de otra fecha en un solo scroll.
+  const inicioCalendario = resolucion?.inicio ?? lastPeriodStart;
+
   // Predicciones: próximo período, ovulación y ventana fértil
   const predictions = useMemo(() => {
     // MB-7: en modo embarazo NO se predice menstruación (doctrina 080).
     if (pregnancy) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
-    if (!lastPeriodStart) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
+    if (!inicioCalendario) return { periodDays: new Set<string>(), ovDay: '', fertileDays: new Set<string>() };
     const cl = cycleLen;
     const pl = settings.avg_period_length;
     // Próximo período predicho
-    const nextStart = addDays(lastPeriodStart, cl);
+    const nextStart = addDays(inicioCalendario, cl);
     const pDays = new Set<string>();
     for (let i = 0; i < pl; i++) pDays.add(addDays(nextStart, i));
-    // Ovulación y ventana fértil
-    const ovDate = addDays(lastPeriodStart, Math.round(cl / 2) - 1);
+    // Ovulación y ventana fértil (predicción de concepción, no fase)
+    const ovDate = addDays(inicioCalendario, Math.round(cl / 2) - 1);
     const fDays = new Set<string>();
     for (let i = -3; i <= 1; i++) fDays.add(addDays(ovDate, i));
     return { periodDays: pDays, ovDay: ovDate, fertileDays: fDays };
-  }, [lastPeriodStart, settings, cycleLen, pregnancy]);
+  }, [inicioCalendario, settings, cycleLen, pregnancy]);
 
   // Calendario: días del mes visible
   const monthDays = useMemo(() => getMonthDays(calMonth.year, calMonth.month), [calMonth]);
@@ -425,8 +432,13 @@ export default function CycleScreen() {
       }, { onConflict: 'user_id,date' });
 
       if (error) throw error;
-      // Recalcular cycle_periods si se marcó período
-      if (d.is_period) await recalcPeriods();
+      // Audit V2 B1: cycle_periods se reconstruye ante CUALQUIER cambio de
+      // is_period — marcar Y desmarcar. Solo-marcar dejaba un período
+      // fantasma permanente (el zombi) que contaminaba fase, largo
+      // observado y todos los consumidores de getCycleInfo. Editar
+      // síntomas sin tocar el período no recalcula: nada cambió.
+      const periodoAntes = logsMap.get(editorDate)?.is_period ?? false;
+      if ((d.is_period ?? false) !== periodoAntes) await recalcPeriods();
       haptic.success();
       setEditorVisible(false);
       await loadData();
@@ -451,28 +463,23 @@ export default function CycleScreen() {
         Alert.alert('Error', 'No se pudo recalcular el historial del ciclo.');
         return;
       }
-      if (!data?.length) return;
 
-      // Agrupar consecutivos
-      const groups: { s: string; e: string }[] = [];
-      let cs = data[0].date, ce = cs;
-      for (let i = 1; i < data.length; i++) {
-        if (diffDays(ce, data[i].date) === 1) { ce = data[i].date; }
-        else { groups.push({ s: cs, e: ce }); cs = data[i].date; ce = cs; }
+      // Audit V2 B1: el agrupado vive en cycle-periods-core (puro, con el
+      // zombi en test). Lista VACÍA = desmarcó el último día con período:
+      // la tabla se limpia — el return temprano viejo la dejaba intacta.
+      const periodos = agruparPeriodos((data ?? []).map((r: { date: string }) => r.date));
+      if (periodos.length === 0) {
+        const { error: clearError } = await supabase
+          .from('cycle_periods').delete().eq('user_id', userId);
+        if (clearError) Alert.alert('Error', 'No se pudo limpiar el historial del ciclo.');
+        return;
       }
-      groups.push({ s: cs, e: ce });
 
       // REG-2: armar filas y hacer UN solo insert batch. Antes hacíamos N
       // inserts secuenciales: si uno fallaba a la mitad, el historial
       // quedaba parcialmente reescrito (corrupto). Si el insert batch
       // falla, NO hacemos el delete (ver orden abajo).
-      const rows = groups.map((g, i) => ({
-        user_id: userId,
-        start_date: g.s,
-        end_date: g.e,
-        period_length: diffDays(g.s, g.e) + 1,
-        cycle_length: i > 0 ? diffDays(groups[i - 1].s, g.s) : null,
-      }));
+      const rows = periodos.map((p) => ({ user_id: userId, ...p }));
 
       const { error: deleteError } = await supabase
         .from('cycle_periods').delete().eq('user_id', userId);
@@ -683,14 +690,11 @@ export default function CycleScreen() {
                   bg = isFut ? withOpacity(YELLOW, 0.15) : withOpacity(YELLOW, 0.4);
                 } else if (isFert) {
                   bg = isFut ? withOpacity(GREEN, 0.1) : withOpacity(GREEN, 0.35);
-                } else if (resolucion?.inicio ?? lastPeriodStart) {
+                } else if (inicioCalendario) {
                   // Audit B1: las bandas cortan con LA MISMA resolución que
-                  // la card — mismo inicio (periods manda, logs de fallback)
-                  // y mismo largo (observado sobre ajuste). Antes usaban
-                  // settings crudo: card "Folicular" sobre banda de
-                  // ovulación en la misma pantalla.
-                  const inicioBandas = resolucion?.inicio ?? lastPeriodStart!;
-                  const daysDiff = Math.floor((new Date(dateStr + 'T12:00:00').getTime() - new Date(inicioBandas + 'T12:00:00').getTime()) / 86400000);
+                  // la card Y la misma ancla que las predicciones
+                  // (inicioCalendario). Antes cada quien traía la suya.
+                  const daysDiff = Math.floor((new Date(dateStr + 'T12:00:00').getTime() - new Date(inicioCalendario + 'T12:00:00').getTime()) / 86400000);
                   const cycleDay = daysDiff >= 0 ? (daysDiff % cycleLen) + 1 : -1;
                   const BLUE_PHASE = '#38bdf8';
                   const PURPLE_PHASE = '#c084fc';

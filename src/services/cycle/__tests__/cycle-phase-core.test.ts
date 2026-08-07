@@ -12,6 +12,7 @@ import {
   getPhase, resolverCiclo, largoDeCiclo, FRESCURA_DIAS_EXTRA,
   PHASE_FOLLICULAR_END, PHASE_OVULATION_END,
 } from '@/src/services/cycle/cycle-phase-core';
+import { agruparPeriodos } from '@/src/services/cycle/cycle-periods-core';
 
 const ROOT = path.resolve(__dirname, '../../../..');
 
@@ -130,6 +131,80 @@ describe('audit B1: UNA resolución de {inicio, largo, periodo} para todas las s
     expect(resolverCiclo({
       periods: [{ start_date: '2026-08-10' }], avgCycleLength: 28, hoy: '2026-08-06',
     })).toBe(null);
+  });
+});
+
+describe('audit V2 B1: el zombi de cycle_periods, EJECUTABLE (no textual)', () => {
+  /** Días consecutivos desde un inicio 'YYYY-MM-DD'. */
+  const marcar = (inicio: string, dias: number): string[] => {
+    const [y, m, d] = inicio.split('-').map(Number);
+    return Array.from({ length: dias }, (_, i) => {
+      const f = new Date(y, m - 1, d + i, 12);
+      return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+    });
+  };
+  // El caso del audit: ciclos reales 23-may, 23-jun, 24-jul (5 días c/u).
+  const LOGS_REALES = [
+    ...marcar('2026-05-23', 5), ...marcar('2026-06-23', 5), ...marcar('2026-07-24', 5),
+  ];
+
+  it('marcar por error y desmarcar deja los períodos EXACTAMENTE como antes', () => {
+    const antes = agruparPeriodos(LOGS_REALES);
+    expect(antes.map((p) => p.start_date)).toEqual(['2026-05-23', '2026-06-23', '2026-07-24']);
+    // La usuaria marca el 20-ago por error → el período fantasma existe:
+    const zombi = agruparPeriodos([...LOGS_REALES, '2026-08-20']);
+    expect(zombi.map((p) => p.start_date)).toContain('2026-08-20');
+    // Desmarca → recalc corre con CUALQUIER cambio de is_period (la
+    // pantalla ya reconstruye también al desmarcar) → idéntico al original:
+    expect(agruparPeriodos(LOGS_REALES)).toEqual(antes);
+  });
+
+  it('la MISMA fase en todas las superficies con los mismos datos (los dos caminos de entrada)', () => {
+    const periodos = agruparPeriodos(LOGS_REALES);
+    const periodsDesc = [...periodos].reverse().map((p) => ({ start_date: p.start_date }));
+    const hoy = '2026-08-20';
+    // Camino de getCycleInfo (Entrenar/day-compiler/motor): solo periods.
+    const viaInfo = resolverCiclo({ periods: periodsDesc, avgCycleLength: 28, avgPeriodLength: 5, hoy });
+    // Camino de la card de /cycle: periods + inicio derivado de logs.
+    const viaPantalla = resolverCiclo({
+      periods: periodsDesc, inicioDeLogs: '2026-07-24', avgCycleLength: 28, avgPeriodLength: 5, hoy,
+    });
+    expect(viaPantalla).toEqual(viaInfo);
+    // Y es la fase CORRECTA: día 28 de un ciclo observado de 31 → lútea.
+    expect(viaInfo).toMatchObject({ day: 28, cycleLen: 31, phase: 'luteal', largoFuente: 'observado' });
+  });
+
+  it('con el zombi vivo la fase se corrompía a Día 1 Menstrual y el observado promediaba basura', () => {
+    const zombi = agruparPeriodos([...LOGS_REALES, '2026-08-20']);
+    const zombiDesc = [...zombi].reverse().map((p) => ({ start_date: p.start_date }));
+    const res = resolverCiclo({ periods: zombiDesc, avgCycleLength: 28, avgPeriodLength: 5, hoy: '2026-08-20' });
+    // Esto es lo que TODAS las superficies decían tras desmarcar (sin el fix):
+    expect(res).toMatchObject({ day: 1, phase: 'menstrual' });
+    // Y el hueco de 27 días pasaba el filtro fisiológico → promedio contaminado.
+    expect(res?.largoFuente).toBe('observado');
+    expect(res?.cycleLen).not.toBe(31);
+  });
+
+  it('desmarcar el último día con período deja la lista vacía (la tabla se limpia)', () => {
+    expect(agruparPeriodos([])).toEqual([]);
+    // Y el agrupado aguanta desorden y duplicados (la query ya ordena, pero
+    // el core no depende de eso):
+    const desordenado = agruparPeriodos(['2026-07-26', '2026-07-24', '2026-07-25', '2026-07-24']);
+    expect(desordenado).toEqual([
+      { start_date: '2026-07-24', end_date: '2026-07-26', period_length: 3, cycle_length: null },
+    ]);
+  });
+
+  it('ratchet: la pantalla reconstruye ante cualquier cambio y todo el calendario usa UNA ancla', () => {
+    const src = fs.readFileSync(path.join(ROOT, 'app/cycle.tsx'), 'utf8');
+    // recalc con marcar Y desmarcar (comparación contra el valor previo):
+    expect(src).toMatch(/!== periodoAntes\) await recalcPeriods\(\)/);
+    expect(src, 'el recalc solo-al-marcar no puede volver').not.toMatch(/if \(d\.is_period\) await recalcPeriods/);
+    // el agrupado es el del core (con el zombi en test):
+    expect(src).toMatch(/agruparPeriodos/);
+    // predicciones y bandas comparten ancla:
+    expect(src).toMatch(/inicioCalendario/);
+    expect(src, 'las predicciones no pueden re-anclarse a los logs').not.toMatch(/addDays\(lastPeriodStart/);
   });
 });
 

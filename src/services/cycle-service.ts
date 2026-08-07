@@ -5,7 +5,7 @@ import { parseLocalDate, getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { cycleLengthsFromPeriods } from '@/src/services/cycle/cycle-length-core';
 import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
-import { resolverCiclo } from '@/src/services/cycle/cycle-phase-core';
+import { resolverCiclo, largoDeCiclo } from '@/src/services/cycle/cycle-phase-core';
 
 // MB-27 P3 + audit B1: la función de fase Y la resolución {inicio, largo,
 // periodo} viven en cycle-phase-core (ÚNICAS, con test de mutación). Se
@@ -139,8 +139,39 @@ export async function getCycleInfo(userId: string) {
   return {
     currentDay: res.day, currentPhase: res.phase, phaseInfo: PHASES[res.phase],
     prediction: pred, periods, cycleLen: res.cycleLen, periodLen: res.periodLen,
+    // Audit V2 B1: de dónde salió el largo — regla de la casa: quien pinte
+    // el número LO DICE (Entrenar incluido, no solo /cycle).
+    largoFuente: res.largoFuente, cyclesUsed: res.cyclesUsed,
     isOnPeriod: !periods[0].end_date,
   };
+}
+
+/**
+ * Audit V2 B1 — los datos CRUDOS del ciclo con el gate incluido, SIN la
+ * guarda de frescura de HOY. Para consumidores HISTÓRICOS
+ * (emotion-history): la frescura protege la afirmación "hoy estás en fase
+ * X", no el mapeo de fechas pasadas — una usuaria con último inicio hace
+ * 46 días conserva el overlay de los días que SÍ se resuelven; su guarda
+ * por fecha (day > cycleLen → sin fase) vive en el consumidor.
+ * null = gate cerrado o sin datos, igual que getCycleInfo.
+ */
+export async function getCycleBasics(userId: string): Promise<
+  { periods: { start_date: string; end_date: string | null }[]; cycleLen: number; periodLen: number } | null
+> {
+  const [{ data: prof }, mode] = await Promise.all([
+    supabase.from('client_profiles').select('biological_sex').eq('user_id', userId).maybeSingle(),
+    import('@/src/services/app-mode-service').then((m) => m.getCycleAppMode(userId)),
+  ]);
+  if (!canAccessCycle((prof as any)?.biological_sex, mode)) return null;
+
+  const [periodsRes, settingsRes] = await Promise.all([
+    supabase.from('cycle_periods').select('*').eq('user_id', userId).order('start_date', { ascending: false }).limit(6),
+    supabase.from('cycle_settings').select('*').eq('user_id', userId).single(),
+  ]);
+  const periods = periodsRes.data ?? [];
+  if (!periods.length) return null;
+  const { cycleLen } = largoDeCiclo(periods, settingsRes.data?.avg_cycle_length);
+  return { periods, cycleLen, periodLen: settingsRes.data?.avg_period_length ?? 5 };
 }
 
 // F6 (#26): startPeriod/endPeriod/logSymptoms/getTodaySymptoms eliminados —
