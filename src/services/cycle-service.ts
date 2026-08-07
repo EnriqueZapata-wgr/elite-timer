@@ -1,15 +1,16 @@
 /**
  * Cycle Service — Tracking de ciclo menstrual, fases, predicción, ajustes.
  */
-import { parseLocalDate } from '@/src/utils/date-helpers';
+import { parseLocalDate, getLocalToday } from '@/src/utils/date-helpers';
 import { supabase } from '@/src/lib/supabase';
 import { cycleLengthsFromPeriods } from '@/src/services/cycle/cycle-length-core';
 import { canAccessCycle } from '@/src/services/cycle/cycle-access-core';
-import { getPhase } from '@/src/services/cycle/cycle-phase-core';
+import { resolverCiclo } from '@/src/services/cycle/cycle-phase-core';
 
-// MB-27 P3: la función de fase vive en cycle-phase-core (ÚNICA, con test de
-// mutación). Se re-exporta para los importadores de siempre.
-export { getPhase } from '@/src/services/cycle/cycle-phase-core';
+// MB-27 P3 + audit B1: la función de fase Y la resolución {inicio, largo,
+// periodo} viven en cycle-phase-core (ÚNICAS, con test de mutación). Se
+// re-exportan para los importadores de siempre.
+export { getPhase, resolverCiclo } from '@/src/services/cycle/cycle-phase-core';
 export type { CyclePhase } from '@/src/services/cycle/cycle-phase-core';
 
 // ═══ FASES ═══
@@ -78,9 +79,9 @@ export const PHASES: Record<string, PhaseInfo> = {
 
 // ═══ CÁLCULOS ═══
 
-export function getCycleDay(lastPeriodStart: string): number {
-  return Math.floor((Date.now() - parseLocalDate(lastPeriodStart).getTime()) / 86400000) + 1;
-}
+// Audit B1: getCycleDay murió — era una resolución paralela del día del
+// ciclo (Date.now contra parseLocalDate) sin guarda de frescura. El día
+// canónico sale de resolverCiclo, siempre.
 
 export function predictNext(periods: { start_date: string }[]): { date: Date; daysUntil: number; confidence: string } {
   if (!periods.length) return { date: new Date(), daysUntil: 0, confidence: 'sin datos' };
@@ -121,14 +122,23 @@ export async function getCycleInfo(userId: string) {
   const periods = periodsRes.data ?? [];
   if (!periods.length) return null;
   const settings = settingsRes.data;
-  const cycleLen = settings?.avg_cycle_length ?? 28;
-  const periodLen = settings?.avg_period_length ?? 5;
-  const day = getCycleDay(periods[0].start_date);
-  const phase = getPhase(day, cycleLen, periodLen);
+
+  // Audit B1: LA resolución (cycle-phase-core) — largo observado sobre
+  // ajuste manual y guarda de frescura ADENTRO. Una usuaria que dejó de
+  // registrar no ve "fase lútea, día 187" en Entrenar: ve nada, igual que
+  // en /cycle. Misma entrada, misma fase, en todas las superficies.
+  const res = resolverCiclo({
+    periods,
+    avgCycleLength: settings?.avg_cycle_length,
+    avgPeriodLength: settings?.avg_period_length,
+    hoy: getLocalToday(),
+  });
+  if (!res) return null;
+
   const pred = predictNext(periods);
   return {
-    currentDay: day, currentPhase: phase, phaseInfo: PHASES[phase],
-    prediction: pred, periods, cycleLen, periodLen,
+    currentDay: res.day, currentPhase: res.phase, phaseInfo: PHASES[res.phase],
+    prediction: pred, periods, cycleLen: res.cycleLen, periodLen: res.periodLen,
     isOnPeriod: !periods[0].end_date,
   };
 }

@@ -9,7 +9,8 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  getPhase, PHASE_FOLLICULAR_END, PHASE_OVULATION_END,
+  getPhase, resolverCiclo, largoDeCiclo, FRESCURA_DIAS_EXTRA,
+  PHASE_FOLLICULAR_END, PHASE_OVULATION_END,
 } from '@/src/services/cycle/cycle-phase-core';
 
 const ROOT = path.resolve(__dirname, '../../../..');
@@ -51,6 +52,87 @@ describe('getPhase — el corte canónico', () => {
   });
 });
 
+describe('audit B1: UNA resolución de {inicio, largo, periodo} para todas las superficies', () => {
+  // Usuaria del caso del audit: ciclos observados de 31 días (3 inicios con
+  // gaps de 31), ajuste manual en 28, hoy es su día 14.
+  const PERIODS_31 = [
+    { start_date: '2026-07-24' }, // inicio actual → hoy 2026-08-06 = día 14
+    { start_date: '2026-06-23' },
+    { start_date: '2026-05-23' },
+  ];
+
+  it('el caso del audit da UNA fase: observado 31 manda sobre ajuste 28 → folicular', () => {
+    const res = resolverCiclo({
+      periods: PERIODS_31,
+      avgCycleLength: 28,
+      avgPeriodLength: 5,
+      hoy: '2026-08-06',
+    });
+    // round(31·0.46) = 14 → día 14 sigue folicular. La vieja resolución de
+    // Entrenar (ajuste 28: round(28·0.46) = 13) habría dicho ovulación:
+    expect(getPhase(14, 28, 5)).toBe('ovulation'); // lo que decía Entrenar
+    expect(res).toMatchObject({
+      day: 14, cycleLen: 31, phase: 'follicular', largoFuente: 'observado',
+    });
+    // La MISMA entrada da la MISMA salida para /cycle, sus bandas y
+    // Entrenar: las tres superficies llaman esta función (ratchet abajo).
+  });
+
+  it('sin ciclos observados suficientes manda el ajuste manual', () => {
+    const res = resolverCiclo({
+      periods: [{ start_date: '2026-07-24' }],
+      avgCycleLength: 30,
+      avgPeriodLength: 6,
+      hoy: '2026-08-06',
+    });
+    expect(res).toMatchObject({ cycleLen: 30, periodLen: 6, largoFuente: 'ajuste' });
+    expect(largoDeCiclo([], null)).toMatchObject({ cycleLen: 28, fuente: 'ajuste' });
+  });
+
+  it('guarda de frescura ADENTRO: sin periodo nuevo tras largo+14 días no hay fase', () => {
+    // Último periodo hace ~187 días: nadie ve "fase lútea, día 187".
+    const res = resolverCiclo({
+      periods: [{ start_date: '2026-02-01' }],
+      avgCycleLength: 28,
+      avgPeriodLength: 5,
+      hoy: '2026-08-06',
+    });
+    expect(res).toBe(null);
+    // La frontera exacta: día cycleLen+14 aún resuelve; +15 ya no.
+    expect(resolverCiclo({
+      periods: [{ start_date: '2026-07-01' }], avgCycleLength: 28, hoy: '2026-08-11',
+    })?.day).toBe(28 + FRESCURA_DIAS_EXTRA);
+    expect(resolverCiclo({
+      periods: [{ start_date: '2026-07-01' }], avgCycleLength: 28, hoy: '2026-08-12',
+    })).toBe(null);
+  });
+
+  it('precedencia de inicio: cycle_periods manda; los logs solo son fallback sin periods', () => {
+    const conAmbos = resolverCiclo({
+      periods: [{ start_date: '2026-07-24' }],
+      inicioDeLogs: '2026-08-01',
+      avgCycleLength: 28,
+      hoy: '2026-08-06',
+    });
+    expect(conAmbos?.inicio).toBe('2026-07-24');
+    const soloLogs = resolverCiclo({
+      periods: [],
+      inicioDeLogs: '2026-08-01',
+      avgCycleLength: 28,
+      hoy: '2026-08-06',
+    });
+    expect(soloLogs?.inicio).toBe('2026-08-01');
+    expect(soloLogs?.day).toBe(6);
+    expect(resolverCiclo({ periods: [], hoy: '2026-08-06' })).toBe(null);
+  });
+
+  it('fecha futura respecto al inicio → null (no se inventa día negativo)', () => {
+    expect(resolverCiclo({
+      periods: [{ start_date: '2026-08-10' }], avgCycleLength: 28, hoy: '2026-08-06',
+    })).toBe(null);
+  });
+});
+
 describe('mutación 9: los umbrales viven en UN solo lugar', () => {
   const CONSUMIDORES = [
     'app/cycle.tsx',
@@ -69,18 +151,26 @@ describe('mutación 9: los umbrales viven en UN solo lugar', () => {
     }
   });
 
-  it('cycle.tsx, el calendario y Entrenar consumen el core (o el servicio que lo re-exporta)', () => {
-    const usaCore = (rel: string, patron: RegExp) => {
+  it('audit B1: las superficies consumen LA RESOLUCIÓN, no solo la función de fase', () => {
+    const usaCore = (rel: string, patron: RegExp, msg: string) => {
       const src = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-      expect(src, `${rel} no consume la fase canónica`).toMatch(patron);
+      expect(src, `${rel}: ${msg}`).toMatch(patron);
     };
-    usaCore('app/cycle.tsx', /cycle-phase-core/);
-    usaCore('src/components/cycle/CycleCalendar.tsx', /cycle-phase-core/);
-    usaCore('src/services/cycle-service.ts', /cycle-phase-core/);
+    // La card de /cycle y getCycleInfo (Entrenar/day-compiler/motor) pasan
+    // por resolverCiclo: mismo inicio, mismo largo, misma guarda.
+    usaCore('app/cycle.tsx', /resolverCiclo/, 'la card debe resolver con resolverCiclo');
+    usaCore('src/services/cycle-service.ts', /resolverCiclo/, 'getCycleInfo debe resolver con resolverCiclo');
+    // Y la resolución paralela vieja no puede volver:
+    const cycleService = fs.readFileSync(path.join(ROOT, 'src/services/cycle-service.ts'), 'utf8');
+    expect(cycleService, 'getCycleDay era la resolución paralela sin frescura').not.toMatch(/function getCycleDay/);
+    const cycleTsx = fs.readFileSync(path.join(ROOT, 'app/cycle.tsx'), 'utf8');
+    expect(cycleTsx, 'las bandas no pueden volver a cortar con settings crudo').not.toMatch(
+      /cycleDay = daysDiff >= 0 \? \(daysDiff % settings\.avg_cycle_length\)/,
+    );
     // Entrenar SOLO por getCycleInfo: el gate (mujer + modo propio) viene
     // incluido — mutación 10: acompañante y sin-datos degradan a null y la
     // pantalla queda como era.
-    usaCore('app/fitness-train.tsx', /getCycleInfo/);
+    usaCore('app/fitness-train.tsx', /getCycleInfo/, 'la fase de Entrenar solo llega por getCycleInfo');
   });
 
   it('mutación 10: Entrenar no abre camino lateral a las tablas del ciclo', () => {

@@ -24,7 +24,7 @@ import { supabase } from '@/src/lib/supabase';
 import { warn as logWarn } from '@/src/lib/logger';
 import { getLocalToday, toLocalDateString } from '@/src/utils/date-helpers';
 import { getMonthDays, getWeekdayMondayFirst } from '@/src/utils/cycle-calendar';
-import { getPhase } from '@/src/services/cycle/cycle-phase-core';
+import { getPhase, resolverCiclo, largoDeCiclo } from '@/src/services/cycle/cycle-phase-core';
 import { haptic } from '@/src/utils/haptics';
 import { InfoButton } from '@/src/components/InfoButton';
 import { CYCLE_INFO } from '@/src/constants/cycle-info';
@@ -34,7 +34,7 @@ import { MedicalDisclaimer } from '@/src/components/ui/MedicalDisclaimer';
 import { useCycleGate } from '@/src/hooks/use-cycle-gate';
 import { derivePregnancyProgress, type PregnancyStatus } from '@/src/utils/pregnancy';
 import { userErrorMessage } from '@/src/utils/user-error';
-import { observedCycleLength, type PeriodStartLike } from '@/src/services/cycle/cycle-length-core';
+import { type PeriodStartLike } from '@/src/services/cycle/cycle-length-core';
 
 // ═══ CONSTANTES ═══
 
@@ -274,18 +274,33 @@ export default function CycleScreen() {
     [pregnancyStatus, acompanante],
   );
 
-  // M3.b: la longitud del ciclo APRENDE de lo registrado. Con ≥2 ciclos
-  // válidos observados manda su promedio; si no, el ajuste manual. La card
-  // de fase SIEMPRE dice de dónde salió el número (nunca cambia en silencio).
-  const observed = useMemo(() => observedCycleLength(periods), [periods]);
-  const cycleLen = observed?.length ?? settings.avg_cycle_length;
+  // Audit B1: LA resolución {inicio, largo, periodo} vive en
+  // cycle-phase-core y es la MISMA que consume Entrenar vía getCycleInfo.
+  // Precedencia: cycle_periods manda el inicio (fallback a los logs de esta
+  // pantalla solo sin periods); el largo observado gana al ajuste manual;
+  // la guarda de frescura vive adentro. `largoDeCiclo` es el mismo punto de
+  // decisión para pintar el calendario cuando la resolución de HOY es null.
+  const resolucion = useMemo(
+    () => resolverCiclo({
+      periods,
+      inicioDeLogs: lastPeriodStart,
+      avgCycleLength: settings.avg_cycle_length,
+      avgPeriodLength: settings.avg_period_length,
+      hoy: today,
+    }),
+    [periods, lastPeriodStart, settings, today],
+  );
+  const largo = useMemo(
+    () => largoDeCiclo(periods, settings.avg_cycle_length),
+    [periods, settings.avg_cycle_length],
+  );
+  const observed = largo.fuente === 'observado' ? { cyclesUsed: largo.cyclesUsed } : null;
+  const cycleLen = resolucion?.cycleLen ?? largo.cycleLen;
 
   const phaseInfo = useMemo<PhaseInfo | null>(() => {
-    if (!lastPeriodStart) return null;
-    const day = diffDays(lastPeriodStart, today) + 1;
-    if (day < 1 || day > cycleLen + 14) return null;
-    return calcPhase(day, cycleLen, settings.avg_period_length);
-  }, [lastPeriodStart, today, settings, cycleLen]);
+    if (!resolucion) return null;
+    return calcPhase(resolucion.day, resolucion.cycleLen, resolucion.periodLen);
+  }, [resolucion]);
 
   // Predicciones: próximo período, ovulación y ventana fértil
   const predictions = useMemo(() => {
@@ -668,17 +683,19 @@ export default function CycleScreen() {
                   bg = isFut ? withOpacity(YELLOW, 0.15) : withOpacity(YELLOW, 0.4);
                 } else if (isFert) {
                   bg = isFut ? withOpacity(GREEN, 0.1) : withOpacity(GREEN, 0.35);
-                } else if (lastPeriodStart) {
-                  // MB-27 P3: las bandas del calendario cortan con LA MISMA
-                  // función que la card de fase (cycle-phase-core) — antes
-                  // este bloque usaba su propia mitad del ciclo y la card los
-                  // umbrales canónicos: dos fases el mismo día aquí mismo.
-                  const daysDiff = Math.floor((new Date(dateStr + 'T12:00:00').getTime() - new Date(lastPeriodStart + 'T12:00:00').getTime()) / 86400000);
-                  const cycleDay = daysDiff >= 0 ? (daysDiff % settings.avg_cycle_length) + 1 : -1;
+                } else if (resolucion?.inicio ?? lastPeriodStart) {
+                  // Audit B1: las bandas cortan con LA MISMA resolución que
+                  // la card — mismo inicio (periods manda, logs de fallback)
+                  // y mismo largo (observado sobre ajuste). Antes usaban
+                  // settings crudo: card "Folicular" sobre banda de
+                  // ovulación en la misma pantalla.
+                  const inicioBandas = resolucion?.inicio ?? lastPeriodStart!;
+                  const daysDiff = Math.floor((new Date(dateStr + 'T12:00:00').getTime() - new Date(inicioBandas + 'T12:00:00').getTime()) / 86400000);
+                  const cycleDay = daysDiff >= 0 ? (daysDiff % cycleLen) + 1 : -1;
                   const BLUE_PHASE = '#38bdf8';
                   const PURPLE_PHASE = '#c084fc';
                   if (cycleDay > 0) {
-                    const fase = getPhase(cycleDay, settings.avg_cycle_length, settings.avg_period_length);
+                    const fase = getPhase(cycleDay, cycleLen, settings.avg_period_length);
                     if (fase === 'follicular') {
                       bg = isFut ? withOpacity(BLUE_PHASE, 0.08) : withOpacity(BLUE_PHASE, 0.25);
                     } else if (fase === 'luteal') {
