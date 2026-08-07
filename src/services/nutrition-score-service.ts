@@ -19,24 +19,44 @@ import { getNutritionMode } from './nutrition-mode-service';
 import {
   computeNutritionScore,
   detectMicrosFromDescriptions,
+  elegirPesoKg,
   mealsWithinWindows,
   qualityRatioFromMealScores,
   type ScoreBreakdown,
 } from './nutrition-score-core';
 
-/** Peso más reciente del usuario (body_measurements) — null sin medición. */
+/**
+ * Peso más reciente del usuario — null sin medición.
+ * MB-27 1.2: la CANÓNICA es health_measurements (onboarding, /health-input,
+ * /edad-atp/composition — lo que el usuario de verdad llena). Antes leía
+ * SOLO body_measurements, que solo escribe el panel de coach: la meta de
+ * proteína caía siempre al default. body_measurements queda de complemento
+ * (mismo patrón que health-score-service).
+ */
 async function fetchLatestWeightKg(userId: string): Promise<number | null> {
   try {
-    const { data } = await supabase
-      .from('body_measurements')
-      .select('weight_kg')
-      .eq('user_id', userId)
-      .not('weight_kg', 'is', null)
-      .order('measured_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const w = (data as any)?.weight_kg;
-    return Number.isFinite(w) && w > 0 ? Number(w) : null;
+    const [hmRes, bmRes] = await Promise.all([
+      supabase
+        .from('health_measurements')
+        .select('weight_kg')
+        .eq('user_id', userId)
+        .not('weight_kg', 'is', null)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('body_measurements')
+        .select('weight_kg')
+        .eq('user_id', userId)
+        .not('weight_kg', 'is', null)
+        .order('measured_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+    if (hmRes.error) logWarn('[nutrition-score] health_measurements query failed:', hmRes.error.message);
+    if (bmRes.error) logWarn('[nutrition-score] body_measurements query failed:', bmRes.error.message);
+    const num = (v: unknown): number | null => (Number.isFinite(v) && (v as number) > 0 ? Number(v) : null);
+    return elegirPesoKg(num((hmRes.data as any)?.weight_kg), num((bmRes.data as any)?.weight_kg));
   } catch (e) {
     logWarn('[nutrition-score] weight query failed:', e);
     return null;

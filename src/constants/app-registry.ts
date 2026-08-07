@@ -102,10 +102,15 @@ export const APP_REGISTRY: AppEntry[] = [
   // Evaluación puntual, no hábito diario: no tiene electrón que activar.
   { key: 'movilidad', label: 'Movilidad', icon: 'movilidad', section: 'cuerpo', route: '/mobility-assessment', installable: false, alias: ['flexibilidad', 'estiramiento', 'evaluación'],
     description: 'Evaluación guiada de movilidad en siete tests, con lectura por test, asimetrías y comparación contra tu anterior.' },
-  { key: 'rm', label: '1RM', icon: 'rm', section: 'cuerpo', route: '/log-exercise', installable: false, alias: ['levantamiento', 'registrar', 'series', 'peso'],
+  // MB-27 P1: el alias 'peso' se muda a Medidas — para el usuario "peso" es
+  // su peso corporal, no el que levanta. 1RM conserva levantamiento/series.
+  { key: 'rm', label: '1RM', icon: 'rm', section: 'cuerpo', route: '/log-exercise', installable: false, alias: ['levantamiento', 'registrar', 'series', 'barra'],
     description: 'Registra tus series de fuerza con peso y repeticiones, con cálculo de tu máximo (1RM) en vivo.' },
   { key: 'records', label: 'Récords', icon: 'records', section: 'cuerpo', route: '/fitness-strength', installable: false, alias: ['pr', 'benchmarks', 'marcas'],
     description: 'Tu fuerza en un solo lugar: nivel, récords personales y benchmarks por grupo muscular, con progresión.' },
+  // Registro puntual, no hábito diario: sin electrón que activar (como 1RM).
+  { key: 'medidas', label: 'Medidas', icon: 'medidas', section: 'cuerpo', route: '/medidas', installable: false, alias: ['peso', 'báscula', 'composición', 'grasa', 'cintura', 'cuerpo'],
+    description: 'Tu peso y tus medidas en un solo lugar: registra en segundos y ve la tendencia con el tiempo.' },
 
   // ── Hábitos diarios ──
   { key: 'comida', label: 'Comida', icon: 'comida', section: 'diario', route: '/nutrition', installable: true, alias: ['nutrición', 'comer', 'calorías', 'macros', 'foto'],

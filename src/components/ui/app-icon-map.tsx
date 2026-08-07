@@ -77,6 +77,8 @@ export const ICON_MAP: Record<AppIconName, AppIconGlyph> = {
   movilidad: svg('movilidad'),
   rm: Icon1Rm,
   records: svg('records'),
+  // MB-27 P1: sin asset SVG todavía — ion() es el mecanismo para eso.
+  medidas: ion('body-outline'),
 
   // ── Hábitos diarios ──
   comida: svg('comida'),

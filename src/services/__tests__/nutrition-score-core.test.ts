@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   computeNutritionScore,
+  elegirPesoKg,
   proteinTargetG,
   macroPercents,
   macrosInAtpRange,
@@ -25,6 +26,26 @@ const PERFECT_SIMPLE: ScoreInputs = {
   waterGoalMl: 2500,
   mealsLogged: 3,
 };
+
+describe('elegirPesoKg — MB-27 1.2 (mutación 5)', () => {
+  it('usuario con peso SOLO en la canónica recibe meta calculada, no el default', () => {
+    // El bug era leer solo body_measurements (panel de coach, que ningún
+    // flujo de usuario llena): la meta caía siempre al default. La mutación
+    // que invierta el orden o vuelva a ignorar la canónica truena aquí.
+    const peso = elegirPesoKg(80, null);
+    expect(peso).toBe(80);
+    expect(proteinTargetG(peso)).toBe(144);
+    expect(proteinTargetG(peso)).not.toBe(proteinTargetG(null));
+  });
+
+  it('la canónica gana; el panel de coach solo complementa', () => {
+    expect(elegirPesoKg(80, 75)).toBe(80);
+    expect(elegirPesoKg(null, 75)).toBe(75);
+    expect(elegirPesoKg(null, null)).toBe(null);
+    expect(elegirPesoKg(0, 75)).toBe(75);
+    expect(elegirPesoKg(NaN, 75)).toBe(75);
+  });
+});
 
 describe('proteinTargetG — target por peso (1.8 g/kg)', () => {
   it('80kg → 144g · 60kg → 108g', () => {

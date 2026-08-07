@@ -142,6 +142,9 @@ export type HealthMeasurementInput = {
   systolic_bp?: number; diastolic_bp?: number; resting_hr?: number; vo2max_estimate?: number;
   waist_cm?: number; // columna existente (la lee loadUserData) — captura inline drill-down
   hip_cm?: number;   // captura de cadera → ratio cintura/cadera (Mariana #13)
+  arm_cm?: number;   // MB-27 P1 (mig 256): medidas que solo tenía body_measurements
+  leg_cm?: number;
+  chest_cm?: number;
 };
 
 /**

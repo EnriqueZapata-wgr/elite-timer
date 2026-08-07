@@ -16,6 +16,10 @@ export interface HealthMeasurement {
   waist_cm: number | null;
   hip_cm: number | null;
   neck_cm: number | null;
+  // MB-27 P1 (mig 256): las medidas que solo tenía body_measurements (coach).
+  arm_cm?: number | null;
+  leg_cm?: number | null;
+  chest_cm?: number | null;
   systolic_bp: number | null;
   diastolic_bp: number | null;
   resting_hr: number | null;
@@ -32,7 +36,7 @@ export interface HealthMeasurement {
 
 const FIELDS = [
   'weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 'visceral_fat',
-  'waist_cm', 'hip_cm', 'neck_cm',
+  'waist_cm', 'hip_cm', 'neck_cm', 'arm_cm', 'leg_cm', 'chest_cm',
   'systolic_bp', 'diastolic_bp', 'resting_hr',
   'grip_strength_kg',
   'energy_level', 'sleep_quality', 'stress_level', 'mood_level',

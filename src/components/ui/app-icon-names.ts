@@ -12,7 +12,7 @@ export const APP_ICON_NAMES = [
   // ── Mente ──
   'meditar', 'respirar', 'emociones', 'journal', 'sueno', 'nback', 'rachas',
   // ── Cuerpo ──
-  'entrenar', 'cardio', 'movilidad', 'rm', 'records',
+  'entrenar', 'cardio', 'movilidad', 'rm', 'records', 'medidas',
   // ── Hábitos diarios (apps) ──
   'comida', 'hidratacion', 'ayuno', 'suplementos', 'recetas', 'lista-compra',
   // ── Salud (apps) ──

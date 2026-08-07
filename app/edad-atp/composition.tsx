@@ -30,7 +30,9 @@ function daysAgo(dateStr: string): number {
   return Math.max(0, Math.round((now - then) / 86400000));
 }
 
-const FIELD_KEYS = ['weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 'visceral_fat', 'grip_strength_kg', 'waist_cm', 'hip_cm'] as const;
+// MB-27 P1: brazo, pierna y pecho entran aquí — esta pantalla ES la puerta
+// de captura de peso y medidas (la app Medidas la abre con ?focus).
+const FIELD_KEYS = ['weight_kg', 'height_cm', 'body_fat_pct', 'muscle_mass_kg', 'visceral_fat', 'grip_strength_kg', 'waist_cm', 'hip_cm', 'arm_cm', 'leg_cm', 'chest_cm'] as const;
 
 export default function CompositionCapture() {
   const { user } = useAuth();
@@ -59,6 +61,9 @@ export default function CompositionCapture() {
     { key: 'grip_strength_kg', label: 'Fuerza de agarre', unit: 'kg' },
     { key: 'waist_cm', label: 'Cintura', unit: 'cm' },
     { key: 'hip_cm', label: 'Cadera', unit: 'cm' },
+    { key: 'arm_cm', label: 'Brazo', unit: 'cm' },
+    { key: 'leg_cm', label: 'Pierna', unit: 'cm' },
+    { key: 'chest_cm', label: 'Pecho', unit: 'cm' },
   ];
   const hasData = Object.keys(prefilled).length > 0;
 
@@ -186,6 +191,9 @@ export default function CompositionCapture() {
           <NumberInputRow label="Fuerza de agarre" unit="kg" badge={prefilled.grip_strength_kg ? badge ?? 'Salud' : undefined} value={v.grip_strength_kg ?? ''} onChangeText={(x) => set('grip_strength_kg', x)} helper="Dinamómetro Camry EH101 (~$25)" highlight={focus === 'grip_strength_kg'} />
           <NumberInputRow label="Cintura" unit="cm" badge={prefilled.waist_cm ? badge ?? 'Salud' : undefined} value={v.waist_cm ?? ''} onChangeText={(x) => set('waist_cm', x)} helper="A la altura del ombligo, sin apretar" highlight={focus === 'waist_cm'} />
           <NumberInputRow label="Cadera" unit="cm" badge={prefilled.hip_cm ? badge ?? 'Salud' : undefined} value={v.hip_cm ?? ''} onChangeText={(x) => set('hip_cm', x)} helper="En la parte más ancha de los glúteos" />
+          <NumberInputRow label="Brazo" unit="cm" badge={prefilled.arm_cm ? badge ?? 'Salud' : undefined} value={v.arm_cm ?? ''} onChangeText={(x) => set('arm_cm', x)} helper="Relajado, en la parte más ancha" />
+          <NumberInputRow label="Pierna" unit="cm" badge={prefilled.leg_cm ? badge ?? 'Salud' : undefined} value={v.leg_cm ?? ''} onChangeText={(x) => set('leg_cm', x)} helper="Muslo, en la parte más ancha" />
+          <NumberInputRow label="Pecho" unit="cm" badge={prefilled.chest_cm ? badge ?? 'Salud' : undefined} value={v.chest_cm ?? ''} onChangeText={(x) => set('chest_cm', x)} helper="A la altura de los pezones, sin inflar" />
           <NumberInputRow label="Ratio cintura/cadera" value={whr != null ? String(whr) : ''} readOnly placeholder="auto" helper="Marcador cardiovascular" />
           <NumberInputRow label="Tu FFMI" value={ffmi != null ? (Math.round(ffmi * 10) / 10).toString() : ''} readOnly placeholder="auto" />
         </View>
