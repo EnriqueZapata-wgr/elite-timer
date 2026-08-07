@@ -75,19 +75,9 @@ export function proteinTargetG(weightKg: number | null): number {
   return Math.round(w * PROTEIN_G_PER_KG);
 }
 
-/**
- * MB-27 1.2 (mutación 5): el peso corporal viene de la CANÓNICA
- * (health_measurements, la que el usuario sí llena) y body_measurements
- * (panel de coach) solo complementa. El orden invertido era el bug: la
- * meta de proteína caía al default aunque el usuario capturara su peso
- * en el onboarding.
- */
-export function elegirPesoKg(canonico: number | null, complemento: number | null): number | null {
-  const valido = (w: number | null): w is number => w != null && Number.isFinite(w) && w > 0;
-  if (valido(canonico)) return canonico;
-  if (valido(complemento)) return complemento;
-  return null;
-}
+// MB-27 1.2, corregido en audit B6: la elección de peso ya no es por tabla
+// sino por MEDICIÓN MÁS RECIENTE — vive en cuerpo/medidas-core
+// (pesoMasReciente), compartida con health-score-service.
 
 /** % de kcal por macro (proteína/carbos 4 kcal/g, grasa 9 kcal/g). */
 export function macroPercents(proteinG: number, carbsG: number, fatG: number): { protein: number; carbs: number; fat: number } | null {

@@ -19,26 +19,26 @@ import { getNutritionMode } from './nutrition-mode-service';
 import {
   computeNutritionScore,
   detectMicrosFromDescriptions,
-  elegirPesoKg,
   mealsWithinWindows,
   qualityRatioFromMealScores,
   type ScoreBreakdown,
 } from './nutrition-score-core';
+import { pesoMasReciente } from './cuerpo/medidas-core';
 
 /**
  * Peso más reciente del usuario — null sin medición.
- * MB-27 1.2: la CANÓNICA es health_measurements (onboarding, /health-input,
- * /edad-atp/composition — lo que el usuario de verdad llena). Antes leía
- * SOLO body_measurements, que solo escribe el panel de coach: la meta de
- * proteína caía siempre al default. body_measurements queda de complemento
- * (mismo patrón que health-score-service).
+ * MB-27 1.2 + audit B6: se lee la última medición CON SU FECHA de las dos
+ * tablas (health_measurements: lo que el usuario llena; body_measurements:
+ * lo que su coach mide) y gana LA MÁS RECIENTE — el coach que midió ayer
+ * gana al onboarding de hace un año. Misma regla que health-score-service:
+ * un solo peso por persona por día.
  */
 async function fetchLatestWeightKg(userId: string): Promise<number | null> {
   try {
     const [hmRes, bmRes] = await Promise.all([
       supabase
         .from('health_measurements')
-        .select('weight_kg')
+        .select('weight_kg, date')
         .eq('user_id', userId)
         .not('weight_kg', 'is', null)
         .order('date', { ascending: false })
@@ -46,7 +46,7 @@ async function fetchLatestWeightKg(userId: string): Promise<number | null> {
         .maybeSingle(),
       supabase
         .from('body_measurements')
-        .select('weight_kg')
+        .select('weight_kg, measured_at')
         .eq('user_id', userId)
         .not('weight_kg', 'is', null)
         .order('measured_at', { ascending: false })
@@ -55,8 +55,12 @@ async function fetchLatestWeightKg(userId: string): Promise<number | null> {
     ]);
     if (hmRes.error) logWarn('[nutrition-score] health_measurements query failed:', hmRes.error.message);
     if (bmRes.error) logWarn('[nutrition-score] body_measurements query failed:', bmRes.error.message);
-    const num = (v: unknown): number | null => (Number.isFinite(v) && (v as number) > 0 ? Number(v) : null);
-    return elegirPesoKg(num((hmRes.data as any)?.weight_kg), num((bmRes.data as any)?.weight_kg));
+    const hm = hmRes.data as { weight_kg?: number; date?: string } | null;
+    const bm = bmRes.data as { weight_kg?: number; measured_at?: string } | null;
+    return pesoMasReciente(
+      { kg: hm?.weight_kg ?? null, date: hm?.date ?? null },
+      { kg: bm?.weight_kg ?? null, date: bm?.measured_at ? String(bm.measured_at).slice(0, 10) : null },
+    );
   } catch (e) {
     logWarn('[nutrition-score] weight query failed:', e);
     return null;

@@ -7,6 +7,7 @@ import {
   calculateHealthScore, mapPatientDataToInput, type HealthScore, type Sex,
 } from '@/src/data/functional-health-engine';
 import { getLatestMeasurement } from '@/src/services/health-measurement-service';
+import { pesoMasReciente } from '@/src/services/cuerpo/medidas-core';
 
 /** Crea client_profile mínimo si no existe. Retorna true si ya tenía date_of_birth. */
 export async function ensureClientProfile(userId: string, dob?: string, sex?: string): Promise<boolean> {
@@ -132,9 +133,18 @@ export async function calculateAndSaveScore(userId: string, consultationId?: str
 
   const inputValues = mapPatientDataToInput(labs, body, profile);
 
+  // Audit B6: el peso NO se elige por tabla sino por MEDICIÓN MÁS RECIENTE
+  // (misma regla que la meta de proteína en nutrition-score-service). El
+  // coach que midió ayer gana al onboarding viejo, y al revés también:
+  // un solo peso por persona por día en toda la app.
+  const pesoElegido = pesoMasReciente(
+    { kg: hmRes?.weight_kg ?? null, date: hmRes?.date ?? null },
+    { kg: body?.weight_kg ?? null, date: body?.measured_at ? String(body.measured_at).slice(0, 10) : null },
+  );
+
   const bodyValues: { height_m: number; weight_kg: number; body_fat_pct: number; muscle_pct: number; visceral_fat: number; grip_strength: number; [k: string]: number } = {
     height_m: profile?.height_cm ? profile.height_cm / 100 : 1.75,
-    weight_kg: body?.weight_kg ?? 80,
+    weight_kg: pesoElegido ?? 80,
     body_fat_pct: body?.body_fat_pct ?? 20,
     muscle_pct: body?.muscle_mass_pct ?? 35,
     visceral_fat: body?.visceral_fat ?? 5,
@@ -146,7 +156,6 @@ export async function calculateAndSaveScore(userId: string, consultationId?: str
     if (!body?.body_fat_pct && hmRes.body_fat_pct) bodyValues.body_fat_pct = hmRes.body_fat_pct;
     if (!body?.muscle_mass_pct && hmRes.muscle_mass_kg && hmRes.weight_kg) bodyValues.muscle_pct = (hmRes.muscle_mass_kg / hmRes.weight_kg) * 100;
     if (!body?.visceral_fat && hmRes.visceral_fat) bodyValues.visceral_fat = hmRes.visceral_fat;
-    if (!body?.weight_kg && hmRes.weight_kg) bodyValues.weight_kg = hmRes.weight_kg;
     if (hmRes.grip_strength_kg) bodyValues.grip_strength = hmRes.grip_strength_kg;
     if (hmRes.height_cm) bodyValues.height_m = hmRes.height_cm / 100;
   }

@@ -75,6 +75,36 @@ export function ultimoPeso(rows: MedicionRow[]): UltimoPeso | null {
   };
 }
 
+export interface PesoFechado {
+  kg: number | null | undefined;
+  /** 'YYYY-MM-DD' (normalizada por el caller; measured_at → slice(0,10)). */
+  date: string | null | undefined;
+}
+
+/**
+ * Audit B6 — no se elige TABLA, se elige la MEDICIÓN MÁS RECIENTE. El coach
+ * que midió ayer (92 kg en body_measurements) gana al onboarding de hace un
+ * año (105 kg en health_measurements), y al revés también. Empate de fecha
+ * o fechas ausentes → la canónica (primer argumento). La comparten la meta
+ * de proteína (nutrition-score) y el score de salud: un solo peso por
+ * persona por día.
+ */
+export function pesoMasReciente(
+  canonico: PesoFechado | null,
+  coach: PesoFechado | null,
+): number | null {
+  const valido = (p: PesoFechado | null): p is PesoFechado & { kg: number } =>
+    p != null && typeof p.kg === 'number' && Number.isFinite(p.kg) && p.kg > 0;
+  const a = valido(canonico) ? canonico : null;
+  const b = valido(coach) ? coach : null;
+  if (a && b) {
+    const fa = a.date ?? '';
+    const fb = b.date ?? '';
+    return fb > fa ? b.kg : a.kg; // empate o sin fechas → canónica
+  }
+  return a?.kg ?? b?.kg ?? null;
+}
+
 export const MEDIDA_LABELS: { key: keyof MedicionRow; label: string }[] = [
   { key: 'waist_cm', label: 'Cintura' },
   { key: 'hip_cm', label: 'Cadera' },

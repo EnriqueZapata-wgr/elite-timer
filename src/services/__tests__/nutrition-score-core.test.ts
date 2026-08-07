@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { pesoMasReciente } from '@/src/services/cuerpo/medidas-core';
 import {
   computeNutritionScore,
-  elegirPesoKg,
   proteinTargetG,
   macroPercents,
   macrosInAtpRange,
@@ -27,23 +27,37 @@ const PERFECT_SIMPLE: ScoreInputs = {
   mealsLogged: 3,
 };
 
-describe('elegirPesoKg — MB-27 1.2 (mutación 5)', () => {
+describe('pesoMasReciente — MB-27 1.2 (mutación 5) corregido en audit B6', () => {
   it('usuario con peso SOLO en la canónica recibe meta calculada, no el default', () => {
-    // El bug era leer solo body_measurements (panel de coach, que ningún
-    // flujo de usuario llena): la meta caía siempre al default. La mutación
-    // que invierta el orden o vuelva a ignorar la canónica truena aquí.
-    const peso = elegirPesoKg(80, null);
+    // El bug original era leer solo body_measurements (panel de coach, que
+    // ningún flujo de usuario llena): la meta caía siempre al default.
+    const peso = pesoMasReciente({ kg: 80, date: '2026-08-01' }, null);
     expect(peso).toBe(80);
     expect(proteinTargetG(peso)).toBe(144);
     expect(proteinTargetG(peso)).not.toBe(proteinTargetG(null));
   });
 
-  it('la canónica gana; el panel de coach solo complementa', () => {
-    expect(elegirPesoKg(80, 75)).toBe(80);
-    expect(elegirPesoKg(null, 75)).toBe(75);
-    expect(elegirPesoKg(null, null)).toBe(null);
-    expect(elegirPesoKg(0, 75)).toBe(75);
-    expect(elegirPesoKg(NaN, 75)).toBe(75);
+  it('B6: gana la MEDICIÓN más reciente, no una tabla', () => {
+    // El caso del audit: coach midió 92 kg AYER; el onboarding trae 105 kg
+    // de hace un año. La meta de proteína y el score de salud usan 92.
+    expect(pesoMasReciente(
+      { kg: 105, date: '2025-08-05' },
+      { kg: 92, date: '2026-08-05' },
+    )).toBe(92);
+    // Y al revés: el usuario que se pesó hoy gana al coach del mes pasado.
+    expect(pesoMasReciente(
+      { kg: 74, date: '2026-08-06' },
+      { kg: 78, date: '2026-07-01' },
+    )).toBe(74);
+  });
+
+  it('empate o sin fechas → la canónica; inválidos no cuentan', () => {
+    expect(pesoMasReciente({ kg: 80, date: '2026-08-01' }, { kg: 75, date: '2026-08-01' })).toBe(80);
+    expect(pesoMasReciente({ kg: 80, date: null }, { kg: 75, date: null })).toBe(80);
+    expect(pesoMasReciente(null, { kg: 75, date: '2026-08-01' })).toBe(75);
+    expect(pesoMasReciente(null, null)).toBe(null);
+    expect(pesoMasReciente({ kg: 0, date: '2026-08-06' }, { kg: 75, date: '2026-07-01' })).toBe(75);
+    expect(pesoMasReciente({ kg: NaN, date: '2026-08-06' }, { kg: 75, date: '2026-07-01' })).toBe(75);
   });
 });
 
