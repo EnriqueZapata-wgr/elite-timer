@@ -154,7 +154,7 @@ describe('audit B5 (contrato): la asignación manda en la puerta real', () => {
   });
 });
 
-describe('audit B4 (contrato): guardar el plan jamás destruye antes de confirmar', () => {
+describe('audit B4 + V2 (contrato): guardar el plan jamás destruye NI miente', () => {
   it('savePlanSemanal inserta ANTES de podar, y la poda es por ids leídos', () => {
     const src = read('src/services/fitness/plan-semanal-service.ts');
     const body = src.slice(src.indexOf('export async function savePlanSemanal'));
@@ -168,6 +168,20 @@ describe('audit B4 (contrato): guardar el plan jamás destruye antes de confirma
     // Y la poda es quirúrgica: por los ids que ESTE guardado leyó, nunca
     // un delete amplio que pueda llevarse lo que no conoció.
     expect(body).toMatch(/\.in\('id', idsViejas\)/);
+  });
+
+  it('V2: poda fallida = fracaso honesto con rollback — jamás éxito con el lunes revivido', () => {
+    const src = read('src/services/fitness/plan-semanal-service.ts');
+    const body = src.slice(src.indexOf('export async function savePlanSemanal'));
+    // El insert guarda sus ids para poder revertirse:
+    expect(body).toMatch(/\.insert\(rows\)\s*\.select\('id'\)/);
+    // La rama de poda fallida hace rollback por esos ids y devuelve false:
+    expect(body).toMatch(/\.in\('id', idsNuevas\)/);
+    const ramaPodaFallida = body.slice(body.indexOf('prune failed'));
+    expect(ramaPodaFallida).toMatch(/return \{ ok: false \}/);
+    // Y `ok: true` existe UNA sola vez: el final feliz. La mutación que
+    // devuelva éxito con la poda rota truena aquí.
+    expect(body.match(/ok: true/g) ?? []).toHaveLength(1);
   });
 });
 

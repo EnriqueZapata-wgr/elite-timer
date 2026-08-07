@@ -104,7 +104,8 @@ export async function savePlanSemanal(
     return { ok: false };
   }
 
-  // 2 · INSERT del plan nuevo, primero y atómico.
+  // 2 · INSERT del plan nuevo, primero y atómico — guardando sus ids para
+  //     poder revertirlo si la poda falla.
   const rows = Object.entries(plan)
     .filter(([, focus]) => focus != null)
     .map(([dow, focus]) => ({
@@ -115,16 +116,26 @@ export async function savePlanSemanal(
       day_of_week: Number(dow),
       focus,
     }));
+  let idsNuevas: string[] = [];
   if (rows.length > 0) {
-    const { error: insErr } = await supabase.from('scheduled_routines').insert(rows);
+    const { data: insertadas, error: insErr } = await supabase
+      .from('scheduled_routines')
+      .insert(rows)
+      .select('id');
     if (insErr) {
       // El plan viejo sigue completo: reintentarlo es seguro.
       logWarn('[plan-semanal] insert failed (plan viejo intacto)', insErr);
       return { ok: false };
     }
+    idsNuevas = ((insertadas ?? []) as { id: string }[]).map((r) => r.id);
   }
 
   // 3 · Poda de las filas viejas, solo con el plan nuevo ya adentro.
+  //     Audit V2 B4: si la poda falla, el guardado NO fue exitoso — antes
+  //     el "próximo guardado limpia" cubría cambios pero NO borrados: el
+  //     lunes apagado revivía (su fila vieja quedaba sin rival más nuevo)
+  //     y vaciar el plan dejaba el plan entero vivo con éxito en la mano.
+  //     Ahora: rollback del insert (mejor esfuerzo) y ok: false, siempre.
   const idsViejas = (viejas ?? []).map((r: { id: string }) => r.id);
   if (idsViejas.length > 0) {
     const { error: delErr } = await supabase
@@ -133,9 +144,20 @@ export async function savePlanSemanal(
       .eq('user_id', userId)
       .in('id', idsViejas);
     if (delErr) {
-      // Duplicado temporal, jamás pérdida: el core ordena el más nuevo
-      // primero y el próximo guardado limpia.
-      logWarn('[plan-semanal] prune failed (duplicado temporal, nada perdido)', delErr);
+      logWarn('[plan-semanal] prune failed — rolling back insert', delErr);
+      if (idsNuevas.length > 0) {
+        const { error: rbErr } = await supabase
+          .from('scheduled_routines')
+          .delete()
+          .eq('user_id', userId)
+          .in('id', idsNuevas);
+        // Rollback fallido = duplicados temporales (jamás pérdida): el
+        // siguiente guardado los lee como viejas y los poda; mientras
+        // tanto B7 resuelve al más nuevo. El resultado sigue siendo false:
+        // lo que el usuario pidió NO quedó guardado.
+        if (rbErr) logWarn('[plan-semanal] rollback failed (duplicados temporales, nada perdido)', rbErr);
+      }
+      return { ok: false };
     }
   }
   return { ok: true };
