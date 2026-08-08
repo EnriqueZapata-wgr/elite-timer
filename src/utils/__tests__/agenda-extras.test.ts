@@ -52,7 +52,8 @@ describe('agenda-extras — focusWindowAgendaItem', () => {
     const it = focusWindowAgendaItem('10:00:00', '14:00:00');
     expect(it?.time).toBe('10:00');
     expect(it?.name).toBe('Ventana de foco profundo');
-    expect(it?.subtitle).toBe('Hasta 14:00 — agenda aquí lo pesado');
+    // MB-28A 0.2: sin em dash en copy visible (barrido de src/).
+    expect(it?.subtitle).toBe('Hasta 14:00: agenda aquí lo pesado');
     expect(it?.informational).toBe(true);
     expect(it?.category).toBe('mind');
   });

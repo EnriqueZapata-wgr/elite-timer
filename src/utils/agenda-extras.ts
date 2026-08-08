@@ -42,7 +42,7 @@ export function focusWindowAgendaItem(
     id: 'focus-window',
     time: start,
     name: 'Ventana de foco profundo',
-    subtitle: endOk ? `Hasta ${endOk} — agenda aquí lo pesado` : 'Agenda aquí lo pesado',
+    subtitle: endOk ? `Hasta ${endOk}: agenda aquí lo pesado` : 'Agenda aquí lo pesado',
     category: 'mind',
     completed: false, isNext: false, isSmart: false, informational: true,
   };

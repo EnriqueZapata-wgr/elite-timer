@@ -147,13 +147,14 @@ describe('emojis de función', () => {
 
 // ─── 4. Ratchet de glifos de función ────────────────────────────────────────
 
-// Los rellenos vigentes se DERIVAN del mapa: si el mapa cambia, el ratchet
-// cambia solo. El .tsx no es importable bajo node (monta Ionicons y SVG), así
-// que se lee como texto, igual que el resto del censo.
+// MB-28A cerró el set: el mapa ya no tiene UN SOLO Ionicon. El .tsx no es
+// importable bajo node (monta SVG), así que se lee como texto, igual que el
+// resto del censo.
 const MAP_SRC = read('src/components/ui/app-icon-map.tsx');
-const FILLS = [...new Set([...MAP_SRC.matchAll(/\bion\('([a-z-]+)'\)/g)].map((m) => m[1]))];
 
-/** Exclusiones documentadas en el header (genéricos) + el fallback del mapa. */
+/** Exclusiones documentadas en el header (genéricos). `help-circle-outline`
+ * fue el fallback del mapa hasta MB-28A (hoy es svg('fallback')); sigue aquí
+ * como chrome genérico de ayuda, no como función. */
 const EXCLUIDOS = new Set(['ellipse-outline', 'help-circle-outline']);
 
 /** Divergencias que MB-19.2 mató: ya no están en el mapa, siguen vetadas. */
@@ -179,11 +180,12 @@ const LEGACY_FILL = [
   'sunny', 'partly-sunny',
 ];
 
-/** Los Ionicons que el MONTAJE del set SVG sacó del mapa. Ya no se derivan
- * (sus nombres lógicos dibujan con `svg(...)`), pero siguen vetados: un
+/** Los Ionicons que el MONTAJE del set SVG sacó del mapa (dos tandas: el
+ * montaje original y el cierre de MB-28A, que sustituyó los 22 últimos + el
+ * fallback). Ya no se derivan (todos los nombres lógicos dibujan con
+ * `svg(...)` o componente de trazo), pero siguen vetados: un
  * `ion('flower-outline')` nuevo dibujando Meditar a mano es la misma deuda
- * de siempre. Los que siguen vivos en el mapa (moon/hourglass/medkit, de
- * nombres aún sin asset) igual entran por FILLS — el Set dedupea. */
+ * de siempre. */
 const REEMPLAZADOS_POR_SVG = [
   'flower-outline', 'cloud-outline', 'book-outline', 'moon-outline',
   'grid-outline', 'medal-outline', 'barbell-outline', 'pulse-outline',
@@ -191,17 +193,27 @@ const REEMPLAZADOS_POR_SVG = [
   'hourglass-outline', 'medkit-outline', 'reader-outline', 'cart-outline',
   'sunny-outline', 'analytics-outline', 'flame-outline', 'ellipse-outline',
   'flask-outline', 'clipboard-outline', 'settings-outline',
+  // ── Tanda MB-28A ──
+  'today-outline', 'stats-chart-outline', 'trending-up-outline',
+  'folder-open-outline', 'snow-outline', 'leaf-outline', 'wine-outline',
+  'glasses-outline', 'footsteps-outline', 'nutrition-outline',
+  'phone-portrait-outline', 'git-network-outline', 'bar-chart-outline',
+  'document-text-outline', 'list-outline', 'checkbox-outline',
+  'bandage-outline',
 ];
 
 const GLIFOS_DE_FUNCION = [
-  ...new Set([...FILLS, ...REEMPLAZADOS_POR_SVG, ...DIVERGENTES, ...LEGACY_OUTLINE]),
+  ...new Set([...REEMPLAZADOS_POR_SVG, ...DIVERGENTES, ...LEGACY_OUTLINE]),
 ].filter((g) => !EXCLUIDOS.has(g));
 
 describe('ratchet de glifos', () => {
-  it('la derivación del mapa funciona (guard del regex)', () => {
-    // Post-montaje quedan los ion() de nombres sin asset (+ el fallback).
-    expect(FILLS).toContain('today-outline');
-    expect(FILLS.length).toBeGreaterThanOrEqual(20);
+  it('el mapa no tiene un solo Ionicon (ratchet MB-28A: cerrado)', () => {
+    // La mezcla de familias crecía sola porque cada MB metía sus iconos en
+    // Ionicon. Desde MB-28A el mapa dibuja TODO con el set SVG: un Ionicon
+    // nuevo aquí (import, factory ion() o nombre '-outline') truena.
+    expect(MAP_SRC, 'el mapa importa Ionicons otra vez').not.toContain('Ionicons');
+    expect(MAP_SRC, 'el factory ion() volvió al mapa').not.toMatch(/\bion\(/);
+    expect(MAP_SRC, 'hay un nombre de Ionicon en el mapa').not.toContain('-outline');
   });
 
   it('los usos de glifos de función coinciden con el inventario auditado', () => {
@@ -250,8 +262,9 @@ describe('el set SVG está montado y no diverge de assets/icons', () => {
     emociones: 'src/components/ui/icons/IconEmociones.tsx',
   };
 
-  it('el set completo está en el repo (33 SVG)', () => {
-    expect(assets.length).toBe(33);
+  it('el set completo está en el repo (56 SVG)', () => {
+    // 33 del montaje original + los 22 de MB-28A + el fallback ('question').
+    expect(assets.length).toBe(56);
   });
 
   it.each(assets)('%s montado sin divergencia', (file) => {

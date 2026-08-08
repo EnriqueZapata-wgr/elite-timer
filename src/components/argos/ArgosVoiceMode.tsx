@@ -93,7 +93,7 @@ export function ArgosVoiceMode({ visible, onClose, userId, voice, history, onTur
         // la respuesta de ARGOS conforme streamea.
         onUserTranscript: setTranscript,
         onText: setTranscript,
-        onFallbackToText: () => setHint('Sin voz ahora — te respondo por texto.'),
+        onFallbackToText: () => setHint('Sin voz ahora: te respondo por texto.'),
         onNoProtons: () => {
           setNoProtons(true);
           setHint('Te quedaste sin H+ para el modo voz.');

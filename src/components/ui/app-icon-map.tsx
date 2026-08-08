@@ -1,13 +1,12 @@
 /**
  * app-icon-map — nombre lógico → COMPONENTE que lo dibuja.
  *
- * El set SVG (assets/icons/) YA está montado: los glifos de relleno pasan por
- * `svg(...)` — un path de icon-paths.ts, extraído 1:1 del asset; el censo
- * verifica que no diverjan — y los dos de trazo (`emociones`, `rm`) son
- * componentes a mano. Los `ion(...)` que quedan son los nombres SIN asset
- * todavía (puertas de SALUD, hábitos sin app propia, destinos): cuando
- * lleguen sus SVG se sustituyen aquí y cambian todos a la vez, sin tocar
- * pantallas.
+ * El set SVG (assets/icons/) está COMPLETO desde MB-28A: los glifos de relleno
+ * pasan por `svg(...)` — un path de icon-paths.ts, extraído 1:1 del asset; el
+ * censo verifica que no diverjan — y los dos de trazo (`emociones`, `rm`) son
+ * componentes a mano. Aquí ya no queda familia ajena y el censo lo vigila:
+ * un Ionicon nuevo en este archivo truena el ratchet. Un nombre nuevo entra
+ * con su SVG (assets/icons/ + icon-paths.ts) o no entra.
  *
  * El footgun de color sigue vivo: el set pinta con `fill="currentColor"`,
  * pero `emociones` y `rm` son 100% trazo (`stroke="currentColor"`) — si el
@@ -20,15 +19,11 @@
  * los tests node verifiquen cobertura sin montar React Native. TypeScript
  * exige aquí una entrada por nombre: agregar un nombre sin dibujo no compila.
  */
-import type { ComponentProps } from 'react';
-import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import type { AppIconName } from './app-icon-names';
 import { ICON_PATHS, type SvgPathIconName } from './icons/icon-paths';
 import { IconEmociones } from './icons/IconEmociones';
 import { Icon1Rm } from './icons/Icon1Rm';
-
-export type IoniconName = ComponentProps<typeof Ionicons>['name'];
 
 /** Lo único que recibe un glifo. Con esto tiene que pintarse completo. */
 export interface AppIconGlyphProps {
@@ -37,14 +32,6 @@ export interface AppIconGlyphProps {
 }
 
 export type AppIconGlyph = (props: AppIconGlyphProps) => React.JSX.Element;
-
-/** Envoltorio del Ionicon de relleno. Queda SOLO para nombres sin asset. */
-function ion(name: IoniconName): AppIconGlyph {
-  const Glyph: AppIconGlyph = ({ size, color }) => (
-    <Ionicons name={name} size={size} color={color} />
-  );
-  return Glyph;
-}
 
 /**
  * Glifo del set SVG: un path de relleno sobre viewBox 256 (Phosphor). El
@@ -77,8 +64,7 @@ export const ICON_MAP: Record<AppIconName, AppIconGlyph> = {
   movilidad: svg('movilidad'),
   rm: Icon1Rm,
   records: svg('records'),
-  // MB-27 P1: sin asset SVG todavía — ion() es el mecanismo para eso.
-  medidas: ion('body-outline'),
+  medidas: svg('medidas'),
 
   // ── Hábitos diarios ──
   comida: svg('comida'),
@@ -112,36 +98,35 @@ export const ICON_MAP: Record<AppIconName, AppIconGlyph> = {
   'tab-tribu-fill': svg('tab-tribu-fill'),
 
   // ── Puertas de SALUD ──
-  'salud-hoy': ion('today-outline'),
-  'salud-datos': ion('stats-chart-outline'),
-  'salud-evolucion': ion('trending-up-outline'),
-  'salud-expediente': ion('folder-open-outline'),
-  'salud-ciclo': ion('ellipse-outline'),
+  'salud-hoy': svg('salud-hoy'),
+  'salud-datos': svg('salud-datos'),
+  'salud-evolucion': svg('salud-evolucion'),
+  'salud-expediente': svg('salud-expediente'),
+  'salud-ciclo': svg('salud-ciclo'),
 
   // ── Hábitos del HOY sin app propia ──
-  'bano-frio': ion('snow-outline'),
-  grounding: ion('leaf-outline'),
-  'sin-alcohol': ion('wine-outline'),
-  'lentes-rojos': ion('glasses-outline'),
-  pasos: ion('footsteps-outline'),
-  'sin-procesados': ion('nutrition-outline'),
-  'off-pantallas': ion('phone-portrait-outline'),
+  'bano-frio': svg('bano-frio'),
+  grounding: svg('grounding'),
+  'sin-alcohol': svg('sin-alcohol'),
+  'lentes-rojos': svg('lentes-rojos'),
+  pasos: svg('pasos'),
+  'sin-procesados': svg('sin-procesados'),
+  'off-pantallas': svg('off-pantallas'),
 
   // ── Destinos de SALUD sin app propia ──
-  // Mismos rellenos que tenían sus filas antes del enchufe: cero churn visual.
-  sintomas: ion('medkit-outline'),
-  diagnostico: ion('git-network-outline'),
-  'edad-atp': ion('hourglass-outline'),
-  reportes: ion('bar-chart-outline'),
-  cronotipo: ion('moon-outline'),
-  'historia-clinica': ion('document-text-outline'),
-  cuestionario: ion('list-outline'),
-  evaluaciones: ion('checkbox-outline'),
-  padecimientos: ion('bandage-outline'),
+  sintomas: svg('sintomas'),
+  diagnostico: svg('diagnostico'),
+  'edad-atp': svg('edad-atp'),
+  reportes: svg('reportes'),
+  cronotipo: svg('cronotipo'),
+  'historia-clinica': svg('historia-clinica'),
+  cuestionario: svg('cuestionario'),
+  evaluaciones: svg('evaluaciones'),
+  padecimientos: svg('padecimientos'),
 };
 
 /** El dibujo cuando un nombre no está en el mapa. Visible, para que se note. */
-export const ICON_FALLBACK: AppIconGlyph = ion('help-circle-outline');
+export const ICON_FALLBACK: AppIconGlyph = svg('fallback');
 
 export function glyphFor(name: string): AppIconGlyph {
   return (ICON_MAP as Record<string, AppIconGlyph>)[name] ?? ICON_FALLBACK;

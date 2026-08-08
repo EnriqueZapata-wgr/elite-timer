@@ -108,7 +108,7 @@ export function RateLimitCard({ info, onBoostActivated }: Props) {
           </EliteText>
           <EliteText style={s.sub}>
             {wait
-              ? `Se renueva en ${wait} (00:00 UTC)${boost ? ' — o sigue ahora mismo:' : '.'}`
+              ? `Se renueva en ${wait} (00:00 UTC)${boost ? '. O sigue ahora mismo:' : '.'}`
               : boost ? 'Sigue ahora mismo:' : 'Se renueva mañana.'}
           </EliteText>
         </View>

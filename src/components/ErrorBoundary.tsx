@@ -48,7 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <Text style={styles.title}>Algo salió mal</Text>
             <Text style={styles.body}>
               La app tuvo un problema inesperado. Ya lo reportamos para revisarlo.
-              Puedes reintentar — si el error persiste, reinicia la app.
+              Puedes reintentar. Si el error persiste, reinicia la app.
             </Text>
             {__DEV__ && this.state.errorMessage ? (
               <Text style={styles.devError} numberOfLines={6}>{this.state.errorMessage}</Text>
