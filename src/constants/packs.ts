@@ -129,9 +129,8 @@ export const INTENSIDAD_LABELS: Record<PackIntensidad, string> = {
  *     actuales de la app: proteína 150 g, agua 2500 ml).
  * Cambiar cualquier texto firmado = cambiar un string; la `key` no se toca.
  *
- * Longevidad: el brief pedía instalar `edad-atp`, que aún no es app
- * instalable (eso es de MB-28). El pack instala lo que SÍ existe y el hueco
- * queda reportado — no se adelanta trabajo de MB-28.
+ * Longevidad: el hueco reportado en MB-25 (instalar `edad-atp`, que aún no
+ * era app) se pagó en MB-29 P3: la app existe y el pack ya la instala.
  */
 export const PACKS: PackDef[] = [
   {
@@ -226,7 +225,9 @@ export const PACKS: PackDef[] = [
     queEsperar:
       'Tus estudios y evaluaciones en un solo lugar, sol de mañana, fuerza y sueño. Con laboratorios subidos, tus números se siguen en el tiempo.',
     icon: 'labs',
-    instala: ['labs', 'protocolos', 'sol', 'ayuno', 'cetonas', 'entrenar', 'sueno'],
+    // MB-29 P3: edad-atp ya es app instalable — el pack del perfil 10 queda
+    // completo (era su hueco reportado desde MB-25).
+    instala: ['edad-atp', 'labs', 'protocolos', 'sol', 'ayuno', 'cetonas', 'entrenar', 'sueno'],
     enciende: [
       { electron: 'lab_upload', core: true },
       { electron: 'functional_quiz', core: true },
@@ -241,9 +242,82 @@ export const PACKS: PackDef[] = [
   },
 ];
 
-/** Lookup por llave. */
+/**
+ * Los paquetes de salud (MB-29 Pieza 4). MISMO mecanismo, mismo motor:
+ * pack, protocolo y paquete de salud son la misma cosa (decisión tomada).
+ * Instalan el grupo de apps que se usan juntas: quien quiere seguir su
+ * glucosa necesita Glucosa, Cetonas, Comida y Labs, no las nueve por
+ * separado.
+ *
+ * Van en arreglo propio porque su puerta es distinta: la entrada de tres
+ * preguntas (/packs/armar) ofrece los cinco de estilo de vida; estos se
+ * descubren en el Centro. La ficha (/packs/[packKey]) y aplicarPack los
+ * tratan igual: viven en el mismo PACK_BY_KEY.
+ *
+ * ⚠️ PEND-FIRMA (Enrique + Mariana): nombre, paraQuien, queEsperar y
+ * argosFoco de los tres, ANTES de que el copy sea definitivo. Las llaves
+ * son estables y no se tocan. Regla dura de nombres: cero padecimientos
+ * (el barrido de este archivo también los cubre).
+ */
+export const PAQUETES_SALUD: PackDef[] = [
+  {
+    // Completa el perfil 7 (CASOS_DE_USO): su trabajo es el reporte de MB-29 P1.
+    key: 'cuidar-glucosa',
+    nombre: 'Cuidar mi glucosa',
+    paraQuien: 'Para quien quiere ver su glucosa en datos y llegar a su consulta con todo registrado.',
+    queEsperar:
+      'Registras glucosa con contexto, comida y ayuno. Tus labs viven en un solo lugar y el PDF con tus registros sale listo para tu consulta. ATP registra y grafica: la lectura la hace tu médico.',
+    icon: 'glucosa',
+    instala: ['glucosa', 'comida', 'ayuno', 'cetonas', 'labs', 'entrenar', 'reportes'],
+    enciende: [
+      { electron: 'glucose_log', core: true },
+      { electron: 'protein', core: true, hora: { ancla: 'despertar', offsetMin: 420 } },
+      { electron: 'no_processed_foods', core: true },
+      { electron: 'water', core: false, hora: { ancla: 'despertar', offsetMin: 90 } },
+      { electron: 'strength', core: false, hora: { ancla: 'despertar', offsetMin: 180 } },
+      { electron: 'lab_upload', core: false },
+    ],
+    metas: [
+      { tipo: 'proteina_g', valor: 150 },
+      { tipo: 'ayuno_h', valor: 12 },
+    ],
+    avisos: [],
+    argosFoco: 'Qué comidas mueven la glucosa de esta persona en particular.',
+  },
+  {
+    key: 'entender-sintomas',
+    nombre: 'Entender lo que siento',
+    paraQuien: 'Para quien trae molestias sueltas y quiere verlas juntas, con raíz y con plan.',
+    queEsperar:
+      'Registras lo que sientes, contestas la evaluación por sistemas y tu mapa funcional junta las piezas. De ahí salen prácticas concretas para correr en tu día.',
+    icon: 'sintomas',
+    instala: ['sintomas', 'mapa-funcional', 'cuestionario', 'padecimientos', 'protocolos'],
+    enciende: [
+      { electron: 'functional_quiz', core: true },
+      { electron: 'intervention', core: true },
+    ],
+    metas: [],
+    avisos: [],
+    argosFoco: 'Qué síntomas se repiten y con qué registros coinciden.',
+  },
+  {
+    key: 'salud-en-orden',
+    nombre: 'Mi salud en orden',
+    paraQuien: 'Para quien quiere su historia, sus labs y sus registros a la mano en la consulta.',
+    queEsperar:
+      'Tu historia, tus padecimientos y tus laboratorios quedan capturados en un solo lugar, y el PDF con tus registros del periodo sale listo para compartir.',
+    icon: 'historia-clinica',
+    instala: ['historia-clinica', 'padecimientos', 'labs', 'evaluaciones', 'reportes'],
+    enciende: [{ electron: 'lab_upload', core: true }],
+    metas: [],
+    avisos: [],
+    argosFoco: 'Qué partes del expediente siguen vacías y cuáles ya aportan datos.',
+  },
+];
+
+/** Lookup por llave: los cinco de estilo de vida + los paquetes de salud. */
 export const PACK_BY_KEY: Record<string, PackDef> = Object.fromEntries(
-  PACKS.map((p) => [p.key, p])
+  [...PACKS, ...PAQUETES_SALUD].map((p) => [p.key, p])
 );
 
 /** Los hábitos que la intensidad enciende: suave = solo los core. */

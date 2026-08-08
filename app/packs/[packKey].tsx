@@ -150,7 +150,13 @@ export default function FichaPackScreen() {
                   Aplicado el {fechaLegible(fila.activated_at)}
                 </EliteText>
               </View>
-              {etapa?.etapa === 1 ? (
+              {etapa?.etapa === 1 && extra.length === 0 ? (
+                // MB-29 P4: paquete sin hábitos de etapa 2 (salud) — no hay
+                // "resto" que encender y el copy no lo inventa.
+                <EliteText style={s.etapaText}>
+                  Sus hábitos están encendidos y sus apps en tu cuadrícula.
+                </EliteText>
+              ) : etapa?.etapa === 1 ? (
                 <>
                   <EliteText style={s.etapaText}>
                     {etapa.sostiene

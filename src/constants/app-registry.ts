@@ -151,7 +151,11 @@ export const APP_REGISTRY: AppEntry[] = [
     description: 'Tu Edad ATP a detalle: de dónde sale el número y qué lo mueve. Sube su precisión con labs, tests físicos y cuestionarios.' },
   { key: 'sintomas', label: 'Síntomas', icon: 'sintomas', section: 'salud', route: '/salud/mis-sintomas', installable: false, alias: ['malestar', 'dolor', 'molestias'],
     description: 'Registra qué sientes, con intensidad y desde cuándo, y ciérralo cuando pase. Lo que registras alimenta tu mapa funcional.' },
-  { key: 'diagnostico', label: 'Mi mapa', icon: 'diagnostico', section: 'salud', route: '/salud/diagnostico', installable: false, alias: ['mapa funcional', 'raíces', 'sistemas'],
+  // La llave es 'mapa-funcional' (no el nombre del destino en salud-puertas):
+  // las llaves de apps las referencian los paquetes de salud en packs.ts, y
+  // ese archivo tiene barrido de vocabulario clínico. El icono sí comparte
+  // dibujo con el destino.
+  { key: 'mapa-funcional', label: 'Mi mapa', icon: 'diagnostico', section: 'salud', route: '/salud/diagnostico', installable: false, alias: ['mapa funcional', 'raíces', 'sistemas'],
     description: 'Tu mapa funcional: las raíces que ARGOS detecta con tus datos, el nivel de evidencia de cada una y el PDF para compartirlo.' },
   { key: 'reportes', label: 'Reportes', icon: 'reportes', section: 'salud', route: '/reports', installable: false, alias: ['reporte', 'semana', 'consulta', 'estadísticas'],
     description: 'Tu semana y tu mes en números: hábitos, nutrición, ejercicio y salud. Con el PDF de tus registros para tu consulta.' },

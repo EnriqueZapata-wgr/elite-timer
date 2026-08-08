@@ -24,7 +24,7 @@ import { useAuth } from '@/src/contexts/auth-context';
 import {
   visibleApps, searchApps, type AppEntry,
 } from '@/src/constants/app-registry';
-import { PACKS } from '@/src/constants/packs';
+import { PACKS, PAQUETES_SALUD } from '@/src/constants/packs';
 import { groupBySection } from '@/src/services/atp-room-core';
 import { getInstallPrefs } from '@/src/services/hoy/install-service';
 import { appInstallState, type InstallPrefs, type InstallState } from '@/src/services/hoy/install-core';
@@ -140,6 +140,32 @@ export default function CentroScreen() {
                   <AnimatedPressable
                     key={p.key}
                     style={[s.row, i < PACKS.length - 1 && s.rowDivider]}
+                    onPress={() => { haptic.light(); router.push(`/packs/${p.key}`); }}
+                  >
+                    <View style={s.packIcon}>
+                      <AppIcon name={p.icon} size={18} color={TEXT.secondary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <EliteText style={s.rowLabel} numberOfLines={1}>{p.nombre}</EliteText>
+                      <EliteText style={s.packParaQuien} numberOfLines={1}>{p.paraQuien}</EliteText>
+                    </View>
+                    {esAplicado && <EliteText style={s.packAplicadoChip}>APLICADO</EliteText>}
+                    <Ionicons name="chevron-forward" size={15} color={TEXT.muted} />
+                  </AnimatedPressable>
+                );
+              })}
+            </View>
+
+            {/* MB-29 P4: los paquetes de salud — mismo motor, misma ficha.
+                Instalan el grupo de apps que se usan juntas. */}
+            <EliteText style={s.packsTitle}>PAQUETES DE SALUD</EliteText>
+            <View style={[s.group, { marginBottom: Spacing.md }]}>
+              {PAQUETES_SALUD.map((p, i) => {
+                const esAplicado = packAplicado(packs, p.key) != null;
+                return (
+                  <AnimatedPressable
+                    key={p.key}
+                    style={[s.row, i < PAQUETES_SALUD.length - 1 && s.rowDivider]}
                     onPress={() => { haptic.light(); router.push(`/packs/${p.key}`); }}
                   >
                     <View style={s.packIcon}>

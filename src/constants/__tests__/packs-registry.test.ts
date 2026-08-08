@@ -7,19 +7,23 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { PACKS, PACK_BY_KEY, habitosPorIntensidad } from '@/src/constants/packs';
+import { PACKS, PAQUETES_SALUD, PACK_BY_KEY, habitosPorIntensidad } from '@/src/constants/packs';
 import { APP_BY_KEY } from '@/src/constants/app-registry';
 import { ELECTRON_WEIGHTS } from '@/src/constants/electrons';
 import { hasAppIcon } from '@/src/components/ui/app-icon-names';
 
+// MB-29 P4: el contrato cubre los dos registros — mismos invariantes.
+const TODOS = [...PACKS, ...PAQUETES_SALUD];
+
 describe('contrato del registro de packs', () => {
-  it('hay cinco packs con llave única', () => {
+  it('hay cinco packs de estilo de vida + tres paquetes de salud, llaves únicas entre todos', () => {
     expect(PACKS.length).toBe(5);
-    expect(Object.keys(PACK_BY_KEY).length).toBe(5);
+    expect(PAQUETES_SALUD.length).toBe(3);
+    expect(Object.keys(PACK_BY_KEY).length).toBe(TODOS.length);
   });
 
   it('cada appKey de cada pack existe en APP_REGISTRY', () => {
-    for (const pack of PACKS) {
+    for (const pack of TODOS) {
       for (const appKey of pack.instala) {
         expect(APP_BY_KEY[appKey], `${pack.key} instala "${appKey}"`).toBeTruthy();
       }
@@ -27,7 +31,7 @@ describe('contrato del registro de packs', () => {
   });
 
   it('cada electron de cada pack existe en ELECTRON_WEIGHTS', () => {
-    for (const pack of PACKS) {
+    for (const pack of TODOS) {
       for (const h of pack.enciende) {
         expect(
           ELECTRON_WEIGHTS[h.electron],
@@ -37,7 +41,7 @@ describe('contrato del registro de packs', () => {
     }
   });
 
-  it('cada pack tiene exactamente 3 hábitos core (los de "suave")', () => {
+  it('estilo de vida: exactamente 3 hábitos core (los de "suave")', () => {
     for (const pack of PACKS) {
       const core = pack.enciende.filter((h) => h.core);
       expect(core.length, `cores de ${pack.key}`).toBe(3);
@@ -46,14 +50,24 @@ describe('contrato del registro de packs', () => {
     }
   });
 
+  it('paquetes de salud: entre 1 y 3 cores (instalan apps; encienden poco)', () => {
+    for (const pack of PAQUETES_SALUD) {
+      const core = pack.enciende.filter((h) => h.core);
+      expect(core.length, `cores de ${pack.key}`).toBeGreaterThanOrEqual(1);
+      expect(core.length, `cores de ${pack.key}`).toBeLessThanOrEqual(3);
+      expect(habitosPorIntensidad(pack, 'suave')).toEqual(core);
+      expect(habitosPorIntensidad(pack, 'con_todo')).toEqual(pack.enciende);
+    }
+  });
+
   it('cada icono de pack resuelve en el mapa de iconos', () => {
-    for (const pack of PACKS) {
+    for (const pack of TODOS) {
       expect(hasAppIcon(pack.icon), `icono de ${pack.key}: "${pack.icon}"`).toBe(true);
     }
   });
 
   it('sin duplicados: ni apps ni electrones repetidos dentro de un pack', () => {
-    for (const pack of PACKS) {
+    for (const pack of TODOS) {
       expect(new Set(pack.instala).size, `instala de ${pack.key}`).toBe(pack.instala.length);
       const keys = pack.enciende.map((h) => h.electron);
       expect(new Set(keys).size, `enciende de ${pack.key}`).toBe(keys.length);
@@ -61,7 +75,7 @@ describe('contrato del registro de packs', () => {
   });
 
   it('cada aviso apunta a una app que el pack instala', () => {
-    for (const pack of PACKS) {
+    for (const pack of TODOS) {
       for (const aviso of pack.avisos) {
         expect(
           pack.instala.includes(aviso.app),
@@ -72,7 +86,7 @@ describe('contrato del registro de packs', () => {
   });
 
   it('las horas relativas son razonables (offset dentro de un día)', () => {
-    for (const pack of PACKS) {
+    for (const pack of TODOS) {
       const horas = [
         ...pack.enciende.flatMap((h) => (h.hora ? [h.hora] : [])),
         ...pack.avisos.map((a) => a.hora),
@@ -89,7 +103,7 @@ describe('contrato del registro de packs', () => {
   const prohibidas = /diabetes|ansiedad|insomnio|depresi[oó]n|hipertensi|tiroid|resistencia a la insulina|tratamiento|diagn[oó]stico|enfermedad|\bcurar?\b/i;
 
   it('el copy no usa em dash ni nombra padecimientos', () => {
-    for (const pack of PACKS) {
+    for (const pack of TODOS) {
       const copy = [pack.nombre, pack.paraQuien, pack.queEsperar, pack.argosFoco].join(' ');
       expect(copy.includes('—'), `em dash en ${pack.key}`).toBe(false);
       expect(prohibidas.test(copy), `palabra roja en ${pack.key}: ${copy.match(prohibidas)?.[0] ?? ''}`).toBe(false);
