@@ -188,11 +188,16 @@ async function fetchFasting(userId: string, since: string): Promise<string[]> {
 
 async function fetchSunDates(userId: string, since: string): Promise<string[]> {
   try {
+    // MB-28C P4: el hábito vivo escribe source='sunlight' en electron_logs
+    // (day-booleans); 'sun_awareness' es el nombre legacy del peso y quedó
+    // solo en registros viejos. Filtrar únicamente por el legacy dejaba TODOS
+    // los días de sol reales fuera y la correlación de Sol decía "sin datos"
+    // para siempre — por eso "Tu historia" se veía vacía de sol con datos.
     const { data, error } = await supabase
       .from('electron_logs')
       .select('date')
       .eq('user_id', userId)
-      .eq('source', 'sun_awareness')
+      .in('source', ['sunlight', 'sun_awareness'])
       .gte('date', since);
     if (error) throw error;
     return [...new Set((data ?? []).map((r: any) => r.date as string))];
