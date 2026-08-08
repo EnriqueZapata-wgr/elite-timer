@@ -794,8 +794,9 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
         {/* Info */}
         {!preSession && (
           <AnimatedRN.View entering={FadeIn.duration(300)} style={styles.infoSection}>
+            {/* MB-28C P5: mismo vocabulario que el cierre ("N rondas"). */}
             <EliteText variant="caption" style={styles.cycleText}>
-              Ciclo {currentCycle + 1} de {template.cycles}
+              Ronda {currentCycle + 1} de {template.cycles}
             </EliteText>
             <EliteText variant="body" style={styles.remainingText}>
               {formatMmSs(totalRemaining)}
@@ -808,8 +809,14 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
 
         {preSession && (
           <>
+            {/* MB-28C P5: "18 ciclos · 4s-4s-4s-4s" leía como si los ciclos
+                fueran segundos. Ahora la ronda y sus segundos van separados:
+                qué repites, y cuánto dura cada paso. */}
             <EliteText variant="caption" style={styles.idleInfo}>
-              {template.durationMinutes} min · {template.cycles} ciclos · {template.phases.map(p => p.seconds + 's').join('-')}
+              {template.durationMinutes} min · {template.cycles} rondas
+            </EliteText>
+            <EliteText variant="caption" style={styles.idleInfoDetail}>
+              Cada ronda: {template.phases.map(p => `${p.label} ${p.seconds}s`).join(' · ')}
             </EliteText>
             {/* MB-23 P5: vibración en vez de sonido — con el teléfono en
                 silencio, que es como se respira de verdad. */}
@@ -945,7 +952,12 @@ const styles = StyleSheet.create({
     width: '100%', height: 3, backgroundColor: Colors.surfaceLight, borderRadius: Radius.xs, overflow: 'hidden',
   },
   totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: Radius.xs },
-  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.md, fontSize: FontSizes.md },
+  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.xs, fontSize: FontSizes.md },
+  // MB-28C P5: el desglose de la ronda (fase + segundos), debajo del total.
+  idleInfoDetail: {
+    color: Colors.textSecondary, marginBottom: Spacing.md, fontSize: FontSizes.sm,
+    textAlign: 'center', paddingHorizontal: Spacing.lg, lineHeight: 18,
+  },
   // MB-23 P5: toggle de vibración en vez de sonido (pre-sesión)
   vibrateRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
