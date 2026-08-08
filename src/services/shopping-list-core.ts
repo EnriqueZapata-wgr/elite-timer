@@ -116,8 +116,9 @@ export function aggregateIngredients(recipes: RawRecipe[]): AggregatedItem[] {
     .sort((a, b) => a.name.localeCompare(b.name, 'es'));
 }
 
-/** Texto compartible de la lista (Share nativo). */
-export function shoppingListToText(items: AggregatedItem[]): string {
+/** Texto compartible de la lista (Share nativo). Acepta cualquier item con
+ * name y detail: los agregados clásicos y los persistentes de la 260. */
+export function shoppingListToText(items: { name: string; detail: string; [k: string]: unknown }[]): string {
   if (items.length === 0) return '';
   const lines = items.map((i) => `☐ ${i.name}${i.detail ? ` — ${i.detail}` : ''}`);
   return `LISTA DE COMPRA ATP\n\n${lines.join('\n')}`;
@@ -125,4 +126,93 @@ export function shoppingListToText(items: AggregatedItem[]): string {
 
 function trimNum(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(/\.0$/, '');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MB-28B P3 — la lista persistente y su merge (receta → lista sin duplicar)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Fila de shopping_list_items ya mapeada a cliente. */
+export interface ShoppingListItem {
+  id: string;
+  name: string;
+  nameKey: string;
+  detail: string | null;
+  status: 'pending' | 'bought';
+  source: 'manual' | 'recipe';
+  fromRecipes: string[];
+  boughtAt: string | null;
+}
+
+/** Nombre → llave de dedupe (la misma que el índice único de la migración 260). */
+export function itemNameKey(name: string): string {
+  return String(name ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** El detail legible de un ingrediente normalizado ("400 g", "al gusto"). */
+export function ingredientDetail(ing: NormalizedIngredient): string | null {
+  if (ing.quantity !== null) {
+    return ing.unit ? `${trimNum(ing.quantity)} ${ing.unit}` : trimNum(ing.quantity);
+  }
+  return ing.rawQuantity;
+}
+
+export interface RecipeToListPlan {
+  /** Ingredientes nuevos: no estaban en la lista. */
+  inserts: { name: string; nameKey: string; detail: string | null; fromRecipes: string[] }[];
+  /** Pendientes que ya estaban: se les suma la receta (y el detail si faltaba). */
+  merges: { id: string; detail: string | null; fromRecipes: string[] }[];
+  /** Comprados recientes: EN TU DESPENSA — no se vuelven a pedir. */
+  pantry: { id: string; name: string }[];
+}
+
+/**
+ * Decide qué pasa con cada ingrediente de una receta contra la lista actual.
+ * Pura y determinística — es la regla del brief hecha función:
+ *   - no está → se agrega (insert)
+ *   - está pendiente → NO se duplica; se anota la receta que lo pidió (merge)
+ *   - está comprado → la despensa responde: no se vuelve a pedir (pantry)
+ * Dedupe también dentro de la propia receta (dos "ajo" → uno).
+ */
+export function planRecipeToList(
+  existing: ShoppingListItem[],
+  recipeName: string,
+  ingredients: unknown,
+): RecipeToListPlan {
+  const byKey = new Map(existing.map((i) => [i.nameKey, i]));
+  const plan: RecipeToListPlan = { inserts: [], merges: [], pantry: [] };
+  const seen = new Set<string>();
+
+  const list = Array.isArray(ingredients) ? ingredients : [];
+  for (const raw of list) {
+    const ing = normalizeIngredient(raw);
+    if (!ing) continue;
+    const key = itemNameKey(ing.name);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+
+    const detail = ingredientDetail(ing);
+    const current = byKey.get(key);
+    if (!current) {
+      plan.inserts.push({ name: ing.name, nameKey: key, detail, fromRecipes: [recipeName] });
+    } else if (current.status === 'bought') {
+      plan.pantry.push({ id: current.id, name: current.name });
+    } else {
+      plan.merges.push({
+        id: current.id,
+        // El detail existente manda (el usuario pudo editarlo); solo se
+        // completa si estaba vacío.
+        detail: current.detail ?? detail,
+        fromRecipes: current.fromRecipes.includes(recipeName)
+          ? current.fromRecipes
+          : [...current.fromRecipes, recipeName],
+      });
+    }
+  }
+  return plan;
 }
