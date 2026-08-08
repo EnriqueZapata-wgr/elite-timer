@@ -174,6 +174,9 @@ export const GLYPH_INVENTORY: readonly string[] = [
   'app/reports.tsx::analytics-outline',
   'app/reports.tsx::barbell-outline',
   'app/reports.tsx::calendar-outline',
+  // MB-29 P1: header de la card "Para tu consulta" — chrome de sección en su
+  // propio dominio (reportes), no un lanzador dibujando una función.
+  'app/reports.tsx::document-text-outline',
   'app/reports.tsx::eye-outline',
   'app/reports.tsx::flower-outline',
   'app/reports.tsx::restaurant-outline',

@@ -8,7 +8,7 @@
  * personalizables (reordenar + prender/apagar, @atp/reports_sections).
  */
 import { useState, useCallback, useEffect, type ReactNode } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
@@ -32,6 +32,11 @@ import {
   effectiveOrder, isHidden, moveSection, toggleSection, parsePrefs,
   EMPTY_PREFS, type SectionPrefs,
 } from '@/src/services/reports/report-prefs-core';
+import {
+  generateAndShareConsultaReport,
+  CONSULTA_RANGES,
+  type ConsultaRangeDays,
+} from '@/src/services/salud/consulta-report-service';
 import {
   getNutritionReport, getHydrationReport, getExerciseReport,
   getComplianceReport, getFastingReport, getElectronReport, getGlucoseReport,
@@ -95,6 +100,33 @@ export default function ReportsScreen() {
   const [cycle, setCycle] = useState<CycleReport>({ periodDays: 0, avgEnergy: 0, avgMood: 0, logsCount: 0 });
   const [identity, setIdentity] = useState<IdentityStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // MB-29 P1 (H3): el reporte para el médico — rango elegible + PDF.
+  const [consultaRange, setConsultaRange] = useState<ConsultaRangeDays>(30);
+  const [consultaSharing, setConsultaSharing] = useState(false);
+  const firstName = ((user?.user_metadata?.full_name as string) || '').trim().split(' ')[0] || '';
+
+  const handleConsulta = useCallback(async () => {
+    if (consultaSharing || !user?.id) return;
+    haptic.medium();
+    setConsultaSharing(true);
+    try {
+      const result = await generateAndShareConsultaReport(user.id, firstName, consultaRange);
+      if (result === 'unavailable') {
+        Alert.alert(
+          'Tu versión aún no comparte PDF',
+          'Este teléfono trae una versión de la app sin el módulo de PDF. Llega con la próxima actualización de la tienda.',
+        );
+      } else if (result === 'error') {
+        Alert.alert(
+          'No se pudo generar',
+          'No pudimos leer todos tus registros en este momento. Nada se generó a medias: intenta de nuevo en un momento.',
+        );
+      }
+    } finally {
+      setConsultaSharing(false);
+    }
+  }, [consultaSharing, user?.id, firstName, consultaRange]);
 
   // MB-11 C: calendario de adherencia (mes visible + flags por día).
   const now = new Date();
@@ -297,6 +329,41 @@ export default function ReportsScreen() {
           </GradientCard>
         </Animated.View>
 
+        {/* PARA TU CONSULTA — MB-29 P1 (H3): fija, es el trabajo que el
+            perfil de glucosa nos contrata. Solo datos, cero interpretación. */}
+        <Animated.View entering={FadeInUp.delay(45).springify()} style={s.cardWrap}>
+          <GradientCard gradient={{ start: 'rgba(29,158,117,0.12)', end: 'rgba(29,158,117,0.02)' }}>
+            <SectionHeader icon="document-text-outline" color={ATP_BRAND.teal} title="PARA TU CONSULTA" />
+            <EliteText style={s.consultaBody}>
+              Un PDF con lo que registraste en el rango que elijas: mediciones, laboratorios,
+              síntomas e intervenciones. Sin interpretar nada: la lectura la hace tu médico.
+            </EliteText>
+            <View style={s.consultaRangeRow}>
+              {CONSULTA_RANGES.map((d) => (
+                <AnimatedPressable
+                  key={d}
+                  onPress={() => { haptic.light(); setConsultaRange(d); }}
+                  style={[s.consultaRangePill, consultaRange === d && s.consultaRangePillActive]}
+                >
+                  <EliteText style={[s.consultaRangeText, consultaRange === d && s.consultaRangeTextActive]}>
+                    {d} días
+                  </EliteText>
+                </AnimatedPressable>
+              ))}
+            </View>
+            <AnimatedPressable
+              onPress={handleConsulta}
+              disabled={consultaSharing}
+              style={[s.consultaCta, consultaSharing && s.consultaCtaDisabled]}
+            >
+              <Ionicons name="share-outline" size={16} color="#000" />
+              <EliteText style={s.consultaCtaText}>
+                {consultaSharing ? 'Generando…' : 'Generar y compartir PDF'}
+              </EliteText>
+            </AnimatedPressable>
+          </GradientCard>
+        </Animated.View>
+
         {order.map((key, i) => {
           const k = key as SectionKey;
           const hidden = isHidden(prefs, k);
@@ -367,6 +434,17 @@ const s = StyleSheet.create({
   editControls: { flexDirection: 'row', gap: 4 },
   editBtn: { padding: 6, borderRadius: 8, borderWidth: 1, borderColor: '#2A2A2A' },
   emptyHint: { fontSize: FontSizes.sm, color: '#888', fontFamily: Fonts.regular, lineHeight: 18, marginTop: 4 },
+
+  // MB-29 P1: card del reporte para la consulta
+  consultaBody: { fontSize: FontSizes.sm, color: TEXT.secondary, fontFamily: Fonts.regular, lineHeight: 19, marginBottom: Spacing.sm },
+  consultaRangeRow: { flexDirection: 'row', gap: 8, marginBottom: Spacing.sm },
+  consultaRangePill: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: '#2A2A2A' },
+  consultaRangePillActive: { backgroundColor: 'rgba(29,158,117,0.18)', borderColor: ATP_BRAND.teal },
+  consultaRangeText: { fontSize: FontSizes.sm, color: TEXT.secondary, fontFamily: Fonts.semiBold },
+  consultaRangeTextActive: { color: '#fff' },
+  consultaCta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: ATP_BRAND.lime, borderRadius: 12, paddingVertical: 12 },
+  consultaCtaDisabled: { opacity: 0.7 },
+  consultaCtaText: { fontSize: FontSizes.sm, fontFamily: Fonts.bold, color: '#000' },
 
   cardWrap: { marginBottom: Spacing.md },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: Spacing.sm },
