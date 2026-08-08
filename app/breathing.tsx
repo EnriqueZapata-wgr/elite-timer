@@ -75,8 +75,9 @@ const BREATH_CARD_IMAGES: Record<string, any> = {
 };
 const BREATH_CARD_FALLBACK = require('@/assets/images/mente/cards/card_respiracion.webp');
 
+// MB-28C P6: murió el BLUE #60a5fa — quedó sin un solo uso (legacy pre
+// design system). Respiración es Mente: morado del pilar.
 const PURPLE = CATEGORY_COLORS.mind;
-const BLUE = '#60a5fa';
 
 const BREATH_ICONS: Record<string, string> = {
   'box-4': 'square-outline',
@@ -324,8 +325,11 @@ function SelectorScreen({ onSelect, onBack }: {
                     <View style={{ backgroundColor: `${PURPLE}2A`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                       <Text style={{ color: '#c9c4f5', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.durationMinutes} min</Text>
                     </View>
-                    <View style={{ backgroundColor: 'rgba(168,224,42,0.16)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                      <Text style={{ color: '#a8e02a', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.phases.map(p => p.seconds + 's').join('-')}</Text>
+                    {/* MB-28C P6: el chip de segundos iba en lima decorativo —
+                        Respiración es Mente y el lima no es CTA ni estado aquí.
+                        Neutro, como sus hermanos de nivel y beneficio. */}
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.phases.map(p => p.seconds + 's').join('-')}</Text>
                     </View>
                     {/* Sprint MENTE: nivel + beneficio principal */}
                     <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>

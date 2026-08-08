@@ -38,10 +38,13 @@ function countLeafBlocks(blocks: Routine['blocks']): number {
   return count;
 }
 
-/** Icono y color según modo */
+/** Icono y color según modo. MB-28C P6: el azul #38bdf8 del modo timer era
+ *  de antes del design system (5º color en el pilar); los timers son la misma
+ *  familia que HIIT, que MB-3.6 §4.2 fijó en el amber de marca. Fuerza usa el
+ *  lima de categoría, ahora por token. */
 const MODE_META: Record<string, { icon: string; color: string; label: string }> = {
-  routine: { icon: 'barbell-outline', color: '#a8e02a', label: 'Fuerza' },
-  timer: { icon: 'timer-outline', color: '#38bdf8', label: 'Timer' },
+  routine: { icon: 'barbell-outline', color: ATP_BRAND.lime, label: 'Fuerza' },
+  timer: { icon: 'timer-outline', color: ATP_BRAND.amber, label: 'Timer' },
 };
 
 // ── Limpieza (MB-5 2.3) ──
@@ -396,12 +399,12 @@ export default function MyRoutinesScreen() {
               style={s.createBtn}
             >
               <View style={s.createRow}>
-                <Ionicons name="barbell-outline" size={22} color="#a8e02a" />
+                <Ionicons name="barbell-outline" size={22} color={ATP_BRAND.lime} />
                 <View style={s.createInfo}>
                   <EliteText style={s.createTitle}>CREAR RUTINA</EliteText>
                   <EliteText style={s.createSub}>Rutina de fuerza con ejercicios y sets</EliteText>
                 </View>
-                <Ionicons name="add-circle" size={24} color="#a8e02a" />
+                <Ionicons name="add-circle" size={24} color={ATP_BRAND.lime} />
               </View>
             </AnimatedPressable>
 
@@ -410,12 +413,12 @@ export default function MyRoutinesScreen() {
               style={s.createBtn}
             >
               <View style={s.createRow}>
-                <Ionicons name="timer-outline" size={22} color="#38bdf8" />
+                <Ionicons name="timer-outline" size={22} color={ATP_BRAND.amber} />
                 <View style={s.createInfo}>
                   <EliteText style={s.createTitle}>CREAR TIMER</EliteText>
                   <EliteText style={s.createSub}>Timer personalizado con bloques de tiempo</EliteText>
                 </View>
-                <Ionicons name="add-circle" size={24} color="#38bdf8" />
+                <Ionicons name="add-circle" size={24} color={ATP_BRAND.amber} />
               </View>
             </AnimatedPressable>
           </Animated.View>
