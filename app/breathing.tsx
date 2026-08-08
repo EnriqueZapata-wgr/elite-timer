@@ -40,6 +40,7 @@ import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-service';
+import { stopActivePlayer } from '@/src/services/mente-player-singleton';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
 import { prefetchAudioCovers } from '@/src/components/mente/audio-cover';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
@@ -225,7 +226,15 @@ function SelectorScreen({ onSelect, onBack }: {
   const [scrolled, setScrolled] = useState(false);
   const { isPro } = useSubscription();
 
+  // MB-28C P1: candado de navegación — el doble tap empujaba DOS modales del
+  // player y sus cargas corrían en paralelo (empalme). Se suelta al volver.
+  const navLockRef = useRef(false);
+
   useFocusEffect(useCallback(() => {
+    navLockRef.current = false;
+    // MB-28C P1: red de seguridad — un audio vivo sin pantalla se apaga al
+    // volver aquí (idempotente; el camino normal ya lo apagó en el cleanup).
+    stopActivePlayer();
     let alive = true;
     fetchAudioPieces().then(all => {
       if (!alive) return;
@@ -240,6 +249,8 @@ function SelectorScreen({ onSelect, onBack }: {
   }, []));
 
   const openPiece = useCallback((piece: AudioPiece) => {
+    if (navLockRef.current) return;
+    navLockRef.current = true;
     haptic.light();
     if (piece.tier === 'pro' && !isPro) {
       router.push('/paywall');

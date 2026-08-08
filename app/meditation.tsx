@@ -38,6 +38,7 @@ import {
   type MeditationPhase,
 } from '@/src/data/meditation-library';
 import { fetchAudioPieces, fetchFavoriteSlugs, type AudioPiece } from '@/src/services/mente-audio-service';
+import { stopActivePlayer } from '@/src/services/mente-player-singleton';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
 import { RegistroManualCard } from '@/src/components/mente/RegistroManualCard';
@@ -120,8 +121,18 @@ function LibraryScreen({ onSelect, onBack }: {
     return () => { alive = false; };
   }, []);
 
+  // MB-28C P1: candado de navegación — el doble tap sobre una card empujaba
+  // DOS modales del player y sus cargas corrían en paralelo (el camino exacto
+  // del empalme de audios). Se suelta al recuperar el foco.
+  const navLockRef = useRef(false);
+
   // Favoritas se refrescan al volver (el corazón vive en el player).
   useFocusEffect(useCallback(() => {
+    navLockRef.current = false;
+    // MB-28C P1: red de seguridad — si quedó un audio vivo sin pantalla
+    // (estado perdido), volver a la biblioteca lo apaga. El camino normal
+    // ya lo apagó en el cleanup del player; esto es idempotente.
+    stopActivePlayer();
     let alive = true;
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
@@ -131,6 +142,8 @@ function LibraryScreen({ onSelect, onBack }: {
   }, []));
 
   const openPiece = useCallback((piece: AudioPiece) => {
+    if (navLockRef.current) return;
+    navLockRef.current = true;
     haptic.light();
     if (piece.tier === 'pro' && !isPro) {
       // Upsell: la card se ve, Base no reproduce (espejo del 403 server-side).
