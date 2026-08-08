@@ -25,6 +25,7 @@ import { saveFoodLog } from '@/src/services/food-log-service';
 import { FoodReviewEditor, type ReviewState } from '@/src/components/nutrition/FoodReviewEditor';
 import { updateFrequentFood } from '@/src/services/frequent-foods-service';
 import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
+import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { maybeGeneratePostMealInsight } from '@/src/services/argos-nutrition-insights';
 import { haptic } from '@/src/utils/haptics';
 import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
@@ -134,6 +135,10 @@ export default function FoodTextScreen() {
   const { user } = useAuth();
   const analytics = useAnalytics();
   const params = useLocalSearchParams<{ mealType?: string }>();
+  // MB-28A P1: el modo llega también al registro manual. SIMPLE registra y ya
+  // (guardar directo, proteína como único número); COMPLETO ve y ajusta los
+  // números (macros en vivo + editor de revisión al guardar).
+  const { mode: nutritionMode } = useNutritionMode();
 
   // --- Estado de búsqueda ---
   const [query, setQuery] = useState('');
@@ -204,7 +209,31 @@ export default function FoodTextScreen() {
     setIngredients(prev => prev.filter(i => i.id !== id));
   }, []);
 
-  // --- Guardar: si hay ingredientes, mostrar editor de revisión ---
+  // El estado de revisión que representa lo armado (compartido por el editor
+  // en COMPLETO y por el guardado directo en SIMPLE — mismos números).
+  const buildReviewState = useCallback((): ReviewState => ({
+    description: ingredients.map(i => `${i.food.name}`).join(', '),
+    items: ingredients.map(i => {
+      const n = calculateNutrients(i.food, i.grams);
+      return {
+        name: i.food.name,
+        quantity: i.grams,
+        unit: 'g' as const,
+        calories: n.calories,
+        protein_g: n.protein,
+        carbs_g: n.carbs,
+        fat_g: n.fat,
+      };
+    }),
+    totals: {
+      calories: totals.calories,
+      protein_g: totals.protein,
+      carbs_g: totals.carbs,
+      fat_g: totals.fat,
+    },
+  }), [ingredients, totals]);
+
+  // --- Guardar: COMPLETO revisa antes; SIMPLE registra y ya (P1 MB-28A) ---
   const handleSave = useCallback(() => {
     if (!user) {
       Alert.alert('Error', 'Debes iniciar sesión para guardar');
@@ -215,9 +244,15 @@ export default function FoodTextScreen() {
       return;
     }
 
-    // Si hay ingredientes, mostrar editor de revisión antes de guardar
     if (ingredients.length > 0) {
-      setShowReview(true);
+      if (nutritionMode === 'complete') {
+        // COMPLETO: el editor de revisión es el paso siguiente del guardado.
+        setShowReview(true);
+      } else {
+        // SIMPLE: guarda tal cual con los mismos números calculados; ajustar
+        // fino queda a un toque ("Revisar y ajustar antes de guardar").
+        void persistSave(buildReviewState());
+      }
       return;
     }
 
@@ -227,7 +262,7 @@ export default function FoodTextScreen() {
       items: [],
       totals: { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
     });
-  }, [user, ingredients, query]);
+  }, [user, ingredients, query, nutritionMode, buildReviewState]);
 
   // Guardar en Supabase (después de revisión o directo)
   const persistSave = useCallback(async (reviewed: ReviewState) => {
@@ -297,31 +332,10 @@ export default function FoodTextScreen() {
 
   // Si está en modo revisión, mostrar el editor
   if (showReview && ingredients.length > 0) {
-    const reviewInit: ReviewState = {
-      description: ingredients.map(i => `${i.food.name}`).join(', '),
-      items: ingredients.map(i => {
-        const n = calculateNutrients(i.food, i.grams);
-        return {
-          name: i.food.name,
-          quantity: i.grams,
-          unit: 'g' as const,
-          calories: n.calories,
-          protein_g: n.protein,
-          carbs_g: n.carbs,
-          fat_g: n.fat,
-        };
-      }),
-      totals: {
-        calories: totals.calories,
-        protein_g: totals.protein,
-        carbs_g: totals.carbs,
-        fat_g: totals.fat,
-      },
-    };
     return (
       <SafeAreaView style={s.container} edges={['top']}>
         <FoodReviewEditor
-          initialState={reviewInit}
+          initialState={buildReviewState()}
           onSave={persistSave}
           onCancel={() => setShowReview(false)}
         />
@@ -501,18 +515,26 @@ export default function FoodTextScreen() {
                         </View>
                       </View>
 
-                      {/* Mini macros del ingrediente */}
+                      {/* Mini macros del ingrediente. P1 MB-28A: en SIMPLE el
+                          único número es la proteína (doctrina score+proteína);
+                          el desglose completo es del modo completo. */}
                       <View style={s.ingredientMacros}>
-                        <EliteText style={s.macroMini}>{nutrients.calories} kcal</EliteText>
+                        {nutritionMode === 'complete' && (
+                          <EliteText style={s.macroMini}>{nutrients.calories} kcal</EliteText>
+                        )}
                         <EliteText style={[s.macroMini, { color: SEMANTIC.info }]}>
                           P {nutrients.protein}
                         </EliteText>
-                        <EliteText style={[s.macroMini, { color: SEMANTIC.warning }]}>
-                          C {nutrients.carbs}
-                        </EliteText>
-                        <EliteText style={[s.macroMini, { color: SEMANTIC.error }]}>
-                          G {nutrients.fat}
-                        </EliteText>
+                        {nutritionMode === 'complete' && (
+                          <>
+                            <EliteText style={[s.macroMini, { color: SEMANTIC.warning }]}>
+                              C {nutrients.carbs}
+                            </EliteText>
+                            <EliteText style={[s.macroMini, { color: SEMANTIC.error }]}>
+                              G {nutrients.fat}
+                            </EliteText>
+                          </>
+                        )}
                       </View>
                     </View>
                   </Animated.View>
@@ -521,16 +543,23 @@ export default function FoodTextScreen() {
             </Animated.View>
           )}
 
-          {/* ═══ Resumen de macros totales ═══ */}
+          {/* ═══ Resumen de macros totales. P1 MB-28A: SIMPLE ve solo la
+              proteína; el desglose de 5 números es del modo completo. ═══ */}
           {ingredients.length > 0 && (
             <Animated.View entering={FadeInUp.delay(100).duration(400)} style={s.totalsCard}>
               <EliteText style={s.totalsTitle}>Total</EliteText>
               <View style={s.totalsRow}>
-                <MacroBox label="Calorías" value={`${totals.calories}`} unit="kcal" color={BLUE} />
+                {nutritionMode === 'complete' && (
+                  <MacroBox label="Calorías" value={`${totals.calories}`} unit="kcal" color={BLUE} />
+                )}
                 <MacroBox label="Proteína" value={`${totals.protein}`} unit="g" color={SEMANTIC.info} />
-                <MacroBox label="Carbs" value={`${totals.carbs}`} unit="g" color={SEMANTIC.warning} />
-                <MacroBox label="Grasa" value={`${totals.fat}`} unit="g" color={SEMANTIC.error} />
-                <MacroBox label="Fibra" value={`${totals.fiber}`} unit="g" color={SEMANTIC.success} />
+                {nutritionMode === 'complete' && (
+                  <>
+                    <MacroBox label="Carbs" value={`${totals.carbs}`} unit="g" color={SEMANTIC.warning} />
+                    <MacroBox label="Grasa" value={`${totals.fat}`} unit="g" color={SEMANTIC.error} />
+                    <MacroBox label="Fibra" value={`${totals.fiber}`} unit="g" color={SEMANTIC.success} />
+                  </>
+                )}
               </View>
             </Animated.View>
           )}
@@ -615,6 +644,17 @@ export default function FoodTextScreen() {
                 </AnimatedPressable>
               );
             })()}
+            {/* P1 MB-28A: en SIMPLE ajustar es opt-in (mismo patrón que
+                food-scan Track C); en COMPLETO el editor ya es el paso
+                siguiente del botón Guardar. */}
+            {nutritionMode === 'simple' && ingredients.length > 0 && (
+              <Pressable onPress={() => setShowReview(true)} disabled={saving}
+                style={{ alignSelf: 'center', paddingVertical: Spacing.sm, marginTop: Spacing.xs }}>
+                <EliteText style={{ color: TEXT_COLORS.muted, fontSize: FontSizes.md }}>
+                  Revisar y ajustar antes de guardar
+                </EliteText>
+              </Pressable>
+            )}
           </Animated.View>
           {/* B-5 (MB-12): las macros son estimación de IA */}
           <MedicalDisclaimer feature="nutrition" />

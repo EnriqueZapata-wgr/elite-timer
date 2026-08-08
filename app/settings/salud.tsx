@@ -59,13 +59,12 @@ export default function SettingsSaludScreen() {
   function onToggleComplete(v: boolean) {
     haptic.light();
     if (!v) { setMode('simple'); return; }
-    // Opt-in consciente (filosofía "guiado no prisionero"). MB-23 P4.3: el
-    // copy promete SOLO lo que el modo hace de verdad — el registro rápido
-    // (texto/guardados) no cambia; cambian el hub, la revisión al guardar
-    // por foto y el score.
+    // Opt-in consciente (filosofía "guiado no prisionero"). MB-28A P1: desde
+    // este run el modo lo respetan LAS TRES pantallas de registro (foto,
+    // texto y guardados), así que el copy vuelve a prometer todo lo que hace.
     Alert.alert(
       'Activar modo completo',
-      'Se abren todas las secciones del hub (recetas, suplementos, glucosa, escáner), la revisión de macros al guardar por foto y el score con micros. Puedes volver al modo simple cuando quieras.',
+      'Verás calorías y macros al registrar por foto, texto o guardados, con revisión antes de guardar. Se abren todas las secciones del hub (recetas, suplementos, glucosa, escáner) y el score con micros. Puedes volver al modo simple cuando quieras.',
       [
         { text: 'Ahora no', style: 'cancel' },
         { text: 'Activar', onPress: () => setMode('complete') },
@@ -129,10 +128,11 @@ export default function SettingsSaludScreen() {
         <Animated.View entering={FadeInUp.delay(140).springify()}>
           <SectionLabel>NUTRICIÓN</SectionLabel>
           {/* MB-23 P4.3: UN concepto en toda la app — simple contra completo.
-              Y el copy dice lo que el modo HACE: el registro rápido no cambia. */}
+              MB-28A P1: las tres pantallas de registro ya respetan el modo,
+              así que el copy vuelve a prometer todo lo que hace. */}
           <EliteToggle
             label="Modo completo"
-            description="Simple: score, proteína y registro directo. Completo: todas las secciones del hub, revisión de macros al guardar por foto y score con micros."
+            description="Simple: registro directo con la proteína como único número. Completo: calorías y macros visibles y ajustables al registrar, todas las secciones del hub y score con micros."
             value={isComplete}
             onValueChange={onToggleComplete}
           />
