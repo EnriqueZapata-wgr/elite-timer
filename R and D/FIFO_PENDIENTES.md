@@ -28,8 +28,11 @@ cuando se cae la voz y la tarjeta de límite de uso.
 ⚠️ **No tocar los `'—'` sueltos que son placeholder de "sin dato"** — esos no son prosa.
 
 ## A3 · Emociones tiene dos entradas
-✅ `emotions.tsx` conserva *"¿Cómo estás?"* y *"Explorar el territorio"*. Si siguen llevando
-al mismo lugar, es el bug 6 del recorrido, y sigue vivo.
+~~✅ `emotions.tsx` conserva *"¿Cómo estás?"* y *"Explorar el territorio"*. Si siguen llevando
+al mismo lugar, es el bug 6 del recorrido, y sigue vivo.~~
+**CERRADO en MB-28C** (`feat/mb28c-mente`, pendiente merge): las dos puertas SÍ van a
+lugares distintos (check-in registra; exploración recorre el mismo plano sin guardar) —
+era el copy el que no lo comunicaba, y se corrigió el copy, no la navegación.
 
 ---
 
@@ -62,20 +65,22 @@ De los 13 bugs de `ESTADO_Y_BACKLOG_2026-08-01.md`:
 **✅ Cerrados:** el import de cardio y sus filtros y copy (1, 2 y 3, en MB-27) · el
 encabezado de Hidratación (4) · el tipo de comida al registrar (9).
 
-**❓ Sin confirmar, hay que verlos en el teléfono:**
+**✅ Cerrados en MB-28C** (`feat/mb28c-mente`, pendiente merge + device test):
+
+| # | Qué | Cierre |
+|---|---|---|
+| 5 | Box Breathing marcaba ciclos con "s" | copy: "N rondas" + "Cada ronda: Inhala 4s · …" |
+| 7 | *"Tu historia"* vacía con datos de sol/ayuno | era LA CONSULTA: filtraba `source='sun_awareness'` y el hábito vivo escribe `'sunlight'` (58 días invisibles); ayuno sí llegaba |
+| 10 | Audios empalmados al reentrar | carrera post-B8: un await entre kill y create + doble push sin candado; singleton testeable + guard de generación + stop que siempre está |
+| 11 | Imágenes de meditación hasta 5 s | eran las covers remotas del bucket: 31 JPEG (13.45 MB) → WebP (2.47 MB, −81.7%); activa con `db push` de la mig 258, sin OTA ni build |
+| 12 | Colores legacy Mente/Fitness | cardio azul → lima de categoría; timer #38bdf8 → amber; lima decorativo de respiración → neutro. Amarillos de HIIT YA no existían (MB-3.6) |
+| 13 | ¿Meditaciones cuentan para Rachas? | SÍ cuentan (verificado código + datos): los 3 escritores → `mind_sessions type='meditation'` → `fetchMenteStreaks`. La racha ancla hoy/ayer: tras 2+ días sin meditar muestra 0 correctamente |
+
+**❓ Sin confirmar, hay que verlo en el teléfono:**
 
 | # | Qué |
 |---|---|
-| 5 | Box Breathing y cómo marca los ciclos |
-| 7 | *"Tu historia"* se ve vacía aunque haya datos de sol y ayuno |
 | 8 | El modo completo de nutrición no cambia la pantalla de registro |
-| 10 | Dos audios de meditación se empalman al reentrar, sin forma de detener el viejo |
-| 11 | Las imágenes de meditación tardan hasta 5 segundos |
-| 12 | Colores legacy: amarillos en HIIT, cardio en azul contra fitness en lima |
-| 13 | Las meditaciones podrían no registrarse en Rachas |
-
-⚠️ **El 10 es el más feo de los siete**: dos voces encima sin botón de parar es de las
-cosas que hacen desinstalar una app.
 
 ---
 
