@@ -140,6 +140,32 @@ export const APP_REGISTRY: AppEntry[] = [
   { key: 'protocolos', label: 'Protocolos', icon: 'protocolos', section: 'salud', route: '/salud/intervenciones', installable: false, alias: ['intervenciones', 'plan', 'tratamiento'],
     description: 'Tu protocolo activo: las intervenciones que estás corriendo, qué completaste hoy y las sugeridas para ti.' },
 
+  // ── MB-29 P3: los 9 destinos de SALUD como apps instalables ──
+  // Dos puertas al mismo cuarto: siguen viviendo dentro de sus puertas de
+  // salud-puertas (nadie pierde ese camino) Y se pueden instalar a la
+  // cuadrícula desde el Centro. Ninguna tiene electrón: instalar = solo
+  // cuadrícula, cero filas nuevas en TAREAS. Solo edad-atp entra al set
+  // inicial (initialSeedApps + migración 259): es el gancho; las otras ocho
+  // se instalan desde el Centro quien las quiera.
+  { key: 'edad-atp', label: 'Edad ATP', icon: 'edad-atp', section: 'salud', route: '/edad-atp/result-preview', installable: false, alias: ['edad', 'biológica', 'longevidad'],
+    description: 'Tu Edad ATP a detalle: de dónde sale el número y qué lo mueve. Sube su precisión con labs, tests físicos y cuestionarios.' },
+  { key: 'sintomas', label: 'Síntomas', icon: 'sintomas', section: 'salud', route: '/salud/mis-sintomas', installable: false, alias: ['malestar', 'dolor', 'molestias'],
+    description: 'Registra qué sientes, con intensidad y desde cuándo, y ciérralo cuando pase. Lo que registras alimenta tu mapa funcional.' },
+  { key: 'diagnostico', label: 'Mi mapa', icon: 'diagnostico', section: 'salud', route: '/salud/diagnostico', installable: false, alias: ['mapa funcional', 'raíces', 'sistemas'],
+    description: 'Tu mapa funcional: las raíces que ARGOS detecta con tus datos, el nivel de evidencia de cada una y el PDF para compartirlo.' },
+  { key: 'reportes', label: 'Reportes', icon: 'reportes', section: 'salud', route: '/reports', installable: false, alias: ['reporte', 'semana', 'consulta', 'estadísticas'],
+    description: 'Tu semana y tu mes en números: hábitos, nutrición, ejercicio y salud. Con el PDF de tus registros para tu consulta.' },
+  { key: 'cronotipo', label: 'Cronotipo', icon: 'cronotipo', section: 'salud', route: '/my-chronotype', installable: false, alias: ['reloj', 'ritmo', 'horarios'],
+    description: 'Tu cronotipo con tu ventana real de despertar y dormir, y a qué horas rinde tu cuerpo según tu reloj interno.' },
+  { key: 'historia-clinica', label: 'Historia', icon: 'historia-clinica', section: 'salud', route: '/historia-clinica', installable: false, alias: ['antecedentes', 'historial', 'expediente'],
+    description: 'Tus antecedentes de salud por categoría: se capturan una vez y quedan a la mano para ti y para tu consulta.' },
+  { key: 'cuestionario', label: 'Cuestionario', icon: 'cuestionario', section: 'salud', route: '/salud/cuestionario-maestro', installable: false, alias: ['maestro', 'evaluación', 'sistemas'],
+    description: 'La evaluación por sistemas del cuerpo que alimenta tu mapa funcional y afina lo que ATP te propone.' },
+  { key: 'evaluaciones', label: 'Evaluaciones', icon: 'evaluaciones', section: 'salud', route: '/salud/mis-evaluaciones', installable: false, alias: ['quizzes', 'tests', 'pruebas'],
+    description: 'Tus cuestionarios y pruebas en un solo lugar: lo que ya contestaste, cuándo, y lo que falta por hacer.' },
+  { key: 'padecimientos', label: 'Condiciones', icon: 'padecimientos', section: 'salud', route: '/salud/padecimientos', installable: false, alias: ['padecimientos', 'episodios', 'condición'],
+    description: 'Declara tus padecimientos y sus episodios: activo, en remisión o resuelto, con fechas. Tú decides qué registrar.' },
+
   // ── Sistema ──
   { key: 'ajustes', label: 'Ajustes', icon: 'ajustes', section: 'sistema', route: '/settings', installable: false, alias: ['configuración', 'settings', 'preferencias', 'cuenta'],
     description: 'Tu cuenta, tus datos de salud, notificaciones, conexiones y lo legal: todo lo que configura la app.' },
