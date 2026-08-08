@@ -14,11 +14,21 @@ export interface FakeResp {
   count?: number | null;
 }
 
+/** Llamada registrada sobre el builder: método encadenado + sus argumentos. */
+export interface FakeCall {
+  table: string;
+  method: string;
+  args: unknown[];
+}
+
 export interface FakeSupabase {
   from: (table: string) => any;
   auth: { getUser: () => Promise<{ data: { user: { id: string } | null } }> };
   /** Tablas consultadas, en orden. */
   queried: string[];
+  /** MB-28A P3: cada método encadenado con sus args (p.ej. el payload de un
+   * .insert(...)) — permite afirmar la FORMA de lo escrito, no solo la tabla. */
+  calls: FakeCall[];
 }
 
 export function makeFakeSupabase(
@@ -26,6 +36,7 @@ export function makeFakeSupabase(
   userId: string | null = 'user-test',
 ): FakeSupabase {
   const queried: string[] = [];
+  const calls: FakeCall[] = [];
   const pending = new Map<string, FakeResp[]>();
   for (const [t, r] of Object.entries(byTable)) {
     pending.set(t, Array.isArray(r) ? [...r] : [r]);
@@ -45,7 +56,10 @@ export function makeFakeSupabase(
           return p.then.bind(p);
         }
         if (prop === Symbol.toPrimitive || prop === 'toJSON') return undefined;
-        return (..._args: unknown[]) => builder;
+        return (...args: unknown[]) => {
+          calls.push({ table, method: String(prop), args });
+          return builder;
+        };
       },
     });
     return builder;
@@ -57,5 +71,6 @@ export function makeFakeSupabase(
       getUser: async () => ({ data: { user: userId ? { id: userId } : null } }),
     },
     queried,
+    calls,
   };
 }
