@@ -29,6 +29,8 @@ import { useAnalytics, ATP_EVENTS } from '@/src/lib/analytics';
 import { Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
 import { PILLAR_GRADIENTS } from '@/src/constants/brand';
 import { DEFAULT_MEAL_TIMES, getMealTimes, setMealTimes, getCurrentMeal, formatMealWindow, MEAL_IDS, type MealId, type MealTimes } from '@/src/services/meal-times-service';
+import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
+import { useNutritionMode } from '@/src/hooks/useNutritionMode';
 import { maybeGeneratePostMealInsight } from '@/src/services/argos-nutrition-insights';
 
 // id/name/icon/color estáticos; la ventana horaria (time) viene de la config del usuario.
@@ -45,8 +47,15 @@ export default function FoodRegisterScreen() {
   const params = useLocalSearchParams<{ mealType?: string }>();
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // MB-28A P1: el modo llega también aquí. SIMPLE registra y ya (proteína como
+  // único número); COMPLETO ve calorías y macros en badges, frecuentes y logs.
+  const { mode: nutritionMode } = useNutritionMode();
   const [todayLogs, setTodayLogs] = useState<any[]>([]);
   const [frequents, setFrequents] = useState<any[]>([]);
+  // P2 MB-28A: feedback inline del registro a un toque (sin Alert que tapar).
+  const [justLogged, setJustLogged] = useState<string | null>(null);
+  // P2 MB-28A: la comida adivinada para los frecuentes de la vista principal.
+  const [guessedMeal, setGuessedMeal] = useState<string | null>(null);
   // Horarios de comida configurables + sync DB + timezone real (#14, decisión Enrique).
   const [mealTimes, setMealTimesState] = useState<MealTimes>(DEFAULT_MEAL_TIMES);
   const [timezone, setTimezone] = useState<string>('America/Mexico_City');
@@ -58,7 +67,6 @@ export default function FoodRegisterScreen() {
 
   useFocusEffect(useCallback(() => {
     if (!user?.id) return;
-    getMealTimes(user.id).then(({ mealTimes: mt, timezone: tz }) => { setMealTimesState(mt); setTimezone(tz); });
     const today = getLocalToday();
     supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
       .eq('user_id', user.id).eq('date', today)
@@ -69,13 +77,19 @@ export default function FoodRegisterScreen() {
         else setTodayLogs(data ?? []);
       });
 
-    // Cargar frecuentes para el tipo de comida actual
-    if (directMealType) {
+    // P2 MB-28A: frecuentes SIEMPRE, también en la vista principal — repetir
+    // lo de siempre es un toque, no un formulario. El tipo se adivina: ventana
+    // del usuario y, fuera de ventana, la hora del reloj (defaultMealTypeByHour,
+    // el MISMO helper que food-scan y food-text; se corrige tocando otra card).
+    getMealTimes(user.id).then(({ mealTimes: mt, timezone: tz }) => {
+      setMealTimesState(mt); setTimezone(tz);
+      const guessed = directMealType?.id ?? getCurrentMeal(mt, tz) ?? defaultMealTypeByHour();
+      setGuessedMeal(guessed);
       supabase.from('user_frequent_foods').select('*')
-        .eq('user_id', user.id).eq('meal_type', directMealType.id)
-        .order('times_used', { ascending: false }).limit(10)
+        .eq('user_id', user.id).eq('meal_type', guessed)
+        .order('times_used', { ascending: false }).limit(directMealType ? 10 : 4)
         .then(({ data, error }) => { if (!error) setFrequents(data ?? []); });
-    }
+    });
   }, [user?.id, directMealType?.id]));
 
   // Agregar frecuente rápido
@@ -114,7 +128,10 @@ export default function FoodRegisterScreen() {
     // T6 NUTRICIÓN: insight post-meal de ARGOS (opt-in + throttle, no bloquea)
     void maybeGeneratePostMealInsight(user.id, food.food_name);
     haptic.success();
-    Alert.alert('Registrado', `${food.food_name} agregado`);
+    // P2 MB-28A: sin Alert que tapar — el check inline y la lista que se
+    // refresca SON la confirmación (un toque = registrado, cero diálogos).
+    setJustLogged(food.id);
+    setTimeout(() => setJustLogged(null), 2000);
     // Refrescar logs
     const { data, error: refreshErr } = await supabase.from('food_logs').select('id, meal_type, description, calories, protein_g')
       .eq('user_id', user.id).eq('date', today)
@@ -122,6 +139,30 @@ export default function FoodRegisterScreen() {
     if (refreshErr) logWarn('[food-register] refresh logs failed:', refreshErr.message);
     else setTodayLogs(data ?? []);
   }
+
+  // P2 MB-28A: la card de frecuente, compartida por la vista principal y la
+  // vista por tipo — mismo dibujo, mismo camino de guardado (addFrequentQuick
+  // → saveFoodLog → food_logs; ninguna ruta paralela).
+  const renderFrequent = (food: any, idx: number, baseDelay: number) => (
+    <Animated.View key={food.id} entering={FadeInUp.delay(baseDelay + idx * 40).springify()}>
+      <AnimatedPressable onPress={() => addFrequentQuick(food)} style={s.frequentCard}>
+        <View style={{ flex: 1 }}>
+          <EliteText style={s.frequentName} numberOfLines={1}>{food.food_name}</EliteText>
+          <Text style={s.frequentMeta}>
+            {/* P1: en SIMPLE la proteína es el único número. */}
+            {nutritionMode === 'complete' && food.calories ? `${Math.round(food.calories)} kcal · ` : ''}
+            {food.protein_g ? `${Math.round(food.protein_g)}g prot` : ''}
+            {food.times_used > 1 ? ` · ${food.times_used}x` : ''}
+          </Text>
+        </View>
+        {justLogged === food.id ? (
+          <Ionicons name="checkmark-circle" size={22} color="#a8e02a" />
+        ) : (
+          <Ionicons name="add-circle-outline" size={22} color="#a8e02a" />
+        )}
+      </AnimatedPressable>
+    </Animated.View>
+  );
 
   async function handleDeleteLog(logId: string, desc: string) {
     haptic.heavy();
@@ -212,21 +253,7 @@ export default function FoodRegisterScreen() {
           {frequents.length > 0 && (
             <View style={{ marginTop: Spacing.lg }}>
               <SectionTitle>FRECUENTES</SectionTitle>
-              {frequents.map((food: any, idx: number) => (
-                <Animated.View key={food.id} entering={FadeInUp.delay(150 + idx * 40).springify()}>
-                  <AnimatedPressable onPress={() => addFrequentQuick(food)} style={s.frequentCard}>
-                    <View style={{ flex: 1 }}>
-                      <EliteText style={s.frequentName} numberOfLines={1}>{food.food_name}</EliteText>
-                      <Text style={s.frequentMeta}>
-                        {food.calories ? `${Math.round(food.calories)} kcal` : ''}
-                        {food.protein_g ? ` · ${Math.round(food.protein_g)}g prot` : ''}
-                        {food.times_used > 1 ? ` · ${food.times_used}x` : ''}
-                      </Text>
-                    </View>
-                    <Ionicons name="add-circle-outline" size={22} color="#a8e02a" />
-                  </AnimatedPressable>
-                </Animated.View>
-              ))}
+              {frequents.map((food: any, idx: number) => renderFrequent(food, idx, 150))}
             </View>
           )}
 
@@ -248,8 +275,9 @@ export default function FoodRegisterScreen() {
                         <EliteText style={s.logDesc} numberOfLines={1}>{log.description}</EliteText>
                       </View>
                       <EliteText style={s.logKcal}>
-                        {log.calories ? `${log.calories} kcal` : ''}
-                        {log.protein_g ? ` · ${log.protein_g}g prot` : ''}
+                        {/* P1: en SIMPLE la proteína es el único número. */}
+                        {nutritionMode === 'complete' && log.calories ? `${log.calories} kcal · ` : ''}
+                        {log.protein_g ? `${log.protein_g}g prot` : ''}
                       </EliteText>
                     </View>
                   </Pressable>
@@ -281,9 +309,22 @@ export default function FoodRegisterScreen() {
           </Pressable>
         </Animated.View>
 
+        {/* P2 MB-28A: lo frecuente AL FRENTE. Los guardados de la comida de
+            ahora (tipo adivinado por hora, corregible tocando otra card) se
+            registran con UN toque desde aquí, sin pasar por la vista de tipo. */}
+        {frequents.length > 0 && guessedMeal && (
+          <View style={{ marginBottom: Spacing.md }}>
+            <SectionTitle>
+              {`FRECUENTES · ${(MEAL_TYPES.find(m => m.id === guessedMeal)?.name ?? '').toUpperCase()}`}
+            </SectionTitle>
+            {frequents.map((food: any, idx: number) => renderFrequent(food, idx, 60))}
+          </View>
+        )}
+
         {MEAL_TYPES.map((meal, idx) => {
           const logsForMeal = todayLogs.filter(l => l.meal_type === meal.id);
           const totalKcal = logsForMeal.reduce((s: number, l: any) => s + (l.calories || 0), 0);
+          const totalProt = Math.round(logsForMeal.reduce((s: number, l: any) => s + (l.protein_g || 0), 0));
           const hasLogs = logsForMeal.length > 0;
 
           return (
@@ -316,7 +357,10 @@ export default function FoodRegisterScreen() {
                     </View>
                     {hasLogs ? (
                       <View style={s.mealBadge}>
-                        <EliteText style={s.mealBadgeText}>{totalKcal} kcal</EliteText>
+                        {/* P1: SIMPLE muestra proteína, COMPLETO calorías. */}
+                        <EliteText style={s.mealBadgeText}>
+                          {nutritionMode === 'complete' ? `${totalKcal} kcal` : `${totalProt}g prot`}
+                        </EliteText>
                       </View>
                     ) : (
                       <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.2)" />
