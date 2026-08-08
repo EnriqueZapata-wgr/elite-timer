@@ -226,12 +226,15 @@ export default function NutritionScreen() {
           </Animated.View>
         )}
 
-        {/* T1: REGISTRAR COMIDA — 3 vías (foto | texto | guardados) */}
+        {/* T1: REGISTRAR COMIDA — 4 vías (foto | texto | código | guardados).
+            MB-28B P1: Código lee la etiqueta por su código de barras
+            (OpenFoodFacts); mismo camino de guardado que las otras tres. */}
         <Animated.View entering={FadeInUp.delay(70).springify()} style={{ marginTop: Spacing.md }}>
           <View style={s.registerRow}>
             {[
               { label: 'Foto', icon: 'camera-outline' as const, route: '/food-scan' as const },
               { label: 'Texto', icon: 'create-outline' as const, route: '/food-text' as const },
+              { label: 'Código', icon: 'barcode-outline' as const, route: '/food-barcode' as const },
               { label: 'Guardados', icon: 'bookmark-outline' as const, route: '/food-register' as const },
             ].map((cta) => (
               <AnimatedPressable
@@ -402,10 +405,11 @@ const s = StyleSheet.create({
   macroBannerText: { flex: 1, fontSize: FontSizes.sm, fontFamily: Fonts.regular, color: '#cbd5e1', lineHeight: 18 },
 
   navCard: { marginBottom: Spacing.sm },
-  // T1: fila de 3 vías de registro
-  registerRow: { flexDirection: 'row', gap: Spacing.sm },
+  // T1: vías de registro — 4 desde MB-28B, en cuadrícula 2x2 para que
+  // "Guardados" no se aplaste en una sola fila.
+  registerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   registerBtn: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: 'rgba(91,155,213,0.08)', borderWidth: 1, borderColor: 'rgba(91,155,213,0.25)',
     borderRadius: Radius.md, paddingVertical: 12,
   },
