@@ -1,6 +1,13 @@
 /**
  * Recetas base para seed inicial.
  * Ejecutar seedRecipes() una vez para poblar la tabla recipes.
+ *
+ * MB-28B P2 — criterio de copy (el mismo de los packs): nombres y
+ * descripciones no nombran padecimientos ni prometen efectos médicos.
+ * Describir el contenido ("rico en colágeno", "omega 3") sí; prometer el
+ * efecto ("anti-inflamatorio", "restaurador intestinal") no. Los tags y
+ * diet_types son taxonomía interna de filtrado (mismo vocabulario que
+ * preferencias de comida) y hoy no se pintan en ninguna pantalla.
  */
 import { supabase } from '@/src/lib/supabase';
 
@@ -51,7 +58,7 @@ const RECIPES = [
     ],
   },
   {
-    name: 'Smoothie verde anti-inflamatorio',
+    name: 'Smoothie verde con jengibre y cúrcuma',
     description: 'Bebida rica en antioxidantes y fibra. Ideal como snack o pre-entreno.',
     category: 'smoothie', tags: ['anti_inflammatory', 'detox', 'plant_based'],
     prep_time_min: 5, cook_time_min: 0, servings: 1,
@@ -116,7 +123,7 @@ const RECIPES = [
   },
   {
     name: 'Caldo de hueso con vegetales',
-    description: 'Restaurador intestinal. Rico en colágeno, glicina y minerales.',
+    description: 'Caldo de cocción lenta, rico en colágeno, glicina y minerales.',
     category: 'dinner', tags: ['gut_healing', 'anti_inflammatory', 'collagen'],
     prep_time_min: 10, cook_time_min: 120, servings: 4,
     calories: 120, protein_g: 12, carbs_g: 8, fat_g: 4, fiber_g: 2,
@@ -180,7 +187,7 @@ const RECIPES = [
   },
   {
     name: 'Salmón al horno con espárragos',
-    description: 'Cena anti-inflamatoria. Omega 3 + fibra + antioxidantes.',
+    description: 'Cena ligera con omega 3, fibra y antioxidantes.',
     category: 'dinner', tags: ['anti_inflammatory', 'omega3', 'high_protein'],
     prep_time_min: 5, cook_time_min: 18, servings: 1,
     calories: 420, protein_g: 36, carbs_g: 10, fat_g: 26, fiber_g: 4,

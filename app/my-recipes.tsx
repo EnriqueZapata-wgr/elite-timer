@@ -14,6 +14,9 @@ import { SwipeToDeleteRow } from '@/src/components/ui/SwipeToDeleteRow';
 import { useAuth } from '@/src/contexts/auth-context';
 import { supabase } from '@/src/lib/supabase';
 import { saveFoodLog } from '@/src/services/food-log-service';
+import {
+  saveMealAsRecipe, fetchRecentLogsForRecipe, type RecentLogForRecipe,
+} from '@/src/services/recipe-save-service';
 import { defaultMealTypeByHour } from '@/src/services/meal-times-core';
 import { warn as logWarn } from '@/src/lib/logger';
 import { haptic } from '@/src/utils/haptics';
@@ -48,6 +51,12 @@ export default function MyRecipesScreen() {
   const [newProtein, setNewProtein] = useState('');
   const [newCarbs, setNewCarbs] = useState('');
   const [newFat, setNewFat] = useState('');
+  // P2 (MB-28B): traer una comida ya registrada como receta, sin re-teclear.
+  const [showFromLogs, setShowFromLogs] = useState(false);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsFailed, setLogsFailed] = useState(false);
+  const [recentLogs, setRecentLogs] = useState<RecentLogForRecipe[]>([]);
+  const [savingLogId, setSavingLogId] = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     loadRecipes();
@@ -125,6 +134,46 @@ export default function MyRecipesScreen() {
         },
       },
     ]);
+  }
+
+  // P2 (MB-28B): abre el selector de registros recientes.
+  async function openFromLogs() {
+    if (!user?.id) return;
+    haptic.light();
+    setShowFromLogs(true);
+    setLogsLoading(true);
+    const res = await fetchRecentLogsForRecipe(user.id);
+    setLogsLoading(false);
+    if (!res.ok) { setLogsFailed(true); return; }
+    setLogsFailed(false);
+    setRecentLogs(res.logs);
+  }
+
+  // P2 (MB-28B): un registro → una receta (dedupe por nombre en el servicio).
+  async function createFromLog(log: RecentLogForRecipe) {
+    if (!user?.id || savingLogId) return;
+    haptic.medium();
+    setSavingLogId(log.id);
+    const res = await saveMealAsRecipe(user.id, {
+      name: log.description,
+      calories: log.calories,
+      proteinG: log.proteinG,
+      carbsG: log.carbsG,
+      fatG: log.fatG,
+      mealType: log.mealType,
+      ingredients: log.ingredients,
+    });
+    setSavingLogId(null);
+    if (res.status === 'created') {
+      haptic.success();
+      setShowFromLogs(false);
+      loadRecipes();
+      Alert.alert('Receta creada', `"${log.description}" ya está en tus recetas.`);
+    } else if (res.status === 'duplicate') {
+      Alert.alert('Ya la tienes', `"${res.existingName}" ya está en tus recetas: no se creó un duplicado.`);
+    } else {
+      Alert.alert('No se pudo crear', 'Revisa tu conexión e intenta de nuevo.');
+    }
   }
 
   async function createRecipe() {
@@ -240,7 +289,7 @@ export default function MyRecipesScreen() {
             <Ionicons name="bookmark-outline" size={48} color="#333" />
             <EliteText style={s.emptyTitle}>Sin recetas guardadas</EliteText>
             <EliteText style={s.emptySubtitle}>
-              Crea recetas manuales o guarda comidas estimadas por ARGOS
+              Trae una comida de tus registros, crea una manual o guarda las de ARGOS
             </EliteText>
           </View>
         )}
@@ -252,6 +301,13 @@ export default function MyRecipesScreen() {
           </EliteText>
         )}
 
+        {/* P2 (MB-28B): el camino natural — comes algo dos veces y a la
+            tercera lo traes de tus registros, sin volver a teclear. */}
+        <AnimatedPressable onPress={openFromLogs} style={s.createBtn}>
+          <Ionicons name="time-outline" size={20} color={ATP_BRAND.amber} />
+          <EliteText style={s.createBtnText}>Desde mis registros</EliteText>
+        </AnimatedPressable>
+
         {/* Botón crear */}
         <AnimatedPressable onPress={() => { haptic.light(); setShowCreate(true); }} style={s.createBtn}>
           <Ionicons name="add-circle-outline" size={20} color={ATP_BRAND.amber} />
@@ -262,6 +318,60 @@ export default function MyRecipesScreen() {
         <MedicalDisclaimer feature="nutrition" />
         <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* P2 (MB-28B): modal de registros recientes → receta con un toque */}
+      <Modal visible={showFromLogs} transparent animationType="slide" onRequestClose={() => setShowFromLogs(false)}>
+        <Pressable style={s.modalOverlay} onPress={() => setShowFromLogs(false)}>
+          <Pressable style={s.modalContent} onPress={() => {}}>
+            <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: '#333', alignSelf: 'center', marginBottom: 20 }} />
+            <EliteText style={s.modalTitle}>Desde mis registros</EliteText>
+            <EliteText variant="caption" style={{ color: '#888', fontSize: FontSizes.sm, textAlign: 'center', marginBottom: Spacing.md }}>
+              Toca una comida registrada y queda como receta, sin volver a capturar.
+            </EliteText>
+
+            {logsLoading && (
+              <EliteText style={{ color: '#666', textAlign: 'center', paddingVertical: Spacing.lg }}>
+                Cargando tus registros...
+              </EliteText>
+            )}
+            {/* MB-8 Track B: un fallo de red no es "sin registros". */}
+            {!logsLoading && logsFailed && (
+              <EliteText style={{ color: '#666', textAlign: 'center', paddingVertical: Spacing.lg }}>
+                Tus registros no se pudieron leer. Revisa tu conexión y vuelve a intentar.
+              </EliteText>
+            )}
+            {!logsLoading && !logsFailed && recentLogs.length === 0 && (
+              <EliteText style={{ color: '#666', textAlign: 'center', paddingVertical: Spacing.lg }}>
+                Todavía no tienes comidas registradas. Registra una y aparece aquí.
+              </EliteText>
+            )}
+
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              {recentLogs.map((log) => (
+                <AnimatedPressable
+                  key={log.id}
+                  onPress={() => createFromLog(log)}
+                  disabled={!!savingLogId}
+                  style={s.logRow}
+                >
+                  <View style={{ flex: 1 }}>
+                    <EliteText style={s.logName} numberOfLines={1}>{log.description}</EliteText>
+                    <EliteText variant="caption" style={s.logMeta}>
+                      {log.calories != null ? `${log.calories} kcal` : 'sin macros'}
+                      {log.ingredients.length > 0 ? ` · ${log.ingredients.length} ingredientes` : ''}
+                    </EliteText>
+                  </View>
+                  {savingLogId === log.id ? (
+                    <EliteText variant="caption" style={{ color: '#888' }}>...</EliteText>
+                  ) : (
+                    <Ionicons name="add-circle" size={22} color={ATP_BRAND.amber} />
+                  )}
+                </AnimatedPressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Modal crear receta */}
       <Modal visible={showCreate} transparent animationType="slide" onRequestClose={() => setShowCreate(false)}>
@@ -370,4 +480,13 @@ const s = StyleSheet.create({
     alignItems: 'center', marginTop: Spacing.lg,
   },
   saveBtnText: { color: '#000', fontFamily: Fonts.bold, fontSize: FontSizes.lg },
+
+  // P2 (MB-28B): filas del selector de registros recientes
+  logRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    backgroundColor: '#1a1a1a', borderRadius: Radius.md,
+    padding: Spacing.md, marginBottom: 6,
+  },
+  logName: { fontSize: FontSizes.md, fontFamily: Fonts.semiBold, color: '#eee' },
+  logMeta: { fontSize: FontSizes.xs, color: '#777', marginTop: 2 },
 });
