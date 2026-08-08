@@ -40,6 +40,7 @@ import { error as logError } from '@/src/lib/logger';
 import { getLocalToday } from '@/src/utils/date-helpers';
 import { BREATHING_LIBRARY, type BreathingTemplate, type BreathingPhase } from '@/src/data/breathing-library';
 import { fetchAudioPieces, type AudioPiece } from '@/src/services/mente-audio-service';
+import { stopActivePlayer } from '@/src/services/mente-player-singleton';
 import { AudioPieceCard } from '@/src/components/mente/AudioPieceCard';
 import { prefetchAudioCovers } from '@/src/components/mente/audio-cover';
 import { MenteRecentSessions } from '@/src/components/mente/MenteRecentSessions';
@@ -74,8 +75,9 @@ const BREATH_CARD_IMAGES: Record<string, any> = {
 };
 const BREATH_CARD_FALLBACK = require('@/assets/images/mente/cards/card_respiracion.webp');
 
+// MB-28C P6: murió el BLUE #60a5fa — quedó sin un solo uso (legacy pre
+// design system). Respiración es Mente: morado del pilar.
 const PURPLE = CATEGORY_COLORS.mind;
-const BLUE = '#60a5fa';
 
 const BREATH_ICONS: Record<string, string> = {
   'box-4': 'square-outline',
@@ -225,7 +227,15 @@ function SelectorScreen({ onSelect, onBack }: {
   const [scrolled, setScrolled] = useState(false);
   const { isPro } = useSubscription();
 
+  // MB-28C P1: candado de navegación — el doble tap empujaba DOS modales del
+  // player y sus cargas corrían en paralelo (empalme). Se suelta al volver.
+  const navLockRef = useRef(false);
+
   useFocusEffect(useCallback(() => {
+    navLockRef.current = false;
+    // MB-28C P1: red de seguridad — un audio vivo sin pantalla se apaga al
+    // volver aquí (idempotente; el camino normal ya lo apagó en el cleanup).
+    stopActivePlayer();
     let alive = true;
     fetchAudioPieces().then(all => {
       if (!alive) return;
@@ -240,6 +250,8 @@ function SelectorScreen({ onSelect, onBack }: {
   }, []));
 
   const openPiece = useCallback((piece: AudioPiece) => {
+    if (navLockRef.current) return;
+    navLockRef.current = true;
     haptic.light();
     if (piece.tier === 'pro' && !isPro) {
       router.push('/paywall');
@@ -313,8 +325,11 @@ function SelectorScreen({ onSelect, onBack }: {
                     <View style={{ backgroundColor: `${PURPLE}2A`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                       <Text style={{ color: '#c9c4f5', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.durationMinutes} min</Text>
                     </View>
-                    <View style={{ backgroundColor: 'rgba(168,224,42,0.16)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
-                      <Text style={{ color: '#a8e02a', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.phases.map(p => p.seconds + 's').join('-')}</Text>
+                    {/* MB-28C P6: el chip de segundos iba en lima decorativo —
+                        Respiración es Mente y el lima no es CTA ni estado aquí.
+                        Neutro, como sus hermanos de nivel y beneficio. */}
+                    <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10, fontFamily: Fonts.semiBold }}>{t.phases.map(p => p.seconds + 's').join('-')}</Text>
                     </View>
                     {/* Sprint MENTE: nivel + beneficio principal */}
                     <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
@@ -783,8 +798,9 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
         {/* Info */}
         {!preSession && (
           <AnimatedRN.View entering={FadeIn.duration(300)} style={styles.infoSection}>
+            {/* MB-28C P5: mismo vocabulario que el cierre ("N rondas"). */}
             <EliteText variant="caption" style={styles.cycleText}>
-              Ciclo {currentCycle + 1} de {template.cycles}
+              Ronda {currentCycle + 1} de {template.cycles}
             </EliteText>
             <EliteText variant="body" style={styles.remainingText}>
               {formatMmSs(totalRemaining)}
@@ -797,8 +813,14 @@ function BreathingTimerScreen({ template, protocolItemId, onBack, onComplete }: 
 
         {preSession && (
           <>
+            {/* MB-28C P5: "18 ciclos · 4s-4s-4s-4s" leía como si los ciclos
+                fueran segundos. Ahora la ronda y sus segundos van separados:
+                qué repites, y cuánto dura cada paso. */}
             <EliteText variant="caption" style={styles.idleInfo}>
-              {template.durationMinutes} min · {template.cycles} ciclos · {template.phases.map(p => p.seconds + 's').join('-')}
+              {template.durationMinutes} min · {template.cycles} rondas
+            </EliteText>
+            <EliteText variant="caption" style={styles.idleInfoDetail}>
+              Cada ronda: {template.phases.map(p => `${p.label} ${p.seconds}s`).join(' · ')}
             </EliteText>
             {/* MB-23 P5: vibración en vez de sonido — con el teléfono en
                 silencio, que es como se respira de verdad. */}
@@ -934,7 +956,12 @@ const styles = StyleSheet.create({
     width: '100%', height: 3, backgroundColor: Colors.surfaceLight, borderRadius: Radius.xs, overflow: 'hidden',
   },
   totalProgressFill: { height: '100%', backgroundColor: PURPLE, borderRadius: Radius.xs },
-  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.md, fontSize: FontSizes.md },
+  idleInfo: { color: Colors.textSecondary, marginBottom: Spacing.xs, fontSize: FontSizes.md },
+  // MB-28C P5: el desglose de la ronda (fase + segundos), debajo del total.
+  idleInfoDetail: {
+    color: Colors.textSecondary, marginBottom: Spacing.md, fontSize: FontSizes.sm,
+    textAlign: 'center', paddingHorizontal: Spacing.lg, lineHeight: 18,
+  },
   // MB-23 P5: toggle de vibración en vez de sonido (pre-sesión)
   vibrateRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

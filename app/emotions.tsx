@@ -49,12 +49,15 @@ export default function EmotionsHubScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(90).springify()}>
+          {/* MB-28C P3: las dos puertas SÍ van a lugares distintos (check-in
+              registra tu momento; esto recorre el mismo plano sin guardar
+              nada) — lo que no lo comunicaba era el copy. Ahora lo dice. */}
           <MenteHubCard
             title="Explorar el territorio"
-            subtitle="144 palabras en un mapa. Para los días buenos: recorrer, acercarte, construir vocabulario."
+            subtitle="El mismo mapa, pero sin registrar nada: recorre las 144 palabras, acércate, construye vocabulario para los días buenos."
             icon="map-outline"
             onPress={() => router.push('/emotion-exploration')}
-            ctaLabel="Abrir el mapa"
+            ctaLabel="Solo explorar"
             onCta={() => router.push('/emotion-exploration')}
           />
         </Animated.View>

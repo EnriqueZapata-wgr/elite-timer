@@ -36,6 +36,9 @@ import {
   type AudioPiece, type AudioElectronOutcome,
 } from '@/src/services/mente-audio-service';
 import { applySeekToSkip, effectiveListenedAt } from '@/src/services/mente-audio-core';
+import {
+  beginPlayerLoad, isLoadCurrent, claimActivePlayer, releaseActivePlayer, stopActivePlayer,
+} from '@/src/services/mente-player-singleton';
 import { initAudio, playChime } from '@/src/utils/sounds';
 import {
   loadMenteAudioPrefs, saveMenteAudioPrefs, MENTE_AUDIO_DEFAULTS, type MenteAudioPrefs,
@@ -50,9 +53,10 @@ const MIND_PURPLE = CATEGORY_COLORS.mind;
 type ExpoAudio = typeof import('expo-audio');
 type AudioPlayer = import('expo-audio').AudioPlayer;
 
-// NOCTURNO B8: instancia única a nivel módulo — nunca dos audios (doble push,
-// carreras de unmount). Mismo patrón que el singleton de argos-tts.
-let ACTIVE_PLAYER: AudioPlayer | null = null;
+// NOCTURNO B8 → MB-28C P1: la instancia única vive en mente-player-singleton
+// (testeable y con guard de generación). El kill del anterior y el claim del
+// nuevo son UN paso síncrono — la ventana de carrera de B8 (un await entre
+// kill y create dejaba nacer dos audios con cargas concurrentes) ya no existe.
 
 const CATEGORY_LABEL: Record<AudioPiece['categoria'], string> = {
   meditacion: 'MEDITACIÓN',
@@ -137,11 +141,14 @@ export default function MenteAudioPlayerScreen() {
   // ── Carga: pieza → URL firmada (gate server-side) → player ──
   useEffect(() => {
     let cancelled = false;
+    // MB-28C P1: cada carga toma un turno; si otra arranca después (doble
+    // push, deep link), esta se vuelve obsoleta: no crea audio ni navega.
+    const myGen = beginPlayerLoad();
     (async () => {
       if (!slug) { router.back(); return; }
       const pieces = await fetchAudioPieces();
       const found = pieces.find(p => p.slug === slug) ?? null;
-      if (cancelled) return;
+      if (cancelled || !isLoadCurrent(myGen)) return;
       if (!found) {
         Alert.alert('No disponible', 'Esta pieza no está disponible por ahora.');
         router.back();
@@ -177,7 +184,9 @@ export default function MenteAudioPlayerScreen() {
       }
 
       const urlResult = await getAudioUrl(found.slug);
-      if (cancelled) return;
+      // MB-28C P1: una carga obsoleta tampoco puede secuestrar la navegación
+      // (el replace a /paywall de abajo saldría de una pantalla ya superada).
+      if (cancelled || !isLoadCurrent(myGen)) return;
       if (urlResult.status === 'pro_required') {
         haptic.warning();
         router.replace('/paywall');
@@ -207,23 +216,24 @@ export default function MenteAudioPlayerScreen() {
         });
       } catch { /* modo por default */ }
 
-      // B8: los dos awaits de arriba no tenían check — si el usuario salía en
-      // esa ventana nacía un player huérfano sonando sin dueño.
-      if (cancelled) return;
-      if (ACTIVE_PLAYER) {
-        try { ACTIVE_PLAYER.pause(); } catch { /* no-op */ }
-        try { ACTIVE_PLAYER.remove(); } catch { /* no-op */ }
-        ACTIVE_PLAYER = null;
-      }
+      // MB-28C P1: las prefs se cargan ANTES de descargar al anterior — entre
+      // el kill y createAudioPlayer no puede quedar ningún await. B8 dejaba
+      // esta suspensión en medio y dos cargas concurrentes (doble tap → doble
+      // push del modal) veían ambas el singleton vacío: dos audios empalmados.
       // MB-23 P5: el player nace con el volumen elegido (existía en expo-audio
       // y no estaba expuesto). Cambios en vivo via changeVolume.
       const menteAudio = await loadMenteAudioPrefs();
+      // B8: sin check tras los awaits nacía un player huérfano sonando sin
+      // dueño; el guard de generación además corta esta carga si otra más
+      // nueva ya tomó el audio.
+      if (cancelled || !isLoadCurrent(myGen)) return;
       audioPrefsRef.current = menteAudio;
       setAudioPrefs(menteAudio);
       const player = mod.createAudioPlayer({ uri: urlResult.url }, { updateInterval: 500 });
       player.volume = menteAudio.volume;
+      // Descarga al anterior y toma su lugar en el MISMO paso síncrono.
+      claimActivePlayer(player);
       playerRef.current = player;
-      ACTIVE_PLAYER = player;
       player.addListener('playbackStatusUpdate', (st) => {
         if (finishedRef.current) return;
         if (!scrubbingRef.current) setCurrentTime(st.currentTime);
@@ -286,9 +296,10 @@ export default function MenteAudioPlayerScreen() {
         player.setActiveForLockScreen(true, lockScreenMetaRef.current);
       } catch { /* binarios sin NowPlaying: sigue sonando igual */ }
 
-      // B8: si el unmount cayó en los awaits de arriba, el cleanup ya liberó
-      // el player; play() sobre un objeto liberado era unhandled rejection.
-      if (cancelled) return;
+      // B8/MB-28C P1: si el unmount o una carga más nueva cayó en los awaits
+      // de arriba, este player YA fue descargado (por el cleanup o por el
+      // claim ajeno) — no arrancar un sonido huérfano.
+      if (cancelled || !isLoadCurrent(myGen)) return;
       // MB-23 P5: campana al empezar (o silencio). El cuenco de Respiración,
       // escalado al volumen de la pieza para no reventar sesiones de descanso.
       if (menteAudio.bellEnabled) {
@@ -316,7 +327,7 @@ export default function MenteAudioPlayerScreen() {
         try { player.pause(); } catch { /* no-op */ }
         try { player.clearLockScreenControls(); } catch { /* no-op */ }
         try { player.remove(); } catch { /* no-op */ }
-        if (ACTIVE_PLAYER === player) ACTIVE_PLAYER = null;
+        releaseActivePlayer(player);
         playerRef.current = null;
       }
     };
@@ -382,22 +393,36 @@ export default function MenteAudioPlayerScreen() {
 
   const togglePlay = useCallback(() => {
     const player = playerRef.current;
-    if (!player) return;
     haptic.light();
-    if (player.playing) player.pause();
-    else {
-      if (completed) {
-        finishedRef.current = false;
-        setCompleted(false);
-        setElectronOutcome(null);
-        // Re-escucha desde cero: la acumulación efectiva también reinicia.
-        startPosRef.current = 0;
-        netSkipRef.current = 0;
-        priorListenedRef.current = 0;
-        positionRef.current = 0;
-        player.seekTo(0).catch(() => {});
+    if (!player) {
+      // MB-28C P1: el control de parar que siempre está — si esta pantalla
+      // perdió su player pero hay un audio vivo (estado huérfano), el botón
+      // lo apaga en vez de no hacer nada.
+      if (stopActivePlayer()) setPlaying(false);
+      return;
+    }
+    try {
+      if (player.playing) player.pause();
+      else {
+        if (completed) {
+          finishedRef.current = false;
+          setCompleted(false);
+          setElectronOutcome(null);
+          // Re-escucha desde cero: la acumulación efectiva también reinicia.
+          startPosRef.current = 0;
+          netSkipRef.current = 0;
+          priorListenedRef.current = 0;
+          positionRef.current = 0;
+          player.seekTo(0).catch(() => {});
+        }
+        player.play();
       }
-      player.play();
+    } catch {
+      // MB-28C P1: el player nativo ya fue liberado por otro dueño (carga más
+      // nueva) — apaga lo que quede sonando y refleja el silencio en la UI.
+      playerRef.current = null;
+      stopActivePlayer();
+      setPlaying(false);
     }
   }, [completed]);
 

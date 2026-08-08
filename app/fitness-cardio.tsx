@@ -22,7 +22,7 @@ import { haptic } from '@/src/utils/haptics';
 import { useAuth } from '@/src/contexts/auth-context';
 import { autoSyncSiActiva } from '@/src/services/fitness/health-import-service';
 import { Colors, Spacing, Radius, Fonts, FontSizes } from '@/constants/theme';
-import { SEMANTIC, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
+import { CATEGORY_COLORS, TEXT_COLORS, withOpacity } from '@/src/constants/brand';
 import {
   getCardioRecordsByDiscipline,
   formatDuration,
@@ -30,8 +30,12 @@ import {
   type CardioRecord,
 } from '@/src/services/fitness-service';
 
-const CARDIO_BLUE = SEMANTIC.info; // MB-3.6 §4.2: azul de marca, no un 5º azul
-const CARDIO_GRADIENT = { start: withOpacity(SEMANTIC.info, 0.1), end: withOpacity(SEMANTIC.info, 0.02) };
+// MB-28C P6: cardio deja el azul. MB-3.6 lo había pasado a SEMANTIC.info,
+// pero el recorrido lo siguió marcando: cardio ES Fitness y cada pantalla
+// usa el color de su sección (fitness-train y Fuerza ya van en lima).
+// SEMANTIC.info es para estados informativos, no acento de categoría.
+const CARDIO_ACCENT = CATEGORY_COLORS.fitness;
+const CARDIO_GRADIENT = { start: withOpacity(CARDIO_ACCENT, 0.1), end: withOpacity(CARDIO_ACCENT, 0.02) };
 
 const DISCIPLINES: { key: CardioDiscipline; name: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'running',  name: 'Correr',   icon: 'walk-outline' },
@@ -75,9 +79,9 @@ export default function FitnessCardioScreen() {
                 onPress={() => { haptic.light(); router.push({ pathname: '/log-cardio', params: { discipline: d.key } }); }}
                 style={s.cardWrap}
               >
-                <GradientCard gradient={CARDIO_GRADIENT} accentColor={CARDIO_BLUE} accentPosition="left">
+                <GradientCard gradient={CARDIO_GRADIENT} accentColor={CARDIO_ACCENT} accentPosition="left">
                   <View style={s.disciplineHeader}>
-                    <Ionicons name={d.icon} size={22} color={CARDIO_BLUE} />
+                    <Ionicons name={d.icon} size={22} color={CARDIO_ACCENT} />
                     <EliteText style={s.disciplineName}>{d.name}</EliteText>
                   </View>
 
@@ -117,7 +121,7 @@ export default function FitnessCardioScreen() {
           style={s.ctaButtonGhost}
           onPress={() => { haptic.light(); router.push('/cardio-import'); }}
         >
-          <Ionicons name="download-outline" size={18} color={CARDIO_BLUE} />
+          <Ionicons name="download-outline" size={18} color={CARDIO_ACCENT} />
           <EliteText style={s.ctaTextGhost}>IMPORTAR DE TU APP DE SALUD</EliteText>
         </AnimatedPressable>
 
@@ -152,7 +156,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: Radius.sm,
-    backgroundColor: withOpacity(SEMANTIC.info, 0.1),
+    backgroundColor: withOpacity(CARDIO_ACCENT, 0.1),
     alignItems: 'center',
   },
   prChipLabel: {
@@ -164,7 +168,7 @@ const s = StyleSheet.create({
   prChipValue: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
-    color: CARDIO_BLUE,
+    color: CARDIO_ACCENT,
   },
 
   ctaButtonGhost: {
@@ -173,7 +177,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     borderWidth: 1,
-    borderColor: withOpacity(SEMANTIC.info, 0.35),
+    borderColor: withOpacity(CARDIO_ACCENT, 0.35),
     paddingVertical: 12,
     borderRadius: Radius.md,
     marginTop: Spacing.sm,
@@ -181,7 +185,7 @@ const s = StyleSheet.create({
   ctaTextGhost: {
     fontSize: FontSizes.sm,
     fontFamily: Fonts.bold,
-    color: CARDIO_BLUE,
+    color: CARDIO_ACCENT,
     letterSpacing: 1.5,
   },
 });
