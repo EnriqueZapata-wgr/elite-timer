@@ -8,7 +8,7 @@
  */
 import { useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/src/components/ui/Screen';
 import { GlobalTopBar } from '@/src/components/ui/GlobalTopBar';
@@ -155,6 +155,12 @@ function AtpLabsScreen() {
         <EliteText variant="caption" style={styles.subtitle}>
           Tus laboratorios: el último valor de cada parámetro. Mantén apretado para saber qué es.
         </EliteText>
+
+        {/* MB-29 P2 (H5): la vista decía "sube un PDF" sin dar el botón. */}
+        <Pressable onPress={() => { haptic.medium(); router.push('/my-health'); }} style={styles.uploadBtn}>
+          <Ionicons name="camera-outline" size={16} color="#000" />
+          <EliteText variant="caption" style={styles.uploadBtnText}>Subir estudio</EliteText>
+        </Pressable>
 
         {/* Filtros de orden (#13) */}
         <View style={styles.filterRow}>
@@ -333,6 +339,13 @@ function groupForRender(rows: Row[], sort: SortMode): { title: string; rows: Row
 const styles = StyleSheet.create({
   content: { padding: Spacing.md, gap: Spacing.sm, paddingBottom: 120 },
   subtitle: { color: Colors.textSecondary, marginBottom: Spacing.xs, lineHeight: 16 },
+  // MB-29 P2: CTA de subir — la acción primaria de la vista (lima, único)
+  uploadBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs,
+    backgroundColor: ATP_BRAND.lime, borderRadius: Radius.md, paddingVertical: 10,
+    marginBottom: Spacing.xs,
+  },
+  uploadBtnText: { color: '#000', fontFamily: Fonts.bold },
   filterRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.xs },
   chip: { paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.surface, borderWidth: 1, borderColor: '#1a1a1a' },
   chipActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },

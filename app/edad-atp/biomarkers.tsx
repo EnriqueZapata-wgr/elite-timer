@@ -80,10 +80,16 @@ type Current = { value: number; source: string };
 export default function BiomarkersCapture() {
   const { user } = useAuth();
   const analytics = useAnalytics();
+  // MB-29 P2 (H5): modo actualizar — llega de "Sube tus labs" con ?update=1.
+  // Lo frecuente al frente: tus biomarcadores de siempre arrancan ABIERTOS y
+  // como inputs prellenados, listos para poner los números del estudio nuevo.
+  // Guardar NUNCA pisa historia: lab_values es serie en el tiempo (append).
+  const { update } = useLocalSearchParams<{ update?: string }>();
+  const updateMode = update === '1';
   const [current, setCurrent] = useState<Record<string, Current>>({});
   const [values, setValues] = useState<Record<string, string>>({});
-  const [editMode, setEditMode] = useState(false);
-  const [showAvailable, setShowAvailable] = useState(false);
+  const [editMode, setEditMode] = useState(updateMode);
+  const [showAvailable, setShowAvailable] = useState(updateMode);
   const [saving, setSaving] = useState(false);
   // Edición inline de UN toque (#16): qué fila disponible se está editando + cuál guardando.
   const [editingKey, setEditingKey] = useState<string | null>(null);

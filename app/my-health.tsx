@@ -365,6 +365,20 @@ function MyHealthScreen() {
         </GradientCard>
         </Animated.View>
 
+        {/* MB-29 P2: la captura manual vive DENTRO de la puerta de subir —
+            quien prefiere teclear no tiene que conocer otra pantalla. Va en
+            modo actualizar: tus biomarcadores de siempre, al frente. */}
+        <AnimatedPressable
+          onPress={() => { haptic.light(); router.push({ pathname: '/edad-atp/biomarkers', params: { update: '1' } }); }}
+          style={s.manualRow}
+        >
+          <Ionicons name="create-outline" size={16} color={Colors.textSecondary} />
+          <EliteText variant="caption" style={s.manualRowText}>
+            ¿Prefieres teclear los valores? Captura manual
+          </EliteText>
+          <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+        </AnimatedPressable>
+
         {/* Status */}
         {uploading && (
           <View style={s.statusBox}>
@@ -646,6 +660,13 @@ const s = StyleSheet.create({
     paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm,
     borderRadius: Radius.pill, borderWidth: 1, borderColor: TEAL + '40',
   },
+  // MB-29 P2: fila quiet hacia la captura manual (dentro de la puerta única)
+  manualRow: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+    paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md, marginBottom: Spacing.md,
+    borderRadius: Radius.card, borderWidth: 1, borderColor: '#1F1F1F',
+  },
+  manualRowText: { color: Colors.textSecondary, flex: 1 },
   statusBox: {
     flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
     backgroundColor: TEAL + '08', borderWidth: 1, borderColor: TEAL + '20',
