@@ -132,28 +132,30 @@ export default function Solar() {
             <Text style={{ color: '#fbbf24', fontSize: 10, fontWeight: '700', letterSpacing: 1.5 }}>ATP SOL</Text>
             <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800' }}>Exposición Solar</Text>
           </View>
+          {/* MB-29 P5: control neutro (recorrido #18: fuera emojis; el acento
+              ámbar se reserva al héroe UV y a la ventana de vitamina D). */}
           <Pressable
             onPress={() => { setShowSkinPicker(!showSkinPicker); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            style={{ backgroundColor: 'rgba(251,191,36,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(251,191,36,0.2)' }}
+            style={{ backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#2A2A2A' }}
           >
-            <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700' }}>{fitz.emoji} Tipo {skinType}</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700' }}>Piel tipo {skinType}</Text>
           </Pressable>
         </View>
         {/* Sprint 1.5 A: CTA SIEMPRE visible al tipo de piel (antes el selector vivía
             dentro del branch uvData → sin GPS/red no había entry point al cuestionario). */}
+        {/* MB-29 P5: fila quiet — es un ajuste, no compite con el héroe UV. */}
         {!showSkinPicker && (
           <Pressable
             onPress={() => { setShowSkinPicker(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10,
-              backgroundColor: 'rgba(251,191,36,0.06)', borderWidth: 1, borderColor: 'rgba(251,191,36,0.15)',
+              backgroundColor: 'transparent', borderWidth: 1, borderColor: '#1F1F1F',
               borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
             }}
           >
-            <Text style={{ fontSize: 14 }}>🧬</Text>
-            <Text style={{ color: '#fbbf24', fontSize: 12, fontWeight: '700', flex: 1 }}>Actualizar tipo de piel</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: '700', flex: 1 }}>Actualizar tipo de piel</Text>
             <Text style={{ color: '#666', fontSize: 11 }}>cuestionario o manual</Text>
-            <Ionicons name="chevron-down" size={14} color="#fbbf24" />
+            <Ionicons name="chevron-down" size={14} color="#666" />
           </Pressable>
         )}
       </View>
@@ -176,7 +178,6 @@ export default function Solar() {
                 resizeMode="cover"
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, backgroundColor: 'rgba(0,0,0,0.55)' }}>
-                  <Text style={{ fontSize: 20 }}>🧬</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: '#fbbf24', fontSize: 14, fontWeight: '700' }}>Descúbrelo con el cuestionario</Text>
                     <Text style={{ color: '#ccc', fontSize: 11 }}>6 preguntas · ATP calcula tu fototipo exacto</Text>
@@ -193,7 +194,6 @@ export default function Solar() {
                   backgroundColor: skinType === type.type ? 'rgba(251,191,36,0.08)' : 'transparent',
                   borderWidth: skinType === type.type ? 1 : 0, borderColor: '#fbbf24',
                 }}>
-                  <Text style={{ fontSize: 24 }}>{type.emoji}</Text>
                   <View style={{ flex: 1 }}>
                     <Text style={{ color: '#fff', fontSize: 14, fontWeight: '600' }}>{type.label}</Text>
                     <Text style={{ color: '#999', fontSize: 11 }}>{type.description}</Text>
@@ -282,7 +282,7 @@ export default function Solar() {
               </Text>
               <Text style={{ color: '#999', fontSize: 16 }}>minutos</Text>
             </View>
-            <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>Basado en {fitz.emoji} {fitz.label} · UV actual: {uvData.currentUV}</Text>
+            <Text style={{ color: '#666', fontSize: 12, marginTop: 4 }}>Basado en {fitz.label} · UV actual: {uvData.currentUV}</Text>
             {burnTime && burnTime < 60 && (
               <Text style={{ color: '#fb7185', fontSize: 12, marginTop: 8 }}>Después de {burnTime} min, busca sombra o cubre tu piel</Text>
             )}
@@ -295,7 +295,11 @@ export default function Solar() {
                 <Ionicons name="shield-checkmark-outline" size={20} color="#22c55e" />
                 <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>Protección inteligente</Text>
               </View>
-              <Ionicons name={showProtection ? 'chevron-up' : 'chevron-down'} size={18} color="#666" />
+              {/* MB-29 P5 (#18): lo expandible SE DICE, no se adivina. */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ color: '#666', fontSize: 11, fontWeight: '600' }}>{showProtection ? 'Cerrar' : 'Ver'}</Text>
+                <Ionicons name={showProtection ? 'chevron-up' : 'chevron-down'} size={18} color="#666" />
+              </View>
             </View>
           </Pressable>
           {showProtection && (
@@ -341,7 +345,10 @@ export default function Solar() {
                 <Ionicons name="bar-chart-outline" size={18} color="#fbbf24" />
                 <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>UV por hora</Text>
               </View>
-              <Ionicons name={showHourly ? 'chevron-up' : 'chevron-down'} size={18} color="#666" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={{ color: '#666', fontSize: 11, fontWeight: '600' }}>{showHourly ? 'Cerrar' : 'Ver'}</Text>
+                <Ionicons name={showHourly ? 'chevron-up' : 'chevron-down'} size={18} color="#666" />
+              </View>
             </View>
           </Pressable>
           {showHourly && (

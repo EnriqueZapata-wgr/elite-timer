@@ -135,8 +135,11 @@ export const APP_REGISTRY: AppEntry[] = [
     description: 'Registra cetonas de sangre, aliento u orina, con contexto y el historial de tu día.' },
   { key: 'ciclo', label: 'Ciclo', icon: 'ciclo', section: 'salud', route: '/cycle', installable: true, femaleOnly: true, alias: ['menstrual', 'periodo', 'regla', 'fase'],
     description: 'Calendario de tu ciclo: periodos, síntomas, fase del día y predicción.' },
-  { key: 'labs', label: 'Labs', icon: 'labs', section: 'salud', route: '/labs-guide', installable: false, alias: ['laboratorios', 'estudios', 'análisis', 'sangre'],
-    description: 'La guía de qué laboratorios pedir y cuándo, para leer en la app o llevar en PDF a tu consulta.' },
+  // MB-29 P5 (recorrido #21): "el botón está mal apuntado" — Labs es MIS
+  // laboratorios, no la guía. La guía sigue teniendo puerta (destino
+  // labs_guide en salud-puertas y fila dentro del visor).
+  { key: 'labs', label: 'Labs', icon: 'labs', section: 'salud', route: '/edad-atp/labs', installable: false, alias: ['laboratorios', 'estudios', 'análisis', 'sangre'],
+    description: 'Tus laboratorios: el último valor de cada parámetro con su tendencia y su gráfica en el tiempo. Con la puerta para subir estudios nuevos.' },
   { key: 'protocolos', label: 'Protocolos', icon: 'protocolos', section: 'salud', route: '/salud/intervenciones', installable: false, alias: ['intervenciones', 'plan', 'tratamiento'],
     description: 'Tu protocolo activo: las intervenciones que estás corriendo, qué completaste hoy y las sugeridas para ti.' },
 

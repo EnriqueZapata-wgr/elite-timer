@@ -162,6 +162,15 @@ function AtpLabsScreen() {
           <EliteText variant="caption" style={styles.uploadBtnText}>Subir estudio</EliteText>
         </Pressable>
 
+        {/* MB-29 P5 (#21): la guía deja de ser LA app y pasa a ser un destino
+            desde aquí (y sigue en la puerta MI EXPEDIENTE). */}
+        <Pressable onPress={() => { haptic.light(); router.push('/labs-guide'); }} style={styles.guideRow}>
+          <EliteText variant="caption" style={styles.guideText}>
+            ¿No sabes qué estudios pedir? Ve la guía
+          </EliteText>
+          <Ionicons name="chevron-forward" size={14} color={Colors.textMuted} />
+        </Pressable>
+
         {/* Filtros de orden (#13) */}
         <View style={styles.filterRow}>
           {(['panel', 'fecha', 'estado'] as SortMode[]).map((m) => (
@@ -346,6 +355,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   uploadBtnText: { color: '#000', fontFamily: Fonts.bold },
+  guideRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 8, paddingHorizontal: 2, marginBottom: Spacing.xs,
+  },
+  guideText: { color: Colors.textSecondary },
   filterRow: { flexDirection: 'row', gap: Spacing.xs, marginBottom: Spacing.xs },
   chip: { paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: Radius.md, backgroundColor: Colors.surface, borderWidth: 1, borderColor: '#1a1a1a' },
   chipActive: { backgroundColor: 'rgba(168,224,42,0.14)', borderColor: 'rgba(168,224,42,0.4)' },
